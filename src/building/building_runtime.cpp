@@ -1,5 +1,6 @@
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
+#include "building/local_workforce.h"
 #include "building/water_access_runtime.h"
 
 #include "assets/image_group_payload.h"
@@ -49,7 +50,10 @@ namespace {
 
 int graphics_definition_is_data_only(building_type type)
 {
-    return type == BUILDING_WHEAT_FARM || type == BUILDING_POTTERY_WORKSHOP;
+    return type == BUILDING_WHEAT_FARM ||
+        type == BUILDING_FRUIT_FARM ||
+        type == BUILDING_OLIVE_FARM ||
+        type == BUILDING_POTTERY_WORKSHOP;
 }
 
 void advance_runtime_monument_secondary_animation(building *b)
@@ -671,6 +675,12 @@ int building_runtime::default_spawn_delay() const
 
 void building_runtime::check_labor_problem()
 {
+    if (building_local_workforce_is_workforce_building(building_)) {
+        if (building_->num_workers <= 0) {
+            building_->show_on_problem_overlay = 2;
+        }
+        return;
+    }
     if (building_->houses_covered <= 0) {
         building_->show_on_problem_overlay = 2;
     }
@@ -724,16 +734,31 @@ void building_runtime::run_labor_phase(const building_type_registry_impl::LaborD
     }
 
     const building_type_registry_impl::LaborSeekerPolicy &labor_policy = labor.seeker_policy();
-    switch (labor_policy.mode) {
-        case building_type_registry_impl::LaborSeekerMode::SpawnIfBelow:
-            spawn_labor_seeker(road.x, road.y, labor_policy.min_houses);
+    if (labor_policy.method == building_type_registry_impl::LaborSeekerMethod::Workforce &&
+        !config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
+        const int trigger_workers = labor_policy.amount;
+        const int workforce_access = building_local_workforce_access_score(building_);
+        if (workforce_access < trigger_workers) {
+            if (!building_local_workforce_spawn_acquisition(building_, &road) && workforce_access > 0) {
+                building_local_workforce_spawn_validation(building_, &road);
+            }
+        } else {
+            building_local_workforce_spawn_validation(building_, &road);
+        }
+        return;
+    }
+
+    switch (labor_policy.method) {
+        case building_type_registry_impl::LaborSeekerMethod::HousesSpawnIfBelow:
+        case building_type_registry_impl::LaborSeekerMethod::Workforce:
+            spawn_labor_seeker(road.x, road.y, labor_policy.amount);
             break;
-        case building_type_registry_impl::LaborSeekerMode::GenerateIfBelow:
-            if (building_->houses_covered <= labor_policy.min_houses) {
+        case building_type_registry_impl::LaborSeekerMethod::HousesGenerateIfBelow:
+            if (building_->houses_covered <= labor_policy.amount) {
                 generate_labor_seeker(road.x, road.y);
             }
             break;
-        case building_type_registry_impl::LaborSeekerMode::None:
+        case building_type_registry_impl::LaborSeekerMethod::None:
         default:
             break;
     }
@@ -1592,6 +1617,7 @@ extern "C" void building_runtime_reset(void)
 extern "C" void building_runtime_initialize_city_graphics_cache(void)
 {
     building_runtime_reset();
+    building_local_workforce_initialize_city();
 
     const int total_buildings = building_count();
     for (int id = 1; id < total_buildings; id++) {

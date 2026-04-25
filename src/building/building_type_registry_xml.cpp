@@ -163,15 +163,21 @@ static RoadAccessMode parse_road_access_mode(const char *value)
     return RoadAccessMode::None;
 }
 
-static LaborSeekerMode parse_labor_seeker_mode(const char *value)
+static LaborSeekerMethod parse_labor_seeker_method(const char *value)
 {
-    if (value && strcmp(value, "spawn_if_below") == 0) {
-        return LaborSeekerMode::SpawnIfBelow;
+    if (value && strcmp(value, "none") == 0) {
+        return LaborSeekerMethod::None;
     }
-    if (value && strcmp(value, "generate_if_below") == 0) {
-        return LaborSeekerMode::GenerateIfBelow;
+    if (value && strcmp(value, "houses_spawn_if_below") == 0) {
+        return LaborSeekerMethod::HousesSpawnIfBelow;
     }
-    return LaborSeekerMode::None;
+    if (value && strcmp(value, "houses_generate_if_below") == 0) {
+        return LaborSeekerMethod::HousesGenerateIfBelow;
+    }
+    if (value && strcmp(value, "workforce") == 0) {
+        return LaborSeekerMethod::Workforce;
+    }
+    return LaborSeekerMethod::None;
 }
 
 static int parse_int_strict(const std::string &text, int *out_value)
@@ -1040,6 +1046,9 @@ static int parse_labor()
     g_parse_state.parsing_labor = 1;
     g_parse_state.saw_labor_employees = 0;
     g_parse_state.saw_labor_seeker = 0;
+    g_parse_state.saw_labor_seeker_method = 0;
+    g_parse_state.saw_labor_seeker_amount = 0;
+    g_parse_state.current_labor_seeker_policy = LaborSeekerPolicy();
     return 1;
 }
 
@@ -1093,36 +1102,101 @@ static int parse_labor_seeker()
         return 0;
     }
     if (g_parse_state.saw_labor_seeker) {
-        log_error("BuildingType labor contains duplicate seeker nodes", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (!xml_parser_has_attribute("mode")) {
-        log_error("BuildingType labor seeker is missing required attribute 'mode'", 0, 0);
+        log_error("BuildingType labor contains duplicate labor_seeker nodes", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    LaborSeekerPolicy labor_policy;
-    const char *labor_mode_text = xml_parser_get_attribute_string("mode");
-    labor_policy.mode = parse_labor_seeker_mode(labor_mode_text);
-    if (labor_policy.mode == LaborSeekerMode::None && strcmp(labor_mode_text, "none") != 0) {
-        log_error("Unsupported BuildingType labor seeker mode", labor_mode_text, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    if (xml_parser_has_attribute("min_houses")) {
-        labor_policy.min_houses = xml_parser_get_attribute_int("min_houses");
-    }
-    if (labor_policy.min_houses < 0) {
-        log_error("Unsupported BuildingType labor seeker min_houses", xml_parser_get_attribute_string("min_houses"), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    g_parse_state.definition->set_labor_seeker_policy(labor_policy);
     g_parse_state.saw_labor_seeker = 1;
+    g_parse_state.parsing_labor_seeker = 1;
+    g_parse_state.saw_labor_seeker_method = 0;
+    g_parse_state.saw_labor_seeker_amount = 0;
+    g_parse_state.current_labor_seeker_policy = LaborSeekerPolicy();
+    return 1;
+}
+
+static void finish_labor_seeker()
+{
+    if (!g_parse_state.parsing_labor_seeker) {
+        return;
+    }
+
+    if (!g_parse_state.saw_labor_seeker_amount) {
+        if (g_parse_state.definition->labor().has_employee_count()) {
+            g_parse_state.current_labor_seeker_policy.amount = g_parse_state.definition->labor().employee_count();
+            g_parse_state.saw_labor_seeker_amount = 1;
+        } else {
+            log_error("BuildingType labor_seeker amount is missing and labor has no employees count", 0, 0);
+            g_parse_state.error = 1;
+        }
+    }
+
+    if (!g_parse_state.saw_labor_seeker_method ||
+        !g_parse_state.saw_labor_seeker_amount) {
+        log_error("BuildingType labor_seeker is missing required child nodes", 0, 0);
+        g_parse_state.error = 1;
+    } else {
+        g_parse_state.definition->set_labor_seeker_policy(g_parse_state.current_labor_seeker_policy);
+    }
+    g_parse_state.parsing_labor_seeker = 0;
+}
+
+static int parse_labor_seeker_method_node()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_labor_seeker) {
+        log_error("Encountered labor_seeker method outside labor_seeker node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_labor_seeker_method) {
+        log_error("BuildingType labor_seeker contains duplicate method nodes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("value")) {
+        log_error("BuildingType labor_seeker method is missing required attribute 'value'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *method_text = xml_parser_get_attribute_string("value");
+    g_parse_state.current_labor_seeker_policy.method = parse_labor_seeker_method(method_text);
+    if (g_parse_state.current_labor_seeker_policy.method == LaborSeekerMethod::None &&
+        (!method_text || strcmp(method_text, "none") != 0)) {
+        log_error("Unsupported BuildingType labor seeker method", method_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_labor_seeker_method = 1;
+    return 1;
+}
+
+static int parse_labor_seeker_amount_node()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_labor_seeker) {
+        log_error("Encountered labor_seeker amount outside labor_seeker node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_labor_seeker_amount) {
+        log_error("BuildingType labor_seeker contains duplicate amount nodes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("value")) {
+        log_error("BuildingType labor_seeker amount is missing required attribute 'value'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int amount = xml_parser_get_attribute_int("value");
+    if (amount < 0) {
+        log_error("Unsupported BuildingType labor seeker amount", xml_parser_get_attribute_string("value"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.current_labor_seeker_policy.amount = amount;
+    g_parse_state.saw_labor_seeker_amount = 1;
     return 1;
 }
 
@@ -1455,7 +1529,9 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "water_access", parse_state_water_access, nullptr, "state", nullptr },
     { "labor", parse_labor, finish_labor, "building", nullptr },
     { "employees", parse_labor_employees, nullptr, "labor", nullptr },
-    { "seeker", parse_labor_seeker, nullptr, "labor", nullptr },
+    { "labor_seeker", parse_labor_seeker, finish_labor_seeker, "labor", nullptr },
+    { "method", parse_labor_seeker_method_node, nullptr, "labor_seeker", nullptr },
+    { "amount", parse_labor_seeker_amount_node, nullptr, "labor_seeker", nullptr },
     { "storages", parse_storages, finish_storages, "building", nullptr },
     { "storage", parse_storage_reference, nullptr, "storages", nullptr },
     { "production_methods", parse_production_methods, finish_production_methods, "building", nullptr },

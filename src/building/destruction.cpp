@@ -1,7 +1,9 @@
 #include "destruction.h"
 
+extern "C" {
 #include "building/data_transfer.h"
 #include "building/image.h"
+#include "building/local_workforce.h"
 #include "city/message.h"
 #include "city/population.h"
 #include "city/ratings.h"
@@ -19,6 +21,7 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 #include "sound/effect.h"
+}
 
 #include <string.h>
 
@@ -33,6 +36,7 @@ static void set_rubble_grid_info_for_all_parts(building *b);
 static void destroy_without_rubble(building *b)
 {
     game_undo_disable();
+    building_local_workforce_remove_building(b);
     if (b->house_size && b->house_population) {
         city_population_remove_home_removed(b->house_population);
     }
@@ -48,6 +52,7 @@ static void destroy_without_rubble(building *b)
 static void destroy_on_fire(building *b, int plagued)
 {
     game_undo_disable();
+    building_local_workforce_remove_building(b);
     b->fire_risk = 0;
     b->damage_risk = 0;
     if (b->house_size && b->house_population) {
@@ -94,7 +99,7 @@ static void destroy_on_fire(building *b, int plagued)
     b->fire_proof = 1;
     b->size = 1;
     b->has_plague = plagued;
-    if (!building_can_repair_type(og_type)) {
+    if (!building_can_repair_type(static_cast<building_type>(og_type))) {
         memset(&b->data, 0, sizeof(b->data)); // removes all data - don't do it for repairable buildings
     }
     map_building_set_rubble_grid_building_id(og_grid_offset, b->id, og_size);
@@ -200,6 +205,7 @@ static void destroy_linked_parts(building *b, int destruction_method, int plague
 
 void building_destroy_by_collapse(building *b)
 {
+    building_local_workforce_remove_building(b);
     b->state = BUILDING_STATE_RUBBLE;
     if (b->type == BUILDING_TOWER) {
         figure_kill_tower_sentries_in_building(b);
@@ -219,6 +225,7 @@ void building_destroy_by_fire(building *b)
 
 void building_destroy_by_earthquake(building *b)
 {
+    building_local_workforce_remove_building(b);
     int grid_offset = b->grid_offset; // save before destroying building
     int size = b->size;
     b->state = BUILDING_STATE_DELETED_BY_GAME;

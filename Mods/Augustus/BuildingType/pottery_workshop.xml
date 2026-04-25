@@ -8,6 +8,9 @@
     </graphics>
     <labor>
         <employees count="10" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+        </labor_seeker>
     </labor>
     <storages>
         <storage path="clay_input_pottery_workshop" />

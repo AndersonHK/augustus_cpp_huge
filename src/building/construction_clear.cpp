@@ -26,6 +26,8 @@ extern "C" {
 #include "window/popup_dialog.h"
 }
 
+#include "building/local_workforce.h"
+
 #include <string.h>
 
 static struct {
@@ -141,6 +143,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     items_placed++;
                     game_undo_add_building(b);
                 }
+                building_local_workforce_remove_building(b);
                 b->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 b->is_deleted = 1;
                 building *space = b;
@@ -150,6 +153,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     }
                     space = building_get(space->prev_part_building_id);
                     game_undo_add_building(space);
+                    building_local_workforce_remove_building(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
                 space = b;
@@ -159,6 +163,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                         break;
                     }
                     game_undo_add_building(space);
+                    building_local_workforce_remove_building(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
             } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {

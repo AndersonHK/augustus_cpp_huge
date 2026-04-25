@@ -1,7 +1,11 @@
-#include "building/building.h"
-
 #ifndef BUILDING_HOUSE_POPULATION_H
 #define BUILDING_HOUSE_POPULATION_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "building/building.h"
 
 /**
  * Add people to the houses in the city, use for births
@@ -47,5 +51,9 @@ int house_population_create_immigrants(int num_people);
 int house_population_create_emigrants(int num_people);
 
 int house_population_get_capacity(building *house);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // BUILDING_HOUSE_POPULATION_H

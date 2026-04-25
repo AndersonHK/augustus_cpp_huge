@@ -165,6 +165,8 @@ Pattern:
 - `src/figure/figure_runtime.cpp`
   - native service, engineer, and prefect controllers
   - smart-service direction selection
+- `src/building/local_workforce.h/.cpp`
+  - local workforce labor-seeker targeting, house/workplace allocation table, and save payload
 - `src/figure/movement.cpp`
   - legacy roaming loop and native pathing hook
 - `src/figuretype/maintenance.cpp`

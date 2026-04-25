@@ -355,6 +355,9 @@ static PathingMode parse_pathing_mode_name(const char *name)
     if (text_equals(name, "smart_service")) {
         return PathingMode::SmartService;
     }
+    if (text_equals(name, "nearest_unemployed")) {
+        return PathingMode::NearestUnemployed;
+    }
     return PathingMode::VanillaRoaming;
 }
 
@@ -362,7 +365,8 @@ static bool is_known_pathing_mode_name(const char *name)
 {
     return name &&
         (text_equals(name, "vanilla_roaming") ||
-            text_equals(name, "smart_service"));
+            text_equals(name, "smart_service") ||
+            text_equals(name, "nearest_unemployed"));
 }
 
 static road_service_effect parse_service_effect_name(const char *name)
@@ -700,6 +704,14 @@ static int parse_pathing_node()
             !is_road_only_terrain_usage(g_parse_state.definition->movement_profile().terrain_usage)) {
             g_parse_state.error = true;
             error_context_report_error("FigureType smart_service pathing requires road-only movement",
+                g_parse_state.definition->attr());
+            return 0;
+        }
+    } else if (pathing_policy.mode == PathingMode::NearestUnemployed) {
+        if (!g_parse_state.saw_movement ||
+            !is_road_only_terrain_usage(g_parse_state.definition->movement_profile().terrain_usage)) {
+            g_parse_state.error = true;
+            error_context_report_error("FigureType nearest_unemployed pathing requires road-only movement",
                 g_parse_state.definition->attr());
             return 0;
         }

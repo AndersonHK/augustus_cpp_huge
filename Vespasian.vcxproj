@@ -39,6 +39,7 @@
     <ClCompile Include="src\building\building_type.cpp" />
     <ClCompile Include="src\building\building_type_registry.cpp" />
     <ClCompile Include="src\building\building_type_registry_xml.cpp" />
+    <ClCompile Include="src\building\local_workforce.cpp" />
     <ClCompile Include="src\building\water_access_runtime.cpp" />
     <ClCompile Include="src\building\caravanserai.c" />
     <ClCompile Include="src\building\clone.c" />
@@ -50,7 +51,7 @@
     <ClCompile Include="src\building\construction_warning.c" />
     <ClCompile Include="src\building\count.c" />
     <ClCompile Include="src\building\data_transfer.c" />
-    <ClCompile Include="src\building\destruction.c" />
+    <ClCompile Include="src\building\destruction.cpp" />
     <ClCompile Include="src\building\distribution.c" />
     <ClCompile Include="src\building\dock.c" />
     <ClCompile Include="src\building\entertainment.c" />
@@ -59,7 +60,7 @@
     <ClCompile Include="src\building\granary.c" />
     <ClCompile Include="src\building\house.c" />
     <ClCompile Include="src\building\house_evolution.c" />
-    <ClCompile Include="src\building\house_population.c" />
+    <ClCompile Include="src\building\house_population.cpp" />
     <ClCompile Include="src\building\house_service.c" />
     <ClCompile Include="src\building\image.c" />
     <ClCompile Include="src\building\industry.cpp" />
@@ -99,7 +100,7 @@
     <ClCompile Include="src\city\gods.c" />
     <ClCompile Include="src\city\health.c" />
     <ClCompile Include="src\city\houses.c" />
-    <ClCompile Include="src\city\labor.c" />
+    <ClCompile Include="src\city\labor.cpp" />
     <ClCompile Include="src\city\map.c" />
     <ClCompile Include="src\city\message.c" />
     <ClCompile Include="src\city\migration.c" />
@@ -196,7 +197,7 @@
     <ClCompile Include="src\figure\roamer_preview.c" />
     <ClCompile Include="src\figure\route.c" />
     <ClCompile Include="src\figure\figure_runtime.cpp" />
-    <ClCompile Include="src\figure\service.c" />
+    <ClCompile Include="src\figure\service.cpp" />
     <ClCompile Include="src\figure\sound.c" />
     <ClCompile Include="src\figure\trader.c" />
     <ClCompile Include="src\figure\figure_type_registry.cpp" />
@@ -544,6 +545,7 @@
     <ClInclude Include="src\building\building_type_api.h" />
     <ClInclude Include="src\building\building_type_registry.h" />
     <ClInclude Include="src\building\building_type_registry_internal.h" />
+    <ClInclude Include="src\building\local_workforce.h" />
     <ClInclude Include="src\building\caravanserai.h" />
     <ClInclude Include="src\building\clone.h" />
     <ClInclude Include="src\building\connectable.h" />

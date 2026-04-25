@@ -6,6 +6,7 @@
 
 extern "C" {
 #include "building/list.h"
+#include "building/local_workforce.h"
 #include "building/maintenance.h"
 #include "building/building.h"
 #include "city/figures.h"
@@ -22,6 +23,7 @@ extern "C" {
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/road_access.h"
+#include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "sound/effect.h"
 }
@@ -209,6 +211,12 @@ void record_religion_owner_service_effects(const figure *f)
     map_road_service_history_record(effect, f->grid_offset);
 }
 
+bool is_road_history_tile(int grid_offset)
+{
+    return map_terrain_is(grid_offset, TERRAIN_ROAD) ||
+        map_routing_citizen_is_road(grid_offset);
+}
+
 class RoamingServiceFigure : public NativeFigure {
 public:
     using NativeFigure::NativeFigure;
@@ -242,6 +250,23 @@ public:
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, graphics.max_image_offset);
+
+        if (definition()->pathing_policy().mode == figure_type_registry_impl::PathingMode::NearestUnemployed &&
+            building_local_workforce_labor_seeker_is_workforce(f)) {
+            if (!building_local_workforce_prepare_labor_seeker_target(f)) {
+                building_local_workforce_cancel_labor_seeker(f);
+            } else {
+                f->is_ghost = 0;
+                figure_movement_move_ticks(f, movement.roam_ticks);
+                if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+                    building_local_workforce_labor_seeker_arrived(f);
+                } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
+                    building_local_workforce_labor_seeker_failed(f);
+                }
+            }
+            figure_image_update(f, image_group(graphics.image_group));
+            return 1;
+        }
 
         switch (f->action_state) {
             case FIGURE_ACTION_150_ATTACK:
@@ -952,7 +977,7 @@ extern "C" void figure_runtime_record_road_service_visit(figure *f)
 {
     // Recording is pathing telemetry only. Coverage/risk systems still use the
     // existing service callbacks; this history only informs future road choices.
-    if (!f || !map_terrain_is(f->grid_offset, TERRAIN_ROAD)) {
+    if (!f || !is_road_history_tile(f->grid_offset)) {
         return;
     }
 

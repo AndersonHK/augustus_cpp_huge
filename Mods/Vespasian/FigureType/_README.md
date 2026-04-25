@@ -51,7 +51,7 @@ Current supported `<movement>` attributes:
 
 Current supported `<pathing>` attributes:
 
-- `mode="vanilla_roaming|smart_service"`
+- `mode="vanilla_roaming|smart_service|nearest_unemployed"`
 - `effect="damage_risk|fire_risk|barber|bathhouse|school|academy|library|labor|religion_ceres|religion_neptune|religion_mercury|religion_mars|religion_venus|religion_pantheon|religion_owner"`
 
 Current supported `<graphics>` attributes:
@@ -66,7 +66,9 @@ Current engine behavior:
 - If a native figure hits an unsupported action state, the runtime can decline and the legacy action path will still run.
 - `vanilla_roaming` preserves the existing random roaming policy.
 - `smart_service` chooses the least recently serviced road branch at intersections and requires road movement plus an effect.
+- `nearest_unemployed` targets the closest reachable house with local unemployed residents unless the figure was created with an explicit destination.
 - `religion_owner` is a smart-service effect resolver for priests. The runtime derives the concrete god effect from the owning temple; Pantheon priests record all five god effects plus the Pantheon effect.
+- Labor seekers derive their service behavior from the owning BuildingType labor seeker policy. `method="none"` has no seeker behavior, `method="houses_spawn_if_below"` and `method="houses_generate_if_below"` use housing coverage, and `method="workforce"` uses `nearest_unemployed` to target the closest reachable unemployed house within the labor seeker's `max_roam_length` and uses explicit-target validation trips to release unreachable assigned sources.
 - Smart service visit history is pathing telemetry only; building coverage and risk resets still use the normal service callbacks.
 - Road service history is saved separately from figures. Old saves start with zeroed history and a crash-context warning.
 

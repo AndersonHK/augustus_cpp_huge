@@ -1,13 +1,16 @@
 #include "house.h"
 
 #include "building/building.h"
+#include "building/local_workforce.h"
 #include "building/properties.h"
 #include "city/constants.h"
 #include "city/finance.h"
 #include "city/sentiment.h"
 #include "core/calc.h"
+#include "core/image.h"
 #include "core/string.h"
 #include "game/resource.h"
+#include "graphics/font.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
@@ -48,19 +51,33 @@ static void draw_population_info(building_info_context *c, int y_offset)
         icon++;
     }
 
-    image_draw(image_group(GROUP_CONTEXT_ICONS) + icon, c->x_offset + 34, y_offset + 4, COLOR_MASK_NONE, SCALE_NONE);
-    int width = text_draw_number(b->house_population, '@', " ", c->x_offset + 50, y_offset + 14, FONT_NORMAL_BROWN, 0);
-    width += lang_text_draw(127, 20, c->x_offset + 50 + width, y_offset + 14, FONT_NORMAL_BROWN);
+    const int image_id = image_group(GROUP_CONTEXT_ICONS) + icon;
+    const image *icon_image = image_get(image_id);
+    const int icon_x = c->x_offset + 34;
+    const int icon_y = y_offset + 4;
+    const int text_x = icon_x + icon_image->width + 8;
+    const int line_height = font_definition_for(FONT_NORMAL_BROWN)->line_height;
+    const int line_padding = 4;
+    const int text_block_height = 2 * line_height + line_padding;
+    const int text_y = icon_y + (icon_image->height - text_block_height) / 2;
+    const int workers_text_y = text_y + line_height + line_padding;
+
+    image_draw(image_id, icon_x, icon_y, COLOR_MASK_NONE, SCALE_NONE);
+    int width = text_draw_number(b->house_population, '@', " ", text_x, text_y, FONT_NORMAL_BROWN, 0);
+    width += lang_text_draw(127, 20, text_x + width, text_y, FONT_NORMAL_BROWN);
 
     if (b->house_population_room < 0) {
         width += text_draw_number(-b->house_population_room, '@', " ",
-            c->x_offset + 50 + width, y_offset + 14, FONT_NORMAL_BROWN, 0);
-        lang_text_draw(127, 21, c->x_offset + 50 + width, y_offset + 14, FONT_NORMAL_BROWN);
+            text_x + width, text_y, FONT_NORMAL_BROWN, 0);
+        width += lang_text_draw(127, 21, text_x + width, text_y, FONT_NORMAL_BROWN);
     } else if (b->house_population_room > 0 && !b->has_plague) {
-        width += lang_text_draw(127, 22, c->x_offset + 50 + width, y_offset + 14, FONT_NORMAL_BROWN);
-        text_draw_number(b->house_population_room, '@', " ",
-            c->x_offset + 50 + width, y_offset + 14, FONT_NORMAL_BROWN, 0);
+        width += lang_text_draw(127, 22, text_x + width, text_y, FONT_NORMAL_BROWN);
+        width += text_draw_number(b->house_population_room, '@', " ",
+            text_x + width, text_y, FONT_NORMAL_BROWN, 0);
     }
+    width = text_draw_number(
+        building_local_workforce_house_available_workers(b), '@', " ", text_x, workers_text_y, FONT_NORMAL_BROWN, 0);
+    text_draw(string_from_ascii("available workers"), text_x + width, workers_text_y, FONT_NORMAL_BROWN, 0);
 }
 
 static void draw_tax_info(building_info_context *c, int y_offset)

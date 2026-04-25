@@ -13,5 +13,8 @@
     </graphics>
     <labor>
         <employees count="5" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
     </labor>
 </building>

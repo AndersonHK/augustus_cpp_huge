@@ -67,10 +67,11 @@ enum class RoadAccessMode {
     Normal
 };
 
-enum class LaborSeekerMode {
+enum class LaborSeekerMethod {
     None,
-    SpawnIfBelow,
-    GenerateIfBelow
+    HousesSpawnIfBelow,
+    HousesGenerateIfBelow,
+    Workforce
 };
 
 enum class GraphicTiming {
@@ -115,8 +116,8 @@ enum class GraphicsConditionType {
 };
 
 struct LaborSeekerPolicy {
-    LaborSeekerMode mode = LaborSeekerMode::None;
-    int min_houses = 0;
+    LaborSeekerMethod method = LaborSeekerMethod::None;
+    int amount = 0;
 };
 
 struct DelayBand {

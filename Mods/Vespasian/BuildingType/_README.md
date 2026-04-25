@@ -78,7 +78,32 @@ Current supported graphics conditions:
 Current supported `<labor>` child nodes:
 
 - `<employees count="N" />`
-- `<seeker mode="none|spawn_if_below|generate_if_below" min_houses="N" />`
+- `<labor_seeker> ... </labor_seeker>`
+
+Current supported `<labor_seeker>` child nodes:
+
+- `<method value="none|houses_spawn_if_below|houses_generate_if_below|workforce" />`
+- `<amount value="N" />`
+
+`<method>` is required. `<amount>` is optional and defaults to the
+building's `<employees count="N" />` value when omitted. If a labor seeker has no
+`<amount>` node, the enclosing `<labor>` node must also define `<employees>`.
+
+`method="houses_spawn_if_below"` preserves the normal vanilla labor-seeker path:
+the walker counts nearby housing into `houses_covered`, then city-wide labor
+allocation fills `num_workers`. Use an explicit `<amount>` when the coverage
+threshold should be different from the employee count.
+
+`method="houses_generate_if_below"` preserves the legacy direct-generation
+exception used by vanilla entertainment buildings.
+
+`method="none"` explicitly marks a labor-using building as having no labor
+seeker policy. It is used for global-access or otherwise legacy-owned labor.
+
+`method="workforce"` uses local workforce acquisition. The building is excluded
+from city-wide labor category allocation while global labor is disabled, and its
+labor seeker targets nearby unemployed house residents instead of counting house
+coverage. Global labor overrides workforce and uses city-wide labor allocation.
 
 Current supported `<storages>` child nodes:
 

@@ -55,6 +55,8 @@ typedef struct building {
     short houses_covered;
     short percentage_houses_covered;
     short house_population;
+    short local_workforce_assigned;
+    short local_workforce_unemployed;
     short house_population_room;
     short distance_from_entry;
     short house_highest_population;
@@ -66,6 +68,7 @@ typedef struct building {
     unsigned int immigrant_figure_id;
     unsigned int figure_id4; // tower ballista, burning ruin prefect, doctor healing plague
     unsigned char figure_spawn_delay;
+    unsigned char local_workforce_validation_delay;
     unsigned char days_since_offering;
     unsigned char figure_roam_direction;
     unsigned char has_water_access;

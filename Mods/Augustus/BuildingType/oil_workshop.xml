@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="oil_workshop">
+    <graphics>
+        <default>
+            <path value="Industry\Oil_Workshop" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="10" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+        </labor_seeker>
+    </labor>
+    <storages>
+        <storage path="olives_input_oil_workshop" />
+        <storage path="oil_output_oil_workshop" />
+    </storages>
+    <production_methods>
+        <production_method path="oil_workshop_basic" />
+    </production_methods>
+</building>
