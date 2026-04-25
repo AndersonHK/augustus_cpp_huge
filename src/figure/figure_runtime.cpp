@@ -253,15 +253,20 @@ public:
 
         if (definition()->pathing_policy().mode == figure_type_registry_impl::PathingMode::NearestUnemployed &&
             building_local_workforce_labor_seeker_is_workforce(f)) {
-            if (!building_local_workforce_prepare_labor_seeker_target(f)) {
+            f->is_ghost = 0;
+            f->roam_length++;
+            if (f->roam_length >= movement.max_roam_length) {
                 building_local_workforce_cancel_labor_seeker(f);
             } else {
-                f->is_ghost = 0;
-                figure_movement_move_ticks(f, movement.roam_ticks);
-                if (f->direction == DIR_FIGURE_AT_DESTINATION) {
-                    building_local_workforce_labor_seeker_arrived(f);
-                } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
-                    building_local_workforce_labor_seeker_failed(f);
+                if (!building_local_workforce_prepare_labor_seeker_target(f)) {
+                    building_local_workforce_cancel_labor_seeker(f);
+                } else {
+                    figure_movement_move_ticks(f, movement.roam_ticks);
+                    if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+                        building_local_workforce_labor_seeker_arrived(f);
+                    } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
+                        building_local_workforce_labor_seeker_failed(f);
+                    }
                 }
             }
             figure_image_update(f, image_group(graphics.image_group));

@@ -160,6 +160,10 @@ Pattern:
   - XML contract for native walker definitions
 - `docs/walker_pathing_runtime.md`
   - runtime flow, road service history, and save compatibility notes
+- `docs/tile_scale_and_walker_timescale.md`
+  - approximate tile-side scale, `max_roam_length` to meters/ticks conversion, and real/game timescale comparison
+- `docs/preindustrial_walking_service_ranges.md`
+  - historical walking-city calibration for walker `max_roam_length` tiers
 - `src/figure/figure_type_registry.cpp`
   - selected-mod/Augustus/Julius FigureType XML precedence and validation
 - `src/figure/figure_runtime.cpp`
@@ -169,6 +173,7 @@ Pattern:
   - local workforce labor-seeker targeting, house/workplace allocation table, and save payload
 - `src/figure/movement.cpp`
   - legacy roaming loop and native pathing hook
+- Temporary Vespasian tuning: FigureType `max_roam_length` should be roughly 50% larger than Augustus until walker range tuning is revisited.
 - `src/figuretype/maintenance.cpp`
   - Worker maintenance action plus retired Engineer/Prefect action-table guards
 - `src/map/road_service_history.cpp`

@@ -75,4 +75,6 @@ Current engine behavior:
 Related implementation notes:
 
 - `docs/walker_pathing_runtime.md` explains runtime flow, save compatibility, and effect-id rules.
+- `docs/tile_scale_and_walker_timescale.md` converts `max_roam_length` into approximate tiles, meters, game days, and wall-clock time.
+- `docs/preindustrial_walking_service_ranges.md` gives historical walking-city guidance for `max_roam_length` tuning.
 - `codex_augustus_repo_map_memory.md` indexes the native walker chokepoints for future sessions.

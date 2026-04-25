@@ -31,6 +31,15 @@ is missing.
 house with locally unemployed residents unless the figure already has an explicit
 destination.
 
+For tile-scale and timescale conversion, read
+`docs/tile_scale_and_walker_timescale.md`. `max_roam_length` is a tick budget,
+not a literal tile count; at normal road speed, physical tiles before the limit
+are `max_roam_length * roam_ticks / 15`. For historical tuning context around
+walking-city service ranges, read `docs/preindustrial_walking_service_ranges.md`.
+Treat `max_roam_length` as a relative tolerance tier: short
+child/frequent-service trips, ordinary adult neighborhood service trips, and
+long public-safety patrols should not all share the same range.
+
 ## Runtime Contract
 
 The legacy roaming loop remains the source of tile movement. Native runtime code
@@ -65,6 +74,12 @@ may validate existing worker sources. Both searches cap candidates at the loaded
 validation seeker cannot path to its assigned source, that source allocation is
 released. Local workforce allocations are labor-access records only; actual
 `num_workers` still comes from the city-wide labor pool.
+
+Temporary tuning decision: Vespasian FigureType walkers should use a
+`max_roam_length` roughly 50% larger than their Augustus counterparts until
+walker ranges are deliberately tuned. Current examples are ordinary adult
+service walkers at Augustus `384` / Vespasian `576`, school children at
+`192` / `288`, and engineer/prefect patrols at `640` / `960`.
 
 Smart service history records any tile the citizen routing layer treats as road,
 including traversable granary interior road tiles that may not carry the raw
@@ -148,6 +163,9 @@ residents, after which normal city labor allocation supplies `num_workers`.
 
 Start new sessions with the four core Codex files, then read this file for walker
 runtime work and `Mods/Vespasian/FigureType/_README.md` for XML details.
+Use `docs/tile_scale_and_walker_timescale.md` and
+`docs/preindustrial_walking_service_ranges.md` when tuning `max_roam_length`
+values for figures/walkers.
 Renderer or overlay work that visualizes recency should also read
 `../codex_augustus_repo_map_memory.md` for renderer/widget chokepoints before
 touching `src/widget/city_with_overlay.cpp`.
