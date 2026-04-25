@@ -24,7 +24,8 @@ enum class NativeClassId {
 
 enum class PathingMode {
     VanillaRoaming,
-    SmartService
+    SmartService,
+    NearestUnemployed
 };
 
 enum class FigureSlot {

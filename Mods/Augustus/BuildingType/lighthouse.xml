@@ -14,6 +14,9 @@
 
     <labor>
         <employees count="20" />
-        <seeker mode="spawn_if_below" min_houses="100" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="100" />
+        </labor_seeker>
     </labor>
 </building>

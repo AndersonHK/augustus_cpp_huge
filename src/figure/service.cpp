@@ -1,5 +1,6 @@
 #include "service.h"
 
+extern "C" {
 #include "building/building.h"
 #include "building/distribution.h"
 #include "building/monument.h"
@@ -14,9 +15,15 @@
 #include "game/time.h"
 #include "map/building.h"
 #include "map/grid.h"
+}
 
 #define MAX_COVERAGE 96
 #define TOURISM_COOLDOWN 96
+
+static resource_type next_resource(resource_type resource)
+{
+    return static_cast<resource_type>(resource + 1);
+}
 
 static int provide_culture(int x, int y, void (*callback)(building *))
 {
@@ -316,7 +323,7 @@ static void prefect_coverage(building *b, int *min_happiness_seen)
 static void tax_collector_coverage(building *b, int *max_tax_multiplier)
 {
     if (b->house_size && b->house_population > 0) {
-        int tax_multiplier = model_get_house(b->subtype.house_level)->tax_multiplier;
+        int tax_multiplier = model_get_house(static_cast<house_level>(b->subtype.house_level))->tax_multiplier;
         if (tax_multiplier > *max_tax_multiplier) {
             *max_tax_multiplier = tax_multiplier;
         }
@@ -343,9 +350,9 @@ static void distribute_good(building *b, building *market, int stock_wanted, res
 
 static void collect_offerings_from_house(building *house, building *temple)
 {
-    // offerings are generated, not removed from house stores    
+    // offerings are generated, not removed from house stores
     if (house->days_since_offering >= MARS_OFFERING_FREQUENCY) {
-        for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
+        for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r = next_resource(r)) {
             if (!resource_is_inventory(r)) {
                 continue;
             }
@@ -372,7 +379,7 @@ static void distribute_market_resources(building *b, building *market)
     }
     int max_food_stocks = 4 * b->house_highest_population;
     int food_types_stored_max = 0;
-    for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
+    for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r = next_resource(r)) {
         if (!resource_is_inventory(r)) {
             continue;
         }
@@ -380,9 +387,9 @@ static void distribute_market_resources(building *b, building *market)
             food_types_stored_max++;
         }
     }
-    const model_house *model = model_get_house(level);
+    const model_house *model = model_get_house(static_cast<house_level>(level));
     if (model->food_types) {
-        for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
+        for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r = next_resource(r)) {
             if (!resource_is_inventory(r) || b->resources[r] >= max_food_stocks ||
                 !building_distribution_is_good_accepted(market, r)) {
                 continue;
@@ -564,6 +571,7 @@ int figure_service_provide_coverage(figure *f)
         case FIGURE_DEPOT_CART_PUSHER:
         case FIGURE_NATIVE_TRADER:
         case FIGURE_LIGHTHOUSE_SUPPLIER:
+        {
             b = building_get(f->building_id);
             building *dest_b = building_get(f->destination_building_id);
 
@@ -571,6 +579,7 @@ int figure_service_provide_coverage(figure *f)
                 provide_sickness(x, y, cart_pusher_sickness, dest_b->sickness_level);
             }
             break;
+        }
         case FIGURE_MISSIONARY:
             houses_serviced = provide_missionary_coverage(x, y);
             break;

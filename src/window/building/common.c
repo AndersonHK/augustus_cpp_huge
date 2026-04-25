@@ -2,6 +2,7 @@
 
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/local_workforce.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/labor.h"
@@ -66,22 +67,29 @@ int window_building_get_vertical_offset(building_info_context *c, int new_window
 static int get_employment_info_text(const building *b, int consider_house_covering)
 {
     int text_id;
-    if (b->num_workers >= building_get_laborers(b->type)) {
+    int local_workforce = building_local_workforce_is_workforce_building(b);
+    int labor_access = local_workforce ? building_local_workforce_access_score(b) : b->houses_covered;
+    int required_workers = building_get_laborers(b->type);
+
+    if (b->num_workers >= required_workers) {
         text_id = 0;
     } else if (city_population() <= 0) {
         text_id = 16; // no people in city
     } else if (!consider_house_covering) {
         text_id = 19;
-    } else if (b->houses_covered <= 0) {
+    } else if (labor_access <= 0) {
         text_id = 17; // no employees nearby
-    } else if (b->houses_covered < 40) {
+    } else if ((local_workforce && labor_access < required_workers) ||
+        (!local_workforce && labor_access < 40)) {
         text_id = 20; // poor access to employees
     } else if (city_labor_category(b->labor_category)->workers_allocated <= 0) {
         text_id = 18; // no people allocated
     } else {
         text_id = 19; // too few people allocated
     }
-    if (!text_id && consider_house_covering && b->houses_covered < 40) {
+    if (!text_id && consider_house_covering &&
+        ((local_workforce && labor_access < required_workers) ||
+        (!local_workforce && labor_access < 40))) {
         text_id = 20; // poor access to employees
     }
     return text_id;
@@ -205,9 +213,10 @@ static void window_building_draw_monument_resources_needed(building_info_context
             int resource_delivered_amount = resource_needed_amount - b->resources[r];
             image_draw(resource_get_data(r)->image.icon, c->x_offset + 32, c->y_offset + y_offset + 10,
                 COLOR_MASK_NONE, SCALE_NONE);
-            // Keep delivered/needed in measured columns; the resource label starts after the full pair.
-            int width = text_draw_number_pair(resource_delivered_amount, resource_needed_amount, '@', "/",
-                c->x_offset + 64, c->y_offset + y_offset + 15, 0, 0, 0, FONT_NORMAL_WHITE, 0);
+            int width = text_draw_number(resource_delivered_amount, '@', "/",
+                c->x_offset + 64, c->y_offset + y_offset + 15, FONT_NORMAL_WHITE, 0);
+            width += text_draw_number(resource_needed_amount, '@', "",
+                c->x_offset + 64 + width, c->y_offset + y_offset + 15, FONT_NORMAL_WHITE, 0);
             text_draw(resource_get_data(r)->text, c->x_offset + 68 + width, c->y_offset + y_offset + 15,
                 FONT_NORMAL_WHITE, 0);
             y_offset += 20;

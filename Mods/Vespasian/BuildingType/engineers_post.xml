@@ -8,7 +8,9 @@
     </graphics>
     <labor>
         <employees count="5" />
-        <seeker mode="spawn_if_below" min_houses="100" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:0,75:1,50:3,25:7,1:15" existing_figure="engineer">
         <spawn mode="service_roamer" spawn_figure="engineer"

@@ -46,7 +46,10 @@
     <!-- Optional labor phase -->
     <labor>
         <employees count="10" />
-        <seeker mode="spawn_if_below" min_houses="50" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="50" />
+        </labor_seeker>
     </labor>
 
     <!-- Optional native storage/production references -->

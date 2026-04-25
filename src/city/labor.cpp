@@ -1,5 +1,8 @@
 #include "labor.h"
 
+#include "building/local_workforce.h"
+
+extern "C" {
 #include "building/building.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -13,6 +16,9 @@
 #include "game/time.h"
 #include "scenario/data.h"
 #include "scenario/property.h"
+}
+
+#include <array>
 
 typedef enum {
     LABOR_CATEGORY_NONE = 0,
@@ -28,104 +34,96 @@ typedef enum {
     LABOR_CATEGORY_MAX
 } labor_category;
 
-static const int CATEGORY_FOR_BUILDING_TYPE[BUILDING_TYPE_MAX] = {
-    [BUILDING_OLIVE_FARM]         = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_VINES_FARM]         = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_MARKET]             = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_WAREHOUSE]          = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_DOCK]               = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_MARBLE_QUARRY]      = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_IRON_MINE]          = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_TIMBER_YARD]        = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_CLAY_PIT]           = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_WINE_WORKSHOP]      = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_OIL_WORKSHOP]       = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_WEAPONS_WORKSHOP]   = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_FURNITURE_WORKSHOP] = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_POTTERY_WORKSHOP]   = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_GOLD_MINE]          = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_CITY_MINT]          = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_SAND_PIT]           = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_STONE_QUARRY]       = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_CONCRETE_MAKER]     = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_BRICKWORKS]         = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-    [BUILDING_DEPOT]              = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-
-    [BUILDING_DISTRIBUTION_CENTER_UNUSED] = LABOR_CATEGORY_INDUSTRY_COMMERCE,
-
-    [BUILDING_GRANARY]        = LABOR_CATEGORY_FOOD_PRODUCTION,
-    [BUILDING_SHIPYARD]       = LABOR_CATEGORY_FOOD_PRODUCTION,
-    [BUILDING_WHEAT_FARM]     = LABOR_CATEGORY_FOOD_PRODUCTION,
-    [BUILDING_VEGETABLE_FARM] = LABOR_CATEGORY_FOOD_PRODUCTION,
-    [BUILDING_FRUIT_FARM]     = LABOR_CATEGORY_FOOD_PRODUCTION,
-    [BUILDING_WHARF]          = LABOR_CATEGORY_FOOD_PRODUCTION,
-    [BUILDING_PIG_FARM]       = LABOR_CATEGORY_FOOD_PRODUCTION,
-
-    [BUILDING_ENGINEERS_POST]  = LABOR_CATEGORY_ENGINEERING,
-    [BUILDING_WORKCAMP]        = LABOR_CATEGORY_ENGINEERING,
-    [BUILDING_ARCHITECT_GUILD] = LABOR_CATEGORY_ENGINEERING,
-
-    [BUILDING_FOUNTAIN]   = LABOR_CATEGORY_WATER,
-
-    [BUILDING_PREFECTURE] = LABOR_CATEGORY_PREFECTURES,
-
-    [BUILDING_FORT_ARCHERS]             = LABOR_CATEGORY_MILITARY,
-    [BUILDING_FORT_LEGIONARIES]         = LABOR_CATEGORY_MILITARY,
-    [BUILDING_FORT_JAVELIN]             = LABOR_CATEGORY_MILITARY,
-    [BUILDING_FORT_MOUNTED]             = LABOR_CATEGORY_MILITARY,
-    [BUILDING_FORT_AUXILIA_INFANTRY]    = LABOR_CATEGORY_MILITARY,
-    [BUILDING_GATEHOUSE]        = LABOR_CATEGORY_MILITARY,
-    [BUILDING_TOWER]            = LABOR_CATEGORY_MILITARY,
-    [BUILDING_MILITARY_ACADEMY] = LABOR_CATEGORY_MILITARY,
-    [BUILDING_BARRACKS]         = LABOR_CATEGORY_MILITARY,
-    [BUILDING_MESS_HALL]        = LABOR_CATEGORY_MILITARY,
-    [BUILDING_WATCHTOWER]       = LABOR_CATEGORY_MILITARY,
-    [BUILDING_ARMOURY]          = LABOR_CATEGORY_MILITARY,
-
-    [BUILDING_AMPHITHEATER]     = LABOR_CATEGORY_ENTERTAINMENT,
-    [BUILDING_THEATER]          = LABOR_CATEGORY_ENTERTAINMENT,
-    [BUILDING_HIPPODROME]       = LABOR_CATEGORY_ENTERTAINMENT,
-    [BUILDING_COLOSSEUM]        = LABOR_CATEGORY_ENTERTAINMENT,
-    [BUILDING_GLADIATOR_SCHOOL] = LABOR_CATEGORY_ENTERTAINMENT,
-    [BUILDING_LION_HOUSE]       = LABOR_CATEGORY_ENTERTAINMENT,
-    [BUILDING_ACTOR_COLONY]     = LABOR_CATEGORY_ENTERTAINMENT,
-    [BUILDING_CHARIOT_MAKER]    = LABOR_CATEGORY_ENTERTAINMENT,
-    [BUILDING_TAVERN]           = LABOR_CATEGORY_ENTERTAINMENT,
-    [BUILDING_ARENA]            = LABOR_CATEGORY_ENTERTAINMENT,
-
-    [BUILDING_DOCTOR]       = LABOR_CATEGORY_HEALTH_EDUCATION,
-    [BUILDING_HOSPITAL]     = LABOR_CATEGORY_HEALTH_EDUCATION,
-    [BUILDING_BATHHOUSE]    = LABOR_CATEGORY_HEALTH_EDUCATION,
-    [BUILDING_BARBER]       = LABOR_CATEGORY_HEALTH_EDUCATION,
-    [BUILDING_SCHOOL]       = LABOR_CATEGORY_HEALTH_EDUCATION,
-    [BUILDING_ACADEMY]      = LABOR_CATEGORY_HEALTH_EDUCATION,
-    [BUILDING_LIBRARY]      = LABOR_CATEGORY_HEALTH_EDUCATION,
-    [BUILDING_MISSION_POST] = LABOR_CATEGORY_HEALTH_EDUCATION,
-    [BUILDING_LATRINES]     = LABOR_CATEGORY_HEALTH_EDUCATION,
-    
-    [BUILDING_SMALL_TEMPLE_CERES]   = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_SMALL_TEMPLE_NEPTUNE] = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_SMALL_TEMPLE_MERCURY] = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_SMALL_TEMPLE_MARS]    = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_SMALL_TEMPLE_VENUS]   = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_LARGE_TEMPLE_CERES]   = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_LARGE_TEMPLE_NEPTUNE] = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_LARGE_TEMPLE_MERCURY] = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_LARGE_TEMPLE_MARS]    = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_LARGE_TEMPLE_VENUS]   = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_GRAND_TEMPLE_CERES]   = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_GRAND_TEMPLE_NEPTUNE] = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_GRAND_TEMPLE_MERCURY] = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_GRAND_TEMPLE_MARS]    = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_GRAND_TEMPLE_VENUS]   = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_PANTHEON]             = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_SENATE]               = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_FORUM]                = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_ORACLE]               = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_LIGHTHOUSE]           = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-    [BUILDING_CARAVANSERAI]         = LABOR_CATEGORY_GOVERNANCE_RELIGION,
-};
-
+static const std::array<int, BUILDING_TYPE_MAX> CATEGORY_FOR_BUILDING_TYPE = []() {
+    std::array<int, BUILDING_TYPE_MAX> category = {};
+    category[BUILDING_OLIVE_FARM] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_VINES_FARM] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_MARKET] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_WAREHOUSE] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_DOCK] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_MARBLE_QUARRY] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_IRON_MINE] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_TIMBER_YARD] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_CLAY_PIT] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_WINE_WORKSHOP] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_OIL_WORKSHOP] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_WEAPONS_WORKSHOP] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_FURNITURE_WORKSHOP] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_POTTERY_WORKSHOP] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_GOLD_MINE] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_CITY_MINT] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_SAND_PIT] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_STONE_QUARRY] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_CONCRETE_MAKER] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_BRICKWORKS] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_DEPOT] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_DISTRIBUTION_CENTER_UNUSED] = LABOR_CATEGORY_INDUSTRY_COMMERCE;
+    category[BUILDING_GRANARY] = LABOR_CATEGORY_FOOD_PRODUCTION;
+    category[BUILDING_SHIPYARD] = LABOR_CATEGORY_FOOD_PRODUCTION;
+    category[BUILDING_WHEAT_FARM] = LABOR_CATEGORY_FOOD_PRODUCTION;
+    category[BUILDING_VEGETABLE_FARM] = LABOR_CATEGORY_FOOD_PRODUCTION;
+    category[BUILDING_FRUIT_FARM] = LABOR_CATEGORY_FOOD_PRODUCTION;
+    category[BUILDING_WHARF] = LABOR_CATEGORY_FOOD_PRODUCTION;
+    category[BUILDING_PIG_FARM] = LABOR_CATEGORY_FOOD_PRODUCTION;
+    category[BUILDING_ENGINEERS_POST] = LABOR_CATEGORY_ENGINEERING;
+    category[BUILDING_WORKCAMP] = LABOR_CATEGORY_ENGINEERING;
+    category[BUILDING_ARCHITECT_GUILD] = LABOR_CATEGORY_ENGINEERING;
+    category[BUILDING_FOUNTAIN] = LABOR_CATEGORY_WATER;
+    category[BUILDING_PREFECTURE] = LABOR_CATEGORY_PREFECTURES;
+    category[BUILDING_FORT_ARCHERS] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_FORT_LEGIONARIES] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_FORT_JAVELIN] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_FORT_MOUNTED] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_FORT_AUXILIA_INFANTRY] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_GATEHOUSE] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_TOWER] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_MILITARY_ACADEMY] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_BARRACKS] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_MESS_HALL] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_WATCHTOWER] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_ARMOURY] = LABOR_CATEGORY_MILITARY;
+    category[BUILDING_AMPHITHEATER] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_THEATER] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_HIPPODROME] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_COLOSSEUM] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_GLADIATOR_SCHOOL] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_LION_HOUSE] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_ACTOR_COLONY] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_CHARIOT_MAKER] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_TAVERN] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_ARENA] = LABOR_CATEGORY_ENTERTAINMENT;
+    category[BUILDING_DOCTOR] = LABOR_CATEGORY_HEALTH_EDUCATION;
+    category[BUILDING_HOSPITAL] = LABOR_CATEGORY_HEALTH_EDUCATION;
+    category[BUILDING_BATHHOUSE] = LABOR_CATEGORY_HEALTH_EDUCATION;
+    category[BUILDING_BARBER] = LABOR_CATEGORY_HEALTH_EDUCATION;
+    category[BUILDING_SCHOOL] = LABOR_CATEGORY_HEALTH_EDUCATION;
+    category[BUILDING_ACADEMY] = LABOR_CATEGORY_HEALTH_EDUCATION;
+    category[BUILDING_LIBRARY] = LABOR_CATEGORY_HEALTH_EDUCATION;
+    category[BUILDING_MISSION_POST] = LABOR_CATEGORY_HEALTH_EDUCATION;
+    category[BUILDING_LATRINES] = LABOR_CATEGORY_HEALTH_EDUCATION;
+    category[BUILDING_SMALL_TEMPLE_CERES] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_SMALL_TEMPLE_NEPTUNE] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_SMALL_TEMPLE_MERCURY] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_SMALL_TEMPLE_MARS] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_SMALL_TEMPLE_VENUS] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_LARGE_TEMPLE_CERES] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_LARGE_TEMPLE_NEPTUNE] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_LARGE_TEMPLE_MERCURY] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_LARGE_TEMPLE_MARS] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_LARGE_TEMPLE_VENUS] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_GRAND_TEMPLE_CERES] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_GRAND_TEMPLE_NEPTUNE] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_GRAND_TEMPLE_MERCURY] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_GRAND_TEMPLE_MARS] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_GRAND_TEMPLE_VENUS] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_PANTHEON] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_SENATE] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_FORUM] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_ORACLE] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_LIGHTHOUSE] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    category[BUILDING_CARAVANSERAI] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
+    return category;
+}();
 static struct {
     labor_category category;
     int workers;
@@ -164,6 +162,11 @@ int city_labor_workers_employed(void)
 int city_labor_workers_unemployed(void)
 {
     return city_data.labor.workers_unemployed;
+}
+
+int city_labor_workers_available(void)
+{
+    return city_data.labor.workers_available;
 }
 
 int city_labor_wages(void)
@@ -240,7 +243,7 @@ static int is_industry_disabled(building *b)
 }
 
 static int should_have_workers(building *b, int category, int check_access)
-{    
+{
     if (category == LABOR_CATEGORY_NONE) {
         return 0;
     }
@@ -258,6 +261,10 @@ static int should_have_workers(building *b, int category, int check_access)
             return 0;
         }
     }
+    if (check_access && building_local_workforce_is_workforce_building(b)) {
+        return building_local_workforce_access_score(b) > 0 ? 1 : 0;
+    }
+
     // engineering and water are always covered
     if (category == LABOR_CATEGORY_ENGINEERING || category == LABOR_CATEGORY_WATER) {
         return 1;
@@ -290,7 +297,10 @@ static void calculate_workers_needed_per_category(void)
 
         city_data.labor.categories[category - 1].workers_needed += building_get_laborers(b->type);
 
-        city_data.labor.categories[category - 1].total_houses_covered += b->houses_covered;
+        city_data.labor.categories[category - 1].total_houses_covered +=
+            building_local_workforce_is_workforce_building(b) ?
+                building_local_workforce_access_score(b) :
+                b->houses_covered;
         city_data.labor.categories[category - 1].buildings++;
     }
 }
@@ -355,13 +365,19 @@ static void allocate_workers_to_categories(void)
             }
         } while (available > 0);
 
-        city_data.labor.workers_employed = city_data.labor.workers_available;
+        city_data.labor.workers_employed = city_data.labor.workers_available - available;
         for (int i = 0; i < 9; i++) {
             city_data.labor.workers_needed +=
                 city_data.labor.categories[i].workers_needed - city_data.labor.categories[i].workers_allocated;
         }
     }
+    if (city_data.labor.workers_needed < 0) {
+        city_data.labor.workers_needed = 0;
+    }
     city_data.labor.workers_unemployed = city_data.labor.workers_available - city_data.labor.workers_employed;
+    if (city_data.labor.workers_unemployed < 0) {
+        city_data.labor.workers_unemployed = 0;
+    }
     city_data.labor.unemployment_percentage =
         calc_percentage(city_data.labor.workers_unemployed, city_data.labor.workers_available);
 }
@@ -393,7 +409,7 @@ static void check_employment(void)
 static void set_building_worker_weight(void)
 {
     int water_per_10k_per_building = calc_percentage(100, city_data.labor.categories[LABOR_CATEGORY_WATER - 1].buildings);
-    for (building_type type = 0; type < BUILDING_TYPE_MAX; type++) {
+    for (building_type type = static_cast<building_type>(0); type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
         int cat = CATEGORY_FOR_BUILDING_TYPE[type];
         if (cat == LABOR_CATEGORY_NONE) {
             continue;
@@ -402,14 +418,17 @@ static void set_building_worker_weight(void)
             if (b->state != BUILDING_STATE_IN_USE) {
                 continue;
             }
-            if (cat == LABOR_CATEGORY_WATER) {
+            if (cat == LABOR_CATEGORY_WATER && !building_local_workforce_is_workforce_building(b)) {
                 b->percentage_houses_covered = water_per_10k_per_building;
             } else {
                 b->percentage_houses_covered = 0;
-                
-                if (b->houses_covered) {
+
+                const int labor_access = building_local_workforce_is_workforce_building(b) ?
+                    building_local_workforce_access_score(b) :
+                    b->houses_covered;
+                if (labor_access) {
                     b->percentage_houses_covered =
-                        calc_percentage(100 * b->houses_covered,
+                        calc_percentage(100 * labor_access,
                         city_data.labor.categories[cat - 1].total_houses_covered);
                 }
             }
@@ -474,7 +493,7 @@ static void allocate_workers_to_non_water_buildings(void)
             city_data.labor.categories[i].workers_allocated < city_data.labor.categories[i].workers_needed
             ? 1 : 0;
     }
-    for (building_type type = 0; type < BUILDING_TYPE_MAX; type++) {
+    for (building_type type = static_cast<building_type>(0); type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
         int cat = CATEGORY_FOR_BUILDING_TYPE[type];
         if (cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_NONE) {
             // water is handled by allocate_workers_to_water(void)
@@ -488,7 +507,7 @@ static void allocate_workers_to_non_water_buildings(void)
             if (b->type != BUILDING_LATRINES && (!should_have_workers(b, cat, 0) || b->percentage_houses_covered <= 0)) {
                 continue;
             }
-            
+
             int required_workers = model_get_building(b->type)->laborers;
             if (category_workers_needed[cat - 1]) {
                 int num_workers = calc_adjust_with_percentage(
@@ -516,7 +535,7 @@ static void allocate_workers_to_non_water_buildings(void)
             }
         }
     }
-    for (building_type type = 0; type < BUILDING_TYPE_MAX; type++) {
+    for (building_type type = static_cast<building_type>(0); type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
         int cat = CATEGORY_FOR_BUILDING_TYPE[type];
         if (cat == LABOR_CATEGORY_NONE || cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_MILITARY) {
             continue;

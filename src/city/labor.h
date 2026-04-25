@@ -9,12 +9,17 @@ typedef struct {
     int total_houses_covered;
 } labor_category_data;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int city_labor_unemployment_percentage(void);
 int city_labor_unemployment_percentage_for_senate(void);
 
 int city_labor_workers_needed(void);
 int city_labor_workers_employed(void);
 int city_labor_workers_unemployed(void);
+int city_labor_workers_available(void);
 
 int city_labor_wages(void);
 void city_labor_change_wages(int amount);
@@ -34,5 +39,9 @@ void city_labor_update(void);
 void city_labor_set_priority(int category, int new_priority);
 
 int city_labor_max_selectable_priority(int category);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CITY_LABOR_H

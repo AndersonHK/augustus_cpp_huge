@@ -24,6 +24,8 @@ struct ParseState {
     int saw_labor = 0;
     int saw_labor_employees = 0;
     int saw_labor_seeker = 0;
+    int saw_labor_seeker_method = 0;
+    int saw_labor_seeker_amount = 0;
     int saw_storages = 0;
     int saw_production_methods = 0;
     int saw_state = 0;
@@ -35,11 +37,13 @@ struct ParseState {
     int parsing_provider_water_access = 0;
     int parsing_graphics = 0;
     int parsing_labor = 0;
+    int parsing_labor_seeker = 0;
     int parsing_storages = 0;
     int parsing_production_methods = 0;
     int has_current_graphics_variant = 0;
     size_t current_graphics_variant_index = 0;
     GraphicsParseTargetScope current_graphics_target_scope = GraphicsParseTargetScope::None;
+    LaborSeekerPolicy current_labor_seeker_policy;
     int saw_spawn = 0;
     int error = 0;
 };

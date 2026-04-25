@@ -1,4 +1,5 @@
 #include "building/building_runtime_internal.h"
+#include "building/local_workforce.h"
 
 extern "C" {
 #include "building/figure.h"
@@ -57,6 +58,12 @@ static int worker_percentage(const building *b)
 
 static void check_labor_problem(building *b)
 {
+    if (building_local_workforce_is_workforce_building(b)) {
+        if (building_local_workforce_access_score(b) <= 0) {
+            b->show_on_problem_overlay = 2;
+        }
+        return;
+    }
     if (b->houses_covered <= 0) {
         b->show_on_problem_overlay = 2;
     }
@@ -65,6 +72,19 @@ static void check_labor_problem(building *b)
 static void generate_labor_seeker(building *b, int x, int y)
 {
     if (city_population() <= 0) {
+        return;
+    }
+    if (building_local_workforce_is_workforce_building(b)) {
+        map_point road = { x, y };
+        const int trigger_workers = building_get_laborers(b->type);
+        const int workforce_access = building_local_workforce_access_score(b);
+        if (workforce_access < trigger_workers) {
+            if (!building_local_workforce_spawn_acquisition(b, &road) && workforce_access > 0) {
+                building_local_workforce_spawn_validation(b, &road);
+            }
+        } else {
+            building_local_workforce_spawn_validation(b, &road);
+        }
         return;
     }
     if (config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
@@ -92,6 +112,10 @@ static void generate_labor_seeker(building *b, int x, int y)
 
 static void spawn_labor_seeker(building *b, int x, int y, int min_houses)
 {
+    if (building_local_workforce_is_workforce_building(b)) {
+        generate_labor_seeker(b, x, y);
+        return;
+    }
     if (config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
         // If it can access Rome
         if (b->distance_from_entry) {

@@ -7,6 +7,7 @@ extern "C" {
 #include "building/count.h"
 #include "building/granary.h"
 #include "building/list.h"
+#include "building/local_workforce.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/storage.h"
@@ -241,6 +242,7 @@ typedef struct {
     buffer *rubble_grid;
     buffer *production_rates;
     buffer *road_service_history;
+    buffer *local_workforce_allocations;
 } savegame_state;
 
 typedef struct {
@@ -303,6 +305,7 @@ typedef struct {
         int custom_production_rates;
         int mod_metadata;
         int road_service_history;
+        int local_workforce_allocations;
     } features;
 } savegame_version_data;
 
@@ -624,6 +627,7 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     version_data->features.custom_production_rates = version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA;
     version_data->features.mod_metadata = version > SAVE_GAME_LAST_NO_MOD_METADATA;
     version_data->features.road_service_history = version > SAVE_GAME_LAST_NO_ROAD_SERVICE_HISTORY;
+    version_data->features.local_workforce_allocations = version > SAVE_GAME_LAST_NO_LOCAL_WORKFORCE;
 }
 
 static void init_savegame_data(savegame_version_t version)
@@ -807,6 +811,9 @@ static void init_savegame_data(savegame_version_t version)
     }
     if (version_data.features.road_service_history) {
         state->road_service_history = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
+    }
+    if (version_data.features.local_workforce_allocations) {
+        state->local_workforce_allocations = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
     }
 }
 
@@ -1016,6 +1023,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         state->road_service_history,
         version > SAVE_GAME_LAST_NO_ROAD_SERVICE_HISTORY,
         version > SAVE_GAME_LAST_NO_RELIGION_ROAD_SERVICE_HISTORY);
+    building_local_workforce_load_state(
+        state->local_workforce_allocations,
+        version > SAVE_GAME_LAST_NO_LOCAL_WORKFORCE);
 
     scenario_emperor_change_load_state(state->emperor_change_time, state->emperor_change_state);
     empire_load_state(state->empire);
@@ -1183,6 +1193,7 @@ static void savegame_save_to_state(savegame_state *state)
 
     production_rates_save(state->production_rates);
     map_road_service_history_save_state(state->road_service_history);
+    building_local_workforce_save_state(state->local_workforce_allocations);
 }
 
 static scenario_version_t get_scenario_version(FILE *fp)
