@@ -213,9 +213,10 @@ static void window_building_draw_monument_resources_needed(building_info_context
             int resource_delivered_amount = resource_needed_amount - b->resources[r];
             image_draw(resource_get_data(r)->image.icon, c->x_offset + 32, c->y_offset + y_offset + 10,
                 COLOR_MASK_NONE, SCALE_NONE);
-            // Keep delivered/needed in measured columns; the resource label starts after the full pair.
-            int width = text_draw_number_pair(resource_delivered_amount, resource_needed_amount, '@', "/",
-                c->x_offset + 64, c->y_offset + y_offset + 15, 0, 0, 0, FONT_NORMAL_WHITE, 0);
+            int width = text_draw_number(resource_delivered_amount, '@', "/",
+                c->x_offset + 64, c->y_offset + y_offset + 15, FONT_NORMAL_WHITE, 0);
+            width += text_draw_number(resource_needed_amount, '@', "",
+                c->x_offset + 64 + width, c->y_offset + y_offset + 15, FONT_NORMAL_WHITE, 0);
             text_draw(resource_get_data(r)->text, c->x_offset + 68 + width, c->y_offset + y_offset + 15,
                 FONT_NORMAL_WHITE, 0);
             y_offset += 20;
