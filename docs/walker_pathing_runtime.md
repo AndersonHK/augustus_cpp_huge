@@ -49,7 +49,9 @@ a valid forward direction.
 `smart_service` applies only when there is more than one valid outgoing road. It
 chooses the candidate road tile with the lowest visit stamp for that effect.
 Equal stamps fall back to the vanilla-preferred direction so old behavior stays
-stable where history gives no preference.
+stable where history gives no preference. `vanilla_roaming` ignores service
+history when choosing directions, but if an effect is configured it still records
+road visits so vanilla walkers can contribute pathing telemetry.
 
 Priests use `religion_owner` instead of a fixed saved effect id. The runtime
 derives the concrete service effect from the owning temple type. Pantheon priests

@@ -993,8 +993,7 @@ extern "C" void figure_runtime_record_road_service_visit(figure *f)
 
     const figure_type_registry_impl::PathingPolicy &pathing = entry->definition->pathing_policy();
     const road_service_effect effect = primary_service_effect_for_pathing(pathing, f);
-    if (pathing.mode != figure_type_registry_impl::PathingMode::SmartService ||
-        effect == ROAD_SERVICE_EFFECT_NONE) {
+    if (effect == ROAD_SERVICE_EFFECT_NONE) {
         return;
     }
 
