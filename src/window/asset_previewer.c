@@ -197,7 +197,7 @@ static int load_climate(int force)
 {
     scenario_climate climate = data.terrain == TERRAIN_NONE ? data.climate : (data.terrain - 1);
     if (data.climate != climate || force) {
-        if (!image_load_climate(climate, 0, 1, 1)) {
+        if (!image_load_climate(climate, 0, 1, 1, 0)) {
             log_error("Unable to load main graphics", 0, 0);
             return 0;
         }

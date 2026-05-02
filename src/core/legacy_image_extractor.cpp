@@ -17,7 +17,7 @@ extern "C" {
 
 namespace {
 
-constexpr char kExtractionStampPrefix[] = "legacy_extract_v4:";
+constexpr char kExtractionStampPrefix[] = "legacy_extract_v5:";
 struct LegacyFamily {
     const char *folder_name;
 };
@@ -418,6 +418,62 @@ static void hash_stamp_int(uint64_t &hash, int value)
     hash_stamp_bytes(hash, &value, sizeof(value));
 }
 
+static void hash_repeated_color(uint64_t &hash, color_t color, int count)
+{
+    for (int i = 0; i < count; ++i) {
+        hash_stamp_bytes(hash, &color, sizeof(color));
+    }
+}
+
+static void hash_extracted_canvas(uint64_t &hash, const image *img, const image_atlas_data *atlas_data)
+{
+    const int output_width = img->original.width > 0 ? img->original.width : img->width;
+    const int output_height = img->original.height > 0 ? img->original.height : img->height;
+    hash_stamp_int(hash, output_width);
+    hash_stamp_int(hash, output_height);
+    if (output_width <= 0 || output_height <= 0 || !atlas_data) {
+        return;
+    }
+
+    const int atlas_index = img->atlas.id & IMAGE_ATLAS_BIT_MASK;
+    if (atlas_index < 0 || atlas_index >= atlas_data->num_images) {
+        return;
+    }
+
+    const color_t *source = atlas_data->buffers[atlas_index];
+    const int source_width = atlas_data->image_widths[atlas_index];
+    if (!source || source_width <= 0) {
+        return;
+    }
+
+    for (int y = 0; y < output_height; ++y) {
+        if (y < img->y_offset || y >= img->y_offset + img->height) {
+            hash_repeated_color(hash, ALPHA_TRANSPARENT, output_width);
+            continue;
+        }
+
+        const int transparent_prefix = img->x_offset;
+        const int transparent_suffix = output_width - img->x_offset - img->width;
+        hash_repeated_color(hash, ALPHA_TRANSPARENT, transparent_prefix);
+        const color_t *source_row =
+            &source[static_cast<size_t>(img->atlas.y_offset + y - img->y_offset) * source_width + img->atlas.x_offset];
+        hash_stamp_bytes(hash, source_row, static_cast<size_t>(img->width) * sizeof(color_t));
+        hash_repeated_color(hash, ALPHA_TRANSPARENT, transparent_suffix);
+    }
+}
+
+static void hash_image_output(uint64_t &hash, const image *img, const image_atlas_data *atlas_data)
+{
+    hash_stamp_int(hash, img->x_offset);
+    hash_stamp_int(hash, img->y_offset);
+    hash_stamp_int(hash, img->width);
+    hash_stamp_int(hash, img->height);
+    hash_stamp_int(hash, img->original.width);
+    hash_stamp_int(hash, img->original.height);
+    hash_stamp_int(hash, img->is_isometric);
+    hash_extracted_canvas(hash, img, atlas_data);
+}
+
 static uint64_t calculate_source_fingerprint(
     const image *images,
     int image_count,
@@ -442,17 +498,11 @@ static uint64_t calculate_source_fingerprint(
         }
 
         hash_stamp_int(hash, image_id);
-        hash_stamp_int(hash, img->x_offset);
-        hash_stamp_int(hash, img->y_offset);
-        hash_stamp_int(hash, img->width);
-        hash_stamp_int(hash, img->height);
-        hash_stamp_int(hash, img->original.width);
-        hash_stamp_int(hash, img->original.height);
-        hash_stamp_int(hash, img->is_isometric);
-        hash_stamp_int(hash, img->atlas.id);
-        hash_stamp_int(hash, img->atlas.x_offset);
-        hash_stamp_int(hash, img->atlas.y_offset);
+        hash_image_output(hash, img, atlas_data);
         hash_stamp_int(hash, img->top ? 1 : 0);
+        if (img->top) {
+            hash_image_output(hash, img->top, atlas_data);
+        }
         if (img->animation) {
             hash_stamp_int(hash, img->animation->num_sprites);
             hash_stamp_int(hash, img->animation->sprite_offset_x);
@@ -460,22 +510,6 @@ static uint64_t calculate_source_fingerprint(
             hash_stamp_int(hash, img->animation->can_reverse);
             hash_stamp_int(hash, img->animation->speed_id);
             hash_stamp_int(hash, img->animation->start_offset);
-        }
-    }
-
-    if (atlas_data) {
-        hash_stamp_int(hash, atlas_data->num_images);
-        for (int atlas_index = 0; atlas_index < atlas_data->num_images; ++atlas_index) {
-            const int width = atlas_data->image_widths[atlas_index];
-            const int height = atlas_data->image_heights[atlas_index];
-            hash_stamp_int(hash, width);
-            hash_stamp_int(hash, height);
-            if (atlas_data->buffers[atlas_index] && width > 0 && height > 0) {
-                hash_stamp_bytes(
-                    hash,
-                    atlas_data->buffers[atlas_index],
-                    static_cast<size_t>(width) * height * sizeof(color_t));
-            }
         }
     }
 

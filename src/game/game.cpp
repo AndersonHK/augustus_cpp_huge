@@ -118,7 +118,7 @@ int game_init(void)
 {
     clear_init_failure_message();
 
-    if (!image_load_climate(CLIMATE_CENTRAL, 0, 1, 0)) {
+    if (!image_load_climate(CLIMATE_CENTRAL, 0, 1, 0, 1)) {
         const char *asset_failure_reason = assets_get_failure_reason();
         if (asset_failure_reason && *asset_failure_reason) {
             set_init_failure_message("Failed to load graphics assets.", asset_failure_reason);
@@ -238,7 +238,7 @@ static int reload_language(int is_editor, int reload_images)
         errlog("unable to load mod font pack");
         return 0;
     }
-    if (!image_load_climate(scenario_property_climate(), is_editor, reload_images, 0)) {
+    if (!image_load_climate(scenario_property_climate(), is_editor, reload_images, 0, 0)) {
         errlog("unable to load main graphics");
         return 0;
     }

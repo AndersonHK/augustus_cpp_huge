@@ -175,5 +175,5 @@ void scenario_change_climate(scenario_climate climate)
 {
     climate = calc_bound(climate, CLIMATE_CENTRAL, CLIMATE_DESERT);
     scenario.climate = climate;
-    image_load_climate(scenario_property_climate(), 0, 0, 0);
+    image_load_climate(scenario_property_climate(), 0, 0, 0, 0);
 }

@@ -73,7 +73,7 @@ static void set_image_id(const char *path)
             found_path = dir_get_file_at_location(full_path, PATH_LOCATION_COMMUNITY);
         }
         if (found_path) {
-            data.image.id = assets_get_external_image(found_path, 1);
+            data.image.id = assets_get_external_image(found_path, 0);
             snprintf(data.image.path, FILE_NAME_MAX, "%s", path);
             return;
         }
@@ -85,10 +85,20 @@ static void set_image_id(const char *path)
 
 void empire_set_custom_map(const char *path, int offset_x, int offset_y, int width, int height)
 {
-    char log_message[196];
-    snprintf(log_message, 196, "Loading empire background image %s with x: %i, y: %i, width: %i, height: %i",
-        path, offset_x, offset_y, width, height);
-    log_info(log_message, NULL, 0);
+    const char *image_path = path ? path : "";
+    if (strcmp(data.image.path, image_path) == 0 &&
+        data.image.offset_x == offset_x &&
+        data.image.offset_y == offset_y &&
+        data.image.width == width &&
+        data.image.height == height) {
+        return;
+    }
+    if (*image_path) {
+        char log_message[196];
+        snprintf(log_message, 196, "Loading empire background image %s with x: %i, y: %i, width: %i, height: %i",
+            image_path, offset_x, offset_y, width, height);
+        log_info(log_message, NULL, 0);
+    }
     set_image_id(path);
     if (offset_x < 0) {
         offset_x = 0;

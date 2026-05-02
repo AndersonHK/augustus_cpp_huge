@@ -366,7 +366,7 @@ static void button_return_to_city(const generic_button *button)
 static void button_change_climate(const generic_button *button)
 {
     scenario_editor_cycle_climate();
-    image_load_climate(scenario_property_climate(), editor_is_active(), 0, 0);
+    image_load_climate(scenario_property_climate(), editor_is_active(), 0, 0, 0);
     widget_minimap_invalidate();
     window_request_refresh();
 }
