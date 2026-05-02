@@ -169,6 +169,11 @@ int text_draw_utf8_scaled(std::string_view text, int x, int y, font_t font, colo
     return text_draw_utf8_styled(text, x, y, font, color, scale, FONT_INLINE_STYLE_NONE);
 }
 
+int text_draw_utf8_sized(std::string_view text, int x, int y, font_t font, color_t color, int logical_size_delta)
+{
+    return text_draw_utf8_sized_styled(text, x, y, font, color, logical_size_delta, FONT_INLINE_STYLE_NONE);
+}
+
 int text_draw_utf8_styled(
     std::string_view text,
     int x,
@@ -182,6 +187,21 @@ int text_draw_utf8_styled(
         return 0;
     }
     return font_vector_runtime_draw_utf8(text, x, y, font, color, scale, style_flags);
+}
+
+int text_draw_utf8_sized_styled(
+    std::string_view text,
+    int x,
+    int y,
+    font_t font,
+    color_t color,
+    int logical_size_delta,
+    unsigned style_flags)
+{
+    if (!font_uses_vector_runtime()) {
+        return 0;
+    }
+    return font_vector_runtime_draw_utf8_sized(text, x, y, font, color, logical_size_delta, style_flags);
 }
 
 static int get_ellipsis_width(font_t font)
@@ -689,6 +709,16 @@ int text_draw(const uint8_t *str, int x, int y, font_t font, color_t color)
     return text_draw_scaled(str, x, y, font, color, SCALE_NONE);
 }
 
+int text_draw_with_size_delta(const uint8_t *str, int x, int y, font_t font, color_t color, int logical_size_delta)
+{
+    if (font_uses_vector_runtime() && logical_size_delta != 0) {
+        LegacyUtf8View view = legacy_to_utf8_view(str);
+        return text_draw_utf8_sized(view.utf8, x, y, font, color, logical_size_delta) +
+            font_definition_for(font)->space_width;
+    }
+    return text_draw(str, x, y, font, color);
+}
+
 static int number_to_string(uint8_t *str, int value, char prefix, const char *postfix)
 {
     int offset = 0;
@@ -785,6 +815,49 @@ int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
     }
 
     return current_x - x;
+}
+
+int text_draw_number_with_size_delta(int value, char prefix, const uint8_t *postfix,
+    int x, int y, font_t font, color_t color, int logical_size_delta)
+{
+    if (font_uses_vector_runtime() && logical_size_delta != 0) {
+        int current_x = x;
+        int space_width = font_definition_for(font)->space_width;
+
+        if (prefix && !is_legacy_hidden_number_prefix(prefix)) {
+            uint8_t prefix_str[2] = { static_cast<uint8_t>(prefix), 0 };
+            current_x += text_draw_with_size_delta(prefix_str, current_x, y, font, color, logical_size_delta) -
+                space_width;
+        }
+
+        uint8_t buffer[NUMBER_BUFFER_LENGTH];
+        int length = string_from_int(buffer, value, 0);
+        uint8_t *digits = buffer;
+        int separator_pixels = config_get(CONFIG_UI_DIGIT_SEPARATOR) * 3;
+
+        while (length > 0) {
+            if (*digits >= ' ') {
+                char utf8_digit[2] = { static_cast<char>(*digits), 0 };
+                current_x += text_draw_utf8_sized(utf8_digit, current_x, y, font, color, logical_size_delta);
+                if (length == 4 || length == 7) {
+                    current_x += separator_pixels;
+                }
+            }
+            ++digits;
+            --length;
+        }
+
+        if (postfix && *postfix) {
+            LegacyUtf8View postfix_view = legacy_to_utf8_view(postfix);
+            current_x += text_draw_utf8_sized(postfix_view.utf8, current_x, y, font, color, logical_size_delta);
+        } else {
+            current_x += space_width;
+        }
+
+        return current_x - x;
+    }
+
+    return text_draw_number_scaled(value, prefix, postfix, x, y, font, color, SCALE_NONE);
 }
 
 int text_draw_number(int value, char prefix, const char *postfix, int x, int y, font_t font, color_t color)

@@ -1,4 +1,7 @@
-#include "select_campaign.h"
+#include "graphics/ui_runtime.h"
+
+extern "C" {
+#include "window/select_campaign.h"
 
 #include "core/dir.h"
 #include "core/direction.h"
@@ -26,6 +29,7 @@
 #include "window/mission_list.h"
 #include "window/mission_selection.h"
 #include "window/plain_message_dialog.h"
+}
 
 #define PLAYER_NAME_LENGTH 32
 #define CAMPAIGN_LIST_Y_POSITION 96
@@ -53,19 +57,21 @@ static struct {
     unsigned int bottom_button_focus_id;
 } data;
 
-static list_box_type list_box = {
-    .x = 16,
-    .y = CAMPAIGN_LIST_Y_POSITION,
-    .width_blocks = 20,
-    .height_blocks = 21,
-    .item_height = 16,
-    .draw_inner_panel = 1,
-    .extend_to_hidden_scrollbar = 1,
-    .decorate_scrollbar = 1,
-    .draw_item = draw_campaign_item,
-    .on_select = select_campaign,
-    .handle_tooltip = campaign_name_tooltip
-};
+static list_box_type list_box = []() {
+    list_box_type value = {};
+    value.x = 16;
+    value.y = CAMPAIGN_LIST_Y_POSITION;
+    value.width_blocks = 20;
+    value.height_blocks = 21;
+    value.item_height = 16;
+    value.draw_inner_panel = 1;
+    value.extend_to_hidden_scrollbar = 1;
+    value.decorate_scrollbar = 1;
+    value.draw_item = draw_campaign_item;
+    value.on_select = select_campaign;
+    value.handle_tooltip = campaign_name_tooltip;
+    return value;
+}();
 
 static input_box player_name_input = { 304, 52, 20, 2, FONT_NORMAL_WHITE, 1, data.player_name, PLAYER_NAME_LENGTH };
 
@@ -143,14 +149,6 @@ static void draw_background(void)
         data.available_buttons = info->current_mission > 0 ? 3 : 2;
     }
 
-    for (unsigned int i = 0; i < NUM_BOTTOM_BUTTONS; i++) {
-        int disabled = i >= data.available_buttons;
-        text_draw_centered(lang_get_string(CUSTOM_TRANSLATION, bottom_buttons[i].parameter1), bottom_buttons[i].x,
-            bottom_buttons[i].y + 9, bottom_buttons[i].width,
-            disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK,
-            disabled ? COLOR_FONT_LIGHT_GRAY : 0);
-    }
-
     list_box_request_refresh(&list_box);
 
     graphics_reset_dialog();
@@ -179,8 +177,23 @@ static void draw_foreground(void)
     list_box_draw(&list_box);
     input_box_draw(&player_name_input);
     for (unsigned int i = 0; i < NUM_BOTTOM_BUTTONS; i++) {
-        button_border_draw(bottom_buttons[i].x, bottom_buttons[i].y, bottom_buttons[i].width, bottom_buttons[i].height,
-            data.bottom_button_focus_id == i + 1);
+        const int disabled = i >= data.available_buttons;
+        UiTextSpec text_spec;
+        text_spec.content_type = UiTextContentType::Raw;
+        text_spec.alignment = UiTextAlignment::Center;
+        text_spec.raw_text = lang_get_string(CUSTOM_TRANSLATION, bottom_buttons[i].parameter1);
+        text_spec.x = bottom_buttons[i].x;
+        text_spec.y = bottom_buttons[i].y + 9;
+        text_spec.box_width = bottom_buttons[i].width;
+        text_spec.font = disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK;
+        text_spec.color = disabled ? COLOR_FONT_LIGHT_GRAY : COLOR_MASK_NONE;
+        shared_ui_runtime().draw_advisor_text_button(
+            bottom_buttons[i].x,
+            bottom_buttons[i].y,
+            bottom_buttons[i].width,
+            bottom_buttons[i].height,
+            data.bottom_button_focus_id == i + 1,
+            text_spec);
     }
     graphics_reset_dialog();
 }
@@ -291,7 +304,7 @@ static void handle_tooltip(tooltip_context *c)
     list_box_handle_tooltip(&list_box, c);
 }
 
-void window_select_campaign_show(void)
+extern "C" void window_select_campaign_show(void)
 {
     window_type window = {
         WINDOW_SELECT_CAMPAIGN,

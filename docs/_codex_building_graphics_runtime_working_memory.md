@@ -5,6 +5,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 
 ## 2026-04-06 building graphics resolution checkpoint
 - Native building footprint rendering now routes through `src/widget/city_draw.cpp`, not the older direct `const image *` helper path documented below.
+- `src/building/building_runtime.cpp` is now split by ownership: wrapper/facade flow stays in `building_runtime.cpp`, graphics cache/rebuild behavior lives in `building_runtime_graphics.cpp`, and spawn policy execution lives in `building_runtime_spawn.cpp`.
 - The footprint-placement bug was ultimately an extractor/data-contract bug first and a runtime ownership bug second:
   - Julius footprint exports were preserving bottom transparent padding and needed that padding trimmed at extraction time, with XML height / layer `y` preserving logical placement
   - Augustus direct-crop footprint exports needed the same bottom-padding trim rules

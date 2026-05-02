@@ -156,19 +156,26 @@ static int is_reservoir_side_connection_tile(int tile_no)
         tile_no == 7;
 }
 
+static int force_place_can_clear_terrain(int terrain)
+{
+    return terrain && !(terrain & ~(TERRAIN_TREE | TERRAIN_ROAD));
+}
+
 static int is_blocked_for_building(int grid_offset, int building_size, int *blocked_tiles, int check_figures)
 {
     int orientation_index = city_view_orientation() / 2;
     int blocked = 0;
     int num_tiles = building_size * building_size;
+    int force_place_active = building_construction_force_place_active();
     for (int i = 0; i < num_tiles; i++) {
         int tile_offset = grid_offset + tile_grid_offset(orientation_index, i);
         int tile_blocked = 0;
-        if (map_terrain_is(tile_offset, TERRAIN_NOT_CLEAR)) {
+        int blocked_terrain = map_terrain_get(tile_offset) & TERRAIN_NOT_CLEAR;
+        if (blocked_terrain && (!force_place_active || !force_place_can_clear_terrain(blocked_terrain))) {
             tile_blocked = 1;
         }
         if (map_has_figure_at(tile_offset)) {
-            tile_blocked = check_figures;
+            tile_blocked = check_figures || force_place_active;
             figure_animal_try_nudge_at(grid_offset, tile_offset, building_size);
         }
         blocked_tiles[i] = tile_blocked;
@@ -516,7 +523,7 @@ static void draw_default(const map_tile *tile, int x_view, int y_view, building_
 {
     const building_properties *props = building_properties_for_type(type);
     int building_size = type == BUILDING_WAREHOUSE ? 3 : props->size;
-    //BUILDING_WAREHOUSE is size 1, since it's only the corner tile. 
+    //BUILDING_WAREHOUSE is size 1, since it's only the corner tile.
     //It's manually adjusted for sizing purposes that should affect entire 3x3 building.
     int image_id = 0;
 
@@ -533,6 +540,12 @@ static void draw_default(const map_tile *tile, int x_view, int y_view, building_
     }
 
     int check_figure = ((type != BUILDING_PLAZA && type != BUILDING_ROADBLOCK) || props->size != 1) ? 1 : 0;
+    int force_place_clear_cost = 0;
+    int force_place_valid = building_construction_force_place_active() &&
+        building_construction_force_place_assess(type, tile->x, tile->y, 0, &force_place_clear_cost);
+    if (force_place_valid) {
+        building_construction_set_force_place_clear_cost(force_place_clear_cost);
+    }
 
     for (int i = 0; i < num_tiles; i++) {
         int tile_offset = grid_offset + tile_grid_offset(orientation_index, i);
@@ -572,14 +585,16 @@ static void draw_default(const map_tile *tile, int x_view, int y_view, building_
                 }
             }
         }
+        int force_clearable_forbidden = force_place_valid && force_place_can_clear_terrain(forbidden_terrain);
+        int force_clearable_discouraged = force_place_valid && force_place_can_clear_terrain(discouraged_terrain);
 
-        if (fully_blocked || forbidden_terrain) {
-            blocked_tiles[i] = TILE_FORBIDDEN;
-        } else if (check_figure && map_has_figure_at(tile_offset)) {
+        if (check_figure && map_has_figure_at(tile_offset)) {
             blocked_tiles[i] = TILE_FORBIDDEN;
             figure_animal_try_nudge_at(grid_offset, tile_offset, building_size);
+        } else if (fully_blocked || (forbidden_terrain && !force_clearable_forbidden)) {
+            blocked_tiles[i] = TILE_FORBIDDEN;
         } else {
-            if (discouraged_terrain) { //allow some leeway
+            if (discouraged_terrain && !force_clearable_discouraged) { //allow some leeway
                 blocked_tiles[i] = TILE_DISCOURAGED;
             } else {
                 blocked_tiles[i] = TILE_ALLOWED;

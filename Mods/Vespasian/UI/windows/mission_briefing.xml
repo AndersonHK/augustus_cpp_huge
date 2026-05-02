@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="mission_briefing" base_width="960" base_height="512" min_blocks_width="60" min_blocks_height="32" margin_x_blocks="40" margin_y_blocks="10">
+    <widget type="panel" id="outer_panel" x="16" y="32" width="928" height="464" stretch_width="true" stretch_height="true" />
+    <widget type="label" id="title" x="48" y="48" font="large_black" font_size_delta="6" width="864" />
+    <widget type="label" id="subtitle" x="48" y="86" font="normal_black" font_size_delta="5" width="864" />
+    <widget type="panel" id="objectives_panel" x="48" y="114" width="864" height="96" stretch_width="true" />
+    <widget type="label" id="objectives_header" x="64" y="130" font="normal_white" font_size_delta="5" width="272" height="24" />
+    <widget type="label" id="objective_0" x="344" y="130" width="272" height="24" padding_x="10" padding_y="4" font="normal_red" font_size_delta="4" label_type="1" />
+    <widget type="label" id="objective_1" x="624" y="130" width="272" height="24" padding_x="10" padding_y="4" font="normal_red" font_size_delta="4" label_type="1" />
+    <widget type="label" id="objective_2" x="64" y="164" width="272" height="24" padding_x="10" padding_y="4" font="normal_red" font_size_delta="4" label_type="1" />
+    <widget type="label" id="objective_3" x="344" y="164" width="272" height="24" padding_x="10" padding_y="4" font="normal_red" font_size_delta="4" label_type="1" />
+    <widget type="label" id="objective_4" x="624" y="164" width="272" height="24" padding_x="10" padding_y="4" font="normal_red" font_size_delta="4" label_type="1" />
+    <widget type="label" id="immediate_goal" x="64" y="164" width="552" height="24" padding_x="10" padding_y="4" font="normal_red" font_size_delta="4" label_type="1" />
+    <widget type="panel" id="body_panel" x="48" y="224" width="864" height="200" stretch_width="true" stretch_to_widget="button_to_city" />
+    <widget type="rich_text" id="body" x="80" y="224" width="832" height="200" stretch_width="true" draw_offset_x="-16" draw_offset_y="12" line_spacing="1" paragraph_spacing="1" font_size_delta="6" stretch_to_widget="button_to_city" />
+    <widget type="scrollbar" id="scrollbar" x="895" y="224" width="16" height="200" stretch_height="true" anchor_x="right" />
+    <widget type="image_button" id="button_cancel" action="action.cancel" x="26" y="460" width="31" height="20" anchor_y="bottom" image_collection="90" image_offset="8" />
+    <widget type="label" id="button_cancel_text" x="66" y="467" width="100" height="16" anchor_y="bottom" font="normal_black" font_size_delta="2" />
+    <widget type="label" id="button_to_city_text" x="696" y="465" width="220" height="16" anchor_x="right" anchor_y="bottom" font="normal_black" font_size_delta="2" />
+    <widget type="image_button" id="button_to_city" action="action.to_city" x="836" y="458" width="27" height="27" anchor_x="right" anchor_y="bottom" image_collection="92" image_offset="56" />
+</window>

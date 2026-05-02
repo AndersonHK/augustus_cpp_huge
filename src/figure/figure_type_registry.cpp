@@ -1,6 +1,7 @@
 #include "figure/figure_type_registry_internal.h"
 
 #include "core/crash_context.h"
+#include "core/xml_value.h"
 
 extern "C" {
 #include "building/properties.h"
@@ -26,8 +27,6 @@ namespace figure_type_registry_impl {
 
 std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> g_figure_types;
 std::string g_failure_reason;
-
-bool text_equals(const char *value, std::string_view expected);
 
 FigureTypeProfile::FigureTypeProfile(std::string id)
     : id_(std::move(id))
@@ -192,7 +191,7 @@ const FigureTypeProfile *FigureTypeDefinition::profile(const char *profile_id) c
         return default_profile();
     }
     for (const FigureTypeProfile &profile : profiles_) {
-        if (text_equals(profile_id, profile.id())) {
+        if (xml_value::equals(profile_id, profile.id())) {
             return &profile;
         }
     }
@@ -217,10 +216,6 @@ static int stop_on_first_entry([[maybe_unused]] const char *name, [[maybe_unused
     return LIST_MATCH;
 }
 
-bool text_equals(const char *value, std::string_view expected)
-{
-    return value && std::string_view(value) == expected;
-}
 
 class ScopedFile {
 public:
@@ -285,7 +280,7 @@ std::vector<std::string> build_candidate_definition_paths()
         if (!name) {
             continue;
         }
-        if (text_equals(name, "Augustus") || text_equals(name, "Julius")) {
+        if (xml_value::equals(name, "Augustus") || xml_value::equals(name, "Julius")) {
             append_unique_candidate_path(paths, mod_manager_get_mod_path_at(i));
         }
     }
@@ -336,7 +331,7 @@ static figure_type parse_figure_type_name(const char *name)
     } };
 
     for (const NamedFigure &entry : kFigureNames) {
-        if (text_equals(name, entry.name)) {
+        if (xml_value::equals(name, entry.name)) {
             return entry.type;
         }
     }
@@ -345,7 +340,7 @@ static figure_type parse_figure_type_name(const char *name)
 
 static building_type parse_building_type_name(const char *attr)
 {
-    if (!attr || text_equals(attr, "any")) {
+    if (!attr || xml_value::equals(attr, "any")) {
         return BUILDING_ANY;
     }
 
@@ -364,19 +359,19 @@ static building_type parse_building_type_name(const char *attr)
 
 static NativeClassId parse_native_class_name(const char *name)
 {
-    if (text_equals(name, "roaming_service")) {
+    if (xml_value::equals(name, "roaming_service")) {
         return NativeClassId::RoamingService;
     }
-    if (text_equals(name, "engineer_service")) {
+    if (xml_value::equals(name, "engineer_service")) {
         return NativeClassId::EngineerService;
     }
-    if (text_equals(name, "prefect_service")) {
+    if (xml_value::equals(name, "prefect_service")) {
         return NativeClassId::PrefectService;
     }
-    if (text_equals(name, "entertainment_service")) {
+    if (xml_value::equals(name, "entertainment_service")) {
         return NativeClassId::EntertainmentService;
     }
-    if (text_equals(name, "entertainment_venue_seeker")) {
+    if (xml_value::equals(name, "entertainment_venue_seeker")) {
         return NativeClassId::EntertainmentVenueSeeker;
     }
     return NativeClassId::None;
@@ -384,16 +379,16 @@ static NativeClassId parse_native_class_name(const char *name)
 
 static FigureSlot parse_figure_slot_name(const char *name)
 {
-    if (!name || text_equals(name, "none")) {
+    if (!name || xml_value::equals(name, "none")) {
         return FigureSlot::None;
     }
-    if (text_equals(name, "primary")) {
+    if (xml_value::equals(name, "primary")) {
         return FigureSlot::Primary;
     }
-    if (text_equals(name, "secondary")) {
+    if (xml_value::equals(name, "secondary")) {
         return FigureSlot::Secondary;
     }
-    if (text_equals(name, "quaternary")) {
+    if (xml_value::equals(name, "quaternary")) {
         return FigureSlot::Quaternary;
     }
     return FigureSlot::None;
@@ -402,21 +397,21 @@ static FigureSlot parse_figure_slot_name(const char *name)
 static bool is_known_figure_slot_name(const char *name)
 {
     return !name ||
-        text_equals(name, "none") ||
-        text_equals(name, "primary") ||
-        text_equals(name, "secondary") ||
-        text_equals(name, "quaternary");
+        xml_value::equals(name, "none") ||
+        xml_value::equals(name, "primary") ||
+        xml_value::equals(name, "secondary") ||
+        xml_value::equals(name, "quaternary");
 }
 
 static OwnerStateRequirement parse_owner_state_name(const char *name)
 {
-    if (!name || text_equals(name, "in_use")) {
+    if (!name || xml_value::equals(name, "in_use")) {
         return OwnerStateRequirement::InUse;
     }
-    if (text_equals(name, "in_use_or_mothballed")) {
+    if (xml_value::equals(name, "in_use_or_mothballed")) {
         return OwnerStateRequirement::InUseOrMothballed;
     }
-    if (text_equals(name, "any")) {
+    if (xml_value::equals(name, "any")) {
         return OwnerStateRequirement::Any;
     }
     return OwnerStateRequirement::InUse;
@@ -425,17 +420,17 @@ static OwnerStateRequirement parse_owner_state_name(const char *name)
 static bool is_known_owner_state_name(const char *name)
 {
     return !name ||
-        text_equals(name, "any") ||
-        text_equals(name, "in_use") ||
-        text_equals(name, "in_use_or_mothballed");
+        xml_value::equals(name, "any") ||
+        xml_value::equals(name, "in_use") ||
+        xml_value::equals(name, "in_use_or_mothballed");
 }
 
 static ReturnMode parse_return_mode_name(const char *name)
 {
-    if (text_equals(name, "none")) {
+    if (xml_value::equals(name, "none")) {
         return ReturnMode::None;
     }
-    if (text_equals(name, "die_at_limit")) {
+    if (xml_value::equals(name, "die_at_limit")) {
         return ReturnMode::DieAtLimit;
     }
     return ReturnMode::ReturnToOwnerRoad;
@@ -444,26 +439,26 @@ static ReturnMode parse_return_mode_name(const char *name)
 static bool is_known_return_mode_name(const char *name)
 {
     return !name ||
-        text_equals(name, "none") ||
-        text_equals(name, "return_to_owner_road") ||
-        text_equals(name, "die_at_limit");
+        xml_value::equals(name, "none") ||
+        xml_value::equals(name, "return_to_owner_road") ||
+        xml_value::equals(name, "die_at_limit");
 }
 
 static int parse_terrain_usage_name(const char *name)
 {
-    if (!name || text_equals(name, "any")) {
+    if (!name || xml_value::equals(name, "any")) {
         return TERRAIN_USAGE_ANY;
     }
-    if (text_equals(name, "roads")) {
+    if (xml_value::equals(name, "roads")) {
         return TERRAIN_USAGE_ROADS;
     }
-    if (text_equals(name, "roads_highway")) {
+    if (xml_value::equals(name, "roads_highway")) {
         return TERRAIN_USAGE_ROADS_HIGHWAY;
     }
-    if (text_equals(name, "prefer_roads")) {
+    if (xml_value::equals(name, "prefer_roads")) {
         return TERRAIN_USAGE_PREFER_ROADS;
     }
-    if (text_equals(name, "prefer_roads_highway")) {
+    if (xml_value::equals(name, "prefer_roads_highway")) {
         return TERRAIN_USAGE_PREFER_ROADS_HIGHWAY;
     }
     return -1;
@@ -492,7 +487,7 @@ static int parse_image_group_name(const char *name)
     } };
 
     for (const NamedGroup &entry : kImageGroups) {
-        if (text_equals(name, entry.name)) {
+        if (xml_value::equals(name, entry.name)) {
             return entry.image_group_id;
         }
     }
@@ -501,73 +496,73 @@ static int parse_image_group_name(const char *name)
 
 static road_service_effect parse_service_effect_name(const char *name)
 {
-    if (!name || text_equals(name, "none")) {
+    if (!name || xml_value::equals(name, "none")) {
         return ROAD_SERVICE_EFFECT_NONE;
     }
-    if (text_equals(name, "labor")) {
+    if (xml_value::equals(name, "labor")) {
         return ROAD_SERVICE_EFFECT_LABOR;
     }
-    if (text_equals(name, "academy")) {
+    if (xml_value::equals(name, "academy")) {
         return ROAD_SERVICE_EFFECT_ACADEMY;
     }
-    if (text_equals(name, "library")) {
+    if (xml_value::equals(name, "library")) {
         return ROAD_SERVICE_EFFECT_LIBRARY;
     }
-    if (text_equals(name, "barber")) {
+    if (xml_value::equals(name, "barber")) {
         return ROAD_SERVICE_EFFECT_BARBER;
     }
-    if (text_equals(name, "bathhouse")) {
+    if (xml_value::equals(name, "bathhouse")) {
         return ROAD_SERVICE_EFFECT_BATHHOUSE;
     }
-    if (text_equals(name, "school")) {
+    if (xml_value::equals(name, "school")) {
         return ROAD_SERVICE_EFFECT_SCHOOL;
     }
-    if (text_equals(name, "damage_risk")) {
+    if (xml_value::equals(name, "damage_risk")) {
         return ROAD_SERVICE_EFFECT_DAMAGE_RISK;
     }
-    if (text_equals(name, "fire_risk")) {
+    if (xml_value::equals(name, "fire_risk")) {
         return ROAD_SERVICE_EFFECT_FIRE_RISK;
     }
-    if (text_equals(name, "religion_ceres")) {
+    if (xml_value::equals(name, "religion_ceres")) {
         return ROAD_SERVICE_EFFECT_RELIGION_CERES;
     }
-    if (text_equals(name, "religion_neptune")) {
+    if (xml_value::equals(name, "religion_neptune")) {
         return ROAD_SERVICE_EFFECT_RELIGION_NEPTUNE;
     }
-    if (text_equals(name, "religion_mercury")) {
+    if (xml_value::equals(name, "religion_mercury")) {
         return ROAD_SERVICE_EFFECT_RELIGION_MERCURY;
     }
-    if (text_equals(name, "religion_mars")) {
+    if (xml_value::equals(name, "religion_mars")) {
         return ROAD_SERVICE_EFFECT_RELIGION_MARS;
     }
-    if (text_equals(name, "religion_venus")) {
+    if (xml_value::equals(name, "religion_venus")) {
         return ROAD_SERVICE_EFFECT_RELIGION_VENUS;
     }
-    if (text_equals(name, "religion_pantheon")) {
+    if (xml_value::equals(name, "religion_pantheon")) {
         return ROAD_SERVICE_EFFECT_RELIGION_PANTHEON;
     }
-    if (text_equals(name, "entertainment_theater")) {
+    if (xml_value::equals(name, "entertainment_theater")) {
         return ROAD_SERVICE_EFFECT_ENTERTAINMENT_THEATER;
     }
-    if (text_equals(name, "entertainment_amphitheater_actor")) {
+    if (xml_value::equals(name, "entertainment_amphitheater_actor")) {
         return ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_ACTOR;
     }
-    if (text_equals(name, "entertainment_amphitheater_gladiator")) {
+    if (xml_value::equals(name, "entertainment_amphitheater_gladiator")) {
         return ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_GLADIATOR;
     }
-    if (text_equals(name, "entertainment_arena_gladiator")) {
+    if (xml_value::equals(name, "entertainment_arena_gladiator")) {
         return ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_GLADIATOR;
     }
-    if (text_equals(name, "entertainment_arena_lion")) {
+    if (xml_value::equals(name, "entertainment_arena_lion")) {
         return ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_LION;
     }
-    if (text_equals(name, "entertainment_colosseum_gladiator")) {
+    if (xml_value::equals(name, "entertainment_colosseum_gladiator")) {
         return ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_GLADIATOR;
     }
-    if (text_equals(name, "entertainment_colosseum_lion")) {
+    if (xml_value::equals(name, "entertainment_colosseum_lion")) {
         return ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_LION;
     }
-    if (text_equals(name, "entertainment_hippodrome")) {
+    if (xml_value::equals(name, "entertainment_hippodrome")) {
         return ROAD_SERVICE_EFFECT_ENTERTAINMENT_HIPPODROME;
     }
     return ROAD_SERVICE_EFFECT_NONE;
@@ -576,29 +571,29 @@ static road_service_effect parse_service_effect_name(const char *name)
 static bool is_known_service_effect_name(const char *name)
 {
     return !name ||
-        text_equals(name, "none") ||
-        text_equals(name, "labor") ||
-        text_equals(name, "academy") ||
-        text_equals(name, "library") ||
-        text_equals(name, "barber") ||
-        text_equals(name, "bathhouse") ||
-        text_equals(name, "school") ||
-        text_equals(name, "damage_risk") ||
-        text_equals(name, "fire_risk") ||
-        text_equals(name, "religion_ceres") ||
-        text_equals(name, "religion_neptune") ||
-        text_equals(name, "religion_mercury") ||
-        text_equals(name, "religion_mars") ||
-        text_equals(name, "religion_venus") ||
-        text_equals(name, "religion_pantheon") ||
-        text_equals(name, "entertainment_theater") ||
-        text_equals(name, "entertainment_amphitheater_actor") ||
-        text_equals(name, "entertainment_amphitheater_gladiator") ||
-        text_equals(name, "entertainment_arena_gladiator") ||
-        text_equals(name, "entertainment_arena_lion") ||
-        text_equals(name, "entertainment_colosseum_gladiator") ||
-        text_equals(name, "entertainment_colosseum_lion") ||
-        text_equals(name, "entertainment_hippodrome");
+        xml_value::equals(name, "none") ||
+        xml_value::equals(name, "labor") ||
+        xml_value::equals(name, "academy") ||
+        xml_value::equals(name, "library") ||
+        xml_value::equals(name, "barber") ||
+        xml_value::equals(name, "bathhouse") ||
+        xml_value::equals(name, "school") ||
+        xml_value::equals(name, "damage_risk") ||
+        xml_value::equals(name, "fire_risk") ||
+        xml_value::equals(name, "religion_ceres") ||
+        xml_value::equals(name, "religion_neptune") ||
+        xml_value::equals(name, "religion_mercury") ||
+        xml_value::equals(name, "religion_mars") ||
+        xml_value::equals(name, "religion_venus") ||
+        xml_value::equals(name, "religion_pantheon") ||
+        xml_value::equals(name, "entertainment_theater") ||
+        xml_value::equals(name, "entertainment_amphitheater_actor") ||
+        xml_value::equals(name, "entertainment_amphitheater_gladiator") ||
+        xml_value::equals(name, "entertainment_arena_gladiator") ||
+        xml_value::equals(name, "entertainment_arena_lion") ||
+        xml_value::equals(name, "entertainment_colosseum_gladiator") ||
+        xml_value::equals(name, "entertainment_colosseum_lion") ||
+        xml_value::equals(name, "entertainment_hippodrome");
 }
 
 static bool is_road_only_terrain_usage(int terrain_usage)
@@ -609,10 +604,10 @@ static bool is_road_only_terrain_usage(int terrain_usage)
 
 static EntertainmentShowSlot parse_show_slot_name(const char *name)
 {
-    if (text_equals(name, "days1")) {
+    if (xml_value::equals(name, "days1")) {
         return EntertainmentShowSlot::Days1;
     }
-    if (text_equals(name, "days2")) {
+    if (xml_value::equals(name, "days2")) {
         return EntertainmentShowSlot::Days2;
     }
     return EntertainmentShowSlot::None;
@@ -790,7 +785,7 @@ static int parse_owner_node()
         const char *building_attr = xml_parser_get_attribute_string("building");
         owner_binding.required_building_type = parse_building_type_name(building_attr);
         if (owner_binding.required_building_type == BUILDING_NONE &&
-            (!building_attr || !text_equals(building_attr, "any"))) {
+            (!building_attr || !xml_value::equals(building_attr, "any"))) {
             g_parse_state.error = true;
             log_error("FigureType owner node has an unknown building type", building_attr, 0);
             return 0;

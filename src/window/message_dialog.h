@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum {
     MESSAGE_DIALOG_ABOUT = 0,
     MESSAGE_DIALOG_CUSTOM_MESSAGE = 1,
@@ -34,3 +38,7 @@ void window_message_dialog_show_city_message(int text_id, int year, int month,
                                              int param1, int param2, int advisor, int use_popup);
 
 void window_message_dialog_show_custom_message(int custom_message_id, int year, int month);
+
+#ifdef __cplusplus
+}
+#endif

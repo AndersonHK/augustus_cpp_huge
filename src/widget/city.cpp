@@ -1,3 +1,4 @@
+extern "C" {
 #include "city.h"
 
 #include "building/construction.h"
@@ -42,6 +43,7 @@
 #include "widget/sidebar/extra.h"
 #include "window/building_info.h"
 #include "window/city.h"
+}
 
 #define NO_POSITION ((unsigned int)-1)
 
@@ -116,8 +118,9 @@ void widget_city_draw_construction_cost_and_size(void)
     }
     int size_x, size_y;
     int cost = building_construction_cost();
+    int force_place_clear_cost = building_construction_force_place_clear_cost();
     int has_size = building_construction_size(&size_x, &size_y);
-    if (!cost && !has_size) {
+    if (!cost && !force_place_clear_cost && !has_size) {
         return;
     }
     int clip_x, clip_y, clip_width, clip_height;
@@ -131,12 +134,26 @@ void widget_city_draw_construction_cost_and_size(void)
     y = screen_pixel_to_ui(calc_adjust_with_percentage(y, inverted_scale));
 
     if (cost) {
-        color_t color;
-        if (cost <= city_finance_treasury()) {
+        color_t color = COLOR_WHITE;
+        int total_cost = cost + force_place_clear_cost;
+        if (!force_place_clear_cost && cost <= city_finance_treasury()) {
             // Color blind friendly
             color = scenario_property_climate() == CLIMATE_DESERT ? COLOR_FONT_ORANGE : COLOR_FONT_ORANGE_LIGHT;
-        } else {
+        } else if (total_cost > city_finance_treasury()) {
             color = COLOR_FONT_RED;
+        }
+        if (force_place_clear_cost) {
+            color_t force_place_clear_color;
+            if (total_cost <= city_finance_treasury()) {
+                force_place_clear_color = scenario_property_climate() == CLIMATE_DESERT ?
+                    COLOR_FONT_ORANGE : COLOR_FONT_ORANGE_LIGHT;
+            } else {
+                force_place_clear_color = COLOR_FONT_RED;
+            }
+            text_draw_number(force_place_clear_cost, '@', " ", x + 58 + 1, y - 16 + 1, FONT_NORMAL_PLAIN,
+                COLOR_BLACK);
+            text_draw_number(force_place_clear_cost, '@', " ", x + 58, y - 16, FONT_NORMAL_PLAIN,
+                force_place_clear_color);
         }
         text_draw_number(cost, '@', " ", x + 58 + 1, y + 1, FONT_NORMAL_PLAIN, COLOR_BLACK);
         text_draw_number(cost, '@', " ", x + 58, y, FONT_NORMAL_PLAIN, color);

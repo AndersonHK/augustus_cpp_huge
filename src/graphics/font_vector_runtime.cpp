@@ -666,6 +666,11 @@ float raster_multiplier_for(float scale)
     return ui_multiplier / scale;
 }
 
+float ui_raster_multiplier()
+{
+    return platform_screen_get_scale() > 0 ? platform_screen_get_scale() / 100.0f : 1.0f;
+}
+
 int scaled_pixel_size(font_t font, float scale)
 {
     float multiplier = raster_multiplier_for(scale);
@@ -674,12 +679,32 @@ int scaled_pixel_size(font_t font, float scale)
     return std::max(1, pixel_size);
 }
 
+int target_logical_size(font_t font, int logical_size_delta)
+{
+    if (font < 0 || font >= FONT_TYPES_MAX) {
+        return 1;
+    }
+    return std::max(1, g_runtime.surfaces[font].logical_size + logical_size_delta);
+}
+
+int pixel_size_for_logical_size(int logical_size)
+{
+    return std::max(1, static_cast<int>(std::lround(logical_size * ui_raster_multiplier())));
+}
+
 struct ResolvedFace {
     SizedFont *font = nullptr;
     std::string face_path;
 };
 
+ResolvedFace resolve_face_for_pixel_size(font_t font, uint32_t codepoint, unsigned style_flags, int pixel_size);
+
 ResolvedFace resolve_face_for(font_t font, uint32_t codepoint, unsigned style_flags, float scale)
+{
+    return resolve_face_for_pixel_size(font, codepoint, style_flags, scaled_pixel_size(font, scale));
+}
+
+ResolvedFace resolve_face_for_pixel_size(font_t font, uint32_t codepoint, unsigned style_flags, int pixel_size)
 {
     ResolvedFace resolved;
     if (!g_runtime.active || font < 0 || font >= FONT_TYPES_MAX) {
@@ -688,7 +713,6 @@ ResolvedFace resolve_face_for(font_t font, uint32_t codepoint, unsigned style_fl
 
     unsigned sanitized_flags = sanitize_style_flags(font, style_flags);
     FaceVariant variant = style_variant_for(sanitized_flags);
-    const int pixel_size = scaled_pixel_size(font, scale);
     std::vector<const FamilyConfig *> family_chain = family_chain_for(font, codepoint);
     for (const FamilyConfig *family : family_chain) {
         if (!family) {
@@ -752,14 +776,20 @@ int next_utf8_codepoint(std::string_view text, size_t offset, uint32_t *codepoin
     return 1;
 }
 
+GlyphCacheEntry *ensure_glyph_for_pixel_size(font_t font, uint32_t codepoint, unsigned style_flags, int pixel_size);
+
 GlyphCacheEntry *ensure_glyph(font_t font, uint32_t codepoint, unsigned style_flags, float scale)
 {
-    ResolvedFace resolved = resolve_face_for(font, codepoint, style_flags, scale);
+    return ensure_glyph_for_pixel_size(font, codepoint, style_flags, scaled_pixel_size(font, scale));
+}
+
+GlyphCacheEntry *ensure_glyph_for_pixel_size(font_t font, uint32_t codepoint, unsigned style_flags, int pixel_size)
+{
+    ResolvedFace resolved = resolve_face_for_pixel_size(font, codepoint, style_flags, pixel_size);
     if (!resolved.font || resolved.face_path.empty()) {
         return nullptr;
     }
 
-    const int pixel_size = scaled_pixel_size(font, scale);
     const std::string key = make_glyph_cache_key(resolved.face_path, pixel_size, codepoint);
     auto found = g_runtime.glyphs.find(key);
     if (found != g_runtime.glyphs.end()) {
@@ -894,6 +924,20 @@ float glyph_logical_width(const GlyphCacheEntry &glyph, float scale)
 float glyph_logical_height(const GlyphCacheEntry &glyph, float scale)
 {
     return glyph.slice.height / raster_multiplier_for(scale);
+}
+
+float space_logical_width(font_t font, float scale)
+{
+    return static_cast<float>(font_vector_runtime_space_width(font)) / (scale > 0.0f ? scale : 1.0f);
+}
+
+float space_logical_width_sized(font_t font, int logical_size)
+{
+    if (font < 0 || font >= FONT_TYPES_MAX || g_runtime.surfaces[font].logical_size <= 0) {
+        return 0.0f;
+    }
+    const float ratio = static_cast<float>(logical_size) / static_cast<float>(g_runtime.surfaces[font].logical_size);
+    return static_cast<float>(font_vector_runtime_space_width(font)) * ratio;
 }
 
 int measure_space_for_surface(SurfaceConfig &surface)
@@ -1126,6 +1170,14 @@ int font_vector_runtime_line_height(font_t font)
     return g_runtime.surfaces[font].line_height;
 }
 
+int font_vector_runtime_line_height_sized(font_t font, int logical_size_delta)
+{
+    if (!g_runtime.active || font < 0 || font >= FONT_TYPES_MAX) {
+        return 0;
+    }
+    return std::max(1, g_runtime.surfaces[font].line_height + logical_size_delta);
+}
+
 int font_vector_runtime_letter_spacing(font_t font)
 {
     if (!g_runtime.active || font < 0 || font >= FONT_TYPES_MAX) {
@@ -1195,7 +1247,7 @@ int font_vector_runtime_measure_utf8(std::string_view text, font_t font, unsigne
         }
 
         if (codepoint == ' ') {
-            width += font_vector_runtime_space_width(font);
+            width += space_logical_width(font, scale);
             offset += num_bytes;
             previous_codepoint = 0;
             previous_face = {};
@@ -1213,6 +1265,71 @@ int font_vector_runtime_measure_utf8(std::string_view text, font_t font, unsigne
             width += kerning_logical_width(resolved, previous_codepoint, codepoint, scale);
         }
         width += glyph_advance_logical_width(*glyph, scale);
+        width += font_vector_runtime_letter_spacing(font);
+
+        previous_codepoint = codepoint;
+        previous_face = resolved;
+        offset += num_bytes;
+    }
+
+    return static_cast<int>(std::lround(width));
+}
+
+int font_vector_runtime_measure_utf8_sized(
+    std::string_view text,
+    font_t font,
+    unsigned style_flags,
+    int logical_size_delta)
+{
+    if (!g_runtime.active || text.empty()) {
+        return 0;
+    }
+    if (logical_size_delta == 0) {
+        return font_vector_runtime_measure_utf8(text, font, style_flags, SCALE_NONE);
+    }
+
+    unsigned sanitized_flags = sanitize_style_flags(font, style_flags);
+    const int logical_size = target_logical_size(font, logical_size_delta);
+    const int pixel_size = pixel_size_for_logical_size(logical_size);
+    const float raster_multiplier = ui_raster_multiplier();
+    float width = 0.0f;
+    uint32_t previous_codepoint = 0;
+    ResolvedFace previous_face;
+
+    for (size_t offset = 0; offset < text.size();) {
+        uint32_t codepoint = 0;
+        size_t num_bytes = 0;
+        if (!next_utf8_codepoint(text, offset, &codepoint, &num_bytes)) {
+            break;
+        }
+
+        if (codepoint == '\n' || codepoint == '\r') {
+            offset += num_bytes;
+            previous_codepoint = 0;
+            previous_face = {};
+            continue;
+        }
+
+        if (codepoint == ' ') {
+            width += space_logical_width_sized(font, logical_size);
+            offset += num_bytes;
+            previous_codepoint = 0;
+            previous_face = {};
+            continue;
+        }
+
+        ResolvedFace resolved = resolve_face_for_pixel_size(font, codepoint, sanitized_flags, pixel_size);
+        GlyphCacheEntry *glyph = ensure_glyph_for_pixel_size(font, codepoint, sanitized_flags, pixel_size);
+        if (!resolved.font || !glyph) {
+            offset += num_bytes;
+            continue;
+        }
+
+        if (previous_face.font == resolved.font) {
+            int kerning = TTF_GetFontKerningSizeGlyphs32(resolved.font->handle, previous_codepoint, codepoint);
+            width += kerning / raster_multiplier;
+        }
+        width += glyph->advance / raster_multiplier;
         width += font_vector_runtime_letter_spacing(font);
 
         previous_codepoint = codepoint;
@@ -1310,7 +1427,7 @@ int font_vector_runtime_draw_utf8(
         }
 
         if (codepoint == ' ') {
-            current_x += font_vector_runtime_space_width(font);
+            current_x += space_logical_width(font, scale);
             offset += num_bytes;
             previous_codepoint = 0;
             previous_face = {};
@@ -1366,6 +1483,111 @@ int font_vector_runtime_draw_utf8(
 
     if ((sanitized_flags & FONT_INLINE_STYLE_UNDERLINE) != 0 && current_x > x) {
         int underline_y = y + std::max(1, font_vector_runtime_line_height(font) - 2);
+        int underline_width = static_cast<int>(std::lround(current_x - x));
+        graphics_fill_rect(x, underline_y, underline_width, 1, colors.main);
+    }
+
+    return static_cast<int>(std::lround(current_x - x));
+}
+
+int font_vector_runtime_draw_utf8_sized(
+    std::string_view text,
+    int x,
+    int y,
+    font_t font,
+    color_t color,
+    int logical_size_delta,
+    unsigned style_flags)
+{
+    if (!g_runtime.active || text.empty()) {
+        return 0;
+    }
+    if (logical_size_delta == 0) {
+        return font_vector_runtime_draw_utf8(text, x, y, font, color, SCALE_NONE, style_flags);
+    }
+
+    unsigned sanitized_flags = sanitize_style_flags(font, style_flags);
+    const DrawColors colors = resolve_draw_colors(font, color);
+    const int logical_size = target_logical_size(font, logical_size_delta);
+    const int pixel_size = pixel_size_for_logical_size(logical_size);
+    const float raster_multiplier = ui_raster_multiplier();
+    float current_x = static_cast<float>(x);
+    uint32_t previous_codepoint = 0;
+    ResolvedFace previous_face;
+
+    auto snap = [raster_multiplier](float logical_value) {
+        if (raster_multiplier <= 0.0f) {
+            return logical_value;
+        }
+        return std::round(logical_value * raster_multiplier) / raster_multiplier;
+    };
+
+    for (size_t offset = 0; offset < text.size();) {
+        uint32_t codepoint = 0;
+        size_t num_bytes = 0;
+        if (!next_utf8_codepoint(text, offset, &codepoint, &num_bytes)) {
+            break;
+        }
+
+        if (codepoint == '\n' || codepoint == '\r') {
+            offset += num_bytes;
+            previous_codepoint = 0;
+            previous_face = {};
+            continue;
+        }
+
+        if (codepoint == ' ') {
+            current_x += space_logical_width_sized(font, logical_size);
+            offset += num_bytes;
+            previous_codepoint = 0;
+            previous_face = {};
+            continue;
+        }
+
+        ResolvedFace resolved = resolve_face_for_pixel_size(font, codepoint, sanitized_flags, pixel_size);
+        GlyphCacheEntry *glyph = ensure_glyph_for_pixel_size(font, codepoint, sanitized_flags, pixel_size);
+        if (!resolved.font || !glyph || !glyph->slice.is_valid()) {
+            offset += num_bytes;
+            continue;
+        }
+
+        if (previous_face.font == resolved.font) {
+            int kerning = TTF_GetFontKerningSizeGlyphs32(resolved.font->handle, previous_codepoint, codepoint);
+            current_x += kerning / raster_multiplier;
+        }
+
+        const float draw_x = snap(current_x + glyph->minx / raster_multiplier);
+        const float draw_y = snap(static_cast<float>(y) + line_top_logical_offset(font));
+        const float logical_width = glyph->slice.width / raster_multiplier;
+        const float logical_height = glyph->slice.height / raster_multiplier;
+
+        auto draw_pass = [&](color_t pass_color, int dx, int dy) {
+            runtime_texture_draw_request(
+                glyph->slice,
+                draw_x + dx,
+                draw_y + dy,
+                logical_width,
+                logical_height,
+                pass_color ? pass_color : kOpaqueWhite,
+                graphics_renderer()->get_render_domain(),
+                RENDER_SCALING_POLICY_PIXEL_ART);
+        };
+
+        if (colors.has_shadow) {
+            draw_pass(colors.shadow, 1, 1);
+        }
+        draw_pass(colors.main, 0, 0);
+
+        current_x += glyph->advance / raster_multiplier;
+        current_x += font_vector_runtime_letter_spacing(font);
+
+        previous_codepoint = codepoint;
+        previous_face = resolved;
+        offset += num_bytes;
+    }
+
+    if ((sanitized_flags & FONT_INLINE_STYLE_UNDERLINE) != 0 && current_x > x) {
+        int underline_y = y + std::max(1, font_vector_runtime_line_height_sized(font, logical_size_delta) - 2);
         int underline_width = static_cast<int>(std::lround(current_x - x));
         graphics_fill_rect(x, underline_y, underline_width, 1, colors.main);
     }

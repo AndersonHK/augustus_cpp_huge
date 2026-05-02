@@ -1,3 +1,4 @@
+extern "C" {
 #include "distribution.h"
 
 #include "assets/assets.h"
@@ -38,6 +39,8 @@
 #include "translation/translation.h"
 #include "window/building_info.h"
 #include "window/option_popup.h"
+
+}
 
 #include <math.h>
 #include <stdio.h>
@@ -83,7 +86,34 @@ typedef struct {
 static generic_button permission_buttons[MAX_PERMISSION_BUTTONS];
 static int active_permissions_count = 0;
 
-static int granary_permissions_buttons[] = {
+static building_storage_permission_states permission_from_button(const generic_button *button)
+{
+    return static_cast<building_storage_permission_states>(button->parameter1);
+}
+
+static resource_type resource_from_int(int resource)
+{
+    return static_cast<resource_type>(resource);
+}
+
+static translation_key translation_key_from_int(int key)
+{
+    return static_cast<translation_key>(key);
+}
+
+static generic_button make_permission_button(int x, int y, int size, building_storage_permission_states permission)
+{
+    generic_button button = {};
+    button.x = static_cast<short>(x);
+    button.y = static_cast<short>(y);
+    button.width = static_cast<short>(size);
+    button.height = static_cast<short>(size);
+    button.left_click_handler = storage_toggle_permissions;
+    button.parameter1 = static_cast<int>(permission);
+    return button;
+}
+
+static building_storage_permission_states granary_permissions_buttons[] = {
     BUILDING_STORAGE_PERMISSION_MARKET,
     BUILDING_STORAGE_PERMISSION_TRADERS,
     BUILDING_STORAGE_PERMISSION_DOCK,
@@ -93,7 +123,7 @@ static int granary_permissions_buttons[] = {
     BUILDING_STORAGE_PERMISSION_NATIVES,
     BUILDING_STORAGE_PERMISSION_CAESAR,
 };
-static int warehouse_permissions_buttons[] = {
+static building_storage_permission_states warehouse_permissions_buttons[] = {
     BUILDING_STORAGE_PERMISSION_MARKET,
     BUILDING_STORAGE_PERMISSION_TRADERS,
     BUILDING_STORAGE_PERMISSION_DOCK,
@@ -317,7 +347,7 @@ static void draw_accept_none_button(int x, int y, int focused, affect_all_button
 }
 static void toggle_permissions_all(int param1, int param2)
 {
-    int *building_permissions;
+    building_storage_permission_states *building_permissions;
     int number_of_permissions;
     int accept_all = param1;
     building *b = building_get(data.building_id);
@@ -331,7 +361,7 @@ static void toggle_permissions_all(int param1, int param2)
     }
 
     for (int i = 0; i < number_of_permissions; i++) { //do it via loop instead of bit check due to unused permissions
-        int permission = building_permissions[i];
+        building_storage_permission_states permission = building_permissions[i];
         building_storage_set_permission(permission, building_get(data.building_id), accept_all);
     }
     window_invalidate();
@@ -339,7 +369,7 @@ static void toggle_permissions_all(int param1, int param2)
 
 static int get_permissions_all_none_button_state(building_info_context *c)
 {
-    int *building_permissions;
+    building_storage_permission_states *building_permissions;
     int number_of_permissions;
     building *b = building_get(c->building_id);
     building_type type = b->type;
@@ -352,7 +382,7 @@ static int get_permissions_all_none_button_state(building_info_context *c)
     }
     int rejects_all = 1; // Assume it rejects all permissions
     for (int i = 0; i < number_of_permissions; i++) { //do it via loop instead of bit check due to unused permissions
-        int permission = building_permissions[i];
+        building_storage_permission_states permission = building_permissions[i];
         if (!building_storage_get_permission(permission, building_get(data.building_id))) {
             // If it accepts at least one resource, it's not rejecting all
             rejects_all = 0;
@@ -365,7 +395,7 @@ static int get_permissions_all_none_button_state(building_info_context *c)
 static void draw_permissions_buttons(int x, int y, building_info_context *c)
 {
     int image_offset_x, image_offset_y;
-    int *building_permissions;
+    building_storage_permission_states *building_permissions;
     unsigned int number_of_permissions;
     active_permissions_count = 0;
     building *b = building_get(data.building_id);
@@ -407,7 +437,7 @@ static void draw_permissions_buttons(int x, int y, building_info_context *c)
     active_permissions_count = number_of_permissions;
 
     for (unsigned int i = 0; i < number_of_permissions; i++) {
-        int permission = building_permissions[i];
+        building_storage_permission_states permission = building_permissions[i];
         int is_sea_trade_route = (permission == BUILDING_STORAGE_PERMISSION_DOCK);
         int permission_state = building_storage_get_permission(permission, building_get(data.building_id));
 
@@ -440,14 +470,7 @@ static void draw_permissions_buttons(int x, int y, building_info_context *c)
         button_border_draw(x, y, button_width, button_width,
             data.permission_focus_button_id == i + 1 || !permission_state);
 
-        permission_buttons[i] = (generic_button) {
-            .x = x,
-            .y = y,
-            .width = button_width,
-            .height = button_width,
-            .left_click_handler = storage_toggle_permissions,
-            .parameter1 = permission
-        };
+        permission_buttons[i] = make_permission_button(x, y, button_width, permission);
         // Move to next button position (button width + gap with distributed remainder)
         x += button_width + actual_gap;
     }
@@ -654,7 +677,8 @@ static void draw_food_stocks(building_info_context *c, building *b, int y_offset
 static void draw_good_stocks(building_info_context *c, building *b, int y_offset)
 {
     int x_offset = 32;
-    for (resource_type r = RESOURCE_MIN_NON_FOOD; r < RESOURCE_MAX_NON_FOOD; r++) {
+    for (int resource_id = RESOURCE_MIN_NON_FOOD; resource_id < RESOURCE_MAX_NON_FOOD; resource_id++) {
+        resource_type r = resource_from_int(resource_id);
         if (!resource_is_inventory(r)) {
             continue;
         }
@@ -761,7 +785,8 @@ void window_building_draw_distributor_orders_foreground(building_info_context *c
 {
     int y_offset = window_building_get_vertical_offset(c, 28);
     //TODO: get buttons into the global and stop this monkey business with static declarations and hardcoded values
-    int button_state = affect_all_button_distribution_state();
+    affect_all_button_current_state button_state =
+        static_cast<affect_all_button_current_state>(affect_all_button_distribution_state());
 
     draw_accept_none_button(c->x_offset + 394, y_offset + 404, data.orders_focus_button_id == 1, button_state);
     building *b = building_get(c->building_id);
@@ -1025,7 +1050,8 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
         cursor = string_copy(lang_get_string(47, 5), cursor, 400 - (int) (cursor - text));
         cursor = string_copy(string_from_ascii(": "), cursor, 400 - (int) (cursor - text));
         int traded = 0;
-        for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+        for (int resource_id = RESOURCE_MIN; resource_id < RESOURCE_MAX; resource_id++) {
+            resource_type resource = resource_from_int(resource_id);
             if (!city->sells_resource[resource]) {
                 continue;
             }
@@ -1042,7 +1068,8 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
         cursor = string_copy(lang_get_string(47, 4), cursor, 400 - (int) (cursor - text));
         cursor = string_copy(string_from_ascii(": "), cursor, 400 - (int) (cursor - text));
         traded = 0;
-        for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+        for (int resource_id = RESOURCE_MIN; resource_id < RESOURCE_MAX; resource_id++) {
+            resource_type resource = resource_from_int(resource_id);
             if (!city->buys_resource[resource]) {
                 continue;
             }
@@ -1103,7 +1130,8 @@ void window_building_draw_storage(building_info_context *c)
                 BLOCK_SIZE * c->width_blocks, FONT_NORMAL_BLACK);
             y += 32;
         } else {
-            for (int r = RESOURCE_NONE + 1; r < RESOURCE_MAX; r++) {
+            for (int resource_id = RESOURCE_NONE + 1; resource_id < RESOURCE_MAX; resource_id++) {
+                resource_type r = resource_from_int(resource_id);
                 int amount = b->resources[r];
                 if (amount <= 0) {
                     continue;
@@ -1149,11 +1177,11 @@ void window_building_draw_storage(building_info_context *c)
     // cartpusher state
     figure *f = figure_get(b->figure_id);
     if (b->figure_id && f && f->state == FIGURE_STATE_ALIVE) {
-        int resource = f->resource_id;
-        image_draw(resource_get_data(resource ? resource : f->collecting_item_id)->image.icon,
+        resource_type resource = resource_from_int(f->resource_id);
+        image_draw(resource_get_data(resource != RESOURCE_NONE ? resource : resource_from_int(f->collecting_item_id))->image.icon,
             c->x_offset + 32, c->y_offset + y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
 
-        if (resource) {
+        if (resource != RESOURCE_NONE) {
             if (f->action_state == FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE) {
                 lang_text_draw_multiline(is_granary(c) ? 98 : 99, is_granary(c) ? 9 : 16,
                     c->x_offset + 64, c->y_offset + y_offset + 63, BLOCK_SIZE * (c->width_blocks - 5), FONT_NORMAL_BROWN);
@@ -1262,9 +1290,9 @@ void window_building_draw_storage_orders(building_info_context *c)
     int group_id = is_granary(c) ? 98 : 99;
     int storage_id = building_get(c->building_id)->storage_id;
     lang_fragment instructions_header[] = {
-    { LANG_FRAG_LABEL, .text_group = group_id, .text_id = 0},
-    { LANG_FRAG_NUMBER, .number = storage_id },
-    { LANG_FRAG_LABEL,  .text_group = CUSTOM_TRANSLATION, TR_BUILDING_INFO_INSTRUCTIONS},
+        { LANG_FRAG_LABEL, group_id, 0, 0, 0, nullptr },
+        { LANG_FRAG_NUMBER, 0, 0, storage_id, 0, nullptr },
+        { LANG_FRAG_LABEL, CUSTOM_TRANSLATION, TR_BUILDING_INFO_INSTRUCTIONS, 0, 0, nullptr },
     };
     int y_offset = window_building_get_vertical_offset(c, 28);
     c->help_id = is_granary(c) ? 3 : 4;
@@ -1369,7 +1397,8 @@ void window_building_storage_get_tooltip_distribution_permissions(int *translati
     int is_warehouse_building = b->type == BUILDING_WAREHOUSE;
 
     if (data.permission_focus_button_id) {
-        int permission = permission_buttons[data.permission_focus_button_id - 1].parameter1;
+        building_storage_permission_states permission =
+            permission_from_button(&permission_buttons[data.permission_focus_button_id - 1]);
         int show_reject_tooltip = building_storage_get_permission(permission, b);
         *translation = TR_TOOLTIP_BUTTON_ACCEPT_MARKET_LADIES + permission * 2 + show_reject_tooltip;
         return;
@@ -1492,7 +1521,7 @@ static void market_orders(const generic_button *button)
 
 static void storage_toggle_permissions(const generic_button *button)
 {
-    int index = button->parameter1;
+    building_storage_permission_states index = permission_from_button(button);
     building *b = building_get(data.building_id);
     building_storage_toggle_permission(index, b);
     window_invalidate();
@@ -1509,7 +1538,7 @@ static void toggle_partial_resource_state(const generic_button *button, int reve
 {
     int index = button->parameter1;
     building *b = building_get(data.building_id);
-    int resource;
+    resource_type resource;
     if (b->type == BUILDING_WAREHOUSE) {
         resource = city_resource_get_potential()->items[index + scrollbar.scroll_position - 1];
     } else {
@@ -1577,7 +1606,7 @@ void window_building_draw_mess_hall(building_info_context *c)
     building *b = building_get(c->building_id);
     int mess_hall_fulfillment_display = 100 - city_mess_hall_food_missing_month();
     int food_stress = city_mess_hall_food_stress();
-    int hunger_text;
+    translation_key hunger_text;
     int y_offset = 0;
     int food_types = count_food_types_in_stock(b);
 
@@ -1671,7 +1700,7 @@ static void apply_policy_land(int selected_policy)
     if (selected_policy == NO_POLICY) {
         return;
     }
-    city_trade_policy_set(LAND_TRADE_POLICY, selected_policy);
+    city_trade_policy_set(LAND_TRADE_POLICY, static_cast<trade_policy>(selected_policy));
     sound_speech_play_file(land_trade_policy.wav_file);
     city_finance_process_sundry(TRADE_POLICY_COST);
 }
@@ -1732,10 +1761,10 @@ void window_building_draw_caravanserai(building_info_context *c)
 
         trade_policy policy = city_trade_policy_get(LAND_TRADE_POLICY);
 
-        text_draw_multiline(translation_for(land_trade_policy.items[policy].header),
+        text_draw_multiline(translation_for(translation_key_from_int(land_trade_policy.items[policy].header)),
             c->x_offset + 160, c->y_offset + 170 + y_offset, 260, 0, FONT_NORMAL_BLACK, 0);
         if (policy != NO_POLICY) {
-            text_draw_multiline(translation_for(land_trade_policy.items[policy].desc),
+            text_draw_multiline(translation_for(translation_key_from_int(land_trade_policy.items[policy].desc)),
                 c->x_offset + 160, c->y_offset + 195 + y_offset, 260, 0, FONT_NORMAL_BLACK, 0);
         }
         image_draw(land_trade_policy.items[policy].image_id, c->x_offset + 32, c->y_offset + 160 + y_offset,
@@ -1760,14 +1789,14 @@ void window_building_draw_caravanserai(building_info_context *c)
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, 0);
 }
 
-int window_building_handle_mouse_lighthouse(const mouse *m, building_info_context *c)
+extern "C" int window_building_handle_mouse_lighthouse(const mouse *m, building_info_context *c)
 {
     return generic_buttons_handle_mouse(
         m, c->x_offset + 32, c->y_offset + 150,
         go_to_lighthouse_action_button, 1, &data.lighthouse_focus_button_id);
 }
 
-void window_building_draw_lighthouse_foreground(building_info_context *c)
+extern "C" void window_building_draw_lighthouse_foreground(building_info_context *c)
 {
     int id = assets_get_image_id("UI", "Image Border Medium");
     image_draw_border(id, c->x_offset + 32, c->y_offset + 150,
@@ -1779,7 +1808,7 @@ static void apply_policy_sea(int selected_policy)
     if (selected_policy == NO_POLICY) {
         return;
     }
-    city_trade_policy_set(SEA_TRADE_POLICY, selected_policy);
+    city_trade_policy_set(SEA_TRADE_POLICY, static_cast<trade_policy>(selected_policy));
     sound_speech_play_file(sea_trade_policy.wav_file);
     city_finance_process_sundry(TRADE_POLICY_COST);
 }
@@ -1793,7 +1822,7 @@ static void button_lighthouse_policy(const generic_button *button)
     }
 }
 
-void window_building_draw_lighthouse(building_info_context *c)
+extern "C" void window_building_draw_lighthouse(building_info_context *c)
 {
     building *b = building_get(c->building_id);
     if (b->monument.phase == MONUMENT_FINISHED) {
@@ -1834,10 +1863,10 @@ void window_building_draw_lighthouse(building_info_context *c)
 
         trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);
 
-        text_draw_multiline(translation_for(sea_trade_policy.items[policy].header),
+        text_draw_multiline(translation_for(translation_key_from_int(sea_trade_policy.items[policy].header)),
             c->x_offset + 160, c->y_offset + 156, 260, 0, FONT_NORMAL_BLACK, 0);
         if (policy != NO_POLICY) {
-            text_draw_multiline(translation_for(sea_trade_policy.items[policy].desc),
+            text_draw_multiline(translation_for(translation_key_from_int(sea_trade_policy.items[policy].desc)),
                 c->x_offset + 160, c->y_offset + 181, 260, 0, FONT_NORMAL_BLACK, 0);
         }
         image_draw(sea_trade_policy.items[policy].image_id, c->x_offset + 32, c->y_offset + 150,

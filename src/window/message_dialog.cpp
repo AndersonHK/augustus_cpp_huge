@@ -1,4 +1,5 @@
-#include "message_dialog.h"
+extern "C" {
+#include "window/message_dialog.h"
 
 #include "city/emperor.h"
 #include "city/message.h"
@@ -34,6 +35,7 @@
 #include "window/advisors.h"
 #include "window/city.h"
 #include "window/editor/map.h"
+}
 
 #define MAX_HISTORY 200
 #define POPUP_PROTECTION_MILIS 400
@@ -89,15 +91,23 @@ static image_button image_button_financial = {
 static image_button image_button_chief = {
     0, 0, 27, 27, IB_NORMAL, GROUP_MESSAGE_ADVISOR_BUTTONS, 33, button_advisor, button_none, ADVISOR_CHIEF, 0, 1
 };
-static lang_fragment seq = { .type = LANG_FRAG_LABEL, .text_id = TR_SIDEBAR_EXTRA_REQUESTS_SEND, .text_group = CUSTOM_TRANSLATION };
-static complex_button complex_button_dispatch_request = {
-    .width = 200,
-    .height = 28,
-    .left_click_handler = button_dispatch_request,
-    .sequence = &seq,
-    .sequence_size = 1,
-    .sequence_position = SEQUENCE_POSITION_CENTER,
-};
+static lang_fragment seq = []() {
+    lang_fragment value = {};
+    value.type = LANG_FRAG_LABEL;
+    value.text_id = TR_SIDEBAR_EXTRA_REQUESTS_SEND;
+    value.text_group = CUSTOM_TRANSLATION;
+    return value;
+}();
+static complex_button complex_button_dispatch_request = []() {
+    complex_button value = {};
+    value.width = 200;
+    value.height = 28;
+    value.left_click_handler = button_dispatch_request;
+    value.sequence = &seq;
+    value.sequence_size = 1;
+    value.sequence_position = SEQUENCE_POSITION_CENTER;
+    return value;
+}();
 
 static struct {
     struct {
@@ -142,9 +152,10 @@ static void button_dispatch_request(const complex_button *button)
     int request_id = button->parameters[0];
     scenario_request_dispatch(request_id);
     const scenario_request *req = scenario_request_get(request_id);
+    resource_type request_resource = static_cast<resource_type>(req->resource);
     complex_button_dispatch_request.is_hidden = 1;
-    if (city_resource_is_stockpiled(req->resource)) {
-        city_resource_toggle_stockpiled(req->resource);
+    if (city_resource_is_stockpiled(request_resource)) {
+        city_resource_toggle_stockpiled(request_resource);
     }
     button_close(0, 0);
 }
@@ -342,7 +353,7 @@ static void init(int text_id, int is_custom_message, void (*background_callback)
 
 static int resource_image(int resource)
 {
-    return resource_get_data(resource)->image.icon;
+    return resource_get_data(static_cast<resource_type>(resource))->image.icon;
 }
 
 static int is_event_message(const lang_message *msg)
@@ -387,9 +398,9 @@ static void draw_city_message_text(const lang_message *msg)
 
         case MESSAGE_TYPE_EMIGRATION:
         {
-            low_mood_cause cause = player_message.param1;
+            low_mood_cause cause = static_cast<low_mood_cause>(player_message.param1);
             if (!cause) {
-                cause = city_sentiment_low_mood_cause();
+                cause = static_cast<low_mood_cause>(city_sentiment_low_mood_cause());
             }
             if (cause >= LOW_MOOD_CAUSE_NO_FOOD && cause <= LOW_MOOD_CAUSE_MANY_TENTS) {
                 int max_width = BLOCK_SIZE * (data.text_width_blocks - 1) - 64;
@@ -411,11 +422,19 @@ static void draw_city_message_text(const lang_message *msg)
             int new_rank = player_message.param2;
 
             static lang_fragment rank_frag[3];
-            rank_frag[0] = (lang_fragment)
-            { .type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_MESSAGE_PROMOTE_RANK_PREFIX };
-            rank_frag[1] = (lang_fragment) { .type = LANG_FRAG_LABEL, .text_group = 32, .text_id = new_rank, .space_width = 0 };
-            rank_frag[2] = (lang_fragment)
-            { .type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_MESSAGE_PROMOTE_RANK_SUFFIX };
+            rank_frag[0] = {};
+            rank_frag[0].type = LANG_FRAG_LABEL;
+            rank_frag[0].text_group = CUSTOM_TRANSLATION;
+            rank_frag[0].text_id = TR_MESSAGE_PROMOTE_RANK_PREFIX;
+            rank_frag[1] = {};
+            rank_frag[1].type = LANG_FRAG_LABEL;
+            rank_frag[1].text_group = 32;
+            rank_frag[1].text_id = new_rank;
+            rank_frag[1].space_width = 0;
+            rank_frag[2] = {};
+            rank_frag[2].type = LANG_FRAG_LABEL;
+            rank_frag[2].text_group = CUSTOM_TRANSLATION;
+            rank_frag[2].text_id = TR_MESSAGE_PROMOTE_RANK_SUFFIX;
             if (new_rank < old_rank) {
                 rank_frag[0].text_id = TR_MESSAGE_DEMOTE_RANK_PREFIX;
                 rank_frag[2].text_id = TR_MESSAGE_DEMOTE_RANK_SUFFIX;
@@ -484,7 +503,7 @@ static void draw_city_message_text(const lang_message *msg)
                 text_draw_number(requested_amount, '@', " ", data.x_text + 8, y_offset, FONT_NORMAL_WHITE, 0);
                 image_draw(resource_image(request->resource), data.x_text + 70, y_offset - 5,
                     COLOR_MASK_NONE, SCALE_NONE);
-                text_draw(resource_get_data(request->resource)->text,
+                text_draw(resource_get_data(static_cast<resource_type>(request->resource))->text,
                     data.x_text + 100, y_offset, FONT_NORMAL_WHITE, COLOR_MASK_NONE);
                 if (request->state == REQUEST_STATE_NORMAL || request->state == REQUEST_STATE_OVERDUE) {
                     int width = lang_text_draw_amount(8, 4, request->months_to_comply,
@@ -570,7 +589,13 @@ static void draw_content(const lang_message *msg)
     // content!
     inner_panel_draw(data.x_text, data.y_text, data.text_width_blocks, data.text_height_blocks);
     rich_text_clear_links();
+}
 
+static void draw_content_text(const lang_message *msg)
+{
+    if (!msg->content.text) {
+        return;
+    }
     if (msg->type == TYPE_MESSAGE) {
         draw_city_message_text(msg);
     } else {
@@ -669,9 +694,9 @@ static void draw_background_video(void)
         }
         const scenario_request *request = scenario_request_get(player_message.param1);
         width = text_draw_number(request->amount.requested, '@', " ", data.x + 8, y_text, FONT_NORMAL_WHITE, 0);
-        image_draw(resource_get_data(request->resource)->image.icon,
+        image_draw(resource_get_data(static_cast<resource_type>(request->resource))->image.icon,
             data.x + 15 + width, y_text - 5, COLOR_MASK_NONE, SCALE_NONE);
-        width += text_draw(resource_get_data(request->resource)->text, data.x + 40 + width, y_text, FONT_NORMAL_WHITE, COLOR_MASK_NONE);
+        width += text_draw(resource_get_data(static_cast<resource_type>(request->resource))->text, data.x + 40 + width, y_text, FONT_NORMAL_WHITE, COLOR_MASK_NONE);
         if (request->state == REQUEST_STATE_NORMAL || request->state == REQUEST_STATE_OVERDUE) {
             width += lang_text_draw_amount(8, 4, request->months_to_comply, data.x + 60 + width, y_text, FONT_NORMAL_WHITE);
             width += lang_text_draw(12, 2, data.x + 60 + width, y_text, FONT_NORMAL_WHITE);
@@ -732,6 +757,8 @@ static image_button *get_advisor_button(void)
 static void draw_foreground_normal(void)
 {
     const lang_message *msg = get_custom_or_standard_lang_message(data.text_id);
+
+    draw_content_text(msg);
 
     if (msg->type == TYPE_MANUAL && data.num_history > 0) {
         image_buttons_draw(
@@ -928,7 +955,7 @@ static void button_help(int param1, int param2)
 static void button_advisor(int advisor, int param2)
 {
     cleanup();
-    if (!window_advisors_show_advisor(advisor)) {
+    if (!window_advisors_show_advisor(static_cast<advisor_type>(advisor))) {
         window_city_show();
     }
 }
@@ -972,19 +999,19 @@ static void init_window(int text_id, int is_custom_message, void (*background_ca
     window_show(&window);
 }
 
-void window_message_dialog_show(int text_id, void (*background_callback)(void))
+extern "C" void window_message_dialog_show(int text_id, void (*background_callback)(void))
 {
     init_window(text_id, 0, background_callback);
 }
 
-void window_message_dialog_show_city_message(int text_id, int year, int month,
+extern "C" void window_message_dialog_show_city_message(int text_id, int year, int month,
     int param1, int param2, int advisor, int use_popup)
 {
-    set_city_message(year, month, param1, param2, advisor, use_popup);
+    set_city_message(year, month, param1, param2, static_cast<message_advisor>(advisor), use_popup);
     init_window(text_id, 0, window_city_draw_all);
 }
 
-void window_message_dialog_show_custom_message(int custom_message_id, int year, int month)
+extern "C" void window_message_dialog_show_custom_message(int custom_message_id, int year, int month)
 {
     set_city_message(year, month, custom_message_id, 0, MESSAGE_ADVISOR_NONE, 1);
     if (!editor_is_active()) {

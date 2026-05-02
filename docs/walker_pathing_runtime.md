@@ -7,7 +7,8 @@ This note maps the native walker pathing work so future sessions can find the ru
 - `Mods/Vespasian/FigureType/_README.md` documents the XML contract.
 - `src/figure/figure_type_registry.cpp` loads and validates native FigureType XML.
 - `src/figure/PathingMode.h/.cpp` owns pathing mode metadata such as road, service-effect, and venue-target requirements.
-- `src/figure/figure_runtime.cpp` owns native controllers, profile binding, venue ranking, and smart direction choice.
+- `src/figure/figure_runtime.cpp` owns native profile binding, lifecycle rebinding, the C facade, and smart direction choice.
+- `src/figure/figure_runtime_native.h/.cpp` owns native controller classes, venue ranking, and controller factory dispatch.
 - `src/building/building_runtime.cpp` creates profiled native figures for BuildingType spawns.
 - `src/building/local_workforce.h/.cpp` owns local workforce targeting and save data.
 - `src/map/routing_distance.h/.cpp` wraps routing-grid distance checks for walker destination selection.

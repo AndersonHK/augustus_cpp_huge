@@ -1,3 +1,7 @@
+#include <cstdlib>
+#include <cstring>
+
+extern "C" {
 #include "mission_list.h"
 
 #include "assets/assets.h"
@@ -20,15 +24,15 @@
 #include "window/mission_briefing.h"
 #include "window/mission_selection.h"
 #include "window/select_campaign.h"
-
-#include <string.h>
+}
 
 #define MISSION_LIST_Y_POSITION 48
-#define NUM_BOTTOM_BUTTONS (sizeof(bottom_buttons) / sizeof(generic_button))
 #define MISSION_MAP_MAX_WIDTH 352.0f
 #define MISSION_MAP_MAX_HEIGHT 300.0f
 #define SELECTED_ITEM_INFO_X_OFFSET 272
 #define SELECTED_ITEM_INFO_WIDTH ((int) (MISSION_MAP_MAX_WIDTH))
+
+namespace {
 
 static void button_start_scenario(const generic_button *button);
 static void button_back(const generic_button *button);
@@ -63,7 +67,7 @@ typedef struct {
     const campaign_scenario *scenario;
 } campaign_item;
 
-static struct {
+struct MissionListData {
     campaign_item *items;
     unsigned int total_items;
     int ok_button_type;
@@ -82,25 +86,72 @@ static struct {
         int is_hovered;
         int is_ellipsized;
     } title;
-} data;
+};
+
+MissionListData data;
 
 static generic_button bottom_buttons[] = {
     {344, 436, 90, 30, button_back, 0, TR_BUTTON_CANCEL },
     {444, 436, 180, 30, button_start_scenario, 0, TR_WINDOW_MISSION_LIST_BUTTON_BEGIN_SCENARIO },
 };
 
+class MissionListBottomButtons {
+public:
+    explicit MissionListBottomButtons(generic_button *buttons)
+        : buttons_(buttons)
+    {
+    }
+
+    void draw(int ok_button_type, unsigned int focus_button_id) const
+    {
+        for (unsigned int i = 0; i < count(); i++) {
+            const generic_button &button = buttons_[i];
+            button_border_draw(button.x, button.y, button.width, button.height, focus_button_id == i + 1);
+            text_draw_centered(
+                lang_get_string(CUSTOM_TRANSLATION, text_id_for(button, ok_button_type)),
+                button.x,
+                button.y + 9,
+                button.width,
+                FONT_NORMAL_BLACK,
+                0);
+        }
+    }
+
+    int handle_mouse(const mouse *m, unsigned int *focus_button_id) const
+    {
+        return generic_buttons_handle_mouse(m, 0, 0, buttons_, count(), focus_button_id);
+    }
+
+private:
+    static unsigned int count()
+    {
+        return sizeof(bottom_buttons) / sizeof(bottom_buttons[0]);
+    }
+
+    static int text_id_for(const generic_button &button, int ok_button_type)
+    {
+        int text_id = button.parameter1;
+        if (text_id == TR_WINDOW_MISSION_LIST_BUTTON_BEGIN_SCENARIO) {
+            text_id += ok_button_type;
+        }
+        return text_id;
+    }
+
+    generic_button *buttons_;
+};
+
 static list_box_type list_box = {
-    .x = 16,
-    .y = MISSION_LIST_Y_POSITION,
-    .width_blocks = 15,
-    .height_blocks = 24,
-    .item_height = 16,
-    .draw_inner_panel = 1,
-    .extend_to_hidden_scrollbar = 1,
-    .decorate_scrollbar = 1,
-    .draw_item = draw_item,
-    .on_select = select_item,
-    .handle_tooltip = item_tooltip
+    16,
+    MISSION_LIST_Y_POSITION,
+    15,
+    24,
+    16,
+    1,
+    1,
+    1,
+    draw_item,
+    select_item,
+    item_tooltip
 };
 
 static void clear_list(void)
@@ -142,7 +193,7 @@ static void generate_list(void)
     current_scenario_id = 0;
     mission_info = 0;
 
-    data.items = malloc(sizeof(campaign_item) * data.total_items);
+    data.items = static_cast<campaign_item *>(malloc(sizeof(campaign_item) * data.total_items));
     if (!data.items) {
         log_error("Error creating mission items. The game will probably crash.", 0, 0);
     }
@@ -332,15 +383,6 @@ static void draw_background(void)
         data.ok_button_type = BUTTON_TYPE_MISSION_SELECTION;
     }
 
-    for (int i = 0; i < NUM_BOTTOM_BUTTONS; i++) {
-        int text_id = bottom_buttons[i].parameter1;
-        if (text_id == TR_WINDOW_MISSION_LIST_BUTTON_BEGIN_SCENARIO) {
-            text_id += data.ok_button_type;
-        }
-        text_draw_centered(lang_get_string(CUSTOM_TRANSLATION, text_id), bottom_buttons[i].x,
-            bottom_buttons[i].y + 9, bottom_buttons[i].width, FONT_NORMAL_BLACK, 0);
-    }
-
     list_box_request_refresh(&list_box);
 
     graphics_reset_dialog();
@@ -382,10 +424,7 @@ static void draw_foreground(void)
 {
     graphics_in_dialog();
     list_box_draw(&list_box);
-    for (unsigned int i = 0; i < NUM_BOTTOM_BUTTONS; i++) {
-        button_border_draw(bottom_buttons[i].x, bottom_buttons[i].y, bottom_buttons[i].width, bottom_buttons[i].height,
-            data.bottom_button_focus_id == i + 1);
-    }
+    MissionListBottomButtons(bottom_buttons).draw(data.ok_button_type, data.bottom_button_focus_id);
     graphics_reset_dialog();
 }
 
@@ -403,7 +442,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
     } else {
         data.title.is_hovered = 0;
     }
-    if (generic_buttons_handle_mouse(m_dialog, 0, 0, bottom_buttons, NUM_BOTTOM_BUTTONS, &data.bottom_button_focus_id) ||
+    if (MissionListBottomButtons(bottom_buttons).handle_mouse(m_dialog, &data.bottom_button_focus_id) ||
         list_box_handle_input(&list_box, m_dialog, 1)) {
         list_box_request_refresh(&list_box);
         return;
@@ -524,12 +563,14 @@ static void show_window(int keep_data)
     window_show(&window);
 }
 
-void window_mission_list_show(void)
+} // namespace
+
+extern "C" void window_mission_list_show(void)
 {
     show_window(0);
 }
 
-void window_mission_list_show_again(void)
+extern "C" void window_mission_list_show_again(void)
 {
     show_window(1);
 }

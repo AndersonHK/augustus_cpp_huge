@@ -138,9 +138,13 @@ Doctrine:
 - `src/building/tool_mode.cpp`
 - `src/building/building_runtime.h`
 - `src/building/building_runtime.cpp`
+- `src/building/building_runtime_graphics.cpp`
+- `src/building/building_runtime_spawn.cpp`
 - `src/building/building_runtime_api.h`
+- `src/building/construction_session.h/.cpp`
 - `src/figure/figure_type_registry.cpp`
 - `src/figure/figure_runtime.cpp`
+- `src/figure/figure_runtime_native.h/.cpp`
 - `src/figure/movement.cpp`
 - `src/figuretype/maintenance.cpp`
 - `src/map/road_service_history.h`
@@ -169,8 +173,9 @@ Pattern:
 - `src/figure/PathingMode.h/.cpp`
   - pathing mode objects and requirements such as `requires_road`, `requires_service_effect`, and `requires_venue_targets`
 - `src/figure/figure_runtime.cpp`
-  - profile binding plus native service, engineer, prefect, and entertainment controllers
-  - smart-service direction selection
+  - profile binding, lifecycle rebinding, C facade, and smart-service direction selection
+- `src/figure/figure_runtime_native.h/.cpp`
+  - native service, engineer, prefect, and entertainment controller classes
 - `src/building/local_workforce.h/.cpp`
   - local workforce labor-seeker targeting, house/workplace allocation table, and save payload
 - `src/map/routing_distance.h/.cpp`

@@ -3,6 +3,7 @@
 #include "building/storage_type_registry.h"
 #include "assets/image_group_payload.h"
 #include "core/crash_context.h"
+#include "core/xml_value.h"
 
 extern "C" {
 #include "building/building_runtime_api.h"
@@ -15,7 +16,6 @@ extern "C" {
 #include "game/resource.h"
 }
 
-#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <utility>
@@ -40,36 +40,6 @@ static building_type find_building_type_by_attr(const char *type_attr)
     return BUILDING_NONE;
 }
 
-static std::string trim_copy(const std::string &value)
-{
-    size_t start = 0;
-    while (start < value.size() && (value[start] == ' ' || value[start] == '\t' || value[start] == '\r' || value[start] == '\n')) {
-        start++;
-    }
-
-    size_t end = value.size();
-    while (end > start && (value[end - 1] == ' ' || value[end - 1] == '\t' || value[end - 1] == '\r' || value[end - 1] == '\n')) {
-        end--;
-    }
-    return value.substr(start, end - start);
-}
-
-static int parse_bool_value(const char *value, int *out_value)
-{
-    if (!value || !out_value) {
-        return 0;
-    }
-
-    if (strcmp(value, "true") == 0 || strcmp(value, "1") == 0 || strcmp(value, "yes") == 0) {
-        *out_value = 1;
-        return 1;
-    }
-    if (strcmp(value, "false") == 0 || strcmp(value, "0") == 0 || strcmp(value, "no") == 0) {
-        *out_value = 0;
-        return 1;
-    }
-    return 0;
-}
 
 static figure_type parse_figure_type_name(const char *name)
 {
@@ -139,7 +109,7 @@ static int parse_figure_list_attribute(const char *value, std::vector<figure_typ
     size_t start = 0;
     while (start <= list.size()) {
         size_t end = list.find(',', start);
-        std::string token = trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        std::string token = xml_value::trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
         if (!token.empty()) {
             figure_type type = parse_figure_type_name(token.c_str());
             if (type == FIGURE_NONE) {
@@ -180,21 +150,6 @@ static LaborSeekerMethod parse_labor_seeker_method(const char *value)
     return LaborSeekerMethod::None;
 }
 
-static int parse_int_strict(const std::string &text, int *out_value)
-{
-    if (!out_value) {
-        return 0;
-    }
-
-    char *end = nullptr;
-    long parsed = strtol(text.c_str(), &end, 10);
-    if (!end || *end != '\0') {
-        return 0;
-    }
-    *out_value = static_cast<int>(parsed);
-    return 1;
-}
-
 static int parse_delay_bands_attribute(const char *value, std::vector<DelayBand> &out_delay_bands)
 {
     if (!value || !*value) {
@@ -206,18 +161,18 @@ static int parse_delay_bands_attribute(const char *value, std::vector<DelayBand>
     int previous_percentage = 101;
     while (start <= list.size()) {
         size_t end = list.find(',', start);
-        std::string token = trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        std::string token = xml_value::trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
         if (!token.empty()) {
             size_t separator = token.find(':');
             if (separator == std::string::npos) {
                 return 0;
             }
 
-            std::string percentage_text = trim_copy(token.substr(0, separator));
-            std::string delay_text = trim_copy(token.substr(separator + 1));
+            std::string percentage_text = xml_value::trim_copy(token.substr(0, separator));
+            std::string delay_text = xml_value::trim_copy(token.substr(separator + 1));
             int percentage = 0;
             int delay = 0;
-            if (!parse_int_strict(percentage_text, &percentage) || !parse_int_strict(delay_text, &delay)) {
+            if (!xml_value::parse_int_strict(percentage_text, &percentage) || !xml_value::parse_int_strict(delay_text, &delay)) {
                 return 0;
             }
             if (percentage < 1 || percentage > 100 || delay < 0) {
@@ -398,7 +353,7 @@ static int ends_with_ignore_case_ascii(const std::string &value, const char *suf
 
 static std::string normalize_graphics_path(const char *value)
 {
-    std::string normalized = trim_copy(value ? value : "");
+    std::string normalized = xml_value::trim_copy(value ? value : "");
     if (normalized.empty()) {
         return std::string();
     }
@@ -433,7 +388,7 @@ static std::string normalize_graphics_path(const char *value)
 
 static std::string normalize_runtime_definition_path(const char *value)
 {
-    std::string normalized = trim_copy(value ? value : "");
+    std::string normalized = xml_value::trim_copy(value ? value : "");
     if (normalized.empty()) {
         return std::string();
     }
@@ -731,7 +686,7 @@ static int parse_graphics_image()
         return 0;
     }
 
-    std::string image_id = trim_copy(xml_parser_get_attribute_string("value"));
+    std::string image_id = xml_value::trim_copy(xml_parser_get_attribute_string("value"));
     if (image_id.empty()) {
         log_error("Unsupported BuildingType graphics image", xml_parser_get_attribute_string("value"), 0);
         g_parse_state.error = 1;
@@ -768,7 +723,7 @@ static resource_type parse_resource_type_name(const char *name)
         return RESOURCE_NONE;
     }
 
-    const std::string normalized_name = trim_copy(name);
+    const std::string normalized_name = xml_value::trim_copy(name);
     if (normalized_name.empty()) {
         return RESOURCE_NONE;
     }
@@ -866,7 +821,7 @@ static int parse_graphics_condition()
 
         int threshold = 0;
         const char *threshold_text = xml_parser_get_attribute_string("threshold");
-        if (!threshold_text || !parse_int_strict(threshold_text, &threshold)) {
+        if (!threshold_text || !xml_value::parse_int_strict(threshold_text, &threshold)) {
             log_error("Unsupported BuildingType graphics condition threshold", threshold_text, 0);
             g_parse_state.error = 1;
             return 0;
@@ -1449,7 +1404,7 @@ static int parse_spawn()
     }
 
     if (xml_parser_has_attribute("init_roaming")) {
-        if (!parse_bool_value(xml_parser_get_attribute_string("init_roaming"), &policy.init_roaming)) {
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("init_roaming"), &policy.init_roaming)) {
             log_error("Unsupported BuildingType spawn init_roaming", xml_parser_get_attribute_string("init_roaming"), 0);
             g_parse_state.error = 1;
             return 0;
@@ -1457,7 +1412,7 @@ static int parse_spawn()
     }
 
     if (xml_parser_has_attribute("require_water_access")) {
-        if (!parse_bool_value(xml_parser_get_attribute_string("require_water_access"), &policy.require_water_access)) {
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("require_water_access"), &policy.require_water_access)) {
             log_error("Unsupported BuildingType spawn require_water_access", xml_parser_get_attribute_string("require_water_access"), 0);
             g_parse_state.error = 1;
             return 0;
@@ -1465,7 +1420,7 @@ static int parse_spawn()
     }
 
     if (xml_parser_has_attribute("mark_problem_if_no_water")) {
-        if (!parse_bool_value(xml_parser_get_attribute_string("mark_problem_if_no_water"), &policy.mark_problem_if_no_water)) {
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("mark_problem_if_no_water"), &policy.mark_problem_if_no_water)) {
             log_error("Unsupported BuildingType spawn mark_problem_if_no_water", xml_parser_get_attribute_string("mark_problem_if_no_water"), 0);
             g_parse_state.error = 1;
             return 0;
@@ -1496,7 +1451,7 @@ static int parse_spawn()
     }
 
     if (xml_parser_has_attribute("block_on_success")) {
-        if (!parse_bool_value(xml_parser_get_attribute_string("block_on_success"), &policy.block_on_success)) {
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("block_on_success"), &policy.block_on_success)) {
             log_error("Unsupported BuildingType spawn block_on_success", xml_parser_get_attribute_string("block_on_success"), 0);
             g_parse_state.error = 1;
             return 0;
@@ -1504,7 +1459,7 @@ static int parse_spawn()
     }
 
     if (has_profile_attribute) {
-        policy.profile = trim_copy(xml_parser_get_attribute_string("profile"));
+        policy.profile = xml_value::trim_copy(xml_parser_get_attribute_string("profile"));
         if (policy.profile.empty()) {
             log_error("Unsupported BuildingType spawn profile", xml_parser_get_attribute_string("profile"), 0);
             g_parse_state.error = 1;

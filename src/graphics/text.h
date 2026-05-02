@@ -21,6 +21,7 @@ void text_ellipsize(uint8_t *str, font_t font, int requested_width);
 
 int text_draw(const uint8_t *str, int x, int y, font_t font, color_t color);
 int text_draw_scaled(const uint8_t *str, int x, int y, font_t font, color_t color, float scale);
+int text_draw_with_size_delta(const uint8_t *str, int x, int y, font_t font, color_t color, int logical_size_delta);
 
 void text_draw_centered(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color);
 void text_draw_right_aligned(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color);
@@ -36,6 +37,8 @@ int text_draw_number_pair(int left_value, int right_value, char prefix, const ch
 void text_draw_number_finances(int value, int x, int y, font_t font, color_t color);
 int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
         int x, int y, font_t font, color_t color, float scale);
+int text_draw_number_with_size_delta(int value, char prefix, const uint8_t *postfix,
+        int x, int y, font_t font, color_t color, int logical_size_delta);
 int text_draw_money(int value, int x_offset, int y_offset, font_t font);
 void text_draw_with_money(const uint8_t *text, int value, const char *prefix, const char *postfix,
     int x_offset, int y_offset, int box_width, font_t font, color_t color);

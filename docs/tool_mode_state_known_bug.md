@@ -32,6 +32,7 @@ Snapshot: 2026-03-30
   - `src/building/tool_mode.h`
 - Construction state and drag-point handling:
   - `src/building/construction.cpp`
+  - `src/building/construction_session.h/.cpp`
   - `src/building/construction.h`
 - City input loop:
   - `src/widget/city.c`

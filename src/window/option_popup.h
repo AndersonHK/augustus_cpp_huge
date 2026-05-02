@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     OPTION_MENU_SMALL_ROW = 0,
     OPTION_MENU_LARGE_ROW = 1
@@ -13,3 +17,7 @@ typedef struct {
 
 void window_option_popup_show(int title, int subtitle, option_menu_item *options, int num_options,
     void (*close_func)(int selection), int current_option, int price, option_menu_row_size row_size);
+
+#ifdef __cplusplus
+}
+#endif

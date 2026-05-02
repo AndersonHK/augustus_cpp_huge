@@ -1,3 +1,4 @@
+extern "C" {
 #include "depot.h"
 
 #include "assets/assets.h"
@@ -24,6 +25,7 @@
 #include "translation/translation.h"
 #include "widget/dropdown_button.h"
 #include "window/building_info.h"
+}
 
 static void order_set_source(const generic_button *button);
 static void order_set_destination(const generic_button *button);
@@ -109,32 +111,7 @@ static generic_button depot_goto_storage_orders_buttons[] = {
     {0, 0, 0, ROW_HEIGHT, goto_special_orders_on_top},
 };
 
-static generic_button depot_select_resource_buttons[] = {
-    {18, 0, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, 0, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 1, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 1, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 2, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 2, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 3, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 3, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 4, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 4, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 5, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 5, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 6, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 6, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 7, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 7, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 8, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 8, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 9, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 9, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 10, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 10, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18, ROW_HEIGHT_RESOURCE * 11, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-    {18 + ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE * 11, ROW_WIDTH_RESOURCE, ROW_HEIGHT_RESOURCE, set_order_resource},
-};
+static generic_button depot_select_resource_buttons[MAX_RESOURCE_ROWS];
 
 static generic_button depot_order_buttons[] = {
     {100,  0, 284, ROW_HEIGHT + 4, order_set_resource, 0, 1},
@@ -310,10 +287,11 @@ void window_building_depot_init_resource_selection(void)
     int extra_width = total_rows > MAX_VISIBLE_ROWS ? 0 : 20;
 
     for (int i = 0; i < MAX_RESOURCE_ROWS; i++) {
-        if (depot_select_resource_buttons[i].x != 18) {
-            depot_select_resource_buttons[i].x = 18 + ROW_WIDTH_RESOURCE + extra_width;
-        }
+        depot_select_resource_buttons[i].x = static_cast<short>(18 + (i % 2) * (ROW_WIDTH_RESOURCE + extra_width));
+        depot_select_resource_buttons[i].y = static_cast<short>((i / 2) * ROW_HEIGHT_RESOURCE);
         depot_select_resource_buttons[i].width = ROW_WIDTH_RESOURCE + extra_width;
+        depot_select_resource_buttons[i].height = ROW_HEIGHT_RESOURCE;
+        depot_select_resource_buttons[i].left_click_handler = set_order_resource;
     }
 }
 
@@ -379,7 +357,7 @@ static void depot_draw_cart_status(const building *b, building_info_context *c)
         }
 
         if (f && f->state != FIGURE_STATE_DEAD) {
-            int resource = f->resource_id ? f->resource_id : f->collecting_item_id;
+            resource_type resource = static_cast<resource_type>(f->resource_id ? f->resource_id : f->collecting_item_id);
             if (resource != RESOURCE_NONE) {
                 const resource_data *rdata = resource_get_data(resource);
                 const image *img = image_get(rdata->image.icon);
@@ -499,7 +477,7 @@ void window_building_draw_depot_foreground(building_info_context *c)
     text_draw(translation_for(TR_BUILDING_INFO_DEPOT_CONDITION), x_offset, y_offset + depot_order_buttons[3].y + 6, FONT_NORMAL_BLACK, 0);
     button_border_draw(x_offset + depot_order_buttons[3].x, y_offset + depot_order_buttons[3].y,
         depot_order_buttons[3].width, depot_order_buttons[3].height, data.focus_button_id == 4);
-    text_draw_centered(translation_for(TR_ORDER_CONDITION_NEVER + condition_type),
+    text_draw_centered(translation_for(static_cast<translation_key>(TR_ORDER_CONDITION_NEVER + condition_type)),
         x_offset + depot_order_buttons[3].x, y_offset + depot_order_buttons[3].y + 6, depot_order_buttons[3].width, FONT_NORMAL_BLACK, 0);
     if (condition_type != ORDER_CONDITION_ALWAYS && condition_type != ORDER_CONDITION_NEVER) {
         button_border_draw(x_offset + depot_order_buttons[4].x, y_offset + depot_order_buttons[4].y,
@@ -1023,7 +1001,8 @@ const uint8_t *window_building_depot_get_tooltip_source_destination(int *transla
         building *storage_building = building_get(storage_building_id);
         if (storage_building) {
             static char tooltip_buffer[1024];
-            storage_summary_style tooltip_style = config_get(CONFIG_UI_CART_DEPOT_TOOLTIP_STYLE);
+            storage_summary_style tooltip_style =
+                static_cast<storage_summary_style>(config_get(CONFIG_UI_CART_DEPOT_TOOLTIP_STYLE));
             if (building_storage_summary_tooltip(storage_building, tooltip_buffer, sizeof(tooltip_buffer), tooltip_style)) {
                 return (const uint8_t *) tooltip_buffer;
             }
@@ -1035,7 +1014,7 @@ const uint8_t *window_building_depot_get_tooltip_source_destination(int *transla
 static void set_order_resource(const generic_button *button)
 {
     int depot_building_id = button->parameter1;
-    resource_type resource_id = button->parameter2;
+    resource_type resource_id = static_cast<resource_type>(button->parameter2);
     if (resource_id >= RESOURCE_MIN && resource_id < RESOURCE_MAX && resource_is_storable(resource_id)) {
         building *b = building_get(depot_building_id);
         b->data.depot.current_order.resource_type = resource_id;

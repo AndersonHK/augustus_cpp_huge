@@ -36,6 +36,8 @@
     <ClCompile Include="src\building\barracks.c" />
     <ClCompile Include="src\building\building.c" />
     <ClCompile Include="src\building\building_runtime.cpp" />
+    <ClCompile Include="src\building\building_runtime_graphics.cpp" />
+    <ClCompile Include="src\building\building_runtime_spawn.cpp" />
     <ClCompile Include="src\building\building_type.cpp" />
     <ClCompile Include="src\building\building_type_registry.cpp" />
     <ClCompile Include="src\building\building_type_registry_xml.cpp" />
@@ -45,7 +47,8 @@
     <ClCompile Include="src\building\clone.c" />
     <ClCompile Include="src\building\connectable.c" />
     <ClCompile Include="src\building\construction.cpp" />
-    <ClCompile Include="src\building\construction_building.c" />
+    <ClCompile Include="src\building\construction_session.cpp" />
+    <ClCompile Include="src\building\construction_building.cpp" />
     <ClCompile Include="src\building\construction_clear.cpp" />
     <ClCompile Include="src\building\construction_routed.c" />
     <ClCompile Include="src\building\construction_warning.c" />
@@ -148,6 +151,7 @@
     <ClCompile Include="src\core\time.c" />
     <ClCompile Include="src\core\xml_exporter.c" />
     <ClCompile Include="src\core\xml_parser.c" />
+    <ClCompile Include="src\core\xml_value.cpp" />
     <ClCompile Include="src\core\zip.c" />
     <ClCompile Include="src\core\zlib_helper.c" />
     <ClCompile Include="src\editor\editor.c" />
@@ -197,6 +201,7 @@
     <ClCompile Include="src\figure\roamer_preview.c" />
     <ClCompile Include="src\figure\route.c" />
     <ClCompile Include="src\figure\figure_runtime.cpp" />
+    <ClCompile Include="src\figure\figure_runtime_native.cpp" />
     <ClCompile Include="src\figure\service.cpp" />
     <ClCompile Include="src\figure\sound.c" />
     <ClCompile Include="src\figure\trader.c" />
@@ -232,6 +237,7 @@
     <ClCompile Include="src\graphics\advisor_card_button_widget.cpp" />
     <ClCompile Include="src\graphics\advisor_text_button_widget.cpp" />
     <ClCompile Include="src\graphics\bordered_button_widget.cpp" />
+    <ClCompile Include="src\graphics\declarative_window.cpp" />
     <ClCompile Include="src\graphics\clouds.c" />
     <ClCompile Include="src\graphics\complex_button.c" />
     <ClCompile Include="src\graphics\font.cpp" />
@@ -388,7 +394,7 @@
     <ClCompile Include="src\translation\localization_support.cpp" />
     <ClCompile Include="src\translation\translation.cpp" />
     <ClCompile Include="src\translation\translation_key_table.cpp" />
-    <ClCompile Include="src\widget\city.c" />
+    <ClCompile Include="src\widget\city.cpp" />
     <ClCompile Include="src\widget\city_bridge.c" />
     <ClCompile Include="src\widget\city_building_ghost.cpp" />
     <ClCompile Include="src\widget\city_draw.cpp" />
@@ -436,8 +442,8 @@
     <ClCompile Include="src\window\asset_previewer.c" />
     <ClCompile Include="src\window\building\common.c" />
     <ClCompile Include="src\window\building\culture.cpp" />
-    <ClCompile Include="src\window\building\depot.c" />
-    <ClCompile Include="src\window\building\distribution.c" />
+    <ClCompile Include="src\window\building\depot.cpp" />
+    <ClCompile Include="src\window\building\distribution.cpp" />
     <ClCompile Include="src\window\building\figures.c" />
     <ClCompile Include="src\window\building\government.c" />
     <ClCompile Include="src\window\building\house.c" />
@@ -496,21 +502,21 @@
     <ClCompile Include="src\window\labor_priority.c" />
     <ClCompile Include="src\window\logo.c" />
     <ClCompile Include="src\window\main_menu.c" />
-    <ClCompile Include="src\window\message_dialog.c" />
+    <ClCompile Include="src\window\message_dialog.cpp" />
     <ClCompile Include="src\window\message_list.c" />
     <ClCompile Include="src\window\military_menu.c" />
-    <ClCompile Include="src\window\mission_briefing.c" />
+    <ClCompile Include="src\window\mission_briefing.cpp" />
     <ClCompile Include="src\window\mission_end.c" />
-    <ClCompile Include="src\window\mission_list.c" />
-    <ClCompile Include="src\window\mission_selection.c" />
+    <ClCompile Include="src\window\mission_list.cpp" />
+    <ClCompile Include="src\window\mission_selection.cpp" />
     <ClCompile Include="src\window\numeric_input.c" />
-    <ClCompile Include="src\window\option_popup.c" />
+    <ClCompile Include="src\window\option_popup.cpp" />
     <ClCompile Include="src\window\overlay_menu.c" />
     <ClCompile Include="src\window\plain_message_dialog.c" />
     <ClCompile Include="src\window\popup_dialog.c" />
     <ClCompile Include="src\window\race_bet.c" />
     <ClCompile Include="src\window\resource_settings.c" />
-    <ClCompile Include="src\window\select_campaign.c" />
+    <ClCompile Include="src\window\select_campaign.cpp" />
     <ClCompile Include="src\window\select_list.c" />
     <ClCompile Include="src\window\set_salary.c" />
     <ClCompile Include="src\window\text_input.c" />
@@ -552,6 +558,7 @@
     <ClInclude Include="src\building\clone.h" />
     <ClInclude Include="src\building\connectable.h" />
     <ClInclude Include="src\building\construction.h" />
+    <ClInclude Include="src\building\construction_session.h" />
     <ClInclude Include="src\building\construction_building.h" />
     <ClInclude Include="src\building\construction_clear.h" />
     <ClInclude Include="src\building\tool_mode.h" />
@@ -663,6 +670,7 @@
     <ClInclude Include="src\core\time.h" />
     <ClInclude Include="src\core\xml_exporter.h" />
     <ClInclude Include="src\core\xml_parser.h" />
+    <ClInclude Include="src\core\xml_value.h" />
     <ClInclude Include="src\core\zip.h" />
     <ClInclude Include="src\core\zlib_helper.h" />
     <ClInclude Include="src\editor\editor.h" />
@@ -701,6 +709,7 @@
     <ClInclude Include="src\figure\enemy_army.h" />
     <ClInclude Include="src\figure\figure.h" />
     <ClInclude Include="src\figure\figure_runtime_api.h" />
+    <ClInclude Include="src\figure\figure_runtime_native.h" />
     <ClInclude Include="src\figure\figure_type_registry.h" />
     <ClInclude Include="src\figure\figure_type_registry_internal.h" />
     <ClInclude Include="src\figure\PathingMode.h" />
@@ -754,6 +763,7 @@
     <ClInclude Include="src\graphics\bordered_button_widget.h" />
     <ClInclude Include="src\graphics\button_widget.h" />
     <ClInclude Include="src\graphics\clouds.h" />
+    <ClInclude Include="src\graphics\declarative_window.h" />
     <ClInclude Include="src\graphics\empire_trade_route_button_widget.h" />
     <ClInclude Include="src\graphics\color.h" />
     <ClInclude Include="src\graphics\complex_button.h" />

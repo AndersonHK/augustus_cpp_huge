@@ -13,6 +13,7 @@ unsigned int text_get_max_utf8_bytes_for_width(
     int invert);
 int text_draw_utf8(std::string_view text, int x, int y, font_t font, color_t color);
 int text_draw_utf8_scaled(std::string_view text, int x, int y, font_t font, color_t color, float scale);
+int text_draw_utf8_sized(std::string_view text, int x, int y, font_t font, color_t color, int logical_size_delta);
 int text_draw_utf8_styled(
     std::string_view text,
     int x,
@@ -20,4 +21,12 @@ int text_draw_utf8_styled(
     font_t font,
     color_t color,
     float scale,
+    unsigned style_flags);
+int text_draw_utf8_sized_styled(
+    std::string_view text,
+    int x,
+    int y,
+    font_t font,
+    color_t color,
+    int logical_size_delta,
     unsigned style_flags);

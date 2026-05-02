@@ -31,6 +31,17 @@ int rich_text_init(
 void rich_text_set_fonts(font_t normal_font, font_t heading_font, font_t link_font, int line_spacing);
 
 /**
+ * Sets an integer logical-size delta for vector rich text surfaces.
+ * This avoids fractional bitmap scaling and keeps line spacing explicit.
+ */
+void rich_text_set_font_size_delta(int logical_size_delta);
+
+/**
+ * Sets extra blank lines inserted after rich text paragraph or line-break tags.
+ */
+void rich_text_set_paragraph_spacing(int lines);
+
+/**
  * Resets the text to the specified scroll position and forces recalculation of lines
  */
 void rich_text_reset(int scroll_position);

@@ -73,6 +73,23 @@ The first safe migration pass deliberately avoided adding a new icon-button clas
 
 The pass intentionally left custom rows with complex conditional text/data layout alone unless they matched an existing widget with no special cases.
 
+## 2026-05-02 Storage Window Cleanup
+
+- `src/window/building/distribution.cpp` and `src/window/building/depot.cpp` now follow the C++ conversion path used by other migrated windows.
+- Distribution permission buttons use a small construction helper instead of C-only designated compound literals.
+- Depot resource-row buttons are initialized from a compact row/column loop instead of a 24-entry repeated literal table.
+
+## 2026-05-02 Declarative Mission Briefing Window
+
+- Declarative UI window definitions now start at `Mods/<selected mod>/UI/windows/mission_briefing.xml`.
+- `src/graphics/declarative_window.h/.cpp` loads required window XML at startup and constructs `DeclarativeWindow` objects from widget declarations.
+- The first migrated sample is `src/window/mission_briefing.cpp`: XML owns static panel, label, objective slot, rich text, scrollbar, and button geometry; C++ still owns scenario data, bindings, callbacks, and audio/video behavior.
+- Declarative mission text uses integer `font_size_delta` values. Do not use fractional text scale for these windows; vector text should open the nearest integer font size and keep `line_spacing` explicit.
+- Mission rich text can use `paragraph_spacing` for extra blank lines after paragraph and line-break tags without loosening every wrapped line.
+- Stretch-height widgets can use `stretch_to_widget` with optional `stretch_margin_y` to stop before another widget, such as bottom-aligned buttons.
+- The selected mod's mission briefing XML is required. Missing or invalid required widgets fail startup through the retained init-failure path.
+- Named-asset image buttons draw the exact named asset and no longer apply legacy sprite-strip state offsets unless the caller uses numeric image collections. This keeps single-image UI assets such as pause/play stable when pressed.
+
 ## Migration Guidance For Future UI Tasks
 
 - Start by inspecting existing widget classes and primitives before proposing new classes.

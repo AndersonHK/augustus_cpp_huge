@@ -4,6 +4,7 @@
 #include "core/image_payload.h"
 #include "figure/figure_type_registry.h"
 #include "game/defines.h"
+#include "graphics/declarative_window.h"
 
 extern "C" {
 #include "assets/assets.h"
@@ -146,6 +147,11 @@ int game_init(void)
         const char *font_failure_reason = font_get_failure_reason();
         set_init_failure_message("Failed to load mod font pack.", font_failure_reason && *font_failure_reason ? font_failure_reason : 0);
         errlog("unable to load mod font pack");
+        return 0;
+    }
+    if (!declarative_window_registry_load()) {
+        set_init_failure_message("Failed to load UI window definitions.", declarative_window_registry_get_failure_reason());
+        errlog("unable to load UI window definitions");
         return 0;
     }
 
