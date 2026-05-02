@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="charioteer">
+    <profiles default="venue_seeker">
+        <profile id="venue_seeker">
+            <native class="entertainment_venue_seeker" />
+            <owner slot="primary" building="any" state="in_use" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="3200" return_mode="none" />
+            <pathing mode="venue_seeker" />
+            <venue_targets show_duration="32">
+                <venue building="hippodrome" show_slot="days1" />
+            </venue_targets>
+        </profile>
+        <profile id="hippodrome_service">
+            <native class="entertainment_service" />
+            <owner slot="primary" building="hippodrome" state="in_use" />
+            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
+            <pathing mode="vanilla_roaming" effect="entertainment_hippodrome" />
+        </profile>
+    </profiles>
+    <graphics image_group="charioteer" max_image_offset="12" />
+</figure>

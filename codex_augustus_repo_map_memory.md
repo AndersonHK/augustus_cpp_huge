@@ -165,12 +165,16 @@ Pattern:
 - `docs/preindustrial_walking_service_ranges.md`
   - historical walking-city calibration for walker `max_roam_length` tiers
 - `src/figure/figure_type_registry.cpp`
-  - selected-mod/Augustus/Julius FigureType XML precedence and validation
+  - selected-mod/Augustus/Julius FigureType XML precedence and profile validation
 - `src/figure/figure_runtime.cpp`
-  - native service, engineer, and prefect controllers
+  - profile binding plus native service, engineer, prefect, and entertainment controllers
   - smart-service direction selection
 - `src/building/local_workforce.h/.cpp`
   - local workforce labor-seeker targeting, house/workplace allocation table, and save payload
+- `src/map/routing_distance.h/.cpp`
+  - C++ helper for route-grid destination distance; venue seekers rank by `2 * show_days + route_distance`
+- BuildingType native spawns choose a `FigureType` profile with `profile="..."`; figures own the native class, movement/pathing, and road-history effect after creation.
+- Priests use explicit god profiles; entertainment service walkers use generic native behavior with profile-specific smart-service effects.
 - `src/figure/movement.cpp`
   - legacy roaming loop and native pathing hook
 - Temporary Vespasian tuning: FigureType `max_roam_length` should be roughly 50% larger than Augustus until walker range tuning is revisited.

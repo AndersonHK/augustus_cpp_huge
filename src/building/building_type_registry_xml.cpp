@@ -1411,7 +1411,9 @@ static int parse_spawn()
         }
     }
 
-    if (policy.mode == SpawnMode::ServiceRoamer && !xml_parser_has_attribute("action_state")) {
+    const int has_profile_attribute = xml_parser_has_attribute("profile");
+
+    if (policy.mode == SpawnMode::ServiceRoamer && !has_profile_attribute && !xml_parser_has_attribute("action_state")) {
         log_error("BuildingType spawn is missing required attribute 'action_state'", 0, 0);
         g_parse_state.error = 1;
         return 0;
@@ -1496,6 +1498,15 @@ static int parse_spawn()
     if (xml_parser_has_attribute("block_on_success")) {
         if (!parse_bool_value(xml_parser_get_attribute_string("block_on_success"), &policy.block_on_success)) {
             log_error("Unsupported BuildingType spawn block_on_success", xml_parser_get_attribute_string("block_on_success"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
+    if (has_profile_attribute) {
+        policy.profile = trim_copy(xml_parser_get_attribute_string("profile"));
+        if (policy.profile.empty()) {
+            log_error("Unsupported BuildingType spawn profile", xml_parser_get_attribute_string("profile"), 0);
             g_parse_state.error = 1;
             return 0;
         }

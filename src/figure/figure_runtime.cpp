@@ -3,12 +3,16 @@
 #include "core/crash_context.h"
 #include "figure/figure_type_registry_internal.h"
 #include "map/road_service_history.h"
+#include "map/routing_distance.h"
 
 extern "C" {
 #include "building/list.h"
 #include "building/local_workforce.h"
 #include "building/maintenance.h"
 #include "building/building.h"
+#include "core/buffer.h"
+#include "building/monument.h"
+#include "city/festival.h"
 #include "city/figures.h"
 #include "core/calc.h"
 #include "core/image.h"
@@ -25,6 +29,7 @@ extern "C" {
 #include "map/road_access.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
+#include "scenario/gladiator_revolt.h"
 #include "sound/effect.h"
 }
 
@@ -40,9 +45,13 @@ constexpr int kRecalculateEnemyLocationTicks = 30;
 
 class NativeFigure {
 public:
-    NativeFigure(figure *data, const figure_type_registry_impl::FigureTypeDefinition *definition)
+    NativeFigure(
+        figure *data,
+        const figure_type_registry_impl::FigureTypeDefinition *definition,
+        const figure_type_registry_impl::FigureTypeProfile *profile)
         : figure_(data)
         , definition_(definition)
+        , profile_(profile)
     {
     }
 
@@ -58,6 +67,11 @@ public:
         return definition_;
     }
 
+    const figure_type_registry_impl::FigureTypeProfile *profile() const
+    {
+        return profile_;
+    }
+
     virtual int execute() = 0;
 
 protected:
@@ -69,6 +83,7 @@ protected:
 private:
     figure *figure_ = nullptr;
     const figure_type_registry_impl::FigureTypeDefinition *definition_ = nullptr;
+    const figure_type_registry_impl::FigureTypeProfile *profile_ = nullptr;
 };
 
 bool owner_state_matches(const building *owner, const figure_type_registry_impl::OwnerBinding &owner_binding)
@@ -149,66 +164,15 @@ void retire_unsupported_native_state(figure *f, const char *native_class)
     }
 }
 
-road_service_effect religion_service_effect_for_owner(const building *owner)
+road_service_effect primary_service_effect_for_profile(
+    const figure_type_registry_impl::FigureTypeProfile *profile)
 {
-    if (!owner) {
+    if (!profile) {
         return ROAD_SERVICE_EFFECT_NONE;
     }
-
-    switch (owner->type) {
-        case BUILDING_SMALL_TEMPLE_CERES:
-        case BUILDING_LARGE_TEMPLE_CERES:
-        case BUILDING_GRAND_TEMPLE_CERES:
-            return ROAD_SERVICE_EFFECT_RELIGION_CERES;
-        case BUILDING_SMALL_TEMPLE_NEPTUNE:
-        case BUILDING_LARGE_TEMPLE_NEPTUNE:
-        case BUILDING_GRAND_TEMPLE_NEPTUNE:
-            return ROAD_SERVICE_EFFECT_RELIGION_NEPTUNE;
-        case BUILDING_SMALL_TEMPLE_MERCURY:
-        case BUILDING_LARGE_TEMPLE_MERCURY:
-        case BUILDING_GRAND_TEMPLE_MERCURY:
-            return ROAD_SERVICE_EFFECT_RELIGION_MERCURY;
-        case BUILDING_SMALL_TEMPLE_MARS:
-        case BUILDING_LARGE_TEMPLE_MARS:
-        case BUILDING_GRAND_TEMPLE_MARS:
-            return ROAD_SERVICE_EFFECT_RELIGION_MARS;
-        case BUILDING_SMALL_TEMPLE_VENUS:
-        case BUILDING_LARGE_TEMPLE_VENUS:
-        case BUILDING_GRAND_TEMPLE_VENUS:
-            return ROAD_SERVICE_EFFECT_RELIGION_VENUS;
-        case BUILDING_PANTHEON:
-            return ROAD_SERVICE_EFFECT_RELIGION_PANTHEON;
-        default:
-            return ROAD_SERVICE_EFFECT_NONE;
-    }
-}
-
-road_service_effect primary_service_effect_for_pathing(
-    const figure_type_registry_impl::PathingPolicy &pathing,
-    const figure *f)
-{
-    if (!pathing.effect_from_religion_owner) {
-        return pathing.effect;
-    }
-    return religion_service_effect_for_owner(f ? building_get(f->building_id) : nullptr);
-}
-
-void record_religion_owner_service_effects(const figure *f)
-{
-    const building *owner = f ? building_get(f->building_id) : nullptr;
-    const road_service_effect effect = religion_service_effect_for_owner(owner);
-    if (effect == ROAD_SERVICE_EFFECT_NONE) {
-        return;
-    }
-
-    if (effect == ROAD_SERVICE_EFFECT_RELIGION_PANTHEON) {
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_CERES, f->grid_offset);
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_NEPTUNE, f->grid_offset);
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_MERCURY, f->grid_offset);
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_MARS, f->grid_offset);
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_VENUS, f->grid_offset);
-    }
-    map_road_service_history_record(effect, f->grid_offset);
+    // Service identity is profile-owned. Buildings choose a profile at spawn time,
+    // and smart service pathing/road history only read this explicit effect.
+    return profile->pathing_policy().effect;
 }
 
 bool is_road_history_tile(int grid_offset)
@@ -238,12 +202,12 @@ public:
             return 0;
         }
 
-        if (!owner_binding_matches(f, owner, definition()->owner_binding())) {
+        if (!owner_binding_matches(f, owner, profile()->owner_binding())) {
             f->state = FIGURE_STATE_DEAD;
             return 1;
         }
 
-        const figure_type_registry_impl::MovementProfile &movement = definition()->movement_profile();
+        const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
         const figure_type_registry_impl::GraphicsPolicy &graphics = definition()->graphics_policy();
 
         f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
@@ -251,7 +215,7 @@ public:
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, graphics.max_image_offset);
 
-        if (definition()->pathing_policy().mode == figure_type_registry_impl::PathingMode::NearestUnemployed &&
+        if (profile()->pathing_policy().mode == figure_type_registry_impl::PathingMode::NearestUnemployed &&
             building_local_workforce_labor_seeker_is_workforce(f)) {
             f->is_ghost = 0;
             f->roam_length++;
@@ -284,7 +248,7 @@ public:
                 f->is_ghost = 0;
                 f->roam_length++;
                 if (f->roam_length >= movement.max_roam_length) {
-                    if (movement.return_mode == figure_type_registry_impl::ReturnMode::DieAtLimit) {
+                    if (movement.return_mode != figure_type_registry_impl::ReturnMode::ReturnToOwnerRoad) {
                         f->state = FIGURE_STATE_DEAD;
                     } else {
                         int x_road = 0;
@@ -336,13 +300,13 @@ public:
         }
 
         building *owner = building_get(f->building_id);
-        if (!owner_binding_matches(f, owner, definition()->owner_binding())) {
+        if (!owner_binding_matches(f, owner, profile()->owner_binding())) {
             f->state = FIGURE_STATE_DEAD;
             update_image(f);
             return 1;
         }
 
-        const figure_type_registry_impl::MovementProfile &movement = definition()->movement_profile();
+        const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
         f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
@@ -441,13 +405,13 @@ public:
         }
 
         building *owner = building_get(f->building_id);
-        if (!owner_binding_matches(f, owner, definition()->owner_binding())) {
+        if (!owner_binding_matches(f, owner, profile()->owner_binding())) {
             f->state = FIGURE_STATE_DEAD;
             update_image(f);
             return 1;
         }
 
-        const figure_type_registry_impl::MovementProfile &movement = definition()->movement_profile();
+        const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
         f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
@@ -792,10 +756,466 @@ private:
     }
 };
 
+class EntertainmentFigureBase : public NativeFigure {
+public:
+    using NativeFigure::NativeFigure;
+
+protected:
+    static bool is_finished_venue(const building *venue)
+    {
+        return venue &&
+            (venue->type != BUILDING_HIPPODROME || !venue->prev_part_building_id) &&
+            ((venue->type != BUILDING_COLOSSEUM && venue->type != BUILDING_HIPPODROME) ||
+                venue->monument.phase == MONUMENT_FINISHED);
+    }
+
+    static int show_days(const building *venue, figure_type_registry_impl::EntertainmentShowSlot slot)
+    {
+        if (!venue) {
+            return 0;
+        }
+        switch (slot) {
+            case figure_type_registry_impl::EntertainmentShowSlot::Days1:
+                return venue->data.entertainment.days1;
+            case figure_type_registry_impl::EntertainmentShowSlot::Days2:
+                return venue->data.entertainment.days2;
+            case figure_type_registry_impl::EntertainmentShowSlot::None:
+            default:
+                return 0;
+        }
+    }
+
+    static void set_show_days(building *venue, figure_type_registry_impl::EntertainmentShowSlot slot, int duration)
+    {
+        if (!venue) {
+            return;
+        }
+        switch (slot) {
+            case figure_type_registry_impl::EntertainmentShowSlot::Days1:
+                venue->data.entertainment.days1 = static_cast<unsigned char>(duration);
+                break;
+            case figure_type_registry_impl::EntertainmentShowSlot::Days2:
+                venue->data.entertainment.days2 = static_cast<unsigned char>(duration);
+                break;
+            case figure_type_registry_impl::EntertainmentShowSlot::None:
+            default:
+                break;
+        }
+    }
+
+    void update_show_for_arrival(figure *f) const
+    {
+        building *venue = building_main(building_get(f->destination_building_id));
+        if (!is_finished_venue(venue)) {
+            return;
+        }
+
+        for (const figure_type_registry_impl::EntertainmentVenueTarget &target : profile()->venue_targets()) {
+            if (target.building != venue->type) {
+                continue;
+            }
+            if (f->type == FIGURE_ACTOR) {
+                venue->data.entertainment.play++;
+                if (venue->data.entertainment.play >= 5) {
+                    venue->data.entertainment.play = 0;
+                }
+            }
+            set_show_days(venue, target.show_slot, profile()->show_duration());
+            return;
+        }
+    }
+
+    void update_image(figure *f) const
+    {
+        int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
+
+        if (f->type == FIGURE_CHARIOTEER) {
+            f->cart_image_id = 0;
+            if (f->action_state == FIGURE_ACTION_150_ATTACK ||
+                f->action_state == FIGURE_ACTION_149_CORPSE) {
+                f->image_id = image_group(definition()->graphics_policy().image_group) + dir;
+            } else {
+                f->image_id = image_group(definition()->graphics_policy().image_group) +
+                    dir + 8 * f->image_offset;
+            }
+            return;
+        }
+
+        int image_id = image_group(definition()->graphics_policy().image_group);
+        if (f->type == FIGURE_LION_TAMER) {
+            if (f->wait_ticks_missile >= 96 && f->action_state != FIGURE_ACTION_149_CORPSE) {
+                image_id = image_group(GROUP_FIGURE_LION_TAMER_WHIP);
+            }
+            f->cart_image_id = image_group(GROUP_FIGURE_LION);
+        }
+
+        if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+            if (f->type == FIGURE_GLADIATOR) {
+                f->image_id = image_id + 104 + dir + 8 * (f->image_offset / 2);
+                if (f->image_id >= 5705 && f->image_id <= 5706) {
+                    f->image_id -= 8;
+                } else if (f->image_id > 5705) {
+                    f->image_id -= 2;
+                }
+            } else {
+                f->image_id = image_id + dir;
+            }
+        } else if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+            f->image_id = image_id + 96 + figure_image_corpse_offset(f);
+            f->cart_image_id = 0;
+        } else {
+            f->image_id = image_id + dir + 8 * f->image_offset;
+        }
+        if (f->cart_image_id) {
+            f->cart_image_id += dir + 8 * f->image_offset;
+            figure_image_set_cart_offset(f, dir);
+        }
+    }
+
+    static int get_enemy_distance(figure *f, int x, int y)
+    {
+        if (f->type == FIGURE_RIOTER || f->type == FIGURE_ENEMY54_GLADIATOR) {
+            return calc_maximum_distance(x, y, f->x, f->y);
+        }
+        if (f->type == FIGURE_CRIMINAL_LOOTER || f->type == FIGURE_CRIMINAL_ROBBER) {
+            return 3 * calc_maximum_distance(x, y, f->x, f->y);
+        }
+        if (f->type == FIGURE_INDIGENOUS_NATIVE && f->action_state == FIGURE_ACTION_159_NATIVE_ATTACKING) {
+            return calc_maximum_distance(x, y, f->x, f->y);
+        }
+        if (figure_is_enemy(f)) {
+            return calc_maximum_distance(x, y, f->x, f->y);
+        }
+        if (f->type == FIGURE_WOLF) {
+            return 2 * calc_maximum_distance(x, y, f->x, f->y);
+        }
+        return kInfiniteDistance;
+    }
+
+    static bool fight_enemy(figure *f)
+    {
+        if (!city_figures_has_security_breach() && enemy_army_total_enemy_formations() <= 0) {
+            return false;
+        }
+        switch (f->action_state) {
+            case FIGURE_ACTION_150_ATTACK:
+            case FIGURE_ACTION_149_CORPSE:
+                return false;
+        }
+
+        int min_enemy_id = 0;
+        int min_dist = kInfiniteDistance;
+        for (unsigned int i = 1; i < figure_count(); i++) {
+            figure *enemy = figure_get(i);
+            if (figure_is_dead(enemy)) {
+                continue;
+            }
+            const int dist = get_enemy_distance(enemy, f->x, f->y);
+            if (dist != kInfiniteDistance && enemy->targeted_by_figure_id) {
+                figure *pursuiter = figure_get(enemy->targeted_by_figure_id);
+                if (get_enemy_distance(enemy, pursuiter->x, pursuiter->y) < dist) {
+                    continue;
+                }
+            }
+            if (dist < min_dist) {
+                min_dist = dist;
+                min_enemy_id = static_cast<int>(i);
+            }
+        }
+
+        if (min_enemy_id > 0 && min_dist <= 50) {
+            figure *enemy = figure_get(min_enemy_id);
+            if (enemy->targeted_by_figure_id) {
+                figure_get(enemy->targeted_by_figure_id)->target_figure_id = 0;
+            }
+            f->destination_x = enemy->x;
+            f->destination_y = enemy->y;
+            f->target_figure_id = min_enemy_id;
+            enemy->targeted_by_figure_id = f->id;
+            f->target_figure_created_sequence = enemy->created_sequence;
+            figure_route_remove(f);
+            return true;
+        }
+        f->wait_ticks_next_target = 0;
+        return false;
+    }
+};
+
+class EntertainmentServiceFigure : public EntertainmentFigureBase {
+public:
+    using EntertainmentFigureBase::EntertainmentFigureBase;
+
+    int execute() override
+    {
+        figure *f = data_figure();
+        if (!f || !profile()) {
+            return 0;
+        }
+
+        building *owner = building_get(f->building_id);
+        if (!owner_binding_matches(f, owner, profile()->owner_binding())) {
+            f->state = FIGURE_STATE_DEAD;
+            update_image(f);
+            return 1;
+        }
+
+        const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
+        f->cart_image_id = image_group(GROUP_FIGURE_CARTPUSHER_CART);
+        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->use_cross_country = 0;
+        f->max_roam_length = static_cast<short>(movement.max_roam_length);
+        figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
+        f->wait_ticks_missile++;
+        if (f->wait_ticks_missile >= 120) {
+            f->wait_ticks_missile = 0;
+        }
+
+        if (scenario_gladiator_revolt_is_in_progress() && f->type == FIGURE_GLADIATOR &&
+            (f->action_state == FIGURE_ACTION_94_ENTERTAINER_ROAMING ||
+                f->action_state == FIGURE_ACTION_95_ENTERTAINER_RETURNING)) {
+            f->type = FIGURE_ENEMY54_GLADIATOR;
+            figure_route_remove(f);
+            f->roam_length = 0;
+            f->action_state = FIGURE_ACTION_158_NATIVE_CREATED;
+            return 1;
+        }
+
+        const int speed_factor = f->type == FIGURE_CHARIOTEER ? 2 : movement.roam_ticks;
+        switch (f->action_state) {
+            case FIGURE_ACTION_150_ATTACK:
+                figure_combat_handle_attack(f);
+                figure_image_increase_offset(f, 32);
+                break;
+            case FIGURE_ACTION_149_CORPSE:
+                figure_combat_handle_corpse(f);
+                break;
+            case FIGURE_ACTION_94_ENTERTAINER_ROAMING:
+                f->is_ghost = 0;
+                f->roam_length++;
+                if (f->roam_length >= movement.max_roam_length) {
+                    int x_road = 0;
+                    int y_road = 0;
+                    if (map_closest_road_within_radius(owner->x, owner->y, owner->size, 2, &x_road, &y_road)) {
+                        f->action_state = FIGURE_ACTION_95_ENTERTAINER_RETURNING;
+                        f->destination_x = x_road;
+                        f->destination_y = y_road;
+                        figure_route_remove(f);
+                    } else {
+                        f->state = FIGURE_STATE_DEAD;
+                    }
+                }
+                figure_movement_roam_ticks(f, speed_factor);
+                break;
+            case FIGURE_ACTION_95_ENTERTAINER_RETURNING:
+                figure_movement_move_ticks(f, speed_factor);
+                if (f->direction == DIR_FIGURE_AT_DESTINATION ||
+                    f->direction == DIR_FIGURE_REROUTE ||
+                    f->direction == DIR_FIGURE_LOST) {
+                    f->state = FIGURE_STATE_DEAD;
+                }
+                break;
+            case FIGURE_ACTION_230_LION_TAMERS_HUNTING_ENEMIES:
+                f->terrain_usage = TERRAIN_USAGE_ANY;
+                if (!figure_target_is_alive(f) && !fight_enemy(f)) {
+                    f->state = FIGURE_STATE_DEAD;
+                }
+                figure_movement_move_ticks_with_percentage(f, 1, 50);
+                if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+                    figure *target = figure_get(f->target_figure_id);
+                    f->destination_x = target->x;
+                    f->destination_y = target->y;
+                    figure_route_remove(f);
+                } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
+                    f->state = FIGURE_STATE_DEAD;
+                }
+                break;
+            default:
+                return 0;
+        }
+
+        update_image(f);
+        return 1;
+    }
+};
+
+class EntertainmentVenueSeekerFigure : public EntertainmentFigureBase {
+public:
+    using EntertainmentFigureBase::EntertainmentFigureBase;
+
+    int execute() override
+    {
+        figure *f = data_figure();
+        if (!f || !profile()) {
+            return 0;
+        }
+
+        building *owner = building_get(f->building_id);
+        if (!owner_binding_matches(f, owner, profile()->owner_binding())) {
+            f->state = FIGURE_STATE_DEAD;
+            update_image(f);
+            return 1;
+        }
+
+        const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
+        f->cart_image_id = image_group(GROUP_FIGURE_CARTPUSHER_CART);
+        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->use_cross_country = 0;
+        f->max_roam_length = static_cast<short>(movement.max_roam_length);
+        figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
+
+        if (scenario_gladiator_revolt_is_in_progress() && f->type == FIGURE_GLADIATOR &&
+            (f->action_state == FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE)) {
+            f->type = FIGURE_ENEMY54_GLADIATOR;
+            figure_route_remove(f);
+            f->roam_length = 0;
+            f->action_state = FIGURE_ACTION_158_NATIVE_CREATED;
+            return 1;
+        }
+
+        switch (f->action_state) {
+            case FIGURE_ACTION_150_ATTACK:
+                figure_combat_handle_attack(f);
+                figure_image_increase_offset(f, 32);
+                break;
+            case FIGURE_ACTION_149_CORPSE:
+                figure_combat_handle_corpse(f);
+                break;
+            case FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED:
+                f->is_ghost = 1;
+                f->image_offset = 0;
+                f->wait_ticks_missile = 0;
+                f->wait_ticks--;
+                if (f->wait_ticks <= 0) {
+                    int x_road = 0;
+                    int y_road = 0;
+                    if (map_closest_road_within_radius(owner->x, owner->y, owner->size, 2, &x_road, &y_road)) {
+                        f->action_state = FIGURE_ACTION_91_ENTERTAINER_EXITING_SCHOOL;
+                        figure_movement_set_cross_country_destination(f, x_road, y_road);
+                        f->roam_length = 0;
+                    } else {
+                        f->state = FIGURE_STATE_DEAD;
+                    }
+                }
+                break;
+            case FIGURE_ACTION_91_ENTERTAINER_EXITING_SCHOOL:
+                f->use_cross_country = 1;
+                f->is_ghost = 1;
+                if (figure_movement_move_ticks_cross_country(f, movement.roam_ticks) == 1) {
+                    if (!choose_destination(f)) {
+                        f->state = FIGURE_STATE_DEAD;
+                    }
+                }
+                break;
+            case FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE:
+                f->is_ghost = 0;
+                f->roam_length++;
+                if (f->roam_length >= movement.max_roam_length) {
+                    f->state = FIGURE_STATE_DEAD;
+                    break;
+                }
+                figure_movement_move_ticks(f, f->type == FIGURE_CHARIOTEER ? 2 : movement.roam_ticks);
+                if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+                    update_show_for_arrival(f);
+                    f->state = FIGURE_STATE_DEAD;
+                } else if (f->direction == DIR_FIGURE_REROUTE) {
+                    figure_route_remove(f);
+                } else if (f->direction == DIR_FIGURE_LOST) {
+                    f->state = FIGURE_STATE_DEAD;
+                }
+                break;
+            default:
+                return 0;
+        }
+
+        update_image(f);
+        return 1;
+    }
+
+private:
+    struct Candidate {
+        building *venue = nullptr;
+        map_point road = { 0, 0 };
+        int route_distance = 0;
+        int show_days = 0;
+        int score = 0;
+    };
+
+    bool candidate_is_better(const Candidate &candidate, const Candidate &best) const
+    {
+        if (!best.venue) {
+            return true;
+        }
+        if (candidate.score != best.score) {
+            return candidate.score < best.score;
+        }
+        return candidate.route_distance < best.route_distance;
+    }
+
+    bool choose_destination(figure *f) const
+    {
+        const map_point source_road = { f->x, f->y };
+        if (!routing_distance::prepare_from_road(source_road)) {
+            return false;
+        }
+
+        Candidate best;
+        // Training walkers inspect the venue set declared by their profile. XML
+        // decides whether this actor/gladiator/lion/charioteer targets one or more
+        // venue types; the runtime only applies reachability and ranking.
+        for (const figure_type_registry_impl::EntertainmentVenueTarget &target : profile()->venue_targets()) {
+            for (building *venue = building_first_of_type(target.building); venue; venue = venue->next_of_type) {
+                if (venue->state != BUILDING_STATE_IN_USE ||
+                    !is_finished_venue(venue) ||
+                    !venue->distance_from_entry) {
+                    continue;
+                }
+                if (city_festival_games_active() && venue->type != city_festival_games_active_venue_type()) {
+                    continue;
+                }
+
+                const routing_distance::BuildingRoadResult route =
+                    routing_distance::find_access_road_to_building(
+                        venue,
+                        2,
+                        profile()->movement_profile().max_roam_length,
+                        1);
+                if (!route.reachable) {
+                    continue;
+                }
+
+                Candidate candidate;
+                candidate.venue = venue;
+                candidate.road = route.road;
+                candidate.route_distance = route.distance;
+                candidate.show_days = show_days(venue, target.show_slot);
+                // Match the legacy weighting, but use route distance so the score
+                // reflects the path walkers actually take through the road network.
+                candidate.score = 2 * candidate.show_days + candidate.route_distance;
+                if (candidate_is_better(candidate, best)) {
+                    best = candidate;
+                }
+            }
+        }
+
+        if (!best.venue) {
+            return false;
+        }
+
+        f->destination_building_id = best.venue->id;
+        f->action_state = FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE;
+        f->destination_x = best.road.x;
+        f->destination_y = best.road.y;
+        f->roam_length = 0;
+        figure_route_remove(f);
+        return true;
+    }
+};
+
 struct RuntimeEntry {
     figure *data = nullptr;
     unsigned short created_sequence = 0;
     const figure_type_registry_impl::FigureTypeDefinition *definition = nullptr;
+    const figure_type_registry_impl::FigureTypeProfile *profile = nullptr;
     std::unique_ptr<NativeFigure> controller;
 };
 
@@ -825,21 +1245,119 @@ int entry_matches_figure(const RuntimeEntry &entry, const figure *f)
     return entry.data == f && entry.created_sequence == f->created_sequence;
 }
 
-std::unique_ptr<NativeFigure> make_controller(
-    figure *f,
-    const figure_type_registry_impl::FigureTypeDefinition *definition)
+const char *profile_id_for_priest_owner(const figure *f)
 {
-    if (!f || !definition) {
+    const building *owner = f ? building_get(f->building_id) : nullptr;
+    if (!owner) {
         return nullptr;
     }
 
-    switch (definition->native_class()) {
+    // Legacy saves do not persist XML profile bindings. Priest recovery keeps
+    // the old temple-to-god mapping, then the recovered profile owns the effect.
+    switch (owner->type) {
+        case BUILDING_SMALL_TEMPLE_CERES:
+        case BUILDING_LARGE_TEMPLE_CERES:
+        case BUILDING_GRAND_TEMPLE_CERES:
+            return "ceres_service";
+        case BUILDING_SMALL_TEMPLE_NEPTUNE:
+        case BUILDING_LARGE_TEMPLE_NEPTUNE:
+        case BUILDING_GRAND_TEMPLE_NEPTUNE:
+            return "neptune_service";
+        case BUILDING_SMALL_TEMPLE_MERCURY:
+        case BUILDING_LARGE_TEMPLE_MERCURY:
+        case BUILDING_GRAND_TEMPLE_MERCURY:
+            return "mercury_service";
+        case BUILDING_SMALL_TEMPLE_MARS:
+        case BUILDING_LARGE_TEMPLE_MARS:
+        case BUILDING_GRAND_TEMPLE_MARS:
+            return "mars_service";
+        case BUILDING_SMALL_TEMPLE_VENUS:
+        case BUILDING_LARGE_TEMPLE_VENUS:
+        case BUILDING_GRAND_TEMPLE_VENUS:
+            return "venus_service";
+        case BUILDING_PANTHEON:
+            return "pantheon_service";
+        default:
+            return nullptr;
+    }
+}
+
+const char *infer_profile_id(const figure *f)
+{
+    if (!f) {
+        return nullptr;
+    }
+
+    // Loaded saves only have legacy action/owner fields, so this is a compatibility bridge.
+    // New XML spawns bind the exact profile at creation and do not rely on this inference.
+    switch (f->type) {
+        case FIGURE_LABOR_SEEKER:
+            return f->collecting_item_id ? "validation" : "acquisition";
+        case FIGURE_PRIEST:
+            return profile_id_for_priest_owner(f);
+        case FIGURE_ACTOR:
+        case FIGURE_GLADIATOR:
+        case FIGURE_LION_TAMER:
+        case FIGURE_CHARIOTEER:
+            switch (f->action_state) {
+                case FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED:
+                case FIGURE_ACTION_91_ENTERTAINER_EXITING_SCHOOL:
+                case FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE:
+                    return "venue_seeker";
+                case FIGURE_ACTION_94_ENTERTAINER_ROAMING:
+                case FIGURE_ACTION_95_ENTERTAINER_RETURNING: {
+                    const building *owner = building_get(f->building_id);
+                    if (!owner) {
+                        return nullptr;
+                    }
+                    if (f->type == FIGURE_ACTOR) {
+                        return owner->type == BUILDING_AMPHITHEATER ? "amphitheater_service" : "theater_service";
+                    }
+                    if (f->type == FIGURE_GLADIATOR) {
+                        if (owner->type == BUILDING_ARENA) {
+                            return "arena_service";
+                        }
+                        if (owner->type == BUILDING_COLOSSEUM) {
+                            return "colosseum_service";
+                        }
+                        return "amphitheater_service";
+                    }
+                    if (f->type == FIGURE_LION_TAMER) {
+                        return owner->type == BUILDING_COLOSSEUM ? "colosseum_service" : "arena_service";
+                    }
+                    if (f->type == FIGURE_CHARIOTEER) {
+                        return "hippodrome_service";
+                    }
+                    return nullptr;
+                }
+                default:
+                    return nullptr;
+            }
+        default:
+            return nullptr;
+    }
+}
+
+std::unique_ptr<NativeFigure> make_controller(
+    figure *f,
+    const figure_type_registry_impl::FigureTypeDefinition *definition,
+    const figure_type_registry_impl::FigureTypeProfile *profile)
+{
+    if (!f || !definition || !profile) {
+        return nullptr;
+    }
+
+    switch (profile->native_class()) {
         case figure_type_registry_impl::NativeClassId::RoamingService:
-            return std::make_unique<RoamingServiceFigure>(f, definition);
+            return std::make_unique<RoamingServiceFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::EngineerService:
-            return std::make_unique<EngineerServiceFigure>(f, definition);
+            return std::make_unique<EngineerServiceFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::PrefectService:
-            return std::make_unique<PrefectServiceFigure>(f, definition);
+            return std::make_unique<PrefectServiceFigure>(f, definition, profile);
+        case figure_type_registry_impl::NativeClassId::EntertainmentService:
+            return std::make_unique<EntertainmentServiceFigure>(f, definition, profile);
+        case figure_type_registry_impl::NativeClassId::EntertainmentVenueSeeker:
+            return std::make_unique<EntertainmentVenueSeekerFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::None:
         default:
             return nullptr;
@@ -864,11 +1382,23 @@ RuntimeEntry *bind_entry(figure *f)
         return nullptr;
     }
 
-    if (!entry_matches_figure(*entry, f) || entry->definition != definition || !entry->controller) {
+    const figure_type_registry_impl::FigureTypeProfile *profile = entry->profile;
+    if (!entry_matches_figure(*entry, f) || entry->definition != definition || !profile) {
+        profile = definition->profile(infer_profile_id(f));
+    }
+    if (!profile) {
+        profile = definition->default_profile();
+    }
+
+    if (!entry_matches_figure(*entry, f) ||
+        entry->definition != definition ||
+        entry->profile != profile ||
+        !entry->controller) {
         entry->data = f;
         entry->created_sequence = f->created_sequence;
         entry->definition = definition;
-        entry->controller = make_controller(f, definition);
+        entry->profile = profile;
+        entry->controller = make_controller(f, definition, profile);
     } else {
         entry->data = f;
         entry->controller->set_figure(f);
@@ -915,6 +1445,86 @@ extern "C" void figure_runtime_on_created(figure *f)
     bind_entry(f);
 }
 
+extern "C" int figure_runtime_bind_profile(figure *f, const char *profile_id)
+{
+    if (!f || !f->id) {
+        return 0;
+    }
+
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    if (!definition) {
+        return 0;
+    }
+
+    const figure_type_registry_impl::FigureTypeProfile *profile = definition->profile(profile_id);
+    if (!profile) {
+        return 0;
+    }
+
+    RuntimeEntry *entry = entry_for_id(f->id);
+    if (!entry) {
+        return 0;
+    }
+
+    entry->data = f;
+    entry->created_sequence = f->created_sequence;
+    entry->definition = definition;
+    entry->profile = profile;
+    entry->controller = make_controller(f, definition, profile);
+    return entry->controller ? 1 : 0;
+}
+
+extern "C" figure *figure_runtime_create_profiled(
+    figure_type type,
+    int x,
+    int y,
+    direction_type dir,
+    unsigned int building_id,
+    const char *profile_id)
+{
+    const figure_type_registry_impl::FigureTypeProfile *profile =
+        figure_type_registry_impl::profile_for(type, profile_id);
+    if (!profile) {
+        return nullptr;
+    }
+
+    figure *f = figure_create(type, x, y, dir);
+    if (!f) {
+        return nullptr;
+    }
+
+    f->building_id = building_id;
+    // The profile owns the lifecycle; these legacy action states remain the
+    // save-compatible storage used to rebind the same profile after load.
+    switch (profile->native_class()) {
+        case figure_type_registry_impl::NativeClassId::EngineerService:
+            f->action_state = FIGURE_ACTION_60_ENGINEER_CREATED;
+            break;
+        case figure_type_registry_impl::NativeClassId::PrefectService:
+            f->action_state = FIGURE_ACTION_70_PREFECT_CREATED;
+            break;
+        case figure_type_registry_impl::NativeClassId::EntertainmentService:
+            f->action_state = FIGURE_ACTION_94_ENTERTAINER_ROAMING;
+            figure_movement_init_roaming(f);
+            break;
+        case figure_type_registry_impl::NativeClassId::EntertainmentVenueSeeker:
+            f->action_state = FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED;
+            break;
+        case figure_type_registry_impl::NativeClassId::RoamingService:
+        default:
+            f->action_state = FIGURE_ACTION_125_ROAMING;
+            figure_movement_init_roaming(f);
+            break;
+    }
+
+    if (!figure_runtime_bind_profile(f, profile_id)) {
+        f->state = FIGURE_STATE_DEAD;
+        return nullptr;
+    }
+    return f;
+}
+
 extern "C" void figure_runtime_on_deleted(figure *f)
 {
     if (!f) {
@@ -945,12 +1555,12 @@ extern "C" int figure_runtime_choose_roaming_direction(
     }
 
     RuntimeEntry *entry = bind_entry(f);
-    if (!entry || !entry->definition) {
+    if (!entry || !entry->profile) {
         return vanilla_direction;
     }
 
-    const figure_type_registry_impl::PathingPolicy &pathing = entry->definition->pathing_policy();
-    const road_service_effect effect = primary_service_effect_for_pathing(pathing, f);
+    const figure_type_registry_impl::PathingPolicy &pathing = entry->profile->pathing_policy();
+    const road_service_effect effect = primary_service_effect_for_profile(entry->profile);
     if (pathing.mode != figure_type_registry_impl::PathingMode::SmartService ||
         effect == ROAD_SERVICE_EFFECT_NONE) {
         return vanilla_direction;
@@ -987,18 +1597,24 @@ extern "C" void figure_runtime_record_road_service_visit(figure *f)
     }
 
     RuntimeEntry *entry = bind_entry(f);
-    if (!entry || !entry->definition) {
+    if (!entry || !entry->profile) {
         return;
     }
 
-    const figure_type_registry_impl::PathingPolicy &pathing = entry->definition->pathing_policy();
-    const road_service_effect effect = primary_service_effect_for_pathing(pathing, f);
+    const road_service_effect effect = primary_service_effect_for_profile(entry->profile);
     if (effect == ROAD_SERVICE_EFFECT_NONE) {
         return;
     }
 
-    if (pathing.effect_from_religion_owner) {
-        record_religion_owner_service_effects(f);
+    if (effect == ROAD_SERVICE_EFFECT_RELIGION_PANTHEON) {
+        // Pantheon service historically refreshed all five gods plus Pantheon
+        // itself, so the explicit profile effect expands only at record time.
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_CERES, f->grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_NEPTUNE, f->grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_MERCURY, f->grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_MARS, f->grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_VENUS, f->grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_PANTHEON, f->grid_offset);
     } else {
         map_road_service_history_record(effect, f->grid_offset);
     }

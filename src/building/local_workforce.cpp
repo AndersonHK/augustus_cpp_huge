@@ -2,6 +2,7 @@
 
 #include "building/building_type_registry_internal.h"
 #include "figure/figure_type_registry_internal.h"
+#include "map/routing_distance.h"
 
 extern "C" {
 #include "building/building.h"
@@ -9,16 +10,13 @@ extern "C" {
 #include "building/properties.h"
 #include "city/labor.h"
 #include "city/population.h"
-#include "core/calc.h"
 #include "core/config.h"
 #include "figure/action.h"
 #include "figure/figure.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "game/time.h"
-#include "map/grid.h"
-#include "map/road_access.h"
-#include "map/routing.h"
 }
 
 #include <algorithm>
@@ -33,6 +31,8 @@ constexpr int kValidationDelayDays = 16;
 constexpr int kDefaultLaborSeekerMaxRoamLength = 384;
 constexpr unsigned char kLaborSeekerTripAcquire = 0;
 constexpr unsigned char kLaborSeekerTripValidate = 1;
+constexpr const char *kLaborSeekerAcquireProfile = "acquisition";
+constexpr const char *kLaborSeekerValidateProfile = "validation";
 
 struct WorkforceAllocation {
     unsigned int workplace_id = 0;
@@ -81,12 +81,15 @@ int required_workers(const building *b)
 
 int labor_seeker_max_roam_length()
 {
-    const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(FIGURE_LABOR_SEEKER);
-    if (!definition) {
+    const figure_type_registry_impl::FigureTypeProfile *profile =
+        figure_type_registry_impl::profile_for(FIGURE_LABOR_SEEKER, kLaborSeekerAcquireProfile);
+    if (!profile) {
+        profile = figure_type_registry_impl::default_profile_for(FIGURE_LABOR_SEEKER);
+    }
+    if (!profile) {
         return kDefaultLaborSeekerMaxRoamLength;
     }
-    const int max_roam_length = definition->movement_profile().max_roam_length;
+    const int max_roam_length = profile->movement_profile().max_roam_length;
     return max_roam_length > 0 ? max_roam_length : kDefaultLaborSeekerMaxRoamLength;
 }
 
@@ -293,7 +296,9 @@ int find_nearest_reachable_house_with_unemployed(const map_point *road, map_poin
         return 0;
     }
 
-    map_routing_calculate_distances(road->x, road->y);
+    if (!routing_distance::prepare_from_road(*road)) {
+        return 0;
+    }
 
     int best_house_id = 0;
     int best_distance = 0x7fffffff;
@@ -310,17 +315,16 @@ int find_nearest_reachable_house_with_unemployed(const map_point *road, map_poin
                 continue;
             }
 
-            int x_road = 0;
-            int y_road = 0;
-            if (!map_closest_reachable_road_within_radius(house->x, house->y, house->size, 2, &x_road, &y_road)) {
+            const routing_distance::BuildingRoadResult route =
+                routing_distance::find_access_road_to_building(house, 2, max_distance, 1);
+            if (!route.reachable) {
                 continue;
             }
 
-            const int distance = map_routing_distance(map_grid_offset(x_road, y_road));
-            if (distance > 0 && distance <= max_distance && distance < best_distance) {
-                best_distance = distance;
+            if (route.distance < best_distance) {
+                best_distance = route.distance;
                 best_house_id = house->id;
-                best_road = { x_road, y_road };
+                best_road = route.road;
             }
         }
     }
@@ -348,7 +352,9 @@ int find_nearest_assigned_source(building *workplace, const map_point *road, map
         return 0;
     }
 
-    map_routing_calculate_distances(road->x, road->y);
+    if (!routing_distance::prepare_from_road(*road)) {
+        return 0;
+    }
 
     const int max_roam_length = labor_seeker_max_roam_length();
     int best_house_id = 0;
@@ -368,27 +374,19 @@ int find_nearest_assigned_source(building *workplace, const map_point *road, map
             continue;
         }
 
-        int x_road = 0;
-        int y_road = 0;
-        if (!map_closest_reachable_road_within_radius(house->x, house->y, house->size, 2, &x_road, &y_road)) {
+        const routing_distance::BuildingRoadResult route =
+            routing_distance::find_access_road_to_building(house, 2, max_roam_length, 1);
+        if (!route.reachable) {
             if (!house_id_to_release) {
                 house_id_to_release = allocation.house_id;
             }
             continue;
         }
 
-        const int distance = map_routing_distance(map_grid_offset(x_road, y_road));
-        if (distance <= 0 || distance > max_roam_length) {
-            if (!house_id_to_release) {
-                house_id_to_release = allocation.house_id;
-            }
-            continue;
-        }
-
-        if (distance < best_distance) {
-            best_distance = distance;
+        if (route.distance < best_distance) {
+            best_distance = route.distance;
             best_house_id = house->id;
-            best_road = { x_road, y_road };
+            best_road = route.road;
         }
     }
 
@@ -463,13 +461,21 @@ int create_labor_seeker(
         return 0;
     }
 
-    figure *labor_seeker = figure_create(FIGURE_LABOR_SEEKER, source_road->x, source_road->y, DIR_0_TOP);
+    const char *profile_id = trip_type == kLaborSeekerTripValidate ?
+        kLaborSeekerValidateProfile :
+        kLaborSeekerAcquireProfile;
+    figure *labor_seeker = figure_runtime_create_profiled(
+        FIGURE_LABOR_SEEKER,
+        source_road->x,
+        source_road->y,
+        DIR_0_TOP,
+        workplace->id,
+        profile_id);
     if (!labor_seeker || !labor_seeker->id) {
         return 0;
     }
 
-    labor_seeker->action_state = FIGURE_ACTION_125_ROAMING;
-    labor_seeker->building_id = workplace->id;
+    // The trip flag is retained for save compatibility; the profile owns the behavior contract.
     labor_seeker->destination_building_id = static_cast<unsigned int>(std::max(0, house_id));
     labor_seeker->destination_x = static_cast<unsigned char>(target_road ? target_road->x : source_road->x);
     labor_seeker->destination_y = static_cast<unsigned char>(target_road ? target_road->y : source_road->y);

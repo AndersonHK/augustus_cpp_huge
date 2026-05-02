@@ -19,13 +19,16 @@ enum class NativeClassId {
     None,
     RoamingService,
     EngineerService,
-    PrefectService
+    PrefectService,
+    EntertainmentService,
+    EntertainmentVenueSeeker
 };
 
 enum class PathingMode {
     VanillaRoaming,
     SmartService,
-    NearestUnemployed
+    NearestUnemployed,
+    VenueSeeker
 };
 
 enum class FigureSlot {
@@ -42,8 +45,15 @@ enum class OwnerStateRequirement {
 };
 
 enum class ReturnMode {
+    None,
     ReturnToOwnerRoad,
     DieAtLimit
+};
+
+enum class EntertainmentShowSlot {
+    None,
+    Days1,
+    Days2
 };
 
 struct OwnerBinding {
@@ -67,7 +77,44 @@ struct GraphicsPolicy {
 struct PathingPolicy {
     PathingMode mode = PathingMode::VanillaRoaming;
     road_service_effect effect = ROAD_SERVICE_EFFECT_NONE;
-    int effect_from_religion_owner = 0;
+};
+
+struct EntertainmentVenueTarget {
+    building_type building = BUILDING_NONE;
+    EntertainmentShowSlot show_slot = EntertainmentShowSlot::None;
+};
+
+class FigureTypeProfile {
+public:
+    explicit FigureTypeProfile(std::string id);
+
+    const char *id() const;
+
+    void set_native_class(NativeClassId native_class_id);
+    NativeClassId native_class() const;
+
+    void set_owner_binding(const OwnerBinding &owner_binding);
+    const OwnerBinding &owner_binding() const;
+
+    void set_movement_profile(const MovementProfile &movement_profile);
+    const MovementProfile &movement_profile() const;
+
+    void set_pathing_policy(const PathingPolicy &pathing_policy);
+    const PathingPolicy &pathing_policy() const;
+
+    void set_show_duration(int show_duration);
+    int show_duration() const;
+    void add_venue_target(const EntertainmentVenueTarget &target);
+    const std::vector<EntertainmentVenueTarget> &venue_targets() const;
+
+private:
+    std::string id_;
+    NativeClassId native_class_id_ = NativeClassId::None;
+    OwnerBinding owner_binding_;
+    MovementProfile movement_profile_;
+    PathingPolicy pathing_policy_;
+    int show_duration_ = 32;
+    std::vector<EntertainmentVenueTarget> venue_targets_;
 };
 
 class FigureTypeDefinition {
@@ -92,6 +139,14 @@ public:
     void set_pathing_policy(const PathingPolicy &pathing_policy);
     const PathingPolicy &pathing_policy() const;
 
+    void set_default_profile_id(std::string profile_id);
+    const char *default_profile_id() const;
+    FigureTypeProfile &add_profile(std::string profile_id);
+    FigureTypeProfile *last_profile();
+    const FigureTypeProfile *profile(const char *profile_id) const;
+    const FigureTypeProfile *default_profile() const;
+    const std::vector<FigureTypeProfile> &profiles() const;
+
 private:
     figure_type type_ = FIGURE_NONE;
     std::string attr_;
@@ -100,6 +155,8 @@ private:
     MovementProfile movement_profile_;
     GraphicsPolicy graphics_policy_;
     PathingPolicy pathing_policy_;
+    std::string default_profile_id_;
+    std::vector<FigureTypeProfile> profiles_;
 };
 
 extern std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> g_figure_types;
@@ -109,6 +166,8 @@ int directory_exists(const char *path);
 void set_failure_reason(const char *message, const char *detail = nullptr);
 std::vector<std::string> build_candidate_definition_paths();
 const FigureTypeDefinition *definition_for(figure_type type);
+const FigureTypeProfile *profile_for(figure_type type, const char *profile_id);
+const FigureTypeProfile *default_profile_for(figure_type type);
 
 } // namespace figure_type_registry_impl
 

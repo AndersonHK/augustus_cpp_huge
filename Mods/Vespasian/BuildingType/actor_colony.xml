@@ -8,6 +8,6 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44">
         <spawn mode="service_roamer" spawn_figure="actor" action_state="entertainer_school_created"
-            direction="top" figure_slot="primary" init_roaming="false" />
+            direction="top" figure_slot="primary" init_roaming="false" profile="venue_seeker" />
     </spawn_group>
 </building>

@@ -25,7 +25,15 @@ typedef enum {
     ROAD_SERVICE_EFFECT_RELIGION_MARS = 12,
     ROAD_SERVICE_EFFECT_RELIGION_VENUS = 13,
     ROAD_SERVICE_EFFECT_RELIGION_PANTHEON = 14,
-    ROAD_SERVICE_EFFECT_MAX = 15
+    ROAD_SERVICE_EFFECT_ENTERTAINMENT_THEATER = 15,
+    ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_ACTOR = 16,
+    ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_GLADIATOR = 17,
+    ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_GLADIATOR = 18,
+    ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_LION = 19,
+    ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_GLADIATOR = 20,
+    ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_LION = 21,
+    ROAD_SERVICE_EFFECT_ENTERTAINMENT_HIPPODROME = 22,
+    ROAD_SERVICE_EFFECT_MAX = 23
 } road_service_effect;
 
 /* Clears all pathing-only service visit stamps for a fresh city/load. */
@@ -41,7 +49,11 @@ void map_road_service_history_record(road_service_effect effect, int grid_offset
 void map_road_service_history_save_state(buffer *buf);
 
 /* Loads history if present; missing or newer effect ids start with zeroed history. */
-void map_road_service_history_load_state(buffer *buf, int has_saved_state, int has_religion_effects);
+void map_road_service_history_load_state(
+    buffer *buf,
+    int has_saved_state,
+    int has_religion_effects,
+    int has_entertainment_effects);
 
 #ifdef __cplusplus
 }

@@ -32,6 +32,7 @@ extern "C" {
 #include "figure/action.h"
 #include "figure/figure.h"
 #include "figure/movement.h"
+#include "figure/figure_runtime_api.h"
 #include "game/animation.h"
 #include "game/resource.h"
 #include "game/time.h"
@@ -1035,12 +1036,21 @@ int building_runtime::spawn_temple_neptune_chariot(const map_point &road)
         return 0;
     }
 
-    figure *charioteer = figure_create(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP);
+    figure *charioteer = figure_runtime_create_profiled(
+        FIGURE_CHARIOTEER,
+        road.x,
+        road.y,
+        DIR_0_TOP,
+        building_->id,
+        "venue_seeker");
     if (!charioteer) {
-        return 0;
+        charioteer = figure_create(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP);
+        if (!charioteer) {
+            return 0;
+        }
+        charioteer->action_state = FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED;
+        charioteer->building_id = building_->id;
     }
-    charioteer->action_state = FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED;
-    charioteer->building_id = building_->id;
     building_->figure_id2 = charioteer->id;
     building_->days_since_offering = 0;
     return 1;
@@ -1415,17 +1425,28 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
     int spawned_any = 0;
     int spawn_count = policy.spawn_count > 0 ? policy.spawn_count : 1;
     for (int i = 0; i < spawn_count; i++) {
-        figure *spawned = figure_create(policy.spawn_figure, road.x, road.y, static_cast<direction_type>(policy.spawn_direction));
+        // XML profiles are the handoff point between BuildingType spawn policy and FigureType behavior.
+        figure *spawned = policy.profile.empty() ?
+            figure_create(policy.spawn_figure, road.x, road.y, static_cast<direction_type>(policy.spawn_direction)) :
+            figure_runtime_create_profiled(
+                policy.spawn_figure,
+                road.x,
+                road.y,
+                static_cast<direction_type>(policy.spawn_direction),
+                building_->id,
+                policy.profile.c_str());
         if (!spawned) {
             continue;
         }
-        spawned->action_state = policy.action_state;
-        spawned->building_id = building_->id;
+        if (policy.profile.empty()) {
+            spawned->action_state = policy.action_state;
+            spawned->building_id = building_->id;
+        }
         // A multi-spawn policy still only owns one legacy tracked slot today; later spawns remain untracked for now.
         if (!spawned_any) {
             assign_figure_slot(policy.figure_slot, spawned->id);
         }
-        if (policy.init_roaming) {
+        if (policy.profile.empty() && policy.init_roaming) {
             figure_movement_init_roaming(spawned);
         }
         spawned_any = 1;

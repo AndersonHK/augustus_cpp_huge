@@ -502,10 +502,10 @@ void build_water_masks(const SimulationInput &input, SimulationResult &result)
         const int x = map_grid_offset_to_x(planned.grid_offset);
         const int y = map_grid_offset_to_y(planned.grid_offset);
         const int size = provider_size_for_building_type(type);
-        if (!requirement_is_satisfied(provider_requirement_for_building_type(type), x, y, size, result.masks.access)) {
-            continue;
-        }
 
+        // Planned providers always preview their authored coverage, even when
+        // their activation requirement is not satisfied at the hovered tile.
+        // Live providers stay gated by the normal runtime checks above.
         mark_provider_coverage(
             result.masks,
             access_type,
