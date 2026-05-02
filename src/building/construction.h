@@ -1,5 +1,4 @@
-#ifndef BUILDING_CONSTRUCTION_H
-#define BUILDING_CONSTRUCTION_H
+#pragma once
 
 #include "building/type.h"
 #include "figure/type.h"
@@ -74,7 +73,3 @@ int building_construction_place_wall(int grid_offset);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_CONSTRUCTION_H
-
-

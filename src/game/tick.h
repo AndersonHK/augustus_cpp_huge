@@ -1,5 +1,4 @@
-#ifndef GAME_TICK_H
-#define GAME_TICK_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,5 +11,3 @@ void game_tick_cheat_year(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GAME_TICK_H

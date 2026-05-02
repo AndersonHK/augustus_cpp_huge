@@ -366,9 +366,27 @@ void figure_movement_init_roaming(figure *f)
     }
 }
 
-static bool is_valid_road_for_roaming(int grid_offset, roadblock_permission permission)
+static bool figure_roaming_allows_highways(const figure *f)
 {
-    if (!map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+    // The roaming fan-out only understands road-like tiles. XML validation
+    // rejects off-road-capable native profiles instead of treating
+    // prefer_roads_highway as a highway-roaming service profile.
+    return f && f->terrain_usage == TERRAIN_USAGE_ROADS_HIGHWAY;
+}
+
+static bool terrain_is_path_for_roaming_figure(const figure *f, int grid_offset)
+{
+    int terrain_mask = TERRAIN_ROAD | TERRAIN_ACCESS_RAMP;
+    if (figure_roaming_allows_highways(f)) {
+        terrain_mask |= TERRAIN_HIGHWAY;
+    }
+    return map_terrain_is(grid_offset, terrain_mask) != 0;
+}
+
+static bool is_valid_road_for_roaming(const figure *f, int grid_offset, roadblock_permission permission)
+{
+    const bool is_path = terrain_is_path_for_roaming_figure(f, grid_offset);
+    if (!is_path && !map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         return false;
     }
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
@@ -376,22 +394,67 @@ static bool is_valid_road_for_roaming(int grid_offset, roadblock_permission perm
     }
 
     building *b = building_get(map_building_at(grid_offset));
-    if (!building_type_is_roadblock(b->type)) {
+    if (!b) {
         return false;
     }
 
-    const bool permitted = building_roadblock_get_permission(permission, b) != 0;
-    if (!permitted) {
-        return false;
+    if (building_type_is_roadblock(b->type)) {
+        return is_path && building_roadblock_get_permission(permission, b);
     }
 
     // Granaries mix road and non-road building tiles; walkers should only roam
     // across the internal cross when it connects to at least two exits.
     if (b->type == BUILDING_GRANARY) {
-        return map_terrain_is(grid_offset, TERRAIN_ROAD) &&
+        return map_routing_citizen_is_road(grid_offset) &&
             map_road_get_granary_inner_road_tiles_count(b) >= 3;
     }
-    return true;
+    if (b->type == BUILDING_WAREHOUSE) {
+        return map_routing_citizen_is_passable_terrain(grid_offset) ||
+            map_routing_citizen_is_road(grid_offset);
+    }
+    return false;
+}
+
+static int get_adjacent_road_tiles_for_roaming(
+    const figure *f,
+    int grid_offset,
+    int *road_tiles,
+    roadblock_permission permission)
+{
+    road_tiles[1] = road_tiles[3] = road_tiles[5] = road_tiles[7] = 0;
+
+    road_tiles[0] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(0, -1), permission) ? 1 : 0;
+    road_tiles[2] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(1, 0), permission) ? 1 : 0;
+    road_tiles[4] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(0, 1), permission) ? 1 : 0;
+    road_tiles[6] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(-1, 0), permission) ? 1 : 0;
+
+    return road_tiles[0] + road_tiles[2] + road_tiles[4] + road_tiles[6];
+}
+
+static int get_diagonal_road_tiles_for_roaming(
+    const figure *f,
+    int grid_offset,
+    int *road_tiles,
+    roadblock_permission permission)
+{
+    road_tiles[1] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(1, -1), permission) ? 1 : 0;
+    road_tiles[3] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(1, 1), permission) ? 1 : 0;
+    road_tiles[5] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(-1, 1), permission) ? 1 : 0;
+    road_tiles[7] = is_valid_road_for_roaming(f, grid_offset + map_grid_delta(-1, -1), permission) ? 1 : 0;
+
+    int max_stretch = 0;
+    int stretch = 0;
+    for (int i = 0; i < 16; i++) {
+        if (road_tiles[i % 8]) {
+            stretch++;
+            if (stretch > max_stretch) {
+                max_stretch = stretch;
+            }
+        } else {
+            stretch = 0;
+        }
+    }
+    return max_stretch;
 }
 
 static void roam_set_direction(figure *f, roadblock_permission permission)
@@ -404,7 +467,7 @@ static void roam_set_direction(figure *f, roadblock_permission permission)
     int road_offset_dir1 = 0;
     int road_dir1 = 0;
     for (int i = 0, dir = direction; i < 8; i++) {
-        if (dir % 2 == 0 && is_valid_road_for_roaming(grid_offset + map_grid_direction_delta(dir), permission)) {
+        if (dir % 2 == 0 && is_valid_road_for_roaming(f, grid_offset + map_grid_direction_delta(dir), permission)) {
             road_dir1 = dir;
             break;
         }
@@ -417,7 +480,7 @@ static void roam_set_direction(figure *f, roadblock_permission permission)
     int road_offset_dir2 = 0;
     int road_dir2 = 0;
     for (int i = 0, dir = direction; i < 8; i++) {
-        if (dir % 2 == 0 && is_valid_road_for_roaming(grid_offset + map_grid_direction_delta(dir), permission)) {
+        if (dir % 2 == 0 && is_valid_road_for_roaming(f, grid_offset + map_grid_direction_delta(dir), permission)) {
             road_dir2 = dir;
             break;
         }
@@ -578,8 +641,9 @@ void figure_movement_roam_ticks(figure *f, int num_ticks)
             }
             int road_tiles[8];
             roadblock_permission permission = get_permission_for_figure_type(f);
-            int adjacent_road_tiles = map_get_adjacent_road_tiles_for_roaming(f->grid_offset, road_tiles, permission);
-            if (adjacent_road_tiles == 3 && map_get_diagonal_road_tiles_for_roaming(f->grid_offset, road_tiles) >= 5) {
+            int adjacent_road_tiles = get_adjacent_road_tiles_for_roaming(f, f->grid_offset, road_tiles, permission);
+            if (adjacent_road_tiles == 3 &&
+                get_diagonal_road_tiles_for_roaming(f, f->grid_offset, road_tiles, permission) >= 5) {
                 // go in the straight direction of a double-wide road
                 adjacent_road_tiles = 2;
                 if (came_from_direction == DIR_0_TOP || came_from_direction == DIR_4_BOTTOM) {
@@ -596,7 +660,8 @@ void figure_movement_roam_ticks(figure *f, int num_ticks)
                     }
                 }
             }
-            if (adjacent_road_tiles == 4 && map_get_diagonal_road_tiles_for_roaming(f->grid_offset, road_tiles) >= 8) {
+            if (adjacent_road_tiles == 4 &&
+                get_diagonal_road_tiles_for_roaming(f, f->grid_offset, road_tiles, permission) >= 8) {
                 // go straight on when all surrounding tiles are road
                 adjacent_road_tiles = 2;
                 if (came_from_direction == DIR_0_TOP || came_from_direction == DIR_4_BOTTOM) {

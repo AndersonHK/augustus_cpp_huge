@@ -1,5 +1,4 @@
-#ifndef MAP_ROUTING_TERRAIN_H
-#define MAP_ROUTING_TERRAIN_H
+#pragma once
 
 void map_routing_update_all(void);
 void map_routing_update_land(void);
@@ -26,5 +25,3 @@ enum {
     DESTROYABLE_NONE,
 };
 int map_routing_get_destroyable(int grid_offset);
-
-#endif // MAP_ROUTING_TERRAIN_H

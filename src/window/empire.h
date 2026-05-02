@@ -1,5 +1,4 @@
-#ifndef WINDOW_EMPIRE_H
-#define WINDOW_EMPIRE_H
+#pragma once
 
 #include "empire/object.h"
 
@@ -26,5 +25,3 @@ int window_empire_is_dragging_sidebar(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // WINDOW_EMPIRE_H

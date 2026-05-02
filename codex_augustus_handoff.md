@@ -23,6 +23,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Do not build/run unless the user explicitly asks in that chat.
 - Keep CRLF on touched files.
 - Preserve existing comments when editing files.
+- Use `#pragma once` for project-owned headers instead of classic include guards.
+- Prefer object-owned mode metadata such as `PathingMode::requires_road` over scattered helper predicates or switch/case lists for attributes that belong to a runtime concept.
 - When code behavior, XML contracts, save/load layout, or runtime classes change, update the relevant markdown and add concise function comments for non-obvious touched logic unless the user says not to.
 
 ## Recently added gameplay runtime context
@@ -32,10 +34,15 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - `Mods/Vespasian/FigureType/_README.md`
 - Code chokepoints:
   - `src/figure/figure_type_registry.cpp`
+  - `src/figure/PathingMode.h/.cpp`
   - `src/figure/figure_runtime.cpp`
   - `src/figure/movement.cpp`
+  - `src/building/building_runtime.cpp`
   - `src/map/road_service_history.cpp`
+- `PathingMode` was extracted from the large FigureType registry file into its own class/files. Pathing mode declarations now own their XML id and validation requirements, so new mode metadata should be added there instead of through scattered helper predicates in the registry.
 - `map_road_service_history` is pathing telemetry only. It is saved separately and should not be treated as building coverage or risk state.
+- Mixed entertainment spawns are guarded at the BuildingType `spawn_group` level with comma-list `existing_figure` values, so amphitheater and arena performer alternates share one legacy slot safely.
+- Roaming access is figure-specific: `roads_highway` profiles can spread over highways, while off-road-capable native pathing profiles fail XML validation.
 
 ## Current graphics checkpoint
 - Canonical graphics extraction is now load-bearing for the building runtime:

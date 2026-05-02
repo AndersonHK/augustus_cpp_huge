@@ -1,5 +1,4 @@
-#ifndef WINDOW_FILE_DIALOG_H
-#define WINDOW_FILE_DIALOG_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,5 +25,3 @@ void window_file_dialog_show(file_type type, file_dialog_type dialog_type);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // WINDOW_FILE_DIALOG_H

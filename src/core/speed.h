@@ -1,5 +1,4 @@
-#ifndef CORE_SPEED_H
-#define CORE_SPEED_H
+#pragma once
 
 #include "core/time.h"
 
@@ -84,5 +83,3 @@ speed_direction speed_get_current_direction(const speed_type *speed);
  * @return Whether the speed is changing
  */
 int speed_is_changing(const speed_type *speed);
-
-#endif // CORE_SPEED_H

@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_WATER_H
-#define FIGURETYPE_WATER_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -21,5 +20,3 @@ void figure_sink_half_ships(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURETYPE_WATER_H

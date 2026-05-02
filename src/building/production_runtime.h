@@ -1,5 +1,4 @@
-#ifndef BUILDING_PRODUCTION_RUNTIME_H
-#define BUILDING_PRODUCTION_RUNTIME_H
+#pragma once
 
 #include "building/production_method.h"
 
@@ -71,5 +70,3 @@ Production *get_or_create_primary(::building *building);
 size_t get_method_count(::building *building);
 
 }
-
-#endif // BUILDING_PRODUCTION_RUNTIME_H

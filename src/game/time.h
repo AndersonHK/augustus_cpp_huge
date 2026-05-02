@@ -1,5 +1,4 @@
-#ifndef GAME_TIME_H
-#define GAME_TIME_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -98,5 +97,3 @@ void game_time_load_basic_info(buffer *buf, int *month, int *year);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GAME_TIME_H

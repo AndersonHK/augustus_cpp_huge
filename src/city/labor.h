@@ -1,5 +1,4 @@
-#ifndef CITY_LABOR_H
-#define CITY_LABOR_H
+#pragma once
 
 typedef struct {
     int workers_needed;
@@ -43,5 +42,3 @@ int city_labor_max_selectable_priority(int category);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CITY_LABOR_H

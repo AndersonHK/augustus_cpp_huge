@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_TOP_MENU_PANEL_WIDGET_H
-#define GRAPHICS_TOP_MENU_PANEL_WIDGET_H
+#pragma once
 
 #include "graphics/ui_widget.h"
 
@@ -16,5 +15,3 @@ private:
     int width_;
     int actual_width_;
 };
-
-#endif // GRAPHICS_TOP_MENU_PANEL_WIDGET_H

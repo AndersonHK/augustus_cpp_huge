@@ -1,5 +1,4 @@
-#ifndef BUILDING_HOUSE_POPULATION_H
-#define BUILDING_HOUSE_POPULATION_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,5 +54,3 @@ int house_population_get_capacity(building *house);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_HOUSE_POPULATION_H

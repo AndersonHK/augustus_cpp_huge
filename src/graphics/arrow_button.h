@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_ARROW_BUTTON_H
-#define GRAPHICS_ARROW_BUTTON_H
+#pragma once
 
 #include "core/time.h"
 #include "input/mouse.h"
@@ -22,5 +21,3 @@ void arrow_buttons_draw(int x, int y, arrow_button *buttons, unsigned int num_bu
 
 int arrow_buttons_handle_mouse(
     const mouse *m, int x, int y, arrow_button *buttons, unsigned int num_buttons, unsigned int *focus_button_id);
-
-#endif // GRAPHICS_ARROW_BUTTON_H

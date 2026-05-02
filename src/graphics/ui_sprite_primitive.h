@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_UI_SPRITE_PRIMITIVE_H
-#define GRAPHICS_UI_SPRITE_PRIMITIVE_H
+#pragma once
 
 #include "graphics/ui_primitive.h"
 
@@ -25,5 +24,3 @@ private:
     color_t color_;
     render_scaling_policy scaling_policy_;
 };
-
-#endif // GRAPHICS_UI_SPRITE_PRIMITIVE_H

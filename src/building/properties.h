@@ -1,5 +1,4 @@
-#ifndef BUILDING_PROPERTIES_H
-#define BUILDING_PROPERTIES_H
+#pragma once
 
 #include "building/type.h"
 #include "city/resource.h"
@@ -108,5 +107,3 @@ typedef struct {
 
 void building_properties_init(void);
 const building_properties *building_properties_for_type(building_type type);
-
-#endif // BUILDING_PROPERTIES_H

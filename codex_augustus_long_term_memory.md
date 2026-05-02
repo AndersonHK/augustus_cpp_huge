@@ -17,6 +17,7 @@ Primary design goals remain:
 - Prefer incremental C-to-C++ migration through narrow, class-based chokepoints.
 - Keep save compatibility by growing runtime wrappers around legacy serialized structs instead of replacing serialized truth all at once.
 - Do not broaden a rewrite just because a subsystem is old; center the work on the best control point.
+- Prefer object-owned metadata for runtime concepts. For example, `PathingMode` instances should carry pathing requirements like `requires_road` rather than leaving those requirements in separate helper functions or scattered switch lists.
 - Comment functions consistently when touching code. Prefer concise contract comments that explain ownership, invariants, save/load behavior, validation, or surprising legacy interactions; avoid comments that merely restate assignments.
 - Update the relevant markdown whenever behavior, XML contracts, save formats, new runtime classes, or major chokepoints change, unless the user explicitly says not to. Add cross-references so future sessions can find the information from the four core Codex files without crowding those files with every detail.
 - Always update save versioning and migration gates when changing any data that is stored in save files; do this even when the loader can technically tolerate the new shape.
@@ -85,9 +86,10 @@ Primary design goals remain:
 ## Guardrails
 - Do not build unless the user explicitly asks in the current chat.
 - Keep CRLF consistent on touched files.
+- Use `#pragma once` in project-owned headers.
 - Preserve existing comments when editing files.
-- Add or refresh comments for touched functions when the behavior is non-obvious.
-- Refresh relevant markdown in the same run when changing XML, save/load, runtime classes, or system contracts.
+- Add or refresh comments for touched functions whenever behavior, ownership, validation, save/load, or legacy interaction is not obvious from the code itself.
+- Refresh relevant markdown in the same run when changing XML, save/load, runtime classes, pathing behavior, or system contracts.
 - Do not spread implicit enum/int conversions through migrated code.
 - Do not deepen dependence on byte-oriented text assumptions in new runtime/widget code.
 - Do not collapse renderer policy back into many ad hoc draw helpers once the chokepoints exist.

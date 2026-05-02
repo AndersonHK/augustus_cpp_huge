@@ -1,5 +1,4 @@
-#ifndef MAP_SPRITE_H
-#define MAP_SPRITE_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -30,5 +29,3 @@ void map_sprite_restore(void);
 void map_sprite_save_state(buffer *buf, buffer *backup);
 
 void map_sprite_load_state(buffer *buf, buffer *backup);
-
-#endif // MAP_SPRITE_H

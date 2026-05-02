@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_COLOR_H
-#define GRAPHICS_COLOR_H
+#pragma once
 
 #include <stdint.h>
 
@@ -151,5 +150,3 @@ typedef uint32_t color_t;
         COLOR_BLEND_CHANNEL(src, dst, alpha_src, alpha_dst, alpha_mix, COLOR_CHANNEL_RED) | \
         COLOR_BLEND_CHANNEL(src, dst, alpha_src, alpha_dst, alpha_mix, COLOR_CHANNEL_GREEN) | \
         COLOR_BLEND_CHANNEL(src, dst, alpha_src, alpha_dst, alpha_mix, COLOR_CHANNEL_BLUE))
-
-#endif // GRAPHICS_COLOR_H

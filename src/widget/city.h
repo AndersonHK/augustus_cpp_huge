@@ -1,5 +1,4 @@
-#ifndef WIDGET_CITY_H
-#define WIDGET_CITY_H
+#pragma once
 
 #include "graphics/tooltip.h"
 #include "input/hotkey.h"
@@ -30,5 +29,3 @@ void widget_city_clear_routing_grid_offset(void);
 int widget_city_current_grid_offset(void);
 
 void widget_city_setup_routing_preview(void);
-
-#endif // WIDGET_CITY_H

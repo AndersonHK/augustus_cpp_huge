@@ -1,5 +1,4 @@
-#ifndef WIDGET_MAP_EDITOR_H
-#define WIDGET_MAP_EDITOR_H
+#pragma once
 
 #include "graphics/tooltip.h"
 #include "input/hotkey.h"
@@ -24,5 +23,3 @@ int widget_map_editor_add_draw_context_event_tile(int grid_offset, int event_id)
 int widget_map_editor_get_event_id_at_grid_offset(int grid_offset);
 
 void widget_map_editor_custom_earthquake_request_refresh(void);
-
-#endif // WIDGET_MAP_EDITOR_H

@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_DEPOT_H
-#define FIGURETYPE_DEPOT_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -14,5 +13,3 @@ void figure_depot_recall(figure *f);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURETYPE_DEPOT_H

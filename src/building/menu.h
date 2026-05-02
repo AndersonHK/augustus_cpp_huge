@@ -1,5 +1,4 @@
-#ifndef BUILDING_MENU_H
-#define BUILDING_MENU_H
+#pragma once
 
 #include "building/type.h"
 
@@ -60,5 +59,3 @@ int building_menu_has_changed(void);
 int building_menu_is_submenu(build_menu_group menu);
 
 int building_menu_get_submenu_for_type(building_type type);
-
-#endif // BUILDING_MENU_H

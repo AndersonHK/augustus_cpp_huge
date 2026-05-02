@@ -15,19 +15,19 @@
         <profile id="amphitheater_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="amphitheater" state="in_use" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="768" return_mode="return_to_owner_road" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="768" return_mode="return_to_owner_road" />
             <pathing mode="smart_service" effect="entertainment_amphitheater_gladiator" />
         </profile>
         <profile id="arena_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="arena" state="in_use" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="768" return_mode="return_to_owner_road" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="768" return_mode="return_to_owner_road" />
             <pathing mode="smart_service" effect="entertainment_arena_gladiator" />
         </profile>
         <profile id="colosseum_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="colosseum" state="in_use" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="768" return_mode="return_to_owner_road" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="768" return_mode="return_to_owner_road" />
             <pathing mode="smart_service" effect="entertainment_colosseum_gladiator" />
         </profile>
     </profiles>

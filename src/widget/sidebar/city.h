@@ -1,5 +1,4 @@
-#ifndef WIDGET_SIDEBAR_CITY_H
-#define WIDGET_SIDEBAR_CITY_H
+#pragma once
 
 #include "graphics/tooltip.h"
 #include "input/mouse.h"
@@ -11,5 +10,3 @@ int widget_sidebar_city_handle_mouse(const mouse *m);
 int widget_sidebar_city_handle_mouse_build_menu(const mouse *m);
 
 int widget_sidebar_city_get_tooltip_text(tooltip_context *c);
-
-#endif // WIDGET_SIDEBAR_CITY_H

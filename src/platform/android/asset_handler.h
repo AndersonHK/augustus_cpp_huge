@@ -1,5 +1,4 @@
-#ifndef PLATFORM_ANDROID_ASSET_HANDLER_H
-#define PLATFORM_ANDROID_ASSET_HANDLER_H
+#pragma once
 
 #ifdef __ANDROID__
 
@@ -8,4 +7,3 @@ int asset_handler_get_directory_contents(const char *dir_name, int type, const c
     int (*callback)(const char *, long));
 
 #endif // __ANDROID__
-#endif // PLATFORM_ANDROID_ASSET_HANDLER_H

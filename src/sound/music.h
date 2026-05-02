@@ -1,5 +1,4 @@
-#ifndef SOUND_MUSIC_H
-#define SOUND_MUSIC_H
+#pragma once
 
 void sound_music_set_volume(int percentage);
 
@@ -16,5 +15,3 @@ void sound_music_resume(void);
 void sound_music_stop(void);
 
 void sound_music_next_track(void);
-
-#endif // SOUND_MUSIC_H

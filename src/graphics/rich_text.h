@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_RICH_TEXT_H
-#define GRAPHICS_RICH_TEXT_H
+#pragma once
 
 #include "graphics/color.h"
 #include "graphics/font.h"
@@ -111,5 +110,3 @@ int rich_text_get_line_height(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_RICH_TEXT_H

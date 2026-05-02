@@ -1,5 +1,4 @@
-#ifndef FIGURE_FORMATION_H
-#define FIGURE_FORMATION_H
+#pragma once
 
 #include "core/buffer.h"
 #include "figure/type.h"
@@ -212,5 +211,3 @@ void formation_update_all(int second_time);
 
 void formations_save_state(buffer *buf, buffer *totals);
 void formations_load_state(buffer *buf, buffer *totals, int version);
-
-#endif // FIGURE_FORMATION_H

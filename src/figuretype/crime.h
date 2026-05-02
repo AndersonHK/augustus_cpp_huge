@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_CRIME_H
-#define FIGURETYPE_CRIME_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -22,5 +21,3 @@ int figure_rioter_collapse_building(figure *f);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURETYPE_CRIME_H

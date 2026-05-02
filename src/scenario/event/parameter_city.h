@@ -1,5 +1,4 @@
-#ifndef SCENARIO_EVENT_CITY_PROPERTY_H
-#define SCENARIO_EVENT_CITY_PROPERTY_H
+#pragma once
 
 #include "scenario/event/parameter_data.h"
 
@@ -54,5 +53,3 @@ int scenario_event_parameter_city_for_action(scenario_action_t *action);
  * @return Info struct with count and parameter types needed
  */
 city_property_info_t city_property_get_param_info(city_property_t type);
-
-#endif // SCENARIO_EVENT_CITY_PROPERTY_H

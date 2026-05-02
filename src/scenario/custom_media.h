@@ -1,5 +1,4 @@
-#ifndef CUSTOM_MEDIA_H
-#define CUSTOM_MEDIA_H
+#pragma once
 
 #include "core/buffer.h"
 #include "scenario/message_media_text_blob.h"
@@ -43,5 +42,3 @@ void custom_media_save_state(buffer *buffer);
 void custom_media_load_state_entry(buffer *buffer, custom_media_t *entry, custom_media_link_type *link_type, int *link_id);
 
 int custom_media_relink_text_blob(size_t text_id, text_blob_string_t *new_text_link);
-
-#endif // CUSTOM_MEDIA_H

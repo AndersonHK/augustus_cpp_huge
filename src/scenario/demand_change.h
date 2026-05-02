@@ -1,5 +1,4 @@
-#ifndef SCENARIO_DEMAND_CHANGE_H
-#define SCENARIO_DEMAND_CHANGE_H
+#pragma once
 
 #include "core/buffer.h"
 #include "game/save_version.h"
@@ -44,5 +43,3 @@ void scenario_demand_change_save_state(buffer *buf);
 void scenario_demand_change_load_state(buffer *buf, scenario_version_t version);
 
 void scenario_demand_change_load_state_old_version(buffer *buf, int is_legacy_change);
-
-#endif // SCENARIO_DEMAND_CHANGE_H

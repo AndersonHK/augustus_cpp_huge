@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_IMAGE_H
-#define GRAPHICS_IMAGE_H
+#pragma once
 
 #include "core/image.h"
 #include "graphics/color.h"
@@ -41,5 +40,3 @@ void image_draw_set_isometric_top_from_draw_tile(int image_id, int x, int y, col
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_IMAGE_H

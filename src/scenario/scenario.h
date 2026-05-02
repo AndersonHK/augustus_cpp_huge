@@ -1,5 +1,4 @@
-#ifndef SCENARIO_SCENARIO_H
-#define SCENARIO_SCENARIO_H
+#pragma once
 
 #include "core/buffer.h"
 #include "scenario/data.h"
@@ -31,6 +30,3 @@ void scenario_settings_save_state(
 
 void scenario_settings_load_state(
     buffer *part1, buffer *part2, buffer *part3, buffer *player_name, buffer *scenario_name, buffer *campaign_name);
-
-
-#endif // SCENARIO_SCENARIO_H

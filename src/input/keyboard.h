@@ -1,5 +1,4 @@
-#ifndef INPUT_KEYBOARD_H
-#define INPUT_KEYBOARD_H
+#pragma once
 
 #include "graphics/font.h"
 
@@ -37,5 +36,3 @@ const uint8_t *keyboard_get_text(void);
 void keyboard_set_text(const uint8_t *text);
 
 int keyboard_get_max_text_length(void);
-
-#endif // INPUT_KEYBOARD_H

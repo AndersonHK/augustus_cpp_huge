@@ -1,5 +1,4 @@
-#ifndef BUILDING_BUILDING_TYPE_H
-#define BUILDING_BUILDING_TYPE_H
+#pragma once
 
 extern "C" {
 #include "building/building.h"
@@ -321,5 +320,3 @@ private:
 };
 
 } // namespace building_type_registry_impl
-
-#endif // BUILDING_BUILDING_TYPE_H

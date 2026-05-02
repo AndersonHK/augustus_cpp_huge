@@ -1,5 +1,4 @@
-#ifndef INPUT_HOTKEY_H
-#define INPUT_HOTKEY_H
+#pragma once
 
 #include "core/hotkey_config.h"
 #include "input/keys.h"
@@ -70,5 +69,3 @@ void hotkey_handle_global_keys(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // INPUT_HOTKEY_H

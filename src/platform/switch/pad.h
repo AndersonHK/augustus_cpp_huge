@@ -1,5 +1,4 @@
-#ifndef SWITCH_PAD_H
-#define SWITCH_PAD_H
+#pragma once
 
 enum {
     SWITCH_PAD_A = 0,
@@ -26,5 +25,3 @@ enum {
     SWITCH_RIGHT_ANALOG_X = 2,
     SWITCH_RIGHT_ANALOG_Y = 3
 };
-
-#endif // SWITCH_PAD_H

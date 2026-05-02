@@ -1,5 +1,4 @@
-#ifndef BUILDING_HOUSE_EVOLUTION_H
-#define BUILDING_HOUSE_EVOLUTION_H
+#pragma once
 
 #include "building/building.h"
 
@@ -21,5 +20,3 @@ void building_house_determine_evolve_text(building *house, int worst_desirabilit
  * @return Worst desirability building ID
  */
 building_type building_house_determine_worst_desirability_building_type(const building *house);
-
-#endif // BUILDING_HOUSE_EVOLUTION_H

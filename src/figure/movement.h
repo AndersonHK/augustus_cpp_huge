@@ -1,5 +1,4 @@
-#ifndef FIGURE_MOVEMENT_H
-#define FIGURE_MOVEMENT_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -37,5 +36,3 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURE_MOVEMENT_H

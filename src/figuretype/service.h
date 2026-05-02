@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_SERVICE_H
-#define FIGURETYPE_SERVICE_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -40,5 +39,3 @@ void figure_beggar_action(figure *f);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURETYPE_SERVICE_H

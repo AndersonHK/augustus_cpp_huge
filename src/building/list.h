@@ -1,5 +1,4 @@
-#ifndef BUILDING_LIST_H
-#define BUILDING_LIST_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -67,5 +66,3 @@ int building_list_burning_item(int index);
 void building_list_save_state(buffer *small, buffer *large, buffer *burning, buffer *burning_totals);
 
 void building_list_load_state(buffer *small, buffer *large, buffer *burning, buffer *burning_totals, int is_new_version);
-
-#endif // BUILDING_LIST_H

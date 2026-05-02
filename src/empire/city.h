@@ -1,5 +1,4 @@
-#ifndef EMPIRE_CITY_H
-#define EMPIRE_CITY_H
+#pragma once
 
 #include "core/buffer.h"
 #include "empire/type.h"
@@ -112,5 +111,3 @@ int empire_city_get_array_size(void);
 int empire_city_get_icon_image_id(empire_city_icon_type type);
 
 int empire_city_get_at(int x, int y, const uint8_t *name);
-
-#endif // EMPIRE_CITY_H

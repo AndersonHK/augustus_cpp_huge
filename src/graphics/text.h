@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_TEXT_H
-#define GRAPHICS_TEXT_H
+#pragma once
 
 #include "graphics/color.h"
 #include "graphics/font.h"
@@ -69,5 +68,3 @@ void text_draw_build_menu_with_index(const uint8_t *str, int index, int x_offset
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_TEXT_H

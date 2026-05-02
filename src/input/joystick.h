@@ -1,5 +1,4 @@
-#ifndef INPUT_JOYSTICK_H
-#define INPUT_JOYSTICK_H
+#pragma once
 
 #include "input/mouse.h"
 
@@ -86,5 +85,3 @@ int joystick_remove(int joystick_id);
 void joystick_update_element(int joystick_id, joystick_element element, int element_id, int value1, int value2);
 
 int joystick_to_mouse_and_keyboard(void);
-
-#endif // INPUT_JOYSTICK_H

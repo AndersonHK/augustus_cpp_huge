@@ -13,7 +13,7 @@
         <profile id="hippodrome_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="hippodrome" state="in_use" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
             <pathing mode="vanilla_roaming" effect="entertainment_hippodrome" />
         </profile>
     </profiles>

@@ -1,5 +1,4 @@
-#ifndef FILE_MANAGER_CACHE_H
-#define FILE_MANAGER_CACHE_H
+#pragma once
 
 #if defined(__vita__) || defined(__SWITCH__)
 #define USE_FILE_CACHE
@@ -27,5 +26,3 @@ void platform_file_manager_cache_delete_file_info(const char *filename);
 void platform_file_manager_cache_invalidate(void);
 
 #endif
-
-#endif // FILE_MANAGER_CACHE_H

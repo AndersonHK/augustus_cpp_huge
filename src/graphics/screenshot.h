@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_SCREENSHOT_H
-#define GRAPHICS_SCREENSHOT_H
+#pragma once
 
 typedef enum {
     SCREENSHOT_FULL_CITY = 0,
@@ -9,5 +8,3 @@ typedef enum {
 } screenshot_type;
 
 void graphics_save_screenshot(screenshot_type type);
-
-#endif // GRAPHICS_SCREENSHOT_H

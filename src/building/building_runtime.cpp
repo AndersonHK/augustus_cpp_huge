@@ -780,11 +780,27 @@ int building_runtime::has_figure_of_type(figure_type type)
 
 int building_runtime::has_figure_of_any(const std::vector<figure_type> &types)
 {
+    if (building_->figure_id <= 0) {
+        return 0;
+    }
+
+    // Group guards reason about one tracked slot. Do not call the single-type
+    // helper repeatedly here because it clears the slot when that one type does
+    // not match, which breaks alternates that intentionally share the slot.
+    figure *existing = figure_get(building_->figure_id);
+    if (!existing || !existing->state || existing->building_id != building_->id) {
+        building_->figure_id = 0;
+        return 0;
+    }
+
+    // Mixed entertainment venues share one legacy slot for alternate walker
+    // types, such as amphitheater actors and gladiators.
     for (figure_type type : types) {
-        if (has_figure_of_type(type)) {
+        if (existing->type == type) {
             return 1;
         }
     }
+    building_->figure_id = 0;
     return 0;
 }
 

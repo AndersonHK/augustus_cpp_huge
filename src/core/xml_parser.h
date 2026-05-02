@@ -1,5 +1,4 @@
-#ifndef CORE_XML_PARSER_H
-#define CORE_XML_PARSER_H
+#pragma once
 
 #define XML_PARSER_MAX_ATTRIBUTES 13
 #define XML_PARSER_TAG_MAX_LENGTH 32
@@ -123,5 +122,3 @@ void xml_parser_reset(void);
  * @brief Frees the memory associated with the parser.
  */
 void xml_parser_free(void);
-
-#endif // CORE_XML_PARSER_H

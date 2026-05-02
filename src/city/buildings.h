@@ -1,5 +1,4 @@
-#ifndef CITY_BUILDINGS_H
-#define CITY_BUILDINGS_H
+#pragma once
 
 #include "building/building.h"
 
@@ -32,5 +31,3 @@ void city_buildings_main_native_meeting_center(int *x, int *y);
 
 int city_buildings_get_closest_plague(int x, int y, int *distance);
 void city_buildings_update_plague(void);
-
-#endif // CITY_BUILDINGS_H

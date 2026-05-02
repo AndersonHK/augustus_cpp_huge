@@ -1,5 +1,4 @@
-#ifndef MAP_ROUTING_H
-#define MAP_ROUTING_H
+#pragma once
 
 #include "core/buffer.h"
 #include "map/grid.h"
@@ -46,5 +45,3 @@ void map_routing_block(int x, int y, int size);
 void map_routing_save_state(buffer *buf);
 
 void map_routing_load_state(buffer *buf);
-
-#endif // MAP_ROUTING_H

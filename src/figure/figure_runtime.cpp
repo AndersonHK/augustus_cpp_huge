@@ -215,7 +215,7 @@ public:
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, graphics.max_image_offset);
 
-        if (profile()->pathing_policy().mode == figure_type_registry_impl::PathingMode::NearestUnemployed &&
+        if (profile()->pathing_policy().mode == &figure_type_registry_impl::NearestUnemployed &&
             building_local_workforce_labor_seeker_is_workforce(f)) {
             f->is_ghost = 0;
             f->roam_length++;
@@ -1561,7 +1561,7 @@ extern "C" int figure_runtime_choose_roaming_direction(
 
     const figure_type_registry_impl::PathingPolicy &pathing = entry->profile->pathing_policy();
     const road_service_effect effect = primary_service_effect_for_profile(entry->profile);
-    if (pathing.mode != figure_type_registry_impl::PathingMode::SmartService ||
+    if (pathing.mode != &figure_type_registry_impl::SmartService ||
         effect == ROAD_SERVICE_EFFECT_NONE) {
         return vanilla_direction;
     }

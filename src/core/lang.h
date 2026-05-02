@@ -1,5 +1,4 @@
-#ifndef CORE_LANG_H
-#define CORE_LANG_H
+#pragma once
 
 #include <stdint.h>
 
@@ -117,5 +116,3 @@ const lang_message *lang_get_message(int id);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CORE_LANG_H

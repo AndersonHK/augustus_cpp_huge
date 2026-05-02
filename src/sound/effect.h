@@ -1,5 +1,4 @@
-#ifndef SOUND_EFFECTS_H
-#define SOUND_EFFECTS_H
+#pragma once
 
 typedef enum {
     SOUND_EFFECT_PANEL,
@@ -49,5 +48,3 @@ typedef enum {
 void sound_effect_set_volume(int percentage);
 
 void sound_effect_play(sound_effect_type effect);
-
-#endif // SOUND_EFFECTS_H

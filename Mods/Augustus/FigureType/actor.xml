@@ -14,13 +14,13 @@
         <profile id="theater_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="theater" state="in_use" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
             <pathing mode="vanilla_roaming" effect="entertainment_theater" />
         </profile>
         <profile id="amphitheater_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="amphitheater" state="in_use" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
             <pathing mode="vanilla_roaming" effect="entertainment_amphitheater_actor" />
         </profile>
     </profiles>

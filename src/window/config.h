@@ -1,5 +1,4 @@
-#ifndef WINDOW_CONFIG_H
-#define WINDOW_CONFIG_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -38,5 +37,3 @@ void window_config_show(window_config_page page, unsigned int category, int show
 #ifdef __cplusplus
 }
 #endif
-
-#endif // WINDOW_CONFIG_H

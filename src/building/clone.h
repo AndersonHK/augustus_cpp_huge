@@ -1,5 +1,4 @@
-#ifndef BUILDING_CLONE_H
-#define BUILDING_CLONE_H
+#pragma once
 
 #include "building/type.h"
 
@@ -14,5 +13,3 @@ building_type building_clone_type_from_grid_offset(int grid_offset);
 */
 building_type building_clone_type_from_building_type(building_type type);
 int building_clone_rotation_from_grid_offset(int grid_offset);
-
-#endif

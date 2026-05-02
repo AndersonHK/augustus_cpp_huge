@@ -1,11 +1,11 @@
-#ifndef FIGURE_TYPE_REGISTRY_INTERNAL_H
-#define FIGURE_TYPE_REGISTRY_INTERNAL_H
+#pragma once
 
 extern "C" {
 #include "building/type.h"
 #include "figure/type.h"
 }
 
+#include "figure/PathingMode.h"
 #include "map/road_service_history.h"
 
 #include <array>
@@ -22,13 +22,6 @@ enum class NativeClassId {
     PrefectService,
     EntertainmentService,
     EntertainmentVenueSeeker
-};
-
-enum class PathingMode {
-    VanillaRoaming,
-    SmartService,
-    NearestUnemployed,
-    VenueSeeker
 };
 
 enum class FigureSlot {
@@ -75,7 +68,7 @@ struct GraphicsPolicy {
 };
 
 struct PathingPolicy {
-    PathingMode mode = PathingMode::VanillaRoaming;
+    const PathingMode *mode = &VanillaRoaming;
     road_service_effect effect = ROAD_SERVICE_EFFECT_NONE;
 };
 
@@ -170,5 +163,3 @@ const FigureTypeProfile *profile_for(figure_type type, const char *profile_id);
 const FigureTypeProfile *default_profile_for(figure_type type);
 
 } // namespace figure_type_registry_impl
-
-#endif // FIGURE_TYPE_REGISTRY_INTERNAL_H

@@ -1,5 +1,4 @@
-#ifndef EMPIRE_OBJECT_H
-#define EMPIRE_OBJECT_H
+#pragma once
 
 #include "core/buffer.h"
 #include "empire/city.h"
@@ -162,5 +161,3 @@ int empire_object_is_sea_trade_route(int route_id);
 void empire_object_set_trade_route_coords(const empire_object *our_city);
 
 empire_city_icon_type empire_object_get_random_icon_for_empire_object(full_empire_object *full_obj);
-
-#endif // EMPIRE_OBJECT_H

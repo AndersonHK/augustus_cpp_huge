@@ -1,5 +1,4 @@
-#ifndef CITY_MIGRATION_H
-#define CITY_MIGRATION_H
+#pragma once
 
 void city_migration_update(void);
 
@@ -14,5 +13,3 @@ int city_migration_percentage(void);
 int city_migration_newcomers(void);
 
 void city_migration_reset_newcomers(void);
-
-#endif // CITY_MIGRATION_H

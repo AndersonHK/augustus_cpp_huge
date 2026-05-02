@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_UI_PANEL_PRIMITIVE_H
-#define GRAPHICS_UI_PANEL_PRIMITIVE_H
+#pragma once
 
 #include "graphics/ui_primitive.h"
 
@@ -34,5 +33,3 @@ private:
     int height_blocks_;
     color_t color_;
 };
-
-#endif // GRAPHICS_UI_PANEL_PRIMITIVE_H

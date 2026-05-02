@@ -1,5 +1,4 @@
-#ifndef BUILDING_DISTRIBUTION_H
-#define BUILDING_DISTRIBUTION_H
+#pragma once
 
 #include "building/building.h"
 #include "figure/figure.h"
@@ -33,5 +32,3 @@ int building_distribution_get_resource_storages_for_building(resource_storage_in
     building *start, int max_distance);
 int building_distribution_get_resource_storages_for_figure(resource_storage_info info[RESOURCE_MAX],
     building_type type, int road_network, figure *start, int max_distance);
-
-#endif // BUILDING_DISTRIBUTION_H

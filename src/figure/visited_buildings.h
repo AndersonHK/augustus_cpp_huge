@@ -1,5 +1,4 @@
-#ifndef FIGURE_VISITED_BUILDINGS_H
-#define FIGURE_VISITED_BUILDINGS_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -56,5 +55,3 @@ void figure_visited_buildings_save_state(buffer *buf);
  * @param buf Buffer
  */
 void figure_visited_buildings_load_state(buffer *buf);
-
-#endif // FIGURE_VISITED_BUILDINGS_H

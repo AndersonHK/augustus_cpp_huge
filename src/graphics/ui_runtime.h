@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_UI_RUNTIME_H
-#define GRAPHICS_UI_RUNTIME_H
+#pragma once
 
 #include "graphics/bordered_button_widget.h"
 #include "graphics/color.h"
@@ -86,5 +85,3 @@ private:
 };
 
 SharedUiRuntime &shared_ui_runtime(void);
-
-#endif // GRAPHICS_UI_RUNTIME_H

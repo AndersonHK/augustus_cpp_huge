@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_WINDOW_H
-#define GRAPHICS_WINDOW_H
+#pragma once
 
 #include "graphics/tooltip.h"
 #include "input/hotkey.h"
@@ -144,5 +143,3 @@ void window_go_back(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_WINDOW_H

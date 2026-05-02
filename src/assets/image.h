@@ -1,5 +1,4 @@
-#ifndef ASSETS_IMAGE_H
-#define ASSETS_IMAGE_H
+#pragma once
 
 #include "assets/layer.h"
 #include "assets/xml.h"
@@ -39,5 +38,3 @@ void asset_image_copy_isometric_footprint(color_t *dst, const color_t *src, int 
     int dst_x_offset, int dst_y_offset, int dst_width, int src_x_offset, int src_y_offset, int src_width);
 void asset_image_copy_isometric_top(color_t *dst, const color_t *src, int width, int height,
     int dst_x_offset, int dst_y_offset, int dst_width, int src_x_offset, int src_y_offset, int src_width);
-
-#endif // ASSETS_IMAGE_H

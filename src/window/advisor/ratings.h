@@ -1,5 +1,4 @@
-#ifndef WINDOW_ADVISOR_RATINGS_H
-#define WINDOW_ADVISOR_RATINGS_H
+#pragma once
 
 #include "window/advisors.h"
 
@@ -14,5 +13,3 @@ void draw_rating_column(int x_offset, int y_offset, int value, int has_reached);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // WINDOW_ADVISOR_RATINGS_H

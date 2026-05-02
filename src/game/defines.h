@@ -1,5 +1,4 @@
-#ifndef GAME_DEFINES_H
-#define GAME_DEFINES_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,5 +20,3 @@ int game_defines_mortality_percentage(int health_bucket, int age_decennium);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GAME_DEFINES_H

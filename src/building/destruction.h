@@ -1,5 +1,4 @@
-#ifndef BUILDING_DESTRUCTION_H
-#define BUILDING_DESTRUCTION_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,5 +29,3 @@ void building_destroy_by_enemy(int x, int y, int grid_offset);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_DESTRUCTION_H

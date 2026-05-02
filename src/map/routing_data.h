@@ -1,5 +1,4 @@
-#ifndef MAP_ROUTING_DATA_H
-#define MAP_ROUTING_DATA_H
+#pragma once
 
 #include "map/grid.h"
 // if a tile is passable, it gets value > 0
@@ -37,5 +36,3 @@ extern grid_i8 terrain_land_citizen;
 extern grid_i8 terrain_land_noncitizen;
 extern grid_i8 terrain_water;
 extern grid_i8 terrain_walls;
-
-#endif // MAP_ROUTING_DATA_H

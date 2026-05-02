@@ -1,5 +1,4 @@
-#ifndef GAME_FILE_IO_H
-#define GAME_FILE_IO_H
+#pragma once
 
 #include "core/buffer.h"
 #include "scenario/data.h"
@@ -68,5 +67,3 @@ const char *game_file_io_last_loaded_active_mod_name(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GAME_FILE_IO_H

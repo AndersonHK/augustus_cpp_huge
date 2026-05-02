@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_MAINTENANCE_H
-#define FIGURETYPE_MAINTENANCE_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -18,5 +17,3 @@ void figure_worker_action(figure *f);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURETYPE_MAINTENANCE_H

@@ -1,5 +1,4 @@
-#ifndef FIGURE_ENEMY_ARMY_H
-#define FIGURE_ENEMY_ARMY_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -45,5 +44,3 @@ int enemy_army_is_stronger_than_legions(void);
 void enemy_armies_save_state(buffer *buf, buffer *totals_buf);
 
 void enemy_armies_load_state(buffer *buf, buffer *totals_buf);
-
-#endif // FIGURE_ENEMY_ARMY_H

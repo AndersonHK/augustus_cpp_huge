@@ -498,7 +498,8 @@ int map_road_to_largest_network_monument_construction(int x, int y, int size, in
 
 static int terrain_is_road_like(int grid_offset)
 {
-    // highways don't count for roamers or for building road access, so they aren't checked here
+    // Building road access ignores highways. Figure roaming has figure-specific
+    // terrain checks in movement.cpp so roads_highway profiles can opt in.
     return map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_ACCESS_RAMP) ? 1 : 0;
 }
 

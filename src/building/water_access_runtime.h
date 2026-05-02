@@ -1,5 +1,4 @@
-#ifndef BUILDING_WATER_ACCESS_RUNTIME_H
-#define BUILDING_WATER_ACCESS_RUNTIME_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,5 +32,3 @@ int water_access_runtime_should_draw_overlay_at(int grid_offset);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_WATER_ACCESS_RUNTIME_H

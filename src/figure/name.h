@@ -1,5 +1,4 @@
-#ifndef FIGURE_NAME_H
-#define FIGURE_NAME_H
+#pragma once
 
 #include "core/buffer.h"
 #include "figure/type.h"
@@ -33,5 +32,3 @@ void figure_name_save_state(buffer *buf);
  * @param buf Buffer to load from
  */
 void figure_name_load_state(buffer *buf);
-
-#endif // FIGURE_NAME_H

@@ -1,5 +1,4 @@
-#ifndef SCENARIO_GLADIATOR_REVOLT_H
-#define SCENARIO_GLADIATOR_REVOLT_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -16,5 +15,3 @@ void scenario_gladiator_revolt_save_state(buffer *buf);
 void scenario_gladiator_revolt_load_state(buffer *buf);
 
 void scenario_gladiator_revolt_start_new(void);
-
-#endif // SCENARIO_GLADIATOR_REVOLT_H

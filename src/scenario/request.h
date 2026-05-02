@@ -1,5 +1,4 @@
-#ifndef SCENARIO_REQUEST_H
-#define SCENARIO_REQUEST_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -99,5 +98,3 @@ void scenario_request_save_state(buffer *list);
 void scenario_request_load_state(buffer *list, int version);
 
 void scenario_request_load_state_old_version(buffer *list, requests_old_state_sections section);
-
-#endif // SCENARIO_REQUEST_H

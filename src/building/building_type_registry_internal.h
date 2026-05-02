@@ -1,5 +1,4 @@
-#ifndef BUILDING_BUILDING_TYPE_REGISTRY_INTERNAL_H
-#define BUILDING_BUILDING_TYPE_REGISTRY_INTERNAL_H
+#pragma once
 
 #include "building/building_type.h"
 #include "building/building_type_api.h"
@@ -56,5 +55,3 @@ int directory_exists(const char *path);
 void refresh_building_type_path();
 
 }
-
-#endif // BUILDING_BUILDING_TYPE_REGISTRY_INTERNAL_H

@@ -1,5 +1,4 @@
-#ifndef EDITOR_TOOL_H
-#define EDITOR_TOOL_H
+#pragma once
 
 #include "map/point.h"
 #include "map/grid.h"
@@ -88,5 +87,3 @@ const map_tile *editor_tool_get_start_tile(void);
  * @note The offsets represent opposite corners of the selected rectangle
  */
 void editor_tool_get_selection_offsets(int *start_offset, int *end_offset);
-
-#endif // EDITOR_TOOL_H

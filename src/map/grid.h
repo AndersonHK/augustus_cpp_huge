@@ -1,5 +1,4 @@
-#ifndef MAP_GRID_H
-#define MAP_GRID_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -190,5 +189,3 @@ grid_slice *map_grid_get_grid_slice_ring(int center_grid_offset, int inner_radiu
 grid_slice *map_grid_get_grid_slice_from_center(int center_grid_offset, int radius);
 
 grid_slice *map_grid_slice_contains(int grid_offset, grid_slice *slice);
-
-#endif // MAP_GRID_H

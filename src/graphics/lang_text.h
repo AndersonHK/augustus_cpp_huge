@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_LANG_TEXT_H
-#define GRAPHICS_LANG_TEXT_H
+#pragma once
 
 #include "graphics/font.h"
 #include "graphics/color.h"
@@ -64,5 +63,3 @@ int lang_text_concatenate_sequence(const lang_fragment *seq, int count, uint8_t 
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_LANG_TEXT_H

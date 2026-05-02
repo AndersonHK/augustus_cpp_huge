@@ -1,5 +1,4 @@
-#ifndef BUILDING_DOCK_H
-#define BUILDING_DOCK_H
+#pragma once
 
 #include "building/building.h"
 #include "map/point.h"
@@ -41,5 +40,3 @@ void building_dock_enable_resource_in_all_docks(resource_type resource);
 int building_dock_can_trade_with_route(int route_id, int dock_id);
 
 void building_dock_set_can_trade_with_route(int route_id, int dock_id, int can_trade);
-
-#endif // BUILDING_DOCK_H

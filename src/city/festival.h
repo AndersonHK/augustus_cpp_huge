@@ -1,5 +1,4 @@
-#ifndef CITY_FESTIVAL_H
-#define CITY_FESTIVAL_H
+#pragma once
 
 #include "city/resource.h"
 #include "translation/translation.h"
@@ -39,5 +38,3 @@ void city_festival_schedule(void);
 
 void city_festival_update(void);
 void city_festival_calculate_costs(void);
-
-#endif // CITY_FESTIVAL_H

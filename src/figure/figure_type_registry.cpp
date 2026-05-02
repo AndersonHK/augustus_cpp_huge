@@ -499,29 +499,6 @@ static int parse_image_group_name(const char *name)
     return 0;
 }
 
-static PathingMode parse_pathing_mode_name(const char *name)
-{
-    if (text_equals(name, "smart_service")) {
-        return PathingMode::SmartService;
-    }
-    if (text_equals(name, "nearest_unemployed")) {
-        return PathingMode::NearestUnemployed;
-    }
-    if (text_equals(name, "venue_seeker")) {
-        return PathingMode::VenueSeeker;
-    }
-    return PathingMode::VanillaRoaming;
-}
-
-static bool is_known_pathing_mode_name(const char *name)
-{
-    return name &&
-        (text_equals(name, "vanilla_roaming") ||
-        text_equals(name, "smart_service") ||
-        text_equals(name, "nearest_unemployed") ||
-        text_equals(name, "venue_seeker"));
-}
-
 static road_service_effect parse_service_effect_name(const char *name)
 {
     if (!name || text_equals(name, "none")) {
@@ -751,7 +728,7 @@ static void finish_profile_node()
         g_parse_state.error = true;
         log_error("FigureType profile is missing a required child node", g_parse_state.current_profile->id(), 0);
     }
-    if (g_parse_state.current_profile->pathing_policy().mode == PathingMode::VenueSeeker &&
+    if (g_parse_state.current_profile->pathing_policy().mode->requires_venue_targets &&
         g_parse_state.current_profile->venue_targets().empty()) {
         g_parse_state.error = true;
         log_error("FigureType venue seeker profile is missing venue targets", g_parse_state.current_profile->id(), 0);
@@ -944,7 +921,8 @@ static int parse_pathing_node()
         log_error("FigureType pathing node is missing required attribute 'mode'", 0, 0);
         return 0;
     }
-    if (!is_known_pathing_mode_name(xml_parser_get_attribute_string("mode"))) {
+    const PathingMode *mode = pathing_mode_from_xml_id(xml_parser_get_attribute_string("mode"));
+    if (!mode) {
         g_parse_state.error = true;
         log_error("FigureType pathing node has an unknown mode", xml_parser_get_attribute_string("mode"), 0);
         return 0;
@@ -957,11 +935,11 @@ static int parse_pathing_node()
     }
 
     PathingPolicy pathing_policy;
-    pathing_policy.mode = parse_pathing_mode_name(xml_parser_get_attribute_string("mode"));
+    pathing_policy.mode = mode;
     const char *effect_text = xml_parser_get_attribute_string("effect");
     pathing_policy.effect = parse_service_effect_name(effect_text);
 
-    if (pathing_policy.mode == PathingMode::SmartService) {
+    if (pathing_policy.mode->requires_service_effect) {
         // Smart service pathing compares road-tile history for one explicit service effect.
         if (pathing_policy.effect == ROAD_SERVICE_EFFECT_NONE) {
             g_parse_state.error = true;
@@ -969,21 +947,15 @@ static int parse_pathing_node()
                 profile->id());
             return 0;
         }
-        if (!g_parse_state.saw_profile_movement ||
-            !is_road_only_terrain_usage(profile->movement_profile().terrain_usage)) {
-            g_parse_state.error = true;
-            error_context_report_error("FigureType smart_service pathing requires road-only movement",
-                profile->id());
-            return 0;
-        }
-    } else if (pathing_policy.mode == PathingMode::NearestUnemployed) {
-        if (!g_parse_state.saw_profile_movement ||
-            !is_road_only_terrain_usage(profile->movement_profile().terrain_usage)) {
-            g_parse_state.error = true;
-            error_context_report_error("FigureType nearest_unemployed pathing requires road-only movement",
-                profile->id());
-            return 0;
-        }
+    }
+    if (pathing_policy.mode->requires_road &&
+        (!g_parse_state.saw_profile_movement ||
+            !is_road_only_terrain_usage(profile->movement_profile().terrain_usage))) {
+        g_parse_state.error = true;
+        error_context_report_error(
+            "FigureType pathing requires terrain_usage roads or roads_highway",
+            profile->id());
+        return 0;
     }
 
     profile->set_pathing_policy(pathing_policy);

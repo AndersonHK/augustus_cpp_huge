@@ -1,5 +1,4 @@
-#ifndef BUILDING_CONSTRUCTION_CLEAR_H
-#define BUILDING_CONSTRUCTION_CLEAR_H
+#pragma once
 
 #include "graphics/color.h"
 
@@ -26,5 +25,3 @@ int building_construction_repair_land(int measure_only, int x_start, int y_start
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_CONSTRUCTION_CLEAR_H

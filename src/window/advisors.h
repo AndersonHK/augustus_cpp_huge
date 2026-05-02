@@ -1,5 +1,4 @@
-#ifndef WINDOW_ADVISORS_H
-#define WINDOW_ADVISORS_H
+#pragma once
 
 #include "city/constants.h"
 #include "graphics/tooltip.h"
@@ -48,5 +47,3 @@ int window_advisors_get_hospital_coverage(void);
 int window_advisors_get_school_coverage(void);
 int window_advisors_get_library_coverage(void);
 int window_advisors_get_academy_coverage(void);
-
-#endif // WINDOW_ADVISORS_H

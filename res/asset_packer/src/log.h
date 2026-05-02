@@ -1,5 +1,4 @@
-#ifndef LOG_H
-#define LOG_H
+#pragma once
 
 #include <stdio.h>
 
@@ -30,5 +29,3 @@ void log_error(const char *msg, const char *param_str, int param_int)
 {
 	log_internal("ERROR", msg, param_str, param_int);
 }
-
-#endif // LOG_H

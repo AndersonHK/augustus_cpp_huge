@@ -1,5 +1,4 @@
-#ifndef CITY_CONSTANTS_H
-#define CITY_CONSTANTS_H
+#pragma once
 
 typedef enum {
     ADVISOR_NONE,
@@ -64,5 +63,3 @@ typedef enum {
     TRADE_STATUS_EXPORT = 2,
     TRADE_STATUS_IMPORT_EXPORT = 3
 } resource_trade_status;
-
-#endif // CITY_CONSTANTS_H

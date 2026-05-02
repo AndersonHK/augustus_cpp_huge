@@ -1,5 +1,4 @@
-#ifndef CITY_RACE_BET_H
-#define CITY_RACE_BET_H
+#pragma once
 
 typedef enum {
     NO_BET,
@@ -11,5 +10,3 @@ typedef enum {
 
 int has_bet_in_progress(void);
 void race_result_process(void);
-
-#endif //CITY_RACE_BET_H

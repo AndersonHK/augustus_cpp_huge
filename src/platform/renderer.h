@@ -1,5 +1,4 @@
-#ifndef PLATFORM_RENDERER_H
-#define PLATFORM_RENDERER_H
+#pragma once
 
 #include "graphics/color.h"
 
@@ -40,5 +39,3 @@ void platform_renderer_destroy(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // PLATFORM_RENDERER_H

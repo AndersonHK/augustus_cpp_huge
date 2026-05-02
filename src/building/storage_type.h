@@ -1,5 +1,4 @@
-#ifndef BUILDING_STORAGE_TYPE_H
-#define BUILDING_STORAGE_TYPE_H
+#pragma once
 
 extern "C" {
 #include "game/resource.h"
@@ -30,5 +29,3 @@ private:
 };
 
 } // namespace building_type_registry_impl
-
-#endif // BUILDING_STORAGE_TYPE_H

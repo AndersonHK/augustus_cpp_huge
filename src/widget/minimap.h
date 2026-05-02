@@ -1,5 +1,4 @@
-#ifndef WIDGET_MINIMAP_H
-#define WIDGET_MINIMAP_H
+#pragma once
 
 #include "building/building.h"
 #include "figure/figure.h"
@@ -33,5 +32,3 @@ void widget_minimap_draw(int x_offset, int y_offset, int width, int height);
 void widget_minimap_draw_decorated(int x_offset, int y_offset, int width, int height);
 
 int widget_minimap_handle_mouse(const mouse *m);
-
-#endif // WIDGET_MINIMAP_H

@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_BUTTON_WIDGET_H
-#define GRAPHICS_BUTTON_WIDGET_H
+#pragma once
 
 #include "graphics/ui_widget.h"
 
@@ -15,5 +14,3 @@ protected:
     int x_;
     int y_;
 };
-
-#endif // GRAPHICS_BUTTON_WIDGET_H

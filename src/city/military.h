@@ -1,5 +1,4 @@
-#ifndef CITY_MILITARY_H
-#define CITY_MILITARY_H
+#pragma once
 
 void city_military_clear_legionary_legions(void);
 void city_military_add_legionary_legion(void);
@@ -43,5 +42,3 @@ int city_military_has_distant_battle(void);
 int city_military_months_until_distant_battle(void);
 
 void city_military_process_distant_battle(void);
-
-#endif // CITY_MILITARY_H

@@ -1,5 +1,4 @@
-#ifndef CORE_XML_EXPORTER_H
-#define CORE_XML_EXPORTER_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -81,5 +80,3 @@ void xml_exporter_close_element(void);
  * @brief Adds a LF+CR (new line) to the buffer.
  */
 void xml_exporter_newline(void);
-
-#endif // CORE_XML_EXPORTER_H

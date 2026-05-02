@@ -1,5 +1,4 @@
-#ifndef BUILDING_STORAGE_TYPE_REGISTRY_H
-#define BUILDING_STORAGE_TYPE_REGISTRY_H
+#pragma once
 
 #include "building/storage_type.h"
 
@@ -19,5 +18,3 @@ int storage_type_registry_load(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_STORAGE_TYPE_REGISTRY_H

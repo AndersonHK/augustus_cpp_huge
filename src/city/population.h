@@ -1,5 +1,4 @@
-#ifndef CITY_POPULATION_H
-#define CITY_POPULATION_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -93,5 +92,3 @@ int city_population_percentage_in_villas_palaces(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CITY_POPULATION_H

@@ -1,5 +1,4 @@
-#ifndef INPUT_SCROLL_H
-#define INPUT_SCROLL_H
+#pragma once
 
 #include "city/view.h"
 #include "input/mouse.h"
@@ -29,5 +28,3 @@ void scroll_arrow_left(int value);
 void scroll_arrow_right(int value);
 void scroll_arrow_up(int value);
 void scroll_arrow_down(int value);
-
-#endif // INPUT_SCROLL_H

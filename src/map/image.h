@@ -1,5 +1,4 @@
-#ifndef MAP_IMAGE_H
-#define MAP_IMAGE_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -20,5 +19,3 @@ void map_image_update_all(void);
 void map_image_save_state_legacy(buffer *buf);
 
 void map_image_load_state_legacy(buffer *buf);
-
-#endif // MAP_IMAGE_H

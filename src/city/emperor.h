@@ -1,5 +1,4 @@
-#ifndef CITY_EMPEROR_H
-#define CITY_EMPEROR_H
+#pragma once
 
 enum {
     GIFT_MODEST = 0,
@@ -66,5 +65,3 @@ void city_emperor_mark_soldier_killed(void);
 void city_emperor_force_attack(int size);
 
 void city_emperor_decrement_personal_savings(int amount);
-
-#endif // CITY_EMPEROR_H

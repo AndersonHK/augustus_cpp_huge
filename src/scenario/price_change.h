@@ -1,5 +1,4 @@
-#ifndef SCENARIO_PRICE_CHANGE_H
-#define SCENARIO_PRICE_CHANGE_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -41,5 +40,3 @@ void scenario_price_change_save_state(buffer *buf);
 void scenario_price_change_load_state(buffer *buf);
 
 void scenario_price_change_load_state_old_version(buffer *buf);
-
-#endif // SCENARIO_PRICE_CHANGE_H

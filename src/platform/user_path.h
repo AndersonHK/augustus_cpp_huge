@@ -1,5 +1,4 @@
-#ifndef PLATFORM_USER_PATH_H
-#define PLATFORM_USER_PATH_H
+#pragma once
 
 /**
  * Recommends a user path
@@ -26,6 +25,3 @@ void platform_user_path_copy_files(const char *original_user_path, int overwrite
  * Copies campaigns and custom empires from the default place to the new subdirectories
  */
 void platform_user_path_copy_campaigns_and_custom_empires(void);
-
-#endif // PLATFORM_USER_PATH_H
-

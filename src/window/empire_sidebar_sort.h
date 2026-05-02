@@ -1,5 +1,4 @@
-#ifndef WINDOW_EMPIRE_SIDEBAR_SORT_H
-#define WINDOW_EMPIRE_SIDEBAR_SORT_H
+#pragma once
 
 #include "empire/city.h"
 #include "game/resource.h"
@@ -88,5 +87,3 @@ int window_empire_sidebar_sort_get_sorting_arrow_is_down(void);
 
 // Initialization
 void window_empire_sidebar_sort_init(void);
-
-#endif // WINDOW_EMPIRE_SIDEBAR_SORT_H

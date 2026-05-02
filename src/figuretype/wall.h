@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_WALL_H
-#define FIGURETYPE_WALL_H
+#pragma once
 
 #include "figure/figure.h"
 #include "building/building.h"
@@ -19,6 +18,3 @@ void figure_kill_tower_sentries_in_building(building *b);
 void figure_watchman_action(figure *f);
 
 void figure_watchtower_archer_action(figure *f);
-
-
-#endif // FIGURETYPE_WALL_H

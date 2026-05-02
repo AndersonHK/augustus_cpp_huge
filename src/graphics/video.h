@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_VIDEO_H
-#define GRAPHICS_VIDEO_H
+#pragma once
 
 /**
  * Start playing the video
@@ -45,5 +44,3 @@ void video_shutdown(void);
  * @param height Height of the video container
  */
 void video_draw(int x_offset, int y_offset, int width, int height);
-
-#endif // GRAPHICS_VIDEO_H

@@ -1,5 +1,4 @@
-#ifndef CITY_DATA_H
-#define CITY_DATA_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -15,5 +14,3 @@ void city_data_load_state(buffer *main, buffer *graph_order, buffer *entry_exit_
     int version);
 
 void city_data_load_basic_info(buffer *main, int *population, int *treasury, unsigned int *caravanserai_id, int version);
-
-#endif // CITY_DATA_H

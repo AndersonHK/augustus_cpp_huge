@@ -1,5 +1,4 @@
-#ifndef WINDOW_EDITOR_SELECT_CITY_TRADE_ROUTE_H
-#define WINDOW_EDITOR_SELECT_CITY_TRADE_ROUTE_H
+#pragma once
 
 #include <stdint.h>
 
@@ -13,5 +12,3 @@ int window_editor_select_city_trade_route_decode_resource_id(int encoded_value);
 
 // Get display name from encoded value
 const uint8_t *window_editor_select_city_trade_route_show_get_selected_name(int encoded_value);
-
-#endif // WINDOW_EDITOR_SELECT_CITY_TRADE_ROUTE_H

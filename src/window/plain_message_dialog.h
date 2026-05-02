@@ -1,5 +1,4 @@
-#ifndef WINDOW_PLAIN_MESSAGE_DIALOG_H
-#define WINDOW_PLAIN_MESSAGE_DIALOG_H
+#pragma once
 
 #include "translation/translation.h"
 
@@ -10,5 +9,3 @@ void window_plain_message_dialog_show_with_extra(translation_key title, translat
 
 void window_plain_message_dialog_show_text_list(translation_key title, translation_key message,
     const uint8_t **texts, unsigned int num_texts);
-
-#endif // WINDOW_PLAIN_MESSAGE_DIALOG_H

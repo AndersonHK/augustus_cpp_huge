@@ -1,5 +1,4 @@
-#ifndef MAP_TILE_RUNTIME_API_H
-#define MAP_TILE_RUNTIME_API_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,5 +11,3 @@ void tile_runtime_set_plaza_image_id(int grid_offset, const char *image_id);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // MAP_TILE_RUNTIME_API_H

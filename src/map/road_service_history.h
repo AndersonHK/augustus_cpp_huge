@@ -1,5 +1,4 @@
-#ifndef MAP_ROAD_SERVICE_HISTORY_H
-#define MAP_ROAD_SERVICE_HISTORY_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -58,5 +57,3 @@ void map_road_service_history_load_state(
 #ifdef __cplusplus
 }
 #endif
-
-#endif // MAP_ROAD_SERVICE_HISTORY_H

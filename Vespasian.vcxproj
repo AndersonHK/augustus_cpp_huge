@@ -201,6 +201,7 @@
     <ClCompile Include="src\figure\sound.c" />
     <ClCompile Include="src\figure\trader.c" />
     <ClCompile Include="src\figure\figure_type_registry.cpp" />
+    <ClCompile Include="src\figure\PathingMode.cpp" />
     <ClCompile Include="src\figure\visited_buildings.c" />
     <ClCompile Include="src\game\animation.c" />
     <ClCompile Include="src\game\campaign\campaign.c" />
@@ -702,6 +703,7 @@
     <ClInclude Include="src\figure\figure_runtime_api.h" />
     <ClInclude Include="src\figure\figure_type_registry.h" />
     <ClInclude Include="src\figure\figure_type_registry_internal.h" />
+    <ClInclude Include="src\figure\PathingMode.h" />
     <ClInclude Include="src\figure\formation.h" />
     <ClInclude Include="src\figure\formation_enemy.h" />
     <ClInclude Include="src\figure\formation_herd.h" />

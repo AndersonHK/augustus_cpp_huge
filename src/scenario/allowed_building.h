@@ -1,5 +1,4 @@
-#ifndef SCENARIO_ALLOWED_BUILDING_H
-#define SCENARIO_ALLOWED_BUILDING_H
+#pragma once
 
 #include "building/type.h"
 #include "core/buffer.h"
@@ -17,5 +16,3 @@ void scenario_allowed_building_disable_all(void);
 void scenario_allowed_building_load_state(buffer *buf);
 void scenario_allowed_building_load_state_old_version(buffer *buf);
 void scenario_allowed_building_save_state(buffer *buf);
-
-#endif // SCENARIO_ALLOWED_BUILDING_H

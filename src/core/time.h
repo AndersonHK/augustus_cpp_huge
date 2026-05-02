@@ -1,5 +1,4 @@
-#ifndef CORE_TIME_H
-#define CORE_TIME_H
+#pragma once
 
 #include <stdint.h>
 
@@ -32,5 +31,3 @@ void time_set_millis(time_millis millis);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CORE_TIME_H

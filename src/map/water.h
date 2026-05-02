@@ -1,5 +1,4 @@
-#ifndef MAP_WATER_H
-#define MAP_WATER_H
+#pragma once
 
 #include "figure/figure.h"
 #include "map/point.h"
@@ -38,5 +37,3 @@ int map_water_find_alternative_fishing_boat_tile(figure *boat, map_point *tile);
 int map_water_find_shipwreck_tile(figure *wreck, map_point *tile);
 
 int map_water_can_spawn_fishing_boat(int x, int y, int size, map_point *tile);
-
-#endif // MAP_WATER_H

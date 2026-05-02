@@ -1,5 +1,4 @@
-#ifndef CORE_CONFIG_H
-#define CORE_CONFIG_H
+#pragma once
 
 #define CONFIG_STRING_VALUE_MAX 65
 
@@ -199,5 +198,3 @@ void config_save(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CORE_CONFIG_H

@@ -1,5 +1,4 @@
-#ifndef BUILDING_PRODUCTION_METHOD_H
-#define BUILDING_PRODUCTION_METHOD_H
+#pragma once
 
 extern "C" {
 #include "game/resource.h"
@@ -64,5 +63,3 @@ private:
 };
 
 } // namespace building_type_registry_impl
-
-#endif // BUILDING_PRODUCTION_METHOD_H

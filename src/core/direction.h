@@ -1,5 +1,4 @@
-#ifndef CORE_DIRECTION_H
-#define CORE_DIRECTION_H
+#pragma once
 
 /**
  * @file
@@ -24,5 +23,3 @@ typedef enum {
     DIR_FIGURE_LOST = 10,
     DIR_FIGURE_ATTACK = 11,
 } direction_type;
-
-#endif // CORE_DIRECTION_H

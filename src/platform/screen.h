@@ -1,5 +1,4 @@
-#ifndef PLATFORM_SCREEN_H
-#define PLATFORM_SCREEN_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,5 +30,3 @@ void platform_screen_show_error_message_box(const char *title, const char *messa
 #ifdef __cplusplus
 }
 #endif
-
-#endif // PLATFORM_SCREEN_H

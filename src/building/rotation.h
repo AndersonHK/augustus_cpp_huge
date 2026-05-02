@@ -1,5 +1,4 @@
-#ifndef BUILDING_ROTATION_H
-#define BUILDING_ROTATION_H
+#pragma once
 
 #include "building/type.h"
 
@@ -22,5 +21,3 @@ void building_rotation_setup_rotation(int variant);
 void building_rotation_remove_rotation(void);
 
 int building_rotation_type_has_rotations(building_type type);
-
-#endif // BUILDING_ROTATION_H

@@ -1,5 +1,4 @@
-#ifndef BUILDING_BUILDING_RUNTIME_API_H
-#define BUILDING_BUILDING_RUNTIME_API_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,5 +15,3 @@ void building_runtime_spawn_figure(building *b);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_BUILDING_RUNTIME_API_H

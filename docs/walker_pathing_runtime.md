@@ -6,6 +6,7 @@ This note maps the native walker pathing work so future sessions can find the ru
 
 - `Mods/Vespasian/FigureType/_README.md` documents the XML contract.
 - `src/figure/figure_type_registry.cpp` loads and validates native FigureType XML.
+- `src/figure/PathingMode.h/.cpp` owns pathing mode metadata such as road, service-effect, and venue-target requirements.
 - `src/figure/figure_runtime.cpp` owns native controllers, profile binding, venue ranking, and smart direction choice.
 - `src/building/building_runtime.cpp` creates profiled native figures for BuildingType spawns.
 - `src/building/local_workforce.h/.cpp` owns local workforce targeting and save data.
@@ -28,17 +29,23 @@ Native figures are profile-based:
 
 BuildingType `<spawn>` nodes choose a profile with `profile="..."`. This is the narrow handoff from building policy into figure behavior: after creation, the figure's bound profile owns pathing and road-history effect selection.
 
+BuildingType `<spawn_group existing_figure="...">` is the group-level guard for legacy tracked slots. Single-type groups behave like the old hardcoded checks; comma-list groups such as `actor,gladiator` are for venues where several profile-specific spawns share one legacy `figure_id` slot and must block one another.
+
+`PathingMode` objects own mode requirements. Current native pathing modes set `requires_road`, so they require `terrain_usage="roads"` or `terrain_usage="roads_highway"`. Off-road-capable modes such as `any`, `prefer_roads`, and `prefer_roads_highway` are rejected during XML load because the roaming loop can only choose among adjacent road/path tiles.
+
 `smart_service` is only valid for road-only walkers with a non-none effect. `nearest_unemployed` is a road-only policy used by labor seeker profiles. `venue_seeker` uses profile venue targets to pick a destination venue.
 
 ## Runtime Contract
 
 The legacy roaming loop remains the source of tile movement. Native runtime code only overrides the chosen direction after vanilla logic has found a valid forward direction.
 
+Roaming access follows the figure profile's movement type. `roads` walkers consider roads and access ramps; `roads_highway` walkers also consider highways. Building road-access checks remain separate and still answer whether the building itself touches ordinary road access.
+
 `smart_service` applies only when there is more than one valid outgoing road. It chooses the candidate road tile with the lowest visit stamp for the profile's effect. Equal stamps fall back to the vanilla-preferred direction so old behavior stays stable where history gives no preference.
 
 Priests use explicit profiles such as `ceres_service`, `mars_service`, and `pantheon_service`. Pantheon records the Pantheon effect and all five individual god effects on each road tile, matching the previous owner-derived behavior without a special XML effect.
 
-Entertainment training buildings spawn `venue_seeker` profiles. Venue ranking uses the legacy weighted score, `2 * show_days + route_distance`, where `route_distance` comes from the same routing grid the walker will follow. Venue service walkers share the generic `entertainment_service` native class; separate profiles such as `theater_service` and `arena_service` carry the exact `<pathing mode="smart_service" effect="...">` value.
+Entertainment training buildings spawn `venue_seeker` profiles. Venue ranking uses the legacy weighted score, `2 * show_days + route_distance`, where `route_distance` comes from the same routing grid the walker will follow. Venue service walkers share the generic `entertainment_service` native class; separate profiles such as `theater_service` and `arena_service` carry the exact `<pathing mode="smart_service" effect="...">` value. Mixed venues such as amphitheaters and arenas rely on the parent BuildingType `existing_figure` list to keep alternate service walkers mutually exclusive while the FigureType profile owns the actual service effect.
 
 Labor seekers use explicit `acquisition` and `validation` profiles. The trip flag remains in `collecting_item_id` for save compatibility, but new spawns bind the profile directly and the runtime owns target selection where practical.
 

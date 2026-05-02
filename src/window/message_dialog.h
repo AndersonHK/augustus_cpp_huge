@@ -1,5 +1,4 @@
-#ifndef WINDOW_MESSAGE_DIALOG_H
-#define WINDOW_MESSAGE_DIALOG_H
+#pragma once
 
 enum {
     MESSAGE_DIALOG_ABOUT = 0,
@@ -35,5 +34,3 @@ void window_message_dialog_show_city_message(int text_id, int year, int month,
                                              int param1, int param2, int advisor, int use_popup);
 
 void window_message_dialog_show_custom_message(int custom_message_id, int year, int month);
-
-#endif // WINDOW_MESSAGE_DIALOG_H

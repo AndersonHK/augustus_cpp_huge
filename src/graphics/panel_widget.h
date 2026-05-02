@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_PANEL_WIDGET_H
-#define GRAPHICS_PANEL_WIDGET_H
+#pragma once
 
 #include "graphics/ui_widget.h"
 
@@ -34,5 +33,3 @@ private:
     int height_blocks_;
     color_t color_;
 };
-
-#endif // GRAPHICS_PANEL_WIDGET_H

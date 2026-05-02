@@ -166,6 +166,8 @@ Pattern:
   - historical walking-city calibration for walker `max_roam_length` tiers
 - `src/figure/figure_type_registry.cpp`
   - selected-mod/Augustus/Julius FigureType XML precedence and profile validation
+- `src/figure/PathingMode.h/.cpp`
+  - pathing mode objects and requirements such as `requires_road`, `requires_service_effect`, and `requires_venue_targets`
 - `src/figure/figure_runtime.cpp`
   - profile binding plus native service, engineer, prefect, and entertainment controllers
   - smart-service direction selection
@@ -175,8 +177,10 @@ Pattern:
   - C++ helper for route-grid destination distance; venue seekers rank by `2 * show_days + route_distance`
 - BuildingType native spawns choose a `FigureType` profile with `profile="..."`; figures own the native class, movement/pathing, and road-history effect after creation.
 - Priests use explicit god profiles; entertainment service walkers use generic native behavior with profile-specific smart-service effects.
+- Mixed entertainment venues use comma-list BuildingType `existing_figure` guards, such as `actor,gladiator`, so alternate profiled service walkers share one legacy slot without orphaning one another.
 - `src/figure/movement.cpp`
   - legacy roaming loop and native pathing hook
+  - figure-specific roaming access checks; `roads_highway` profiles consider highways while off-road-capable native pathing profiles are rejected at XML load
 - Temporary Vespasian tuning: FigureType `max_roam_length` should be roughly 50% larger than Augustus until walker range tuning is revisited.
 - `src/figuretype/maintenance.cpp`
   - Worker maintenance action plus retired Engineer/Prefect action-table guards

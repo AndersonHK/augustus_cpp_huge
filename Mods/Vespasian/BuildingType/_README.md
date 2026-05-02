@@ -127,6 +127,8 @@ Current supported `<spawn_group>` attributes:
 - `existing_figure="actor|barber|bathhouse_worker|doctor|engineer|gladiator|librarian|lion_tamer|prefect|priest|school_child|surgeon|tax_collector|teacher|work_camp_architect|work_camp_worker"`
 - `guard_timing="before_road_access|after_labor_seeker"`
 
+`existing_figure` may also be a comma-separated list, such as `actor,gladiator` for amphitheaters or `gladiator,lion_tamer` for arenas. The list is checked against the tracked legacy primary figure slot as one group guard, so alternate performer types block one another without clearing the slot just because the first listed type does not match.
+
 `delay_bands` sanity rules:
 
 - worker percentage must be an integer from `1` to `100`
@@ -156,6 +158,7 @@ Current supported `<spawn>` attributes:
 - `mark_problem_if_no_water="true|false"`
 - `condition="always|days1_positive|days1_not_positive|days2_positive|days1_or_days2_positive"`
 - `block_on_success="true|false"`
+- `profile="..."` for native FigureType spawns
 
 Current engine behavior:
 
@@ -165,6 +168,7 @@ Current engine behavior:
 - Delay evaluation now uses the explicit `delay_bands` data from XML rather than a hardcoded named profile.
 - Ordered policies can coordinate: a policy that succeeds with `block_on_success="true"` stops later sibling policies in the same group.
 - Use `block_on_success="true"` when a building should spawn either A or B on the same trigger.
+- For alternate performer venues, put all mutually exclusive performer types in the parent `existing_figure` list and keep their child policies in the same `spawn_group`.
 - Use `spawn_count="N"` when one successful policy should create several copies of the same figure at once.
 - Today a multi-spawn policy only writes one legacy tracked figure slot; extra spawned figures still exist, but they are not separately tracked by XML-defined slots yet.
 - Use `<image value="..."/>` only when a graphics group contains several named members and the building must lock to one of them.

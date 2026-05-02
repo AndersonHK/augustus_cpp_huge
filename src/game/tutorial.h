@@ -1,5 +1,4 @@
-#ifndef GAME_TUTORIAL_H
-#define GAME_TUTORIAL_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -56,5 +55,3 @@ void tutorial_on_month_tick(void);
 void tutorial_save_state(buffer *buf1, buffer *buf2, buffer *buf3);
 
 void tutorial_load_state(buffer *buf1, buffer *buf2, buffer *buf3);
-
-#endif // GAME_TUTORIAL_H

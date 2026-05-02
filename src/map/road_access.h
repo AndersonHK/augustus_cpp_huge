@@ -1,5 +1,4 @@
-#ifndef MAP_ROAD_ACCESS_H
-#define MAP_ROAD_ACCESS_H
+#pragma once
 
 #include "building/roadblock.h"
 #include "map/point.h"
@@ -39,5 +38,3 @@ int map_road_to_largest_network_monument_construction(int x, int y, int size, in
 int map_get_adjacent_road_tiles_for_roaming(int grid_offset, int *road_tiles, int p);
 
 int map_get_diagonal_road_tiles_for_roaming(int grid_offset, int *road_tiles);
-
-#endif // MAP_ROAD_ACCESS_H

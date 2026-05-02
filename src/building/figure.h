@@ -1,5 +1,4 @@
-#ifndef BUILDING_FIGURE_H
-#define BUILDING_FIGURE_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -10,5 +9,3 @@ void building_figure_generate(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_FIGURE_H

@@ -1,5 +1,4 @@
-#ifndef WIDGET_CITY_WITHOUT_OVERLAY_H
-#define WIDGET_CITY_WITHOUT_OVERLAY_H
+#pragma once
 
 #include "map/point.h"
 #include "widget/city.h"
@@ -14,5 +13,3 @@ void city_without_overlay_draw(int selected_figure_id, pixel_coordinate *figure_
 #ifdef __cplusplus
 }
 #endif
-
-#endif // WIDGET_CITY_WITHOUT_OVERLAY_H

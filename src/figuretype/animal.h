@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_ANIMAL_H
-#define FIGURETYPE_ANIMAL_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -20,5 +19,3 @@ void figure_hippodrome_horse_action(figure *f);
 void figure_hippodrome_horse_reroute(void);
 
 void figure_animal_try_nudge_at(int building_center_tile_grid_offset, int animal_tile_offset, int building_size);
-
-#endif // FIGURETYPE_ANIMAL_H

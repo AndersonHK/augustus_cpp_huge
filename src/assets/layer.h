@@ -1,5 +1,4 @@
-#ifndef ASSETS_LAYER_H
-#define ASSETS_LAYER_H
+#pragma once
 
 #include "core/image.h"
 #include "graphics/color.h"
@@ -71,5 +70,3 @@ int layer_add_from_image_id(layer *l, const char *group_id, const char *image_id
 #ifdef __cplusplus
 }
 #endif
-
-#endif // ASSETS_LAYER_H

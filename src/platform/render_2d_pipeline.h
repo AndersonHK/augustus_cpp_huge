@@ -1,5 +1,4 @@
-#ifndef PLATFORM_RENDER_2D_PIPELINE_H
-#define PLATFORM_RENDER_2D_PIPELINE_H
+#pragma once
 
 #include "graphics/renderer.h"
 
@@ -17,5 +16,3 @@ public:
         float city_scale,
         int disable_linear_filter) const;
 };
-
-#endif // PLATFORM_RENDER_2D_PIPELINE_H

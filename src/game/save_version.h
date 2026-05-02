@@ -1,5 +1,4 @@
-#ifndef GAME_SAVE_VERSION_H
-#define GAME_SAVE_VERSION_H
+#pragma once
 
 /************************************************SAVEGAME GUIDE*******************************************************
 
@@ -138,5 +137,3 @@ typedef enum {
     SAVEGAME_STATUS_INVALID = 0,
     SAVEGAME_STATUS_OK = 1
 } savegame_load_status;
-
-#endif // GAME_SAVE_VERSION_H

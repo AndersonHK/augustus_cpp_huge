@@ -1,5 +1,4 @@
-#ifndef WINDOW_BUILDING_MILITARY_H
-#define WINDOW_BUILDING_MILITARY_H
+#pragma once
 
 #include "common.h"
 #include "input/mouse.h"
@@ -33,8 +32,3 @@ void window_building_draw_watchtower(building_info_context *c);
 void window_building_draw_palisade(building_info_context *c);
 
 void window_building_draw_armoury(building_info_context *c);
-
-
-
-
-#endif // WINDOW_BUILDING_MILITARY_H

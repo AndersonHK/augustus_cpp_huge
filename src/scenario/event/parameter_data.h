@@ -1,5 +1,4 @@
-#ifndef SCENARIO_EVENTS_PARAMETER_DATA_H
-#define SCENARIO_EVENTS_PARAMETER_DATA_H
+#pragma once
 
 #include "building/type.h"
 #include "city/message.h"
@@ -136,5 +135,3 @@ void scenario_events_parameter_data_get_display_string_for_condition(const scena
  * @return The resolved parameter type, or PARAMETER_TYPE_UNDEFINED if not applicable
  */
 parameter_type scenario_events_parameter_data_resolve_flexible_type(const scenario_action_t *action, int param_number);
-
-#endif // SCENARIO_EVENTS_PARAMETER_DATA_H

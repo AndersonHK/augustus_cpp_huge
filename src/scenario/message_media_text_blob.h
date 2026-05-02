@@ -1,5 +1,4 @@
-#ifndef MESSAGE_MEDIA_TEXT_BLOB_H
-#define MESSAGE_MEDIA_TEXT_BLOB_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -44,5 +43,3 @@ void message_media_text_blob_load_state(buffer *blob_buffer, buffer *meta_buffer
 
 void message_media_text_blob_mark_entry_as_unused(const text_blob_string_t *entry);
 void message_media_text_blob_remove_unused(void);
-
-#endif // MESSAGE_MEDIA_TEXT_BLOB_H

@@ -1,5 +1,4 @@
-#ifndef CORE_ZIP_H
-#define CORE_ZIP_H
+#pragma once
 
 /**
  * @file
@@ -15,5 +14,3 @@
  * @return boolean true on success, false on error
  */
 int zip_decompress(const void *input_buffer, int input_length, void *output_buffer, int output_length);
-
-#endif // CORE_ZIP_H

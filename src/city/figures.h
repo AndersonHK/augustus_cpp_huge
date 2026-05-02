@@ -1,5 +1,4 @@
-#ifndef CITY_FIGURES_H
-#define CITY_FIGURES_H
+#pragma once
 
 void city_figures_reset(void);
 
@@ -27,5 +26,3 @@ int city_figures_soldiers(void);
 
 int city_figures_total_invading_enemies(void);
 int city_figures_has_security_breach(void);
-
-#endif // CITY_FIGURES_H

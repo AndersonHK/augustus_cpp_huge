@@ -1,5 +1,4 @@
-#ifndef BUILDING_CONSTRUCTION_BUILDING_H
-#define BUILDING_CONSTRUCTION_BUILDING_H
+#pragma once
 
 #include "building/type.h"
 #include "map/grid.h"
@@ -45,7 +44,3 @@ int building_construction_fill_vacant_lots(grid_slice *area);
  * @return Success/failure status of the terrain preparation
  */
 int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode clear_mode, cost_calculation cost);
-
-#endif // BUILDING_CONSTRUCTION_BUILDING_H
-
-

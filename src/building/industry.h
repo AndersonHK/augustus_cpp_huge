@@ -1,5 +1,4 @@
-#ifndef BUILDING_INDUSTRY_H
-#define BUILDING_INDUSTRY_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,5 +47,3 @@ void building_industry_start_strikes(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_INDUSTRY_H

@@ -1,6 +1,3 @@
-#ifndef BUILDING_BUILDING_TYPE_REGISTRY_H
-#define BUILDING_BUILDING_TYPE_REGISTRY_H
+#pragma once
 
 #include "building/building_type_api.h"
-
-#endif // BUILDING_BUILDING_TYPE_REGISTRY_H

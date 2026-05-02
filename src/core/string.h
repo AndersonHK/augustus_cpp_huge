@@ -1,5 +1,4 @@
-#ifndef CORE_STRING_H
-#define CORE_STRING_H
+#pragma once
 
 #include <stdint.h>
 #include <stddef.h>
@@ -73,5 +72,3 @@ int string_from_int(uint8_t *dst, int value, int force_plus_sign);
  * @return int < 0 if a is before b alphabetically, or > 0 if b is before a.
  */
 int string_compare(const uint8_t *a, const uint8_t *b);
-
-#endif // CORE_STRING_H

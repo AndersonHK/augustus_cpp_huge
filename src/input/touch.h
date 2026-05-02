@@ -1,5 +1,4 @@
-#ifndef INPUT_TOUCH_H
-#define INPUT_TOUCH_H
+#pragma once
 
 #include "core/time.h"
 
@@ -60,5 +59,3 @@ void touch_cycle_mode(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // INPUT_TOUCH_H
