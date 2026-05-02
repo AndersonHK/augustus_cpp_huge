@@ -59,8 +59,8 @@ static void draw_lost(void)
     graphics_in_dialog();
 
     outer_panel_draw(48, 16, 34, 16);
-    lang_text_draw_centered(62, 1, 48, 32, 544, FONT_LARGE_BLACK);
-    lang_text_draw_multiline(62, 16, 64, 72, 496, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(62, 1, 48, 32, 544, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_multiline(62, 16, 64, 72, 496, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
@@ -201,7 +201,7 @@ static void draw_won(void)
     graphics_in_dialog();
 
     outer_panel_draw(48, y_offset, 34, panel_height_blocks);
-    lang_text_draw_centered(62, 0, 48, y_offset + 16, 544, FONT_LARGE_BLACK);
+    lang_text_draw_centered(62, 0, 48, y_offset + 16, 544, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     if (victory_message_text) {
         rich_text_set_fonts(FONT_NORMAL_WHITE, FONT_NORMAL_GREEN, FONT_NORMAL_WHITE, 5);
@@ -210,49 +210,49 @@ static void draw_won(void)
         rich_text_draw(victory_message_text, 80, y_offset + 64, width_blocks * BLOCK_SIZE, panel_height_blocks - 12, 0);
     } else if (!game_campaign_is_original()) {
         inner_panel_draw(64, y_offset + 56, 32, panel_height_blocks - 11);
-        lang_text_draw_multiline(147, 20, 80, y_offset + 64, 488, FONT_NORMAL_WHITE);
+        lang_text_draw_multiline(147, 20, 80, y_offset + 64, 488, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else {
         inner_panel_draw(64, y_offset + 56, 32, panel_height_blocks - 11);
-        lang_text_draw_multiline(147, scenario_campaign_mission(), 80, y_offset + 64, 488, FONT_NORMAL_WHITE);
+        lang_text_draw_multiline(147, scenario_campaign_mission(), 80, y_offset + 64, 488, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
 
     int left_width = get_max(
-        lang_text_get_width(148, 0, FONT_NORMAL_BLACK),
-        lang_text_get_width(148, 2, FONT_NORMAL_BLACK),
-        lang_text_get_width(148, 4, FONT_NORMAL_BLACK)
+        lang_text_get_width(148, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)),
+        lang_text_get_width(148, 2, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)),
+        lang_text_get_width(148, 4, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height))
     );
     int right_width = get_max(
-        lang_text_get_width(148, 1, FONT_NORMAL_BLACK),
-        lang_text_get_width(148, 3, FONT_NORMAL_BLACK),
-        lang_text_get_width(148, 5, FONT_NORMAL_BLACK)
+        lang_text_get_width(148, 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)),
+        lang_text_get_width(148, 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)),
+        lang_text_get_width(148, 5, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height))
     );
     int left_offset = 68;
     int right_offset = left_offset + 10 + 512 * left_width / (left_width + right_width);
-    int width = lang_text_draw(148, 0, left_offset, info_y_offset, FONT_NORMAL_BLACK);
-    text_draw_number(city_rating_culture(), '@', " ", left_offset + width, info_y_offset, FONT_NORMAL_BLACK, 0);
+    int width = lang_text_draw(148, 0, left_offset, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_number(city_rating_culture(), '@', " ", left_offset + width, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    width = lang_text_draw(148, 1, right_offset, info_y_offset, FONT_NORMAL_BLACK);
-    text_draw_number(city_rating_prosperity(), '@', " ", right_offset + width, info_y_offset, FONT_NORMAL_BLACK, 0);
+    width = lang_text_draw(148, 1, right_offset, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_number(city_rating_prosperity(), '@', " ", right_offset + width, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     info_y_offset += 20;
     
-    width = lang_text_draw(148, 2, left_offset, info_y_offset, FONT_NORMAL_BLACK);
-    text_draw_number(city_rating_peace(), '@', " ", left_offset + width, info_y_offset, FONT_NORMAL_BLACK, 0);
+    width = lang_text_draw(148, 2, left_offset, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_number(city_rating_peace(), '@', " ", left_offset + width, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    width = lang_text_draw(148, 3, right_offset, info_y_offset, FONT_NORMAL_BLACK);
-    text_draw_number(city_rating_favor(), '@', " ", right_offset + width, info_y_offset, FONT_NORMAL_BLACK, 0);
+    width = lang_text_draw(148, 3, right_offset, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_number(city_rating_favor(), '@', " ", right_offset + width, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     info_y_offset += 20;
 
-    width = lang_text_draw(148, 4, left_offset, info_y_offset, FONT_NORMAL_BLACK);
-    text_draw_number(city_population(), '@', " ", left_offset + width, info_y_offset, FONT_NORMAL_BLACK, 0);
+    width = lang_text_draw(148, 4, left_offset, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_number(city_population(), '@', " ", left_offset + width, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    width = lang_text_draw(148, 5, right_offset, info_y_offset, FONT_NORMAL_BLACK);
-    text_draw_number(city_finance_treasury(), '@', " ", right_offset + width, info_y_offset, FONT_NORMAL_BLACK, 0);
+    width = lang_text_draw(148, 5, right_offset, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_number(city_finance_treasury(), '@', " ", right_offset + width, info_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     info_y_offset += 40;
 
-    lang_text_draw_centered(13, 1, 64, info_y_offset, 512, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(13, 1, 64, info_y_offset, 512, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
@@ -272,7 +272,7 @@ static void draw_foreground(void)
 
     if (city_victory_state() != VICTORY_STATE_WON) {
         large_label_draw(80, 224, 30, data.focus_button_id == 1);
-        lang_text_draw_centered(62, 6, 80, 230, 480, FONT_NORMAL_GREEN);
+        lang_text_draw_centered(62, 6, 80, 230, 480, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else if (has_custom_victory_message()) {
         rich_text_draw_scrollbar();
     }

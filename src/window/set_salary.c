@@ -39,7 +39,7 @@ static unsigned int focus_button_id;
 
 static int get_dialog_width(void)
 {
-    int dialog_width = 16 + lang_text_get_width(52, 15, FONT_LARGE_BLACK);
+    int dialog_width = 16 + lang_text_get_width(52, 15, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     if (dialog_width < MIN_DIALOG_WIDTH) {
         dialog_width = MIN_DIALOG_WIDTH;
     }
@@ -58,27 +58,27 @@ static void draw_foreground(void)
     int dialog_x = 128 - (dialog_width - MIN_DIALOG_WIDTH) / 2;
     outer_panel_draw(dialog_x, 32, dialog_width / BLOCK_SIZE, 25);
     image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, dialog_x + 10, 42, COLOR_MASK_NONE, SCALE_NONE);
-    lang_text_draw_centered(52, 15, dialog_x + 25, 48, dialog_width - 64, FONT_LARGE_BLACK);
+    lang_text_draw_centered(52, 15, dialog_x + 25, 48, dialog_width - 64, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     inner_panel_draw(144, 80, 22, 15);
 
     for (unsigned int rank = 0; rank < 11; rank++) {
         font_t font = focus_button_id == rank + 2 ? FONT_NORMAL_RED : FONT_NORMAL_WHITE;
-        int width = lang_text_draw(52, rank + 4, 176, 90 + 20 * rank, font);
-        text_draw_money(city_emperor_salary_for_rank(rank), 176 + width, 90 + 20 * rank, font);
+        int width = lang_text_draw(52, rank + 4, 176, 90 + 20 * rank, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+        text_draw_money(city_emperor_salary_for_rank(rank), 176 + width, 90 + 20 * rank, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     }
 
     if (!city_victory_has_won()) {
         if (city_emperor_salary_rank() <= city_emperor_rank()) {
-            lang_text_draw_multiline(52, 76, 152, 336, 336, FONT_NORMAL_BLACK);
+            lang_text_draw_multiline(52, 76, 152, 336, 336, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
-            lang_text_draw_multiline(52, 71, 152, 336, 336, FONT_NORMAL_BLACK);
+            lang_text_draw_multiline(52, 71, 152, 336, 336, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     } else {
-        lang_text_draw_multiline(52, 77, 150, 336, 340, FONT_NORMAL_BLACK);
+        lang_text_draw_multiline(52, 77, 150, 336, 340, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
     button_border_draw(240, 395, 160, 20, focus_button_id == 1);
-    lang_text_draw_centered(13, 4, 176, 400, 288, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(13, 4, 176, 400, 288, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

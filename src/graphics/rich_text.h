@@ -21,6 +21,8 @@ extern "C" {
 int rich_text_init(
     const uint8_t *text, int x_text, int y_text, int width_blocks, int height_blocks, int adjust_width_on_no_scroll);
 
+void rich_text_set_scrollbar_bounds(int x, int y, int height, int scrollable_width);
+
 /**
  * Sets fonts to use
  * @param normal_font Normal text

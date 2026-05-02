@@ -116,9 +116,9 @@ static void draw_overlay_text(int x_offset)
 {
     if (game_state_overlay()) {
         const uint8_t *text = get_current_overlay_text();
-        text_draw_centered(text, x_offset, 32, 117, FONT_NORMAL_GREEN, 0);
+        text_draw_centered(text, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else {
-        lang_text_draw_centered(6, 4, x_offset, 32, 117, FONT_NORMAL_GREEN);
+        lang_text_draw_centered(6, 4, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
 }
 
@@ -150,12 +150,12 @@ static void draw_number_of_messages(int x_offset)
     buttons_build_expanded[13].enabled = show_messages;
     buttons_build_expanded[14].enabled = city_message_problem_area_count();
     if (show_messages) {
-        int width = text_get_number_width(messages, '@', "", FONT_SMALL_PLAIN);
-        text_draw_number(messages, '@', "", (x_offset + 100) - width, 452, FONT_SMALL_PLAIN, COLOR_BLACK); //top
-        text_draw_number(messages, '@', "", (x_offset + 100) - width, 454, FONT_SMALL_PLAIN, COLOR_BLACK); //bottom
-        text_draw_number(messages, '@', "", (x_offset + 99) - width, 453, FONT_SMALL_PLAIN, COLOR_BLACK); //left
-        text_draw_number(messages, '@', "", (x_offset + 101) - width, 453, FONT_SMALL_PLAIN, COLOR_BLACK); //right
-        text_draw_number(messages, '@', "", (x_offset + 100) - width, 453, FONT_SMALL_PLAIN, COLOR_WHITE);
+        int width = text_get_number_width(messages, '@', "", FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        text_draw_number(messages, '@', "", (x_offset + 100) - width, 452, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK); //top
+        text_draw_number(messages, '@', "", (x_offset + 100) - width, 454, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK); //bottom
+        text_draw_number(messages, '@', "", (x_offset + 99) - width, 453, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK); //left
+        text_draw_number(messages, '@', "", (x_offset + 101) - width, 453, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK); //right
+        text_draw_number(messages, '@', "", (x_offset + 100) - width, 453, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_WHITE);
     }
 }
 

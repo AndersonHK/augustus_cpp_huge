@@ -205,10 +205,10 @@ static void draw_button_tooltip(tooltip_context *c)
 
     int width = 200;
     int largest_width;
-    int lines = text_measure_multiline(text, width - 16, FONT_SMALL_PLAIN, &largest_width);
+    int lines = text_measure_multiline(text, width - 16, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), &largest_width);
     if (lines > 2) {
         width = 300;
-        lines = text_measure_multiline(text, width - 16, FONT_SMALL_PLAIN, &largest_width);
+        lines = text_measure_multiline(text, width - 16, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), &largest_width);
     }
     int height = 16 * lines + 10;
     width = largest_width + 16;
@@ -294,7 +294,7 @@ static void draw_button_tooltip(tooltip_context *c)
 
     graphics_draw_rect(0, 0, width, height, COLOR_BLACK);
     graphics_fill_rect(1, 1, width - 2, height - 2, COLOR_WHITE);
-    text_draw_multiline(text, 8, 8, width - 15, 0, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+    text_draw_multiline(text, 8, 8, width - 15, 0, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
 
     graphics_renderer()->finish_tooltip_creation();
 }
@@ -306,10 +306,10 @@ static void draw_overlay_tooltip(tooltip_context *c)
     int width = 200;
     int largest_width;
 
-    int lines = text_measure_multiline(text, width - 16, FONT_SMALL_PLAIN, &largest_width);
+    int lines = text_measure_multiline(text, width - 16, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), &largest_width);
     if (lines > 2) {
         width = 300;
-        lines = text_measure_multiline(text, width - 16, FONT_SMALL_PLAIN, &largest_width);
+        lines = text_measure_multiline(text, width - 16, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), &largest_width);
     }
     width = largest_width + 16;
     int height = 16 * lines + 10;
@@ -346,7 +346,7 @@ static void draw_overlay_tooltip(tooltip_context *c)
 
     graphics_draw_rect(0, 0, width, height, COLOR_BLACK);
     graphics_fill_rect(1, 1, width - 2, height - 2, COLOR_WHITE);
-    text_draw_multiline(text, 8, 8, width - 15, 0, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+    text_draw_multiline(text, 8, 8, width - 15, 0, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
 
     graphics_renderer()->finish_tooltip_creation();
 
@@ -391,10 +391,10 @@ static void draw_senate_tooltip_row(int label_text_id, int primary_value, const 
     const int primary_column_x = 140;
     const int secondary_column_x = 176;
 
-    lang_text_draw_colored(68, label_text_id, 5, y, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
-    text_draw_number(primary_value, '@', primary_postfix, primary_column_x, y, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+    lang_text_draw_colored(68, label_text_id, 5, y, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
+    text_draw_number(primary_value, '@', primary_postfix, primary_column_x, y, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
     if (show_secondary) {
-        text_draw_number(secondary_value, '(', ")", secondary_column_x, y, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+        text_draw_number(secondary_value, '(', ")", secondary_column_x, y, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
     }
 }
 
@@ -530,42 +530,42 @@ static void draw_tile_tooltip(tooltip_context *c)
 
         graphics_draw_rect(0, 0, width, height, COLOR_BLACK);
         graphics_fill_rect(1, 1, width - 2, height - 2, COLOR_WHITE);
-        text_draw_label_and_number(string_from_ascii("x: "), x_tile, " ", 2, 5, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
-        text_draw_label_and_number(string_from_ascii("y: "), y_tile, " ", 2, 19, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+        text_draw_label_and_number(string_from_ascii("x: "), x_tile, " ", 2, 5, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
+        text_draw_label_and_number(string_from_ascii("y: "), y_tile, " ", 2, 19, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
         if (debug_tooltip_type >= 2) {
             text_draw_label_and_number(
-                string_from_ascii("grid: "), grid_offset, " ", 2, 33, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+                string_from_ascii("grid: "), grid_offset, " ", 2, 33, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
         }
         if (debug_tooltip_type == 3) { // dont show flags for 4 (desirability)
             int y_offset = 47;
             if (b_id_at) {
                 int drawn_width = text_draw_label_and_number(string_from_ascii("b_grid: "), b_id_at,
-                "", 2, y_offset, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+                "", 2, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
                 drawn_width += text_draw_label_and_number(string_from_ascii(" (type: "), map_building_type_at(grid_offset),
-                    ")", 2 + drawn_width, y_offset, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+                    ")", 2 + drawn_width, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
                 text_draw_label_and_number(string_from_ascii(" (state: "), building_get(b_id_at)->state,
-                    ")", 2 + drawn_width, y_offset, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+                    ")", 2 + drawn_width, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
                 y_offset += 14;
             }
             if (map_building_rubble_building_id(grid_offset)) {
                 text_draw_label_and_number(string_from_ascii("r_grid: "), map_building_rubble_building_id(grid_offset),
-                "", 2, y_offset, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+                "", 2, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
                 y_offset += 14;
             }
             for (int i = 0; i < num_flags; i++) {
-                text_draw(string_from_ascii(flags[i]), 2, y_offset, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+                text_draw(string_from_ascii(flags[i]), 2, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
                 y_offset += 14;
             }
             int image_id = map_image_at(grid_offset); // to avoid unused function warning
             if (image_id) {
                 text_draw_label_and_number(string_from_ascii("img id: "), image_id,
-                    "", 2, y_offset, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+                    "", 2, y_offset, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
             }
         }
         if (debug_tooltip_type >= 4) {
             int desirability = map_desirability_get(grid_offset);
             text_draw_label_and_number(string_from_ascii("desirability: "), desirability,
-                "", 2, 47, FONT_SMALL_PLAIN, COLOR_TOOLTIP);
+                "", 2, 47, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
         }
         graphics_renderer()->finish_tooltip_creation();
 

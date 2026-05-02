@@ -140,7 +140,7 @@ static void init_text(int x, int y, const generic_button *button, const uint8_t 
     data.width = BASE_LIST_WIDTH;
     if (data.num_items <= MAX_ITEMS_PER_LIST) {
         for (int i = 0; i < num_items; i++) {
-            int width = text_get_width(data.items[i], FONT_NORMAL_PLAIN) + 10;
+            int width = text_get_width(data.items[i], FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height)) + 10;
             if (width > data.width) {
                 data.width = width;
                 data.width += BLOCK_SIZE - (data.width % BLOCK_SIZE);
@@ -165,13 +165,13 @@ static void draw_item(int item_id, int x, int y, int selected)
     color_t color = selected ? COLOR_FONT_BLUE : COLOR_BLACK;
     if (data.mode == MODE_GROUP) {
         lang_text_draw_centered_colored(data.group, item_id, data.x + x, data.y + y, data.width,
-            FONT_NORMAL_PLAIN, color);
+            FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
     } else {
         if (data.width == BASE_LIST_WIDTH) {
-            text_draw_centered(data.items[item_id], data.x + x, data.y + y, BASE_LIST_WIDTH, FONT_NORMAL_PLAIN, color);
+            text_draw_centered(data.items[item_id], data.x + x, data.y + y, BASE_LIST_WIDTH, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
         } else {
             text_draw_ellipsized(data.items[item_id], data.x + x + 5, data.y + y,
-                data.width - 10, FONT_NORMAL_PLAIN, color);
+                data.width - 10, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
         }
     }
 }

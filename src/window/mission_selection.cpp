@@ -96,7 +96,7 @@ public:
             scenario_->x,
             scenario_->y + 14,
             kMissionChoiceButtonSize,
-            FONT_NORMAL_BLACK);
+            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
 private:
@@ -205,18 +205,18 @@ static void draw_background(void)
     }
     graphics_reset_clip_rectangle();
     if (data.mission.title) {
-        text_draw(data.mission.title, 20, 410, FONT_LARGE_BLACK, 0);
+        text_draw(data.mission.title, 20, 410, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     }
     if (data.choice) {
         const campaign_scenario *camp_scenario = data.mission.scenarios[data.choice - 1];
         if (camp_scenario->name) {
-            text_draw_multiline(camp_scenario->name, 20, 440, 560, 0, FONT_NORMAL_BLACK, 0);
+            text_draw_multiline(camp_scenario->name, 20, 440, 560, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
         if (camp_scenario->description) {
-            text_draw_multiline(camp_scenario->description, 20, 456, 560, 0, FONT_NORMAL_BLACK, 0);
+            text_draw_multiline(camp_scenario->description, 20, 456, 560, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
     } else {
-        lang_text_draw_multiline(144, 0, 20, 440, 560, FONT_NORMAL_BLACK);
+        lang_text_draw_multiline(144, 0, 20, 440, 560, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
     graphics_reset_dialog();
 }

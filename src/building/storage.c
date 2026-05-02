@@ -417,8 +417,8 @@ int building_storage_summary_tooltip(building *b, char *tooltip_text, int max_le
         state = building_storage_get_state(b, list->items[i], 0);
         if (style == STORAGE_SUMMARY_STYLE_MINIMAL && state == BUILDING_STORAGE_STATE_NOT_ACCEPTING) continue;
 
-        int rn_pixels = text_get_width(res->text, FONT_SMALL_PLAIN);
-        int sn_pixels = text_get_width(storage_state_text(state, b->type), FONT_SMALL_PLAIN);
+        int rn_pixels = text_get_width(res->text, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        int sn_pixels = text_get_width(storage_state_text(state, b->type), FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         if (rn_pixels > name_w) name_w = rn_pixels;
         if (sn_pixels > state_w) state_w = sn_pixels;
     }
@@ -446,7 +446,7 @@ int building_storage_summary_tooltip(building *b, char *tooltip_text, int max_le
 
         // Resource column
         out = string_copy(rn, out, max_length - (out - start));
-        int resource_name_width = text_get_width(rn, FONT_SMALL_PLAIN);
+        int resource_name_width = text_get_width(rn, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
         // Pad to resource name column width (mid-line padding is OK)
         int j = resource_name_width;
@@ -465,7 +465,7 @@ int building_storage_summary_tooltip(building *b, char *tooltip_text, int max_le
 
         // State column text
         out = string_copy(st, out, max_length - (out - start));
-        int state_name_width = text_get_width(st, FONT_SMALL_PLAIN);
+        int state_name_width = text_get_width(st, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
         if (state != BUILDING_STORAGE_STATE_NOT_ACCEPTING) {
             j = state_name_width;

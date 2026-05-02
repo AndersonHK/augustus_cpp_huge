@@ -117,20 +117,20 @@ static void draw_apply_button(int x, int y, int box_width)
     font_t font = data.selected_option != data.original_option ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN;
     color_t color = data.selected_option != data.original_option ? 0 : COLOR_FONT_LIGHT_GRAY;
     if (!data.price) {
-        text_draw_centered(translation_for(TR_OPTION_MENU_APPLY), x, y, box_width, font, color);
+        text_draw_centered(translation_for(TR_OPTION_MENU_APPLY), x, y, box_width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     } else {
         text_draw_with_money(translation_for(TR_OPTION_MENU_APPLY), data.price, " (", ")",
-            x, y, box_width, font, color);
+            x, y, box_width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     }
 }
 
 static void draw_popup_text(void)
 {
-    text_draw_centered(translation_for(static_cast<translation_key>(data.title)), 0, 20, 480, FONT_LARGE_BLACK, 0);
-    text_draw_multiline(translation_for(static_cast<translation_key>(data.subtitle)), 20, 60, 440, 0, FONT_NORMAL_BLACK, 0);
+    text_draw_centered(translation_for(static_cast<translation_key>(data.title)), 0, 20, 480, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_multiline(translation_for(static_cast<translation_key>(data.subtitle)), 20, 60, 440, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     if (data.price) {
         text_draw_with_money(translation_for(TR_OPTION_MENU_COST), data.price, " ", ".",
-            20, 110, 0, FONT_NORMAL_BLACK, 0);
+            20, 110, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
     int y_offset = START_Y_OFFSET;
@@ -145,10 +145,10 @@ static void draw_popup_text(void)
         }
         text_draw_multiline(translation_for(static_cast<translation_key>(data.options[i + scrollbar.scroll_position].header)),
             text_x, y_offset + 49, text_width - 8, 0,
-            data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK, 0);
+            data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK)->line_height), 0);
         text_draw_multiline(translation_for(static_cast<translation_key>(data.options[i + scrollbar.scroll_position].desc)),
             text_x, y_offset + 69, text_width - 8, 0,
-            data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK, 0);
+            data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK)->line_height), 0);
 
         y_offset += Y_OFFSET_PER_OPTION[data.row_size];
     }
@@ -203,7 +203,7 @@ static void draw_foreground(void)
 
     draw_popup_text();
     lang_text_draw_centered(13, 4, 40, buttons[0].y + 4,
-        180, FONT_NORMAL_BLACK);
+        180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     draw_apply_button(260, buttons[1].y + 4, 180);
 
     if (data.num_options > data.visible_options) {

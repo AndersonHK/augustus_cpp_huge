@@ -65,7 +65,7 @@ static void draw_background(void)
 
     graphics_in_dialog();
     image_draw(image_group(GROUP_LOGO), 0, 0, COLOR_MASK_NONE, SCALE_NONE);
-    lang_text_draw_centered_colored(13, 7, 160, 462, 320, FONT_NORMAL_PLAIN, COLOR_WHITE);
+    lang_text_draw_centered_colored(13, 7, 160, 462, 320, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_WHITE);
     graphics_reset_dialog();
 }
 

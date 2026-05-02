@@ -65,20 +65,20 @@ static void print_water_building_info(int y_offset, building_type type, int popu
         }
     }
 
-    int desc_offset_x = text_draw_number(total_count, ' ', " ", 40, y_offset, FONT_NORMAL_WHITE, 0);
-    lang_text_draw(group, index, 40 + desc_offset_x, y_offset, FONT_NORMAL_WHITE);
+    int desc_offset_x = text_draw_number(total_count, ' ', " ", 40, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    lang_text_draw(group, index, 40 + desc_offset_x, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // working
     text_draw_number_centered(type == BUILDING_WELL ? total_count : building_count_active(type),
-        180, y_offset, 100, FONT_NORMAL_WHITE);
+        180, y_offset, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // care for
-    int width = text_draw_number(population_served, '@', " ", 305, y_offset, FONT_NORMAL_WHITE, 0);
-    lang_text_draw(58, 5, 305 + width, y_offset, FONT_NORMAL_WHITE);
+    int width = text_draw_number(population_served, '@', " ", 305, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    lang_text_draw(58, 5, 305 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // city coverage
     text_draw_percentage_centered(calc_percentage(population_served, city_population()),
-        440, y_offset, 160, FONT_NORMAL_WHITE);
+        440, y_offset, 160, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 }
 
 static void print_health_building_info(int y_offset, building_type type, int population_served, int coverage)
@@ -87,26 +87,26 @@ static void print_health_building_info(int y_offset, building_type type, int pop
     static const int BUILDING_ID_TO_STRING_ID[] = { 28, 30, 24, 26 };
     
     lang_text_draw_amount(8, BUILDING_ID_TO_STRING_ID[type - BUILDING_DOCTOR],
-        building_count_total(type), 40, y_offset, FONT_NORMAL_WHITE);
+        building_count_total(type), 40, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     // working
-    text_draw_number_centered(building_count_active(type), 180, y_offset, 100, FONT_NORMAL_WHITE);
+    text_draw_number_centered(building_count_active(type), 180, y_offset, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // care for
-    int width = text_draw_number(population_served, '@', " ", 305, y_offset, FONT_NORMAL_WHITE, 0);
+    int width = text_draw_number(population_served, '@', " ", 305, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     if (type == BUILDING_DOCTOR || type == BUILDING_HOSPITAL) {
-        lang_text_draw(56, 6, 305 + width, y_offset, FONT_NORMAL_WHITE);
+        lang_text_draw(56, 6, 305 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else {
-        lang_text_draw(58, 5, 305 + width, y_offset, FONT_NORMAL_WHITE);
+        lang_text_draw(58, 5, 305 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
 
     // city coverage
     if (coverage == 0) {
-        lang_text_draw_centered(57, 10, 440, y_offset, 160, FONT_NORMAL_WHITE);
+        lang_text_draw_centered(57, 10, 440, y_offset, 160, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else if (coverage < 100) {
-        lang_text_draw_centered(57, coverage / 10 + 11, 440, y_offset, 160, FONT_NORMAL_WHITE);
+        lang_text_draw_centered(57, coverage / 10 + 11, 440, y_offset, 160, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else {
-        lang_text_draw_centered(57, 21, 440, y_offset, 160, FONT_NORMAL_WHITE);
+        lang_text_draw_centered(57, 21, 440, y_offset, 160, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
 }
 
@@ -123,19 +123,19 @@ static int draw_background(void)
 
     int sickness_level = city_health_get_global_sickness_level();
 
-    lang_text_draw(56, 0, 60, 12, FONT_LARGE_BLACK); // City health
+    lang_text_draw(56, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); // City health
 
-    int x_offset = lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_HEALTH_RATING, 60, 44, FONT_NORMAL_BLACK);
-    text_draw_number(city_health(), 0, "", 60 + x_offset, 44, FONT_NORMAL_BLACK, 0);
+    int x_offset = lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_HEALTH_RATING, 60, 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_number(city_health(), 0, "", 60 + x_offset, 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     if (city_population() >= 200) {
-        lang_text_draw_multiline(56, city_health() / 10 + 16, 60, 65, 560, FONT_NORMAL_BLACK);
+        lang_text_draw_multiline(56, city_health() / 10 + 16, 60, 65, 560, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_multiline(56, 15, 60, 65, 560, FONT_NORMAL_BLACK);
+        lang_text_draw_multiline(56, 15, 60, 65, 560, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
-    lang_text_draw_centered(56, 3, 165, 110, 130, FONT_SMALL_PLAIN);    // Working
-    lang_text_draw(56, 4, 312, 110, FONT_SMALL_PLAIN);                  // Care for
-    lang_text_draw_centered(56, 5, 441, 110, 160, FONT_SMALL_PLAIN);    // City coverage
+    lang_text_draw_centered(56, 3, 165, 110, 130, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));    // Working
+    lang_text_draw(56, 4, 312, 110, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));                  // Care for
+    lang_text_draw_centered(56, 5, 441, 110, 160, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));    // City coverage
     
     inner_panel_draw(32, 124, 36, 5);
 
@@ -162,12 +162,12 @@ static int draw_background(void)
         people_covered = 1000 * building_count_active(BUILDING_HOSPITAL);
         print_health_building_info(188, BUILDING_HOSPITAL, people_covered, city_culture_coverage_hospital());
     }
-    int text_height = lang_text_draw_multiline(56, 7 + get_health_advice(), 45, 226, 560, FONT_NORMAL_BLACK);
+    int text_height = lang_text_draw_multiline(56, 7 + get_health_advice(), 45, 226, 560, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_HEALTH_SURVEILLANCE, 45, 246 + text_height, FONT_NORMAL_BLACK);
+    lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_HEALTH_SURVEILLANCE, 45, 246 + text_height, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_height += 16;
     text_draw_multiline(translation_for(static_cast<translation_key>(TR_ADVISOR_SICKNESS_LEVEL_LOW + sickness_level)),
-        45, 246 + text_height, 560, 0, FONT_NORMAL_BLACK, 0);
+        45, 246 + text_height, 560, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     return ADVISOR_HEIGHT;
 }

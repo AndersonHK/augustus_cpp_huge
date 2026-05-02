@@ -54,11 +54,11 @@ static void draw_version_string(void)
 
     string_copy(string_from_ascii(system_version()), version_string + version_prefix_length, 99);
 
-    int text_width = text_get_width(version_string, FONT_NORMAL_GREEN);
+    int text_width = text_get_width(version_string, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     int width = calc_value_in_step(text_width + 20, 16);
 
     inner_panel_draw(20, text_y, width / 16, 2);
-    text_draw_centered(version_string, 20, text_y + 11, width, FONT_NORMAL_GREEN, 0);
+    text_draw_centered(version_string, 20, text_y + 11, width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
 }
 
 static void draw_background(void)
@@ -88,12 +88,12 @@ static void draw_foreground(void)
             data.focus_button_id == i + 1 ? 1 : 0);
     }
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_MAIN_MENU_SELECT_CAMPAIGN, 192, 137, 256, FONT_NORMAL_GREEN);
-    lang_text_draw_centered(30, 2, 192, 177, 256, FONT_NORMAL_GREEN);
-    lang_text_draw_centered(30, 3, 192, 217, 256, FONT_NORMAL_GREEN);
-    lang_text_draw_centered(9, 8, 192, 257, 256, FONT_NORMAL_GREEN);
-    lang_text_draw_centered(2, 0, 192, 297, 256, FONT_NORMAL_GREEN);
-    lang_text_draw_centered(30, 5, 192, 337, 256, FONT_NORMAL_GREEN);
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_MAIN_MENU_SELECT_CAMPAIGN, 192, 137, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered(30, 2, 192, 177, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered(30, 3, 192, 217, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered(9, 8, 192, 257, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered(2, 0, 192, 297, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered(30, 5, 192, 337, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     graphics_reset_dialog();
 }

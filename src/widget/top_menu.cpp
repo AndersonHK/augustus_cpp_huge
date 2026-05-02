@@ -293,8 +293,8 @@ static int get_black_panel_actual_width(int desired_width)
 
 static int get_black_panel_total_width_for_text_id(int group, int id, int number, font_t font)
 {
-    int label_width = lang_text_get_width(group, id, font);
-    int number_width = text_get_number_width(number, '@', " ", font);
+    int label_width = lang_text_get_width(group, id, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+    int number_width = text_get_number_width(number, '@', " ", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int text_width = label_width + number_width; // add padding
     int total_width = get_black_panel_actual_width(text_width);
 
@@ -335,7 +335,7 @@ static widget_layout_case_t widget_top_menu_measure_layout(int available_width, 
 {
     char tmp[32];
     sprintf(tmp, "%d(%d)", 999, 999); // max rating string
-    int rating_one_block_w = text_get_width((const uint8_t *) tmp, font);
+    int rating_one_block_w = text_get_width((const uint8_t *) tmp, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int w_funds = get_black_panel_total_width_for_text_id(6, 0, 99999, font); //5 digit city treasury as base
     int w_savings = get_black_panel_total_width_for_text_id(6, 0, 9999, font); //4 digit city treasury as base
     int w_population = get_black_panel_total_width_for_text_id(6, 1, 99999, font); //5 digit city pop as base
@@ -445,8 +445,8 @@ static widget_layout_case_t widget_top_menu_measure_layout(int available_width, 
 static int draw_panel_with_text_and_number(int offset, int lang_section, int lang_index,
     int number, int margin, int fixed_width, font_t font, color_t label_color, color_t num_color)
 {
-    int label_width = lang_text_get_width(lang_section, lang_index, font);
-    int number_width = text_get_number_width(number, '@', " ", font);
+    int label_width = lang_text_get_width(lang_section, lang_index, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+    int number_width = text_get_number_width(number, '@', " ", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int text_width = label_width + number_width + 2 * margin;
 
     // Compute required usable width + total panel width (adds end caps)
@@ -457,9 +457,9 @@ static int draw_panel_with_text_and_number(int offset, int lang_section, int lan
     int usable_width = end_of_panel - offset - 2 * BLACK_PANEL_BLOCK_WIDTH;
     int draw_x = offset + BLACK_PANEL_BLOCK_WIDTH + (usable_width / 2) - text_width / 2;
     // Draw label
-    lang_text_draw_colored(lang_section, lang_index, draw_x, 5, font, label_color);
+    lang_text_draw_colored(lang_section, lang_index, draw_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), label_color);
     // Draw number right after label
-    text_draw_number(number, '@', "\0", draw_x + label_width, 5, font, num_color);
+    text_draw_number(number, '@', "\0", draw_x + label_width, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), num_color);
 
     return end_of_panel - offset;
 }
@@ -490,14 +490,14 @@ static int draw_rating_panel(int offset, int info_id, int box_width, int gap_len
             return 0;
     }
 
-    int value_width = text_get_number_width(value, '@', " ", font);
-    int goal_width = text_get_number_width(goal, '(', ")", font);
+    int value_width = text_get_number_width(value, '@', " ", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+    int goal_width = text_get_number_width(goal, '(', ")", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int total_width = value_width + gap_length + goal_width;
 
     int x = offset + (box_width - total_width) / 2;
     color_t val_color = (value >= goal && goal > 0) ? COLOR_FONT_GREEN : COLOR_WHITE;
-    text_draw_number(value, '@', " ", x, 5, font, val_color);
-    text_draw_number(goal, '(', ")", x + value_width, 5, font, goal_color);
+    text_draw_number(value, '@', " ", x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), val_color);
+    text_draw_number(goal, '(', ")", x + value_width, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), goal_color);
     return box_width;
 }
 
@@ -514,11 +514,11 @@ static int draw_health_panel(int offset, int box_width, font_t font)
     else
         color = COLOR_FONT_RED;
 
-    int health_w = text_get_number_width(health, ' ', "", font);
+    int health_w = text_get_number_width(health, ' ', "", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
 
     // center it in the box
     int x = offset + (box_width - health_w) / 2;
-    text_draw_number(health, ' ', "", x + 10, 5, font, color);
+    text_draw_number(health, ' ', "", x + 10, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
 
     return box_width;
 }
@@ -581,19 +581,19 @@ extern "C" void widget_top_menu_draw(int force)
     if (layout == WIDGET_LAYOUT_NONE) {
         int current_x = data.menu_end;
         data.funds.start = current_x;
-        current_x += lang_text_draw_colored(6, 0, current_x, 5, font, treasury_color);
+        current_x += lang_text_draw_colored(6, 0, current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), treasury_color);
         // Draw number right after label
-        current_x += text_draw_number(treasury, '@', "\0", current_x, 5, font, treasury_color);
+        current_x += text_draw_number(treasury, '@', "\0", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), treasury_color);
         data.funds.end = current_x;
         current_x += PANEL_MARGIN;
         data.population.start = current_x;
-        current_x += lang_text_draw_colored(6, 1, current_x, 5, font, pop_color);
-        current_x += text_draw_number(city_population(), '@', "\0", current_x, 5, font, pop_color);
+        current_x += lang_text_draw_colored(6, 1, current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), pop_color);
+        current_x += text_draw_number(city_population(), '@', "\0", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), pop_color);
         data.population.end = current_x;
         current_x += PANEL_MARGIN;
         data.date.start = current_x;
         lang_text_draw_month_year_max_width(game_time_month(), game_time_year(),
-                current_x, 5, DATE_FIELD_WIDTH - BLACK_PANEL_BLOCK_WIDTH, font, date_color);
+                current_x, 5, DATE_FIELD_WIDTH - BLACK_PANEL_BLOCK_WIDTH, font, screen_ui_to_pixel(font_definition_for(font)->line_height), date_color);
         data.date.end = current_x + DATE_FIELD_WIDTH - BLACK_PANEL_BLOCK_WIDTH;
     }
 
@@ -612,10 +612,10 @@ extern "C" void widget_top_menu_draw(int force)
         int date_x = data.date.start;
         top_menu_black_panel_draw(date_x, 0, DATE_FIELD_WIDTH + data.extra_space);
         int month_offset = date_x + data.extra_space / 2 + BLACK_PANEL_BLOCK_WIDTH + 14; // 14px is enough for day
-        text_draw_number(get_cosmetic_day_of_month(), 0, "", date_x + PANEL_MARGIN + data.extra_space / 2, 5, font,
+        text_draw_number(get_cosmetic_day_of_month(), 0, "", date_x + PANEL_MARGIN + data.extra_space / 2, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height),
          date_color);
         lang_text_draw_month_year_max_width(game_time_month(), game_time_year(),
-         month_offset, 5, DATE_FIELD_WIDTH - BLACK_PANEL_BLOCK_WIDTH - 14, font, date_color);
+         month_offset, 5, DATE_FIELD_WIDTH - BLACK_PANEL_BLOCK_WIDTH - 14, font, screen_ui_to_pixel(font_definition_for(font)->line_height), date_color);
     }
 
     // --- Group 2: Ratings (if enabled and space allows) ---
@@ -629,7 +629,7 @@ extern "C" void widget_top_menu_draw(int force)
 
         char rating_buf[20];
         sprintf(rating_buf, "%d(%d)", 999, 999);
-        int label_w = text_get_width((const uint8_t *) rating_buf, font);
+        int label_w = text_get_width((const uint8_t *) rating_buf, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         int block_w = data.ratings.end - data.ratings.start; //half for health rating
         int slot_w = (block_w - data.extra_space - (label_w / 2)) / 4;
         int x = data.ratings.start;

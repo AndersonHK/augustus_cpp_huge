@@ -52,12 +52,12 @@ static void draw_background(void)
     graphics_in_dialog();
     outer_panel_draw(128, 128, 24, 9);
 
-    text_draw_centered(translation_for(TR_HOTKEY_EDIT_TITLE), 136, 144, 376, FONT_LARGE_BLACK, 0);
+    text_draw_centered(translation_for(TR_HOTKEY_EDIT_TITLE), 136, 144, 376, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     for (int i = 0; i < NUM_BOTTOM_BUTTONS; i++) {
         generic_button *btn = &bottom_buttons[i];
         text_draw_centered(translation_for(bottom_button_texts[i]),
-            btn->x, btn->y + 6, btn->width, FONT_NORMAL_BLACK, 0);
+            btn->x, btn->y + 6, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
     graphics_reset_dialog();
@@ -70,7 +70,7 @@ static void draw_foreground(void)
     inner_panel_draw(192, 184, 16, 2);
 
     text_draw_centered(key_combination_display_name(data.key, data.modifiers),
-        192, 193, 256, FONT_NORMAL_WHITE, 0);
+        192, 193, 256, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     for (unsigned int i = 0; i < NUM_BOTTOM_BUTTONS; i++) {
         generic_button *btn = &bottom_buttons[i];

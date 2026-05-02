@@ -226,7 +226,7 @@ static void draw_menu_item(const overlay_menu_entry *entry, const int i, const i
         x_offset - MENU_ITEM_WIDTH,
         y + 4,
         MENU_ITEM_WIDTH,
-        FONT_NORMAL_GREEN,
+        FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height),
         COLOR_MASK_NONE);
 
     if (entry->submenu != NULL) {

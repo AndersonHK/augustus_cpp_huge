@@ -121,7 +121,7 @@ static void draw_number_button(int x, int y, int number, int is_selected)
     uint8_t number_string[2];
     number_string[0] = '0' + number;
     number_string[1] = 0;
-    text_draw_centered(number_string, x, y, 27, FONT_LARGE_PLAIN, color);
+    text_draw_centered(number_string, x, y, 27, FONT_LARGE_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_PLAIN)->line_height), color);
 }
 
 static void draw_foreground(void)
@@ -138,7 +138,7 @@ static void draw_foreground(void)
         } else {
             font = FONT_LARGE_PLAIN;
         }
-        text_draw_number_centered_colored(data.value, data.x + 19, data.y + 19, 92, font, COLOR_FONT_RED);
+        text_draw_number_centered_colored(data.value, data.x + 19, data.y + 19, 92, font, screen_ui_to_pixel(font_definition_for(font)->line_height), COLOR_FONT_RED);
     }
 
     draw_number_button(data.x + 21, data.y + 51, 1, data.focus_button_id == 1);
@@ -155,12 +155,12 @@ static void draw_foreground(void)
     if (data.min_value < 0) {
         graphics_draw_rect(data.x + 51, data.y + 141, 25, 25,
             data.focus_button_id == 11 ? COLOR_FONT_BLUE : COLOR_BLACK);
-        text_draw_centered(string_from_ascii("-"), data.x + 51, data.y + 147, 25, FONT_NORMAL_PLAIN,
+        text_draw_centered(string_from_ascii("-"), data.x + 51, data.y + 147, 25, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
             data.focus_button_id == 11 ? COLOR_FONT_BLUE : COLOR_BLACK);
     }
 
     graphics_draw_rect(data.x + 51, data.y + 171, 56, 25, data.focus_button_id == 12 ? COLOR_FONT_BLUE : COLOR_BLACK);
-    lang_text_draw_centered_colored(44, 16, data.x + 52, data.y + 177, 55, FONT_NORMAL_PLAIN,
+    lang_text_draw_centered_colored(44, 16, data.x + 52, data.y + 177, 55, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
             data.focus_button_id == 12 ? COLOR_FONT_BLUE : COLOR_BLACK);
 
     if (data.focus_button_id == 13) {
@@ -169,10 +169,10 @@ static void draw_foreground(void)
         graphics_draw_rect(data.x + 21, data.y + 201, 25, 25, COLOR_BLACK);
     }
 
-    text_draw_centered(string_from_ascii("X"), data.x + 22, data.y + 207, 25, FONT_NORMAL_PLAIN,
+    text_draw_centered(string_from_ascii("X"), data.x + 22, data.y + 207, 25, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
         data.focus_button_id == 13 ? COLOR_WHITE : COLOR_RED);
     graphics_draw_rect(data.x + 51, data.y + 201, 56, 25, data.focus_button_id == 14 ? COLOR_FONT_BLUE : COLOR_BLACK);
-    lang_text_draw_centered_colored(44, 17, data.x + 52, data.y + 207, 55, FONT_NORMAL_PLAIN,
+    lang_text_draw_centered_colored(44, 17, data.x + 52, data.y + 207, 55, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
             data.focus_button_id == 14 ? COLOR_FONT_BLUE : COLOR_BLACK);
 }
 

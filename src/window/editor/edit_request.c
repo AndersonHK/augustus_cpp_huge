@@ -113,7 +113,7 @@ static int get_largest_section_title_width(void)
 {
     int largest_width = 0;
     for (size_t i = 0; i < NUMBER_OF_SECTIONS; i++) {
-        int width = lang_text_get_width(CUSTOM_TRANSLATION, sections[i].title, FONT_NORMAL_BLACK);
+        int width = lang_text_get_width(CUSTOM_TRANSLATION, sections[i].title, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (width > largest_width) {
             largest_width = width;
         }
@@ -160,14 +160,14 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, BASE_Y_OFFSET, 40, 30);
-    lang_text_draw_centered(44, 21, 14, BASE_Y_OFFSET + 14, 580, FONT_LARGE_BLACK);
+    lang_text_draw_centered(44, 21, 14, BASE_Y_OFFSET + 14, 580, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     int y_offset = BASE_Y_OFFSET + 52;
 
     // Section names
     for (size_t i = 0; i < NUMBER_OF_SECTIONS; i++) {
         lang_text_draw_right_aligned(CUSTOM_TRANSLATION, sections[i].title, 26, y_offset + 3,
-            data.section_title_width, FONT_NORMAL_BLACK);
+            data.section_title_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         y_offset += sections[i].height;
     }
 
@@ -177,67 +177,67 @@ static void draw_background(void)
     // Year text
     btn = &request_buttons[0];
     text_draw_number_centered_prefix(data.request.year, '+', x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_year(scenario_property_start_year() + data.request.year, x_offset + btn->x + btn->width + 10,
-        BASE_Y_OFFSET + btn->y + 7, FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Resource type
     btn = &request_buttons[1];
     text_draw_centered(resource_get_data(data.request.resource)->text, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width,
-        FONT_NORMAL_BLACK, 0);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     // Amount
     btn = &request_buttons[2];
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, x_offset, BASE_Y_OFFSET + btn->y + 9,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number_centered(data.request.amount.min, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_AND, x_offset + btn->x + btn->width,
-        BASE_Y_OFFSET + btn->y + 9, btn[1].x - (btn->x + btn->width), FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 9, btn[1].x - (btn->x + btn->width), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     btn = &request_buttons[3];
     text_draw_number_centered(data.request.amount.max, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_UNITS, x_offset + btn->x + btn->width + 10,
-        BASE_Y_OFFSET + btn->y + 9, FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 9, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Deadline
     btn = &request_buttons[4];
     lang_text_draw_amount_centered(8, 8, data.request.deadline_years, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
-        btn->width, FONT_NORMAL_BLACK);
+        btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Extension months
     btn = &request_buttons[5];
     text_draw_number_centered_prefix(data.request.extension_months_to_comply, '+', x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
-        btn->width, FONT_NORMAL_RED);
+        btn->width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
 
     // Favor gained
     btn = &request_buttons[6];
     text_draw_number_centered_prefix(data.request.favor, '+', x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
-        btn->width, FONT_NORMAL_BLACK);
+        btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Favor lost if extenstion needed
     btn = &request_buttons[7];
     text_draw_number_centered_prefix(data.request.extension_disfavor, '-', x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
-        btn->width, FONT_NORMAL_BLACK);
+        btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Favor lost if request ignored
     btn = &request_buttons[8];
     text_draw_number_centered_prefix(data.request.ignored_disfavor, '-', x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
-        btn->width, FONT_NORMAL_BLACK);
+        btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat type selected checkbox
     btn = &request_buttons[9 + data.repeat_type];
-    text_draw(string_from_ascii("x"), x_offset + btn->x + 6, BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK, 0);
+    text_draw(string_from_ascii("x"), x_offset + btn->x + 6, BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     // Never repeat
     btn = &request_buttons[9];
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_DO_NOT_REPEAT, x_offset + btn->x + 30,
-        BASE_Y_OFFSET + btn->y + 5, FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 5, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat forever
     btn = &request_buttons[10];
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FOREVER, x_offset + btn->x + 30,
-        BASE_Y_OFFSET + btn->y + 5, FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 5, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat N times
     btn = &request_buttons[12];
@@ -245,10 +245,10 @@ static void draw_background(void)
         text_draw_label_and_number_centered(lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TEXT),
             data.request.repeat.times,
             (const char *) lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES),
-            x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width, FONT_NORMAL_BLACK, 0);
+            x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_ONCE + data.request.repeat.times - 1,
-            x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width, FONT_NORMAL_BLACK);
+            x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // Request interval text
@@ -257,25 +257,25 @@ static void draw_background(void)
 
     btn = &request_buttons[13];
     lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, x_offset, BASE_Y_OFFSET + btn->y + 9,
-        enabled_font, enabled_color);
+        enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     text_draw_number_centered_colored(data.request.repeat.interval.min, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
-        btn->width, enabled_font, enabled_color);
+        btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_AND, x_offset + btn->x + btn->width,
-        BASE_Y_OFFSET + btn->y + 9, btn[1].x - (btn->x + btn->width), enabled_font, enabled_color);
+        BASE_Y_OFFSET + btn->y + 9, btn[1].x - (btn->x + btn->width), enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     btn = &request_buttons[14];
     text_draw_number_centered_colored(data.request.repeat.interval.max, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
-        btn->width, enabled_font, enabled_color);
+        btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY_YEARS, x_offset + btn->x + btn->width + 10,
-        BASE_Y_OFFSET + btn->y + 9, enabled_font, enabled_color);
+        BASE_Y_OFFSET + btn->y + 9, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
 
     // Bottom button labels
     lang_text_draw_centered_colored(44, 25, bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 7,
-        bottom_buttons[0].width, FONT_NORMAL_PLAIN, data.is_new_request ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
+        bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_request ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_CANCEL, bottom_buttons[1].x,
-        BASE_Y_OFFSET + bottom_buttons[1].y + 7, bottom_buttons[1].width, FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + bottom_buttons[1].y + 7, bottom_buttons[1].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_centered(18, 3, bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 7,
-        bottom_buttons[2].width, FONT_NORMAL_BLACK);
+        bottom_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

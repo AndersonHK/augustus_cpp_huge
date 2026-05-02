@@ -112,7 +112,7 @@ public:
                 button.x,
                 button.y + 9,
                 button.width,
-                FONT_NORMAL_BLACK,
+                FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height),
                 0);
         }
     }
@@ -317,13 +317,13 @@ static void draw_scenario_map(void)
 
 static void draw_rank(int y_offset)
 {
-    int x_offset = lang_text_get_width(44, 117, FONT_NORMAL_BLACK) - 6;
-    x_offset += text_get_width(string_from_ascii(":"), FONT_NORMAL_BLACK);
-    x_offset += lang_text_get_width(32, data.selected_item->rank, FONT_NORMAL_BLACK);
+    int x_offset = lang_text_get_width(44, 117, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
+    x_offset += text_get_width(string_from_ascii(":"), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    x_offset += lang_text_get_width(32, data.selected_item->rank, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset = SELECTED_ITEM_INFO_X_OFFSET + (SELECTED_ITEM_INFO_WIDTH - x_offset) / 2;
-    x_offset += lang_text_draw(44, 117, x_offset, y_offset, FONT_NORMAL_BLACK) - 6;
-    x_offset += text_draw(string_from_ascii(":"), x_offset, y_offset, FONT_NORMAL_BLACK, 0);
-    lang_text_draw(32, data.selected_item->rank, x_offset, y_offset, FONT_NORMAL_BLACK);
+    x_offset += lang_text_draw(44, 117, x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
+    x_offset += text_draw(string_from_ascii(":"), x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    lang_text_draw(32, data.selected_item->rank, x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void draw_background(void)
@@ -332,32 +332,32 @@ static void draw_background(void)
 
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);
-    text_draw_centered_ellipsized(game_campaign_get_info()->name, 32, 14, 554, FONT_LARGE_BLACK, 0);
+    text_draw_centered_ellipsized(game_campaign_get_info()->name, 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
 
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_MISSION_LIST_CAMPAIGN_NOT_FINISHED - data.campaign_finished,
-        16, 446, SELECTED_ITEM_INFO_X_OFFSET - 48, FONT_NORMAL_BLACK);
+        16, 446, SELECTED_ITEM_INFO_X_OFFSET - 48, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     if (data.selected_item->scenario) {
         draw_scenario_map();
         int y_offset = data.savegame_info_status == 1 && data.info.map_size <= 136 ? data.info.map_size * 2 : 272;
         y_offset += MISSION_LIST_Y_POSITION + 10;
         text_draw_centered_ellipsized(data.selected_item->scenario->name, SELECTED_ITEM_INFO_X_OFFSET, y_offset,
-            SELECTED_ITEM_INFO_WIDTH, FONT_LARGE_BLACK, 0);
+            SELECTED_ITEM_INFO_WIDTH, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         data.title.name = data.selected_item->scenario->name;
         data.title.x = SELECTED_ITEM_INFO_X_OFFSET;
         data.title.y = y_offset;
         data.title.width = SELECTED_ITEM_INFO_WIDTH;
         data.title.height = font_definition_for(FONT_LARGE_BLACK)->line_height;
         data.title.is_hovered = 0;
-        data.title.is_ellipsized = text_get_width(data.title.name, FONT_LARGE_BLACK) > data.title.width - 10;
+        data.title.is_ellipsized = text_get_width(data.title.name, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)) > data.title.width - 10;
         if (data.selected_item->type == ITEM_TYPE_MISSION) {
             draw_rank(y_offset + 34);
             y_offset += 20;
         }
         if (data.selected_item->scenario->description) {
             text_draw_multiline(data.selected_item->scenario->description, SELECTED_ITEM_INFO_X_OFFSET, y_offset + 34,
-                SELECTED_ITEM_INFO_WIDTH, 1, FONT_NORMAL_BLACK, 0);
+                SELECTED_ITEM_INFO_WIDTH, 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
         data.ok_button_type = BUTTON_TYPE_BEGIN_SCENARIO;
     } else if (data.selected_item->type == ITEM_TYPE_MISSION) {
@@ -366,19 +366,19 @@ static void draw_background(void)
 
         // Mission title
         text_draw_centered(data.selected_item->mission.title, SELECTED_ITEM_INFO_X_OFFSET, y_offset,
-            SELECTED_ITEM_INFO_WIDTH, FONT_LARGE_BLACK, 0);
+            SELECTED_ITEM_INFO_WIDTH, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
         // Rank
         draw_rank(y_offset + 36);
 
         // Number of missions
-        int x_offset = text_get_number_width(data.selected_item->mission.total_scenarios, '@', "", FONT_NORMAL_BLACK);
-        x_offset += lang_text_get_width(CUSTOM_TRANSLATION, TR_WINDOW_MISSION_LIST_SCENARIOS, FONT_NORMAL_BLACK);
+        int x_offset = text_get_number_width(data.selected_item->mission.total_scenarios, '@', "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        x_offset += lang_text_get_width(CUSTOM_TRANSLATION, TR_WINDOW_MISSION_LIST_SCENARIOS, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         x_offset = SELECTED_ITEM_INFO_X_OFFSET + (352 - x_offset) / 2;
         x_offset += text_draw_number(data.selected_item->mission.total_scenarios, '@', "",
-            x_offset, y_offset + 56, FONT_NORMAL_BLACK, 0);
+            x_offset, y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_MISSION_LIST_SCENARIOS, x_offset, y_offset + 56,
-            FONT_NORMAL_BLACK);
+            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         data.ok_button_type = BUTTON_TYPE_MISSION_SELECTION;
     }
@@ -401,10 +401,10 @@ static void draw_item(const list_box_item *item)
     uint8_t text[80];
 
     if (item_to_draw->type == ITEM_TYPE_SCENARIO) {
-        int width = text_draw(string_from_ascii("-"), item->x, item->y + 2, font, 0);
+        int width = text_draw(string_from_ascii("-"), item->x, item->y + 2, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         string_copy(item_to_draw->scenario->name, text, 50);
-        text_ellipsize(text, font, item->width - width);
-        text_draw(text, item->x + width, item->y + 2, font, 0);
+        text_ellipsize(text, font, screen_ui_to_pixel(font_definition_for(font)->line_height), item->width - width);
+        text_draw(text, item->x + width, item->y + 2, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
     } else {
         uint8_t *cursor = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_SAVE_DIALOG_MISSION), text, 80);
         cursor = string_copy(string_from_ascii(" "), cursor, 80 - (int) (cursor - text));
@@ -412,7 +412,7 @@ static void draw_item(const list_box_item *item)
         cursor = string_copy(string_from_ascii(" - "), cursor, 80 - (int) (cursor - text));
         cursor = string_copy(item_to_draw->mission.title, cursor, 80 - (int) (cursor - text));
 
-        text_draw_ellipsized(text, item->x, item->y, item->width, font, 0);
+        text_draw_ellipsized(text, item->x, item->y, item->width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
     }
 
     if (item->is_focused) {
@@ -512,8 +512,8 @@ static void item_tooltip(const list_box_item *item, tooltip_context *c)
     font_t font = item_to_draw == data.selected_item ? FONT_NORMAL_WHITE : FONT_NORMAL_GREEN;
 
     if (item_to_draw->type == ITEM_TYPE_SCENARIO) {
-        int width = text_get_width(string_from_ascii("-"), font);
-        if (text_get_width(item_to_draw->scenario->name, font) + width > item->width) {
+        int width = text_get_width(string_from_ascii("-"), font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+        if (text_get_width(item_to_draw->scenario->name, font, screen_ui_to_pixel(font_definition_for(font)->line_height)) + width > item->width) {
             c->precomposed_text = item_to_draw->scenario->name;
             c->type = TOOLTIP_BUTTON;
         }
@@ -532,7 +532,7 @@ static void item_tooltip(const list_box_item *item, tooltip_context *c)
         last_selection = item->index + 1;
     }
 
-    if (text_get_width(text, font) > item->width) {
+    if (text_get_width(text, font, screen_ui_to_pixel(font_definition_for(font)->line_height)) > item->width) {
         c->precomposed_text = text;
         c->type = TOOLTIP_BUTTON;
     }

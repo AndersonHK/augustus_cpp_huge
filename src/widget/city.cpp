@@ -150,21 +150,21 @@ void widget_city_draw_construction_cost_and_size(void)
             } else {
                 force_place_clear_color = COLOR_FONT_RED;
             }
-            text_draw_number(force_place_clear_cost, '@', " ", x + 58 + 1, y - 16 + 1, FONT_NORMAL_PLAIN,
+            text_draw_number(force_place_clear_cost, '@', " ", x + 58 + 1, y - 16 + 1, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
                 COLOR_BLACK);
-            text_draw_number(force_place_clear_cost, '@', " ", x + 58, y - 16, FONT_NORMAL_PLAIN,
+            text_draw_number(force_place_clear_cost, '@', " ", x + 58, y - 16, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
                 force_place_clear_color);
         }
-        text_draw_number(cost, '@', " ", x + 58 + 1, y + 1, FONT_NORMAL_PLAIN, COLOR_BLACK);
-        text_draw_number(cost, '@', " ", x + 58, y, FONT_NORMAL_PLAIN, color);
+        text_draw_number(cost, '@', " ", x + 58 + 1, y + 1, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
+        text_draw_number(cost, '@', " ", x + 58, y, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
     }
     if (has_size) {
-        int width = text_get_number_pair_width(size_x, size_y, '@', "x", 0, 0, 0, FONT_SMALL_PLAIN);
+        int width = text_get_number_pair_width(size_x, size_y, '@', "x", 0, 0, 0, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         int size_x_offset = x - width / 2;
         text_draw_number_pair(size_x, size_y, '@', "x",
-            size_x_offset + 1, y + 25 + 1, 0, 0, 0, FONT_SMALL_PLAIN, COLOR_BLACK);
+            size_x_offset + 1, y + 25 + 1, 0, 0, 0, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK);
         text_draw_number_pair(size_x, size_y, '@', "x",
-            size_x_offset, y + 25, 0, 0, 0, FONT_SMALL_PLAIN, COLOR_FONT_YELLOW);
+            size_x_offset, y + 25, 0, 0, 0, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_FONT_YELLOW);
     }
     graphics_reset_clip_rectangle();
 }

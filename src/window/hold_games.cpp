@@ -85,7 +85,7 @@ static void draw_background(void)
 
     outer_panel_draw(48, 48, 34, 22);
     text_draw_centered(translation_for(static_cast<translation_key>(game->header_key)),
-        48, 60, 544, FONT_LARGE_BLACK, 0);
+        48, 60, 544, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     int border_image_id = assets_get_image_id("UI", "Image Border Small");
     int highlight_image_id = assets_get_image_id("UI", "Highlight");
     for (int i = 0; i < MAX_GAMES; i++) {
@@ -103,11 +103,11 @@ static void draw_background(void)
         image_draw(highlight_image_id, 100 * i + 175, 101, highlight_color, SCALE_NONE);
     }
     text_draw_multiline(translation_for(static_cast<translation_key>(game->description_key)),
-        70, 215, 510, 0, FONT_NORMAL_BLACK, 0);
+        70, 215, 510, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    int width = text_draw(translation_for(TR_WINDOW_GAMES_COST), 120, 300, FONT_NORMAL_BLACK, 0);
-    width += text_draw_money(city_games_money_cost(selected_game_id), 120 + width, 300, FONT_NORMAL_BLACK);
-    text_draw(translation_for(TR_WINDOW_GAMES_PERSONAL_FUNDS), 120 + width, 300, FONT_NORMAL_BLACK, 0);
+    int width = text_draw(translation_for(TR_WINDOW_GAMES_COST), 120, 300, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    width += text_draw_money(city_games_money_cost(selected_game_id), 120 + width, 300, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw(translation_for(TR_WINDOW_GAMES_PERSONAL_FUNDS), 120 + width, 300, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     width = 0;
     int has_resources = 1;
@@ -116,7 +116,7 @@ static void draw_background(void)
         const resource_type resource_type_id = static_cast<resource_type>(resource);
         resource_cost = city_games_resource_cost(selected_game_id, resource_type_id);
         if (resource_cost) {
-            width += text_draw_number(resource_cost, '@', "", 164 + width, 320, FONT_NORMAL_BLACK, 0);
+            width += text_draw_number(resource_cost, '@', "", 164 + width, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             if (city_resource_get_amount_including_granaries(resource_type_id, resource_cost, 0, 1) < resource_cost) {
                 has_resources = 0;
             }
@@ -129,13 +129,13 @@ static void draw_background(void)
     building *game_building = building_first_of_type(required_building_type);
 
     if (!building_count_active(required_building_type)) {
-        text_draw(translation_for(TR_WINDOW_GAMES_NO_VENUE), 120, 355, FONT_NORMAL_BLACK, 0);
+        text_draw(translation_for(TR_WINDOW_GAMES_NO_VENUE), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (city_emperor_personal_savings() < city_games_money_cost(selected_game_id)) {
-        text_draw(translation_for(TR_WINDOW_GAMES_NOT_ENOUGH_FUNDS), 120, 355, FONT_NORMAL_BLACK, 0);
+        text_draw(translation_for(TR_WINDOW_GAMES_NOT_ENOUGH_FUNDS), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (!has_resources) {
-        text_draw(translation_for(TR_WINDOW_GAMES_NOT_ENOUGH_RESOURCES), 120, 355, FONT_NORMAL_BLACK, 0);
+        text_draw(translation_for(TR_WINDOW_GAMES_NOT_ENOUGH_RESOURCES), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (game->water_access_required && game_building && !game_building->has_water_access) {
-        text_draw(translation_for(TR_WINDOW_GAMES_NO_WATER_ACCESS), 120, 355, FONT_NORMAL_BLACK, 0);
+        text_draw(translation_for(TR_WINDOW_GAMES_NO_WATER_ACCESS), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         data.game_possible = 1;
         image_buttons_draw(0, 0, action_button, 1);

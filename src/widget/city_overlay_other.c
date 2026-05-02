@@ -1007,7 +1007,7 @@ static void draw_storage_ids(int x, int y, float scale, int grid_offset)
     }
     uint8_t number[10];
     string_from_int(number, b->storage_id, 0);
-    int text_width = text_get_width(number, FONT_SMALL_PLAIN);
+    int text_width = text_get_width(number, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     int box_width = text_width + 10;
     int box_height = 22;
     if (b->type == BUILDING_GRANARY) {
@@ -1038,7 +1038,7 @@ static void draw_storage_ids(int x, int y, float scale, int grid_offset)
     y -= box_height / 2;
     graphics_draw_rect(x, y, box_width, box_height, COLOR_BLACK);
     graphics_fill_rect(x + 1, y + 1, box_width - 2, box_height - 2, COLOR_WHITE);
-    text_draw(number, x + 5, y + 6, FONT_SMALL_PLAIN, COLOR_BLACK);
+    text_draw(number, x + 5, y + 6, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK);
 }
 
 const city_overlay *city_overlay_for_storages(void)

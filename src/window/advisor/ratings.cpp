@@ -55,12 +55,12 @@ static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
     image_draw(image_group(GROUP_ADVISOR_ICONS) + 3, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
-    int width = lang_text_draw(53, 0, 60, 12, FONT_LARGE_BLACK);
+    int width = lang_text_draw(53, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     if (!scenario_criteria_population_enabled() || scenario_is_open_play()) {
-        lang_text_draw(53, 7, 80 + width, 17, FONT_NORMAL_BLACK);
+        lang_text_draw(53, 7, 80 + width, 17, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        width += lang_text_draw(53, 6, 80 + width, 17, FONT_NORMAL_BLACK);
-        text_draw_number(scenario_criteria_population(), '@', ")", 80 + width, 17, FONT_NORMAL_BLACK, 0);
+        width += lang_text_draw(53, 6, 80 + width, 17, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        text_draw_number(scenario_criteria_population(), '@', ")", 80 + width, 17, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
     image_draw(image_group(GROUP_RATINGS_BACKGROUND), 60, 48, COLOR_MASK_NONE, SCALE_NONE);
@@ -90,53 +90,53 @@ static int draw_background(void)
     inner_panel_draw(64, 356, 32, 4);
     switch (city_rating_selected()) {
         case SELECTED_RATING_CULTURE:
-            lang_text_draw(53, 1, 72, 359, FONT_NORMAL_WHITE);
+            lang_text_draw(53, 1, 72, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             if (culture <= 90) {
                 lang_text_draw_multiline(53, 9 + city_rating_explanation_for(SELECTED_RATING_CULTURE),
-                    72, 374, 496, FONT_NORMAL_WHITE);
+                    72, 374, 496, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             } else {
-                lang_text_draw_multiline(53, 50, 72, 374, 496, FONT_NORMAL_WHITE);
+                lang_text_draw_multiline(53, 50, 72, 374, 496, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             }
             break;
         case SELECTED_RATING_PROSPERITY:
         {
             int line_width;
-            lang_text_draw(53, 2, 72, 359, FONT_NORMAL_WHITE);
+            lang_text_draw(53, 2, 72, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             if (prosperity <= 90) {
                 line_width = lang_text_draw_multiline(53, 16 + city_rating_explanation_for(SELECTED_RATING_PROSPERITY),
-                    72, 374, 496, FONT_NORMAL_WHITE);
+                    72, 374, 496, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             } else {
-                line_width = lang_text_draw_multiline(53, 51, 72, 374, 496, FONT_NORMAL_WHITE);
+                line_width = lang_text_draw_multiline(53, 51, 72, 374, 496, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             }
             if (config_get(CONFIG_UI_SHOW_MAX_PROSPERITY)) {
                 int max = calc_bound(city_ratings_prosperity_max(), 0, 100);
                 if (prosperity < max) {
-                    width = lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_MAX_ATTAINABLE_PROSPERITY_IS, 72, 374 + line_width, FONT_NORMAL_WHITE);
-                    text_draw_number(max, 0, ".", 72 + width, 374 + line_width, FONT_NORMAL_WHITE, 0);
+                    width = lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_MAX_ATTAINABLE_PROSPERITY_IS, 72, 374 + line_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+                    text_draw_number(max, 0, ".", 72 + width, 374 + line_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
                 }
             }
             break;
         }
         case SELECTED_RATING_PEACE:
-            lang_text_draw(53, 3, 72, 359, FONT_NORMAL_WHITE);
+            lang_text_draw(53, 3, 72, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             if (peace <= 90) {
                 lang_text_draw_multiline(53, 41 + city_rating_explanation_for(SELECTED_RATING_PEACE),
-                    72, 374, 496, FONT_NORMAL_WHITE);
+                    72, 374, 496, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             } else {
-                lang_text_draw_multiline(53, 52, 72, 374, 496, FONT_NORMAL_WHITE);
+                lang_text_draw_multiline(53, 52, 72, 374, 496, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             }
             break;
         case SELECTED_RATING_FAVOR:
-            lang_text_draw(53, 4, 72, 359, FONT_NORMAL_WHITE);
+            lang_text_draw(53, 4, 72, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             if (favor <= 90) {
                 lang_text_draw_multiline(53, 27 + city_rating_explanation_for(SELECTED_RATING_FAVOR),
-                    72, 374, 496, FONT_NORMAL_WHITE);
+                    72, 374, 496, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             } else {
-                lang_text_draw_multiline(53, 53, 72, 374, 496, FONT_NORMAL_WHITE);
+                lang_text_draw_multiline(53, 53, 72, 374, 496, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             }
             break;
         default:
-            lang_text_draw_centered(53, 8, 72, 380, 496, FONT_NORMAL_WHITE);
+            lang_text_draw_centered(53, 8, 72, 380, 496, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             break;
     }
 
@@ -191,7 +191,7 @@ static void draw_rating_widgets(void)
         texts[2].alignment = UiTextAlignment::Left;
         texts[2].text_group = 53;
         texts[2].text_id = 5;
-        texts[2].x = card.x + 5 + text_get_number_width(card.goal_enabled ? card.goal_value : 0, '@', " ", FONT_NORMAL_BLACK);
+        texts[2].x = card.x + 5 + text_get_number_width(card.goal_enabled ? card.goal_value : 0, '@', " ", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         texts[2].y = 334;
         texts[2].font = FONT_NORMAL_BLACK;
 

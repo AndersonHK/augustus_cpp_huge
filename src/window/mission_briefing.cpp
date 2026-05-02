@@ -184,16 +184,25 @@ public:
         const int y = body->resolved_y(dialog_height(), definition().base_height());
         const int width = body->resolved_width(dialog_width(), definition().base_width());
         const int height_blocks = resolved_height_blocks(*body);
+        const int draw_x = x + body->draw_offset_x;
+        const int draw_y = y + body->draw_offset_y;
 
         rich_text_set_fonts(FONT_NORMAL_WHITE, FONT_NORMAL_GREEN, FONT_NORMAL_RED, body->line_spacing);
         rich_text_set_font_size_delta(body->font_size_delta);
         rich_text_set_paragraph_spacing(body->paragraph_spacing);
-        rich_text_init(content, x, y, width / BLOCK_SIZE, height_blocks, 0);
+        rich_text_init(content, draw_x, y, (width + BLOCK_SIZE - 1) / BLOCK_SIZE + 1, height_blocks, 0);
+        const DeclarativeWidgetDefinition *scrollbar = widget("scrollbar");
+        if (scrollbar) {
+            const int scrollbar_x = scrollbar->resolved_x(dialog_width(), definition().base_width());
+            const int scrollbar_y = scrollbar->resolved_y(dialog_height(), definition().base_height());
+            const int scrollbar_height = resolved_height(*scrollbar);
+            rich_text_set_scrollbar_bounds(scrollbar_x, scrollbar_y, scrollbar_height, scrollbar_x - draw_x);
+        }
         const int height_lines = (height_blocks - 1) * BLOCK_SIZE / rich_text_get_line_height();
         rich_text_draw(
             content,
-            x + body->draw_offset_x,
-            y + body->draw_offset_y,
+            draw_x,
+            draw_y,
             width,
             height_lines,
             0);
@@ -267,7 +276,9 @@ private:
         }
         const int x = label->resolved_x(dialog_width(), definition().base_width());
         const int y = label->resolved_y(dialog_height(), definition().base_height());
-        text_draw_with_size_delta(text, x, y, label->font, label->color, label->font_size_delta);
+        const int pixel_size =
+            screen_ui_to_pixel(font_definition_for(label->font)->line_height + label->font_size_delta);
+        text_draw(text, x, y, label->font, pixel_size, label->color);
     }
 
     void draw_language_text(const char *id, int group, int text_id) const
@@ -278,8 +289,9 @@ private:
         }
         const int x = label->resolved_x(dialog_width(), definition().base_width());
         const int y = label->resolved_y(dialog_height(), definition().base_height());
-        text_draw_with_size_delta(lang_get_string(group, text_id), x, y,
-            label->font, label->color, label->font_size_delta);
+        const int pixel_size =
+            screen_ui_to_pixel(font_definition_for(label->font)->line_height + label->font_size_delta);
+        text_draw(lang_get_string(group, text_id), x, y, label->font, pixel_size, label->color);
     }
 
     void draw_objective(const char *id, const MissionObjective &objective) const
@@ -294,10 +306,11 @@ private:
 
         const int text_x = x + box->padding_x;
         const int text_y = y + box->padding_y;
-        const int width = text_draw_with_size_delta(lang_get_string(62, objective.label_text_id), text_x, text_y,
-            box->font, box->color, box->font_size_delta);
-        text_draw_number_with_size_delta(objective.value, '@', reinterpret_cast<const uint8_t *>(" "),
-            text_x + width, text_y, box->font, box->color, box->font_size_delta);
+        const int pixel_size =
+            screen_ui_to_pixel(font_definition_for(box->font)->line_height + box->font_size_delta);
+        const int width = text_draw(
+            lang_get_string(62, objective.label_text_id), text_x, text_y, box->font, pixel_size, box->color);
+        text_draw_number(objective.value, '@', " ", text_x + width, text_y, box->font, pixel_size, box->color);
     }
 
     void draw_immediate_goal(int text_id) const
@@ -309,8 +322,10 @@ private:
         const int x = box->resolved_x(dialog_width(), definition().base_width());
         const int y = box->resolved_y(dialog_height(), definition().base_height());
         draw_objective_box(*box, x, y);
-        text_draw_with_size_delta(lang_get_string(62, text_id), x + box->padding_x, y + box->padding_y,
-            box->font, box->color, box->font_size_delta);
+        const int pixel_size =
+            screen_ui_to_pixel(font_definition_for(box->font)->line_height + box->font_size_delta);
+        text_draw(
+            lang_get_string(62, text_id), x + box->padding_x, y + box->padding_y, box->font, pixel_size, box->color);
     }
 
     void draw_objective_box(const DeclarativeWidgetDefinition &box, int x, int y) const

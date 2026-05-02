@@ -267,12 +267,12 @@ static void draw_background(void)
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);
 
-    text_draw_centered(translation_for(TR_HOTKEY_TITLE), 16, 16, 608, FONT_LARGE_BLACK, 0);
+    text_draw_centered(translation_for(TR_HOTKEY_TITLE), 16, 16, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     text_draw_centered(translation_for(TR_HOTKEY_LABEL), HOTKEY_X_OFFSET_1, 55,
-        HOTKEY_BTN_WIDTH, FONT_NORMAL_BLACK, 0);
+        HOTKEY_BTN_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     text_draw_centered(translation_for(TR_HOTKEY_ALTERNATIVE_LABEL), HOTKEY_X_OFFSET_2, 55,
-        HOTKEY_BTN_WIDTH, FONT_NORMAL_BLACK, 0);
+        HOTKEY_BTN_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     inner_panel_draw(20, 72, 35, 22);
     int y_base = 80;
@@ -280,14 +280,14 @@ static void draw_background(void)
         hotkey_widget *widget = &hotkey_widgets[i + scrollbar.scroll_position];
         int text_offset = y_base + 6 + 24 * i;
         if (widget->action == HOTKEY_HEADER) {
-            text_draw(translation_for(widget->name_translation), 32, text_offset, FONT_NORMAL_WHITE, 0);
+            text_draw(translation_for(widget->name_translation), 32, text_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         } else {
             if (widget->name_translation != TR_NONE) {
                 text_draw(translation_for(widget->name_translation),
-                    32, text_offset, FONT_NORMAL_GREEN, 0);
+                    32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else {
                 lang_text_draw(widget->name_text_group, widget->name_text_id,
-                    32, text_offset, FONT_NORMAL_GREEN);
+                    32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             }
 
             const hotkey_mapping *mapping1 = &data.mappings[widget->action][0];
@@ -295,7 +295,7 @@ static void draw_background(void)
                 const uint8_t *keyname = key_combination_display_name(mapping1->key, mapping1->modifiers);
                 graphics_set_clip_rectangle(HOTKEY_X_OFFSET_1, text_offset, HOTKEY_BTN_WIDTH, HOTKEY_BTN_HEIGHT);
                 text_draw_centered(keyname, HOTKEY_X_OFFSET_1 + 3, text_offset,
-                    HOTKEY_BTN_WIDTH - 6, FONT_NORMAL_WHITE, 0);
+                    HOTKEY_BTN_WIDTH - 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
                 graphics_reset_clip_rectangle();
             }
 
@@ -304,7 +304,7 @@ static void draw_background(void)
                 graphics_set_clip_rectangle(HOTKEY_X_OFFSET_2, text_offset, HOTKEY_BTN_WIDTH, HOTKEY_BTN_HEIGHT);
                 const uint8_t *keyname = key_combination_display_name(mapping2->key, mapping2->modifiers);
                 text_draw_centered(keyname, HOTKEY_X_OFFSET_2 + 3, text_offset,
-                    HOTKEY_BTN_WIDTH - 6, FONT_NORMAL_WHITE, 0);
+                    HOTKEY_BTN_WIDTH - 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
                 graphics_reset_clip_rectangle();
             }
         }
@@ -313,7 +313,7 @@ static void draw_background(void)
     for (int i = 0; i < NUM_BOTTOM_BUTTONS; i++) {
         text_draw_centered(translation_for(bottom_button_texts[i]),
             bottom_buttons[i].x, bottom_buttons[i].y + 9,
-            bottom_buttons[i].width, FONT_NORMAL_BLACK, 0);
+            bottom_buttons[i].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
     graphics_reset_dialog();

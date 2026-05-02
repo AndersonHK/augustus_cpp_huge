@@ -308,7 +308,7 @@ void game_display_fps(int fps)
     int height = 20;
     graphics_draw_rect(x_offset, y_offset, width + 2, height + 2, COLOR_BLACK);
     graphics_fill_rect(x_offset + 1, y_offset + 1, width, height, COLOR_WHITE);
-    text_draw_number_centered_colored(fps, x_offset, y_offset + 6, width, FONT_SMALL_PLAIN, COLOR_BLACK);
+    text_draw_number_centered_colored(fps, x_offset, y_offset + 6, width, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK);
 }
 
 void game_exit(void)

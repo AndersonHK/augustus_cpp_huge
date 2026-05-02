@@ -12,7 +12,7 @@
     <widget type="label" id="objective_4" binding="mission.objective.4" x="304" y="105" width="240" height="16" padding_x="8" padding_y="2" font="normal_red" font_size_delta="2" label_type="1" />
     <widget type="label" id="immediate_goal" binding="mission.immediate_goal" x="48" y="149" width="496" height="16" padding_x="8" padding_y="2" font="normal_red" font_size_delta="2" label_type="1" />
     <widget type="panel" id="body_panel" x="32" y="184" width="544" height="240" stretch_width="true" stretch_height="true" />
-    <widget type="rich_text" id="body" x="64" y="184" width="512" height="240" stretch_width="true" stretch_height="true" draw_offset_x="-16" draw_offset_y="12" line_spacing="1" paragraph_spacing="1" font_size_delta="4" />
+    <widget type="rich_text" id="body" x="56" y="184" width="496" height="240" stretch_width="true" stretch_height="true" draw_offset_x="0" draw_offset_y="12" line_spacing="1" paragraph_spacing="1" font_size_delta="4" />
     <widget type="scrollbar" id="scrollbar" x="575" y="184" width="16" height="240" stretch_height="true" anchor_x="right" />
     <widget type="image_button" id="button_cancel" action="action.cancel" x="26" y="428" width="31" height="20" anchor_y="bottom" image_collection="90" image_offset="8" />
     <widget type="label" id="button_cancel_text" x="66" y="435" width="100" height="16" anchor_y="bottom" font="normal_black" font_size_delta="2" />

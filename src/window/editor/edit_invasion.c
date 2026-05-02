@@ -114,7 +114,7 @@ static int get_largest_section_title_width(void)
 {
     int largest_width = 0;
     for (size_t i = 0; i < NUMBER_OF_SECTIONS; i++) {
-        int width = lang_text_get_width(CUSTOM_TRANSLATION, sections[i].title, FONT_NORMAL_BLACK);
+        int width = lang_text_get_width(CUSTOM_TRANSLATION, sections[i].title, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (width > largest_width) {
             largest_width = width;
         }
@@ -169,14 +169,14 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(16, BASE_Y_OFFSET, 38, 26);
-    lang_text_draw_centered(44, 22, 16, BASE_Y_OFFSET + 14, 608, FONT_LARGE_BLACK);
+    lang_text_draw_centered(44, 22, 16, BASE_Y_OFFSET + 14, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     int y_offset = BASE_Y_OFFSET + 58;
 
     // Section names
     for (size_t i = 0; i < NUMBER_OF_SECTIONS; i++) {
         lang_text_draw_right_aligned(CUSTOM_TRANSLATION, sections[i].title, 56, y_offset,
-            data.section_title_width, FONT_NORMAL_BLACK);
+            data.section_title_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         y_offset += sections[i].height;
     }
 
@@ -186,28 +186,28 @@ static void draw_background(void)
     // Year text
     btn = &edit_buttons[0];
     text_draw_number_centered_prefix(data.invasion.year, '+', x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_year(scenario_property_start_year() + data.invasion.year, x_offset + btn->x + btn->width + 20,
-        BASE_Y_OFFSET + btn->y + 6, FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Invasion size text
     btn = &edit_buttons[1];
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, x_offset, BASE_Y_OFFSET + btn->y + 6,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number_centered(data.invasion.amount.min, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_AND, x_offset + btn->x + btn->width,
-        BASE_Y_OFFSET + btn->y + 6, btn[1].x - (btn->x + btn->width), FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 6, btn[1].x - (btn->x + btn->width), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     btn = &edit_buttons[2];
     text_draw_number_centered(data.invasion.amount.max, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_UNITS, x_offset + btn->x + btn->width + 10,
-        BASE_Y_OFFSET + btn->y + 6, FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Invasion type text
     btn = &edit_buttons[3];
     text_draw_centered(lang_get_string(CUSTOM_TRANSLATION, invasion_type_strings[data.invasion.type]),
-        x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, FONT_NORMAL_BLACK, 0);
+        x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     font_t enabled_font = (data.invasion.type == INVASION_TYPE_DISTANT_BATTLE ||
         data.invasion.type == INVASION_TYPE_CAESAR) ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK;
@@ -218,26 +218,26 @@ static void draw_background(void)
     // Invasion from text
     btn = &edit_buttons[4];
     lang_text_draw_centered_colored(35, data.invasion.from, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width,
-        enabled_font, enabled_color);
+        enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
     // Invasion priority text
     btn = &edit_buttons[5];
     lang_text_draw_centered_colored(36, data.invasion.attack_type, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6,
-        btn->width, enabled_font, enabled_color);
+        btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
     // Repeat type selected checkbox
     btn = &edit_buttons[6 + data.repeat_type];
-    text_draw(string_from_ascii("x"), x_offset + btn->x + 6, BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK, 0);
+    text_draw(string_from_ascii("x"), x_offset + btn->x + 6, BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     // Never repeat
     btn = &edit_buttons[6];
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_DO_NOT_REPEAT, x_offset + btn->x + 30,
-        BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat forever
     btn = &edit_buttons[7];
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FOREVER, x_offset + btn->x + 30,
-        BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK);
+        BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat N times
     btn = &edit_buttons[9];
@@ -245,10 +245,10 @@ static void draw_background(void)
         text_draw_label_and_number_centered(lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TEXT),
             data.invasion.repeat.times,
             (const char *) lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES),
-            x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, FONT_NORMAL_BLACK, 0);
+            x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_ONCE + data.invasion.repeat.times - 1,
-            x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, FONT_NORMAL_BLACK);
+            x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // Invasion interval text
@@ -257,24 +257,24 @@ static void draw_background(void)
 
     btn = &edit_buttons[10];
     lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, x_offset, BASE_Y_OFFSET + btn->y + 6,
-        enabled_font, enabled_color);
+        enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     text_draw_number_centered_colored(data.invasion.repeat.interval.min, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6,
-        btn->width, enabled_font, enabled_color);
+        btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_AND, x_offset + btn->x + btn->width,
-        BASE_Y_OFFSET + btn->y + 6, btn[1].x - (btn->x + btn->width), enabled_font, enabled_color);
+        BASE_Y_OFFSET + btn->y + 6, btn[1].x - (btn->x + btn->width), enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     btn = &edit_buttons[11];
     text_draw_number_centered_colored(data.invasion.repeat.interval.max, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6,
-        btn->width, enabled_font, enabled_color);
+        btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY_YEARS, x_offset + btn->x + btn->width + 10,
-        BASE_Y_OFFSET + btn->y + 6, enabled_font, enabled_color);
+        BASE_Y_OFFSET + btn->y + 6, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
     // Bottom button labels
     lang_text_draw_centered_colored(44, 26, bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 6,
-        bottom_buttons[0].width, FONT_NORMAL_PLAIN, data.is_new_invasion ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
+        bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_invasion ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_CANCEL, bottom_buttons[1].x, BASE_Y_OFFSET + bottom_buttons[1].y + 6, bottom_buttons[1].width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_centered(18, 3, bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 6, bottom_buttons[2].width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

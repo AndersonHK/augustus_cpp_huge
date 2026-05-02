@@ -62,7 +62,7 @@ static void draw_status(void)
 
     int selected_tool = editor_tool_type();
     int brush_size = editor_tool_brush_size() - 1;
-    lang_text_draw(49, selected_tool, text_offset, 178, FONT_NORMAL_WHITE);
+    lang_text_draw(49, selected_tool, text_offset, 178, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     switch (selected_tool) {
         case TOOL_GRASS:
         case TOOL_TREES:
@@ -72,7 +72,7 @@ static void draw_status(void)
         case TOOL_MEADOW:
         case TOOL_RAISE_LAND:
         case TOOL_LOWER_LAND:
-            lang_text_draw(48, brush_size, text_offset, 194, FONT_NORMAL_GREEN);
+            lang_text_draw(48, brush_size, text_offset, 194, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             break;
         default:
             break;
@@ -94,41 +94,41 @@ static void draw_status(void)
         people_text = 62;
         people_font = FONT_NORMAL_GREEN;
     }
-    lang_text_draw(44, people_text, text_offset, 224, people_font);
+    lang_text_draw(44, people_text, text_offset, 224, people_font, screen_ui_to_pixel(font_definition_for(people_font)->line_height));
 
     entry = scenario_map_river_entry();
     exit = scenario_map_river_exit();
     if (entry.x != -1 || exit.x != -1) {
         if (entry.x == -1) {
-            lang_text_draw(44, 137, text_offset, 239, FONT_NORMAL_RED);
+            lang_text_draw(44, 137, text_offset, 239, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         } else if (exit.x == -1) {
-            lang_text_draw(44, 138, text_offset, 239, FONT_NORMAL_RED);
+            lang_text_draw(44, 138, text_offset, 239, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         } else {
-            lang_text_draw(44, 67, text_offset, 239, FONT_NORMAL_GREEN);
+            lang_text_draw(44, 67, text_offset, 239, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
     }
 
     int invasion_points = scenario_editor_count_invasion_points();
     if (invasion_points == 1) {
-        lang_text_draw(44, 64, text_offset, 254, FONT_NORMAL_GREEN);
+        lang_text_draw(44, 64, text_offset, 254, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else if (invasion_points > 1) {
-        int width = text_draw_number(invasion_points, '@', " ", text_offset - 2, 254, FONT_NORMAL_GREEN, 0);
-        lang_text_draw(44, 65, text_offset + width - 8, 254, FONT_NORMAL_GREEN);
+        int width = text_draw_number(invasion_points, '@', " ", text_offset - 2, 254, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        lang_text_draw(44, 65, text_offset + width - 8, 254, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else {
         const invasion_t *first_invasion = scenario_invasion_get(0);
         if (first_invasion->type != INVASION_TYPE_NONE) {
-            lang_text_draw(44, 63, text_offset, 254, FONT_NORMAL_RED);
+            lang_text_draw(44, 63, text_offset, 254, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         }
     }
 
     if (scenario_editor_earthquake_severity() > 0) {
         map_point earthquake = scenario_editor_earthquake_point();
         if (scenario_editor_earthquake_severity() == EARTHQUAKE_CUSTOM) {
-            lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_EARTHQUAKE_CUSTOM_SET, text_offset, 269, FONT_NORMAL_GREEN);
+            lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_EARTHQUAKE_CUSTOM_SET, text_offset, 269, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         } else if (earthquake.x == -1 || earthquake.y == -1) {
-            lang_text_draw(44, 57, text_offset, 269, FONT_NORMAL_RED);
+            lang_text_draw(44, 57, text_offset, 269, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         } else{
-            lang_text_draw(44, 58, text_offset, 269, FONT_NORMAL_GREEN);
+            lang_text_draw(44, 58, text_offset, 269, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
     }
 }

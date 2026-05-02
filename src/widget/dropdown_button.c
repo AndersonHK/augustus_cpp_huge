@@ -16,7 +16,7 @@ static int calculate_text_width(const complex_button *btn, font_t font)
     if (!btn->sequence || btn->sequence_size == 0) {
         return 0;
     }
-    return lang_text_get_sequence_width(btn->sequence, btn->sequence_size, font);
+    return lang_text_get_sequence_width(btn->sequence, btn->sequence_size, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
 }
 
 /* --- Helper to set anchor visual parameters to match selected option --- */

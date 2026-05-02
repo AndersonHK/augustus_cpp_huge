@@ -101,7 +101,7 @@ static void draw_menu_buttons(void)
             data.focus_button_id == i + 1 ? 1 : 2);
         lang_text_draw_centered(48, MENU_TYPES[data.selected_submenu][i], x_offset - MENU_X_OFFSET,
             data.y_offset + MENU_Y_OFFSET + 3 + MENU_ITEM_HEIGHT * i,
-            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN);
+            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
 }
 

@@ -135,29 +135,29 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 100, 40, 11);
-    lang_text_draw(44, 94, 20, 114, FONT_LARGE_BLACK);
+    lang_text_draw(44, 94, 20, 114, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    text_draw_number_centered_prefix(data.demand_change.year, '+', 30, 158, 60, FONT_NORMAL_BLACK);
-    lang_text_draw_year(scenario_property_start_year() + data.demand_change.year, 100, 158, FONT_NORMAL_BLACK);
+    text_draw_number_centered_prefix(data.demand_change.year, '+', 30, 158, 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_year(scenario_property_start_year() + data.demand_change.year, 100, 158, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    text_draw_centered(resource_get_data(data.demand_change.resource)->text, 190, 158, 120, FONT_NORMAL_BLACK,
+    text_draw_centered(resource_get_data(data.demand_change.resource)->text, 190, 158, 120, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height),
         COLOR_MASK_NONE);
 
-    lang_text_draw(44, 97, 330, 158, FONT_NORMAL_BLACK);
-    text_draw_centered(get_text_for_route_id(data.demand_change.route_id), 420, 158, 200, FONT_NORMAL_BLACK, 0);
+    lang_text_draw(44, 97, 330, 158, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_centered(get_text_for_route_id(data.demand_change.route_id), 420, 158, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    lang_text_draw(44, 100, 60, 198, FONT_NORMAL_BLACK);
-    text_draw_number_centered(data.demand_change.amount, 350, 198, 100, FONT_NORMAL_BLACK);
+    lang_text_draw(44, 100, 60, 198, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_number_centered(data.demand_change.amount, 350, 198, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     
     translation_key key = data.demand_change.buys ? TR_EDITOR_DEMAND_CHANGE_BUYS : TR_EDITOR_DEMAND_CHANGE_SELLS;
-    lang_text_draw_centered(CUSTOM_TRANSLATION, key, 480, 198, 100, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(CUSTOM_TRANSLATION, key, 480, 198, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered_colored(44, 101, 16, 244, 250, FONT_NORMAL_PLAIN,
+    lang_text_draw_centered_colored(44, 101, 16, 244, 250, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
         data.is_new_demand_change ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_CANCEL, 409, 244, 100, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_CANCEL, 409, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered(18, 3, 524, 244, 100, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(18, 3, 524, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

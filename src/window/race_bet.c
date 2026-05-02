@@ -78,15 +78,15 @@ static void draw_background(void)
 
     image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, 20, 20, COLOR_MASK_NONE, SCALE_NONE);
 
-    text_draw_centered(translation_for(TR_WINDOW_RACE_BET_TITLE), 0, 20, BLOCK_SIZE * data.width_blocks, FONT_LARGE_BLACK, 0);
+    text_draw_centered(translation_for(TR_WINDOW_RACE_BET_TITLE), 0, 20, BLOCK_SIZE * data.width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
-    text_draw_multiline(translation_for(TR_WINDOW_RACE_BET_DESCRIPTION), 25, 65, 438, 0, FONT_NORMAL_BLACK, 0);
+    text_draw_multiline(translation_for(TR_WINDOW_RACE_BET_DESCRIPTION), 25, 65, 438, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     inner_panel_draw(18, 300, 28, 2);
-    text_draw_centered(translation_for(TR_WINDOW_RACE_BET_AMOUNT), 18, 310, 80, FONT_NORMAL_WHITE, 0);
-    int width = text_draw_number(data.bet_amount, '@', " ", 165, 310, FONT_NORMAL_WHITE, 0);
-    width += lang_text_draw(50, 15, 165 + width, 310, FONT_NORMAL_WHITE);
-    text_draw_with_money(translation_for(TR_PERSONAL_SAVINGS), city_emperor_personal_savings(), " ", "", 284, 310, 175,  FONT_NORMAL_WHITE, 0);
+    text_draw_centered(translation_for(TR_WINDOW_RACE_BET_AMOUNT), 18, 310, 80, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    int width = text_draw_number(data.bet_amount, '@', " ", 165, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width += lang_text_draw(50, 15, 165 + width, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    text_draw_with_money(translation_for(TR_PERSONAL_SAVINGS), city_emperor_personal_savings(), " ", "", 284, 310, 175,  FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     translation_key horse_description = 0;
     if (data.focus_button_id) {
@@ -95,13 +95,13 @@ static void draw_background(void)
         horse_description = TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION + data.chosen_horse - 1;
     }
     if (horse_description) {
-        text_draw_multiline(translation_for(horse_description), 25, 250, 438, 0, FONT_NORMAL_BLACK, 0);
+        text_draw_multiline(translation_for(horse_description), 25, 250, 438, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
     int button_enabled = data.bet_amount > 0 && data.chosen_horse != 0 && !data.in_progress_bet;
 
     text_draw_centered(translation_for(data.in_progress_bet ? TR_WINDOW_IN_PROGRESS_BET_BUTTON :
-        TR_WINDOW_RACE_BET_BUTTON), 90, 358, 300, button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN,
+        TR_WINDOW_RACE_BET_BUTTON), 90, 358, 300, button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN)->line_height),
         button_enabled ? 0 : COLOR_FONT_LIGHT_GRAY);
 
     int image_id = assets_get_image_id("UI", "Hipp_Team_Blue");

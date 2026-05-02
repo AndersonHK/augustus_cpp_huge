@@ -18,6 +18,7 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/scrollbar.h"
 #include "graphics/window.h"
+#include "graphics/screen.h"
 }
 
 #include <stdlib.h>
@@ -108,6 +109,14 @@ int rich_text_init(
         window_invalidate();
     }
     return data.text_width_blocks;
+}
+
+void rich_text_set_scrollbar_bounds(int x, int y, int height, int scrollable_width)
+{
+    scrollbar.x = x;
+    scrollbar.y = y;
+    scrollbar.height = height;
+    scrollbar.scrollable_width = scrollable_width;
 }
 
 void rich_text_set_fonts(font_t normal_font, font_t heading_font, font_t link_font, int line_spacing)
@@ -316,9 +325,10 @@ static int rich_get_word_width_vector(
         } else if (*str > ' ') {
             std::string utf8_char;
             rich_append_utf8_char(utf8_char, str, num_bytes);
-            width += data.font_size_delta != 0 ?
-                font_vector_runtime_measure_utf8_sized(utf8_char, active_font, style_flags, data.font_size_delta) :
-                font_vector_runtime_measure_utf8(utf8_char, active_font, style_flags, SCALE_NONE);
+            int pixel_size = std::max(
+                1,
+                screen_ui_to_pixel(font_definition_for(active_font)->line_height + data.font_size_delta));
+            width += font_vector_runtime_measure_utf8(utf8_char, active_font, style_flags, pixel_size);
             word_char_seen = 1;
             if (num_bytes > 1 && !link_active) {
                 *num_chars += num_bytes;
@@ -417,15 +427,12 @@ static void draw_line_vector(const uint8_t *str, font_t default_font, int x, int
         if (run_utf8.empty()) {
             return;
         }
-        int run_width = data.font_size_delta != 0 ?
-            font_vector_runtime_measure_utf8_sized(run_utf8, active_font, style_flags, data.font_size_delta) :
-            font_vector_runtime_measure_utf8(run_utf8, active_font, style_flags, SCALE_NONE);
+        int pixel_size = std::max(
+            1,
+            screen_ui_to_pixel(font_definition_for(active_font)->line_height + data.font_size_delta));
+        int run_width = font_vector_runtime_measure_utf8(run_utf8, active_font, style_flags, pixel_size);
         if (!measure_only) {
-            if (data.font_size_delta != 0) {
-                text_draw_utf8_sized_styled(run_utf8, x, y, active_font, color, data.font_size_delta, style_flags);
-            } else {
-                text_draw_utf8_styled(run_utf8, x, y, active_font, color, SCALE_NONE, style_flags);
-            }
+            text_draw_utf8_styled(run_utf8, x, y, active_font, pixel_size, color, style_flags);
         }
         x += run_width;
         run_utf8.clear();
@@ -568,9 +575,10 @@ static int get_raw_text_width(const uint8_t *str)
             } else if (*str > ' ') {
                 std::string utf8_char;
                 rich_append_utf8_char(utf8_char, str, num_bytes);
-                width += data.font_size_delta != 0 ?
-                    font_vector_runtime_measure_utf8_sized(utf8_char, active_font, style_flags, data.font_size_delta) :
-                    font_vector_runtime_measure_utf8(utf8_char, active_font, style_flags, SCALE_NONE);
+                int pixel_size = std::max(
+                    1,
+                    screen_ui_to_pixel(font_definition_for(active_font)->line_height + data.font_size_delta));
+                width += font_vector_runtime_measure_utf8(utf8_char, active_font, style_flags, pixel_size);
             }
             str += num_bytes;
         }

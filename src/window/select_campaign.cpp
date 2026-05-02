@@ -77,7 +77,7 @@ static input_box player_name_input = { 304, 52, 20, 2, FONT_NORMAL_WHITE, 1, dat
 
 static void calculate_input_box_width(void)
 {
-    int text_width = lang_text_get_width(31, 0, FONT_NORMAL_BLACK);
+    int text_width = lang_text_get_width(31, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     player_name_input.x = ((text_width + 31) / BLOCK_SIZE) * BLOCK_SIZE;
     player_name_input.width_blocks = (624 - player_name_input.x) / BLOCK_SIZE;
 }
@@ -109,19 +109,19 @@ static void draw_background(void)
     image_draw_fullscreen_background(image_group(GROUP_MAIN_MENU_BACKGROUND));
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_SELECT_CAMPAIGN, 32, 14, 554, FONT_LARGE_BLACK);
-    lang_text_draw(31, 0, 16, 61, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_SELECT_CAMPAIGN, 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw(31, 0, 16, 61, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     const campaign_info *info = game_campaign_get_info();
     if (!info) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_SAVE_DIALOG_INVALID_FILE, 362, 241, 246, FONT_LARGE_BLACK);
+        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_SAVE_DIALOG_INVALID_FILE, 362, 241, 246, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
         data.available_buttons = 1;
     } else {
         int y_offset = 40;
-        text_draw_centered_ellipsized(info->name, 362, CAMPAIGN_LIST_Y_POSITION, 246, FONT_NORMAL_BLACK, 0);
+        text_draw_centered_ellipsized(info->name, 362, CAMPAIGN_LIST_Y_POSITION, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         if (info->author) {
             int width = lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_AUTHOR,
-                362, CAMPAIGN_LIST_Y_POSITION + 20, FONT_NORMAL_BLACK);
-            text_draw(info->author, 362 + width, CAMPAIGN_LIST_Y_POSITION + 20, FONT_NORMAL_BLACK, 0);
+                362, CAMPAIGN_LIST_Y_POSITION + 20, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            text_draw(info->author, 362 + width, CAMPAIGN_LIST_Y_POSITION + 20, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             y_offset += 20;
         }
         if (info->description) {
@@ -132,18 +132,18 @@ static void draw_background(void)
             rich_text_update();
             rich_text_draw_scrollbar();
         } else {
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_NO_DESC, 362, 246, 246, FONT_NORMAL_BLACK);
+            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_NO_DESC, 362, 246, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
         if (info->current_mission >= info->number_of_missions) {
             lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_FINISHED,
-                362, 414, 246, FONT_NORMAL_BLACK);
+                362, 414, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else if (info->current_mission > 0) {
-            int width = lang_text_get_width(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_CURRENT_MISSION, FONT_NORMAL_BLACK);
-            width += text_get_number_width(info->current_mission + 1, '@', "", FONT_NORMAL_BLACK);
+            int width = lang_text_get_width(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_CURRENT_MISSION, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            width += text_get_number_width(info->current_mission + 1, '@', "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             int x_offset = (246 - width) / 2;
             x_offset += lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_CURRENT_MISSION,
-                362 + x_offset, 414, FONT_NORMAL_BLACK);
-            text_draw_number(info->current_mission + 1, '@', "", 362 + x_offset, 414, FONT_NORMAL_BLACK, 0);
+                362 + x_offset, 414, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            text_draw_number(info->current_mission + 1, '@', "", 362 + x_offset, 414, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
 
         data.available_buttons = info->current_mission > 0 ? 3 : 2;
@@ -164,8 +164,8 @@ static void draw_campaign_item(const list_box_item *item)
         file_remove_extension((char *) file);
     }
     font_t font = item->is_selected ? FONT_NORMAL_WHITE : FONT_NORMAL_GREEN;
-    text_ellipsize(file, font, item->width);
-    text_draw(file, item->x, item->y, font, 0);
+    text_ellipsize(file, font, screen_ui_to_pixel(font_definition_for(font)->line_height), item->width);
+    text_draw(file, item->x, item->y, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
     if (item->is_focused) {
         button_border_draw(item->x - 4, item->y - 4, item->width + 6, item->height + 4, 1);
     }
@@ -293,7 +293,7 @@ static void campaign_name_tooltip(const list_box_item *item, tooltip_context *c)
         file_remove_extension((char *) file);
     }
     font_t font = item->is_selected ? FONT_NORMAL_WHITE : FONT_NORMAL_GREEN;
-    if (text_get_width(file, font) > item->width) {
+    if (text_get_width(file, font, screen_ui_to_pixel(font_definition_for(font)->line_height)) > item->width) {
         c->precomposed_text = file;
         c->type = TOOLTIP_BUTTON;
     }

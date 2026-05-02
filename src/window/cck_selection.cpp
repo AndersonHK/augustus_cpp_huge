@@ -93,8 +93,8 @@ static void draw_scenario_item(const list_box_item *item)
     }
     encoding_from_utf8(data.scenarios->files[item->index].name, displayable_file, FILE_NAME_MAX);
     file_remove_extension((char *) displayable_file);
-    text_ellipsize(displayable_file, font, item->width);
-    text_draw(displayable_file, item->x, item->y, font, 0);
+    text_ellipsize(displayable_file, font, screen_ui_to_pixel(font_definition_for(font)->line_height), item->width);
+    text_draw(displayable_file, item->x, item->y, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
 }
 
 static void draw_scenario_info(void)
@@ -105,17 +105,17 @@ static void draw_scenario_info(void)
 
     image_draw(image_group(GROUP_SCENARIO_IMAGE) + data.info.image_id, 78, 36, COLOR_MASK_NONE, SCALE_NONE);
 
-    text_ellipsize(data.selected_scenario_display, FONT_LARGE_BLACK, scenario_info_width + 10);
+    text_ellipsize(data.selected_scenario_display, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), scenario_info_width + 10);
     text_draw_centered(data.selected_scenario_display,
-        scenario_info_x, 25, scenario_info_width + 10, FONT_LARGE_BLACK, 0);
-    text_draw_centered(data.info.description, scenario_info_x, 60, scenario_info_width, FONT_NORMAL_WHITE, 0);
-    lang_text_draw_year(data.info.start_year, scenario_criteria_x, 90, FONT_LARGE_BLACK);
+        scenario_info_x, 25, scenario_info_width + 10, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_centered(data.info.description, scenario_info_x, 60, scenario_info_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    lang_text_draw_year(data.info.start_year, scenario_criteria_x, 90, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     if (data.show_minimap) {
         widget_minimap_draw(332, 119, 286, 300);
     } else {
         lang_text_draw_centered(44, 77 + data.info.climate,
-            scenario_info_x, 150, scenario_info_width, FONT_NORMAL_BLACK);
+            scenario_info_x, 150, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         // map size
         int text_id;
@@ -127,7 +127,7 @@ static void draw_scenario_info(void)
             case 120: text_id = 125; break;
             default: text_id = 126; break;
         }
-        lang_text_draw_centered(44, text_id, scenario_info_x, 170, scenario_info_width, FONT_NORMAL_BLACK);
+        lang_text_draw_centered(44, text_id, scenario_info_x, 170, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         // military
         if (data.info.total_invasions <= 0) {
@@ -141,56 +141,56 @@ static void draw_scenario_info(void)
         } else {
             text_id = 116;
         }
-        lang_text_draw_centered(44, text_id, scenario_info_x, 190, scenario_info_width, FONT_NORMAL_BLACK);
+        lang_text_draw_centered(44, text_id, scenario_info_x, 190, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         lang_text_draw_centered(32, 11 + data.info.player_rank,
-            scenario_info_x, 210, scenario_info_width, FONT_NORMAL_BLACK);
+            scenario_info_x, 210, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (data.info.is_open_play) {
             if (data.info.open_play_id < 12) {
                 lang_text_draw_multiline(145, data.info.open_play_id,
-                    scenario_info_x + 10, 270, scenario_info_width - 10, FONT_NORMAL_BLACK);
+                    scenario_info_x + 10, 270, scenario_info_width - 10, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
         } else {
-            lang_text_draw_centered(44, 127, scenario_info_x, 262, scenario_info_width, FONT_NORMAL_BLACK);
+            lang_text_draw_centered(44, 127, scenario_info_x, 262, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             int width;
             if (data.info.win_criteria.culture.enabled) {
                 width = text_draw_number(data.info.win_criteria.culture.goal, '@', " ",
-                    scenario_criteria_x, 290, FONT_NORMAL_BLACK, 0);
-                lang_text_draw(44, 129, scenario_criteria_x + width, 290, FONT_NORMAL_BLACK);
+                    scenario_criteria_x, 290, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                lang_text_draw(44, 129, scenario_criteria_x + width, 290, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.prosperity.enabled) {
                 width = text_draw_number(data.info.win_criteria.prosperity.goal, '@', " ",
-                    scenario_criteria_x, 306, FONT_NORMAL_BLACK, 0);
-                lang_text_draw(44, 130, scenario_criteria_x + width, 306, FONT_NORMAL_BLACK);
+                    scenario_criteria_x, 306, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                lang_text_draw(44, 130, scenario_criteria_x + width, 306, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.peace.enabled) {
                 width = text_draw_number(data.info.win_criteria.peace.goal, '@', " ",
-                    scenario_criteria_x, 322, FONT_NORMAL_BLACK, 0);
-                lang_text_draw(44, 131, scenario_criteria_x + width, 322, FONT_NORMAL_BLACK);
+                    scenario_criteria_x, 322, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                lang_text_draw(44, 131, scenario_criteria_x + width, 322, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.favor.enabled) {
                 width = text_draw_number(data.info.win_criteria.favor.goal, '@', " ",
-                    scenario_criteria_x, 338, FONT_NORMAL_BLACK, 0);
-                lang_text_draw(44, 132, scenario_criteria_x + width, 338, FONT_NORMAL_BLACK);
+                    scenario_criteria_x, 338, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                lang_text_draw(44, 132, scenario_criteria_x + width, 338, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.population.enabled) {
                 width = text_draw_number(data.info.win_criteria.population.goal, '@', " ",
-                    scenario_criteria_x, 354, FONT_NORMAL_BLACK, 0);
-                lang_text_draw(44, 133, scenario_criteria_x + width, 354, FONT_NORMAL_BLACK);
+                    scenario_criteria_x, 354, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                lang_text_draw(44, 133, scenario_criteria_x + width, 354, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.time_limit.enabled) {
                 width = text_draw_number(data.info.win_criteria.time_limit.years, '@', " ",
-                    scenario_criteria_x, 370, FONT_NORMAL_BLACK, 0);
-                lang_text_draw(44, 134, scenario_criteria_x + width, 370, FONT_NORMAL_BLACK);
+                    scenario_criteria_x, 370, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                lang_text_draw(44, 134, scenario_criteria_x + width, 370, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.survival_time.enabled) {
                 width = text_draw_number(data.info.win_criteria.survival_time.years, '@', " ",
-                    scenario_criteria_x, 386, FONT_NORMAL_BLACK, 0);
-                lang_text_draw(44, 135, scenario_criteria_x + width, 386, FONT_NORMAL_BLACK);
+                    scenario_criteria_x, 386, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                lang_text_draw(44, 135, scenario_criteria_x + width, 386, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
         }
     }
-    lang_text_draw_centered(44, 136, scenario_info_x, 446, scenario_info_width, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(44, 136, scenario_info_x, 446, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void draw_toggle_minimap_button_contents(void)
@@ -264,7 +264,7 @@ static void file_tooltip(const list_box_item *item, tooltip_context *c)
     font_t font = item->is_selected ? FONT_NORMAL_WHITE : FONT_NORMAL_GREEN;
     encoding_from_utf8(data.scenarios->files[item->index].name, displayable_file, FILE_NAME_MAX);
     file_remove_extension((char *) displayable_file);
-    if (text_get_width(displayable_file, font) > item->width) {
+    if (text_get_width(displayable_file, font, screen_ui_to_pixel(font_definition_for(font)->line_height)) > item->width) {
         c->precomposed_text = displayable_file;
         c->type = TOOLTIP_BUTTON;
     }

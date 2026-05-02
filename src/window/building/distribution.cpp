@@ -507,16 +507,16 @@ static void draw_dock_permission_buttons(int x_offset, int y_offset, int dock_id
         int state = building_dock_can_trade_with_route(dock_distribution_permissions_buttons[i].parameter1, dock_id);
         if (state) {
             lang_text_draw_centered(99, 7, x_offset + button->x, y_offset + button->y + 5, button->width,
-                FONT_NORMAL_WHITE);
+                FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
             lang_text_draw_centered(99, 8, x_offset + button->x, y_offset + button->y + 5, button->width,
-                FONT_NORMAL_RED);
+                FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         }
         empire_city *city = empire_city_get(button->parameter2);
         const uint8_t *city_name = empire_city_get_name(city);
         int x = x_offset + 16;
         int y = y_offset + 4 + button->y;
-        text_draw(city_name, x, y, FONT_NORMAL_WHITE, 0);
+        text_draw(city_name, x, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     }
 }
 
@@ -526,7 +526,7 @@ void window_building_draw_dock(building_info_context *c)
     c->help_id = 83;
 
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(101, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK);
+    lang_text_draw_centered(101, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     building *b = building_get(c->building_id);
 
@@ -570,7 +570,7 @@ void window_building_draw_dock(building_info_context *c)
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 110, 101, 1);
     init_dock_permission_buttons();
     text_draw_centered(translation_for(TR_BUILDING_DOCK_CITIES_CONFIG_DESC), c->x_offset, c->y_offset + 215,
-        BLOCK_SIZE * c->width_blocks, FONT_NORMAL_BLACK, 0);
+        BLOCK_SIZE * c->width_blocks, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     int panel_height = c->height_blocks - 23;
     data.dock_max_cities_visible = panel_height * BLOCK_SIZE / 22;
     int scrollbar_shown = dock_distribution_permissions_buttons_count > data.dock_max_cities_visible;
@@ -592,7 +592,7 @@ void window_building_draw_dock(building_info_context *c)
     }
     if (!dock_distribution_permissions_buttons_count) {
         text_draw_centered(translation_for(TR_BUILDING_DOCK_CITIES_NO_ROUTES), c->x_offset + 16,
-            c->y_offset + 240 + panel_height * BLOCK_SIZE / 2 - 7, panel_width * BLOCK_SIZE, FONT_NORMAL_BROWN, 0);
+            c->y_offset + 240 + panel_height * BLOCK_SIZE / 2 - 7, panel_width * BLOCK_SIZE, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     }
 }
 
@@ -601,7 +601,7 @@ void window_building_draw_dock_foreground(building_info_context *c)
     button_border_draw(c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
         BLOCK_SIZE * (c->width_blocks - 10), 20, data.focus_button_id == 1 ? 1 : 0);
     lang_text_draw_centered(98, 5, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30,
-        BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK);
+        BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     draw_dock_permission_buttons(c->x_offset + 16, c->y_offset + 245, c->building_id);
     scrollbar_draw(&scrollbar);
 }
@@ -639,10 +639,10 @@ static void draw_caravanserai_food_per_month(building_info_context *c, int y_off
     y_offset = c->y_offset + y_offset;
     font_t font = FONT_NORMAL_BLACK;
     x_offset += lang_text_draw(CUSTOM_TRANSLATION,
-        TR_BUILDING_INFO_CARAVANSERAI_MONTHLY_CONSUMPTION, x_offset, y_offset, font);
+        TR_BUILDING_INFO_CARAVANSERAI_MONTHLY_CONSUMPTION, x_offset, y_offset, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int food_required_monthly = building_caravanserai_food_required_monthly();
-    x_offset += text_draw_number(food_required_monthly, '\0', "\0", x_offset, y_offset, font, COLOR_MASK_NONE);
-    x_offset += lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_UNITS, x_offset, y_offset, font);
+    x_offset += text_draw_number(food_required_monthly, '\0', "\0", x_offset, y_offset, font, screen_ui_to_pixel(font_definition_for(font)->line_height), COLOR_MASK_NONE);
+    x_offset += lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_UNITS, x_offset, y_offset, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
 }
 
 static void draw_food_stocks(building_info_context *c, building *b, int y_offset)
@@ -668,7 +668,7 @@ static void draw_food_stocks(building_info_context *c, building *b, int y_offset
         image_draw(resource_get_data(r)->image.icon, c->x_offset + x_offset + base_width, c->y_offset + y_offset + base_height,
             COLOR_MASK_NONE, SCALE_NONE);
         text_draw_number(b->resources[r], '@', " ",
-            c->x_offset + x_offset + 25, c->y_offset + y_offset + 7, font, 0);
+            c->x_offset + x_offset + 25, c->y_offset + y_offset + 7, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         x_offset += 85;
         food_type_index++;
     }
@@ -690,7 +690,7 @@ static void draw_good_stocks(building_info_context *c, building *b, int y_offset
         image_draw(resource_get_data(r)->image.icon, c->x_offset + x_offset + base_width, c->y_offset + y_offset + base_height,
             COLOR_MASK_NONE, SCALE_NONE);
         text_draw_number(b->resources[r], '@', " ",
-            c->x_offset + x_offset + 25, c->y_offset + y_offset + 7, font, 0);
+            c->x_offset + x_offset + 25, c->y_offset + y_offset + 7, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         x_offset += 85;
     }
 }
@@ -713,7 +713,7 @@ void window_building_draw_market(building_info_context *c)
 
     window_building_play_sound(c, "wavs/market.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(97, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK);
+    lang_text_draw_centered(97, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
@@ -738,7 +738,7 @@ void window_building_distributor_draw_foreground(building_info_context *c)
     button_border_draw(c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
         BLOCK_SIZE * (c->width_blocks - 10), 20, data.focus_button_id == 1 ? 1 : 0);
     lang_text_draw_centered(98, 5, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30,
-        BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK);
+        BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void set_distributed_resources(building_type type)
@@ -761,7 +761,7 @@ void window_building_draw_distributor_orders(building_info_context *c, const uin
     c->help_id = type == BUILDING_DOCK ? 83 : 3;
     int y_offset = window_building_get_vertical_offset(c, 28);
     outer_panel_draw(c->x_offset, y_offset, 29, 28);
-    text_draw_centered(title, c->x_offset, y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, 0);
+    text_draw_centered(title, c->x_offset, y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     if (!data.showing_special_orders || data.building_id != c->building_id) {
         set_distributed_resources(type);
@@ -840,15 +840,15 @@ void window_building_draw_distributor_orders_foreground(building_info_context *c
             image_draw(image_id, c->x_offset + 408 + base_width, y_offset + 43 + 22 * i + base_height, COLOR_MASK_NONE, SCALE_NONE);
         }
         text_draw(resource_get_data(resource)->text, c->x_offset + 72, y_offset + 50 + 22 * i,
-            FONT_NORMAL_WHITE, COLOR_MASK_NONE);
+            FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
         button_border_draw(c->x_offset + 180, y_offset + 46 + 22 * i, 210, 22,
             data.resource_focus_button_id == i + 1);
         if (building_distribution_is_good_accepted(b, resource)) {
             lang_text_draw_centered(lang_group, lang_active_id,
-                c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_WHITE);
+                c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
             lang_text_draw_centered(lang_group, lang_inactive_id,
-                c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_RED);
+                c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         }
     }
 }
@@ -913,38 +913,38 @@ static void draw_button_from_state(resource_storage_entry entry, int x, int y, b
         {
             image_width = image_get(image_group(GROUP_CONTEXT_ICONS) + 12)->width + 10;
             int group_number = resource_is_food(resource) ? 10 : 9;  // 10 = "getting food", 9 = "getting goods"
-            text_width = lang_text_get_width(99, group_number, FONT_NORMAL_WHITE);
+            text_width = lang_text_get_width(99, group_number, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             start_x = x + (210 - image_width - text_width) / 2;
             image_draw(image_group(GROUP_CONTEXT_ICONS) + 12, start_x, y - 2, COLOR_MASK_NONE, SCALE_NONE);
-            lang_text_draw(99, group_number, start_x + image_width, y, FONT_NORMAL_WHITE);
+            lang_text_draw(99, group_number, start_x + image_width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             snprintf(text, sizeof(text), "%d", entry.quantity);
             break;
         }
         case BUILDING_STORAGE_STATE_NOT_ACCEPTING:
-            lang_text_draw_centered(99, 8, x, y, 210, FONT_NORMAL_RED); // lang ID 8 = "Not accepting"
+            lang_text_draw_centered(99, 8, x, y, 210, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height)); // lang ID 8 = "Not accepting"
             break;
         case BUILDING_STORAGE_STATE_MAINTAINING:
         {
             int maintain_goods_icon_id = assets_get_image_id("UI", "Maintain_Goods_Icon_2");
             image_width = image_get(maintain_goods_icon_id)->width + 10;
             text_width = lang_text_get_width(CUSTOM_TRANSLATION, TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING,
-                 FONT_NORMAL_WHITE);
+                 FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             start_x = x + (210 - image_width - text_width) / 2;
             image_draw(maintain_goods_icon_id, start_x, y - 2, COLOR_MAINTAIN_ICON, SCALE_NONE);
             // this icon needs scaling to be similar to getting goods - draw at 80% scale
             lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING,
-                start_x + image_width, y, FONT_NORMAL_WHITE);
+                start_x + image_width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             snprintf(text, sizeof(text), "%d", entry.quantity);
             break;
         }
         default: // ACCEPTING
-            lang_text_draw_centered(99, 7, x, y, 210, FONT_NORMAL_WHITE); // lang ID 7 = "Accepting"
+            lang_text_draw_centered(99, 7, x, y, 210, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height)); // lang ID 7 = "Accepting"
             snprintf(text, sizeof(text), "%d", entry.quantity);
             break;
     }
 
     // Determined capacity text
-    text_draw_centered((uint8_t *) text, x + 214, y, 20, FONT_NORMAL_BLACK, 0);
+    text_draw_centered((uint8_t *) text, x + 214, y, 20, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
 }
 
@@ -965,7 +965,7 @@ static void draw_resource_orders_buttons(int x, int y, const resource_list *list
         image_draw(image_id, x + base_width, y_offset - 2 + base_height, COLOR_MASK_NONE, SCALE_NONE);
         if (!scrollbar_shown) {
             image_draw(image_id, x + 390 + base_width, y_offset - 2 + base_height, COLOR_MASK_NONE, SCALE_NONE);
-            text_draw(resource_get_data(resource)->text, x + 30, y_offset + 4, FONT_NORMAL_WHITE, COLOR_MASK_NONE);
+            text_draw(resource_get_data(resource)->text, x + 30, y_offset + 4, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
             button_border_draw(x + 148, y_offset, 210, 22, data.resource_focus_button_id == i + 1);
             button_border_draw(x + 358, y_offset, 28, 22, data.partial_resource_focus_button_id == i + 1);
 
@@ -973,7 +973,7 @@ static void draw_resource_orders_buttons(int x, int y, const resource_list *list
         }
         if (scrollbar_shown) {
             image_draw(image_id, x + 360 + base_width, y_offset - 2 + base_height, COLOR_MASK_NONE, SCALE_NONE);
-            text_draw(resource_get_data(resource)->text, x + 30, y_offset + 4, FONT_NORMAL_WHITE, COLOR_MASK_NONE);
+            text_draw(resource_get_data(resource)->text, x + 30, y_offset + 4, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
             button_border_draw(x + 118, y_offset, 210, 22, data.resource_focus_button_id == i + 1);
             button_border_draw(x + 328, y_offset, 28, 22, data.partial_resource_focus_button_id == i + 1);
 
@@ -1102,7 +1102,7 @@ void window_building_draw_storage(building_info_context *c)
     // height adjustment shouldn't be handled at this level, so was moved to building_info.c
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     text_draw_label_and_number_centered(lang_get_string(28, b->type), b->storage_id, "",
-        c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, 0);
+        c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     const char *sound = b->has_plague ? "wavs/clinic.wav"
         : is_granary(c) ? "wavs/granary.wav"
@@ -1127,7 +1127,7 @@ void window_building_draw_storage(building_info_context *c)
         if (!stored_types) {
             int msg = is_granary(c) ? TR_BUILDING_GRANARY_NO_FOOD : TR_BUILDING_WAREHOUSE_NO_GOODS;
             lang_text_draw_centered(CUSTOM_TRANSLATION, msg, c->x_offset, c->y_offset + 56,
-                BLOCK_SIZE * c->width_blocks, FONT_NORMAL_BLACK);
+                BLOCK_SIZE * c->width_blocks, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             y += 32;
         } else {
             for (int resource_id = RESOURCE_NONE + 1; resource_id < RESOURCE_MAX; resource_id++) {
@@ -1150,18 +1150,18 @@ void window_building_draw_storage(building_info_context *c)
                 int base_height = (25 - img->original.height) / 2;
                 image_draw(resource_get_data(r)->image.icon, x + base_width, y + 5 + base_height, COLOR_MASK_NONE, SCALE_NONE);
 
-                int width = text_draw_number(amount, '@', " ", x + 32, y + 12, FONT_NORMAL_BLACK, COLOR_MASK_NONE);
-                text_draw(resource_get_data(r)->text, x + 32 + width, y + 12, FONT_NORMAL_BLACK, COLOR_MASK_NONE);
+                int width = text_draw_number(amount, '@', " ", x + 32, y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
+                text_draw(resource_get_data(r)->text, x + 32 + width, y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
             }
 
-            int width = lang_text_draw(98, 2, c->x_offset + 16, c->y_offset + 40, FONT_NORMAL_BLACK);
+            int width = lang_text_draw(98, 2, c->x_offset + 16, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             lang_text_draw_amount(CUSTOM_TRANSLATION, TR_BUILDING_INFO_CARTLOAD, total_stored,
-                c->x_offset + 16 + width, c->y_offset + 40, FONT_NORMAL_BLACK);
+                c->x_offset + 16 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-            width = lang_text_draw(98, 3, c->x_offset + 220, c->y_offset + 40, FONT_NORMAL_BLACK);
+            width = lang_text_draw(98, 3, c->x_offset + 220, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             int max = is_granary(c) ? b->resources[RESOURCE_NONE] : 32 - total_stored;
             lang_text_draw_amount(CUSTOM_TRANSLATION, TR_BUILDING_INFO_CARTLOAD, max,
-                c->x_offset + 220 + width, c->y_offset + 40, FONT_NORMAL_BLACK);
+                c->x_offset + 220 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     }
     y += 26; // TODO: simplify these values later, hardcoding and multiple vars are not necessary
@@ -1172,7 +1172,7 @@ void window_building_draw_storage(building_info_context *c)
     window_building_draw_employment(c, y_offset + 12);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 16 + y_offset);
     lang_text_draw_multiline(is_granary(c) ? 98 : 99, 1, c->x_offset + 32, c->y_offset + y_offset + 180,
-        BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK);
+        BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // cartpusher state
     figure *f = figure_get(b->figure_id);
@@ -1184,14 +1184,14 @@ void window_building_draw_storage(building_info_context *c)
         if (resource != RESOURCE_NONE) {
             if (f->action_state == FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE) {
                 lang_text_draw_multiline(is_granary(c) ? 98 : 99, is_granary(c) ? 9 : 16,
-                    c->x_offset + 64, c->y_offset + y_offset + 63, BLOCK_SIZE * (c->width_blocks - 5), FONT_NORMAL_BROWN);
+                    c->x_offset + 64, c->y_offset + y_offset + 63, BLOCK_SIZE * (c->width_blocks - 5), FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             } else if (f->loads_sold_or_carrying) {
                 text_draw_multiline(translation_for(TR_WINDOW_BUILDING_DISTRIBUTION_CART_PUSHER_RETURNING_WITH),
                     c->x_offset + 64, c->y_offset + y_offset + 63,
-                    BLOCK_SIZE * (c->width_blocks - 5), 0, FONT_NORMAL_BROWN, 0);
+                    BLOCK_SIZE * (c->width_blocks - 5), 0, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             } else {
                 lang_text_draw_multiline(99, 17, c->x_offset + 64, c->y_offset + y_offset + 63,
-                    BLOCK_SIZE * (c->width_blocks - 5), FONT_NORMAL_BROWN);
+                    BLOCK_SIZE * (c->width_blocks - 5), FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             }
         } else {
             text_draw_multiline(
@@ -1199,11 +1199,11 @@ void window_building_draw_storage(building_info_context *c)
                     ? TR_WINDOW_BUILDING_DISTRIBUTION_GRANARY_CART_PUSHER_GETTING
                     : TR_WINDOW_BUILDING_DISTRIBUTION_CART_PUSHER_GETTING),
                 c->x_offset + 64, c->y_offset + y_offset + 63,
-                BLOCK_SIZE * (c->width_blocks - 5), 0, FONT_NORMAL_BROWN, 0);
+                BLOCK_SIZE * (c->width_blocks - 5), 0, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
         }
     } else if (b->num_workers) {
         lang_text_draw_multiline(99, 15, c->x_offset + 32, c->y_offset + y_offset + 63,
-            BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BROWN);
+            BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     }
 }
 
@@ -1256,7 +1256,7 @@ void window_building_draw_storage_foreground(building_info_context *c)
     // Special orders button
     generic_button *button = go_to_storage_orders_button;
     button_border_draw(button->x, button->y, button->width, button->height, data.focus_button_id == 1 ? 1 : 0);
-    lang_text_draw_centered(99, 2, button->x, button->y + 5, button->width, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(99, 2, button->x, button->y + 5, button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     int rejects_all = get_permissions_all_none_button_state(c);
     storage_image_buttons[2 + rejects_all].dont_draw = 1; // hide the irrelevant button
 
@@ -1298,7 +1298,7 @@ void window_building_draw_storage_orders(building_info_context *c)
     c->help_id = is_granary(c) ? 3 : 4;
     outer_panel_draw(c->x_offset, y_offset, 29, 28);
     lang_text_draw_sequence_centered(instructions_header, 3, c->x_offset, y_offset + 10,
-         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, COLOR_MASK_NONE);
+         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), COLOR_MASK_NONE);
     if (!data.showing_special_orders || data.building_id != c->building_id) {
         const resource_list *list = is_granary(c) ? city_resource_get_potential_foods()
             : city_resource_get_potential();
@@ -1333,19 +1333,19 @@ void window_building_draw_storage_orders_foreground(building_info_context *c)
     if (storage->empty_all) {
         lang_text_draw_centered(label_id, is_granary(c) ? 8 : 5, //button text
             storage_empty_all_button->x, storage_empty_all_button->y + 5,
-            storage_empty_all_button->width, FONT_NORMAL_BLACK);
+            storage_empty_all_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         if (is_granary(c)) {
             lang_text_draw_centered(98, 9, c->x_offset, storage_empty_all_button->y - 28,  // 'trying to send elsewhere'
-                BLOCK_SIZE * c->width_blocks, FONT_NORMAL_BLACK);
+                BLOCK_SIZE * c->width_blocks, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
             lang_text_draw_centered(99, 6, c->x_offset, storage_empty_all_button->y - 28,
-                BLOCK_SIZE * c->width_blocks, FONT_SMALL_PLAIN);
+                BLOCK_SIZE * c->width_blocks, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         }
     } else {
         lang_text_draw_centered(label_id, is_granary(c) ? 7 : 4,
             storage_empty_all_button->x, storage_empty_all_button->y + 5,
-            storage_empty_all_button->width, FONT_NORMAL_BLACK);
+            storage_empty_all_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // Accept-none button
@@ -1614,7 +1614,7 @@ void window_building_draw_mess_hall(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
 
     text_draw_centered(translation_for(TR_BUILDING_MESS_HALL),
-        c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, 0);
+        c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     if (b->num_workers <= 0 && food_types <= 0) {
         window_building_draw_description_at(c, 50, CUSTOM_TRANSLATION, TR_BUILDING_MESS_HALL_NO_EMPLOYEES);
     } else if (b->num_workers > 0 && food_types <= 0) {
@@ -1624,11 +1624,11 @@ void window_building_draw_mess_hall(building_info_context *c)
     }
     if (city_military_total_soldiers_in_city() > 0) {
         int width = text_draw(translation_for(TR_BUILDING_MESS_HALL_FULFILLMENT),
-            c->x_offset + 32, c->y_offset + 92 + y_offset, FONT_NORMAL_BLACK, 0);
+            c->x_offset + 32, c->y_offset + 92 + y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         text_draw_percentage(mess_hall_fulfillment_display,
-            c->x_offset + 32 + width, c->y_offset + 92 + y_offset, FONT_NORMAL_BLACK);
+            c->x_offset + 32 + width, c->y_offset + 92 + y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         width = text_draw(translation_for(TR_BUILDING_MESS_HALL_TROOP_HUNGER),
-            c->x_offset + 32, c->y_offset + 117 + y_offset, FONT_NORMAL_BLACK, 0);
+            c->x_offset + 32, c->y_offset + 117 + y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         if (food_stress < 3) {
             hunger_text = TR_BUILDING_MESS_HALL_TROOP_HUNGER_1;
         } else if (food_stress > 80) {
@@ -1642,26 +1642,26 @@ void window_building_draw_mess_hall(building_info_context *c)
         }
 
         text_draw(translation_for(hunger_text), c->x_offset + 32 + width, c->y_offset + 117 + y_offset,
-            FONT_NORMAL_BLACK, 0);
+            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
         width = text_draw(translation_for(TR_BUILDING_MESS_HALL_MONTHS_FOOD_STORED), c->x_offset + 32,
-            c->y_offset + 142 + y_offset, FONT_NORMAL_BLACK, 0);
+            c->y_offset + 142 + y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         text_draw_number(city_mess_hall_months_food_stored(), '@', " ",
-            c->x_offset + 32 + width, c->y_offset + 142 + y_offset, FONT_NORMAL_BLACK, 0);
+            c->x_offset + 32 + width, c->y_offset + 142 + y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
         if (city_mess_hall_food_types() == 2) {
             text_draw_multiline(translation_for(TR_BUILDING_MESS_HALL_FOOD_TYPES_BONUS_1), c->x_offset + 32,
-                c->y_offset + 167 + y_offset, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, 0);
+                c->y_offset + 167 + y_offset, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else if (city_mess_hall_food_types() >= 3) {
             text_draw_multiline(translation_for(TR_BUILDING_MESS_HALL_FOOD_TYPES_BONUS_2), c->x_offset + 32,
-                c->y_offset + 167 + y_offset, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, 0);
+                c->y_offset + 167 + y_offset, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
     } else {
         text_draw_centered(translation_for(TR_BUILDING_MESS_HALL_NO_SOLDIERS), c->x_offset, c->y_offset + 130 + y_offset,
-            BLOCK_SIZE * (c->width_blocks), FONT_NORMAL_BLACK, 0);
+            BLOCK_SIZE * (c->width_blocks), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
     text_draw_multiline(translation_for(TR_BUILDING_MESS_HALL_DESC), c->x_offset + 32, c->y_offset + 316 + y_offset,
-        BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, 0);
+        BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     inner_panel_draw(c->x_offset + 16, c->y_offset + 236 + y_offset, c->width_blocks - 2, 4);
     window_building_draw_employment(c, 240 + y_offset);
@@ -1741,13 +1741,13 @@ void window_building_draw_caravanserai(building_info_context *c)
             window_building_draw_description_at(c, 91, 69, 25);
         } else if (building_monument_has_labour_problems(b)) {
             text_draw_multiline(translation_for(TR_BUILDING_CARAVANSERAI_NEEDS_WORKERS),
-                c->x_offset + 32, c->y_offset + 91 + y_offset, BLOCK_SIZE * (c->width_blocks - 3), 0, FONT_NORMAL_BLACK, 0);
+                c->x_offset + 32, c->y_offset + 91 + y_offset, BLOCK_SIZE * (c->width_blocks - 3), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else if (!building_caravanserai_enough_foods(b) && food_types >= 0) {
             text_draw_multiline(translation_for(TR_BUILDING_CARAVANSERAI_FOOD_SHORTAGE),
-            c->x_offset + 32, c->y_offset + 91 + y_offset, BLOCK_SIZE * (c->width_blocks - 3), 0, FONT_NORMAL_BLACK, 0);
+            c->x_offset + 32, c->y_offset + 91 + y_offset, BLOCK_SIZE * (c->width_blocks - 3), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
             text_draw_multiline(translation_for(TR_BUILDING_CARAVANSERAI_DESC),
-                c->x_offset + 32, c->y_offset + 91 + y_offset, BLOCK_SIZE * (c->width_blocks - 3), 0, FONT_NORMAL_BLACK, 0);
+                c->x_offset + 32, c->y_offset + 91 + y_offset, BLOCK_SIZE * (c->width_blocks - 3), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
 
         if (!land_trade_policy.items[0].image_id) {
@@ -1762,10 +1762,10 @@ void window_building_draw_caravanserai(building_info_context *c)
         trade_policy policy = city_trade_policy_get(LAND_TRADE_POLICY);
 
         text_draw_multiline(translation_for(translation_key_from_int(land_trade_policy.items[policy].header)),
-            c->x_offset + 160, c->y_offset + 170 + y_offset, 260, 0, FONT_NORMAL_BLACK, 0);
+            c->x_offset + 160, c->y_offset + 170 + y_offset, 260, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         if (policy != NO_POLICY) {
             text_draw_multiline(translation_for(translation_key_from_int(land_trade_policy.items[policy].desc)),
-                c->x_offset + 160, c->y_offset + 195 + y_offset, 260, 0, FONT_NORMAL_BLACK, 0);
+                c->x_offset + 160, c->y_offset + 195 + y_offset, 260, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
         image_draw(land_trade_policy.items[policy].image_id, c->x_offset + 32, c->y_offset + 160 + y_offset,
             COLOR_MASK_NONE, SCALE_NONE);
@@ -1786,7 +1786,7 @@ void window_building_draw_caravanserai(building_info_context *c)
     }
 
     text_draw_centered(translation_for(TR_BUILDING_CARAVANSERAI), c->x_offset, c->y_offset + 12,
-        BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, 0);
+        BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 }
 
 extern "C" int window_building_handle_mouse_lighthouse(const mouse *m, building_info_context *c)
@@ -1832,24 +1832,24 @@ extern "C" void window_building_draw_lighthouse(building_info_context *c)
 
         image_draw(resource_get_data(RESOURCE_TIMBER)->image.icon, c->x_offset + 32, c->y_offset + 46,
             COLOR_MASK_NONE, SCALE_NONE);
-        int width = lang_text_draw(125, 12, c->x_offset + 60, c->y_offset + 50, FONT_NORMAL_BLACK);
+        int width = lang_text_draw(125, 12, c->x_offset + 60, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (b->resources[RESOURCE_TIMBER] < 1) {
-            lang_text_draw_amount(8, 10, 0, c->x_offset + 60 + width, c->y_offset + 50, FONT_NORMAL_BLACK);
+            lang_text_draw_amount(8, 10, 0, c->x_offset + 60 + width, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
-            lang_text_draw_amount(8, 10, b->resources[RESOURCE_TIMBER], c->x_offset + 60 + width, c->y_offset + 50, FONT_NORMAL_BLACK);
+            lang_text_draw_amount(8, 10, b->resources[RESOURCE_TIMBER], c->x_offset + 60 + width, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
 
         if (!c->has_road_access) {
             window_building_draw_description_at(c, 80, 69, 25);
         } else if (building_monument_has_labour_problems(b)) {
             text_draw_multiline(translation_for(TR_BUILDING_LIGHTHOUSE_NEEDS_WORKERS),
-                c->x_offset + 32, c->y_offset + 80, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, 0);
+                c->x_offset + 32, c->y_offset + 80, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else if (building_lighthouse_enough_timber(b) == 0) {
             text_draw_multiline(translation_for(TR_BUILDING_LIGHTHOUSE_NO_TIMBER),
-            c->x_offset + 32, c->y_offset + 80, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, 0);
+            c->x_offset + 32, c->y_offset + 80, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
             text_draw_multiline(translation_for(TR_BUILDING_LIGHTHOUSE_BONUS_DESC),
-                c->x_offset + 32, c->y_offset + 80, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, 0);
+                c->x_offset + 32, c->y_offset + 80, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
 
         if (!sea_trade_policy.items[0].image_id) {
@@ -1864,10 +1864,10 @@ extern "C" void window_building_draw_lighthouse(building_info_context *c)
         trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);
 
         text_draw_multiline(translation_for(translation_key_from_int(sea_trade_policy.items[policy].header)),
-            c->x_offset + 160, c->y_offset + 156, 260, 0, FONT_NORMAL_BLACK, 0);
+            c->x_offset + 160, c->y_offset + 156, 260, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         if (policy != NO_POLICY) {
             text_draw_multiline(translation_for(translation_key_from_int(sea_trade_policy.items[policy].desc)),
-                c->x_offset + 160, c->y_offset + 181, 260, 0, FONT_NORMAL_BLACK, 0);
+                c->x_offset + 160, c->y_offset + 181, 260, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
         image_draw(sea_trade_policy.items[policy].image_id, c->x_offset + 32, c->y_offset + 150,
             COLOR_MASK_NONE, SCALE_NONE);
@@ -1888,5 +1888,5 @@ extern "C" void window_building_draw_lighthouse(building_info_context *c)
         window_building_draw_monument_lighthouse_construction_process(c);
     }
     text_draw_centered(translation_for(TR_BUILDING_LIGHTHOUSE),
-        c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, 0);
+        c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 }

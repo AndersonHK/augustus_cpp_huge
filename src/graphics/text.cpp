@@ -38,7 +38,6 @@ static struct {
 
 static struct {
     const uint8_t string[ELLIPSIS_LENGTH];
-    int width[FONT_TYPES_MAX];
 } ellipsis = { {'.', '.', '.', 0} };
 
 namespace {
@@ -139,39 +138,30 @@ int is_legacy_hidden_number_prefix(char prefix)
 
 } // namespace
 
-int text_get_width_utf8(std::string_view text, font_t font)
+int text_get_width_utf8(std::string_view text, font_t font, int pixel_size)
 {
     if (!font_uses_vector_runtime()) {
         return 0;
     }
-    return font_vector_runtime_measure_utf8(text, font, FONT_INLINE_STYLE_NONE, SCALE_NONE);
+    return font_vector_runtime_measure_utf8(text, font, FONT_INLINE_STYLE_NONE, pixel_size);
 }
 
 unsigned int text_get_max_utf8_bytes_for_width(
     std::string_view text,
     font_t font,
+    int pixel_size,
     unsigned int requested_width,
     int invert)
 {
     if (!font_uses_vector_runtime()) {
         return 0;
     }
-    return font_vector_runtime_fit_utf8_bytes(text, font, requested_width, invert, FONT_INLINE_STYLE_NONE);
+    return font_vector_runtime_fit_utf8_bytes(text, font, requested_width, invert, FONT_INLINE_STYLE_NONE, pixel_size);
 }
 
-int text_draw_utf8(std::string_view text, int x, int y, font_t font, color_t color)
+int text_draw_utf8(std::string_view text, int x, int y, font_t font, int pixel_size, color_t color)
 {
-    return text_draw_utf8_scaled(text, x, y, font, color, SCALE_NONE);
-}
-
-int text_draw_utf8_scaled(std::string_view text, int x, int y, font_t font, color_t color, float scale)
-{
-    return text_draw_utf8_styled(text, x, y, font, color, scale, FONT_INLINE_STYLE_NONE);
-}
-
-int text_draw_utf8_sized(std::string_view text, int x, int y, font_t font, color_t color, int logical_size_delta)
-{
-    return text_draw_utf8_sized_styled(text, x, y, font, color, logical_size_delta, FONT_INLINE_STYLE_NONE);
+    return text_draw_utf8_styled(text, x, y, font, pixel_size, color, FONT_INLINE_STYLE_NONE);
 }
 
 int text_draw_utf8_styled(
@@ -179,37 +169,19 @@ int text_draw_utf8_styled(
     int x,
     int y,
     font_t font,
+    int pixel_size,
     color_t color,
-    float scale,
     unsigned style_flags)
 {
     if (!font_uses_vector_runtime()) {
         return 0;
     }
-    return font_vector_runtime_draw_utf8(text, x, y, font, color, scale, style_flags);
+    return font_vector_runtime_draw_utf8(text, x, y, font, color, pixel_size, style_flags);
 }
 
-int text_draw_utf8_sized_styled(
-    std::string_view text,
-    int x,
-    int y,
-    font_t font,
-    color_t color,
-    int logical_size_delta,
-    unsigned style_flags)
+static int get_ellipsis_width(font_t font, int pixel_size)
 {
-    if (!font_uses_vector_runtime()) {
-        return 0;
-    }
-    return font_vector_runtime_draw_utf8_sized(text, x, y, font, color, logical_size_delta, style_flags);
-}
-
-static int get_ellipsis_width(font_t font)
-{
-    if (!ellipsis.width[font]) {
-        ellipsis.width[font] = text_get_width(ellipsis.string, font);
-    }
-    return ellipsis.width[font];
+    return text_get_width(ellipsis.string, font, pixel_size);
 }
 
 void text_capture_cursor(int cursor_position, int offset_start, int offset_end)
@@ -257,11 +229,11 @@ void text_draw_cursor(int x_offset, int y_offset, int is_insert)
     }
 }
 
-int text_get_width(const uint8_t *str, font_t font)
+int text_get_width(const uint8_t *str, font_t font, int pixel_size)
 {
     if (font_uses_vector_runtime()) {
         LegacyUtf8View view = legacy_to_utf8_view(str);
-        return text_get_width_utf8(view.utf8, font);
+        return text_get_width_utf8(view.utf8, font, pixel_size);
     }
 
     const font_definition *def = font_definition_for(font);
@@ -283,13 +255,13 @@ int text_get_width(const uint8_t *str, font_t font)
     return width;
 }
 
-int text_get_number_width(int value, char prefix, const char *postfix, font_t font)
+int text_get_number_width(int value, char prefix, const char *postfix, font_t font, int pixel_size)
 {
     if (font_uses_vector_runtime()) {
         int width = 0;
         if (prefix && !is_legacy_hidden_number_prefix(prefix)) {
             char prefix_str[2] = { prefix, 0 };
-            width += text_get_width_utf8(prefix_str, font);
+            width += text_get_width_utf8(prefix_str, font, pixel_size);
         }
         uint8_t buffer[NUMBER_BUFFER_LENGTH];
         int length = string_from_int(buffer, value, 0);
@@ -298,7 +270,7 @@ int text_get_number_width(int value, char prefix, const char *postfix, font_t fo
         while (length > 0) {
             if (*digits >= ' ') {
                 char utf8_digit[2] = { static_cast<char>(*digits), 0 };
-                width += text_get_width_utf8(utf8_digit, font);
+                width += text_get_width_utf8(utf8_digit, font, pixel_size);
                 if (length == 4 || length == 7) {
                     width += separator_pixels;
                 }
@@ -307,7 +279,7 @@ int text_get_number_width(int value, char prefix, const char *postfix, font_t fo
             --length;
         }
         if (postfix && *postfix) {
-            width += text_get_width(string_from_ascii(postfix), font);
+            width += text_get_width(string_from_ascii(postfix), font, pixel_size);
         } else {
             width += font_definition_for(font)->space_width;
         }
@@ -320,7 +292,7 @@ int text_get_number_width(int value, char prefix, const char *postfix, font_t fo
 
     if (prefix && !is_legacy_hidden_number_prefix(prefix)) {
         uint8_t prefix_str[2] = { static_cast<uint8_t>(prefix), 0 };
-        width += text_get_width(prefix_str, font);
+        width += text_get_width(prefix_str, font, pixel_size);
     }
 
     uint8_t buffer[NUMBER_BUFFER_LENGTH];
@@ -349,7 +321,7 @@ int text_get_number_width(int value, char prefix, const char *postfix, font_t fo
     }
 
     if (postfix && *postfix) {
-        width += text_get_width(string_from_ascii(postfix), font);
+        width += text_get_width(string_from_ascii(postfix), font, pixel_size);
     } else {
         width += def->space_width;
     }
@@ -371,11 +343,11 @@ static int get_letter_width(const uint8_t *str, const font_definition *def, int 
 }
 
 unsigned int text_get_max_length_for_width(
-    const uint8_t *str, int length, font_t font, unsigned int requested_width, int invert)
+    const uint8_t *str, int length, font_t font, int pixel_size, unsigned int requested_width, int invert)
 {
     if (font_uses_vector_runtime()) {
         LegacyUtf8View view = legacy_to_utf8_view(str, 0, length > 0 ? length : -1);
-        unsigned int utf8_bytes = text_get_max_utf8_bytes_for_width(view.utf8, font, requested_width, invert);
+        unsigned int utf8_bytes = text_get_max_utf8_bytes_for_width(view.utf8, font, pixel_size, requested_width, invert);
         if (!invert) {
             return static_cast<unsigned int>(legacy_bytes_for_utf8_prefix(view, utf8_bytes));
         }
@@ -425,12 +397,17 @@ unsigned int text_get_max_length_for_width(
     }
 }
 
-void text_ellipsize(uint8_t *str, font_t font, int requested_width)
+void text_ellipsize(uint8_t *str, font_t font, int pixel_size, int requested_width)
 {
     if (font_uses_vector_runtime()) {
         LegacyUtf8View view = legacy_to_utf8_view(str);
-        int ellipsis_width = get_ellipsis_width(font);
-        unsigned int max_utf8 = text_get_max_utf8_bytes_for_width(view.utf8, font, requested_width - ellipsis_width, 0);
+        int ellipsis_width = get_ellipsis_width(font, pixel_size);
+        unsigned int max_utf8 = text_get_max_utf8_bytes_for_width(
+            view.utf8,
+            font,
+            pixel_size,
+            requested_width - ellipsis_width,
+            0);
         int keep_legacy_bytes = legacy_bytes_for_utf8_prefix(view, max_utf8);
         if (keep_legacy_bytes < string_length(str)) {
             string_copy(ellipsis.string, str + keep_legacy_bytes, ELLIPSIS_LENGTH);
@@ -440,7 +417,7 @@ void text_ellipsize(uint8_t *str, font_t font, int requested_width)
 
     uint8_t *orig_str = str;
     const font_definition *def = font_definition_for(font);
-    int ellipsis_width = get_ellipsis_width(font);
+    int ellipsis_width = get_ellipsis_width(font, pixel_size);
     int maxlen = 10000;
     int width = 0;
     int length_with_ellipsis = 0;
@@ -468,7 +445,7 @@ void text_ellipsize(uint8_t *str, font_t font, int requested_width)
     }
 }
 
-static int get_word_width(const uint8_t *str, font_t font, int *out_num_chars, int max_width)
+static int get_word_width(const uint8_t *str, font_t font, int pixel_size, int *out_num_chars, int max_width)
 {
     if (font_uses_vector_runtime()) {
         uint8_t buffer[256] = { 0 };
@@ -488,7 +465,7 @@ static int get_word_width(const uint8_t *str, font_t font, int *out_num_chars, i
                 }
                 buffer[buffer_index++] = *str;
                 buffer[buffer_index] = 0;
-                int next_width = text_get_width(buffer, font);
+                int next_width = text_get_width(buffer, font, pixel_size);
                 if (max_width && next_width >= max_width) {
                     break;
                 }
@@ -504,7 +481,7 @@ static int get_word_width(const uint8_t *str, font_t font, int *out_num_chars, i
                 memcpy(&buffer[buffer_index], str, static_cast<size_t>(num_bytes));
                 buffer_index += num_bytes;
                 buffer[buffer_index] = 0;
-                int next_width = text_get_width(buffer, font);
+                int next_width = text_get_width(buffer, font, pixel_size);
                 if (max_width && next_width >= max_width) {
                     buffer_index -= num_bytes;
                     buffer[buffer_index] = 0;
@@ -566,47 +543,48 @@ static int get_word_width(const uint8_t *str, font_t font, int *out_num_chars, i
     return width;
 }
 
-void text_draw_centered(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color)
+void text_draw_centered(const uint8_t *str, int x, int y, int box_width, font_t font, int pixel_size, color_t color)
 {
-    int offset = (box_width - text_get_width(str, font)) / 2;
+    int offset = (box_width - text_get_width(str, font, pixel_size)) / 2;
     if (offset < 0) {
         offset = 0;
     }
-    text_draw(str, offset + x, y, font, color);
+    text_draw(str, offset + x, y, font, pixel_size, color);
 }
 
-void text_draw_right_aligned(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color)
+void text_draw_right_aligned(const uint8_t *str, int x, int y, int box_width, font_t font, int pixel_size, color_t color)
 {
-    int offset = box_width - text_get_width(str, font);
+    int offset = box_width - text_get_width(str, font, pixel_size);
     if (offset < 0) {
         offset = 0;
     }
-    text_draw(str, offset + x, y, font, color);
+    text_draw(str, offset + x, y, font, pixel_size, color);
 }
 
-int text_draw_ellipsized(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color)
+int text_draw_ellipsized(const uint8_t *str, int x, int y, int box_width, font_t font, int pixel_size, color_t color)
 {
     static uint8_t buffer[1000];
     string_copy(str, buffer, 1000);
-    text_ellipsize(buffer, font, box_width);
-    return text_draw(buffer, x, y, font, color);
+    text_ellipsize(buffer, font, pixel_size, box_width);
+    return text_draw(buffer, x, y, font, pixel_size, color);
 }
 
-int text_draw_centered_ellipsized(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color)
+int text_draw_centered_ellipsized(
+    const uint8_t *str, int x, int y, int box_width, font_t font, int pixel_size, color_t color)
 {
     static uint8_t buffer[1000];
     string_copy(str, buffer, sizeof(buffer));
 
-    text_ellipsize(buffer, font, box_width);
+    text_ellipsize(buffer, font, pixel_size, box_width);
 
-    int text_width = text_get_width(buffer, font);
+    int text_width = text_get_width(buffer, font, pixel_size);
     int offset = (box_width - text_width) / 2;
     if (offset < 0) offset = 0;
 
-    return text_draw(buffer, x + offset, y, font, color);
+    return text_draw(buffer, x + offset, y, font, pixel_size, color);
 }
 
-int text_draw_scaled(const uint8_t *str, int x, int y, font_t font, color_t color, float scale)
+int text_draw(const uint8_t *str, int x, int y, font_t font, int pixel_size, color_t color)
 {
     if (font_uses_vector_runtime()) {
         int length = string_length(str);
@@ -618,7 +596,7 @@ int text_draw_scaled(const uint8_t *str, int x, int y, font_t font, color_t colo
         }
 
         LegacyUtf8View view = legacy_to_utf8_view(str, start_offset, end_offset);
-        int width = text_draw_utf8_scaled(view.utf8, x, y, font, color, scale);
+        int width = text_draw_utf8(view.utf8, x, y, font, pixel_size, color);
 
         if (input_cursor.capture) {
             int relative_cursor = input_cursor.cursor_position - start_offset;
@@ -635,7 +613,7 @@ int text_draw_scaled(const uint8_t *str, int x, int y, font_t font, color_t colo
                 view.utf8.substr(0, cursor_utf8),
                 font,
                 FONT_INLINE_STYLE_NONE,
-                scale);
+                pixel_size);
             input_cursor.width = 4;
 
             for (size_t i = 1; i < view.legacy_offsets.size(); ++i) {
@@ -645,7 +623,7 @@ int text_draw_scaled(const uint8_t *str, int x, int y, font_t font, color_t colo
                         view.utf8.substr(cursor_utf8, next_utf8 - cursor_utf8),
                         font,
                         FONT_INLINE_STYLE_NONE,
-                        scale);
+                        pixel_size);
                     break;
                 }
             }
@@ -678,7 +656,7 @@ int text_draw_scaled(const uint8_t *str, int x, int y, font_t font, color_t colo
                 width = def->space_width;
             } else {
                 int height = def->image_y_offset(*str, font_image_height_for_letter(def, letter_id), def->line_height);
-                image_draw_letter(def->font, letter_id, current_x, y - height, color, scale);
+                image_draw_letter(def->font, letter_id, current_x, y - height, color, SCALE_NONE);
                 width = def->letter_spacing + font_image_width_for_letter(def, letter_id);
             }
             if (input_cursor.capture && input_cursor.position == input_cursor.cursor_position) {
@@ -704,21 +682,6 @@ int text_draw_scaled(const uint8_t *str, int x, int y, font_t font, color_t colo
     return current_x - x;
 }
 
-int text_draw(const uint8_t *str, int x, int y, font_t font, color_t color)
-{
-    return text_draw_scaled(str, x, y, font, color, SCALE_NONE);
-}
-
-int text_draw_with_size_delta(const uint8_t *str, int x, int y, font_t font, color_t color, int logical_size_delta)
-{
-    if (font_uses_vector_runtime() && logical_size_delta != 0) {
-        LegacyUtf8View view = legacy_to_utf8_view(str);
-        return text_draw_utf8_sized(view.utf8, x, y, font, color, logical_size_delta) +
-            font_definition_for(font)->space_width;
-    }
-    return text_draw(str, x, y, font, color);
-}
-
 static int number_to_string(uint8_t *str, int value, char prefix, const char *postfix)
 {
     int offset = 0;
@@ -734,16 +697,17 @@ static int number_to_string(uint8_t *str, int value, char prefix, const char *po
     return offset;
 }
 
-int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
-    int x, int y, font_t font, color_t color, float scale)
+int text_draw_number(int value, char prefix, const char *postfix, int x, int y, font_t font, int pixel_size, color_t color)
 {
+    const uint8_t *legacy_postfix = postfix && *postfix ? string_from_ascii(postfix) : 0;
+
     if (font_uses_vector_runtime()) {
         int current_x = x;
         int space_width = font_definition_for(font)->space_width;
 
         if (prefix && !is_legacy_hidden_number_prefix(prefix)) {
             uint8_t prefix_str[2] = { static_cast<uint8_t>(prefix), 0 };
-            current_x += text_draw_scaled(prefix_str, current_x, y, font, color, scale) - space_width;
+            current_x += text_draw(prefix_str, current_x, y, font, pixel_size, color) - space_width;
         }
 
         uint8_t buffer[NUMBER_BUFFER_LENGTH];
@@ -754,7 +718,7 @@ int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
         while (length > 0) {
             if (*digits >= ' ') {
                 char utf8_digit[2] = { static_cast<char>(*digits), 0 };
-                current_x += text_draw_utf8_scaled(utf8_digit, current_x, y, font, color, scale);
+                current_x += text_draw_utf8(utf8_digit, current_x, y, font, pixel_size, color);
                 if (length == 4 || length == 7) {
                     current_x += separator_pixels;
                 }
@@ -763,9 +727,9 @@ int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
             --length;
         }
 
-        if (postfix && *postfix) {
-            LegacyUtf8View postfix_view = legacy_to_utf8_view(postfix);
-            current_x += text_draw_utf8_scaled(postfix_view.utf8, current_x, y, font, color, scale);
+        if (legacy_postfix && *legacy_postfix) {
+            LegacyUtf8View postfix_view = legacy_to_utf8_view(legacy_postfix);
+            current_x += text_draw_utf8(postfix_view.utf8, current_x, y, font, pixel_size, color);
         } else {
             current_x += space_width;
         }
@@ -778,7 +742,7 @@ int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
 
     if (prefix && !is_legacy_hidden_number_prefix(prefix)) {
         uint8_t prefix_str[2] = { static_cast<uint8_t>(prefix), 0 };
-        current_x += text_draw_scaled(prefix_str, current_x, y, font, color, scale) - def->space_width;
+        current_x += text_draw(prefix_str, current_x, y, font, pixel_size, color) - def->space_width;
     }
 
     uint8_t buffer[NUMBER_BUFFER_LENGTH];
@@ -797,7 +761,7 @@ int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
                 width = def->space_width;
             } else {
                 int height = def->image_y_offset(*str, font_image_height_for_letter(def, letter_id), def->line_height);
-                image_draw_letter(def->font, letter_id, current_x, y - height, color, scale);
+                image_draw_letter(def->font, letter_id, current_x, y - height, color, SCALE_NONE);
                 width = def->letter_spacing + font_image_width_for_letter(def, letter_id);
             }
 
@@ -808,8 +772,8 @@ int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
         length -= num_bytes;
     }
 
-    if (postfix && *postfix) {
-        current_x += text_draw_scaled(postfix, current_x, y, font, color, scale);
+    if (legacy_postfix && *legacy_postfix) {
+        current_x += text_draw(legacy_postfix, current_x, y, font, pixel_size, color);
     } else {
         current_x += def->space_width;
     }
@@ -817,99 +781,50 @@ int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
     return current_x - x;
 }
 
-int text_draw_number_with_size_delta(int value, char prefix, const uint8_t *postfix,
-    int x, int y, font_t font, color_t color, int logical_size_delta)
+static int text_get_number_width_without_trailing_space(int value, char prefix, font_t font, int pixel_size)
 {
-    if (font_uses_vector_runtime() && logical_size_delta != 0) {
-        int current_x = x;
-        int space_width = font_definition_for(font)->space_width;
-
-        if (prefix && !is_legacy_hidden_number_prefix(prefix)) {
-            uint8_t prefix_str[2] = { static_cast<uint8_t>(prefix), 0 };
-            current_x += text_draw_with_size_delta(prefix_str, current_x, y, font, color, logical_size_delta) -
-                space_width;
-        }
-
-        uint8_t buffer[NUMBER_BUFFER_LENGTH];
-        int length = string_from_int(buffer, value, 0);
-        uint8_t *digits = buffer;
-        int separator_pixels = config_get(CONFIG_UI_DIGIT_SEPARATOR) * 3;
-
-        while (length > 0) {
-            if (*digits >= ' ') {
-                char utf8_digit[2] = { static_cast<char>(*digits), 0 };
-                current_x += text_draw_utf8_sized(utf8_digit, current_x, y, font, color, logical_size_delta);
-                if (length == 4 || length == 7) {
-                    current_x += separator_pixels;
-                }
-            }
-            ++digits;
-            --length;
-        }
-
-        if (postfix && *postfix) {
-            LegacyUtf8View postfix_view = legacy_to_utf8_view(postfix);
-            current_x += text_draw_utf8_sized(postfix_view.utf8, current_x, y, font, color, logical_size_delta);
-        } else {
-            current_x += space_width;
-        }
-
-        return current_x - x;
-    }
-
-    return text_draw_number_scaled(value, prefix, postfix, x, y, font, color, SCALE_NONE);
-}
-
-int text_draw_number(int value, char prefix, const char *postfix, int x, int y, font_t font, color_t color)
-{
-    const uint8_t *ascii_postfix = postfix && *postfix ? string_from_ascii(postfix) : 0;
-    return text_draw_number_scaled(value, prefix, ascii_postfix, x, y, font, color, SCALE_NONE);
-}
-
-static int text_get_number_width_without_trailing_space(int value, char prefix, font_t font)
-{
-    int width = text_get_number_width(value, prefix, "", font) - font_definition_for(font)->space_width;
+    int width = text_get_number_width(value, prefix, "", font, pixel_size) - font_definition_for(font)->space_width;
     return width > 0 ? width : 0;
 }
 
-static int text_get_ascii_width(const char *text, font_t font)
+static int text_get_ascii_width(const char *text, font_t font, int pixel_size)
 {
-    return text_get_width(string_from_ascii(text), font);
+    return text_get_width(string_from_ascii(text), font, pixel_size);
 }
 
 int text_get_number_pair_width(int left_value, int right_value, char prefix, const char *separator,
-    int left_min_width, int right_min_width, int separator_padding, font_t font)
+    int left_min_width, int right_min_width, int separator_padding, font_t font, int pixel_size)
 {
     const char *separator_text = separator && *separator ? separator : "/";
-    int left_width = text_get_number_width_without_trailing_space(left_value, prefix, font);
-    int right_width = text_get_number_width_without_trailing_space(right_value, prefix, font);
+    int left_width = text_get_number_width_without_trailing_space(left_value, prefix, font, pixel_size);
+    int right_width = text_get_number_width_without_trailing_space(right_value, prefix, font, pixel_size);
     int natural_column_width = left_width > right_width ? left_width : right_width;
     int left_column_width = natural_column_width > left_min_width ? natural_column_width : left_min_width;
     int right_column_width = natural_column_width > right_min_width ? natural_column_width : right_min_width;
-    int separator_width = text_get_ascii_width(separator_text, font);
+    int separator_width = text_get_ascii_width(separator_text, font, pixel_size);
     return left_column_width + separator_padding + separator_width + separator_padding + right_column_width;
 }
 
 int text_draw_number_pair(int left_value, int right_value, char prefix, const char *separator,
-    int x, int y, int left_min_width, int right_min_width, int separator_padding, font_t font, color_t color)
+    int x, int y, int left_min_width, int right_min_width, int separator_padding, font_t font, int pixel_size, color_t color)
 {
     const char *separator_text = separator && *separator ? separator : "/";
-    int left_width = text_get_number_width_without_trailing_space(left_value, prefix, font);
-    int right_width = text_get_number_width_without_trailing_space(right_value, prefix, font);
+    int left_width = text_get_number_width_without_trailing_space(left_value, prefix, font, pixel_size);
+    int right_width = text_get_number_width_without_trailing_space(right_value, prefix, font, pixel_size);
     int natural_column_width = left_width > right_width ? left_width : right_width;
     int left_column_width = natural_column_width > left_min_width ? natural_column_width : left_min_width;
     int right_column_width = natural_column_width > right_min_width ? natural_column_width : right_min_width;
-    int separator_width = text_get_ascii_width(separator_text, font);
+    int separator_width = text_get_ascii_width(separator_text, font, pixel_size);
 
-    text_draw_number(left_value, prefix, "", x + left_column_width - left_width, y, font, color);
-    text_draw(string_from_ascii(separator_text), x + left_column_width + separator_padding, y, font, color);
+    text_draw_number(left_value, prefix, "", x + left_column_width - left_width, y, font, pixel_size, color);
+    text_draw(string_from_ascii(separator_text), x + left_column_width + separator_padding, y, font, pixel_size, color);
     text_draw_number(right_value, prefix, "",
-        x + left_column_width + separator_padding + separator_width + separator_padding, y, font, color);
+        x + left_column_width + separator_padding + separator_width + separator_padding, y, font, pixel_size, color);
 
     return left_column_width + separator_padding + separator_width + separator_padding + right_column_width;
 }
 
-void text_draw_number_finances(int value, int x, int y, font_t font, color_t color)
+void text_draw_number_finances(int value, int x, int y, font_t font, int pixel_size, color_t color)
 {
     if (font_uses_vector_runtime()) {
         int number_width = 10;
@@ -927,8 +842,8 @@ void text_draw_number_finances(int value, int x, int y, font_t font, color_t col
                     current_x -= !(inverted_length % 3) ? separator_pixels : 0;
                 }
                 char utf8_digit[2] = { static_cast<char>(*str), 0 };
-                int digit_width = text_get_width_utf8(utf8_digit, font);
-                text_draw_utf8(utf8_digit, current_x + (number_width - digit_width) / 2, y, font, color);
+                int digit_width = text_get_width_utf8(utf8_digit, font, pixel_size);
+                text_draw_utf8(utf8_digit, current_x + (number_width - digit_width) / 2, y, font, pixel_size, color);
                 current_x -= number_width;
             }
             --str;
@@ -971,7 +886,7 @@ void text_draw_number_finances(int value, int x, int y, font_t font, color_t col
     }
 }
 
-int text_draw_money(int value, int x_offset, int y_offset, font_t font)
+int text_draw_money(int value, int x_offset, int y_offset, font_t font, int pixel_size)
 {
     const uint8_t *postfix;
     if (locale_translate_money_dn()) {
@@ -979,13 +894,13 @@ int text_draw_money(int value, int x_offset, int y_offset, font_t font)
     } else {
         postfix = string_from_ascii("Dn");
     }
-    int offset = text_draw_number(value, '@', 0, x_offset, y_offset, font, 0);
-    offset += text_draw(postfix, x_offset + offset, y_offset, font, 0);
+    int offset = text_draw_number(value, '@', 0, x_offset, y_offset, font, pixel_size, 0);
+    offset += text_draw(postfix, x_offset + offset, y_offset, font, pixel_size, 0);
     return offset;
 }
 
 void text_draw_with_money(const uint8_t *text, int value, const char *prefix, const char *postfix,
-    int x_offset, int y_offset, int box_width, font_t font, color_t color)
+    int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color)
 {
     uint8_t str[NUMBER_BUFFER_LENGTH];
     uint8_t *offset = string_copy(text, str, NUMBER_BUFFER_LENGTH);
@@ -1004,73 +919,85 @@ void text_draw_with_money(const uint8_t *text, int value, const char *prefix, co
         string_copy(string_from_ascii(postfix), offset, NUMBER_BUFFER_LENGTH - (int) (offset - str) - 1);
     }
     if (box_width > 0) {
-        text_draw_centered(str, x_offset, y_offset, box_width, font, color);
+        text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, color);
     } else {
-        text_draw(str, x_offset, y_offset, font, color);
+        text_draw(str, x_offset, y_offset, font, pixel_size, color);
     }
 }
 
-int text_draw_percentage(int value, int x_offset, int y_offset, font_t font)
+int text_draw_percentage(int value, int x_offset, int y_offset, font_t font, int pixel_size)
 {
     uint8_t str[NUMBER_BUFFER_LENGTH];
     number_to_string(str, value, 0, "%");
-    return text_draw(str, x_offset, y_offset, font, 0);
+    return text_draw(str, x_offset, y_offset, font, pixel_size, 0);
 }
 
-void text_draw_percentage_centered(int value, int x_offset, int y_offset, int box_width, font_t font)
+void text_draw_percentage_centered(int value, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
 {
     uint8_t str[NUMBER_BUFFER_LENGTH];
     number_to_string(str, value, 0, "%");
-    text_draw_centered(str, x_offset, y_offset, box_width, font, 0);
+    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
-int text_draw_label_and_number(const uint8_t *label, int value, const char *postfix, int x_offset, int y_offset, font_t font, color_t color)
+int text_draw_label_and_number(
+    const uint8_t *label, int value, const char *postfix, int x_offset, int y_offset, font_t font, int pixel_size, color_t color)
 {
     uint8_t str[2 * NUMBER_BUFFER_LENGTH];
     uint8_t *pos = label ? string_copy(label, str, NUMBER_BUFFER_LENGTH) : str;
     number_to_string(pos, value, ' ', postfix);
-    return text_draw(str, x_offset, y_offset, font, color);
+    return text_draw(str, x_offset, y_offset, font, pixel_size, color);
 }
 
-void text_draw_label_and_number_centered(const uint8_t *label, int value, const char *postfix, int x_offset, int y_offset, int box_width, font_t font, color_t color)
+void text_draw_label_and_number_centered(
+    const uint8_t *label,
+    int value,
+    const char *postfix,
+    int x_offset,
+    int y_offset,
+    int box_width,
+    font_t font,
+    int pixel_size,
+    color_t color)
 {
     uint8_t str[2 * NUMBER_BUFFER_LENGTH];
     uint8_t *pos = label ? string_copy(label, str, NUMBER_BUFFER_LENGTH) : str;
     number_to_string(pos, value, ' ', postfix);
-    text_draw_centered(str, x_offset, y_offset, box_width, font, color);
+    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, color);
 }
 
-void text_draw_number_centered(int value, int x_offset, int y_offset, int box_width, font_t font)
+void text_draw_number_centered(int value, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
 {
     uint8_t str[NUMBER_BUFFER_LENGTH];
     number_to_string(str, value, 0, "");
-    text_draw_centered(str, x_offset, y_offset, box_width, font, 0);
+    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
-void text_draw_number_centered_prefix(int value, char prefix, int x_offset, int y_offset, int box_width, font_t font)
+void text_draw_number_centered_prefix(
+    int value, char prefix, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
 {
     uint8_t str[NUMBER_BUFFER_LENGTH];
     number_to_string(str, value, prefix, "");
-    text_draw_centered(str, x_offset, y_offset, box_width, font, 0);
+    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
-void text_draw_number_centered_postfix(int value, const char *postfix, int x_offset, int y_offset, int box_width, font_t font)
+void text_draw_number_centered_postfix(
+    int value, const char *postfix, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
 {
     uint8_t str[NUMBER_BUFFER_LENGTH];
     number_to_string(str, value, 0, postfix);
-    text_draw_centered(str, x_offset, y_offset, box_width, font, 0);
+    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
 void text_draw_number_centered_colored(
-    int value, int x_offset, int y_offset, int box_width, font_t font, color_t color)
+    int value, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color)
 {
     uint8_t str[NUMBER_BUFFER_LENGTH];
     number_to_string(str, value, 0, "");
-    text_draw_centered(str, x_offset, y_offset, box_width, font, color);
+    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, color);
 }
 
 int text_draw_multiline(const uint8_t *str, int x_offset, int y_offset, int box_width,
-    int centered, font_t font, color_t color)
+    int centered, font_t font, int pixel_size, color_t color)
 {
     int line_height = font_definition_for(font)->line_height;
     if (line_height < 11) {
@@ -1091,9 +1018,9 @@ int text_draw_multiline(const uint8_t *str, int x_offset, int y_offset, int box_
         int line_index = 0;
         while (has_more_characters) {
             int word_num_chars;
-            int word_width = get_word_width(str, font, &word_num_chars, 0);
+            int word_width = get_word_width(str, font, pixel_size, &word_num_chars, 0);
             if (word_width >= box_width) {
-                word_width = get_word_width(str, font, &word_num_chars, box_width - current_width);
+                word_width = get_word_width(str, font, pixel_size, &word_num_chars, box_width - current_width);
                 if (!word_num_chars) {
                     has_more_characters = 0;
                     break;
@@ -1118,13 +1045,13 @@ int text_draw_multiline(const uint8_t *str, int x_offset, int y_offset, int box_
             }
         }
         int line_offset = centered ? (box_width - current_width) / 2 : 0;
-        text_draw(tmp_line, x_offset + line_offset, y, font, color);
+        text_draw(tmp_line, x_offset + line_offset, y, font, pixel_size, color);
         y += line_height + 5;
     }
     return y - y_offset;
 }
 
-int text_measure_multiline(const uint8_t *str, int box_width, font_t font, int *largest_width)
+int text_measure_multiline(const uint8_t *str, int box_width, font_t font, int pixel_size, int *largest_width)
 {
     // \n is not counted as a word and is only caught it directly after a word: "word \n" won't work correctly
     if (largest_width) {
@@ -1140,9 +1067,9 @@ int text_measure_multiline(const uint8_t *str, int box_width, font_t font, int *
         int current_width = 0;
         while (has_more_characters) {
             int word_num_chars;
-            int word_width = get_word_width(str, font, &word_num_chars, 0);
+            int word_width = get_word_width(str, font, pixel_size, &word_num_chars, 0);
             if (word_width >= box_width) {
-                word_width = get_word_width(str, font, &word_num_chars, box_width - current_width);
+                word_width = get_word_width(str, font, pixel_size, &word_num_chars, box_width - current_width);
                 if (!word_num_chars) {
                     break;
                 }
@@ -1171,7 +1098,8 @@ int text_measure_multiline(const uint8_t *str, int box_width, font_t font, int *
     return num_lines;
 }
 
-void text_draw_build_menu_with_index(const uint8_t *str, int index, int x_offset, int y_offset, int box_width, font_t font, color_t color)
+void text_draw_build_menu_with_index(
+    const uint8_t *str, int index, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color)
 {
     uint8_t strx[NUMBER_BUFFER_LENGTH];
     uint8_t *current = string_copy(str, strx, NUMBER_BUFFER_LENGTH - 5);
@@ -1181,5 +1109,5 @@ void text_draw_build_menu_with_index(const uint8_t *str, int index, int x_offset
     *current++ = ')';
     *current = 0;
 
-    text_draw_centered(strx, x_offset, y_offset, box_width, font, color);
+    text_draw_centered(strx, x_offset, y_offset, box_width, font, pixel_size, color);
 }

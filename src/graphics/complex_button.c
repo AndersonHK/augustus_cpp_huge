@@ -74,7 +74,7 @@ static void draw_default_style(const complex_button *button, font_t base_font, c
     }
 
     // Pre-calc widths
-    int seq_width = lang_text_get_sequence_width(button->sequence, button->sequence_size, font);
+    int seq_width = lang_text_get_sequence_width(button->sequence, button->sequence_size, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     seq_width = seq_width % 2 ? seq_width - 1 : seq_width; // even up for better centering
     int img_before_w = 0, img_after_w = 0;
     const image *img_before = NULL, *img_after = NULL;
@@ -124,10 +124,10 @@ static void draw_default_style(const complex_button *button, font_t base_font, c
         if (pos == SEQUENCE_POSITION_TOP_CENTER || pos == SEQUENCE_POSITION_CENTER ||
              pos == SEQUENCE_POSITION_BOTTOM_CENTER) {
             lang_text_draw_sequence_centered_ellipsized(button->sequence, button->sequence_size, button->x,
-                sequence_y_offset, button->width, font, f_color, &was_ellipsized);
+                sequence_y_offset, button->width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), f_color, &was_ellipsized);
         } else {
             cursor_x += lang_text_draw_sequence_ellipsized(button->sequence, button->sequence_size, cursor_x,
-                sequence_y_offset, button->width, font, f_color, &was_ellipsized);
+                sequence_y_offset, button->width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), f_color, &was_ellipsized);
         }
     }
     complex_button_ellipsized((complex_button *) button, was_ellipsized); //de-constant button to set ellipsized flag

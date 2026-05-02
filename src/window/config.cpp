@@ -1143,12 +1143,12 @@ static void set_custom_config_changes(void)
 
 static void set_player_name_width(void)
 {
-    int width = text_get_width(data.player_name, FONT_NORMAL_BLACK) + 16;
+    int width = text_get_width(data.player_name, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) + 16;
     if (width < 200) {
         width = 200;
     } else if (width > 322) {
         width = 322;
-        text_ellipsize(data.player_name, FONT_NORMAL_BLACK, width - 16);
+        text_ellipsize(data.player_name, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), width - 16);
     }
     select_buttons[SELECT_PLAYER_NAME].width = width;
 }
@@ -1395,7 +1395,7 @@ static void draw_list_box_item(const list_box_item *item)
 
     font_t f = item->is_selected ? FONT_NORMAL_WHITE : FONT_NORMAL_GREEN;
     const uint8_t *txt = translation_for(keys[item->index]);
-    text_draw_ellipsized(txt, item->x + 5, item->y + 4, item->width - 10, f, 0);
+    text_draw_ellipsized(txt, item->x + 5, item->y + 4, item->width - 10, f, screen_ui_to_pixel(font_definition_for(f)->line_height), 0);
 }
 
 
@@ -1405,7 +1405,7 @@ static void list_box_tooltip(const list_box_item *item, tooltip_context *c)
 
     if (item->is_focused) {
         const uint8_t *txt = translation_for(keys[item->index]);
-        int text_width = text_get_width(txt, FONT_NORMAL_BLACK);
+        int text_width = text_get_width(txt, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (text_width > item->width - 10) {
             c->precomposed_text = txt;
             c->type = TOOLTIP_BUTTON;
@@ -1440,7 +1440,7 @@ static void op_measure_space(const config_widget *w, int avail_text_w, int *out_
 static int checkbox_text_height(const uint8_t *txt, int w)
 {
     int largest = 0;
-    int lines = text_measure_multiline(txt, w, FONT_NORMAL_BLACK, &largest);
+    int lines = text_measure_multiline(txt, w, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), &largest);
     return lines * one_line_ml_height(FONT_NORMAL_BLACK);
 }
 
@@ -1465,12 +1465,12 @@ static void op_measure_checkbox(const config_widget *w, int avail_text_w, int *o
 static void op_draw_bg_checkbox(const config_widget *w, int x, int y, int avail_text_w)
 {
     const uint8_t *txt = checkbox_text(w);
-    int text_h = text_draw_multiline(txt, x + 30, y + 3, avail_text_w, 0, FONT_NORMAL_BLACK, 0);
+    int text_h = text_draw_multiline(txt, x + 30, y + 3, avail_text_w, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     int text_center_y = y + (text_h / 2);
     int box_y = text_center_y - (CHECKBOX_CHECK_SIZE / 2);
     ui_runtime_draw_one_row_button_border(x, box_y, CHECKBOX_CHECK_SIZE, CHECKBOX_CHECK_SIZE, 0, COLOR_MASK_NONE);
     if (data.config_values[w->subtype].new_value) {
-        text_draw(string_from_ascii("x"), x + 6, box_y + 3, FONT_NORMAL_BLACK, 0);
+        text_draw(string_from_ascii("x"), x + 6, box_y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 }
 static void op_draw_fg_checkbox(const config_widget *w, int x, int y, int avail_text_w, int focused)
@@ -1509,10 +1509,10 @@ static void op_measure_select(const config_widget *w, int avail_text_w, int *out
 }
 static void op_draw_bg_select(const config_widget *w, int x, int y, int avail_text_w)
 {
-    text_draw(translation_for(static_cast<translation_key>(w->description)), x, y + 6 + w->y_offset, FONT_NORMAL_BLACK, 0);
+    text_draw(translation_for(static_cast<translation_key>(w->description)), x, y + 6 + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     const generic_button *btn = &select_buttons[w->subtype];
     text_draw_centered(w->get_display_text(), btn->x + 8, y + btn->y + 6 + w->y_offset,
-                       btn->width - 16, FONT_NORMAL_BLACK, 0);
+                       btn->width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 static void op_draw_fg_select(const config_widget *w, int x, int y, int avail_text_w, int focused)
 {
@@ -1541,7 +1541,7 @@ static void op_measure_desc(const config_widget *w, int avail_text_w, int *out_h
 }
 static void op_draw_bg_desc(const config_widget *w, int x, int y, int avail_text_w)
 {
-    text_draw(translation_for(static_cast<translation_key>(w->description)), x, y + 10 + w->y_offset, FONT_NORMAL_BLACK, 0);
+    text_draw(translation_for(static_cast<translation_key>(w->description)), x, y + 10 + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 static void op_draw_fg_desc(const config_widget *w, int x, int y, int avail_text_w, int focused)
 {
@@ -1560,7 +1560,7 @@ static int  op_input_desc(const config_widget *w, int x, int y, int avail_text_w
 
 static void numerical_range_draw(const numerical_range_widget *r, int x, int y, const uint8_t *value_text, int extra_w)
 {
-    text_draw(value_text, x, y + 6, FONT_NORMAL_BLACK, 0);
+    text_draw(value_text, x, y + 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     ui_runtime_draw_slider(
         x + r->x,
         y + 4,
@@ -1646,9 +1646,9 @@ static void op_measure_header(const config_widget *w, int avail_text_w, int *out
 static void op_draw_bg_header(const config_widget *w, int x, int y, int avail_text_w)
 {
     int header_text_margins_sum = 30 + font_definition_for(FONT_NORMAL_BLACK)->space_width; // 30 is the sum of both sides' margins, minus one space to account for the fact that the text is drawn flush with the left margin
-    int header_text_width = lang_text_get_width(CUSTOM_TRANSLATION, w->description, FONT_NORMAL_BLACK) + header_text_margins_sum;
+    int header_text_width = lang_text_get_width(CUSTOM_TRANSLATION, w->description, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) + header_text_margins_sum;
     int new_x = x + avail_text_w / 2 - (header_text_width - header_text_margins_sum) / 2;
-    text_draw(translation_for(static_cast<translation_key>(w->description ? w->description : w->subtype)), new_x, y + w->y_offset, FONT_NORMAL_BLACK, 0);
+    text_draw(translation_for(static_cast<translation_key>(w->description ? w->description : w->subtype)), new_x, y + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     int line_width = (avail_text_w - header_text_width) / 2;
     // y is constant - if y+5 works, keep it this way, it should be right in the middle of the text's y axis
     // Draw lines on either side of the header text, with a small gap
@@ -1862,21 +1862,21 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 0, 40, 30);
-    text_draw_centered(translation_for(TR_CONFIG_TITLE), 16, 16, 608, FONT_LARGE_BLACK, 0);
+    text_draw_centered(translation_for(TR_CONFIG_TITLE), 16, 16, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     //  tabs
 
     int page_x_offset = 30;
-    int open_w = text_get_width(translation_for(page_names[data.page]), FONT_NORMAL_BLACK) + 6;
+    int open_w = text_get_width(translation_for(page_names[data.page]), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) + 6;
     int max_closed_w = (600 - page_x_offset * CONFIG_PAGES - open_w) / (CONFIG_PAGES - 1);
 
     for (unsigned int i = 0; i < CONFIG_PAGES; ++i) {
         page_x_offset += 15;
         int w = 0;
         if (data.page == i) {
-            w = text_draw(translation_for(page_names[i]), page_x_offset, 58, FONT_NORMAL_BLACK, 0);
+            w = text_draw(translation_for(page_names[i]), page_x_offset, 58, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
-            w = text_draw_ellipsized(translation_for(page_names[i]), page_x_offset, 58, max_closed_w, FONT_NORMAL_BLACK, 0);
+            w = text_draw_ellipsized(translation_for(page_names[i]), page_x_offset, 58, max_closed_w, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
         page_buttons[i].x = page_x_offset - 10;
         page_buttons[i].width = w + 15;
@@ -1908,7 +1908,7 @@ static void draw_background(void)
         int disabled = i == NUM_BOTTOM_BUTTONS - 1 && !data.has_changes;
         text_draw_centered(translation_for(static_cast<translation_key>(bottom_buttons[i].parameter2)),
             bottom_buttons[i].x, bottom_buttons[i].y + 9, bottom_buttons[i].width,
-            disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK,
+            disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK)->line_height),
             disabled ? COLOR_FONT_LIGHT_GRAY : 0);
     }
 
@@ -2145,7 +2145,7 @@ static void get_tooltip(tooltip_context *c)
         if (page == data.page) {
             return;
         }
-        int text_width = text_get_width(translation_for(page_names[page]), FONT_NORMAL_BLACK);
+        int text_width = text_get_width(translation_for(page_names[page]), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (page_buttons[page].width - 15 < text_width) { //15 is the margin added
             c->translation_key = page_names[page];
             c->type = TOOLTIP_BUTTON;

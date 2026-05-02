@@ -104,16 +104,16 @@ static void draw_background(void)
     graphics_in_dialog_with_size(data.window_width * BLOCK_SIZE, window_height * BLOCK_SIZE);
     outer_panel_draw(0, 0, data.window_width, window_height);
 
-    lang_text_draw_centered(54, 21, 0, 9, data.window_width * BLOCK_SIZE, FONT_LARGE_BLACK);
+    lang_text_draw_centered(54, 21, 0, 9, data.window_width * BLOCK_SIZE, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     if (data.four_line) {
         lang_text_draw_centered(54, 22, 0, line_buy_position,
-            data.window_width * BLOCK_SIZE, FONT_NORMAL_BLACK);
+            data.window_width * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         lang_text_draw_centered(54, 23, 0, line_sell_position,
-            data.window_width * BLOCK_SIZE, FONT_NORMAL_BLACK);
+            data.window_width * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw(54, 22, 10, line_buy_position, FONT_NORMAL_BLACK);
-        lang_text_draw(54, 23, 10, line_sell_position, FONT_NORMAL_BLACK);
+        lang_text_draw(54, 22, 10, line_buy_position, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw(54, 23, 10, line_sell_position, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     const resource_list *list = city_resource_get_potential();
@@ -133,16 +133,16 @@ static void draw_background(void)
         if (!data.four_line || no_policy) {//same price on land and sea
             if (no_policy) {
                 text_draw_number_centered(trade_price_buy(r, 0),
-                    price_shift + i * resource_offset, line_buy_position, 30, FONT_SMALL_PLAIN);
+                    price_shift + i * resource_offset, line_buy_position, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
                 text_draw_number_centered(trade_price_sell(r, 0),
-                    price_shift + i * resource_offset, line_sell_position, 30, FONT_SMALL_PLAIN);
+                    price_shift + i * resource_offset, line_sell_position, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
             } else {
 
                 text_draw_number_centered_colored(trade_price_buy(r, 1), //buy
-                    price_shift + i * resource_offset, line_buy_position, 30, FONT_SMALL_PLAIN,
+                    price_shift + i * resource_offset, line_buy_position, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height),
                     get_price_color(1, 0)); // land or trade doesnt matter - already established that it's same price
                 text_draw_number_centered_colored(trade_price_sell(r, 1), //sell
-                    price_shift + i * resource_offset, line_sell_position, 30, FONT_SMALL_PLAIN,
+                    price_shift + i * resource_offset, line_sell_position, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height),
                     get_price_color(1, 1)); //if trade_policy1 , then RED. Change this
             }
         } else { //price difference between land and sea
@@ -150,40 +150,40 @@ static void draw_background(void)
             if (has_land_trade_policy) {
 
                 text_draw_number_centered_colored(trade_price_buy(r, 1), // land route buy
-                    price_shift + i * resource_offset, line_buy_position + number_margin, 30, FONT_SMALL_PLAIN,
+                    price_shift + i * resource_offset, line_buy_position + number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height),
                     get_price_color(1, 0));
                 if (land_policy == TRADE_POLICY_2) { // land route sell 
                     text_draw_number_centered(trade_price_sell(r, 1),
-                    price_shift + i * resource_offset, line_sell_position + number_margin, 30, FONT_SMALL_PLAIN);
+                    price_shift + i * resource_offset, line_sell_position + number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
                 } else {
                     text_draw_number_centered_colored(trade_price_sell(r, 1),
-                    price_shift + i * resource_offset, line_sell_position + number_margin, 30, FONT_SMALL_PLAIN,
+                    price_shift + i * resource_offset, line_sell_position + number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height),
                     get_price_color(1, 1));
                 }
             } else {
                 text_draw_number_centered(trade_price_buy(r, 1), //buy
-                    price_shift + i * resource_offset, line_buy_position + number_margin, 30, FONT_SMALL_PLAIN);
+                    price_shift + i * resource_offset, line_buy_position + number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
                 text_draw_number_centered(trade_price_sell(r, 1), //sell
-                    price_shift + i * resource_offset, line_sell_position + number_margin, 30, FONT_SMALL_PLAIN);
+                    price_shift + i * resource_offset, line_sell_position + number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
             }
             if (has_sea_trade_policy) {
                 text_draw_number_centered_colored(trade_price_buy(r, 0), // sea route
-                    price_shift + i * resource_offset, line_buy_position + 2 * number_margin, 30, FONT_SMALL_PLAIN,
+                    price_shift + i * resource_offset, line_buy_position + 2 * number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height),
                     get_price_color(0, 0));
                 if (sea_policy == TRADE_POLICY_2) {
                     text_draw_number_centered(trade_price_sell(r, 0),
-                    price_shift + i * resource_offset, line_sell_position + 2 * number_margin, 30, FONT_SMALL_PLAIN);
+                    price_shift + i * resource_offset, line_sell_position + 2 * number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
                 } else {
                     text_draw_number_centered_colored(trade_price_sell(r, 0),
-                price_shift + i * resource_offset, line_sell_position + 2 * number_margin, 30, FONT_SMALL_PLAIN,
+                price_shift + i * resource_offset, line_sell_position + 2 * number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height),
                 get_price_color(0, 1));
                 }
 
             } else {
                 text_draw_number_centered(trade_price_buy(r, 0), // sea route
-                    price_shift + i * resource_offset, line_buy_position + 2 * number_margin, 30, FONT_SMALL_PLAIN);
+                    price_shift + i * resource_offset, line_buy_position + 2 * number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
                 text_draw_number_centered(trade_price_sell(r, 0),
-                    price_shift + i * resource_offset, line_sell_position + 2 * number_margin, 30, FONT_SMALL_PLAIN);
+                    price_shift + i * resource_offset, line_sell_position + 2 * number_margin, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
             }
         }
     }
@@ -208,7 +208,7 @@ static void draw_background(void)
         image_draw(image_id_sea, 10, y_positions[3] - 5, COLOR_MASK_NONE, SCALE_NONE);  // sea sell
     }
 
-    lang_text_draw_centered(13, 1, 0, button_position, data.window_width * BLOCK_SIZE, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(13, 1, 0, button_position, data.window_width * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     graphics_reset_dialog();
 
 }

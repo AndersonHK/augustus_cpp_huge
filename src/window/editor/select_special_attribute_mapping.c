@@ -155,7 +155,7 @@ static void draw_foreground(void)
 
     outer_panel_draw(16, 16, 42, 33);
 
-    text_draw(data.heading_text, 48, 40, FONT_NORMAL_PLAIN, COLOR_BLACK);
+    text_draw(data.heading_text, 48, 40, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
 
     int y_offset = DETAILS_Y_OFFSET;
     for (unsigned int i = 0; i < MAX_VISIBLE_ROWS; i++) {
@@ -165,13 +165,13 @@ static void draw_foreground(void)
                 button_border_draw(BUTTON_LEFT_PADDING, y_offset, BUTTON_WIDTH, DETAILS_ROW_HEIGHT, 1);
             }
 
-            text_draw(get_display_string(data.list[i]), 48, y_offset + 8, FONT_NORMAL_PLAIN, COLOR_BLACK);
+            text_draw(get_display_string(data.list[i]), 48, y_offset + 8, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
         }
 
         y_offset += DETAILS_ROW_HEIGHT;
     }
 
-    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();

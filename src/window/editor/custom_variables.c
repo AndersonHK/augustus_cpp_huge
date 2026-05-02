@@ -250,16 +250,16 @@ static void draw_background(void)
 
     outer_panel_draw(16, 16, 40, data.callback ? 28 : 30);
 
-    text_draw_centered(translation_for(TR_EDITOR_CUSTOM_VARIABLES_TITLE), 20, 27, 640, FONT_LARGE_BLACK, 0);
+    text_draw_centered(translation_for(TR_EDITOR_CUSTOM_VARIABLES_TITLE), 20, 27, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     text_draw_label_and_number(translation_for(TR_EDITOR_CUSTOM_VARIABLES_COUNT), data.custom_variables_in_use,
-        "", 32, 30, FONT_SMALL_PLAIN, 0);
+        "", 32, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
 
     int base_x_offset = variable_buttons.x + variable_buttons.item_margin.horizontal / 2;
 
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_ID,
-        variable_buttons.x + (data.callback ? 0 : CHECKBOX_ROW_WIDTH), 60, 40, FONT_SMALL_PLAIN);
+        variable_buttons.x + (data.callback ? 0 : CHECKBOX_ROW_WIDTH), 60, 40, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_NAME, base_x_offset + item_buttons[1].x, 60,
-        data.callback ? NAME_ROW_WIDTH_CALLBACK : NAME_ROW_WIDTH, FONT_SMALL_PLAIN);
+        data.callback ? NAME_ROW_WIDTH_CALLBACK : NAME_ROW_WIDTH, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
     grid_box_request_refresh(&variable_buttons);
 
@@ -274,31 +274,31 @@ static void draw_background(void)
     const generic_button *select_all_none_button = &constant_buttons[0];
     if (data.selection_type == CHECKBOX_SOME_SELECTED) {
         text_draw(string_from_ascii("-"), select_all_none_button->x + 8, select_all_none_button->y + 4,
-            FONT_NORMAL_BLACK, 0);
+            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (data.selection_type == CHECKBOX_ALL_SELECTED) {
         image_draw(checkmark_id, select_all_none_button->x + (20 - img->original.width) / 2,
              select_all_none_button->y + (20 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_VALUE, base_x_offset + item_buttons[2].x, 60,
-        FONT_SMALL_PLAIN);
+        FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_TEXT_DISPLAY,
-        base_x_offset + item_buttons[3].x, 60, item_buttons[3].width, FONT_SMALL_PLAIN);
+        base_x_offset + item_buttons[3].x, 60, item_buttons[3].width, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_IS_VISIBLE,
-        base_x_offset + item_buttons[4].x - 15, 60, 20, FONT_SMALL_PLAIN);
+        base_x_offset + item_buttons[4].x - 15, 60, 20, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_COLOR_LABEL,
-        color_dropdowns->buttons[0].x, 60, COLOR_DROPDOWN_WIDTH, FONT_SMALL_PLAIN);
+        color_dropdowns->buttons[0].x, 60, COLOR_DROPDOWN_WIDTH, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     // Bottom buttons
     const generic_button *delete_selected_button = &constant_buttons[1];
     color_t color = data.selection_type == CHECKBOX_NO_SELECTION ? COLOR_FONT_LIGHT_GRAY : COLOR_RED;
     lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED,
         delete_selected_button->x, delete_selected_button->y + 9, delete_selected_button->width,
-        FONT_NORMAL_PLAIN, color);
+        FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
     const generic_button *new_variable_button = &constant_buttons[2];
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_NEW,
-        new_variable_button->x, new_variable_button->y + 9, new_variable_button->width, FONT_NORMAL_BLACK);
+        new_variable_button->x, new_variable_button->y + 9, new_variable_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_centered(18, 3, constant_buttons[3].x, constant_buttons[3].y + 9, constant_buttons[3].width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
@@ -325,7 +325,7 @@ static void draw_variable_item(const grid_box_item *item)
 
     // Variable ID
     text_draw_number_centered(id, item->x + (data.callback ? 0 : CHECKBOX_ROW_WIDTH), item->y + 8,
-        32, FONT_SMALL_PLAIN);
+        32, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
     // Variable Name
     button_border_draw(item->x + item_buttons[1].x, item->y + item_buttons[1].y,
@@ -335,7 +335,7 @@ static void draw_variable_item(const grid_box_item *item)
         int x = item->x + item_buttons[1].x + 8;
         int y = item->y + item_buttons[1].y + 8;
         int name_box_w = item_buttons[1].width - 16;
-        text_draw_ellipsized(name, x, y, name_box_w, FONT_SMALL_PLAIN, 0);
+        text_draw_ellipsized(name, x, y, name_box_w, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
     }
 
     if (data.callback) {
@@ -358,7 +358,7 @@ static void draw_variable_item(const grid_box_item *item)
         item_buttons[2].height, item->is_focused && data.item_buttons_focus_id == 3);
 
     text_draw_number(value, ' ', "", item->x + item_buttons[2].x + 4, item->y + item_buttons[2].y + 8,
-        FONT_SMALL_PLAIN, 0);
+        FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
 
     // Display Text
     button_border_draw(item->x + item_buttons[3].x, item->y + item_buttons[3].y, item_buttons[3].width,
@@ -369,7 +369,7 @@ static void draw_variable_item(const grid_box_item *item)
         int x = item->x + item_buttons[3].x + 8;
         int y = item->y + item_buttons[3].y + 8;
         int display_box_w = item_buttons[3].width - 16;
-        text_draw_ellipsized(display_text, x, y, display_box_w, FONT_SMALL_PLAIN, 0);
+        text_draw_ellipsized(display_text, x, y, display_box_w, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
     }
 
     // Visible Checkbox
@@ -798,7 +798,7 @@ static void get_tooltip(tooltip_context *c)
     if (data.item_buttons_focus_id == 2) {
         const uint8_t *name = scenario_custom_variable_get_name(id);
         int name_w = item_buttons[1].width;
-        if (name && *name && text_get_width(name, FONT_SMALL_PLAIN) > name_w - 16) {
+        if (name && *name && text_get_width(name, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)) > name_w - 16) {
             c->precomposed_text = name;
             c->type = TOOLTIP_BUTTON;
             return;
@@ -809,7 +809,7 @@ static void get_tooltip(tooltip_context *c)
     if (data.item_buttons_focus_id == 4) {
         const uint8_t *display_text = scenario_custom_variable_get_text_display(id);
         int display_w = item_buttons[3].width;
-        if (display_text && *display_text && text_get_width(display_text, FONT_SMALL_PLAIN) > display_w - 16) {
+        if (display_text && *display_text && text_get_width(display_text, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)) > display_w - 16) {
             c->precomposed_text = display_text;
             c->type = TOOLTIP_BUTTON;
             return;

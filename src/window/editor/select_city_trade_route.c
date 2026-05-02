@@ -229,13 +229,13 @@ static void draw_foreground(void)
         if (i < data.list_size - 1) {
             large_label_draw(buttons[i].x, buttons[i].y, buttons[i].width / 16, data.focus_button_id == i + 1 ? 1 : 0);
 
-            text_draw(data.list[i].name, 48, y_offset + 8, FONT_NORMAL_PLAIN, COLOR_BLACK);
+            text_draw(data.list[i].name, 48, y_offset + 8, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
         }
 
         y_offset += DETAILS_ROW_HEIGHT;
     }
 
-    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();
@@ -295,7 +295,7 @@ static void draw_foreground_resources(void)
             if (route_resource_data.focus_button_id == i + 1) {
                 button_border_draw(BUTTON_LEFT_PADDING, y_offset, BUTTON_WIDTH, DETAILS_ROW_HEIGHT, 1);
             }
-            text_draw(route_resource_data.list[i].name, 48, y_offset + 8, FONT_NORMAL_PLAIN, COLOR_BLACK);
+            text_draw(route_resource_data.list[i].name, 48, y_offset + 8, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
         }
         y_offset += DETAILS_ROW_HEIGHT;
     }

@@ -520,10 +520,10 @@ static trade_row_style get_trade_row_style(const empire_city *city, int is_sell,
     // === Label indent ===
     if (!city->is_open) {
         int label_id = is_sell ? 5 : 4;
-        style.label_indent = lang_text_get_width(47, label_id, FONT_NORMAL_GREEN) + (is_compact ? 5 : 20);
+        style.label_indent = lang_text_get_width(47, label_id, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height)) + (is_compact ? 5 : 20);
     } else { // labels
-        int width_sells = lang_text_get_width(47, 10, FONT_NORMAL_GREEN);
-        int width_buys = lang_text_get_width(47, 9, FONT_NORMAL_GREEN);
+        int width_sells = lang_text_get_width(47, 10, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        int width_buys = lang_text_get_width(47, 9, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         int max_label_width = (width_sells > width_buys) ? width_sells : width_buys;
         style.label_indent = max_label_width + (any_compact ? 5 : 15) - FONT_SPACE_WIDTH + 5;
     }
@@ -556,8 +556,8 @@ static int open_trade_button_icon_fits(const empire_city *city, const open_trade
     int available_width = style->button_width - 6; // 6px border
 
     // --- Measure elements ---
-    int cost_width = lang_text_get_amount_width(8, 0, cost, FONT_NORMAL_GREEN);
-    int label_width = lang_text_get_width(47, 6, FONT_NORMAL_GREEN);
+    int cost_width = lang_text_get_amount_width(8, 0, cost, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    int label_width = lang_text_get_width(47, 6, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     int icon_width = 28;
 
     // --- Widths with spacings ---
@@ -578,13 +578,13 @@ static int measure_trade_row_width(const empire_city *city, int is_sell, const t
         if (!resource_is_storable(r)) continue;
         if ((is_sell && !city->sells_resource[r]) || (!is_sell && !city->buys_resource[r])) continue;
 
-        int w_max = text_get_number_width(trade_route_limit(city->route_id, r, !is_sell), '\0', "", FONT_NORMAL_GREEN);
+        int w_max = text_get_number_width(trade_route_limit(city->route_id, r, !is_sell), '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         int segment_width;
 
         if (city->is_open) {
             // Also need width of current amount and "of" label
-            int w_now = text_get_number_width(trade_route_traded(city->route_id, r, !is_sell), '\0', "", FONT_NORMAL_GREEN);
-            int w_of = lang_text_get_width(47, 11, FONT_NORMAL_GREEN);
+            int w_now = text_get_number_width(trade_route_traded(city->route_id, r, !is_sell), '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            int w_of = lang_text_get_width(47, 11, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
             segment_width =
                 style->seg_space_0 + ICON_WIDTH +
@@ -997,8 +997,8 @@ static int build_open_trade_button_widget_spec(
     const int x = style->button_x_min;
     const int y = style->button_y_min;
     const int available_width = style->button_width - 6;
-    const int cost_width = lang_text_get_amount_width(8, 0, cost, FONT_NORMAL_GREEN);
-    const int label_width = lang_text_get_width(47, 6, FONT_NORMAL_GREEN);
+    const int cost_width = lang_text_get_amount_width(8, 0, cost, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    const int label_width = lang_text_get_width(47, 6, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     const int icon_width = (icon_type != TRADE_ICON_NONE) ? 28 : 0;
 
     const int width_cost_only = style->seg_space_0 + style->seg_space_1 + cost_width;
@@ -1124,24 +1124,24 @@ static int draw_trade_row(const empire_city *city, int is_sell, int x, int y, co
     // Draw "Sells:" or "Buys:" label
     int x_cursor = x + style->x_offset_text;
     int y_cursor = y + style->y_offset_text;
-    int dots_width = text_get_width((const uint8_t *) "(...)", FONT_NORMAL_GREEN) + 2;
+    int dots_width = text_get_width((const uint8_t *) "(...)", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height)) + 2;
     int draw_label = window_empire_sidebar_sort_count_trade_resources(city, is_sell); //check if there are any resources to draw
     if (!draw_label) {
         // No resources to draw, return current x position
         return x_cursor;
     }
-    if (x_cursor + lang_text_get_width(47, label_id, FONT_NORMAL_GREEN) > x + style->row_width) {
+    if (x_cursor + lang_text_get_width(47, label_id, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height)) > x + style->row_width) {
         //not enough space to draw row
         if (x_cursor + dots_width > x + style->row_width) {
             //not enough space even for dots
             return x_cursor;
         } else {
-            x_cursor += text_draw((const uint8_t *) "(...)", x_cursor + 2, y_cursor, FONT_NORMAL_GREEN, 0);
+            x_cursor += text_draw((const uint8_t *) "(...)", x_cursor + 2, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         }
 
         return x_cursor;
     }
-    int label_width = lang_text_draw(47, label_id, x_cursor, y_cursor, FONT_NORMAL_GREEN);
+    int label_width = lang_text_draw(47, label_id, x_cursor, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     if (city->is_open) {
         x_cursor += style->label_indent; //advance by pre-defined label width for open cities where there's two rows
     } else {
@@ -1162,9 +1162,9 @@ static int draw_trade_row(const empire_city *city, int is_sell, int x, int y, co
 
         if (city->is_open) {
             // Calculate widths
-            int w_now = text_get_number_width(trade_now, '\0', "", FONT_NORMAL_GREEN); // '\0' - 0 length suffix.
-            int w_max = text_get_number_width(trade_max, '\0', "", FONT_NORMAL_GREEN);
-            int w_of = lang_text_get_width(47, 11, FONT_NORMAL_GREEN);
+            int w_now = text_get_number_width(trade_now, '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height)); // '\0' - 0 length suffix.
+            int w_max = text_get_number_width(trade_max, '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            int w_of = lang_text_get_width(47, 11, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
             segment_width =
                 style->seg_space_0 + RESOURCE_ICON_WIDTH +
@@ -1174,7 +1174,7 @@ static int draw_trade_row(const empire_city *city, int is_sell, int x, int y, co
                 style->seg_space_4 +
                 style->segment_width_adjust;
         } else {
-            int w_max = text_get_number_width(trade_max, '\0', "", FONT_NORMAL_GREEN);
+            int w_max = text_get_number_width(trade_max, '\0', "", FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             segment_width =
                 style->seg_space_0 + RESOURCE_ICON_WIDTH +
                 style->seg_space_1 + w_max +
@@ -1187,7 +1187,7 @@ static int draw_trade_row(const empire_city *city, int is_sell, int x, int y, co
                 //not enough space even for dots
                 break;
             }
-            x_cursor += text_draw((const uint8_t *) "(...)", x_cursor + 2, y_cursor, FONT_NORMAL_GREEN, 0);
+            x_cursor += text_draw((const uint8_t *) "(...)", x_cursor + 2, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             break;
         }
         draw_trade_resource(r, trade_max, x_cursor + style->seg_space_0, icon_y);
@@ -1195,13 +1195,13 @@ static int draw_trade_row(const empire_city *city, int is_sell, int x, int y, co
         text_x = x_cursor + style->seg_space_0 + RESOURCE_ICON_WIDTH + style->seg_space_1;
 
         if (city->is_open) {
-            int w_now = text_draw_number(trade_now, '\0', "", text_x, y_cursor, FONT_NORMAL_GREEN, 0);
+            int w_now = text_draw_number(trade_now, '\0', "", text_x, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             int of_x = text_x + w_now + style->seg_space_2;
-            int w_of = lang_text_draw(47, 11, of_x, y_cursor, FONT_NORMAL_GREEN);
+            int w_of = lang_text_draw(47, 11, of_x, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             int max_x = of_x + w_of + style->seg_space_3;
-            text_draw_number(trade_max, '\0', "", max_x, y_cursor, FONT_NORMAL_GREEN, 0);
+            text_draw_number(trade_max, '\0', "", max_x, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         } else {
-            text_draw_number(trade_max, '\0', "", text_x, y_cursor, FONT_NORMAL_GREEN, 0);
+            text_draw_number(trade_max, '\0', "", text_x, y_cursor, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         }
         // Register button and hitbox
         register_resource_button(
@@ -1311,7 +1311,7 @@ static void draw_sidebar_city_item(const grid_box_item *item)
         // Everything fits
         image_draw(badge_id, x_offset + badge_margin, y_offset + badge_margin, COLOR_MASK_NONE, SCALE_NONE);
 
-        text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, 0);
+        text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         if (city->is_open || draw_icon_on_top) {
             //if city is open, draw trade route icon to remind of type, same if it doesnt fit in the button
             int trade_route_icon_offset = badge_width + BLOCK_SIZE;
@@ -1323,14 +1323,14 @@ static void draw_sidebar_city_item(const grid_box_item *item)
     } else if (badge_width <= available_width) {
         // Only badge fits, check if the icon fits inside it
         image_draw(badge_id, x_offset + badge_margin, y_offset + badge_margin, COLOR_MASK_NONE, SCALE_NONE);
-        int city_name_end = text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, 0);
+        int city_name_end = text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         int icon_fits_in_badge = (city_name_end + badge_margin + 2 + 34) <= (x_offset + badge_margin + badge_width);
         if (icon_fits_in_badge) {
             image_draw(image_id, x_offset + badge_margin + city_name_end + BLOCK_SIZE + 2, y_offset + 9 + 2 * city->is_sea_trade, COLOR_MASK_NONE, SCALE_NONE);
         }
 
     } else { // Not enough room for badge + icon
-        text_draw(name, x_offset + badge_margin, y_offset + 9, FONT_LARGE_BLACK, 0);
+        text_draw(name, x_offset + badge_margin, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     }
     // Move y_offset down for trade info rows
     y_offset += 44;
@@ -1359,22 +1359,22 @@ static void draw_city_info(const empire_object *object)
     const empire_city *city = empire_city_get(data.selected_city);
     switch (city->type) {
         case EMPIRE_CITY_DISTANT_ROMAN:
-            lang_text_draw_centered(47, 12, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN);
+            lang_text_draw_centered(47, 12, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             break;
         case EMPIRE_CITY_VULNERABLE_ROMAN:
             if (city_military_distant_battle_city_is_roman()) {
-                lang_text_draw_centered(47, 12, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN);
+                lang_text_draw_centered(47, 12, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             } else {
-                lang_text_draw_centered(47, 13, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN);
+                lang_text_draw_centered(47, 13, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             }
             break;
         case EMPIRE_CITY_FUTURE_TRADE:
         case EMPIRE_CITY_DISTANT_FOREIGN:
         case EMPIRE_CITY_FUTURE_ROMAN:
-            lang_text_draw_centered(47, 0, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN);
+            lang_text_draw_centered(47, 0, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             break;
         case EMPIRE_CITY_OURS:
-            lang_text_draw_centered(47, 1, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN);
+            lang_text_draw_centered(47, 1, x_offset, y_offset + 42, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             break;
         case EMPIRE_CITY_TRADE:
             draw_trade_city_info(object, city);
@@ -1392,7 +1392,7 @@ static void draw_roman_army_info(const empire_object *object)
     } else {
         text_id = 16;
     }
-    lang_text_draw_multiline(47, text_id, x_offset, y_offset, 240, FONT_NORMAL_GREEN);
+    lang_text_draw_multiline(47, text_id, x_offset, y_offset, 240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 }
 
 static void draw_enemy_army_info(const empire_object *object)
@@ -1400,7 +1400,7 @@ static void draw_enemy_army_info(const empire_object *object)
     lang_text_draw_multiline(47, 14,
         (data.x_min + data.x_max - 240) / 2,
         data.y_max - 68,
-        240, FONT_NORMAL_GREEN);
+        240, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 }
 
 static void draw_object_info(void)
@@ -1429,12 +1429,12 @@ static void draw_object_info(void)
                 break;
             default:
                 lang_text_draw_centered(47, 8, data.panel.x_min, data.y_max - 48,
-                    data.panel.x_max - data.panel.x_min, FONT_NORMAL_GREEN);
+                    data.panel.x_max - data.panel.x_min, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
                 break;
         }
     } else {
         lang_text_draw_centered(47, 8, data.panel.x_min, data.y_max - 48,
-            data.panel.x_max - data.panel.x_min, FONT_NORMAL_GREEN);
+            data.panel.x_max - data.panel.x_min, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
 }
 
@@ -1780,7 +1780,7 @@ static void draw_city_name(const empire_city *city)
         int x_offset = (data.panel.x_min + data.panel.x_max - 332) / 2 + 64;
         int y_offset = data.y_max - 118;
         const uint8_t *city_name = empire_city_get_name(city);
-        text_draw_centered(city_name, x_offset, y_offset, 268, FONT_LARGE_BLACK, 0);
+        text_draw_centered(city_name, x_offset, y_offset, 268, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     }
 }
 

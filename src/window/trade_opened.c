@@ -27,14 +27,14 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(80, 64, 30, 14);
-    lang_text_draw_centered(142, 0, 80, 80, 480, FONT_LARGE_BLACK);
+    lang_text_draw_centered(142, 0, 80, 80, 480, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     if (empire_city_get(selected_city)->is_sea_trade) {
-        lang_text_draw_multiline(142, 1, 112, 120, 416, FONT_NORMAL_BLACK);
-        lang_text_draw_multiline(142, 3, 112, 184, 416, FONT_NORMAL_BLACK);
+        lang_text_draw_multiline(142, 1, 112, 120, 416, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_multiline(142, 3, 112, 184, 416, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_multiline(142, 1, 112, 152, 416, FONT_NORMAL_BLACK);
+        lang_text_draw_multiline(142, 1, 112, 152, 416, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
-    lang_text_draw(142, 2, 128, 256, FONT_NORMAL_BLACK);
+    lang_text_draw(142, 2, 128, 256, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
