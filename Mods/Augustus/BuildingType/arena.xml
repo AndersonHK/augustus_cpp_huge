@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="arena">
+    <identity name_key="building.arena.name" />
+    <model size="3" cost="500" desirability_value="-3" desirability_step="1" desirability_step_size="1" desirability_range="3" laborers="25" />
+    <foundation policy="land" />
+    <button group="entertainment" order="60" icon="Health_Culture\Arena_OFF" text_key="building.arena.name" />
+    <sound id="arena" mute_on_enemies="true" />
+    <event_data attr="arena" />
     <graphics>
         <default>
             <path value="Health_Culture\Arena_OFF" />

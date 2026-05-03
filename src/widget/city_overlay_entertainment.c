@@ -1,5 +1,6 @@
 #include "city_overlay_entertainment.h"
 
+#include "building/building_type_api.h"
 #include "game/state.h"
 #include "translation/translation.h"
 

@@ -2,6 +2,7 @@
 
 #include "building/construction.h"
 #include "building/destruction.h"
+#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/type.h"
@@ -147,8 +148,11 @@ void game_cheat_activate(void)
 {
     if (window_is(WINDOW_BUILDING_INFO)) {
         building_type b_type = window_building_info_get_building_type();
+        if (b_type == BUILDING_WELL) {
+            data.is_cheating = 1;
+            return;
+        }
         switch (b_type) { //add more buildings to prevent debugging softlock
-            case BUILDING_WELL:
             case BUILDING_FOUNTAIN:
                 data.is_cheating = 1;
                 break;

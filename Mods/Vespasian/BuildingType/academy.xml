@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="academy">
+    <identity name_key="building.academy.name" />
+    <model size="3" cost="100" desirability_value="4" desirability_step="1" desirability_step_size="1" desirability_range="4" laborers="30" />
+    <foundation policy="land" />
+    <button group="education" order="40" icon="Health_Culture\Academy_Fix" text_key="building.academy.name" />
+    <sound id="academy" />
+    <event_data attr="academy" />
     <graphics>
         <default>
             <path value="Health_Culture\Academy_Fix" />

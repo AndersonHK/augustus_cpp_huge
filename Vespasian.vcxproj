@@ -73,7 +73,7 @@
     <ClCompile Include="src\building\list.c" />
     <ClCompile Include="src\building\maintenance.c" />
     <ClCompile Include="src\building\market.c" />
-    <ClCompile Include="src\building\menu.c" />
+    <ClCompile Include="src\building\menu.cpp" />
     <ClCompile Include="src\building\mess_hall.c" />
     <ClCompile Include="src\building\monument.c" />
     <ClCompile Include="src\building\production.cpp" />
@@ -374,7 +374,7 @@
     <ClCompile Include="src\scenario\event\export_xml.c" />
     <ClCompile Include="src\scenario\event\formula.c" />
     <ClCompile Include="src\scenario\event\import_xml.cpp" />
-    <ClCompile Include="src\scenario\event\parameter_city.c" />
+    <ClCompile Include="src\scenario\event\parameter_city.cpp" />
     <ClCompile Include="src\scenario\event\parameter_data.c" />
     <ClCompile Include="src\scenario\gladiator_revolt.c" />
     <ClCompile Include="src\scenario\invasion.c" />
@@ -386,7 +386,7 @@
     <ClCompile Include="src\scenario\random_event.c" />
     <ClCompile Include="src\scenario\request.c" />
     <ClCompile Include="src\scenario\scenario.c" />
-    <ClCompile Include="src\sound\city.c" />
+    <ClCompile Include="src\sound\city.cpp" />
     <ClCompile Include="src\sound\effect.c" />
     <ClCompile Include="src\sound\music.c" />
     <ClCompile Include="src\sound\speech.c" />

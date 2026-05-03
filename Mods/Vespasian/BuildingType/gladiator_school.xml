@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gladiator_school">
+    <identity name_key="building.gladiator_school.name" />
+    <model size="3" cost="75" desirability_value="-3" desirability_step="1" desirability_step_size="1" desirability_range="3" laborers="8" />
+    <foundation policy="land" />
+    <button group="entertainment" order="40" icon="gladiator school" text_key="building.gladiator_school.name" />
+    <sound id="gladiator_school" mute_on_enemies="true" />
+    <event_data attr="gladiator_school" />
     <labor>
         <employees count="8" />
         <labor_seeker>
@@ -7,7 +13,8 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44">
-        <spawn mode="service_roamer" spawn_figure="gladiator" action_state="entertainer_school_created"
-            direction="top" figure_slot="primary" init_roaming="false" profile="venue_seeker" />
+        <spawn mode="service_roamer" spawn_figure="gladiator"
+            action_state="entertainer_school_created" direction="top" figure_slot="primary"
+            init_roaming="false" profile="venue_seeker" />
     </spawn_group>
 </building>

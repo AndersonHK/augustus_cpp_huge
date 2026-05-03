@@ -822,7 +822,7 @@ static void draw_fountain(const map_tile *tile, int x, int y)
     } else {
         color_mask = COLOR_MASK_BUILDING_GHOST;
     }
-    int image_id = image_group(building_properties_for_type(BUILDING_FOUNTAIN)->image_group);
+    int image_id = building_image_get_for_type(BUILDING_FOUNTAIN);
     if (config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
         city_water_ghost_draw_preview(BUILDING_FOUNTAIN, tile->grid_offset, 0);
     }
@@ -847,7 +847,7 @@ static void draw_well(const map_tile *tile, int x, int y)
     } else {
         color_mask = COLOR_MASK_BUILDING_GHOST;
     }
-    int image_id = image_group(building_properties_for_type(BUILDING_WELL)->image_group);
+    int image_id = building_image_get_for_type(BUILDING_WELL);
     if (config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
         city_water_ghost_draw_preview(BUILDING_WELL, tile->grid_offset, 0);
     }
@@ -1595,6 +1595,11 @@ void city_building_ghost_draw(const map_tile *tile)
         draw_partial_grid(tile->grid_offset, x, y, type);
     }
 
+    if (type == BUILDING_WELL) {
+        draw_well(tile, x, y);
+        return;
+    }
+
     switch (type) {
         case BUILDING_DRAGGABLE_RESERVOIR:
             draw_draggable_reservoir(tile, x, y);
@@ -1607,9 +1612,6 @@ void city_building_ghost_draw(const map_tile *tile)
                 city_water_ghost_draw_reservoir_ranges();
             }
             draw_fountain(tile, x, y);
-            break;
-        case BUILDING_WELL:
-            draw_well(tile, x, y);
             break;
         case BUILDING_BATHHOUSE:
             if (config_get(CONFIG_UI_BUILD_SHOW_RESERVOIR_RANGES)) {

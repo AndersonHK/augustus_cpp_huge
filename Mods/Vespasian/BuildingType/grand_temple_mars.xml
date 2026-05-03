@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="grand_temple_mars">
+    <identity name_key="building.grand_temple_mars.name" />
+    <model size="7" cost="2500" desirability_value="20" desirability_step="2" desirability_step_size="-4" desirability_range="8" laborers="50" />
+    <foundation policy="land" />
+    <button group="grand_temples" order="40" icon="grand temple mars" text_key="building.grand_temple_mars.name" />
+    <sound id="temple_mars" />
+    <event_data attr="grand_temple_mars" />
+    <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
     <labor>
         <employees count="50" />
         <labor_seeker>

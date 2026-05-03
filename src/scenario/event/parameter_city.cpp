@@ -1,5 +1,6 @@
 #include "scenario/event/parameter_city.h"
 
+extern "C" {
 #include "building/count.h"
 #include "building/granary.h"
 #include "building/warehouse.h"
@@ -24,7 +25,7 @@
 #include "game/settings.h"
 #include "window/advisors.h"
 #include "window/editor/select_city_trade_route.h"
-#include "parameter_city.h"
+}
 
 #define RESOURCE_ALL_BUYS RESOURCE_MAX + 1 // max +1 indicates all resources that this trade route buys
 #define RESOURCE_ALL_SELLS RESOURCE_MAX + 2 // max +2 indicates all resources that this trade route sells
@@ -32,8 +33,8 @@
 
 static int resource_count(scenario_action_t *action)
 {
-    resource_type resource = action->parameter3;
-    storage_types storage_type = action->parameter4;
+    resource_type resource = static_cast<resource_type>(action->parameter3);
+    storage_types storage_type = static_cast<storage_types>(action->parameter4);
     int respect_settings = action->parameter5;
     switch (storage_type) {
         case STORAGE_TYPE_GRANARIES:
@@ -49,12 +50,13 @@ static int resource_count(scenario_action_t *action)
 
 static int building_coverage(scenario_action_t *action)
 {
-    building_type type = action->parameter3;
+    building_type type = static_cast<building_type>(action->parameter3);
+    if (BUILDING_THEATER != BUILDING_NONE && type == BUILDING_THEATER) {
+        return window_advisors_get_theater_coverage();
+    }
     switch (type) {
         case BUILDING_TAVERN:
             return window_advisors_get_tavern_coverage();
-        case BUILDING_THEATER:
-            return window_advisors_get_theater_coverage();
         case BUILDING_ARENA:
             return window_advisors_get_arena_coverage();
         case BUILDING_AMPHITHEATER:
@@ -102,7 +104,7 @@ static int population_by_housing_type(scenario_action_t *action)
         return 0;
     }
     if (!is_group) {
-        house_level level = action->parameter3 - 10; // convert from building_type to house_level
+        house_level level = static_cast<house_level>(action->parameter3 - 10); // convert from building_type to house_level
         int pop_at_level = city_population_at_level(level);
         if (is_absolute) {
             return pop_at_level;
@@ -173,7 +175,7 @@ static int count_not_overgrown(int grid_offset)
 
 static int get_building_count(scenario_action_t *action)
 {
-    building_type type = action->parameter3;
+    building_type type = static_cast<building_type>(action->parameter3);
     int active_only = action->parameter4;
     int total_count = 0;
     switch (type) {
@@ -237,13 +239,13 @@ static int get_building_count(scenario_action_t *action)
 
 static int get_player_soldiers_count(scenario_action_t *action)
 {
-    figure_type type = action->parameter3;
+    figure_type type = static_cast<figure_type>(action->parameter3);
     return formation_legion_count_alive_soldiers_by_type(type);
 }
 
 static int get_enemy_troops_count(scenario_action_t *action)
 {
-    enemy_class_t enemy_class = action->parameter3;
+    enemy_class_t enemy_class = static_cast<enemy_class_t>(action->parameter3);
     int count = 0;
     for (unsigned int i = 1; i < figure_count(); i++) {    // Iterate through all figures to count enemy troops
         figure *f = figure_get(i);
@@ -286,7 +288,8 @@ static int city_trade_quota_fill_percentage(scenario_action_t *action)
     int city_id = empire_city_get_for_trade_route(trade_route_id);
 
     if (resource_id == RESOURCE_ALL_BUYS || resource_id == RESOURCE_ALL_SELLS) {
-        for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+        for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+            resource_type r = static_cast<resource_type>(resource);
             int buys = empire_city_buys_resource(city_id, r);
             int sells = empire_city_sells_resource(city_id, r);
 
@@ -296,9 +299,10 @@ static int city_trade_quota_fill_percentage(scenario_action_t *action)
             }
         }
     } else {
-        int buys = empire_city_buys_resource(city_id, resource_id);
-        traded = trade_route_traded(trade_route_id, resource_id, buys);
-        limit = trade_route_limit(trade_route_id, resource_id, buys);
+        resource_type resource = static_cast<resource_type>(resource_id);
+        int buys = empire_city_buys_resource(city_id, resource);
+        traded = trade_route_traded(trade_route_id, resource, buys);
+        limit = trade_route_limit(trade_route_id, resource, buys);
     }
     if (is_absolute) {
         return traded;
@@ -310,7 +314,7 @@ static int city_trade_quota_fill_percentage(scenario_action_t *action)
 
 int scenario_event_parameter_city_for_action(scenario_action_t *action)
 {
-    city_property_t type = action->parameter2;
+    city_property_t type = static_cast<city_property_t>(action->parameter2);
     switch (type) { // Simple properties - direct return values
         case CITY_PROPERTY_DIFFICULTY:
             return setting_difficulty();

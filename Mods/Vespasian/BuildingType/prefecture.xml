@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="prefecture">
+    <identity name_key="building.prefecture.name" />
+    <model size="1" cost="30" desirability_value="-2" desirability_step="1" desirability_step_size="1" desirability_range="2" laborers="6" />
+    <foundation policy="land" />
+    <button group="security" order="10" icon="Admin_Logistics\Prefecture" text_key="building.prefecture.name" />
+    <sound id="prefecture" />
+    <event_data attr="prefecture" />
+    <flags draw_desirability_range="1" />
     <graphics>
         <default>
             <path value="Admin_Logistics\Prefecture" />
@@ -14,6 +21,7 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:0,75:1,50:3,25:7,1:15" existing_figure="prefect">
         <spawn mode="service_roamer" spawn_figure="prefect"
-            action_state="prefect_created" direction="top" figure_slot="primary" init_roaming="false" profile="service" />
+            action_state="prefect_created" direction="top" figure_slot="primary"
+            init_roaming="false" profile="service" />
     </spawn_group>
 </building>

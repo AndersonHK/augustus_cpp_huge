@@ -823,8 +823,12 @@ static special_attribute_mapping_t special_attribute_mappings_player_troops[] = 
 
 #define SPECIAL_ATTRIBUTE_MAPPINGS_PLAYER_TROOPS_SIZE (sizeof(special_attribute_mappings_player_troops) / sizeof(special_attribute_mapping_t))
 
+enum {
+    COVERAGE_BUILDINGS_THEATERS_INDEX = 0
+};
+
 static special_attribute_mapping_t special_attribute_mappings_coverage_buildings[] = {
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "theatres",      .value = BUILDING_THEATER,              .key = TR_CITY_PROPERTY_COVERAGE_THEATRE },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "theatres",      .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_THEATRE },
     {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "arenas",        .value = BUILDING_ARENA,                .key = TR_CITY_PROPERTY_COVERAGE_ARENA },
     {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "amphitheatres", .value = BUILDING_AMPHITHEATER,         .key = TR_CITY_PROPERTY_COVERAGE_AMPHITHEATRE },
     {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "taverns",       .value = BUILDING_TAVERN,               .key = TR_CITY_PROPERTY_COVERAGE_TAVERN },
@@ -839,6 +843,11 @@ static special_attribute_mapping_t special_attribute_mappings_coverage_buildings
     {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "academies",     .value = BUILDING_ACADEMY,              .key = TR_CITY_PROPERTY_COVERAGE_ACADEMY },
 };
 #define SPECIAL_ATTRIBUTE_MAPPINGS_COVERAGE_BUILDINGS_SIZE (sizeof(special_attribute_mappings_coverage_buildings) / sizeof(special_attribute_mapping_t))
+
+static void refresh_coverage_building_mappings(void)
+{
+    special_attribute_mappings_coverage_buildings[COVERAGE_BUILDINGS_THEATERS_INDEX].value = BUILDING_THEATER;
+}
 
 static special_attribute_mapping_t special_attribute_mappings_rank[] = {
     {.type = PARAMETER_TYPE_RANK, .text = "citizen",        .value = 0,  .key = TR_RANK_CITIZEN },
@@ -997,6 +1006,7 @@ special_attribute_mapping_t *scenario_events_parameter_data_get_attribute_mappin
         case PARAMETER_TYPE_PLAYER_TROOPS:
             return &special_attribute_mappings_player_troops[index];
         case PARAMETER_TYPE_COVERAGE_BUILDINGS:
+            refresh_coverage_building_mappings();
             return &special_attribute_mappings_coverage_buildings[index];
         case PARAMETER_TYPE_RANK:
             return &special_attribute_mappings_rank[index];

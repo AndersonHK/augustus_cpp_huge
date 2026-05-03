@@ -1,10 +1,14 @@
 extern "C" {
 #include "lang.h"
 #include "building/building.h"
+#include "building/building_type_api.h"
+#include "building/building_type_id_bridge.h"
+#include "building/building_type_legacy_migration.h"
 #include "city/message.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "translation/translation.h"
+#include "translation/translation_key_table.h"
 }
 
 #include "translation/localization.h"
@@ -264,6 +268,26 @@ extern "C" const uint8_t *lang_get_string(int group, int index)
 
     if (group == 67 && index == 48) {
         return translation_for(TR_EDITOR_ALLOWED_BUILDINGS_MONUMENTS);
+    }
+
+    if ((group == 28 || group == 41) && index >= BUILDING_DYNAMIC_TYPE_FIRST && index < BUILDING_TYPE_MAX) {
+        building_type type = static_cast<building_type>(index);
+        const char *text_id = building_type_id_bridge_text_from_runtime(type);
+        uint16_t legacy_type = building_type_legacy_migration_enum_for_text_id(text_id);
+        if (legacy_type > BUILDING_NONE && legacy_type < BUILDING_TYPE_MAX && legacy_type != index) {
+            return lang_get_string(group, legacy_type);
+        }
+        const char *display_key = building_type_registry_get_button_text_key(type);
+        if (!display_key || !*display_key) {
+            display_key = building_type_registry_get_name_key(type);
+        }
+        if (display_key && *display_key) {
+            translation_key translation;
+            if (translation_key_from_name(display_key, &translation)) {
+                return translation_for(translation);
+            }
+            return reinterpret_cast<const uint8_t *>(display_key);
+        }
     }
 
     // Building strings

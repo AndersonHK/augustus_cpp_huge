@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<production_method>
+    <kind value="workshop" />
+    <output resource="concrete" />
+    <batch_size value="1" />
+    <input resource="sand" amount="50" />
+</production_method>

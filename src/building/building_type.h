@@ -238,6 +238,60 @@ private:
     std::string text_key_;
 };
 
+class SoundDefinition {
+public:
+    void set_city_sound(int sound);
+    void set_mute_on_enemies(int value);
+    void set_always_play(int value);
+
+    int has_city_sound() const;
+    int city_sound() const;
+    int mute_on_enemies() const;
+    int always_play() const;
+    int has_any() const;
+
+private:
+    int has_city_sound_ = 0;
+    int city_sound_ = 0;
+    int mute_on_enemies_ = 0;
+    int always_play_ = 0;
+};
+
+class EventDataDefinition {
+public:
+    void set_attr(std::string attr);
+
+    int has_attr() const;
+    const char *attr() const;
+    int has_any() const;
+
+private:
+    std::string attr_;
+};
+
+class BuildingFlagsDefinition {
+public:
+    void set_fire_proof(int value);
+    void set_draw_desirability_range(int value);
+    void set_venus_gt_bonus(int value);
+
+    int has_fire_proof() const;
+    int fire_proof() const;
+    int has_draw_desirability_range() const;
+    int draw_desirability_range() const;
+    int has_venus_gt_bonus() const;
+    int venus_gt_bonus() const;
+    int has_any() const;
+
+private:
+    int has_fire_proof_ = 0;
+    int fire_proof_ = 0;
+    int has_draw_desirability_range_ = 0;
+    int draw_desirability_range_ = 0;
+    int has_venus_gt_bonus_ = 0;
+    int venus_gt_bonus_ = 0;
+};
+
 struct GraphicsTarget {
     void set_path(std::string path);
     void set_image(std::string image);
@@ -367,6 +421,13 @@ public:
     void set_button_order(int order);
     void set_button_icon(std::string icon);
     void set_button_text_key(std::string key);
+    void set_sound_id(int sound);
+    void set_sound_mute_on_enemies(int value);
+    void set_sound_always_play(int value);
+    void set_event_attr(std::string attr);
+    void set_fire_proof(int value);
+    void set_draw_desirability_range(int value);
+    void set_venus_gt_bonus(int value);
     void set_water_access_type(WaterAccessType type);
     void set_water_access_range(int range);
     void set_water_access_requirement(WaterAccessRequirement requirement);
@@ -394,6 +455,9 @@ public:
     const BuildModelDefinition &model() const;
     const FoundationDefinition &foundation() const;
     const BuildButtonDefinition &button() const;
+    const SoundDefinition &sound() const;
+    const EventDataDefinition &event_data() const;
+    const BuildingFlagsDefinition &flags() const;
     const StateDefinition &state() const;
     const WaterAccessDefinition &water_access() const;
     const GraphicsDefinition &graphics() const;
@@ -403,6 +467,9 @@ public:
     int has_model() const;
     int has_foundation() const;
     int has_button() const;
+    int has_sound() const;
+    int has_event_data() const;
+    int has_flags() const;
     int has_water_access_provider() const;
     int has_graphic() const;
     int has_labor() const;
@@ -423,6 +490,9 @@ private:
     BuildModelDefinition model_;
     FoundationDefinition foundation_;
     BuildButtonDefinition button_;
+    SoundDefinition sound_;
+    EventDataDefinition event_data_;
+    BuildingFlagsDefinition flags_;
     StateDefinition state_;
     WaterAccessDefinition water_access_;
     GraphicsDefinition graphics_;

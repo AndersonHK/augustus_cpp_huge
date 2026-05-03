@@ -1,10 +1,18 @@
 #include "building/building_type_registry_internal.h"
+#include "building/building_type_legacy_migration.h"
 #include "building/production_method_registry.h"
 #include "building/storage_type_registry.h"
 
 extern "C" {
 #include "building/properties.h"
 #include "platform/file_manager.h"
+}
+
+#include <string_view>
+
+extern "C" {
+constinit building_type BUILDING_THEATER = BUILDING_NONE;
+constinit building_type BUILDING_WELL = BUILDING_NONE;
 }
 
 namespace building_type_registry_impl {
@@ -34,6 +42,39 @@ const BuildingType *definition_for_type(building_type type)
         return nullptr;
     }
     return g_building_types[type].get();
+}
+
+building_type runtime_id_from_text(const char *text_id)
+{
+    if (!text_id || !*text_id) {
+        return BUILDING_NONE;
+    }
+
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition) {
+            continue;
+        }
+        if (std::string_view(definition->attr()) == text_id) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
+}
+
+void refresh_known_building_type_ids()
+{
+    BUILDING_THEATER = runtime_id_from_text(BUILDING_TEXT_ID_THEATER);
+    BUILDING_WELL = runtime_id_from_text(BUILDING_TEXT_ID_WELL);
+}
+
+void clear_xml_runtime_property_fields()
+{
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const char *text_id = building_type_legacy_migration_text_id_for_enum(static_cast<uint16_t>(type));
+        if (type >= BUILDING_DYNAMIC_TYPE_FIRST || building_type_legacy_migration_text_id_is_xml_owned(text_id)) {
+            building_properties_clear_xml_runtime_fields(type);
+        }
+    }
 }
 
 }
@@ -68,6 +109,9 @@ extern "C" void building_type_registry_apply_model_overrides(void)
         }
         if (definition->has_model()) {
             const BuildModelDefinition &xml_model = definition->model();
+            if (xml_model.has_size()) {
+                building_properties_apply_xml_model_size(definition->type(), xml_model.size());
+            }
             if (xml_model.has_cost()) {
                 model->cost = xml_model.cost();
             }
@@ -90,7 +134,30 @@ extern "C" void building_type_registry_apply_model_overrides(void)
         if (definition->has_labor() && definition->labor().has_employee_count()) {
             model->laborers = definition->labor().employee_count();
         }
+        if (definition->has_event_data() && definition->event_data().has_attr()) {
+            building_properties_apply_xml_event_attr(definition->type(), definition->event_data().attr());
+        }
+        if (definition->has_sound() && definition->sound().has_city_sound()) {
+            building_properties_apply_xml_sound_id(definition->type(), definition->sound().city_sound());
+        }
+        if (definition->has_flags()) {
+            const BuildingFlagsDefinition &flags = definition->flags();
+            if (flags.has_fire_proof()) {
+                building_properties_apply_xml_fire_proof(definition->type(), flags.fire_proof());
+            }
+            if (flags.has_draw_desirability_range()) {
+                building_properties_apply_xml_draw_desirability_range(definition->type(), flags.draw_desirability_range());
+            }
+            if (flags.has_venus_gt_bonus()) {
+                building_properties_apply_xml_venus_gt_bonus(definition->type(), flags.venus_gt_bonus());
+            }
+        }
     }
+}
+
+extern "C" building_type building_type_registry_runtime_id_from_text(const char *text_id)
+{
+    return building_type_registry_impl::runtime_id_from_text(text_id);
 }
 
 extern "C" int building_type_registry_has_definition(building_type type)
@@ -159,4 +226,36 @@ extern "C" const char *building_type_registry_get_button_text_key(building_type 
         return 0;
     }
     return definition->button().text_key();
+}
+
+extern "C" int building_type_registry_get_sound_id(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_sound() || !definition->sound().has_city_sound()) {
+        return 0;
+    }
+    return definition->sound().city_sound();
+}
+
+extern "C" int building_type_registry_get_sound_mute_on_enemies(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_sound() ? definition->sound().mute_on_enemies() : 0;
+}
+
+extern "C" int building_type_registry_get_sound_always_play(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_sound() ? definition->sound().always_play() : 0;
+}
+
+extern "C" int building_type_registry_get_sound_requires_water_access(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_sound()) {
+        return 0;
+    }
+    return definition->water_access_mode() != building_type_registry_impl::WaterAccessMode::None ||
+        (definition->has_water_access_provider() &&
+            definition->water_access().requirement() != building_type_registry_impl::WaterAccessRequirement::None);
 }

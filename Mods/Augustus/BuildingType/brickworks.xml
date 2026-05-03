@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="brickworks">
+    <identity name_key="building.brickworks.name" />
+    <model size="2" cost="80" desirability_value="-3" desirability_step="1" desirability_step_size="1" desirability_range="3" laborers="10" />
+    <foundation policy="land" />
+    <button group="workshops" order="70" icon="brickworks" text_key="building.brickworks.name" />
+    <sound id="brickworks" />
+    <event_data attr="brickworks" />
     <labor>
         <employees count="10" />
         <labor_seeker>

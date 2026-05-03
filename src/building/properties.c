@@ -12,6 +12,8 @@
 static model_building buildings[BUILDING_TYPE_MAX];
 
 // PROPERTIES
+// BuildingType XML owns the migrated building rows. The static table below is
+// only for legacy-only types, tools, terrain, houses, and internal records.
 
 static building_properties properties[BUILDING_TYPE_MAX] = {
     [BUILDING_ANY] = {
@@ -66,11 +68,8 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .desirability_step_size = 0, .desirability_range = 0, .laborers = 0}
     },
     [BUILDING_DRAGGABLE_RESERVOIR] = {
-        .size = 1,
         .sound_id = SOUND_CITY_RESERVOIR,
         .event_data.attr = "reservoir",
-        .building_model_data = {.cost = 30, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 2, .desirability_range = 3, .laborers = 0} // Differs from model.txt
     },
     [BUILDING_AQUEDUCT] = {
         .size = 1,
@@ -581,22 +580,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .max_people = 200,
             .tax_multiplier = 16}
     },
-    [BUILDING_AMPHITHEATER] = {
-        .size = 3,
-        .image_group = 45,
-        .sound_id = SOUND_CITY_AMPHITHEATER,
-        .event_data.attr = "amphitheater",
-        .building_model_data = {.cost = 100, .desirability_value = 4, .desirability_step = 1,
-            .desirability_step_size = -1, .desirability_range = 4, .laborers = 12}
-    },
-    [BUILDING_THEATER] = {
-        .size = 2,
-        .image_group = 46,
-        .sound_id = SOUND_CITY_THEATER,
-        .event_data.attr = "theater",
-        .building_model_data = {.cost = 50, .desirability_value = 2, .desirability_step = 1,
-            .desirability_step_size = -1, .desirability_range = 2, .laborers = 8}
-    },
     [BUILDING_HIPPODROME] = {
         .size = 5,
         .fire_proof = 1,
@@ -614,30 +597,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.attr = "colosseum",
         .building_model_data = {.cost = 1500, .desirability_value = -3, .desirability_step = 1,
             .desirability_step_size = 1, .desirability_range = 3, .laborers = 100} // Differs from model.txt
-    },
-    [BUILDING_GLADIATOR_SCHOOL] = {
-        .size = 3,
-        .image_group = 49,
-        .sound_id = SOUND_CITY_GLADIATOR_SCHOOL,
-        .event_data.attr = "gladiator_school",
-        .building_model_data = {.cost = 75, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 8}
-    },
-    [BUILDING_LION_HOUSE] = {
-        .size = 3,
-        .image_group = 50,
-        .sound_id = SOUND_CITY_LION_PIT,
-        .event_data.attr = "lion_house",
-        .building_model_data = {.cost = 75, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 8}
-    },
-    [BUILDING_ACTOR_COLONY] = {
-        .size = 3,
-        .image_group = 51,
-        .sound_id = SOUND_CITY_ACTOR_COLONY,
-        .event_data.attr = "actor_colony",
-        .building_model_data = {.cost = 50, .desirability_value = 2, .desirability_step = 1,
-            .desirability_step_size = -1, .desirability_range = 2, .laborers = 5}
     },
     [BUILDING_CHARIOT_MAKER] = {
         .size = 3,
@@ -748,86 +707,9 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 60, .desirability_value = 10, .desirability_step = 1,
             .desirability_step_size = -2, .desirability_range = 4, .laborers = 0}
     },
-    [BUILDING_LARGE_STATUE] = {
-        .venus_gt_bonus = 1,
-        .size = 3,
-        .fire_proof = 1,
-        .image_group = 61,
-        .image_offset = 2,
-        .sound_id = SOUND_CITY_AQUEDUCT, //if has_water_access
-        .event_data.attr = "large_statue",
-        .building_model_data = {.cost = 150, .desirability_value = 14, .desirability_step = 2,
-            .desirability_step_size = -2, .desirability_range = 5, .laborers = 0}
-    },
-    [BUILDING_DOCTOR] = {
-        .size = 1,
-        .image_group = 68,
-        .sound_id = SOUND_CITY_CLINIC,
-        .event_data.attr = "doctor",
-        .building_model_data = {.cost = 30, .desirability_value = 0, .desirability_step = 0,
-            .desirability_step_size = 0, .desirability_range = 0, .laborers = 5}
-    },
-    [BUILDING_HOSPITAL] = {
-        .size = 3,
-        .image_group = 70,
-        .sound_id = SOUND_CITY_HOSPITAL,
-        .event_data.attr = "hospital",
-        .building_model_data = {.cost = 300, .desirability_value = -2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 30} // Differs from model.txt
-    },
-    [BUILDING_BATHHOUSE] = {
-        .size = 2,
-        .image_group = 185,
-        .sound_id = SOUND_CITY_BATHHOUSE,
-        .event_data.attr = "bathhouse",
-        .building_model_data = {.cost = 50, .desirability_value = 4, .desirability_step = 1,
-            .desirability_step_size = -1, .desirability_range = 4, .laborers = 10}
-    },
-    [BUILDING_BARBER] = {
-        .size = 1,
-        .image_group = 67,
-        .sound_id = SOUND_CITY_BARBER,
-        .event_data.attr = "barber",
-        .building_model_data = {.cost = 25, .desirability_value = 2, .desirability_step = 1,
-            .desirability_step_size = -1, .desirability_range = 2, .laborers = 2}
-    },
     [BUILDING_DISTRIBUTION_CENTER_UNUSED] = {
         .size = 3,
         .image_group = 66
-    },
-    [BUILDING_SCHOOL] = {
-        .size = 2,
-        .image_group = 41,
-        .sound_id = SOUND_CITY_SCHOOL,
-        .event_data.attr = "school",
-        .building_model_data = {.cost = 50, .desirability_value = -2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-    },
-    [BUILDING_ACADEMY] = {
-        .size = 3,
-        .image_group = 43,
-        .sound_id = SOUND_CITY_ACADEMY,
-        .event_data.attr = "academy",
-        .building_model_data = {.cost = 100, .desirability_value = 4, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 30}
-    },
-    [BUILDING_LIBRARY] = {
-        .size = 2,
-        .sound_id = SOUND_CITY_LIBRARY,
-        .custom_asset.group = "Health_Culture",
-        .custom_asset.id = "Downgraded_Library",
-        .event_data.attr = "library",
-        .building_model_data = {.cost = 75, .desirability_value = 4, .desirability_step = 1,
-            .desirability_step_size = -1, .desirability_range = 4, .laborers = 20}
-    },
-    [BUILDING_PREFECTURE] = {
-        .size = 1,
-        .image_group = 64,
-        .sound_id = SOUND_CITY_PREFECTURE,
-        .draw_desirability_range = 1,
-        .event_data.attr = "prefecture",
-        .building_model_data = {.cost = 30, .desirability_value = -2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 6}
     },
     [BUILDING_TRIUMPHAL_ARCH] = {
         .size = 3,
@@ -857,134 +739,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.attr = "tower",
         .building_model_data = {.cost = 150, .desirability_value = -8, .desirability_step = 1,
             .desirability_step_size = 2, .desirability_range = 3, .laborers = 6}
-    },
-    [BUILDING_SMALL_TEMPLE_CERES] = {
-        .venus_gt_bonus = 1,
-        .size = 2,
-        .image_group = 71,
-        .sound_id = SOUND_CITY_TEMPLE_CERES,
-        .draw_desirability_range = 1,
-        .event_data.attr = "small_temple_ceres",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_SMALL_TEMPLE_CERES,
-        .building_model_data = {.cost = 50, .desirability_value = 4, .desirability_step = 2,
-            .desirability_step_size = 6, .desirability_range = 2, .laborers = 2}
-    },
-    [BUILDING_SMALL_TEMPLE_NEPTUNE] = {
-        .venus_gt_bonus = 1,
-        .size = 2,
-        .image_group = 72,
-        .sound_id = SOUND_CITY_TEMPLE_NEPTUNE,
-        .draw_desirability_range = 1,
-        .event_data.attr = "small_temple_neptune",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_SMALL_TEMPLE_NEPTUNE,
-        .building_model_data = {.cost = 50, .desirability_value = 4, .desirability_step = 2,
-            .desirability_step_size = 6, .desirability_range = 2, .laborers = 2}
-    },
-    [BUILDING_SMALL_TEMPLE_MERCURY] = {
-        .venus_gt_bonus = 1,
-        .size = 2,
-        .image_group = 73,
-        .sound_id = SOUND_CITY_TEMPLE_MERCURY,
-        .draw_desirability_range = 1,
-        .event_data.attr = "small_temple_mercury",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_SMALL_TEMPLE_MERCURY,
-        .building_model_data = {.cost = 50, .desirability_value = 4, .desirability_step = 2,
-            .desirability_step_size = 6, .desirability_range = 2, .laborers = 2}
-    },
-    [BUILDING_SMALL_TEMPLE_MARS] = {
-        .venus_gt_bonus = 1,
-        .size = 2,
-        .image_group = 74,
-        .sound_id = SOUND_CITY_TEMPLE_MARS,
-        .draw_desirability_range = 1,
-        .event_data.attr = "small_temple_mars",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_SMALL_TEMPLE_MARS,
-        .building_model_data = {.cost = 50, .desirability_value = 4, .desirability_step = 2,
-            .desirability_step_size = 6, .desirability_range = 2, .laborers = 2}
-    },
-    [BUILDING_SMALL_TEMPLE_VENUS] = {
-        .venus_gt_bonus = 1,
-        .size = 2,
-        .image_group = 75,
-        .sound_id = SOUND_CITY_TEMPLE_VENUS,
-        .draw_desirability_range = 1,
-        .event_data.attr = "small_temple_venus",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_SMALL_TEMPLE_VENUS,
-        .building_model_data = {.cost = 50, .desirability_value = 4, .desirability_step = 2,
-            .desirability_step_size = 6, .desirability_range = 2, .laborers = 2}
-    },
-    [BUILDING_LARGE_TEMPLE_CERES] = {
-        .venus_gt_bonus = 1,
-        .size = 3,
-        .fire_proof = 1,
-        .image_group = 71,
-        .image_offset = 1,
-        .sound_id = SOUND_CITY_TEMPLE_CERES,
-        .draw_desirability_range = 1,
-        .event_data.attr = "large_temple_ceres",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_LARGE_TEMPLE_CERES,
-        .building_model_data = {.cost = 150, .desirability_value = 14, .desirability_step = 2,
-            .desirability_step_size = -2, .desirability_range = 5, .laborers = 5}
-    },
-    [BUILDING_LARGE_TEMPLE_NEPTUNE] = {
-        .venus_gt_bonus = 1,
-        .size = 3,
-        .fire_proof = 1,
-        .image_group = 72,
-        .image_offset = 1,
-        .sound_id = SOUND_CITY_TEMPLE_NEPTUNE,
-        .draw_desirability_range = 1,
-        .event_data.attr = "large_temple_neptune",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_LARGE_TEMPLE_NEPTUNE,
-        .building_model_data = {.cost = 150, .desirability_value = 14, .desirability_step = 2,
-            .desirability_step_size = -2, .desirability_range = 5, .laborers = 5}
-    },
-    [BUILDING_LARGE_TEMPLE_MERCURY] = {
-        .venus_gt_bonus = 1,
-        .size = 3,
-        .fire_proof = 1,
-        .image_group = 73,
-        .image_offset = 1,
-        .sound_id = SOUND_CITY_TEMPLE_MERCURY,
-        .draw_desirability_range = 1,
-        .event_data.attr = "large_temple_mercury",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_LARGE_TEMPLE_MERCURY,
-        .building_model_data = {.cost = 150, .desirability_value = 14, .desirability_step = 2,
-            .desirability_step_size = -2, .desirability_range = 5, .laborers = 5}
-    },
-    [BUILDING_LARGE_TEMPLE_MARS] = {
-        .venus_gt_bonus = 1,
-        .size = 3,
-        .fire_proof = 1,
-        .image_group = 74,
-        .image_offset = 1,
-        .sound_id = SOUND_CITY_TEMPLE_MARS,
-        .draw_desirability_range = 1,
-        .event_data.attr = "large_temple_mars",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_LARGE_TEMPLE_MARS,
-        .building_model_data = {.cost = 150, .desirability_value = 14, .desirability_step = 2,
-            .desirability_step_size = -2, .desirability_range = 5, .laborers = 5}
-    },
-    [BUILDING_LARGE_TEMPLE_VENUS] = {
-        .venus_gt_bonus = 1,
-        .size = 3,
-        .fire_proof = 1,
-        .image_group = 75,
-        .image_offset = 1,
-        .sound_id = SOUND_CITY_TEMPLE_VENUS,
-        .draw_desirability_range = 1,
-        .event_data.attr = "large_temple_venus",
-        .event_data.key = TR_PARAMETER_VALUE_BUILDING_LARGE_TEMPLE_VENUS,
-        .building_model_data = {.cost = 150, .desirability_value = 14, .desirability_step = 2,
-            .desirability_step_size = -2, .desirability_range = 5, .laborers = 5}
-    },
-    [BUILDING_MARKET] = {
-        .size = 2,
-        .image_group = 22,
-        .sound_id = SOUND_CITY_MARKET,
-        .event_data.attr = "market",
-        .building_model_data = {.cost = 40, .desirability_value = -2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 6, .laborers = 5}
     },
     [BUILDING_GRANARY] = {
         .size = 3,
@@ -1065,15 +819,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 100, .desirability_value = -3, .desirability_step = 1,
             .desirability_step_size = 1, .desirability_range = 2, .laborers = 20}
     },
-    [BUILDING_ENGINEERS_POST] = {
-        .size = 1,
-        .fire_proof = 1,
-        .image_group = 81,
-        .sound_id = SOUND_CITY_ENGINEERS_POST,
-        .event_data.attr = "engineers_post",
-        .building_model_data = {.cost = 30, .desirability_value = 0, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 1, .laborers = 5}
-    },
     [BUILDING_LOW_BRIDGE] = {
         .size = 1,
         .fire_proof = 1,
@@ -1087,22 +832,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.attr = "ship_bridge",
         .building_model_data = {.cost = 100, .desirability_value = 0, .desirability_step = 0,
             .desirability_step_size = 0, .desirability_range = 0, .laborers = 0}
-    },
-    [BUILDING_SENATE] = {
-        .size = 5,
-        .image_group = 62,
-        .sound_id = SOUND_CITY_SENATE,
-        .event_data.attr = "senate",
-        .building_model_data = {.cost = 400, .desirability_value = 8, .desirability_step = 2,
-            .desirability_step_size = -1, .desirability_range = 8, .laborers = 30}
-    },
-    [BUILDING_FORUM] = {
-        .size = 2,
-        .image_group = 63,
-        .sound_id = SOUND_CITY_FORUM,
-        .event_data.attr = "forum",
-        .building_model_data = {.cost = 75, .desirability_value = 3, .desirability_step = 2,
-            .desirability_step_size = -1, .desirability_range = 2, .laborers = 6}
     },
     [BUILDING_NATIVE_HUT] = {
         .size = 1,
@@ -1123,33 +852,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 50, .desirability_value = 0, .desirability_step = 0,
             .desirability_step_size = 0, .desirability_range = 0, .laborers = 0}
     },
-    [BUILDING_RESERVOIR] = {
-        .size = 3,
-        .fire_proof = 1,
-        .image_group = 25,
-        .sound_id = SOUND_CITY_RESERVOIR,
-        .event_data.attr = "reservoir",
-        .building_model_data = {.cost = 80, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 2, .desirability_range = 3, .laborers = 0}
-    },
-    [BUILDING_FOUNTAIN] = {
-        .size = 1,
-        .fire_proof = 1,
-        .image_group = 54,
-        .sound_id = SOUND_CITY_FOUNTAIN, // Disabled in original
-        .event_data.attr = "fountain",
-        .building_model_data = {.cost = 15, .desirability_value = 0, .desirability_step = 0,
-            .desirability_step_size = 0, .desirability_range = 0, .laborers = 4}
-    },
-    [BUILDING_WELL] = {
-        .size = 1,
-        .fire_proof = 1,
-        .image_group = 23,
-        .sound_id = SOUND_CITY_WELL,
-        .event_data.attr = "well",
-        .building_model_data = {.cost = 5, .desirability_value = -1, .desirability_step = 1,
-            .desirability_step_size = 2, .desirability_range = 1, .laborers = 0}
-     },
      [BUILDING_NATIVE_CROPS] = {
         .size = 1,
         .fire_proof = 1,
@@ -1204,54 +906,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 0, .desirability_value = -1, .desirability_step = 1,
             .desirability_step_size = 1, .desirability_range = 2, .laborers = 0}
      },
-     [BUILDING_WHEAT_FARM] = {
-        .size = 3,
-        .image_group = 37,
-        .sound_id = SOUND_CITY_WHEAT_FARM,
-        .event_data.attr = "wheat_farm",
-        .building_model_data = {.cost = 40, .desirability_value = -2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
-     [BUILDING_VEGETABLE_FARM] = {
-        .size = 3,
-        .image_group = 37,
-        .sound_id = SOUND_CITY_VEGETABLE_FARM,
-        .event_data.attr = "vegetable_farm",
-        .building_model_data = {.cost = 40, .desirability_value = -2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
-     [BUILDING_FRUIT_FARM] = {
-        .size = 3,
-        .image_group = 37,
-        .sound_id = SOUND_CITY_FRUIT_FARM,
-        .event_data.attr = "fruit_farm",
-        .building_model_data = {.cost = 40, .desirability_value = 2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
-     [BUILDING_OLIVE_FARM] = {
-        .size = 3,
-        .image_group = 37,
-        .sound_id = SOUND_CITY_OLIVE_FARM,
-        .event_data.attr = "olive_farm",
-        .building_model_data = {.cost = 40, .desirability_value = 2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
-     [BUILDING_VINES_FARM] = {
-        .size = 3,
-        .image_group = 37,
-        .sound_id = SOUND_CITY_VINE_FARM,
-        .event_data.attr = "vines_farm",
-        .building_model_data = {.cost = 40, .desirability_value = 2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
-     [BUILDING_PIG_FARM] = {
-        .size = 3,
-        .image_group = 37,
-        .sound_id = SOUND_CITY_PIG_FARM,
-        .event_data.attr = "pig_farm",
-        .building_model_data = {.cost = 40, .desirability_value = -2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
      [BUILDING_MARBLE_QUARRY] = {
         .size = 2,
         .image_group = 38,
@@ -1284,46 +938,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 40, .desirability_value = -3, .desirability_step = 1,
             .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
      },
-     [BUILDING_WINE_WORKSHOP] = {
-        .size = 2,
-        .image_group = 44,
-        .sound_id = SOUND_CITY_WINE_WORKSHOP,
-        .event_data.attr = "wine_workshop",
-        .building_model_data = {.cost = 45, .desirability_value = -1, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 1, .laborers = 10}
-     },
-     [BUILDING_OIL_WORKSHOP] = {
-        .size = 2,
-        .image_group = 122,
-        .sound_id = SOUND_CITY_OIL_WORKSHOP,
-        .event_data.attr = "oil_workshop",
-        .building_model_data = {.cost = 50, .desirability_value = -4, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
-     [BUILDING_WEAPONS_WORKSHOP] = {
-        .size = 2,
-        .image_group = 123,
-        .sound_id = SOUND_CITY_WEAPONS_WORKSHOP,
-        .event_data.attr = "weapons_workshop",
-        .building_model_data = {.cost = 50, .desirability_value = -4, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
-     [BUILDING_FURNITURE_WORKSHOP] = {
-        .size = 2,
-        .image_group = 124,
-        .sound_id = SOUND_CITY_FURNITURE_WORKSHOP,
-        .event_data.attr = "furniture_workshop",
-        .building_model_data = {.cost = 40, .desirability_value = -4, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
-     [BUILDING_POTTERY_WORKSHOP] = {
-        .size = 2,
-        .image_group = 125,
-        .sound_id = SOUND_CITY_POTTERY_WORKSHOP,
-        .event_data.attr = "pottery_workshop",
-        .building_model_data = {.cost = 40, .desirability_value = -4, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
      [BUILDING_ROADBLOCK] = {
         .size = 1,
         .fire_proof = 1,
@@ -1331,75 +945,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.attr = "roadblock",
         .building_model_data = {.cost = 12, .desirability_value = 0, .desirability_step = 0,
             .desirability_step_size = 0, .desirability_range = 0, .laborers = 0}
-     },
-     [BUILDING_WORKCAMP] = {
-        .size = 3,
-        .sound_id = SOUND_CITY_WORKCAMP,
-        .custom_asset.group = "Admin_Logistics",
-        .custom_asset.id = "Workcamp Central",
-        .event_data.attr = "workcamp",
-        .building_model_data = {.cost = 150, .desirability_value = -10, .desirability_step = 2,
-            .desirability_step_size = 3, .desirability_range = 4, .laborers = 20}
-     },
-     [BUILDING_GRAND_TEMPLE_CERES] = {
-        .venus_gt_bonus = 1,
-        .size = 7,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_TEMPLE_CERES,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Monuments",
-        .custom_asset.id = "Ceres Complex Off",
-        .event_data.attr = "grand_temple_ceres",
-        .building_model_data = {.cost = 2500, .desirability_value = 20, .desirability_step = 2,
-            .desirability_step_size = -4, .desirability_range = 8, .laborers = 50}
-     },
-     [BUILDING_GRAND_TEMPLE_NEPTUNE] = {
-        .venus_gt_bonus = 1,
-        .size = 7,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_TEMPLE_NEPTUNE,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Monuments",
-        .custom_asset.id = "Neptune Complex Off",
-        .event_data.attr = "grand_temple_neptune",
-        .building_model_data = {.cost = 2500, .desirability_value = 20, .desirability_step = 2,
-            .desirability_step_size = -4, .desirability_range = 8, .laborers = 50}
-     },
-     [BUILDING_GRAND_TEMPLE_MERCURY] = {
-        .venus_gt_bonus = 1,
-        .size = 7,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_TEMPLE_MERCURY,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Monuments",
-        .custom_asset.id = "Mercury Complex Off",
-        .event_data.attr = "grand_temple_mercury",
-        .building_model_data = {.cost = 2500, .desirability_value = 20, .desirability_step = 2,
-            .desirability_step_size = -4, .desirability_range = 8, .laborers = 50}
-     },
-     [BUILDING_GRAND_TEMPLE_MARS] = {
-        .venus_gt_bonus = 1,
-        .size = 7,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_TEMPLE_MARS,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Monuments",
-        .custom_asset.id = "Mars Complex Off",
-        .event_data.attr = "grand_temple_mars",
-        .building_model_data = {.cost = 2500, .desirability_value = 20, .desirability_step = 2,
-            .desirability_step_size = -4, .desirability_range = 8, .laborers = 50}
-     },
-     [BUILDING_GRAND_TEMPLE_VENUS] = {
-        .venus_gt_bonus = 1,
-        .size = 7,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_TEMPLE_VENUS,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Monuments",
-        .custom_asset.id = "Venus Complex Off",
-        .event_data.attr = "grand_temple_venus",
-        .building_model_data = {.cost = 2500, .desirability_value = 20, .desirability_step = 2,
-            .desirability_step_size = -4, .desirability_range = 8, .laborers = 50}
      },
      [BUILDING_MENU_GRAND_TEMPLES] = {
         .event_data.attr = "grand_temples|all_grand_temples",
@@ -1416,28 +961,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
      [BUILDING_MENU_PARKS] = {
         .event_data.attr = "parks|all_parks",
         .event_data.key = TR_PARAMETER_VALUE_BUILDING_MENU_PARKS
-     },
-     [BUILDING_SMALL_POND] = {
-        .venus_gt_bonus = 1,
-        .size = 2,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_AQUEDUCT,    //if has_water_access
-        .custom_asset.group = "Aesthetics",
-        .custom_asset.id = "s pond south off",
-        .event_data.attr = "small_pond",
-        .building_model_data = {.cost = 60, .desirability_value = 10, .desirability_step = 1,
-            .desirability_step_size = -2, .desirability_range = 4, .laborers = 0}
-     },
-     [BUILDING_LARGE_POND] = {
-        .venus_gt_bonus = 1,
-        .size = 3,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_AQUEDUCT,    //if has_water_access
-        .custom_asset.group = "Aesthetics",
-        .custom_asset.id = "l pond south off",
-        .event_data.attr = "large_pond",
-        .building_model_data = {.cost = 150, .desirability_value = 14, .desirability_step = 2,
-            .desirability_step_size = -2, .desirability_range = 5, .laborers = 0}
      },
      [BUILDING_PINE_TREE] = {
         .venus_gt_bonus = 1,
@@ -1681,28 +1204,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 60, .desirability_value = 10, .desirability_step = 1,
             .desirability_step_size = -2, .desirability_range = 4, .laborers = 0}
      },
-     [BUILDING_PANTHEON] = {
-        .venus_gt_bonus = 1,
-        .size = 7,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_ORACLE,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Monuments",
-        .custom_asset.id = "Pantheon Off",
-        .event_data.attr = "pantheon",
-        .building_model_data = {.cost = 3500, .desirability_value = 20, .desirability_step = 2,
-            .desirability_step_size = -4, .desirability_range = 8, .laborers = 50}
-     },
-     [BUILDING_ARCHITECT_GUILD] = {
-        .size = 2,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_ENGINEERS_POST,
-        .custom_asset.group = "Admin_Logistics",
-        .custom_asset.id = "Arch Guild OFF",
-        .event_data.attr = "architect_guild",
-        .building_model_data = {.cost = 200, .desirability_value = -8, .desirability_step = 1,
-            .desirability_step_size = 2, .desirability_range = 4, .laborers = 12}
-     },
      [BUILDING_MESS_HALL] = {
         .size = 3,
         .sound_id = SOUND_CITY_MESS_HALL,
@@ -1713,16 +1214,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 100, .desirability_value = -8, .desirability_step = 1,
             .desirability_step_size = 2, .desirability_range = 4, .laborers = 10}
      },
-     [BUILDING_LIGHTHOUSE] = {
-        .size = 3,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_LIGHTHOUSE,
-        .custom_asset.group = "Monuments",
-        .custom_asset.id = "Lighthouse OFF",
-        .event_data.attr = "lighthouse",
-        .building_model_data = {.cost = 1000, .desirability_value = 6, .desirability_step = 1,
-            .desirability_step_size = -1, .desirability_range = 4, .laborers = 20}
-     },
      [BUILDING_MENU_STATUES] = {
         .event_data.attr = "statues|all_statues",
         .event_data.key = TR_PARAMETER_VALUE_BUILDING_MENU_STATUES
@@ -1730,15 +1221,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
      [BUILDING_MENU_GOV_RES] = {
         .event_data.attr = "governor_home|all_governors_houses",
         .event_data.key = TR_PARAMETER_VALUE_BUILDING_MENU_GOV_RES
-     },
-     [BUILDING_TAVERN] = {
-        .size = 2,
-        .sound_id = SOUND_CITY_TAVERN,
-        .custom_asset.group = "Health_Culture",
-        .custom_asset.id = "Tavern OFF",
-        .event_data.attr = "tavern",
-        .building_model_data = {.cost = 40, .desirability_value = -2, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 6, .laborers = 8}
      },
      [BUILDING_GRAND_GARDEN] = {
         .venus_gt_bonus = 1,
@@ -1748,15 +1230,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.cannot_count = 1,
         .building_model_data = {.cost = 400, .desirability_value = 0, .desirability_step = 0,
             .desirability_step_size = 0, .desirability_range = 0, .laborers = 0} // Unused
-     },
-     [BUILDING_ARENA] = {
-        .size = 3,
-        .sound_id = SOUND_CITY_ARENA,
-        .custom_asset.group = "Health_Culture",
-        .custom_asset.id = "Arena OFF",
-        .event_data.attr = "arena",
-        .building_model_data = {.cost = 500, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 25}
      },
      [BUILDING_HORSE_STATUE] = {
         .venus_gt_bonus = 1,
@@ -1896,27 +1369,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 500, .desirability_value = -10, .desirability_step = 1,
             .desirability_step_size = 3, .desirability_range = 6, .laborers = 0}
      },
-     [BUILDING_WATCHTOWER] = {
-        .size = 2,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_WATCHTOWER,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Military",
-        .custom_asset.id = "Watchtower C OFF",
-        .event_data.attr = "watchtower",
-        .building_model_data = {.cost = 100, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 2, .desirability_range = 3, .laborers = 8}
-     },
-     [BUILDING_CARAVANSERAI] = {
-        .size = 4,
-        .fire_proof = 1,
-        .sound_id = SOUND_CITY_CARAVANSERAI,
-        .custom_asset.group = "Monuments",
-        .custom_asset.id = "Caravanserai_C_OFF",
-        .event_data.attr = "caravanserai",
-        .building_model_data = {.cost = 500, .desirability_value = -10, .desirability_step = 2,
-            .desirability_step_size = 3, .desirability_range = 4, .laborers = 20}
-     },
      [BUILDING_ROOFED_GARDEN_WALL] = {
         .venus_gt_bonus = 1,
         .size = 1,
@@ -2016,24 +1468,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.attr = "sand_pit",
         .building_model_data = {.cost = 40, .desirability_value = -6, .desirability_step = 1,
             .desirability_step_size = 1, .desirability_range = 4, .laborers = 10}
-     },
-     [BUILDING_BRICKWORKS] = {
-        .size = 2,
-        .sound_id = SOUND_CITY_BRICKWORKS,
-        .custom_asset.group = "Industry",
-        .custom_asset.id = "Brickworks_C_OFF",
-        .event_data.attr = "brickworks",
-        .building_model_data = {.cost = 80, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 10}
-     },
-     [BUILDING_CONCRETE_MAKER] = {
-        .size = 2,
-        .sound_id = SOUND_CITY_CONCRETE_MAKER,
-        .custom_asset.group = "Industry",
-        .custom_asset.id = "Concrete_Maker_C_OFF",
-        .event_data.attr = "concrete_maker",
-        .building_model_data = {.cost = 60, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 10}
      },
      [BUILDING_CITY_MINT] = {
         .size = 3,
@@ -2147,16 +1581,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 12, .desirability_value = 3, .desirability_step = 1,
             .desirability_step_size = -1, .desirability_range = 3, .laborers = 0}
      },
-     [BUILDING_ARMOURY] = {
-        .size = 2,
-        .sound_id = SOUND_CITY_ARMOURY,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Military",
-        .custom_asset.id = "Armoury_OFF_C",
-        .event_data.attr = "armoury",
-        .building_model_data = {.cost = 50, .desirability_value = -5, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 6}
-     },
      [BUILDING_LATRINES] = {
         .size = 1,
         .fire_proof = 1,
@@ -2221,6 +1645,69 @@ void building_properties_init(void)
             properties[type].image_group = assets_get_group_id(properties[type].custom_asset.group);
         }
     }
+}
+
+void building_properties_clear_xml_runtime_fields(building_type type)
+{
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return;
+    }
+    properties[type].size = 0;
+    properties[type].fire_proof = 0;
+    properties[type].sound_id = 0;
+    properties[type].draw_desirability_range = 0;
+    properties[type].venus_gt_bonus = 0;
+    properties[type].event_data.attr = 0;
+    properties[type].event_data.key = 0;
+    properties[type].event_data.cannot_count = 0;
+}
+
+void building_properties_apply_xml_model_size(building_type type, int size)
+{
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return;
+    }
+    properties[type].size = size;
+}
+
+void building_properties_apply_xml_event_attr(building_type type, const char *attr)
+{
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return;
+    }
+    properties[type].event_data.attr = attr;
+}
+
+void building_properties_apply_xml_sound_id(building_type type, int sound_id)
+{
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return;
+    }
+    properties[type].sound_id = sound_id;
+}
+
+void building_properties_apply_xml_fire_proof(building_type type, int fire_proof)
+{
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return;
+    }
+    properties[type].fire_proof = fire_proof;
+}
+
+void building_properties_apply_xml_draw_desirability_range(building_type type, int draw_desirability_range)
+{
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return;
+    }
+    properties[type].draw_desirability_range = draw_desirability_range;
+}
+
+void building_properties_apply_xml_venus_gt_bonus(building_type type, int venus_gt_bonus)
+{
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return;
+    }
+    properties[type].venus_gt_bonus = venus_gt_bonus;
 }
 
 const building_properties *building_properties_for_type(building_type type)

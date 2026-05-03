@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="well">
+    <identity name_key="building.well.name" />
+    <model size="1" cost="5" desirability_value="-1" desirability_step="1" desirability_step_size="2" desirability_range="1" laborers="0" />
+    <foundation policy="land" />
+    <button group="water" order="30" icon="Admin_Logistics\Well" text_key="building.well.name" />
+    <sound id="well" />
+    <event_data attr="well" />
     <water_access>
         <type value="well" />
         <range value="2" />

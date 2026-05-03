@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temple_mars">
+    <identity name_key="building.large_temple_mars.name" />
+    <model size="3" cost="150" desirability_value="14" desirability_step="2" desirability_step_size="-2" desirability_range="5" laborers="5" />
+    <foundation policy="land" />
+    <button group="large_temples" order="40" icon="large temple mars" text_key="building.large_temple_mars.name" />
+    <sound id="temple_mars" />
+    <event_data attr="large_temple_mars" />
+    <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
     <labor>
         <employees count="5" />
         <labor_seeker>
@@ -8,7 +15,8 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
         <spawn mode="service_roamer" spawn_figure="priest"
-            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true" profile="mars_service" />
+            action_state="roaming" direction="top" figure_slot="primary"
+            init_roaming="true" profile="mars_service" />
     </spawn_group>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">
         <spawn mode="temple_mars_mess_hall_priest" />

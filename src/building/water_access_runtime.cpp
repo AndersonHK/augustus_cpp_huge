@@ -25,7 +25,6 @@ extern "C" {
 
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <vector>
 
 namespace {
@@ -817,6 +816,14 @@ extern "C" void water_access_runtime_refresh_large_statue(building *b)
 
 extern "C" int water_access_runtime_range_for_building(building_type type)
 {
+    if (BUILDING_WELL != BUILDING_NONE && normalize_provider_building_type(type) == BUILDING_WELL) {
+        int radius = provider_range_for_building_type(BUILDING_WELL);
+        if (building_monument_working(BUILDING_GRAND_TEMPLE_NEPTUNE)) {
+            radius++;
+        }
+        return radius;
+    }
+
     switch (normalize_provider_building_type(type)) {
         case BUILDING_FOUNTAIN:
         {
@@ -834,14 +841,6 @@ extern "C" int water_access_runtime_range_for_building(building_type type)
             int radius = provider_range_for_building_type(BUILDING_RESERVOIR);
             if (building_monument_working(BUILDING_GRAND_TEMPLE_NEPTUNE)) {
                 radius += 2;
-            }
-            return radius;
-        }
-        case BUILDING_WELL:
-        {
-            int radius = provider_range_for_building_type(BUILDING_WELL);
-            if (building_monument_working(BUILDING_GRAND_TEMPLE_NEPTUNE)) {
-                radius++;
             }
             return radius;
         }
@@ -981,7 +980,7 @@ extern "C" int water_access_runtime_should_draw_overlay_at(int grid_offset)
     if (!map_grid_is_valid_offset(grid_offset)) {
         return 0;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP | TERRAIN_AQUEDUCT)) {
+    if (map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP | TERRAIN_AQUEDUCT)) {
         return 0;
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {

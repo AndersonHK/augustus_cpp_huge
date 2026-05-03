@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fountain">
+    <identity name_key="building.fountain.name" />
+    <model size="1" cost="15" desirability_value="0" desirability_step="0" desirability_step_size="0" desirability_range="0" laborers="4" />
+    <foundation policy="land" />
+    <button group="water" order="40" icon="fountain" text_key="building.fountain.name" />
+    <sound id="fountain" />
+    <event_data attr="fountain" />
+    <flags fire_proof="1" />
     <water_access>
         <type value="fountain" />
         <range value="4" />

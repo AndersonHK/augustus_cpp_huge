@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="concrete_maker">
+    <identity name_key="building.concrete_maker.name" />
+    <model size="2" cost="60" desirability_value="-3" desirability_step="1" desirability_step_size="1" desirability_range="3" laborers="10" />
+    <foundation policy="land" />
+    <button group="workshops" order="80" icon="Industry\Concrete_Maker_C_OFF" text_key="building.concrete_maker.name" />
+    <sound id="concrete_maker" />
+    <event_data attr="concrete_maker" />
+    <state>
+        <water_access mode="reservoir_range" />
+    </state>
+    <labor>
+        <employees count="10" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
+    </labor>
+    <storages>
+        <storage path="sand_input_concrete_maker" />
+    </storages>
+    <production_methods>
+        <production_method path="concrete_maker_basic" />
+    </production_methods>
+</building>

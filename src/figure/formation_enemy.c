@@ -1,6 +1,7 @@
 #include "formation_enemy.h"
 
 #include "building/building.h"
+#include "building/building_type_api.h"
 #include "building/properties.h"
 #include "city/buildings.h"
 #include "city/figures.h"
@@ -22,6 +23,7 @@
 #include "map/terrain.h"
 
 #define INFINITE 10000
+#define RIOTER_ATTACK_PRIORITY_THEATER (-1)
 
 static const int ENEMY_ATTACK_PRIORITY[4][100] = {
     {
@@ -56,7 +58,7 @@ static const int RIOTER_ATTACK_PRIORITY[29] = {
     BUILDING_GOVERNORS_VILLA,
     BUILDING_GOVERNORS_HOUSE,
     BUILDING_AMPHITHEATER,
-    BUILDING_THEATER,
+    RIOTER_ATTACK_PRIORITY_THEATER,
     BUILDING_HOSPITAL,
     BUILDING_ACADEMY,
     BUILDING_BATHHOUSE,
@@ -168,7 +170,11 @@ static const int LAYOUT_ORIENTATION_OFFSETS[13][4][NUM_LAYOUT_FORMATIONS] = {
 static building *get_best_building(const int *priority_order, int max)
 {
     for (int i = 0; i < max; i++) {
-        building_type type = priority_order[i];
+        building_type type = priority_order[i] == RIOTER_ATTACK_PRIORITY_THEATER ?
+            BUILDING_THEATER : priority_order[i];
+        if (type <= BUILDING_NONE) {
+            continue;
+        }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state == BUILDING_STATE_IN_USE) {
                 return b;
@@ -182,7 +188,11 @@ static building *get_best_and_closest_building(int x, int y, const int *priority
 {
     int min_distance = INFINITE;
     for (int i = 0; i < max; i++) {
-        building_type type = priority_order[i];
+        building_type type = priority_order[i] == RIOTER_ATTACK_PRIORITY_THEATER ?
+            BUILDING_THEATER : priority_order[i];
+        if (type <= BUILDING_NONE) {
+            continue;
+        }
         building *best_building = 0;
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state != BUILDING_STATE_IN_USE) {

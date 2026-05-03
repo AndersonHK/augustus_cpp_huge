@@ -10,10 +10,10 @@ extern "C" {
 #include <array>
 #include <cctype>
 #include <cstdint>
-#include <cstring>
 #include <limits>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -91,6 +91,9 @@ void ensure_runtime_table()
 
     for (uint16_t id = 1; id < BUILDING_TYPE_MAX; ++id) {
         const char *legacy_text_id = building_type_legacy_migration_text_id_for_enum(id);
+        if (building_type_legacy_migration_text_id_is_xml_owned(legacy_text_id)) {
+            continue;
+        }
         register_text_id(static_cast<building_type>(id), legacy_text_id ? legacy_text_id : "");
     }
 
@@ -214,7 +217,7 @@ extern "C" void building_type_id_bridge_save_table_save_state(buffer *buf)
         if (!text_id || !*text_id) {
             continue;
         }
-        payload_size += sizeof(uint16_t) * 2 + std::strlen(text_id);
+        payload_size += sizeof(uint16_t) * 2 + std::string_view(text_id).size();
     }
 
     buffer_init_dynamic(buf, payload_size);
@@ -227,7 +230,7 @@ extern "C" void building_type_id_bridge_save_table_save_state(buffer *buf)
         if (!text_id || !*text_id) {
             continue;
         }
-        size_t text_length = std::strlen(text_id);
+        size_t text_length = std::string_view(text_id).size();
         if (text_length > std::numeric_limits<uint16_t>::max()) {
             log_error("Building type text id too long for save table", text_id, static_cast<int>(text_length));
             continue;

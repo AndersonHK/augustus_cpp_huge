@@ -1,6 +1,7 @@
 #include "culture.h"
 
 #include "building/building.h"
+#include "building/building_type_api.h"
 #include "building/count.h"
 #include "building/monument.h"
 #include "city/constants.h"
@@ -257,7 +258,8 @@ void city_culture_calculate(void)
 
 int city_culture_get_theatre_person_coverage(void)
 {
-    return THEATER_COVERAGE * building_count_active(BUILDING_THEATER) + THEATER_UPGRADE_BONUS_COVERAGE * building_count_upgraded(BUILDING_THEATER);;
+    building_type theater = BUILDING_THEATER;
+    return THEATER_COVERAGE * building_count_active(theater) + THEATER_UPGRADE_BONUS_COVERAGE * building_count_upgraded(theater);
 }
 
 int city_culture_get_school_person_coverage(void)

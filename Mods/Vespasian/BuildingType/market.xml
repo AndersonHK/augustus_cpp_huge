@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="market">
+    <identity name_key="building.market.name" />
+    <model size="2" cost="40" desirability_value="-2" desirability_step="1" desirability_step_size="1" desirability_range="6" laborers="5" />
+    <foundation policy="land" />
+    <button group="industry" order="30" icon="Admin_Logistics\Market" text_key="building.market.name" />
+    <sound id="market" />
+    <event_data attr="market" />
     <graphics>
         <default>
             <path value="Admin_Logistics\Market" />

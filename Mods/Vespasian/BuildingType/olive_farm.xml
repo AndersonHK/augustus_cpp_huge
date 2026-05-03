@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="olive_farm">
+    <identity name_key="building.olive_farm.name" />
+    <model size="3" cost="40" desirability_value="2" desirability_step="1" desirability_step_size="1" desirability_range="2" laborers="10" />
+    <foundation policy="land" />
+    <button group="farms" order="40" icon="Industry\Farm_House" text_key="building.olive_farm.name" />
+    <sound id="olive_farm" />
+    <event_data attr="olive_farm" />
     <graphics>
         <default>
             <path value="Industry\Farm_House" />

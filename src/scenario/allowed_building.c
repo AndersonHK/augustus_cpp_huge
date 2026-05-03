@@ -1,5 +1,6 @@
 #include "allowed_building.h"
 
+#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -9,7 +10,7 @@
 
 #define MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT (11 + 1) // 11 buildings + BUILDING_NONE
 
-static const building_type CONVERSION_FROM_ORIGINAL[MAX_ORIGINAL_ALLOWED_BUILDINGS][MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT] = {
+static building_type CONVERSION_FROM_ORIGINAL[MAX_ORIGINAL_ALLOWED_BUILDINGS][MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT] = {
     { BUILDING_NONE },
     { BUILDING_WHEAT_FARM, BUILDING_VEGETABLE_FARM, BUILDING_FRUIT_FARM, BUILDING_OLIVE_FARM, BUILDING_VINES_FARM, BUILDING_PIG_FARM },
     { BUILDING_CLAY_PIT, BUILDING_MARBLE_QUARRY, BUILDING_IRON_MINE, BUILDING_TIMBER_YARD, BUILDING_GOLD_MINE, BUILDING_STONE_QUARRY, BUILDING_SAND_PIT },
@@ -19,7 +20,7 @@ static const building_type CONVERSION_FROM_ORIGINAL[MAX_ORIGINAL_ALLOWED_BUILDIN
     { BUILDING_DRAGGABLE_RESERVOIR, BUILDING_AQUEDUCT, BUILDING_FOUNTAIN },
     { BUILDING_HOUSE_VACANT_LOT },
     { BUILDING_AMPHITHEATER },
-    { BUILDING_THEATER },
+    { BUILDING_NONE },
     { BUILDING_HIPPODROME },
     { BUILDING_COLOSSEUM, BUILDING_ARENA },
     { BUILDING_GLADIATOR_SCHOOL },
@@ -52,7 +53,7 @@ static const building_type CONVERSION_FROM_ORIGINAL[MAX_ORIGINAL_ALLOWED_BUILDIN
     { BUILDING_ENGINEERS_POST },
     { BUILDING_SENATE },
     { BUILDING_FORUM },
-    { BUILDING_WELL },
+    { BUILDING_NONE },
     { BUILDING_ORACLE, BUILDING_SMALL_MAUSOLEUM, BUILDING_LARGE_MAUSOLEUM, BUILDING_NYMPHAEUM },
     { BUILDING_MISSION_POST },
     { BUILDING_LOW_BRIDGE, BUILDING_SHIP_BRIDGE },
@@ -62,6 +63,14 @@ static const building_type CONVERSION_FROM_ORIGINAL[MAX_ORIGINAL_ALLOWED_BUILDIN
 };
 
 static uint8_t allowed_buildings[BUILDING_TYPE_MAX];
+
+static void refresh_dynamic_original_allowed_slots(void)
+{
+    CONVERSION_FROM_ORIGINAL[9][0] = BUILDING_THEATER;
+    CONVERSION_FROM_ORIGINAL[9][1] = BUILDING_NONE;
+    CONVERSION_FROM_ORIGINAL[42][0] = BUILDING_WELL;
+    CONVERSION_FROM_ORIGINAL[42][1] = BUILDING_NONE;
+}
 
 int scenario_allowed_building(building_type type)
 {
@@ -109,6 +118,7 @@ void scenario_allowed_building_disable_all(void)
 
 const building_type *scenario_allowed_building_get_buildings_from_original_id(unsigned int original)
 {
+    refresh_dynamic_original_allowed_slots();
     return CONVERSION_FROM_ORIGINAL[original];
 }
 
@@ -126,6 +136,7 @@ void scenario_allowed_building_load_state(buffer *buf)
 void scenario_allowed_building_load_state_old_version(buffer *buf)
 {
     scenario_allowed_building_enable_all();
+    refresh_dynamic_original_allowed_slots();
 
     for (unsigned int i = 0; i < MAX_ORIGINAL_ALLOWED_BUILDINGS; i++) {
         short allowed = buffer_read_i16(buf);

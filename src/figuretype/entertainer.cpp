@@ -76,8 +76,10 @@ static int determine_tourist_destination(int x, int y)
 
 static int is_venue(building *b)
 {
+    if (b->type == BUILDING_THEATER) {
+        return 1;
+    }
     switch (b->type) {
-        case BUILDING_THEATER:
         case BUILDING_AMPHITHEATER:
         case BUILDING_ARENA:
             return 1;
@@ -93,7 +95,7 @@ static building *determine_destination(figure *f)
 {
     int road_network = map_road_network_get(map_grid_offset(f->x, f->y));
 
-    static const building_type destinations_per_entertainer_type[4][3] =
+    const building_type destinations_per_entertainer_type[4][3] =
     {
         { BUILDING_THEATER, BUILDING_AMPHITHEATER },
         { BUILDING_AMPHITHEATER, BUILDING_COLOSSEUM, BUILDING_ARENA },

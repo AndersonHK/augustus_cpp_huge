@@ -447,7 +447,11 @@ static void show_overlay_from_grid_offset(int grid_offset)
 {
     int overlay = OVERLAY_NONE;
     int clone_type = get_building_type_from_grid_offset(grid_offset);
-    switch (clone_type) {
+    if (clone_type == BUILDING_WELL) {
+        overlay = OVERLAY_WATER;
+    } else if (clone_type == BUILDING_THEATER) {
+        overlay = OVERLAY_THEATER;
+    } else switch (clone_type) {
         case BUILDING_PLAZA:
         case BUILDING_ROAD:
         case BUILDING_ROADBLOCK:
@@ -460,7 +464,6 @@ static void show_overlay_from_grid_offset(int grid_offset)
         case BUILDING_AQUEDUCT:
         case BUILDING_RESERVOIR:
         case BUILDING_FOUNTAIN:
-        case BUILDING_WELL:
             overlay = OVERLAY_WATER;
             break;
         case BUILDING_ORACLE:
@@ -499,7 +502,6 @@ static void show_overlay_from_grid_offset(int grid_offset)
         case BUILDING_ARCHITECT_GUILD:
             overlay = OVERLAY_DAMAGE;
             break;
-        case BUILDING_THEATER:
         case BUILDING_ACTOR_COLONY:
             overlay = OVERLAY_THEATER;
             break;

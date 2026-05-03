@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="engineers_post">
+    <identity name_key="building.engineers_post.name" />
+    <model size="1" cost="30" desirability_value="0" desirability_step="1" desirability_step_size="1" desirability_range="1" laborers="5" />
+    <foundation policy="land" />
+    <button group="engineering" order="10" icon="Admin_Logistics\Engineers_Post" text_key="building.engineers_post.name" />
+    <sound id="engineers_post" />
+    <event_data attr="engineers_post" />
+    <flags fire_proof="1" />
     <graphics>
         <default>
             <path value="Admin_Logistics\Engineers_Post" />
@@ -14,6 +21,7 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:0,75:1,50:3,25:7,1:15" existing_figure="engineer">
         <spawn mode="service_roamer" spawn_figure="engineer"
-            action_state="engineer_created" direction="top" figure_slot="primary" init_roaming="false" profile="service" />
+            action_state="engineer_created" direction="top" figure_slot="primary"
+            init_roaming="false" profile="service" />
     </spawn_group>
 </building>

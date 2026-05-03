@@ -3,6 +3,10 @@
 #include "building/building.h"
 #include "core/buffer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 enum {
     SOUND_DIRECTION_LEFT = 0,
     SOUND_DIRECTION_CENTER = 2,
@@ -106,3 +110,7 @@ void sound_city_decay_views(void);
 void sound_city_progress_ambient(void);
 
 void sound_city_play(void);
+
+#ifdef __cplusplus
+}
+#endif

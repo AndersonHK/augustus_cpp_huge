@@ -83,7 +83,6 @@ static const std::array<int, BUILDING_TYPE_MAX> CATEGORY_FOR_BUILDING_TYPE = [](
     category[BUILDING_WATCHTOWER] = LABOR_CATEGORY_MILITARY;
     category[BUILDING_ARMOURY] = LABOR_CATEGORY_MILITARY;
     category[BUILDING_AMPHITHEATER] = LABOR_CATEGORY_ENTERTAINMENT;
-    category[BUILDING_THEATER] = LABOR_CATEGORY_ENTERTAINMENT;
     category[BUILDING_HIPPODROME] = LABOR_CATEGORY_ENTERTAINMENT;
     category[BUILDING_COLOSSEUM] = LABOR_CATEGORY_ENTERTAINMENT;
     category[BUILDING_GLADIATOR_SCHOOL] = LABOR_CATEGORY_ENTERTAINMENT;
@@ -124,6 +123,14 @@ static const std::array<int, BUILDING_TYPE_MAX> CATEGORY_FOR_BUILDING_TYPE = [](
     category[BUILDING_CARAVANSERAI] = LABOR_CATEGORY_GOVERNANCE_RELIGION;
     return category;
 }();
+
+static int category_for_building_type(building_type type)
+{
+    if (BUILDING_THEATER != BUILDING_NONE && type == BUILDING_THEATER) {
+        return LABOR_CATEGORY_ENTERTAINMENT;
+    }
+    return CATEGORY_FOR_BUILDING_TYPE[type];
+}
 static struct {
     labor_category category;
     int workers;
@@ -289,7 +296,7 @@ static void calculate_workers_needed_per_category(void)
         if (b->state != BUILDING_STATE_IN_USE) {
             continue;
         }
-        int category = CATEGORY_FOR_BUILDING_TYPE[b->type];
+        int category = category_for_building_type(b->type);
         b->labor_category = category - 1;
         if (!should_have_workers(b, category, 1)) {
             continue;
@@ -410,7 +417,7 @@ static void set_building_worker_weight(void)
 {
     int water_per_10k_per_building = calc_percentage(100, city_data.labor.categories[LABOR_CATEGORY_WATER - 1].buildings);
     for (building_type type = static_cast<building_type>(0); type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        int cat = CATEGORY_FOR_BUILDING_TYPE[type];
+        int cat = category_for_building_type(type);
         if (cat == LABOR_CATEGORY_NONE) {
             continue;
         }
@@ -458,7 +465,7 @@ static void allocate_workers_to_water(void)
             building_id = 1;
         }
         building *b = building_get(building_id);
-        if (b->state != BUILDING_STATE_IN_USE || CATEGORY_FOR_BUILDING_TYPE[b->type] != LABOR_CATEGORY_WATER) {
+        if (b->state != BUILDING_STATE_IN_USE || category_for_building_type(b->type) != LABOR_CATEGORY_WATER) {
             continue;
         }
         b->num_workers = 0;
@@ -494,7 +501,7 @@ static void allocate_workers_to_non_water_buildings(void)
             ? 1 : 0;
     }
     for (building_type type = static_cast<building_type>(0); type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        int cat = CATEGORY_FOR_BUILDING_TYPE[type];
+        int cat = category_for_building_type(type);
         if (cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_NONE) {
             // water is handled by allocate_workers_to_water(void)
             continue;
@@ -536,7 +543,7 @@ static void allocate_workers_to_non_water_buildings(void)
         }
     }
     for (building_type type = static_cast<building_type>(0); type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        int cat = CATEGORY_FOR_BUILDING_TYPE[type];
+        int cat = category_for_building_type(type);
         if (cat == LABOR_CATEGORY_NONE || cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_MILITARY) {
             continue;
         }

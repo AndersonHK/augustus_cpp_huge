@@ -1,5 +1,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/building_type_id_bridge.h"
+#include "building/building_type_legacy_migration.h"
 #include "building/production_method_registry.h"
 #include "building/storage_type_registry.h"
 #include "assets/image_group_payload.h"
@@ -8,6 +9,7 @@
 
 extern "C" {
 #include "building/building_runtime_api.h"
+#include "building/menu.h"
 #include "building/properties.h"
 #include "core/dir.h"
 #include "core/file.h"
@@ -15,18 +17,36 @@ extern "C" {
 #include "core/xml_parser.h"
 #include "figure/action.h"
 #include "game/resource.h"
+#include "sound/city.h"
 }
 
 #include <cstdio>
-#include <cstring>
 #include <utility>
 
 namespace building_type_registry_impl {
 
+static building_type g_next_dynamic_building_type = BUILDING_DYNAMIC_TYPE_FIRST;
+
+static int compare_text(const char *left, const char *right)
+{
+    if (!left || !right) {
+        return left == right ? 0 : (left ? 1 : -1);
+    }
+    while (*left && *right && *left == *right) {
+        ++left;
+        ++right;
+    }
+    return static_cast<unsigned char>(*left) - static_cast<unsigned char>(*right);
+}
+
 static building_type find_building_type_by_attr(const char *type_attr)
 {
-    if (type_attr && strcmp(type_attr, "reservoir") == 0) {
-        return BUILDING_RESERVOIR;
+    if (building_type_legacy_migration_text_id_is_xml_owned(type_attr)) {
+        uint16_t legacy_type = building_type_legacy_migration_enum_for_text_id(type_attr);
+        if (legacy_type == BUILDING_LEGACY_SLOT_THEATER || legacy_type == BUILDING_LEGACY_SLOT_WELL) {
+            return BUILDING_NONE;
+        }
+        return static_cast<building_type>(legacy_type);
     }
 
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
@@ -39,6 +59,30 @@ static building_type find_building_type_by_attr(const char *type_attr)
         }
     }
     return BUILDING_NONE;
+}
+
+static building_type allocate_dynamic_building_type(const char *type_attr)
+{
+    if (!type_attr || !*type_attr) {
+        return BUILDING_NONE;
+    }
+
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (definition && compare_text(definition->attr(), type_attr) == 0) {
+            return BUILDING_NONE;
+        }
+    }
+
+    while (g_next_dynamic_building_type < BUILDING_TYPE_MAX && g_building_types[g_next_dynamic_building_type]) {
+        g_next_dynamic_building_type = static_cast<building_type>(g_next_dynamic_building_type + 1);
+    }
+    if (g_next_dynamic_building_type >= BUILDING_TYPE_MAX) {
+        return BUILDING_NONE;
+    }
+
+    building_type allocated_type = g_next_dynamic_building_type;
+    g_next_dynamic_building_type = static_cast<building_type>(g_next_dynamic_building_type + 1);
+    return allocated_type;
 }
 
 
@@ -68,7 +112,7 @@ static figure_type parse_figure_type_name(const char *name)
     };
 
     for (size_t i = 0; i < sizeof(figure_names) / sizeof(figure_names[0]); i++) {
-        if (name && strcmp(name, figure_names[i].name) == 0) {
+        if (name && compare_text(name, figure_names[i].name) == 0) {
             return figure_names[i].type;
         }
     }
@@ -93,7 +137,7 @@ static int parse_action_state_name(const char *name)
     };
 
     for (size_t i = 0; i < sizeof(action_names) / sizeof(action_names[0]); i++) {
-        if (name && strcmp(name, action_names[i].name) == 0) {
+        if (name && compare_text(name, action_names[i].name) == 0) {
             return action_names[i].action_state;
         }
     }
@@ -145,7 +189,7 @@ static int parse_optional_int_attribute(const char *node_name, const char *attri
 
 static RoadAccessMode parse_road_access_mode(const char *value)
 {
-    if (value && strcmp(value, "normal") == 0) {
+    if (value && compare_text(value, "normal") == 0) {
         return RoadAccessMode::Normal;
     }
     return RoadAccessMode::None;
@@ -153,16 +197,16 @@ static RoadAccessMode parse_road_access_mode(const char *value)
 
 static LaborSeekerMethod parse_labor_seeker_method(const char *value)
 {
-    if (value && strcmp(value, "none") == 0) {
+    if (value && compare_text(value, "none") == 0) {
         return LaborSeekerMethod::None;
     }
-    if (value && strcmp(value, "houses_spawn_if_below") == 0) {
+    if (value && compare_text(value, "houses_spawn_if_below") == 0) {
         return LaborSeekerMethod::HousesSpawnIfBelow;
     }
-    if (value && strcmp(value, "houses_generate_if_below") == 0) {
+    if (value && compare_text(value, "houses_generate_if_below") == 0) {
         return LaborSeekerMethod::HousesGenerateIfBelow;
     }
-    if (value && strcmp(value, "workforce") == 0) {
+    if (value && compare_text(value, "workforce") == 0) {
         return LaborSeekerMethod::Workforce;
     }
     return LaborSeekerMethod::None;
@@ -215,13 +259,13 @@ static int parse_delay_bands_attribute(const char *value, std::vector<DelayBand>
 
 static GraphicTiming parse_graphic_timing(const char *value)
 {
-    if (value && strcmp(value, "on_spawn_entry") == 0) {
+    if (value && compare_text(value, "on_spawn_entry") == 0) {
         return GraphicTiming::OnSpawnEntry;
     }
-    if (value && strcmp(value, "before_delay_check") == 0) {
+    if (value && compare_text(value, "before_delay_check") == 0) {
         return GraphicTiming::BeforeDelayCheck;
     }
-    if (value && strcmp(value, "before_successful_spawn") == 0) {
+    if (value && compare_text(value, "before_successful_spawn") == 0) {
         return GraphicTiming::BeforeSuccessfulSpawn;
     }
     return GraphicTiming::None;
@@ -229,16 +273,16 @@ static GraphicTiming parse_graphic_timing(const char *value)
 
 static FigureSlot parse_figure_slot(const char *value)
 {
-    if (value && strcmp(value, "primary") == 0) {
+    if (value && compare_text(value, "primary") == 0) {
         return FigureSlot::Primary;
     }
-    if (value && strcmp(value, "secondary") == 0) {
+    if (value && compare_text(value, "secondary") == 0) {
         return FigureSlot::Secondary;
     }
-    if (value && strcmp(value, "quaternary") == 0) {
+    if (value && compare_text(value, "quaternary") == 0) {
         return FigureSlot::Quaternary;
     }
-    if (value && strcmp(value, "none") == 0) {
+    if (value && compare_text(value, "none") == 0) {
         return FigureSlot::None;
     }
     return FigureSlot::Primary;
@@ -246,7 +290,7 @@ static FigureSlot parse_figure_slot(const char *value)
 
 static GuardTiming parse_guard_timing(const char *value)
 {
-    if (value && strcmp(value, "after_labor_seeker") == 0) {
+    if (value && compare_text(value, "after_labor_seeker") == 0) {
         return GuardTiming::AfterLaborSeeker;
     }
     return GuardTiming::BeforeRoadAccess;
@@ -254,19 +298,19 @@ static GuardTiming parse_guard_timing(const char *value)
 
 static SpawnCondition parse_spawn_condition(const char *value)
 {
-    if (!value || strcmp(value, "always") == 0) {
+    if (!value || compare_text(value, "always") == 0) {
         return SpawnCondition::Always;
     }
-    if (strcmp(value, "days1_positive") == 0) {
+    if (compare_text(value, "days1_positive") == 0) {
         return SpawnCondition::Days1Positive;
     }
-    if (strcmp(value, "days1_not_positive") == 0) {
+    if (compare_text(value, "days1_not_positive") == 0) {
         return SpawnCondition::Days1NotPositive;
     }
-    if (strcmp(value, "days2_positive") == 0) {
+    if (compare_text(value, "days2_positive") == 0) {
         return SpawnCondition::Days2Positive;
     }
-    if (strcmp(value, "days1_or_days2_positive") == 0) {
+    if (compare_text(value, "days1_or_days2_positive") == 0) {
         return SpawnCondition::Days1OrDays2Positive;
     }
     return SpawnCondition::Always;
@@ -274,13 +318,13 @@ static SpawnCondition parse_spawn_condition(const char *value)
 
 static WaterAccessType parse_provider_water_access_type(const char *value)
 {
-    if (value && strcmp(value, "well") == 0) {
+    if (value && compare_text(value, "well") == 0) {
         return WaterAccessType::Well;
     }
-    if (value && strcmp(value, "fountain") == 0) {
+    if (value && compare_text(value, "fountain") == 0) {
         return WaterAccessType::Fountain;
     }
-    if (value && strcmp(value, "reservoir") == 0) {
+    if (value && compare_text(value, "reservoir") == 0) {
         return WaterAccessType::Reservoir;
     }
     return WaterAccessType::None;
@@ -288,16 +332,16 @@ static WaterAccessType parse_provider_water_access_type(const char *value)
 
 static WaterAccessRequirement parse_provider_water_access_requirement(const char *value)
 {
-    if (!value || strcmp(value, "none") == 0) {
+    if (!value || compare_text(value, "none") == 0) {
         return WaterAccessRequirement::None;
     }
-    if (strcmp(value, "reservoir_network") == 0) {
+    if (compare_text(value, "reservoir_network") == 0) {
         return WaterAccessRequirement::ReservoirNetwork;
     }
-    if (strcmp(value, "water_source_any") == 0) {
+    if (compare_text(value, "water_source_any") == 0) {
         return WaterAccessRequirement::WaterSourceAny;
     }
-    if (strcmp(value, "water_source_fresh_only") == 0) {
+    if (compare_text(value, "water_source_fresh_only") == 0) {
         return WaterAccessRequirement::WaterSourceFreshOnly;
     }
     return WaterAccessRequirement::None;
@@ -305,7 +349,7 @@ static WaterAccessRequirement parse_provider_water_access_requirement(const char
 
 static WaterAccessNodeKind parse_provider_water_access_node_kind(const char *value)
 {
-    if (value && strcmp(value, "aqueduct_connection") == 0) {
+    if (value && compare_text(value, "aqueduct_connection") == 0) {
         return WaterAccessNodeKind::AqueductConnection;
     }
     return WaterAccessNodeKind::None;
@@ -313,7 +357,7 @@ static WaterAccessNodeKind parse_provider_water_access_node_kind(const char *val
 
 static int parse_spawn_direction(const char *value)
 {
-    if (value && strcmp(value, "bottom") == 0) {
+    if (value && compare_text(value, "bottom") == 0) {
         return DIR_4_BOTTOM;
     }
     return DIR_0_TOP;
@@ -446,23 +490,23 @@ static int parse_graphics_comparison(const char *comparison_text, GraphicCompari
     if (!out_comparison) {
         return 0;
     }
-    if (comparison_text && strcmp(comparison_text, "lt") == 0) {
+    if (comparison_text && compare_text(comparison_text, "lt") == 0) {
         *out_comparison = GraphicComparison::LessThan;
         return 1;
     }
-    if (comparison_text && (strcmp(comparison_text, "lte") == 0 || strcmp(comparison_text, "let") == 0)) {
+    if (comparison_text && (compare_text(comparison_text, "lte") == 0 || compare_text(comparison_text, "let") == 0)) {
         *out_comparison = GraphicComparison::LessThanOrEqual;
         return 1;
     }
-    if (comparison_text && strcmp(comparison_text, "eq") == 0) {
+    if (comparison_text && compare_text(comparison_text, "eq") == 0) {
         *out_comparison = GraphicComparison::Equal;
         return 1;
     }
-    if (comparison_text && strcmp(comparison_text, "gt") == 0) {
+    if (comparison_text && compare_text(comparison_text, "gt") == 0) {
         *out_comparison = GraphicComparison::GreaterThan;
         return 1;
     }
-    if (comparison_text && strcmp(comparison_text, "gte") == 0) {
+    if (comparison_text && compare_text(comparison_text, "gte") == 0) {
         *out_comparison = GraphicComparison::GreaterThanOrEqual;
         return 1;
     }
@@ -537,7 +581,15 @@ static int parse_building_root()
     const char *type_attr = xml_parser_get_attribute_string("type");
     building_type type = find_building_type_by_attr(type_attr);
     if (type == BUILDING_NONE) {
-        log_error("Unknown BuildingType xml type", type_attr, 0);
+        type = allocate_dynamic_building_type(type_attr);
+        if (type == BUILDING_NONE) {
+            log_error("Unable to allocate dynamic BuildingType xml type", type_attr, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+    if (g_building_types[type]) {
+        log_error("Duplicate BuildingType xml type", type_attr, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -791,6 +843,211 @@ static int parse_button()
     return 1;
 }
 
+static int parse_sound_city_name(const char *name)
+{
+    struct named_sound {
+        const char *name;
+        int sound;
+    };
+    static const named_sound sound_names[] = {
+        {"none", SOUND_CITY_NONE},
+        {"academy", SOUND_CITY_ACADEMY},
+        {"actor_colony", SOUND_CITY_ACTOR_COLONY},
+        {"amphitheater", SOUND_CITY_AMPHITHEATER},
+        {"aqueduct", SOUND_CITY_AQUEDUCT},
+        {"arena", SOUND_CITY_ARENA},
+        {"armoury", SOUND_CITY_ARMOURY},
+        {"barber", SOUND_CITY_BARBER},
+        {"bathhouse", SOUND_CITY_BATHHOUSE},
+        {"brickworks", SOUND_CITY_BRICKWORKS},
+        {"caravanserai", SOUND_CITY_CARAVANSERAI},
+        {"chariot_maker", SOUND_CITY_CHARIOT_MAKER},
+        {"clinic", SOUND_CITY_CLINIC},
+        {"colosseum", SOUND_CITY_COLOSSEUM},
+        {"concrete_maker", SOUND_CITY_CONCRETE_MAKER},
+        {"engineers_post", SOUND_CITY_ENGINEERS_POST},
+        {"forum", SOUND_CITY_FORUM},
+        {"fountain", SOUND_CITY_FOUNTAIN},
+        {"fruit_farm", SOUND_CITY_FRUIT_FARM},
+        {"furniture_workshop", SOUND_CITY_FURNITURE_WORKSHOP},
+        {"gladiator_school", SOUND_CITY_GLADIATOR_SCHOOL},
+        {"hospital", SOUND_CITY_HOSPITAL},
+        {"hippodrome", SOUND_CITY_HIPPODROME},
+        {"library", SOUND_CITY_LIBRARY},
+        {"lighthouse", SOUND_CITY_LIGHTHOUSE},
+        {"lion_pit", SOUND_CITY_LION_PIT},
+        {"market", SOUND_CITY_MARKET},
+        {"native_decoration", SOUND_CITY_NATIVE_DECORATION},
+        {"native_hut", SOUND_CITY_NATIVE_HUT},
+        {"oil_workshop", SOUND_CITY_OIL_WORKSHOP},
+        {"olive_farm", SOUND_CITY_OLIVE_FARM},
+        {"oracle", SOUND_CITY_ORACLE},
+        {"palace", SOUND_CITY_PALACE},
+        {"pig_farm", SOUND_CITY_PIG_FARM},
+        {"pottery_workshop", SOUND_CITY_POTTERY_WORKSHOP},
+        {"prefecture", SOUND_CITY_PREFECTURE},
+        {"reservoir", SOUND_CITY_RESERVOIR},
+        {"school", SOUND_CITY_SCHOOL},
+        {"senate", SOUND_CITY_SENATE},
+        {"tavern", SOUND_CITY_TAVERN},
+        {"temple_ceres", SOUND_CITY_TEMPLE_CERES},
+        {"temple_mars", SOUND_CITY_TEMPLE_MARS},
+        {"temple_mercury", SOUND_CITY_TEMPLE_MERCURY},
+        {"temple_neptune", SOUND_CITY_TEMPLE_NEPTUNE},
+        {"temple_venus", SOUND_CITY_TEMPLE_VENUS},
+        {"theater", SOUND_CITY_THEATER},
+        {"vegetable_farm", SOUND_CITY_VEGETABLE_FARM},
+        {"vine_farm", SOUND_CITY_VINE_FARM},
+        {"watchtower", SOUND_CITY_WATCHTOWER},
+        {"weapons_workshop", SOUND_CITY_WEAPONS_WORKSHOP},
+        {"well", SOUND_CITY_WELL},
+        {"wheat_farm", SOUND_CITY_WHEAT_FARM},
+        {"wine_workshop", SOUND_CITY_WINE_WORKSHOP},
+        {"workcamp", SOUND_CITY_WORKCAMP}
+    };
+
+    for (const named_sound &sound : sound_names) {
+        if (name && compare_text(name, sound.name) == 0) {
+            return sound.sound;
+        }
+    }
+    return -1;
+}
+
+static int parse_sound()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered sound definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_sound) {
+        log_error("BuildingType xml contains duplicate sound nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *sound_attr = 0;
+    if (xml_parser_has_attribute("id")) {
+        sound_attr = xml_parser_get_attribute_string("id");
+    } else if (xml_parser_has_attribute("value")) {
+        sound_attr = xml_parser_get_attribute_string("value");
+    } else if (xml_parser_has_attribute("city")) {
+        sound_attr = xml_parser_get_attribute_string("city");
+    }
+
+    std::string sound_name = xml_value::trim_copy(sound_attr ? sound_attr : "");
+    int sound = parse_sound_city_name(sound_name.c_str());
+    if (sound < 0) {
+        log_error("Unsupported BuildingType sound id", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_sound_id(sound);
+
+    int flag_value = 0;
+    if (xml_parser_has_attribute("mute_on_enemies")) {
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("mute_on_enemies"), &flag_value)) {
+            log_error("Unsupported BuildingType sound mute_on_enemies", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_sound_mute_on_enemies(flag_value);
+    }
+    if (xml_parser_has_attribute("always_play")) {
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("always_play"), &flag_value)) {
+            log_error("Unsupported BuildingType sound always_play", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_sound_always_play(flag_value);
+    }
+
+    g_parse_state.saw_sound = 1;
+    return 1;
+}
+
+static int parse_event_data()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered event_data definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_event_data) {
+        log_error("BuildingType xml contains duplicate event_data nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("attr")) {
+        log_error("BuildingType event_data is missing required attribute 'attr'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    std::string attr = xml_value::trim_copy(xml_parser_get_attribute_string("attr"));
+    if (attr.empty()) {
+        log_error("Unsupported BuildingType event_data attr", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_event_attr(std::move(attr));
+    g_parse_state.saw_event_data = 1;
+    return 1;
+}
+
+static int parse_flags()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered flags definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_flags) {
+        log_error("BuildingType xml contains duplicate flags nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int value = 0;
+    int has_value = 0;
+    int any_value = 0;
+    if (!parse_optional_int_attribute("Unsupported BuildingType flags numeric attribute", "fire_proof", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        g_parse_state.definition->set_fire_proof(value ? 1 : 0);
+        any_value = 1;
+    }
+    if (!parse_optional_int_attribute("Unsupported BuildingType flags numeric attribute", "draw_desirability_range", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        g_parse_state.definition->set_draw_desirability_range(value ? 1 : 0);
+        any_value = 1;
+    }
+    if (!parse_optional_int_attribute("Unsupported BuildingType flags numeric attribute", "venus_gt_bonus", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        g_parse_state.definition->set_venus_gt_bonus(value ? 1 : 0);
+        any_value = 1;
+    }
+    if (!any_value) {
+        log_error("BuildingType flags is missing supported attributes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.saw_flags = 1;
+    return 1;
+}
+
 static int parse_graphics()
 {
     if (!g_parse_state.definition) {
@@ -1018,13 +1275,13 @@ static int parse_graphics_condition()
 
     const char *type_text = xml_parser_get_attribute_string("type");
     GraphicsCondition condition;
-    if (type_text && strcmp(type_text, "has_workers") == 0) {
+    if (type_text && compare_text(type_text, "has_workers") == 0) {
         condition.type = GraphicsConditionType::HasWorkers;
-    } else if (type_text && strcmp(type_text, "working") == 0) {
+    } else if (type_text && compare_text(type_text, "working") == 0) {
         condition.type = GraphicsConditionType::Working;
-    } else if (type_text && strcmp(type_text, "water_access") == 0) {
+    } else if (type_text && compare_text(type_text, "water_access") == 0) {
         condition.type = GraphicsConditionType::WaterAccess;
-    } else if (type_text && strcmp(type_text, "figure_slot_occupied") == 0) {
+    } else if (type_text && compare_text(type_text, "figure_slot_occupied") == 0) {
         if (!xml_parser_has_attribute("slot")) {
             log_error("BuildingType graphics figure_slot_occupied condition is missing required attribute 'slot'", 0, 0);
             g_parse_state.error = 1;
@@ -1033,14 +1290,14 @@ static int parse_graphics_condition()
 
         const char *figure_slot_text = xml_parser_get_attribute_string("slot");
         condition.figure_slot = parse_figure_slot(figure_slot_text);
-        if (condition.figure_slot == FigureSlot::None || (strcmp(figure_slot_text, "primary") != 0 &&
-            strcmp(figure_slot_text, "secondary") != 0 && strcmp(figure_slot_text, "quaternary") != 0)) {
+        if (condition.figure_slot == FigureSlot::None || (compare_text(figure_slot_text, "primary") != 0 &&
+            compare_text(figure_slot_text, "secondary") != 0 && compare_text(figure_slot_text, "quaternary") != 0)) {
             log_error("Unsupported BuildingType graphics figure_slot_occupied slot", figure_slot_text, 0);
             g_parse_state.error = 1;
             return 0;
         }
         condition.type = GraphicsConditionType::FigureSlotOccupied;
-    } else if (type_text && strcmp(type_text, "resource_positive") == 0) {
+    } else if (type_text && compare_text(type_text, "resource_positive") == 0) {
         if (!xml_parser_has_attribute("resource")) {
             log_error("BuildingType graphics resource_positive condition is missing required attribute 'resource'", 0, 0);
             g_parse_state.error = 1;
@@ -1055,15 +1312,15 @@ static int parse_graphics_condition()
             return 0;
         }
         condition.type = GraphicsConditionType::ResourcePositive;
-    } else if (type_text && strcmp(type_text, "days1_positive") == 0) {
+    } else if (type_text && compare_text(type_text, "days1_positive") == 0) {
         condition.type = GraphicsConditionType::Days1Positive;
-    } else if (type_text && strcmp(type_text, "days1_not_positive") == 0) {
+    } else if (type_text && compare_text(type_text, "days1_not_positive") == 0) {
         condition.type = GraphicsConditionType::Days1NotPositive;
-    } else if (type_text && strcmp(type_text, "days2_positive") == 0) {
+    } else if (type_text && compare_text(type_text, "days2_positive") == 0) {
         condition.type = GraphicsConditionType::Days2Positive;
-    } else if (type_text && strcmp(type_text, "days1_or_days2_positive") == 0) {
+    } else if (type_text && compare_text(type_text, "days1_or_days2_positive") == 0) {
         condition.type = GraphicsConditionType::Days1OrDays2Positive;
-    } else if (type_text && strcmp(type_text, "desirability") == 0) {
+    } else if (type_text && compare_text(type_text, "desirability") == 0) {
         if (!xml_parser_has_attribute("operator")) {
             log_error("BuildingType graphics desirability condition is missing required attribute 'operator'", 0, 0);
             g_parse_state.error = 1;
@@ -1116,7 +1373,7 @@ static int parse_state_water_access()
     }
 
     const char *mode_text = xml_parser_get_attribute_string("mode");
-    if (!mode_text || strcmp(mode_text, "reservoir_range") != 0) {
+    if (!mode_text || compare_text(mode_text, "reservoir_range") != 0) {
         log_error("Unsupported BuildingType water_access mode", mode_text, 0);
         g_parse_state.error = 1;
         return 0;
@@ -1207,7 +1464,7 @@ static int parse_provider_water_access_requirement_node()
 
     const char *requirement_text = xml_parser_get_attribute_string("value");
     WaterAccessRequirement requirement = parse_provider_water_access_requirement(requirement_text);
-    if (requirement == WaterAccessRequirement::None && strcmp(requirement_text, "none") != 0) {
+    if (requirement == WaterAccessRequirement::None && compare_text(requirement_text, "none") != 0) {
         log_error("Unsupported BuildingType provider water_access requirement", requirement_text, 0);
         g_parse_state.error = 1;
         return 0;
@@ -1380,7 +1637,7 @@ static int parse_labor_seeker_method_node()
     const char *method_text = xml_parser_get_attribute_string("value");
     g_parse_state.current_labor_seeker_policy.method = parse_labor_seeker_method(method_text);
     if (g_parse_state.current_labor_seeker_policy.method == LaborSeekerMethod::None &&
-        (!method_text || strcmp(method_text, "none") != 0)) {
+        (!method_text || compare_text(method_text, "none") != 0)) {
         log_error("Unsupported BuildingType labor seeker method", method_text, 0);
         g_parse_state.error = 1;
         return 0;
@@ -1558,8 +1815,8 @@ static int parse_spawn_group()
     if (xml_parser_has_attribute("guard_timing")) {
         const char *guard_timing_text = xml_parser_get_attribute_string("guard_timing");
         group.guard_timing = parse_guard_timing(guard_timing_text);
-        if (strcmp(guard_timing_text, "before_road_access") != 0 &&
-            strcmp(guard_timing_text, "after_labor_seeker") != 0) {
+        if (compare_text(guard_timing_text, "before_road_access") != 0 &&
+            compare_text(guard_timing_text, "after_labor_seeker") != 0) {
             log_error("Unsupported BuildingType spawn_group guard_timing", guard_timing_text, 0);
             g_parse_state.error = 1;
             return 0;
@@ -1588,17 +1845,17 @@ static int parse_spawn()
 
     const char *mode_text = xml_parser_get_attribute_string("mode");
     SpawnPolicy policy;
-    if (mode_text && strcmp(mode_text, "service_roamer") == 0) {
+    if (mode_text && compare_text(mode_text, "service_roamer") == 0) {
         policy.mode = SpawnMode::ServiceRoamer;
-    } else if (mode_text && strcmp(mode_text, "temple_supplier") == 0) {
+    } else if (mode_text && compare_text(mode_text, "temple_supplier") == 0) {
         policy.mode = SpawnMode::TempleSupplier;
-    } else if (mode_text && strcmp(mode_text, "temple_destination_priest") == 0) {
+    } else if (mode_text && compare_text(mode_text, "temple_destination_priest") == 0) {
         policy.mode = SpawnMode::TempleDestinationPriest;
-    } else if (mode_text && strcmp(mode_text, "temple_mars_mess_hall_priest") == 0) {
+    } else if (mode_text && compare_text(mode_text, "temple_mars_mess_hall_priest") == 0) {
         policy.mode = SpawnMode::TempleMarsMessHallPriest;
-    } else if (mode_text && strcmp(mode_text, "temple_neptune_chariot") == 0) {
+    } else if (mode_text && compare_text(mode_text, "temple_neptune_chariot") == 0) {
         policy.mode = SpawnMode::TempleNeptuneChariot;
-    } else if (mode_text && strcmp(mode_text, "grand_temple_mars_recruit") == 0) {
+    } else if (mode_text && compare_text(mode_text, "grand_temple_mars_recruit") == 0) {
         policy.mode = SpawnMode::GrandTempleMarsRecruit;
     } else {
         log_error("Unsupported BuildingType spawn mode", mode_text, 0);
@@ -1609,7 +1866,7 @@ static int parse_spawn()
     const char *graphic_timing_text = xml_parser_has_attribute("graphic_timing") ?
         xml_parser_get_attribute_string("graphic_timing") : "none";
     policy.graphic_timing = parse_graphic_timing(graphic_timing_text);
-    if (graphic_timing_text && strcmp(graphic_timing_text, "none") != 0 && policy.graphic_timing == GraphicTiming::None) {
+    if (graphic_timing_text && compare_text(graphic_timing_text, "none") != 0 && policy.graphic_timing == GraphicTiming::None) {
         log_error("Unsupported BuildingType spawn graphic_timing", graphic_timing_text, 0);
         g_parse_state.error = 1;
         return 0;
@@ -1648,7 +1905,7 @@ static int parse_spawn()
     if (xml_parser_has_attribute("direction")) {
         const char *direction_text = xml_parser_get_attribute_string("direction");
         policy.spawn_direction = parse_spawn_direction(direction_text);
-        if (strcmp(direction_text, "top") != 0 && strcmp(direction_text, "bottom") != 0) {
+        if (compare_text(direction_text, "top") != 0 && compare_text(direction_text, "bottom") != 0) {
             log_error("Unsupported BuildingType spawn direction", direction_text, 0);
             g_parse_state.error = 1;
             return 0;
@@ -1658,8 +1915,8 @@ static int parse_spawn()
     if (xml_parser_has_attribute("figure_slot")) {
         const char *figure_slot_text = xml_parser_get_attribute_string("figure_slot");
         policy.figure_slot = parse_figure_slot(figure_slot_text);
-        if (strcmp(figure_slot_text, "primary") != 0 && strcmp(figure_slot_text, "secondary") != 0 &&
-            strcmp(figure_slot_text, "quaternary") != 0 && strcmp(figure_slot_text, "none") != 0) {
+        if (compare_text(figure_slot_text, "primary") != 0 && compare_text(figure_slot_text, "secondary") != 0 &&
+            compare_text(figure_slot_text, "quaternary") != 0 && compare_text(figure_slot_text, "none") != 0) {
             log_error("Unsupported BuildingType spawn figure_slot", figure_slot_text, 0);
             g_parse_state.error = 1;
             return 0;
@@ -1702,11 +1959,11 @@ static int parse_spawn()
     if (xml_parser_has_attribute("condition")) {
         const char *condition_text = xml_parser_get_attribute_string("condition");
         policy.condition = parse_spawn_condition(condition_text);
-        if (strcmp(condition_text, "always") != 0 &&
-            strcmp(condition_text, "days1_positive") != 0 &&
-            strcmp(condition_text, "days1_not_positive") != 0 &&
-            strcmp(condition_text, "days2_positive") != 0 &&
-            strcmp(condition_text, "days1_or_days2_positive") != 0) {
+        if (compare_text(condition_text, "always") != 0 &&
+            compare_text(condition_text, "days1_positive") != 0 &&
+            compare_text(condition_text, "days1_not_positive") != 0 &&
+            compare_text(condition_text, "days2_positive") != 0 &&
+            compare_text(condition_text, "days1_or_days2_positive") != 0) {
             log_error("Unsupported BuildingType spawn condition", condition_text, 0);
             g_parse_state.error = 1;
             return 0;
@@ -1748,6 +2005,9 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "foundation", parse_foundation, nullptr, "building", nullptr },
     { "button", parse_button, nullptr, "building", nullptr },
     { "menu", parse_button, nullptr, "building", nullptr },
+    { "sound", parse_sound, nullptr, "building", nullptr },
+    { "event_data", parse_event_data, nullptr, "building", nullptr },
+    { "flags", parse_flags, nullptr, "building", nullptr },
     { "state", parse_state, finish_state, "building", nullptr },
     { "water_access", parse_provider_water_access, finish_provider_water_access, "building", nullptr },
     { "graphics", parse_graphics, finish_graphics, "building", nullptr },
@@ -1962,7 +2222,8 @@ static int parse_definition_file(const char *filename)
     // This must tighten again once metadata, graphics, placement, and runtime behavior are all XML-owned.
     // Live bad XML should fail at load time instead of quietly registering incomplete building definitions.
     int has_supported_node = g_parse_state.saw_identity || g_parse_state.saw_model || g_parse_state.saw_foundation ||
-        g_parse_state.saw_button || g_parse_state.saw_graphic || g_parse_state.saw_spawn ||
+        g_parse_state.saw_button || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
+        g_parse_state.saw_flags || g_parse_state.saw_graphic || g_parse_state.saw_spawn ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods ||
         g_parse_state.saw_labor || g_parse_state.saw_state || g_parse_state.saw_provider_water_access;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
@@ -1989,9 +2250,11 @@ extern "C" int building_type_registry_load(void)
 
     refresh_building_type_path();
 
+    clear_xml_runtime_property_fields();
     for (std::unique_ptr<BuildingType> &definition : g_building_types) {
         definition.reset();
     }
+    g_next_dynamic_building_type = BUILDING_DYNAMIC_TYPE_FIRST;
 
     if (!storage_type_registry_load()) {
         log_error("Unable to load StorageType xml definitions", 0, 0);
@@ -2019,7 +2282,9 @@ extern "C" int building_type_registry_load(void)
     }
 
     building_type_registry_apply_model_overrides();
+    refresh_known_building_type_ids();
     building_type_id_bridge_reset_for_runtime();
     building_runtime_reset();
+    building_menu_invalidate_catalog();
     return 1;
 }

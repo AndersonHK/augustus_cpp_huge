@@ -301,6 +301,120 @@ int BuildButtonDefinition::has_any() const
     return has_group() || has_order() || has_icon() || has_text_key();
 }
 
+void SoundDefinition::set_city_sound(int sound)
+{
+    has_city_sound_ = 1;
+    city_sound_ = sound;
+}
+
+void SoundDefinition::set_mute_on_enemies(int value)
+{
+    mute_on_enemies_ = value ? 1 : 0;
+}
+
+void SoundDefinition::set_always_play(int value)
+{
+    always_play_ = value ? 1 : 0;
+}
+
+int SoundDefinition::has_city_sound() const
+{
+    return has_city_sound_;
+}
+
+int SoundDefinition::city_sound() const
+{
+    return city_sound_;
+}
+
+int SoundDefinition::mute_on_enemies() const
+{
+    return mute_on_enemies_;
+}
+
+int SoundDefinition::always_play() const
+{
+    return always_play_;
+}
+
+int SoundDefinition::has_any() const
+{
+    return has_city_sound_ || mute_on_enemies_ || always_play_;
+}
+
+void EventDataDefinition::set_attr(std::string attr)
+{
+    attr_ = std::move(attr);
+}
+
+int EventDataDefinition::has_attr() const
+{
+    return !attr_.empty();
+}
+
+const char *EventDataDefinition::attr() const
+{
+    return attr_.c_str();
+}
+
+int EventDataDefinition::has_any() const
+{
+    return has_attr();
+}
+
+void BuildingFlagsDefinition::set_fire_proof(int value)
+{
+    has_fire_proof_ = 1;
+    fire_proof_ = value;
+}
+
+void BuildingFlagsDefinition::set_draw_desirability_range(int value)
+{
+    has_draw_desirability_range_ = 1;
+    draw_desirability_range_ = value;
+}
+
+void BuildingFlagsDefinition::set_venus_gt_bonus(int value)
+{
+    has_venus_gt_bonus_ = 1;
+    venus_gt_bonus_ = value;
+}
+
+int BuildingFlagsDefinition::has_fire_proof() const
+{
+    return has_fire_proof_;
+}
+
+int BuildingFlagsDefinition::fire_proof() const
+{
+    return fire_proof_;
+}
+
+int BuildingFlagsDefinition::has_draw_desirability_range() const
+{
+    return has_draw_desirability_range_;
+}
+
+int BuildingFlagsDefinition::draw_desirability_range() const
+{
+    return draw_desirability_range_;
+}
+
+int BuildingFlagsDefinition::has_venus_gt_bonus() const
+{
+    return has_venus_gt_bonus_;
+}
+
+int BuildingFlagsDefinition::venus_gt_bonus() const
+{
+    return venus_gt_bonus_;
+}
+
+int BuildingFlagsDefinition::has_any() const
+{
+    return has_fire_proof_ || has_draw_desirability_range_ || has_venus_gt_bonus_;
+}
+
 void WaterAccessDefinition::set_type(WaterAccessType type)
 {
     has_type_ = 1;
@@ -563,6 +677,41 @@ void BuildingType::set_button_text_key(std::string key)
     button_.set_text_key(std::move(key));
 }
 
+void BuildingType::set_sound_id(int sound)
+{
+    sound_.set_city_sound(sound);
+}
+
+void BuildingType::set_sound_mute_on_enemies(int value)
+{
+    sound_.set_mute_on_enemies(value);
+}
+
+void BuildingType::set_sound_always_play(int value)
+{
+    sound_.set_always_play(value);
+}
+
+void BuildingType::set_event_attr(std::string attr)
+{
+    event_data_.set_attr(std::move(attr));
+}
+
+void BuildingType::set_fire_proof(int value)
+{
+    flags_.set_fire_proof(value);
+}
+
+void BuildingType::set_draw_desirability_range(int value)
+{
+    flags_.set_draw_desirability_range(value);
+}
+
+void BuildingType::set_venus_gt_bonus(int value)
+{
+    flags_.set_venus_gt_bonus(value);
+}
+
 void BuildingType::set_water_access_type(WaterAccessType type)
 {
     water_access_.set_type(type);
@@ -694,6 +843,21 @@ const BuildButtonDefinition &BuildingType::button() const
     return button_;
 }
 
+const SoundDefinition &BuildingType::sound() const
+{
+    return sound_;
+}
+
+const EventDataDefinition &BuildingType::event_data() const
+{
+    return event_data_;
+}
+
+const BuildingFlagsDefinition &BuildingType::flags() const
+{
+    return flags_;
+}
+
 const StateDefinition &BuildingType::state() const
 {
     return state_;
@@ -737,6 +901,21 @@ int BuildingType::has_foundation() const
 int BuildingType::has_button() const
 {
     return button_.has_any();
+}
+
+int BuildingType::has_sound() const
+{
+    return sound_.has_any();
+}
+
+int BuildingType::has_event_data() const
+{
+    return event_data_.has_any();
+}
+
+int BuildingType::has_flags() const
+{
+    return flags_.has_any();
 }
 
 int BuildingType::has_water_access_provider() const

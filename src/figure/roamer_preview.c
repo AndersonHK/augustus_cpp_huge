@@ -1,5 +1,6 @@
 #include "roamer_preview.h"
 
+#include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/properties.h"
 #include "building/rotation.h"
@@ -25,6 +26,10 @@ static struct {
 
 static figure_type building_type_to_figure_type(building_type type)
 {
+    if (type == BUILDING_THEATER) {
+        return FIGURE_ACTOR;
+    }
+
     switch (type) {
         case BUILDING_MARKET:
             return FIGURE_MARKET_TRADER;
@@ -43,8 +48,6 @@ static figure_type building_type_to_figure_type(building_type type)
             return FIGURE_PREFECT;
         case BUILDING_TAVERN:
             return FIGURE_BARKEEP;
-        case BUILDING_THEATER:
-            return FIGURE_ACTOR;
         case BUILDING_AMPHITHEATER:
             return FIGURE_GLADIATOR;
         case BUILDING_ARENA:

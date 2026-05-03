@@ -505,6 +505,9 @@ int figure_rioter_collapse_building(figure *f)
             continue;
         }
         building *b = building_get(map_building_at(grid_offset));
+        if (b->type == BUILDING_WELL) {
+            continue;
+        }
         switch (b->type) {
             case BUILDING_WAREHOUSE_SPACE:
             case BUILDING_WAREHOUSE:
@@ -524,7 +527,6 @@ int figure_rioter_collapse_building(figure *f)
             case BUILDING_NATIVE_MONUMENT:
             case BUILDING_RESERVOIR:
             case BUILDING_FOUNTAIN:
-            case BUILDING_WELL:
             case BUILDING_MARKET:
             case BUILDING_GRANARY:
             case BUILDING_FORUM:

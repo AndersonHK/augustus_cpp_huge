@@ -4,6 +4,10 @@
 #include "city/resource.h"
 #include "core/buffer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // MODEL DATA
 
  /**
@@ -106,4 +110,15 @@ typedef struct {
 } building_properties;
 
 void building_properties_init(void);
+void building_properties_clear_xml_runtime_fields(building_type type);
+void building_properties_apply_xml_model_size(building_type type, int size);
+void building_properties_apply_xml_event_attr(building_type type, const char *attr);
+void building_properties_apply_xml_sound_id(building_type type, int sound_id);
+void building_properties_apply_xml_fire_proof(building_type type, int fire_proof);
+void building_properties_apply_xml_draw_desirability_range(building_type type, int draw_desirability_range);
+void building_properties_apply_xml_venus_gt_bonus(building_type type, int venus_gt_bonus);
 const building_properties *building_properties_for_type(building_type type);
+
+#ifdef __cplusplus
+}
+#endif
