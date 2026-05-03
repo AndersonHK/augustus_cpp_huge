@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="tavern">
+    <identity name_key="building.tavern.name" />
+    <model size="2" cost="40" desirability_value="-2" desirability_step="1" desirability_step_size="1" desirability_range="6" laborers="8" />
+    <foundation policy="land" />
+    <button group="entertainment" order="70" icon="Health_Culture\Tavern_OFF" text_key="building.tavern.name" />
+    <sound id="tavern" />
+    <event_data attr="tavern" />
     <graphics>
         <default>
             <path value="Health_Culture\Tavern_OFF" />

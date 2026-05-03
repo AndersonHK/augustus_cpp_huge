@@ -39,6 +39,8 @@
     <ClCompile Include="src\building\building_runtime_graphics.cpp" />
     <ClCompile Include="src\building\building_runtime_spawn.cpp" />
     <ClCompile Include="src\building\building_type.cpp" />
+    <ClCompile Include="src\building\building_type_id_bridge.cpp" />
+    <ClCompile Include="src\building\building_type_legacy_migration.cpp" />
     <ClCompile Include="src\building\building_type_registry.cpp" />
     <ClCompile Include="src\building\building_type_registry_xml.cpp" />
     <ClCompile Include="src\building\local_workforce.cpp" />
@@ -71,7 +73,7 @@
     <ClCompile Include="src\building\list.c" />
     <ClCompile Include="src\building\maintenance.c" />
     <ClCompile Include="src\building\market.c" />
-    <ClCompile Include="src\building\menu.c" />
+    <ClCompile Include="src\building\menu.cpp" />
     <ClCompile Include="src\building\mess_hall.c" />
     <ClCompile Include="src\building\monument.c" />
     <ClCompile Include="src\building\production.cpp" />
@@ -243,7 +245,7 @@
     <ClCompile Include="src\graphics\complex_button.c" />
     <ClCompile Include="src\graphics\font.cpp" />
     <ClCompile Include="src\graphics\font_vector_runtime.cpp" />
-    <ClCompile Include="src\graphics\generic_button.c" />
+    <ClCompile Include="src\graphics\generic_button.cpp" />
     <ClCompile Include="src\graphics\graphics.cpp" />
     <ClCompile Include="src\graphics\grid_box.c" />
     <ClCompile Include="src\graphics\image.cpp" />
@@ -372,7 +374,7 @@
     <ClCompile Include="src\scenario\event\export_xml.c" />
     <ClCompile Include="src\scenario\event\formula.c" />
     <ClCompile Include="src\scenario\event\import_xml.cpp" />
-    <ClCompile Include="src\scenario\event\parameter_city.c" />
+    <ClCompile Include="src\scenario\event\parameter_city.cpp" />
     <ClCompile Include="src\scenario\event\parameter_data.c" />
     <ClCompile Include="src\scenario\gladiator_revolt.c" />
     <ClCompile Include="src\scenario\invasion.c" />
@@ -384,7 +386,7 @@
     <ClCompile Include="src\scenario\random_event.c" />
     <ClCompile Include="src\scenario\request.c" />
     <ClCompile Include="src\scenario\scenario.c" />
-    <ClCompile Include="src\sound\city.c" />
+    <ClCompile Include="src\sound\city.cpp" />
     <ClCompile Include="src\sound\effect.c" />
     <ClCompile Include="src\sound\music.c" />
     <ClCompile Include="src\sound\speech.c" />
@@ -552,6 +554,8 @@
     <ClInclude Include="src\building\building_runtime_internal.h" />
     <ClInclude Include="src\building\building_type.h" />
     <ClInclude Include="src\building\building_type_api.h" />
+    <ClInclude Include="src\building\building_type_id_bridge.h" />
+    <ClInclude Include="src\building\building_type_legacy_migration.h" />
     <ClInclude Include="src\building\building_type_registry.h" />
     <ClInclude Include="src\building\building_type_registry_internal.h" />
     <ClInclude Include="src\building\local_workforce.h" />

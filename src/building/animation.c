@@ -1,6 +1,7 @@
 #include "animation.h"
 
 #include "assets/assets.h"
+#include "building/building_type_api.h"
 #include "building/count.h"
 #include "building/image.h"
 #include "building/industry.h"
@@ -66,7 +67,8 @@ static int building_animation_offset_impl(building *b, const image *img, int gri
             map_sprite_animation_set(grid_offset, 1);
             return 1;
         }
-    } else if (b->type >= BUILDING_THEATER && b->type <= BUILDING_CHARIOT_MAKER &&
+    } else if ((b->type == BUILDING_THEATER ||
+        (b->type >= BUILDING_HIPPODROME && b->type <= BUILDING_CHARIOT_MAKER)) &&
         b->type != BUILDING_HIPPODROME && b->num_workers <= 0) {
         return 0;
     }

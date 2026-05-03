@@ -1,6 +1,7 @@
 #include "image.h"
 
 #include "assets/assets.h"
+#include "building/building_type_api.h"
 #include "building/connectable.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -79,6 +80,17 @@ int building_image_get_garden_gate_image(int grid_offset)
 
 int building_image_get(const building *b)
 {
+    if (b->type == BUILDING_THEATER) {
+        if (!b->upgrade_level) {
+            return assets_get_image_id("Health_Culture", "Theatre ON");
+        } else {
+            return assets_get_image_id("Health_Culture", "Theatre Upgrade ON");
+        }
+    }
+    if (b->type == BUILDING_WELL) {
+        return image_group(GROUP_BUILDING_WELL);
+    }
+
     switch (b->type) {
         case BUILDING_HOUSE_VACANT_LOT:
             if (b->house_population == 0) {
@@ -122,12 +134,6 @@ int building_image_get(const building *b)
                 return assets_get_image_id("Health_Culture", "Amphitheatre ON");
             } else {
                 return assets_get_image_id("Health_Culture", "Amphitheatre Upgrade ON");
-            }
-        case BUILDING_THEATER:
-            if (!b->upgrade_level) {
-                return assets_get_image_id("Health_Culture", "Theatre ON");
-            } else {
-                return assets_get_image_id("Health_Culture", "Theatre Upgrade ON");
             }
         case BUILDING_COLOSSEUM:
             switch (b->monument.phase) {
@@ -358,8 +364,6 @@ int building_image_get(const building *b)
             } else {
                 return image_group(GROUP_BUILDING_FOUNTAIN_1);
             }
-        case BUILDING_WELL:
-            return image_group(GROUP_BUILDING_WELL);
         case BUILDING_RESERVOIR:
             return image_group(GROUP_BUILDING_RESERVOIR);
         case BUILDING_MILITARY_ACADEMY:
@@ -1075,7 +1079,7 @@ int building_image_get(const building *b)
 
 int building_image_get_for_type(building_type type)
 {
-    building b;
+    building b = {0};
     b.type = type;
     return building_image_get(&b);
 }

@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<building type="colosseum">
+    <sound id="colosseum" mute_on_enemies="true" />
+</building>

@@ -148,6 +148,150 @@ struct SpawnDelayGroup {
     std::vector<SpawnPolicy> policies;
 };
 
+class IdentityDefinition {
+public:
+    void set_name_key(std::string key);
+
+    int has_name_key() const;
+    const char *name_key() const;
+
+private:
+    std::string name_key_;
+};
+
+class BuildModelDefinition {
+public:
+    void set_size(int value);
+    void set_cost(int value);
+    void set_desirability_value(int value);
+    void set_desirability_step(int value);
+    void set_desirability_step_size(int value);
+    void set_desirability_range(int value);
+    void set_laborers(int value);
+
+    int has_size() const;
+    int size() const;
+    int has_cost() const;
+    int cost() const;
+    int has_desirability_value() const;
+    int desirability_value() const;
+    int has_desirability_step() const;
+    int desirability_step() const;
+    int has_desirability_step_size() const;
+    int desirability_step_size() const;
+    int has_desirability_range() const;
+    int desirability_range() const;
+    int has_laborers() const;
+    int laborers() const;
+    int has_any() const;
+
+private:
+    int has_size_ = 0;
+    int size_ = 0;
+    int has_cost_ = 0;
+    int cost_ = 0;
+    int has_desirability_value_ = 0;
+    int desirability_value_ = 0;
+    int has_desirability_step_ = 0;
+    int desirability_step_ = 0;
+    int has_desirability_step_size_ = 0;
+    int desirability_step_size_ = 0;
+    int has_desirability_range_ = 0;
+    int desirability_range_ = 0;
+    int has_laborers_ = 0;
+    int laborers_ = 0;
+};
+
+class FoundationDefinition {
+public:
+    void set_policy(std::string policy);
+
+    int has_policy() const;
+    const char *policy() const;
+
+private:
+    std::string policy_;
+};
+
+class BuildButtonDefinition {
+public:
+    void set_group(std::string group);
+    void set_order(int order);
+    void set_icon(std::string icon);
+    void set_text_key(std::string key);
+
+    int has_group() const;
+    const char *group() const;
+    int has_order() const;
+    int order() const;
+    int has_icon() const;
+    const char *icon() const;
+    int has_text_key() const;
+    const char *text_key() const;
+    int has_any() const;
+
+private:
+    std::string group_;
+    int has_order_ = 0;
+    int order_ = 0;
+    std::string icon_;
+    std::string text_key_;
+};
+
+class SoundDefinition {
+public:
+    void set_city_sound(int sound);
+    void set_mute_on_enemies(int value);
+    void set_always_play(int value);
+
+    int has_city_sound() const;
+    int city_sound() const;
+    int mute_on_enemies() const;
+    int always_play() const;
+    int has_any() const;
+
+private:
+    int has_city_sound_ = 0;
+    int city_sound_ = 0;
+    int mute_on_enemies_ = 0;
+    int always_play_ = 0;
+};
+
+class EventDataDefinition {
+public:
+    void set_attr(std::string attr);
+
+    int has_attr() const;
+    const char *attr() const;
+    int has_any() const;
+
+private:
+    std::string attr_;
+};
+
+class BuildingFlagsDefinition {
+public:
+    void set_fire_proof(int value);
+    void set_draw_desirability_range(int value);
+    void set_venus_gt_bonus(int value);
+
+    int has_fire_proof() const;
+    int fire_proof() const;
+    int has_draw_desirability_range() const;
+    int draw_desirability_range() const;
+    int has_venus_gt_bonus() const;
+    int venus_gt_bonus() const;
+    int has_any() const;
+
+private:
+    int has_fire_proof_ = 0;
+    int fire_proof_ = 0;
+    int has_draw_desirability_range_ = 0;
+    int draw_desirability_range_ = 0;
+    int has_venus_gt_bonus_ = 0;
+    int venus_gt_bonus_ = 0;
+};
+
 struct GraphicsTarget {
     void set_path(std::string path);
     void set_image(std::string image);
@@ -264,6 +408,26 @@ public:
     BuildingType(building_type type, std::string attr);
 
     void set_state_water_access_mode(WaterAccessMode mode);
+    void set_identity_name_key(std::string key);
+    void set_model_size(int value);
+    void set_model_cost(int value);
+    void set_model_desirability_value(int value);
+    void set_model_desirability_step(int value);
+    void set_model_desirability_step_size(int value);
+    void set_model_desirability_range(int value);
+    void set_model_laborers(int value);
+    void set_foundation_policy(std::string policy);
+    void set_button_group(std::string group);
+    void set_button_order(int order);
+    void set_button_icon(std::string icon);
+    void set_button_text_key(std::string key);
+    void set_sound_id(int sound);
+    void set_sound_mute_on_enemies(int value);
+    void set_sound_always_play(int value);
+    void set_event_attr(std::string attr);
+    void set_fire_proof(int value);
+    void set_draw_desirability_range(int value);
+    void set_venus_gt_bonus(int value);
     void set_water_access_type(WaterAccessType type);
     void set_water_access_range(int range);
     void set_water_access_requirement(WaterAccessRequirement requirement);
@@ -287,11 +451,25 @@ public:
 
     building_type type() const;
     const char *attr() const;
+    const IdentityDefinition &identity() const;
+    const BuildModelDefinition &model() const;
+    const FoundationDefinition &foundation() const;
+    const BuildButtonDefinition &button() const;
+    const SoundDefinition &sound() const;
+    const EventDataDefinition &event_data() const;
+    const BuildingFlagsDefinition &flags() const;
     const StateDefinition &state() const;
     const WaterAccessDefinition &water_access() const;
     const GraphicsDefinition &graphics() const;
     const GraphicsTarget *resolve_graphics_target(const ::building &building) const;
     WaterAccessMode water_access_mode() const;
+    int has_identity() const;
+    int has_model() const;
+    int has_foundation() const;
+    int has_button() const;
+    int has_sound() const;
+    int has_event_data() const;
+    int has_flags() const;
     int has_water_access_provider() const;
     int has_graphic() const;
     int has_labor() const;
@@ -308,6 +486,13 @@ public:
 private:
     building_type type_;
     std::string attr_;
+    IdentityDefinition identity_;
+    BuildModelDefinition model_;
+    FoundationDefinition foundation_;
+    BuildButtonDefinition button_;
+    SoundDefinition sound_;
+    EventDataDefinition event_data_;
+    BuildingFlagsDefinition flags_;
     StateDefinition state_;
     WaterAccessDefinition water_access_;
     GraphicsDefinition graphics_;

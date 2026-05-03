@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     SOUND_TYPE_MIN = 0,
     SOUND_TYPE_SPEECH = 0,
@@ -50,3 +54,7 @@ void sound_device_use_custom_music_player(int bitdepth, int num_channels, int ra
 void sound_device_write_custom_music_data(const void *audio_data, int len);
 
 void sound_device_use_default_music_player(void);
+
+#ifdef __cplusplus
+}
+#endif

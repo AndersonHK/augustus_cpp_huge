@@ -1073,7 +1073,10 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
 
     for (int i = 0; i < buildings_to_load; i++) {
         building *b = array_next(data.buildings);
-        building_state_load_from_buffer(buf, b, building_buf_size, save_version, 0);
+        int missing_building_type = building_state_load_from_buffer(buf, b, building_buf_size, save_version, 0);
+        if (missing_building_type) {
+            map_building_tiles_remove(b->id, b->x, b->y);
+        }
         if (b->state != BUILDING_STATE_UNUSED) {
             highest_id_in_use = i;
             fill_adjacent_types(b);

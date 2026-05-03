@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="watchtower">
+    <identity name_key="building.watchtower.name" />
+    <model size="2" cost="100" desirability_value="-6" desirability_step="1" desirability_step_size="2" desirability_range="3" laborers="8" />
+    <foundation policy="land" />
+    <button group="security" order="20" icon="Military\Watchtower_ON_01" text_key="building.watchtower.name" />
+    <sound id="watchtower" />
+    <event_data attr="watchtower" />
+    <flags fire_proof="1" draw_desirability_range="1" />
     <graphics>
         <default>
             <path value="Military\Watchtower_ON_01" />

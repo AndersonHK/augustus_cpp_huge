@@ -1,6 +1,7 @@
 #include "city_overlay_risks.h"
 
 #include "assets/assets.h"
+#include "building/building_type_api.h"
 #include "building/industry.h"
 #include "core/config.h"
 #include "figure/properties.h"

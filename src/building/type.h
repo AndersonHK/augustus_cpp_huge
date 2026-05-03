@@ -41,7 +41,7 @@ typedef enum {
     BUILDING_HOUSE_LARGE_PALACE = 28,
     BUILDING_HOUSE_LUXURY_PALACE = 29,
     BUILDING_AMPHITHEATER = 30,
-    BUILDING_THEATER = 31,
+    BUILDING_LEGACY_SLOT_THEATER = 31,
     BUILDING_HIPPODROME = 32,
     BUILDING_COLOSSEUM = 33,
     BUILDING_GLADIATOR_SCHOOL = 34,
@@ -102,7 +102,7 @@ typedef enum {
     BUILDING_NATIVE_MEETING = 89,
     BUILDING_RESERVOIR = 90,
     BUILDING_FOUNTAIN = 91,
-    BUILDING_WELL = 92,
+    BUILDING_LEGACY_SLOT_WELL = 92,
     BUILDING_NATIVE_CROPS = 93,
     BUILDING_MILITARY_ACADEMY = 94,
     BUILDING_BARRACKS = 95,
@@ -223,8 +223,28 @@ typedef enum {
     BUILDING_REPAIR_LAND = 210, // tool, not an actual building
     BUILDING_CLEAR_TREES = 211, // tool, not an actual building
     // helper constants
-    BUILDING_TYPE_MAX = 212
+    BUILDING_DYNAMIC_TYPE_FIRST = 212,
+    BUILDING_TYPE_MAX = 512
 } building_type;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern building_type BUILDING_THEATER;
+extern building_type BUILDING_WELL;
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef __cplusplus
+inline constexpr const char *BUILDING_TEXT_ID_THEATER = "theater";
+inline constexpr const char *BUILDING_TEXT_ID_WELL = "well";
+#else
+#define BUILDING_TEXT_ID_THEATER "theater"
+#define BUILDING_TEXT_ID_WELL "well"
+#endif
 
 /**
  * House levels

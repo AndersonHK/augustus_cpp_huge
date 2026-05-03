@@ -11,6 +11,7 @@ extern "C" {
 #include "building/construction_routed.h"
 #include "building/construction_warning.h"
 #include "building/count.h"
+#include "building/building_type_api.h"
 #include "building/image.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -1154,7 +1155,8 @@ void building_construction_place(void)
     }
 
     if (city_finance_out_of_money()) {
-        if (type == BUILDING_WELL && building_count_total(BUILDING_WELL) < 5) {
+        building_type well = BUILDING_WELL;
+        if (type == well && well != BUILDING_NONE && building_count_total(well) < 5) {
             // allow wells even when out of money, but limit to 5
         } else {
             // For all other buildings or if we already have 5+ wells

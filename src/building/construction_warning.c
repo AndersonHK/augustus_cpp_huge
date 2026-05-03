@@ -1,6 +1,7 @@
 #include "construction_warning.h"
 
 #include "building/building.h"
+#include "building/building_type_api.h"
 #include "building/count.h"
 #include "building/properties.h"
 #include "city/constants.h"
@@ -30,6 +31,10 @@ static void show(warning_type warning)
 
 static void check_road_access(int type, int x, int y, int size)
 {
+    if (type == BUILDING_WELL) {
+        return;
+    }
+
     switch (type) {
         case BUILDING_SMALL_STATUE:
         case BUILDING_GODDESS_STATUE:
@@ -37,7 +42,6 @@ static void check_road_access(int type, int x, int y, int size)
         case BUILDING_MEDIUM_STATUE:
         case BUILDING_LARGE_STATUE:
         case BUILDING_FOUNTAIN:
-        case BUILDING_WELL:
         case BUILDING_RESERVOIR:
         case BUILDING_SMALL_POND:
         case BUILDING_LARGE_POND:

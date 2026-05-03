@@ -469,6 +469,8 @@ bool merge_locale_json(const std::string &path, locale_catalog &catalog, std::st
                 translation_key key;
                 if (translation_key_from_name(entry.first.c_str(), &key) && key >= 0 && key < TRANSLATION_MAX_KEY) {
                     catalog.project_keys[key].utf8 = entry.second.string_value;
+                } else {
+                    catalog.named_project_keys[entry.first].utf8 = entry.second.string_value;
                 }
             }
         }

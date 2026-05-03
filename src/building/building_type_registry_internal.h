@@ -19,6 +19,13 @@ struct ParseState {
     std::unique_ptr<BuildingType> definition;
     size_t current_spawn_group_index = 0;
     int has_current_spawn_group = 0;
+    int saw_identity = 0;
+    int saw_model = 0;
+    int saw_foundation = 0;
+    int saw_button = 0;
+    int saw_sound = 0;
+    int saw_event_data = 0;
+    int saw_flags = 0;
     int saw_graphic = 0;
     int saw_labor = 0;
     int saw_labor_employees = 0;
@@ -52,6 +59,9 @@ extern std::array<std::unique_ptr<BuildingType>, BUILDING_TYPE_MAX> g_building_t
 extern ParseState g_parse_state;
 
 int directory_exists(const char *path);
+const BuildingType *definition_for_type(building_type type);
 void refresh_building_type_path();
+void refresh_known_building_type_ids();
+void clear_xml_runtime_property_fields();
 
 }

@@ -93,6 +93,8 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
         } else if (type == BUILDING_NATIVE_DECORATION || type == BUILDING_NATIVE_MONUMENT ||
             type == BUILDING_NATIVE_WATCHTOWER) {
             image_id = building_image_get_for_type(type);
+        } else if (props->image_group <= 0) {
+            image_id = building_image_get_for_type(type);
         } else {
             image_id = image_group(props->image_group) + props->image_offset;
         }

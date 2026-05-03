@@ -1,6 +1,7 @@
 #include "finance.h"
 
 #include "building/building.h"
+#include "building/building_type_api.h"
 #include "building/count.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -53,7 +54,7 @@ static building_levy_for_type building_levies[] = {
 
 static tourism_for_type tourism_modifiers[] = {
     {BUILDING_TAVERN, 2, TAVERN_COVERAGE, 0},
-    {BUILDING_THEATER, 1, THEATER_COVERAGE, 0},
+    {BUILDING_NONE, 1, THEATER_COVERAGE, 0},
     {BUILDING_AMPHITHEATER, 1, AMPHITHEATER_COVERAGE, 0},
     {BUILDING_ARENA, 2, ARENA_COVERAGE, 0},
     {BUILDING_COLOSSEUM, 4, 0, 0},
@@ -376,8 +377,12 @@ static void pay_monthly_building_levies(void)
 
 static void activate_monthly_tourism(void)
 {
+    tourism_modifiers[1].type = BUILDING_THEATER;
     for (int i = 0; i < BUILDINGS_WITH_TOURISM; i++) {
         building_type type = tourism_modifiers[i].type;
+        if (type <= BUILDING_NONE) {
+            continue;
+        }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state != BUILDING_STATE_IN_USE || !b->num_workers) {
                 continue;

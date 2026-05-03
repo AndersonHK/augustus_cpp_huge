@@ -169,6 +169,20 @@ extern "C" void tile_runtime_set_plaza_image_id(int grid_offset, const char *ima
     }
 }
 
+extern "C" const char *tile_runtime_plaza_single_image_id(int index)
+{
+    const tile_type_registry_impl::TileType *definition =
+        tile_type_registry_impl::get_tile_type(tile_type_registry_impl::TileKind::Plaza);
+    return definition ? definition->plaza_single_image_id(index) : nullptr;
+}
+
+extern "C" const char *tile_runtime_plaza_large_image_id(int index)
+{
+    const tile_type_registry_impl::TileType *definition =
+        tile_type_registry_impl::get_tile_type(tile_type_registry_impl::TileKind::Plaza);
+    return definition ? definition->plaza_large_image_id(index) : nullptr;
+}
+
 const RuntimeDrawSlice *tile_runtime_get_graphic_footprint_slice(int grid_offset)
 {
     if (tile_runtime *instance = tile_runtime_impl::get_instance(grid_offset)) {

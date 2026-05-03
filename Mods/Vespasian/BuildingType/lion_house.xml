@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="lion_house">
+    <identity name_key="building.lion_house.name" />
+    <model size="3" cost="75" desirability_value="-3" desirability_step="1" desirability_step_size="1" desirability_range="3" laborers="8" />
+    <foundation policy="land" />
+    <button group="entertainment" order="50" icon="Health_Culture\Lion_House" text_key="building.lion_house.name" />
+    <sound id="lion_pit" />
+    <event_data attr="lion_house" />
     <graphics>
         <default>
             <path value="Health_Culture\Lion_House" />
@@ -14,6 +20,7 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:5,75:10,50:20,25:35,1:60">
         <spawn mode="service_roamer" spawn_figure="lion_tamer"
-            action_state="entertainer_school_created" direction="top" figure_slot="primary" init_roaming="false" profile="venue_seeker" />
+            action_state="entertainer_school_created" direction="top" figure_slot="primary"
+            init_roaming="false" profile="venue_seeker" />
     </spawn_group>
 </building>

@@ -190,10 +190,96 @@ static int parse_graphics_path()
     return 1;
 }
 
+static int parse_plaza_images()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered plaza images definition before tile root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.definition->kind() != TileKind::Plaza) {
+        log_error("Plaza images node is only valid for plaza tile xml", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_plaza_images) {
+        log_error("Tile xml contains duplicate plaza_images nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.saw_plaza_images = 1;
+    g_parse_state.parsing_plaza_images = 1;
+    return 1;
+}
+
+static void finish_plaza_images()
+{
+    if (!g_parse_state.parsing_plaza_images) {
+        return;
+    }
+    if (!g_parse_state.definition->has_plaza_image_ids()) {
+        log_error("Plaza tile xml is missing single plaza image ids", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_plaza_images = 0;
+}
+
+static int parse_plaza_single_image()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_plaza_images) {
+        log_error("Encountered plaza single image outside plaza_images node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("id")) {
+        log_error("Plaza single image is missing required attribute 'id'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    std::string image_id = trim_copy(xml_parser_get_attribute_string("id"));
+    if (image_id.empty()) {
+        log_error("Plaza single image id is empty", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->add_plaza_single_image_id(std::move(image_id));
+    return 1;
+}
+
+static int parse_plaza_large_image()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_plaza_images) {
+        log_error("Encountered plaza large image outside plaza_images node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("id")) {
+        log_error("Plaza large image is missing required attribute 'id'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    std::string image_id = trim_copy(xml_parser_get_attribute_string("id"));
+    if (image_id.empty()) {
+        log_error("Plaza large image id is empty", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->add_plaza_large_image_id(std::move(image_id));
+    return 1;
+}
+
 static const xml_parser_element XML_ELEMENTS[] = {
     { "tile", parse_tile_root, nullptr, nullptr, nullptr },
     { "graphics", parse_graphics, finish_graphics, "tile", nullptr },
-    { "path", parse_graphics_path, nullptr, "graphics", nullptr }
+    { "path", parse_graphics_path, nullptr, "graphics", nullptr },
+    { "plaza_images", parse_plaza_images, finish_plaza_images, "tile", nullptr },
+    { "single", parse_plaza_single_image, nullptr, "plaza_images", nullptr },
+    { "large", parse_plaza_large_image, nullptr, "plaza_images", nullptr }
 };
 
 static int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
@@ -247,6 +333,10 @@ static int parse_definition_file(const char *filename)
         if (!g_parse_state.saw_graphics) {
             log_error("Tile xml is missing required graphics node", filename, 0);
         }
+        return 0;
+    }
+    if (g_parse_state.definition->kind() == TileKind::Plaza && !g_parse_state.definition->has_plaza_image_ids()) {
+        log_error("Plaza tile xml is missing required plaza_images node", filename, 0);
         return 0;
     }
 

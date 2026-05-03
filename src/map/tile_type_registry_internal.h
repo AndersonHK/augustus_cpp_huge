@@ -10,6 +10,8 @@ extern "C" {
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace tile_type_registry_impl {
 
@@ -72,10 +74,43 @@ public:
         return graphics_.path();
     }
 
+    void add_plaza_single_image_id(std::string image_id)
+    {
+        plaza_single_image_ids_.push_back(std::move(image_id));
+    }
+
+    void add_plaza_large_image_id(std::string image_id)
+    {
+        plaza_large_image_ids_.push_back(std::move(image_id));
+    }
+
+    const char *plaza_single_image_id(int index) const
+    {
+        if (index < 0 || static_cast<size_t>(index) >= plaza_single_image_ids_.size()) {
+            return nullptr;
+        }
+        return plaza_single_image_ids_[static_cast<size_t>(index)].c_str();
+    }
+
+    const char *plaza_large_image_id(int index) const
+    {
+        if (index < 0 || static_cast<size_t>(index) >= plaza_large_image_ids_.size()) {
+            return nullptr;
+        }
+        return plaza_large_image_ids_[static_cast<size_t>(index)].c_str();
+    }
+
+    int has_plaza_image_ids() const
+    {
+        return !plaza_single_image_ids_.empty();
+    }
+
 private:
     TileKind kind_ = TileKind::None;
     std::string attr_;
     GraphicsDefinition graphics_;
+    std::vector<std::string> plaza_single_image_ids_;
+    std::vector<std::string> plaza_large_image_ids_;
 };
 
 struct ParseState {
@@ -83,6 +118,8 @@ struct ParseState {
     int saw_graphics = 0;
     int parsing_graphics = 0;
     int current_graphics_has_path = 0;
+    int saw_plaza_images = 0;
+    int parsing_plaza_images = 0;
     int error = 0;
 };
 

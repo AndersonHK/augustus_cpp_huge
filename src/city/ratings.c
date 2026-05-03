@@ -1,6 +1,7 @@
 #include "ratings.h"
 
 #include "building/building.h"
+#include "building/building_type_api.h"
 #include "building/count.h"
 #include "building/properties.h"
 #include "city/culture.h"
@@ -74,12 +75,14 @@ void city_ratings_reduce_prosperity_after_bailout(void)
 
 void city_ratings_peace_building_destroyed(building_type type)
 {
+    if (type == BUILDING_WELL) {
+        return;
+    }
     switch (type) {
         case BUILDING_HOUSE_SMALL_TENT:
         case BUILDING_HOUSE_LARGE_TENT:
         case BUILDING_PREFECTURE:
         case BUILDING_ENGINEERS_POST:
-        case BUILDING_WELL:
         case BUILDING_FORT_ARCHERS:
         case BUILDING_FORT_LEGIONARIES:
         case BUILDING_FORT_JAVELIN:

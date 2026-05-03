@@ -1,5 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="lighthouse">
+    <identity name_key="building.lighthouse.name" />
+    <model size="3" cost="1000" desirability_value="6" desirability_step="1" desirability_step_size="-1" desirability_range="4" laborers="20" />
+    <foundation policy="land" />
+    <button group="engineering" order="40" icon="Monuments\Lighthouse_OFF" text_key="building.lighthouse.name" />
+    <sound id="lighthouse" />
+    <event_data attr="lighthouse" />
+    <flags fire_proof="1" />
     <graphics>
         <default>
             <path value="Monuments\Lighthouse_OFF" />
@@ -11,7 +18,6 @@
             <image value="Lighthouse ON" />
         </variant>
     </graphics>
-
     <labor>
         <employees count="20" />
         <labor_seeker>

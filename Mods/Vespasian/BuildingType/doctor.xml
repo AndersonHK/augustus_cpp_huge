@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="doctor">
+    <identity name_key="building.doctor.name" />
+    <model size="1" cost="30" desirability_value="0" desirability_step="0" desirability_step_size="0" desirability_range="0" laborers="5" />
+    <foundation policy="land" />
+    <button group="health" order="10" icon="doctor" text_key="building.doctor.name" />
+    <sound id="clinic" />
+    <event_data attr="doctor" />
     <labor>
         <employees count="5" />
         <labor_seeker>
@@ -8,6 +14,7 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="doctor">
         <spawn mode="service_roamer" spawn_figure="doctor"
-            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true" />
+            action_state="roaming" direction="top" figure_slot="primary"
+            init_roaming="true" />
     </spawn_group>
 </building>

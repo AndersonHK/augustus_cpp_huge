@@ -2,6 +2,10 @@
 
 #include "building/type.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     SUBMENU_NONE = -1,
     BUILD_MENU_VACANT_HOUSE = 0,
@@ -37,6 +41,8 @@ void building_menu_enable_all(void);
 
 void building_menu_update(void);
 
+void building_menu_invalidate_catalog(void);
+
 int building_menu_count_items(int submenu);
 
 int building_menu_count_all_items(int submenu);
@@ -59,3 +65,7 @@ int building_menu_has_changed(void);
 int building_menu_is_submenu(build_menu_group menu);
 
 int building_menu_get_submenu_for_type(building_type type);
+
+#ifdef __cplusplus
+}
+#endif

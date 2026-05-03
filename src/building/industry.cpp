@@ -187,7 +187,7 @@ static void update_venus_gt_production(void)
     if (!venus_gt || !building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
         return;
     }
-    
+
     venus_gt->monument.progress += (10 + (city_data.culture.population_with_venus_access /
         MAX_PROGRESS_VENUS_GT / 2));
     if (venus_gt->monument.progress > MAX_PROGRESS_VENUS_GT) {
@@ -348,13 +348,6 @@ void building_industry_update_production(int new_day)
             int progress = b->num_workers;
             if (b->data.industry.blessing_days_left && building_is_farm(b->type)) {
                 progress += b->num_workers;
-            }
-            if (b->type == BUILDING_CONCRETE_MAKER) {
-                progress *= b->has_water_access;
-                progress /= 2;
-                if (b->num_workers > 0 && b->has_water_access == 1 && progress == 0) {
-                    progress = 1;
-                }
             }
             b->data.industry.progress += progress;
 

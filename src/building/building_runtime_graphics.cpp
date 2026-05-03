@@ -306,7 +306,8 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
             map_sprite_animation_set(building_->grid_offset, 1);
             return 1;
         }
-    } else if (building_->type >= BUILDING_THEATER && building_->type <= BUILDING_CHARIOT_MAKER &&
+    } else if ((building_->type == BUILDING_THEATER ||
+        (building_->type >= BUILDING_HIPPODROME && building_->type <= BUILDING_CHARIOT_MAKER)) &&
         building_->type != BUILDING_HIPPODROME && building_->num_workers <= 0) {
         return 0;
     }

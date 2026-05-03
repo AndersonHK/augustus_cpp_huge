@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_statue">
+    <identity name_key="building.large_statue.name" />
+    <model size="3" cost="150" desirability_value="14" desirability_step="2" desirability_step_size="-2" desirability_range="5" laborers="0" />
+    <foundation policy="land" />
+    <button group="statues" order="30" icon="Aesthetics\Statue" text_key="building.large_statue.name" />
+    <sound id="aqueduct" />
+    <event_data attr="large_statue" />
+    <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>
         <default>
             <path value="Aesthetics\Statue" />
             <image value="Image_0002" />
         </default>
     </graphics>
+    <labor>
+        <employees count="0" />
+        <labor_seeker>
+            <method value="none" />
+        </labor_seeker>
+    </labor>
 </building>

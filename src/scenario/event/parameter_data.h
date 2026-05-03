@@ -86,6 +86,10 @@ typedef struct {
     translation_key key;
 } special_attribute_mapping_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 scenario_condition_data_t *scenario_events_parameter_data_get_conditions_xml_attributes(condition_types type);
 scenario_condition_data_t *scenario_events_parameter_data_get_conditions_xml_attributes_alphabetical(int index);
 scenario_action_data_t *scenario_events_parameter_data_get_actions_xml_attributes(action_types type);
@@ -135,3 +139,7 @@ void scenario_events_parameter_data_get_display_string_for_condition(const scena
  * @return The resolved parameter type, or PARAMETER_TYPE_UNDEFINED if not applicable
  */
 parameter_type scenario_events_parameter_data_resolve_flexible_type(const scenario_action_t *action, int param_number);
+
+#ifdef __cplusplus
+}
+#endif

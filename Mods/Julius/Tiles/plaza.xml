@@ -1,0 +1,18 @@
+<tile type="plaza">
+    <graphics>
+        <path value="Terrain_Maps\Plaza" />
+    </graphics>
+    <plaza_images>
+        <single id="Image_0000" />
+        <single id="Image_0001" />
+        <single id="Image_0002" />
+        <single id="Image_0003" />
+        <single id="Image_0004" />
+        <single id="Image_0005" />
+        <single id="Image_0000" />
+        <single id="Image_0001" />
+        <single id="Image_0002" />
+        <large id="Image_0006" />
+        <large id="Image_0007" />
+    </plaza_images>
+</tile>

@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="replace_with_building_attr">
+    <!-- Optional build-authority metadata -->
+    <identity name_key="translation.key.for.localized.building.name" />
+    <model size="2" cost="80" desirability_value="-3" desirability_step="1" desirability_step_size="1"
+        desirability_range="3" laborers="10" />
+    <foundation policy="land" />
+    <button group="industry" order="100" icon="Industry\Example_Icon"
+        text_key="translation.key.for.localized.building.name" />
+
     <!-- Optional provider-side water access definition -->
     <water_access>
         <type value="reservoir" />
@@ -69,5 +77,5 @@
             condition="always" block_on_success="true" />
     </spawn_group>
 
-    <!-- Graphics-only vertical slices may stop after <graphics> or <labor> when live runtime ownership is deferred -->
+    <!-- Metadata-only or graphics-only vertical slices may stop when live runtime ownership is deferred -->
 </building>

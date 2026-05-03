@@ -284,6 +284,13 @@ void rebuild_project_keys(std::vector<localized_text> &project_keys)
     }
 }
 
+void rebuild_named_project_keys(std::map<std::string, localized_text> &project_keys)
+{
+    for (auto &entry : project_keys) {
+        entry.second.rebuild_legacy();
+    }
+}
+
 void rebuild_messages(std::vector<message_definition> &messages, language_type language, std::vector<lang_message> &legacy_messages)
 {
     legacy_messages.assign(messages.size(), {});

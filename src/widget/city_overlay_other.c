@@ -3,6 +3,7 @@
 #include "assets/assets.h"
 #include "building/animation.h"
 #include "building/building.h"
+#include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"

@@ -1,5 +1,7 @@
 #include "building/production_method.h"
 
+#include "building/building_type_registry_internal.h"
+
 extern "C" {
 #include "building/industry.h"
 #include "building/local_workforce.h"
@@ -13,6 +15,16 @@ extern "C" {
 #include <utility>
 
 namespace building_type_registry_impl {
+
+namespace {
+
+int building_type_requires_water_access(const ::building &building)
+{
+    const BuildingType *definition = definition_for_type(building.type);
+    return definition && definition->water_access_mode() != WaterAccessMode::None;
+}
+
+} // namespace
 
 ProductionMethod::ProductionMethod(std::string path)
     : path_(std::move(path))
@@ -173,6 +185,9 @@ int ProductionMethod::can_start_cycle(const ::building &building) const
         return 0;
     }
     if (max_progress_for(building) <= 0) {
+        return 0;
+    }
+    if (building_type_requires_water_access(building) && !building.has_water_access) {
         return 0;
     }
     if (!has_required_inputs(building)) {

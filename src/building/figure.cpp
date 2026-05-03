@@ -7,6 +7,7 @@ extern "C" {
 #include "assets/assets.h"
 #include "building/barracks.h"
 #include "building/building_runtime_api.h"
+#include "building/building_type_api.h"
 #include "building/granary.h"
 #include "building/image.h"
 #include "building/industry.h"
@@ -1303,13 +1304,15 @@ static int building_uses_runtime_spawn(const building *b)
         b->type <= BUILDING_LARGE_TEMPLE_VENUS) {
         return b->monument.phase <= 0;
     }
+    if (b->type == BUILDING_THEATER) {
+        return 1;
+    }
 
     switch (b->type) {
         case BUILDING_ENGINEERS_POST:
         case BUILDING_PREFECTURE:
         case BUILDING_ACTOR_COLONY:
         case BUILDING_GLADIATOR_SCHOOL:
-        case BUILDING_THEATER:
         case BUILDING_BATHHOUSE:
         case BUILDING_LIBRARY:
         case BUILDING_ACADEMY:

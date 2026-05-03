@@ -2,6 +2,7 @@
 
 #include "assets/assets.h"
 #include "building/barracks.h"
+#include "building/building_type_api.h"
 #include "building/culture.h"
 #include "../building/distribution.h"
 #include "building/house_evolution.h"
@@ -140,6 +141,9 @@ static int get_height_id(void)
         return HEIGHT_7_26_BLOCKS;
     } else if (context.type == BUILDING_INFO_BUILDING) {
         const building *b = building_get(context.building_id);
+        if (b->type == BUILDING_WELL) {
+            return HEIGHT_4_14_BLOCKS;
+        }
         if (building_is_house(b->type)) {
             return HEIGHT_5_24_BLOCKS;
         }
@@ -209,7 +213,6 @@ static int get_height_id(void)
                 return HEIGHT_3_20_BLOCKS;
 
                 //224px
-            case BUILDING_WELL:
             case BUILDING_ROADBLOCK:
             case BUILDING_HEDGE_GATE_DARK:
             case BUILDING_HEDGE_GATE_LIGHT:

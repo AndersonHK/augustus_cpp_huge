@@ -16,6 +16,12 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - The Visual Studio solution/project at repo root is the build path that matters.
 - `res/augustus.rc` is part of the project and provides the executable icon/resource wiring.
 
+## Upstream lineage and source references
+- Julius is the base project repository: https://github.com/bvschaik/julius
+- Augustus is a gameplay fork of Julius: https://github.com/Keriew/augustus
+- When checking vanilla behavior, compare against Julius first; when checking Augustus-added behavior, compare against the Augustus fork. This matters for XML migrations because copied mod data can accidentally pull Vespasian/Augustus behavior into Julius or vice versa.
+- Tile graphics need the same upstream care: Augustus added a newer tile graphical set on top of Julius, so Augustus/Vespasian tile XML can legitimately refer to both Julius base tile images and Augustus-added tile aliases behind the same logical path.
+
 ## Renderer/backend map
 ### Platform layer
 - `src/platform/augustus.cpp`
