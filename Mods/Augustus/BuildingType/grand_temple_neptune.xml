@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="grand_temple_neptune">
+    <identity name_key="building.grand_temple_neptune.name" />
+    <model size="7" cost="2500" desirability_value="20" desirability_step="2" desirability_step_size="-4" desirability_range="8" laborers="50" />
+    <foundation policy="land" />
+    <button group="grand_temples" order="20" icon="grand temple neptune" text_key="building.grand_temple_neptune.name" />
+    <sound id="temple_neptune" />
+    <event_data attr="grand_temple_neptune" />
+    <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <labor>
+        <employees count="50" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
+    </labor>
+    <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
+        <spawn mode="service_roamer" spawn_figure="priest"
+            action_state="roaming" direction="top" figure_slot="primary"
+            init_roaming="true" profile="neptune_service" />
+    </spawn_group>
+    <spawn_group road_access="normal" delay_bands="100:0,1:0">
+        <spawn mode="temple_destination_priest" />
+    </spawn_group>
+</building>

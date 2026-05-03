@@ -8,14 +8,7 @@
             <pathing mode="venue_seeker" />
             <venue_targets show_duration="32">
                 <venue building="colosseum" show_slot="days1" />
-                <venue building="arena" show_slot="days1" />
             </venue_targets>
-        </profile>
-        <profile id="arena_service">
-            <native class="entertainment_service" />
-            <owner slot="primary" building="arena" state="in_use" />
-            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
-            <pathing mode="vanilla_roaming" effect="entertainment_arena_lion" />
         </profile>
         <profile id="colosseum_service">
             <native class="entertainment_service" />

@@ -1,3 +1,7 @@
+#include "assets/image_group_payload.h"
+#include "building/building_type_registry_internal.h"
+#include "graphics/runtime_texture.h"
+
 extern "C" {
 #include "city_building_ghost.h"
 
@@ -216,6 +220,117 @@ static void draw_building(int image_id, int x, int y, color_t color)
     image_draw_isometric_top(image_id, x, y, color, data.scale);
 }
 
+static int graphics_definition_is_data_only_for_ghost(building_type type)
+{
+    return building_is_farm(type) ||
+        type == BUILDING_POTTERY_WORKSHOP;
+}
+
+static void prepare_ghost_building(int grid_offset, building_type type)
+{
+    data.ghost_building = {};
+    data.ghost_building.type = type;
+    data.ghost_building.grid_offset = grid_offset;
+    if (building_variant_has_variants(type)) {
+        data.ghost_building.variant = building_rotation_get_rotation_with_limit(
+            building_variant_get_number_of_variants(type));
+    } else {
+        data.ghost_building.variant = 0;
+    }
+    if (building_properties_for_type(type)->rotation_offset) {
+        data.ghost_building.subtype.orientation = building_rotation_get_rotation();
+    } else {
+        data.ghost_building.subtype.orientation = 0;
+    }
+}
+
+static const ImageGroupEntry *runtime_ghost_entry(int grid_offset, building_type type, int include_data_only)
+{
+    if (!include_data_only && graphics_definition_is_data_only_for_ghost(type)) {
+        return nullptr;
+    }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_graphic()) {
+        return nullptr;
+    }
+    prepare_ghost_building(grid_offset, type);
+    const building_type_registry_impl::GraphicsTarget *target =
+        definition->resolve_graphics_target(data.ghost_building);
+    if (!target || !target->has_path() || !image_group_payload_load(target->path())) {
+        return nullptr;
+    }
+    const ImageGroupPayload *payload = image_group_payload_get(target->path());
+    if (!payload) {
+        return nullptr;
+    }
+    return target->has_image() ? payload->entry_for(target->image()) : payload->default_entry();
+}
+
+static void draw_tile_view_offset(int building_size, int *x_offset, int *y_offset)
+{
+    int dx = 0;
+    int dy = 0;
+    switch (city_view_orientation()) {
+        case DIR_0_TOP:
+            dy = building_size - 1;
+            break;
+        case DIR_2_RIGHT:
+            break;
+        case DIR_4_BOTTOM:
+            dx = building_size - 1;
+            break;
+        case DIR_6_LEFT:
+            dx = building_size - 1;
+            dy = building_size - 1;
+            break;
+        default:
+            break;
+    }
+    *x_offset = X_VIEW_OFFSET(dx, dy);
+    *y_offset = Y_VIEW_OFFSET(dx, dy);
+}
+
+static int draw_runtime_regular_building(building_type type, int grid_offset, int x, int y, int building_size, color_t color)
+{
+    const ImageGroupEntry *entry = runtime_ghost_entry(grid_offset, type, 0);
+    if (!entry) {
+        return 0;
+    }
+    int x_draw = 0;
+    int y_draw = 0;
+    draw_tile_view_offset(building_size, &x_draw, &y_draw);
+    x += x_draw;
+    y += y_draw;
+    if (const RuntimeDrawSlice *footprint = entry->footprint()) {
+        runtime_texture_draw(*footprint, x, y, color, data.scale);
+    }
+    if (const RuntimeDrawSlice *top = entry->top()) {
+        runtime_texture_draw(*top, x, y, color, data.scale);
+    }
+    return 1;
+}
+
+static int draw_runtime_farmhouse(building_type type, int grid_offset, int x, int y, color_t color)
+{
+    const ImageGroupEntry *entry = runtime_ghost_entry(grid_offset, type, 1);
+    if (!entry) {
+        return 0;
+    }
+    int x_draw = 0;
+    int y_draw = 0;
+    draw_tile_view_offset(2, &x_draw, &y_draw);
+    x += x_draw;
+    y += y_draw;
+    if (const RuntimeDrawSlice *footprint = entry->footprint()) {
+        runtime_texture_draw(*footprint, x, y, color, data.scale);
+    }
+    if (const RuntimeDrawSlice *top = entry->top()) {
+        runtime_texture_draw(*top, x, y, color, data.scale);
+    }
+    return 1;
+}
+
 static void draw_blocked_tile(int x, int y, int grid_offset)
 {
     image_blend_footprint_color(x, y, COLOR_MASK_RED, data.scale);
@@ -282,7 +397,7 @@ static void image_draw_warehouse(int image_id, int x, int y, color_t color)
     }
 }
 
-static void image_draw_farm(building_type type, int image_id, int x, int y, color_t color)
+static void image_draw_farm(building_type type, int image_id, int x, int y, int grid_offset, color_t color)
 {
     // Custom draw order to properly draw isometric tops
     const int draw_order[9] = { 0, 2, 5, 1, 3, 7, 4, 6, 8 };
@@ -297,7 +412,10 @@ static void image_draw_farm(building_type type, int image_id, int x, int y, colo
                 draw_building(crop_image, x + x_offset, y + y_offset, color);
                 break;
             case FARM_GHOST_FARMHOUSE:
-                draw_building(image_id, x + x_offset, y + y_offset, color);
+                if (!draw_runtime_farmhouse(type, grid_offset + tile_grid_offset(orientation_index, j),
+                    x + x_offset, y + y_offset, color)) {
+                    draw_building(image_id, x + x_offset, y + y_offset, color);
+                }
                 break;
             default:
                 break;
@@ -311,7 +429,7 @@ static void draw_regular_building(building_type type, int image_id, int x, int y
     color_t color = has_blocked_tiles(num_tiles, blocked_tiles) ?
         COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
     if (building_is_farm(type)) {
-        image_draw_farm(type, image_id, x, y, color);
+        image_draw_farm(type, image_id, x, y, grid_offset, color);
     } else if (type == BUILDING_WAREHOUSE) {
         image_draw_warehouse(image_id, x, y, color);
     } else if (type == BUILDING_GRANARY) {
@@ -373,19 +491,7 @@ static int get_building_image_id(int map_x, int map_y, building_type type, const
 
 static int get_new_building_image_id(int grid_offset, building_type type)
 {
-    data.ghost_building.type = type;
-    data.ghost_building.grid_offset = grid_offset;
-    if (building_variant_has_variants(type)) {
-        data.ghost_building.variant = building_rotation_get_rotation_with_limit(
-            building_variant_get_number_of_variants(type));
-    } else {
-        data.ghost_building.variant = 0;
-    }
-    if (building_properties_for_type(type)->rotation_offset) {
-        data.ghost_building.subtype.orientation = building_rotation_get_rotation();
-    } else {
-        data.ghost_building.subtype.orientation = 0;
-    }
+    prepare_ghost_building(grid_offset, type);
     return building_image_get(&data.ghost_building);
 }
 
@@ -601,7 +707,12 @@ static void draw_default(const map_tile *tile, int x_view, int y_view, building_
             }
         }
     }
-    if (type >= BUILDING_ROADBLOCK || // >= because all buildings after ROADBLOCK have 'new' images
+    color_t color = has_blocked_tiles(num_tiles, blocked_tiles) ?
+        COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
+    if (draw_runtime_regular_building(type, grid_offset, x_view, y_view, building_size, color)) {
+        draw_building_tiles(x_view, y_view, num_tiles, blocked_tiles);
+    } else if (props->image_group <= 0 ||
+        type >= BUILDING_ROADBLOCK || // >= because all buildings after ROADBLOCK have 'new' images
         type == BUILDING_LIBRARY || type == BUILDING_SMALL_STATUE || type == BUILDING_MEDIUM_STATUE) {
         image_id = get_new_building_image_id(grid_offset, type);
         draw_regular_building(type, image_id, x_view, y_view, grid_offset, num_tiles, blocked_tiles);

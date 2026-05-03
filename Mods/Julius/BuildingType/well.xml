@@ -16,4 +16,10 @@
             <path value="Admin_Logistics\Well" />
         </default>
     </graphics>
+    <labor>
+        <employees count="0" />
+        <labor_seeker>
+            <method value="none" />
+        </labor_seeker>
+    </labor>
 </building>

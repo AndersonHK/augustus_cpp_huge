@@ -105,6 +105,7 @@ int rebuild_legacy_cache(language_type language)
 
     encoding_determine(language);
     detail::rebuild_project_keys(detail::g_runtime.catalog.project_keys);
+    detail::rebuild_named_project_keys(detail::g_runtime.catalog.named_project_keys);
     detail::rebuild_text_groups(detail::g_runtime.catalog.main_strings);
     detail::rebuild_text_groups(detail::g_runtime.catalog.editor_strings);
     detail::rebuild_messages(detail::g_runtime.catalog.main_messages, language, detail::g_runtime.legacy_main_messages);
@@ -155,6 +156,18 @@ std::string_view utf8_project_string(translation_key key)
     return detail::fallback_project_key(key).utf8;
 }
 
+std::string_view utf8_named_project_string(const char *key)
+{
+    if (!detail::g_runtime.locale_loaded || !key || !*key) {
+        return {};
+    }
+    const auto entry = detail::g_runtime.catalog.named_project_keys.find(key);
+    if (entry == detail::g_runtime.catalog.named_project_keys.end()) {
+        return {};
+    }
+    return entry->second.utf8;
+}
+
 std::string_view utf8_legacy_string(int is_editor, int group, int index)
 {
     if (!detail::g_runtime.locale_loaded || group < 0 || index < 0) {
@@ -184,6 +197,18 @@ const uint8_t *legacy_project_string(translation_key key)
     }
     detail::report_missing_project_key(key);
     return detail::fallback_project_key(key).legacy_ptr();
+}
+
+const uint8_t *legacy_named_project_string(const char *key)
+{
+    if (!detail::g_runtime.locale_loaded || !key || !*key) {
+        return detail::kEmptyLegacy;
+    }
+    const auto entry = detail::g_runtime.catalog.named_project_keys.find(key);
+    if (entry == detail::g_runtime.catalog.named_project_keys.end() || entry->second.utf8.empty()) {
+        return detail::kEmptyLegacy;
+    }
+    return entry->second.legacy_ptr();
 }
 
 const uint8_t *legacy_legacy_string(int is_editor, int group, int index)

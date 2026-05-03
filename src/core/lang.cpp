@@ -15,6 +15,8 @@ extern "C" {
 
 #include <stdlib.h>
 #include <string.h>
+#include <string>
+#include <string_view>
 
 #define MAX_MESSAGE_ENTRIES 400
 
@@ -53,6 +55,43 @@ static void set_message_parameters(
 static int augustus_message_text_id(city_message_type message_type)
 {
     return message_type > 50 ? message_type + 199 : message_type + 99;
+}
+
+static uint16_t legacy_building_type_from_display_key(const char *display_key)
+{
+    if (!display_key || !*display_key) {
+        return BUILDING_NONE;
+    }
+    const std::string_view key(display_key);
+    constexpr std::string_view prefix = "building.";
+    constexpr std::string_view suffix = ".name";
+    if (key.size() <= prefix.size() + suffix.size() ||
+        key.substr(0, prefix.size()) != prefix ||
+        key.substr(key.size() - suffix.size()) != suffix) {
+        return BUILDING_NONE;
+    }
+    const std::string text_id(key.substr(prefix.size(), key.size() - prefix.size() - suffix.size()));
+    return building_type_legacy_migration_enum_for_text_id(text_id.c_str());
+}
+
+static const uint8_t *dynamic_building_display_name(const char *display_key, int group)
+{
+    translation_key translation;
+    if (translation_key_from_name(display_key, &translation)) {
+        return translation_for(translation);
+    }
+
+    const uint8_t *named_translation = localization::legacy_named_project_string(display_key);
+    if (named_translation && named_translation[0]) {
+        return named_translation;
+    }
+
+    const uint16_t legacy_type = legacy_building_type_from_display_key(display_key);
+    if (legacy_type > BUILDING_NONE && legacy_type < BUILDING_TYPE_MAX) {
+        return lang_get_string(group, legacy_type);
+    }
+
+    return reinterpret_cast<const uint8_t *>(display_key);
 }
 
 static lang_message *set_augustus_message_parameters(
@@ -282,11 +321,7 @@ extern "C" const uint8_t *lang_get_string(int group, int index)
             display_key = building_type_registry_get_name_key(type);
         }
         if (display_key && *display_key) {
-            translation_key translation;
-            if (translation_key_from_name(display_key, &translation)) {
-                return translation_for(translation);
-            }
-            return reinterpret_cast<const uint8_t *>(display_key);
+            return dynamic_building_display_name(display_key, group);
         }
     }
 

@@ -494,7 +494,7 @@ static void migrate_accepted_goods(building *b, int permissions)
     }
 }
 
-void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_size, int save_version, int for_preview)
+int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_size, int save_version, int for_preview)
 {
     b->state = buffer_read_u8(buf);
     b->faction_id = buffer_read_u8(buf);
@@ -782,4 +782,5 @@ void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_
         b->immigrant_figure_id = 0;
         b->figure_id4 = 0;
     }
+    return missing_building_type;
 }

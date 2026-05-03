@@ -17,4 +17,10 @@
             <image value="Image_0000" />
         </variant>
     </graphics>
+    <labor>
+        <employees count="5" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+        </labor_seeker>
+    </labor>
 </building>

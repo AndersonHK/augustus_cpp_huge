@@ -3,6 +3,7 @@
     <identity name_key="building.reservoir.name" />
     <model size="3" cost="80" desirability_value="-6" desirability_step="1" desirability_step_size="2" desirability_range="3" laborers="0" />
     <foundation policy="land" />
+    <button group="water" order="10" icon="Admin_Logistics\Reservoir" text_key="building.reservoir.name" />
     <sound id="reservoir" />
     <event_data attr="reservoir" />
     <flags fire_proof="1" />
@@ -15,6 +16,11 @@
         <node kind="aqueduct_connection" x="1" y="3" />
         <node kind="aqueduct_connection" x="-1" y="1" />
     </water_access>
+    <graphics>
+        <default>
+            <path value="Admin_Logistics\Reservoir" />
+        </default>
+    </graphics>
     <labor>
         <employees count="0" />
         <labor_seeker>

@@ -1079,7 +1079,7 @@ int building_image_get(const building *b)
 
 int building_image_get_for_type(building_type type)
 {
-    building b;
+    building b = {0};
     b.type = type;
     return building_image_get(&b);
 }

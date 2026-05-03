@@ -13,4 +13,10 @@
             <image value="Image_0002" />
         </default>
     </graphics>
+    <labor>
+        <employees count="0" />
+        <labor_seeker>
+            <method value="none" />
+        </labor_seeker>
+    </labor>
 </building>

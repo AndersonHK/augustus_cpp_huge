@@ -169,6 +169,14 @@ static void add_menu_entry(build_menu_group submenu, building_type type, int ord
     menu_entries[submenu].push_back({type, order, 0});
 }
 
+static building_type menu_tool_type_for_definition(building_type type)
+{
+    if (type == BUILDING_RESERVOIR) {
+        return BUILDING_DRAGGABLE_RESERVOIR;
+    }
+    return type;
+}
+
 static int legacy_menu_entry_is_xml_owned(building_type type)
 {
     if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
@@ -202,7 +210,7 @@ static void rebuild_menu_catalog(void)
         }
         build_menu_group submenu = button_group_from_string(definition->button().group());
         int order = definition->button().has_order() ? definition->button().order() : 10000;
-        add_menu_entry(submenu, definition->type(), order);
+        add_menu_entry(submenu, menu_tool_type_for_definition(definition->type()), order);
     }
 
     for (std::vector<menu_entry> &entries : menu_entries) {
