@@ -408,7 +408,7 @@ void window_building_draw_theater(building_info_context *c)
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 144);
     if (b->data.entertainment.days1 > 0) {
         int width = lang_text_draw(72, 6, c->x_offset + 32, c->y_offset + 182, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-        lang_text_draw_amount(8, 44, 2 * b->data.entertainment.days1,
+        lang_text_draw_amount(8, 44, b->data.entertainment.days1,
             c->x_offset + width + 32, c->y_offset + 182, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         lang_text_draw(72, 7 + b->data.entertainment.play,
             c->x_offset + 32, c->y_offset + 202, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -454,14 +454,14 @@ void window_building_draw_amphitheater(building_info_context *c)
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 176);
     if (b->data.entertainment.days1 > 0) {
         int width = lang_text_draw(71, 8, c->x_offset + 32, c->y_offset + 214, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-        lang_text_draw_amount(8, 44, 2 * b->data.entertainment.days1,
+        lang_text_draw_amount(8, 44, b->data.entertainment.days1,
             c->x_offset + width + 32, c->y_offset + 214, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     } else {
         lang_text_draw(71, 7, c->x_offset + 32, c->y_offset + 214, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     }
     if (b->data.entertainment.days2 > 0) {
         int width = lang_text_draw(71, 10, c->x_offset + 32, c->y_offset + 234, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-        lang_text_draw_amount(8, 44, 2 * b->data.entertainment.days2,
+        lang_text_draw_amount(8, 44, b->data.entertainment.days2,
             c->x_offset + width + 32, c->y_offset + 234, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         lang_text_draw(72, 7 + b->data.entertainment.play,
             c->x_offset + 32, c->y_offset + 254, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -1006,14 +1006,14 @@ void window_building_draw_colosseum_background(building_info_context *c)
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 138);
         if (b->data.entertainment.days1 > 0) {
             int width = lang_text_draw(74, 8, c->x_offset + 32, c->y_offset + 184, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-            lang_text_draw_amount(8, 44, 2 * b->data.entertainment.days1,
+            lang_text_draw_amount(8, 44, b->data.entertainment.days1,
                 c->x_offset + width + 32, c->y_offset + 184, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         } else {
             lang_text_draw(74, 7, c->x_offset + 32, c->y_offset + 184, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         }
         if (b->data.entertainment.days2 > 0) {
             int width = lang_text_draw(74, 10, c->x_offset + 32, c->y_offset + 203, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-            lang_text_draw_amount(8, 44, 2 * b->data.entertainment.days2,
+            lang_text_draw_amount(8, 44, b->data.entertainment.days2,
                 c->x_offset + width + 32, c->y_offset + 203, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         } else {
             lang_text_draw(74, 9, c->x_offset + 32, c->y_offset + 203, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -1106,7 +1106,7 @@ void window_building_draw_arena(building_info_context *c)
         c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     if (b->data.entertainment.days1 > 0) {
         int width = lang_text_draw(74, 8, c->x_offset + 32, c->y_offset + 214, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-        lang_text_draw_amount(8, 44, 2 * b->data.entertainment.days1,
+        lang_text_draw_amount(8, 44, b->data.entertainment.days1,
             c->x_offset + width + 32, c->y_offset + 214, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     } else {
         lang_text_draw(74, 7, c->x_offset + 32, c->y_offset + 214, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -1114,7 +1114,7 @@ void window_building_draw_arena(building_info_context *c)
 
     if (b->data.entertainment.days2 > 0) {
         int width = lang_text_draw(74, 10, c->x_offset + 32, c->y_offset + 234, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-        lang_text_draw_amount(8, 44, 2 * b->data.entertainment.days2,
+        lang_text_draw_amount(8, 44, b->data.entertainment.days2,
             c->x_offset + width + 32, c->y_offset + 234, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     } else {
         lang_text_draw(74, 9, c->x_offset + 32, c->y_offset + 234, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -1202,7 +1202,7 @@ void window_building_draw_hippodrome_background(building_info_context *c)
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 138);
         if (b->data.entertainment.days1 > 0) {
             int width = lang_text_draw(73, 6, c->x_offset + 32, c->y_offset + 202, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-            lang_text_draw_amount(8, 44, 2 * b->data.entertainment.days1,
+            lang_text_draw_amount(8, 44, b->data.entertainment.days1,
                 c->x_offset + width + 32, c->y_offset + 202, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         } else {
             lang_text_draw(73, 5, c->x_offset + 32, c->y_offset + 202, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));

@@ -70,12 +70,11 @@ int building_get_raw_materials_for_workshop(resource_supply_chain *chain, buildi
 {
     if (const building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type)) {
         const std::vector<building_type_registry_impl::ProductionResourceAmount> &inputs = method->inputs();
-        const int batch_size = method->batch_size();
         if (chain) {
             for (size_t i = 0; i < inputs.size(); i++) {
                 chain[i].good = method->output_resource();
                 chain[i].raw_material = inputs[i].resource;
-                chain[i].raw_amount = inputs[i].amount * batch_size;
+                chain[i].raw_amount = method->scaled_input_amount(inputs[i]);
             }
         }
         return static_cast<int>(inputs.size());
@@ -534,7 +533,7 @@ int building_get_required_raw_amount_for_production(building_type type, int raw_
     if (const building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type)) {
         for (const building_type_registry_impl::ProductionResourceAmount &input : method->inputs()) {
             if (input.resource == static_cast<resource_type>(raw_material)) {
-                return input.amount * method->batch_size();
+                return method->scaled_input_amount(input);
             }
         }
         return 0;

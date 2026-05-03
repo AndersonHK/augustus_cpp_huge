@@ -6,7 +6,7 @@
             <owner slot="primary" building="gladiator_school" state="in_use" />
             <movement terrain_usage="roads" roam_ticks="1" max_roam_length="4800" return_mode="none" />
             <pathing mode="venue_seeker" />
-            <venue_targets show_duration="32">
+            <venue_targets show_duration="64">
                 <venue building="amphitheater" show_slot="days1" />
                 <venue building="colosseum" show_slot="days2" />
                 <venue building="arena" show_slot="days2" />

@@ -17,7 +17,7 @@ Current supported shape:
 - `<owner ... />`
 - `<movement ... />`
 - `<pathing ... />`
-- `<venue_targets ...>` with `<venue ... />` children for entertainer venue seekers; runtime ranking uses `2 * show_days + route_distance`
+- `<venue_targets ...>` with `<venue ... />` children for entertainer venue seekers; `show_duration` is stored and displayed as active calendar days, and runtime ranking uses `2 * show_days + route_distance`
 - `<graphics ... />` at figure level
 
 Buildings select a native profile with `profile="..."` on their `<spawn>`. The building only chooses the profile; the figure profile owns the native class, owner contract, movement, pathing mode, and road-history effect.

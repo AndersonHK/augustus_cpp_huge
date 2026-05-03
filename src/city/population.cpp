@@ -10,10 +10,6 @@ extern "C" {
 #include "game/defines.h"
 }
 
-static const int BIRTHS_PER_AGE_DECENNIUM[10] = {
-    0, 3, 16, 9, 2, 0, 0, 0, 0, 0
-};
-
 int city_population(void)
 {
     return city_data.population.population;
@@ -295,8 +291,15 @@ static void yearly_advance_ages_and_calculate_deaths(void)
         int people = city_population_in_age_decennium(decennium);
         int death_percentage = game_defines_mortality_percentage(city_data.health.value / 10, decennium);
         int deaths = calc_adjust_with_percentage(people, death_percentage);
-        int removed = house_population_remove_from_city(deaths + aged100);
-        remove_from_census_in_age_decennium(decennium, deaths);
+        int requested_removal = deaths + aged100;
+        int removed = house_population_remove_from_city(requested_removal);
+        // The age census is citywide, so only remove cohort deaths that were also removed from houses.
+        int missed_removal = requested_removal - removed;
+        int deaths_removed_from_houses = deaths - missed_removal;
+        if (deaths_removed_from_houses < 0) {
+            deaths_removed_from_houses = 0;
+        }
+        remove_from_census_in_age_decennium(decennium, deaths_removed_from_houses);
 
         city_data.population.yearly_deaths += removed;
         aged100 = 0;
@@ -333,7 +336,8 @@ static void yearly_calculate_births(void)
     city_data.population.yearly_births = 0;
     for (int decennium = 9; decennium >= 0; decennium--) {
         int people = city_population_in_age_decennium(decennium);
-        int births = calc_adjust_with_percentage(people, BIRTHS_PER_AGE_DECENNIUM[decennium]);
+        int birth_percentage = game_defines_birth_percentage(decennium);
+        int births = calc_adjust_with_percentage(people, birth_percentage);
         int added = house_population_add_to_city(births);
         city_data.population.at_age[0] += added;
         city_data.population.yearly_births += added;
@@ -407,6 +411,9 @@ void city_population_check_consistency(void)
     int people_in_houses = calculate_people_per_house_type();
     if (people_in_houses < city_data.population.population) {
         remove_from_census(city_data.population.population - people_in_houses);
+        recalculate_population();
+    } else if (people_in_houses > city_data.population.population) {
+        house_population_remove_from_city(people_in_houses - city_data.population.population);
     }
 }
 

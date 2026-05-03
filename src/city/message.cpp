@@ -1,3 +1,4 @@
+extern "C" {
 #include "message.h"
 
 #include "city/warning.h"
@@ -14,7 +15,9 @@
 #include "graphics/window.h"
 #include "scenario/request.h"
 #include "sound/effect.h"
+#include "translation/translation.h"
 #include "window/message_dialog.h"
+}
 
 #define MAX_MESSAGES 1000
 #define MAX_QUEUE 20
@@ -55,6 +58,67 @@ static struct {
 } data;
 
 static int should_play_sound = 1;
+
+static int is_empty_text(const uint8_t *text)
+{
+    return !text || !text[0];
+}
+
+static const lang_message *message_for_type(city_message_type message_type)
+{
+    return lang_get_message(city_message_get_text_id(message_type));
+}
+
+static int is_blessing_message(city_message_type message_type)
+{
+    switch (message_type) {
+        case MESSAGE_BLESSING_FROM_CERES:
+        case MESSAGE_BLESSING_FROM_NEPTUNE:
+        case MESSAGE_BLESSING_FROM_MERCURY:
+        case MESSAGE_BLESSING_FROM_MARS:
+        case MESSAGE_BLESSING_FROM_VENUS:
+        case MESSAGE_BLESSING_FROM_MERCURY_ALTERNATE:
+        case MESSAGE_BLESSING_FROM_NEPTUNE_ALTERNATE:
+        case MESSAGE_BLESSING_FROM_VENUS_ALTERNATE:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+static const uint8_t *blessing_alert_title_fallback(city_message_type message_type)
+{
+    switch (message_type) {
+        case MESSAGE_BLESSING_FROM_CERES:
+            return translation_for(TR_PARAMETER_VALUE_MESSAGE_BLESSING_FROM_CERES);
+        case MESSAGE_BLESSING_FROM_NEPTUNE:
+        case MESSAGE_BLESSING_FROM_NEPTUNE_ALTERNATE:
+            return translation_for(TR_CITY_MESSAGE_TITLE_NEPTUNE_BLESSING);
+        case MESSAGE_BLESSING_FROM_MERCURY:
+        case MESSAGE_BLESSING_FROM_MERCURY_ALTERNATE:
+            return translation_for(TR_CITY_MESSAGE_TITLE_MERCURY_BLESSING);
+        case MESSAGE_BLESSING_FROM_MARS:
+            return translation_for(TR_PARAMETER_VALUE_MESSAGE_BLESSING_FROM_MARS);
+        case MESSAGE_BLESSING_FROM_VENUS:
+        case MESSAGE_BLESSING_FROM_VENUS_ALTERNATE:
+            return translation_for(TR_CITY_MESSAGE_TITLE_VENUS_BLESSING);
+        default:
+            return 0;
+    }
+}
+
+// Simple alert notifications only need a title, but blessing messages have
+// Augustus-added slots that should never surface as blank text if cache data drifts.
+static const uint8_t *alert_title_for_message(city_message_type message_type, const lang_message *msg)
+{
+    if (msg && !is_empty_text(msg->title.text)) {
+        return msg->title.text;
+    }
+    if (!is_blessing_message(message_type)) {
+        return msg ? msg->title.text : 0;
+    }
+    return blessing_alert_title_fallback(message_type);
+}
 
 void city_message_init_scenario(void)
 {
@@ -109,10 +173,9 @@ static int new_message_id(void)
     return -1;
 }
 
-static int has_video(int text_id)
+static int has_video(const lang_message *msg)
 {
-    const lang_message *msg = lang_get_message(text_id);
-    if (!msg->video.text) {
+    if (!msg || !msg->video.text) {
         return 0;
     }
     char video_file[FILE_NAME_MAX];
@@ -130,16 +193,16 @@ static void enqueue_message(int sequence)
     }
 }
 
-static void play_sound(int text_id)
+static void play_sound(const lang_message *msg)
 {
-    if (lang_get_message(text_id)->urgent == 1) {
+    if (msg && msg->urgent == 1) {
         sound_effect_play(SOUND_EFFECT_FANFARE_URGENT);
     } else {
         sound_effect_play(SOUND_EFFECT_FANFARE);
     }
 }
 
-static int is_invasion_message(int message_type)
+static int is_invasion_message(city_message_type message_type)
 {
     switch (message_type) {
         case MESSAGE_LOCAL_UPRISING:
@@ -159,9 +222,11 @@ static void show_message_popup(int message_id)
     data.consecutive_message_delay = 5;
     msg->is_read = 1;
     if (msg->message_type != MESSAGE_CUSTOM_MESSAGE) {
-        int text_id = city_message_get_text_id(msg->message_type);
-        if (!has_video(text_id)) {
-            play_sound(text_id);
+        const city_message_type message_type = static_cast<city_message_type>(msg->message_type);
+        const int text_id = city_message_get_text_id(message_type);
+        const lang_message *lang_msg = message_for_type(message_type);
+        if (!has_video(lang_msg)) {
+            play_sound(lang_msg);
         }
         if (msg->message_type == MESSAGE_REQUEST_CAN_COMPLY && msg->param1) {
             // param1 = request id
@@ -172,7 +237,7 @@ static void show_message_popup(int message_id)
         }
         window_message_dialog_show_city_message(text_id,
             msg->year, msg->month, msg->param1, msg->param2,
-            city_message_get_advisor(msg->message_type), 1);
+            city_message_get_advisor(message_type), 1);
     } else {
         window_message_dialog_show_custom_message(msg->param1, msg->year, msg->month);
     }
@@ -211,8 +276,9 @@ void city_message_post(int use_popup, int message_type, int param1, int param2)
     msg->param2 = param2;
     msg->sequence = ++data.next_message_sequence;
 
-    int text_id = city_message_get_text_id(message_type);
-    lang_message_type lang_msg_type = lang_get_message(text_id)->message_type;
+    const city_message_type typed_message_type = static_cast<city_message_type>(message_type);
+    const lang_message *lang_msg = message_for_type(typed_message_type);
+    const lang_message_type lang_msg_type = lang_msg->message_type;
     if (lang_msg_type == MESSAGE_TYPE_DISASTER || lang_msg_type == MESSAGE_TYPE_INVASION) {
         data.problem_count = 1;
         window_invalidate();
@@ -221,10 +287,10 @@ void city_message_post(int use_popup, int message_type, int param1, int param2)
     // Since custom messages are scenario specific, don't show them as simple alerts at the top
     // Also, beware: should we change this behavior, the below code will crash
     if (message_type != MESSAGE_CUSTOM_MESSAGE && config_get(CONFIG_UI_MESSAGE_ALERTS)) {
-        city_warning_show_custom(lang_get_message(text_id)->title.text, NEW_WARNING_SLOT);
+        city_warning_show_custom(alert_title_for_message(typed_message_type, lang_msg), NEW_WARNING_SLOT);
         use_popup = 0;
     }
-    if (is_invasion_message(msg->message_type) && setting_game_speed() > 70) {
+    if (is_invasion_message(typed_message_type) && setting_game_speed() > 70) {
         setting_set_default_game_speed();
     }
     if ((use_popup && window_is(WINDOW_CITY)) || window_is(WINDOW_BUILDING_INFO)) {
@@ -233,7 +299,7 @@ void city_message_post(int use_popup, int message_type, int param1, int param2)
         // add to queue to be processed when player returns to city
         enqueue_message(msg->sequence);
     } else if (should_play_sound) {
-        play_sound(text_id);
+        play_sound(lang_msg);
     }
     should_play_sound = 1;
 }
@@ -599,7 +665,8 @@ int city_message_next_problem_area_grid_offset(void)
     for (int i = 0; i < 999; i++) {
         city_message *msg = &data.messages[i];
         if (msg->message_type && msg->year >= game_time_year() - 1) {
-            const lang_message *lang_msg = lang_get_message(city_message_get_text_id(msg->message_type));
+            const city_message_type message_type = static_cast<city_message_type>(msg->message_type);
+            const lang_message *lang_msg = message_for_type(message_type);
             lang_message_type lang_msg_type = lang_msg->message_type;
             if (has_problem_area(msg, lang_msg_type)) {
                 data.problem_count++;
@@ -618,8 +685,9 @@ int city_message_next_problem_area_grid_offset(void)
     for (int i = 0; i < 999; i++) {
         city_message *msg = &data.messages[i];
         if (msg->message_type && msg->year >= current_year - 1) {
-            int text_id = city_message_get_text_id(msg->message_type);
-            lang_message_type lang_msg_type = lang_get_message(text_id)->message_type;
+            const city_message_type message_type = static_cast<city_message_type>(msg->message_type);
+            const lang_message *lang_msg = message_for_type(message_type);
+            lang_message_type lang_msg_type = lang_msg->message_type;
             if (has_problem_area(msg, lang_msg_type)) {
                 index++;
                 if (data.problem_index < index) {

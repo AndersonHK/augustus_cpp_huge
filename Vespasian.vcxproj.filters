@@ -246,6 +246,7 @@
     <ClCompile Include="src\building\menu.c" />
     <ClCompile Include="src\building\mess_hall.c" />
     <ClCompile Include="src\building\monument.c" />
+    <ClCompile Include="src\building\production.cpp" />
     <ClCompile Include="src\building\production_method.cpp" />
     <ClCompile Include="src\building\production_method_registry.cpp" />
     <ClCompile Include="src\building\production_runtime.cpp" />
@@ -253,7 +254,7 @@
     <ClCompile Include="src\building\tool_mode.cpp" />
     <ClCompile Include="src\building\roadblock.c" />
     <ClCompile Include="src\building\rotation.c" />
-    <ClCompile Include="src\building\state.c" />
+    <ClCompile Include="src\building\state.cpp" />
     <ClCompile Include="src\building\storage.c" />
     <ClCompile Include="src\building\storage_runtime.cpp" />
     <ClCompile Include="src\building\storage_type.cpp" />
@@ -277,7 +278,7 @@
     <ClCompile Include="src\city\houses.c" />
     <ClCompile Include="src\city\labor.cpp" />
     <ClCompile Include="src\city\map.c" />
-    <ClCompile Include="src\city\message.c" />
+    <ClCompile Include="src\city\message.cpp" />
     <ClCompile Include="src\city\migration.c" />
     <ClCompile Include="src\city\military.c" />
     <ClCompile Include="src\city\mission.c" />
@@ -367,7 +368,7 @@
     <ClCompile Include="src\figuretype\docker.cpp" />
     <ClCompile Include="src\figuretype\editor.c" />
     <ClCompile Include="src\figuretype\enemy.c" />
-    <ClCompile Include="src\figuretype\entertainer.c" />
+    <ClCompile Include="src\figuretype\entertainer.cpp" />
     <ClCompile Include="src\figuretype\maintenance.cpp" />
     <ClCompile Include="src\figuretype\migrant.cpp" />
     <ClCompile Include="src\figuretype\missile.c" />
@@ -758,6 +759,7 @@
     <ClInclude Include="src\building\menu.h" />
     <ClInclude Include="src\building\mess_hall.h" />
     <ClInclude Include="src\building\monument.h" />
+    <ClInclude Include="src\building\production.h" />
     <ClInclude Include="src\building\production_method.h" />
     <ClInclude Include="src\building\production_method_registry.h" />
     <ClInclude Include="src\building\production_runtime.h" />

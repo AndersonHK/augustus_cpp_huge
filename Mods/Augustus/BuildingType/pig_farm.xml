@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="pig_farm">
+    <graphics>
+        <default>
+            <path value="Industry\Farm_House" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="10" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
+    </labor>
+    <storages>
+        <storage path="meat_output_pig_farm" />
+    </storages>
+    <production_methods>
+        <production_method path="pig_farm_basic" />
+    </production_methods>
+</building>

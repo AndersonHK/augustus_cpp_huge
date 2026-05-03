@@ -1,10 +1,13 @@
-#include "state.h"
-
+extern "C" {
+#include "building/state.h"
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/roadblock.h"
 #include "figure/figure.h"
 #include "game/save_version.h"
+}
+
+#include <cstddef>
 
 #define TYPE_DATA_ORIGINAL_BUFFER_SIZE 42
 #define TYPE_DATA_CURRENT_BUFFER_SIZE 26
@@ -32,6 +35,12 @@ static building_type get_fort_type(building *b)
             return BUILDING_NONE;
     }
 
+}
+
+static int migrate_legacy_entertainment_show_days(int days)
+{
+    int active_days = days * 2;
+    return active_days > 255 ? 255 : active_days;
 }
 
 static void write_type_data(buffer *buf, const building *b)
@@ -309,7 +318,7 @@ static void read_type_data(buffer *buf, building *b, int version)
             b->monument.phase = buffer_read_i16(buf);
         }
         b->data.market.fetch_inventory_id = resource_map_legacy_inventory(buffer_read_u8(buf));
-        // As above, Ceres and Venus temples are both monuments and suppliers 
+        // As above, Ceres and Venus temples are both monuments and suppliers
     } else if (b->type == BUILDING_LARGE_TEMPLE_CERES || b->type == BUILDING_LARGE_TEMPLE_VENUS) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             for (int i = 0; i < RESOURCE_MAX_LEGACY; i++) {
@@ -386,7 +395,7 @@ static void read_type_data(buffer *buf, building *b, int version)
         b->data.depot.current_order.resource_type = resource_remap(buffer_read_i8(buf));
         b->data.depot.current_order.src_storage_id = buffer_read_i32(buf);
         b->data.depot.current_order.dst_storage_id = buffer_read_i32(buf);
-        b->data.depot.current_order.condition.condition_type = buffer_read_i8(buf);
+        b->data.depot.current_order.condition.condition_type = (order_condition_type) buffer_read_i8(buf);
         b->data.depot.current_order.condition.threshold = buffer_read_i8(buf);
         for (int i = 0; i < 3; i++) {
             b->data.distribution.cartpusher_ids[i] = buffer_read_i16(buf);
@@ -453,6 +462,10 @@ static void read_type_data(buffer *buf, building *b, int version)
         b->data.entertainment.days1 = buffer_read_u8(buf);
         b->data.entertainment.days2 = buffer_read_u8(buf);
         b->data.entertainment.play = buffer_read_u8(buf);
+        if (version <= SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS) {
+            b->data.entertainment.days1 = migrate_legacy_entertainment_show_days(b->data.entertainment.days1);
+            b->data.entertainment.days2 = migrate_legacy_entertainment_show_days(b->data.entertainment.days2);
+        }
     }
     int remaining_bytes = type_data_bytes - (int) (buf->index - buffer_index);
     if (remaining_bytes > 0) {
@@ -481,7 +494,7 @@ void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_
     b->x = buffer_read_u8(buf);
     b->y = buffer_read_u8(buf);
     b->grid_offset = buffer_read_i16(buf);
-    b->type = buffer_read_i16(buf);
+    b->type = (building_type) buffer_read_i16(buf);
     if (b->type == BUILDING_WAREHOUSE_SPACE) {
         b->subtype.warehouse_resource_id = resource_remap(buffer_read_i16(buf));
     } else if (save_version <= SAVE_GAME_LAST_STATIC_RESOURCES &&
@@ -491,7 +504,7 @@ void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_
         b->subtype.fort_figure_type = buffer_read_i16(buf);// union field, written as fort_figure_type for clarity
         b->type = get_fort_type(b); // get the correct fort type to ensure compatibility
     } else {
-        b->subtype.house_level = buffer_read_i16(buf); // which union field we use does not matter        
+        b->subtype.house_level = buffer_read_i16(buf); // which union field we use does not matter
     }
     b->road_network_id = buffer_read_u8(buf);
     b->monthly_levy = buffer_read_u8(buf);
@@ -579,7 +592,7 @@ void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_
     }
 
     if (save_version < SAVE_GAME_ROADBLOCK_DATA_MOVED_FROM_SUBTYPE) {
-        // Backwards compatibility - roadblock data used to be stored in b->subtype 
+        // Backwards compatibility - roadblock data used to be stored in b->subtype
         if (building_type_is_roadblock(b->type)) {
             b->data.roadblock.exceptions = b->subtype.orientation;
         }
@@ -660,11 +673,12 @@ void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_
 
     // Update resource requirement changes on monuments
     if (building_monument_is_monument(b) && b->monument.phase != MONUMENT_FINISHED) {
-        for (resource_type resource = 0; resource < RESOURCE_MAX; resource++) {
+        for (int resource = 0; resource < RESOURCE_MAX; resource++) {
+            resource_type resource_type_id = (resource_type) resource;
             int resource_needed_for_phase =
-                building_monument_resources_needed_for_monument_type(b->type, resource, b->monument.phase);
-            if (b->resources[resource] > resource_needed_for_phase) {
-                b->resources[resource] = resource_needed_for_phase;
+                building_monument_resources_needed_for_monument_type(b->type, resource_type_id, b->monument.phase);
+            if (b->resources[resource_type_id] > resource_needed_for_phase) {
+                b->resources[resource_type_id] = resource_needed_for_phase;
             }
         }
     }
@@ -714,7 +728,7 @@ void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_
 
     // Fix bug where warehouses have invalid resources stored
     if (b->type == BUILDING_WAREHOUSE_SPACE) {
-        for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+        for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
             if (r != b->subtype.warehouse_resource_id) {
                 b->resources[r] = 0;
             }
@@ -739,7 +753,7 @@ void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_
         }
     }
 
-    // The following code should only be executed if the savegame includes building information that is not 
+    // The following code should only be executed if the savegame includes building information that is not
     // supported on this specific version of Augustus. The extra bytes in the buffer must be skipped in order
     // to prevent reading bogus data for the next building
     if (building_buf_size > BUILDING_STATE_CURRENT_BUFFER_SIZE) {

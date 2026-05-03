@@ -1,4 +1,6 @@
-#include "entertainer.h"
+#include "figuretype/entertainer.h"
+
+extern "C" {
 #include "building/building.h"
 #include "building/list.h"
 #include "building/monument.h"
@@ -17,10 +19,12 @@
 #include "map/road_access.h"
 #include "map/road_network.h"
 #include "scenario/gladiator_revolt.h"
+}
 
 #define INFINITE 10000
+#define DEFAULT_SHOW_DURATION_DAYS 32
 
-void figure_spawn_tourist(void)
+extern "C" void figure_spawn_tourist(void)
 {
     const map_tile *entry = city_map_entry_point();
     const map_tile *exit = city_map_exit_point();
@@ -160,21 +164,21 @@ static void update_shows(figure *f)
                 b->data.entertainment.play = 0;
             }
             if (b->type == BUILDING_THEATER) {
-                b->data.entertainment.days1 = 32;
+                b->data.entertainment.days1 = DEFAULT_SHOW_DURATION_DAYS;
             } else {
-                b->data.entertainment.days2 = 32;
+                b->data.entertainment.days2 = DEFAULT_SHOW_DURATION_DAYS;
             }
             break;
         case FIGURE_GLADIATOR:
             if (b->type == BUILDING_AMPHITHEATER) {
-                b->data.entertainment.days1 = 32;
+                b->data.entertainment.days1 = DEFAULT_SHOW_DURATION_DAYS;
             } else {
-                b->data.entertainment.days2 = 32;
+                b->data.entertainment.days2 = DEFAULT_SHOW_DURATION_DAYS;
             }
             break;
         case FIGURE_LION_TAMER:
         case FIGURE_CHARIOTEER:
-            b->data.entertainment.days1 = 32;
+            b->data.entertainment.days1 = DEFAULT_SHOW_DURATION_DAYS;
             break;
     }
 }
@@ -305,7 +309,7 @@ static int fight_enemy(figure *f)
     return 0;
 }
 
-void figure_entertainer_action(figure *f)
+extern "C" void figure_entertainer_action(figure *f)
 {
     building *b = building_get(f->building_id);
     f->cart_image_id = image_group(GROUP_FIGURE_CARTPUSHER_CART);
@@ -443,7 +447,7 @@ void figure_entertainer_action(figure *f)
     update_image(f);
 }
 
-void figure_tourist_action(figure *f)
+extern "C" void figure_tourist_action(figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
@@ -463,6 +467,7 @@ void figure_tourist_action(figure *f)
             f->action_state = FIGURE_ACTION_218_TOURIST_CHOOSING_DESTINATION;
             break;
         case FIGURE_ACTION_218_TOURIST_CHOOSING_DESTINATION:
+        {
             f->use_cross_country = 1;
             f->is_ghost = 1;
             int dst_building_id = 0;
@@ -486,6 +491,7 @@ void figure_tourist_action(figure *f)
             }
             f->is_ghost = 1;
             break;
+        }
 
         case FIGURE_ACTION_219_TOURIST_GOING_TO_VENUE:
             f->is_ghost = 0;

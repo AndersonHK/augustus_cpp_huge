@@ -76,6 +76,8 @@ Primary design goals remain:
   - native FigureType XML loading and walker runtime migration direction
 - `map_road_service_history`
   - pathing-only road recency storage for smart service walkers
+- `docs/demographics_runtime.md`
+  - citywide age census, birth/mortality tables, and house-population reconciliation contract
 
 ## Practical priorities
 1. Continue the shared UI runtime rollout where it improves control of common widgets without forcing a whole-window rewrite.

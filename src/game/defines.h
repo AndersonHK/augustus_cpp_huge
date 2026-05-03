@@ -16,6 +16,7 @@ int game_defines_is_last_day_of_month(int month, int day);
 int game_defines_is_last_day_of_year(int month, int day);
 
 int game_defines_mortality_percentage(int health_bucket, int age_decennium);
+int game_defines_birth_percentage(int age_decennium);
 
 #ifdef __cplusplus
 }

@@ -10,7 +10,9 @@ This is a research memo for tuning the `mortality_table` in `Mods/Vespasian/defi
 - The cohort index is `age / 10`, so the ten columns are effectively `0-9`, `10-19`, `20-29`, ... `90-99`.
 - However, deaths are processed **before** births are added for the year. That means the first cohort behaves more like **ages 1-9**, not true `0-9` including newborns.
 - `src/city/population.cpp` uses `game_defines_mortality_percentage(city_data.health.value / 10, decennium)`, so health `0-100` collapses into **11 buckets** (`0-10`).
+- Birth rates are now loaded from `birth_table/default` in `defines.xml`; the current bundled values are `0,3,16,9,2,0,0,0,0,0`.
 - `src/city/health.c` makes very high health fairly reachable for advanced housing because house level, clinic/hospital, bathhouse, barber, water/latrine, mausolea, and multiple foods can all stack toward `100`.
+- See `docs/demographics_runtime.md` for the runtime contract between the citywide census and per-house resident counts.
 
 ## Immediate simulation consequences
 

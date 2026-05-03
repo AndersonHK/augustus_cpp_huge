@@ -134,6 +134,18 @@ Doctrine:
   - legacy fallback reads from `augustus.ini`
   - `CONFIG_UI_SCALE_FILTER`
 
+## Demographics / defines map
+- `src/game/defines.cpp`
+  - merged `calendar`, `birth_table`, and `mortality_table` XML definitions
+- `Mods/*/defines.xml`
+  - active `default` demographic/calendar tables by mod stack
+- `src/city/population.cpp`
+  - citywide age census, yearly births/deaths, and census recalculation
+- `src/building/house_population.cpp`
+  - actual per-house resident additions/removals and consistency reconciliation
+- `docs/demographics_runtime.md`
+  - runtime contract between demographic tables, census counts, and house populations
+
 ## Current migration reference points
 - `src/building/tool_mode.cpp`
 - `src/building/building_runtime.h`

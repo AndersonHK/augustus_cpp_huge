@@ -23,3 +23,4 @@ Rules:
 - `amount` is stored as raw resource units
 
 The current native vertical slice uses StorageType as shared authored metadata for native building-owned storage slots.
+Implemented production storage definitions now cover native farms and the ordinary one-output workshops whose behavior fits the current XML schema.

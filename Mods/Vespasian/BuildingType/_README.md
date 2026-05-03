@@ -104,6 +104,9 @@ seeker policy. It is used for global-access or otherwise legacy-owned labor.
 from city-wide labor category allocation while global labor is disabled, and its
 labor seeker targets nearby unemployed house residents instead of counting house
 coverage. Global labor overrides workforce and uses city-wide labor allocation.
+Production methods also consume this labor policy: when global labor is disabled,
+native production checks local workforce access for `method="workforce"` buildings
+instead of the legacy decaying `houses_covered` value.
 
 Current supported `<storages>` child nodes:
 

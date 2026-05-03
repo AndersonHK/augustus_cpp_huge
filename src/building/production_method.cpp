@@ -1,5 +1,15 @@
 #include "building/production_method.h"
 
+extern "C" {
+#include "building/industry.h"
+#include "building/local_workforce.h"
+#include "building/monument.h"
+#include "building/properties.h"
+#include "core/calc.h"
+#include "game/time.h"
+#include "scenario/property.h"
+}
+
 #include <utility>
 
 namespace building_type_registry_impl {
@@ -99,6 +109,82 @@ int ProductionMethod::refreshes_farm_image() const
 int ProductionMethod::uses_blessing_multiplier() const
 {
     return is_farm();
+}
+
+int ProductionMethod::effective_monthly_production() const
+{
+    if (output_resource_ == RESOURCE_NONE) {
+        return 0;
+    }
+
+    int monthly_production = resource_base_production_per_month(output_resource_);
+    monthly_production += (monthly_production * climate_bonus_percent(scenario_property_climate())) / 100;
+    return monthly_production;
+}
+
+int ProductionMethod::max_progress_for(const ::building &building) const
+{
+    if (output_resource_ == RESOURCE_NONE) {
+        return 0;
+    }
+
+    const int monthly_production = effective_monthly_production();
+    if (monthly_production <= 0) {
+        return 0;
+    }
+
+    const int base_max_progress =
+        calc_percentage(GAME_TIME_DAYS_PER_MONTH * 2 * model_get_building(building.type)->laborers, monthly_production);
+    return base_max_progress * batch_size_;
+}
+
+int ProductionMethod::has_required_inputs(const ::building &building) const
+{
+    for (const ProductionResourceAmount &input : inputs_) {
+        if (input.resource <= RESOURCE_NONE || input.resource >= RESOURCE_MAX) {
+            return 0;
+        }
+        const int resource_index = static_cast<int>(input.resource);
+        if (building.resources[resource_index] < scaled_input_amount(input)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int ProductionMethod::scaled_input_amount(const ProductionResourceAmount &input) const
+{
+    return input.amount * batch_size_;
+}
+
+int ProductionMethod::labor_access_for(const ::building &building) const
+{
+    // Native production follows the building's declared labor model instead of legacy coverage unconditionally.
+    if (building_local_workforce_is_workforce_building(&building)) {
+        return building_local_workforce_access_score(&building);
+    }
+    return building.houses_covered > 0 ? building.houses_covered : 0;
+}
+
+int ProductionMethod::can_start_cycle(const ::building &building) const
+{
+    // This is the shared production eligibility contract; live Production only mutates progress once it passes.
+    if (labor_access_for(building) <= 0 || building.num_workers <= 0 || building.strike_duration_days > 0) {
+        return 0;
+    }
+    if (max_progress_for(building) <= 0) {
+        return 0;
+    }
+    if (!has_required_inputs(building)) {
+        return 0;
+    }
+    const int output_resource = static_cast<int>(output_resource_);
+    if (!resource_is_storable(output_resource_) && building.data.industry.progress == 0 &&
+        !building_has_workshop_for_raw_material_with_room(output_resource, building.road_network_id) &&
+        !building_monument_get_monument(building.x, building.y, output_resource, building.road_network_id, 0)) {
+        return 0;
+    }
+    return 1;
 }
 
 } // namespace building_type_registry_impl

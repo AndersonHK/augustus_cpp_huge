@@ -51,9 +51,7 @@ namespace {
 
 int graphics_definition_is_data_only(building_type type)
 {
-    return type == BUILDING_WHEAT_FARM ||
-        type == BUILDING_FRUIT_FARM ||
-        type == BUILDING_OLIVE_FARM ||
+    return building_is_farm(type) ||
         type == BUILDING_POTTERY_WORKSHOP;
 }
 

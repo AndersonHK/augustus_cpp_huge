@@ -14,7 +14,7 @@ extern "C" {
 int house_population_add_to_city(int num_people);
 
 /**
- * Removes people from the houses in the city, use for births and troop requests
+ * Removes people from the houses in the city, use for deaths and troop requests
  * @param num_people Number of people to remove
  * @return Number of people removed
  */

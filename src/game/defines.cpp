@@ -23,6 +23,7 @@ namespace {
 
 constexpr const char *kActiveCalendarId = "default";
 constexpr const char *kActiveMortalityTableId = "default";
+constexpr const char *kActiveBirthTableId = "default";
 constexpr int kHealthBuckets = 11;
 constexpr int kAgeDecennia = 10;
 
@@ -49,9 +50,15 @@ struct MortalityDefinition {
     std::array<int, kHealthBuckets> seen_buckets = { 0 };
 };
 
+struct BirthDefinition {
+    std::array<int, kAgeDecennia> values = { 0 };
+    int has_values = 0;
+};
+
 struct DefinesDocument {
     std::unordered_map<std::string, CalendarDefinition> calendars;
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
+    std::unordered_map<std::string, BirthDefinition> birth_tables;
 };
 
 struct DefinesParseState {
@@ -59,10 +66,13 @@ struct DefinesParseState {
     std::string filename;
     std::string current_calendar_id;
     std::string current_mortality_id;
+    std::string current_birth_id;
     CalendarDefinition current_calendar;
     MortalityDefinition current_mortality;
+    BirthDefinition current_birth;
     int parsing_calendar = 0;
     int parsing_mortality = 0;
+    int parsing_birth = 0;
     int saw_root = 0;
     int error = 0;
 };
@@ -70,6 +80,7 @@ struct DefinesParseState {
 DefinesParseState g_parse_state;
 CalendarDefinition g_active_calendar;
 MortalityDefinition g_active_mortality;
+BirthDefinition g_active_birth;
 std::string g_failure_reason;
 
 static void set_failure_reason(const char *message, const char *detail = nullptr)
@@ -350,12 +361,86 @@ static int parse_health_row()
     return 1;
 }
 
+static int parse_birth_table()
+{
+    if (g_parse_state.parsing_birth) {
+        report_parse_error("Nested birth_table nodes are not supported");
+        return 0;
+    }
+    if (!xml_parser_has_attribute("id")) {
+        report_parse_error("birth_table node is missing required attribute 'id'");
+        return 0;
+    }
+
+    const std::string birth_id = trim_copy(xml_parser_get_attribute_string("id"));
+    if (birth_id.empty()) {
+        report_parse_error("birth_table node has an invalid id");
+        return 0;
+    }
+
+    g_parse_state.current_birth = {};
+    g_parse_state.current_birth_id = birth_id;
+    g_parse_state.parsing_birth = 1;
+    return 1;
+}
+
+static void finish_birth_table()
+{
+    if (!g_parse_state.parsing_birth) {
+        return;
+    }
+
+    if (!g_parse_state.current_birth.has_values) {
+        report_parse_error("birth_table is missing a required age_decennia node", g_parse_state.current_birth_id.c_str());
+        g_parse_state.parsing_birth = 0;
+        return;
+    }
+
+    if (g_parse_state.document.birth_tables.find(g_parse_state.current_birth_id) != g_parse_state.document.birth_tables.end()) {
+        report_parse_error("Defines XML contains duplicate birth_table ids", g_parse_state.current_birth_id.c_str());
+        g_parse_state.parsing_birth = 0;
+        return;
+    }
+
+    g_parse_state.document.birth_tables.emplace(g_parse_state.current_birth_id, g_parse_state.current_birth);
+    g_parse_state.parsing_birth = 0;
+}
+
+static int parse_birth_age_decennia()
+{
+    if (!g_parse_state.parsing_birth) {
+        report_parse_error("age_decennia must appear inside birth_table");
+        return 0;
+    }
+    if (!xml_parser_has_attribute("values")) {
+        report_parse_error("age_decennia node is missing required attribute 'values'");
+        return 0;
+    }
+    if (g_parse_state.current_birth.has_values) {
+        report_parse_error("birth_table contains duplicate age_decennia nodes", g_parse_state.current_birth_id.c_str());
+        return 0;
+    }
+
+    std::array<int, kAgeDecennia> values = { 0 };
+    const char *values_text = xml_parser_get_attribute_string("values");
+    if (!parse_csv_ints(values_text, values, 0)) {
+        report_parse_error("age_decennia values must contain exactly 10 non-negative integers", values_text);
+        return 0;
+    }
+
+    g_parse_state.current_birth.values = values;
+    g_parse_state.current_birth.has_values = 1;
+    return 1;
+}
+
 static const xml_parser_element XML_ELEMENTS[] = {
     { "defines", parse_defines_root, nullptr, nullptr, nullptr },
     { "calendar", parse_calendar, finish_calendar, "defines", nullptr },
     { "month_days", parse_month_days, nullptr, "calendar", nullptr },
     { "mortality_table", parse_mortality_table, finish_mortality_table, "defines", nullptr },
-    { "health", parse_health_row, nullptr, "mortality_table", nullptr }
+    { "health", parse_health_row, nullptr, "mortality_table", nullptr },
+    { "birth_table", parse_birth_table, finish_birth_table, "defines", nullptr },
+    { "age_decennia", parse_birth_age_decennia, nullptr, "birth_table", nullptr }
 };
 
 static int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
@@ -428,7 +513,8 @@ static int parse_defines_file(const char *filename, DefinesDocument &document_ou
 static void merge_document(
     const DefinesDocument &source,
     std::unordered_map<std::string, CalendarDefinition> &calendars,
-    std::unordered_map<std::string, MortalityDefinition> &mortality_tables)
+    std::unordered_map<std::string, MortalityDefinition> &mortality_tables,
+    std::unordered_map<std::string, BirthDefinition> &birth_tables)
 {
     for (const auto &entry : source.calendars) {
         calendars[entry.first] = entry.second;
@@ -436,12 +522,16 @@ static void merge_document(
     for (const auto &entry : source.mortality_tables) {
         mortality_tables[entry.first] = entry.second;
     }
+    for (const auto &entry : source.birth_tables) {
+        birth_tables[entry.first] = entry.second;
+    }
 }
 
 static int load_and_merge_defines()
 {
     std::unordered_map<std::string, CalendarDefinition> calendars;
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
+    std::unordered_map<std::string, BirthDefinition> birth_tables;
 
     const int mod_count = mod_manager_get_mod_count();
     for (int i = 0; i < mod_count; i++) {
@@ -465,7 +555,7 @@ static int load_and_merge_defines()
             return 0;
         }
 
-        merge_document(document, calendars, mortality_tables);
+        merge_document(document, calendars, mortality_tables, birth_tables);
     }
 
     const auto calendar_it = calendars.find(kActiveCalendarId);
@@ -480,8 +570,15 @@ static int load_and_merge_defines()
         return 0;
     }
 
+    const auto birth_it = birth_tables.find(kActiveBirthTableId);
+    if (birth_it == birth_tables.end()) {
+        set_failure_reason("Failed to load gameplay defines.", "No merged birth_table/default entry was found.");
+        return 0;
+    }
+
     g_active_calendar = calendar_it->second;
     g_active_mortality = mortality_it->second;
+    g_active_birth = birth_it->second;
     return 1;
 }
 
@@ -559,4 +656,13 @@ extern "C" int game_defines_mortality_percentage(int health_bucket, int age_dece
     }
 
     return g_active_mortality.values[static_cast<size_t>(health_bucket)][static_cast<size_t>(age_decennium)];
+}
+
+extern "C" int game_defines_birth_percentage(int age_decennium)
+{
+    if (age_decennium < 0 || age_decennium >= kAgeDecennia) {
+        return 0;
+    }
+
+    return g_active_birth.values[static_cast<size_t>(age_decennium)];
 }

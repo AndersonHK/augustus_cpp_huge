@@ -6,7 +6,7 @@
             <owner slot="primary" building="any" state="in_use" />
             <movement terrain_usage="roads" roam_ticks="1" max_roam_length="4800" return_mode="none" />
             <pathing mode="venue_seeker" />
-            <venue_targets show_duration="32">
+            <venue_targets show_duration="64">
                 <venue building="hippodrome" show_slot="days1" />
             </venue_targets>
         </profile>
