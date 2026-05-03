@@ -1,5 +1,6 @@
 #include "city_bridge.h"
 
+#include "building/construction.h"
 #include "graphics/image.h"
 #include "map/bridge.h"
 #include "map/property.h"
@@ -18,7 +19,7 @@ void city_draw_bridge(int x, int y, float scale, int grid_offset)
         return;
     }
     color_t color_mask = 0;
-    if (map_property_is_deleted(grid_offset)) {
+    if (map_property_is_deleted(grid_offset) && building_construction_type() != BUILDING_CLEAR_TREES) {
         color_mask = COLOR_MASK_RED;
     }
     city_draw_bridge_tile(x, y, scale, map_sprite_bridge_at(grid_offset), color_mask);

@@ -162,7 +162,7 @@ static int is_reservoir_side_connection_tile(int tile_no)
 
 static int force_place_can_clear_terrain(int terrain)
 {
-    return terrain && !(terrain & ~(TERRAIN_TREE | TERRAIN_ROAD));
+    return terrain && !(terrain & ~(TERRAIN_TREE | TERRAIN_SHRUB | TERRAIN_ROAD));
 }
 
 static int is_blocked_for_building(int grid_offset, int building_size, int *blocked_tiles, int check_figures)

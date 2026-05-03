@@ -89,7 +89,7 @@ int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode cle
                 terrain_mask_to_remove = TERRAIN_RUBBLE;
                 break;
             case CLEAR_MODE_TREES:
-                terrain_mask_to_remove = TERRAIN_TREE;
+                terrain_mask_to_remove = TERRAIN_TREE | TERRAIN_SHRUB;
                 break;
             case CLEAR_MODE_PLAYER:
             default:
@@ -433,7 +433,7 @@ int building_construction_fill_vacant_lots(grid_slice *area)
 
 enum {
     FORCE_PLACE_MAX_CLEAR_TILES = 128,
-    FORCE_PLACE_CLEARABLE_TERRAIN = TERRAIN_TREE | TERRAIN_ROAD
+    FORCE_PLACE_CLEARABLE_TERRAIN = TERRAIN_TREE | TERRAIN_SHRUB | TERRAIN_ROAD
 };
 
 struct force_place_check {

@@ -43,7 +43,7 @@ static struct {
     int repairable_buildings[1000];
 } confirm;
 
-#define TREE_CLEAR_TERRAIN_MASK TERRAIN_TREE
+#define TREE_CLEAR_TERRAIN_MASK (TERRAIN_TREE | TERRAIN_SHRUB)
 
 static int repair_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end, int *buildings_count);
 static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end);
