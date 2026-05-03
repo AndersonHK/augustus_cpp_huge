@@ -451,11 +451,13 @@ static void draw_foreground(void)
 
 static int click_outside_menu(const mouse *m, int x_offset)
 {
-    return m->left.went_up &&
-        (m->x < x_offset - MENU_X_OFFSET - MENU_CLICK_MARGIN ||
+    if (!m->left.went_up) {
+        return 0;
+    }
+    return m->x < x_offset - MENU_X_OFFSET - MENU_CLICK_MARGIN ||
         m->x > x_offset + MENU_CLICK_MARGIN ||
         m->y < data.y_offset + MENU_Y_OFFSET - MENU_CLICK_MARGIN ||
-        m->y > data.y_offset + MENU_Y_OFFSET + MENU_CLICK_MARGIN + MENU_ITEM_HEIGHT * (int) data.num_items);
+        m->y > data.y_offset + MENU_Y_OFFSET + MENU_CLICK_MARGIN + MENU_ITEM_HEIGHT * static_cast<int>(data.num_items);
 }
 
 static int handle_build_submenu(const mouse *m)

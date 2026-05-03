@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="barber">
     <identity name_key="building.barber.name" />
-    <model size="1" cost="25" desirability_value="2" desirability_step="1" desirability_step_size="-1" desirability_range="2" laborers="2" />
+    <model size="1" cost="25" />
+    <desirability>
+        <value value="2" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="2" />
+    </desirability>
     <foundation policy="land" />
     <button group="health" order="40" icon="barber" text_key="building.barber.name" />
     <sound id="barber" />

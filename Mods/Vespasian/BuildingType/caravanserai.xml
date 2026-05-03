@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="caravanserai">
     <identity name_key="building.caravanserai.name" />
-    <model size="4" cost="500" desirability_value="-10" desirability_step="2" desirability_step_size="3" desirability_range="4" laborers="20" />
+    <model size="4" cost="500" />
+    <desirability>
+        <value value="-10" />
+        <step value="2" />
+        <step_size value="3" />
+        <range value="4" />
+    </desirability>
     <foundation policy="land" />
     <button group="industry" order="50" icon="Monuments\Caravanserai_C_OFF" text_key="building.caravanserai.name" />
     <sound id="caravanserai" />
@@ -14,10 +20,52 @@
         </default>
         <variant>
             <condition type="has_workers" />
+            <condition type="climate" value="desert" />
+            <path value="Monuments\Caravanserai_C_OFF" />
+            <image value="Caravanserai_S_ON" />
+        </variant>
+        <variant>
+            <condition type="has_workers" />
+            <condition type="climate" value="northern" />
+            <path value="Monuments\Caravanserai_C_OFF" />
+            <image value="Caravanserai_N_ON" />
+        </variant>
+        <variant>
+            <condition type="has_workers" />
             <path value="Monuments\Caravanserai_C_OFF" />
             <image value="Caravanserai_C_ON" />
         </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Monuments\Caravanserai_C_OFF" />
+            <image value="Caravanserai_S_OFF" />
+        </variant>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Monuments\Caravanserai_C_OFF" />
+            <image value="Caravanserai_N_OFF" />
+        </variant>
     </graphics>
+    <construction mode="phased" road_update_radius="4">
+        <phase index="1">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Caravanserai_Construction_01" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="12" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Monuments\Caravanserai_Construction_02" />
+                <image value="Caravanserai_Construction_02" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="8" />
+            <requirement type="bricks" amount="12" />
+            <requirement type="stone" amount="12" />
+        </phase>
+    </construction>
     <labor>
         <employees count="20" />
         <labor_seeker>

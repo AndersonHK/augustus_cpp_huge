@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="amphitheater">
     <identity name_key="building.amphitheater.name" />
-    <model size="3" cost="100" desirability_value="4" desirability_step="1" desirability_step_size="-1" desirability_range="4" laborers="12" />
+    <model size="3" cost="100" />
+    <desirability>
+        <value value="4" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="4" />
+    </desirability>
     <foundation policy="land" />
     <button group="entertainment" order="30" icon="Health_Culture\Amphitheater" text_key="building.amphitheater.name" />
     <sound id="amphitheater" mute_on_enemies="true" />
@@ -13,6 +19,7 @@
         </default>
     </graphics>
     <labor>
+        <employees count="12" />
         <labor_seeker>
             <method value="houses_generate_if_below" />
             <amount value="50" />

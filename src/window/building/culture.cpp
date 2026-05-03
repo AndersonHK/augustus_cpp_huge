@@ -627,7 +627,7 @@ void window_building_draw_oracle(building_info_context *c)
 {
     c->help_id = 67;
     building *b = building_get(c->building_id);
-    if (b->monument.phase == MONUMENT_FINISHED) {
+    if (!building_monument_is_unfinished_monument(b)) {
         c->advisor_button = ADVISOR_RELIGION;
         window_building_play_sound(c, "wavs/oracle.wav");
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);

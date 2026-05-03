@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="pantheon">
     <identity name_key="building.pantheon.name" />
-    <model size="7" cost="3500" desirability_value="20" desirability_step="2" desirability_step_size="-4" desirability_range="8" laborers="50" />
+    <model size="7" cost="3500" />
+    <desirability>
+        <value value="20" />
+        <step value="2" />
+        <step_size value="-4" />
+        <range value="8" />
+    </desirability>
     <foundation policy="land" />
     <button group="grand_temples" order="60" icon="pantheon" text_key="building.pantheon.name" />
     <sound id="oracle" />

@@ -1,8 +1,11 @@
+extern "C" {
 #include "monument.h"
 
 #include "assets/assets.h"
 #include "building/image.h"
 #include "building/properties.h"
+#include "building/building_runtime_api.h"
+#include "building/building_type_api.h"
 #include "city/finance.h"
 #include "city/message.h"
 #include "city/resource.h"
@@ -16,6 +19,7 @@
 #include "map/road_access.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
+}
 
 #define DELIVERY_ARRAY_SIZE_STEP 200
 #define ORIGINAL_DELIVERY_BUFFER_SIZE 16
@@ -34,148 +38,102 @@ typedef struct {
     const int resources[MAX_PHASES][RESOURCE_MAX];
 } monument_type;
 
-static const monument_type grand_temple = {
-    .phases    = 6,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 20 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 8, [RESOURCE_CONCRETE] = 20 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 8, [RESOURCE_MARBLE] = 16 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 16, [RESOURCE_BRICKS] = 28, [RESOURCE_MARBLE] = 12 },
-        { [ARCHITECTS] = 4 },
-        { NOTHING }
-    }
-};
+#define RESOURCE_ROW(architects, timber, iron, marble, gold, stone, concrete, bricks) \
+    { architects, 0, 0, 0, 0, 0, 0, timber, 0, 0, iron, marble, gold, 0, stone, 0, 0, 0, 0, 0, concrete, bricks }
 
 static const monument_type pantheon = {
-    .phases    = 6,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 20 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 8,  [RESOURCE_STONE] = 20 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 16, [RESOURCE_CONCRETE] = 40 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 16, [RESOURCE_MARBLE] = 32, [RESOURCE_GOLD] = 16 },
-        { [ARCHITECTS] = 4 },
-        { NOTHING }
-    }
-};
-
-static const monument_type lighthouse = {
-    .phases    = 5,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 16 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 8,  [RESOURCE_STONE] = 16 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 16, [RESOURCE_STONE] = 12 },
-        { [ARCHITECTS] = 4, [RESOURCE_TIMBER] = 8,  [RESOURCE_BRICKS] = 20, [RESOURCE_STONE] = 12 },
-        { NOTHING }
+    6,
+    {
+        RESOURCE_ROW(1, 0, 0, 0, 0, 20, 0, 0),
+        RESOURCE_ROW(1, 8, 0, 0, 0, 20, 0, 0),
+        RESOURCE_ROW(1, 16, 0, 0, 0, 0, 40, 0),
+        RESOURCE_ROW(1, 16, 0, 32, 16, 0, 0, 0),
+        RESOURCE_ROW(4, 0, 0, 0, 0, 0, 0, 0),
+        RESOURCE_ROW(NOTHING, 0, 0, 0, 0, 0, 0, 0)
     }
 };
 
 static const monument_type colosseum = {
-    .phases    = 5,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 12 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 8,  [RESOURCE_CONCRETE] = 16 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 12, [RESOURCE_STONE] = 16 },
-        { [ARCHITECTS] = 4, [RESOURCE_TIMBER] = 12, [RESOURCE_BRICKS] = 16, [RESOURCE_MARBLE] = 20 },
-        { NOTHING }
+    5,
+    {
+        RESOURCE_ROW(1, 0, 0, 0, 0, 12, 0, 0),
+        RESOURCE_ROW(1, 8, 0, 0, 0, 0, 16, 0),
+        RESOURCE_ROW(1, 12, 0, 0, 0, 16, 0, 0),
+        RESOURCE_ROW(4, 12, 0, 20, 0, 0, 0, 16),
+        RESOURCE_ROW(NOTHING, 0, 0, 0, 0, 0, 0, 0)
     }
 };
 
 static const monument_type hippodrome = {
-    .phases    = 5,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 32 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 16, [RESOURCE_CONCRETE] = 32 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 16, [RESOURCE_STONE] = 32 },
-        { [ARCHITECTS] = 4, [RESOURCE_TIMBER] = 32, [RESOURCE_BRICKS] = 32, [RESOURCE_MARBLE] = 48 },
-        { NOTHING }
-    }
-};
-
-static const monument_type oracle = {
-    .phases    = 3,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_CONCRETE] = 2, [RESOURCE_MARBLE] = 2 },
-        { [ARCHITECTS] = 1 },
-        { NOTHING }
+    5,
+    {
+        RESOURCE_ROW(1, 0, 0, 0, 0, 32, 0, 0),
+        RESOURCE_ROW(1, 16, 0, 0, 0, 0, 32, 0),
+        RESOURCE_ROW(1, 16, 0, 0, 0, 32, 0, 0),
+        RESOURCE_ROW(4, 32, 0, 48, 0, 0, 0, 32),
+        RESOURCE_ROW(NOTHING, 0, 0, 0, 0, 0, 0, 0)
     }
 };
 
 static const monument_type small_mausoleum = {
-    .phases    = 3,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 2, [RESOURCE_CONCRETE] = 4 },
-        { [ARCHITECTS] = 1, [RESOURCE_MARBLE] = 2 },
-        { NOTHING }
-    }
-};
-
-static const monument_type large_temple = {
-    .phases    = 3,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 4, [RESOURCE_CONCRETE] = 4 },
-        { [ARCHITECTS] = 1, [RESOURCE_MARBLE] = 2 },
-        { NOTHING }
+    3,
+    {
+        RESOURCE_ROW(1, 0, 0, 0, 0, 2, 4, 0),
+        RESOURCE_ROW(1, 0, 0, 2, 0, 0, 0, 0),
+        RESOURCE_ROW(NOTHING, 0, 0, 0, 0, 0, 0, 0)
     }
 };
 
 static const monument_type nymphaeum = {
-    .phases    = 3,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 12, [RESOURCE_CONCRETE] = 4 },
-        { [ARCHITECTS] = 1, [RESOURCE_MARBLE] = 2 },
-        { NOTHING }
+    3,
+    {
+        RESOURCE_ROW(1, 0, 0, 0, 0, 12, 4, 0),
+        RESOURCE_ROW(1, 0, 0, 2, 0, 0, 0, 0),
+        RESOURCE_ROW(NOTHING, 0, 0, 0, 0, 0, 0, 0)
     }
 };
 
 static const monument_type large_mausoleum = {
-    .phases    = 3,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 8, [RESOURCE_CONCRETE] = 4 },
-        { [ARCHITECTS] = 1, [RESOURCE_MARBLE] = 4 },
-        { NOTHING }
-    }
-};
-
-static const monument_type caravanserai = {
-    .phases    = 3,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 12 },
-        { [ARCHITECTS] = 1, [RESOURCE_TIMBER] = 8, [RESOURCE_BRICKS] = 12, [RESOURCE_STONE] = 12 },
-        { NOTHING }
+    3,
+    {
+        RESOURCE_ROW(1, 0, 0, 0, 0, 8, 4, 0),
+        RESOURCE_ROW(1, 0, 0, 4, 0, 0, 0, 0),
+        RESOURCE_ROW(NOTHING, 0, 0, 0, 0, 0, 0, 0)
     }
 };
 
 static const monument_type city_mint = {
-    .phases    = 3,
-    .resources = {
-        { [ARCHITECTS] = 1, [RESOURCE_STONE] = 8 },
-        { [ARCHITECTS] = 1, [RESOURCE_BRICKS] = 4, [RESOURCE_IRON] = 4, [RESOURCE_TIMBER] = 4 },
-        { NOTHING }
+    3,
+    {
+        RESOURCE_ROW(1, 0, 0, 0, 0, 8, 0, 0),
+        RESOURCE_ROW(1, 4, 4, 0, 0, 0, 0, 4),
+        RESOURCE_ROW(NOTHING, 0, 0, 0, 0, 0, 0, 0)
     }
 };
 
-static const monument_type *MONUMENT_TYPES[BUILDING_TYPE_MAX] = {
-    [BUILDING_GRAND_TEMPLE_CERES]   = &grand_temple,
-    [BUILDING_GRAND_TEMPLE_NEPTUNE] = &grand_temple,
-    [BUILDING_GRAND_TEMPLE_MERCURY] = &grand_temple,
-    [BUILDING_GRAND_TEMPLE_MARS]    = &grand_temple,
-    [BUILDING_GRAND_TEMPLE_VENUS]   = &grand_temple,
-    [BUILDING_PANTHEON]             = &pantheon,
-    [BUILDING_ORACLE]               = &oracle,
-    [BUILDING_LARGE_TEMPLE_CERES]   = &large_temple,
-    [BUILDING_LARGE_TEMPLE_NEPTUNE] = &large_temple,
-    [BUILDING_LARGE_TEMPLE_MERCURY] = &large_temple,
-    [BUILDING_LARGE_TEMPLE_MARS]    = &large_temple,
-    [BUILDING_LARGE_TEMPLE_VENUS]   = &large_temple,
-    [BUILDING_LIGHTHOUSE]           = &lighthouse,
-    [BUILDING_COLOSSEUM]            = &colosseum,
-    [BUILDING_HIPPODROME]           = &hippodrome,
-    [BUILDING_NYMPHAEUM]            = &nymphaeum,
-    [BUILDING_LARGE_MAUSOLEUM]      = &large_mausoleum,
-    [BUILDING_SMALL_MAUSOLEUM]      = &small_mausoleum,
-    [BUILDING_CARAVANSERAI]         = &caravanserai,
-    [BUILDING_CITY_MINT]            = &city_mint
-};
+#undef RESOURCE_ROW
+
+static const monument_type *legacy_monument_type(building_type type)
+{
+    switch (type) {
+        case BUILDING_PANTHEON:
+            return &pantheon;
+        case BUILDING_COLOSSEUM:
+            return &colosseum;
+        case BUILDING_HIPPODROME:
+            return &hippodrome;
+        case BUILDING_NYMPHAEUM:
+            return &nymphaeum;
+        case BUILDING_LARGE_MAUSOLEUM:
+            return &large_mausoleum;
+        case BUILDING_SMALL_MAUSOLEUM:
+            return &small_mausoleum;
+        case BUILDING_CITY_MINT:
+            return &city_mint;
+        default:
+            return nullptr;
+    }
+}
 
 typedef struct {
     int walker_id;
@@ -185,6 +143,12 @@ typedef struct {
 } monument_delivery;
 
 array(monument_delivery) monument_deliveries;
+
+static int type_is_monument(building_type type)
+{
+    return type > BUILDING_NONE && type < BUILDING_TYPE_MAX &&
+        (building_type_registry_has_phased_construction(type) || legacy_monument_type(type) != nullptr);
+}
 
 int building_monument_deliver_resource(building *b, int resource)
 {
@@ -271,7 +235,11 @@ int building_monument_add_module(building *b, int module)
         return 0;
     }
     b->monument.upgrades = module;
-    map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    if (building_type_registry_has_phased_construction(b->type)) {
+        building_runtime_apply_graphic(b);
+    } else {
+        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    }
     return 1;
 }
 
@@ -297,13 +265,14 @@ int building_monument_is_limited(building_type type)
 
 int building_monument_get_monument(int x, int y, int resource, int road_network_id, map_point *dst)
 {
-    if (city_resource_is_stockpiled(resource)) {
+    if (city_resource_is_stockpiled(static_cast<resource_type>(resource))) {
         return 0;
     }
     int min_dist = INFINITE;
     building *min_building = 0;
-    for (building_type type = BUILDING_MONUMENT_FIRST_ID; type < BUILDING_TYPE_MAX; type++) {
-        if (!MONUMENT_TYPES[type]) {
+    for (int type_id = BUILDING_MONUMENT_FIRST_ID; type_id < BUILDING_TYPE_MAX; type_id++) {
+        building_type type = static_cast<building_type>(type_id);
+        if (!type_is_monument(type)) {
             continue;
         }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
@@ -339,8 +308,9 @@ int building_monument_get_monument(int x, int y, int resource, int road_network_
 
 int building_monument_has_unfinished_monuments(void)
 {
-    for (building_type type = BUILDING_MONUMENT_FIRST_ID; type < BUILDING_TYPE_MAX; type++) {
-        if (!MONUMENT_TYPES[type]) {
+    for (int type_id = BUILDING_MONUMENT_FIRST_ID; type_id < BUILDING_TYPE_MAX; type_id++) {
+        building_type type = static_cast<building_type>(type_id);
+        if (!type_is_monument(type)) {
             continue;
         }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
@@ -354,7 +324,11 @@ int building_monument_has_unfinished_monuments(void)
 
 int building_monument_resources_needed_for_monument_type(building_type type, int resource, int phase)
 {
-    return MONUMENT_TYPES[type] ? MONUMENT_TYPES[type]->resources[phase - 1][resource] : 0;
+    if (building_type_registry_has_phased_construction(type)) {
+        return building_type_registry_get_construction_requirement(type, resource, phase);
+    }
+    const monument_type *legacy_type = legacy_monument_type(type);
+    return legacy_type ? legacy_type->resources[phase - 1][resource] : 0;
 }
 
 void building_monument_set_phase(building *b, int phase)
@@ -366,7 +340,11 @@ void building_monument_set_phase(building *b, int phase)
         return;
     }
     b->monument.phase = phase;
-    map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    if (building_type_registry_has_phased_construction(b->type)) {
+        building_runtime_apply_graphic(b);
+    } else {
+        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    }
     if (b->monument.phase != MONUMENT_FINISHED) {
         for (int resource = 0; resource < RESOURCE_MAX; resource++) {
             b->resources[resource] =
@@ -382,7 +360,7 @@ int building_monument_is_monument(const building *b)
 
 int building_monument_type_is_monument(building_type type)
 {
-    return type > BUILDING_NONE && type < BUILDING_TYPE_MAX && MONUMENT_TYPES[type] != 0;
+    return type_is_monument(type);
 }
 
 int building_monument_type_is_mini_monument(building_type type)
@@ -414,8 +392,9 @@ int building_monument_needs_resource(building *b, int resource)
 
 void building_monuments_set_construction_phase(int phase)
 {
-    for (building_type type = BUILDING_MONUMENT_FIRST_ID; type < BUILDING_TYPE_MAX; type++) {
-        if (!MONUMENT_TYPES[type]) {
+    for (int type_id = BUILDING_MONUMENT_FIRST_ID; type_id < BUILDING_TYPE_MAX; type_id++) {
+        building_type type = static_cast<building_type>(type_id);
+        if (!type_is_monument(type)) {
             continue;
         }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
@@ -438,13 +417,18 @@ int building_monument_get_neptune_gt(void)
 
 int building_monument_phases(building_type type)
 {
-    return MONUMENT_TYPES[type] ? MONUMENT_TYPES[type]->phases : 0;
+    if (building_type_registry_has_phased_construction(type)) {
+        return building_type_registry_get_construction_phase_count(type) + 1;
+    }
+    const monument_type *legacy_type = legacy_monument_type(type);
+    return legacy_type ? legacy_type->phases : 0;
 }
 
 void building_monument_finish_monuments(void)
 {
-    for (building_type type = BUILDING_MONUMENT_FIRST_ID; type < BUILDING_TYPE_MAX; type++) {
-        if (!MONUMENT_TYPES[type]) {
+    for (int type_id = BUILDING_MONUMENT_FIRST_ID; type_id < BUILDING_TYPE_MAX; type_id++) {
+        building_type type = static_cast<building_type>(type_id);
+        if (!type_is_monument(type)) {
             continue;
         }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
@@ -682,7 +666,8 @@ int building_monument_has_required_resources_to_build(building_type type)
 {
     int phases = building_monument_phases(type);
     for (int phase = 1; phase < phases; phase++) {
-        for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+        for (int resource_id = RESOURCE_MIN; resource_id < RESOURCE_MAX; resource_id++) {
+            resource_type r = static_cast<resource_type>(resource_id);
             if (building_monument_resources_needed_for_monument_type(type, r, phase) > 0 &&
                 !empire_can_produce_resource_potentially(r) && !empire_can_import_resource_potentially(r)) {
                 return 0;
@@ -720,7 +705,7 @@ int building_monument_module_type(building_type type)
 int building_monument_gt_module_is_active(int module)
 {
     int module_num = module % MODULES_PER_TEMPLE + 1;
-    int temple_type = module / MODULES_PER_TEMPLE + BUILDING_GRAND_TEMPLE_CERES;
+    building_type temple_type = static_cast<building_type>(module / MODULES_PER_TEMPLE + BUILDING_GRAND_TEMPLE_CERES);
 
     return building_monument_module_type(temple_type) == module_num;
 }
@@ -753,7 +738,7 @@ static void delivery_load(buffer *buf, monument_delivery *delivery, int size)
 void building_monument_delivery_save_state(buffer *buf)
 {
     int buf_size = 4 + monument_deliveries.size * ORIGINAL_DELIVERY_BUFFER_SIZE;
-    uint8_t *buf_data = malloc(buf_size);
+    uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     buffer_init(buf, buf_data, buf_size);
     buffer_write_i32(buf, ORIGINAL_DELIVERY_BUFFER_SIZE);
 
@@ -773,7 +758,7 @@ void building_monument_delivery_load_state(buffer *buf, int includes_delivery_bu
         buf_size -= 4;
     }
 
-    int deliveries_to_load = (int) buf_size / delivery_buf_size;
+    int deliveries_to_load = static_cast<int>(buf_size) / delivery_buf_size;
 
     if (!array_init(monument_deliveries, DELIVERY_ARRAY_SIZE_STEP, 0, delivery_in_use) ||
         !array_expand(monument_deliveries, deliveries_to_load)) {

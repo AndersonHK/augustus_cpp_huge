@@ -5,6 +5,7 @@
 
 extern "C" {
 #include "building/properties.h"
+#include "game/resource.h"
 #include "platform/file_manager.h"
 }
 
@@ -126,9 +127,6 @@ extern "C" void building_type_registry_apply_model_overrides(void)
             }
             if (xml_model.has_desirability_range()) {
                 model->desirability_range = xml_model.desirability_range();
-            }
-            if (xml_model.has_laborers()) {
-                model->laborers = xml_model.laborers();
             }
         }
         if (definition->has_labor() && definition->labor().has_employee_count()) {
@@ -258,4 +256,42 @@ extern "C" int building_type_registry_get_sound_requires_water_access(building_t
     return definition->water_access_mode() != building_type_registry_impl::WaterAccessMode::None ||
         (definition->has_water_access_provider() &&
             definition->water_access().requirement() != building_type_registry_impl::WaterAccessRequirement::None);
+}
+
+extern "C" int building_type_registry_has_phased_construction(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_phased_construction() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_get_construction_phase_count(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_phased_construction() ? definition->construction().phase_count() : 0;
+}
+
+extern "C" int building_type_registry_get_construction_road_update_radius(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_phased_construction() ? definition->construction().road_update_radius() : 0;
+}
+
+extern "C" int building_type_registry_get_instant_construction_requirement(building_type type, int resource)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || definition->construction().mode() != building_type_registry_impl::ConstructionMode::Instant ||
+        resource <= RESOURCE_NONE || resource >= RESOURCE_MAX) {
+        return 0;
+    }
+    return definition->construction().instant_requirement_amount(static_cast<resource_type>(resource));
+}
+
+extern "C" int building_type_registry_get_construction_requirement(building_type type, int resource, int phase)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_phased_construction() ||
+        resource < RESOURCE_NONE || resource >= RESOURCE_MAX || phase < 1) {
+        return 0;
+    }
+    return definition->construction().requirement_amount(static_cast<resource_type>(resource), phase);
 }

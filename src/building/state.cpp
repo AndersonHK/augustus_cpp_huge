@@ -4,6 +4,7 @@ extern "C" {
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/roadblock.h"
+#include "core/log.h"
 #include "figure/figure.h"
 #include "game/save_version.h"
 }
@@ -21,6 +22,17 @@ static uint16_t save_id_from_runtime_type(unsigned short runtime_id)
 static unsigned short runtime_type_from_save_id(uint16_t save_id)
 {
     return static_cast<unsigned short>(building_type_id_bridge_runtime_from_save_id(save_id));
+}
+
+static void normalize_monument_phase_after_load(building *b)
+{
+    if (!building_monument_is_monument(b)) {
+        return;
+    }
+
+    if (!b->monument.phase || b->monument.phase == building_monument_phases(b->type)) {
+        b->monument.phase = MONUMENT_FINISHED;
+    }
 }
 
 static int is_industry_type(const building *b)
@@ -508,6 +520,11 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     uint16_t saved_building_type = buffer_read_u16(buf);
     int missing_building_type = building_type_id_bridge_save_id_is_missing(saved_building_type);
     b->type = building_type_id_bridge_runtime_from_save_id(saved_building_type);
+    if (b->state != BUILDING_STATE_UNUSED && !saved_building_type) {
+        log_error("Building saved with empty building type id", 0, b->id);
+    } else if (b->state != BUILDING_STATE_UNUSED && saved_building_type && b->type == BUILDING_NONE) {
+        log_error("Building save type id resolved to none", 0, saved_building_type);
+    }
     if (b->type == BUILDING_WAREHOUSE_SPACE) {
         b->subtype.warehouse_resource_id = resource_remap(buffer_read_i16(buf));
     } else if (save_version <= SAVE_GAME_LAST_STATIC_RESOURCES &&
@@ -597,8 +614,9 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
             b->monument.phase = MONUMENT_FINISHED;
         }
 
-        if (((b->type >= BUILDING_LARGE_TEMPLE_CERES && b->type <= BUILDING_LARGE_TEMPLE_VENUS) ||
-            b->type == BUILDING_ORACLE) && !b->monument.phase) {
+        if (building_monument_is_monument(b) &&
+            ((b->type >= BUILDING_LARGE_TEMPLE_CERES && b->type <= BUILDING_LARGE_TEMPLE_VENUS) ||
+                b->type == BUILDING_ORACLE) && !b->monument.phase) {
             b->monument.phase = MONUMENT_FINISHED;
         }
 
@@ -644,6 +662,8 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
         b->monument.progress = buffer_read_i16(buf);
         b->monument.phase = buffer_read_i16(buf);
     }
+
+    normalize_monument_phase_after_load(b);
 
     if (building_buf_size >= BUILDING_STATE_TOURISM_BUFFER_SIZE) {
         b->house_arena_gladiator = buffer_read_u8(buf);
@@ -774,6 +794,9 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     }
 
     if (missing_building_type) {
+        if (b->state != BUILDING_STATE_UNUSED) {
+            log_error("Building save type id could not be resolved", 0, saved_building_type);
+        }
         b->state = BUILDING_STATE_UNUSED;
         b->type = BUILDING_NONE;
         b->grid_offset = 0;

@@ -1,13 +1,17 @@
+extern "C" {
 #include "lighthouse.h"
 
 #include "assets/assets.h"
 #include "building/distribution.h"
 #include "building/image.h"
 #include "building/monument.h"
+#include "building/building_runtime_api.h"
+#include "building/building_type_api.h"
 #include "city/trade_policy.h"
 #include "core/calc.h"
 #include "map/building_tiles.h"
 #include "map/terrain.h"
+}
 
 #define INFINITE 10000
 #define MAX_TIMBER 500
@@ -48,7 +52,11 @@ static void set_lighthouse_graphic(building *b)
     if (b->state != BUILDING_STATE_IN_USE) {
         return;
     }
-    map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    if (building_type_registry_has_phased_construction(b->type)) {
+        building_runtime_apply_graphic(b);
+    } else {
+        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+    }
 }
 
 void building_lighthouse_consume_timber(void)

@@ -1,7 +1,9 @@
 #include "image.h"
 
+#include "building/building_runtime_api.h"
 #include "building/image.h"
 #include "building/industry.h"
+#include "building/building_type_api.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "core/image_group.h"
@@ -75,6 +77,10 @@ void map_image_update_all(void)
             continue; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
         }
         int image_id = building_image_get(b);
+        if (!image_id && building_type_registry_has_definition(b->type)) {
+            building_runtime_apply_graphic(b);
+            continue;
+        }
 
         for (int dy = 0; dy < b->size; dy++) {
             for (int dx = 0; dx < b->size; dx++) {

@@ -24,6 +24,7 @@ typedef struct {
 } minimap_functions;
 
 void widget_minimap_invalidate(void);
+void widget_minimap_restore_default_functions(void);
 
 void widget_minimap_update(const minimap_functions *functions);
 

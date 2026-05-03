@@ -2,6 +2,7 @@
 
 #include "assets/assets.h"
 #include "building/connectable.h"
+#include "building/building_runtime_api.h"
 #include "building/house.h"
 #include "building/image.h"
 #include "building/properties.h"
@@ -253,6 +254,9 @@ void map_orientation_update_buildings(void)
         building *b = building_get(i);
         if (b->state == BUILDING_STATE_UNUSED || b->state == BUILDING_STATE_DELETED_BY_GAME ||
             b->state == BUILDING_STATE_RUBBLE) {
+            continue;
+        }
+        if (building_runtime_apply_graphic_if_native(b)) {
             continue;
         }
         switch (b->type) {

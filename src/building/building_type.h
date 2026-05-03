@@ -107,11 +107,18 @@ enum class GraphicsConditionType {
     WaterAccess,
     FigureSlotOccupied,
     ResourcePositive,
+    Climate,
+    MonumentUpgrade,
     Desirability,
     Days1Positive,
     Days1NotPositive,
     Days2Positive,
     Days1OrDays2Positive
+};
+
+enum class ConstructionMode {
+    Instant,
+    Phased
 };
 
 struct LaborSeekerPolicy {
@@ -167,7 +174,6 @@ public:
     void set_desirability_step(int value);
     void set_desirability_step_size(int value);
     void set_desirability_range(int value);
-    void set_laborers(int value);
 
     int has_size() const;
     int size() const;
@@ -181,8 +187,6 @@ public:
     int desirability_step_size() const;
     int has_desirability_range() const;
     int desirability_range() const;
-    int has_laborers() const;
-    int laborers() const;
     int has_any() const;
 
 private:
@@ -198,8 +202,6 @@ private:
     int desirability_step_size_ = 0;
     int has_desirability_range_ = 0;
     int desirability_range_ = 0;
-    int has_laborers_ = 0;
-    int laborers_ = 0;
 };
 
 class FoundationDefinition {
@@ -313,6 +315,8 @@ struct GraphicsCondition {
     FigureSlot figure_slot = FigureSlot::None;
     int threshold = 0;
     resource_type resource = RESOURCE_NONE;
+    int climate = 0;
+    int monument_upgrade = 0;
 
     int matches(const ::building &building) const;
 };
@@ -403,6 +407,42 @@ private:
     int has_default_node_ = 0;
 };
 
+struct ConstructionRequirement {
+    resource_type resource = RESOURCE_NONE;
+    int amount = 0;
+};
+
+struct ConstructionPhase {
+    int index = 0;
+    GraphicsTarget graphics;
+    std::vector<ConstructionRequirement> requirements;
+};
+
+class ConstructionDefinition {
+public:
+    void set_mode(ConstructionMode mode);
+    void set_road_update_radius(int radius);
+    ConstructionPhase &add_phase(int index);
+    ConstructionPhase *last_phase();
+    const ConstructionPhase *phase(int index) const;
+    void add_instant_requirement(resource_type resource, int amount);
+    void add_requirement(resource_type resource, int amount);
+
+    ConstructionMode mode() const;
+    int is_phased() const;
+    int road_update_radius() const;
+    int phase_count() const;
+    int instant_requirement_amount(resource_type resource) const;
+    int requirement_amount(resource_type resource, int phase) const;
+    const std::vector<ConstructionPhase> &phases() const;
+
+private:
+    ConstructionMode mode_ = ConstructionMode::Instant;
+    int road_update_radius_ = 0;
+    std::vector<ConstructionRequirement> instant_requirements_;
+    std::vector<ConstructionPhase> phases_;
+};
+
 class BuildingType {
 public:
     BuildingType(building_type type, std::string attr);
@@ -415,7 +455,6 @@ public:
     void set_model_desirability_step(int value);
     void set_model_desirability_step_size(int value);
     void set_model_desirability_range(int value);
-    void set_model_laborers(int value);
     void set_foundation_policy(std::string policy);
     void set_button_group(std::string group);
     void set_button_order(int order);
@@ -438,6 +477,13 @@ public:
     GraphicsVariant &add_graphics_variant();
     GraphicsVariant *last_graphics_variant();
     void add_graphics_variant_condition(GraphicsCondition condition);
+    void set_construction_mode(ConstructionMode mode);
+    void set_construction_road_update_radius(int radius);
+    void clear_construction();
+    ConstructionPhase &add_construction_phase(int index);
+    ConstructionPhase *last_construction_phase();
+    void add_instant_construction_requirement(resource_type resource, int amount);
+    void add_construction_requirement(resource_type resource, int amount);
 
     void add_spawn_policy(SpawnPolicy policy);
     void set_labor_employee_count(int count);
@@ -461,7 +507,9 @@ public:
     const StateDefinition &state() const;
     const WaterAccessDefinition &water_access() const;
     const GraphicsDefinition &graphics() const;
+    const ConstructionDefinition &construction() const;
     const GraphicsTarget *resolve_graphics_target(const ::building &building) const;
+    const GraphicsTarget *resolve_construction_graphics_target(int phase) const;
     WaterAccessMode water_access_mode() const;
     int has_identity() const;
     int has_model() const;
@@ -472,6 +520,7 @@ public:
     int has_flags() const;
     int has_water_access_provider() const;
     int has_graphic() const;
+    int has_phased_construction() const;
     int has_labor() const;
     const LaborDefinition &labor() const;
     const std::vector<SpawnDelayGroup> &spawn_groups() const;
@@ -496,6 +545,7 @@ private:
     StateDefinition state_;
     WaterAccessDefinition water_access_;
     GraphicsDefinition graphics_;
+    ConstructionDefinition construction_;
     LaborDefinition labor_;
     std::vector<SpawnDelayGroup> spawn_groups_;
     std::vector<std::string> storage_reference_paths_;

@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temple_venus">
     <identity name_key="building.large_temple_venus.name" />
-    <model size="3" cost="150" desirability_value="14" desirability_step="2" desirability_step_size="-2" desirability_range="5" laborers="5" />
+    <model size="3" cost="150" />
+    <desirability>
+        <value value="14" />
+        <step value="2" />
+        <step_size value="-2" />
+        <range value="5" />
+    </desirability>
     <foundation policy="land" />
     <button group="large_temples" order="50" icon="large temple venus" text_key="building.large_temple_venus.name" />
     <sound id="temple_venus" />
@@ -13,6 +19,9 @@
             <image value="Image_0001" />
         </default>
     </graphics>
+    <construction mode="instant">
+        <requirement type="marble" amount="2" />
+    </construction>
     <labor>
         <employees count="5" />
         <labor_seeker>

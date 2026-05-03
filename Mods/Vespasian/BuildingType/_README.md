@@ -11,11 +11,13 @@ Current supported nodes:
 
 - `<identity ... />`
 - `<model ... />`
+- `<desirability> ... </desirability>`
 - `<foundation ... />`
 - `<button ... />`
 - `<water_access> ... </water_access>`
 - `<state> ... </state>`
 - `<graphics> ... </graphics>`
+- `<construction> ... </construction>`
 - `<labor> ... </labor>`
 - `<storages> ... </storages>`
 - `<production_methods> ... </production_methods>`
@@ -31,13 +33,49 @@ Current supported `<model>` attributes:
 
 - `size="N"`
 - `cost="N"`
-- `desirability_value="N"`
-- `desirability_step="N"`
-- `desirability_step_size="N"`
-- `desirability_range="N"`
-- `laborers="N"`
 
-Model `cost`, desirability fields, and `laborers` currently override the legacy runtime model after XML load. `size` is parsed and exposed for the next placement/build-authority pass, but legacy placement still owns footprint size until that pass lands.
+Model `cost` currently overrides the legacy runtime model after XML load. `size` is parsed and exposed for the next placement/build-authority pass, but legacy placement still owns footprint size until that pass lands.
+
+Current supported `<desirability>` child nodes:
+
+- `<value value="N" />`
+- `<step value="N" />`
+- `<step_size value="N" />`
+- `<range value="N" />`
+
+Desirability rules:
+
+- all four child nodes are required when `<desirability>` is present
+- `value` and `step_size` may be negative
+- `step` and `range` must be non-negative
+- model-level `desirability_*` attributes are not supported
+- labor counts belong under `<labor><employees count="N" /></labor>`, not under `<model>`
+
+Small building example:
+
+```xml
+<building type="barber">
+    <identity name_key="building.barber.name" />
+    <model size="1" cost="25" />
+    <desirability>
+        <value value="2" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="2" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="health" order="40" icon="barber" text_key="building.barber.name" />
+    <sound id="barber" />
+    <event_data attr="barber" />
+    <labor>
+        <employees count="2" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="50" />
+        </labor_seeker>
+    </labor>
+</building>
+```
 
 Current supported `<foundation>` attributes:
 
@@ -80,6 +118,8 @@ Current supported `<graphics>` child nodes:
 - `<condition type="water_access" />`
 - `<condition type="figure_slot_occupied" slot="primary|secondary|quaternary" />`
 - `<condition type="resource_positive" resource="wine" />`
+- `<condition type="climate" value="central|northern|desert" />`
+- `<condition type="monument_upgrade" value="1" />`
 - `<condition type="desirability" operator="lt|lte|eq|gt|gte" threshold="N" />`
 - `<condition type="days1_positive|days1_not_positive|days2_positive|days1_or_days2_positive" />`
 
@@ -108,8 +148,28 @@ Current supported graphics conditions:
 - `type="water_access"` means `has_water_access`
 - `type="figure_slot_occupied" slot="primary|secondary|quaternary"` means the named tracked legacy figure slot is occupied
 - `type="resource_positive" resource="wine"` means the building has at least one unit of that resource
+- `type="climate" value="central|northern|desert"` compares the active scenario climate
+- `type="monument_upgrade" value="N"` means the completed monument has upgrade/module `N`
 - `type="desirability" operator="lt|lte|eq|gt|gte" threshold="N"` compares the building desirability against `N`
 - `type="days1_positive|days1_not_positive|days2_positive|days1_or_days2_positive"` checks the entertainment visit-day counters used by entertainers
+
+Current supported `<construction>` attributes and child nodes:
+
+- missing `<construction>` or `mode="instant"` means placement uses finished graphics immediately
+- `mode="instant"` may contain direct `<requirement>` nodes for placement-time resource costs; money cost stays in `<model cost="N" />`
+- `mode="phased"` starts the building at `MONUMENT_START`
+- `road_update_radius="N"` updates nearby roads when the phased monument is placed
+- `<phase index="N"> ... </phase>` defines one construction phase
+- `<phase><graphics> ... </graphics></phase>` uses the same `<path>` and `<image>` target nodes as root graphics
+- `<requirement type="architects|stone|timber|concrete|marble|bricks|gold|iron" amount="N" />` declares phase delivery requirements
+- `<construction mode="instant"><requirement type="stone|timber|concrete|marble|bricks|gold|iron" amount="N" /></construction>` declares placement-time resource costs
+
+Phased construction rules:
+
+- phase indexes are authored in ascending one-based order
+- root-level `<graphics>` describes the completed building
+- phase-level `<graphics>` describes only the unfinished phase
+- a phased definition with `N` phase nodes has `N + 1` monument states; advancing past the last phase marks the monument finished
 
 Current supported `<labor>` child nodes:
 

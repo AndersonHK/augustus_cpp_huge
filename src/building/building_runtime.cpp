@@ -135,7 +135,8 @@ extern "C" void building_runtime_initialize_city_graphics_cache(void)
         if (!b || !b->id) {
             continue;
         }
-        if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED) {
+        if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED &&
+            b->state != BUILDING_STATE_CREATED) {
             continue;
         }
         if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
@@ -152,6 +153,18 @@ extern "C" void building_runtime_apply_graphic(building *b)
     if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
         instance->set_building_graphic();
     }
+}
+
+extern "C" int building_runtime_apply_graphic_if_native(building *b)
+{
+    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
+        const building_type_registry_impl::BuildingType *definition = instance->definition();
+        if (definition && definition->has_graphic()) {
+            instance->set_building_graphic();
+            return 1;
+        }
+    }
+    return 0;
 }
 
 extern "C" void building_runtime_spawn_figure(building *b)

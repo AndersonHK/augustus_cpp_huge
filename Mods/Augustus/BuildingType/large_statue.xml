@@ -1,6 +1,12 @@
 <building type="large_statue">
     <identity name_key="building.large_statue.name" />
-    <model size="3" cost="150" desirability_value="14" desirability_step="2" desirability_step_size="-2" desirability_range="5" laborers="0" />
+    <model size="3" cost="150" />
+    <desirability>
+        <value value="14" />
+        <step value="2" />
+        <step_size value="-2" />
+        <range value="5" />
+    </desirability>
     <foundation policy="land" />
     <button group="statues" order="30" icon="Aesthetics\Statue" text_key="building.large_statue.name" />
     <sound id="aqueduct" />

@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fountain">
     <identity name_key="building.fountain.name" />
-    <model size="1" cost="15" desirability_value="0" desirability_step="0" desirability_step_size="0" desirability_range="0" laborers="4" />
+    <model size="1" cost="15" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
     <foundation policy="land" />
     <button group="water" order="40" icon="fountain" text_key="building.fountain.name" />
     <sound id="fountain" />

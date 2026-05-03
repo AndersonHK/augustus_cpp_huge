@@ -173,7 +173,9 @@ int building_runtime::uses_new_graphics() const
 int building_runtime::building_state_supports_native_graphics() const
 {
     return building_ &&
-        (building_->state == BUILDING_STATE_IN_USE || building_->state == BUILDING_STATE_MOTHBALLED);
+        (building_->state == BUILDING_STATE_CREATED ||
+            building_->state == BUILDING_STATE_IN_USE ||
+            building_->state == BUILDING_STATE_MOTHBALLED);
 }
 
 void building_runtime::invalidate_graphics_cache()
@@ -218,6 +220,14 @@ const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_gra
 {
     if (!uses_new_graphics()) {
         return nullptr;
+    }
+    if (definition_->has_phased_construction() &&
+        building_->monument.phase != MONUMENT_FINISHED &&
+        building_->monument.phase >= MONUMENT_START) {
+        if (const building_type_registry_impl::GraphicsTarget *target =
+            definition_->resolve_construction_graphics_target(building_->monument.phase)) {
+            return target;
+        }
     }
     return definition_->resolve_graphics_target(*building_);
 }

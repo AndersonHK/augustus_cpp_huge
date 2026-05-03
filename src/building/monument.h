@@ -3,6 +3,10 @@
 #include "building/building.h"
 #include "map/road_access.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MONUMENT_FINISHED -1
 #define MONUMENT_START 1
 #define MARS_OFFERING_FREQUENCY 16
@@ -63,3 +67,7 @@ void building_monument_delivery_load_state(buffer *list, int includes_array_size
 int building_monument_is_construction_halted(building *b);
 int building_monument_toggle_construction_halted(building *b);
 int building_monument_is_unfinished_monument(const building *b);
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="armoury">
     <identity name_key="building.armoury.name" />
-    <model size="2" cost="50" desirability_value="-5" desirability_step="1" desirability_step_size="1" desirability_range="4" laborers="6" />
+    <model size="2" cost="50" />
+    <desirability>
+        <value value="-5" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="4" />
+    </desirability>
     <foundation policy="land" />
     <button group="security" order="50" icon="Military\Armoury_OFF_C" text_key="building.armoury.name" />
     <sound id="armoury" />

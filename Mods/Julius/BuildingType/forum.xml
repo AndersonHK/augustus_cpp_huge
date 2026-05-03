@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="forum">
     <identity name_key="building.forum.name" />
-    <model size="2" cost="75" desirability_value="3" desirability_step="2" desirability_step_size="-1" desirability_range="2" laborers="6" />
+    <model size="2" cost="75" />
+    <desirability>
+        <value value="3" />
+        <step value="2" />
+        <step_size value="-1" />
+        <range value="2" />
+    </desirability>
     <foundation policy="land" />
     <button group="administration" order="20" icon="Admin_Logistics\Forum" text_key="building.forum.name" />
     <sound id="forum" />
@@ -12,6 +18,7 @@
         </default>
     </graphics>
     <labor>
+        <employees count="6" />
         <labor_seeker>
             <method value="houses_spawn_if_below" />
             <amount value="50" />

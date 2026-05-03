@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="reservoir">
     <identity name_key="building.reservoir.name" />
-    <model size="3" cost="80" desirability_value="-6" desirability_step="1" desirability_step_size="2" desirability_range="3" laborers="0" />
+    <model size="3" cost="80" />
+    <desirability>
+        <value value="-6" />
+        <step value="1" />
+        <step_size value="2" />
+        <range value="3" />
+    </desirability>
     <foundation policy="land" />
     <button group="water" order="10" icon="Admin_Logistics\Reservoir" text_key="building.reservoir.name" />
     <sound id="reservoir" />

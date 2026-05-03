@@ -57,6 +57,7 @@ constexpr LegacyBuildingTypeTextId XML_OWNED_BUILDING_TYPE_IDS[] = {
     {BUILDING_MARKET, "market"},
     {BUILDING_OIL_WORKSHOP, "oil_workshop"},
     {BUILDING_OLIVE_FARM, "olive_farm"},
+    {BUILDING_ORACLE, "oracle"},
     {BUILDING_PANTHEON, "pantheon"},
     {BUILDING_PIG_FARM, "pig_farm"},
     {BUILDING_POTTERY_WORKSHOP, "pottery_workshop"},

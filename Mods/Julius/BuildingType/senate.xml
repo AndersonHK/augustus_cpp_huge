@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="senate">
     <identity name_key="building.senate.name" />
-    <model size="5" cost="400" desirability_value="8" desirability_step="2" desirability_step_size="-1" desirability_range="8" laborers="30" />
+    <model size="5" cost="400" />
+    <desirability>
+        <value value="8" />
+        <step value="2" />
+        <step_size value="-1" />
+        <range value="8" />
+    </desirability>
     <foundation policy="land" />
     <button group="administration" order="10" icon="Admin_Logistics\Senate" text_key="building.senate.name" />
     <sound id="senate" />
@@ -16,6 +22,7 @@
         </variant>
     </graphics>
     <labor>
+        <employees count="30" />
         <labor_seeker>
             <method value="houses_spawn_if_below" />
             <amount value="50" />

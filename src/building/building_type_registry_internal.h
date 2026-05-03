@@ -12,7 +12,8 @@ namespace building_type_registry_impl {
 enum class GraphicsParseTargetScope {
     None,
     Default,
-    Variant
+    Variant,
+    ConstructionPhase
 };
 
 struct ParseState {
@@ -26,7 +27,14 @@ struct ParseState {
     int saw_sound = 0;
     int saw_event_data = 0;
     int saw_flags = 0;
+    int saw_desirability = 0;
+    int saw_desirability_value = 0;
+    int saw_desirability_step = 0;
+    int saw_desirability_step_size = 0;
+    int saw_desirability_range = 0;
     int saw_graphic = 0;
+    int saw_construction = 0;
+    int saw_construction_phase_graphics = 0;
     int saw_labor = 0;
     int saw_labor_employees = 0;
     int saw_labor_seeker = 0;
@@ -41,7 +49,10 @@ struct ParseState {
     int saw_provider_water_access_requirement = 0;
     int parsing_state = 0;
     int parsing_provider_water_access = 0;
+    int parsing_desirability = 0;
     int parsing_graphics = 0;
+    int parsing_construction = 0;
+    int parsing_construction_phase = 0;
     int parsing_labor = 0;
     int parsing_labor_seeker = 0;
     int parsing_storages = 0;

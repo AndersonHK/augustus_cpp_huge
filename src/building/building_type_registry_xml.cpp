@@ -17,6 +17,7 @@ extern "C" {
 #include "core/xml_parser.h"
 #include "figure/action.h"
 #include "game/resource.h"
+#include "scenario/property.h"
 #include "sound/city.h"
 }
 
@@ -643,6 +644,14 @@ static int parse_model()
         return 0;
     }
 
+    if (xml_parser_has_attribute("desirability_value") || xml_parser_has_attribute("desirability_step") ||
+        xml_parser_has_attribute("desirability_step_size") || xml_parser_has_attribute("desirability_range") ||
+        xml_parser_has_attribute("laborers")) {
+        log_error("BuildingType model contains attributes that must be child groups", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
     int value = 0;
     int has_value = 0;
     int any_value = 0;
@@ -675,66 +684,6 @@ static int parse_model()
         any_value = 1;
     }
 
-    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "desirability_value", &value, &has_value)) {
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (has_value) {
-        g_parse_state.definition->set_model_desirability_value(value);
-        any_value = 1;
-    }
-
-    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "desirability_step", &value, &has_value)) {
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (has_value) {
-        if (value < 0) {
-            log_error("Unsupported BuildingType model desirability_step", g_parse_state.definition->attr(), value);
-            g_parse_state.error = 1;
-            return 0;
-        }
-        g_parse_state.definition->set_model_desirability_step(value);
-        any_value = 1;
-    }
-
-    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "desirability_step_size", &value, &has_value)) {
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (has_value) {
-        g_parse_state.definition->set_model_desirability_step_size(value);
-        any_value = 1;
-    }
-
-    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "desirability_range", &value, &has_value)) {
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (has_value) {
-        if (value < 0) {
-            log_error("Unsupported BuildingType model desirability_range", g_parse_state.definition->attr(), value);
-            g_parse_state.error = 1;
-            return 0;
-        }
-        g_parse_state.definition->set_model_desirability_range(value);
-        any_value = 1;
-    }
-
-    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "laborers", &value, &has_value)) {
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (has_value) {
-        if (value < 0) {
-            log_error("Unsupported BuildingType model laborers", g_parse_state.definition->attr(), value);
-            g_parse_state.error = 1;
-            return 0;
-        }
-        g_parse_state.definition->set_model_laborers(value);
-        any_value = 1;
-    }
-
     if (!any_value) {
         log_error("BuildingType model is missing supported attributes", g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
@@ -743,6 +692,97 @@ static int parse_model()
 
     g_parse_state.saw_model = 1;
     return 1;
+}
+
+static int parse_desirability()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered desirability definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_desirability) {
+        log_error("BuildingType xml contains duplicate desirability nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.saw_desirability = 1;
+    g_parse_state.parsing_desirability = 1;
+    g_parse_state.saw_desirability_value = 0;
+    g_parse_state.saw_desirability_step = 0;
+    g_parse_state.saw_desirability_step_size = 0;
+    g_parse_state.saw_desirability_range = 0;
+    return 1;
+}
+
+static void finish_desirability()
+{
+    if (!g_parse_state.parsing_desirability) {
+        return;
+    }
+    if (!g_parse_state.saw_desirability_value || !g_parse_state.saw_desirability_step ||
+        !g_parse_state.saw_desirability_step_size || !g_parse_state.saw_desirability_range) {
+        log_error("BuildingType desirability is missing required child nodes", g_parse_state.definition ? g_parse_state.definition->attr() : 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_desirability = 0;
+}
+
+static int parse_desirability_numeric_child(const char *node_name, int *saw_node, int allow_negative,
+    void (BuildingType::*setter)(int))
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_desirability) {
+        log_error("Encountered desirability child outside desirability node", node_name, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (*saw_node) {
+        log_error("BuildingType desirability contains duplicate child nodes", node_name, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("value")) {
+        log_error("BuildingType desirability child is missing required attribute 'value'", node_name, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *value_text = xml_parser_get_attribute_string("value");
+    int value = 0;
+    if (!xml_value::parse_int_strict(value_text, &value) || (!allow_negative && value < 0)) {
+        log_error("Unsupported BuildingType desirability numeric value", node_name, value);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    (g_parse_state.definition.get()->*setter)(value);
+    *saw_node = 1;
+    return 1;
+}
+
+static int parse_desirability_value()
+{
+    return parse_desirability_numeric_child("value", &g_parse_state.saw_desirability_value, 1,
+        &BuildingType::set_model_desirability_value);
+}
+
+static int parse_desirability_step()
+{
+    return parse_desirability_numeric_child("step", &g_parse_state.saw_desirability_step, 0,
+        &BuildingType::set_model_desirability_step);
+}
+
+static int parse_desirability_step_size()
+{
+    return parse_desirability_numeric_child("step_size", &g_parse_state.saw_desirability_step_size, 1,
+        &BuildingType::set_model_desirability_step_size);
+}
+
+static int parse_desirability_range()
+{
+    return parse_desirability_numeric_child("range", &g_parse_state.saw_desirability_range, 0,
+        &BuildingType::set_model_desirability_range);
 }
 
 static int parse_foundation()
@@ -1055,6 +1095,19 @@ static int parse_graphics()
         g_parse_state.error = 1;
         return 0;
     }
+    if (g_parse_state.parsing_construction_phase) {
+        if (g_parse_state.saw_construction_phase_graphics) {
+            log_error("BuildingType construction phase contains duplicate graphics nodes", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.saw_construction_phase_graphics = 1;
+        g_parse_state.parsing_graphics = 1;
+        g_parse_state.has_current_graphics_variant = 0;
+        g_parse_state.current_graphics_variant_index = 0;
+        g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::ConstructionPhase;
+        return 1;
+    }
     if (g_parse_state.saw_graphic) {
         log_error("BuildingType xml contains duplicate graphics nodes", g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
@@ -1069,13 +1122,21 @@ static int parse_graphics()
     return 1;
 }
 
+static resource_type parse_construction_requirement_type_name(const char *name);
+
 static void finish_graphics()
 {
     if (!g_parse_state.parsing_graphics) {
         return;
     }
 
-    if (!g_parse_state.definition->graphics().has_default_node()) {
+    if (g_parse_state.current_graphics_target_scope == GraphicsParseTargetScope::ConstructionPhase) {
+        ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
+        if (!phase || !phase->graphics.has_path()) {
+            log_error("BuildingType construction phase graphics is missing required child node 'path'", 0, 0);
+            g_parse_state.error = 1;
+        }
+    } else if (!g_parse_state.definition->graphics().has_default_node()) {
         log_error("BuildingType graphics is missing required child node 'default'", 0, 0);
         g_parse_state.error = 1;
     } else if (!g_parse_state.definition->graphics().default_target().has_path()) {
@@ -1087,6 +1148,156 @@ static void finish_graphics()
     g_parse_state.has_current_graphics_variant = 0;
     g_parse_state.current_graphics_variant_index = 0;
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::None;
+}
+
+static int parse_construction()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered construction definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_construction) {
+        log_error("BuildingType xml contains duplicate construction nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *mode_text = xml_parser_has_attribute("mode") ? xml_parser_get_attribute_string("mode") : "instant";
+    if (compare_text(mode_text, "instant") == 0) {
+        g_parse_state.definition->set_construction_mode(ConstructionMode::Instant);
+    } else if (compare_text(mode_text, "phased") == 0) {
+        g_parse_state.definition->set_construction_mode(ConstructionMode::Phased);
+    } else {
+        log_error("Unsupported BuildingType construction mode", mode_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int radius = 0;
+    int has_radius = 0;
+    if (!parse_optional_int_attribute("Unsupported BuildingType construction numeric attribute", "road_update_radius", &radius, &has_radius)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_radius) {
+        if (radius < 0) {
+            log_error("Unsupported BuildingType construction road_update_radius", g_parse_state.definition->attr(), radius);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_construction_road_update_radius(radius);
+    }
+
+    g_parse_state.saw_construction = 1;
+    g_parse_state.parsing_construction = 1;
+    return 1;
+}
+
+static void finish_construction()
+{
+    if (!g_parse_state.parsing_construction) {
+        return;
+    }
+    if (g_parse_state.definition->construction().is_phased() &&
+        g_parse_state.definition->construction().phase_count() <= 0) {
+        log_error("BuildingType phased construction is missing phase nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_construction = 0;
+}
+
+static int parse_construction_phase()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_construction) {
+        log_error("Encountered construction phase outside construction node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!g_parse_state.definition->construction().is_phased()) {
+        log_error("BuildingType construction phase is only supported in phased mode", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("index")) {
+        log_error("BuildingType construction phase is missing required attribute 'index'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int index = xml_parser_get_attribute_int("index");
+    int expected_index = g_parse_state.definition->construction().phase_count() + 1;
+    if (index != expected_index) {
+        log_error("BuildingType construction phase index must be contiguous from 1", g_parse_state.definition->attr(), index);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->add_construction_phase(index);
+    g_parse_state.parsing_construction_phase = 1;
+    g_parse_state.saw_construction_phase_graphics = 0;
+    return 1;
+}
+
+static void finish_construction_phase()
+{
+    if (!g_parse_state.parsing_construction_phase) {
+        return;
+    }
+    ConstructionPhase *phase = g_parse_state.definition ? g_parse_state.definition->last_construction_phase() : nullptr;
+    if (!g_parse_state.saw_construction_phase_graphics || !phase || !phase->graphics.has_path()) {
+        log_error("BuildingType construction phase is missing required graphics", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_construction_phase = 0;
+    g_parse_state.saw_construction_phase_graphics = 0;
+}
+
+static int parse_construction_requirement()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_construction) {
+        log_error("Encountered construction requirement outside construction node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("type") || !xml_parser_has_attribute("amount")) {
+        log_error("BuildingType construction requirement is missing required attributes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *type_text = xml_parser_get_attribute_string("type");
+    resource_type resource = parse_construction_requirement_type_name(type_text);
+    if (resource == RESOURCE_NONE && compare_text(type_text, "architects") != 0) {
+        log_error("Unsupported BuildingType construction requirement type", type_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int amount = xml_parser_get_attribute_int("amount");
+    if (amount < 0) {
+        log_error("Unsupported BuildingType construction requirement amount", g_parse_state.definition->attr(), amount);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    if (g_parse_state.parsing_construction_phase) {
+        g_parse_state.definition->add_construction_requirement(resource, amount);
+        return 1;
+    }
+    if (g_parse_state.definition->construction().is_phased()) {
+        log_error("BuildingType phased construction requirements must be inside a phase", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (resource == RESOURCE_NONE) {
+        log_error("BuildingType instant construction requirement must be a resource", type_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->add_instant_construction_requirement(resource, amount);
+    return 1;
 }
 
 static int parse_graphics_default()
@@ -1184,6 +1395,17 @@ static int parse_graphics_path()
             variant->target.set_path(std::move(normalized_path));
             break;
         }
+        case GraphicsParseTargetScope::ConstructionPhase:
+        {
+            ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
+            if (!phase) {
+                log_error("Encountered construction phase graphics path without an active phase", 0, 0);
+                g_parse_state.error = 1;
+                return 0;
+            }
+            phase->graphics.set_path(std::move(normalized_path));
+            break;
+        }
         case GraphicsParseTargetScope::None:
         default:
             log_error("BuildingType graphics path must appear inside default or variant", 0, 0);
@@ -1228,6 +1450,17 @@ static int parse_graphics_image()
             variant->target.set_image(std::move(image_id));
             break;
         }
+        case GraphicsParseTargetScope::ConstructionPhase:
+        {
+            ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
+            if (!phase) {
+                log_error("Encountered construction phase graphics image without an active phase", 0, 0);
+                g_parse_state.error = 1;
+                return 0;
+            }
+            phase->graphics.set_image(std::move(image_id));
+            break;
+        }
         case GraphicsParseTargetScope::None:
         default:
             log_error("BuildingType graphics image must appear inside default or variant", 0, 0);
@@ -1258,6 +1491,34 @@ static resource_type parse_resource_type_name(const char *name)
         }
     }
     return RESOURCE_NONE;
+}
+
+static resource_type parse_construction_requirement_type_name(const char *name)
+{
+    if (name && compare_text(name, "architects") == 0) {
+        return RESOURCE_NONE;
+    }
+    return parse_resource_type_name(name);
+}
+
+static int parse_climate_name(const char *name, int *out_climate)
+{
+    if (!out_climate) {
+        return 0;
+    }
+    if (name && compare_text(name, "central") == 0) {
+        *out_climate = CLIMATE_CENTRAL;
+        return 1;
+    }
+    if (name && compare_text(name, "northern") == 0) {
+        *out_climate = CLIMATE_NORTHERN;
+        return 1;
+    }
+    if (name && compare_text(name, "desert") == 0) {
+        *out_climate = CLIMATE_DESERT;
+        return 1;
+    }
+    return 0;
 }
 
 static int parse_graphics_condition()
@@ -1312,6 +1573,37 @@ static int parse_graphics_condition()
             return 0;
         }
         condition.type = GraphicsConditionType::ResourcePositive;
+    } else if (type_text && compare_text(type_text, "climate") == 0) {
+        if (!xml_parser_has_attribute("value")) {
+            log_error("BuildingType graphics climate condition is missing required attribute 'value'", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        const char *climate_text = xml_parser_get_attribute_string("value");
+        if (!parse_climate_name(climate_text, &condition.climate)) {
+            log_error("Unsupported BuildingType graphics climate condition", climate_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        condition.type = GraphicsConditionType::Climate;
+    } else if (type_text && compare_text(type_text, "monument_upgrade") == 0) {
+        if (!xml_parser_has_attribute("value")) {
+            log_error("BuildingType graphics monument_upgrade condition is missing required attribute 'value'", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        int upgrade = 0;
+        const char *upgrade_text = xml_parser_get_attribute_string("value");
+        if (!upgrade_text || !xml_value::parse_int_strict(upgrade_text, &upgrade) || upgrade <= 0) {
+            log_error("Unsupported BuildingType graphics monument_upgrade condition value", upgrade_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        condition.type = GraphicsConditionType::MonumentUpgrade;
+        condition.monument_upgrade = upgrade;
     } else if (type_text && compare_text(type_text, "days1_positive") == 0) {
         condition.type = GraphicsConditionType::Days1Positive;
     } else if (type_text && compare_text(type_text, "days1_not_positive") == 0) {
@@ -2002,6 +2294,11 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "building", parse_building_root, nullptr, nullptr, nullptr },
     { "identity", parse_identity, nullptr, "building", nullptr },
     { "model", parse_model, nullptr, "building", nullptr },
+    { "desirability", parse_desirability, finish_desirability, "building", nullptr },
+    { "value", parse_desirability_value, nullptr, "desirability", nullptr },
+    { "step", parse_desirability_step, nullptr, "desirability", nullptr },
+    { "step_size", parse_desirability_step_size, nullptr, "desirability", nullptr },
+    { "range", parse_desirability_range, nullptr, "desirability", nullptr },
     { "foundation", parse_foundation, nullptr, "building", nullptr },
     { "button", parse_button, nullptr, "building", nullptr },
     { "menu", parse_button, nullptr, "building", nullptr },
@@ -2010,15 +2307,18 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "flags", parse_flags, nullptr, "building", nullptr },
     { "state", parse_state, finish_state, "building", nullptr },
     { "water_access", parse_provider_water_access, finish_provider_water_access, "building", nullptr },
-    { "graphics", parse_graphics, finish_graphics, "building", nullptr },
+    { "graphics", parse_graphics, finish_graphics, "building|phase", nullptr },
+    { "construction", parse_construction, finish_construction, "building", nullptr },
+    { "phase", parse_construction_phase, finish_construction_phase, "construction", nullptr },
     { "type", parse_provider_water_access_type_node, nullptr, "water_access", nullptr },
     { "range", parse_provider_water_access_range_node, nullptr, "water_access", nullptr },
     { "requirement", parse_provider_water_access_requirement_node, nullptr, "water_access", nullptr },
+    { "requirement", parse_construction_requirement, nullptr, "phase|construction", nullptr },
     { "node", parse_provider_water_access_node, nullptr, "water_access", nullptr },
     { "default", parse_graphics_default, finish_graphics_default, "graphics", nullptr },
     { "variant", parse_graphics_variant, finish_graphics_variant, "graphics", nullptr },
-    { "path", parse_graphics_path, nullptr, "default|variant", nullptr },
-    { "image", parse_graphics_image, nullptr, "default|variant", nullptr },
+    { "path", parse_graphics_path, nullptr, "default|variant|graphics", nullptr },
+    { "image", parse_graphics_image, nullptr, "default|variant|graphics", nullptr },
     { "condition", parse_graphics_condition, nullptr, "variant", nullptr },
     { "water_access", parse_state_water_access, nullptr, "state", nullptr },
     { "labor", parse_labor, finish_labor, "building", nullptr },
@@ -2133,31 +2433,42 @@ static int validate_graphics_target_entry(
 }
 
 // Input: one parsed BuildingType definition that may contain native runtime graphics targets.
-// Output: no return value; invalid graphics are cleared immediately so runtime rendering never sees unresolved assets.
-static void validate_runtime_graphics_or_clear(BuildingType &definition)
+// Output: true when all required targets resolve; invalid top-level graphics are cleared so runtime rendering falls back safely.
+static int validate_runtime_graphics_or_clear(BuildingType &definition)
 {
-    if (!definition.has_graphic()) {
-        return;
+    int valid = 1;
+    if (definition.has_graphic()) {
+        valid = validate_graphics_target_entry(definition, definition.graphics().default_target(), "default");
+
+        if (valid) {
+            const std::vector<GraphicsVariant> &variants = definition.graphics().variants();
+            for (size_t i = 0; i < variants.size(); i++) {
+                char scope[64];
+                snprintf(scope, sizeof(scope), "variant[%u]", static_cast<unsigned int>(i));
+                if (!validate_graphics_target_entry(definition, variants[i].target, scope)) {
+                    valid = 0;
+                    break;
+                }
+            }
+        }
+
+        if (!valid) {
+            definition.clear_graphics();
+        }
     }
 
-    int valid = 1;
-    valid = validate_graphics_target_entry(definition, definition.graphics().default_target(), "default");
-
-    if (valid) {
-        const std::vector<GraphicsVariant> &variants = definition.graphics().variants();
-        for (size_t i = 0; i < variants.size(); i++) {
+    if (definition.has_phased_construction()) {
+        const std::vector<ConstructionPhase> &phases = definition.construction().phases();
+        for (const ConstructionPhase &phase : phases) {
             char scope[64];
-            snprintf(scope, sizeof(scope), "variant[%u]", static_cast<unsigned int>(i));
-            if (!validate_graphics_target_entry(definition, variants[i].target, scope)) {
-                valid = 0;
-                break;
+            snprintf(scope, sizeof(scope), "construction.phase[%d]", phase.index);
+            if (!validate_graphics_target_entry(definition, phase.graphics, scope)) {
+                return 0;
             }
         }
     }
 
-    if (!valid) {
-        definition.clear_graphics();
-    }
+    return 1;
 }
 
 static int resolve_runtime_references(BuildingType &definition, const char *filename)
@@ -2223,7 +2534,8 @@ static int parse_definition_file(const char *filename)
     // Live bad XML should fail at load time instead of quietly registering incomplete building definitions.
     int has_supported_node = g_parse_state.saw_identity || g_parse_state.saw_model || g_parse_state.saw_foundation ||
         g_parse_state.saw_button || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
-        g_parse_state.saw_flags || g_parse_state.saw_graphic || g_parse_state.saw_spawn ||
+        g_parse_state.saw_flags || g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
+        g_parse_state.saw_construction || g_parse_state.saw_spawn ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods ||
         g_parse_state.saw_labor || g_parse_state.saw_state || g_parse_state.saw_provider_water_access;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
@@ -2234,7 +2546,9 @@ static int parse_definition_file(const char *filename)
         return 0;
     }
 
-    validate_runtime_graphics_or_clear(*g_parse_state.definition);
+    if (!validate_runtime_graphics_or_clear(*g_parse_state.definition)) {
+        return 0;
+    }
     if (!resolve_runtime_references(*g_parse_state.definition, filename)) {
         return 0;
     }

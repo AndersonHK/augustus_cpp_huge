@@ -44,6 +44,89 @@ int derive_original_height(const ResolvedImageEntry &entry)
     return entry.top_height + footprint_height / 2;
 }
 
+// Input: one symbolic layer definition.
+// Output: shared positioning/transform metadata copied into a prepared layer.
+void copy_prepared_layer_metadata(const RawLayerDef &raw_layer, PreparedLayer &out_layer)
+{
+    out_layer.x_offset = raw_layer.x_offset;
+    out_layer.y_offset = raw_layer.y_offset;
+    out_layer.invert = raw_layer.invert;
+    out_layer.rotate = raw_layer.rotate;
+    out_layer.mask = raw_layer.mask;
+}
+
+// Input: one candidate entry id.
+// Output: true when the merged group actually declares that image id without reporting a materialization error.
+int merged_group_has_entry(const std::string &group_key, xml_asset_source preferred_source, const std::string &image_id)
+{
+    const MergedImageGroup *merged = load_merged_group(group_key);
+    if (!merged) {
+        return 0;
+    }
+
+    size_t start_index = 0;
+    for (size_t i = 0; i < merged->source_chain.size(); i++) {
+        if (merged->source_chain[i] == preferred_source) {
+            start_index = i;
+            break;
+        }
+    }
+
+    for (size_t i = start_index; i < merged->source_chain.size(); i++) {
+        const ImageGroupDoc *source_doc = load_group_doc(group_key, merged->source_chain[i]);
+        if (source_doc && source_doc->entries.find(image_id) != source_doc->entries.end()) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Input: one extracted construction-layer reference whose shadow entry was not emitted explicitly.
+// Output: a prepared shadow layer derived from the matching extracted base image, or false when the pattern does not apply.
+int prepare_derived_construction_shadow_layer(
+    const std::string &target_group,
+    xml_asset_source source,
+    const RawLayerDef &raw_layer,
+    PreparedLayer &out_layer)
+{
+    static const char shadow_suffix[] = "_Shadow";
+    const std::string &image_id = raw_layer.reference.image_id;
+    if (raw_layer.part != PART_TOP ||
+        image_id.size() <= sizeof(shadow_suffix) - 1 ||
+        image_id.compare(image_id.size() - (sizeof(shadow_suffix) - 1), sizeof(shadow_suffix) - 1, shadow_suffix) != 0) {
+        return 0;
+    }
+
+    const std::string base_image_id = image_id.substr(0, image_id.size() - (sizeof(shadow_suffix) - 1));
+    if (!merged_group_has_entry(target_group, source, base_image_id)) {
+        return 0;
+    }
+
+    const ResolvedImageEntry *base_entry = materialize_merged_entry(target_group, source, base_image_id);
+    if (!base_entry) {
+        return 0;
+    }
+
+    RasterSurface base_surface = surface_from_resolved_entry_part(*base_entry, PART_BOTH);
+    if (!raster_has_pixels(base_surface)) {
+        return 0;
+    }
+
+    const int shadow_size = std::min(base_surface.width, base_surface.height);
+    if (shadow_size <= 0) {
+        return 0;
+    }
+    out_layer.surface = crop_surface(base_surface, base_surface.width - shadow_size, 0, shadow_size, shadow_size);
+    if (!raster_has_pixels(out_layer.surface)) {
+        return 0;
+    }
+    if (raw_layer.mask == LAYER_MASK_GRAYSCALE) {
+        convert_to_grayscale(out_layer.surface);
+    }
+    copy_prepared_layer_metadata(raw_layer, out_layer);
+    return 1;
+}
+
 // Input: one source-local document and one raw PNG layer reference.
 // Output: a prepared layer containing a cropped raster plus transform metadata.
 int prepare_png_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_layer, PreparedLayer &out_layer)
@@ -69,11 +152,7 @@ int prepare_png_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_layer, Pr
         convert_to_grayscale(out_layer.surface);
     }
 
-    out_layer.x_offset = raw_layer.x_offset;
-    out_layer.y_offset = raw_layer.y_offset;
-    out_layer.invert = raw_layer.invert;
-    out_layer.rotate = raw_layer.rotate;
-    out_layer.mask = raw_layer.mask;
+    copy_prepared_layer_metadata(raw_layer, out_layer);
     return 1;
 }
 
@@ -86,14 +165,36 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
         return 0;
     }
 
-    const ResolvedImageEntry *resolved = materialize_merged_entry(target_group, doc.source, raw_layer.reference.image_id);
+    const int has_declared_entry = merged_group_has_entry(target_group, doc.source, raw_layer.reference.image_id);
+    const ResolvedImageEntry *resolved = has_declared_entry ?
+        materialize_merged_entry(target_group, doc.source, raw_layer.reference.image_id) :
+        nullptr;
     if (!resolved) {
+        if (!has_declared_entry &&
+            prepare_derived_construction_shadow_layer(target_group, doc.source, raw_layer, out_layer)) {
+            return 1;
+        }
         crash_context_report_error("Unable to resolve referenced image entry", raw_layer.reference.image_id.c_str());
         return 0;
     }
 
     out_layer.surface = surface_from_resolved_entry_part(*resolved, raw_layer.part);
     if (!raster_has_pixels(out_layer.surface)) {
+        if (raw_layer.part == PART_TOP && !resolved->has_top) {
+            RasterSurface full_surface = surface_from_resolved_entry_part(*resolved, PART_BOTH);
+            if (raster_has_pixels(full_surface) && (!resolved->is_isometric || resolved->tile_span <= 0)) {
+                out_layer.surface = std::move(full_surface);
+                if (raw_layer.mask == LAYER_MASK_GRAYSCALE) {
+                    convert_to_grayscale(out_layer.surface);
+                }
+                copy_prepared_layer_metadata(raw_layer, out_layer);
+                return 1;
+            }
+            // Extracted isometric composites can reference the top half of flat footprint-only tiles.
+            // That is an empty layer for real tile footprints, not an unresolved image.
+            copy_prepared_layer_metadata(raw_layer, out_layer);
+            return 1;
+        }
         crash_context_report_error("Unable to reconstruct referenced image layer", raw_layer.reference.image_id.c_str());
         return 0;
     }
@@ -101,11 +202,7 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
         convert_to_grayscale(out_layer.surface);
     }
 
-    out_layer.x_offset = raw_layer.x_offset;
-    out_layer.y_offset = raw_layer.y_offset;
-    out_layer.invert = raw_layer.invert;
-    out_layer.rotate = raw_layer.rotate;
-    out_layer.mask = raw_layer.mask;
+    copy_prepared_layer_metadata(raw_layer, out_layer);
     return 1;
 }
 
@@ -445,7 +542,14 @@ RasterSurface surface_from_resolved_entry_part(const ResolvedImageEntry &entry, 
         return result;
     }
 
-    if (!entry.is_isometric || entry.top_height <= 0) {
+    if (!entry.is_isometric) {
+        result.width = entry.split_width;
+        result.height = entry.split_height;
+        result.pixels = entry.split_pixels;
+        return result;
+    }
+
+    if (entry.top_height <= 0) {
         if (part == PART_TOP) {
             return result;
         }
