@@ -1,5 +1,4 @@
-#ifndef CORE_ENCODING_H
-#define CORE_ENCODING_H
+#pragma once
 
 #include "core/locale.h"
 
@@ -98,5 +97,3 @@ void encoding_utf8_to_utf16(const char *input, uint16_t *output);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CORE_ENCODING_H

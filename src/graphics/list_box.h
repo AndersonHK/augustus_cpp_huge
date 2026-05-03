@@ -1,5 +1,4 @@
-#ifndef LIST_BOX_H
-#define LIST_BOX_H
+#pragma once
 
 #include "graphics/scrollbar.h"
 #include "graphics/tooltip.h"
@@ -51,5 +50,3 @@ void list_box_select_index(list_box_type *list_box, unsigned int index);
 unsigned int list_box_get_selected_index(const list_box_type *list_box);
 void list_box_request_refresh(list_box_type *list_box);
 int list_box_get_scroll_position(const list_box_type *list_box);
-
-#endif // LIST_BOX_H

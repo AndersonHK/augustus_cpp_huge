@@ -1,5 +1,4 @@
-#ifndef SCENARIO_MAP_H
-#define SCENARIO_MAP_H
+#pragma once
 
 #include "map/point.h"
 
@@ -28,5 +27,3 @@ void scenario_map_foreach_fishing_point(void (*callback)(int x, int y));
 int scenario_map_closest_fishing_point(int x, int y, map_point *fish);
 
 int scenario_map_has_flotsam(void);
-
-#endif // SCENARIO_MAP_H

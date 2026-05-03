@@ -1,5 +1,4 @@
-#ifndef SCENARIO_EDITOR_H
-#define SCENARIO_EDITOR_H
+#pragma once
 
 #include <stdint.h>
 
@@ -65,5 +64,3 @@ void scenario_editor_set_custom_message_introduction(int id);
 
 int scenario_editor_get_custom_victory_message(void);
 void scenario_editor_set_custom_victory_message(int id);
-
-#endif // SCENARIO_EDITOR_H

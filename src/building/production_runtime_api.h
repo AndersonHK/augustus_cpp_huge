@@ -1,5 +1,4 @@
-#ifndef BUILDING_PRODUCTION_RUNTIME_API_H
-#define BUILDING_PRODUCTION_RUNTIME_API_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,5 +25,3 @@ void production_runtime_bless_industry(building *b);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_PRODUCTION_RUNTIME_API_H

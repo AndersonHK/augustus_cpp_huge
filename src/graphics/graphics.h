@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_GRAPHICS_H
-#define GRAPHICS_GRAPHICS_H
+#pragma once
 
 #include "graphics/color.h"
 
@@ -31,5 +30,3 @@ void graphics_draw_from_image(int image_id, int x, int y);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_GRAPHICS_H

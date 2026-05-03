@@ -1,5 +1,4 @@
-#ifndef CORE_DEBUG_H
-#define CORE_DEBUG_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,5 +50,3 @@ void log_repeated_messages(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CORE_DEBUG_H

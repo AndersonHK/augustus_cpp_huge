@@ -1,173 +1,76 @@
 # Walker Pathing Runtime
 
-This note maps the native walker pathing work so future sessions can find the
-runtime, XML, save data, and compatibility rules without rediscovering them.
+This note maps the native walker pathing work so future sessions can find the runtime, XML, save data, and compatibility rules without rediscovering them.
 
 ## Entry Points
 
 - `Mods/Vespasian/FigureType/_README.md` documents the XML contract.
 - `src/figure/figure_type_registry.cpp` loads and validates native FigureType XML.
-- `src/figure/figure_runtime.cpp` owns native controllers and smart direction choice.
-- `src/figure/movement.cpp` keeps the legacy roaming movement loop and calls the native pathing hook.
-- `src/figuretype/maintenance.cpp` keeps only Worker behavior plus retired Engineer/Prefect action-table guards.
+- `src/figure/PathingMode.h/.cpp` owns pathing mode metadata such as road, service-effect, and venue-target requirements.
+- `src/figure/figure_runtime.cpp` owns native profile binding, lifecycle rebinding, the C facade, and smart direction choice.
+- `src/figure/figure_runtime_native.h/.cpp` owns native controller classes, venue ranking, and controller factory dispatch.
+- `src/building/building_runtime.cpp` creates profiled native figures for BuildingType spawns.
+- `src/building/local_workforce.h/.cpp` owns local workforce targeting and save data.
+- `src/map/routing_distance.h/.cpp` wraps routing-grid distance checks for walker destination selection.
 - `src/map/road_service_history.h/.cpp` owns per-road, per-effect visit stamps.
-- `src/building/local_workforce.h/.cpp` owns local workforce labor-seeker targeting and save data.
 - `src/game/file_io.cpp` saves and loads road service history.
-- `src/game/save_version.h` records the save-version boundary for road service history.
+- `src/game/save_version.h` records save-version boundaries.
 
 ## XML Contract
 
-Native service walkers use:
+Native figures are profile-based:
 
-- `<movement terrain_usage="roads" roam_ticks="N" max_roam_length="N" return_mode="..." />`
-- `<pathing mode="vanilla_roaming" />`
-- `<pathing mode="smart_service" effect="damage_risk|fire_risk|barber|bathhouse|school|academy|library|labor|religion_ceres|religion_neptune|religion_mercury|religion_mars|religion_venus|religion_pantheon|religion_owner" />`
-- `<pathing mode="nearest_unemployed" />`
+- `<profiles default="...">`
+- `<profile id="...">`
+- `<native class="roaming_service|engineer_service|prefect_service|entertainment_venue_seeker|entertainment_service" />`
+- `<owner slot="none|primary|secondary|quaternary" building="any|..." state="any|in_use|in_use_or_mothballed" />`
+- `<movement terrain_usage="any|roads|roads_highway|prefer_roads|prefer_roads_highway" roam_ticks="N" max_roam_length="N" return_mode="return_to_owner_road|die_at_limit|none" />`
+- `<pathing mode="vanilla_roaming|smart_service|nearest_unemployed|venue_seeker" effect="..." />`
+- `<graphics image_group="..." max_image_offset="N" />` at figure level
 
-`smart_service` is only valid for road-only walkers with a non-none effect. Loader
-validation should fail early through crash-context reporting if either condition
-is missing.
-`nearest_unemployed` is a road-only policy that targets the closest reachable
-house with locally unemployed residents unless the figure already has an explicit
-destination.
+BuildingType `<spawn>` nodes choose a profile with `profile="..."`. This is the narrow handoff from building policy into figure behavior: after creation, the figure's bound profile owns pathing and road-history effect selection.
 
-For tile-scale and timescale conversion, read
-`docs/tile_scale_and_walker_timescale.md`. `max_roam_length` is a tick budget,
-not a literal tile count; at normal road speed, physical tiles before the limit
-are `max_roam_length * roam_ticks / 15`. For historical tuning context around
-walking-city service ranges, read `docs/preindustrial_walking_service_ranges.md`.
-Treat `max_roam_length` as a relative tolerance tier: short
-child/frequent-service trips, ordinary adult neighborhood service trips, and
-long public-safety patrols should not all share the same range.
+BuildingType `<spawn_group existing_figure="...">` is the group-level guard for legacy tracked slots. Single-type groups behave like the old hardcoded checks; comma-list groups such as `actor,gladiator` are for venues where several profile-specific spawns share one legacy `figure_id` slot and must block one another.
+
+`PathingMode` objects own mode requirements. Current native pathing modes set `requires_road`, so they require `terrain_usage="roads"` or `terrain_usage="roads_highway"`. Off-road-capable modes such as `any`, `prefer_roads`, and `prefer_roads_highway` are rejected during XML load because the roaming loop can only choose among adjacent road/path tiles.
+
+`smart_service` is only valid for road-only walkers with a non-none effect. `nearest_unemployed` is a road-only policy used by labor seeker profiles. `venue_seeker` uses profile venue targets to pick a destination venue.
 
 ## Runtime Contract
 
-The legacy roaming loop remains the source of tile movement. Native runtime code
-only gets a chance to override the chosen direction after vanilla logic has found
-a valid forward direction.
+The legacy roaming loop remains the source of tile movement. Native runtime code only overrides the chosen direction after vanilla logic has found a valid forward direction.
 
-`smart_service` applies only when there is more than one valid outgoing road. It
-chooses the candidate road tile with the lowest visit stamp for that effect.
-Equal stamps fall back to the vanilla-preferred direction so old behavior stays
-stable where history gives no preference. `vanilla_roaming` ignores service
-history when choosing directions, but if an effect is configured it still records
-road visits so vanilla walkers can contribute pathing telemetry.
+Roaming access follows the figure profile's movement type. `roads` walkers consider roads and access ramps; `roads_highway` walkers also consider highways. Building road-access checks remain separate and still answer whether the building itself touches ordinary road access.
 
-Priests use `religion_owner` instead of a fixed saved effect id. The runtime
-derives the concrete service effect from the owning temple type. Pantheon priests
-record the Pantheon effect and all five individual god effects on each road tile,
-so Pantheon coverage can inform later god-specific pathing without merging all
-temple walkers into one generic religion bucket.
+`smart_service` applies only when there is more than one valid outgoing road. It chooses the candidate road tile with the lowest visit stamp for the profile's effect. Equal stamps fall back to the vanilla-preferred direction so old behavior stays stable where history gives no preference.
 
-Labor seekers also derive service meaning from their owner. BuildingType
-`method="none"` is an explicit no-seeker policy for labor-using buildings that
-should not create labor seekers. BuildingType `method="houses_spawn_if_below"`
-and `method="houses_generate_if_below"` keep the vanilla roaming/coverage
-callback. BuildingType `method="workforce"` uses a
-targeted local workforce trip through the generic `nearest_unemployed` policy:
-acquisition seekers path from the workplace road to the closest reachable house
-with unemployed local workers, and validation seekers periodically revisit an
-assigned worker-source house by handing the figure an explicit target. The
-workplace only creates the seeker; the figure runtime owns movement and target
-selection when the seeker runs. Partially employed workplaces keep acquisition
-as the first priority, but if they cannot launch another acquisition seeker they
-may validate existing worker sources. Both searches cap candidates at the loaded labor seeker's
-`max_roam_length`; houses beyond that road-routing distance are ignored. If a
-validation seeker cannot path to its assigned source, that source allocation is
-released. Local workforce allocations are labor-access records only; actual
-`num_workers` still comes from the city-wide labor pool.
+Priests use explicit profiles such as `ceres_service`, `mars_service`, and `pantheon_service`. Pantheon records the Pantheon effect and all five individual god effects on each road tile, matching the previous owner-derived behavior without a special XML effect.
 
-Temporary tuning decision: Vespasian FigureType walkers should use a
-`max_roam_length` roughly 50% larger than their Augustus counterparts until
-walker ranges are deliberately tuned. Current examples are ordinary adult
-service walkers at Augustus `384` / Vespasian `576`, school children at
-`192` / `288`, and engineer/prefect patrols at `640` / `960`.
+Entertainment training buildings spawn `venue_seeker` profiles. `show_duration` values are active calendar days: a venue showing 53 days left should expire after 53 active days, not 53 legacy half-days. Savegames at or before `SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS` migrate stored venue counters from the old half-day units by doubling them on load. Venue ranking uses the legacy weighted score, `2 * show_days + route_distance`, where `route_distance` comes from the same routing grid the walker will follow. Venue service walkers share the generic `entertainment_service` native class; separate profiles such as `theater_service` and `arena_service` carry the exact `<pathing mode="smart_service" effect="...">` value. Mixed venues such as amphitheaters and arenas rely on the parent BuildingType `existing_figure` list to keep alternate service walkers mutually exclusive while the FigureType profile owns the actual service effect.
 
-Smart service history records any tile the citizen routing layer treats as road,
-including traversable granary interior road tiles that may not carry the raw
-`TERRAIN_ROAD` flag. This keeps smart walkers from repeatedly preferring
-untracked granary pass-through tiles as permanently stale roads.
+Labor seekers use explicit `acquisition` and `validation` profiles. The trip flag remains in `collecting_item_id` for save compatibility, but new spawns bind the profile directly and the runtime owns target selection where practical.
 
-Prefect emergency behavior is separate from smart roaming. Fire and enemy
-response states keep using targeted movement and should not be redirected by
-road recency.
-
-Engineer and Prefect legacy switch bodies were retired after the native
-controllers covered their normal, emergency, attack, and corpse states. The
-action table still has guard callbacks, but those callbacks should not be part
-of normal gameplay.
+Temporary tuning decision: Vespasian FigureType walkers should use a `max_roam_length` roughly 50% larger than Augustus until walker range tuning is revisited.
 
 ## Road Service History
 
-Road service history is pathing telemetry only. It does not provide service,
-reset building risk, affect coverage overlays, or change building state.
+Road service history is pathing telemetry only. It does not provide service, reset building risk, affect coverage overlays, or change building state.
 
-Each effect has a full road grid of `uint32_t` visit stamps. Zero means "never
-visited" and is also the default for old saves and newly placed roads. The stamp
-uses game time plus one, preserving zero as the stale sentinel.
+Each effect has a full road grid of `uint32_t` visit stamps. Zero means "never visited" and is also the default for old saves and newly placed roads. The stamp uses game time plus one, preserving zero as the stale sentinel.
 
-Current effect ids are stored in `road_service_effect`. Treat those numeric ids
-as a save compatibility contract:
+Effect ids are save-compatible and append-only. New entertainment effects were appended after religion:
 
-- Add new effects only at the end.
-- Do not reorder existing ids.
-- Do not reuse removed ids for a different meaning.
-- Keep removed meanings as reserved/deprecated slots.
-- If a service meaning changes enough that old recency would mislead pathing,
-  either migrate that id explicitly or clear just that effect on load.
+- `entertainment_theater`
+- `entertainment_amphitheater_actor`
+- `entertainment_amphitheater_gladiator`
+- `entertainment_arena_gladiator`
+- `entertainment_arena_lion`
+- `entertainment_colosseum_gladiator`
+- `entertainment_colosseum_lion`
+- `entertainment_hippodrome`
 
-Religion effects were appended after the original maintenance/culture effects:
-`religion_ceres`, `religion_neptune`, `religion_mercury`, `religion_mars`,
-`religion_venus`, and `religion_pantheon`. `religion_owner` is XML-only resolver
-metadata and is not serialized as its own road-service effect id.
-
-The current save format writes grids in ordinal enum order. If frequent effect
-schema changes become likely, move the payload to explicit `(effect_id, grid)`
-records before doing removals or reordering.
-
-Loading a save from before road service history existed is expected compatibility
-behavior. It should clear the history and emit a concise `Info` report with no
-context scope. Invalid or unsupported road service history is recoverable but
-unintended, so it remains a `Warning` while still resetting the history to zero
-and appending neutral context in the same log entry.
-
-## Local Workforce Save Data
-
-Local workforce allocations are stored as a separate dynamic save piece. The
-payload writes a format version, record count, then
-`{ workplace_id, house_id, workers }` records. Saves older than
-`SAVE_GAME_LAST_NO_LOCAL_WORKFORCE` start with an empty allocation table and
-rebuild house counters from current residents.
-
-Loading also revalidates saved allocation records against the current
-BuildingType XML. Dead buildings, houses that are no longer houses, workplaces
-that are no longer `method="workforce"`, and allocations above the current
-workplace employee requirement are removed.
-
-During play, building deletion/destruction removes any allocation where the
-building is either the workplace or worker-source house, clears runtime house
-counters, and kills in-flight workforce labor seekers tied to that building.
-
-House `local_workforce_assigned` and `local_workforce_unemployed` counters are
-runtime caches. They are rebuilt from allocation records on load and refreshed
-lazily when workforce seekers query a house. Resident-count decreases reconcile
-allocations immediately; labor-participation decreases are corrected lazily when
-a seeker next queries or validates the affected worker source.
-
-Local workforce buildings remain in city-wide category allocation. Their saved
-assignments only replace housing coverage as the building's labor-access score,
-so taking workers from a house does not reduce the city labor pool by itself.
-Loading an old save without local allocation records therefore leaves workforce
-buildings without local labor access until new workforce seekers assign
-residents, after which normal city labor allocation supplies `num_workers`.
+`SAVE_GAME_CURRENT_VERSION` is `0xb3`. `SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` is `0xb2`; saves at or below that version load existing grids and leave appended entertainment grids zeroed.
 
 ## Related Context
 
-Start new sessions with the four core Codex files, then read this file for walker
-runtime work and `Mods/Vespasian/FigureType/_README.md` for XML details.
-Use `docs/tile_scale_and_walker_timescale.md` and
-`docs/preindustrial_walking_service_ranges.md` when tuning `max_roam_length`
-values for figures/walkers.
-Renderer or overlay work that visualizes recency should also read
-`../codex_augustus_repo_map_memory.md` for renderer/widget chokepoints before
-touching `src/widget/city_with_overlay.cpp`.
+Start new sessions with the four core Codex files, then read this file for walker runtime work and `Mods/Vespasian/FigureType/_README.md` for XML details. Use `docs/tile_scale_and_walker_timescale.md` and `docs/preindustrial_walking_service_ranges.md` when tuning `max_roam_length`.

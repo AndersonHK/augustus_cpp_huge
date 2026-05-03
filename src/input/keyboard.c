@@ -44,13 +44,13 @@ static int get_current_char_bytes(void)
 static void set_viewport_to_start(void)
 {
     data.viewport_start = 0;
-    data.viewport_end = text_get_max_length_for_width(data.text, data.length, data.font, data.box_width, 0);
+    data.viewport_end = text_get_max_length_for_width(data.text, data.length, data.font, screen_ui_to_pixel(font_definition_for(data.font)->line_height), data.box_width, 0);
 }
 
 static void set_viewport_to_end(void)
 {
     data.viewport_end = data.length;
-    int maxlen = text_get_max_length_for_width(data.text, data.length, data.font, data.box_width, 1);
+    int maxlen = text_get_max_length_for_width(data.text, data.length, data.font, screen_ui_to_pixel(font_definition_for(data.font)->line_height), data.box_width, 1);
     data.viewport_start = data.length - maxlen;
 }
 
@@ -58,7 +58,7 @@ static void include_cursor_in_viewport(void)
 {
     // first check if we can keep the viewport
     int new_start = data.viewport_start;
-    int new_end = text_get_max_length_for_width(data.text, data.length - new_start, data.font, data.box_width, 0);
+    int new_end = text_get_max_length_for_width(data.text, data.length - new_start, data.font, screen_ui_to_pixel(font_definition_for(data.font)->line_height), data.box_width, 0);
     if (data.cursor_position >= new_start && data.cursor_position < new_end && new_start + new_end < data.length) {
         return;
     }
@@ -67,7 +67,7 @@ static void include_cursor_in_viewport(void)
         int maxlen = text_get_max_length_for_width(
             data.text + data.cursor_position,
             data.length - data.cursor_position,
-            data.font, data.box_width, 0);
+            data.font, screen_ui_to_pixel(font_definition_for(data.font)->line_height), data.box_width, 0);
         if (data.cursor_position + maxlen < data.length) {
             data.viewport_start = data.cursor_position;
             data.viewport_end = data.cursor_position + maxlen;
@@ -79,7 +79,7 @@ static void include_cursor_in_viewport(void)
         // move toward end
         int viewport_length = data.cursor_position + get_current_char_bytes();
         int maxlen = text_get_max_length_for_width(
-            data.text, viewport_length, data.font, data.box_width, 1);
+            data.text, viewport_length, data.font, screen_ui_to_pixel(font_definition_for(data.font)->line_height), data.box_width, 1);
         if (maxlen < viewport_length) {
             data.viewport_start = viewport_length - maxlen;
             data.viewport_end = viewport_length;

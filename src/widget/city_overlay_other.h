@@ -1,5 +1,4 @@
-#ifndef WIGET_CITY_OVERLAY_OTHER_H
-#define WIGET_CITY_OVERLAY_OTHER_H
+#pragma once
 
 #include "city_overlay.h"
 
@@ -28,5 +27,3 @@ const city_overlay *city_overlay_for_mothball(void);
 const city_overlay *city_overlay_for_logistics(void);
 
 const city_overlay *city_overlay_for_storages(void);
-
-#endif // WIGET_CITY_OVERLAY_OTHER_H

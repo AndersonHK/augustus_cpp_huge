@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_TOOLTIP_H
-#define GRAPHICS_TOOLTIP_H
+#pragma once
 
 #include "graphics/renderer.h"
 #include "input/mouse.h"
@@ -51,5 +50,3 @@ void tooltip_handle(const mouse *m, void (*func)(tooltip_context *));
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_TOOLTIP_H

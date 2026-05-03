@@ -99,14 +99,14 @@ static void draw_foreground(void)
             }
 
             translation_key key = data.list[i]->xml_attr.key;
-            text_draw(translation_for(key), 48, y_offset + 8, FONT_NORMAL_PLAIN, COLOR_BLACK);
+            text_draw(translation_for(key), 48, y_offset + 8, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
         }
 
         y_offset += DETAILS_ROW_HEIGHT;
     }
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_SELECT_CONDITION, 35, 30, BUTTON_WIDTH, FONT_LARGE_BLACK);
-    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_SELECT_CONDITION, 35, 30, BUTTON_WIDTH, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();

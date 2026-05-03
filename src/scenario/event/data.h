@@ -1,5 +1,4 @@
-#ifndef SCENARIO_EVENT_DATA_H
-#define SCENARIO_EVENT_DATA_H
+#pragma once
 
 #include "core/array.h"
 
@@ -180,5 +179,3 @@ typedef struct {
     int min_evaluation; //limits are inherited from xml parameters on adding to the array
     int max_evaluation; //they cannot be set afterwards, because they are dictated by the kind of number expected to be returned
 } scenario_formula_t;
-
-#endif // SCENARIO_EVENT_DATA_H

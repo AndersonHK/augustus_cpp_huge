@@ -83,14 +83,14 @@ static void draw_delete_read_button(int x, int y, int focused)
 {
     uint8_t delete_read_text[] = { 'x', 0 };
     button_border_draw(x, y, 20, 20, focused ? 1 : 0);
-    text_draw_centered(delete_read_text, x + 1, y + 4, 20, FONT_NORMAL_BLACK, 0);
+    text_draw_centered(delete_read_text, x + 1, y + 4, 20, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 
 static void draw_delete_common_button(int x, int y, int focused)
 {
     uint8_t delete_common_text[] = { 'x', 0 };
     button_border_draw(x, y, 20, 20, focused ? 1 : 0);
-    text_draw_centered(delete_common_text, x + 1, y + 4, 20, FONT_NORMAL_BLACK, 0);
+    text_draw_centered(delete_common_text, x + 1, y + 4, 20, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 
 static struct {
@@ -110,7 +110,7 @@ static void draw_message_type_button(int x, int y, int focused)
 {
     button_border_draw(x, y, generic_button_messages_type->width, generic_button_messages_type->height, focused ? 1 : 0);
     text_draw_centered(translation_for(TR_WINDOW_MESSAGE_LIST_SELECTED_ALL + data.type_displayed), x + 4, y + 4,
-        generic_button_messages_type->width, FONT_NORMAL_BLACK, 0);
+        generic_button_messages_type->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 
 static int review_briefing_button_should_be_active(void)
@@ -181,7 +181,7 @@ static void draw_background(void)
     data.text_height_blocks = data.height_blocks - 9;
 
     outer_panel_draw(0, 32, data.width_blocks, data.height_blocks);
-    lang_text_draw_centered(63, 0, 0, 48, BLOCK_SIZE * data.width_blocks, FONT_LARGE_BLACK);
+    lang_text_draw_centered(63, 0, 0, 48, BLOCK_SIZE * data.width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     inner_panel_draw(data.x_text, data.y_text, data.text_width_blocks, data.text_height_blocks);
 
     if (review_briefing_button_should_be_active()) {
@@ -189,15 +189,15 @@ static void draw_background(void)
     }
 
     if (city_message_count() > 0) {
-        lang_text_draw(63, 2, data.x_text + 42, data.y_text - 12, FONT_SMALL_PLAIN);
-        lang_text_draw(63, 3, data.x_text + 180, data.y_text - 12, FONT_SMALL_PLAIN);
+        lang_text_draw(63, 2, data.x_text + 42, data.y_text - 12, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        lang_text_draw(63, 3, data.x_text + 180, data.y_text - 12, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         lang_text_draw_multiline(63, 4,
             data.x_text + 55, data.y_text + 12 + BLOCK_SIZE * data.text_height_blocks,
-            BLOCK_SIZE * data.text_width_blocks - 64, FONT_NORMAL_BLACK);
+            BLOCK_SIZE * data.text_width_blocks - 64, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
         lang_text_draw_multiline(63, 1,
             data.x_text + 16, data.y_text + 80,
-            BLOCK_SIZE * data.text_width_blocks - 48, FONT_NORMAL_GREEN);
+            BLOCK_SIZE * data.text_width_blocks - 48, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
     graphics_reset_dialog();
 }
@@ -227,20 +227,20 @@ static void draw_messages(unsigned int total_messages)
         if (data.focus_button_id == i + 1) {
             font = FONT_NORMAL_RED;
         }
-        int width = lang_text_draw(25, msg->month, data.x_text + 42, data.y_text + 8 + 20 * i, font);
+        int width = lang_text_draw(25, msg->month, data.x_text + 42, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         lang_text_draw_year(msg->year,
-            data.x_text + 42 + width, data.y_text + 8 + 20 * i, font);
+            data.x_text + 42 + width, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         if (msg->message_type != MESSAGE_CUSTOM_MESSAGE && lang_msg) {
             text_draw(
                 lang_msg->title.text,
-                data.x_text + 180, data.y_text + 8 + 20 * i, font, 0);
+                data.x_text + 180, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         } else {
             custom_message_t *custom_msg = custom_messages_get(msg->param1);
             if (custom_msg->title) {
                 text_draw_ellipsized(custom_msg->title->text, data.x_text + 180, data.y_text + 8 + 20 * i,
-                    data.text_width_blocks * BLOCK_SIZE - 180, font, 0);
+                    data.text_width_blocks * BLOCK_SIZE - 180, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
             } else {
-                text_draw(translation_for(TR_ACTION_TYPE_A_MESSAGE), data.x_text + 180, data.y_text + 8 + 20 * i, font, 0);
+                text_draw(translation_for(TR_ACTION_TYPE_A_MESSAGE), data.x_text + 180, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
             }
         }
     }

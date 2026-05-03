@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_COMPLEX_BUTTON_H
-#define GRAPHICS_COMPLEX_BUTTON_H
+#pragma once
 
 #include "graphics/tooltip.h"
 #include "graphics/image.h"
@@ -66,5 +65,3 @@ int complex_button_array_handle_mouse(const mouse *m, complex_button *buttons, u
 int complex_button_handle_tooltip(const complex_button *button, tooltip_context *c);
 
 int complex_button_array_handle_tooltip(const complex_button *buttons, unsigned int num_buttons, tooltip_context *c);
-
-#endif // GRAPHICS_COMPLEX_BUTTON_H

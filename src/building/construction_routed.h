@@ -1,5 +1,4 @@
-#ifndef BUILDING_CONSTRUCTION_ROUTED_H
-#define BUILDING_CONSTRUCTION_ROUTED_H
+#pragma once
 
 #include "map/routing.h"
 
@@ -11,5 +10,3 @@ int building_construction_place_aqueduct(int x_start, int y_start, int x_end, in
 
 int building_construction_place_aqueduct_for_reservoir(
     int measure_only, int x_start, int y_start, int x_end, int y_end, int *items);
-
-#endif // BUILDING_CONSTRUCTION_ROUTED_H

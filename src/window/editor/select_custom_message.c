@@ -93,16 +93,16 @@ static void draw_foreground(void)
 
     outer_panel_draw(16, 16, 26, 30);
 
-    text_draw_centered(translation_for(TR_EDITOR_CUSTOM_MESSAGES_TITLE), 48, 58, BUTTON_WIDTH, FONT_LARGE_BLACK, 0);
-    text_draw_label_and_number(translation_for(TR_EDITOR_CUSTOM_MESSAGES_COUNT), data.total_messages, "", 48, 106, FONT_NORMAL_PLAIN, COLOR_BLACK);
+    text_draw_centered(translation_for(TR_EDITOR_CUSTOM_MESSAGES_TITLE), 48, 58, BUTTON_WIDTH, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_label_and_number(translation_for(TR_EDITOR_CUSTOM_MESSAGES_COUNT), data.total_messages, "", 48, 106, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
 
     int y_offset = MESSAGES_Y_OFFSET;
     for (unsigned int i = 0; i < MAX_VISIBLE_ROWS; i++) {
         if (data.list[i]) {
             large_label_draw(buttons[i].x, buttons[i].y, buttons[i].width / 16, data.focus_button_id == i ? 1 : 0);
 
-            text_draw_label_and_number(0, data.list[i]->id, "", 48, y_offset + 8, FONT_NORMAL_PLAIN, COLOR_BLACK);
-            text_draw_centered(data.list[i]->linked_uid->text, 100, y_offset + 8, 250, FONT_NORMAL_PLAIN, COLOR_BLACK);
+            text_draw_label_and_number(0, data.list[i]->id, "", 48, y_offset + 8, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
+            text_draw_centered(data.list[i]->linked_uid->text, 100, y_offset + 8, 250, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
 
             if (data.focus_button_id == (i + 1)) {
                 button_border_draw(48, y_offset, BUTTON_WIDTH, MESSAGES_ROW_HEIGHT, 1);
@@ -113,7 +113,7 @@ static void draw_foreground(void)
     }
 
     y_offset += MESSAGES_ROW_HEIGHT;
-    lang_text_draw_centered(13, 3, 48, y_offset, BUTTON_WIDTH, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(13, 3, 48, y_offset, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();

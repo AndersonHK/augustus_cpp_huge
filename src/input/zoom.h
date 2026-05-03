@@ -1,5 +1,4 @@
-#ifndef INPUT_ZOOM_H
-#define INPUT_ZOOM_H
+#pragma once
 
 #include "city/view.h"
 #include "input/hotkey.h"
@@ -11,5 +10,3 @@ void zoom_update_touch(const touch *first, const touch *last, int scale);
 void zoom_end_touch(void);
 
 int zoom_update_value(int *zoom, int max, pixel_offset *camera_position);
-
-#endif // INPUT_ZOOM_H

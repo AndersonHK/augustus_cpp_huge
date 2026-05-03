@@ -1,5 +1,4 @@
-#ifndef BUILDING_MARKET_H
-#define BUILDING_MARKET_H
+#pragma once
 
 #include "building/distribution.h"
 
@@ -12,5 +11,3 @@ int building_market_get_needed_inventory(building *market, resource_storage_info
 resource_type building_market_fetch_inventory(building *market, resource_storage_info data[RESOURCE_MAX]);
 
 int building_market_get_storage_destination(building *market);
-
-#endif // BUILDING_MARKET_H

@@ -1,6 +1,3 @@
-#ifndef WINDOW_HOLD_FESTIVAL_H
-#define WINDOW_HOLD_FESTIVAL_H
+#pragma once
 
 void window_hold_festival_show(void);
-
-#endif // WINDOW_HOLD_FESTIVAL_H

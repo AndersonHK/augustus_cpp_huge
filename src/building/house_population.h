@@ -1,5 +1,4 @@
-#ifndef BUILDING_HOUSE_POPULATION_H
-#define BUILDING_HOUSE_POPULATION_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,7 +14,7 @@ extern "C" {
 int house_population_add_to_city(int num_people);
 
 /**
- * Removes people from the houses in the city, use for births and troop requests
+ * Removes people from the houses in the city, use for deaths and troop requests
  * @param num_people Number of people to remove
  * @return Number of people removed
  */
@@ -55,5 +54,3 @@ int house_population_get_capacity(building *house);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_HOUSE_POPULATION_H

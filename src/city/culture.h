@@ -1,5 +1,4 @@
-#ifndef CITY_CULTURE_H
-#define CITY_CULTURE_H
+#pragma once
 
 #include "city/constants.h"
 #include "core/buffer.h"
@@ -57,5 +56,3 @@ int city_culture_get_arena_person_coverage(void);
 void city_culture_save_state(buffer *buf);
 
 void city_culture_load_state(buffer *buf);
-
-#endif // CITY_CULTURE_H

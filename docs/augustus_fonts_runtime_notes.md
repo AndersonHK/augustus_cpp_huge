@@ -2,13 +2,13 @@
 
 ## Current state in the repo
 
-- The game does not currently ingest vector fonts.
-- The active text path is still sprite/image-font based in `src/graphics/font.cpp`.
-- Rich-text layout exists in `src/graphics/rich_text.c`, but it still depends on the font/image path.
+- The game can ingest vector fonts through `src/graphics/font_vector_runtime.cpp`.
+- Legacy encoded text is converted to UTF-8 at the text boundary, then measured and drawn by the vector runtime when it is active.
+- Rich-text layout exists in `src/graphics/rich_text.cpp` and now sends explicit integer pixel sizes to the vector text path.
 - UTF-8 already exists at the localization boundary in:
   - `src/translation/localization_runtime.cpp`
   - `src/core/encoding.c`
-- The renderer has moved substantially toward per-image rendering, but text is not yet on a `.ttf` / `.otf` runtime.
+- The renderer has moved substantially toward per-image rendering; vector glyphs are rendered as runtime textures and use the high-quality scaling policy.
 
 ## What files we would ship
 
@@ -83,9 +83,19 @@ The clean runtime path is:
 1. Load `.ttf` / `.otf` font files from `Mods/<mod>/Fonts/...`
 2. Resolve the requested font role by UI usage and locale/script
 3. Shape UTF-8 text into glyph runs
-4. Rasterize glyphs at the requested size
+4. Rasterize glyphs at the requested integer pixel size supplied by the caller
 5. Cache glyphs or text runs for reuse
 6. Submit the resulting glyph images through the renderer
+
+## Runtime size contract
+
+Text callers are responsible for deciding the final integer pixel size they want rendered. For UI text, that usually means applying the UI scale at the widget/source call site, for example:
+
+```c
+screen_ui_to_pixel(font_definition_for(font)->line_height)
+```
+
+The text layer should not infer a separate `scale` or size delta after the call. It receives the requested pixel size, rasterizes glyphs at that size, and returns layout widths in the active render domain. This keeps each text draw or measure call self-contained.
 
 ## Important implementation note
 
@@ -106,7 +116,8 @@ That makes the most practical mixed Latin stack:
 
 - `src/graphics/font.cpp`
 - `src/graphics/font.h`
-- `src/graphics/rich_text.c`
+- `src/graphics/font_vector_runtime.cpp`
+- `src/graphics/rich_text.cpp`
 - `src/graphics/text.cpp`
 - `src/translation/localization_runtime.cpp`
 - `src/core/encoding.c`

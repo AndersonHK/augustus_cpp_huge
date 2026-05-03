@@ -63,7 +63,7 @@ static int init(const uint8_t *custom_title, const uint8_t *custom_text,
         data.custom_text = lang_get_string(PROCEED_GROUP, PROCEED_TEXT);
     }
     if (data.checkbox_text) {
-        data.checkbox_start_width = 80 + (480 - text_get_width(data.checkbox_text, FONT_NORMAL_BLACK) - 30) / 2;
+        data.checkbox_start_width = 80 + (480 - text_get_width(data.checkbox_text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 30) / 2;
     }
     return 1;
 }
@@ -74,18 +74,18 @@ static void draw_background(void)
     graphics_in_dialog();
     outer_panel_draw(80, 80, 30, data.checkbox_text ? 11 : 10);
     if (data.custom_title) {
-        text_draw_centered(data.custom_title, 80, 100, 480, FONT_LARGE_BLACK, 0);
+        text_draw_centered(data.custom_title, 80, 100, 480, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     }
-    if (text_get_width(data.custom_text, FONT_NORMAL_BLACK) >= 420) {
-        text_draw_multiline(data.custom_text, 110, 140, 420, 0, FONT_NORMAL_BLACK, 0);
+    if (text_get_width(data.custom_text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) >= 420) {
+        text_draw_multiline(data.custom_text, 110, 140, 420, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
-        text_draw_centered(data.custom_text, 80, 140, 480, FONT_NORMAL_BLACK, 0);
+        text_draw_centered(data.custom_text, 80, 140, 480, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
     if (data.checkbox_text) {
         if (data.checked) {
-            text_draw(string_from_ascii("x"), data.checkbox_start_width + 6, 183, FONT_NORMAL_BLACK, 0);
+            text_draw(string_from_ascii("x"), data.checkbox_start_width + 6, 183, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
-        text_draw(data.checkbox_text, data.checkbox_start_width + 30, 184, FONT_NORMAL_BLACK, 0);
+        text_draw(data.checkbox_text, data.checkbox_start_width + 30, 184, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
     graphics_reset_dialog();
 }
@@ -99,7 +99,7 @@ static void draw_foreground(void)
     if (data.has_buttons) {
         image_buttons_draw(80, data.checkbox_text ? 110 : 90, buttons, 2);
     } else {
-        lang_text_draw_centered(13, 1, 80, 208, 480, FONT_NORMAL_BLACK);
+        lang_text_draw_centered(13, 1, 80, 208, 480, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
     graphics_reset_dialog();
 }

@@ -1,5 +1,4 @@
-#ifndef GAME_SPEED_H
-#define GAME_SPEED_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,5 +12,3 @@ int game_speed_get_elapsed_ticks(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GAME_SPEED_H

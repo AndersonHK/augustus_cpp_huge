@@ -1,5 +1,4 @@
-#ifndef WINDOW_POPUP_DIALOG_H
-#define WINDOW_POPUP_DIALOG_H
+#pragma once
 
 #include <stdint.h>
 
@@ -23,5 +22,3 @@ void window_popup_dialog_show(popup_dialog_type type,
 
 void window_popup_dialog_show_confirmation(const uint8_t *custom_title, const uint8_t *custom_text,
     const uint8_t *checkbox_text, void (*close_func)(int accepted, int checked));
-
-#endif // WINDOW_POPUP_DIALOG_H

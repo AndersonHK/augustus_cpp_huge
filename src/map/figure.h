@@ -1,5 +1,4 @@
-#ifndef MAP_FIGURE_H
-#define MAP_FIGURE_H
+#pragma once
 
 #include "core/buffer.h"
 #include "figure/figure.h"
@@ -83,5 +82,3 @@ void map_figure_clear(void);
 void map_figure_save_state(buffer *buf);
 
 void map_figure_load_state(buffer *buf);
-
-#endif // MAP_FIGURE_H

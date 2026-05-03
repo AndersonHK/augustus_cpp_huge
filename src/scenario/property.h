@@ -1,5 +1,4 @@
-#ifndef SCENARIO_PROPERTY_H
-#define SCENARIO_PROPERTY_H
+#pragma once
 
 #include <stdint.h>
 
@@ -72,5 +71,3 @@ int scenario_intro_message(void);
 int scenario_victory_message(void);
 
 void scenario_change_climate(scenario_climate climate);
-
-#endif // SCENARIO_PROPERTY_H

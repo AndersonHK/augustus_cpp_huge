@@ -1,7 +1,12 @@
-#ifndef MISSION_SELECTION_H
-#define MISSION_SELECTION_H
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void window_mission_selection_show(void);
 void window_mission_selection_show_again(void);
 
-#endif // MISSION_SELECTION_H
+#ifdef __cplusplus
+}
+#endif

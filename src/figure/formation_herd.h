@@ -1,6 +1,3 @@
-#ifndef FIGURE_FORMATION_HERD_H
-#define FIGURE_FORMATION_HERD_H
+#pragma once
 
 void formation_herd_update(void);
-
-#endif // FIGURE_FORMATION_HERD_H

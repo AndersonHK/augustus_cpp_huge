@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_LABEL_WIDGET_H
-#define GRAPHICS_LABEL_WIDGET_H
+#pragma once
 
 #include "graphics/ui_widget.h"
 
@@ -21,5 +20,3 @@ private:
     int width_blocks_;
     int type_;
 };
-
-#endif // GRAPHICS_LABEL_WIDGET_H

@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_RICH_TEXT_H
-#define GRAPHICS_RICH_TEXT_H
+#pragma once
 
 #include "graphics/color.h"
 #include "graphics/font.h"
@@ -22,6 +21,8 @@ extern "C" {
 int rich_text_init(
     const uint8_t *text, int x_text, int y_text, int width_blocks, int height_blocks, int adjust_width_on_no_scroll);
 
+void rich_text_set_scrollbar_bounds(int x, int y, int height, int scrollable_width);
+
 /**
  * Sets fonts to use
  * @param normal_font Normal text
@@ -30,6 +31,17 @@ int rich_text_init(
  * @param line_spacing Spacing between lines
  */
 void rich_text_set_fonts(font_t normal_font, font_t heading_font, font_t link_font, int line_spacing);
+
+/**
+ * Sets an integer logical-size delta for vector rich text surfaces.
+ * This avoids fractional bitmap scaling and keeps line spacing explicit.
+ */
+void rich_text_set_font_size_delta(int logical_size_delta);
+
+/**
+ * Sets extra blank lines inserted after rich text paragraph or line-break tags.
+ */
+void rich_text_set_paragraph_spacing(int lines);
 
 /**
  * Resets the text to the specified scroll position and forces recalculation of lines
@@ -111,5 +123,3 @@ int rich_text_get_line_height(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_RICH_TEXT_H

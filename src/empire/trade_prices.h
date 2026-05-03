@@ -1,5 +1,4 @@
-#ifndef EMPIRE_TRADE_PRICES_H
-#define EMPIRE_TRADE_PRICES_H
+#pragma once
 
 #include "core/buffer.h"
 #include "game/resource.h"
@@ -87,5 +86,3 @@ void trade_prices_save_state(buffer *buf);
  * @param buf Buffer
  */
 void trade_prices_load_state(buffer *buf);
-
-#endif // EMPIRE_TRADE_PRICES_H

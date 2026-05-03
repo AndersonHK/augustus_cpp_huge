@@ -249,15 +249,15 @@ static void draw_menu_buttons(void)
             if (menu_index > 0) {
                 text_draw_build_menu_with_index(translation_for(TR_AUTO_CYCLE_TEMPLES), menu_index % 10,
                 item_x_align + MENU_TEXT_X_OFFSET, data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, 0);
+                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else {
                 text_draw_centered(translation_for(TR_AUTO_CYCLE_TEMPLES),
                 item_x_align + MENU_TEXT_X_OFFSET, data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, 0);
+                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             }
             lang_text_draw_centered(18, 5 - building_construction_is_auto_cycling(), x_offset - MENU_ITEM_MONEY_OFFSET,
                 data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i, MENU_ITEM_MONEY_OFFSET,
-                FONT_NORMAL_GREEN);
+                FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             continue;
         }
 
@@ -276,10 +276,10 @@ static void draw_menu_buttons(void)
             text_draw_build_menu_with_index(lang_get_string(28, type), menu_index % 10,
                 item_x_align + MENU_TEXT_X_OFFSET,
                 data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, 0);
+                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         } else {
             lang_text_draw_centered(28, type, item_x_align + text_offset, data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                MENU_ITEM_WIDTH - (text_offset - MENU_TEXT_X_OFFSET), FONT_NORMAL_GREEN);
+                MENU_ITEM_WIDTH - (text_offset - MENU_TEXT_X_OFFSET), FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
 
         if (type == BUILDING_DRAGGABLE_RESERVOIR) {
@@ -289,7 +289,7 @@ static void draw_menu_buttons(void)
         if (cost) {
             text_draw_money(cost, x_offset - MENU_ITEM_MONEY_OFFSET,
                 data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                FONT_NORMAL_GREEN);
+                FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         } else {
             int image_id = assets_get_image_id("UI", "Expand Menu Icon");
             image_draw(image_id, item_x_align + MENU_ICON_X_OFFSET + 268,

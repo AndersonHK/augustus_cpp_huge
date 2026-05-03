@@ -35,6 +35,10 @@ Native timing uses the legacy throughput formula:
 
 Climate bonuses adjust the base output resource throughput for native production only.
 
+Production methods own the production-start policy for buildings that reference them. For labor access, a building using
+BuildingType `method="workforce"` reads local workforce access while global labor is disabled; legacy and global-labor
+buildings read the existing `houses_covered` coverage value.
+
 Notes:
 
 - Augustus and Vespasian both currently run at `50` ticks per in-game day
@@ -44,3 +48,5 @@ Current native vertical slice:
 
 - `farm` drives native farm progress, blessing/curse handling, and crop image refresh
 - `workshop` drives native raw-material checks, consumption, and progress tracking
+- Implemented native farms: wheat, vegetables, fruit, olives, vines, and meat
+- Implemented native workshops: pottery, furniture, oil, wine, weapons, and bricks

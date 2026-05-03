@@ -1,5 +1,4 @@
-#ifndef CORE_RANDOM_H
-#define CORE_RANDOM_H
+#pragma once
 
 #include <stdint.h>
 
@@ -73,5 +72,3 @@ int random_from_stdlib(void);
 int random_between_from_stdlib(int min, int max);
 
 double random_fractional_from_stdlib(void);
-
-#endif // CORE_RANDOM_H

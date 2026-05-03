@@ -1,5 +1,4 @@
-#ifndef BUILDING_BARRACKS_H
-#define BUILDING_BARRACKS_H
+#pragma once
 
 #include "building/building.h"
 #include "map/point.h"
@@ -32,5 +31,3 @@ typedef enum {
 	PRIORITY_TOWER = 5,
 	PRIORITY_WATCHTOWER = 6,
 } barracks_priority;
-
-#endif // BUILDING_BARRACKS_H

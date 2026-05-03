@@ -314,23 +314,23 @@ void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int 
     if (button_type >= BUTTON_INDEX_FILTERING_RESOURCES) {
         resource_type r = button_type - BUTTON_INDEX_FILTERING_RESOURCES;
         const uint8_t *resource_name = resource_get_data(r)->text;
-        int text_width = text_get_width(resource_name, FONT_NORMAL_BLACK);
+        int text_width = text_get_width(resource_name, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         // Account for image width if present
         content_width = text_width;
         available_width = width - 2 * margin;
         text_x = x + margin + (available_width - content_width) / 2;
-        cursor_x = text_x + text_draw(resource_name, text_x, y_text_offset, FONT_NORMAL_BLACK, COLOR_MASK_NONE);
+        cursor_x = text_x + text_draw(resource_name, text_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
     } else {
         // Calculate total text width for centering and account for image width if present
-        int text1_width = lang_text_get_width(group1, number1, FONT_NORMAL_BLACK);
-        int text2_width = (number2 >= 0) ? lang_text_get_width(group2, number2, FONT_NORMAL_BLACK) : 0;
+        int text1_width = lang_text_get_width(group1, number1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        int text2_width = (number2 >= 0) ? lang_text_get_width(group2, number2, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) : 0;
         int total_text_width = text1_width + text2_width;
         available_width = width - 2 * margin;
         content_width = total_text_width + image_width;
         text_x = x + margin + (available_width - content_width) / 2; // Center horizontally
-        cursor_x = text_x + lang_text_draw(group1, number1, text_x, y_text_offset, FONT_NORMAL_BLACK);
+        cursor_x = text_x + lang_text_draw(group1, number1, text_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (number2 >= 0) {
-            cursor_x += lang_text_draw(group2, number2, cursor_x, y_text_offset, FONT_NORMAL_BLACK);
+            cursor_x += lang_text_draw(group2, number2, cursor_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     }
     if (image_id > 0) {

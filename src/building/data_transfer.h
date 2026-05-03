@@ -1,5 +1,4 @@
-#ifndef BUILDING_DATA_TRANSFER_H
-#define BUILDING_DATA_TRANSFER_H
+#pragma once
 
 #include "building/building.h"
 
@@ -27,5 +26,3 @@ int building_data_transfer_paste(building *b, int supress_warnings);
 int building_data_transfer_possible(building *b, int supress_warnings);
 
 building_data_type building_data_transfer_data_type_from_building_type(building_type type);
-
-#endif // BUILDING_DATA_TRANSFER_H

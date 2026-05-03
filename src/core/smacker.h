@@ -1,5 +1,4 @@
-#ifndef CORE_SMACKER_H
-#define CORE_SMACKER_H
+#pragma once
 
 #include "graphics/color.h"
 
@@ -108,5 +107,3 @@ int smacker_get_frame_audio_size(const smacker s, int track);
  * @return Audio data
  */
 const uint8_t *smacker_get_frame_audio(const smacker s, int track);
-
-#endif // CORE_SMACKER_H

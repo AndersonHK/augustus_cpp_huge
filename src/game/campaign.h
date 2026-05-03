@@ -1,5 +1,4 @@
-#ifndef GAME_CAMPAIGN_H
-#define GAME_CAMPAIGN_H
+#pragma once
 
 #include "game/file_io.h"
 
@@ -146,5 +145,3 @@ void game_campaign_restore(void);
  * Clears the campaign data.
  */
 void game_campaign_clear(void);
-
-#endif // GAME_CAMPAIGN_H

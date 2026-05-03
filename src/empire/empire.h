@@ -1,5 +1,4 @@
-#ifndef EMPIRE_EMPIRE_H
-#define EMPIRE_EMPIRE_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -42,5 +41,3 @@ void empire_save_custom_map(buffer *buf);
 void empire_load_custom_map(buffer *buf);
 
 void empire_clear(void);
-
-#endif // EMPIRE_EMPIRE_H

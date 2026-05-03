@@ -1,5 +1,4 @@
-#ifndef FIGURE_FORMATION_LEGION_H
-#define FIGURE_FORMATION_LEGION_H
+#pragma once
 
 #include "building/building.h"
 #include "figure/formation.h"
@@ -40,5 +39,3 @@ int formation_legion_at_building(int grid_offset);
 void formation_legion_update(void);
 
 void formation_legion_decrease_damage(void);
-
-#endif // FIGURE_FORMATION_LEGION_H

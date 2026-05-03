@@ -1,5 +1,4 @@
-#ifndef SCENARIO_EDITOR_EVENTS_H
-#define SCENARIO_EDITOR_EVENTS_H
+#pragma once
 
 int scenario_editor_earthquake_severity(void);
 void scenario_editor_earthquake_cycle_severity(void);
@@ -41,5 +40,3 @@ void scenario_editor_iron_mine_collapse_toggle_enabled(void);
 
 int scenario_editor_clay_pit_flooded_enabled(void);
 void scenario_editor_clay_pit_flooded_toggle_enabled(void);
-
-#endif // SCENARIO_EDITOR_EVENTS_H

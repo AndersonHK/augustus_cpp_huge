@@ -14,6 +14,6 @@
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="teacher">
         <spawn mode="service_roamer" spawn_figure="teacher"
             action_state="roaming" direction="top" figure_slot="primary" init_roaming="true"
-            graphic_timing="before_delay_check" />
+            graphic_timing="before_delay_check" profile="service" />
     </spawn_group>
 </building>

@@ -1,5 +1,4 @@
-#ifndef MAP_AQUEDUCT_H
-#define MAP_AQUEDUCT_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -25,5 +24,3 @@ void map_aqueduct_restore(void);
 void map_aqueduct_save_state(buffer *buf, buffer *backup);
 
 void map_aqueduct_load_state(buffer *buf, buffer *backup);
-
-#endif // MAP_AQUEDUCT_H

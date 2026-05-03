@@ -1,5 +1,4 @@
-#ifndef CORE_FILE_H
-#define CORE_FILE_H
+#pragma once
 
 #include "core/dir.h"
 
@@ -100,5 +99,3 @@ int file_remove(const char *filename);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CORE_FILE_H

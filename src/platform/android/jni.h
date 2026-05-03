@@ -1,5 +1,4 @@
-#ifndef PLATFORM_ANDROID_JNI_H
-#define PLATFORM_ANDROID_JNI_H
+#pragma once
 
 #ifdef __ANDROID__
 
@@ -23,4 +22,3 @@ int jni_get_method_handler(
 void jni_destroy_function_handler(jni_function_handler *handler);
 
 #endif // __ANDROID__
-#endif // PLATFORM_ANDROID_JNI_H

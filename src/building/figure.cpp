@@ -28,6 +28,7 @@ extern "C" {
 #include "core/config.h"
 #include "core/image.h"
 #include "figure/figure.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/formation_legion.h"
 #include "figure/movement.h"
 #include "game/resource.h"
@@ -310,9 +311,15 @@ static void spawn_figure_tower(building *b)
 
 static void spawn_figure_chariot(building *b, map_point road, int use_figure_2)
 {
-    figure *f = figure_create(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP);
-    f->action_state = FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED;
-    f->building_id = b->id;
+    figure *f = figure_runtime_create_profiled(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP, b->id, "venue_seeker");
+    if (!f) {
+        f = figure_create(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP);
+        if (!f) {
+            return;
+        }
+        f->action_state = FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED;
+        f->building_id = b->id;
+    }
     if (!use_figure_2) {
         b->figure_id = f->id;
     } else {
@@ -388,11 +395,17 @@ static void spawn_figure_hippodrome(building *b)
         b->figure_spawn_delay++;
         if (b->figure_spawn_delay > spawn_delay) {
             b->figure_spawn_delay = 0;
-            figure *f = figure_create(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP);
-            f->action_state = FIGURE_ACTION_94_ENTERTAINER_ROAMING;
-            f->building_id = b->id;
+            figure *f = figure_runtime_create_profiled(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP, b->id, "hippodrome_service");
+            if (!f) {
+                f = figure_create(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP);
+                if (!f) {
+                    return;
+                }
+                f->action_state = FIGURE_ACTION_94_ENTERTAINER_ROAMING;
+                f->building_id = b->id;
+                figure_movement_init_roaming(f);
+            }
             b->figure_id = f->id;
-            figure_movement_init_roaming(f);
 
             if (!city_entertainment_hippodrome_has_race()) {
                 // create mini-horses
@@ -1278,6 +1291,53 @@ static void update_native_crop_progress(building *b)
     map_image_set(b->grid_offset, image_group(GROUP_BUILDING_FARM_CROPS) + b->data.industry.progress);
 }
 
+static int building_uses_runtime_spawn(const building *b)
+{
+    if (!b) {
+        return 0;
+    }
+    if (b->type == BUILDING_SENATE || b->type == BUILDING_FORUM) {
+        return 1;
+    }
+    if (b->type >= BUILDING_SMALL_TEMPLE_CERES &&
+        b->type <= BUILDING_LARGE_TEMPLE_VENUS) {
+        return b->monument.phase <= 0;
+    }
+
+    switch (b->type) {
+        case BUILDING_ENGINEERS_POST:
+        case BUILDING_PREFECTURE:
+        case BUILDING_ACTOR_COLONY:
+        case BUILDING_GLADIATOR_SCHOOL:
+        case BUILDING_THEATER:
+        case BUILDING_BATHHOUSE:
+        case BUILDING_LIBRARY:
+        case BUILDING_ACADEMY:
+        case BUILDING_BARBER:
+        case BUILDING_DOCTOR:
+        case BUILDING_HOSPITAL:
+        case BUILDING_WORKCAMP:
+        case BUILDING_SCHOOL:
+        case BUILDING_LION_HOUSE:
+        case BUILDING_AMPHITHEATER:
+        case BUILDING_ARENA:
+        case BUILDING_ARCHITECT_GUILD:
+        case BUILDING_GRAND_TEMPLE_CERES:
+        case BUILDING_GRAND_TEMPLE_NEPTUNE:
+        case BUILDING_GRAND_TEMPLE_MERCURY:
+        case BUILDING_GRAND_TEMPLE_MARS:
+        case BUILDING_GRAND_TEMPLE_VENUS:
+        case BUILDING_PANTHEON:
+        case BUILDING_LIGHTHOUSE:
+        case BUILDING_WATCHTOWER:
+        case BUILDING_CARAVANSERAI:
+        case BUILDING_ARMOURY:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
 void building_figure_generate(void)
 {
     int patrician_generated = 0;
@@ -1310,12 +1370,9 @@ void building_figure_generate(void)
         } else if (building_is_raw_resource_producer(b->type) ||
             building_is_farm(b->type) || building_is_workshop(b->type)) {
             spawn_figure_industry(b);
-        } else if (b->type == BUILDING_SENATE || b->type == BUILDING_FORUM) {
-            runtime_building->spawn_figure();
         } else if (b->type >= BUILDING_SENATE_1_UNUSED && b->type <= BUILDING_FORUM_2_UNUSED) {
             spawn_figure_senate_forum(b);
-        } else if (b->type >= BUILDING_SMALL_TEMPLE_CERES &&
-            b->type <= BUILDING_LARGE_TEMPLE_VENUS && b->monument.phase <= 0) {
+        } else if (building_uses_runtime_spawn(b)) {
             runtime_building->spawn_figure();
         } else {
             // single building type
@@ -1331,42 +1388,14 @@ void building_figure_generate(void)
                 case BUILDING_TOWER:
                     spawn_figure_tower(b);
                     break;
-                case BUILDING_ENGINEERS_POST:
-                    runtime_building->spawn_figure();
-                    break;
-                case BUILDING_PREFECTURE:
-                    runtime_building->spawn_figure();
-                    break;
-                case BUILDING_ACTOR_COLONY:
-                case BUILDING_GLADIATOR_SCHOOL:
-                case BUILDING_THEATER:
-                case BUILDING_BATHHOUSE:
-                case BUILDING_LIBRARY:
-                case BUILDING_ACADEMY:
-                case BUILDING_BARBER:
-                case BUILDING_DOCTOR:
-                case BUILDING_HOSPITAL:
-                case BUILDING_WORKCAMP:
-                case BUILDING_SCHOOL:
-                    runtime_building->spawn_figure();
-                    break;
-                case BUILDING_LION_HOUSE:
-                    runtime_building->spawn_figure();
-                    break;
                 case BUILDING_CHARIOT_MAKER:
                     spawn_figure_chariot_maker(b);
-                    break;
-                case BUILDING_AMPHITHEATER:
-                    runtime_building->spawn_figure();
                     break;
                 case BUILDING_HIPPODROME:
                     spawn_figure_hippodrome(b);
                     break;
                 case BUILDING_COLOSSEUM:
                     spawn_figure_colosseum(b);
-                    break;
-                case BUILDING_ARENA:
-                    runtime_building->spawn_figure();
                     break;
                 case BUILDING_MARKET:
                     spawn_figure_market(b);
@@ -1407,37 +1436,14 @@ void building_figure_generate(void)
                 case BUILDING_MILITARY_ACADEMY:
                     spawn_figure_military_academy(b);
                     break;
-                case BUILDING_ARCHITECT_GUILD:
-                    runtime_building->spawn_figure();
-                    break;
                 case BUILDING_MESS_HALL:
                     spawn_figure_mess_hall(b);
-                    break;
-                case BUILDING_GRAND_TEMPLE_CERES:
-                case BUILDING_GRAND_TEMPLE_NEPTUNE:
-                case BUILDING_GRAND_TEMPLE_MERCURY:
-                case BUILDING_GRAND_TEMPLE_MARS:
-                case BUILDING_GRAND_TEMPLE_VENUS:
-                case BUILDING_PANTHEON:
-                    runtime_building->spawn_figure();
-                    break;
-                case BUILDING_LIGHTHOUSE:
-                    runtime_building->spawn_figure();
                     break;
                 case BUILDING_TAVERN:
                     spawn_figure_tavern(b);
                     break;
-                case BUILDING_WATCHTOWER:
-                    runtime_building->spawn_figure();
-                    break;
-                case BUILDING_CARAVANSERAI:
-                    runtime_building->spawn_figure();
-                    break;
                 case BUILDING_DEPOT:
                     spawn_figure_depot(b);
-                    break;
-                case BUILDING_ARMOURY:
-                    runtime_building->spawn_figure();
                     break;
             }
         }

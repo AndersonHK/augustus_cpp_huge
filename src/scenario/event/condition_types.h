@@ -1,5 +1,4 @@
-#ifndef CONDITION_TYPES_H
-#define CONDITION_TYPES_H
+#pragma once
 
 #include "scenario/event/data.h"
 
@@ -55,5 +54,3 @@ int scenario_condition_type_tax_rate_met(const scenario_condition_t *condition);
 int scenario_condition_type_check_formulas(const scenario_condition_t *condition);
 
 int scenario_condition_type_terrain_count_area_met(const scenario_condition_t *condition);
-
-#endif // CONDITION_TYPES_H

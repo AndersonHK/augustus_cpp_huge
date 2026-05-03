@@ -1,5 +1,4 @@
-#ifndef WINDOW_CITY_H
-#define WINDOW_CITY_H
+#pragma once
 
 #include "graphics/weather.h"
 
@@ -27,5 +26,3 @@ void window_city_draw_custom_variables_text_display(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // WINDOW_CITY_H

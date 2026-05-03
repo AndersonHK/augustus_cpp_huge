@@ -1,5 +1,4 @@
-#ifndef MAP_TERRAIN_H
-#define MAP_TERRAIN_H
+#pragma once
 
 #include <stdint.h>
 #include "core/buffer.h"
@@ -165,5 +164,3 @@ void map_terrain_migrate_old_bridges(void);
 void map_terrain_migrate_old_walls(void);
 
 void map_terrain_load_state(buffer *buf, int expanded_terrain_data, buffer *images, int legacy_image_buffer);
-
-#endif // MAP_TERRAIN_H

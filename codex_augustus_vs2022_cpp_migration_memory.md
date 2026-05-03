@@ -21,6 +21,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Import legacy C headers inside `extern "C"` blocks from `.cpp` files.
 - Keep public headers C-callable where old C code still depends on them.
 - Prefer introducing one C++ runtime object plus one narrow C facade rather than converting an entire subsystem in one jump.
+- Put concept-owned attributes on the concept object. For example, `PathingMode` objects own pathing requirements like `requires_road`, which keeps XML validation and runtime checks from re-encoding the same facts in ad hoc helper predicates.
+- Constructors for durable runtime concepts should be self-documenting at the call site. Prefer named enums, clearly named factory/config fields, or focused comments over positional boolean arguments such as `true, false, false`.
 - Add short contract comments around new C/C++ facade functions and converted control points, especially where save compatibility or legacy callback ownership is involved.
 - Update the relevant markdown in the same run when the migration changes runtime ownership, XML contracts, save/load pieces, or newly introduced classes.
 - Be explicit about all touched conversions:
@@ -76,6 +78,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Headers/linkage lessons worth preserving
 - When a C file is converted or begins calling C++ code, check header linkage immediately.
+- Project-owned headers should use `#pragma once`; do not introduce new classic include guards.
 - Unresolved externals after a `.cpp` conversion are usually a missing `extern "C"` guard, not a "real" missing implementation.
 - This repo is particularly sensitive to:
   - graphics/image/asset boundaries

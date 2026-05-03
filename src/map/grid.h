@@ -1,9 +1,12 @@
-#ifndef MAP_GRID_H
-#define MAP_GRID_H
+#pragma once
 
 #include "core/buffer.h"
 
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum {
     GRID_SIZE = 162
@@ -168,7 +171,6 @@ grid_slice *map_grid_get_grid_slice_house(unsigned int building_id, int check_ru
  * @return Allocated grid_slice containing square coordinates, or NULL on failure
  */
 grid_slice *map_grid_get_grid_slice_square(int start_grid_offset, int size);
-
 /**
  * @brief Creates a grid slice representing a square ring centered at the given grid offset.
  *
@@ -191,4 +193,6 @@ grid_slice *map_grid_get_grid_slice_from_center(int center_grid_offset, int radi
 
 grid_slice *map_grid_slice_contains(int grid_offset, grid_slice *slice);
 
-#endif // MAP_GRID_H
+#ifdef __cplusplus
+}
+#endif

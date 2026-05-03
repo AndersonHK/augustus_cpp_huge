@@ -141,8 +141,8 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(16, 32, 38, 26);
-    lang_text_draw_centered(44, 47, 26, 42, 608, FONT_LARGE_BLACK);
-    lang_text_draw_centered(13, 3, 16, 424, 608, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(44, 47, 26, 42, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered(13, 3, 16, 424, 608, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 
@@ -155,12 +155,12 @@ static void draw_button(const uint8_t *name, building_type type, int x, int y, i
     int allowed = scenario_allowed_building(type);
     font_t font = allowed || data.select_callback ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN;
     color_t color = allowed || data.select_callback ? 0 : COLOR_FONT_RED;
-    text_draw(name, x + 8, y + 8, font, color);
+    text_draw(name, x + 8, y + 8, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     if (!data.select_callback) {
         const uint8_t *text = lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_ALLOWED_BUILDINGS_NOT_ALLOWED - allowed);
-        text_draw_right_aligned(text, x, y + 8, width - 8, font, color);
+        text_draw_right_aligned(text, x, y + 8, width - 8, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     } else if (type == data.selected_building) {
-        lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_SELECTED, x, y + 8, width - 8, FONT_NORMAL_BLACK);
+        lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_SELECTED, x, y + 8, width - 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 }
 
@@ -178,13 +178,13 @@ static void draw_allowed_building(const grid_box_item *item)
             item->x + x_offset, item->y + y_offset, item->width - x_offset, item->height, item->is_focused);
     } else if (current_menu->type == ITEM_TYPE_MENU) {
         if (building_menu_is_submenu(current_menu->menu)) {
-            int width = text_draw(string_from_ascii(" -"), item->x + 4, item->y + 8, FONT_NORMAL_BLACK, 0);
-            width += lang_text_draw(28, current_menu->building, item->x + 4 + width, item->y + 8, FONT_NORMAL_BLACK);
-            text_draw(string_from_ascii(":"), item->x + 4 + width - 6, item->y + 8, FONT_NORMAL_BLACK, 0);
+            int width = text_draw(string_from_ascii(" -"), item->x + 4, item->y + 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+            width += lang_text_draw(28, current_menu->building, item->x + 4 + width, item->y + 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            text_draw(string_from_ascii(":"), item->x + 4 + width - 6, item->y + 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
             if (current_menu->building == BUILDING_NONE) {
-                int width = lang_text_draw(68, current_menu->menu + 20, item->x + 4, item->y + 12, FONT_NORMAL_BLACK);
-                text_draw(string_from_ascii(":"), item->x + 4 + width - 6, item->y + 12, FONT_NORMAL_BLACK, 0);
+                int width = lang_text_draw(68, current_menu->menu + 20, item->x + 4, item->y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                text_draw(string_from_ascii(":"), item->x + 4 + width - 6, item->y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             } else {
                 draw_button(lang_get_string(68, current_menu->menu + 20), current_menu->building,
                     item->x, item->y, item->width, item->height, item->is_focused);

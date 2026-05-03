@@ -3,6 +3,10 @@
     <month_days values="16,16,16,16,16,16,16,16,16,16,16,16" />
   </calendar>
 
+  <birth_table id="default">
+    <age_decennia values="0,3,16,9,2,0,0,0,0,0" />
+  </birth_table>
+
   <mortality_table id="default">
     <health bucket="0" values="20,10,5,10,20,30,50,85,100,100" />
     <health bucket="1" values="15,8,4,8,16,25,45,70,90,100" />

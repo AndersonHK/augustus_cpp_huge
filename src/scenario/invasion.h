@@ -1,5 +1,4 @@
-#ifndef SCENARIO_INVASION_H
-#define SCENARIO_INVASION_H
+#pragma once
 
 #include "core/buffer.h"
 #include "figure/formation.h"
@@ -80,5 +79,3 @@ void scenario_invasion_load_state(buffer *buf);
 void scenario_invasion_load_state_old_version(buffer *buf, invasion_old_state_sections section);
 
 void repeat_invasion_without_warnings(invasion_t *invasion);
-
-#endif // SCENARIO_INVASION_H

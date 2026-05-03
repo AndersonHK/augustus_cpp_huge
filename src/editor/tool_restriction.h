@@ -1,5 +1,4 @@
-#ifndef EDITOR_TOOL_RESTRICTION_H
-#define EDITOR_TOOL_RESTRICTION_H
+#pragma once
 
 #include "editor/tool.h"
 #include "map/point.h"
@@ -11,5 +10,3 @@ int editor_tool_can_place_access_ramp(const map_tile *tile, int *orientation_ind
 int editor_tool_can_place_building(const map_tile *tile, int num_tiles, int *blocked_tiles);
 
 int editor_tool_can_place_custom_earthquake(const map_tile *tile);
-
-#endif // EDITOR_TOOL_RESTRICTION_H

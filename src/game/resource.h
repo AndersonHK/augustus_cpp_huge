@@ -1,5 +1,4 @@
-#ifndef GAME_RESOURCE_H
-#define GAME_RESOURCE_H
+#pragma once
 
 #include "building/type.h"
 #include "city/warning.h"
@@ -160,5 +159,3 @@ int resource_total_food_mapped(void);
 
 void production_rates_load(buffer *buf);
 void production_rates_save(buffer *buf);
-
-#endif // GAME_RESOURCE_H

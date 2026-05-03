@@ -1,5 +1,4 @@
-#ifndef ASSETS_GROUP_H
-#define ASSETS_GROUP_H
+#pragma once
 
 #include "assets/image.h"
 #include "assets/xml.h"
@@ -29,5 +28,3 @@ int group_get_total(void);
 image_groups *group_get_from_id(int id);
 image_groups *group_get_from_name(const char *name);
 image_groups *group_get_from_image_index(int index);
-
-#endif // ASSETS_GROUP_H

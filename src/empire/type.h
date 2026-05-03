@@ -1,5 +1,4 @@
-#ifndef EMPIRE_TYPE_H
-#define EMPIRE_TYPE_H
+#pragma once
 
 typedef enum {
     EMPIRE_OBJECT_ORNAMENT = 0,
@@ -45,5 +44,3 @@ typedef enum {
     EMPIRE_CITY_ICON_DISTANT_CITY, // dis_city
     EMPIRE_CITY_ICON_TOWER, // tower                Empire_Icon_Flag_01.png - Empire_Icon_Flag_06.png
 } empire_city_icon_type;
-
-#endif // EMPIRE_TYPE_H

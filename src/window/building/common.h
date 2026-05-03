@@ -1,5 +1,4 @@
-#ifndef WINDOW_BUILDING_COMMON_H
-#define WINDOW_BUILDING_COMMON_H
+#pragma once
 
 static const int MIN_Y_POSITION = 32;
 static const int MARGIN_POSITION = 16;
@@ -98,5 +97,3 @@ void window_building_draw_monument_construction_process(building_info_context *c
 void window_building_draw_risks(building_info_context *c, int x_offset, int y_offset);
 
 void window_building_get_risks_tooltip(const building_info_context *c, int *group_id, int *text_id);
-
-#endif // WINDOW_BUILDING_COMMON_H

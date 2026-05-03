@@ -1,5 +1,4 @@
-#ifndef BUILDING_CONSTRUCTION_H
-#define BUILDING_CONSTRUCTION_H
+#pragma once
 
 #include "building/type.h"
 #include "figure/type.h"
@@ -20,6 +19,7 @@ int building_construction_type_num_cycles(building_type type);
 int building_construction_type_cycle_steps(building_type type);
 
 void building_construction_set_cost(int cost);
+void building_construction_set_force_place_clear_cost(int cost);
 
 void building_construction_set_type(building_type type, int setup_rotation);
 
@@ -36,6 +36,7 @@ building_type building_construction_type(void);
 building_type building_construction_selection_type(void);
 
 int building_construction_cost(void);
+int building_construction_force_place_clear_cost(void);
 
 int building_construction_size(int *x, int *y);
 
@@ -44,6 +45,7 @@ int building_construction_in_progress(void);
 void building_construction_start(int x, int y, int grid_offset);
 
 int building_construction_is_updatable(void);
+int building_construction_force_place_active(void);
 
 void building_construction_cancel(void);
 
@@ -74,7 +76,3 @@ int building_construction_place_wall(int grid_offset);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_CONSTRUCTION_H
-
-

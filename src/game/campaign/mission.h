@@ -1,5 +1,4 @@
-#ifndef CAMPAIGN_MISSION_H
-#define CAMPAIGN_MISSION_H
+#pragma once
 
 #include "game/campaign.h"
 
@@ -25,5 +24,3 @@ campaign_scenario *campaign_mission_get_scenario(unsigned int scenario_id);
 
 int campaign_mission_init(void);
 void campaign_mission_clear(void);
-
-#endif // CAMPAIGN_MISSION_H

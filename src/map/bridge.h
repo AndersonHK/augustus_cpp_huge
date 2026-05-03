@@ -1,5 +1,4 @@
-#ifndef MAP_BRIDGE_H
-#define MAP_BRIDGE_H
+#pragma once
 #include "building/type.h"
 #include "map/grid.h"
 
@@ -35,5 +34,3 @@ int map_bridge_has_figures(int grid_offset);
 int map_is_bridge(int grid_offset);
 
 int map_bridge_height(int grid_offset);
-
-#endif // MAP_BRIDGE_H

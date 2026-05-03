@@ -137,9 +137,9 @@ static void draw_foreground(void)
         large_label_draw(buttons[i].x, buttons[i].y, buttons[i].width / 16, data.focus_button_id == i + 1 ? 1 : 0);
     }
 
-    text_draw_centered(translation_for(TR_EDITOR_DELETE), 288, 40, 80, FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+    text_draw_centered(translation_for(TR_EDITOR_DELETE), 288, 40, 80, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
 
-    text_draw_centered(translation_for(data.xml_info->xml_attr.key), 32, 72, BUTTON_WIDTH, FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+    text_draw_centered(translation_for(data.xml_info->xml_attr.key), 32, 72, BUTTON_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
 
     unsigned int button_id = 0;
     parameter_type resolved_type1 = get_resolved_parameter_type(&data.xml_info->xml_parm1, 1);
@@ -148,10 +148,10 @@ static void draw_foreground(void)
             data.focus_button_id == button_id + 1 ? 1 : 0);
         text_draw_centered(translation_for(data.xml_info->xml_parm1.key),
             buttons[button_id].x, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
         text_draw_centered(translation_for_param_value(resolved_type1, data.action->parameter1),
             buttons[button_id].x + BUTTON_WIDTH / 2, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
     }
     button_id++;
 
@@ -161,10 +161,10 @@ static void draw_foreground(void)
             data.focus_button_id == button_id + 1 ? 1 : 0);
         text_draw_centered(translation_for(data.xml_info->xml_parm2.key),
             buttons[button_id].x, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
         text_draw_centered(translation_for_param_value(resolved_type2, data.action->parameter2),
             buttons[button_id].x + BUTTON_WIDTH / 2, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
     }
     button_id++;
 
@@ -174,10 +174,10 @@ static void draw_foreground(void)
             data.focus_button_id == button_id + 1 ? 1 : 0);
         text_draw_centered(translation_for(get_resolved_parameter_key(&data.xml_info->xml_parm3, 3)),
             buttons[button_id].x, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
         text_draw_centered(translation_for_param_value(resolved_type3, data.action->parameter3),
             buttons[button_id].x + BUTTON_WIDTH / 2, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
     }
     button_id++;
 
@@ -187,10 +187,10 @@ static void draw_foreground(void)
             data.focus_button_id == button_id + 1 ? 1 : 0);
         text_draw_centered(translation_for(get_resolved_parameter_key(&data.xml_info->xml_parm4, 4)),
             buttons[button_id].x, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
         text_draw_centered(translation_for_param_value(resolved_type4, data.action->parameter4),
             buttons[button_id].x + BUTTON_WIDTH / 2, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
     }
     button_id++;
 
@@ -200,13 +200,13 @@ static void draw_foreground(void)
             data.focus_button_id == button_id + 1 ? 1 : 0);
         text_draw_centered(translation_for(get_resolved_parameter_key(&data.xml_info->xml_parm5, 5)),
             buttons[button_id].x, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
         text_draw_centered(translation_for_param_value(resolved_type5, data.action->parameter5),
             buttons[button_id].x + BUTTON_WIDTH / 2, buttons[button_id].y + 8, buttons[button_id].width / 2,
-            FONT_NORMAL_GREEN, COLOR_MASK_NONE);
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
     }
 
-    lang_text_draw_centered(13, 3, 32, 32 + 16 * 20, BUTTON_WIDTH, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(13, 3, 32, 32 + 16 * 20, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

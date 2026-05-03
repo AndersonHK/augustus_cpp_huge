@@ -1,5 +1,4 @@
-#ifndef WINDOW_TEXT_INPUT_H
-#define WINDOW_TEXT_INPUT_H
+#pragma once
 
 #include <stdint.h>
 
@@ -8,5 +7,3 @@ void window_text_input_show(const uint8_t *title, const uint8_t *placeholder, co
 
 void window_text_input_expanded_show(const uint8_t *title, const uint8_t *placeholder, const uint8_t *text,
      int max_length, void(*callback)(const uint8_t *), const char *allowed_chars);
-
-#endif // WINDOW_TEXT_INPUT_H

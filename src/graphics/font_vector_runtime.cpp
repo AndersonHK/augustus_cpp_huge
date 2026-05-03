@@ -9,7 +9,7 @@ extern "C" {
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/renderer.h"
-#include "platform/screen.h"
+#include "graphics/screen.h"
 }
 
 #include "graphics/runtime_texture.h"
@@ -489,7 +489,7 @@ void maybe_reset_scale_cache()
     if (!g_runtime.active) {
         return;
     }
-    const int ui_scale = platform_screen_get_scale();
+    const int ui_scale = screen_scale_percentage();
     if (g_runtime.cached_ui_scale != ui_scale) {
         release_glyph_cache();
         release_font_cache();
@@ -657,20 +657,28 @@ SizedFont *ensure_sized_font(const std::string &face_path, int pixel_size)
     return &inserted.first->second;
 }
 
-float raster_multiplier_for(float scale)
+float ui_raster_multiplier()
 {
-    float ui_multiplier = platform_screen_get_scale() > 0 ? platform_screen_get_scale() / 100.0f : 1.0f;
-    if (scale <= 0.0f) {
-        scale = 1.0f;
-    }
-    return ui_multiplier / scale;
+    return static_cast<float>(screen_ui_to_pixel(100)) * 0.01f;
 }
 
-int scaled_pixel_size(font_t font, float scale)
+float render_domain_raster_multiplier()
 {
-    float multiplier = raster_multiplier_for(scale);
-    int logical_size = g_runtime.surfaces[font].logical_size;
-    int pixel_size = static_cast<int>(std::lround(logical_size * multiplier));
+    switch (graphics_renderer()->get_render_domain()) {
+        case RENDER_DOMAIN_UI:
+        case RENDER_DOMAIN_TOOLTIP_UI:
+        case RENDER_DOMAIN_SNAPSHOT_UI:
+            return ui_raster_multiplier();
+        case RENDER_DOMAIN_PIXEL:
+        case RENDER_DOMAIN_TOOLTIP_PIXEL:
+        case RENDER_DOMAIN_SNAPSHOT_PIXEL:
+        default:
+            return 1.0f;
+    }
+}
+
+int sanitized_pixel_size(int pixel_size)
+{
     return std::max(1, pixel_size);
 }
 
@@ -679,7 +687,7 @@ struct ResolvedFace {
     std::string face_path;
 };
 
-ResolvedFace resolve_face_for(font_t font, uint32_t codepoint, unsigned style_flags, float scale)
+ResolvedFace resolve_face_for(font_t font, uint32_t codepoint, unsigned style_flags, int pixel_size)
 {
     ResolvedFace resolved;
     if (!g_runtime.active || font < 0 || font >= FONT_TYPES_MAX) {
@@ -688,14 +696,13 @@ ResolvedFace resolve_face_for(font_t font, uint32_t codepoint, unsigned style_fl
 
     unsigned sanitized_flags = sanitize_style_flags(font, style_flags);
     FaceVariant variant = style_variant_for(sanitized_flags);
-    const int pixel_size = scaled_pixel_size(font, scale);
     std::vector<const FamilyConfig *> family_chain = family_chain_for(font, codepoint);
     for (const FamilyConfig *family : family_chain) {
         if (!family) {
             continue;
         }
         const std::string &path = face_path_for_variant(*family, variant);
-        SizedFont *candidate = ensure_sized_font(path, pixel_size);
+        SizedFont *candidate = ensure_sized_font(path, sanitized_pixel_size(pixel_size));
         if (!candidate) {
             continue;
         }
@@ -708,7 +715,7 @@ ResolvedFace resolve_face_for(font_t font, uint32_t codepoint, unsigned style_fl
 
     if (!family_chain.empty()) {
         const std::string &path = face_path_for_variant(*family_chain.front(), variant);
-        resolved.font = ensure_sized_font(path, pixel_size);
+        resolved.font = ensure_sized_font(path, sanitized_pixel_size(pixel_size));
         resolved.face_path = path;
     }
     return resolved;
@@ -752,14 +759,14 @@ int next_utf8_codepoint(std::string_view text, size_t offset, uint32_t *codepoin
     return 1;
 }
 
-GlyphCacheEntry *ensure_glyph(font_t font, uint32_t codepoint, unsigned style_flags, float scale)
+GlyphCacheEntry *ensure_glyph(font_t font, uint32_t codepoint, unsigned style_flags, int pixel_size)
 {
-    ResolvedFace resolved = resolve_face_for(font, codepoint, style_flags, scale);
+    pixel_size = sanitized_pixel_size(pixel_size);
+    ResolvedFace resolved = resolve_face_for(font, codepoint, style_flags, pixel_size);
     if (!resolved.font || resolved.face_path.empty()) {
         return nullptr;
     }
 
-    const int pixel_size = scaled_pixel_size(font, scale);
     const std::string key = make_glyph_cache_key(resolved.face_path, pixel_size, codepoint);
     auto found = g_runtime.glyphs.find(key);
     if (found != g_runtime.glyphs.end()) {
@@ -850,7 +857,7 @@ DrawColors resolve_draw_colors(font_t font, color_t requested)
     }
 }
 
-float kerning_logical_width(const ResolvedFace &resolved, uint32_t previous_codepoint, uint32_t codepoint, float scale)
+float kerning_logical_width(const ResolvedFace &resolved, uint32_t previous_codepoint, uint32_t codepoint)
 {
     if (!resolved.font || !previous_codepoint) {
         return 0.0f;
@@ -859,17 +866,17 @@ float kerning_logical_width(const ResolvedFace &resolved, uint32_t previous_code
     if (!kerning) {
         return 0.0f;
     }
-    return kerning / raster_multiplier_for(scale);
+    return kerning / render_domain_raster_multiplier();
 }
 
-float glyph_advance_logical_width(const GlyphCacheEntry &glyph, float scale)
+float glyph_advance_logical_width(const GlyphCacheEntry &glyph)
 {
-    return glyph.advance / raster_multiplier_for(scale);
+    return glyph.advance / render_domain_raster_multiplier();
 }
 
-float glyph_left_logical_offset(const GlyphCacheEntry &glyph, float scale)
+float glyph_left_logical_offset(const GlyphCacheEntry &glyph)
 {
-    return glyph.minx / raster_multiplier_for(scale);
+    return glyph.minx / render_domain_raster_multiplier();
 }
 
 float line_top_logical_offset(font_t surface_font)
@@ -877,23 +884,45 @@ float line_top_logical_offset(font_t surface_font)
     return static_cast<float>(font_vector_runtime_baseline_offset(surface_font));
 }
 
-float snap_logical_to_raster(float logical_value, float scale)
+float snap_logical_to_raster(float logical_value)
 {
-    const float multiplier = raster_multiplier_for(scale);
+    const float multiplier = render_domain_raster_multiplier();
     if (multiplier <= 0.0f) {
         return logical_value;
     }
     return std::round(logical_value * multiplier) / multiplier;
 }
 
-float glyph_logical_width(const GlyphCacheEntry &glyph, float scale)
+float glyph_logical_width(const GlyphCacheEntry &glyph)
 {
-    return glyph.slice.width / raster_multiplier_for(scale);
+    return glyph.slice.width / render_domain_raster_multiplier();
 }
 
-float glyph_logical_height(const GlyphCacheEntry &glyph, float scale)
+float glyph_logical_height(const GlyphCacheEntry &glyph)
 {
-    return glyph.slice.height / raster_multiplier_for(scale);
+    return glyph.slice.height / render_domain_raster_multiplier();
+}
+
+float scaled_final_pixel_metric(int base_metric, font_t font, int pixel_size)
+{
+    if (font < 0 || font >= FONT_TYPES_MAX || g_runtime.surfaces[font].logical_size <= 0) {
+        return static_cast<float>(base_metric);
+    }
+    return static_cast<float>(base_metric) *
+        static_cast<float>(sanitized_pixel_size(pixel_size)) /
+        static_cast<float>(g_runtime.surfaces[font].logical_size);
+}
+
+float space_logical_width(font_t font, int pixel_size)
+{
+    return scaled_final_pixel_metric(font_vector_runtime_space_width(font), font, pixel_size) /
+        render_domain_raster_multiplier();
+}
+
+float letter_spacing_logical_width(font_t font, int pixel_size)
+{
+    return scaled_final_pixel_metric(font_vector_runtime_letter_spacing(font), font, pixel_size) /
+        render_domain_raster_multiplier();
 }
 
 int measure_space_for_surface(SurfaceConfig &surface)
@@ -1079,7 +1108,7 @@ bool font_vector_runtime_load_pack()
         g_runtime.base_dir = parsed.base_dir;
         g_runtime.loaded_pack_path = parsed.loaded_pack_path;
         g_runtime.active = 1;
-        g_runtime.cached_ui_scale = platform_screen_get_scale();
+        g_runtime.cached_ui_scale = screen_scale_percentage();
 
         for (int i = 0; i < FONT_TYPES_MAX; ++i) {
             g_runtime.surfaces[i].space_width = measure_space_for_surface(g_runtime.surfaces[i]);
@@ -1126,6 +1155,14 @@ int font_vector_runtime_line_height(font_t font)
     return g_runtime.surfaces[font].line_height;
 }
 
+int font_vector_runtime_line_height_sized(font_t font, int logical_size_delta)
+{
+    if (!g_runtime.active || font < 0 || font >= FONT_TYPES_MAX) {
+        return 0;
+    }
+    return std::max(1, g_runtime.surfaces[font].line_height + logical_size_delta);
+}
+
 int font_vector_runtime_letter_spacing(font_t font)
 {
     if (!g_runtime.active || font < 0 || font >= FONT_TYPES_MAX) {
@@ -1161,7 +1198,8 @@ int font_vector_runtime_can_display_utf8(std::string_view utf8_character)
         return 0;
     }
     for (int font = 0; font < FONT_TYPES_MAX; ++font) {
-        ResolvedFace resolved = resolve_face_for(static_cast<font_t>(font), codepoint, FONT_INLINE_STYLE_NONE, SCALE_NONE);
+        const int pixel_size = std::max(1, g_runtime.surfaces[font].logical_size);
+        ResolvedFace resolved = resolve_face_for(static_cast<font_t>(font), codepoint, FONT_INLINE_STYLE_NONE, pixel_size);
         if (resolved.font && TTF_GlyphIsProvided32(resolved.font->handle, codepoint)) {
             return 1;
         }
@@ -1169,12 +1207,13 @@ int font_vector_runtime_can_display_utf8(std::string_view utf8_character)
     return 0;
 }
 
-int font_vector_runtime_measure_utf8(std::string_view text, font_t font, unsigned style_flags, float scale)
+int font_vector_runtime_measure_utf8(std::string_view text, font_t font, unsigned style_flags, int pixel_size)
 {
     if (!g_runtime.active || text.empty()) {
         return 0;
     }
 
+    pixel_size = sanitized_pixel_size(pixel_size);
     unsigned sanitized_flags = sanitize_style_flags(font, style_flags);
     float width = 0.0f;
     uint32_t previous_codepoint = 0;
@@ -1195,25 +1234,25 @@ int font_vector_runtime_measure_utf8(std::string_view text, font_t font, unsigne
         }
 
         if (codepoint == ' ') {
-            width += font_vector_runtime_space_width(font);
+            width += space_logical_width(font, pixel_size);
             offset += num_bytes;
             previous_codepoint = 0;
             previous_face = {};
             continue;
         }
 
-        ResolvedFace resolved = resolve_face_for(font, codepoint, sanitized_flags, scale);
-        GlyphCacheEntry *glyph = ensure_glyph(font, codepoint, sanitized_flags, scale);
+        ResolvedFace resolved = resolve_face_for(font, codepoint, sanitized_flags, pixel_size);
+        GlyphCacheEntry *glyph = ensure_glyph(font, codepoint, sanitized_flags, pixel_size);
         if (!resolved.font || !glyph) {
             offset += num_bytes;
             continue;
         }
 
         if (previous_face.font == resolved.font) {
-            width += kerning_logical_width(resolved, previous_codepoint, codepoint, scale);
+            width += kerning_logical_width(resolved, previous_codepoint, codepoint);
         }
-        width += glyph_advance_logical_width(*glyph, scale);
-        width += font_vector_runtime_letter_spacing(font);
+        width += glyph_advance_logical_width(*glyph);
+        width += letter_spacing_logical_width(font, pixel_size);
 
         previous_codepoint = codepoint;
         previous_face = resolved;
@@ -1228,7 +1267,8 @@ unsigned int font_vector_runtime_fit_utf8_bytes(
     font_t font,
     unsigned int requested_width,
     int invert,
-    unsigned style_flags)
+    unsigned style_flags,
+    int pixel_size)
 {
     if (!g_runtime.active || text.empty()) {
         return 0;
@@ -1248,7 +1288,7 @@ unsigned int font_vector_runtime_fit_utf8_bytes(
             break;
         }
         consumed += static_cast<unsigned int>(num_bytes);
-        total_width = font_vector_runtime_measure_utf8(text.substr(0, consumed), font, style_flags, SCALE_NONE);
+        total_width = font_vector_runtime_measure_utf8(text.substr(0, consumed), font, style_flags, pixel_size);
         byte_boundaries.push_back(consumed);
         widths.push_back(total_width);
         offset += num_bytes;
@@ -1282,13 +1322,14 @@ int font_vector_runtime_draw_utf8(
     int y,
     font_t font,
     color_t color,
-    float scale,
+    int pixel_size,
     unsigned style_flags)
 {
     if (!g_runtime.active || text.empty()) {
         return 0;
     }
 
+    pixel_size = sanitized_pixel_size(pixel_size);
     unsigned sanitized_flags = sanitize_style_flags(font, style_flags);
     const DrawColors colors = resolve_draw_colors(font, color);
     float current_x = static_cast<float>(x);
@@ -1310,34 +1351,32 @@ int font_vector_runtime_draw_utf8(
         }
 
         if (codepoint == ' ') {
-            current_x += font_vector_runtime_space_width(font);
+            current_x += space_logical_width(font, pixel_size);
             offset += num_bytes;
             previous_codepoint = 0;
             previous_face = {};
             continue;
         }
 
-        ResolvedFace resolved = resolve_face_for(font, codepoint, sanitized_flags, scale);
-        GlyphCacheEntry *glyph = ensure_glyph(font, codepoint, sanitized_flags, scale);
+        ResolvedFace resolved = resolve_face_for(font, codepoint, sanitized_flags, pixel_size);
+        GlyphCacheEntry *glyph = ensure_glyph(font, codepoint, sanitized_flags, pixel_size);
         if (!resolved.font || !glyph || !glyph->slice.is_valid()) {
             offset += num_bytes;
             continue;
         }
 
         if (previous_face.font == resolved.font) {
-            current_x += kerning_logical_width(resolved, previous_codepoint, codepoint, scale);
+            current_x += kerning_logical_width(resolved, previous_codepoint, codepoint);
         }
 
         const float draw_x = snap_logical_to_raster(
-            current_x + glyph_left_logical_offset(*glyph, scale),
-            scale);
+            current_x + glyph_left_logical_offset(*glyph));
         // Match the legacy sprite-font contract: the provided y is the shared line-top
         // anchor for normal Latin text, not a typographic baseline per glyph.
         const float draw_y = snap_logical_to_raster(
-            static_cast<float>(y) + line_top_logical_offset(font),
-            scale);
-        const float logical_width = glyph_logical_width(*glyph, scale);
-        const float logical_height = glyph_logical_height(*glyph, scale);
+            static_cast<float>(y) + line_top_logical_offset(font));
+        const float logical_width = glyph_logical_width(*glyph);
+        const float logical_height = glyph_logical_height(*glyph);
 
         auto draw_pass = [&](color_t pass_color, int dx, int dy) {
             runtime_texture_draw_request(
@@ -1348,7 +1387,7 @@ int font_vector_runtime_draw_utf8(
                 logical_height,
                 pass_color ? pass_color : kOpaqueWhite,
                 graphics_renderer()->get_render_domain(),
-                RENDER_SCALING_POLICY_PIXEL_ART);
+                RENDER_SCALING_POLICY_HIGH_QUALITY);
         };
 
         if (colors.has_shadow) {
@@ -1356,8 +1395,8 @@ int font_vector_runtime_draw_utf8(
         }
         draw_pass(colors.main, 0, 0);
 
-        current_x += glyph_advance_logical_width(*glyph, scale);
-        current_x += font_vector_runtime_letter_spacing(font);
+        current_x += glyph_advance_logical_width(*glyph);
+        current_x += letter_spacing_logical_width(font, pixel_size);
 
         previous_codepoint = codepoint;
         previous_face = resolved;

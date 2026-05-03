@@ -45,18 +45,24 @@ int house_population_remove_from_city(int num_people)
 {
     int removed = 0;
     int building_id = city_population_last_used_house_remove();
-    for (int i = 1; i < 4 * building_count() && removed < num_people; i++) {
-        if (++building_id >= building_count()) {
+    int buildings_without_removal = 0;
+    const int max_buildings = building_count();
+    if (max_buildings <= 1) {
+        return 0;
+    }
+    while (removed < num_people && buildings_without_removal < max_buildings) {
+        if (++building_id >= max_buildings) {
             building_id = 1;
         }
         building *b = building_get(building_id);
-        if (b->state == BUILDING_STATE_IN_USE && b->house_size) {
+        if (b->state == BUILDING_STATE_IN_USE && b->house_size && b->house_population > 0) {
             city_population_set_last_used_house_remove(building_id);
-            if (b->house_population > 0) {
-                ++removed;
-                --b->house_population;
-                building_local_workforce_reconcile_house(b);
-            }
+            ++removed;
+            --b->house_population;
+            building_local_workforce_reconcile_house(b);
+            buildings_without_removal = 0;
+        } else {
+            buildings_without_removal++;
         }
     }
     return removed;

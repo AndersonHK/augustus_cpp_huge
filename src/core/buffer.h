@@ -1,5 +1,4 @@
-#ifndef CORE_BUFFER_H
-#define CORE_BUFFER_H
+#pragma once
 
 #include <stddef.h>
 #include <stdint.h>
@@ -197,5 +196,3 @@ size_t buffer_load_dynamic_array(buffer *buf);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CORE_BUFFER_H

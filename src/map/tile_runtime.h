@@ -1,5 +1,4 @@
-#ifndef MAP_TILE_RUNTIME_H
-#define MAP_TILE_RUNTIME_H
+#pragma once
 
 #include "graphics/runtime_texture.h"
 #include "map/tile_type_registry_internal.h"
@@ -52,5 +51,3 @@ tile_runtime *get_instance(int grid_offset);
 }
 
 #endif
-
-#endif // MAP_TILE_RUNTIME_H

@@ -1,5 +1,4 @@
-#ifndef PLATFORM_ARGUMENTS_H
-#define PLATFORM_ARGUMENTS_H
+#pragma once
 
 typedef struct {
     const char *data_directory;
@@ -16,5 +15,3 @@ typedef struct {
 } augustus_args;
 
 int platform_parse_arguments(int argc, char **argv, augustus_args *output_args);
-
-#endif // PLATFORM_ARGUMENTS_H

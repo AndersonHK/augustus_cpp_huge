@@ -1,5 +1,4 @@
-#ifndef CORE_HOTKEY_CONFIG_H
-#define CORE_HOTKEY_CONFIG_H
+#pragma once
 
 #include "input/keys.h"
 
@@ -176,5 +175,3 @@ void hotkey_config_load(void);
  * Save hotkey config to file and install hotkeys
  */
 void hotkey_config_save(void);
-
-#endif // CORE_HOTKEY_CONFIG_H

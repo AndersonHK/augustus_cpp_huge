@@ -1,5 +1,4 @@
-#ifndef SCENARIO_EVENT_H
-#define SCENARIO_EVENT_H
+#pragma once
 
 #include "core/buffer.h"
 #include "scenario/event/data.h"
@@ -24,5 +23,3 @@ int scenario_event_decrease_pause_time(scenario_event_t *event, int days_passed)
 int scenario_event_conditional_execute(scenario_event_t *event);
 int scenario_event_execute(scenario_event_t *event);
 int scenario_event_uses_custom_variable(const scenario_event_t *event, int custom_variable_id);
-
-#endif // SCENARIO_EVENT_H

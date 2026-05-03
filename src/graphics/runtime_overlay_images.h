@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_RUNTIME_OVERLAY_IMAGES_H
-#define GRAPHICS_RUNTIME_OVERLAY_IMAGES_H
+#pragma once
 
 #include "core/image.h"
 
@@ -19,5 +18,3 @@ const image *runtime_overlay_image_get(runtime_overlay_image type);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_RUNTIME_OVERLAY_IMAGES_H

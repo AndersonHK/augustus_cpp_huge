@@ -798,7 +798,7 @@ static void fix_animation_offsets(void)
     data.main[image_group(GROUP_BUILDING_ENGINEERS_POST)].animation->sprite_offset_y += 1;
 }
 
-int image_load_climate(int climate_id, int is_editor, int force_reload, int keep_atlas_buffers)
+int image_load_climate(int climate_id, int is_editor, int force_reload, int keep_atlas_buffers, int extract_legacy_graphics)
 {
     if (climate_id == data.current_climate && is_editor == data.is_editor && !force_reload &&
         graphics_renderer()->has_image_atlas(ATLAS_MAIN)) {
@@ -878,13 +878,15 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
     free_draw_data(draw_data, IMAGE_MAIN_ENTRIES);
     free(tmp_data);
     make_plain_fonts_white(data.main, atlas_data, image_group(GROUP_FONT));
-    legacy_image_extractor_extract_climate(
-        data.main,
-        IMAGE_MAIN_ENTRIES,
-        data.group_image_ids,
-        IMAGE_MAX_GROUPS,
-        filename_idx,
-        atlas_data);
+    if (extract_legacy_graphics) {
+        legacy_image_extractor_extract_climate(
+            data.main,
+            IMAGE_MAIN_ENTRIES,
+            data.group_image_ids,
+            IMAGE_MAX_GROUPS,
+            filename_idx,
+            atlas_data);
+    }
     upload_atlas_image_resources(data.main, IMAGE_MAIN_ENTRIES, atlas_data, ATLAS_MAIN, "main", filename_idx);
     if (!keep_atlas_buffers) {
         if (!assets_init(data.is_editor != is_editor, atlas_data->buffers, atlas_data->image_widths)) {

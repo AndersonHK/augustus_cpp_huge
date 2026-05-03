@@ -1,5 +1,4 @@
-#ifndef MAP_DESIRABILITY_H
-#define MAP_DESIRABILITY_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -14,5 +13,3 @@ int map_desirability_get_max(int x, int y, int size);
 void map_desirability_save_state(buffer *buf);
 
 void map_desirability_load_state(buffer *buf);
-
-#endif // MAP_DESIRABILITY_H

@@ -1,5 +1,4 @@
-#ifndef MAP_BUILDING_H
-#define MAP_BUILDING_H
+#pragma once
 
 #include "building/type.h"
 #include "core/buffer.h"
@@ -55,5 +54,3 @@ void map_building_save_state(buffer *buildings, buffer *damage, buffer *rubble);
 void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, savegame_version_t version);
 
 int map_building_is_reservoir(int x, int y);
-
-#endif // MAP_BUILDING_H

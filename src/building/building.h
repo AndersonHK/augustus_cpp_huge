@@ -1,5 +1,4 @@
-#ifndef BUILDING_BUILDING_H
-#define BUILDING_BUILDING_H
+#pragma once
 
 #include "building/type.h"
 #include "core/buffer.h"
@@ -313,5 +312,3 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
                          buffer *sequence, buffer *corrupt_houses);
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version);
-
-#endif // BUILDING_BUILDING_H

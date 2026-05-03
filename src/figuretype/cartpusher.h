@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_CARTPUSHER_H
-#define FIGURETYPE_CARTPUSHER_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -14,5 +13,3 @@ void figure_warehouseman_action(figure *f);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURETYPE_CARTPUSHER_H

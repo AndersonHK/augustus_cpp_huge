@@ -1,5 +1,4 @@
-#ifndef BUILDING_TYPE_H
-#define BUILDING_TYPE_H
+#pragma once
 
 /**
  * @file
@@ -276,5 +275,3 @@ enum {
     BUILDING_STATE_DELETED_BY_PLAYER = 6,
     BUILDING_STATE_MOTHBALLED = 7
 };
-
-#endif // BUILDING_TYPE_H

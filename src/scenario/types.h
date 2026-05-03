@@ -1,5 +1,4 @@
-#ifndef SCENARIO_TYPES_H
-#define SCENARIO_TYPES_H
+#pragma once
 
 typedef enum {
     INVASION_TYPE_NONE = 0,
@@ -24,5 +23,3 @@ enum {
     EARTHQUAKE_PATTERN_RANDOM = 1,
     EARTHQUAKE_PATTERN_RANDOM_RIGHT_LEFT = 2,
 };
-
-#endif // SCENARIO_TYPES_H

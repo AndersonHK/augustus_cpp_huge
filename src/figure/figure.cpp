@@ -87,6 +87,22 @@ figure *figure_create(figure_type type, int x, int y, direction_type dir)
     return f;
 }
 
+static void clear_building_figure_slot_if_matches(building *b, unsigned int figure_id)
+{
+    if (!b || !figure_id) {
+        return;
+    }
+    if (b->figure_id == figure_id) {
+        b->figure_id = 0;
+    }
+    if (b->figure_id2 == figure_id) {
+        b->figure_id2 = 0;
+    }
+    if (b->figure_id4 == figure_id) {
+        b->figure_id4 = 0;
+    }
+}
+
 void figure_delete(figure *f)
 {
     building *b = building_get(f->building_id);
@@ -135,13 +151,20 @@ void figure_delete(figure *f)
                 b->figure_id4 = 0;
             }
             break;
+        case FIGURE_ACTOR:
+        case FIGURE_GLADIATOR:
+        case FIGURE_LION_TAMER:
+            // Amphitheaters and arenas alternate performer types in one legacy slot.
+            // Orphaned walkers from older saves must not clear a newer tracked walker.
+            clear_building_figure_slot_if_matches(b, f->id);
+            break;
         case FIGURE_ENEMY_CAESAR_LEGIONARY:
             city_emperor_mark_soldier_killed();
             break;
         case FIGURE_CHARIOTEER:
-            if (building_is_neptune_temple(b->type)) {
+            if (b && building_is_neptune_temple(b->type) && f->id == b->figure_id2) {
                 b->figure_id2 = 0;
-            } else {
+            } else if (b && f->id == b->figure_id) {
                 b->figure_id = 0;
             }
             break;

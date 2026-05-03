@@ -1,5 +1,4 @@
-#ifndef CORE_LOCALE_H
-#define CORE_LOCALE_H
+#pragma once
 
 #include <stdint.h>
 
@@ -73,5 +72,3 @@ int locale_translate_rank_autosaves(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CORE_LOCALE_H

@@ -1,5 +1,4 @@
-#ifndef BUILDING_STORAGE_RUNTIME_API_H
-#define BUILDING_STORAGE_RUNTIME_API_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,5 +14,3 @@ const char *storage_runtime_get_slot_type_path(building *b, int slot_index);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_STORAGE_RUNTIME_API_H

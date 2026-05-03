@@ -1,9 +1,9 @@
-#ifndef GRAPHICS_LANG_TEXT_H
-#define GRAPHICS_LANG_TEXT_H
+#pragma once
 
 #include "graphics/font.h"
 #include "graphics/color.h"
 #include "translation/translation.h"
+#include "graphics/screen.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,43 +26,41 @@ typedef struct {
     const uint8_t *text;
 } lang_fragment;
 
-int lang_text_get_width(int group, int number, font_t font);
+int lang_text_get_width(int group, int number, font_t font, int pixel_size);
 
-int lang_text_draw(int group, int number, int x_offset, int y_offset, font_t font);
-int lang_text_draw_colored(int group, int number, int x_offset, int y_offset, font_t font, color_t color);
+int lang_text_draw(int group, int number, int x_offset, int y_offset, font_t font, int pixel_size);
+int lang_text_draw_colored(int group, int number, int x_offset, int y_offset, font_t font, int pixel_size, color_t color);
 
-void lang_text_draw_centered(int group, int number, int x_offset, int y_offset, int box_width, font_t font);
-void lang_text_draw_right_aligned(int group, int number, int x_offset, int y_offset, int box_width, font_t font);
+void lang_text_draw_centered(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+void lang_text_draw_right_aligned(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
 void lang_text_draw_centered_colored(
-    int group, int number, int x_offset, int y_offset, int box_width, font_t font, color_t color);
+    int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
 
-void lang_text_draw_ellipsized(int group, int number, int x_offset, int y_offset, int box_width, font_t font);
-int lang_text_get_amount_width(int group, int number, int amount, font_t font);
-int lang_text_draw_amount(int group, int number, int amount, int x_offset, int y_offset, font_t font);
+void lang_text_draw_ellipsized(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+int lang_text_get_amount_width(int group, int number, int amount, font_t font, int pixel_size);
+int lang_text_draw_amount(int group, int number, int amount, int x_offset, int y_offset, font_t font, int pixel_size);
 int lang_text_draw_amount_centered(int group, int number, int amount, int x_offset, int y_offset, int box_width,
-    font_t font);
+    font_t font, int pixel_size);
 int lang_text_draw_amount_colored(int group, int number, int amount, int x_offset, int y_offset,
-    font_t font, color_t color);
+    font_t font, int pixel_size, color_t color);
 
-int lang_text_draw_year(int year, int x_offset, int y_offset, font_t font);
+int lang_text_draw_year(int year, int x_offset, int y_offset, font_t font, int pixel_size);
 void lang_text_draw_month_year_max_width(
-    int month, int year, int x_offset, int y_offset, int box_width, font_t font, color_t color);
+    int month, int year, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
 
-int lang_text_draw_multiline(int group, int number, int x_offset, int y_offset, int box_width, font_t font);
+int lang_text_draw_multiline(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
 
-int lang_text_get_sequence_width(const lang_fragment *seq, int count, font_t font);
-int lang_text_draw_sequence(const lang_fragment *seq, int count, int x, int y, font_t font, color_t color);
-int lang_text_draw_sequence_multiline(const lang_fragment *seq, int count, int x, int y, int box_width, int height_offset, font_t font, color_t color);
-int lang_text_draw_sequence_centered(const lang_fragment *seq, int count, int x, int y, int box_width, font_t font, color_t color);
+int lang_text_get_sequence_width(const lang_fragment *seq, int count, font_t font, int pixel_size);
+int lang_text_draw_sequence(const lang_fragment *seq, int count, int x, int y, font_t font, int pixel_size, color_t color);
+int lang_text_draw_sequence_multiline(const lang_fragment *seq, int count, int x, int y, int box_width, int height_offset, font_t font, int pixel_size, color_t color);
+int lang_text_draw_sequence_centered(const lang_fragment *seq, int count, int x, int y, int box_width, font_t font, int pixel_size, color_t color);
 int lang_text_draw_sequence_ellipsized(const lang_fragment *seq, int count, int x, int y, int box_width,
-    font_t font, color_t color, int *was_ellipsized);
+    font_t font, int pixel_size, color_t color, int *was_ellipsized);
 
-int lang_text_draw_sequence_centered_ellipsized(const lang_fragment *seq, int count, int x, int y, int box_width, font_t font, color_t color, int *was_ellipsized);
+int lang_text_draw_sequence_centered_ellipsized(const lang_fragment *seq, int count, int x, int y, int box_width, font_t font, int pixel_size, color_t color, int *was_ellipsized);
 
 int lang_text_concatenate_sequence(const lang_fragment *seq, int count, uint8_t *dst, int dst_size);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_LANG_TEXT_H

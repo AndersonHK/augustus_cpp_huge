@@ -1,5 +1,4 @@
-#ifndef GRID_BOX_H
-#define GRID_BOX_H
+#pragma once
 
 #include "graphics/scrollbar.h"
 #include "graphics/tooltip.h"
@@ -59,5 +58,3 @@ void grid_box_show_index(grid_box_type *grid_box, unsigned int index);
 void grid_box_request_refresh(grid_box_type *grid_box);
 int grid_box_has_scrollbar(const grid_box_type *grid_box);
 unsigned int grid_box_get_scroll_position(const grid_box_type *grid_box);
-
-#endif // GRID_BOX_H

@@ -1,5 +1,4 @@
-#ifndef CITY_MESSAGE_H
-#define CITY_MESSAGE_H
+#pragma once
 
 #include "core/buffer.h"
 
@@ -258,5 +257,3 @@ void city_message_set_scroll_position(int scroll_position);
 void city_message_save_state(buffer *messages, buffer *extra, buffer *counts, buffer *delays, buffer *population);
 
 void city_message_load_state(buffer *messages, buffer *extra, buffer *counts, buffer *delays, buffer *population);
-
-#endif // CITY_MESSAGE_H

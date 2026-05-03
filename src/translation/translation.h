@@ -1,5 +1,4 @@
-#ifndef TRANSLATION_TRANSLATION_H
-#define TRANSLATION_TRANSLATION_H
+#pragma once
 
 #include "core/locale.h"
 
@@ -2089,5 +2088,3 @@ const uint8_t *translation_for(translation_key key);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // TRANSLATION_TRANSLATION_H

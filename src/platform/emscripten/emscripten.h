@@ -1,5 +1,4 @@
-#ifndef PLATFORM_EMSCRIPTEN_H
-#define PLATFORM_EMSCRIPTEN_H
+#pragma once
 
 #ifdef __EMSCRIPTEN__
 
@@ -8,4 +7,3 @@
 #define PLATFORM_NO_USER_DIRECTORIES
 
 #endif // __EMSCRIPTEN__
-#endif // PLATFORM_EMSCRIPTEN_H

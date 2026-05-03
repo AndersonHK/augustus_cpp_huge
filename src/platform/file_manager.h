@@ -1,5 +1,4 @@
-#ifndef PLATFORM_FILE_MANAGER_H
-#define PLATFORM_FILE_MANAGER_H
+#pragma once
 
 #include <stdio.h>
 
@@ -148,5 +147,3 @@ int platform_file_manager_copy_directory(const char *src, const char *dst, int o
  * @return 1 if removing was successful, 0 otherwise
  */
 int platform_file_manager_remove_directory(const char *path);
-
-#endif // PLATFORM_FILE_MANAGER_H

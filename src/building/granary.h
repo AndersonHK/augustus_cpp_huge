@@ -1,5 +1,4 @@
-#ifndef BUILDING_GRANARY_H
-#define BUILDING_GRANARY_H
+#pragma once
 
 #include "building/building.h"
 #include "map/point.h"
@@ -256,5 +255,3 @@ void building_granary_bless(void);
  * @param big Wheteher it's a big curse (destruction) or small curse (resource removal).
  */
 void building_granary_warehouse_curse(int big);
-
-#endif // BUILDING_GRANARY_H

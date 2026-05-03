@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_MOUSE_H
-#define GRAPHICS_MOUSE_H
+#pragma once
 
 /**
  * @file
@@ -99,5 +98,3 @@ const mouse *mouse_in_dialog_with_size(const mouse *m, int width, int height);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_MOUSE_H

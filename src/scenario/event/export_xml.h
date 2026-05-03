@@ -1,5 +1,4 @@
-#ifndef SCENARIO_EVENTS_EXPORT_XML_H
-#define SCENARIO_EVENTS_EXPORT_XML_H
+#pragma once
 
 typedef enum {
     SCENARIO_EVENTS_XML_CURRENT_VERSION = 2,
@@ -10,5 +9,3 @@ typedef enum {
 } custom_variables_version;
 
 int scenario_events_export_to_xml(const char *filename);
-
-#endif // SCENARIO_EVENTS_EXPORT_XML_H

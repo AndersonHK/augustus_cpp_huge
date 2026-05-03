@@ -1,8 +1,11 @@
-#ifndef BUILDING_CONSTRUCTION_BUILDING_H
-#define BUILDING_CONSTRUCTION_BUILDING_H
+#pragma once
 
 #include "building/type.h"
 #include "map/grid.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum {
     CLEAR_MODE_FORCE = 0, //removes everything, even if not removable by player
@@ -26,6 +29,8 @@ typedef enum {
  * @param exact_coordinates If 1, x and y are used as exact coordinates without any offset adjustments
 */
 int building_construction_place_building(building_type type, int x, int y, int exact_coordinates);
+int building_construction_force_place_assess(building_type type, int x, int y, int exact_coordinates, int *clear_cost);
+int building_construction_force_place_building(building_type type, int x, int y, int exact_coordinates, int *clear_cost);
 int building_construction_is_granary_cross_tile(int tile_no);
 int building_construction_is_warehouse_corner(int tile_no);
 
@@ -46,6 +51,6 @@ int building_construction_fill_vacant_lots(grid_slice *area);
  */
 int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode clear_mode, cost_calculation cost);
 
-#endif // BUILDING_CONSTRUCTION_BUILDING_H
-
-
+#ifdef __cplusplus
+}
+#endif

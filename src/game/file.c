@@ -181,7 +181,7 @@ static void initialize_scenario_data(const uint8_t *scenario_name)
     map_tiles_update_all_aqueducts(0);
 
     // Load climate before to prevent climate related images blinking
-    image_load_climate(scenario_property_climate(), 0, 0, 0);
+    image_load_climate(scenario_property_climate(), 0, 0, 0, 0);
 
     map_natives_init();
 
@@ -322,7 +322,7 @@ static void initialize_saved_game(void)
     city_mission_tutorial_set_fire_message_shown(1);
     city_mission_tutorial_set_disease_message_shown(1);
 
-    image_load_climate(scenario_property_climate(), 0, 0, 0);
+    image_load_climate(scenario_property_climate(), 0, 0, 0, 0);
     image_load_enemy(scenario_property_enemy());
     city_military_determine_distant_battle_city();
 

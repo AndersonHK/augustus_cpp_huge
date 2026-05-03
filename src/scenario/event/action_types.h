@@ -1,5 +1,4 @@
-#ifndef ACTION_TYPES_H
-#define ACTION_TYPES_H
+#pragma once
 
 #include "scenario/event/data.h"
 
@@ -87,5 +86,3 @@ int scenario_action_type_change_rank_execute(scenario_action_t *action);
 int scenario_action_type_change_production_rate_execute(scenario_action_t *action);
 
 int scenario_action_type_lock_trade_route_execute(scenario_action_t *action);
-
-#endif // ACTION_TYPES_H

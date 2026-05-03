@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<window id="mission_briefing" base_width="640" base_height="480" min_blocks_width="40" min_blocks_height="30" margin_x_blocks="40" margin_y_blocks="10">
+    <widget type="panel" id="outer_panel" x="16" y="32" width="608" height="432" stretch_width="true" stretch_height="true" />
+    <widget type="label" id="title" x="32" y="48" font="large_black" font_size_delta="2" width="560" />
+    <widget type="label" id="subtitle" x="32" y="78" font="normal_black" font_size_delta="2" width="560" />
+    <widget type="panel" id="objectives_panel" x="32" y="96" width="544" height="80" stretch_width="true" />
+    <widget type="label" id="objectives_header" x="48" y="104" font="normal_white" font_size_delta="2" width="220" />
+    <widget type="label" id="objective_0" binding="mission.objective.0" x="48" y="127" width="240" height="16" padding_x="8" padding_y="2" font="normal_red" font_size_delta="2" label_type="1" />
+    <widget type="label" id="objective_1" binding="mission.objective.1" x="304" y="127" width="240" height="16" padding_x="8" padding_y="2" font="normal_red" font_size_delta="2" label_type="1" />
+    <widget type="label" id="objective_2" binding="mission.objective.2" x="48" y="149" width="240" height="16" padding_x="8" padding_y="2" font="normal_red" font_size_delta="2" label_type="1" />
+    <widget type="label" id="objective_3" binding="mission.objective.3" x="304" y="149" width="240" height="16" padding_x="8" padding_y="2" font="normal_red" font_size_delta="2" label_type="1" />
+    <widget type="label" id="objective_4" binding="mission.objective.4" x="304" y="105" width="240" height="16" padding_x="8" padding_y="2" font="normal_red" font_size_delta="2" label_type="1" />
+    <widget type="label" id="immediate_goal" binding="mission.immediate_goal" x="48" y="149" width="496" height="16" padding_x="8" padding_y="2" font="normal_red" font_size_delta="2" label_type="1" />
+    <widget type="panel" id="body_panel" x="32" y="184" width="544" height="240" stretch_width="true" stretch_height="true" />
+    <widget type="rich_text" id="body" x="56" y="184" width="496" height="240" stretch_width="true" stretch_height="true" draw_offset_x="0" draw_offset_y="12" line_spacing="1" paragraph_spacing="1" font_size_delta="4" />
+    <widget type="scrollbar" id="scrollbar" x="575" y="184" width="16" height="240" stretch_height="true" anchor_x="right" />
+    <widget type="image_button" id="button_cancel" action="action.cancel" x="26" y="428" width="31" height="20" anchor_y="bottom" image_collection="90" image_offset="8" />
+    <widget type="label" id="button_cancel_text" x="66" y="435" width="100" height="16" anchor_y="bottom" font="normal_black" font_size_delta="2" />
+    <widget type="label" id="button_to_city_text" x="376" y="433" width="220" height="16" anchor_x="right" anchor_y="bottom" font="normal_black" font_size_delta="2" />
+    <widget type="image_button" id="button_to_city" action="action.to_city" x="516" y="426" width="27" height="27" anchor_x="right" anchor_y="bottom" image_collection="92" image_offset="56" />
+</window>

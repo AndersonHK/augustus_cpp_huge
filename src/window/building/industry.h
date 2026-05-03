@@ -1,5 +1,4 @@
-#ifndef WINDOW_BUILDING_INDUSTRY_H
-#define WINDOW_BUILDING_INDUSTRY_H
+#pragma once
 
 #include "common.h"
 #include "input/mouse.h"
@@ -35,5 +34,3 @@ void window_building_draw_city_mint_foreground(building_info_context *c);
 int window_building_handle_mouse_city_mint(const mouse *m, building_info_context *c);
 
 void window_building_industry_get_tooltip(building_info_context *c, int *translation);
-
-#endif // WINDOW_BUILDING_INDUSTRY_H

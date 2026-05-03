@@ -1,5 +1,4 @@
-#ifndef WIDGET_SIDEBAR_FILLER_H
-#define WIDGET_SIDEBAR_FILLER_H
+#pragma once
 
 #include "graphics/tooltip.h"
 #include "input/mouse.h"
@@ -27,5 +26,3 @@ int sidebar_extra_handle_mouse(const mouse *m);
 int sidebar_extra_get_tooltip(tooltip_context *c);
 
 int sidebar_extra_is_information_displayed(sidebar_extra_display display);
-
-#endif // WIDGET_SIDEBAR_FILLER_H

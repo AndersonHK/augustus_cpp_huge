@@ -1,6 +1,7 @@
 extern "C" {
 #include "lang.h"
 #include "building/building.h"
+#include "city/message.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "translation/translation.h"
@@ -45,173 +46,165 @@ static void set_message_parameters(
     m->content.text = translation_for(static_cast<translation_key>(text));
 }
 
+static int augustus_message_text_id(city_message_type message_type)
+{
+    return message_type > 50 ? message_type + 199 : message_type + 99;
+}
+
+static lang_message *set_augustus_message_parameters(
+    city_message_type message_type,
+    int title,
+    int text,
+    int urgent,
+    lang_message_type message_kind)
+{
+    const int text_id = augustus_message_text_id(message_type);
+    if (text_id < 0 || text_id >= MAX_MESSAGE_ENTRIES) {
+        log_error("Augustus message entry out of range", "", text_id);
+        return nullptr;
+    }
+    lang_message *m = &data.message_entries[text_id];
+    set_message_parameters(m, title, text, urgent, message_kind);
+    return m;
+}
+
 
 void load_augustus_messages(void)
 {
-    int i = 321;
-    while (i < MAX_MESSAGE_ENTRIES) {
-        if (!data.message_entries[i].content.text) {
-            break;
-        }
-        i++;
-    }
-
-    if (i >= MAX_MESSAGE_ENTRIES) {
-        log_error("Message entry max exceeded", "", 0);
-        return;
-    }
-
     // soldiers starving
-    lang_message *m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_MESS_HALL_NEEDS_FOOD, TR_CITY_MESSAGE_TEXT_MESS_HALL_NEEDS_FOOD, 1,
+    lang_message *m = set_augustus_message_parameters(MESSAGE_SOLDIERS_STARVING,
+        TR_CITY_MESSAGE_TITLE_MESS_HALL_NEEDS_FOOD, TR_CITY_MESSAGE_TEXT_MESS_HALL_NEEDS_FOOD, 1,
         MESSAGE_TYPE_GENERAL);
-    m->video.text = (uint8_t *) "smk/god_mars.smk";
-    i += 1;
+    if (m) {
+        m->video.text = (uint8_t *) "smk/god_mars.smk";
+    }
 
     // soldiers starving, no mess hall
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_MESS_HALL_NEEDS_FOOD, TR_CITY_MESSAGE_TEXT_MESS_HALL_MISSING, 1,
+    set_augustus_message_parameters(MESSAGE_SOLDIERS_STARVING_NO_MESS_HALL,
+        TR_CITY_MESSAGE_TITLE_MESS_HALL_NEEDS_FOOD, TR_CITY_MESSAGE_TEXT_MESS_HALL_MISSING, 1,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
     // monument completed
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_GRAND_TEMPLE_COMPLETE, TR_CITY_MESSAGE_TEXT_GRAND_TEMPLE_COMPLETE, 0,
+    set_augustus_message_parameters(MESSAGE_GRAND_TEMPLE_COMPLETE,
+        TR_CITY_MESSAGE_TITLE_GRAND_TEMPLE_COMPLETE, TR_CITY_MESSAGE_TEXT_GRAND_TEMPLE_COMPLETE, 0,
         MESSAGE_TYPE_BUILDING_COMPLETION);
-    i += 1;
 
     // replacement Mercury blessing
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_MERCURY_BLESSING, TR_CITY_MESSAGE_TEXT_MERCURY_BLESSING, 0,
+    set_augustus_message_parameters(MESSAGE_BLESSING_FROM_MERCURY_ALTERNATE,
+        TR_CITY_MESSAGE_TITLE_MERCURY_BLESSING, TR_CITY_MESSAGE_TEXT_MERCURY_BLESSING, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
     // auto festivals
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_CERES, 0,
+    set_augustus_message_parameters(MESSAGE_AUTO_FESTIVAL_CERES,
+        TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_CERES, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_NEPTUNE, 0,
+    set_augustus_message_parameters(MESSAGE_AUTO_FESTIVAL_NEPTUNE,
+        TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_NEPTUNE, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_MERCURY, 0,
+    set_augustus_message_parameters(MESSAGE_AUTO_FESTIVAL_MERCURY,
+        TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_MERCURY, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_MARS, 0,
+    set_augustus_message_parameters(MESSAGE_AUTO_FESTIVAL_MARS,
+        TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_MARS, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_VENUS, 0,
+    set_augustus_message_parameters(MESSAGE_AUTO_FESTIVAL_VENUS,
+        TR_CITY_MESSAGE_TITLE_PANTHEON_FESTIVAL, TR_CITY_MESSAGE_TEXT_PANTHEON_FESTIVAL_VENUS, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_PANTHEON_COMPLETE, 0,
+    set_augustus_message_parameters(MESSAGE_PANTHEON_COMPLETE,
+        TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_PANTHEON_COMPLETE, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_LIGHTHOUSE_COMPLETE, 0,
+    set_augustus_message_parameters(MESSAGE_LIGHTHOUSE_COMPLETE,
+        TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_LIGHTHOUSE_COMPLETE, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_NEPTUNE_BLESSING, TR_CITY_MESSAGE_TEXT_NEPTUNE_BLESSING, 0,
+    set_augustus_message_parameters(MESSAGE_BLESSING_FROM_NEPTUNE_ALTERNATE,
+        TR_CITY_MESSAGE_TITLE_NEPTUNE_BLESSING, TR_CITY_MESSAGE_TEXT_NEPTUNE_BLESSING, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_VENUS_BLESSING, TR_CITY_MESSAGE_TEXT_VENUS_BLESSING, 0,
+    set_augustus_message_parameters(MESSAGE_BLESSING_FROM_VENUS_ALTERNATE,
+        TR_CITY_MESSAGE_TITLE_VENUS_BLESSING, TR_CITY_MESSAGE_TEXT_VENUS_BLESSING, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_COLOSSEUM_COMPLETE, 0,
+    set_augustus_message_parameters(MESSAGE_COLOSSEUM_COMPLETE,
+        TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_COLOSSEUM_COMPLETE, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_HIPPODROME_COMPLETE, 0,
+    set_augustus_message_parameters(MESSAGE_HIPPODROME_COMPLETE,
+        TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_HIPPODROME_COMPLETE, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_COLOSSEUM_WORKING, TR_CITY_MESSAGE_TEXT_COLOSSEUM_WORKING, 1,
+    m = set_augustus_message_parameters(MESSAGE_COLOSSEUM_WORKING_NEW,
+        TR_CITY_MESSAGE_TITLE_COLOSSEUM_WORKING, TR_CITY_MESSAGE_TEXT_COLOSSEUM_WORKING, 1,
         MESSAGE_TYPE_GENERAL);
-    m->video.text = (uint8_t *) "smk/1ST_GLAD.smk";
-    i += 1;
+    if (m) {
+        m->video.text = (uint8_t *) "smk/1ST_GLAD.smk";
+    }
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_HIPPODROME_WORKING, TR_CITY_MESSAGE_TEXT_HIPPODROME_WORKING, 1,
+    m = set_augustus_message_parameters(MESSAGE_HIPPODROME_WORKING_NEW,
+        TR_CITY_MESSAGE_TITLE_HIPPODROME_WORKING, TR_CITY_MESSAGE_TEXT_HIPPODROME_WORKING, 1,
         MESSAGE_TYPE_GENERAL);
-    m->video.text = (uint8_t *) "smk/1st_Chariot.smk";
-    i += 1;
+    if (m) {
+        m->video.text = (uint8_t *) "smk/1st_Chariot.smk";
+    }
 
     for (int j = 0; j < 12; ++j) {
-        m = &data.message_entries[i];
-        set_message_parameters(m, TR_CITY_MESSAGE_TITLE_GREAT_GAMES, TR_CITY_MESSAGE_TEXT_NAVAL_GAMES_PLANNING + j, 1,
+        set_augustus_message_parameters(static_cast<city_message_type>(MESSAGE_NG_GAMES_PLANNED + j),
+            TR_CITY_MESSAGE_TITLE_GREAT_GAMES, TR_CITY_MESSAGE_TEXT_NAVAL_GAMES_PLANNING + j, 1,
             MESSAGE_TYPE_GENERAL);
-        i += 1;
     }
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_LOOTING, TR_CITY_MESSAGE_TEXT_LOOTING, 1, MESSAGE_TYPE_DISASTER);
-    i += 1;
+    set_augustus_message_parameters(MESSAGE_LOOTING, TR_CITY_MESSAGE_TITLE_LOOTING, TR_CITY_MESSAGE_TEXT_LOOTING, 1,
+        MESSAGE_TYPE_DISASTER);
 
     for (int j = 0; j < 3; ++j) {
-        m = &data.message_entries[i];
-        set_message_parameters(m, TR_CITY_MESSAGE_TITLE_GREAT_GAMES, TR_CITY_MESSAGE_TEXT_IMPERIAL_GAMES_PLANNING + j, 1,
+        set_augustus_message_parameters(static_cast<city_message_type>(MESSAGE_IG_GAMES_PLANNED + j),
+            TR_CITY_MESSAGE_TITLE_GREAT_GAMES, TR_CITY_MESSAGE_TEXT_IMPERIAL_GAMES_PLANNING + j, 1,
             MESSAGE_TYPE_GENERAL);
-        i += 1;
     }
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_SICKNESS, TR_CITY_MESSAGE_TEXT_SICKNESS, 1, MESSAGE_TYPE_DISASTER);
-    i += 1;
+    set_augustus_message_parameters(MESSAGE_SICKNESS, TR_CITY_MESSAGE_TITLE_SICKNESS, TR_CITY_MESSAGE_TEXT_SICKNESS, 1,
+        MESSAGE_TYPE_DISASTER);
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_EMPERORS_WRATH, TR_CITY_MESSAGE_TEXT_EMPERORS_WRATH, 1, MESSAGE_TYPE_GENERAL);
-    m->video.text = (uint8_t *) "smk/Emp_send_army.smk";
-    m->urgent = 1;
-    i += 1;
+    m = set_augustus_message_parameters(MESSAGE_CAESAR_ANGER,
+        TR_CITY_MESSAGE_TITLE_EMPERORS_WRATH, TR_CITY_MESSAGE_TEXT_EMPERORS_WRATH, 1, MESSAGE_TYPE_GENERAL);
+    if (m) {
+        m->video.text = (uint8_t *) "smk/Emp_send_army.smk";
+        m->urgent = 1;
+    }
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_MARS_MINOR_CURSE_PREVENTED, TR_CITY_MESSAGE_TEXT_MARS_MINOR_CURSE_PREVENTED, 1, MESSAGE_TYPE_GENERAL);
-    i += 1;
+    set_augustus_message_parameters(MESSAGE_WRATH_OF_MARS_NO_NATIVES,
+        TR_CITY_MESSAGE_TITLE_MARS_MINOR_CURSE_PREVENTED, TR_CITY_MESSAGE_TEXT_MARS_MINOR_CURSE_PREVENTED, 1,
+        MESSAGE_TYPE_GENERAL);
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_ENEMIES_LEAVING, TR_CITY_MESSAGE_TEXT_ENEMIES_LEAVING, 1, MESSAGE_TYPE_GENERAL);
-    i += 1;
+    set_augustus_message_parameters(MESSAGE_ENEMIES_LEAVING,
+        TR_CITY_MESSAGE_TITLE_ENEMIES_LEAVING, TR_CITY_MESSAGE_TEXT_ENEMIES_LEAVING, 1, MESSAGE_TYPE_GENERAL);
 
-    m = &data.message_entries[i];
-    m->urgent = 1;
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_ROAD_TO_ROME_WARNING, TR_CITY_MESSAGE_TEXT_ROAD_TO_ROME_WARNING, 1, MESSAGE_TYPE_GENERAL);
-    i += 1;
+    m = set_augustus_message_parameters(MESSAGE_ROAD_TO_ROME_WARNING,
+        TR_CITY_MESSAGE_TITLE_ROAD_TO_ROME_WARNING, TR_CITY_MESSAGE_TEXT_ROAD_TO_ROME_WARNING, 1, MESSAGE_TYPE_GENERAL);
+    if (m) {
+        m->urgent = 1;
+    }
 
     // Custom message placeholder (MESSAGE_CUSTOM_MESSAGE = 160). Actual displayed text is determined by the contents of the custom message being displayed.
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_EDITOR_CUSTOM_MESSAGES_TITLE, TR_EDITOR_CUSTOM_MESSAGES_TITLE, 0, MESSAGE_TYPE_CUSTOM);
-    i += 1;
+    set_augustus_message_parameters(MESSAGE_CUSTOM_MESSAGE,
+        TR_EDITOR_CUSTOM_MESSAGES_TITLE, TR_EDITOR_CUSTOM_MESSAGES_TITLE, 0, MESSAGE_TYPE_CUSTOM);
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_TRADE_ROUTE_PRICE_CHANGE, TR_CITY_MESSAGE_TEXT_TRADE_ROUTE_PRICE_CHANGE, 0, MESSAGE_TYPE_ROUTE_PRICE_CHANGE);
-    i += 1;
+    set_augustus_message_parameters(MESSAGE_ROUTE_PRICE_CHANGE,
+        TR_CITY_MESSAGE_TITLE_TRADE_ROUTE_PRICE_CHANGE, TR_CITY_MESSAGE_TEXT_TRADE_ROUTE_PRICE_CHANGE, 0,
+        MESSAGE_TYPE_ROUTE_PRICE_CHANGE);
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_CARAVANSERAI_COMPLETE, 0,
+    set_augustus_message_parameters(MESSAGE_CARAVANSERAI_COMPLETE,
+        TR_CITY_MESSAGE_TITLE_MONUMENT_COMPLETE, TR_CITY_MESSAGE_TEXT_CARAVANSERAI_COMPLETE, 0,
         MESSAGE_TYPE_GENERAL);
-    i += 1;
 
-    m = &data.message_entries[i];
-    set_message_parameters(m, TR_CITY_MESSAGE_TITLE_GOVERNOR_RANK_CHANGE, 0, 0, MESSAGE_TYPE_RANK_CHANGE);
-    i += 1;
+    set_augustus_message_parameters(MESSAGE_GOVERNOR_RANK_CHANGE,
+        TR_CITY_MESSAGE_TITLE_GOVERNOR_RANK_CHANGE, 0, 0, MESSAGE_TYPE_RANK_CHANGE);
 }
 
 extern "C" int lang_load(int is_editor)

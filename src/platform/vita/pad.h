@@ -1,5 +1,4 @@
-#ifndef VITA_PAD_H
-#define VITA_PAD_H
+#pragma once
 
 enum {
     VITA_PAD_TRIANGLE = 0,
@@ -22,5 +21,3 @@ enum {
     VITA_RIGHT_ANALOG_X = 2,
     VITA_RIGHT_ANALOG_Y = 3
 };
-
-#endif // VITA_PAD_H

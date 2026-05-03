@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_UI_SAVED_REGION_PRIMITIVE_H
-#define GRAPHICS_UI_SAVED_REGION_PRIMITIVE_H
+#pragma once
 
 #include "graphics/ui_primitive.h"
 
@@ -23,5 +22,3 @@ private:
     int width_;
     int height_;
 };
-
-#endif // GRAPHICS_UI_SAVED_REGION_PRIMITIVE_H

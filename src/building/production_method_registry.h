@@ -1,5 +1,4 @@
-#ifndef BUILDING_PRODUCTION_METHOD_REGISTRY_H
-#define BUILDING_PRODUCTION_METHOD_REGISTRY_H
+#pragma once
 
 #include "building/production_method.h"
 
@@ -19,5 +18,3 @@ int production_method_registry_load(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_PRODUCTION_METHOD_REGISTRY_H

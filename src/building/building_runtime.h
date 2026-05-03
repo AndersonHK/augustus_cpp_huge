@@ -1,5 +1,4 @@
-#ifndef BUILDING_BUILDING_RUNTIME_H
-#define BUILDING_BUILDING_RUNTIME_H
+#pragma once
 
 #include "assets/image_group_entry.h"
 #include "building/building_type.h"
@@ -127,5 +126,3 @@ private:
     std::vector<unsigned char> spawn_delay_counters_;
     CachedGraphicsBindings graphics_cache_;
 };
-
-#endif // BUILDING_BUILDING_RUNTIME_H

@@ -1,5 +1,4 @@
-#ifndef BUILDING_COUNT_H
-#define BUILDING_COUNT_H
+#pragma once
 
 #include "core/buffer.h"
 #include "building/type.h"
@@ -125,5 +124,3 @@ int building_count_terrain(int terrain, int (*condition)(int));
 
 int building_count_bridges(int ship);
 int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int ship);
-
-#endif // BUILDING_COUNT_H

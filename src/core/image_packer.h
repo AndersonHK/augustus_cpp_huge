@@ -1,5 +1,4 @@
-#ifndef CORE_IMAGE_PACKER_H
-#define CORE_IMAGE_PACKER_H
+#pragma once
 
 /**
  * This code is based on the japacker image packing library, however, unlike japacker (which is public domain),
@@ -103,5 +102,3 @@ int image_packer_pack(image_packer *packer);
  * @param packer The object to free.
  */
 void image_packer_free(image_packer *packer);
-
-#endif // CORE_IMAGE_PACKER_H

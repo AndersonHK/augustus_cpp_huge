@@ -104,26 +104,26 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 0, 40, 30);
-    lang_text_draw(44, 14, 20, 12, FONT_LARGE_BLACK);
+    lang_text_draw(44, 14, 20, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_DATE, 15, 50, 120, FONT_SMALL_PLAIN); // Request date:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_RESOURCE, 150, 50, 70, FONT_SMALL_PLAIN); // Resource:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_AMOUNT, 235, 50, 80, FONT_SMALL_PLAIN); // Amount:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_DEADLINE, 310, 50, 70, FONT_SMALL_PLAIN); // Deadline:
-    lang_text_draw_centered(53, 4, 390, 50, 90, FONT_SMALL_PLAIN); // Favor
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY2, 465, 30, 120, FONT_SMALL_PLAIN); // Repeat frequency
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES2, 480, 50, 45, FONT_SMALL_PLAIN); // Times:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY_YEARS2, 525, 50, 60, FONT_SMALL_PLAIN); // Years:
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_DATE, 15, 50, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Request date:
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_RESOURCE, 150, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Resource:
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_AMOUNT, 235, 50, 80, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Amount:
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_DEADLINE, 310, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Deadline:
+    lang_text_draw_centered(53, 4, 390, 50, 90, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Favor
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY2, 465, 30, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Repeat frequency
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES2, 480, 50, 45, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Times:
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY_YEARS2, 525, 50, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Years:
 
     if (!data.requests_in_use) {
-        lang_text_draw_centered(44, 19, 0, 165, 640, FONT_LARGE_BLACK);
+        lang_text_draw_centered(44, 19, 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     }
 
     if (!data.on_select) {
-        lang_text_draw_centered(13, 3, 0, 456, 640, FONT_NORMAL_BLACK);
-        lang_text_draw_multiline(152, 1, 20, 380, 600, FONT_NORMAL_BLACK);
+        lang_text_draw_centered(13, 3, 0, 456, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_multiline(152, 1, 20, 380, 600, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NEW_REQUEST, new_request_button.x + 8,
-            new_request_button.y + 8, new_request_button.width - 16, FONT_NORMAL_BLACK);
+            new_request_button.y + 8, new_request_button.width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     graphics_reset_dialog();
@@ -135,48 +135,48 @@ static void draw_request_button(const grid_box_item *item)
 {
     button_border_draw(item->x, item->y, item->width, item->height, item->is_focused);
     const scenario_request *request = data.requests[item->index];
-    text_draw_number(request->year, '+', " ", item->x + 5, item->y + 7, FONT_NORMAL_BLACK, 0);
-    lang_text_draw_year(scenario_property_start_year() + request->year, item->x + 40, item->y + 7, FONT_NORMAL_BLACK);
+    text_draw_number(request->year, '+', " ", item->x + 5, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    lang_text_draw_year(scenario_property_start_year() + request->year, item->x + 40, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     int image_id = resource_get_data(request->resource)->image.editor.icon;
     const image *img = image_get(image_id);
     int base_width = (25 - img->original.width) / 2;   //centering resource icon
     int base_height = (item->height - img->original.height) / 2;
     image_draw(image_id, 150 + base_width, item->y + base_height, COLOR_MASK_NONE, SCALE_NONE);
-    text_draw(resource_get_data(request->resource)->text, 180, item->y + 7, FONT_SMALL_PLAIN, 0);
+    text_draw(resource_get_data(request->resource)->text, 180, item->y + 7, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
 
-    int width = text_draw_number(request->amount.min, '@', " ", 250, item->y + 7, FONT_NORMAL_BLACK, 0);
+    int width = text_draw_number(request->amount.min, '@', " ", 250, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     if (request->amount.max > request->amount.min) {
-        width += text_draw(string_from_ascii("-"), 242 + width, item->y + 7, FONT_NORMAL_BLACK, 0);
-        width += text_draw_number(request->amount.max, '@', " ", 235 + width, item->y + 7, FONT_NORMAL_BLACK, 0);
+        width += text_draw(string_from_ascii("-"), 242 + width, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+        width += text_draw_number(request->amount.max, '@', " ", 235 + width, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
-    text_draw_number(request->deadline_years, '@', " ", 335, item->y + 7, FONT_NORMAL_BLACK, 0);
+    text_draw_number(request->deadline_years, '@', " ", 335, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    text_draw_number(request->extension_months_to_comply, '@', " ", 365, item->y + 7, FONT_NORMAL_RED, COLOR_MASK_NONE);
-    text_draw_number(request->favor, '@', " ", 395, item->y + 7, FONT_NORMAL_BLACK, 0);
-    text_draw_number(request->extension_disfavor, '-', " ", 425, item->y + 7, FONT_NORMAL_BLACK, 0);
-    text_draw_number(request->ignored_disfavor, '-', " ", 455, item->y + 7, FONT_NORMAL_BLACK, 0);
+    text_draw_number(request->extension_months_to_comply, '@', " ", 365, item->y + 7, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height), COLOR_MASK_NONE);
+    text_draw_number(request->favor, '@', " ", 395, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw_number(request->extension_disfavor, '-', " ", 425, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw_number(request->ignored_disfavor, '-', " ", 455, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     if (request->repeat.times == REQUESTS_REPEAT_INFINITE) {
-        text_draw(string_from_ascii("INF"), 493, item->y + 7, FONT_SMALL_PLAIN, 0);
+        text_draw(string_from_ascii("INF"), 493, item->y + 7, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
     } else if (request->repeat.times == 0) {
-        text_draw(string_from_ascii("-"), 500, item->y + 7, FONT_NORMAL_BLACK, 0);
+        text_draw(string_from_ascii("-"), 500, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
-        int width2 = text_get_number_width(request->repeat.times, '@', " ", FONT_NORMAL_BLACK);
-        text_draw_number(request->repeat.times, '@', " ", 500 - (width2 / 2), item->y + 7, FONT_NORMAL_BLACK, 0);
+        int width2 = text_get_number_width(request->repeat.times, '@', " ", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        text_draw_number(request->repeat.times, '@', " ", 500 - (width2 / 2), item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
-    int width3 = text_get_number_width(request->repeat.interval.min, '@', " ", FONT_NORMAL_BLACK);
+    int width3 = text_get_number_width(request->repeat.interval.min, '@', " ", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     if (request->repeat.times == 0) {
-        text_draw(string_from_ascii(" "), 525, item->y + 7, FONT_NORMAL_BLACK, 0);
+        text_draw(string_from_ascii(" "), 525, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (request->repeat.times > 0 || request->repeat.times == REQUESTS_REPEAT_INFINITE) {
         if (request->repeat.interval.max == request->repeat.interval.min) {
-            text_draw_number(request->repeat.interval.min, '@', " ", 550 - (width3 / 2), item->y + 7, FONT_NORMAL_BLACK, 0);
+            text_draw_number(request->repeat.interval.min, '@', " ", 550 - (width3 / 2), item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else if (request->repeat.interval.max > request->repeat.interval.min) {
-            text_draw_number(request->repeat.interval.min, '@', " ", 547 - width3, item->y + 7, FONT_NORMAL_BLACK, 0);
-            text_draw(string_from_ascii("-"), 550, item->y + 7, FONT_NORMAL_BLACK, 0);
-            text_draw_number(request->repeat.interval.max, '@', " ", 553, item->y + 7, FONT_NORMAL_BLACK, 0);
+            text_draw_number(request->repeat.interval.min, '@', " ", 547 - width3, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+            text_draw(string_from_ascii("-"), 550, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+            text_draw_number(request->repeat.interval.max, '@', " ", 553, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
     }
 

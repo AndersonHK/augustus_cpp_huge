@@ -1,5 +1,4 @@
-#ifndef WINDOW_BUILDING_CULTURE_H
-#define WINDOW_BUILDING_CULTURE_H
+#pragma once
 
 #include "common.h"
 #include "input/mouse.h"
@@ -104,7 +103,3 @@ int window_building_handle_mouse_grand_temple(const mouse* m, building_info_cont
 int window_building_handle_mouse_colosseum(const mouse *m, building_info_context *c);
 
 int window_building_handle_mouse_hippodrome(const mouse *m, building_info_context *c);
-
-
-
-#endif // WINDOW_BUILDING_CULTURE_H

@@ -1,5 +1,4 @@
-#ifndef SCENARIO_EVENT_FORMULA_H
-#define SCENARIO_EVENT_FORMULA_H
+#pragma once
 
 #include "scenario/event/data.h"
 
@@ -37,6 +36,3 @@ int scenario_event_formula_check(scenario_formula_t *formula);
 
 int scenario_event_formula_is_static(unsigned int id);
 int scenario_event_formula_is_error(unsigned int id);
-
-
-#endif // SCENARIO_EVENT_FORMULA_H

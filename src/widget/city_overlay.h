@@ -1,5 +1,4 @@
-#ifndef WIDGET_CITY_OVERLAY_H
-#define WIDGET_CITY_OVERLAY_H
+#pragma once
 
 #include "building/building.h"
 #include "figure/figure.h"
@@ -30,5 +29,3 @@ typedef struct {
 void city_with_overlay_draw_building_footprint(int x, int y, int grid_offset, int image_offset);
 
 void city_with_overlay_draw_building_top(int x, int y, int grid_offset);
-
-#endif // WIDGET_CITY_OVERLAY_H

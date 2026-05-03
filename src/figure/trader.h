@@ -1,5 +1,4 @@
-#ifndef FIGURE_TRADER_H
-#define FIGURE_TRADER_H
+#pragma once
 
 #include "core/buffer.h"
 #include "game/resource.h"
@@ -90,5 +89,3 @@ void traders_save_state(buffer *buf);
  * @param buf Buffer
  */
 void traders_load_state(buffer *buf);
-
-#endif // FIGURE_TRADE_INFO_H

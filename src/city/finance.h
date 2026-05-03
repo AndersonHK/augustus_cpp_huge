@@ -1,5 +1,4 @@
-#ifndef CITY_FINANCE_H
-#define CITY_FINANCE_H
+#pragma once
 
 #include "building/type.h"
 
@@ -112,5 +111,3 @@ const finance_overview *city_finance_overview_last_year(void);
 const finance_overview *city_finance_overview_this_year(void);
 
 int city_finance_spawn_tourist(void);
-
-#endif // CITY_FINANCE_H

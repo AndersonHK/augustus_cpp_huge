@@ -1,5 +1,4 @@
-#ifndef SCENARIO_EVENTS_CONTOLLER_H
-#define SCENARIO_EVENTS_CONTOLLER_H
+#pragma once
 
 #include "core/buffer.h"
 #include "scenario/event/data.h"
@@ -41,5 +40,3 @@ void scenario_events_assign_parent_event_ids(void);
 void scenario_events_fetch_event_tiles_to_editor(void);
 
 void scenario_events_migrate_to_grid_slices(void);
-
-#endif // SCENARIO_EVENTS_CONTOLLER_H

@@ -37,7 +37,8 @@ void ImageButtonWidget::draw() const
     }
 
     int image_id = resolve_image_id();
-    if (!button_.static_image) {
+    const int named_asset = button_.assetlist_name && button_.image_name;
+    if (!button_.static_image && !named_asset) {
         if (button_.enabled) {
             if (button_.pressed) {
                 image_id += 2;

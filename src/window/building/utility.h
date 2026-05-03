@@ -1,5 +1,4 @@
-#ifndef WINDOW_BUILDING_UTILITY_H
-#define WINDOW_BUILDING_UTILITY_H
+#pragma once
 
 #include "common.h"
 #include "input/mouse.h"
@@ -39,5 +38,3 @@ void window_building_draw_native_watchtower(building_info_context *c);
 
 
 void window_building_draw_highway(building_info_context *c);
-
-#endif // WINDOW_BUILDING_UTILITY_H

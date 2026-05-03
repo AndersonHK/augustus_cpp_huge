@@ -1,5 +1,4 @@
-#ifndef MAP_TILE_TYPE_REGISTRY_INTERNAL_H
-#define MAP_TILE_TYPE_REGISTRY_INTERNAL_H
+#pragma once
 
 #include "map/tile_type_registry.h"
 
@@ -97,5 +96,3 @@ TileKind tile_kind_from_attr(const char *attr);
 const TileType *get_tile_type(TileKind kind);
 
 }
-
-#endif // MAP_TILE_TYPE_REGISTRY_INTERNAL_H

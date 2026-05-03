@@ -117,7 +117,7 @@ static void create_blank_map(int size)
 
 static void prepare_map_for_editing(void)
 {
-    image_load_climate(scenario_property_climate(), 1, 0, 0);
+    image_load_climate(scenario_property_climate(), 1, 0, 0, 0);
 
     int empire_id = scenario_empire_id();
     empire_load(1, empire_id);

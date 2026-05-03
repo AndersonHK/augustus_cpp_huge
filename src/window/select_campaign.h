@@ -1,6 +1,11 @@
-#ifndef WINDOW_SELECT_CAMPAIGN_H
-#define WINDOW_SELECT_CAMPAIGN_H
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 void window_select_campaign_show(void);
 
-#endif // WINDOW_SELECT_CAMPAIGN_H
+#ifdef __cplusplus
+}
+#endif

@@ -1,6 +1,3 @@
-#ifndef WINDOW_VICTORY_DIALOG_H
-#define WINDOW_VICTORY_DIALOG_H
+#pragma once
 
 void window_victory_dialog_show(void);
-
-#endif // WINDOW_VICTORY_DIALOG_H

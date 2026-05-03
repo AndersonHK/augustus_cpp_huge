@@ -1,5 +1,4 @@
-#ifndef WINDOW_BUILDING_DEPOT_H
-#define WINDOW_BUILDING_DEPOT_H
+#pragma once
 
 #include "common.h"
 #include "input/mouse.h"
@@ -21,5 +20,3 @@ int window_building_handle_mouse_depot_select_destination(const mouse *m, buildi
 int window_building_handle_mouse_depot_select_resource(const mouse *m, building_info_context *c);
 
 void window_building_depot_get_tooltip_main(int *translation);
-
-#endif // WINDOW_BUILDING_DEPOT_H

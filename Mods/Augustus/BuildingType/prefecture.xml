@@ -15,6 +15,6 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:0,75:1,50:3,25:7,1:15" existing_figure="prefect">
         <spawn mode="service_roamer" spawn_figure="prefect"
-            action_state="prefect_created" direction="top" figure_slot="primary" init_roaming="false" />
+            action_state="prefect_created" direction="top" figure_slot="primary" init_roaming="false" profile="service" />
     </spawn_group>
 </building>

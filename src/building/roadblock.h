@@ -1,5 +1,4 @@
-#ifndef BUILDING_ROADBLOCK_H
-#define BUILDING_ROADBLOCK_H
+#pragma once
 
 #include "building/building.h"
 
@@ -32,5 +31,3 @@ void building_roadblock_accept_all(building *b);
 
 
 int building_type_is_roadblock(building_type type);
-
-#endif // BUILDING_ROADBLOCK_H

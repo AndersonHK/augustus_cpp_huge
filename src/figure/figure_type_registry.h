@@ -1,5 +1,4 @@
-#ifndef FIGURE_TYPE_REGISTRY_H
-#define FIGURE_TYPE_REGISTRY_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,5 +11,3 @@ void figure_type_registry_reset(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURE_TYPE_REGISTRY_H

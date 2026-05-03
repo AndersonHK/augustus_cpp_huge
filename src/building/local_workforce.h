@@ -1,5 +1,4 @@
-#ifndef BUILDING_LOCAL_WORKFORCE_H
-#define BUILDING_LOCAL_WORKFORCE_H
+#pragma once
 
 #include "core/buffer.h"
 #include "figure/figure.h"
@@ -36,5 +35,3 @@ void building_local_workforce_cancel_labor_seeker(figure *f);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_LOCAL_WORKFORCE_H

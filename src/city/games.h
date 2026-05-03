@@ -1,5 +1,4 @@
-#ifndef CITY_GAMES_H
-#define CITY_GAMES_H
+#pragma once
 
 #include "city/resource.h"
 #include "translation/translation.h"
@@ -36,5 +35,3 @@ int city_games_naval_battle_distant_battle_bonus_active(void);
 void city_games_remove_naval_battle_distant_battle_bonus(void);
 
 games_type *city_games_get_game_type(int id);
-
-#endif // CITY_GAMES_H

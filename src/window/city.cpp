@@ -179,7 +179,7 @@ static void draw_paused_banner(void)
     if (game_state_is_paused()) {
         int x_offset = center_in_city(448);
         outer_panel_draw(x_offset, 40, 28, 3);
-        text_draw_centered(get_paused_text(), x_offset, 58, 448, FONT_NORMAL_BLACK, 0);
+        text_draw_centered(get_paused_text(), x_offset, 58, 448, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 }
 
@@ -267,7 +267,7 @@ void label_draw_masked(int x, int y, int width_blocks, int type, color_t color)
 static void draw_topleft_label_with_fragments(int x, int y, const lang_fragment *fragments, int fragment_count, font_t font, color_t color)
 {
     // Measure total width using the new sequence width function
-    int label_width = lang_text_get_sequence_width(fragments, fragment_count, font);
+    int label_width = lang_text_get_sequence_width(fragments, fragment_count, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
 
     int label_blocks = (label_width + 2 * BLOCK_SIZE) / BLOCK_SIZE;
     if (label_blocks < 1) label_blocks = 1;
@@ -275,7 +275,7 @@ static void draw_topleft_label_with_fragments(int x, int y, const lang_fragment 
     label_draw_masked(x, y, label_blocks, 1, color);
 
     // Draw the sequence using the new lang_fragment system
-    lang_text_draw_sequence(fragments, fragment_count, x + 6, y + 4, font, COLOR_MASK_NONE);
+    lang_text_draw_sequence(fragments, fragment_count, x + 6, y + 4, font, screen_ui_to_pixel(font_definition_for(font)->line_height), COLOR_MASK_NONE);
 }
 
 
@@ -286,7 +286,7 @@ static void draw_speedrun_info(void)
     if (config_get(CONFIG_UI_SHOW_SPEEDRUN_INFO)) {
         int s_height = screen_height();
         large_label_draw(0, s_height - 25, 10, 0);
-        lang_text_draw_centered(153, setting_difficulty() + 1, 4, s_height - 18, 150, FONT_NORMAL_WHITE);
+        lang_text_draw_centered(153, setting_difficulty() + 1, 4, s_height - 18, 150, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
 }
 

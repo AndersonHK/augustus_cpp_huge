@@ -78,24 +78,29 @@ of an abstract city simulation.
 ## Current Vespasian Walker Ranges
 
 These are the live XML values observed in `Mods/Vespasian/FigureType` on
-2026-04-25, using 15 m/tile. Real walking minutes use 4.8 km/h, or 80 m/min,
+2026-05-02, using 15 m/tile. Real walking minutes use 4.8 km/h, or 80 m/min,
 for adult walkers; the school-child row uses 3.6 km/h, or 60 m/min.
 
-| Walker group | `roam_ticks` | `max_roam_length` | Normal road tiles | Normal road meters | All-highway meters | Real walk time for normal-road distance | Vespasian days before limit | Wall-clock at 100% |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Barber, bathhouse, librarian, priest, teacher | 1 | 384 | 25.6 | 384 m | 768 m | 4.8 adult min | 3.84 days | 6.1 sec |
-| Labor seeker | 1 | 576 | 38.4 | 576 m | 1,152 m | 7.2 adult min | 5.76 days | 9.2 sec |
-| Engineer, prefect | 1 | 640 | 42.7 | 640 m | 1,280 m | 8.0 adult min | 6.40 days | 10.2 sec |
-| School child | 2 | 192 | 25.6 | 384 m | 768 m | 6.4 child min | 1.92 days | 3.1 sec |
+Most current FigureType service and venue-seeker profiles use `terrain_usage="roads"`, so highway distance is not part of their authored range. Vespasian `hippodrome_service` uses `terrain_usage="roads_highway"` and can use the highway column.
+
+| Walker group | `terrain_usage` | `roam_ticks` | `max_roam_length` | Normal road tiles | Normal road meters | All-highway meters | Real walk time for normal-road distance | Vespasian days before limit | Wall-clock at 100% |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Barber, bathhouse, librarian, labor seeker, priest, teacher | `roads` | 1 | 576 | 38.4 | 576 m | n/a | 7.2 adult min | 5.76 days | 9.2 sec |
+| Entertainment venue service except hippodrome | `roads` | 1 | 768 | 51.2 | 768 m | n/a | 9.6 adult min | 7.68 days | 12.3 sec |
+| Vespasian hippodrome service | `roads_highway` | 1 | 768 | 51.2 | 768 m | 1,536 m | 9.6 adult min | 7.68 days | 12.3 sec |
+| Engineer, prefect | `roads` | 1 | 960 | 64.0 | 960 m | n/a | 12.0 adult min | 9.60 days | 15.4 sec |
+| School child | `roads` | 2 | 288 | 38.4 | 576 m | n/a | 9.6 child min | 2.88 days | 4.6 sec |
+| Entertainment venue seeker | `roads` | 1 | 4800 | 320.0 | 4,800 m | n/a | 60.0 adult min | 48.00 days | 76.8 sec |
 
 The same table under the 12-20 m/tile uncertainty band:
 
 | Range tier | Normal road tiles | 12 m/tile | 15 m/tile | 20 m/tile |
 | --- | ---: | ---: | ---: | ---: |
-| `192`, `roam_ticks=2` | 25.6 | 307 m | 384 m | 512 m |
-| `384`, `roam_ticks=1` | 25.6 | 307 m | 384 m | 512 m |
+| `288`, `roam_ticks=2` | 38.4 | 461 m | 576 m | 768 m |
 | `576`, `roam_ticks=1` | 38.4 | 461 m | 576 m | 768 m |
-| `640`, `roam_ticks=1` | 42.7 | 512 m | 640 m | 853 m |
+| `768`, `roam_ticks=1` | 51.2 | 614 m | 768 m | 1,024 m |
+| `960`, `roam_ticks=1` | 64.0 | 768 m | 960 m | 1,280 m |
+| `4800`, `roam_ticks=1` | 320.0 | 3,840 m | 4,800 m | 6,400 m |
 
 ## Comparison to Real Walking Tolerance
 
@@ -112,15 +117,15 @@ The preindustrial walking research in
 
 At the 15 m/tile scale, the current Vespasian numbers are local:
 
-- The `384` adult tier is roughly 384 m, or about 4.8 real walking minutes.
-  That is a good daily-essential and dense-neighborhood range.
-- The `576` labor tier is roughly 576 m, or about 7.2 real walking minutes.
-  That is a local-workforce radius, not a long commute radius.
-- The `640` engineer/prefect tier is roughly 640 m, or about 8.0 real walking
-  minutes. It is "long" only relative to current service walkers.
-- An all-highway route doubles those distances, pushing labor seekers near 1.15
-  km and engineers/prefects near 1.28 km, which enters ordinary adult
-  neighborhood-service territory but still stays below a 20-30 minute commute.
+- The `576` local service tier is roughly 576 m, or about 7.2 real walking
+  minutes. That is a local-workforce and dense-neighborhood range.
+- The `768` entertainment service tier is roughly 768 m, or about 9.6 real
+  walking minutes.
+- The `960` engineer/prefect tier is roughly 960 m, or about 12.0 real walking
+  minutes. It is now in ordinary neighborhood-service territory but still below
+  a 20-30 minute commute.
+- The `4800` venue-seeker tier is not a roaming service radius. It is a long
+  route-distance cap for performers traveling from training buildings to venues.
 
 If the design goal is a 20-30 minute ordinary adult commute at 15 m/tile, the
 target physical range is about 107-160 normal road tiles, or `max_roam_length`

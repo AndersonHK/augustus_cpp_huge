@@ -1,5 +1,4 @@
-#ifndef CITY_RESOURCE_H
-#define CITY_RESOURCE_H
+#pragma once
 
 #include "city/constants.h"
 #include "game/resource.h"
@@ -81,5 +80,3 @@ resource_type city_resource_ceres_temple_food(void);
 void city_resource_calculate_food_stocks_and_supply_wheat(void);
 
 void city_resource_consume_food(void);
-
-#endif // CITY_RESOURCE_H

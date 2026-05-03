@@ -1,8 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
 <figure type="priest">
-    <native class="roaming_service" />
-    <owner slot="primary" building="any" state="in_use" />
-    <movement terrain_usage="roads" roam_ticks="1" max_roam_length="576" return_mode="return_to_owner_road" />
-    <pathing mode="smart_service" effect="religion_owner" />
+    <profiles default="ceres_service">
+        <profile id="ceres_service">
+            <native class="roaming_service" />
+            <owner slot="primary" building="any" state="in_use" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="576" return_mode="return_to_owner_road" />
+            <pathing mode="smart_service" effect="religion_ceres" />
+        </profile>
+        <profile id="neptune_service">
+            <native class="roaming_service" />
+            <owner slot="primary" building="any" state="in_use" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="576" return_mode="return_to_owner_road" />
+            <pathing mode="smart_service" effect="religion_neptune" />
+        </profile>
+        <profile id="mercury_service">
+            <native class="roaming_service" />
+            <owner slot="primary" building="any" state="in_use" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="576" return_mode="return_to_owner_road" />
+            <pathing mode="smart_service" effect="religion_mercury" />
+        </profile>
+        <profile id="mars_service">
+            <native class="roaming_service" />
+            <owner slot="primary" building="any" state="in_use" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="576" return_mode="return_to_owner_road" />
+            <pathing mode="smart_service" effect="religion_mars" />
+        </profile>
+        <profile id="venus_service">
+            <native class="roaming_service" />
+            <owner slot="primary" building="any" state="in_use" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="576" return_mode="return_to_owner_road" />
+            <pathing mode="smart_service" effect="religion_venus" />
+        </profile>
+        <profile id="pantheon_service">
+            <native class="roaming_service" />
+            <owner slot="primary" building="any" state="in_use" />
+            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="576" return_mode="return_to_owner_road" />
+            <pathing mode="smart_service" effect="religion_pantheon" />
+        </profile>
+    </profiles>
     <graphics image_group="priest" max_image_offset="12" />
 </figure>

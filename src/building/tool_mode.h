@@ -1,5 +1,4 @@
-#ifndef BUILDING_TOOL_MODE_H
-#define BUILDING_TOOL_MODE_H
+#pragma once
 
 #include "building/type.h"
 #include "input/keys.h"
@@ -37,5 +36,3 @@ void building_tool_mode_resolve_drag_points(
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_TOOL_MODE_H

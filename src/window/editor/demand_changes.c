@@ -110,16 +110,16 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 0, 40, 25);
-    lang_text_draw(44, 94, 20, 14, FONT_LARGE_BLACK);
+    lang_text_draw(44, 94, 20, 14, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     if (!data.demand_changes_in_use) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NO_DEMAND_CHANGES, 0, 165, 640, FONT_LARGE_BLACK);
+        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NO_DEMAND_CHANGES, 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     }
 
-    lang_text_draw_centered(13, 3, 0, 374, 640, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(13, 3, 0, 374, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NEW_DEMAND_CHANGE, new_demand_change_button.x + 8,
-        new_demand_change_button.y + 8, new_demand_change_button.width - 16, FONT_NORMAL_BLACK);
+        new_demand_change_button.y + 8, new_demand_change_button.width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 
@@ -165,28 +165,28 @@ static void draw_demand_change_button(const grid_box_item *item)
 {
     button_border_draw(item->x, item->y, item->width, item->height, item->is_focused);
     const demand_change_t *demand_change = data.demand_changes[item->index];
-    text_draw_number(demand_change->year, '+', " ", item->x + 5, item->y + 7, FONT_NORMAL_BLACK, 0);
+    text_draw_number(demand_change->year, '+', " ", item->x + 5, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     int width = lang_text_draw_year(scenario_property_start_year() + demand_change->year, item->x + 40, item->y + 7,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     int image_id = resource_get_data(demand_change->resource)->image.editor.icon;
     const image *img = image_get(image_id);
     int base_height = (item->height - img->original.height) / 2;
     image_draw(image_id, item->x + 45 + width, item->y + base_height, COLOR_MASK_NONE, SCALE_NONE);
     width += lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_SHORT_ROUTE_TEXT, item->x + 75 + width, item->y + 7,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     width += text_draw_number(demand_change->route_id, '@', " ", item->x + 75 + width, item->y + 7,
-        FONT_NORMAL_BLACK, 0);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     demand_change_amount_t amount;
     get_change_amount(item->index, &amount);
-    width += text_draw_number(amount.value, '@', " ", item->x + 75 + width, item->y + 7, FONT_NORMAL_BLACK, 0);
+    width += text_draw_number(amount.value, '@', " ", item->x + 75 + width, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     if (amount.difference > 0) {
         width += text_draw(string_from_ascii("("), item->x + 70 + width, item->y + 7,
-            FONT_NORMAL_PLAIN, COLOR_MASK_DARK_GREEN);
+            FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_DARK_GREEN);
         width += text_draw_number(amount.difference, '+', ")", item->x + 70 + width - 5, item->y + 7,
-            FONT_NORMAL_PLAIN, COLOR_MASK_DARK_GREEN);
+            FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_DARK_GREEN);
     } else {
         width += text_draw_number(amount.difference, '(', ")", item->x + 70 + width, item->y + 7,
-            FONT_NORMAL_PLAIN, COLOR_MASK_PURPLE);
+            FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_PURPLE);
     }
 }
 

@@ -1,6 +1,7 @@
 #include "figure/figure_type_registry_internal.h"
 
 #include "core/crash_context.h"
+#include "core/xml_value.h"
 
 extern "C" {
 #include "building/properties.h"
@@ -26,6 +27,76 @@ namespace figure_type_registry_impl {
 
 std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> g_figure_types;
 std::string g_failure_reason;
+
+FigureTypeProfile::FigureTypeProfile(std::string id)
+    : id_(std::move(id))
+{
+}
+
+const char *FigureTypeProfile::id() const
+{
+    return id_.c_str();
+}
+
+void FigureTypeProfile::set_native_class(NativeClassId native_class_id)
+{
+    native_class_id_ = native_class_id;
+}
+
+NativeClassId FigureTypeProfile::native_class() const
+{
+    return native_class_id_;
+}
+
+void FigureTypeProfile::set_owner_binding(const OwnerBinding &owner_binding)
+{
+    owner_binding_ = owner_binding;
+}
+
+const OwnerBinding &FigureTypeProfile::owner_binding() const
+{
+    return owner_binding_;
+}
+
+void FigureTypeProfile::set_movement_profile(const MovementProfile &movement_profile)
+{
+    movement_profile_ = movement_profile;
+}
+
+const MovementProfile &FigureTypeProfile::movement_profile() const
+{
+    return movement_profile_;
+}
+
+void FigureTypeProfile::set_pathing_policy(const PathingPolicy &pathing_policy)
+{
+    pathing_policy_ = pathing_policy;
+}
+
+const PathingPolicy &FigureTypeProfile::pathing_policy() const
+{
+    return pathing_policy_;
+}
+
+void FigureTypeProfile::set_show_duration(int show_duration)
+{
+    show_duration_ = show_duration;
+}
+
+int FigureTypeProfile::show_duration() const
+{
+    return show_duration_;
+}
+
+void FigureTypeProfile::add_venue_target(const EntertainmentVenueTarget &target)
+{
+    venue_targets_.push_back(target);
+}
+
+const std::vector<EntertainmentVenueTarget> &FigureTypeProfile::venue_targets() const
+{
+    return venue_targets_;
+}
 
 FigureTypeDefinition::FigureTypeDefinition(figure_type type, std::string attr)
     : type_(type)
@@ -93,15 +164,58 @@ const PathingPolicy &FigureTypeDefinition::pathing_policy() const
     return pathing_policy_;
 }
 
+void FigureTypeDefinition::set_default_profile_id(std::string profile_id)
+{
+    default_profile_id_ = std::move(profile_id);
+}
+
+const char *FigureTypeDefinition::default_profile_id() const
+{
+    return default_profile_id_.c_str();
+}
+
+FigureTypeProfile &FigureTypeDefinition::add_profile(std::string profile_id)
+{
+    profiles_.emplace_back(std::move(profile_id));
+    return profiles_.back();
+}
+
+FigureTypeProfile *FigureTypeDefinition::last_profile()
+{
+    return profiles_.empty() ? nullptr : &profiles_.back();
+}
+
+const FigureTypeProfile *FigureTypeDefinition::profile(const char *profile_id) const
+{
+    if (!profile_id || !*profile_id) {
+        return default_profile();
+    }
+    for (const FigureTypeProfile &profile : profiles_) {
+        if (xml_value::equals(profile_id, profile.id())) {
+            return &profile;
+        }
+    }
+    return nullptr;
+}
+
+const FigureTypeProfile *FigureTypeDefinition::default_profile() const
+{
+    if (!default_profile_id_.empty()) {
+        return profile(default_profile_id_.c_str());
+    }
+    return profiles_.size() == 1 ? &profiles_.front() : nullptr;
+}
+
+const std::vector<FigureTypeProfile> &FigureTypeDefinition::profiles() const
+{
+    return profiles_;
+}
+
 static int stop_on_first_entry([[maybe_unused]] const char *name, [[maybe_unused]] long unused)
 {
     return LIST_MATCH;
 }
 
-bool text_equals(const char *value, std::string_view expected)
-{
-    return value && std::string_view(value) == expected;
-}
 
 class ScopedFile {
 public:
@@ -166,7 +280,7 @@ std::vector<std::string> build_candidate_definition_paths()
         if (!name) {
             continue;
         }
-        if (text_equals(name, "Augustus") || text_equals(name, "Julius")) {
+        if (xml_value::equals(name, "Augustus") || xml_value::equals(name, "Julius")) {
             append_unique_candidate_path(paths, mod_manager_get_mod_path_at(i));
         }
     }
@@ -181,6 +295,18 @@ const FigureTypeDefinition *definition_for(figure_type type)
     return g_figure_types[type].get();
 }
 
+const FigureTypeProfile *profile_for(figure_type type, const char *profile_id)
+{
+    const FigureTypeDefinition *definition = definition_for(type);
+    return definition ? definition->profile(profile_id) : nullptr;
+}
+
+const FigureTypeProfile *default_profile_for(figure_type type)
+{
+    const FigureTypeDefinition *definition = definition_for(type);
+    return definition ? definition->default_profile() : nullptr;
+}
+
 static figure_type parse_figure_type_name(const char *name)
 {
     struct NamedFigure {
@@ -188,11 +314,15 @@ static figure_type parse_figure_type_name(const char *name)
         figure_type type;
     };
 
-    static constexpr std::array<NamedFigure, 9> kFigureNames = { {
+    static constexpr std::array<NamedFigure, 13> kFigureNames = { {
         { "labor_seeker", FIGURE_LABOR_SEEKER },
         { "engineer", FIGURE_ENGINEER },
         { "prefect", FIGURE_PREFECT },
         { "priest", FIGURE_PRIEST },
+        { "actor", FIGURE_ACTOR },
+        { "gladiator", FIGURE_GLADIATOR },
+        { "lion_tamer", FIGURE_LION_TAMER },
+        { "charioteer", FIGURE_CHARIOTEER },
         { "teacher", FIGURE_TEACHER },
         { "librarian", FIGURE_LIBRARIAN },
         { "barber", FIGURE_BARBER },
@@ -201,7 +331,7 @@ static figure_type parse_figure_type_name(const char *name)
     } };
 
     for (const NamedFigure &entry : kFigureNames) {
-        if (text_equals(name, entry.name)) {
+        if (xml_value::equals(name, entry.name)) {
             return entry.type;
         }
     }
@@ -210,7 +340,7 @@ static figure_type parse_figure_type_name(const char *name)
 
 static building_type parse_building_type_name(const char *attr)
 {
-    if (!attr || text_equals(attr, "any")) {
+    if (!attr || xml_value::equals(attr, "any")) {
         return BUILDING_ANY;
     }
 
@@ -229,30 +359,36 @@ static building_type parse_building_type_name(const char *attr)
 
 static NativeClassId parse_native_class_name(const char *name)
 {
-    if (text_equals(name, "roaming_service")) {
+    if (xml_value::equals(name, "roaming_service")) {
         return NativeClassId::RoamingService;
     }
-    if (text_equals(name, "engineer_service")) {
+    if (xml_value::equals(name, "engineer_service")) {
         return NativeClassId::EngineerService;
     }
-    if (text_equals(name, "prefect_service")) {
+    if (xml_value::equals(name, "prefect_service")) {
         return NativeClassId::PrefectService;
+    }
+    if (xml_value::equals(name, "entertainment_service")) {
+        return NativeClassId::EntertainmentService;
+    }
+    if (xml_value::equals(name, "entertainment_venue_seeker")) {
+        return NativeClassId::EntertainmentVenueSeeker;
     }
     return NativeClassId::None;
 }
 
 static FigureSlot parse_figure_slot_name(const char *name)
 {
-    if (!name || text_equals(name, "none")) {
+    if (!name || xml_value::equals(name, "none")) {
         return FigureSlot::None;
     }
-    if (text_equals(name, "primary")) {
+    if (xml_value::equals(name, "primary")) {
         return FigureSlot::Primary;
     }
-    if (text_equals(name, "secondary")) {
+    if (xml_value::equals(name, "secondary")) {
         return FigureSlot::Secondary;
     }
-    if (text_equals(name, "quaternary")) {
+    if (xml_value::equals(name, "quaternary")) {
         return FigureSlot::Quaternary;
     }
     return FigureSlot::None;
@@ -261,21 +397,21 @@ static FigureSlot parse_figure_slot_name(const char *name)
 static bool is_known_figure_slot_name(const char *name)
 {
     return !name ||
-        text_equals(name, "none") ||
-        text_equals(name, "primary") ||
-        text_equals(name, "secondary") ||
-        text_equals(name, "quaternary");
+        xml_value::equals(name, "none") ||
+        xml_value::equals(name, "primary") ||
+        xml_value::equals(name, "secondary") ||
+        xml_value::equals(name, "quaternary");
 }
 
 static OwnerStateRequirement parse_owner_state_name(const char *name)
 {
-    if (!name || text_equals(name, "in_use")) {
+    if (!name || xml_value::equals(name, "in_use")) {
         return OwnerStateRequirement::InUse;
     }
-    if (text_equals(name, "in_use_or_mothballed")) {
+    if (xml_value::equals(name, "in_use_or_mothballed")) {
         return OwnerStateRequirement::InUseOrMothballed;
     }
-    if (text_equals(name, "any")) {
+    if (xml_value::equals(name, "any")) {
         return OwnerStateRequirement::Any;
     }
     return OwnerStateRequirement::InUse;
@@ -284,14 +420,17 @@ static OwnerStateRequirement parse_owner_state_name(const char *name)
 static bool is_known_owner_state_name(const char *name)
 {
     return !name ||
-        text_equals(name, "any") ||
-        text_equals(name, "in_use") ||
-        text_equals(name, "in_use_or_mothballed");
+        xml_value::equals(name, "any") ||
+        xml_value::equals(name, "in_use") ||
+        xml_value::equals(name, "in_use_or_mothballed");
 }
 
 static ReturnMode parse_return_mode_name(const char *name)
 {
-    if (text_equals(name, "die_at_limit")) {
+    if (xml_value::equals(name, "none")) {
+        return ReturnMode::None;
+    }
+    if (xml_value::equals(name, "die_at_limit")) {
         return ReturnMode::DieAtLimit;
     }
     return ReturnMode::ReturnToOwnerRoad;
@@ -300,25 +439,26 @@ static ReturnMode parse_return_mode_name(const char *name)
 static bool is_known_return_mode_name(const char *name)
 {
     return !name ||
-        text_equals(name, "return_to_owner_road") ||
-        text_equals(name, "die_at_limit");
+        xml_value::equals(name, "none") ||
+        xml_value::equals(name, "return_to_owner_road") ||
+        xml_value::equals(name, "die_at_limit");
 }
 
 static int parse_terrain_usage_name(const char *name)
 {
-    if (!name || text_equals(name, "any")) {
+    if (!name || xml_value::equals(name, "any")) {
         return TERRAIN_USAGE_ANY;
     }
-    if (text_equals(name, "roads")) {
+    if (xml_value::equals(name, "roads")) {
         return TERRAIN_USAGE_ROADS;
     }
-    if (text_equals(name, "roads_highway")) {
+    if (xml_value::equals(name, "roads_highway")) {
         return TERRAIN_USAGE_ROADS_HIGHWAY;
     }
-    if (text_equals(name, "prefer_roads")) {
+    if (xml_value::equals(name, "prefer_roads")) {
         return TERRAIN_USAGE_PREFER_ROADS;
     }
-    if (text_equals(name, "prefer_roads_highway")) {
+    if (xml_value::equals(name, "prefer_roads_highway")) {
         return TERRAIN_USAGE_PREFER_ROADS_HIGHWAY;
     }
     return -1;
@@ -331,11 +471,15 @@ static int parse_image_group_name(const char *name)
         int image_group_id;
     };
 
-    static constexpr std::array<NamedGroup, 8> kImageGroups = { {
+    static constexpr std::array<NamedGroup, 12> kImageGroups = { {
         { "labor_seeker", GROUP_FIGURE_LABOR_SEEKER },
         { "engineer", GROUP_FIGURE_ENGINEER },
         { "prefect", GROUP_FIGURE_PREFECT },
         { "priest", GROUP_FIGURE_PRIEST },
+        { "actor", GROUP_FIGURE_ACTOR },
+        { "gladiator", GROUP_FIGURE_GLADIATOR },
+        { "lion_tamer", GROUP_FIGURE_LION_TAMER },
+        { "charioteer", GROUP_FIGURE_CHARIOTEER },
         { "teacher_librarian", GROUP_FIGURE_TEACHER_LIBRARIAN },
         { "barber", GROUP_FIGURE_BARBER },
         { "bathhouse_worker", GROUP_FIGURE_BATHHOUSE_WORKER },
@@ -343,78 +487,83 @@ static int parse_image_group_name(const char *name)
     } };
 
     for (const NamedGroup &entry : kImageGroups) {
-        if (text_equals(name, entry.name)) {
+        if (xml_value::equals(name, entry.name)) {
             return entry.image_group_id;
         }
     }
     return 0;
 }
 
-static PathingMode parse_pathing_mode_name(const char *name)
-{
-    if (text_equals(name, "smart_service")) {
-        return PathingMode::SmartService;
-    }
-    if (text_equals(name, "nearest_unemployed")) {
-        return PathingMode::NearestUnemployed;
-    }
-    return PathingMode::VanillaRoaming;
-}
-
-static bool is_known_pathing_mode_name(const char *name)
-{
-    return name &&
-        (text_equals(name, "vanilla_roaming") ||
-            text_equals(name, "smart_service") ||
-            text_equals(name, "nearest_unemployed"));
-}
-
 static road_service_effect parse_service_effect_name(const char *name)
 {
-    if (!name || text_equals(name, "none")) {
+    if (!name || xml_value::equals(name, "none")) {
         return ROAD_SERVICE_EFFECT_NONE;
     }
-    if (text_equals(name, "labor")) {
+    if (xml_value::equals(name, "labor")) {
         return ROAD_SERVICE_EFFECT_LABOR;
     }
-    if (text_equals(name, "academy")) {
+    if (xml_value::equals(name, "academy")) {
         return ROAD_SERVICE_EFFECT_ACADEMY;
     }
-    if (text_equals(name, "library")) {
+    if (xml_value::equals(name, "library")) {
         return ROAD_SERVICE_EFFECT_LIBRARY;
     }
-    if (text_equals(name, "barber")) {
+    if (xml_value::equals(name, "barber")) {
         return ROAD_SERVICE_EFFECT_BARBER;
     }
-    if (text_equals(name, "bathhouse")) {
+    if (xml_value::equals(name, "bathhouse")) {
         return ROAD_SERVICE_EFFECT_BATHHOUSE;
     }
-    if (text_equals(name, "school")) {
+    if (xml_value::equals(name, "school")) {
         return ROAD_SERVICE_EFFECT_SCHOOL;
     }
-    if (text_equals(name, "damage_risk")) {
+    if (xml_value::equals(name, "damage_risk")) {
         return ROAD_SERVICE_EFFECT_DAMAGE_RISK;
     }
-    if (text_equals(name, "fire_risk")) {
+    if (xml_value::equals(name, "fire_risk")) {
         return ROAD_SERVICE_EFFECT_FIRE_RISK;
     }
-    if (text_equals(name, "religion_ceres")) {
+    if (xml_value::equals(name, "religion_ceres")) {
         return ROAD_SERVICE_EFFECT_RELIGION_CERES;
     }
-    if (text_equals(name, "religion_neptune")) {
+    if (xml_value::equals(name, "religion_neptune")) {
         return ROAD_SERVICE_EFFECT_RELIGION_NEPTUNE;
     }
-    if (text_equals(name, "religion_mercury")) {
+    if (xml_value::equals(name, "religion_mercury")) {
         return ROAD_SERVICE_EFFECT_RELIGION_MERCURY;
     }
-    if (text_equals(name, "religion_mars")) {
+    if (xml_value::equals(name, "religion_mars")) {
         return ROAD_SERVICE_EFFECT_RELIGION_MARS;
     }
-    if (text_equals(name, "religion_venus")) {
+    if (xml_value::equals(name, "religion_venus")) {
         return ROAD_SERVICE_EFFECT_RELIGION_VENUS;
     }
-    if (text_equals(name, "religion_pantheon")) {
+    if (xml_value::equals(name, "religion_pantheon")) {
         return ROAD_SERVICE_EFFECT_RELIGION_PANTHEON;
+    }
+    if (xml_value::equals(name, "entertainment_theater")) {
+        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_THEATER;
+    }
+    if (xml_value::equals(name, "entertainment_amphitheater_actor")) {
+        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_ACTOR;
+    }
+    if (xml_value::equals(name, "entertainment_amphitheater_gladiator")) {
+        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_AMPHITHEATER_GLADIATOR;
+    }
+    if (xml_value::equals(name, "entertainment_arena_gladiator")) {
+        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_GLADIATOR;
+    }
+    if (xml_value::equals(name, "entertainment_arena_lion")) {
+        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_ARENA_LION;
+    }
+    if (xml_value::equals(name, "entertainment_colosseum_gladiator")) {
+        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_GLADIATOR;
+    }
+    if (xml_value::equals(name, "entertainment_colosseum_lion")) {
+        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_LION;
+    }
+    if (xml_value::equals(name, "entertainment_hippodrome")) {
+        return ROAD_SERVICE_EFFECT_ENTERTAINMENT_HIPPODROME;
     }
     return ROAD_SERVICE_EFFECT_NONE;
 }
@@ -422,22 +571,29 @@ static road_service_effect parse_service_effect_name(const char *name)
 static bool is_known_service_effect_name(const char *name)
 {
     return !name ||
-        text_equals(name, "none") ||
-        text_equals(name, "labor") ||
-        text_equals(name, "academy") ||
-        text_equals(name, "library") ||
-        text_equals(name, "barber") ||
-        text_equals(name, "bathhouse") ||
-        text_equals(name, "school") ||
-        text_equals(name, "damage_risk") ||
-        text_equals(name, "fire_risk") ||
-        text_equals(name, "religion_owner") ||
-        text_equals(name, "religion_ceres") ||
-        text_equals(name, "religion_neptune") ||
-        text_equals(name, "religion_mercury") ||
-        text_equals(name, "religion_mars") ||
-        text_equals(name, "religion_venus") ||
-        text_equals(name, "religion_pantheon");
+        xml_value::equals(name, "none") ||
+        xml_value::equals(name, "labor") ||
+        xml_value::equals(name, "academy") ||
+        xml_value::equals(name, "library") ||
+        xml_value::equals(name, "barber") ||
+        xml_value::equals(name, "bathhouse") ||
+        xml_value::equals(name, "school") ||
+        xml_value::equals(name, "damage_risk") ||
+        xml_value::equals(name, "fire_risk") ||
+        xml_value::equals(name, "religion_ceres") ||
+        xml_value::equals(name, "religion_neptune") ||
+        xml_value::equals(name, "religion_mercury") ||
+        xml_value::equals(name, "religion_mars") ||
+        xml_value::equals(name, "religion_venus") ||
+        xml_value::equals(name, "religion_pantheon") ||
+        xml_value::equals(name, "entertainment_theater") ||
+        xml_value::equals(name, "entertainment_amphitheater_actor") ||
+        xml_value::equals(name, "entertainment_amphitheater_gladiator") ||
+        xml_value::equals(name, "entertainment_arena_gladiator") ||
+        xml_value::equals(name, "entertainment_arena_lion") ||
+        xml_value::equals(name, "entertainment_colosseum_gladiator") ||
+        xml_value::equals(name, "entertainment_colosseum_lion") ||
+        xml_value::equals(name, "entertainment_hippodrome");
 }
 
 static bool is_road_only_terrain_usage(int terrain_usage)
@@ -446,18 +602,41 @@ static bool is_road_only_terrain_usage(int terrain_usage)
         terrain_usage == TERRAIN_USAGE_ROADS_HIGHWAY;
 }
 
+static EntertainmentShowSlot parse_show_slot_name(const char *name)
+{
+    if (xml_value::equals(name, "days1")) {
+        return EntertainmentShowSlot::Days1;
+    }
+    if (xml_value::equals(name, "days2")) {
+        return EntertainmentShowSlot::Days2;
+    }
+    return EntertainmentShowSlot::None;
+}
+
 struct ParseState {
     std::unique_ptr<FigureTypeDefinition> definition;
+    FigureTypeProfile *current_profile = nullptr;
     bool saw_root = false;
-    bool saw_native = false;
-    bool saw_owner = false;
-    bool saw_movement = false;
+    bool saw_profiles = false;
+    bool saw_profile_native = false;
+    bool saw_profile_owner = false;
+    bool saw_profile_movement = false;
+    bool saw_profile_pathing = false;
     bool saw_graphics = false;
-    bool saw_pathing = false;
     bool error = false;
 };
 
 static ParseState g_parse_state;
+
+static FigureTypeProfile *current_profile_or_error(const char *node_name)
+{
+    if (!g_parse_state.definition || !g_parse_state.current_profile) {
+        g_parse_state.error = true;
+        log_error("FigureType profile child appears outside a profile", node_name, 0);
+        return nullptr;
+    }
+    return g_parse_state.current_profile;
+}
 
 static int parse_definition_root()
 {
@@ -485,15 +664,82 @@ static int parse_definition_root()
     return 1;
 }
 
-static int parse_native_node()
+static int parse_profiles_node()
 {
     if (!g_parse_state.definition) {
         g_parse_state.error = true;
         return 0;
     }
-    if (g_parse_state.saw_native) {
+    if (g_parse_state.saw_profiles) {
         g_parse_state.error = true;
-        log_error("FigureType xml contains duplicate native nodes", g_parse_state.definition->attr(), 0);
+        log_error("FigureType xml contains duplicate profiles nodes", g_parse_state.definition->attr(), 0);
+        return 0;
+    }
+    if (xml_parser_has_attribute("default")) {
+        g_parse_state.definition->set_default_profile_id(xml_parser_get_attribute_string("default"));
+    }
+    g_parse_state.saw_profiles = true;
+    return 1;
+}
+
+static int parse_profile_node()
+{
+    if (!g_parse_state.definition || !g_parse_state.saw_profiles) {
+        g_parse_state.error = true;
+        log_error("FigureType profile appears before profiles node", 0, 0);
+        return 0;
+    }
+    if (!xml_parser_has_attribute("id")) {
+        g_parse_state.error = true;
+        log_error("FigureType profile is missing required attribute 'id'", 0, 0);
+        return 0;
+    }
+
+    const char *profile_id = xml_parser_get_attribute_string("id");
+    if (g_parse_state.definition->profile(profile_id)) {
+        g_parse_state.error = true;
+        log_error("FigureType profile id is duplicated", profile_id, 0);
+        return 0;
+    }
+
+    g_parse_state.current_profile = &g_parse_state.definition->add_profile(profile_id ? profile_id : "");
+    g_parse_state.saw_profile_native = false;
+    g_parse_state.saw_profile_owner = false;
+    g_parse_state.saw_profile_movement = false;
+    g_parse_state.saw_profile_pathing = false;
+    return 1;
+}
+
+static void finish_profile_node()
+{
+    if (!g_parse_state.current_profile) {
+        return;
+    }
+
+    if (!g_parse_state.saw_profile_native ||
+        !g_parse_state.saw_profile_owner ||
+        !g_parse_state.saw_profile_movement ||
+        !g_parse_state.saw_profile_pathing) {
+        g_parse_state.error = true;
+        log_error("FigureType profile is missing a required child node", g_parse_state.current_profile->id(), 0);
+    }
+    if (g_parse_state.current_profile->pathing_policy().mode->requires_venue_targets &&
+        g_parse_state.current_profile->venue_targets().empty()) {
+        g_parse_state.error = true;
+        log_error("FigureType venue seeker profile is missing venue targets", g_parse_state.current_profile->id(), 0);
+    }
+    g_parse_state.current_profile = nullptr;
+}
+
+static int parse_native_node()
+{
+    FigureTypeProfile *profile = current_profile_or_error("native");
+    if (!profile) {
+        return 0;
+    }
+    if (g_parse_state.saw_profile_native) {
+        g_parse_state.error = true;
+        log_error("FigureType profile contains duplicate native nodes", profile->id(), 0);
         return 0;
     }
     if (!xml_parser_has_attribute("class")) {
@@ -509,20 +755,20 @@ static int parse_native_node()
         return 0;
     }
 
-    g_parse_state.definition->set_native_class(native_class_id);
-    g_parse_state.saw_native = true;
+    profile->set_native_class(native_class_id);
+    g_parse_state.saw_profile_native = true;
     return 1;
 }
 
 static int parse_owner_node()
 {
-    if (!g_parse_state.definition) {
-        g_parse_state.error = true;
+    FigureTypeProfile *profile = current_profile_or_error("owner");
+    if (!profile) {
         return 0;
     }
-    if (g_parse_state.saw_owner) {
+    if (g_parse_state.saw_profile_owner) {
         g_parse_state.error = true;
-        log_error("FigureType xml contains duplicate owner nodes", g_parse_state.definition->attr(), 0);
+        log_error("FigureType profile contains duplicate owner nodes", profile->id(), 0);
         return 0;
     }
 
@@ -539,7 +785,7 @@ static int parse_owner_node()
         const char *building_attr = xml_parser_get_attribute_string("building");
         owner_binding.required_building_type = parse_building_type_name(building_attr);
         if (owner_binding.required_building_type == BUILDING_NONE &&
-            (!building_attr || !text_equals(building_attr, "any"))) {
+            (!building_attr || !xml_value::equals(building_attr, "any"))) {
             g_parse_state.error = true;
             log_error("FigureType owner node has an unknown building type", building_attr, 0);
             return 0;
@@ -554,20 +800,20 @@ static int parse_owner_node()
         owner_binding.required_owner_state = parse_owner_state_name(xml_parser_get_attribute_string("state"));
     }
 
-    g_parse_state.definition->set_owner_binding(owner_binding);
-    g_parse_state.saw_owner = true;
+    profile->set_owner_binding(owner_binding);
+    g_parse_state.saw_profile_owner = true;
     return 1;
 }
 
 static int parse_movement_node()
 {
-    if (!g_parse_state.definition) {
-        g_parse_state.error = true;
+    FigureTypeProfile *profile = current_profile_or_error("movement");
+    if (!profile) {
         return 0;
     }
-    if (g_parse_state.saw_movement) {
+    if (g_parse_state.saw_profile_movement) {
         g_parse_state.error = true;
-        log_error("FigureType xml contains duplicate movement nodes", g_parse_state.definition->attr(), 0);
+        log_error("FigureType profile contains duplicate movement nodes", profile->id(), 0);
         return 0;
     }
     if (!xml_parser_has_attribute("terrain_usage") ||
@@ -611,8 +857,8 @@ static int parse_movement_node()
         movement_profile.return_mode = parse_return_mode_name(xml_parser_get_attribute_string("return_mode"));
     }
 
-    g_parse_state.definition->set_movement_profile(movement_profile);
-    g_parse_state.saw_movement = true;
+    profile->set_movement_profile(movement_profile);
+    g_parse_state.saw_profile_movement = true;
     return 1;
 }
 
@@ -656,13 +902,13 @@ static int parse_graphics_node()
 
 static int parse_pathing_node()
 {
-    if (!g_parse_state.definition) {
-        g_parse_state.error = true;
+    FigureTypeProfile *profile = current_profile_or_error("pathing");
+    if (!profile) {
         return 0;
     }
-    if (g_parse_state.saw_pathing) {
+    if (g_parse_state.saw_profile_pathing) {
         g_parse_state.error = true;
-        log_error("FigureType xml contains duplicate pathing nodes", g_parse_state.definition->attr(), 0);
+        log_error("FigureType profile contains duplicate pathing nodes", profile->id(), 0);
         return 0;
     }
     if (!xml_parser_has_attribute("mode")) {
@@ -670,7 +916,8 @@ static int parse_pathing_node()
         log_error("FigureType pathing node is missing required attribute 'mode'", 0, 0);
         return 0;
     }
-    if (!is_known_pathing_mode_name(xml_parser_get_attribute_string("mode"))) {
+    const PathingMode *mode = pathing_mode_from_xml_id(xml_parser_get_attribute_string("mode"));
+    if (!mode) {
         g_parse_state.error = true;
         log_error("FigureType pathing node has an unknown mode", xml_parser_get_attribute_string("mode"), 0);
         return 0;
@@ -683,52 +930,96 @@ static int parse_pathing_node()
     }
 
     PathingPolicy pathing_policy;
-    pathing_policy.mode = parse_pathing_mode_name(xml_parser_get_attribute_string("mode"));
+    pathing_policy.mode = mode;
     const char *effect_text = xml_parser_get_attribute_string("effect");
-    if (text_equals(effect_text, "religion_owner")) {
-        pathing_policy.effect_from_religion_owner = 1;
-    } else {
-        pathing_policy.effect = parse_service_effect_name(effect_text);
-    }
+    pathing_policy.effect = parse_service_effect_name(effect_text);
 
-    if (pathing_policy.mode == PathingMode::SmartService) {
-        // Smart service pathing compares road-tile history for one service effect,
-        // so it is only valid for road walkers with an explicit or owner-derived effect id.
-        if (pathing_policy.effect == ROAD_SERVICE_EFFECT_NONE && !pathing_policy.effect_from_religion_owner) {
+    if (pathing_policy.mode->requires_service_effect) {
+        // Smart service pathing compares road-tile history for one explicit service effect.
+        if (pathing_policy.effect == ROAD_SERVICE_EFFECT_NONE) {
             g_parse_state.error = true;
             error_context_report_error("FigureType smart_service pathing requires a service effect",
-                g_parse_state.definition->attr());
-            return 0;
-        }
-        if (!g_parse_state.saw_movement ||
-            !is_road_only_terrain_usage(g_parse_state.definition->movement_profile().terrain_usage)) {
-            g_parse_state.error = true;
-            error_context_report_error("FigureType smart_service pathing requires road-only movement",
-                g_parse_state.definition->attr());
-            return 0;
-        }
-    } else if (pathing_policy.mode == PathingMode::NearestUnemployed) {
-        if (!g_parse_state.saw_movement ||
-            !is_road_only_terrain_usage(g_parse_state.definition->movement_profile().terrain_usage)) {
-            g_parse_state.error = true;
-            error_context_report_error("FigureType nearest_unemployed pathing requires road-only movement",
-                g_parse_state.definition->attr());
+                profile->id());
             return 0;
         }
     }
+    if (pathing_policy.mode->requires_road &&
+        (!g_parse_state.saw_profile_movement ||
+            !is_road_only_terrain_usage(profile->movement_profile().terrain_usage))) {
+        g_parse_state.error = true;
+        error_context_report_error(
+            "FigureType pathing requires terrain_usage roads or roads_highway",
+            profile->id());
+        return 0;
+    }
 
-    g_parse_state.definition->set_pathing_policy(pathing_policy);
-    g_parse_state.saw_pathing = true;
+    profile->set_pathing_policy(pathing_policy);
+    g_parse_state.saw_profile_pathing = true;
     return 1;
 }
 
-static const std::array<xml_parser_element, 6> XML_ELEMENTS = { {
+static int parse_venue_targets_node()
+{
+    FigureTypeProfile *profile = current_profile_or_error("venue_targets");
+    if (!profile) {
+        return 0;
+    }
+    if (xml_parser_has_attribute("ranking")) {
+        g_parse_state.error = true;
+        log_error("FigureType venue_targets ranking is retired; route-weighted venue scoring is used for all profiles",
+            profile->id(), 0);
+        return 0;
+    }
+    if (xml_parser_has_attribute("show_duration")) {
+        const int show_duration = xml_parser_get_attribute_int("show_duration");
+        if (show_duration <= 0 || show_duration > std::numeric_limits<unsigned char>::max()) {
+            g_parse_state.error = true;
+            log_error("FigureType venue_targets has an invalid show_duration", 0, 0);
+            return 0;
+        }
+        profile->set_show_duration(show_duration);
+    }
+    return 1;
+}
+
+static int parse_venue_node()
+{
+    FigureTypeProfile *profile = current_profile_or_error("venue");
+    if (!profile) {
+        return 0;
+    }
+    if (!xml_parser_has_attribute("building") ||
+        !xml_parser_has_attribute("show_slot")) {
+        g_parse_state.error = true;
+        log_error("FigureType venue is missing required attributes", 0, 0);
+        return 0;
+    }
+
+    EntertainmentVenueTarget target;
+    target.building = parse_building_type_name(xml_parser_get_attribute_string("building"));
+    target.show_slot = parse_show_slot_name(xml_parser_get_attribute_string("show_slot"));
+    if (target.building == BUILDING_NONE ||
+        target.show_slot == EntertainmentShowSlot::None) {
+        g_parse_state.error = true;
+        log_error("FigureType venue has an invalid building or show_slot", profile->id(), 0);
+        return 0;
+    }
+
+    profile->add_venue_target(target);
+    return 1;
+}
+
+static const std::array<xml_parser_element, 10> XML_ELEMENTS = { {
     { "figure", parse_definition_root, nullptr, nullptr, nullptr },
-    { "native", parse_native_node, nullptr, "figure", nullptr },
-    { "owner", parse_owner_node, nullptr, "figure", nullptr },
-    { "movement", parse_movement_node, nullptr, "figure", nullptr },
+    { "profiles", parse_profiles_node, nullptr, "figure", nullptr },
+    { "profile", parse_profile_node, finish_profile_node, "profiles", nullptr },
+    { "native", parse_native_node, nullptr, "profile", nullptr },
+    { "owner", parse_owner_node, nullptr, "profile", nullptr },
+    { "movement", parse_movement_node, nullptr, "profile", nullptr },
     { "graphics", parse_graphics_node, nullptr, "figure", nullptr },
-    { "pathing", parse_pathing_node, nullptr, "figure", nullptr }
+    { "pathing", parse_pathing_node, nullptr, "profile", nullptr },
+    { "venue_targets", parse_venue_targets_node, nullptr, "profile", nullptr },
+    { "venue", parse_venue_node, nullptr, "venue_targets", nullptr }
 } };
 
 static int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
@@ -785,12 +1076,11 @@ static int parse_definition_file(const char *filename)
     if (!parsed ||
         g_parse_state.error ||
         !g_parse_state.saw_root ||
-        !g_parse_state.saw_native ||
-        !g_parse_state.saw_owner ||
-        !g_parse_state.saw_movement ||
+        !g_parse_state.saw_profiles ||
         !g_parse_state.saw_graphics ||
-        !g_parse_state.saw_pathing ||
-        !g_parse_state.definition) {
+        !g_parse_state.definition ||
+        g_parse_state.definition->profiles().empty() ||
+        !g_parse_state.definition->default_profile()) {
         error_context_report_error("Invalid FigureType XML", filename);
         set_failure_reason("Failed to parse FigureType definition.", filename);
         return 0;

@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_DROPDOWN_BUTTON_H
-#define GRAPHICS_DROPDOWN_BUTTON_H
+#pragma once
 
 #include "graphics/complex_button.h"
 
@@ -91,6 +90,3 @@ int dropdown_button_handle_mouse(const mouse *m, dropdown_button *dd);
  * @param btn Pointer to the clicked complex_button (option).
  */
 void dropdown_button_default_option_click(const complex_button *btn);
-
-
-#endif // GRAPHICS_DROPDOWN_BUTTON_H

@@ -139,7 +139,7 @@ static void default_cities_list_box_draw_item(const list_box_item *item)
     const default_city *city = &default_cities[item->index];
     color_t color = empire_city_get_at(city->x, city->y, lang_get_string(21, city->name_id)) ? COLOR_FONT_GRAY : COLOR_MASK_NONE;
     snprintf((char *)display_text, 256, "%s: %i, %i", (char *)lang_get_string(21, city->name_id), city->x, city->y);
-    text_draw_ellipsized(display_text, item->x + 5, item->y + 4, item->width - 10, font, color);
+    text_draw_ellipsized(display_text, item->x + 5, item->y + 4, item->width - 10, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
 }
 
 static void add_city(const default_city *city)
@@ -193,7 +193,7 @@ static void draw_foreground(void)
         button_border_draw(generic_buttons[i].x, generic_buttons[i].y, generic_buttons[i].width,
             generic_buttons[i].height, data.focus_button_id == i + 1 && (i >= 4 && i <= 7 ? EMPIRE_IS_DEFAULT_IMAGE : 1));
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_EMPIRE_PROPERTIES_SELECT_IAMGE + i, generic_buttons[i].x,
-            generic_buttons[i].y + 8, generic_buttons[i].width, font);
+            generic_buttons[i].y + 8, generic_buttons[i].width, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     }
     if (EMPIRE_IS_DEFAULT_IMAGE) {
         list_box_request_refresh(&default_cities_list_box);

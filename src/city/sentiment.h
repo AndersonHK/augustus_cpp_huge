@@ -1,5 +1,4 @@
-#ifndef CITY_SENTIMENT_H
-#define CITY_SENTIMENT_H
+#pragma once
 
 int city_sentiment(void);
 
@@ -28,5 +27,3 @@ int city_sentiment_get_blessing_festival_boost(void);
 void city_sentiment_decrement_blessing_boost(void);
 
 void city_sentiment_update(void);
-
-#endif // CITY_SENTIMENT_H

@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_UI_PRIMITIVE_H
-#define GRAPHICS_UI_PRIMITIVE_H
+#pragma once
 
 #include "graphics/ui_primitives.h"
 
@@ -15,5 +14,3 @@ protected:
 
     UiPrimitives &primitives_;
 };
-
-#endif // GRAPHICS_UI_PRIMITIVE_H

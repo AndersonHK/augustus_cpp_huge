@@ -1,5 +1,4 @@
-#ifndef MAP_TILES_H
-#define MAP_TILES_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,5 +63,3 @@ void map_tiles_update_all(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // MAP_TILES_H

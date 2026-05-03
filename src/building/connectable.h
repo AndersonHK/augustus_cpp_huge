@@ -1,5 +1,4 @@
-#ifndef BUILDING_CONNECTABLE_H
-#define BUILDING_CONNECTABLE_H
+#pragma once
 
 #include "building/type.h"
 
@@ -35,6 +34,3 @@ int building_connectable_num_variants(building_type type);
 
 void building_connectable_update_connections(void);
 void building_connectable_update_connections_for_type(building_type type);
-
-
-#endif // BUILDING_CONNECTABLE_H

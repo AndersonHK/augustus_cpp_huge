@@ -1,5 +1,8 @@
-#ifndef WINDOW_MESSAGE_DIALOG_H
-#define WINDOW_MESSAGE_DIALOG_H
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 enum {
     MESSAGE_DIALOG_ABOUT = 0,
@@ -36,4 +39,6 @@ void window_message_dialog_show_city_message(int text_id, int year, int month,
 
 void window_message_dialog_show_custom_message(int custom_message_id, int year, int month);
 
-#endif // WINDOW_MESSAGE_DIALOG_H
+#ifdef __cplusplus
+}
+#endif

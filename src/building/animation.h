@@ -1,5 +1,4 @@
-#ifndef BUILDING_ANIMATION_H
-#define BUILDING_ANIMATION_H
+#pragma once
 
 #include "building/building.h"
 #include "core/image.h"
@@ -10,5 +9,3 @@ int building_animation_offset_for_image(building *b, const image *img, int grid_
 int building_animation_advance_storage_flag(building *b, int image_id);
 
 int building_animation_advance_fumigation(building *b);
-
-#endif // BUILDING_ANIMATION_H

@@ -19,6 +19,7 @@ constexpr uint32_t kSaveFormatVersion = 1;
 constexpr size_t kSaveHeaderSize = 2 * sizeof(uint32_t);
 constexpr size_t kEffectGridCells = GRID_SIZE * GRID_SIZE;
 constexpr uint32_t kLastPreReligionEffectCount = ROAD_SERVICE_EFFECT_RELIGION_CERES;
+constexpr uint32_t kLastPreEntertainmentEffectCount = ROAD_SERVICE_EFFECT_ENTERTAINMENT_THEATER;
 std::array<grid_u32, ROAD_SERVICE_EFFECT_MAX> g_history;
 
 bool is_valid_effect(road_service_effect effect)
@@ -89,7 +90,11 @@ extern "C" void map_road_service_history_save_state(buffer *buf)
     }
 }
 
-extern "C" void map_road_service_history_load_state(buffer *buf, int has_saved_state, int has_religion_effects)
+extern "C" void map_road_service_history_load_state(
+    buffer *buf,
+    int has_saved_state,
+    int has_religion_effects,
+    int has_entertainment_effects)
 {
     map_road_service_history_clear();
 
@@ -117,17 +122,17 @@ extern "C" void map_road_service_history_load_state(buffer *buf, int has_saved_s
         return;
     }
 
-    const uint32_t max_effect_count = has_religion_effects ?
+    const uint32_t max_effect_count = has_entertainment_effects ?
         static_cast<uint32_t>(ROAD_SERVICE_EFFECT_MAX) :
-        kLastPreReligionEffectCount;
+        (has_religion_effects ? kLastPreEntertainmentEffectCount : kLastPreReligionEffectCount);
     const int effects_to_read = static_cast<int>(std::min(effect_count, max_effect_count));
     for (int effect = 1; effect < effects_to_read; effect++) {
         map_grid_load_state_u32(g_history[effect].items, buf);
     }
 
-    // Saves before religion-specific road history only contain effects [1, 9).
-    // The appended religion grids remain zeroed by the initial clear. This also
-    // consumes any future effect grids so the fixed ordinal payload stays aligned.
+    // Older saves contain only the effect grids known to that save version. Any
+    // appended religion or entertainment grids stay zeroed by the initial clear.
+    // This also consumes future grids so the fixed ordinal payload stays aligned.
     for (uint32_t effect = effects_to_read; effect < effect_count; effect++) {
         for (size_t i = 0; i < kEffectGridCells; i++) {
             buffer_read_u32(buf);

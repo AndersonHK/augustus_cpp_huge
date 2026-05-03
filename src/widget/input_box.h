@@ -1,5 +1,4 @@
-#ifndef WIDGET_INPUT_BOX_H
-#define WIDGET_INPUT_BOX_H
+#pragma once
 
 #include "graphics/font.h"
 #include "input/mouse.h"
@@ -41,5 +40,3 @@ int input_box_is_accepted(void);
 
 int input_box_handle_mouse(const mouse *m, const input_box *box);
 void input_box_draw(const input_box *box);
-
-#endif // WIDGET_INPUT_BOX_H

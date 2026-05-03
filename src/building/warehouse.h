@@ -1,5 +1,4 @@
-#ifndef BUILDING_WAREHOUSE_H
-#define BUILDING_WAREHOUSE_H
+#pragma once
 
 #include "building/building.h"
 #include "building/storage.h"
@@ -278,6 +277,3 @@ void building_warehouse_recount_resources(building *main);
   * @return amount that couldnt be sent, or 0 if all sent
   */
 int building_warehouses_send_resources_to_rome(int resource, int amount);
-
-
-#endif // BUILDING_WAREHOUSE_H

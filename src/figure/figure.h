@@ -1,5 +1,4 @@
-#ifndef FIGURE_FIGURE_H
-#define FIGURE_FIGURE_H
+#pragma once
 
 #include "core/buffer.h"
 #include "core/direction.h"
@@ -176,5 +175,3 @@ void figure_load_state(buffer *list, buffer *seq, int version);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURE_FIGURE_H

@@ -1,5 +1,4 @@
-#ifndef BUILDING_BUILDING_TYPE_API_H
-#define BUILDING_BUILDING_TYPE_API_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,5 +15,3 @@ void building_type_registry_apply_model_overrides(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // BUILDING_BUILDING_TYPE_API_H

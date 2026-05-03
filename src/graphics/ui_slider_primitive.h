@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_UI_SLIDER_PRIMITIVE_H
-#define GRAPHICS_UI_SLIDER_PRIMITIVE_H
+#pragma once
 
 #include "graphics/ui_primitive.h"
 
@@ -28,5 +27,3 @@ private:
     int max_value_;
     int current_value_;
 };
-
-#endif // GRAPHICS_UI_SLIDER_PRIMITIVE_H

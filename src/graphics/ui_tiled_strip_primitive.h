@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_UI_TILED_STRIP_PRIMITIVE_H
-#define GRAPHICS_UI_TILED_STRIP_PRIMITIVE_H
+#pragma once
 
 #include "graphics/runtime_texture.h"
 #include "graphics/ui_primitive.h"
@@ -53,5 +52,3 @@ private:
     color_t color_;
     int middle_pattern_length_;
 };
-
-#endif // GRAPHICS_UI_TILED_STRIP_PRIMITIVE_H

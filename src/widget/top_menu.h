@@ -1,5 +1,4 @@
-#ifndef WINDOW_TOP_MENU_H
-#define WINDOW_TOP_MENU_H
+#pragma once
 
 #include "graphics/tooltip.h"
 #include "input/hotkey.h"
@@ -16,5 +15,3 @@ int widget_top_menu_get_tooltip_text(tooltip_context *c);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // WINDOW_TOP_MENU_H

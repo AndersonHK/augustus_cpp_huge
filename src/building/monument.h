@@ -1,5 +1,4 @@
-#ifndef BUILDING_MONUMENT_H
-#define BUILDING_MONUMENT_H
+#pragma once
 
 #include "building/building.h"
 #include "map/road_access.h"
@@ -64,5 +63,3 @@ void building_monument_delivery_load_state(buffer *list, int includes_array_size
 int building_monument_is_construction_halted(building *b);
 int building_monument_toggle_construction_halted(building *b);
 int building_monument_is_unfinished_monument(const building *b);
-
-#endif // BUILDING_MONUMENT_H 

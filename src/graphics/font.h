@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_FONT_H
-#define GRAPHICS_FONT_H
+#pragma once
 
 #include "core/encoding.h"
 
@@ -81,5 +80,3 @@ int font_image_height_for_letter(const font_definition *def, int letter_id);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_FONT_H

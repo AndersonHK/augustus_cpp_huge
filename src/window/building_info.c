@@ -315,9 +315,9 @@ static void draw_halt_monument_construction_button(int x, int y, int focused, bu
     int width = BLOCK_SIZE * (context.width_blocks - 10);
     button_border_draw(x, y, width, 20, focused ? 1 : 0);
     if (monument->state != BUILDING_STATE_MOTHBALLED) {
-        text_draw_centered(translation_for(TR_BUTTON_HALT_MONUMENT_CONSTRUCTION), x, y + 4, width, FONT_NORMAL_BLACK, 0);
+        text_draw_centered(translation_for(TR_BUTTON_HALT_MONUMENT_CONSTRUCTION), x, y + 4, width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
-        text_draw_centered(translation_for(TR_BUTTON_RESUME_MONUMENT_CONSTRUCTION), x, y + 4, width, FONT_NORMAL_BLACK, 0);
+        text_draw_centered(translation_for(TR_BUTTON_RESUME_MONUMENT_CONSTRUCTION), x, y + 4, width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 }
 

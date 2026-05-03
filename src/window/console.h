@@ -1,6 +1,3 @@
-#ifndef WINDOW_CONSOLE_H
-#define WINDOW_CONSOLE_H
+#pragma once
 
 void window_console_show(void);
-
-#endif // WINDOW_CONSOLE_H

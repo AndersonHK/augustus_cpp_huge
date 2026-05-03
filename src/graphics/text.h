@@ -1,9 +1,9 @@
-#ifndef GRAPHICS_TEXT_H
-#define GRAPHICS_TEXT_H
+#pragma once
 
 #include "graphics/color.h"
 #include "graphics/font.h"
 #include "input/mouse.h"
+#include "graphics/screen.h"
 
 #include <stdint.h>
 
@@ -14,60 +14,55 @@ extern "C" {
 void text_capture_cursor(int cursor_position, int offset_start, int offset_end);
 void text_draw_cursor(int x_offset, int y_offset, int is_insert);
 
-int text_get_width(const uint8_t *str, font_t font);
-int text_get_number_width(int value, char prefix, const char *postfix, font_t font);
+int text_get_width(const uint8_t *str, font_t font, int pixel_size);
+int text_get_number_width(int value, char prefix, const char *postfix, font_t font, int pixel_size);
 unsigned int text_get_max_length_for_width(
-    const uint8_t *str, int length, font_t font, unsigned int requested_width, int invert);
-void text_ellipsize(uint8_t *str, font_t font, int requested_width);
+    const uint8_t *str, int length, font_t font, int pixel_size, unsigned int requested_width, int invert);
+void text_ellipsize(uint8_t *str, font_t font, int pixel_size, int requested_width);
 
-int text_draw(const uint8_t *str, int x, int y, font_t font, color_t color);
-int text_draw_scaled(const uint8_t *str, int x, int y, font_t font, color_t color, float scale);
+int text_draw(const uint8_t *str, int x, int y, font_t font, int pixel_size, color_t color);
 
-void text_draw_centered(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color);
-void text_draw_right_aligned(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color);
-int text_draw_ellipsized(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color);
+void text_draw_centered(const uint8_t *str, int x, int y, int box_width, font_t font, int pixel_size, color_t color);
+void text_draw_right_aligned(const uint8_t *str, int x, int y, int box_width, font_t font, int pixel_size, color_t color);
+int text_draw_ellipsized(const uint8_t *str, int x, int y, int box_width, font_t font, int pixel_size, color_t color);
 
-int text_draw_centered_ellipsized(const uint8_t *str, int x, int y, int box_width, font_t font, color_t color);
+int text_draw_centered_ellipsized(const uint8_t *str, int x, int y, int box_width, font_t font, int pixel_size, color_t color);
 
-int text_draw_number(int value, char prefix, const char *postfix, int x, int y, font_t font, color_t color);
+int text_draw_number(int value, char prefix, const char *postfix, int x, int y, font_t font, int pixel_size, color_t color);
 int text_get_number_pair_width(int left_value, int right_value, char prefix, const char *separator,
-    int left_min_width, int right_min_width, int separator_padding, font_t font);
+    int left_min_width, int right_min_width, int separator_padding, font_t font, int pixel_size);
 int text_draw_number_pair(int left_value, int right_value, char prefix, const char *separator,
-    int x, int y, int left_min_width, int right_min_width, int separator_padding, font_t font, color_t color);
-void text_draw_number_finances(int value, int x, int y, font_t font, color_t color);
-int text_draw_number_scaled(int value, char prefix, const uint8_t *postfix,
-        int x, int y, font_t font, color_t color, float scale);
-int text_draw_money(int value, int x_offset, int y_offset, font_t font);
+    int x, int y, int left_min_width, int right_min_width, int separator_padding, font_t font, int pixel_size, color_t color);
+void text_draw_number_finances(int value, int x, int y, font_t font, int pixel_size, color_t color);
+int text_draw_money(int value, int x_offset, int y_offset, font_t font, int pixel_size);
 void text_draw_with_money(const uint8_t *text, int value, const char *prefix, const char *postfix,
-    int x_offset, int y_offset, int box_width, font_t font, color_t color);
-int text_draw_percentage(int value, int x_offset, int y_offset, font_t font);
-void text_draw_percentage_centered(int value, int x_offset, int y_offset, int box_width, font_t font);
+    int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
+int text_draw_percentage(int value, int x_offset, int y_offset, font_t font, int pixel_size);
+void text_draw_percentage_centered(int value, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
 
 int text_draw_label_and_number(const uint8_t *label, int value, const char *postfix,
-    int x_offset, int y_offset, font_t font, color_t color);
+    int x_offset, int y_offset, font_t font, int pixel_size, color_t color);
 void text_draw_label_and_number_centered(const uint8_t *label, int value, const char *postfix,
-    int x_offset, int y_offset, int box_width, font_t font, color_t color);
+    int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
 
-void text_draw_number_centered(int value, int x_offset, int y_offset, int box_width, font_t font);
+void text_draw_number_centered(int value, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
 void text_draw_number_centered_prefix(
-    int value, char prefix, int x_offset, int y_offset, int box_width, font_t font);
+    int value, char prefix, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
 void text_draw_number_centered_postfix(
-    int value, const char *postfix, int x_offset, int y_offset, int box_width, font_t font);
+    int value, const char *postfix, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
 void text_draw_number_centered_colored(
-    int value, int x_offset, int y_offset, int box_width, font_t font, color_t color);
+    int value, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
 
 int text_draw_multiline(const uint8_t *str, int x_offset, int y_offset, int box_width,
-    int centered, font_t font, color_t color);
+    int centered, font_t font, int pixel_size, color_t color);
 
 /**
  * @return Number of lines required to draw the text
  */
-int text_measure_multiline(const uint8_t *str, int box_width, font_t font, int *largest_width);
+int text_measure_multiline(const uint8_t *str, int box_width, font_t font, int pixel_size, int *largest_width);
 
-void text_draw_build_menu_with_index(const uint8_t *str, int index, int x_offset, int y_offset, int box_width, font_t font, color_t color);
+void text_draw_build_menu_with_index(const uint8_t *str, int index, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_TEXT_H

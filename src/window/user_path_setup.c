@@ -118,12 +118,12 @@ static void draw_background(void)
     graphics_in_dialog_with_size(640, 144);
 
     outer_panel_draw(0, 0, 40, 9);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_USER_DIRECTORIES_WINDOW_TITLE, 0, 20, 640, FONT_LARGE_BLACK);
+    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_USER_DIRECTORIES_WINDOW_TITLE, 0, 20, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_USER_DIRETORIES_WINDOW_USER_PATH, 16, 64, FONT_NORMAL_BLACK);
+    lang_text_draw(CUSTOM_TRANSLATION, TR_USER_DIRETORIES_WINDOW_USER_PATH, 16, 64, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     text_draw_ellipsized(get_path_text(), path_button.x + 10, path_button.y + 9, path_button.width - 20,
-        FONT_NORMAL_BLACK, 0);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     graphics_reset_dialog();
 }
@@ -263,7 +263,7 @@ static void get_tooltip(tooltip_context *c)
 {
     if (data.button_in_focus) {
         const uint8_t *path_text = get_path_text();
-        if (text_get_width(path_text, FONT_NORMAL_BLACK) > path_button.width - 20) {
+        if (text_get_width(path_text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) > path_button.width - 20) {
             c->precomposed_text = path_text;
             c->type = TOOLTIP_BUTTON;
         }

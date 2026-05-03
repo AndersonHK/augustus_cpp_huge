@@ -1,5 +1,4 @@
-#ifndef CITY_HEALTH_H
-#define CITY_HEALTH_H
+#pragma once
 
 #include "building/building.h"
 #include "figure/figure.h"
@@ -35,5 +34,3 @@ int city_health_get_population_with_baths_access(void);
 int city_health_get_population_with_well_access(void);
 int city_health_get_population_with_latrines_access(void);
 int city_health_get_population_with_water_access(void);
-    
-#endif // CITY_HEALTH_H

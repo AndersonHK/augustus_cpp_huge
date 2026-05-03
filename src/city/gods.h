@@ -1,5 +1,4 @@
-#ifndef CITY_GODS_H
-#define CITY_GODS_H
+#pragma once
 
 #define MAX_GODS 5
 #define NEPTUNE_BLESSING_MONTHS 12
@@ -40,5 +39,3 @@ int city_god_venus_bonus_employment(void);
 void city_god_blessing(int god_id);
 
 void city_god_curse(int god_id, int is_major);
-
-#endif // CITY_GODS_H

@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_TRADER_H
-#define FIGURETYPE_TRADER_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -48,5 +47,3 @@ int figure_trader_ship_other_ship_closer_to_dock(unsigned int dock_id, int dista
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURETYPE_TRADER_H

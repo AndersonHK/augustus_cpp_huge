@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="brickworks">
+    <labor>
+        <employees count="10" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
+    </labor>
+    <storages>
+        <storage path="sand_input_brickworks" />
+        <storage path="clay_input_brickworks" />
+        <storage path="bricks_output_brickworks" />
+    </storages>
+    <production_methods>
+        <production_method path="brickworks_basic" />
+    </production_methods>
+</building>

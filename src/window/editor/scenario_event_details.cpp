@@ -439,11 +439,11 @@ static void draw_background(void)
     // Helper debug text during city mode
     if (!editor_is_active()) {
         text_draw_centered(translation_for((translation_key) (TR_EDITOR_SCENARIO_EVENT_STATE_UNDEFINED + data.event->state)),
-            420, 40, 80, FONT_NORMAL_GREEN, color_from_state(data.event->state));
+            420, 40, 80, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), color_from_state(data.event->state));
         text_draw_label_and_number(translation_for(TR_EDITOR_SCENARIO_EVENT_EXECUTION_COUNT),
-            data.event->execution_count, "", 40, 72, FONT_NORMAL_PLAIN, COLOR_BLACK);
+            data.event->execution_count, "", 40, 72, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
         text_draw_label_and_number(translation_for(TR_EDITOR_SCENARIO_EVENT_MONTHS_UNTIL_ACTIVE),
-            data.event->days_until_active, "", 336, 72, FONT_NORMAL_PLAIN, COLOR_BLACK);
+            data.event->days_until_active, "", 336, 72, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
     }
 
     // Refresh lists
@@ -453,27 +453,27 @@ static void draw_background(void)
     outer_panel_draw(0, 0, 40, 30);
 
     // Title and ID
-    text_draw_centered(translation_for(TR_EDITOR_SCENARIO_EVENTS_TITLE), 0, 13, 640, FONT_LARGE_BLACK, 0);
+    text_draw_centered(translation_for(TR_EDITOR_SCENARIO_EVENTS_TITLE), 0, 13, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     text_draw_label_and_number(translation_for(TR_EDITOR_ID),
-        data.event->id, "", 16, 13, FONT_NORMAL_PLAIN, COLOR_BLACK);
+        data.event->id, "", 16, 13, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
 
     // "Name" string
     lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENT_NAME, 0, event_name_input.y + 8,
-        event_name_input.x - 10, FONT_NORMAL_BLACK);
+        event_name_input.x - 10, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Top buttons
     // Repeat type selected checkbox
     const generic_button *btn = &top_buttons[data.repeat_type];
-    text_draw(string_from_ascii("x"), btn->x + 6, btn->y + 3, FONT_NORMAL_BLACK, 0);
+    text_draw(string_from_ascii("x"), btn->x + 6, btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     btn = &top_buttons[0];
     // Repeat type - Never
-    lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT, 0, btn->y + 3, btn->x - 16, FONT_NORMAL_BLACK);
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_DO_NOT_REPEAT, btn->x + 30, btn->y + 3, FONT_NORMAL_BLACK);
+    lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT, 0, btn->y + 3, btn->x - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_DO_NOT_REPEAT, btn->x + 30, btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat forever
     btn = &top_buttons[1];
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FOREVER, btn->x + 30, btn->y + 3, FONT_NORMAL_BLACK);
+    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FOREVER, btn->x + 30, btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat N times
     btn = &top_buttons[3];
@@ -484,10 +484,10 @@ static void draw_background(void)
     if (repeat_times > 2) {
         text_draw_label_and_number_centered(lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TEXT), repeat_times,
             (const char *) lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES),
-            btn->x, btn->y + 6, btn->width, FONT_NORMAL_BLACK, 0);
+            btn->x, btn->y + 6, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_ONCE + repeat_times - 1, btn->x, btn->y + 6,
-            btn->width, FONT_NORMAL_BLACK);
+            btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // Repeat interval text
@@ -496,25 +496,25 @@ static void draw_background(void)
 
     btn = &top_buttons[4];
     lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY, 0, btn->y - 20, top_buttons[0].x + 450,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, top_buttons[0].x + 240, btn->y + 6,
-        enabled_font, enabled_color);
+        enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     int repeat_min = convert_days_to_display(data.event->repeat_days_min);
     int repeat_max = convert_days_to_display(data.event->repeat_days_max);
     text_draw_number_centered_colored(repeat_min, btn->x, btn->y + 6,
-        btn->width, enabled_font, enabled_color);
+        btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_AND, btn->x + btn->width,
-        btn->y + 6, btn[1].x - (btn->x + btn->width), enabled_font, enabled_color);
+        btn->y + 6, btn[1].x - (btn->x + btn->width), enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     btn = &top_buttons[5];
     text_draw_number_centered_colored(repeat_max, btn->x, btn->y + 6,
-        btn->width, enabled_font, enabled_color);
+        btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     dropdown_button_draw(&repeat_interval_dropdown);
     // Checkmarks for select all/none buttons for conditions
     int checkmark_id = assets_lookup_image_id(ASSET_UI_SELECTION_CHECKMARK);
     const image *img = image_get(checkmark_id);
     if (data.conditions.selection_type == CHECKBOX_SOME_SELECTED) {
         text_draw(string_from_ascii("-"), select_all_none_buttons[0].x + 8, select_all_none_buttons[0].y + 4,
-            FONT_NORMAL_BLACK, 0);
+            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (data.conditions.selection_type == CHECKBOX_ALL_SELECTED) {
         image_draw(checkmark_id, select_all_none_buttons[0].x + (20 - img->original.width) / 2,
              select_all_none_buttons[0].y + (20 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
@@ -523,17 +523,17 @@ static void draw_background(void)
     // "Set selected to group..." option label
     color_t color = data.conditions.selection_type == CHECKBOX_NO_SELECTION ? COLOR_FONT_LIGHT_GRAY : 0;
     lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_SET_TO_GROUP,
-        top_buttons[6].x, top_buttons[6].y + 5, top_buttons[6].width, FONT_SMALL_PLAIN, color);
+        top_buttons[6].x, top_buttons[6].y + 5, top_buttons[6].width, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), color);
 
     // Condition grid box label
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_CONDITION,
         select_all_none_buttons[0].x + select_all_none_buttons[0].width + 6, conditions_grid_box.y - 20,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Checkmarks for select all/none buttons for actions
     if (data.actions.selection_type == CHECKBOX_SOME_SELECTED) {
         text_draw(string_from_ascii("-"), select_all_none_buttons[1].x + 8, select_all_none_buttons[1].y + 4,
-            FONT_NORMAL_BLACK, 0);
+            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (data.actions.selection_type == CHECKBOX_ALL_SELECTED) {
         image_draw(checkmark_id, select_all_none_buttons[1].x + (20 - img->original.width) / 2,
              select_all_none_buttons[1].y + (20 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
@@ -542,40 +542,40 @@ static void draw_background(void)
     // Action grid box label
     lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_ACTION,
         select_all_none_buttons[1].x + select_all_none_buttons[1].width + 6, actions_grid_box.y - 20,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // No conditions
     int y_offset = conditions_grid_box.y + conditions_grid_box.height / 2 - 10;
     if (data.conditions.active == 0) {
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_NO_CONDITIONS, conditions_grid_box.x,
-            y_offset, conditions_grid_box.width, FONT_NORMAL_BLACK);
+            y_offset, conditions_grid_box.width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // No actions
     if (data.actions.active == 0) {
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_NO_ACTIONS, actions_grid_box.x,
-            y_offset, actions_grid_box.width, FONT_NORMAL_BLACK);
+            y_offset, actions_grid_box.width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // New condition button label
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_CONDITION_ADD,
-        bottom_buttons[0].x, bottom_buttons[0].y + 6, bottom_buttons[0].width, FONT_NORMAL_BLACK);
+        bottom_buttons[0].x, bottom_buttons[0].y + 6, bottom_buttons[0].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Delete selected button label
     color = data.conditions.selection_type == CHECKBOX_NO_SELECTION &&
         data.actions.selection_type == CHECKBOX_NO_SELECTION ? COLOR_FONT_LIGHT_GRAY : COLOR_RED;
     lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED,
-        bottom_buttons[1].x, bottom_buttons[1].y + 6, bottom_buttons[1].width, FONT_NORMAL_PLAIN, color);
+        bottom_buttons[1].x, bottom_buttons[1].y + 6, bottom_buttons[1].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
 
     // Add action button label
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_ACTION_ADD,
-        bottom_buttons[2].x, bottom_buttons[2].y + 6, bottom_buttons[2].width, FONT_NORMAL_BLACK);
+        bottom_buttons[2].x, bottom_buttons[2].y + 6, bottom_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Bottom buttons
     lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_DELETE, bottom_buttons[3].x, bottom_buttons[3].y + 6,
-        bottom_buttons[3].width, FONT_NORMAL_PLAIN, COLOR_RED);
+        bottom_buttons[3].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_RED);
     lang_text_draw_centered(18, 3, bottom_buttons[4].x, bottom_buttons[4].y + 6, bottom_buttons[4].width,
-        FONT_NORMAL_BLACK);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
@@ -585,7 +585,7 @@ static void draw_condition_button(const grid_box_item *item)
     const condition_list_item *list_item = &data.conditions.list[item->index];
     if (!list_item->condition) {
         text_draw(data.conditions.groups.names[list_item->group_id], item->x + 4, item->y + 7,
-            FONT_NORMAL_BLACK, 0);
+            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         return;
     }
     int selection_button_y_offset = (item->height - 20) / 2;
@@ -606,10 +606,10 @@ static void draw_condition_button(const grid_box_item *item)
     const scenario_condition_t *condition = data.conditions.list[item->index].condition;
     uint8_t text[MAX_TEXT_LENGTH];
     scenario_events_parameter_data_get_display_string_for_condition(condition, text, MAX_TEXT_LENGTH);
-    if (text_get_width(text, FONT_NORMAL_BLACK) > item->width - 32) {
-        text_draw_ellipsized(text, item->x + 28, item->y + 7, item->width - 32, FONT_NORMAL_BLACK, 0);
+    if (text_get_width(text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) > item->width - 32) {
+        text_draw_ellipsized(text, item->x + 28, item->y + 7, item->width - 32, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
-        text_draw_centered(text, item->x + 28, item->y + 7, item->width - 32, FONT_NORMAL_BLACK, 0);
+        text_draw_centered(text, item->x + 28, item->y + 7, item->width - 32, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 }
 
@@ -632,10 +632,10 @@ static void draw_action_button(const grid_box_item *item)
     const scenario_action_t *action = data.actions.list[item->index];
     uint8_t text[MAX_TEXT_LENGTH];
     scenario_events_parameter_data_get_display_string_for_action(action, text, MAX_TEXT_LENGTH);
-    if (text_get_width(text, FONT_NORMAL_BLACK) > item->width - 32) {
-        text_draw_ellipsized(text, item->x + 28, item->y + 7, item->width - 32, FONT_NORMAL_BLACK, 0);
+    if (text_get_width(text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) > item->width - 32) {
+        text_draw_ellipsized(text, item->x + 28, item->y + 7, item->width - 32, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
-        text_draw_centered(text, item->x + 28, item->y + 7, item->width - 32, FONT_NORMAL_BLACK, 0);
+        text_draw_centered(text, item->x + 28, item->y + 7, item->width - 32, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 }
 
@@ -1073,7 +1073,7 @@ static void handle_condition_tooltip(const grid_box_item *item, tooltip_context 
     }
     static uint8_t text[MAX_TEXT_LENGTH * 2];
     scenario_events_parameter_data_get_display_string_for_condition(list_item->condition, text, MAX_TEXT_LENGTH * 2);
-    if (text_get_width(text, FONT_NORMAL_BLACK) > item->width - 32) {
+    if (text_get_width(text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) > item->width - 32) {
         c->precomposed_text = text;
         c->type = TOOLTIP_BUTTON;
     }
@@ -1087,7 +1087,7 @@ static void handle_action_tooltip(const grid_box_item *item, tooltip_context *c)
     }
     static uint8_t text[MAX_TEXT_LENGTH * 2];
     scenario_events_parameter_data_get_display_string_for_action(action, text, MAX_TEXT_LENGTH * 2);
-    if (text_get_width(text, FONT_NORMAL_BLACK) > item->width - 32) {
+    if (text_get_width(text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) > item->width - 32) {
         c->precomposed_text = text;
         c->type = TOOLTIP_BUTTON;
     }

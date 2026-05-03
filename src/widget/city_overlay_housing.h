@@ -1,5 +1,4 @@
-#ifndef WIGET_CITY_OVERLAY_HOUSING_H
-#define WIGET_CITY_OVERLAY_HOUSING_H
+#pragma once
 
 #include "city_overlay.h"
 
@@ -33,5 +32,3 @@ const city_overlay *city_overlay_for_housing_groups_casae(void);
 const city_overlay *city_overlay_for_housing_groups_insulae(void);
 const city_overlay *city_overlay_for_housing_groups_villas(void);
 const city_overlay *city_overlay_for_housing_groups_palaces(void);
-
-#endif // WIGET_CITY_OVERLAY_HOUSING_H

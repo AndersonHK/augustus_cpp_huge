@@ -4,6 +4,7 @@
 #include "core/image_payload.h"
 #include "figure/figure_type_registry.h"
 #include "game/defines.h"
+#include "graphics/declarative_window.h"
 
 extern "C" {
 #include "assets/assets.h"
@@ -117,7 +118,7 @@ int game_init(void)
 {
     clear_init_failure_message();
 
-    if (!image_load_climate(CLIMATE_CENTRAL, 0, 1, 0)) {
+    if (!image_load_climate(CLIMATE_CENTRAL, 0, 1, 0, 1)) {
         const char *asset_failure_reason = assets_get_failure_reason();
         if (asset_failure_reason && *asset_failure_reason) {
             set_init_failure_message("Failed to load graphics assets.", asset_failure_reason);
@@ -146,6 +147,11 @@ int game_init(void)
         const char *font_failure_reason = font_get_failure_reason();
         set_init_failure_message("Failed to load mod font pack.", font_failure_reason && *font_failure_reason ? font_failure_reason : 0);
         errlog("unable to load mod font pack");
+        return 0;
+    }
+    if (!declarative_window_registry_load()) {
+        set_init_failure_message("Failed to load UI window definitions.", declarative_window_registry_get_failure_reason());
+        errlog("unable to load UI window definitions");
         return 0;
     }
 
@@ -232,7 +238,7 @@ static int reload_language(int is_editor, int reload_images)
         errlog("unable to load mod font pack");
         return 0;
     }
-    if (!image_load_climate(scenario_property_climate(), is_editor, reload_images, 0)) {
+    if (!image_load_climate(scenario_property_climate(), is_editor, reload_images, 0, 0)) {
         errlog("unable to load main graphics");
         return 0;
     }
@@ -302,7 +308,7 @@ void game_display_fps(int fps)
     int height = 20;
     graphics_draw_rect(x_offset, y_offset, width + 2, height + 2, COLOR_BLACK);
     graphics_fill_rect(x_offset + 1, y_offset + 1, width, height, COLOR_WHITE);
-    text_draw_number_centered_colored(fps, x_offset, y_offset + 6, width, FONT_SMALL_PLAIN, COLOR_BLACK);
+    text_draw_number_centered_colored(fps, x_offset, y_offset + 6, width, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_BLACK);
 }
 
 void game_exit(void)

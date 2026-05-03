@@ -1,5 +1,4 @@
-#ifndef CITY_MAP_H
-#define CITY_MAP_H
+#pragma once
 
 #include "map/point.h"
 
@@ -33,5 +32,3 @@ int city_map_road_network_index(int network_id);
 void city_map_clear_largest_road_networks(void);
 
 void city_map_add_to_largest_road_networks(int network_id, int size);
-
-#endif // CITY_MAP_H

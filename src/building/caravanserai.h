@@ -1,5 +1,4 @@
-#ifndef BUILDING_CARAVANSERAI_H
-#define BUILDING_CARAVANSERAI_H
+#pragma once
 
 #include "building/building.h"
 
@@ -9,5 +8,3 @@ int building_caravanserai_enough_foods(building *caravanserai);
 int building_caravanserai_food_required_monthly(void);
 int building_caravanserai_get_storage_destination(building *caravanserai);
 int building_caravanserai_is_fully_functional(void);
-
-#endif // BUILDING_CARAVANSERAI_H

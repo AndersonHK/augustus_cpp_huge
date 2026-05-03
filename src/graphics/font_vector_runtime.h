@@ -26,23 +26,25 @@ const char *font_vector_runtime_failure_reason();
 
 int font_vector_runtime_space_width(font_t font);
 int font_vector_runtime_line_height(font_t font);
+int font_vector_runtime_line_height_sized(font_t font, int logical_size_delta);
 int font_vector_runtime_letter_spacing(font_t font);
 int font_vector_runtime_baseline_offset(font_t font);
 FontSurfaceSemantic font_vector_runtime_semantic(font_t font);
 
 int font_vector_runtime_can_display_utf8(std::string_view utf8_character);
-int font_vector_runtime_measure_utf8(std::string_view text, font_t font, unsigned style_flags, float scale);
+int font_vector_runtime_measure_utf8(std::string_view text, font_t font, unsigned style_flags, int pixel_size);
 unsigned int font_vector_runtime_fit_utf8_bytes(
     std::string_view text,
     font_t font,
     unsigned int requested_width,
     int invert,
-    unsigned style_flags);
+    unsigned style_flags,
+    int pixel_size);
 int font_vector_runtime_draw_utf8(
     std::string_view text,
     int x,
     int y,
     font_t font,
     color_t color,
-    float scale,
+    int pixel_size,
     unsigned style_flags);

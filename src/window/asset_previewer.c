@@ -197,7 +197,7 @@ static int load_climate(int force)
 {
     scenario_climate climate = data.terrain == TERRAIN_NONE ? data.climate : (data.terrain - 1);
     if (data.climate != climate || force) {
-        if (!image_load_climate(climate, 0, 1, 1)) {
+        if (!image_load_climate(climate, 0, 1, 1, 0)) {
             log_error("Unable to load main graphics", 0, 0);
             return 0;
         }
@@ -353,7 +353,7 @@ static void draw_asset(void)
 static void draw_refreshed_info(void)
 {
     const uint8_t *text = lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_ASSETS_REFRESHED);
-    int label_width = text_get_width(text, FONT_NORMAL_WHITE) + 100;
+    int label_width = text_get_width(text, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height)) + 100;
     label_width -= label_width % BLOCK_SIZE;
     int x_offset = (screen_width() - label_width) / 2;
     int y_offset = BLOCK_SIZE * 8;
@@ -363,7 +363,7 @@ static void draw_refreshed_info(void)
     image_draw(image_group(GROUP_CONTEXT_ICONS) + 15, x_offset + label_width - 36, y_offset + 2,
         COLOR_MASK_NONE, SCALE_NONE);
 
-    text_draw_centered(text, x_offset, y_offset + 4, label_width, FONT_NORMAL_WHITE, 0);
+    text_draw_centered(text, x_offset, y_offset + 4, label_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 }
 
 static void draw_background(void)
@@ -382,34 +382,34 @@ static void draw_background(void)
 
     outer_panel_draw(data.x_offset_top, 8, 40, 7);
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_TITLE,
-        data.x_offset_top + 16, 24, 530, FONT_LARGE_BLACK);
+        data.x_offset_top + 16, 24, 530, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_GROUP, data.x_offset_top + 16, 69, FONT_NORMAL_BLACK);
+    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_GROUP, data.x_offset_top + 16, 69, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     if (data.xml_files->num_files > 0) {
         text_draw_centered(data.xml_file_names[data.active_group_index], data.x_offset_top + 16, 89, 180,
-            FONT_NORMAL_BLACK, COLOR_MASK_NONE);
+            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
     } else {
         const uint8_t *no_groups_text = lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_NO_GROUPS);
-        text_draw_centered(no_groups_text, data.x_offset_top + 16, 89, 180, FONT_NORMAL_PLAIN, COLOR_FONT_GRAY);
+        text_draw_centered(no_groups_text, data.x_offset_top + 16, 89, 180, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_FONT_GRAY);
     }
     lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_TERRAIN,
-        data.x_offset_top + 216, 69, FONT_NORMAL_BLACK);
+        data.x_offset_top + 216, 69, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_centered(data.terrain_texts[data.terrain], data.x_offset_top + 216, 89, 140,
-        FONT_NORMAL_BLACK, COLOR_MASK_NONE);
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
     int width = lang_text_draw(CUSTOM_TRANSLATION, TR_ZOOM,
-        data.x_offset_top + 376, 69, FONT_NORMAL_BLACK);
+        data.x_offset_top + 376, 69, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     int inverted_scale = calc_percentage(100, data.scale);
     text_draw_number_centered_postfix(inverted_scale, "%",
-        data.x_offset_top + 376 + width, 70, 160 - width, FONT_NORMAL_BLACK);
+        data.x_offset_top + 376 + width, 70, 160 - width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     if (data.animation.enabled) {
-        text_draw(string_from_ascii("x"), data.x_offset_top + 382, 88, FONT_NORMAL_BLACK, COLOR_MASK_NONE);
+        text_draw(string_from_ascii("x"), data.x_offset_top + 382, 88, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
     }
     lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_PLAY_ANIMATIONS,
-        data.x_offset_top + 404, 89, FONT_NORMAL_BLACK);
+        data.x_offset_top + 404, 89, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_REFRESH,
-        data.x_offset_top + 546, 34, 80, FONT_NORMAL_BLACK);
+        data.x_offset_top + 546, 34, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_QUIT,
-        data.x_offset_top + 546, 79, 80, FONT_NORMAL_BLACK);
+        data.x_offset_top + 546, 79, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     if (data.showing_refresh_info) {
         draw_refreshed_info();
@@ -419,7 +419,7 @@ static void draw_background(void)
 
     outer_panel_draw(8, 10 * BLOCK_SIZE, list_box.width_blocks + 3, outer_height_blocks);
     lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_ASSET,
-        32, 11 * BLOCK_SIZE, FONT_NORMAL_BLACK);
+        32, 11 * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     list_box.height_blocks = outer_height_blocks - 4;
     list_box.x = 24;
     list_box.y = 12 * BLOCK_SIZE;
@@ -429,10 +429,10 @@ static void draw_background(void)
     toggle_animation_button.width = list_box.width_blocks * BLOCK_SIZE;
     if (!data.hide_animation_frames) {
         text_draw(string_from_ascii("x"), toggle_animation_button.x + 6, toggle_animation_button.y + 3,
-            FONT_NORMAL_BLACK, COLOR_MASK_NONE);
+            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
     }
     lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_SHOW_ANIMATION_FRAMES,
-        toggle_animation_button.x + 28, toggle_animation_button.y + 4, FONT_NORMAL_BLACK);
+        toggle_animation_button.x + 28, toggle_animation_button.y + 4, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void encode_asset_id(const char *id)
@@ -455,7 +455,7 @@ static void draw_asset_entry(const list_box_item *item)
     int current_image = data.entries[item->index].index;
     const asset_image *img = asset_image_get_from_id(data.active_group->first_image_index + current_image);
     font_t font = item->is_selected ? FONT_NORMAL_WHITE : FONT_NORMAL_GREEN;
-    int width = text_draw_number(current_image + 1, '@', "", item->x, item->y, font, COLOR_MASK_NONE);
+    int width = text_draw_number(current_image + 1, '@', "", item->x, item->y, font, screen_ui_to_pixel(font_definition_for(font)->line_height), COLOR_MASK_NONE);
     const uint8_t *asset_name;
     if (img->id) {
         encode_asset_id(img->id);
@@ -468,8 +468,8 @@ static void draw_asset_entry(const list_box_item *item)
         asset_name = lang_get_string(CUSTOM_TRANSLATION, data.entries[item->index].is_animation_frame ?
             TR_WINDOW_ASSET_PREVIEWER_ANIMATION_FRAME : TR_WINDOW_ASSET_PREVIEWER_UNNAMED_ASSET);
     }
-    width += text_draw(string_from_ascii("-"), item->x + width, item->y, font, COLOR_MASK_NONE);
-    text_draw_ellipsized(asset_name, item->x + width, item->y, item->width - width, font, COLOR_MASK_NONE);
+    width += text_draw(string_from_ascii("-"), item->x + width, item->y, font, screen_ui_to_pixel(font_definition_for(font)->line_height), COLOR_MASK_NONE);
+    text_draw_ellipsized(asset_name, item->x + width, item->y, item->width - width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), COLOR_MASK_NONE);
     if (item->is_focused) {
         button_border_draw(item->x + 3, item->y - 5, item->width, item->height + 2, 1);
     }
@@ -480,7 +480,7 @@ static void draw_asset_list(void)
     list_box_draw(&list_box);
     if (!data.active_group || !list_box_get_total_items(&list_box)) {
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_NO_ASSETS, list_box.x, list_box.y +
-            (list_box.height_blocks * BLOCK_SIZE - 20) / 2, list_box.width_blocks * BLOCK_SIZE, FONT_NORMAL_GREEN);
+            (list_box.height_blocks * BLOCK_SIZE - 20) / 2, list_box.width_blocks * BLOCK_SIZE, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
     button_border_draw(toggle_animation_button.x, toggle_animation_button.y,
         20, toggle_animation_button.height, data.animation_button_focused);
@@ -527,7 +527,7 @@ static void draw_foreground(void)
                 width = 20;
                 break;
             case BUTTON_CHANGE_ZOOM:
-                width = lang_text_get_width(CUSTOM_TRANSLATION, TR_ZOOM, FONT_NORMAL_BLACK);
+                width = lang_text_get_width(CUSTOM_TRANSLATION, TR_ZOOM, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
                 x_offset += width;
                 width = btn->width - width;
                 break;
@@ -640,9 +640,9 @@ static void handle_tooltip(const list_box_item *item, tooltip_context *c)
     if (!data.encoded_asset_id) {
         return;
     }
-    int text_width = text_get_width(data.encoded_asset_id, font);
-    int base_width = text_get_number_width(data.entries[item->index].index + 1, '@', "", font);
-    base_width += text_get_width(string_from_ascii(" - "), font);
+    int text_width = text_get_width(data.encoded_asset_id, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+    int base_width = text_get_number_width(data.entries[item->index].index + 1, '@', "", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+    base_width += text_get_width(string_from_ascii(" - "), font, screen_ui_to_pixel(font_definition_for(font)->line_height));
 
     if (text_width > item->width - base_width) {
         c->precomposed_text = data.encoded_asset_id;

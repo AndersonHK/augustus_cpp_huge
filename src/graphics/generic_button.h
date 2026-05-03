@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_GENERIC_BUTTON_H
-#define GRAPHICS_GENERIC_BUTTON_H
+#pragma once
 
 #include "input/mouse.h"
 
@@ -16,5 +15,3 @@ typedef struct generic_button {
 
 int generic_buttons_handle_mouse(const mouse *m, int x, int y, generic_button *buttons, unsigned int num_buttons,
     unsigned int *focus_button_id);
-
-#endif // GRAPHICS_GENERIC_BUTTON_H

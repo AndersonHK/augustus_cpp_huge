@@ -1,5 +1,4 @@
-#ifndef FIGURE_SERVICE_H
-#define FIGURE_SERVICE_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -12,5 +11,3 @@ int figure_service_provide_coverage(figure *f);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURE_SERVICE_H

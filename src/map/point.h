@@ -1,5 +1,4 @@
-#ifndef MAP_POINT_H
-#define MAP_POINT_H
+#pragma once
 
 typedef struct {
     int x;
@@ -25,5 +24,3 @@ typedef struct {
 void map_point_store_result(int x, int y, map_point *point);
 
 void map_point_get_last_result(map_point *point);
-
-#endif // MAP_POINT_H

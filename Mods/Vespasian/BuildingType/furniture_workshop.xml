@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="furniture_workshop">
+    <graphics>
+        <default>
+            <path value="Industry\Furniture_Workshop" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="10" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
+    </labor>
+    <storages>
+        <storage path="timber_input_furniture_workshop" />
+        <storage path="furniture_output_furniture_workshop" />
+    </storages>
+    <production_methods>
+        <production_method path="furniture_workshop_basic" />
+    </production_methods>
+</building>

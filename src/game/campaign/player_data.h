@@ -1,5 +1,4 @@
-#ifndef PLAYER_DATA_H
-#define PLAYER_DATA_H
+#pragma once
 
 /**
  * Indicates the latest played mission of a campaign.
@@ -18,5 +17,3 @@ int campaign_player_data_get_current_mission(const char *campaign_file_name);
  * @param latest_mission The latest mission to store.
  */
 void campaign_player_data_update_current_mission(const char *campaign_file_name, int latest_mission);
-
-#endif // PLAYER_DATA_H

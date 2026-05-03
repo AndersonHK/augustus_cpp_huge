@@ -8,7 +8,7 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
         <spawn mode="service_roamer" spawn_figure="priest"
-            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true" />
+            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true" profile="neptune_service" />
     </spawn_group>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">
         <spawn mode="temple_destination_priest" />

@@ -43,14 +43,14 @@ static struct {
 
 static void draw_button_labels(void)
 {
-    text_draw_number_centered(0, 124, 221, 64, FONT_NORMAL_WHITE);
-    text_draw_number_centered(500, 204, 221, 64, FONT_NORMAL_WHITE);
-    text_draw_number_centered(2000, 284, 221, 64, FONT_NORMAL_WHITE);
-    text_draw_number_centered(5000, 364, 221, 64, FONT_NORMAL_WHITE);
-    lang_text_draw_centered(52, 19, 444, 221, 64, FONT_NORMAL_WHITE);
+    text_draw_number_centered(0, 124, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    text_draw_number_centered(500, 204, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    text_draw_number_centered(2000, 284, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    text_draw_number_centered(5000, 364, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw_centered(52, 19, 444, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
-    lang_text_draw_centered(13, 4, 336, 288, 160, FONT_NORMAL_BLACK);
-    lang_text_draw_centered(52, 18, 144, 288, 160, FONT_NORMAL_BLACK);
+    lang_text_draw_centered(13, 4, 336, 288, 160, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(52, 18, 144, 288, 160, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void draw_background(void)
@@ -61,11 +61,11 @@ static void draw_background(void)
 
     outer_panel_draw(64, 160, 32, 10);
     image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, 80, 176, COLOR_MASK_NONE, SCALE_NONE);
-    lang_text_draw_centered(52, 16, 112, 176, 448, FONT_LARGE_BLACK);
+    lang_text_draw_centered(52, 16, 112, 176, 448, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     inner_panel_draw(112, 208, 26, 4);
 
-    int width = lang_text_draw(52, 17, 128, 248, FONT_NORMAL_WHITE);
+    int width = lang_text_draw(52, 17, 128, 248, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     int button_start = 128 + width + 10;
     if (button_start < 240) {
@@ -74,7 +74,7 @@ static void draw_background(void)
     arrow_buttons[0].x_offset = button_start;
     arrow_buttons[1].x_offset = arrow_buttons[0].x_offset + arrow_buttons[0].size;
 
-    text_draw_number(city_emperor_donate_amount(), '@', " ", button_start + 76, 248, FONT_NORMAL_WHITE, 0);
+    text_draw_number(city_emperor_donate_amount(), '@', " ", button_start + 76, 248, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     graphics_reset_dialog();
 }

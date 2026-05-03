@@ -1,5 +1,4 @@
-#ifndef GRAPHICS_SCREEN_H
-#define GRAPHICS_SCREEN_H
+#pragma once
 
 #include "graphics/color.h"
 
@@ -38,5 +37,3 @@ int screen_dialog_offset_y(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // GRAPHICS_SCREEN_H

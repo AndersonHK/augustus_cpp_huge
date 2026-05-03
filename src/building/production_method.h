@@ -1,7 +1,7 @@
-#ifndef BUILDING_PRODUCTION_METHOD_H
-#define BUILDING_PRODUCTION_METHOD_H
+#pragma once
 
 extern "C" {
+#include "building/building.h"
 #include "game/resource.h"
 #include "scenario/property.h"
 }
@@ -53,6 +53,12 @@ public:
     int is_workshop() const;
     int refreshes_farm_image() const;
     int uses_blessing_multiplier() const;
+    int effective_monthly_production() const;
+    int max_progress_for(const ::building &building) const;
+    int has_required_inputs(const ::building &building) const;
+    int scaled_input_amount(const ProductionResourceAmount &input) const;
+    int labor_access_for(const ::building &building) const;
+    int can_start_cycle(const ::building &building) const;
 
 private:
     std::string path_;
@@ -64,5 +70,3 @@ private:
 };
 
 } // namespace building_type_registry_impl
-
-#endif // BUILDING_PRODUCTION_METHOD_H

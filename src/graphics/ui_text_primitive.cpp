@@ -49,15 +49,17 @@ bool UiTextPrimitive::has_renderable_payload() const
 
 int UiTextPrimitive::measure_width() const
 {
+    const int pixel_size = screen_ui_to_pixel(font_definition_for(spec_.font)->line_height);
     switch (spec_.content_type) {
         case UiTextContentType::Language:
-            return lang_text_get_width(spec_.text_group, spec_.text_id, spec_.font);
+            return lang_text_get_width(spec_.text_group, spec_.text_id, spec_.font, pixel_size);
         case UiTextContentType::Raw:
-            return spec_.raw_text ? text_get_width(spec_.raw_text, spec_.font) : 0;
+            return spec_.raw_text ? text_get_width(spec_.raw_text, spec_.font, pixel_size) : 0;
         case UiTextContentType::Number:
-            return text_get_number_width(spec_.value, spec_.prefix, spec_.postfix ? spec_.postfix : "", spec_.font);
+            return text_get_number_width(
+                spec_.value, spec_.prefix, spec_.postfix ? spec_.postfix : "", spec_.font, pixel_size);
         case UiTextContentType::Amount:
-            return lang_text_get_amount_width(spec_.text_group, spec_.text_id, spec_.value, spec_.font);
+            return lang_text_get_amount_width(spec_.text_group, spec_.text_id, spec_.value, spec_.font, pixel_size);
         default:
             return 0;
     }
@@ -70,6 +72,7 @@ void UiTextPrimitive::draw() const
         return;
     }
 
+    const int pixel_size = screen_ui_to_pixel(font_definition_for(spec_.font)->line_height);
     const int box_width = spec_.box_width > 0 ? spec_.box_width : measure_width();
     const int draw_x = spec_.alignment == UiTextAlignment::Right ? spec_.x + box_width - measure_width() : spec_.x;
 
@@ -83,27 +86,31 @@ void UiTextPrimitive::draw() const
                     spec_.y,
                     box_width,
                     spec_.font,
+                    pixel_size,
                     spec_.color);
             } else if (spec_.alignment == UiTextAlignment::Right) {
-                lang_text_draw_colored(spec_.text_group, spec_.text_id, draw_x, spec_.y, spec_.font, spec_.color);
+                lang_text_draw_colored(
+                    spec_.text_group, spec_.text_id, draw_x, spec_.y, spec_.font, pixel_size, spec_.color);
             } else {
-                lang_text_draw_colored(spec_.text_group, spec_.text_id, spec_.x, spec_.y, spec_.font, spec_.color);
+                lang_text_draw_colored(
+                    spec_.text_group, spec_.text_id, spec_.x, spec_.y, spec_.font, pixel_size, spec_.color);
             }
             return;
 
         case UiTextContentType::Raw:
             if (spec_.alignment == UiTextAlignment::Center) {
-                text_draw_centered(spec_.raw_text, spec_.x, spec_.y, box_width, spec_.font, spec_.color);
+                text_draw_centered(spec_.raw_text, spec_.x, spec_.y, box_width, spec_.font, pixel_size, spec_.color);
             } else if (spec_.alignment == UiTextAlignment::Right) {
-                text_draw(spec_.raw_text, draw_x, spec_.y, spec_.font, spec_.color);
+                text_draw(spec_.raw_text, draw_x, spec_.y, spec_.font, pixel_size, spec_.color);
             } else {
-                text_draw(spec_.raw_text, spec_.x, spec_.y, spec_.font, spec_.color);
+                text_draw(spec_.raw_text, spec_.x, spec_.y, spec_.font, pixel_size, spec_.color);
             }
             return;
 
         case UiTextContentType::Number:
             if (spec_.alignment == UiTextAlignment::Center) {
-                text_draw_number_centered_colored(spec_.value, spec_.x, spec_.y, box_width, spec_.font, spec_.color);
+                text_draw_number_centered_colored(
+                    spec_.value, spec_.x, spec_.y, box_width, spec_.font, pixel_size, spec_.color);
             } else {
                 text_draw_number(
                     spec_.value,
@@ -112,6 +119,7 @@ void UiTextPrimitive::draw() const
                     spec_.alignment == UiTextAlignment::Right ? draw_x : spec_.x,
                     spec_.y,
                     spec_.font,
+                    pixel_size,
                     spec_.color);
             }
             return;
@@ -125,7 +133,8 @@ void UiTextPrimitive::draw() const
                     spec_.x,
                     spec_.y,
                     box_width,
-                    spec_.font);
+                    spec_.font,
+                    pixel_size);
             } else {
                 lang_text_draw_amount_colored(
                     spec_.text_group,
@@ -134,6 +143,7 @@ void UiTextPrimitive::draw() const
                     spec_.alignment == UiTextAlignment::Right ? draw_x : spec_.x,
                     spec_.y,
                     spec_.font,
+                    pixel_size,
                     spec_.color);
             }
             return;

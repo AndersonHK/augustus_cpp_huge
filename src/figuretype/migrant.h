@@ -1,5 +1,4 @@
-#ifndef FIGURETYPE_MIGRANT_H
-#define FIGURETYPE_MIGRANT_H
+#pragma once
 
 #include "figure/figure.h"
 
@@ -24,5 +23,3 @@ void figure_homeless_action(figure *f);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // FIGURETYPE_MIGRANT_H

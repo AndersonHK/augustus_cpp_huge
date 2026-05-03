@@ -1,5 +1,4 @@
-#ifndef SCENARIO_DATA_H
-#define SCENARIO_DATA_H
+#pragma once
 
 #include "core/file.h"
 #include "map/point.h"
@@ -147,5 +146,3 @@ extern struct scenario_t {
         uint8_t player_name[MAX_PLAYER_NAME];
     } campaign;
 } scenario;
-
-#endif // SCENARIO_DATA_H

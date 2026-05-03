@@ -1,5 +1,4 @@
-#ifndef MAP_WATER_SUPPLY_H
-#define MAP_WATER_SUPPLY_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -27,5 +26,3 @@ int map_water_supply_latrines_radius(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // MAP_WATER_SUPPLY_H

@@ -1,5 +1,4 @@
-#ifndef BUILDING_STORAGE_RUNTIME_H
-#define BUILDING_STORAGE_RUNTIME_H
+#pragma once
 
 #include "building/storage_type.h"
 
@@ -51,5 +50,3 @@ StorageSlot *get_or_create(::building *building, size_t slot_index);
 size_t get_slot_count(::building *building);
 
 }
-
-#endif // BUILDING_STORAGE_RUNTIME_H

@@ -16,6 +16,7 @@ This ledger tracks the current hand-port batch from upstream `Augustus` into the
 - That rework supersedes the older "partial water overlay parity" notes below. Treat the water-related commit dispositions in this ledger as a revision target, not as final parity proof, until the new runtime is tested in-engine.
 - Follow-up audit on 2026-04-23 found no observed regressions after porting `9d550e322` and tightening water overlay/access runtime parity. The branch now uses the generated native runtime overlay image for live water coverage and construction preview tinting.
 - Follow-up audit on 2026-04-24 found GitHub's 64-behind count is graph-correct: upstream `2de6361d8` pulls 50 side-parent commits into `Augustus`. For manual Vespasian sync purposes, the remaining queue after the prior 50-commit hand merge is the 14 upstream first-parent commits listed below.
+- Local follow-up on 2026-05-02: placement previews now show authored coverage for planned water-access providers even when the hovered provider would not currently satisfy its activation requirement. Live providers remain gated by the normal runtime checks.
 
 ## Applied In This Working Tree
 

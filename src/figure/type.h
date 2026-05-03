@@ -1,5 +1,4 @@
-#ifndef FIGURE_TYPE_H
-#define FIGURE_TYPE_H
+#pragma once
 
 /**
  * @file
@@ -150,5 +149,3 @@ enum {
     TERRAIN_USAGE_ROADS_HIGHWAY = 6,
     TERRAIN_USAGE_PREFER_ROADS_HIGHWAY = 7,
 };
-
-#endif // FIGURE_TYPE_H

@@ -1,5 +1,4 @@
-#ifndef CUSTOM_MESSAGES_H
-#define CUSTOM_MESSAGES_H
+#pragma once
 
 #include "core/buffer.h"
 #include "scenario/custom_media.h"
@@ -45,5 +44,3 @@ const char *custom_messages_get_background_music(custom_message_t *message);
 const uint8_t *custom_messages_get_background_image(custom_message_t *message);
 
 int custom_messages_relink_text_blob(size_t text_id, text_blob_string_t *new_text_link);
-
-#endif // CUSTOM_MESSAGES_H

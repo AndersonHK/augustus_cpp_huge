@@ -109,7 +109,7 @@ static void draw_background(void)
     graphics_in_dialog();
     outer_panel_draw(data.x_offset, data.y_offset, 24, data.height_blocks);
     if (data.title) {
-        text_draw_centered(data.title, data.x_offset, data.y_offset + 16, 384, FONT_LARGE_BLACK, 0);
+        text_draw_centered(data.title, data.x_offset, data.y_offset + 16, 384, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     }
     graphics_reset_dialog();
 }

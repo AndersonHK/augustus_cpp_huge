@@ -1,5 +1,4 @@
-#ifndef CITY_DATA_PRIVATE_H
-#define CITY_DATA_PRIVATE_H
+#pragma once
 
 #include <stdint.h>
 
@@ -415,5 +414,3 @@ extern struct city_data_t {
         int32_t total_food;
     } caravanserai;
 } city_data;
-
-#endif // CITY_DATA_PRIVATE_H

@@ -1,5 +1,4 @@
-#ifndef MAP_DATA_H
-#define MAP_DATA_H
+#pragma once
 
 extern struct map_data_t {
     int width;
@@ -7,5 +6,3 @@ extern struct map_data_t {
     int start_offset;
     int border_size;
 } map_data;
-
-#endif // MAP_DATA_H

@@ -72,7 +72,7 @@ void input_box_draw(const input_box *box)
     text_capture_cursor(keyboard_cursor_position(), keyboard_offset_start(), keyboard_offset_end());
     int text_x = box->x + 16;
     int text_y = box->y + 10;
-    text_draw(box->text, text_x, text_y, box->font, 0);
+    text_draw(box->text, text_x, text_y, box->font, screen_ui_to_pixel(font_definition_for(box->font)->line_height), 0);
     text_draw_cursor(text_x, text_y + 1, keyboard_is_insert());
 
     if (!*box->text && box->placeholder) {
@@ -80,8 +80,8 @@ void input_box_draw(const input_box *box)
         if (!box->put_clear_button_outside_box) {
             width -= CLEAR_BUTTON_WIDTH;
         }
-        text_draw_ellipsized(box->placeholder, text_x + 1, text_y + 1, width, FONT_NORMAL_PLAIN, COLOR_BLACK);
-        text_draw_ellipsized(box->placeholder, text_x, text_y, width, FONT_NORMAL_PLAIN, COLOR_FONT_LIGHT_GRAY);
+        text_draw_ellipsized(box->placeholder, text_x + 1, text_y + 1, width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
+        text_draw_ellipsized(box->placeholder, text_x, text_y, width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_FONT_LIGHT_GRAY);
     }
 
     image_buttons_draw(0, 0, &clear_text_button, 1);

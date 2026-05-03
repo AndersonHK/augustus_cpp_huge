@@ -1,5 +1,4 @@
-#ifndef BUILDING_BUILDING_TYPE_H
-#define BUILDING_BUILDING_TYPE_H
+#pragma once
 
 extern "C" {
 #include "building/building.h"
@@ -138,6 +137,7 @@ struct SpawnPolicy {
     int mark_problem_if_no_water = 0;
     int block_on_success = 0;
     SpawnCondition condition = SpawnCondition::Always;
+    std::string profile;
 };
 
 struct SpawnDelayGroup {
@@ -320,5 +320,3 @@ private:
 };
 
 } // namespace building_type_registry_impl
-
-#endif // BUILDING_BUILDING_TYPE_H

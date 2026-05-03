@@ -1,5 +1,4 @@
-#ifndef GAME_UNDO_H
-#define GAME_UNDO_H
+#pragma once
 
 #include "building/building.h"
 
@@ -30,5 +29,3 @@ void game_undo_finish_build(int cost);
 void game_undo_perform(void);
 
 void game_undo_reduce_time_available(void);
-
-#endif // GAME_UNDO_H

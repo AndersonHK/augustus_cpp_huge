@@ -1,5 +1,4 @@
-#ifndef ASSETS_H
-#define ASSETS_H
+#pragma once
 
 #include "core/image.h"
 
@@ -79,5 +78,3 @@ const char *assets_get_failure_reason(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // ASSETS_H

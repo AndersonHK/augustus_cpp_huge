@@ -1,5 +1,4 @@
-#ifndef WIDGET_CITY_WITH_OVERLAY_H
-#define WIDGET_CITY_WITH_OVERLAY_H
+#pragma once
 
 #include "graphics/tooltip.h"
 #include "map/point.h"
@@ -20,5 +19,3 @@ int city_with_overlay_get_tooltip_text(tooltip_context *c, int grid_offset);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // WIDGET_CITY_WITH_OVERLAY_H

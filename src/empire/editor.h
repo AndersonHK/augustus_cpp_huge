@@ -1,5 +1,4 @@
-#ifndef EMPIRE_EDITOR_H
-#define EMPIRE_EDITOR_H
+#pragma once
 
 #include "input/mouse.h"
 #include "input/hotkey.h"
@@ -45,5 +44,3 @@ void empire_editor_set_current_invasion_path(int path_id);
 int empire_editor_get_current_invasion_path(void);
 
 int empire_editor_handle_placement(const mouse *m, const hotkeys *h, int outside_map);
-
-#endif // EMPIRE_EDITOR_H

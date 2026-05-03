@@ -15,6 +15,6 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:5,75:10,50:20,25:35,1:60">
         <spawn mode="service_roamer" spawn_figure="lion_tamer"
-            action_state="entertainer_school_created" direction="top" figure_slot="primary" init_roaming="false" />
+            action_state="entertainer_school_created" direction="top" figure_slot="primary" init_roaming="false" profile="venue_seeker" />
     </spawn_group>
 </building>

@@ -34,9 +34,9 @@ static void draw_foreground(void)
 {
     graphics_in_dialog();
     outer_panel_draw(128, 160, 24, 8);
-    text_draw_centered((uint8_t *) "Console", 128, 172, 384, FONT_LARGE_BLACK, 0);
-    lang_text_draw(13, 5, 352, 256, FONT_NORMAL_BLACK);
-    lang_text_draw(12, 0, 200, 256, FONT_NORMAL_BLACK);
+    text_draw_centered((uint8_t *) "Console", 128, 172, 384, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    lang_text_draw(13, 5, 352, 256, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw(12, 0, 200, 256, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     input_box_draw(&command_input);
 
     image_buttons_draw(159, 249, image_buttons, 2);

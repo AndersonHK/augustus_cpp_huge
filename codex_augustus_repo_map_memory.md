@@ -134,13 +134,29 @@ Doctrine:
   - legacy fallback reads from `augustus.ini`
   - `CONFIG_UI_SCALE_FILTER`
 
+## Demographics / defines map
+- `src/game/defines.cpp`
+  - merged `calendar`, `birth_table`, and `mortality_table` XML definitions
+- `Mods/*/defines.xml`
+  - active `default` demographic/calendar tables by mod stack
+- `src/city/population.cpp`
+  - citywide age census, yearly births/deaths, and census recalculation
+- `src/building/house_population.cpp`
+  - actual per-house resident additions/removals and consistency reconciliation
+- `docs/demographics_runtime.md`
+  - runtime contract between demographic tables, census counts, and house populations
+
 ## Current migration reference points
 - `src/building/tool_mode.cpp`
 - `src/building/building_runtime.h`
 - `src/building/building_runtime.cpp`
+- `src/building/building_runtime_graphics.cpp`
+- `src/building/building_runtime_spawn.cpp`
 - `src/building/building_runtime_api.h`
+- `src/building/construction_session.h/.cpp`
 - `src/figure/figure_type_registry.cpp`
 - `src/figure/figure_runtime.cpp`
+- `src/figure/figure_runtime_native.h/.cpp`
 - `src/figure/movement.cpp`
 - `src/figuretype/maintenance.cpp`
 - `src/map/road_service_history.h`
@@ -165,14 +181,23 @@ Pattern:
 - `docs/preindustrial_walking_service_ranges.md`
   - historical walking-city calibration for walker `max_roam_length` tiers
 - `src/figure/figure_type_registry.cpp`
-  - selected-mod/Augustus/Julius FigureType XML precedence and validation
+  - selected-mod/Augustus/Julius FigureType XML precedence and profile validation
+- `src/figure/PathingMode.h/.cpp`
+  - pathing mode objects and requirements such as `requires_road`, `requires_service_effect`, and `requires_venue_targets`
 - `src/figure/figure_runtime.cpp`
-  - native service, engineer, and prefect controllers
-  - smart-service direction selection
+  - profile binding, lifecycle rebinding, C facade, and smart-service direction selection
+- `src/figure/figure_runtime_native.h/.cpp`
+  - native service, engineer, prefect, and entertainment controller classes
 - `src/building/local_workforce.h/.cpp`
   - local workforce labor-seeker targeting, house/workplace allocation table, and save payload
+- `src/map/routing_distance.h/.cpp`
+  - C++ helper for route-grid destination distance; venue seekers rank by `2 * show_days + route_distance`
+- BuildingType native spawns choose a `FigureType` profile with `profile="..."`; figures own the native class, movement/pathing, and road-history effect after creation.
+- Priests use explicit god profiles; entertainment service walkers use generic native behavior with profile-specific smart-service effects.
+- Mixed entertainment venues use comma-list BuildingType `existing_figure` guards, such as `actor,gladiator`, so alternate profiled service walkers share one legacy slot without orphaning one another.
 - `src/figure/movement.cpp`
   - legacy roaming loop and native pathing hook
+  - figure-specific roaming access checks; `roads_highway` profiles consider highways while off-road-capable native pathing profiles are rejected at XML load
 - Temporary Vespasian tuning: FigureType `max_roam_length` should be roughly 50% larger than Augustus until walker range tuning is revisited.
 - `src/figuretype/maintenance.cpp`
   - Worker maintenance action plus retired Engineer/Prefect action-table guards

@@ -1,5 +1,4 @@
-#ifndef WINDOW_BUILDING_DISTRIBUTION_H
-#define WINDOW_BUILDING_DISTRIBUTION_H
+#pragma once
 
 #include "common.h"
 #include "input/mouse.h"
@@ -41,5 +40,3 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c);
 int window_building_handle_mouse_caravanserai(const mouse *m, building_info_context *c);
 void window_building_draw_caravanserai_foreground(building_info_context *c);
 void window_building_draw_caravanserai(building_info_context *c);
-
-#endif // WINDOW_BUILDING_DISTRIBUTION_H

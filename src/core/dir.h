@@ -1,5 +1,4 @@
-#ifndef CORE_DIR_H
-#define CORE_DIR_H
+#pragma once
 
 #define ASSETS_DIR_NAME "assets"
 #define ASSETS_DIRECTORY "***" ASSETS_DIR_NAME "***"
@@ -118,5 +117,3 @@ const char *dir_append_location(const char *filename, int location);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // CORE_DIR_H

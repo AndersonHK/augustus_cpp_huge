@@ -1,5 +1,4 @@
-#ifndef MAP_TILE_TYPE_REGISTRY_H
-#define MAP_TILE_TYPE_REGISTRY_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,5 +11,3 @@ int tile_type_registry_load(void);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // MAP_TILE_TYPE_REGISTRY_H

@@ -1,5 +1,4 @@
-#ifndef WINDOW_EDITOR_BUILD_MENU_H
-#define WINDOW_EDITOR_BUILD_MENU_H
+#pragma once
 
 enum {
     MENU_NONE = -1,
@@ -17,5 +16,3 @@ enum {
 void window_editor_build_menu_show(int submenu);
 
 void window_editor_build_menu_hide(void);
-
-#endif // WINDOW_EDITOR_BUILD_MENU_H
