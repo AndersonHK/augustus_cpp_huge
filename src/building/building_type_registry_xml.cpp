@@ -1,4 +1,5 @@
 #include "building/building_type_registry_internal.h"
+#include "building/building_type_id_bridge.h"
 #include "building/production_method_registry.h"
 #include "building/storage_type_registry.h"
 #include "assets/image_group_payload.h"
@@ -122,6 +123,23 @@ static int parse_figure_list_attribute(const char *value, std::vector<figure_typ
         }
         start = end + 1;
     }
+    return 1;
+}
+
+static int parse_optional_int_attribute(const char *node_name, const char *attribute_name, int *out_value, int *out_has_value)
+{
+    *out_has_value = 0;
+    if (!xml_parser_has_attribute(attribute_name)) {
+        return 1;
+    }
+
+    const char *text = xml_parser_get_attribute_string(attribute_name);
+    if (!text || !xml_value::parse_int_strict(text, out_value)) {
+        log_error(node_name, attribute_name, 0);
+        return 0;
+    }
+
+    *out_has_value = 1;
     return 1;
 }
 
@@ -525,6 +543,251 @@ static int parse_building_root()
     }
 
     g_parse_state.definition = std::make_unique<BuildingType>(type, type_attr);
+    return 1;
+}
+
+static int parse_identity()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered identity definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_identity) {
+        log_error("BuildingType xml contains duplicate identity nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *name_key = 0;
+    if (xml_parser_has_attribute("name_key")) {
+        name_key = xml_parser_get_attribute_string("name_key");
+    } else if (xml_parser_has_attribute("translation_key")) {
+        name_key = xml_parser_get_attribute_string("translation_key");
+    }
+
+    std::string key = xml_value::trim_copy(name_key ? name_key : "");
+    if (key.empty()) {
+        log_error("BuildingType identity is missing required attribute 'name_key'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_identity_name_key(std::move(key));
+    g_parse_state.saw_identity = 1;
+    return 1;
+}
+
+static int parse_model()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered model definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_model) {
+        log_error("BuildingType xml contains duplicate model nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int value = 0;
+    int has_value = 0;
+    int any_value = 0;
+
+    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "size", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        if (value <= 0) {
+            log_error("Unsupported BuildingType model size", g_parse_state.definition->attr(), value);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_model_size(value);
+        any_value = 1;
+    }
+
+    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "cost", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        if (value < 0) {
+            log_error("Unsupported BuildingType model cost", g_parse_state.definition->attr(), value);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_model_cost(value);
+        any_value = 1;
+    }
+
+    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "desirability_value", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        g_parse_state.definition->set_model_desirability_value(value);
+        any_value = 1;
+    }
+
+    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "desirability_step", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        if (value < 0) {
+            log_error("Unsupported BuildingType model desirability_step", g_parse_state.definition->attr(), value);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_model_desirability_step(value);
+        any_value = 1;
+    }
+
+    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "desirability_step_size", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        g_parse_state.definition->set_model_desirability_step_size(value);
+        any_value = 1;
+    }
+
+    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "desirability_range", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        if (value < 0) {
+            log_error("Unsupported BuildingType model desirability_range", g_parse_state.definition->attr(), value);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_model_desirability_range(value);
+        any_value = 1;
+    }
+
+    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "laborers", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        if (value < 0) {
+            log_error("Unsupported BuildingType model laborers", g_parse_state.definition->attr(), value);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_model_laborers(value);
+        any_value = 1;
+    }
+
+    if (!any_value) {
+        log_error("BuildingType model is missing supported attributes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.saw_model = 1;
+    return 1;
+}
+
+static int parse_foundation()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered foundation definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_foundation) {
+        log_error("BuildingType xml contains duplicate foundation nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("policy")) {
+        log_error("BuildingType foundation is missing required attribute 'policy'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    std::string policy = xml_value::trim_copy(xml_parser_get_attribute_string("policy"));
+    if (policy.empty()) {
+        log_error("Unsupported BuildingType foundation policy", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_foundation_policy(std::move(policy));
+    g_parse_state.saw_foundation = 1;
+    return 1;
+}
+
+static int parse_button()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered button definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_button) {
+        log_error("BuildingType xml contains duplicate button/menu nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int any_value = 0;
+    if (xml_parser_has_attribute("group")) {
+        std::string group = xml_value::trim_copy(xml_parser_get_attribute_string("group"));
+        if (group.empty()) {
+            log_error("Unsupported BuildingType button group", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_button_group(std::move(group));
+        any_value = 1;
+    }
+
+    int order = 0;
+    int has_order = 0;
+    if (!parse_optional_int_attribute("Unsupported BuildingType button numeric attribute", "order", &order, &has_order)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_order) {
+        g_parse_state.definition->set_button_order(order);
+        any_value = 1;
+    }
+
+    if (xml_parser_has_attribute("icon")) {
+        std::string icon = xml_value::trim_copy(xml_parser_get_attribute_string("icon"));
+        if (icon.empty()) {
+            log_error("Unsupported BuildingType button icon", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_button_icon(std::move(icon));
+        any_value = 1;
+    }
+
+    if (xml_parser_has_attribute("text_key")) {
+        std::string text_key = xml_value::trim_copy(xml_parser_get_attribute_string("text_key"));
+        if (text_key.empty()) {
+            log_error("Unsupported BuildingType button text_key", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_button_text_key(std::move(text_key));
+        any_value = 1;
+    }
+
+    if (!any_value) {
+        log_error("BuildingType button is missing supported attributes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.saw_button = 1;
     return 1;
 }
 
@@ -1480,6 +1743,11 @@ static int parse_spawn()
 
 static const xml_parser_element XML_ELEMENTS[] = {
     { "building", parse_building_root, nullptr, nullptr, nullptr },
+    { "identity", parse_identity, nullptr, "building", nullptr },
+    { "model", parse_model, nullptr, "building", nullptr },
+    { "foundation", parse_foundation, nullptr, "building", nullptr },
+    { "button", parse_button, nullptr, "building", nullptr },
+    { "menu", parse_button, nullptr, "building", nullptr },
     { "state", parse_state, finish_state, "building", nullptr },
     { "water_access", parse_provider_water_access, finish_provider_water_access, "building", nullptr },
     { "graphics", parse_graphics, finish_graphics, "building", nullptr },
@@ -1690,15 +1958,16 @@ static int parse_definition_file(const char *filename)
 
     int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
     xml_parser_free();
+    // TEMPORARY: metadata-only BuildingType XML is accepted while build authority moves out of legacy code.
+    // This must tighten again once metadata, graphics, placement, and runtime behavior are all XML-owned.
+    // Live bad XML should fail at load time instead of quietly registering incomplete building definitions.
+    int has_supported_node = g_parse_state.saw_identity || g_parse_state.saw_model || g_parse_state.saw_foundation ||
+        g_parse_state.saw_button || g_parse_state.saw_graphic || g_parse_state.saw_spawn ||
+        g_parse_state.saw_storages || g_parse_state.saw_production_methods ||
+        g_parse_state.saw_labor || g_parse_state.saw_state || g_parse_state.saw_provider_water_access;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
-        (!g_parse_state.saw_graphic && !g_parse_state.saw_spawn &&
-            !g_parse_state.saw_storages && !g_parse_state.saw_production_methods &&
-            !g_parse_state.saw_labor && !g_parse_state.saw_state &&
-            !g_parse_state.saw_provider_water_access)) {
-        if (!g_parse_state.saw_graphic && !g_parse_state.saw_spawn &&
-            !g_parse_state.saw_storages && !g_parse_state.saw_production_methods &&
-            !g_parse_state.saw_labor && !g_parse_state.saw_state &&
-            !g_parse_state.saw_provider_water_access) {
+        !has_supported_node) {
+        if (!has_supported_node) {
             log_error("BuildingType xml is missing a supported node", filename, 0);
         }
         return 0;
@@ -1750,6 +2019,7 @@ extern "C" int building_type_registry_load(void)
     }
 
     building_type_registry_apply_model_overrides();
+    building_type_id_bridge_reset_for_runtime();
     building_runtime_reset();
     return 1;
 }

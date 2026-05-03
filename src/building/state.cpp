@@ -1,4 +1,5 @@
 extern "C" {
+#include "building/building_type_id_bridge.h"
 #include "building/state.h"
 #include "building/industry.h"
 #include "building/monument.h"
@@ -11,6 +12,16 @@ extern "C" {
 
 #define TYPE_DATA_ORIGINAL_BUFFER_SIZE 42
 #define TYPE_DATA_CURRENT_BUFFER_SIZE 26
+
+static uint16_t save_id_from_runtime_type(unsigned short runtime_id)
+{
+    return building_type_id_bridge_save_id_from_runtime(static_cast<building_type>(runtime_id));
+}
+
+static unsigned short runtime_type_from_save_id(uint16_t save_id)
+{
+    return static_cast<unsigned short>(building_type_id_bridge_runtime_from_save_id(save_id));
+}
 
 static int is_industry_type(const building *b)
 {
@@ -105,7 +116,7 @@ static void write_type_data(buffer *buf, const building *b)
     } else if (building_type_is_roadblock(b->type)) {
         buffer_write_u16(buf, b->data.roadblock.exceptions);
         if (b->type == BUILDING_WAREHOUSE) {
-            buffer_write_u16(buf, b->data.rubble.og_type);
+            buffer_write_u16(buf, save_id_from_runtime_type(b->data.rubble.og_type));
             buffer_write_u16(buf, b->data.rubble.og_grid_offset);
             buffer_write_u8(buf, b->data.rubble.og_size);
             buffer_write_u8(buf, b->data.rubble.og_orientation);
@@ -125,7 +136,7 @@ static void write_type_data(buffer *buf, const building *b)
         }
         buffer_write_i16(buf, b->data.industry.fishing_boat_id);
     } else if (b->type == BUILDING_BURNING_RUIN || b->type == BUILDING_WAREHOUSE_SPACE) {
-        buffer_write_u16(buf, b->data.rubble.og_type);
+        buffer_write_u16(buf, save_id_from_runtime_type(b->data.rubble.og_type));
         buffer_write_u16(buf, b->data.rubble.og_grid_offset);
         buffer_write_u8(buf, b->data.rubble.og_size);
         buffer_write_u8(buf, b->data.rubble.og_orientation);
@@ -152,7 +163,7 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     buffer_write_u8(buf, b->x);
     buffer_write_u8(buf, b->y);
     buffer_write_i16(buf, b->grid_offset);
-    buffer_write_i16(buf, b->type);
+    buffer_write_u16(buf, building_type_id_bridge_save_id_from_runtime(b->type));
     buffer_write_i16(buf, b->subtype.house_level); // which union field we use does not matter
     buffer_write_u8(buf, b->road_network_id);
     buffer_write_u8(buf, b->monthly_levy);
@@ -374,7 +385,7 @@ static void read_type_data(buffer *buf, building *b, int version)
             b->data.roadblock.exceptions = buffer_read_u16(buf);
         }
         if (b->type == BUILDING_WAREHOUSE) {
-            b->data.rubble.og_type = buffer_read_u16(buf);
+            b->data.rubble.og_type = runtime_type_from_save_id(buffer_read_u16(buf));
             b->data.rubble.og_grid_offset = buffer_read_u16(buf);
             b->data.rubble.og_size = buffer_read_u8(buf);
             b->data.rubble.og_orientation = buffer_read_u8(buf);
@@ -450,7 +461,7 @@ static void read_type_data(buffer *buf, building *b, int version)
         }
         b->data.industry.fishing_boat_id = buffer_read_i16(buf);
     } else if ((b->type == BUILDING_BURNING_RUIN || b->type == BUILDING_WAREHOUSE_SPACE) && version > SAVE_GAME_LAST_U16_GRIDS) {
-        b->data.rubble.og_type = buffer_read_u16(buf);
+        b->data.rubble.og_type = runtime_type_from_save_id(buffer_read_u16(buf));
         b->data.rubble.og_grid_offset = buffer_read_u16(buf);
         b->data.rubble.og_size = buffer_read_u8(buf);
         b->data.rubble.og_orientation = buffer_read_u8(buf);
@@ -494,7 +505,9 @@ void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_
     b->x = buffer_read_u8(buf);
     b->y = buffer_read_u8(buf);
     b->grid_offset = buffer_read_i16(buf);
-    b->type = (building_type) buffer_read_i16(buf);
+    uint16_t saved_building_type = buffer_read_u16(buf);
+    int missing_building_type = building_type_id_bridge_save_id_is_missing(saved_building_type);
+    b->type = building_type_id_bridge_runtime_from_save_id(saved_building_type);
     if (b->type == BUILDING_WAREHOUSE_SPACE) {
         b->subtype.warehouse_resource_id = resource_remap(buffer_read_i16(buf));
     } else if (save_version <= SAVE_GAME_LAST_STATIC_RESOURCES &&
@@ -758,5 +771,15 @@ void building_state_load_from_buffer(buffer *buf, building *b, int building_buf_
     // to prevent reading bogus data for the next building
     if (building_buf_size > BUILDING_STATE_CURRENT_BUFFER_SIZE) {
         buffer_skip(buf, building_buf_size - BUILDING_STATE_CURRENT_BUFFER_SIZE);
+    }
+
+    if (missing_building_type) {
+        b->state = BUILDING_STATE_UNUSED;
+        b->type = BUILDING_NONE;
+        b->grid_offset = 0;
+        b->figure_id = 0;
+        b->figure_id2 = 0;
+        b->immigrant_figure_id = 0;
+        b->figure_id4 = 0;
     }
 }

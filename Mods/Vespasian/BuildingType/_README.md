@@ -5,8 +5,14 @@ The loader reads every `*.xml` file in this folder at startup. Keep templates/ex
 Templates and examples are maintained only in `Mods\Vespasian\BuildingType`.
 `Mods\Augustus\BuildingType` keeps live XML data only.
 
+Runtime/save identity is migrating away from stable enum slots. New saves include a `building_type_table` that maps compact save ids to BuildingType text ids, while loaded buildings continue to use compact runtime ids. Old saves without the table migrate through `src\building\building_type_legacy_migration.*`.
+
 Current supported nodes:
 
+- `<identity ... />`
+- `<model ... />`
+- `<foundation ... />`
+- `<button ... />`
 - `<water_access> ... </water_access>`
 - `<state> ... </state>`
 - `<graphics> ... </graphics>`
@@ -15,6 +21,36 @@ Current supported nodes:
 - `<production_methods> ... </production_methods>`
 - `<spawn_group ...>`
 - `<spawn ... />`
+
+Current supported `<identity>` attributes:
+
+- `name_key="translation.key"` stores the localized building name key for generated UI
+- `translation_key="translation.key"` is accepted as an alias
+
+Current supported `<model>` attributes:
+
+- `size="N"`
+- `cost="N"`
+- `desirability_value="N"`
+- `desirability_step="N"`
+- `desirability_step_size="N"`
+- `desirability_range="N"`
+- `laborers="N"`
+
+Model `cost`, desirability fields, and `laborers` currently override the legacy runtime model after XML load. `size` is parsed and exposed for the next placement/build-authority pass, but legacy placement still owns footprint size until that pass lands.
+
+Current supported `<foundation>` attributes:
+
+- `policy="land|road|water|shoreline|aqueduct|custom"` stores the placement/foundation policy key for the next construction pass
+
+Current supported `<button>` attributes:
+
+- `group="..."` stores the target build submenu key
+- `order="N"` stores generated button ordering
+- `icon="..."` stores the generated button icon key
+- `text_key="..."` optionally overrides the button text key; otherwise generated UI can use `<identity name_key="...">`
+
+`<menu>` is accepted as a temporary alias for `<button>` only during this migration slice. Prefer `<button>` in new XML.
 
 Current supported `<state>` child nodes:
 

@@ -39,6 +39,8 @@
     <ClCompile Include="src\building\building_runtime_graphics.cpp" />
     <ClCompile Include="src\building\building_runtime_spawn.cpp" />
     <ClCompile Include="src\building\building_type.cpp" />
+    <ClCompile Include="src\building\building_type_id_bridge.cpp" />
+    <ClCompile Include="src\building\building_type_legacy_migration.cpp" />
     <ClCompile Include="src\building\building_type_registry.cpp" />
     <ClCompile Include="src\building\building_type_registry_xml.cpp" />
     <ClCompile Include="src\building\local_workforce.cpp" />
@@ -243,7 +245,7 @@
     <ClCompile Include="src\graphics\complex_button.c" />
     <ClCompile Include="src\graphics\font.cpp" />
     <ClCompile Include="src\graphics\font_vector_runtime.cpp" />
-    <ClCompile Include="src\graphics\generic_button.c" />
+    <ClCompile Include="src\graphics\generic_button.cpp" />
     <ClCompile Include="src\graphics\graphics.cpp" />
     <ClCompile Include="src\graphics\grid_box.c" />
     <ClCompile Include="src\graphics\image.cpp" />
@@ -552,6 +554,8 @@
     <ClInclude Include="src\building\building_runtime_internal.h" />
     <ClInclude Include="src\building\building_type.h" />
     <ClInclude Include="src\building\building_type_api.h" />
+    <ClInclude Include="src\building\building_type_id_bridge.h" />
+    <ClInclude Include="src\building\building_type_legacy_migration.h" />
     <ClInclude Include="src\building\building_type_registry.h" />
     <ClInclude Include="src\building\building_type_registry_internal.h" />
     <ClInclude Include="src\building\local_workforce.h" />

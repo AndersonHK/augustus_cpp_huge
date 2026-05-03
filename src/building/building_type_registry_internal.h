@@ -19,6 +19,10 @@ struct ParseState {
     std::unique_ptr<BuildingType> definition;
     size_t current_spawn_group_index = 0;
     int has_current_spawn_group = 0;
+    int saw_identity = 0;
+    int saw_model = 0;
+    int saw_foundation = 0;
+    int saw_button = 0;
     int saw_graphic = 0;
     int saw_labor = 0;
     int saw_labor_employees = 0;

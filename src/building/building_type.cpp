@@ -87,6 +87,220 @@ int GraphicsCondition::matches(const ::building &building) const
     }
 }
 
+void IdentityDefinition::set_name_key(std::string key)
+{
+    name_key_ = std::move(key);
+}
+
+int IdentityDefinition::has_name_key() const
+{
+    return !name_key_.empty();
+}
+
+const char *IdentityDefinition::name_key() const
+{
+    return name_key_.c_str();
+}
+
+void BuildModelDefinition::set_size(int value)
+{
+    has_size_ = 1;
+    size_ = value;
+}
+
+void BuildModelDefinition::set_cost(int value)
+{
+    has_cost_ = 1;
+    cost_ = value;
+}
+
+void BuildModelDefinition::set_desirability_value(int value)
+{
+    has_desirability_value_ = 1;
+    desirability_value_ = value;
+}
+
+void BuildModelDefinition::set_desirability_step(int value)
+{
+    has_desirability_step_ = 1;
+    desirability_step_ = value;
+}
+
+void BuildModelDefinition::set_desirability_step_size(int value)
+{
+    has_desirability_step_size_ = 1;
+    desirability_step_size_ = value;
+}
+
+void BuildModelDefinition::set_desirability_range(int value)
+{
+    has_desirability_range_ = 1;
+    desirability_range_ = value;
+}
+
+void BuildModelDefinition::set_laborers(int value)
+{
+    has_laborers_ = 1;
+    laborers_ = value;
+}
+
+int BuildModelDefinition::has_size() const
+{
+    return has_size_;
+}
+
+int BuildModelDefinition::size() const
+{
+    return size_;
+}
+
+int BuildModelDefinition::has_cost() const
+{
+    return has_cost_;
+}
+
+int BuildModelDefinition::cost() const
+{
+    return cost_;
+}
+
+int BuildModelDefinition::has_desirability_value() const
+{
+    return has_desirability_value_;
+}
+
+int BuildModelDefinition::desirability_value() const
+{
+    return desirability_value_;
+}
+
+int BuildModelDefinition::has_desirability_step() const
+{
+    return has_desirability_step_;
+}
+
+int BuildModelDefinition::desirability_step() const
+{
+    return desirability_step_;
+}
+
+int BuildModelDefinition::has_desirability_step_size() const
+{
+    return has_desirability_step_size_;
+}
+
+int BuildModelDefinition::desirability_step_size() const
+{
+    return desirability_step_size_;
+}
+
+int BuildModelDefinition::has_desirability_range() const
+{
+    return has_desirability_range_;
+}
+
+int BuildModelDefinition::desirability_range() const
+{
+    return desirability_range_;
+}
+
+int BuildModelDefinition::has_laborers() const
+{
+    return has_laborers_;
+}
+
+int BuildModelDefinition::laborers() const
+{
+    return laborers_;
+}
+
+int BuildModelDefinition::has_any() const
+{
+    return has_size_ || has_cost_ || has_desirability_value_ || has_desirability_step_ ||
+        has_desirability_step_size_ || has_desirability_range_ || has_laborers_;
+}
+
+void FoundationDefinition::set_policy(std::string policy)
+{
+    policy_ = std::move(policy);
+}
+
+int FoundationDefinition::has_policy() const
+{
+    return !policy_.empty();
+}
+
+const char *FoundationDefinition::policy() const
+{
+    return policy_.c_str();
+}
+
+void BuildButtonDefinition::set_group(std::string group)
+{
+    group_ = std::move(group);
+}
+
+void BuildButtonDefinition::set_order(int order)
+{
+    has_order_ = 1;
+    order_ = order;
+}
+
+void BuildButtonDefinition::set_icon(std::string icon)
+{
+    icon_ = std::move(icon);
+}
+
+void BuildButtonDefinition::set_text_key(std::string key)
+{
+    text_key_ = std::move(key);
+}
+
+int BuildButtonDefinition::has_group() const
+{
+    return !group_.empty();
+}
+
+const char *BuildButtonDefinition::group() const
+{
+    return group_.c_str();
+}
+
+int BuildButtonDefinition::has_order() const
+{
+    return has_order_;
+}
+
+int BuildButtonDefinition::order() const
+{
+    return order_;
+}
+
+int BuildButtonDefinition::has_icon() const
+{
+    return !icon_.empty();
+}
+
+const char *BuildButtonDefinition::icon() const
+{
+    return icon_.c_str();
+}
+
+int BuildButtonDefinition::has_text_key() const
+{
+    return !text_key_.empty();
+}
+
+const char *BuildButtonDefinition::text_key() const
+{
+    return text_key_.c_str();
+}
+
+int BuildButtonDefinition::has_any() const
+{
+    return has_group() || has_order() || has_icon() || has_text_key();
+}
+
 void WaterAccessDefinition::set_type(WaterAccessType type)
 {
     has_type_ = 1;
@@ -284,6 +498,71 @@ void BuildingType::set_state_water_access_mode(WaterAccessMode mode)
     state_.set_water_access_mode(mode);
 }
 
+void BuildingType::set_identity_name_key(std::string key)
+{
+    identity_.set_name_key(std::move(key));
+}
+
+void BuildingType::set_model_size(int value)
+{
+    model_.set_size(value);
+}
+
+void BuildingType::set_model_cost(int value)
+{
+    model_.set_cost(value);
+}
+
+void BuildingType::set_model_desirability_value(int value)
+{
+    model_.set_desirability_value(value);
+}
+
+void BuildingType::set_model_desirability_step(int value)
+{
+    model_.set_desirability_step(value);
+}
+
+void BuildingType::set_model_desirability_step_size(int value)
+{
+    model_.set_desirability_step_size(value);
+}
+
+void BuildingType::set_model_desirability_range(int value)
+{
+    model_.set_desirability_range(value);
+}
+
+void BuildingType::set_model_laborers(int value)
+{
+    model_.set_laborers(value);
+}
+
+void BuildingType::set_foundation_policy(std::string policy)
+{
+    foundation_.set_policy(std::move(policy));
+}
+
+void BuildingType::set_button_group(std::string group)
+{
+    button_.set_group(std::move(group));
+}
+
+void BuildingType::set_button_order(int order)
+{
+    button_.set_order(order);
+}
+
+void BuildingType::set_button_icon(std::string icon)
+{
+    button_.set_icon(std::move(icon));
+}
+
+void BuildingType::set_button_text_key(std::string key)
+{
+    button_.set_text_key(std::move(key));
+}
+
 void BuildingType::set_water_access_type(WaterAccessType type)
 {
     water_access_.set_type(type);
@@ -395,6 +674,26 @@ const char *BuildingType::attr() const
     return attr_.c_str();
 }
 
+const IdentityDefinition &BuildingType::identity() const
+{
+    return identity_;
+}
+
+const BuildModelDefinition &BuildingType::model() const
+{
+    return model_;
+}
+
+const FoundationDefinition &BuildingType::foundation() const
+{
+    return foundation_;
+}
+
+const BuildButtonDefinition &BuildingType::button() const
+{
+    return button_;
+}
+
 const StateDefinition &BuildingType::state() const
 {
     return state_;
@@ -418,6 +717,26 @@ const GraphicsTarget *BuildingType::resolve_graphics_target(const ::building &bu
 WaterAccessMode BuildingType::water_access_mode() const
 {
     return state_.water_access_mode();
+}
+
+int BuildingType::has_identity() const
+{
+    return identity_.has_name_key();
+}
+
+int BuildingType::has_model() const
+{
+    return model_.has_any();
+}
+
+int BuildingType::has_foundation() const
+{
+    return foundation_.has_policy();
+}
+
+int BuildingType::has_button() const
+{
+    return button_.has_any();
 }
 
 int BuildingType::has_water_access_provider() const

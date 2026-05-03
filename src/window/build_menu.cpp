@@ -29,6 +29,9 @@ extern "C" {
 #include "window/city.h"
 }
 
+#include <cstddef>
+#include <vector>
+
 #define MENU_X_OFFSET 298
 #define MENU_Y_OFFSET 110
 #define MENU_ITEM_HEIGHT 24
@@ -47,41 +50,39 @@ extern "C" {
 
 static uint8_t tooltip_text[TOOLTIP_TEXT_LENGTH];
 
-static void button_menu_index(const generic_button *button);
-static void button_menu_item(int item);
+class BuildMenuButton {
+public:
+    void bind(build_menu_group submenu, int item_index, unsigned int display_index, generic_button *widget);
+    void clear();
+    int is_bound() const;
+    building_type type() const;
+    int shortcut_index() const;
+    const uint8_t *display_name() const;
+    int resource_icon() const;
+    int cost() const;
+    int has_rotation_icon() const;
+    int has_monument_icon() const;
+    int is_auto_cycle() const;
+    void draw(int item_x_align, int x_offset, int focused) const;
+    void activate() const;
 
-static generic_button build_menu_buttons[] = {
-    {0, 0, 290, 20, button_menu_index, 0, 1},
-    {0, 24, 290, 20, button_menu_index, 0, 2},
-    {0, 48, 290, 20, button_menu_index, 0, 3},
-    {0, 72, 290, 20, button_menu_index, 0, 4},
-    {0, 96, 290, 20, button_menu_index, 0, 5},
-    {0, 120, 290, 20, button_menu_index, 0, 6},
-    {0, 144, 290, 20, button_menu_index, 0, 7},
-    {0, 168, 290, 20, button_menu_index, 0, 8},
-    {0, 192, 290, 20, button_menu_index, 0, 9},
-    {0, 216, 290, 20, button_menu_index, 0, 10},
-    {0, 240, 290, 20, button_menu_index, 0, 11},
-    {0, 264, 290, 20, button_menu_index, 0, 12},
-    {0, 288, 290, 20, button_menu_index, 0, 13},
-    {0, 312, 290, 20, button_menu_index, 0, 14},
-    {0, 336, 290, 20, button_menu_index, 0, 15},
-    {0, 360, 290, 20, button_menu_index, 0, 16},
-    {0, 384, 290, 20, button_menu_index, 0, 17},
-    {0, 408, 290, 20, button_menu_index, 0, 18},
-    {0, 432, 290, 20, button_menu_index, 0, 19},
-    {0, 456, 290, 20, button_menu_index, 0, 20},
-    {0, 480, 290, 20, button_menu_index, 0, 21},
-    {0, 504, 290, 20, button_menu_index, 0, 22},
-    {0, 528, 290, 20, button_menu_index, 0, 23},
-    {0, 552, 290, 20, button_menu_index, 0, 24},
-    {0, 576, 290, 20, button_menu_index, 0, 25},
-    {0, 600, 290, 20, button_menu_index, 0, 26},
-    {0, 624, 290, 20, button_menu_index, 0, 27},
-    {0, 648, 290, 20, button_menu_index, 0, 28},
-    {0, 672, 290, 20, button_menu_index, 0, 29},
-    {0, 696, 290, 20, button_menu_index, 0, 30},
+private:
+    building_type cost_type() const;
+
+    build_menu_group submenu = SUBMENU_NONE;
+    int menu_item_index = -1;
+    unsigned int display_index = 0;
+    building_type building = BUILDING_NONE;
+    generic_button *widget = 0;
 };
+
+static void button_menu_button_clicked(const generic_button *button);
+static void rebuild_visible_menu_buttons(void);
+static void request_visible_menu_button_rebuild(void);
+static const BuildMenuButton *focused_menu_button(void);
+
+static std::vector<generic_button> build_menu_button_widgets;
+static std::vector<BuildMenuButton> build_menu_buttons;
 
 static const int Y_MENU_OFFSETS[] = {
     0, 322, 306, 274, 258, 226, 210, 178, 162, 130, 114,
@@ -90,20 +91,112 @@ static const int Y_MENU_OFFSETS[] = {
     0, 0, 0, 0, 0, 0
 };
 
+static int menu_y_offset_for_count(unsigned int count)
+{
+    unsigned int offset_count = sizeof(Y_MENU_OFFSETS) / sizeof(Y_MENU_OFFSETS[0]);
+    if (count < offset_count) {
+        return Y_MENU_OFFSETS[count];
+    }
+    return Y_MENU_OFFSETS[offset_count - 1];
+}
+
 static struct {
     build_menu_group selected_submenu;
     unsigned int num_items;
     int y_offset;
     unsigned int focus_button_id;
+    int handling_button_mouse;
+    int rebuild_buttons_after_input;
 } data = { SUBMENU_NONE };
+
+void BuildMenuButton::bind(build_menu_group button_submenu, int item_index, unsigned int button_display_index,
+    generic_button *button_widget)
+{
+    submenu = button_submenu;
+    menu_item_index = item_index;
+    display_index = button_display_index;
+    building = building_menu_type(submenu, menu_item_index);
+    widget = button_widget;
+
+    widget->reset();
+    widget->set_bounds(0, static_cast<short>(MENU_ITEM_HEIGHT * display_index), 290, 20);
+    widget->set_handlers(button_menu_button_clicked, 0);
+    widget->set_context(this);
+    widget->debug_name = "city-build-menu-button";
+}
+
+void BuildMenuButton::clear()
+{
+    submenu = SUBMENU_NONE;
+    menu_item_index = -1;
+    display_index = 0;
+    building = BUILDING_NONE;
+    if (widget) {
+        widget->reset();
+    }
+    widget = 0;
+}
+
+int BuildMenuButton::is_bound() const
+{
+    return widget != 0 && menu_item_index >= 0;
+}
+
+building_type BuildMenuButton::type() const
+{
+    return building;
+}
+
+int BuildMenuButton::shortcut_index() const
+{
+    if (config_get(CONFIG_UI_ENABLE_BUILD_MENU_SHORTCUTS) && display_index < 10) {
+        return static_cast<int>(display_index + 1);
+    }
+    return 0;
+}
+
+static void rebuild_visible_menu_buttons(void)
+{
+    build_menu_buttons.clear();
+    build_menu_button_widgets.clear();
+    build_menu_buttons.resize(data.num_items);
+    build_menu_button_widgets.resize(data.num_items);
+
+    int item_index = -1;
+    for (std::size_t i = 0; i < build_menu_buttons.size(); i++) {
+        item_index = building_menu_next_index(data.selected_submenu, item_index);
+        build_menu_buttons[i].bind(data.selected_submenu, item_index, static_cast<unsigned int>(i),
+            &build_menu_button_widgets[i]);
+    }
+}
+
+static void request_visible_menu_button_rebuild(void)
+{
+    if (data.handling_button_mouse) {
+        data.rebuild_buttons_after_input = 1;
+        return;
+    }
+    rebuild_visible_menu_buttons();
+}
+
+static const BuildMenuButton *focused_menu_button(void)
+{
+    if (!data.focus_button_id || static_cast<std::size_t>(data.focus_button_id) > build_menu_buttons.size()) {
+        return 0;
+    }
+    const BuildMenuButton *button = &build_menu_buttons[data.focus_button_id - 1];
+    return button->is_bound() ? button : 0;
+}
 
 static int init(build_menu_group submenu)
 {
     data.selected_submenu = submenu;
     data.num_items = building_menu_count_items(submenu);
-    data.y_offset = Y_MENU_OFFSETS[data.num_items];
-    if (submenu == BUILD_MENU_VACANT_HOUSE) {
-        button_menu_item(0);
+    data.y_offset = menu_y_offset_for_count(data.num_items);
+    data.focus_button_id = 0;
+    rebuild_visible_menu_buttons();
+    if (submenu == BUILD_MENU_VACANT_HOUSE && !build_menu_buttons.empty()) {
+        build_menu_buttons[0].activate();
         return 0;
     } else {
         return 1;
@@ -180,14 +273,14 @@ static int get_sidebar_x_offset(void)
     return screen_pixel_to_ui(view_x + view_width);
 }
 
-static int is_auto_cycle_button(building_type type)
+static int is_auto_cycle_button(build_menu_group submenu, building_type type)
 {
-    return (type == BUILDING_MENU_SMALL_TEMPLES && data.selected_submenu == BUILD_MENU_SMALL_TEMPLES) ||
-        (type == BUILDING_MENU_LARGE_TEMPLES && data.selected_submenu == BUILD_MENU_LARGE_TEMPLES) ||
-        (type == BUILDING_MENU_SHRINES && data.selected_submenu == BUILD_MENU_SHRINES) ||
-        (type == BUILDING_MENU_TREES && data.selected_submenu == BUILD_MENU_TREES) ||
-        (type == BUILDING_MENU_PATHS && data.selected_submenu == BUILD_MENU_PATHS) ||
-        (type == BUILDING_MENU_GARDENS && data.selected_submenu == BUILD_MENU_GARDENS);
+    return (type == BUILDING_MENU_SMALL_TEMPLES && submenu == BUILD_MENU_SMALL_TEMPLES) ||
+        (type == BUILDING_MENU_LARGE_TEMPLES && submenu == BUILD_MENU_LARGE_TEMPLES) ||
+        (type == BUILDING_MENU_SHRINES && submenu == BUILD_MENU_SHRINES) ||
+        (type == BUILDING_MENU_TREES && submenu == BUILD_MENU_TREES) ||
+        (type == BUILDING_MENU_PATHS && submenu == BUILD_MENU_PATHS) ||
+        (type == BUILDING_MENU_GARDENS && submenu == BUILD_MENU_GARDENS);
 }
 
 static int produced_resource_icon(building_type type)
@@ -229,87 +322,123 @@ static void draw_resource_icon_scaled(int image_id, int x, int y, int max_size)
     image_draw_scaled_centered(image_id, x, y, COLOR_MASK_NONE, scale_percent);
 }
 
+building_type BuildMenuButton::cost_type() const
+{
+    if (building == BUILDING_DRAGGABLE_RESERVOIR) {
+        return BUILDING_RESERVOIR;
+    }
+    return building;
+}
+
+const uint8_t *BuildMenuButton::display_name() const
+{
+    if (is_auto_cycle()) {
+        return translation_for(TR_AUTO_CYCLE_TEMPLES);
+    }
+    return lang_get_string(28, building);
+}
+
+int BuildMenuButton::resource_icon() const
+{
+    return produced_resource_icon(building);
+}
+
+int BuildMenuButton::cost() const
+{
+    return model_get_building(cost_type())->cost;
+}
+
+int BuildMenuButton::has_rotation_icon() const
+{
+    return building_rotation_type_has_rotations(cost_type());
+}
+
+int BuildMenuButton::has_monument_icon() const
+{
+    return building_monument_type_is_monument(cost_type());
+}
+
+int BuildMenuButton::is_auto_cycle() const
+{
+    return is_auto_cycle_button(submenu, building);
+}
+
+void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
+{
+    if (!is_bound()) {
+        return;
+    }
+    int item_y = data.y_offset + MENU_Y_OFFSET + widget->y;
+    int menu_index = shortcut_index();
+
+    label_draw(item_x_align, item_y, 18, focused ? 1 : 2);
+
+    if (is_auto_cycle()) {
+        if (menu_index > 0) {
+            text_draw_build_menu_with_index(display_name(), menu_index % 10,
+                item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
+                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        } else {
+            text_draw_centered(display_name(),
+                item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
+                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        }
+        lang_text_draw_centered(18, 5 - building_construction_is_auto_cycling(), x_offset - MENU_ITEM_MONEY_OFFSET,
+            item_y + 4, MENU_ITEM_MONEY_OFFSET,
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        return;
+    }
+
+    int text_offset = MENU_TEXT_X_OFFSET;
+    int production_icon = resource_icon();
+    if (production_icon >= 0 && config_get(CONFIG_UI_CV_BUILD_MENU_ICONS)) {
+        draw_resource_icon_scaled(production_icon, item_x_align + MENU_TEXT_X_OFFSET + 2 +
+            (has_monument_icon() + has_rotation_icon()) * MENU_ICON_WIDTH,
+            item_y + 2, MENU_RESOURCE_ICON_SIZE);
+        text_offset += MENU_RESOURCE_ICON_SIZE + 4;
+    }
+
+    if (menu_index > 0) {
+        text_draw_build_menu_with_index(display_name(), menu_index % 10,
+            item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
+            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+    } else {
+        text_draw_centered(display_name(), item_x_align + text_offset, item_y + 4,
+            MENU_ITEM_WIDTH - (text_offset - MENU_TEXT_X_OFFSET), FONT_NORMAL_GREEN,
+            screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+    }
+
+    int build_cost = cost();
+    if (build_cost) {
+        text_draw_money(build_cost, x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4,
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    } else {
+        int image_id = assets_get_image_id("UI", "Expand Menu Icon");
+        image_draw(image_id, item_x_align + MENU_ICON_X_OFFSET + 268,
+            item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+    }
+
+    int icons_drawn = 0;
+    if (has_rotation_icon()) {
+        int image_id = assets_get_image_id("UI", "Rotate Build Icon");
+        image_draw(image_id, item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET,
+            item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        icons_drawn++;
+    }
+
+    if (has_monument_icon()) {
+        int image_id = assets_get_image_id("UI", "Monument Build Icon");
+        image_draw(image_id, item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET,
+            item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+    }
+}
+
 static void draw_menu_buttons(void)
 {
     int x_offset = get_sidebar_x_offset();
-    int item_index = -1;
     int item_x_align = x_offset - MENU_X_OFFSET;
-    for (unsigned int i = 0; i < data.num_items; i++) {
-        item_index = building_menu_next_index(data.selected_submenu, item_index);
-        label_draw(item_x_align, data.y_offset + MENU_Y_OFFSET + MENU_ITEM_HEIGHT * i, 18,
-            data.focus_button_id == i + 1 ? 1 : 2);
-        building_type type = building_menu_type(data.selected_submenu, item_index);
-
-        int menu_index = 0;
-        if (config_get(CONFIG_UI_ENABLE_BUILD_MENU_SHORTCUTS) && i < 10) {
-            menu_index = i + 1;
-        }
-
-        if (is_auto_cycle_button(type)) {
-            if (menu_index > 0) {
-                text_draw_build_menu_with_index(translation_for(TR_AUTO_CYCLE_TEMPLES), menu_index % 10,
-                item_x_align + MENU_TEXT_X_OFFSET, data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-            } else {
-                text_draw_centered(translation_for(TR_AUTO_CYCLE_TEMPLES),
-                item_x_align + MENU_TEXT_X_OFFSET, data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-            }
-            lang_text_draw_centered(18, 5 - building_construction_is_auto_cycling(), x_offset - MENU_ITEM_MONEY_OFFSET,
-                data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i, MENU_ITEM_MONEY_OFFSET,
-                FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-            continue;
-        }
-
-        // Draw resource icon if this building produces a resource
-        int resource_icon = produced_resource_icon(type);
-        int text_offset = MENU_TEXT_X_OFFSET;
-        if (resource_icon >= 0 && config_get(CONFIG_UI_CV_BUILD_MENU_ICONS)) {
-            draw_resource_icon_scaled(resource_icon, item_x_align + MENU_TEXT_X_OFFSET + 2 + 
-                (building_monument_type_is_monument(type) + building_rotation_type_has_rotations(type)) * MENU_ICON_WIDTH,
-                data.y_offset + MENU_Y_OFFSET + MENU_ITEM_HEIGHT * i + 2, MENU_RESOURCE_ICON_SIZE);
-            text_offset += MENU_RESOURCE_ICON_SIZE + 4; // Shift text right to make room for icon + padding
-
-        }
-
-        if (menu_index > 0) {
-            text_draw_build_menu_with_index(lang_get_string(28, type), menu_index % 10,
-                item_x_align + MENU_TEXT_X_OFFSET,
-                data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-        } else {
-            lang_text_draw_centered(28, type, item_x_align + text_offset, data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                MENU_ITEM_WIDTH - (text_offset - MENU_TEXT_X_OFFSET), FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-        }
-
-        if (type == BUILDING_DRAGGABLE_RESERVOIR) {
-            type = BUILDING_RESERVOIR;
-        }
-        int cost = model_get_building(type)->cost;
-        if (cost) {
-            text_draw_money(cost, x_offset - MENU_ITEM_MONEY_OFFSET,
-                data.y_offset + MENU_Y_OFFSET + 4 + MENU_ITEM_HEIGHT * i,
-                FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-        } else {
-            int image_id = assets_get_image_id("UI", "Expand Menu Icon");
-            image_draw(image_id, item_x_align + MENU_ICON_X_OFFSET + 268,
-                data.y_offset + MENU_Y_OFFSET + MENU_ICON_Y_OFFSET + MENU_ITEM_HEIGHT * i, COLOR_MASK_NONE, SCALE_NONE);
-        }
-
-        int icons_drawn = 0;
-        if (building_rotation_type_has_rotations(type)) {
-            int image_id = assets_get_image_id("UI", "Rotate Build Icon");
-            image_draw(image_id, item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET,
-                data.y_offset + MENU_Y_OFFSET + MENU_ICON_Y_OFFSET + MENU_ITEM_HEIGHT * i, COLOR_MASK_NONE, SCALE_NONE);
-            icons_drawn++;
-        }
-
-        if (building_monument_type_is_monument(type)) {
-            int image_id = assets_get_image_id("UI", "Monument Build Icon");
-            image_draw(image_id, item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET,
-                data.y_offset + MENU_Y_OFFSET + MENU_ICON_Y_OFFSET + MENU_ITEM_HEIGHT * i, COLOR_MASK_NONE, SCALE_NONE);
-            icons_drawn++;
-        }
+    for (std::size_t i = 0; i < build_menu_buttons.size(); i++) {
+        build_menu_buttons[i].draw(item_x_align, x_offset, data.focus_button_id == static_cast<unsigned int>(i + 1));
     }
 }
 
@@ -331,25 +460,24 @@ static int click_outside_menu(const mouse *m, int x_offset)
 
 static int handle_build_submenu(const mouse *m)
 {
-    return generic_buttons_handle_mouse(
+    data.handling_button_mouse = 1;
+    int handled = generic_buttons_handle_mouse(
         m, get_sidebar_x_offset() - MENU_X_OFFSET, data.y_offset + MENU_Y_OFFSET,
-        build_menu_buttons, data.num_items, &data.focus_button_id);
-}
-
-static int button_index_to_submenu_item(int index)
-{
-    int item = -1;
-    for (int i = 0; i <= index; i++) {
-        item = building_menu_next_index(data.selected_submenu, item);
+        build_menu_button_widgets.data(), static_cast<unsigned int>(build_menu_button_widgets.size()),
+        &data.focus_button_id);
+    data.handling_button_mouse = 0;
+    if (data.rebuild_buttons_after_input) {
+        data.rebuild_buttons_after_input = 0;
+        rebuild_visible_menu_buttons();
     }
-    return item;
+    return handled;
 }
 
 static int handle_input_build_menu_index(const hotkeys *h)
 {
     if (config_get(CONFIG_UI_ENABLE_BUILD_MENU_SHORTCUTS) && h->build_menu_index_num &&
-        h->build_menu_index_num <= (int) data.num_items) {
-        button_menu_item(button_index_to_submenu_item(h->build_menu_index_num - 1));
+        static_cast<std::size_t>(h->build_menu_index_num) <= build_menu_buttons.size()) {
+        build_menu_buttons[h->build_menu_index_num - 1].activate();
         return h->build_menu_index_num;
     }
     return 0;
@@ -369,10 +497,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
     }
 }
 
-static void button_menu_index(const generic_button *button)
+static void button_menu_button_clicked(const generic_button *button)
 {
-    int index = button->parameter1 - 1;
-    button_menu_item(button_index_to_submenu_item(index));
+    const BuildMenuButton *menu_button = static_cast<const BuildMenuButton *>(button->context());
+    if (menu_button) {
+        menu_button->activate();
+    }
 }
 
 static int set_submenu_for_type(building_type type)
@@ -386,22 +516,25 @@ static int set_submenu_for_type(building_type type)
     return current_menu != data.selected_submenu;
 }
 
-static void button_menu_item(int item)
+void BuildMenuButton::activate() const
 {
+    if (!is_bound()) {
+        return;
+    }
+
     widget_city_clear_current_tile();
 
-    building_type type = building_menu_type(data.selected_submenu, item);
-
-    if (is_auto_cycle_button(type)) {
+    if (is_auto_cycle()) {
         building_construction_toggle_auto_cycle();
         window_invalidate();
         return;
     }
-    building_construction_set_type(type, 0);
+    building_construction_set_type(building, 0);
 
-    if (set_submenu_for_type(type)) {
+    if (set_submenu_for_type(building)) {
         data.num_items = building_menu_count_items(data.selected_submenu);
-        data.y_offset = Y_MENU_OFFSETS[data.num_items];
+        data.y_offset = menu_y_offset_for_count(data.num_items);
+        request_visible_menu_button_rebuild();
         building_construction_clear_type();
         window_invalidate();
     } else {
@@ -452,11 +585,13 @@ static void get_tooltip(tooltip_context *c)
         return;
     }
 
-    int button = button_index_to_submenu_item(data.focus_button_id - 1);
-    building_type type = building_menu_type(data.selected_submenu, button);
+    const BuildMenuButton *button = focused_menu_button();
+    if (!button) {
+        return;
+    }
 
-    if (building_monument_type_is_monument(type)) {
-        generate_tooltip_text_for_monument(type);
+    if (button->has_monument_icon()) {
+        generate_tooltip_text_for_monument(button->type());
         c->precomposed_text = tooltip_text;
         c->type = TOOLTIP_BUTTON;
     }
