@@ -10,18 +10,20 @@ extern "C" {
 }
 
 #define MAX_TICKS_PER_FRAME 20
+#define MILLIS_PER_TICK_SCALE 1000
 
 static const time_millis MILLIS_PER_TICK_PER_SPEED[] = {
     702, 502, 352, 242, 162, 112, 82, 57, 37, 22, 16
 };
-static const time_millis MILLIS_PER_HYPER_SPEED[] = {
-    702, 16, 8, 5, 3, 2
+static const time_millis MILLIS_PER_HYPER_SPEED_X1000[] = {
+    702000, 16000, 8000, 5000, 3000, 2000, 2000, 1333, 1250, 1111, 1000
 };
-const int game_speeds[] = { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 500 };
+const int game_speeds[] = { 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 500, 750, 1000 };
 //if updaing array, update TOTAL_GAME_SPEEDS, 0-based
 static struct {
     int last_check_was_valid;
     time_millis last_update;
+    time_millis leftover_millis_x1000;
 } data;
 
 int game_speed_get_index(int speed)
@@ -55,7 +57,7 @@ int game_speed_get_elapsed_ticks(void)
         return 0;
     }
 
-    time_millis millis_per_tick = 1;
+    time_millis millis_per_tick_x1000 = MILLIS_PER_TICK_SCALE;
     switch (window_get_id()) {
         default:
             return 0;
@@ -70,17 +72,17 @@ int game_speed_get_elapsed_ticks(void)
             if (speed < 10) {
                 return 0;
             } else if (speed <= 100) {
-                millis_per_tick = MILLIS_PER_TICK_PER_SPEED[speed / 10];
+                millis_per_tick_x1000 = MILLIS_PER_TICK_PER_SPEED[speed / 10] * MILLIS_PER_TICK_SCALE;
             } else {
-                if (speed > 500) {
-                    speed = 500;
+                if (speed > 1000) {
+                    speed = 1000;
                 }
-                millis_per_tick = MILLIS_PER_HYPER_SPEED[speed / 100];
+                millis_per_tick_x1000 = MILLIS_PER_HYPER_SPEED_X1000[speed / 100];
             }
             break;
         }
         case WINDOW_EDITOR_MAP:
-            millis_per_tick = MILLIS_PER_TICK_PER_SPEED[7]; // 70%, nice speed for flag animations
+            millis_per_tick_x1000 = MILLIS_PER_TICK_PER_SPEED[7] * MILLIS_PER_TICK_SCALE; // 70%, nice speed for flag animations
             break;
     }
 
@@ -97,16 +99,22 @@ int game_speed_get_elapsed_ticks(void)
     if (!last_check_was_valid) {
         // returning to map from another window or pause: always force a tick
         data.last_update = now;
+        data.leftover_millis_x1000 = 0;
         return 1;
     }
 
-    const int ticks = static_cast<int>(diff / millis_per_tick);
+    const time_millis scaled_diff = diff * MILLIS_PER_TICK_SCALE + data.leftover_millis_x1000;
+    const int ticks = static_cast<int>(scaled_diff / millis_per_tick_x1000);
     if (!ticks) {
+        data.leftover_millis_x1000 = scaled_diff;
+        data.last_update = now;
         return 0;
     } else if (ticks <= MAX_TICKS_PER_FRAME) {
-        data.last_update = now - (diff % millis_per_tick); // account for left-over millis in this frame
+        data.leftover_millis_x1000 = scaled_diff % millis_per_tick_x1000;
+        data.last_update = now;
         return ticks;
     } else {
+        data.leftover_millis_x1000 = 0;
         data.last_update = now;
         return MAX_TICKS_PER_FRAME;
     }
