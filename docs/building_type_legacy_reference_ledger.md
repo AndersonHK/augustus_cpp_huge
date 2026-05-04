@@ -2,6 +2,8 @@
 
 This ledger tracks legacy code paths that still refer to specific building type ids. Entries here are the cleanup queue for future phases that should replace type-specific logic with BuildingType properties, tags, policies, or registry lookups. Hard legacy save migration is the main intentional exception.
 
+For the detailed save/load bridge that maps save-local building type ids through text ids, runtime ids, legacy structs, monument construction definitions, and runtime wrappers, see `docs/save_load_runtime_bridges.md`.
+
 Status values:
 
 - `migrated`: no longer depends on stable legacy enum identity.

@@ -1,6 +1,6 @@
 # Save Data Organization
 
-This document maps how Vespasian `.svv` save data is allocated, written, loaded, and handed back to runtime systems. It is a live-game save reference first. Scenario files use the same file-piece machinery, but their layout is covered separately in the scenario appendix.
+This document maps how Vespasian `.svv` save data is allocated, written, loaded, and handed back to runtime systems. It is a live-game save reference first. Scenario files use the same file-piece machinery, but their layout is covered separately in the scenario appendix. For the post-read bridge layer that resolves save-local ids into runtime objects, BuildingType definitions, and legacy structs, see `docs/save_load_runtime_bridges.md`.
 
 Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 

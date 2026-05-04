@@ -16,6 +16,7 @@ This note maps the native walker pathing work so future sessions can find the ru
 - `src/game/file_io.cpp` saves and loads road service history.
 - `src/game/save_version.h` records save-version boundaries.
 - `docs/save_data_organization.md` is the canonical map for `.svv` save-piece order and save-backed runtime ownership.
+- `docs/save_load_runtime_bridges.md` follows the post-read fan-out for road service history, local workforce allocations, FigureType runtime rebinding, and BuildingType-owned spawns.
 
 ## XML Contract
 
@@ -71,6 +72,7 @@ Effect ids are save-compatible and append-only. New entertainment effects were a
 - `entertainment_hippodrome`
 
 `SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended entertainment history grids. See `docs/save_data_organization.md` and `src/game/save_version.h` for the current save version and full `.svv` piece layout.
+`docs/save_load_runtime_bridges.md` documents how the loaded history grids, local workforce allocation vector, and FigureType profile inference are rebuilt after the file pieces are read.
 
 ## Related Context
 

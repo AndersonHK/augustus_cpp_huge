@@ -143,6 +143,8 @@ Doctrine:
 ## Save/load map
 - `docs/save_data_organization.md`
   - canonical `.svv` file-piece order, allocation ownership, writer/loader map, dynamic payload notes, and scenario-file appendix
+- `docs/save_load_runtime_bridges.md`
+  - post-read bridge map for save-local ids, BuildingType runtime ids/text ids, monument construction fan-out, legacy structs, and C++ runtime wrapper rebinding
 - `src/game/file_io.cpp`
   - `init_savegame_data()` owns live-save piece order
   - `savegame_save_to_state()` and `savegame_load_from_state()` dispatch subsystem writers/loaders
