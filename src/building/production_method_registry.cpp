@@ -31,6 +31,7 @@ struct ParseState {
     int saw_kind = 0;
     int saw_output = 0;
     int saw_batch_size = 0;
+    int saw_treasury_cost = 0;
     int error = 0;
 };
 
@@ -216,6 +217,11 @@ int validate_definition(const ProductionMethod &definition, const char *filename
         error_context_report_error("ProductionMethod batch_size exceeds current cart load field.", detail);
         return 0;
     }
+    if (definition.treasury_cost_per_cycle() < 0) {
+        log_error("ProductionMethod treasury_cost must be non-negative", definition.path(), 0);
+        error_context_report_error("ProductionMethod treasury_cost must be non-negative.", filename);
+        return 0;
+    }
 
     const int base_output_production = resource_base_production_per_month(definition.output_resource());
     if (base_output_production <= 0) {
@@ -344,6 +350,36 @@ int parse_batch_size()
     return 1;
 }
 
+int parse_treasury_cost()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered ProductionMethod treasury_cost before root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_treasury_cost) {
+        log_error("ProductionMethod xml contains duplicate treasury_cost nodes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("amount")) {
+        log_error("ProductionMethod treasury_cost is missing required attribute 'amount'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const int cost = xml_parser_get_attribute_int("amount");
+    if (cost <= 0) {
+        log_error("Unsupported ProductionMethod treasury_cost amount", xml_parser_get_attribute_string("amount"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_treasury_cost_per_cycle(cost);
+    g_parse_state.saw_treasury_cost = 1;
+    return 1;
+}
+
 int parse_climate_bonuses()
 {
     if (!g_parse_state.definition) {
@@ -434,6 +470,7 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "kind", parse_kind, nullptr, "production_method", nullptr },
     { "output", parse_output, nullptr, "production_method", nullptr },
     { "batch_size", parse_batch_size, nullptr, "production_method", nullptr },
+    { "treasury_cost", parse_treasury_cost, nullptr, "production_method", nullptr },
     { "climate_bonuses", parse_climate_bonuses, nullptr, "production_method", nullptr },
     { "bonus", parse_climate_bonus, nullptr, "climate_bonuses", nullptr },
     { "input", parse_input, nullptr, "production_method", nullptr }

@@ -279,7 +279,7 @@ int building_runtime::resolve_graphic_binding(
 
 // Input: one runtime animation track plus the live building/grid state that owns it.
 // Output: the 1-based frame index that should be drawn now, while mirroring legacy timing/gating without using legacy image payloads.
-int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track) const
+int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track, int should_advance) const
 {
     if (!building_ || track.num_frames <= 0) {
         return 0;
@@ -315,10 +315,7 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
         map_sprite_animation_set(building_->grid_offset, 1);
         return 1;
     }
-    if (building_->type == BUILDING_MARBLE_QUARRY && (building_->num_workers <= 0 || building_->strike_duration_days > 0)) {
-        map_sprite_animation_set(building_->grid_offset, 1);
-        return 1;
-    } else if (building_is_raw_resource_producer(building_->type) && (building_->num_workers <= 0 || building_->strike_duration_days > 0)) {
+    if (building_is_raw_resource_producer(building_->type) && (building_->num_workers <= 0 || building_->strike_duration_days > 0)) {
         return 0;
     }
     if (building_->type == BUILDING_GLADIATOR_SCHOOL) {
@@ -367,7 +364,7 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
         return 0;
     }
 
-    if (!track.speed_id) {
+    if (!should_advance || !track.speed_id) {
         return normalized_animation_frame(building_, track);
     }
     if (!game_animation_should_advance(track.speed_id)) {
@@ -439,6 +436,24 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
     return new_sprite;
 }
 
+// Input: one live building instance in the city animation draw stage.
+// Output: advances the native XML animation cursor at the same layer where legacy image groups tick.
+void building_runtime::advance_graphic_animation()
+{
+    if (!uses_new_graphics()) {
+        return;
+    }
+
+    ensure_cached_graphics_bindings();
+    const RuntimeAnimationTrack *track_ptr = cached_animation_track();
+    if (!track_ptr || !graphics_cache_.owns_graphic_animation) {
+        return;
+    }
+
+    mirror_animation_offset(*track_ptr, 1);
+    graphics_cache_.animation_slice = RuntimeDrawSlice();
+}
+
 // Input: one live building instance whose cached bindings may include an animation image-group entry.
 // Output: the runtime animation track exposed by that cached animation entry, or null when this building instance has no native animation.
 const RuntimeAnimationTrack *building_runtime::cached_animation_track() const
@@ -459,7 +474,7 @@ void building_runtime::rebuild_cached_animation_slice()
     }
 
     const RuntimeAnimationTrack &track = *track_ptr;
-    const int animation_offset = mirror_animation_offset(track);
+    const int animation_offset = mirror_animation_offset(track, 0);
     if (animation_offset <= 0) {
         return;
     }

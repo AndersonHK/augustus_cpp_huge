@@ -56,10 +56,7 @@ static int building_animation_offset_impl(building *b, const image *img, int gri
         map_sprite_animation_set(grid_offset, 1);
         return 1;
     }
-    if (b->type == BUILDING_MARBLE_QUARRY && (b->num_workers <= 0 || b->strike_duration_days > 0)) {
-        map_sprite_animation_set(grid_offset, 1);
-        return 1;
-    } else if (building_is_raw_resource_producer(b->type) && (b->num_workers <= 0 || b->strike_duration_days > 0)) {
+    if (building_is_raw_resource_producer(b->type) && (b->num_workers <= 0 || b->strike_duration_days > 0)) {
         return 0;
     }
     if (b->type == BUILDING_GLADIATOR_SCHOOL) {

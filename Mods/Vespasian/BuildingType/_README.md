@@ -14,6 +14,9 @@ Current supported nodes:
 - `<desirability> ... </desirability>`
 - `<foundation ... />`
 - `<button ... />`
+- `<sound ... />`
+- `<event_data ... />`
+- `<flags ... />`
 - `<water_access> ... </water_access>`
 - `<state> ... </state>`
 - `<graphics> ... </graphics>`
@@ -81,6 +84,16 @@ Current supported `<foundation>` attributes:
 
 - `policy="land|road|water|shoreline|aqueduct|custom"` stores the placement/foundation policy key for the next construction pass
 
+Current supported `<foundation>` child nodes:
+
+- `<terrain value="meadow|rock|tree|water|wall|distant_water" />`
+
+Foundation terrain rules:
+
+- `<terrain>` may appear zero or more times
+- terrain requirements feed the existing placement warning/check path
+- use `rock` for quarry/mine placement, `tree` for timber yards, `water` for clay pits, and `distant_water` for sand pits
+
 Current supported `<button>` attributes:
 
 - `group="..."` stores the target build submenu key
@@ -89,6 +102,24 @@ Current supported `<button>` attributes:
 - `text_key="..."` optionally overrides the button text key; otherwise generated UI can use `<identity name_key="...">`
 
 `<menu>` is accepted as a temporary alias for `<button>` only during this migration slice. Prefer `<button>` in new XML.
+
+Current supported `<sound>` attributes:
+
+- `id="..."`, `value="..."`, or `city="..."` selects the city ambient sound key
+- `mute_on_enemies="true|false"` suppresses the sound while enemies are active
+- `always_play="true|false"` keeps the sound audible even when normal worker/water gates would mute it
+
+Raw-material producer sound ids currently include `clay_pit`, `iron_mine`, `timber_yard`, and `marble_quarry`. Gold mine, stone quarry, and sand pit do not declare sounds because the legacy properties do not assign city sounds to them.
+
+Current supported `<event_data>` attributes:
+
+- `attr="..."` stores the scenario-event/query building attribute key
+
+Current supported `<flags>` attributes:
+
+- `fire_proof="0|1"`
+- `draw_desirability_range="0|1"`
+- `venus_gt_bonus="0|1"`
 
 Current supported `<state>` child nodes:
 
@@ -120,6 +151,7 @@ Current supported `<graphics>` child nodes:
 - `<condition type="resource_positive" resource="wine" />`
 - `<condition type="climate" value="central|northern|desert" />`
 - `<condition type="monument_upgrade" value="1" />`
+- `<condition type="festival_games" value="1|2|3" />`
 - `<condition type="desirability" operator="lt|lte|eq|gt|gte" threshold="N" />`
 - `<condition type="days1_positive|days1_not_positive|days2_positive|days1_or_days2_positive" />`
 
@@ -150,6 +182,7 @@ Current supported graphics conditions:
 - `type="resource_positive" resource="wine"` means the building has at least one unit of that resource
 - `type="climate" value="central|northern|desert"` compares the active scenario climate
 - `type="monument_upgrade" value="N"` means the completed monument has upgrade/module `N`
+- `type="festival_games" value="1|2|3"` compares the active Colosseum games mode: `1` is naumachia, `2` is imperial games, and `3` is executions
 - `type="desirability" operator="lt|lte|eq|gt|gte" threshold="N"` compares the building desirability against `N`
 - `type="days1_positive|days1_not_positive|days2_positive|days1_or_days2_positive"` checks the entertainment visit-day counters used by entertainers
 
@@ -277,5 +310,14 @@ Current engine behavior:
 - Put provider-side water coverage and connection-node data under the root `<water_access>` block so the native water runtime stays data-driven.
 - Put BuildingType-authored employee defaults under `<labor><employees ... /></labor>` so the XML and live model table stay in sync.
 - Buildings with a validated runtime `BuildingType` graphics block usually use the native runtime renderer path as the authoritative live path; current data-only vertical slices remain on legacy live rendering until their runtime rollout lands.
+
+Current raw-material producer notes:
+
+- Julius, Augustus, and Vespasian define BuildingType XML for `clay_pit`, `marble_quarry`, `iron_mine`, and `timber_yard`.
+- Augustus and Vespasian additionally define XML for `gold_mine`, `stone_quarry`, and `sand_pit`; Julius does not because those resources/buildings are Augustus-era content.
+- The four Julius-era raw producers intentionally use Julius extracted graphics payloads when loaded by Augustus or Vespasian. Augustus/Vespasian-specific gold, stone, and sand producers use Augustus extracted payloads.
+- These buildings are placeable build-menu entries under `raw_materials`. Their XML uses `foundation policy="custom"` plus a `<terrain>` child for the legacy terrain gates: rock for marble/iron/gold/stone, tree adjacency/coverage for timber, water adjacency for clay, and distant/open-water adjacency for sand.
+- Raw-material producers attach native one-output `ProductionMethod` XML and matching output `StorageType` XML. Gold mine production uses `<treasury_cost amount="600" />` to preserve the legacy per-cycle finance charge.
+- The raw-producer-specific terrain cases were removed from `src/building/construction.cpp::set_required_terrain`; the function now reads these requirements from BuildingType XML when present.
 
 See `_template.xml.example` here in `Mods\Vespasian\BuildingType` for a copy/paste starter.

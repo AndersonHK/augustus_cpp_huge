@@ -187,10 +187,16 @@ extern "C" int building_type_registry_get_model_size(building_type type)
 extern "C" const char *building_type_registry_get_foundation_policy(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
-    if (!definition || !definition->has_foundation()) {
+    if (!definition || !definition->foundation().has_policy()) {
         return 0;
     }
     return definition->foundation().policy();
+}
+
+extern "C" int building_type_registry_get_foundation_required_terrain(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition ? definition->foundation_required_terrain() : 0;
 }
 
 extern "C" const char *building_type_registry_get_button_group(building_type type)
@@ -227,6 +233,15 @@ extern "C" const char *building_type_registry_get_button_text_key(building_type 
         return 0;
     }
     return definition->button().text_key();
+}
+
+extern "C" int building_type_registry_has_labor_seeker(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_labor() || !definition->labor().has_seeker_policy()) {
+        return 0;
+    }
+    return definition->labor().seeker_policy().method != building_type_registry_impl::LaborSeekerMethod::None;
 }
 
 extern "C" int building_type_registry_get_sound_id(building_type type)

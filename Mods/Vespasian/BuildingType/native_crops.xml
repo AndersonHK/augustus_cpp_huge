@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="native_crops">
     <sound id="wheat_farm" always_play="true" />
+    <graphics>
+        <default>
+            <path value="Industry\Farm_Crops" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
 </building>

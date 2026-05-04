@@ -12,6 +12,12 @@
     <button group="health" order="40" icon="barber" text_key="building.barber.name" />
     <sound id="barber" />
     <event_data attr="barber" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Barber" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="2" />
         <labor_seeker>

@@ -1,4 +1,63 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="colosseum">
     <sound id="colosseum" mute_on_enemies="true" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Colosseum" />
+            <image value="Col Glad Fight" />
+        </default>
+        <variant>
+            <condition type="festival_games" value="1" />
+            <path value="Health_Culture\Colosseum" />
+            <image value="Col Naumachia" />
+        </variant>
+        <variant>
+            <condition type="festival_games" value="2" />
+            <path value="Health_Culture\Colosseum" />
+            <image value="Col Imp Games" />
+        </variant>
+        <variant>
+            <condition type="festival_games" value="3" />
+            <path value="Health_Culture\Colosseum" />
+            <image value="Col Exec" />
+        </variant>
+    </graphics>
+    <construction mode="phased" road_update_radius="7">
+        <phase index="1">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Colosseum_Construction_01" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="12" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Monuments\Colosseum_Construction_02" />
+                <image value="Colosseum_Construction_02" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="8" />
+            <requirement type="concrete" amount="16" />
+        </phase>
+        <phase index="3">
+            <graphics>
+                <path value="Monuments\Colosseum_Construction_03" />
+                <image value="Colosseum_Construction_03" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="12" />
+            <requirement type="stone" amount="16" />
+        </phase>
+        <phase index="4">
+            <graphics>
+                <path value="Monuments\Colosseum_Construction_04" />
+                <image value="Colosseum_Construction_04" />
+            </graphics>
+            <requirement type="architects" amount="4" />
+            <requirement type="timber" amount="12" />
+            <requirement type="marble" amount="20" />
+            <requirement type="bricks" amount="16" />
+        </phase>
+    </construction>
 </building>

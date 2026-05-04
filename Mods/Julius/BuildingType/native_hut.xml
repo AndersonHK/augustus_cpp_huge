@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="native_hut">
     <sound id="native_hut" always_play="true" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\Native" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
 </building>

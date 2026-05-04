@@ -6,6 +6,7 @@
 #include "city/buildings.h"
 #include "city/health.h"
 #include "figure/figure.h"
+#include "game/resource.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/data.h"
@@ -20,13 +21,6 @@ static const building_type building_set_farms[] = {
 };
 
 #define BUILDING_SET_SIZE_FARMS (sizeof(building_set_farms) / sizeof(building_type))
-
-static const building_type building_set_raw_materials[] = {
-    BUILDING_MARBLE_QUARRY, BUILDING_IRON_MINE, BUILDING_TIMBER_YARD, BUILDING_CLAY_PIT,
-    BUILDING_GOLD_MINE, BUILDING_STONE_QUARRY, BUILDING_SAND_PIT
-};
-
-#define BUILDING_SET_SIZE_RAW_MATERIALS (sizeof(building_set_raw_materials) / sizeof(building_type))
 
 static const building_type building_set_workshops[] = {
     BUILDING_WINE_WORKSHOP, BUILDING_OIL_WORKSHOP, BUILDING_WEAPONS_WORKSHOP, BUILDING_FURNITURE_WORKSHOP,
@@ -307,7 +301,14 @@ int building_set_count_farms(int active_only)
 
 int building_set_count_raw_materials(int active_only)
 {
-    return count_all_types_in_set(active_only, building_set_raw_materials, BUILDING_SET_SIZE_RAW_MATERIALS);
+    int total = 0;
+    for (resource_type resource = RESOURCE_MIN; resource < RESOURCE_MAX;
+        resource = (resource_type) ((int) resource + 1)) {
+        if (resource_is_raw_material(resource)) {
+            total += building_count_with_active_check(resource_get_data(resource)->industry, active_only);
+        }
+    }
+    return total;
 }
 
 int building_set_count_workshops(int active_only)
@@ -347,7 +348,14 @@ int building_set_area_count_farms(int minx, int miny, int maxx, int maxy)
 
 int building_set_area_count_raw_materials(int minx, int miny, int maxx, int maxy)
 {
-    return count_all_types_in_set_in_area(building_set_raw_materials, BUILDING_SET_SIZE_RAW_MATERIALS, minx, miny, maxx, maxy);
+    int total = 0;
+    for (resource_type resource = RESOURCE_MIN; resource < RESOURCE_MAX;
+        resource = (resource_type) ((int) resource + 1)) {
+        if (resource_is_raw_material(resource)) {
+            total += building_count_in_area(resource_get_data(resource)->industry, minx, miny, maxx, maxy);
+        }
+    }
+    return total;
 }
 
 int building_set_area_count_workshops(int minx, int miny, int maxx, int maxy)

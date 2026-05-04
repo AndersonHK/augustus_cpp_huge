@@ -47,8 +47,7 @@ static const building_type LEGACY_MENU_BUILDING_TYPE[BUILD_MENU_MAX][30] = {
     {BUILDING_MENU_FARMS, BUILDING_MENU_RAW_MATERIALS, BUILDING_MENU_WORKSHOPS,
         BUILDING_GRANARY, BUILDING_WAREHOUSE, BUILDING_DEPOT, BUILDING_NONE},
     {BUILDING_NONE},
-    {BUILDING_CLAY_PIT, BUILDING_MARBLE_QUARRY, BUILDING_IRON_MINE, BUILDING_TIMBER_YARD, BUILDING_GOLD_MINE,
-        BUILDING_STONE_QUARRY, BUILDING_SAND_PIT, BUILDING_NONE},
+    {BUILDING_NONE},
     {BUILDING_CONCRETE_MAKER, BUILDING_NONE},
     {BUILDING_MENU_SMALL_TEMPLES, BUILDING_NONE},
     {BUILDING_MENU_LARGE_TEMPLES, BUILDING_NONE},
@@ -328,6 +327,20 @@ static void enable_if_allowed(int *enabled, building_type menu_building_type, bu
     }
 }
 
+static void enable_submenu_entries_if_allowed(int *enabled, building_type type, int submenu)
+{
+    if (!is_valid_submenu(submenu)) {
+        return;
+    }
+    building_type expander = submenu_expander_type(submenu);
+    for (const menu_entry &entry : menu_entries[submenu]) {
+        if (entry.type == expander) {
+            continue;
+        }
+        enable_if_allowed(enabled, type, entry.type);
+    }
+}
+
 static void disable_raw(int *enabled, building_type menu_building_type, building_type type, int resource)
 {
     if (type != menu_building_type) {
@@ -467,13 +480,7 @@ static void enable_tutorial2_after_450(int *enabled, building_type type)
 {
     enable_tutorial2_up_to_450(enabled, type);
     enable_if_allowed(enabled, type, BUILDING_MENU_RAW_MATERIALS);
-    enable_if_allowed(enabled, type, BUILDING_CLAY_PIT);
-    enable_if_allowed(enabled, type, BUILDING_MARBLE_QUARRY);
-    enable_if_allowed(enabled, type, BUILDING_IRON_MINE);
-    enable_if_allowed(enabled, type, BUILDING_TIMBER_YARD);
-    enable_if_allowed(enabled, type, BUILDING_GOLD_MINE);
-    enable_if_allowed(enabled, type, BUILDING_STONE_QUARRY);
-    enable_if_allowed(enabled, type, BUILDING_SAND_PIT);
+    enable_submenu_entries_if_allowed(enabled, type, BUILD_MENU_RAW_MATERIALS);
     enable_if_allowed(enabled, type, BUILDING_MENU_WORKSHOPS);
     enable_if_allowed(enabled, type, BUILDING_WINE_WORKSHOP);
     enable_if_allowed(enabled, type, BUILDING_OIL_WORKSHOP);

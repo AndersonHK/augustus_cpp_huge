@@ -131,6 +131,8 @@ Live XML buildings must pass through this payload contract directly. Their selec
 
 Animation frames follow the same rule. A `<frame>` that references another payload entry is reconstructed from that entry as `PART_BOTH` and uploaded as its own frame payload before runtime drawing. Explicit frame references and implicit following-entry frame sequences should not reuse footprint-only slices, because animated XML payloads may carry top/full overlay pixels.
 
+Native animation timing is still keyed by the legacy `map_sprite_animation` cursor. The city animation layer advances runtime-owned payload animations beside the legacy image-group path, then the runtime renderer reads the current cursor to pick one payload frame.
+
 `map_image` may still hold a neutral compatibility sentinel for a runtime-owned building so selection, deletion, terrain, and draw-tile bookkeeping keep working. The renderer decides whether to draw the sentinel or the real building by asking the building runtime for cached `RuntimeDrawSlice` payload slices first.
 
 The renderer should not need to know how references were resolved or how the split-source buffer is stored.

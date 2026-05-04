@@ -12,6 +12,12 @@
     <button group="health" order="20" icon="hospital" text_key="building.hospital.name" />
     <sound id="hospital" />
     <event_data attr="hospital" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Hospital" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="30" />
         <labor_seeker>

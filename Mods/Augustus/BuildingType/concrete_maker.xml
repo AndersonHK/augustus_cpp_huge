@@ -15,6 +15,22 @@
     <state>
         <water_access mode="reservoir_range" />
     </state>
+    <graphics>
+        <default>
+            <path value="Industry\Concrete_Maker_C_OFF" />
+            <image value="Concrete_Maker_C_ON" />
+        </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Industry\Concrete_Maker_C_OFF" />
+            <image value="Concrete_Maker_N_ON" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Industry\Concrete_Maker_C_OFF" />
+            <image value="Concrete_Maker_S_ON" />
+        </variant>
+    </graphics>
     <labor>
         <employees count="10" />
         <labor_seeker>

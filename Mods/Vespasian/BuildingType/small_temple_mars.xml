@@ -13,6 +13,12 @@
     <sound id="temple_mars" />
     <event_data attr="small_temple_mars" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Temple_Mars" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="2" />
         <labor_seeker>

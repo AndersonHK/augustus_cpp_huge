@@ -12,6 +12,22 @@
     <button group="workshops" order="70" icon="brickworks" text_key="building.brickworks.name" />
     <sound id="brickworks" />
     <event_data attr="brickworks" />
+    <graphics>
+        <default>
+            <path value="Industry\Brickworks_On_01" />
+            <image value="Brickworks_C_ON" />
+        </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Industry\Brickworks_On_01" />
+            <image value="Brickworks_N_ON" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Industry\Brickworks_On_01" />
+            <image value="Brickworks_S_ON" />
+        </variant>
+    </graphics>
     <labor>
         <employees count="10" />
         <labor_seeker>

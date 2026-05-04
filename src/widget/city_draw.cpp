@@ -111,6 +111,7 @@ int city_draw_runtime_building_animation(building *b, int x, int y, int grid_off
         return 1;
     }
 
+    building_runtime_advance_graphic_animation(b);
     const RuntimeDrawSlice *frame = building_runtime_get_graphic_animation_slice(b);
     if (frame) {
         runtime_texture_draw(*frame, x, y, color_mask, scale);

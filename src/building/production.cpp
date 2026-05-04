@@ -3,6 +3,7 @@
 extern "C" {
 #include "building/image.h"
 #include "building/industry.h"
+#include "city/finance.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 #include "figure/figure.h"
@@ -130,6 +131,10 @@ int Production::update_daily(int new_day, int *out_is_striking)
     int progress = building_->num_workers;
     if (building_->data.industry.blessing_days_left && method_->uses_blessing_multiplier()) {
         progress += building_->num_workers;
+    }
+
+    if (building_->data.industry.progress == 0 && method_->treasury_cost_per_cycle() > 0) {
+        city_finance_process_sundry(method_->treasury_cost_per_cycle());
     }
 
     building_->data.industry.has_raw_materials = 1;

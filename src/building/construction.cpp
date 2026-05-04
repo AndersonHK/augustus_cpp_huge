@@ -120,6 +120,17 @@ static void set_required_terrain(building_type type)
     data.required_terrain.meadow = 0;
     data.required_terrain.distant_water = 0;
 
+    int required_terrain = building_type_registry_get_foundation_required_terrain(type);
+    if (required_terrain) {
+        data.required_terrain.meadow = (required_terrain & BUILDING_TYPE_TERRAIN_MEADOW) != 0;
+        data.required_terrain.rock = (required_terrain & BUILDING_TYPE_TERRAIN_ROCK) != 0;
+        data.required_terrain.tree = (required_terrain & BUILDING_TYPE_TERRAIN_TREE) != 0;
+        data.required_terrain.water = (required_terrain & BUILDING_TYPE_TERRAIN_WATER) != 0;
+        data.required_terrain.wall = (required_terrain & BUILDING_TYPE_TERRAIN_WALL) != 0;
+        data.required_terrain.distant_water = (required_terrain & BUILDING_TYPE_TERRAIN_DISTANT_WATER) != 0;
+        return;
+    }
+
     switch (type) {
         case BUILDING_WHEAT_FARM:
         case BUILDING_VEGETABLE_FARM:
@@ -129,23 +140,10 @@ static void set_required_terrain(building_type type)
         case BUILDING_PIG_FARM:
             data.required_terrain.meadow = 1;
             break;
-        case BUILDING_MARBLE_QUARRY:
-        case BUILDING_IRON_MINE:
-        case BUILDING_GOLD_MINE:
-        case BUILDING_STONE_QUARRY:
-            data.required_terrain.rock = 1;
-            break;
-        case BUILDING_TIMBER_YARD:
-            data.required_terrain.tree = 1;
-            break;
-        case BUILDING_CLAY_PIT:
-            data.required_terrain.water = 1;
-            break;
         case BUILDING_TOWER:
             data.required_terrain.wall = 1;
             break;
         case BUILDING_LIGHTHOUSE:
-        case BUILDING_SAND_PIT:
             data.required_terrain.distant_water = 1;
             [[fallthrough]];
         default:

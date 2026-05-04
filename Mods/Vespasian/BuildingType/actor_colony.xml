@@ -12,6 +12,12 @@
     <button group="entertainment" order="20" icon="actor colony" text_key="building.actor_colony.name" />
     <sound id="actor_colony" mute_on_enemies="true" />
     <event_data attr="actor_colony" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Actor_Colony" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="5" />
         <labor_seeker>

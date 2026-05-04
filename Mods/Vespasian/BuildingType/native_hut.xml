@@ -1,4 +1,20 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="native_hut">
     <sound id="native_hut" always_play="true" />
+    <graphics>
+        <default>
+            <path value="Terrain_Maps\Native_Hut_Central_01" />
+            <image value="Native_Hut_Central_01" />
+        </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Terrain_Maps\Native_Hut_Northern_01" />
+            <image value="Native_Hut_Northern_01" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Terrain_Maps\Native_Hut_Southern_01" />
+            <image value="Native_Hut_Southern_01" />
+        </variant>
+    </graphics>
 </building>

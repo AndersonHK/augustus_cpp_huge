@@ -94,6 +94,21 @@ static const uint8_t *dynamic_building_display_name(const char *display_key, int
     return reinterpret_cast<const uint8_t *>(display_key);
 }
 
+static const uint8_t *building_type_display_key_text(const char *display_key)
+{
+    translation_key translation;
+    if (translation_key_from_name(display_key, &translation)) {
+        return translation_for(translation);
+    }
+
+    const uint8_t *named_translation = localization::legacy_named_project_string(display_key);
+    if (named_translation && named_translation[0]) {
+        return named_translation;
+    }
+
+    return reinterpret_cast<const uint8_t *>(display_key);
+}
+
 static lang_message *set_augustus_message_parameters(
     city_message_type message_type,
     int title,
@@ -309,19 +324,24 @@ extern "C" const uint8_t *lang_get_string(int group, int index)
         return translation_for(TR_EDITOR_ALLOWED_BUILDINGS_MONUMENTS);
     }
 
-    if ((group == 28 || group == 41) && index >= BUILDING_DYNAMIC_TYPE_FIRST && index < BUILDING_TYPE_MAX) {
+    if ((group == 28 || group == 41) && index > BUILDING_NONE && index < BUILDING_TYPE_MAX &&
+        building_type_registry_has_definition(static_cast<building_type>(index))) {
         building_type type = static_cast<building_type>(index);
-        const char *text_id = building_type_id_bridge_text_from_runtime(type);
-        uint16_t legacy_type = building_type_legacy_migration_enum_for_text_id(text_id);
-        if (legacy_type > BUILDING_NONE && legacy_type < BUILDING_TYPE_MAX && legacy_type != index) {
-            return lang_get_string(group, legacy_type);
+        if (index >= BUILDING_DYNAMIC_TYPE_FIRST) {
+            const char *text_id = building_type_id_bridge_text_from_runtime(type);
+            uint16_t legacy_type = building_type_legacy_migration_enum_for_text_id(text_id);
+            if (legacy_type > BUILDING_NONE && legacy_type < BUILDING_TYPE_MAX && legacy_type != index) {
+                return lang_get_string(group, legacy_type);
+            }
         }
         const char *display_key = building_type_registry_get_button_text_key(type);
         if (!display_key || !*display_key) {
             display_key = building_type_registry_get_name_key(type);
         }
         if (display_key && *display_key) {
-            return dynamic_building_display_name(display_key, group);
+            return index >= BUILDING_DYNAMIC_TYPE_FIRST ?
+                dynamic_building_display_name(display_key, group) :
+                building_type_display_key_text(display_key);
         }
     }
 
@@ -460,16 +480,10 @@ extern "C" const uint8_t *lang_get_string(int group, int index)
                 return translation_for(TR_BUILDING_GLADIATOR_STATUE);
             case BUILDING_HIGHWAY:
                 return translation_for(TR_BUILDING_HIGHWAY);
-            case BUILDING_GOLD_MINE:
-                return translation_for(TR_BUILDING_GOLD_MINE);
             case BUILDING_CITY_MINT:
                 return translation_for(TR_BUILDING_CITY_MINT);
             case BUILDING_DEPOT:
                 return translation_for(TR_BUILDING_DEPOT);
-            case BUILDING_STONE_QUARRY:
-                return translation_for(TR_BUILDING_STONE_QUARRY);
-            case BUILDING_SAND_PIT:
-                return translation_for(TR_BUILDING_SAND_PIT);
             case BUILDING_BRICKWORKS:
                 return translation_for(TR_RESOURCE_BRICKS);
             case BUILDING_CONCRETE_MAKER:

@@ -442,11 +442,6 @@ static void get_mothball_icon_position(const building *b, int *x, int *y)
             *x += 83;
             *y -= 120;
             break;
-        case BUILDING_SAND_PIT:
-        case BUILDING_STONE_QUARRY:
-            *x += 50;
-            *y -= 30;
-            break;
         case BUILDING_FOUNTAIN:
             *x += 20;
             *y -= 15;

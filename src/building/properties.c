@@ -906,38 +906,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 0, .desirability_value = -1, .desirability_step = 1,
             .desirability_step_size = 1, .desirability_range = 2, .laborers = 0}
      },
-     [BUILDING_MARBLE_QUARRY] = {
-        .size = 2,
-        .image_group = 38,
-        .sound_id = SOUND_CITY_QUARRY,
-        .event_data.attr = "marble_quarry",
-        .building_model_data = {.cost = 50, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 10}
-     },
-     [BUILDING_IRON_MINE] = {
-        .size = 2,
-        .image_group = 39,
-        .sound_id = SOUND_CITY_IRON_MINE,
-        .event_data.attr = "iron_mine",
-        .building_model_data = {.cost = 50, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 10}
-     },
-     [BUILDING_TIMBER_YARD] = {
-        .size = 2,
-        .image_group = 65,
-        .sound_id = SOUND_CITY_TIMBER_YARD,
-        .event_data.attr = "timber_yard",
-        .building_model_data = {.cost = 40, .desirability_value = -4, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 10}
-     },
-     [BUILDING_CLAY_PIT] = {
-        .size = 2,
-        .image_group = 40,
-        .sound_id = SOUND_CITY_CLAY_PIT,
-        .event_data.attr = "clay_pit",
-        .building_model_data = {.cost = 40, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
-     },
      [BUILDING_ROADBLOCK] = {
         .size = 1,
         .fire_proof = 1,
@@ -1444,30 +1412,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.attr = "highway",
         .building_model_data = {.cost = 100, .desirability_value = -4, .desirability_step = 1,
             .desirability_step_size = 2, .desirability_range = 2, .laborers = 0}
-     },
-     [BUILDING_GOLD_MINE] = {
-        .size = 2,
-        .custom_asset.group = "Industry",
-        .custom_asset.id = "Gold_Mine_C_OFF",
-        .event_data.attr = "gold_mine",
-        .building_model_data = {.cost = 100, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 30}
-     },
-     [BUILDING_STONE_QUARRY] = {
-        .size = 2,
-        .custom_asset.group = "Industry",
-        .custom_asset.id = "Stone_Quarry_C_OFF",
-        .event_data.attr = "stone_quarry",
-        .building_model_data = {.cost = 60, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 10}
-     },
-     [BUILDING_SAND_PIT] = {
-        .size = 2,
-        .custom_asset.group = "Industry",
-        .custom_asset.id = "Sand_Pit_C_OFF",
-        .event_data.attr = "sand_pit",
-        .building_model_data = {.cost = 40, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 10}
      },
      [BUILDING_CITY_MINT] = {
         .size = 3,

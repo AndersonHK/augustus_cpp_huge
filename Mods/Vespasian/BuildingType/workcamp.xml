@@ -12,6 +12,22 @@
     <button group="engineering" order="20" icon="workcamp" text_key="building.workcamp.name" />
     <sound id="workcamp" />
     <event_data attr="workcamp" />
+    <graphics>
+        <default>
+            <path value="Admin_Logistics\Workcamp_Central" />
+            <image value="Workcamp Central" />
+        </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Admin_Logistics\Workcamp_Central" />
+            <image value="Workcamp North" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Admin_Logistics\Workcamp_Central" />
+            <image value="Workcamp South" />
+        </variant>
+    </graphics>
     <labor>
         <employees count="20" />
         <labor_seeker>

@@ -13,6 +13,7 @@ Current supported nodes:
 - `<kind value="farm|workshop" />`
 - `<output resource="..." />`
 - `<batch_size value="N" />`
+- `<treasury_cost amount="N" />`
 - `<climate_bonuses>` containing `<bonus climate="central|northern|desert" percent="N" />`
 - `<input resource="..." amount="N" />`
 
@@ -21,11 +22,13 @@ Rules:
 - `<kind>` is required
 - `<output>` is required
 - `<batch_size>` is optional and defaults to `1`
+- `<treasury_cost>` is optional and charges the city treasury when a new production cycle starts
 - `<climate_bonuses>` is optional
 - `<input>` is optional and may appear more than once
 - `amount` is authored per one legacy one-load batch
 - input costs scale by `batch_size`
 - `batch_size` changes delivery grouping, not monthly throughput
+- `treasury_cost` currently preserves gold-mine behavior by charging 600 denarii at the start of each gold production cycle
 
 Native timing uses the legacy throughput formula:
 
@@ -47,6 +50,6 @@ Notes:
 Current native vertical slice:
 
 - `farm` drives native farm progress, blessing/curse handling, and crop image refresh
-- `workshop` drives native raw-material checks, consumption, and progress tracking
+- `workshop` drives native raw-material checks, optional treasury costs, consumption, and progress tracking
 - Implemented native farms: wheat, vegetables, fruit, olives, vines, and meat
-- Implemented native workshops: pottery, furniture, oil, wine, weapons, and bricks
+- Implemented native workshops/producers: pottery, furniture, oil, wine, weapons, bricks, clay, timber, iron, marble, gold, stone, and sand

@@ -12,6 +12,12 @@
     <button group="entertainment" order="40" icon="gladiator school" text_key="building.gladiator_school.name" />
     <sound id="gladiator_school" mute_on_enemies="true" />
     <event_data attr="gladiator_school" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Gladiator_School" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="8" />
         <labor_seeker>

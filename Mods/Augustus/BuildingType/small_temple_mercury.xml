@@ -13,6 +13,12 @@
     <sound id="temple_mercury" />
     <event_data attr="small_temple_mercury" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Temple_Mercury" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="2" />
         <labor_seeker>

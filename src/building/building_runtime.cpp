@@ -215,3 +215,12 @@ const RuntimeDrawSlice *building_runtime_get_graphic_animation_slice(building *b
     }
     return nullptr;
 }
+
+int building_runtime_advance_graphic_animation(building *b)
+{
+    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
+        instance->advance_graphic_animation();
+        return instance->owns_graphic_animation();
+    }
+    return 0;
+}

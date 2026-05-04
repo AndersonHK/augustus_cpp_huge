@@ -7,6 +7,7 @@ extern "C" {
 #include "building/local_workforce.h"
 #include "building/monument.h"
 #include "building/properties.h"
+#include "city/finance.h"
 #include "core/calc.h"
 #include "game/time.h"
 #include "scenario/property.h"
@@ -64,6 +65,16 @@ void ProductionMethod::set_batch_size(int batch_size)
 int ProductionMethod::batch_size() const
 {
     return batch_size_;
+}
+
+void ProductionMethod::set_treasury_cost_per_cycle(int cost)
+{
+    treasury_cost_per_cycle_ = cost;
+}
+
+int ProductionMethod::treasury_cost_per_cycle() const
+{
+    return treasury_cost_per_cycle_;
 }
 
 void ProductionMethod::add_input(ProductionResourceAmount input)
@@ -188,6 +199,9 @@ int ProductionMethod::can_start_cycle(const ::building &building) const
         return 0;
     }
     if (building_type_requires_water_access(building) && !building.has_water_access) {
+        return 0;
+    }
+    if (treasury_cost_per_cycle_ > 0 && building.data.industry.progress == 0 && city_finance_out_of_money()) {
         return 0;
     }
     if (!has_required_inputs(building)) {

@@ -2,6 +2,7 @@
 
 extern "C" {
 #include "building/monument.h"
+#include "city/festival.h"
 #include "scenario/property.h"
 }
 
@@ -66,6 +67,8 @@ int GraphicsCondition::matches(const ::building &building) const
             return scenario_property_climate() == climate;
         case GraphicsConditionType::MonumentUpgrade:
             return building.monument.upgrades == monument_upgrade;
+        case GraphicsConditionType::FestivalGames:
+            return city_festival_games_active() == festival_games;
         case GraphicsConditionType::Days1Positive:
             return building.data.entertainment.days1 > 0;
         case GraphicsConditionType::Days1NotPositive:
@@ -218,6 +221,11 @@ void FoundationDefinition::set_policy(std::string policy)
     policy_ = std::move(policy);
 }
 
+void FoundationDefinition::add_required_terrain(int flags)
+{
+    required_terrain_ |= flags;
+}
+
 int FoundationDefinition::has_policy() const
 {
     return !policy_.empty();
@@ -226,6 +234,11 @@ int FoundationDefinition::has_policy() const
 const char *FoundationDefinition::policy() const
 {
     return policy_.c_str();
+}
+
+int FoundationDefinition::required_terrain() const
+{
+    return required_terrain_;
 }
 
 void BuildButtonDefinition::set_group(std::string group)
@@ -739,6 +752,11 @@ void BuildingType::set_foundation_policy(std::string policy)
     foundation_.set_policy(std::move(policy));
 }
 
+void BuildingType::add_foundation_required_terrain(int flags)
+{
+    foundation_.add_required_terrain(flags);
+}
+
 void BuildingType::set_button_group(std::string group)
 {
     button_.set_group(std::move(group));
@@ -1046,7 +1064,12 @@ int BuildingType::has_model() const
 
 int BuildingType::has_foundation() const
 {
-    return foundation_.has_policy();
+    return foundation_.has_policy() || foundation_.required_terrain() != 0;
+}
+
+int BuildingType::foundation_required_terrain() const
+{
+    return foundation_.required_terrain();
 }
 
 int BuildingType::has_button() const

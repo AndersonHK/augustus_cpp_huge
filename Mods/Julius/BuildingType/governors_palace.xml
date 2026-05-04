@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="governors_palace">
     <sound id="palace" mute_on_enemies="true" />
+    <graphics>
+        <default>
+            <path value="Admin_Logistics\Governors_Palace" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
 </building>

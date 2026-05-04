@@ -816,6 +816,43 @@ static int parse_foundation()
     return 1;
 }
 
+static int parse_foundation_terrain()
+{
+    if (!g_parse_state.definition || !g_parse_state.saw_foundation) {
+        log_error("Encountered foundation terrain outside foundation node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("value")) {
+        log_error("BuildingType foundation terrain is missing required attribute 'value'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *value = xml_parser_get_attribute_string("value");
+    int flags = 0;
+    if (compare_text(value, "meadow") == 0) {
+        flags = FoundationTerrainMeadow;
+    } else if (compare_text(value, "rock") == 0) {
+        flags = FoundationTerrainRock;
+    } else if (compare_text(value, "tree") == 0) {
+        flags = FoundationTerrainTree;
+    } else if (compare_text(value, "water") == 0) {
+        flags = FoundationTerrainWater;
+    } else if (compare_text(value, "wall") == 0) {
+        flags = FoundationTerrainWall;
+    } else if (compare_text(value, "distant_water") == 0) {
+        flags = FoundationTerrainDistantWater;
+    } else {
+        log_error("Unsupported BuildingType foundation terrain", value, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->add_foundation_required_terrain(flags);
+    return 1;
+}
+
 static int parse_button()
 {
     if (!g_parse_state.definition) {
@@ -903,6 +940,7 @@ static int parse_sound_city_name(const char *name)
         {"brickworks", SOUND_CITY_BRICKWORKS},
         {"caravanserai", SOUND_CITY_CARAVANSERAI},
         {"chariot_maker", SOUND_CITY_CHARIOT_MAKER},
+        {"clay_pit", SOUND_CITY_CLAY_PIT},
         {"clinic", SOUND_CITY_CLINIC},
         {"colosseum", SOUND_CITY_COLOSSEUM},
         {"concrete_maker", SOUND_CITY_CONCRETE_MAKER},
@@ -912,12 +950,14 @@ static int parse_sound_city_name(const char *name)
         {"fruit_farm", SOUND_CITY_FRUIT_FARM},
         {"furniture_workshop", SOUND_CITY_FURNITURE_WORKSHOP},
         {"gladiator_school", SOUND_CITY_GLADIATOR_SCHOOL},
+        {"iron_mine", SOUND_CITY_IRON_MINE},
         {"hospital", SOUND_CITY_HOSPITAL},
         {"hippodrome", SOUND_CITY_HIPPODROME},
         {"library", SOUND_CITY_LIBRARY},
         {"lighthouse", SOUND_CITY_LIGHTHOUSE},
         {"lion_pit", SOUND_CITY_LION_PIT},
         {"market", SOUND_CITY_MARKET},
+        {"marble_quarry", SOUND_CITY_QUARRY},
         {"native_decoration", SOUND_CITY_NATIVE_DECORATION},
         {"native_hut", SOUND_CITY_NATIVE_HUT},
         {"oil_workshop", SOUND_CITY_OIL_WORKSHOP},
@@ -927,6 +967,7 @@ static int parse_sound_city_name(const char *name)
         {"pig_farm", SOUND_CITY_PIG_FARM},
         {"pottery_workshop", SOUND_CITY_POTTERY_WORKSHOP},
         {"prefecture", SOUND_CITY_PREFECTURE},
+        {"quarry", SOUND_CITY_QUARRY},
         {"reservoir", SOUND_CITY_RESERVOIR},
         {"school", SOUND_CITY_SCHOOL},
         {"senate", SOUND_CITY_SENATE},
@@ -937,6 +978,7 @@ static int parse_sound_city_name(const char *name)
         {"temple_neptune", SOUND_CITY_TEMPLE_NEPTUNE},
         {"temple_venus", SOUND_CITY_TEMPLE_VENUS},
         {"theater", SOUND_CITY_THEATER},
+        {"timber_yard", SOUND_CITY_TIMBER_YARD},
         {"vegetable_farm", SOUND_CITY_VEGETABLE_FARM},
         {"vine_farm", SOUND_CITY_VINE_FARM},
         {"watchtower", SOUND_CITY_WATCHTOWER},
@@ -1605,6 +1647,23 @@ static int parse_graphics_condition()
 
         condition.type = GraphicsConditionType::MonumentUpgrade;
         condition.monument_upgrade = upgrade;
+    } else if (type_text && compare_text(type_text, "festival_games") == 0) {
+        if (!xml_parser_has_attribute("value")) {
+            log_error("BuildingType graphics festival_games condition is missing required attribute 'value'", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        int games = 0;
+        const char *games_text = xml_parser_get_attribute_string("value");
+        if (!games_text || !xml_value::parse_int_strict(games_text, &games) || games < 1 || games > 3) {
+            log_error("Unsupported BuildingType graphics festival_games condition value", games_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        condition.type = GraphicsConditionType::FestivalGames;
+        condition.festival_games = games;
     } else if (type_text && compare_text(type_text, "days1_positive") == 0) {
         condition.type = GraphicsConditionType::Days1Positive;
     } else if (type_text && compare_text(type_text, "days1_not_positive") == 0) {
@@ -2301,6 +2360,7 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "step_size", parse_desirability_step_size, nullptr, "desirability", nullptr },
     { "range", parse_desirability_range, nullptr, "desirability", nullptr },
     { "foundation", parse_foundation, nullptr, "building", nullptr },
+    { "terrain", parse_foundation_terrain, nullptr, "foundation", nullptr },
     { "button", parse_button, nullptr, "building", nullptr },
     { "menu", parse_button, nullptr, "building", nullptr },
     { "sound", parse_sound, nullptr, "building", nullptr },

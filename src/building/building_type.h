@@ -109,6 +109,7 @@ enum class GraphicsConditionType {
     ResourcePositive,
     Climate,
     MonumentUpgrade,
+    FestivalGames,
     Desirability,
     Days1Positive,
     Days1NotPositive,
@@ -119,6 +120,15 @@ enum class GraphicsConditionType {
 enum class ConstructionMode {
     Instant,
     Phased
+};
+
+enum FoundationTerrainRequirement {
+    FoundationTerrainMeadow = 1 << 0,
+    FoundationTerrainRock = 1 << 1,
+    FoundationTerrainTree = 1 << 2,
+    FoundationTerrainWater = 1 << 3,
+    FoundationTerrainWall = 1 << 4,
+    FoundationTerrainDistantWater = 1 << 5
 };
 
 struct LaborSeekerPolicy {
@@ -207,12 +217,15 @@ private:
 class FoundationDefinition {
 public:
     void set_policy(std::string policy);
+    void add_required_terrain(int flags);
 
     int has_policy() const;
     const char *policy() const;
+    int required_terrain() const;
 
 private:
     std::string policy_;
+    int required_terrain_ = 0;
 };
 
 class BuildButtonDefinition {
@@ -317,6 +330,7 @@ struct GraphicsCondition {
     resource_type resource = RESOURCE_NONE;
     int climate = 0;
     int monument_upgrade = 0;
+    int festival_games = 0;
 
     int matches(const ::building &building) const;
 };
@@ -456,6 +470,7 @@ public:
     void set_model_desirability_step_size(int value);
     void set_model_desirability_range(int value);
     void set_foundation_policy(std::string policy);
+    void add_foundation_required_terrain(int flags);
     void set_button_group(std::string group);
     void set_button_order(int order);
     void set_button_icon(std::string icon);
@@ -515,6 +530,7 @@ public:
     int has_identity() const;
     int has_model() const;
     int has_foundation() const;
+    int foundation_required_terrain() const;
     int has_button() const;
     int has_sound() const;
     int has_event_data() const;

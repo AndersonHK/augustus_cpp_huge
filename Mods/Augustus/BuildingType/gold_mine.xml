@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="gold_mine">
+    <identity name_key="building.gold_mine.name" />
+    <model size="2" cost="100" />
+    <desirability>
+        <value value="-6" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="4" />
+    </desirability>
+    <foundation policy="custom">
+        <terrain value="rock" />
+    </foundation>
+    <button group="raw_materials" order="50" icon="Industry\Gold_Mine_C_OFF" text_key="building.gold_mine.name" />
+    <event_data attr="gold_mine" />
+    <graphics>
+        <default>
+            <path value="Industry\Gold_Mine_C_OFF" />
+            <image value="Gold_Mine_C_OFF" />
+        </default>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Industry\Gold_Mine_S_OFF" />
+            <image value="Gold_Mine_S_ON" />
+        </variant>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Industry\Gold_Mine_N_OFF" />
+            <image value="Gold_Mine_N_ON" />
+        </variant>
+        <variant>
+            <path value="Industry\Gold_Mine_C_OFF" />
+            <image value="Gold_Mine_C_ON" />
+        </variant>
+    </graphics>
+    <labor>
+        <employees count="30" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+        </labor_seeker>
+    </labor>
+    <storages>
+        <storage path="gold_output_gold_mine" />
+    </storages>
+    <production_methods>
+        <production_method path="gold_mine_basic" />
+    </production_methods>
+</building>

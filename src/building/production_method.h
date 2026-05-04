@@ -42,6 +42,9 @@ public:
     void set_batch_size(int batch_size);
     int batch_size() const;
 
+    void set_treasury_cost_per_cycle(int cost);
+    int treasury_cost_per_cycle() const;
+
     void add_input(ProductionResourceAmount input);
     const std::vector<ProductionResourceAmount> &inputs() const;
 
@@ -65,6 +68,7 @@ private:
     ProductionMethodKind kind_ = ProductionMethodKind::None;
     resource_type output_resource_ = RESOURCE_NONE;
     int batch_size_ = 1;
+    int treasury_cost_per_cycle_ = 0;
     std::vector<ProductionResourceAmount> inputs_;
     std::vector<ClimateProductionBonus> climate_bonuses_;
 };

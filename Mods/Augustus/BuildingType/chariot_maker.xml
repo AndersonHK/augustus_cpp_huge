@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="chariot_maker">
     <sound id="chariot_maker" mute_on_enemies="true" />
+    <graphics>
+        <default>
+            <path value="Industry\Chariot_Maker" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
 </building>

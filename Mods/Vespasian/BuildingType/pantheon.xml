@@ -13,6 +13,67 @@
     <sound id="oracle" />
     <event_data attr="pantheon" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Monuments\Pantheon_Off" />
+            <image value="Pantheon On" />
+        </default>
+        <variant>
+            <condition type="monument_upgrade" value="1" />
+            <path value="Monuments\Pantheon_Off" />
+            <image value="Pantheon Module" />
+        </variant>
+        <variant>
+            <condition type="monument_upgrade" value="2" />
+            <path value="Monuments\Pantheon_Off" />
+            <image value="Pantheon Module2" />
+        </variant>
+    </graphics>
+    <construction mode="phased" road_update_radius="9">
+        <phase index="1">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Pantheon Const 01" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="20" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Pantheon Const 02" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="8" />
+            <requirement type="stone" amount="20" />
+        </phase>
+        <phase index="3">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Pantheon Const 03" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="16" />
+            <requirement type="concrete" amount="40" />
+        </phase>
+        <phase index="4">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Pantheon Const 04" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="16" />
+            <requirement type="marble" amount="32" />
+            <requirement type="gold" amount="16" />
+        </phase>
+        <phase index="5">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Pantheon Const 05" />
+            </graphics>
+            <requirement type="architects" amount="4" />
+        </phase>
+    </construction>
     <labor>
         <employees count="50" />
         <labor_seeker>
