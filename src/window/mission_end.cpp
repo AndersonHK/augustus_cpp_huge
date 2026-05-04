@@ -324,7 +324,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
             rich_text_handle_mouse(mouse_in_dialog(m));
         }
     } else {
-        generic_buttons_handle_mouse(mouse_in_dialog(m), 0, 0, fired_buttons, 1, &data.focus_button_id);
+        generic_buttons_handle_mouse(*mouse_in_dialog(m), 0, 0, fired_buttons, 1, &data.focus_button_id);
     }
 }
 

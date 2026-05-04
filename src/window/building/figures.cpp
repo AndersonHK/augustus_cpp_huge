@@ -778,14 +778,14 @@ int window_building_handle_mouse_figure_list(const mouse *m, building_info_conte
         buttons = trader_figure_buttons;
     }
 
-    int handled = generic_buttons_handle_mouse(m, c->x_offset, c->y_offset,
+    int handled = generic_buttons_handle_mouse(*m, c->x_offset, c->y_offset,
         buttons, button_count, &data.focus_button_id);
     data.context_for_callback = 0;
 
     if (f && f->type == FIGURE_DEPOT_CART_PUSHER && !is_depot_cartpusher_recalled(f)) {
         depot_figure_buttons[0].parameter1 = f->id;
         unsigned int focus_id = data.depot_focus_button_id;
-        generic_buttons_handle_mouse(m, c->x_offset, c->y_offset, depot_figure_buttons, 1, &data.depot_focus_button_id);
+        generic_buttons_handle_mouse(*m, c->x_offset, c->y_offset, depot_figure_buttons, 1, &data.depot_focus_button_id);
         if (focus_id != data.depot_focus_button_id) {
             window_request_refresh();
         }

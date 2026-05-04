@@ -820,7 +820,7 @@ int window_building_handle_mouse_grand_temple(const mouse *m, building_info_cont
     if (b->monument.phase != MONUMENT_FINISHED || b->monument.upgrades) {
         return 0;
     }
-    if (generic_buttons_handle_mouse(m, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
+    if (generic_buttons_handle_mouse(*m, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
         add_module_button, 1, &data.focus_button_id)) {
         return 1;
     }
@@ -985,7 +985,7 @@ int window_building_handle_mouse_colosseum(const mouse *m, building_info_context
     if (b->monument.phase != MONUMENT_FINISHED) {
         return 0;
     }
-    if (generic_buttons_handle_mouse(m, c->x_offset + 88, c->y_offset + (c->height_blocks > 27 ? 535 : 335),
+    if (generic_buttons_handle_mouse(*m, c->x_offset + 88, c->y_offset + (c->height_blocks > 27 ? 535 : 335),
         hold_games_button, 1, &data.focus_button_id)) {
         return 1;
     }
@@ -1154,7 +1154,7 @@ int window_building_handle_mouse_hippodrome(const mouse *m, building_info_contex
     if (b->monument.phase != MONUMENT_FINISHED) {
         return 0;
     }
-    if (!city_data.games.chosen_horse && generic_buttons_handle_mouse(m, c->x_offset + 88,
+    if (!city_data.games.chosen_horse && generic_buttons_handle_mouse(*m, c->x_offset + 88,
         c->y_offset + (c->height_blocks > 27 ? 603 : 380), race_bet_button, 1, &data.focus_button_id)) {
         return 1;
     }

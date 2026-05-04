@@ -221,7 +221,7 @@ static void draw_rating_widgets(void)
 
 static int handle_mouse(const mouse *m)
 {
-    return generic_buttons_handle_mouse(m, 0, 0, rating_buttons, 4, &focus_button_id);
+    return generic_buttons_handle_mouse(*m, 0, 0, rating_buttons, 4, &focus_button_id);
 }
 
 static void button_rating(const generic_button *button)

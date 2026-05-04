@@ -296,7 +296,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
     if (button_id) {
         data.focus_button_id = 12;
     }
-    handled |= generic_buttons_handle_mouse(m_dialog, BLOCK_SIZE * data.width_blocks - 61,
+    handled |= generic_buttons_handle_mouse(*m_dialog, BLOCK_SIZE * data.width_blocks - 61,
         30 + BLOCK_SIZE * data.height_blocks - 40, generic_button_delete_read, 1, &button_id);
     if (button_id) {
         data.focus_button_id = 14;
@@ -309,18 +309,18 @@ static void handle_input(const mouse *m, const hotkeys *h)
             data.focus_button_id = 15;
         }
     }
-    handled |= generic_buttons_handle_mouse(m_dialog, 43,
+    handled |= generic_buttons_handle_mouse(*m_dialog, 43,
         30 + BLOCK_SIZE * data.height_blocks - 40, generic_button_delete_common, 1, &button_id);
     if (button_id) {
         data.focus_button_id = 16;
     }
-    handled |= generic_buttons_handle_mouse(m_dialog, 0, 0,
+    handled |= generic_buttons_handle_mouse(*m_dialog, 0, 0,
     generic_button_messages_type, 1, &button_id);
     if (button_id) {
         data.focus_button_id = 17;
     }
 
-    handled |= generic_buttons_handle_mouse(m_dialog, data.x_text, data.y_text + 4,
+    handled |= generic_buttons_handle_mouse(*m_dialog, data.x_text, data.y_text + 4,
         generic_buttons_messages, MAX_MESSAGES, &button_id);
     if (!data.focus_button_id) {
         data.focus_button_id = button_id;

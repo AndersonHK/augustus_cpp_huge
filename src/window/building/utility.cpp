@@ -553,7 +553,7 @@ int window_building_handle_rubble_button(const mouse *m, building_info_context *
 int window_building_handle_mouse_roadblock_button(const mouse *m, building_info_context *c)
 {
     return generic_buttons_handle_mouse(
-        m, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
+        *m, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
         go_to_orders_button, 1, &data.focus_button_id);
 }
 
@@ -562,12 +562,12 @@ int window_building_handle_mouse_roadblock_orders(const mouse *m, building_info_
     int y_offset = window_building_get_vertical_offset(c, 28);
 
     data.building_id = c->building_id;
-    if (generic_buttons_handle_mouse(m, c->x_offset + 180, y_offset + 46,
+    if (generic_buttons_handle_mouse(*m, c->x_offset + 180, y_offset + 46,
         orders_permission_buttons, size_of_orders_permission_buttons,
         &data.figure_focus_button_id)) {
         return 1;
     }
 
-    return generic_buttons_handle_mouse(m, c->x_offset + 80, y_offset + 404, roadblock_orders_buttons,
+    return generic_buttons_handle_mouse(*m, c->x_offset + 80, y_offset + 404, roadblock_orders_buttons,
         1, &data.orders_focus_button_id);
 }

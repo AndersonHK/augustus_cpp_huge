@@ -1530,7 +1530,7 @@ static int op_input_select(const config_widget *w, int x, int y, int avail_text_
     generic_button *btn = &select_buttons[w->subtype];
     btn->parameter1 = y + w->y_offset; //  for popup anchor
 
-    return generic_buttons_handle_mouse(m, 0, y + w->y_offset, btn, 1, focused);
+    return generic_buttons_handle_mouse(*m, 0, y + w->y_offset, btn, 1, focused);
 }
 
 //  Numerical - desc
@@ -2121,8 +2121,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
     //  bottom and page buttons
 
-    handled |= generic_buttons_handle_mouse(md, 0, 0, bottom_buttons, data.has_changes ? NUM_BOTTOM_BUTTONS : NUM_BOTTOM_BUTTONS - 1, &data.bottom_focus_button);
-    handled |= generic_buttons_handle_mouse(md, 0, 0, page_buttons, CONFIG_PAGES, &data.page_focus_button);
+    handled |= generic_buttons_handle_mouse(*md, 0, 0, bottom_buttons, data.has_changes ? NUM_BOTTOM_BUTTONS : NUM_BOTTOM_BUTTONS - 1, &data.bottom_focus_button);
+    handled |= generic_buttons_handle_mouse(*md, 0, 0, page_buttons, CONFIG_PAGES, &data.page_focus_button);
 
     if (!handled && (m->right.went_up || h->escape_pressed)) {
         window_go_back();

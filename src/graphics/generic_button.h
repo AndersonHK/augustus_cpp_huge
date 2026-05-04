@@ -38,7 +38,6 @@ using generic_button = GenericButton;
 
 }
 
-extern "C" {
 #else
 typedef struct generic_button generic_button;
 typedef void (*generic_button_click_handler)(const generic_button *button);
@@ -57,9 +56,12 @@ struct generic_button {
 };
 #endif
 
+#ifdef __cplusplus
+extern "C++" {
+int generic_buttons_handle_mouse(const mouse &m, int x, int y, generic_button *buttons, unsigned int num_buttons,
+    unsigned int *focus_button_id);
+}
+#else
 int generic_buttons_handle_mouse(const mouse *m, int x, int y, generic_button *buttons, unsigned int num_buttons,
     unsigned int *focus_button_id);
-
-#ifdef __cplusplus
-}
 #endif

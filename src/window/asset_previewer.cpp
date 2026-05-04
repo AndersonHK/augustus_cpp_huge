@@ -629,8 +629,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
     if (list_box_handle_input(&list_box, m, 0)) {
         return;
     }
-    if (!generic_buttons_handle_mouse(m, data.x_offset_top + 16, 60, buttons, NUM_BUTTONS, &data.focus_button_id)) {
-        generic_buttons_handle_mouse(m, 0, 0, &toggle_animation_button, 1, &data.animation_button_focused);
+    if (!generic_buttons_handle_mouse(*m, data.x_offset_top + 16, 60, buttons, NUM_BUTTONS, &data.focus_button_id)) {
+        generic_buttons_handle_mouse(*m, 0, 0, &toggle_animation_button, 1, &data.animation_button_focused);
     }
 }
 

@@ -25,7 +25,7 @@ This note exists to keep the new XML-driven runtime graphics path legible and pr
 
 ## Source Priority
 
-Current priority order is:
+Runtime priority order is derived from the active mod list, highest-precedence mod first, then lower active mods, then root/base. With the default list this is:
 
 1. Vespasian mod override
 2. Augustus

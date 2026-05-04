@@ -1085,7 +1085,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         building *b = building_get(context.building_id);
         if (building_monument_is_unfinished_monument(b)) {
             handled = generic_buttons_handle_mouse(
-                m, context.x_offset, context.y_offset + BLOCK_SIZE * context.height_blocks - 40,
+                *m, context.x_offset, context.y_offset + BLOCK_SIZE * context.height_blocks - 40,
                 generic_button_monument_construction, 1, &focus_monument_construction_button_id);
         } else {
             if (has_mothball_button()) {

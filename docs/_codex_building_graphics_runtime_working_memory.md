@@ -43,6 +43,11 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - The hard-coded `lang_get_string` aliases for small temples, editor strings, and Augustus-added building labels were removed after the JSON merge learned those aliases. The function still has locale fixes, custom translations, XML identity lookup, and the generic fallback.
 - The source `c3*` language binaries are not present in this workspace, so the new Julius locale JSON files could not be materially generated during this static pass.
 
+## 2026-05-04 graphics mod-list source chain
+- Assetlist loading and ImageGroupPayload source merging now follow the active mod list in precedence order instead of always probing selected mod, Augustus, Julius, and root. A Julius-only mod list therefore no longer imports Augustus graphics XML or materializes Augustus-only payload entries.
+- The legacy `mod_manager_get_augustus_graphics_path()` and `mod_manager_get_julius_graphics_path()` helpers remain for named source resolution and extractors, but runtime graphics discovery starts from `mod_manager_get_graphics_path_at()`/`mod_manager_get_mod_name_at()`.
+- Fountain placement ghosts now try the XML runtime ghost renderer before falling back to the legacy bespoke fountain path. The remaining fallback still handles non-runtime asset sets and the old reservoir-range animation overlay behavior.
+
 ## 2026-05-04 incomplete BuildingType completion pass
 - Completed Julius, Augustus, and Vespasian BuildingType XML metadata for chariot maker, governor residence tiers, Colosseum, Hippodrome, native huts, native meeting huts, and native crops. Native decoration, native monuments, and native watchtowers are Augustus/Vespasian-only XML definitions.
 - Placeable additions now include real legacy name keys and button text keys: chariot maker uses `main_strings.28.37`, Colosseum uses `main_strings.28.33`, Hippodrome uses `main_strings.28.32`, and governor residences use `main_strings.28.77` through `main_strings.28.79`.

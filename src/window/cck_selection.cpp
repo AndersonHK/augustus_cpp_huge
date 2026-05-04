@@ -245,7 +245,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
     data.focus_toggle_button = 0;
     if (image_buttons_handle_mouse(m_dialog, 0, 0, &start_button, 1, 0) ||
         image_buttons_handle_mouse(m_dialog, 0, 0, &back_button, 1, 0) ||
-        generic_buttons_handle_mouse(m_dialog, 0, 0, &toggle_minimap_button, 1, &data.focus_toggle_button) ||
+        generic_buttons_handle_mouse(*m_dialog, 0, 0, &toggle_minimap_button, 1, &data.focus_toggle_button) ||
         list_box_handle_input(&list_box, m_dialog, 1)) {
         return;
     }

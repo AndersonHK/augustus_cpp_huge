@@ -334,7 +334,7 @@ static void draw_foreground(void)
 static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
-    if (generic_buttons_handle_mouse(m_dialog, 0, 0, static_buttons, NUM_STATIC_BUTTONS, &data.static_buttons_focus_id)) {
+    if (generic_buttons_handle_mouse(*m_dialog, 0, 0, static_buttons, NUM_STATIC_BUTTONS, &data.static_buttons_focus_id)) {
         return;
     }
     grid_box_handle_input(&model_buttons, m_dialog, 1);
@@ -344,7 +344,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         x = model_buttons.focused_item.x;
         y = model_buttons.focused_item.y;
     }
-    if (generic_buttons_handle_mouse(m_dialog, x, y, data_buttons, NUM_DATA_BUTTONS, &data.data_buttons_focus_id)) {
+    if (generic_buttons_handle_mouse(*m_dialog, x, y, data_buttons, NUM_DATA_BUTTONS, &data.data_buttons_focus_id)) {
         return;
     }
 

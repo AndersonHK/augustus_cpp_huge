@@ -53,7 +53,7 @@ static uint8_t tooltip_text[TOOLTIP_TEXT_LENGTH];
 
 class BuildMenuButton {
 public:
-    void bind(build_menu_group submenu, int item_index, unsigned int display_index, generic_button *widget);
+    void bind(build_menu_group submenu, int item_index, unsigned int display_index, generic_button &button_widget);
     void clear();
     int is_bound() const;
     building_type type() const;
@@ -74,7 +74,6 @@ private:
     int menu_item_index = -1;
     unsigned int display_index = 0;
     building_type building = BUILDING_NONE;
-    generic_button *widget = 0;
 };
 
 static void button_menu_button_clicked(const generic_button *button);
@@ -111,19 +110,18 @@ static struct {
 } data = { SUBMENU_NONE };
 
 void BuildMenuButton::bind(build_menu_group button_submenu, int item_index, unsigned int button_display_index,
-    generic_button *button_widget)
+    generic_button &button_widget)
 {
     submenu = button_submenu;
     menu_item_index = item_index;
     display_index = button_display_index;
     building = building_menu_type(submenu, menu_item_index);
-    widget = button_widget;
 
-    widget->reset();
-    widget->set_bounds(0, static_cast<short>(MENU_ITEM_HEIGHT * display_index), 290, 20);
-    widget->set_handlers(button_menu_button_clicked, 0);
-    widget->set_context(this);
-    widget->debug_name = "city-build-menu-button";
+    button_widget.reset();
+    button_widget.set_bounds(0, static_cast<short>(MENU_ITEM_HEIGHT * display_index), 290, 20);
+    button_widget.set_handlers(button_menu_button_clicked, 0);
+    button_widget.set_context(this);
+    button_widget.debug_name = "city-build-menu-button";
 }
 
 void BuildMenuButton::clear()
@@ -132,15 +130,11 @@ void BuildMenuButton::clear()
     menu_item_index = -1;
     display_index = 0;
     building = BUILDING_NONE;
-    if (widget) {
-        widget->reset();
-    }
-    widget = 0;
 }
 
 int BuildMenuButton::is_bound() const
 {
-    return widget != 0 && menu_item_index >= 0;
+    return menu_item_index >= 0;
 }
 
 building_type BuildMenuButton::type() const
@@ -167,7 +161,7 @@ static void rebuild_visible_menu_buttons(void)
     for (std::size_t i = 0; i < build_menu_buttons.size(); i++) {
         item_index = building_menu_next_index(data.selected_submenu, item_index);
         build_menu_buttons[i].bind(data.selected_submenu, item_index, static_cast<unsigned int>(i),
-            &build_menu_button_widgets[i]);
+            build_menu_button_widgets[i]);
     }
 }
 
@@ -376,7 +370,7 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
     if (!is_bound()) {
         return;
     }
-    int item_y = data.y_offset + MENU_Y_OFFSET + widget->y;
+    int item_y = data.y_offset + MENU_Y_OFFSET + static_cast<int>(MENU_ITEM_HEIGHT * display_index);
     int menu_index = shortcut_index();
 
     label_draw(item_x_align, item_y, 18, focused ? 1 : 2);
@@ -472,7 +466,7 @@ static int handle_build_submenu(const mouse *m)
 {
     data.handling_button_mouse = 1;
     int handled = generic_buttons_handle_mouse(
-        m, get_sidebar_x_offset() - MENU_X_OFFSET, data.y_offset + MENU_Y_OFFSET,
+        *m, get_sidebar_x_offset() - MENU_X_OFFSET, data.y_offset + MENU_Y_OFFSET,
         build_menu_button_widgets.data(), static_cast<unsigned int>(build_menu_button_widgets.size()),
         &data.focus_button_id);
     data.handling_button_mouse = 0;

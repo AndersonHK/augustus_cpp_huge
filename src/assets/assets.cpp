@@ -33,6 +33,75 @@ static void set_failure_reason(const char *reason, const char *detail)
     }
 }
 
+static int ascii_equals_ignore_case(const char *left, const char *right)
+{
+    if (!left || !right) {
+        return 0;
+    }
+    while (*left && *right) {
+        char l = *left++;
+        char r = *right++;
+        if (l >= 'A' && l <= 'Z') {
+            l = static_cast<char>(l - 'A' + 'a');
+        }
+        if (r >= 'A' && r <= 'Z') {
+            r = static_cast<char>(r - 'A' + 'a');
+        }
+        if (l != r) {
+            return 0;
+        }
+    }
+    return *left == *right;
+}
+
+static int source_already_listed(const xml_asset_source *sources, int count, xml_asset_source source)
+{
+    for (int i = 0; i < count; i++) {
+        if (sources[i] == source) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static xml_asset_source source_for_mod_index(int index, int top_index)
+{
+    if (index == top_index) {
+        return XML_ASSET_SOURCE_MOD;
+    }
+    const char *name = mod_manager_get_mod_name_at(index);
+    if (ascii_equals_ignore_case(name, "Augustus")) {
+        return XML_ASSET_SOURCE_AUGUSTUS;
+    }
+    if (ascii_equals_ignore_case(name, "Julius")) {
+        return XML_ASSET_SOURCE_JULIUS;
+    }
+    return XML_ASSET_SOURCE_AUTO;
+}
+
+static int collect_graphics_sources(const char **paths, xml_asset_source *sources, int max_sources)
+{
+    int count = 0;
+    const int mod_count = mod_manager_get_mod_count();
+    const int top_index = mod_count - 1;
+    for (int i = top_index; i >= 0 && count < max_sources; i--) {
+        const xml_asset_source source = source_for_mod_index(i, top_index);
+        const char *path = mod_manager_get_graphics_path_at(i);
+        if (source == XML_ASSET_SOURCE_AUTO || !path || !*path || source_already_listed(sources, count, source)) {
+            continue;
+        }
+        paths[count] = path;
+        sources[count] = source;
+        count++;
+    }
+    if (count < max_sources) {
+        paths[count] = ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH;
+        sources[count] = XML_ASSET_SOURCE_ROOT;
+        count++;
+    }
+    return count;
+}
+
 static int load_assetlists_from_source(const char *path, xml_asset_source source)
 {
     const dir_listing *xml_files = dir_find_files_with_extension(path, "xml");
@@ -58,14 +127,17 @@ int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
 
     graphics_renderer()->free_image_atlas(ATLAS_EXTRA_ASSET);
 
-    const dir_listing *root_xml_files = dir_find_files_with_extension(ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH, "xml");
-    int total_xml_files = root_xml_files->num_files;
-    const dir_listing *mod_xml_files = dir_find_files_with_extension(mod_manager_get_graphics_path(), "xml");
-    total_xml_files += mod_xml_files->num_files;
-    const dir_listing *augustus_xml_files = dir_find_files_with_extension(mod_manager_get_augustus_graphics_path(), "xml");
-    total_xml_files += augustus_xml_files->num_files;
-    const dir_listing *julius_xml_files = dir_find_files_with_extension(mod_manager_get_julius_graphics_path(), "xml");
-    total_xml_files += julius_xml_files->num_files;
+    const char *graphics_paths[8] = {};
+    xml_asset_source graphics_sources[8] = {};
+    const int graphics_source_count = collect_graphics_sources(
+        graphics_paths,
+        graphics_sources,
+        static_cast<int>(sizeof(graphics_sources) / sizeof(graphics_sources[0])));
+    int total_xml_files = 0;
+    for (int i = 0; i < graphics_source_count; i++) {
+        const dir_listing *xml_files = dir_find_files_with_extension(graphics_paths[i], "xml");
+        total_xml_files += xml_files->num_files;
+    }
 
     if (!group_create_all(total_xml_files) || !asset_image_init_array()) {
         log_error("Not enough memory to initialize extra assets. The game will probably crash.", 0, 0);
@@ -75,17 +147,10 @@ int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
 
     xml_init();
 
-    if (!load_assetlists_from_source(mod_manager_get_graphics_path(), XML_ASSET_SOURCE_MOD)) {
-        return 0;
-    }
-    if (!load_assetlists_from_source(mod_manager_get_augustus_graphics_path(), XML_ASSET_SOURCE_AUGUSTUS)) {
-        return 0;
-    }
-    if (!load_assetlists_from_source(mod_manager_get_julius_graphics_path(), XML_ASSET_SOURCE_JULIUS)) {
-        return 0;
-    }
-    if (!load_assetlists_from_source(ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH, XML_ASSET_SOURCE_ROOT)) {
-        return 0;
+    for (int i = 0; i < graphics_source_count; i++) {
+        if (!load_assetlists_from_source(graphics_paths[i], graphics_sources[i])) {
+            return 0;
+        }
     }
 
     xml_finish();

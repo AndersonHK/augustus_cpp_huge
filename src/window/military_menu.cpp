@@ -74,7 +74,7 @@ static int click_outside_menu(const mouse *m, int x_offset)
 static void handle_input(const mouse *m, const hotkeys *h)
 {
     int x_offset = get_sidebar_x_offset();
-    if (generic_buttons_handle_mouse(m, x_offset - MENU_X_OFFSET, MENU_Y_OFFSET,
+    if (generic_buttons_handle_mouse(*m, x_offset - MENU_X_OFFSET, MENU_Y_OFFSET,
         menu_buttons, data.active_buttons, &data.focus_button_id)) {
         return;
     }

@@ -932,10 +932,15 @@ static void draw_fountain(const map_tile *tile, int x, int y)
     } else {
         color_mask = COLOR_MASK_BUILDING_GHOST;
     }
-    int image_id = building_image_get_for_type(BUILDING_FOUNTAIN);
     if (config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
         city_water_ghost_draw_preview(BUILDING_FOUNTAIN, tile->grid_offset, 0);
     }
+    if (draw_runtime_regular_building(BUILDING_FOUNTAIN, tile->grid_offset, x, y, 1, color_mask)) {
+        draw_building_tiles(x, y, 1, &blocked);
+        return;
+    }
+
+    int image_id = building_image_get_for_type(BUILDING_FOUNTAIN);
     draw_building(image_id, x, y, color_mask);
     if (map_terrain_is(tile->grid_offset, TERRAIN_RESERVOIR_RANGE)) {
         const image *img = image_get(image_id);

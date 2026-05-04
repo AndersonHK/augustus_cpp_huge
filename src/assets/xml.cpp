@@ -70,6 +70,87 @@ static int append_julius_graphics_path(char *full_path, const char *relative_pat
     return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager_get_julius_graphics_path(), relative_path) < FILE_NAME_MAX;
 }
 
+static int append_graphics_path_for_source(char *full_path, const char *relative_path, xml_asset_source source)
+{
+    switch (source) {
+        case XML_ASSET_SOURCE_MOD:
+            return append_mod_graphics_path(full_path, relative_path);
+        case XML_ASSET_SOURCE_AUGUSTUS:
+            return append_augustus_graphics_path(full_path, relative_path);
+        case XML_ASSET_SOURCE_JULIUS:
+            return append_julius_graphics_path(full_path, relative_path);
+        case XML_ASSET_SOURCE_ROOT:
+            return append_root_graphics_path(full_path, relative_path);
+        case XML_ASSET_SOURCE_AUTO:
+        default:
+            return append_mod_graphics_path(full_path, relative_path);
+    }
+}
+
+static int ascii_equals_ignore_case(const char *left, const char *right)
+{
+    if (!left || !right) {
+        return 0;
+    }
+    while (*left && *right) {
+        char l = *left++;
+        char r = *right++;
+        if (l >= 'A' && l <= 'Z') {
+            l = static_cast<char>(l - 'A' + 'a');
+        }
+        if (r >= 'A' && r <= 'Z') {
+            r = static_cast<char>(r - 'A' + 'a');
+        }
+        if (l != r) {
+            return 0;
+        }
+    }
+    return *left == *right;
+}
+
+static int source_already_listed(const xml_asset_source *sources, int count, xml_asset_source source)
+{
+    for (int i = 0; i < count; i++) {
+        if (sources[i] == source) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static xml_asset_source source_for_mod_index(int index, int top_index)
+{
+    if (index == top_index) {
+        return XML_ASSET_SOURCE_MOD;
+    }
+    const char *name = mod_manager_get_mod_name_at(index);
+    if (ascii_equals_ignore_case(name, "Augustus")) {
+        return XML_ASSET_SOURCE_AUGUSTUS;
+    }
+    if (ascii_equals_ignore_case(name, "Julius")) {
+        return XML_ASSET_SOURCE_JULIUS;
+    }
+    return XML_ASSET_SOURCE_AUTO;
+}
+
+static int collect_graphics_source_priority(xml_asset_source *sources, int max_sources)
+{
+    int count = 0;
+    const int mod_count = mod_manager_get_mod_count();
+    const int top_index = mod_count - 1;
+    for (int i = top_index; i >= 0 && count < max_sources; i--) {
+        const xml_asset_source source = source_for_mod_index(i, top_index);
+        if (source == XML_ASSET_SOURCE_AUTO || source_already_listed(sources, count, source)) {
+            continue;
+        }
+        sources[count++] = source;
+    }
+    if (count < max_sources) {
+        sources[count++] = XML_ASSET_SOURCE_ROOT;
+    }
+    return count;
+}
+
 static int try_resolved_path(char *full_path, const char *candidate, xml_asset_source candidate_source, xml_asset_source *resolved_source)
 {
     if (candidate && *candidate && file_exists(candidate, NOT_LOCALIZED)) {
@@ -92,42 +173,40 @@ static int resolve_graphics_path(
         return 0;
     }
 
-    char mod_path[FILE_NAME_MAX] = { 0 };
-    char augustus_path[FILE_NAME_MAX] = { 0 };
-    char julius_path[FILE_NAME_MAX] = { 0 };
-    char root_path[FILE_NAME_MAX] = { 0 };
-    append_mod_graphics_path(mod_path, relative_path);
-    append_augustus_graphics_path(augustus_path, relative_path);
-    append_julius_graphics_path(julius_path, relative_path);
-    append_root_graphics_path(root_path, relative_path);
+    xml_asset_source priority[8] = {};
+    const int priority_count = collect_graphics_source_priority(
+        priority,
+        static_cast<int>(sizeof(priority) / sizeof(priority[0])));
+    int start_index = 0;
 
-    switch (source) {
-        case XML_ASSET_SOURCE_MOD:
-            return try_resolved_path(full_path, mod_path, XML_ASSET_SOURCE_MOD, resolved_source)
-                || try_resolved_path(full_path, augustus_path, XML_ASSET_SOURCE_AUGUSTUS, resolved_source)
-                || try_resolved_path(full_path, julius_path, XML_ASSET_SOURCE_JULIUS, resolved_source)
-                || try_resolved_path(full_path, root_path, XML_ASSET_SOURCE_ROOT, resolved_source)
-                || append_mod_graphics_path(full_path, relative_path);
-        case XML_ASSET_SOURCE_AUGUSTUS:
-            return try_resolved_path(full_path, augustus_path, XML_ASSET_SOURCE_AUGUSTUS, resolved_source)
-                || try_resolved_path(full_path, julius_path, XML_ASSET_SOURCE_JULIUS, resolved_source)
-                || try_resolved_path(full_path, root_path, XML_ASSET_SOURCE_ROOT, resolved_source)
-                || append_augustus_graphics_path(full_path, relative_path);
-        case XML_ASSET_SOURCE_JULIUS:
-            return try_resolved_path(full_path, julius_path, XML_ASSET_SOURCE_JULIUS, resolved_source)
-                || try_resolved_path(full_path, root_path, XML_ASSET_SOURCE_ROOT, resolved_source)
-                || append_julius_graphics_path(full_path, relative_path);
-        case XML_ASSET_SOURCE_ROOT:
-            return try_resolved_path(full_path, root_path, XML_ASSET_SOURCE_ROOT, resolved_source)
-                || append_root_graphics_path(full_path, relative_path);
-        case XML_ASSET_SOURCE_AUTO:
-        default:
-            return try_resolved_path(full_path, mod_path, XML_ASSET_SOURCE_MOD, resolved_source)
-                || try_resolved_path(full_path, augustus_path, XML_ASSET_SOURCE_AUGUSTUS, resolved_source)
-                || try_resolved_path(full_path, julius_path, XML_ASSET_SOURCE_JULIUS, resolved_source)
-                || try_resolved_path(full_path, root_path, XML_ASSET_SOURCE_ROOT, resolved_source)
-                || append_mod_graphics_path(full_path, relative_path);
+    if (source != XML_ASSET_SOURCE_AUTO) {
+        start_index = -1;
+        for (int i = 0; i < priority_count; i++) {
+            if (priority[i] == source) {
+                start_index = i;
+                break;
+            }
+        }
+        if (start_index < 0) {
+            char candidate[FILE_NAME_MAX] = { 0 };
+            append_graphics_path_for_source(candidate, relative_path, source);
+            return try_resolved_path(full_path, candidate, source, resolved_source) ||
+                append_graphics_path_for_source(full_path, relative_path, source);
+        }
     }
+
+    for (int i = start_index; i < priority_count; i++) {
+        char candidate[FILE_NAME_MAX] = { 0 };
+        append_graphics_path_for_source(candidate, relative_path, priority[i]);
+        if (try_resolved_path(full_path, candidate, priority[i], resolved_source)) {
+            return 1;
+        }
+    }
+
+    return append_graphics_path_for_source(
+        full_path,
+        relative_path,
+        source == XML_ASSET_SOURCE_AUTO ? XML_ASSET_SOURCE_MOD : source);
 }
 
 static void set_asset_image_base_path(const char *name)
@@ -415,24 +494,22 @@ int xml_collect_assetlist_sources(const char *assetlist_key, xml_asset_source *s
         return 0;
     }
 
-    static const xml_asset_source kPriorityOrder[] = {
-        XML_ASSET_SOURCE_MOD,
-        XML_ASSET_SOURCE_AUGUSTUS,
-        XML_ASSET_SOURCE_JULIUS,
-        XML_ASSET_SOURCE_ROOT
-    };
+    xml_asset_source priority[8] = {};
+    const int priority_count = collect_graphics_source_priority(
+        priority,
+        static_cast<int>(sizeof(priority) / sizeof(priority[0])));
 
     int count = 0;
-    for (int i = 0; i < static_cast<int>(sizeof(kPriorityOrder) / sizeof(kPriorityOrder[0])); i++) {
+    for (int i = 0; i < priority_count; i++) {
         if (count >= max_sources) {
             break;
         }
 
         char full_path[FILE_NAME_MAX] = { 0 };
         xml_asset_source resolved_source = XML_ASSET_SOURCE_AUTO;
-        if (xml_resolve_assetlist_path(full_path, assetlist_key, kPriorityOrder[i], &resolved_source) &&
-            resolved_source == kPriorityOrder[i]) {
-            sources[count++] = kPriorityOrder[i];
+        if (xml_resolve_assetlist_path(full_path, assetlist_key, priority[i], &resolved_source) &&
+            resolved_source == priority[i]) {
+            sources[count++] = priority[i];
         }
     }
     return count;
