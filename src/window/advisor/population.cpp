@@ -564,7 +564,7 @@ static void draw_graph_button_widgets(void)
 
 static int handle_mouse(const mouse *m)
 {
-    return generic_buttons_handle_mouse(*m, 0, 0, graph_buttons, 2, &focus_button_id);
+    return GenericButton::handle_mouse(*m, 0, 0, graph_buttons, 2, &focus_button_id);
 }
 
 static void button_graph(const generic_button *button)

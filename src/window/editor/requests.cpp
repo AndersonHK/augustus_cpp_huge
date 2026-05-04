@@ -210,7 +210,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         return;
     }
     if (!data.on_select &&
-        generic_buttons_handle_mouse(*m_dialog, 0, 0, &new_request_button, 1, &data.new_request_button_focused)) {
+        GenericButton::handle_mouse(*m_dialog, 0, 0, &new_request_button, 1, &data.new_request_button_focused)) {
         return;
     }
     if (input_go_back_requested(m, h)) {

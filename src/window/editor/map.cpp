@@ -16,12 +16,13 @@ extern "C" {
 #include "graphics/window.h"
 #include "scenario/event/controller.h"
 #include "widget/map_editor.h"
-#include "widget/top_menu_editor.h"
 #include "widget/sidebar/editor.h"
 #include "window/file_dialog.h"
 #include "window/popup_dialog.h"
 #include "window/editor/attributes.h"
 }
+
+#include "widget/top_menu_editor.h"
 
 static void init(void)
 {

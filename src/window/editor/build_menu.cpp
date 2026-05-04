@@ -124,7 +124,7 @@ static int click_outside_menu(const mouse *m, int x_offset)
 
 static int handle_build_submenu(const mouse *m)
 {
-    return generic_buttons_handle_mouse(
+    return GenericButton::handle_mouse(
         *m, get_sidebar_x_offset() - MENU_X_OFFSET, data.y_offset + MENU_Y_OFFSET,
                build_menu_buttons, data.num_items, &data.focus_button_id);
 }

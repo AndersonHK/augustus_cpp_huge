@@ -262,11 +262,11 @@ static int handle_mouse(const mouse *m)
     if (buttons > MAX_BUTTONS) {
         buttons = MAX_BUTTONS;
     }
-    int result = generic_buttons_handle_mouse(*m, 0, 0, fort_buttons, buttons, &focus_button_id);
+    int result = GenericButton::handle_mouse(*m, 0, 0, fort_buttons, buttons, &focus_button_id);
     if (result == 0) {
         int num_legions_not_at_fort = get_num_legions_not_at_fort();
         if (num_legions_not_at_fort > 0) {
-            result = generic_buttons_handle_mouse(*m, 0, 0, additional_buttons, 1, &focus_additional_button_id);
+            result = GenericButton::handle_mouse(*m, 0, 0, additional_buttons, 1, &focus_additional_button_id);
         }
     }
     return result;

@@ -226,7 +226,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         data.focus_button_id = 0;
         return;
     }
-    generic_buttons_handle_mouse(*m_dialog, 0, 0, buttons, data.visible_options + 2, &data.focus_button_id);
+    GenericButton::handle_mouse(*m_dialog, 0, 0, buttons, data.visible_options + 2, &data.focus_button_id);
 }
 
 static void on_scroll(void)

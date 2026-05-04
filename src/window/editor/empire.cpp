@@ -1068,14 +1068,14 @@ static void handle_input(const mouse *m, const hotkeys *h)
         arrow_buttons_handle_mouse(m, data.panel.x_min + 20, data.y_max - 100, arrow_buttons_empire, 2, 0)) {
         return;
     }
-    if (generic_buttons_handle_mouse(*m, data.panel.x_min + x_offset, data.y_max - 100, generic_buttons,
+    if (GenericButton::handle_mouse(*m, data.panel.x_min + x_offset, data.y_max - 100, generic_buttons,
         scenario.empire.id == SCENARIO_CUSTOM_EMPIRE ? 8 : 1, &data.focus_button_id)) {
         if (!generic_buttons[data.focus_button_id - 1].parameter1) {
             return;
         }
     }
     if (order_buttons[0].parameter2) {
-        if (generic_buttons_handle_mouse(*m, data.panel.x_min, data.y_max - 160, set_order_button, 1, NULL)) {
+        if (GenericButton::handle_mouse(*m, data.panel.x_min, data.y_max - 160, set_order_button, 1, NULL)) {
             return;
         }
     }
@@ -1087,19 +1087,19 @@ static void handle_input(const mouse *m, const hotkeys *h)
         }
     }
     if (scenario.empire.id == SCENARIO_CUSTOM_EMPIRE && 
-        generic_buttons_handle_mouse(*m, data.panel.x_max - 500, data.y_max - 133, top_buttons, 3, &data.focus_top_button_id)) {
+        GenericButton::handle_mouse(*m, data.panel.x_max - 500, data.y_max - 133, top_buttons, 3, &data.focus_top_button_id)) {
         if (!top_buttons[data.focus_top_button_id - 1].parameter1) {
             return;
         }
     }
     if (scenario.empire.id == SCENARIO_CUSTOM_EMPIRE && 
-        generic_buttons_handle_mouse(*m, data.panel.x_max - 500, data.y_max - 93, trade_city_buttons, 3, &data.focus_city_button_id)) {
+        GenericButton::handle_mouse(*m, data.panel.x_max - 500, data.y_max - 93, trade_city_buttons, 3, &data.focus_city_button_id)) {
         if (!trade_city_buttons[data.focus_city_button_id - 1].parameter1) {
             return;
         }
     }
     if (scenario.empire.id == SCENARIO_CUSTOM_EMPIRE &&
-        generic_buttons_handle_mouse(*m, data.panel.x_max - 92, data.y_max - 100,
+        GenericButton::handle_mouse(*m, data.panel.x_max - 92, data.y_max - 100,
             preview_button, 1, &data.preview_button_focused)) {
         return;
     }

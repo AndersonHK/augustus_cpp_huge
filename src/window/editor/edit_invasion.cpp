@@ -314,9 +314,9 @@ static void draw_foreground(void)
 static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
-    if (generic_buttons_handle_mouse(*m_dialog, data.section_title_width + SECTION_CONTENT_LEFT_OFFSET,
+    if (GenericButton::handle_mouse(*m_dialog, data.section_title_width + SECTION_CONTENT_LEFT_OFFSET,
         BASE_Y_OFFSET, edit_buttons, NUMBER_OF_EDIT_BUTTONS, &data.focus_button_id) ||
-        generic_buttons_handle_mouse(*m_dialog, 0, BASE_Y_OFFSET, bottom_buttons, NUMBER_OF_BOTTOM_BUTTONS,
+        GenericButton::handle_mouse(*m_dialog, 0, BASE_Y_OFFSET, bottom_buttons, NUMBER_OF_BOTTOM_BUTTONS,
             &data.bottom_button_focus_id)) {
         return;
     }

@@ -1084,7 +1084,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
             m, 0, 0, image_buttons_help_advisor_close, context.advisor_button ? 3 : 2, &focus_image_button_id);
         building *b = building_get(context.building_id);
         if (building_monument_is_unfinished_monument(b)) {
-            handled = generic_buttons_handle_mouse(
+            handled = GenericButton::handle_mouse(
                 *m, context.x_offset, context.y_offset + BLOCK_SIZE * context.height_blocks - 40,
                 generic_button_monument_construction, 1, &focus_monument_construction_button_id);
         } else {

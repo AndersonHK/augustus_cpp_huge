@@ -151,7 +151,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         window_go_back();
         return;
     }
-    if (generic_buttons_handle_mouse(*m_dialog, 0, 0, &path_button, 1, &data.button_in_focus) ||
+    if (GenericButton::handle_mouse(*m_dialog, 0, 0, &path_button, 1, &data.button_in_focus) ||
         image_buttons_handle_mouse(m_dialog, 0, 0, ok_cancel_buttons, 2, 0)) {
         return;
     }

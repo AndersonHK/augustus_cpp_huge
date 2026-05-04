@@ -427,7 +427,7 @@
     <ClCompile Include="src\widget\sidebar\military.cpp" />
     <ClCompile Include="src\widget\sidebar\slide.c" />
     <ClCompile Include="src\widget\top_menu.cpp" />
-    <ClCompile Include="src\widget\top_menu_editor.c" />
+    <ClCompile Include="src\widget\top_menu_editor.cpp" />
     <ClCompile Include="src\window\advisors.cpp" />
     <ClCompile Include="src\window\advisor\chief.c" />
     <ClCompile Include="src\window\advisor\education.c" />

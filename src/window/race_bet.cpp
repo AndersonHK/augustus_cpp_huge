@@ -152,9 +152,9 @@ static void handle_input(const mouse *m, const hotkeys *h)
         window_go_back();
     }
 
-    if (generic_buttons_handle_mouse(*m_dialog, 0, 0, buttons, 4, &data.focus_button_id) ||
+    if (GenericButton::handle_mouse(*m_dialog, 0, 0, buttons, 4, &data.focus_button_id) ||
         arrow_buttons_handle_mouse(m_dialog, 0, 0, amount_buttons, 2, &data.focus_button_id2) ||
-        generic_buttons_handle_mouse(*m_dialog, 0, 0, bet_buttons, 1, &data.focus_button_id3)) {
+        GenericButton::handle_mouse(*m_dialog, 0, 0, bet_buttons, 1, &data.focus_button_id3)) {
         return;
     }
 }

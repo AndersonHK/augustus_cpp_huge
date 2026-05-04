@@ -221,7 +221,7 @@ static void close_window(void)
 static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
-    if (generic_buttons_handle_mouse(*m_dialog, 0, 0, buttons, MAX_BUTTONS, &data.focus_button_id)) {
+    if (GenericButton::handle_mouse(*m_dialog, 0, 0, buttons, MAX_BUTTONS, &data.focus_button_id)) {
         return;
     }
     if (input_go_back_requested(m, h)) {

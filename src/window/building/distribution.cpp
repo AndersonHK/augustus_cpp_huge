@@ -612,9 +612,9 @@ int window_building_handle_mouse_dock(const mouse *m, building_info_context *c)
     data.permission_focus_button_id = 0;
     data.focus_button_id = 0;
     return scrollbar_handle_mouse(&scrollbar, m, 1) ||
-        generic_buttons_handle_mouse(*m, c->x_offset + 16, c->y_offset + 240 + 5, dock_distribution_permissions_buttons,
+        GenericButton::handle_mouse(*m, c->x_offset + 16, c->y_offset + 240 + 5, dock_distribution_permissions_buttons,
             dock_distribution_permissions_buttons_count, &data.permission_focus_button_id) ||
-        generic_buttons_handle_mouse(*m, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
+        GenericButton::handle_mouse(*m, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
             go_to_orders_button, 1, &data.focus_button_id);
 }
 
@@ -855,7 +855,7 @@ void window_building_draw_distributor_orders_foreground(building_info_context *c
 
 int window_building_handle_mouse_distributor(const mouse *m, building_info_context *c)
 {
-    return generic_buttons_handle_mouse(
+    return GenericButton::handle_mouse(
         *m, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
         go_to_orders_button, 1, &data.focus_button_id);
 }
@@ -870,9 +870,9 @@ int window_building_handle_mouse_distributor_orders(const mouse *m, building_inf
         data.stored_resources.size : scrollbar.elements_in_view;
 
     return scrollbar_handle_mouse(&scrollbar, m, 1) ||
-        generic_buttons_handle_mouse(*m, c->x_offset + 180, y_offset + 46,
+        GenericButton::handle_mouse(*m, c->x_offset + 180, y_offset + 46,
             orders_resource_buttons, buttons_to_show, &data.resource_focus_button_id) ||
-        generic_buttons_handle_mouse(*m, c->x_offset + 80, y_offset + 404, market_order_buttons, 1,
+        GenericButton::handle_mouse(*m, c->x_offset + 80, y_offset + 404, market_order_buttons, 1,
             &data.orders_focus_button_id);
 }
 
@@ -889,7 +889,7 @@ void window_building_get_tooltip_distribution_orders(int *group_id, int *text_id
 int window_building_handle_mouse_primary_product_producer(const mouse *m, building_info_context *c)
 {
     data.building_id = c->building_id;
-    return generic_buttons_handle_mouse(*m, c->x_offset + BLOCK_SIZE * c->width_blocks - 40, c->y_offset + 10,
+    return GenericButton::handle_mouse(*m, c->x_offset + BLOCK_SIZE * c->width_blocks - 40, c->y_offset + 10,
             primary_product_producer_button_stockpiling, 1, &data.primary_product_stockpiling_id);
 }
 
@@ -1378,7 +1378,7 @@ int window_building_handle_mouse_storage(const mouse *m, building_info_context *
     data.building_id = c->building_id;
 
     int result = 0;
-    result += generic_buttons_handle_mouse(*m, 0, 0, permission_buttons, active_permissions_count,
+    result += GenericButton::handle_mouse(*m, 0, 0, permission_buttons, active_permissions_count,
         &data.permission_focus_button_id);
     result += image_buttons_handle_mouse(m, c->x_offset, c->y_offset,
         storage_image_buttons, 5, &data.image_button_focus_id);
@@ -1387,7 +1387,7 @@ int window_building_handle_mouse_storage(const mouse *m, building_info_context *
         storage_image_buttons[index].focused = 1;
     }
 
-    result += generic_buttons_handle_mouse(*m, 0, 0, go_to_storage_orders_button, 1, &data.focus_button_id);
+    result += GenericButton::handle_mouse(*m, 0, 0, go_to_storage_orders_button, 1, &data.focus_button_id);
     return result > 0 ? 1 : 0;
 }
 
@@ -1443,13 +1443,13 @@ int window_building_handle_mouse_storage_orders(const mouse *m, building_info_co
     int x_offset = scrollbar.max_scroll_position > 0 ? 142 : 172;
     int result = 0;
     result += (scrollbar_handle_mouse(&scrollbar, m, 1));
-    result += generic_buttons_handle_mouse(*m, c->x_offset + x_offset, y_offset + 46,
+    result += GenericButton::handle_mouse(*m, c->x_offset + x_offset, y_offset + 46,
             orders_resource_buttons, buttons_to_show, &data.resource_focus_button_id);
-    result += generic_buttons_handle_mouse(*m, c->x_offset + x_offset, y_offset + 46,
+    result += GenericButton::handle_mouse(*m, c->x_offset + x_offset, y_offset + 46,
             orders_partial_resource_buttons, buttons_to_show, &data.partial_resource_focus_button_id);
     result += image_buttons_handle_mouse(m, c->x_offset - 4, c->y_offset - 4,
             distribution_orders_buttons, 2, 0); // focus handled on image_button level
-    result += generic_buttons_handle_mouse(*m, 0, 0, storage_empty_all_button, 1, &data.orders_focus_button_id);
+    result += GenericButton::handle_mouse(*m, 0, 0, storage_empty_all_button, 1, &data.orders_focus_button_id);
 
     return result > 0 ? 1 : 0;
 }
@@ -1683,7 +1683,7 @@ static void window_building_draw_monument_lighthouse_construction_process(buildi
 
 int window_building_handle_mouse_caravanserai(const mouse *m, building_info_context *c)
 {
-    return generic_buttons_handle_mouse(
+    return GenericButton::handle_mouse(
         *m, c->x_offset + 32, c->y_offset + 160 + data.caravanserai_button_y_offset,
         go_to_caravanserai_action_button, 1, &data.caravanserai_focus_button_id);
 }
@@ -1791,7 +1791,7 @@ void window_building_draw_caravanserai(building_info_context *c)
 
 extern "C" int window_building_handle_mouse_lighthouse(const mouse *m, building_info_context *c)
 {
-    return generic_buttons_handle_mouse(
+    return GenericButton::handle_mouse(
         *m, c->x_offset + 32, c->y_offset + 150,
         go_to_lighthouse_action_button, 1, &data.lighthouse_focus_button_id);
 }

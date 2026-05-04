@@ -236,9 +236,9 @@ void window_building_draw_delivery_buttons(int x, int y, int building_id)
 
 int window_building_handle_mouse_barracks(const mouse *m, building_info_context *c)
 {
-    if (generic_buttons_handle_mouse(*m, c->x_offset + 42, c->y_offset + 208,
+    if (GenericButton::handle_mouse(*m, c->x_offset + 42, c->y_offset + 208,
         priority_buttons, 7, &data.focus_priority_button_id) ||
-        generic_buttons_handle_mouse(*m, c->x_offset + 392, c->y_offset + 40,
+        GenericButton::handle_mouse(*m, c->x_offset + 392, c->y_offset + 40,
             delivery_buttons, 1, &data.focus_delivery_button_id)) {
         window_invalidate();
         return 1;
@@ -250,9 +250,9 @@ int window_building_handle_mouse_barracks(const mouse *m, building_info_context 
 int window_building_handle_mouse_grand_temple_mars(const mouse *m, building_info_context *c)
 {
     unsigned int focused_button = data.focus_priority_button_id;
-    if (generic_buttons_handle_mouse(*m, c->x_offset + 50, c->y_offset + 135,
+    if (GenericButton::handle_mouse(*m, c->x_offset + 50, c->y_offset + 135,
         priority_buttons, 7, &data.focus_priority_button_id) ||
-        generic_buttons_handle_mouse(*m, c->x_offset + 392, c->y_offset + 40,
+        GenericButton::handle_mouse(*m, c->x_offset + 392, c->y_offset + 40,
             delivery_buttons, 1, &data.focus_delivery_button_id)
         ) {
         window_invalidate();
@@ -601,7 +601,7 @@ void window_building_draw_legion_info_foreground(building_info_context *c)
 int window_building_handle_mouse_legion_info(const mouse *m, building_info_context *c)
 {
     data.context_for_callback = c;
-    int handled = generic_buttons_handle_mouse(*m, c->x_offset, c->y_offset, layout_buttons, 5, &data.focus_button_id);
+    int handled = GenericButton::handle_mouse(*m, c->x_offset, c->y_offset, layout_buttons, 5, &data.focus_button_id);
     int figure_type = formation_get(c->formation_id)->figure_type;
     if (figure_type == FIGURE_FORT_LEGIONARY || figure_type == FIGURE_FORT_INFANTRY) {
         if (data.focus_button_id == 1 || (data.focus_button_id == 2 && c->formation_types == 3)) {
@@ -609,7 +609,7 @@ int window_building_handle_mouse_legion_info(const mouse *m, building_info_conte
         }
     }
     if (!handled) {
-        handled = generic_buttons_handle_mouse(*m, c->x_offset + 44,
+        handled = GenericButton::handle_mouse(*m, c->x_offset + 44,
             c->y_offset + 2 + BLOCK_SIZE * c->height_blocks - 47, return_buttons, 2, &data.return_button_id);
     }
     data.context_for_callback = 0;

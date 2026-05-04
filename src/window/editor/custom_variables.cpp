@@ -758,8 +758,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
         y = variable_buttons.focused_item.y;
     }
 
-    if (generic_buttons_handle_mouse(*m_dialog, x, y, item_buttons, NUM_ITEM_BUTTONS, &data.item_buttons_focus_id) ||
-        generic_buttons_handle_mouse(*m_dialog, 0, 0, constant_buttons, NUM_CONSTANT_BUTTONS,
+    if (GenericButton::handle_mouse(*m_dialog, x, y, item_buttons, NUM_ITEM_BUTTONS, &data.item_buttons_focus_id) ||
+        GenericButton::handle_mouse(*m_dialog, 0, 0, constant_buttons, NUM_CONSTANT_BUTTONS,
             &data.constant_button_focus_id)) {
         return;
     }
