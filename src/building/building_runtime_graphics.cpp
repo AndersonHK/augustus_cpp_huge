@@ -160,15 +160,15 @@ int runtime_tile_sentinel_image_id()
     return image_group(GROUP_TERRAIN_FLAT_TILE);
 }
 
-int normalized_animation_frame(const building *b, const RuntimeAnimationTrack &track)
+int normalized_animation_frame(int animation_cursor, const RuntimeAnimationTrack &track)
 {
-    if (!b || track.num_frames <= 0) {
+    if (animation_cursor < 0 || track.num_frames <= 0) {
         return 0;
     }
-    int current_frame = map_sprite_animation_at(b->grid_offset) & 0x7f;
+    int current_frame = map_sprite_animation_at(animation_cursor) & 0x7f;
     if (current_frame < 1 || current_frame > track.num_frames) {
         current_frame = 1;
-        map_sprite_animation_set(b->grid_offset, current_frame);
+        map_sprite_animation_set(animation_cursor, current_frame);
     }
     return current_frame;
 }
@@ -279,9 +279,9 @@ int building_runtime::resolve_graphic_binding(
 
 // Input: one runtime animation track plus the live building/grid state that owns it.
 // Output: the 1-based frame index that should be drawn now, while mirroring legacy timing/gating without using legacy image payloads.
-int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track, int should_advance) const
+int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track, int should_advance, int animation_cursor) const
 {
-    if (!building_ || track.num_frames <= 0) {
+    if (!building_ || animation_cursor < 0 || track.num_frames <= 0) {
         return 0;
     }
 
@@ -312,7 +312,7 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
         return 0;
     }
     if (building_->type == BUILDING_DOCK && building_->data.dock.num_ships <= 0) {
-        map_sprite_animation_set(building_->grid_offset, 1);
+        map_sprite_animation_set(animation_cursor, 1);
         return 1;
     }
     if (building_is_raw_resource_producer(building_->type) && (building_->num_workers <= 0 || building_->strike_duration_days > 0)) {
@@ -320,7 +320,7 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
     }
     if (building_->type == BUILDING_GLADIATOR_SCHOOL) {
         if (building_->num_workers <= 0) {
-            map_sprite_animation_set(building_->grid_offset, 1);
+            map_sprite_animation_set(animation_cursor, 1);
             return 1;
         }
     } else if ((building_->type == BUILDING_THEATER ||
@@ -365,17 +365,17 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
     }
 
     if (!should_advance || !track.speed_id) {
-        return normalized_animation_frame(building_, track);
+        return normalized_animation_frame(animation_cursor, track);
     }
     if (!game_animation_should_advance(track.speed_id)) {
-        return normalized_animation_frame(building_, track);
+        return normalized_animation_frame(animation_cursor, track);
     }
 
     int new_sprite = 0;
     int is_reverse = 0;
     if (building_->type == BUILDING_WINE_WORKSHOP) {
         const int pct_done = calc_percentage(building_->data.industry.progress, building_industry_get_max_progress(building_));
-        const int current_sprite = map_sprite_animation_at(building_->grid_offset);
+        const int current_sprite = map_sprite_animation_at(animation_cursor);
         if (pct_done <= 0) {
             new_sprite = 0;
         } else if (pct_done < 4) {
@@ -407,10 +407,10 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
             }
         }
     } else if (track.can_reverse) {
-        if (map_sprite_animation_at(building_->grid_offset) & 0x80) {
+        if (map_sprite_animation_at(animation_cursor) & 0x80) {
             is_reverse = 1;
         }
-        const int current_sprite = map_sprite_animation_at(building_->grid_offset) & 0x7f;
+        const int current_sprite = map_sprite_animation_at(animation_cursor) & 0x7f;
         if (is_reverse) {
             new_sprite = current_sprite - 1;
             if (new_sprite < 1) {
@@ -425,20 +425,20 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
             }
         }
     } else {
-        new_sprite = map_sprite_animation_at(building_->grid_offset) + 1;
+        new_sprite = map_sprite_animation_at(animation_cursor) + 1;
         if (new_sprite > track.num_frames) {
             advance_runtime_monument_secondary_animation(building_);
             new_sprite = 1;
         }
     }
 
-    map_sprite_animation_set(building_->grid_offset, is_reverse ? new_sprite | 0x80 : new_sprite);
+    map_sprite_animation_set(animation_cursor, is_reverse ? new_sprite | 0x80 : new_sprite);
     return new_sprite;
 }
 
 // Input: one live building instance in the city animation draw stage.
 // Output: advances the native XML animation cursor at the same layer where legacy image groups tick.
-void building_runtime::advance_graphic_animation()
+void building_runtime::advance_graphic_animation(int animation_cursor)
 {
     if (!uses_new_graphics()) {
         return;
@@ -450,7 +450,7 @@ void building_runtime::advance_graphic_animation()
         return;
     }
 
-    mirror_animation_offset(*track_ptr, 1);
+    mirror_animation_offset(*track_ptr, 1, animation_cursor);
     graphics_cache_.animation_slice = RuntimeDrawSlice();
 }
 
@@ -465,7 +465,7 @@ const RuntimeAnimationTrack *building_runtime::cached_animation_track() const
 
 // Input: one live building instance whose cached animation binding already points at an image-group entry.
 // Output: the current animation frame slice for that building instance, or an invalid slice when the animation should not draw now.
-void building_runtime::rebuild_cached_animation_slice()
+void building_runtime::rebuild_cached_animation_slice(int animation_cursor)
 {
     graphics_cache_.animation_slice = RuntimeDrawSlice();
     const RuntimeAnimationTrack *track_ptr = cached_animation_track();
@@ -474,7 +474,7 @@ void building_runtime::rebuild_cached_animation_slice()
     }
 
     const RuntimeAnimationTrack &track = *track_ptr;
-    const int animation_offset = mirror_animation_offset(track, 0);
+    const int animation_offset = mirror_animation_offset(track, 0, animation_cursor);
     if (animation_offset <= 0) {
         return;
     }
@@ -596,8 +596,8 @@ const RuntimeDrawSlice *building_runtime::graphic_top()
 }
 
 // Input: the runtime wrapper for one live building instance.
-// Output: the current animation frame derived from the cached animation entry plus the saved map_sprite_animation cursor.
-const RuntimeDrawSlice *building_runtime::graphic_animation()
+// Output: the current animation frame derived from the cached animation entry plus the caller-provided runtime cursor.
+const RuntimeDrawSlice *building_runtime::graphic_animation(int animation_cursor)
 {
     if (!uses_new_graphics()) {
         return nullptr;
@@ -611,7 +611,7 @@ const RuntimeDrawSlice *building_runtime::graphic_animation()
         log_building_scope_state,
         this);
     ensure_cached_graphics_bindings();
-    rebuild_cached_animation_slice();
+    rebuild_cached_animation_slice(animation_cursor);
     return graphics_cache_.animation_slice.is_valid() ? &graphics_cache_.animation_slice : nullptr;
 }
 

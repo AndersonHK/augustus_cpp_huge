@@ -3,6 +3,7 @@ extern "C" {
 
 #include "assets/assets.h"
 #include "building/construction.h"
+#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -334,6 +335,13 @@ const uint8_t *BuildMenuButton::display_name() const
 {
     if (is_auto_cycle()) {
         return translation_for(TR_AUTO_CYCLE_TEMPLES);
+    }
+    const char *text_key = building_type_registry_get_button_text_key(building);
+    if (text_key && *text_key) {
+        const uint8_t *display_name = lang_get_string_by_key(text_key);
+        if (display_name) {
+            return display_name;
+        }
     }
     return lang_get_string(28, building);
 }

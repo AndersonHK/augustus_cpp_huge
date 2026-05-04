@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="sand_pit">
-    <identity name_key="building.sand_pit.name" />
+    <identity name_key="TR_BUILDING_SAND_PIT" />
     <model size="2" cost="40" />
     <desirability>
         <value value="-6" />
@@ -11,7 +11,7 @@
     <foundation policy="custom">
         <terrain value="distant_water" />
     </foundation>
-    <button group="raw_materials" order="70" icon="Industry\Sand_Pit_C_OFF" text_key="building.sand_pit.name" />
+    <button group="raw_materials" order="70" icon="Industry\Sand_Pit_C_OFF" text_key="TR_BUILDING_SAND_PIT" />
     <event_data attr="sand_pit" />
     <graphics>
         <default>

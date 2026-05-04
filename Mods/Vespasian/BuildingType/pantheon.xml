@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="pantheon">
-    <identity name_key="building.pantheon.name" />
+    <identity name_key="TR_BUILDING_PANTHEON" />
     <model size="7" cost="3500" />
     <desirability>
         <value value="20" />
@@ -9,7 +9,7 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="grand_temples" order="60" icon="pantheon" text_key="building.pantheon.name" />
+    <button group="grand_temples" order="60" icon="pantheon" text_key="TR_BUILDING_PANTHEON" />
     <sound id="oracle" />
     <event_data attr="pantheon" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="theater">
-    <identity name_key="building.theater.name" />
+    <identity name_key="main_strings.28.31" />
     <model size="2" cost="50" />
     <desirability>
         <value value="2" />
@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="10" icon="Health_Culture\Theater" text_key="building.theater.name" />
+    <button group="entertainment" order="10" icon="Health_Culture\Theater" text_key="main_strings.28.31" />
     <sound id="theater" mute_on_enemies="true" />
     <event_data attr="theater" />
     <graphics>

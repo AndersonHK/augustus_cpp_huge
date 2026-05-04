@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="caravanserai">
-    <identity name_key="building.caravanserai.name" />
+    <identity name_key="TR_BUILDING_CARAVANSERAI" />
     <model size="4" cost="500" />
     <desirability>
         <value value="-10" />
@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="industry" order="50" icon="Monuments\Caravanserai_C_OFF" text_key="building.caravanserai.name" />
+    <button group="industry" order="50" icon="Monuments\Caravanserai_C_OFF" text_key="TR_BUILDING_CARAVANSERAI" />
     <sound id="caravanserai" />
     <event_data attr="caravanserai" />
     <flags fire_proof="1" />

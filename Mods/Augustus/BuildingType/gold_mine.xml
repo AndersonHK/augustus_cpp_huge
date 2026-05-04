@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gold_mine">
-    <identity name_key="building.gold_mine.name" />
+    <identity name_key="TR_BUILDING_GOLD_MINE" />
     <model size="2" cost="100" />
     <desirability>
         <value value="-6" />
@@ -11,7 +11,7 @@
     <foundation policy="custom">
         <terrain value="rock" />
     </foundation>
-    <button group="raw_materials" order="50" icon="Industry\Gold_Mine_C_OFF" text_key="building.gold_mine.name" />
+    <button group="raw_materials" order="50" icon="Industry\Gold_Mine_C_OFF" text_key="TR_BUILDING_GOLD_MINE" />
     <event_data attr="gold_mine" />
     <graphics>
         <default>

@@ -208,18 +208,18 @@ int building_runtime_owns_graphic_animation(building *b)
     return 0;
 }
 
-const RuntimeDrawSlice *building_runtime_get_graphic_animation_slice(building *b)
+const RuntimeDrawSlice *building_runtime_get_graphic_animation_slice(building *b, int animation_cursor)
 {
     if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        return instance->graphic_animation();
+        return instance->graphic_animation(animation_cursor);
     }
     return nullptr;
 }
 
-int building_runtime_advance_graphic_animation(building *b)
+int building_runtime_advance_graphic_animation(building *b, int animation_cursor)
 {
     if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        instance->advance_graphic_animation();
+        instance->advance_graphic_animation(animation_cursor);
         return instance->owns_graphic_animation();
     }
     return 0;

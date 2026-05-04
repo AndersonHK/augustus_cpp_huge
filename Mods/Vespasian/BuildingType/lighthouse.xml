@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="lighthouse">
-    <identity name_key="building.lighthouse.name" />
+    <identity name_key="TR_BUILDING_LIGHTHOUSE" />
     <model size="3" cost="1000" />
     <desirability>
         <value value="6" />
@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="engineering" order="40" icon="Monuments\Lighthouse_OFF" text_key="building.lighthouse.name" />
+    <button group="engineering" order="40" icon="Monuments\Lighthouse_OFF" text_key="TR_BUILDING_LIGHTHOUSE" />
     <sound id="lighthouse" />
     <event_data attr="lighthouse" />
     <flags fire_proof="1" />

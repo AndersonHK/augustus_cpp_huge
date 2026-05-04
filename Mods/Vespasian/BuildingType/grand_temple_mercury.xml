@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="grand_temple_mercury">
-    <identity name_key="building.grand_temple_mercury.name" />
+    <identity name_key="TR_BUILDING_GRAND_TEMPLE_MERCURY" />
     <model size="7" cost="2500" />
     <desirability>
         <value value="20" />
@@ -9,7 +9,7 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="grand_temples" order="30" icon="grand temple mercury" text_key="building.grand_temple_mercury.name" />
+    <button group="grand_temples" order="30" icon="grand temple mercury" text_key="TR_BUILDING_GRAND_TEMPLE_MERCURY" />
     <sound id="temple_mercury" />
     <event_data attr="grand_temple_mercury" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />

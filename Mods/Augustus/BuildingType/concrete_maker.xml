@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="concrete_maker">
-    <identity name_key="building.concrete_maker.name" />
+    <identity name_key="TR_BUILDING_CONCRETE_MAKER" />
     <model size="2" cost="60" />
     <desirability>
         <value value="-3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="workshops" order="80" icon="Industry\Concrete_Maker_C_OFF" text_key="building.concrete_maker.name" />
+    <button group="workshops" order="80" icon="Industry\Concrete_Maker_C_OFF" text_key="TR_RESOURCE_CONCRETE" />
     <sound id="concrete_maker" />
     <event_data attr="concrete_maker" />
     <state>

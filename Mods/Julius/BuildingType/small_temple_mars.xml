@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="small_temple_mars">
-    <identity name_key="building.small_temple_mars.name" />
+    <identity name_key="TR_BUILDING_SMALL_TEMPLE_MARS_NAME" />
     <model size="2" cost="50" />
     <desirability>
         <value value="4" />
@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="small_temples" order="40" icon="small temple mars" text_key="building.small_temple_mars.name" />
+    <button group="small_temples" order="40" icon="small temple mars" text_key="TR_BUILDING_SMALL_TEMPLE_MARS_NAME" />
     <sound id="temple_mars" />
     <event_data attr="small_temple_mars" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />

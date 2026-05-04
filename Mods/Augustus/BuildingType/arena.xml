@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="arena">
-    <identity name_key="building.arena.name" />
+    <identity name_key="TR_BUILDING_ARENA" />
     <model size="3" cost="500" />
     <desirability>
         <value value="-3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="60" icon="Health_Culture\Arena_OFF" text_key="building.arena.name" />
+    <button group="entertainment" order="60" icon="Health_Culture\Arena_OFF" text_key="TR_BUILDING_ARENA" />
     <sound id="arena" mute_on_enemies="true" />
     <event_data attr="arena" />
     <graphics>

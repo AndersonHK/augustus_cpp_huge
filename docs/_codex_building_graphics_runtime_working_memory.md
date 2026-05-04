@@ -12,6 +12,8 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Runtime animation frames normalize an active XML animation to frame 1 when the saved sprite cursor is empty, so ON states that use an OFF base plus animation overlay do not flash the OFF image between animation ticks.
 - Payload animation frame materialization now reconstructs each explicit or implicit frame as a full `PART_BOTH` raster payload before runtime drawing. Bare XML frame references no longer reuse only the referenced entry footprint, which preserves top/full overlay content for animated XML buildings.
 - Native XML animations now advance explicitly from `city_draw_runtime_building_animation()`, the same city animation layer that calls legacy `building_animation_offset()`. `graphic_animation()` reads the current cursor and returns the already-selected payload frame instead of secretly owning the tick.
+- Native XML animations use the caller-provided draw-stage animation cursor instead of `building.grid_offset`. This keeps the cursor transient like legacy rendering until BuildingType migration is far enough along to consider a saved building cursor field.
+- Augustus/Vespasian small and large pond XML now owns the legacy climate/water matrix: central/northern maps use the north payloads, desert maps use the south payloads, and water access selects the animated ON entries. The redundant `BUILDING_SMALL_POND` and `BUILDING_LARGE_POND` image.cpp switch arms were removed.
 
 ## 2026-05-04 BuildingType graphics mapping pass
 - Added missing root `<graphics>` data for shared Julius-backed buildings in Julius, Augustus, and Vespasian XML where the extracted Julius group is the real source: actor colony, barber, chariot maker, doctor, gladiator school, governor residence tiers, hospital, and native crops.
@@ -24,6 +26,14 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Vespasian Hippodrome still has no safe XML graphics mapping. Finished Hippodrome selection depends on building orientation and first/middle/last part, while construction graphics depend on phase plus the same orientation/part split. Leave it on legacy `building_image_get()` until the XML schema can express that target matrix.
 - The matching legacy `building_image_get()` switch arms were removed for XML-owned mappings from this pass: actor colony, barber, brickworks, chariot maker, Colosseum, concrete maker, doctor, fountain, gladiator school, governor residence tiers, hospital, native hut, native meeting hut, native decoration, native large monument, native watchtower, Pantheon, small temples, and workcamp.
 - Farm/data-only graphics stay legacy for now, including native crops. Hippodrome also stays legacy because its correct target still depends on orientation plus first/middle/last-part selection that BuildingType graphics XML cannot express yet.
+- Watchtower's new XML payload is not enough to retire the old generic watchtower `image.cpp` policy yet. The remaining legacy case still carries building variant plus city-view rotation offsets that the current BuildingType graphics condition set cannot express.
+
+## 2026-05-04 BuildingType button localization correction
+- BuildingType XML for the implemented Vespasian/Augustus/Julius button-owned buildings now uses registered `TR_*` localization keys instead of placeholder `building.*.name` keys where those keys exist.
+- Theater uses the existing base-game legacy label key `main_strings.28.31`; `TR_BUILDING_THEATRE_UPGRADE_DESC` is only the upgraded-building description, not the button label.
+- `BuildMenuButton` now resolves `button text_key` by key string first. It falls back to legacy `lang_get_string(28, building)` only for XML entries that still use unresolved placeholder keys.
+- The temporary theater/display-key shim and the matching specific XML-owned cases were removed from `src/core/lang.cpp`; no legacy localization function ran out of cases.
+- Known gap: many older XML buttons still use `building.*.name` placeholders because no corresponding registered `TR_BUILDING_*` button label exists yet. Those still rely on the generic legacy fallback until localization keys are added.
 
 ## 2026-04-06 building graphics resolution checkpoint
 - Native building footprint rendering now routes through `src/widget/city_draw.cpp`, not the older direct `const image *` helper path documented below.

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="small_temple_neptune">
-    <identity name_key="building.small_temple_neptune.name" />
+    <identity name_key="TR_BUILDING_SMALL_TEMPLE_NEPTUNE_NAME" />
     <model size="2" cost="50" />
     <desirability>
         <value value="4" />
@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="small_temples" order="20" icon="small temple neptune" text_key="building.small_temple_neptune.name" />
+    <button group="small_temples" order="20" icon="small temple neptune" text_key="TR_BUILDING_SMALL_TEMPLE_NEPTUNE_NAME" />
     <sound id="temple_neptune" />
     <event_data attr="small_temple_neptune" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="grand_temple_venus">
-    <identity name_key="building.grand_temple_venus.name" />
+    <identity name_key="TR_BUILDING_GRAND_TEMPLE_VENUS" />
     <model size="7" cost="2500" />
     <desirability>
         <value value="20" />
@@ -9,7 +9,7 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="grand_temples" order="50" icon="grand temple venus" text_key="building.grand_temple_venus.name" />
+    <button group="grand_temples" order="50" icon="grand temple venus" text_key="TR_BUILDING_GRAND_TEMPLE_VENUS" />
     <sound id="temple_venus" />
     <event_data attr="grand_temple_venus" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />

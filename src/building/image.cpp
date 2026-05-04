@@ -144,24 +144,6 @@ int building_image_get(const building *b)
                     return image_group(GROUP_BUILDING_STATUE) + 1;
             }
         }
-        case BUILDING_SMALL_POND:
-        {
-            int offset = b->has_water_access;
-            if (scenario_property_climate() == CLIMATE_DESERT) {
-                return assets_get_image_id("Aesthetics", "s pond south off") + offset;
-            } else {
-                return assets_get_image_id("Aesthetics", "s pond north off") + offset;
-            }
-        }
-        case BUILDING_LARGE_POND:
-        {
-            int offset = b->has_water_access;
-            if (scenario_property_climate() == CLIMATE_DESERT) {
-                return assets_get_image_id("Aesthetics", "l pond south off") + offset;
-            } else {
-                return assets_get_image_id("Aesthetics", "l pond north off") + offset;
-            }
-        }
         case BUILDING_PAVILION_BLUE:
             return building_variant_get_image_id_with_rotation(b->type, b->variant);
         case BUILDING_PAVILION_RED:

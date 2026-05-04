@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="stone_quarry">
-    <identity name_key="building.stone_quarry.name" />
+    <identity name_key="TR_BUILDING_STONE_QUARRY" />
     <model size="2" cost="60" />
     <desirability>
         <value value="-6" />
@@ -11,7 +11,7 @@
     <foundation policy="custom">
         <terrain value="rock" />
     </foundation>
-    <button group="raw_materials" order="60" icon="Industry\Stone_Quarry_C_OFF" text_key="building.stone_quarry.name" />
+    <button group="raw_materials" order="60" icon="Industry\Stone_Quarry_C_OFF" text_key="TR_BUILDING_STONE_QUARRY" />
     <event_data attr="stone_quarry" />
     <graphics>
         <default>
