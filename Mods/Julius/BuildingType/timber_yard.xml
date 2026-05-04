@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="timber_yard">
-    <identity name_key="building.timber_yard.name" />
+    <identity name_key="main_strings.28.108" />
     <model size="2" cost="40" />
     <desirability>
         <value value="-4" />
@@ -11,7 +11,7 @@
     <foundation policy="custom">
         <terrain value="tree" />
     </foundation>
-    <button group="raw_materials" order="40" icon="Industry\Timber_Yard" text_key="building.timber_yard.name" />
+    <button group="raw_materials" order="40" icon="Industry\Timber_Yard" text_key="main_strings.28.108" />
     <sound id="timber_yard" />
     <event_data attr="timber_yard" />
     <graphics>

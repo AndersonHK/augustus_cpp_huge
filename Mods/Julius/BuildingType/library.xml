@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="library">
-    <identity name_key="building.library.name" />
+    <identity name_key="main_strings.28.53" />
     <model size="2" cost="75" />
     <desirability>
         <value value="4" />
@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="education" order="30" icon="Health_Culture\Library" text_key="building.library.name" />
+    <button group="education" order="30" icon="Health_Culture\Library" text_key="main_strings.28.53" />
     <sound id="library" />
     <event_data attr="library" />
     <graphics>

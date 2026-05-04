@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="engineers_post">
-    <identity name_key="building.engineers_post.name" />
+    <identity name_key="main_strings.28.81" />
     <model size="1" cost="30" />
     <desirability>
         <value value="0" />
@@ -9,7 +9,7 @@
         <range value="1" />
     </desirability>
     <foundation policy="land" />
-    <button group="engineering" order="10" icon="Admin_Logistics\Engineers_Post" text_key="building.engineers_post.name" />
+    <button group="engineering" order="10" icon="Admin_Logistics\Engineers_Post" text_key="main_strings.28.81" />
     <sound id="engineers_post" />
     <event_data attr="engineers_post" />
     <flags fire_proof="1" />

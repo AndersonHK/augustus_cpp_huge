@@ -383,9 +383,6 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
             b->accepted_goods[RESOURCE_NONE] = 1;
             add_building(b);
             break;
-        case BUILDING_LATRINES:
-            add_building(b);
-            break;
     }
     map_routing_update_land();
     map_routing_update_walls();

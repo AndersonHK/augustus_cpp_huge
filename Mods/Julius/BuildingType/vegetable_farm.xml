@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="vegetable_farm">
-    <identity name_key="building.vegetable_farm.name" />
+    <identity name_key="main_strings.28.101" />
     <model size="3" cost="40" />
     <desirability>
         <value value="-2" />
@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="farms" order="20" icon="Industry\Farm_House" text_key="building.vegetable_farm.name" />
+    <button group="farms" order="20" icon="Industry\Farm_House" text_key="main_strings.28.101" />
     <sound id="vegetable_farm" />
     <event_data attr="vegetable_farm" />
     <graphics>

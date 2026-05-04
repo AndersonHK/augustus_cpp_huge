@@ -171,8 +171,6 @@ int building_image_get(const building *b)
             return image_group(GROUP_BUILDING_MISSION_POST);
         case BUILDING_MILITARY_ACADEMY:
             return image_group(GROUP_BUILDING_MILITARY_ACADEMY);
-        case BUILDING_LARARIUM:
-            return assets_get_image_id("Health_Culture", "Lararium 01");
         case BUILDING_ROADBLOCK:
         case BUILDING_DECORATIVE_COLUMN:
             return building_variant_get_image_id_with_rotation(b->type, b->variant);
@@ -568,15 +566,6 @@ int building_image_get(const building *b)
         case BUILDING_OVERGROWN_GARDENS:
             return building_properties_for_type(BUILDING_OVERGROWN_GARDENS)->image_group;
 
-        case BUILDING_LATRINES:
-            switch (scenario_property_climate()) {
-                case CLIMATE_NORTHERN:
-                    return assets_get_image_id("Health_Culture", "Latrine_N");
-                case CLIMATE_DESERT:
-                    return assets_get_image_id("Health_Culture", "Latrine_S");
-                default:
-                    return assets_get_image_id("Health_Culture", "Latrine_C");
-            }
         default:
             return 0;
     }

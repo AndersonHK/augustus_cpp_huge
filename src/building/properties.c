@@ -1240,16 +1240,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 12, .desirability_value = 3, .desirability_step = 1,
             .desirability_step_size = -1, .desirability_range = 3, .laborers = 0}
      },
-     [BUILDING_LARARIUM] = {
-        .venus_gt_bonus = 1,
-        .size = 1,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Health_Culture",
-        .custom_asset.id = "Lararium 01",
-        .event_data.attr = "lararium",
-        .building_model_data = {.cost = 45, .desirability_value = 4, .desirability_step = 1,
-            .desirability_step_size = -1, .desirability_range = 3, .laborers = 0}
-     },
      [BUILDING_NYMPHAEUM] = {
         .venus_gt_bonus = 1,
         .size = 3,
@@ -1474,15 +1464,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.attr = "overgrown_gardens",
         .building_model_data = {.cost = 12, .desirability_value = 3, .desirability_step = 1,
             .desirability_step_size = -1, .desirability_range = 3, .laborers = 0}
-     },
-     [BUILDING_LATRINES] = {
-        .size = 1,
-        .fire_proof = 1,
-        .custom_asset.group = "Health_Culture",
-        .custom_asset.id = "Latrine_N",
-        .event_data.attr = "latrines",
-        .building_model_data = {.cost = 15, .desirability_value = 0, .desirability_step = 0,
-            .desirability_step_size = 0, .desirability_range = 0, .laborers = 2}
      },
      [BUILDING_NATIVE_HUT_ALT] = {
         .size = 1,

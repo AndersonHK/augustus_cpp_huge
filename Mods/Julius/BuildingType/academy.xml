@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="academy">
-    <identity name_key="building.academy.name" />
+    <identity name_key="main_strings.28.52" />
     <model size="3" cost="100" />
     <desirability>
         <value value="4" />
@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="education" order="40" icon="Health_Culture\Academy_Fix" text_key="building.academy.name" />
+    <button group="education" order="20" icon="Health_Culture\Academy" text_key="main_strings.28.52" />
     <sound id="academy" />
     <event_data attr="academy" />
     <graphics>

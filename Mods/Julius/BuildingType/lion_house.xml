@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="lion_house">
-    <identity name_key="building.lion_house.name" />
+    <identity name_key="main_strings.28.35" />
     <model size="3" cost="75" />
     <desirability>
         <value value="-3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="50" icon="Health_Culture\Lion_House" text_key="building.lion_house.name" />
+    <button group="entertainment" order="60" icon="Health_Culture\Lion_House" text_key="main_strings.28.35" />
     <sound id="lion_pit" />
     <event_data attr="lion_house" />
     <graphics>

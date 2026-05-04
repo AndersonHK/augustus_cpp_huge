@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="doctor">
-    <identity name_key="building.doctor.name" />
+    <identity name_key="main_strings.28.46" />
     <model size="1" cost="30" />
     <desirability>
         <value value="0" />
@@ -9,7 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="health" order="10" icon="doctor" text_key="building.doctor.name" />
+    <button group="health" order="30" icon="Health_Culture\Doctor" text_key="main_strings.28.46" />
     <sound id="clinic" />
     <event_data attr="doctor" />
     <graphics>
