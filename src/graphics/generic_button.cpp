@@ -45,7 +45,7 @@ void GenericButton::set_bounds(short button_x, short button_y, short button_widt
     height = button_height;
 }
 
-void GenericButton::set_handlers(generic_button_click_handler left_click, generic_button_click_handler right_click)
+void GenericButton::set_handlers(ClickHandler left_click, ClickHandler right_click)
 {
     left_click_handler = left_click;
     right_click_handler = right_click;
@@ -84,27 +84,4 @@ void GenericButton::reset()
     parameter2 = 0;
     context_data = nullptr;
     debug_name = nullptr;
-}
-
-static unsigned int get_button(const mouse *m, int x, int y, generic_button *buttons, unsigned int num_buttons)
-{
-    for (unsigned int i = 0; i < num_buttons; i++) {
-        if (buttons[i].contains(*m, x, y)) {
-            return i + 1;
-        }
-    }
-    return 0;
-}
-
-extern "C" int generic_buttons_handle_mouse(const mouse *m, int x, int y, generic_button *buttons,
-    unsigned int num_buttons, unsigned int *focus_button_id)
-{
-    unsigned int button_id = get_button(m, x, y, buttons, num_buttons);
-    if (focus_button_id) {
-        *focus_button_id = button_id;
-    }
-    if (!button_id) {
-        return 0;
-    }
-    return buttons[button_id - 1].handle_mouse(*m);
 }

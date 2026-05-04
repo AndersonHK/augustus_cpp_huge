@@ -778,6 +778,7 @@ int building_is_active(const building *b)
         case BUILDING_FOUNTAIN:
             return b->has_water_access;
         case BUILDING_ORACLE:
+            return !building_monument_is_monument(b) || b->monument.phase == MONUMENT_FINISHED;
         case BUILDING_NYMPHAEUM:
         case BUILDING_SMALL_MAUSOLEUM:
         case BUILDING_LARGE_MAUSOLEUM:

@@ -3,7 +3,6 @@
 #include "core/crash_context.h"
 
 extern "C" {
-#include "game/time.h"
 #include "map/grid.h"
 }
 
@@ -12,6 +11,7 @@ extern "C" {
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <vector>
 
 namespace {
 
@@ -20,34 +20,68 @@ constexpr size_t kSaveHeaderSize = 2 * sizeof(uint32_t);
 constexpr size_t kEffectGridCells = GRID_SIZE * GRID_SIZE;
 constexpr uint32_t kLastPreReligionEffectCount = ROAD_SERVICE_EFFECT_RELIGION_CERES;
 constexpr uint32_t kLastPreEntertainmentEffectCount = ROAD_SERVICE_EFFECT_ENTERTAINMENT_THEATER;
+constexpr uint32_t kNeverVisitedStamp = 0;
 std::array<grid_u32, ROAD_SERVICE_EFFECT_MAX> g_history;
+uint32_t g_last_visit_stamp = 0;
 
 bool is_valid_effect(road_service_effect effect)
 {
     return effect > ROAD_SERVICE_EFFECT_NONE && effect < ROAD_SERVICE_EFFECT_MAX;
 }
 
-uint32_t current_visit_stamp()
+void normalize_visit_stamps()
 {
-    // Reserve zero for "never visited" so old saves and new roads sort as stale.
-    const int ticks_per_day = game_time_ticks_per_day();
-    const int day_ticks = ticks_per_day > 0 ? ticks_per_day : 1;
-    const int current_month_ticks = game_time_ticks_per_month(game_time_month());
-    const int fallback_month_ticks = game_time_days_in_current_month() * day_ticks;
-    const int month_ticks = current_month_ticks > 0 ?
-        current_month_ticks :
-        (fallback_month_ticks > 0 ? fallback_month_ticks : day_ticks);
-    const int total_months = game_time_total_months();
-    const int day = game_time_day();
-    const int tick = game_time_tick();
-    const uint64_t total_ticks =
-        static_cast<uint64_t>(total_months > 0 ? total_months : 0) * static_cast<uint64_t>(month_ticks) +
-        static_cast<uint64_t>(day > 0 ? day : 0) * static_cast<uint64_t>(day_ticks) +
-        static_cast<uint64_t>(tick > 0 ? tick : 0);
-    const uint64_t visit_stamp = total_ticks + 1;
-    return visit_stamp > std::numeric_limits<uint32_t>::max() ?
-        std::numeric_limits<uint32_t>::max() :
-        static_cast<uint32_t>(visit_stamp);
+    std::vector<uint32_t> stamps;
+    stamps.reserve(kEffectGridCells);
+    for (int effect = 1; effect < ROAD_SERVICE_EFFECT_MAX; effect++) {
+        const uint32_t *items = g_history[effect].items;
+        const uint32_t *end = items + kEffectGridCells;
+        for (const uint32_t *item = items; item != end; ++item) {
+            if (*item != kNeverVisitedStamp) {
+                stamps.push_back(*item);
+            }
+        }
+    }
+
+    if (stamps.empty()) {
+        g_last_visit_stamp = 0;
+        return;
+    }
+
+    std::sort(stamps.begin(), stamps.end());
+    stamps.erase(std::unique(stamps.begin(), stamps.end()), stamps.end());
+
+    for (int effect = 1; effect < ROAD_SERVICE_EFFECT_MAX; effect++) {
+        uint32_t *items = g_history[effect].items;
+        uint32_t *end = items + kEffectGridCells;
+        for (uint32_t *item = items; item != end; ++item) {
+            if (*item != kNeverVisitedStamp) {
+                *item = static_cast<uint32_t>(
+                    std::lower_bound(stamps.begin(), stamps.end(), *item) - stamps.begin() + 1);
+            }
+        }
+    }
+    g_last_visit_stamp = static_cast<uint32_t>(stamps.size());
+}
+
+uint32_t next_visit_stamp()
+{
+    // Zero means "never visited" and must stay older than every visited tile.
+    // Positive values only need relative recency; compact before overflow.
+    if (g_last_visit_stamp == std::numeric_limits<uint32_t>::max()) {
+        normalize_visit_stamps();
+    }
+    return ++g_last_visit_stamp;
+}
+
+void update_last_visit_stamp_from_history(road_service_effect effect)
+{
+    if (!is_valid_effect(effect)) {
+        return;
+    }
+    const uint32_t *items = g_history[effect].items;
+    const uint32_t *end = items + kEffectGridCells;
+    g_last_visit_stamp = std::max(g_last_visit_stamp, *std::max_element(items, end));
 }
 
 } // namespace
@@ -57,6 +91,7 @@ extern "C" void map_road_service_history_clear(void)
     for (int effect = 0; effect < ROAD_SERVICE_EFFECT_MAX; effect++) {
         map_grid_clear_u32(g_history[effect].items);
     }
+    g_last_visit_stamp = 0;
 }
 
 extern "C" uint32_t map_road_service_history_get(road_service_effect effect, int grid_offset)
@@ -72,7 +107,7 @@ extern "C" void map_road_service_history_record(road_service_effect effect, int 
     if (!is_valid_effect(effect) || !map_grid_is_valid_offset(grid_offset)) {
         return;
     }
-    g_history[effect].items[grid_offset] = current_visit_stamp();
+    g_history[effect].items[grid_offset] = next_visit_stamp();
 }
 
 extern "C" void map_road_service_history_save_state(buffer *buf)
@@ -128,6 +163,7 @@ extern "C" void map_road_service_history_load_state(
     const int effects_to_read = static_cast<int>(std::min(effect_count, max_effect_count));
     for (int effect = 1; effect < effects_to_read; effect++) {
         map_grid_load_state_u32(g_history[effect].items, buf);
+        update_last_visit_stamp_from_history(static_cast<road_service_effect>(effect));
     }
 
     // Older saves contain only the effect grids known to that save version. Any

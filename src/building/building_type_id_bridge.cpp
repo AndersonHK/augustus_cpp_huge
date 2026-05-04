@@ -26,7 +26,9 @@ struct BridgeState {
     std::array<std::string, BUILDING_TYPE_MAX> runtime_to_text;
     std::array<uint16_t, BUILDING_TYPE_MAX> runtime_to_save = {};
     std::vector<building_type> save_to_runtime;
+    std::vector<std::string> save_to_text;
     std::vector<uint8_t> save_id_missing;
+    std::vector<uint8_t> save_id_has_mapping;
     bool runtime_ready = false;
     bool save_table_ready = false;
 };
@@ -111,9 +113,13 @@ void clear_save_table()
 {
     g_bridge.runtime_to_save.fill(0);
     g_bridge.save_to_runtime.clear();
+    g_bridge.save_to_text.clear();
     g_bridge.save_id_missing.clear();
+    g_bridge.save_id_has_mapping.clear();
     g_bridge.save_to_runtime.push_back(BUILDING_NONE);
+    g_bridge.save_to_text.push_back("");
     g_bridge.save_id_missing.push_back(0);
+    g_bridge.save_id_has_mapping.push_back(1);
 }
 
 void ensure_save_table()
@@ -125,18 +131,38 @@ void ensure_save_table()
     building_type_id_bridge_prepare_new_save_table();
 }
 
-void append_save_id_mapping(uint16_t save_id, building_type runtime_id, bool missing)
+void append_save_id_mapping(uint16_t save_id, building_type runtime_id, bool missing, const char *text_id)
 {
     size_t index = static_cast<size_t>(save_id);
     if (g_bridge.save_to_runtime.size() <= index) {
         g_bridge.save_to_runtime.resize(index + 1, BUILDING_NONE);
+        g_bridge.save_to_text.resize(index + 1);
         g_bridge.save_id_missing.resize(index + 1, 0);
+        g_bridge.save_id_has_mapping.resize(index + 1, 0);
     }
     g_bridge.save_to_runtime[index] = runtime_id;
+    g_bridge.save_to_text[index] = text_id ? text_id : "";
     g_bridge.save_id_missing[index] = missing ? 1 : 0;
+    g_bridge.save_id_has_mapping[index] = 1;
     if (!missing && runtime_id > BUILDING_NONE && runtime_id < BUILDING_TYPE_MAX) {
         g_bridge.runtime_to_save[static_cast<uint16_t>(runtime_id)] = save_id;
     }
+}
+
+int save_id_has_explicit_mapping(uint16_t save_id)
+{
+    return static_cast<size_t>(save_id) < g_bridge.save_id_has_mapping.size() &&
+        g_bridge.save_id_has_mapping[static_cast<size_t>(save_id)];
+}
+
+const char *legacy_text_from_raw_save_id(uint16_t save_id)
+{
+    return save_id < BUILDING_TYPE_MAX ? building_type_legacy_migration_text_id_for_enum(save_id) : 0;
+}
+
+building_type legacy_runtime_from_raw_save_id(uint16_t save_id)
+{
+    return building_type_id_bridge_runtime_from_text(legacy_text_from_raw_save_id(save_id));
 }
 
 void load_legacy_save_table()
@@ -147,7 +173,7 @@ void load_legacy_save_table()
     for (uint16_t legacy_id = 1; legacy_id < BUILDING_TYPE_MAX; ++legacy_id) {
         const char *text_id = building_type_legacy_migration_text_id_for_enum(legacy_id);
         building_type runtime_id = building_type_id_bridge_runtime_from_text(text_id);
-        append_save_id_mapping(legacy_id, runtime_id, runtime_id == BUILDING_NONE && text_id && *text_id);
+        append_save_id_mapping(legacy_id, runtime_id, runtime_id == BUILDING_NONE && text_id && *text_id, text_id);
     }
 
     g_bridge.save_table_ready = true;
@@ -196,7 +222,8 @@ extern "C" void building_type_id_bridge_prepare_new_save_table(void)
             continue;
         }
         uint16_t save_id = static_cast<uint16_t>(g_bridge.save_to_runtime.size());
-        append_save_id_mapping(save_id, static_cast<building_type>(runtime_id), false);
+        append_save_id_mapping(save_id, static_cast<building_type>(runtime_id), false,
+            g_bridge.runtime_to_text[runtime_id].c_str());
     }
 
     g_bridge.save_table_ready = true;
@@ -279,7 +306,7 @@ extern "C" void building_type_id_bridge_save_table_load_state(buffer *buf, int h
         if (missing) {
             log_error("Building type referenced by save is not available in active mod", text_id.c_str(), save_id);
         }
-        append_save_id_mapping(save_id, runtime_id, missing);
+        append_save_id_mapping(save_id, runtime_id, missing, text_id.c_str());
     }
 
     g_bridge.save_table_ready = true;
@@ -297,10 +324,28 @@ extern "C" uint16_t building_type_id_bridge_save_id_from_runtime(building_type r
 extern "C" building_type building_type_id_bridge_runtime_from_save_id(uint16_t save_id)
 {
     ensure_save_table();
-    if (static_cast<size_t>(save_id) >= g_bridge.save_to_runtime.size()) {
-        return BUILDING_NONE;
+    if (save_id_has_explicit_mapping(save_id)) {
+        return g_bridge.save_to_runtime[static_cast<size_t>(save_id)];
     }
-    return g_bridge.save_to_runtime[static_cast<size_t>(save_id)];
+    return legacy_runtime_from_raw_save_id(save_id);
+}
+
+extern "C" const char *building_type_id_bridge_text_from_save_id(uint16_t save_id)
+{
+    ensure_save_table();
+    if (save_id_has_explicit_mapping(save_id) &&
+        static_cast<size_t>(save_id) < g_bridge.save_to_text.size() &&
+        !g_bridge.save_to_text[static_cast<size_t>(save_id)].empty()) {
+        return g_bridge.save_to_text[static_cast<size_t>(save_id)].c_str();
+    }
+    if (!save_id_has_explicit_mapping(save_id)) {
+        const char *legacy_text_id = legacy_text_from_raw_save_id(save_id);
+        if (legacy_text_id && *legacy_text_id) {
+            return legacy_text_id;
+        }
+    }
+    building_type runtime_id = building_type_id_bridge_runtime_from_save_id(save_id);
+    return building_type_id_bridge_text_from_runtime(runtime_id);
 }
 
 extern "C" int building_type_id_bridge_save_id_is_missing(uint16_t save_id)
@@ -309,8 +354,8 @@ extern "C" int building_type_id_bridge_save_id_is_missing(uint16_t save_id)
     if (save_id == 0) {
         return 0;
     }
-    if (static_cast<size_t>(save_id) >= g_bridge.save_id_missing.size()) {
-        return 1;
+    if (save_id_has_explicit_mapping(save_id)) {
+        return g_bridge.save_id_missing[static_cast<size_t>(save_id)] ? 1 : 0;
     }
-    return g_bridge.save_id_missing[static_cast<size_t>(save_id)] ? 1 : 0;
+    return legacy_runtime_from_raw_save_id(save_id) == BUILDING_NONE ? 1 : 0;
 }

@@ -140,6 +140,18 @@ Doctrine:
   - legacy fallback reads from `augustus.ini`
   - `CONFIG_UI_SCALE_FILTER`
 
+## Save/load map
+- `docs/save_data_organization.md`
+  - canonical `.svv` file-piece order, allocation ownership, writer/loader map, dynamic payload notes, and scenario-file appendix
+- `docs/save_load_runtime_bridges.md`
+  - post-read bridge map for save-local ids, BuildingType runtime ids/text ids, monument construction fan-out, legacy structs, and C++ runtime wrapper rebinding
+- `src/game/file_io.cpp`
+  - `init_savegame_data()` owns live-save piece order
+  - `savegame_save_to_state()` and `savegame_load_from_state()` dispatch subsystem writers/loaders
+- `src/game/save_version.h`
+  - save and scenario version gates; update when persisted layout or behavior changes
+- Key save-backed runtime payloads currently include building records, figure records/routes, building type save tables, road service history, and local workforce allocations.
+
 ## Demographics / defines map
 - `src/game/defines.cpp`
   - merged `calendar`, `birth_table`, and `mortality_table` XML definitions

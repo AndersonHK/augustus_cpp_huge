@@ -11,11 +11,16 @@ Current supported nodes:
 
 - `<identity ... />`
 - `<model ... />`
+- `<desirability> ... </desirability>`
 - `<foundation ... />`
 - `<button ... />`
+- `<sound ... />`
+- `<event_data ... />`
+- `<flags ... />`
 - `<water_access> ... </water_access>`
 - `<state> ... </state>`
 - `<graphics> ... </graphics>`
+- `<construction> ... </construction>`
 - `<labor> ... </labor>`
 - `<storages> ... </storages>`
 - `<production_methods> ... </production_methods>`
@@ -31,17 +36,63 @@ Current supported `<model>` attributes:
 
 - `size="N"`
 - `cost="N"`
-- `desirability_value="N"`
-- `desirability_step="N"`
-- `desirability_step_size="N"`
-- `desirability_range="N"`
-- `laborers="N"`
 
-Model `cost`, desirability fields, and `laborers` currently override the legacy runtime model after XML load. `size` is parsed and exposed for the next placement/build-authority pass, but legacy placement still owns footprint size until that pass lands.
+Model `cost` currently overrides the legacy runtime model after XML load. `size` is parsed and exposed for the next placement/build-authority pass, but legacy placement still owns footprint size until that pass lands.
+
+Current supported `<desirability>` child nodes:
+
+- `<value value="N" />`
+- `<step value="N" />`
+- `<step_size value="N" />`
+- `<range value="N" />`
+
+Desirability rules:
+
+- all four child nodes are required when `<desirability>` is present
+- `value` and `step_size` may be negative
+- `step` and `range` must be non-negative
+- model-level `desirability_*` attributes are not supported
+- labor counts belong under `<labor><employees count="N" /></labor>`, not under `<model>`
+
+Small building example:
+
+```xml
+<building type="barber">
+    <identity name_key="building.barber.name" />
+    <model size="1" cost="25" />
+    <desirability>
+        <value value="2" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="2" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="health" order="40" icon="barber" text_key="building.barber.name" />
+    <sound id="barber" />
+    <event_data attr="barber" />
+    <labor>
+        <employees count="2" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="50" />
+        </labor_seeker>
+    </labor>
+</building>
+```
 
 Current supported `<foundation>` attributes:
 
 - `policy="land|road|water|shoreline|aqueduct|custom"` stores the placement/foundation policy key for the next construction pass
+
+Current supported `<foundation>` child nodes:
+
+- `<terrain value="meadow|rock|tree|water|wall|distant_water" />`
+
+Foundation terrain rules:
+
+- `<terrain>` may appear zero or more times
+- terrain requirements feed the existing placement warning/check path
+- use `rock` for quarry/mine placement, `tree` for timber yards, `water` for clay pits, and `distant_water` for sand pits
 
 Current supported `<button>` attributes:
 
@@ -51,6 +102,24 @@ Current supported `<button>` attributes:
 - `text_key="..."` optionally overrides the button text key; otherwise generated UI can use `<identity name_key="...">`
 
 `<menu>` is accepted as a temporary alias for `<button>` only during this migration slice. Prefer `<button>` in new XML.
+
+Current supported `<sound>` attributes:
+
+- `id="..."`, `value="..."`, or `city="..."` selects the city ambient sound key
+- `mute_on_enemies="true|false"` suppresses the sound while enemies are active
+- `always_play="true|false"` keeps the sound audible even when normal worker/water gates would mute it
+
+Raw-material producer sound ids currently include `clay_pit`, `iron_mine`, `timber_yard`, and `marble_quarry`. Gold mine, stone quarry, and sand pit do not declare sounds because the legacy properties do not assign city sounds to them.
+
+Current supported `<event_data>` attributes:
+
+- `attr="..."` stores the scenario-event/query building attribute key
+
+Current supported `<flags>` attributes:
+
+- `fire_proof="0|1"`
+- `draw_desirability_range="0|1"`
+- `venus_gt_bonus="0|1"`
 
 Current supported `<state>` child nodes:
 
@@ -80,6 +149,9 @@ Current supported `<graphics>` child nodes:
 - `<condition type="water_access" />`
 - `<condition type="figure_slot_occupied" slot="primary|secondary|quaternary" />`
 - `<condition type="resource_positive" resource="wine" />`
+- `<condition type="climate" value="central|northern|desert" />`
+- `<condition type="monument_upgrade" value="1" />`
+- `<condition type="festival_games" value="1|2|3" />`
 - `<condition type="desirability" operator="lt|lte|eq|gt|gte" threshold="N" />`
 - `<condition type="days1_positive|days1_not_positive|days2_positive|days1_or_days2_positive" />`
 
@@ -108,8 +180,29 @@ Current supported graphics conditions:
 - `type="water_access"` means `has_water_access`
 - `type="figure_slot_occupied" slot="primary|secondary|quaternary"` means the named tracked legacy figure slot is occupied
 - `type="resource_positive" resource="wine"` means the building has at least one unit of that resource
+- `type="climate" value="central|northern|desert"` compares the active scenario climate
+- `type="monument_upgrade" value="N"` means the completed monument has upgrade/module `N`
+- `type="festival_games" value="1|2|3"` compares the active Colosseum games mode: `1` is naumachia, `2` is imperial games, and `3` is executions
 - `type="desirability" operator="lt|lte|eq|gt|gte" threshold="N"` compares the building desirability against `N`
 - `type="days1_positive|days1_not_positive|days2_positive|days1_or_days2_positive"` checks the entertainment visit-day counters used by entertainers
+
+Current supported `<construction>` attributes and child nodes:
+
+- missing `<construction>` or `mode="instant"` means placement uses finished graphics immediately
+- `mode="instant"` may contain direct `<requirement>` nodes for placement-time resource costs; money cost stays in `<model cost="N" />`
+- `mode="phased"` starts the building at `MONUMENT_START`
+- `road_update_radius="N"` updates nearby roads when the phased monument is placed
+- `<phase index="N"> ... </phase>` defines one construction phase
+- `<phase><graphics> ... </graphics></phase>` uses the same `<path>` and `<image>` target nodes as root graphics
+- `<requirement type="architects|stone|timber|concrete|marble|bricks|gold|iron" amount="N" />` declares phase delivery requirements
+- `<construction mode="instant"><requirement type="stone|timber|concrete|marble|bricks|gold|iron" amount="N" /></construction>` declares placement-time resource costs
+
+Phased construction rules:
+
+- phase indexes are authored in ascending one-based order
+- root-level `<graphics>` describes the completed building
+- phase-level `<graphics>` describes only the unfinished phase
+- a phased definition with `N` phase nodes has `N + 1` monument states; advancing past the last phase marks the monument finished
 
 Current supported `<labor>` child nodes:
 
@@ -163,7 +256,7 @@ Current supported `<spawn_group>` attributes:
 
 - `road_access="normal"`
 - `delay_bands="100:3,75:7,50:15,25:29,1:44"` as a comma-separated list of `worker_percentage:delay` pairs
-- `existing_figure="actor|barber|bathhouse_worker|doctor|engineer|gladiator|librarian|lion_tamer|prefect|priest|school_child|surgeon|tax_collector|teacher|work_camp_architect|work_camp_worker"`
+- `existing_figure="actor|barber|bathhouse_worker|charioteer|doctor|engineer|gladiator|librarian|lion_tamer|prefect|priest|school_child|surgeon|tax_collector|teacher|work_camp_architect|work_camp_worker"`
 - `guard_timing="before_road_access|after_labor_seeker"`
 
 `existing_figure` may also be a comma-separated list, such as `actor,gladiator` for amphitheaters or `gladiator,lion_tamer` for arenas. The list is checked against the tracked legacy primary figure slot as one group guard, so alternate performer types block one another without clearing the slot just because the first listed type does not match.
@@ -217,5 +310,14 @@ Current engine behavior:
 - Put provider-side water coverage and connection-node data under the root `<water_access>` block so the native water runtime stays data-driven.
 - Put BuildingType-authored employee defaults under `<labor><employees ... /></labor>` so the XML and live model table stay in sync.
 - Buildings with a validated runtime `BuildingType` graphics block usually use the native runtime renderer path as the authoritative live path; current data-only vertical slices remain on legacy live rendering until their runtime rollout lands.
+
+Current raw-material producer notes:
+
+- Julius, Augustus, and Vespasian define BuildingType XML for `clay_pit`, `marble_quarry`, `iron_mine`, and `timber_yard`.
+- Augustus and Vespasian additionally define XML for `gold_mine`, `stone_quarry`, and `sand_pit`; Julius does not because those resources/buildings are Augustus-era content.
+- The four Julius-era raw producers intentionally use Julius extracted graphics payloads when loaded by Augustus or Vespasian. Augustus/Vespasian-specific gold, stone, and sand producers use Augustus extracted payloads.
+- These buildings are placeable build-menu entries under `raw_materials`. Their XML uses `foundation policy="custom"` plus a `<terrain>` child for the legacy terrain gates: rock for marble/iron/gold/stone, tree adjacency/coverage for timber, water adjacency for clay, and distant/open-water adjacency for sand.
+- Raw-material producers attach native one-output `ProductionMethod` XML and matching output `StorageType` XML. Gold mine production uses `<treasury_cost amount="600" />` to preserve the legacy per-cycle finance charge.
+- The raw-producer-specific terrain cases were removed from `src/building/construction.cpp::set_required_terrain`; the function now reads these requirements from BuildingType XML when present.
 
 See `_template.xml.example` here in `Mods\Vespasian\BuildingType` for a copy/paste starter.

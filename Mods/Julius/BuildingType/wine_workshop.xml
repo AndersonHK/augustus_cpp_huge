@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="wine_workshop">
-    <identity name_key="building.wine_workshop.name" />
-    <model size="2" cost="45" desirability_value="-1" desirability_step="1" desirability_step_size="1" desirability_range="1" laborers="10" />
+    <identity name_key="main_strings.28.110" />
+    <model size="2" cost="45" />
+    <desirability>
+        <value value="-1" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="1" />
+    </desirability>
     <foundation policy="land" />
-    <button group="workshops" order="10" icon="Industry\Wine_Workshop" text_key="building.wine_workshop.name" />
+    <button group="workshops" order="10" icon="Industry\Wine_Workshop" text_key="main_strings.28.110" />
     <sound id="wine_workshop" />
     <event_data attr="wine_workshop" />
     <graphics>

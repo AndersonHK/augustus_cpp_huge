@@ -523,7 +523,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
     if (input_box_handle_mouse(m_dialog, &main_input) ||
         list_box_handle_input(&list_box, m_dialog, 1) ||
-        generic_buttons_handle_mouse(m_dialog, 0, 0, sort_by_button, 1, &data.sort_by_button_focused) ||
+        GenericButtonList(sort_by_button, 1).handle_mouse(
+            *m_dialog,
+            0,
+            0,
+            &data.sort_by_button_focused
+        ) ||
         image_buttons_handle_mouse(m_dialog, 0, 0, image_buttons, 2, 0)) {
         data.redraw_full_window = 1;
         return;

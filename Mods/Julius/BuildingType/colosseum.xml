@@ -1,4 +1,28 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="colosseum">
+    <identity name_key="main_strings.28.33" />
+    <model size="5" cost="1500" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="entertainment" order="30" icon="Health_Culture\Colosseum" text_key="main_strings.28.33" />
     <sound id="colosseum" mute_on_enemies="true" />
+    <event_data attr="colosseum" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Colosseum" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="100" />
+        <labor_seeker>
+            <method value="workforce" />
+            <amount value="50" />
+        </labor_seeker>
+    </labor>
 </building>

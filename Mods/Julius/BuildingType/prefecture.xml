@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="prefecture">
-    <identity name_key="building.prefecture.name" />
-    <model size="1" cost="30" desirability_value="-2" desirability_step="1" desirability_step_size="1" desirability_range="2" laborers="6" />
+    <identity name_key="main_strings.28.55" />
+    <model size="1" cost="30" />
+    <desirability>
+        <value value="-2" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="2" />
+    </desirability>
     <foundation policy="land" />
-    <button group="security" order="10" icon="Admin_Logistics\Prefecture" text_key="building.prefecture.name" />
+    <button group="security" order="10" icon="Admin_Logistics\Prefecture" text_key="main_strings.28.55" />
     <sound id="prefecture" />
     <event_data attr="prefecture" />
     <flags draw_desirability_range="1" />

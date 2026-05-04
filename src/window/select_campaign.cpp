@@ -210,8 +210,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
         return;
     }
     if (input_box_handle_mouse(m_dialog, &player_name_input) ||
-        generic_buttons_handle_mouse(m_dialog, 0, 0, bottom_buttons,
-            data.available_buttons, &data.bottom_button_focus_id) ||
+        GenericButtonList(bottom_buttons, data.available_buttons).handle_mouse(
+            *m_dialog,
+            0,
+            0,
+            &data.bottom_button_focus_id
+        ) ||
         list_box_handle_input(&list_box, m_dialog, 1)) {
         list_box_request_refresh(&list_box);
         window_invalidate();

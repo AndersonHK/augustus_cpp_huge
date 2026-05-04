@@ -1,12 +1,79 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="grand_temple_ceres">
-    <identity name_key="building.grand_temple_ceres.name" />
-    <model size="7" cost="2500" desirability_value="20" desirability_step="2" desirability_step_size="-4" desirability_range="8" laborers="50" />
+    <identity name_key="TR_BUILDING_GRAND_TEMPLE_CERES" />
+    <model size="7" cost="2500" />
+    <desirability>
+        <value value="20" />
+        <step value="2" />
+        <step_size value="-4" />
+        <range value="8" />
+    </desirability>
     <foundation policy="land" />
-    <button group="grand_temples" order="10" icon="grand temple ceres" text_key="building.grand_temple_ceres.name" />
+    <button group="grand_temples" order="10" icon="grand temple ceres" text_key="TR_BUILDING_GRAND_TEMPLE_CERES" />
     <sound id="temple_ceres" />
     <event_data attr="grand_temple_ceres" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Monuments\Ceres_worshippers" />
+            <image value="Ceres Complex On" />
+        </default>
+        <variant>
+            <condition type="monument_upgrade" value="1" />
+            <path value="Monuments\Ceres_Complex_Off" />
+            <image value="Ceres Complex Module" />
+        </variant>
+        <variant>
+            <condition type="monument_upgrade" value="2" />
+            <path value="Monuments\Ceres_Complex_Off" />
+            <image value="Ceres Complex Module2" />
+        </variant>
+    </graphics>
+    <construction mode="phased" road_update_radius="9">
+        <phase index="1">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Ceres Complex Const 01" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="20" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Ceres Complex Const 02" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="8" />
+            <requirement type="concrete" amount="20" />
+        </phase>
+        <phase index="3">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Ceres Complex Const 03" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="8" />
+            <requirement type="marble" amount="16" />
+        </phase>
+        <phase index="4">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Ceres Complex Const 04" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="16" />
+            <requirement type="bricks" amount="28" />
+            <requirement type="marble" amount="12" />
+        </phase>
+        <phase index="5">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Ceres Complex Const 05" />
+            </graphics>
+            <requirement type="architects" amount="4" />
+        </phase>
+    </construction>
     <labor>
         <employees count="50" />
         <labor_seeker>

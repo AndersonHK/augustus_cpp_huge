@@ -2,20 +2,16 @@
 
 #include "input/mouse.h"
 
-#ifdef __cplusplus
-extern "C++" {
-
-class GenericButton;
-using generic_button_click_handler = void (*)(const GenericButton *button);
-
 class GenericButton {
 public:
+    using ClickHandler = void (*)(const GenericButton *button);
+
     short x;
     short y;
     short width;
     short height;
-    generic_button_click_handler left_click_handler;
-    generic_button_click_handler right_click_handler;
+    ClickHandler left_click_handler;
+    ClickHandler right_click_handler;
     int parameter1;
     int parameter2;
     void *context_data;
@@ -26,7 +22,7 @@ public:
     int primary_parameter() const;
     int secondary_parameter() const;
     void set_bounds(short button_x, short button_y, short button_width, short button_height);
-    void set_handlers(generic_button_click_handler left_click, generic_button_click_handler right_click);
+    void set_handlers(ClickHandler left_click, ClickHandler right_click);
     void set_parameters(int primary, int secondary);
     void set_context(void *context);
     void *context() const;
@@ -34,32 +30,39 @@ public:
     void reset();
 };
 
-using generic_button = GenericButton;
+class GenericButtonList {
+public:
+    GenericButtonList(const GenericButton *items, unsigned int count)
+        : button_items(items), button_count(count)
+    {
+    }
 
-}
+    int handle_mouse(const mouse &m, int origin_x, int origin_y, unsigned int *focus_button_id) const
+    {
+        unsigned int button_id = focused_button(m, origin_x, origin_y);
+        if (focus_button_id) {
+            *focus_button_id = button_id;
+        }
+        if (!button_id) {
+            return 0;
+        }
+        return button_items[button_id - 1].handle_mouse(m);
+    }
 
-extern "C" {
-#else
-typedef struct generic_button generic_button;
-typedef void (*generic_button_click_handler)(const generic_button *button);
+private:
+    unsigned int focused_button(const mouse &m, int origin_x, int origin_y) const
+    {
+        for (unsigned int i = 0; i < button_count; i++) {
+            if (button_items[i].contains(m, origin_x, origin_y)) {
+                return i + 1;
+            }
+        }
+        return 0;
+    }
 
-struct generic_button {
-    short x;
-    short y;
-    short width;
-    short height;
-    generic_button_click_handler left_click_handler;
-    generic_button_click_handler right_click_handler;
-    int parameter1;
-    int parameter2;
-    void *context_data;
-    const char *debug_name;
+    const GenericButton *button_items;
+    unsigned int button_count;
 };
-#endif
 
-int generic_buttons_handle_mouse(const mouse *m, int x, int y, generic_button *buttons, unsigned int num_buttons,
-    unsigned int *focus_button_id);
-
-#ifdef __cplusplus
-}
-#endif
+using generic_button = GenericButton;
+using generic_button_click_handler = GenericButton::ClickHandler;

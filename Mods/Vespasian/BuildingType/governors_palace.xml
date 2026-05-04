@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="governors_palace">
+    <identity name_key="main_strings.28.79" />
+    <model size="5" cost="750" />
+    <desirability>
+        <value value="28" />
+        <step value="2" />
+        <step_size value="-4" />
+        <range value="5" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="gov_res" order="200" icon="Admin_Logistics\Governors_Palace" text_key="main_strings.28.79" />
     <sound id="palace" mute_on_enemies="true" />
+    <event_data attr="governors_palace" />
+    <graphics>
+        <default>
+            <path value="Admin_Logistics\Governors_Palace" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
 </building>

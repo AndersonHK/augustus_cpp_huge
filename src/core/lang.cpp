@@ -2,8 +2,6 @@ extern "C" {
 #include "lang.h"
 #include "building/building.h"
 #include "building/building_type_api.h"
-#include "building/building_type_id_bridge.h"
-#include "building/building_type_legacy_migration.h"
 #include "city/message.h"
 #include "core/log.h"
 #include "core/string.h"
@@ -15,8 +13,6 @@ extern "C" {
 
 #include <stdlib.h>
 #include <string.h>
-#include <string>
-#include <string_view>
 
 #define MAX_MESSAGE_ENTRIES 400
 
@@ -57,25 +53,62 @@ static int augustus_message_text_id(city_message_type message_type)
     return message_type > 50 ? message_type + 199 : message_type + 99;
 }
 
-static uint16_t legacy_building_type_from_display_key(const char *display_key)
+static const char *consume_key_prefix(const char *key, const char *prefix)
 {
-    if (!display_key || !*display_key) {
-        return BUILDING_NONE;
+    if (!key || !prefix) {
+        return 0;
     }
-    const std::string_view key(display_key);
-    constexpr std::string_view prefix = "building.";
-    constexpr std::string_view suffix = ".name";
-    if (key.size() <= prefix.size() + suffix.size() ||
-        key.substr(0, prefix.size()) != prefix ||
-        key.substr(key.size() - suffix.size()) != suffix) {
-        return BUILDING_NONE;
-    }
-    const std::string text_id(key.substr(prefix.size(), key.size() - prefix.size() - suffix.size()));
-    return building_type_legacy_migration_enum_for_text_id(text_id.c_str());
+    const size_t prefix_length = strlen(prefix);
+    return strncmp(key, prefix, prefix_length) == 0 ? key + prefix_length : 0;
 }
 
-static const uint8_t *dynamic_building_display_name(const char *display_key, int group)
+static int parse_key_int(const char *&cursor, int &value)
 {
+    if (!cursor || *cursor < '0' || *cursor > '9') {
+        return 0;
+    }
+    char *end = 0;
+    long parsed = strtol(cursor, &end, 10);
+    if (end == cursor || parsed < 0 || parsed > 100000) {
+        return 0;
+    }
+    value = static_cast<int>(parsed);
+    cursor = end;
+    return 1;
+}
+
+static const uint8_t *building_type_legacy_string_key_text(const char *display_key)
+{
+    const char *cursor = consume_key_prefix(display_key, "main_strings.");
+    const int is_editor = cursor ? 0 : 1;
+    if (!cursor) {
+        cursor = consume_key_prefix(display_key, "editor_strings.");
+    }
+    if (!cursor) {
+        return 0;
+    }
+
+    int group = 0;
+    int index = 0;
+    if (!parse_key_int(cursor, group) || *cursor != '.') {
+        return 0;
+    }
+    cursor++;
+    if (!parse_key_int(cursor, index) || *cursor) {
+        return 0;
+    }
+
+    const uint8_t *legacy_text = localization::legacy_legacy_string(is_editor, group, index);
+    return legacy_text && legacy_text[0] ? legacy_text : 0;
+}
+
+static const uint8_t *building_type_display_key_text(const char *display_key)
+{
+    const uint8_t *legacy_text = building_type_legacy_string_key_text(display_key);
+    if (legacy_text && legacy_text[0]) {
+        return legacy_text;
+    }
+
     translation_key translation;
     if (translation_key_from_name(display_key, &translation)) {
         return translation_for(translation);
@@ -86,12 +119,27 @@ static const uint8_t *dynamic_building_display_name(const char *display_key, int
         return named_translation;
     }
 
-    const uint16_t legacy_type = legacy_building_type_from_display_key(display_key);
-    if (legacy_type > BUILDING_NONE && legacy_type < BUILDING_TYPE_MAX) {
-        return lang_get_string(group, legacy_type);
+    return reinterpret_cast<const uint8_t *>(display_key);
+}
+
+static int building_type_display_key_is_localized(const char *display_key)
+{
+    const uint8_t *legacy_text = building_type_legacy_string_key_text(display_key);
+    if (legacy_text && legacy_text[0]) {
+        return 1;
     }
 
-    return reinterpret_cast<const uint8_t *>(display_key);
+    translation_key translation;
+    if (translation_key_from_name(display_key, &translation)) {
+        return 1;
+    }
+    const uint8_t *named_translation = localization::legacy_named_project_string(display_key);
+    return named_translation && named_translation[0] ? 1 : 0;
+}
+
+extern "C" const uint8_t *lang_get_string_by_key(const char *key)
+{
+    return building_type_display_key_is_localized(key) ? building_type_display_key_text(key) : 0;
 }
 
 static lang_message *set_augustus_message_parameters(
@@ -279,293 +327,13 @@ extern "C" const uint8_t *lang_get_string(int group, int index)
     if (group == CUSTOM_TRANSLATION) {
         return translation_for(static_cast<translation_key>(index));
     }
-    //Augustus overrrides of original strings
-    if (group == 92 && !index) {
-        return translation_for(TR_BUILDING_SMALL_TEMPLE_CERES_NAME);
-    }
-    if (group == 93 && !index) {
-        return translation_for(TR_BUILDING_SMALL_TEMPLE_NEPTUNE_NAME);
-    }
-    if (group == 94 && !index) {
-        return translation_for(TR_BUILDING_SMALL_TEMPLE_MERCURY_NAME);
-    }
-    if (group == 95 && !index) {
-        return translation_for(TR_BUILDING_SMALL_TEMPLE_MARS_NAME);
-    }
-    if (group == 96 && !index) {
-        return translation_for(TR_BUILDING_SMALL_TEMPLE_VENUS_NAME);
-    }
-
-    if (group == 130) {
-        switch (index) {
-            case 641:
-                return translation_for(TR_PHRASE_FIGURE_MISSIONARY_EXACT_4);
-            default:
-                break;
-        }
-    }
-
-    if (group == 67 && index == 48) {
-        return translation_for(TR_EDITOR_ALLOWED_BUILDINGS_MONUMENTS);
-    }
-
-    if ((group == 28 || group == 41) && index >= BUILDING_DYNAMIC_TYPE_FIRST && index < BUILDING_TYPE_MAX) {
+    // XML overrides of original strings
+    if ((group == 28 || group == 41) && index > BUILDING_NONE && index < BUILDING_TYPE_MAX &&
+        building_type_registry_has_definition(static_cast<building_type>(index))) {
         building_type type = static_cast<building_type>(index);
-        const char *text_id = building_type_id_bridge_text_from_runtime(type);
-        uint16_t legacy_type = building_type_legacy_migration_enum_for_text_id(text_id);
-        if (legacy_type > BUILDING_NONE && legacy_type < BUILDING_TYPE_MAX && legacy_type != index) {
-            return lang_get_string(group, legacy_type);
-        }
-        const char *display_key = building_type_registry_get_button_text_key(type);
-        if (!display_key || !*display_key) {
-            display_key = building_type_registry_get_name_key(type);
-        }
-        if (display_key && *display_key) {
-            return dynamic_building_display_name(display_key, group);
-        }
-    }
-
-    // Building strings
-    if (group == 28 || group == 41) {
-        switch (index) {
-            case BUILDING_ROADBLOCK:
-                return translation_for(TR_BUILDING_ROADBLOCK);
-            case BUILDING_WORKCAMP:
-                return translation_for(TR_BUILDING_WORK_CAMP);
-            case BUILDING_GRAND_TEMPLE_CERES:
-                return translation_for(TR_BUILDING_GRAND_TEMPLE_CERES);
-            case BUILDING_GRAND_TEMPLE_NEPTUNE:
-                return translation_for(TR_BUILDING_GRAND_TEMPLE_NEPTUNE);
-            case BUILDING_GRAND_TEMPLE_MERCURY:
-                return translation_for(TR_BUILDING_GRAND_TEMPLE_MERCURY);
-            case BUILDING_GRAND_TEMPLE_MARS:
-                return translation_for(TR_BUILDING_GRAND_TEMPLE_MARS);
-            case BUILDING_GRAND_TEMPLE_VENUS:
-                return translation_for(TR_BUILDING_GRAND_TEMPLE_VENUS);
-            case BUILDING_PANTHEON:
-                return translation_for(TR_BUILDING_PANTHEON);
-            case BUILDING_MENU_GRAND_TEMPLES:
-                return translation_for(TR_BUILDING_GRAND_TEMPLE_MENU);
-            case BUILDING_ARCHITECT_GUILD:
-                return translation_for(TR_BUILDING_ARCHITECT_GUILD);
-            case BUILDING_MESS_HALL:
-                return translation_for(TR_BUILDING_MESS_HALL);
-            case BUILDING_MENU_TREES:
-                return translation_for(TR_BUILDING_MENU_TREES);
-            case BUILDING_MENU_PATHS:
-                return translation_for(TR_BUILDING_MENU_PATHS);
-            case BUILDING_MENU_PARKS:
-                return translation_for(TR_BUILDING_MENU_PARKS);
-            case BUILDING_SMALL_POND:
-                return translation_for(TR_BUILDING_SMALL_POND);
-            case BUILDING_LARGE_POND:
-                return translation_for(TR_BUILDING_LARGE_POND);
-            case BUILDING_PINE_TREE:
-                return translation_for(TR_BUILDING_PINE_TREE);
-            case BUILDING_FIR_TREE:
-                return translation_for(TR_BUILDING_FIR_TREE);
-            case BUILDING_OAK_TREE:
-                return translation_for(TR_BUILDING_OAK_TREE);
-            case BUILDING_ELM_TREE:
-                return translation_for(TR_BUILDING_ELM_TREE);
-            case BUILDING_FIG_TREE:
-                return translation_for(TR_BUILDING_FIG_TREE);
-            case BUILDING_PLUM_TREE:
-                return translation_for(TR_BUILDING_PLUM_TREE);
-            case BUILDING_PALM_TREE:
-                return translation_for(TR_BUILDING_PALM_TREE);
-            case BUILDING_DATE_TREE:
-                return translation_for(TR_BUILDING_DATE_TREE);
-            case BUILDING_PINE_PATH:
-                return translation_for(TR_BUILDING_PINE_PATH);
-            case BUILDING_FIR_PATH:
-                return translation_for(TR_BUILDING_FIR_PATH);
-            case BUILDING_OAK_PATH:
-                return translation_for(TR_BUILDING_OAK_PATH);
-            case BUILDING_ELM_PATH:
-                return translation_for(TR_BUILDING_ELM_PATH);
-            case BUILDING_FIG_PATH:
-                return translation_for(TR_BUILDING_FIG_PATH);
-            case BUILDING_PLUM_PATH:
-                return translation_for(TR_BUILDING_PLUM_PATH);
-            case BUILDING_PALM_PATH:
-                return translation_for(TR_BUILDING_PALM_PATH);
-            case BUILDING_DATE_PATH:
-                return translation_for(TR_BUILDING_DATE_PATH);
-            case BUILDING_PAVILION_BLUE:
-                return translation_for(TR_BUILDING_BLUE_PAVILION);
-            case BUILDING_PAVILION_RED:
-                return translation_for(TR_BUILDING_RED_PAVILION);
-            case BUILDING_PAVILION_ORANGE:
-                return translation_for(TR_BUILDING_ORANGE_PAVILION);
-            case BUILDING_PAVILION_YELLOW:
-                return translation_for(TR_BUILDING_YELLOW_PAVILION);
-            case BUILDING_PAVILION_GREEN:
-                return translation_for(TR_BUILDING_GREEN_PAVILION);
-            case BUILDING_GODDESS_STATUE:
-                return translation_for(TR_BUILDING_SMALL_STATUE_ALT);
-            case BUILDING_SENATOR_STATUE:
-                return translation_for(TR_BUILDING_SMALL_STATUE_ALT_B);
-            case BUILDING_OBELISK:
-                return translation_for(TR_BUILDING_OBELISK);
-            case BUILDING_LIGHTHOUSE:
-                return translation_for(TR_BUILDING_LIGHTHOUSE);
-            case BUILDING_MENU_GOV_RES:
-                return translation_for(TR_BUILDING_MENU_GOV_RES);
-            case BUILDING_MENU_STATUES:
-                return translation_for(TR_BUILDING_MENU_STATUES);
-            case BUILDING_TAVERN:
-                return translation_for(TR_BUILDING_TAVERN);
-            case BUILDING_GRAND_GARDEN:
-                return translation_for(TR_BUILDING_GRAND_GARDEN);
-            case BUILDING_ARENA:
-                return translation_for(TR_BUILDING_ARENA);
-            case BUILDING_HORSE_STATUE:
-                return translation_for(TR_BUILDING_HORSE_STATUE);
-            case BUILDING_DOLPHIN_FOUNTAIN:
-                return translation_for(TR_BUILDING_DOLPHIN_FOUNTAIN);
-            case BUILDING_HEDGE_DARK:
-                return translation_for(TR_BUILDING_HEDGE_DARK);
-            case BUILDING_HEDGE_LIGHT:
-                return translation_for(TR_BUILDING_HEDGE_LIGHT);
-            case BUILDING_LOOPED_GARDEN_WALL:
-                return translation_for(TR_BUILDING_GARDEN_WALL);
-            case BUILDING_LEGION_STATUE:
-                return translation_for(TR_BUILDING_LEGION_STATUE);
-            case BUILDING_DECORATIVE_COLUMN:
-                return translation_for(TR_BUILDING_DECORATIVE_COLUMN);
-            case BUILDING_COLONNADE:
-                return translation_for(TR_BUILDING_COLONNADE);
-            case BUILDING_GARDEN_PATH:
-                return translation_for(TR_BUILDING_GARDEN_PATH);
-            case BUILDING_LARARIUM:
-                return translation_for(TR_BUILDING_LARARIUM);
-            case BUILDING_NYMPHAEUM:
-                return translation_for(TR_BUILDING_NYMPHAEUM);
-            case BUILDING_WATCHTOWER:
-                return translation_for(TR_BUILDING_WATCHTOWER);
-            case BUILDING_SMALL_MAUSOLEUM:
-                return translation_for(TR_BUILDING_SMALL_MAUSOLEUM);
-            case BUILDING_LARGE_MAUSOLEUM:
-                return translation_for(TR_BUILDING_LARGE_MAUSOLEUM);
-            case BUILDING_CARAVANSERAI:
-                return translation_for(TR_BUILDING_CARAVANSERAI);
-            case BUILDING_ROOFED_GARDEN_WALL:
-                return translation_for(TR_BUILDING_ROOFED_GARDEN_WALL);
-            case BUILDING_ROOFED_GARDEN_WALL_GATE:
-                return translation_for(TR_BUILDING_GARDEN_WALL_GATE);
-            case BUILDING_PALISADE:
-                return translation_for(TR_BUILDING_PALISADE);
-            case BUILDING_GLADIATOR_STATUE:
-                return translation_for(TR_BUILDING_GLADIATOR_STATUE);
-            case BUILDING_HIGHWAY:
-                return translation_for(TR_BUILDING_HIGHWAY);
-            case BUILDING_GOLD_MINE:
-                return translation_for(TR_BUILDING_GOLD_MINE);
-            case BUILDING_CITY_MINT:
-                return translation_for(TR_BUILDING_CITY_MINT);
-            case BUILDING_DEPOT:
-                return translation_for(TR_BUILDING_DEPOT);
-            case BUILDING_STONE_QUARRY:
-                return translation_for(TR_BUILDING_STONE_QUARRY);
-            case BUILDING_SAND_PIT:
-                return translation_for(TR_BUILDING_SAND_PIT);
-            case BUILDING_BRICKWORKS:
-                return translation_for(TR_RESOURCE_BRICKS);
-            case BUILDING_CONCRETE_MAKER:
-                return translation_for(TR_RESOURCE_CONCRETE);
-            case BUILDING_LOOPED_GARDEN_GATE:
-                return translation_for(TR_BUILDING_LOOPED_GARDEN_WALL_GATE);
-            case BUILDING_PANELLED_GARDEN_WALL:
-                return translation_for(TR_BUILDING_PANELLED_GARDEN_WALL);
-            case BUILDING_PANELLED_GARDEN_GATE:
-                return translation_for(TR_BUILDING_PANELLED_GARDEN_WALL_GATE);
-            case BUILDING_SHRINE_CERES:
-                return translation_for(TR_BUILDING_SHRINE_CERES);
-            case BUILDING_SHRINE_MARS:
-                return translation_for(TR_BUILDING_SHRINE_MARS);
-            case BUILDING_SHRINE_MERCURY:
-                return translation_for(TR_BUILDING_SHRINE_MERCURY);
-            case BUILDING_SHRINE_NEPTUNE:
-                return translation_for(TR_BUILDING_SHRINE_NEPTUNE);
-            case BUILDING_SHRINE_VENUS:
-                return translation_for(TR_BUILDING_SHRINE_VENUS);
-            case BUILDING_MENU_SHRINES:
-                return translation_for(TR_BUILDING_MENU_SHRINES);
-            case BUILDING_MENU_GARDENS:
-                if (group == 28) {
-                    index = BUILDING_GARDENS;
-                }
-                break;
-            case BUILDING_GARDENS:
-                if (group == 28) {
-                    return translation_for(TR_BUILDING_FORMAL_GARDENS);
-                }
-                break;
-            case BUILDING_OVERGROWN_GARDENS:
-                return translation_for(TR_BUILDING_OVERGROWN_GARDENS);
-            case BUILDING_FORT_AUXILIA_INFANTRY:
-                return translation_for(TR_BUILDING_FORT_AUXILIA_INFANTRY);
-            case BUILDING_ARMOURY:
-                return translation_for(TR_BUILDING_ARMOURY);
-            case BUILDING_MENU_FORT:
-                return translation_for(TR_BUILDING_FORT_MENU);
-            case BUILDING_FORT_ARCHERS:
-                return translation_for(TR_BUILDING_FORT_ARCHERS);
-            case BUILDING_FORT_LEGIONARIES:
-                return translation_for(TR_BUILDING_FORT_LEGIONARIES);
-            case BUILDING_FORT_MOUNTED:
-                return translation_for(TR_BUILDING_FORT_MOUNTED);
-            case BUILDING_FORT_JAVELIN:
-                return translation_for(TR_BUILDING_FORT_JAVELIN);
-            case BUILDING_HEDGE_GATE_DARK:
-                return translation_for(TR_BUILDING_HEDGE_DARK);
-            case BUILDING_HEDGE_GATE_LIGHT:
-                return translation_for(TR_BUILDING_HEDGE_LIGHT);
-            case BUILDING_PALISADE_GATE:
-                return translation_for(TR_BUILDING_PALISADE_GATE);
-            case BUILDING_LATRINES:
-                return translation_for(TR_BUILDING_LATRINES);
-            case BUILDING_NATIVE_HUT_ALT:
-                return translation_for(TR_BUILDING_NATIVE_HUT_ALT);
-            case BUILDING_NATIVE_DECORATION:
-                return translation_for(TR_BUILDING_NATIVE_DECORATION);
-            case BUILDING_NATIVE_MONUMENT:
-                return translation_for(TR_BUILDING_NATIVE_MONUMENT);
-            case BUILDING_NATIVE_WATCHTOWER:
-                return translation_for(TR_BUILDING_NATIVE_WATCHTOWER);
-            case BUILDING_REPAIR_LAND:
-                return translation_for(TR_BUILDING_LAND_REPAIR);
-            case BUILDING_CLEAR_TREES:
-                return translation_for(TR_BUILDING_MENU_TREES);
-            case BUILDING_CLEAR_LAND:
-                return translation_for(TR_BUILDING_LAND_CLEAR);
-
-            default:
-                break;
-        }
-    }
-
-    if (group == 48) {
-        switch (index) {
-            case TR_EDITOR_SCENARIO_BUILDING_NATIVE_HUT_ALT:
-                return translation_for(TR_EDITOR_SCENARIO_BUILDING_NATIVE_HUT_ALT);
-            case TR_EDITOR_SCENARIO_BUILDING_NATIVE_DECORATION:
-                return translation_for(TR_EDITOR_SCENARIO_BUILDING_NATIVE_DECORATION);
-            case TR_EDITOR_SCENARIO_BUILDING_NATIVE_MONUMENT:
-                return translation_for(TR_EDITOR_SCENARIO_BUILDING_NATIVE_MONUMENT);
-            case TR_EDITOR_SCENARIO_BUILDING_NATIVE_WATCHTOWER:
-                return translation_for(TR_EDITOR_SCENARIO_BUILDING_NATIVE_WATCHTOWER);
-            case TR_EDITOR_TOOL_EARTHQUAKE_POINT:
-                return translation_for(TR_EDITOR_TOOL_EARTHQUAKE_POINT);
-            case TR_EDITOR_TOOL_EARTHQUAKE_CUSTOM:
-                return translation_for(TR_EDITOR_TOOL_EARTHQUAKE_CUSTOM);
-            case TR_EDITOR_TOOL_EARTHQUAKE_REMOVE:
-                return translation_for(TR_EDITOR_TOOL_EARTHQUAKE_REMOVE);
-            case TR_EDITOR_RUBBLE:
-                return translation_for(TR_EDITOR_RUBBLE);
-            default:
-                break;
+        const char *display_key = building_type_registry_get_name_key(type);
+        if (display_key && *display_key && building_type_display_key_is_localized(display_key)) {
+            return building_type_display_key_text(display_key);
         }
     }
 

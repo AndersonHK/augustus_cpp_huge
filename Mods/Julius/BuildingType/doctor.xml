@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="doctor">
-    <identity name_key="building.doctor.name" />
-    <model size="1" cost="30" desirability_value="0" desirability_step="0" desirability_step_size="0" desirability_range="0" laborers="5" />
+    <identity name_key="main_strings.28.46" />
+    <model size="1" cost="30" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
     <foundation policy="land" />
-    <button group="health" order="10" icon="doctor" text_key="building.doctor.name" />
+    <button group="health" order="30" icon="Health_Culture\Doctor" text_key="main_strings.28.46" />
     <sound id="clinic" />
     <event_data attr="doctor" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Doctor" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="5" />
         <labor_seeker>

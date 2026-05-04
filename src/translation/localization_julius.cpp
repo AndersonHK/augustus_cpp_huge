@@ -485,6 +485,69 @@ bool write_julius_locale_json(const std::string &source_directory, std::vector<s
         output += "}";
     };
 
+    struct project_key_writer {
+        std::map<std::string, std::string> values;
+        std::vector<std::string> order;
+
+        void add_key(const std::string &key, const std::string &value)
+        {
+            if (value.empty()) {
+                return;
+            }
+            const auto inserted = values.emplace(key, value);
+            if (inserted.second) {
+                order.push_back(key);
+            }
+        }
+
+        void add_legacy_slot(int is_editor, int group, int index, const std::string &value)
+        {
+            const char *mapped_key = legacy_project_key_name_for_slot(is_editor, group, index);
+            const std::string fallback_key = (is_editor ? "editor_strings." : "main_strings.") +
+                std::to_string(group) + "." + std::to_string(index);
+            if (!mapped_key || !*mapped_key) {
+                add_key(fallback_key, value);
+                return;
+            }
+
+            const auto existing = values.find(mapped_key);
+            if (existing == values.end() || existing->second == value) {
+                add_key(mapped_key, value);
+            } else {
+                add_key(fallback_key, value);
+            }
+        }
+    };
+
+    auto collect_group_project_keys = [](project_key_writer &writer, int is_editor,
+        const std::map<int, std::vector<localized_text>> &groups) {
+        for (const auto &group_pair : groups) {
+            for (size_t index = 0; index < group_pair.second.size(); ++index) {
+                const std::string &value = group_pair.second[index].utf8;
+                if (!value.empty()) {
+                    writer.add_legacy_slot(is_editor, group_pair.first, static_cast<int>(index), value);
+                }
+            }
+        }
+    };
+
+    auto write_project_keys = [](std::string &output, const project_key_writer &writer) {
+        output += "{\r\n";
+        for (size_t i = 0; i < writer.order.size(); ++i) {
+            const std::string &key = writer.order[i];
+            json_write_indent(output, 2);
+            json_write_escaped_string(output, key);
+            output += ": ";
+            json_write_escaped_string(output, writer.values.at(key));
+            if (i + 1 < writer.order.size()) {
+                output += ",";
+            }
+            output += "\r\n";
+        }
+        json_write_indent(output, 1);
+        output += "}";
+    };
+
     auto write_messages = [](std::string &output, const std::vector<message_definition> &messages) {
         output += "{\r\n";
         bool wrote_message = false;
@@ -551,6 +614,11 @@ bool write_julius_locale_json(const std::string &source_directory, std::vector<s
         output += "}";
     };
 
+    project_key_writer project_keys;
+    collect_group_project_keys(project_keys, 0, main_strings);
+    collect_group_project_keys(project_keys, 1, editor_strings);
+    const std::map<int, std::vector<localized_text>> empty_groups;
+
     std::string output;
     output += "{\r\n";
     json_write_indent(output, 1); json_write_escaped_string(output, "metadata"); output += ": {";
@@ -559,13 +627,13 @@ bool write_julius_locale_json(const std::string &source_directory, std::vector<s
     output += ", "; json_write_escaped_string(output, "english_name"); output += ": "; json_write_escaped_string(output, language_english_name(language));
     output += ", "; json_write_escaped_string(output, "source"); output += ": "; json_write_escaped_string(output, kJuliusSourceName);
     output += "},\r\n";
-    json_write_indent(output, 1); json_write_escaped_string(output, "main_strings"); output += ": "; write_groups(output, main_strings); output += ",\r\n";
-    json_write_indent(output, 1); json_write_escaped_string(output, "editor_strings"); output += ": "; write_groups(output, editor_strings); output += ",\r\n";
+    json_write_indent(output, 1); json_write_escaped_string(output, "main_strings"); output += ": "; write_groups(output, empty_groups); output += ",\r\n";
+    json_write_indent(output, 1); json_write_escaped_string(output, "editor_strings"); output += ": "; write_groups(output, empty_groups); output += ",\r\n";
     json_write_indent(output, 1); json_write_escaped_string(output, "messages"); output += ": {\r\n";
     json_write_indent(output, 2); json_write_escaped_string(output, "main"); output += ": "; write_messages(output, main_messages); output += ",\r\n";
     json_write_indent(output, 2); json_write_escaped_string(output, "editor"); output += ": "; write_messages(output, editor_messages); output += "\r\n";
     json_write_indent(output, 1); output += "},\r\n";
-    json_write_indent(output, 1); json_write_escaped_string(output, "project_keys"); output += ": {}\r\n";
+    json_write_indent(output, 1); json_write_escaped_string(output, "project_keys"); output += ": "; write_project_keys(output, project_keys); output += "\r\n";
     output += "}\r\n";
 
     const std::string output_path = append_path_component(make_julius_localization_root(), std::string(locale_code) + ".json");

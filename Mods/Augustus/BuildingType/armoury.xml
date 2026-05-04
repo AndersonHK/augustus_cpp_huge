@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="armoury">
-    <identity name_key="building.armoury.name" />
-    <model size="2" cost="50" desirability_value="-5" desirability_step="1" desirability_step_size="1" desirability_range="4" laborers="6" />
+    <identity name_key="TR_BUILDING_ARMOURY" />
+    <model size="2" cost="50" />
+    <desirability>
+        <value value="-5" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="4" />
+    </desirability>
     <foundation policy="land" />
-    <button group="security" order="50" icon="Military\Armoury_OFF_C" text_key="building.armoury.name" />
+    <button group="security" order="50" icon="Military\Armoury_OFF_C" text_key="TR_BUILDING_ARMOURY" />
     <sound id="armoury" />
     <event_data attr="armoury" />
     <flags draw_desirability_range="1" />
@@ -14,8 +20,30 @@
         </default>
         <variant>
             <condition type="has_workers" />
+            <condition type="climate" value="desert" />
+            <path value="Military\Armoury_OFF_C" />
+            <image value="Armoury_ON_S" />
+        </variant>
+        <variant>
+            <condition type="has_workers" />
+            <condition type="climate" value="northern" />
+            <path value="Military\Armoury_OFF_C" />
+            <image value="Armoury_ON_N" />
+        </variant>
+        <variant>
+            <condition type="has_workers" />
             <path value="Military\Armoury_OFF_C" />
             <image value="Armoury_ON_C" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Military\Armoury_OFF_C" />
+            <image value="Armoury_OFF_S" />
+        </variant>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Military\Armoury_OFF_C" />
+            <image value="Armoury_OFF_N" />
         </variant>
     </graphics>
 

@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="academy">
-    <identity name_key="building.academy.name" />
-    <model size="3" cost="100" desirability_value="4" desirability_step="1" desirability_step_size="1" desirability_range="4" laborers="30" />
+    <identity name_key="main_strings.28.52" />
+    <model size="3" cost="100" />
+    <desirability>
+        <value value="4" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="4" />
+    </desirability>
     <foundation policy="land" />
-    <button group="education" order="40" icon="Health_Culture\Academy_Fix" text_key="building.academy.name" />
+    <button group="education" order="20" icon="Health_Culture\Academy" text_key="main_strings.28.52" />
     <sound id="academy" />
     <event_data attr="academy" />
     <graphics>
@@ -12,6 +18,7 @@
         </default>
     </graphics>
     <labor>
+        <employees count="30" />
         <labor_seeker>
             <method value="houses_spawn_if_below" />
             <amount value="50" />

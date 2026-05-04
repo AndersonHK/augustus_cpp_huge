@@ -1,4 +1,67 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="colosseum">
+    <identity name_key="main_strings.28.33" />
+    <model size="5" cost="1500" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="entertainment" order="0" icon="Health_Culture\Colosseum_Runtime" text_key="main_strings.28.33" />
+    <flags fire_proof="1" />
     <sound id="colosseum" mute_on_enemies="true" />
+    <event_data attr="colosseum" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Colosseum_Runtime" />
+            <image value="Colosseum_Base" />
+        </default>
+    </graphics>
+    <construction mode="phased" road_update_radius="7">
+        <phase index="1">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Colosseum_Construction_01" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="12" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Monuments\Colosseum_Construction_02" />
+                <image value="Colosseum_Construction_02" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="8" />
+            <requirement type="concrete" amount="16" />
+        </phase>
+        <phase index="3">
+            <graphics>
+                <path value="Monuments\Colosseum_Construction_03" />
+                <image value="Colosseum_Construction_03" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="12" />
+            <requirement type="stone" amount="16" />
+        </phase>
+        <phase index="4">
+            <graphics>
+                <path value="Monuments\Colosseum_Construction_04" />
+                <image value="Colosseum_Construction_04" />
+            </graphics>
+            <requirement type="architects" amount="4" />
+            <requirement type="timber" amount="12" />
+            <requirement type="marble" amount="20" />
+            <requirement type="bricks" amount="16" />
+        </phase>
+    </construction>
+    <labor>
+        <employees count="100" />
+        <labor_seeker>
+            <method value="workforce" />
+            <amount value="50" />
+        </labor_seeker>
+    </labor>
 </building>

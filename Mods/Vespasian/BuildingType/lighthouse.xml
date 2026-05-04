@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="lighthouse">
-    <identity name_key="building.lighthouse.name" />
-    <model size="3" cost="1000" desirability_value="6" desirability_step="1" desirability_step_size="-1" desirability_range="4" laborers="20" />
+    <identity name_key="TR_BUILDING_LIGHTHOUSE" />
+    <model size="3" cost="1000" />
+    <desirability>
+        <value value="6" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="4" />
+    </desirability>
     <foundation policy="land" />
-    <button group="engineering" order="40" icon="Monuments\Lighthouse_OFF" text_key="building.lighthouse.name" />
+    <button group="engineering" order="40" icon="Monuments\Lighthouse_OFF" text_key="TR_BUILDING_LIGHTHOUSE" />
     <sound id="lighthouse" />
     <event_data attr="lighthouse" />
     <flags fire_proof="1" />
@@ -14,10 +20,49 @@
         </default>
         <variant>
             <condition type="has_workers" />
+            <condition type="resource_positive" resource="timber" />
             <path value="Monuments\Lighthouse_OFF" />
             <image value="Lighthouse ON" />
         </variant>
     </graphics>
+    <construction mode="phased" road_update_radius="5">
+        <phase index="1">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Lighthouse_Construction_01" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="16" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Monuments\Lighthouse_Construction_02" />
+                <image value="Lighthouse_Construction_02" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="8" />
+            <requirement type="stone" amount="16" />
+        </phase>
+        <phase index="3">
+            <graphics>
+                <path value="Monuments\Lighthouse_Construction_02" />
+                <image value="Lighthouse_Construction_03" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="16" />
+            <requirement type="stone" amount="12" />
+        </phase>
+        <phase index="4">
+            <graphics>
+                <path value="Monuments\Lighthouse_Construction_02" />
+                <image value="Lighthouse_Construction_04" />
+            </graphics>
+            <requirement type="architects" amount="4" />
+            <requirement type="timber" amount="8" />
+            <requirement type="bricks" amount="20" />
+            <requirement type="stone" amount="12" />
+        </phase>
+    </construction>
     <labor>
         <employees count="20" />
         <labor_seeker>

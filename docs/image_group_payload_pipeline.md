@@ -17,7 +17,7 @@ This note exists to keep the new XML-driven runtime graphics path legible and pr
    Output: one `ResolvedImageEntry` with:
    - split-source pixels for future references
    - footprint/top managed payload keys for rendering
-   - animation frame payload keys
+   - animation frame payload keys and runtime slices
 
 4. Payload Facade
    Input: resolved entries for one merged group.
@@ -25,7 +25,7 @@ This note exists to keep the new XML-driven runtime graphics path legible and pr
 
 ## Source Priority
 
-Current priority order is:
+Runtime priority order is derived from the active mod list, highest-precedence mod first, then lower active mods, then root/base. With the default list this is:
 
 1. Vespasian mod override
 2. Augustus
@@ -127,6 +127,14 @@ The runtime renderer should only consume the public payload contract:
 - optional top image
 - animation frame images
 
-It should not need to know how references were resolved or how the split-source buffer is stored.
+Live XML buildings must pass through this payload contract directly. Their selected `GraphicsTarget.path` is the image-group payload key, and the selected/default entry id chooses the payload entry. They should not be converted to legacy integer image group ids for `building_image_get()` or `map_image`.
+
+Animation frames follow the same rule. A `<frame>` that references another payload entry is reconstructed from that entry as `PART_BOTH` and uploaded as its own frame payload before runtime drawing. Explicit frame references and implicit following-entry frame sequences should not reuse footprint-only slices, because animated XML payloads may carry top/full overlay pixels.
+
+Native animation timing is still keyed by the legacy `map_sprite_animation` cursor. The city animation layer advances runtime-owned payload animations beside the legacy image-group path, then the runtime renderer reads the current cursor to pick one payload frame.
+
+`map_image` may still hold a neutral compatibility sentinel for a runtime-owned building so selection, deletion, terrain, and draw-tile bookkeeping keep working. The renderer decides whether to draw the sentinel or the real building by asking the building runtime for cached `RuntimeDrawSlice` payload slices first.
+
+The renderer should not need to know how references were resolved or how the split-source buffer is stored.
 
 That split-source buffer exists for composition/reference extraction only, not as a render-facing abstraction.

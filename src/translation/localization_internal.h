@@ -39,7 +39,7 @@ inline constexpr int kMinMessageSize = 32024;
 inline constexpr int kMaxMessageSize = kMinMessageSize + kMaxMessageData;
 inline constexpr int kBufferSize = 400000;
 
-inline constexpr char kJuliusStampPrefix[] = "localization_extract_v2:";
+inline constexpr char kJuliusStampPrefix[] = "localization_extract_v3:";
 inline constexpr char kJuliusSourceName[] = "Julius";
 inline constexpr uint8_t kEmptyLegacy[] = { 0 };
 
@@ -234,6 +234,7 @@ std::string make_julius_localization_root();
 std::string make_julius_stamp_path();
 std::string make_julius_manifest_path();
 localized_text &fallback_project_key(translation_key key);
+const char *legacy_project_key_name_for_slot(int is_editor, int group, int index);
 void report_missing_project_key(translation_key key);
 void report_missing_legacy_string(int is_editor, int group, int index);
 const char *language_code_for(language_type language);

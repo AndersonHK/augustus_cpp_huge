@@ -1,0 +1,149 @@
+extern "C" {
+#include "labor_priority.h"
+
+#include "city/labor.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "graphics/ui_runtime_api.h"
+#include "graphics/window.h"
+#include "input/input.h"
+}
+
+#define MIN_DIALOG_WIDTH 320
+
+static void button_set_priority(const generic_button *button);
+
+static struct {
+    int category;
+    unsigned int max_items;
+    unsigned int focus_button_id;
+} data;
+
+static generic_button priority_buttons[] = {
+    {180, 256, 280, 25, button_set_priority}, // no priority
+    {178, 221, 27, 27, button_set_priority, 0, 1},
+    {210, 221, 27, 27, button_set_priority, 0, 2},
+    {242, 221, 27, 27, button_set_priority, 0, 3},
+    {274, 221, 27, 27, button_set_priority, 0, 4},
+    {306, 221, 27, 27, button_set_priority, 0, 5},
+    {338, 221, 27, 27, button_set_priority, 0, 6},
+    {370, 221, 27, 27, button_set_priority, 0, 7},
+    {402, 221, 27, 27, button_set_priority, 0, 8},
+    {434, 221, 27, 27, button_set_priority, 0, 9},
+};
+
+static void init(int category)
+{
+    data.category = category;
+    data.max_items = city_labor_max_selectable_priority(category);
+}
+
+static int get_dialog_width(void)
+{
+    int title_width = lang_text_get_width(50, 25, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    int rclick_width = lang_text_get_width(13, 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int dialog_width = 16 + (title_width > rclick_width ? title_width : rclick_width);
+
+    if (dialog_width < MIN_DIALOG_WIDTH) {
+        dialog_width = MIN_DIALOG_WIDTH;
+    }
+    if (dialog_width % BLOCK_SIZE != 0) {
+        // make sure the width is a multiple of 16
+        dialog_width += BLOCK_SIZE - dialog_width % BLOCK_SIZE;
+    }
+    return dialog_width;
+}
+
+static void draw_background(void)
+{
+    window_draw_underlying_window();
+
+    graphics_in_dialog();
+
+    int dialog_width = get_dialog_width();
+    int dialog_x = 160 - (dialog_width - MIN_DIALOG_WIDTH) / 2;
+    outer_panel_draw(dialog_x, 176, dialog_width / BLOCK_SIZE, 9);
+    lang_text_draw_centered(50, 25, 160, 185, 320, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    for (unsigned int i = 0; i < 9; i++) {
+        graphics_draw_rect(178 + 32 * i, 221, 27, 27, COLOR_BLACK);
+        lang_text_draw_centered(50, 27 + i, 178 + 32 * i, 224, 27, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        if (i >= data.max_items) {
+            graphics_shade_rect(179 + 32 * i, 222, 25, 25, 8);
+        }
+    }
+
+    graphics_draw_rect(180, 256, 280, 25, COLOR_BLACK);
+    lang_text_draw_centered(50, 26, 148, 263, 344, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(13, 3, 128, 296, 384, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    graphics_reset_dialog();
+}
+
+static void draw_foreground(void)
+{
+    graphics_in_dialog();
+
+    color_t color;
+    for (unsigned int i = 0; i < 9; i++) {
+        color = COLOR_BLACK;
+        if (i == data.focus_button_id - 2) {
+            color = COLOR_RED;
+        }
+        graphics_draw_rect(178 + 32 * i, 221, 27, 27, color);
+    }
+    color = COLOR_BLACK;
+    if (data.focus_button_id == 1) {
+        color = COLOR_RED;
+    }
+    graphics_draw_rect(180, 256, 280, 25, color);
+
+    graphics_reset_dialog();
+}
+
+static void handle_input(const mouse *m, const hotkeys *h)
+{
+    if (GenericButtonList(priority_buttons, 1 + data.max_items).handle_mouse(
+        *mouse_in_dialog(m),
+        0,
+        0,
+        &data.focus_button_id
+    )) {
+        return;
+    }
+    if (input_go_back_requested(m, h)) {
+        window_go_back();
+    }
+}
+
+static void button_set_priority(const generic_button *button)
+{
+    int new_priority = button->parameter1;
+    city_labor_set_priority(data.category, new_priority);
+    window_go_back();
+}
+
+static void get_tooltip(tooltip_context *c)
+{
+    if (!data.focus_button_id) {
+        return;
+    }
+    c->type = TOOLTIP_BUTTON;
+    if (data.focus_button_id == 1) {
+        c->text_id = 92;
+    } else {
+        c->text_id = 93;
+    }
+}
+
+void window_labor_priority_show(int category)
+{
+    window_type window = {
+        WINDOW_LABOR_PRIORITY,
+        draw_background,
+        draw_foreground,
+        handle_input,
+        get_tooltip
+    };
+    init(category);
+    window_show(&window);
+}

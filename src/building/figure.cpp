@@ -328,35 +328,6 @@ static void spawn_figure_chariot(building *b, map_point road, int use_figure_2)
     }
 }
 
-static void spawn_figure_chariot_maker(building *b)
-{
-    check_labor_problem(b);
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        spawn_labor_seeker(b, road.x, road.y, 50);
-        int pct_workers = worker_percentage(b);
-        int spawn_delay;
-        if (pct_workers >= 100) {
-            spawn_delay = game_time_scale_legacy_day_ticks(7);
-        } else if (pct_workers >= 75) {
-            spawn_delay = game_time_scale_legacy_day_ticks(15);
-        } else if (pct_workers >= 50) {
-            spawn_delay = game_time_scale_legacy_day_ticks(30);
-        } else if (pct_workers >= 25) {
-            spawn_delay = game_time_scale_legacy_day_ticks(60);
-        } else if (pct_workers >= 1) {
-            spawn_delay = game_time_scale_legacy_day_ticks(90);
-        } else {
-            return;
-        }
-        b->figure_spawn_delay++;
-        if (b->figure_spawn_delay > spawn_delay) {
-            spawn_figure_chariot(b, road, 0);
-            b->figure_spawn_delay = 0;
-        }
-    }
-}
-
 static void spawn_figure_hippodrome(building *b)
 {
     check_labor_problem(b);
@@ -1322,6 +1293,7 @@ static int building_uses_runtime_spawn(const building *b)
         case BUILDING_WORKCAMP:
         case BUILDING_SCHOOL:
         case BUILDING_LION_HOUSE:
+        case BUILDING_CHARIOT_MAKER:
         case BUILDING_AMPHITHEATER:
         case BUILDING_ARENA:
         case BUILDING_ARCHITECT_GUILD:
@@ -1390,9 +1362,6 @@ void building_figure_generate(void)
                     break;
                 case BUILDING_TOWER:
                     spawn_figure_tower(b);
-                    break;
-                case BUILDING_CHARIOT_MAKER:
-                    spawn_figure_chariot_maker(b);
                     break;
                 case BUILDING_HIPPODROME:
                     spawn_figure_hippodrome(b);

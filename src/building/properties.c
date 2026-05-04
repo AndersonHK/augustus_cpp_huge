@@ -580,32 +580,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .max_people = 200,
             .tax_multiplier = 16}
     },
-    [BUILDING_HIPPODROME] = {
-        .size = 5,
-        .fire_proof = 1,
-        .image_group = 213,
-        .sound_id = SOUND_CITY_HIPPODROME,
-        .event_data.attr = "hippodrome",
-        .building_model_data = {.cost = 3500, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 150} // Differs from model.txt
-    },
-    [BUILDING_COLOSSEUM] = {
-        .size = 5,
-        .fire_proof = 1,
-        .image_group = 48,
-        .sound_id = SOUND_CITY_COLOSSEUM,
-        .event_data.attr = "colosseum",
-        .building_model_data = {.cost = 1500, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 100} // Differs from model.txt
-    },
-    [BUILDING_CHARIOT_MAKER] = {
-        .size = 3,
-        .image_group = 52,
-        .sound_id = SOUND_CITY_CHARIOT_MAKER,
-        .event_data.attr = "chariot_maker",
-        .building_model_data = {.cost = 75, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 10}
-    },
     [BUILDING_PLAZA] = {
         .size = 1,
         .fire_proof = 1,
@@ -786,30 +760,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 60, .desirability_value = -8, .desirability_step = 2,
             .desirability_step_size = 2, .desirability_range = 3, .laborers = 6}
     },
-    [BUILDING_GOVERNORS_HOUSE] = {
-        .size = 3,
-        .image_group = 85,
-        .sound_id = SOUND_CITY_PALACE,
-        .event_data.attr = "governors_house",
-        .building_model_data = {.cost = 150, .desirability_value = 12, .desirability_step = 2,
-            .desirability_step_size = -2, .desirability_range = 3, .laborers = 0}
-    },
-    [BUILDING_GOVERNORS_VILLA] = {
-        .size = 4,
-        .image_group = 86,
-        .sound_id = SOUND_CITY_PALACE,
-        .event_data.attr = "governors_villa",
-        .building_model_data = {.cost = 400, .desirability_value = 20, .desirability_step = 2,
-            .desirability_step_size = -3, .desirability_range = 4, .laborers = 0}
-    },
-    [BUILDING_GOVERNORS_PALACE] = {
-        .size = 5,
-        .image_group = 87,
-        .sound_id = SOUND_CITY_PALACE,
-        .event_data.attr = "governors_palace",
-        .building_model_data = {.cost = 750, .desirability_value = 28, .desirability_step = 2,
-            .desirability_step_size = -4, .desirability_range = 5, .laborers = 0}
-    },
     [BUILDING_MISSION_POST] = {
         .size = 2,
         .fire_proof = 1,
@@ -905,38 +855,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .sound_id = SOUND_CITY_BURNING_RUIN,
         .building_model_data = {.cost = 0, .desirability_value = -1, .desirability_step = 1,
             .desirability_step_size = 1, .desirability_range = 2, .laborers = 0}
-     },
-     [BUILDING_MARBLE_QUARRY] = {
-        .size = 2,
-        .image_group = 38,
-        .sound_id = SOUND_CITY_QUARRY,
-        .event_data.attr = "marble_quarry",
-        .building_model_data = {.cost = 50, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 10}
-     },
-     [BUILDING_IRON_MINE] = {
-        .size = 2,
-        .image_group = 39,
-        .sound_id = SOUND_CITY_IRON_MINE,
-        .event_data.attr = "iron_mine",
-        .building_model_data = {.cost = 50, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 10}
-     },
-     [BUILDING_TIMBER_YARD] = {
-        .size = 2,
-        .image_group = 65,
-        .sound_id = SOUND_CITY_TIMBER_YARD,
-        .event_data.attr = "timber_yard",
-        .building_model_data = {.cost = 40, .desirability_value = -4, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 10}
-     },
-     [BUILDING_CLAY_PIT] = {
-        .size = 2,
-        .image_group = 40,
-        .sound_id = SOUND_CITY_CLAY_PIT,
-        .event_data.attr = "clay_pit",
-        .building_model_data = {.cost = 40, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 2, .laborers = 10}
      },
      [BUILDING_ROADBLOCK] = {
         .size = 1,
@@ -1322,16 +1240,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 12, .desirability_value = 3, .desirability_step = 1,
             .desirability_step_size = -1, .desirability_range = 3, .laborers = 0}
      },
-     [BUILDING_LARARIUM] = {
-        .venus_gt_bonus = 1,
-        .size = 1,
-        .draw_desirability_range = 1,
-        .custom_asset.group = "Health_Culture",
-        .custom_asset.id = "Lararium 01",
-        .event_data.attr = "lararium",
-        .building_model_data = {.cost = 45, .desirability_value = 4, .desirability_step = 1,
-            .desirability_step_size = -1, .desirability_range = 3, .laborers = 0}
-     },
      [BUILDING_NYMPHAEUM] = {
         .venus_gt_bonus = 1,
         .size = 3,
@@ -1445,30 +1353,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .building_model_data = {.cost = 100, .desirability_value = -4, .desirability_step = 1,
             .desirability_step_size = 2, .desirability_range = 2, .laborers = 0}
      },
-     [BUILDING_GOLD_MINE] = {
-        .size = 2,
-        .custom_asset.group = "Industry",
-        .custom_asset.id = "Gold_Mine_C_OFF",
-        .event_data.attr = "gold_mine",
-        .building_model_data = {.cost = 100, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 30}
-     },
-     [BUILDING_STONE_QUARRY] = {
-        .size = 2,
-        .custom_asset.group = "Industry",
-        .custom_asset.id = "Stone_Quarry_C_OFF",
-        .event_data.attr = "stone_quarry",
-        .building_model_data = {.cost = 60, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 10}
-     },
-     [BUILDING_SAND_PIT] = {
-        .size = 2,
-        .custom_asset.group = "Industry",
-        .custom_asset.id = "Sand_Pit_C_OFF",
-        .event_data.attr = "sand_pit",
-        .building_model_data = {.cost = 40, .desirability_value = -6, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 4, .laborers = 10}
-     },
      [BUILDING_CITY_MINT] = {
         .size = 3,
         .fire_proof = 1,
@@ -1580,15 +1464,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.attr = "overgrown_gardens",
         .building_model_data = {.cost = 12, .desirability_value = 3, .desirability_step = 1,
             .desirability_step_size = -1, .desirability_range = 3, .laborers = 0}
-     },
-     [BUILDING_LATRINES] = {
-        .size = 1,
-        .fire_proof = 1,
-        .custom_asset.group = "Health_Culture",
-        .custom_asset.id = "Latrine_N",
-        .event_data.attr = "latrines",
-        .building_model_data = {.cost = 15, .desirability_value = 0, .desirability_step = 0,
-            .desirability_step_size = 0, .desirability_range = 0, .laborers = 2}
      },
      [BUILDING_NATIVE_HUT_ALT] = {
         .size = 1,

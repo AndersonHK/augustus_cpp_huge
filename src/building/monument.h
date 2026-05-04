@@ -3,6 +3,10 @@
 #include "building/building.h"
 #include "map/road_access.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define MONUMENT_FINISHED -1
 #define MONUMENT_START 1
 #define MARS_OFFERING_FREQUENCY 16
@@ -30,7 +34,9 @@ int building_monument_has_unfinished_monuments(void);
 void building_monument_set_phase(building *b, int phase);
 int building_monument_is_monument(const building *b);
 int building_monument_is_limited(building_type type);
+int building_monument_text_id_is_monument(const char *text_id);
 int building_monument_type_is_monument(building_type type);
+void building_monument_reset_runtime_bridge(void);
 int building_monument_type_is_mini_monument(building_type type);
 int building_monument_is_grand_temple(building_type type);
 int building_monument_needs_resource(building *b, int resource);
@@ -63,3 +69,7 @@ void building_monument_delivery_load_state(buffer *list, int includes_array_size
 int building_monument_is_construction_halted(building *b);
 int building_monument_toggle_construction_halted(building *b);
 int building_monument_is_unfinished_monument(const building *b);
+
+#ifdef __cplusplus
+}
+#endif

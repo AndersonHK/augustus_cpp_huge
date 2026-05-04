@@ -44,6 +44,89 @@ int derive_original_height(const ResolvedImageEntry &entry)
     return entry.top_height + footprint_height / 2;
 }
 
+// Input: one symbolic layer definition.
+// Output: shared positioning/transform metadata copied into a prepared layer.
+void copy_prepared_layer_metadata(const RawLayerDef &raw_layer, PreparedLayer &out_layer)
+{
+    out_layer.x_offset = raw_layer.x_offset;
+    out_layer.y_offset = raw_layer.y_offset;
+    out_layer.invert = raw_layer.invert;
+    out_layer.rotate = raw_layer.rotate;
+    out_layer.mask = raw_layer.mask;
+}
+
+// Input: one candidate entry id.
+// Output: true when the merged group actually declares that image id without reporting a materialization error.
+int merged_group_has_entry(const std::string &group_key, xml_asset_source preferred_source, const std::string &image_id)
+{
+    const MergedImageGroup *merged = load_merged_group(group_key);
+    if (!merged) {
+        return 0;
+    }
+
+    size_t start_index = 0;
+    for (size_t i = 0; i < merged->source_chain.size(); i++) {
+        if (merged->source_chain[i] == preferred_source) {
+            start_index = i;
+            break;
+        }
+    }
+
+    for (size_t i = start_index; i < merged->source_chain.size(); i++) {
+        const ImageGroupDoc *source_doc = load_group_doc(group_key, merged->source_chain[i]);
+        if (source_doc && source_doc->entries.find(image_id) != source_doc->entries.end()) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// Input: one extracted construction-layer reference whose shadow entry was not emitted explicitly.
+// Output: a prepared shadow layer derived from the matching extracted base image, or false when the pattern does not apply.
+int prepare_derived_construction_shadow_layer(
+    const std::string &target_group,
+    xml_asset_source source,
+    const RawLayerDef &raw_layer,
+    PreparedLayer &out_layer)
+{
+    static const char shadow_suffix[] = "_Shadow";
+    const std::string &image_id = raw_layer.reference.image_id;
+    if (raw_layer.part != PART_TOP ||
+        image_id.size() <= sizeof(shadow_suffix) - 1 ||
+        image_id.compare(image_id.size() - (sizeof(shadow_suffix) - 1), sizeof(shadow_suffix) - 1, shadow_suffix) != 0) {
+        return 0;
+    }
+
+    const std::string base_image_id = image_id.substr(0, image_id.size() - (sizeof(shadow_suffix) - 1));
+    if (!merged_group_has_entry(target_group, source, base_image_id)) {
+        return 0;
+    }
+
+    const ResolvedImageEntry *base_entry = materialize_merged_entry(target_group, source, base_image_id);
+    if (!base_entry) {
+        return 0;
+    }
+
+    RasterSurface base_surface = surface_from_resolved_entry_part(*base_entry, PART_BOTH);
+    if (!raster_has_pixels(base_surface)) {
+        return 0;
+    }
+
+    const int shadow_size = std::min(base_surface.width, base_surface.height);
+    if (shadow_size <= 0) {
+        return 0;
+    }
+    out_layer.surface = crop_surface(base_surface, base_surface.width - shadow_size, 0, shadow_size, shadow_size);
+    if (!raster_has_pixels(out_layer.surface)) {
+        return 0;
+    }
+    if (raw_layer.mask == LAYER_MASK_GRAYSCALE) {
+        convert_to_grayscale(out_layer.surface);
+    }
+    copy_prepared_layer_metadata(raw_layer, out_layer);
+    return 1;
+}
+
 // Input: one source-local document and one raw PNG layer reference.
 // Output: a prepared layer containing a cropped raster plus transform metadata.
 int prepare_png_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_layer, PreparedLayer &out_layer)
@@ -69,11 +152,7 @@ int prepare_png_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_layer, Pr
         convert_to_grayscale(out_layer.surface);
     }
 
-    out_layer.x_offset = raw_layer.x_offset;
-    out_layer.y_offset = raw_layer.y_offset;
-    out_layer.invert = raw_layer.invert;
-    out_layer.rotate = raw_layer.rotate;
-    out_layer.mask = raw_layer.mask;
+    copy_prepared_layer_metadata(raw_layer, out_layer);
     return 1;
 }
 
@@ -86,14 +165,36 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
         return 0;
     }
 
-    const ResolvedImageEntry *resolved = materialize_merged_entry(target_group, doc.source, raw_layer.reference.image_id);
+    const int has_declared_entry = merged_group_has_entry(target_group, doc.source, raw_layer.reference.image_id);
+    const ResolvedImageEntry *resolved = has_declared_entry ?
+        materialize_merged_entry(target_group, doc.source, raw_layer.reference.image_id) :
+        nullptr;
     if (!resolved) {
+        if (!has_declared_entry &&
+            prepare_derived_construction_shadow_layer(target_group, doc.source, raw_layer, out_layer)) {
+            return 1;
+        }
         crash_context_report_error("Unable to resolve referenced image entry", raw_layer.reference.image_id.c_str());
         return 0;
     }
 
     out_layer.surface = surface_from_resolved_entry_part(*resolved, raw_layer.part);
     if (!raster_has_pixels(out_layer.surface)) {
+        if (raw_layer.part == PART_TOP && !resolved->has_top) {
+            RasterSurface full_surface = surface_from_resolved_entry_part(*resolved, PART_BOTH);
+            if (raster_has_pixels(full_surface) && (!resolved->is_isometric || resolved->tile_span <= 0)) {
+                out_layer.surface = std::move(full_surface);
+                if (raw_layer.mask == LAYER_MASK_GRAYSCALE) {
+                    convert_to_grayscale(out_layer.surface);
+                }
+                copy_prepared_layer_metadata(raw_layer, out_layer);
+                return 1;
+            }
+            // Extracted isometric composites can reference the top half of flat footprint-only tiles.
+            // That is an empty layer for real tile footprints, not an unresolved image.
+            copy_prepared_layer_metadata(raw_layer, out_layer);
+            return 1;
+        }
         crash_context_report_error("Unable to reconstruct referenced image layer", raw_layer.reference.image_id.c_str());
         return 0;
     }
@@ -101,11 +202,7 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
         convert_to_grayscale(out_layer.surface);
     }
 
-    out_layer.x_offset = raw_layer.x_offset;
-    out_layer.y_offset = raw_layer.y_offset;
-    out_layer.invert = raw_layer.invert;
-    out_layer.rotate = raw_layer.rotate;
-    out_layer.mask = raw_layer.mask;
+    copy_prepared_layer_metadata(raw_layer, out_layer);
     return 1;
 }
 
@@ -206,23 +303,77 @@ int finalize_surface_to_resolved_entry(
     return 1;
 }
 
+// Input: one animation frame raster that should be drawn as a single overlay sprite.
+// Output: a managed texture key and runtime slice for that uploaded frame payload.
+int materialize_animation_frame_surface(
+    const ImageGroupDoc &doc,
+    const ImageEntryDef &entry,
+    int frame_index,
+    RasterSurface &&frame_surface,
+    const char *key_suffix,
+    std::string &out_frame_key,
+    RuntimeDrawSlice &out_frame_slice)
+{
+    out_frame_key.clear();
+    out_frame_slice = RuntimeDrawSlice();
+    if (!raster_has_pixels(frame_surface)) {
+        return 0;
+    }
+
+    image frame_image = {};
+    frame_image.width = frame_surface.width;
+    frame_image.height = frame_surface.height;
+    frame_image.original.width = frame_surface.width;
+    frame_image.original.height = frame_surface.height;
+    out_frame_key = make_entry_payload_key(doc.key, doc.source, entry.id) +
+        "\\" + key_suffix + "_" + std::to_string(frame_index);
+    const ImagePayload *payload = image_payload_load_pixels_payload(
+            out_frame_key.c_str(),
+            frame_image,
+            frame_surface.pixels.data(),
+            frame_surface.width,
+            frame_surface.height);
+    if (!payload) {
+        out_frame_key.clear();
+        return 0;
+    }
+    if (!populate_slice_from_payload(payload, 0, out_frame_slice)) {
+        crash_context_report_error("Animation frame materialized with an invalid runtime slice", out_frame_key.c_str());
+        image_payload_release_key(out_frame_key.c_str());
+        out_frame_key.clear();
+        return 0;
+    }
+    return 1;
+}
+
 // Input: one explicit animation frame definition.
-// Output: a managed texture key for that frame, either by reusing a bare ref or by uploading a composed frame raster.
+// Output: a managed texture key plus draw slice for the composed frame payload.
 int materialize_explicit_frame(
     const ImageGroupDoc &doc,
     const ImageEntryDef &entry,
     int frame_index,
     const RawLayerDef &frame_def,
-    std::string &out_frame_key)
+    std::string &out_frame_key,
+    RuntimeDrawSlice &out_frame_slice)
 {
     if (is_bare_group_reference(frame_def)) {
         const std::string target_group = normalize_group_reference_key(frame_def.reference.group_key.c_str(), doc.key);
         const ResolvedImageEntry *resolved = materialize_merged_entry(target_group, doc.source, frame_def.reference.image_id);
-        if (!resolved || resolved->footprint.texture_key.empty()) {
+        if (!resolved) {
             return 0;
         }
-        image_payload_retain_key(resolved->footprint.texture_key.c_str());
-        out_frame_key = resolved->footprint.texture_key;
+
+        RasterSurface full_frame = surface_from_resolved_entry_part(*resolved, PART_BOTH);
+        if (!materialize_animation_frame_surface(
+                doc,
+                entry,
+                frame_index,
+                std::move(full_frame),
+                "frame",
+                out_frame_key,
+                out_frame_slice)) {
+            return 0;
+        }
         return 1;
     }
 
@@ -244,23 +395,14 @@ int materialize_explicit_frame(
     memset(frame_surface.pixels.data(), 0, sizeof(color_t) * frame_surface.pixels.size());
     compose_prepared_layer(frame_surface, frame_layer, frame_layer.mask == LAYER_MASK_ALPHA);
 
-    image frame_image = {};
-    frame_image.width = frame_surface.width;
-    frame_image.height = frame_surface.height;
-    frame_image.original.width = frame_surface.width;
-    frame_image.original.height = frame_surface.height;
-    out_frame_key = make_entry_payload_key(doc.key, doc.source, entry.id) + "\\frame_" + std::to_string(frame_index);
-    const ImagePayload *payload = image_payload_load_pixels_payload(
-            out_frame_key.c_str(),
-            frame_image,
-            frame_surface.pixels.data(),
-            frame_surface.width,
-            frame_surface.height);
-    if (!payload) {
-        out_frame_key.clear();
-        return 0;
-    }
-    return 1;
+    return materialize_animation_frame_surface(
+        doc,
+        entry,
+        frame_index,
+        std::move(frame_surface),
+        "frame",
+        out_frame_key,
+        out_frame_slice);
 }
 
 // Input: one fully resolved base entry plus an optional inherited full-image reference.
@@ -292,17 +434,17 @@ int resolve_animation(
     if (!entry.animation.explicit_frames.empty()) {
         for (size_t i = 0; i < entry.animation.explicit_frames.size(); i++) {
             std::string frame_key;
-            if (!materialize_explicit_frame(doc, entry, static_cast<int>(i), entry.animation.explicit_frames[i], frame_key)) {
+            RuntimeDrawSlice frame_slice;
+            if (!materialize_explicit_frame(
+                    doc,
+                    entry,
+                    static_cast<int>(i),
+                    entry.animation.explicit_frames[i],
+                    frame_key,
+                    frame_slice)) {
                 return 0;
             }
-            if (const ImagePayload *payload = image_payload_get(frame_key.c_str())) {
-                RuntimeDrawSlice frame_slice;
-                if (!populate_slice_from_payload(payload, 0, frame_slice)) {
-                    crash_context_report_error("Animation frame materialized with an invalid runtime slice", frame_key.c_str());
-                    return 0;
-                }
-                out_entry.animation.frames.push_back(frame_slice);
-            }
+            out_entry.animation.frames.push_back(frame_slice);
             out_entry.animation_frame_keys.push_back(std::move(frame_key));
         }
     } else if (entry.animation.implicit_frame_count > 0) {
@@ -313,12 +455,25 @@ int resolve_animation(
             }
             const std::string &frame_id = doc.ordered_ids[next_index];
             const ResolvedImageEntry *frame_entry = materialize_source_entry(doc.key, doc.source, frame_id);
-            if (!frame_entry || frame_entry->footprint.texture_key.empty()) {
+            if (!frame_entry) {
                 return 0;
             }
-            image_payload_retain_key(frame_entry->footprint.texture_key.c_str());
-            out_entry.animation_frame_keys.push_back(frame_entry->footprint.texture_key);
-            out_entry.animation.frames.push_back(frame_entry->footprint.slice);
+
+            RasterSurface full_frame = surface_from_resolved_entry_part(*frame_entry, PART_BOTH);
+            std::string frame_key;
+            RuntimeDrawSlice frame_slice;
+            if (!materialize_animation_frame_surface(
+                    doc,
+                    entry,
+                    i - 1,
+                    std::move(full_frame),
+                    "implicit_frame",
+                    frame_key,
+                    frame_slice)) {
+                return 0;
+            }
+            out_entry.animation_frame_keys.push_back(std::move(frame_key));
+            out_entry.animation.frames.push_back(frame_slice);
         }
     }
 
@@ -445,7 +600,14 @@ RasterSurface surface_from_resolved_entry_part(const ResolvedImageEntry &entry, 
         return result;
     }
 
-    if (!entry.is_isometric || entry.top_height <= 0) {
+    if (!entry.is_isometric) {
+        result.width = entry.split_width;
+        result.height = entry.split_height;
+        result.pixels = entry.split_pixels;
+        return result;
+    }
+
+    if (entry.top_height <= 0) {
         if (part == PART_TOP) {
             return result;
         }

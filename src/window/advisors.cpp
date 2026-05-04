@@ -1,0 +1,451 @@
+extern "C" {
+#include "advisors.h"
+
+#include "assets/assets.h"
+#include "city/constants.h"
+#include "city/culture.h"
+#include "city/finance.h"
+#include "city/health.h"
+#include "city/houses.h"
+#include "city/labor.h"
+#include "city/migration.h"
+#include "city/population.h"
+#include "city/ratings.h"
+#include "city/resource.h"
+#include "city/warning.h"
+#include "core/calc.h"
+#include "core/image_group.h"
+#include "figure/formation.h"
+#include "game/settings.h"
+#include "game/tutorial.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/image_button.h"
+#include "graphics/ui_runtime_api.h"
+#include "graphics/window.h"
+#include "input/input.h"
+#include "translation/translation.h"
+#include "window/city.h"
+#include "window/message_dialog.h"
+#include "window/advisor/chief.h"
+#include "window/advisor/education.h"
+#include "window/advisor/entertainment.h"
+#include "window/advisor/financial.h"
+#include "window/advisor/health.h"
+#include "window/advisor/imperial.h"
+#include "window/advisor/labor.h"
+#include "window/advisor/military.h"
+#include "window/advisor/population.h"
+#include "window/advisor/ratings.h"
+#include "window/advisor/religion.h"
+#include "window/advisor/trade.h"
+#include "window/advisor/housing.h"
+}
+
+static void button_change_advisor(const generic_button *button);
+static void button_help(int param1, int param2);
+
+static image_button help_button = {
+    11, -7, 27, 27, IB_NORMAL, GROUP_CONTEXT_ICONS, 0, button_help, button_none, 0, 0, 1
+};
+
+static generic_button advisor_buttons[ADVISOR_MAX] = {
+    {9, 1, 40, 40, button_change_advisor, 0, ADVISOR_LABOR},
+    {54, 1, 40, 40, button_change_advisor, 0, ADVISOR_MILITARY},
+    {99, 1, 40, 40, button_change_advisor, 0, ADVISOR_IMPERIAL},
+    {144, 1, 40, 40, button_change_advisor, 0, ADVISOR_RATINGS},
+    {189, 1, 40, 40, button_change_advisor, 0, ADVISOR_TRADE},
+    {234, 1, 40, 40, button_change_advisor, 0, ADVISOR_POPULATION},
+    {279, 1, 40, 40, button_change_advisor, 0, ADVISOR_HOUSING},
+    {324, 1, 40, 40, button_change_advisor, 0, ADVISOR_HEALTH},
+    {369, 1, 40, 40, button_change_advisor, 0, ADVISOR_EDUCATION},
+    {414, 1, 40, 40, button_change_advisor, 0, ADVISOR_ENTERTAINMENT},
+    {459, 1, 40, 40, button_change_advisor, 0, ADVISOR_RELIGION},
+    {504, 1, 40, 40, button_change_advisor, 0, ADVISOR_FINANCIAL},
+    {549, 1, 40, 40, button_change_advisor, 0, ADVISOR_CHIEF},
+    {594, 1, 40, 40, button_change_advisor},
+};
+
+static const advisor_window_type *(*sub_advisors[])(void) = {
+    0,
+    window_advisor_labor,
+    window_advisor_military,
+    window_advisor_imperial,
+    window_advisor_ratings,
+    window_advisor_trade,
+    window_advisor_population,
+    window_advisor_housing,
+    window_advisor_health,
+    window_advisor_education,
+    window_advisor_entertainment,
+    window_advisor_religion,
+    window_advisor_financial,
+    window_advisor_chief,
+    0,
+    // sub-advisors begin here
+    0,
+    0,
+    0,
+    0,
+    window_advisor_housing, // housing sub-advisor,
+    0,
+    0
+};
+
+static const int ADVISOR_TO_MESSAGE_TEXT[] = {
+    MESSAGE_DIALOG_ABOUT,
+    MESSAGE_DIALOG_ADVISOR_LABOR,
+    MESSAGE_DIALOG_ADVISOR_MILITARY,
+    MESSAGE_DIALOG_ADVISOR_IMPERIAL,
+    MESSAGE_DIALOG_ADVISOR_RATINGS,
+    MESSAGE_DIALOG_ADVISOR_TRADE,
+    MESSAGE_DIALOG_ADVISOR_POPULATION,
+    MESSAGE_DIALOG_ADVISOR_POPULATION,
+    MESSAGE_DIALOG_ADVISOR_HEALTH,
+    MESSAGE_DIALOG_ADVISOR_EDUCATION,
+    MESSAGE_DIALOG_ADVISOR_ENTERTAINMENT,
+    MESSAGE_DIALOG_ADVISOR_RELIGION,
+    MESSAGE_DIALOG_ADVISOR_FINANCIAL,
+    MESSAGE_DIALOG_ADVISOR_CHIEF,
+    MESSAGE_DIALOG_ABOUT,
+    MESSAGE_DIALOG_ABOUT,
+    MESSAGE_DIALOG_ABOUT,
+    MESSAGE_DIALOG_ABOUT,
+    MESSAGE_DIALOG_ABOUT,
+    MESSAGE_DIALOG_ADVISOR_POPULATION,
+    MESSAGE_DIALOG_ABOUT,
+    MESSAGE_DIALOG_ABOUT,
+    MESSAGE_DIALOG_ADVISOR_ENTERTAINMENT
+};
+
+static int advisor_image_ids[2][ADVISOR_MAX];
+
+static const advisor_window_type *current_advisor_window = 0;
+static advisor_type current_advisor = ADVISOR_NONE;
+
+static unsigned int focus_button_id;
+static int advisor_height;
+
+static int is_valid_sub_advisor_index(int advisor)
+{
+    return advisor >= 0 && advisor < (int) (sizeof(sub_advisors) / sizeof(sub_advisors[0]));
+}
+
+static int message_text_for_advisor(advisor_type advisor)
+{
+    int advisor_index = (int) advisor;
+    if (advisor_index < 0 || advisor_index >= (int) (sizeof(ADVISOR_TO_MESSAGE_TEXT) / sizeof(ADVISOR_TO_MESSAGE_TEXT[0]))) {
+        return MESSAGE_DIALOG_ABOUT;
+    }
+    return ADVISOR_TO_MESSAGE_TEXT[advisor_index];
+}
+
+static void set_advisor_window(void)
+{
+    if (is_valid_sub_advisor_index(current_advisor) && sub_advisors[current_advisor]) {
+        current_advisor_window = sub_advisors[current_advisor]();
+    } else {
+        current_advisor_window = 0;
+    }
+}
+
+void window_advisors_set_advisor(advisor_type advisor)
+{
+    current_advisor = advisor;
+    setting_set_last_advisor(advisor);
+    set_advisor_window();
+}
+
+static void init(void)
+{
+    city_labor_allocate_workers();
+
+    city_finance_estimate_taxes();
+    city_finance_estimate_wages();
+    city_finance_update_interest();
+    city_finance_update_salary();
+    city_finance_calculate_totals();
+
+    city_migration_determine_no_immigration_cause();
+
+    city_houses_calculate_culture_demands();
+    city_culture_update_coverage();
+
+    city_resource_calculate_food_stocks_and_supply_wheat();
+    formation_calculate_figures();
+
+    city_ratings_update_explanations();
+
+    set_advisor_window();
+}
+
+static void prepare_advisor_image_ids(void)
+{
+    if (advisor_image_ids[0][0]) {
+        return;
+    }
+    int reduce = 0;
+    for (int i = 0; i < ADVISOR_MAX; i++) {
+        if (i == (ADVISOR_HOUSING - 1)) {
+            reduce = 1;
+            advisor_image_ids[0][ADVISOR_HOUSING - 1] = assets_get_image_id("UI",
+                "Housing Advisor Button");
+            advisor_image_ids[1][ADVISOR_HOUSING - 1] = assets_get_image_id("UI",
+                "Housing Advisor Button Selected");
+        } else {
+            advisor_image_ids[0][i] = image_group(GROUP_ADVISOR_ICONS) + i - reduce;
+            advisor_image_ids[1][i] = image_group(GROUP_ADVISOR_ICONS) + i - reduce + 13;
+        }
+    }
+}
+
+void window_advisors_draw_dialog_background(void)
+{
+    image_draw_fullscreen_background(image_group(GROUP_ADVISOR_BACKGROUND));
+    graphics_in_dialog();
+    image_draw(image_group(GROUP_PANEL_WINDOWS) + 13, 0, 432, COLOR_MASK_NONE, SCALE_NONE);
+
+    prepare_advisor_image_ids();
+
+    for (int i = 0; i < ADVISOR_MAX; i++) {
+        int selected = current_advisor && i == (current_advisor % ADVISOR_MAX) - 1;
+        image_draw(advisor_image_ids[selected][i], 45 * i + 8, 441, COLOR_MASK_NONE, SCALE_NONE);
+    }
+    graphics_reset_dialog();
+}
+
+static void draw_background(void)
+{
+    window_advisors_draw_dialog_background();
+    graphics_in_dialog();
+    advisor_height = current_advisor_window->draw_background();
+    graphics_reset_dialog();
+}
+
+static void draw_foreground(void)
+{
+    graphics_in_dialog();
+    image_buttons_draw(0, BLOCK_SIZE * (advisor_height - 2), &help_button, 1);
+    graphics_reset_dialog();
+
+    if (current_advisor_window->draw_foreground) {
+        graphics_in_dialog();
+        current_advisor_window->draw_foreground();
+        graphics_reset_dialog();
+    }
+}
+
+static void handle_hotkeys(const hotkeys *h)
+{
+    if (h->show_advisor) {
+        if (current_advisor == h->show_advisor) {
+            window_city_show();
+        } else {
+            window_advisors_show_advisor(static_cast<advisor_type>(h->show_advisor));
+        }
+    }
+}
+
+static void handle_input(const mouse *m, const hotkeys *h)
+{
+    handle_hotkeys(h);
+    const mouse *m_dialog = mouse_in_dialog(m);
+    if (GenericButtonList(advisor_buttons, ADVISOR_MAX).handle_mouse(
+        *m_dialog,
+        0,
+        440,
+        &focus_button_id
+    )) {
+        return;
+    }
+    unsigned int button_id;
+    image_buttons_handle_mouse(m_dialog, 0, BLOCK_SIZE * (advisor_height - 2), &help_button, 1, &button_id);
+    if (button_id) {
+        focus_button_id = 0;
+    }
+    if (current_advisor_window->handle_mouse && current_advisor_window->handle_mouse(m_dialog)) {
+        return;
+    }
+    if (input_go_back_requested(m, h)) {
+        window_city_show();
+        return;
+    }
+}
+
+static void button_change_advisor(const generic_button *button)
+{
+    int advisor = button->parameter1;
+    if (advisor) {
+        window_advisors_set_advisor(static_cast<advisor_type>(advisor));
+        window_invalidate();
+    } else {
+        window_city_show();
+    }
+}
+
+static void button_help(int param1, int param2)
+{
+    if (current_advisor > 0) {
+        window_message_dialog_show(message_text_for_advisor(current_advisor), 0);
+    }
+}
+
+static void get_tooltip(tooltip_context *c)
+{
+    if (focus_button_id) {
+        c->type = TOOLTIP_BUTTON;
+        if (focus_button_id == -1) {
+            c->text_id = 1; // help button
+        } else if (focus_button_id == ADVISOR_HOUSING) {
+            c->translation_key = TR_TOOLTIP_ADVISOR_POPULATION_HOUSING_BUTTON;
+        } else {
+            c->text_id = 69 + focus_button_id - (focus_button_id >= ADVISOR_HOUSING ? 1 : 0);
+        }
+        return;
+    }
+    advisor_tooltip_result result = {
+        .text_id = 0,
+        .translation_key = 0,
+        .precomposed_text = 0
+    };
+    if (current_advisor_window->get_tooltip_text != 0) {
+        current_advisor_window->get_tooltip_text(&result);
+    }
+    if (result.text_id) {
+        c->text_id = result.text_id;
+        c->type = TOOLTIP_BUTTON;
+    } else if (result.translation_key) {
+        c->translation_key = result.translation_key;
+        c->type = TOOLTIP_BUTTON;
+    } else if (result.precomposed_text) {
+        c->precomposed_text = result.precomposed_text;
+        c->type = TOOLTIP_BUTTON;
+    }
+}
+
+advisor_type window_advisors_get_advisor(void)
+{
+    return current_advisor;
+}
+
+void window_advisors_show(void)
+{
+    window_type window = {
+        WINDOW_ADVISORS,
+        draw_background,
+        draw_foreground,
+        handle_input,
+        get_tooltip
+    };
+    init();
+    window_show(&window);
+}
+
+void window_advisors_show_checked(void)
+{
+    tutorial_availability avail = tutorial_advisor_empire_availability();
+    if (avail == AVAILABLE) {
+        window_advisors_set_advisor(static_cast<advisor_type>(setting_last_advisor()));
+        window_advisors_show();
+    } else {
+        city_warning_show(avail == NOT_AVAILABLE ? WARNING_NOT_AVAILABLE : WARNING_NOT_AVAILABLE_YET, NEW_WARNING_SLOT);
+    }
+}
+
+int window_advisors_show_advisor(advisor_type advisor)
+{
+    tutorial_availability avail = tutorial_advisor_empire_availability();
+    if (avail == NOT_AVAILABLE || avail == NOT_AVAILABLE_YET) {
+        city_warning_show(avail == NOT_AVAILABLE ? WARNING_NOT_AVAILABLE : WARNING_NOT_AVAILABLE_YET, NEW_WARNING_SLOT);
+        return 0;
+    }
+    window_advisors_set_advisor(advisor);
+    window_advisors_show();
+    return 1;
+}
+// Entertainment building coverage functions
+
+int window_advisors_get_tavern_coverage(void)
+{
+    return city_culture_coverage_tavern();
+}
+
+int window_advisors_get_theater_coverage(void)
+{
+    return city_culture_coverage_theater();
+}
+
+int window_advisors_get_amphitheater_coverage(void)
+{
+    return city_culture_coverage_amphitheater();
+}
+
+int window_advisors_get_arena_coverage(void)
+{
+    return city_culture_coverage_arena();
+}
+
+int window_advisors_get_colosseum_coverage(void)
+{
+    return city_culture_coverage_colosseum();
+}
+
+int window_advisors_get_hippodrome_coverage(void)
+{
+    return city_culture_coverage_hippodrome();
+}
+
+// Health building coverage functions
+
+int window_advisors_get_bathhouse_coverage(void)
+{
+    int population = city_population();
+    if (population <= 0) {
+        return 0;
+    }
+    int people_covered = city_health_get_population_with_baths_access();
+    return calc_percentage(people_covered, population);
+}
+
+int window_advisors_get_barber_coverage(void)
+{
+    int population = city_population();
+    if (population <= 0) {
+        return 0;
+    }
+    int people_covered = city_health_get_population_with_barber_access();
+    return calc_percentage(people_covered, population);
+}
+
+int window_advisors_get_clinic_coverage(void)
+{
+    int population = city_population();
+    if (population <= 0) {
+        return 0;
+    }
+    int people_covered = city_health_get_population_with_clinic_access();
+    return calc_percentage(people_covered, population);
+}
+
+int window_advisors_get_hospital_coverage(void)
+{
+    return city_culture_coverage_hospital();
+}
+
+// Education building coverage functions
+
+int window_advisors_get_school_coverage(void)
+{
+    return city_culture_coverage_school();
+}
+
+int window_advisors_get_library_coverage(void)
+{
+    return city_culture_coverage_library();
+}
+
+int window_advisors_get_academy_coverage(void)
+{
+    return city_culture_coverage_academy();
+}

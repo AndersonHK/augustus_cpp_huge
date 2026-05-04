@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gladiator_school">
-    <identity name_key="building.gladiator_school.name" />
-    <model size="3" cost="75" desirability_value="-3" desirability_step="1" desirability_step_size="1" desirability_range="3" laborers="8" />
+    <identity name_key="main_strings.28.34" />
+    <model size="3" cost="75" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="3" />
+    </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="40" icon="gladiator school" text_key="building.gladiator_school.name" />
+    <button group="entertainment" order="50" icon="Health_Culture\Gladiator_School" text_key="main_strings.28.34" />
     <sound id="gladiator_school" mute_on_enemies="true" />
     <event_data attr="gladiator_school" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Gladiator_School" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
     <labor>
         <employees count="8" />
         <labor_seeker>

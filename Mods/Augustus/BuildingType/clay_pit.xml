@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="clay_pit">
+    <identity name_key="building.clay_pit.name" />
+    <model size="2" cost="40" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="2" />
+    </desirability>
+    <foundation policy="custom">
+        <terrain value="water" />
+    </foundation>
+    <button group="raw_materials" order="10" icon="Industry\Clay_Pit" text_key="building.clay_pit.name" />
+    <sound id="clay_pit" />
+    <event_data attr="clay_pit" />
+    <graphics>
+        <default>
+            <path value="Industry\Clay_Pit" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="10" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+        </labor_seeker>
+    </labor>
+    <storages>
+        <storage path="clay_output_clay_pit" />
+    </storages>
+    <production_methods>
+        <production_method path="clay_pit_basic" />
+    </production_methods>
+</building>

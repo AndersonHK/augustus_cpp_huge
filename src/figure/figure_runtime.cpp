@@ -215,6 +215,22 @@ RuntimeEntry *bind_entry(figure *f)
     return entry;
 }
 
+void record_service_history(road_service_effect effect, int grid_offset)
+{
+    if (effect == ROAD_SERVICE_EFFECT_RELIGION_PANTHEON) {
+        // Pantheon service historically refreshed all five gods plus Pantheon
+        // itself, so the explicit profile effect expands at every history write.
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_CERES, grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_NEPTUNE, grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_MERCURY, grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_MARS, grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_VENUS, grid_offset);
+        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_PANTHEON, grid_offset);
+    } else if (effect != ROAD_SERVICE_EFFECT_NONE) {
+        map_road_service_history_record(effect, grid_offset);
+    }
+}
+
 } // namespace
 
 extern "C" void figure_runtime_reset(void)
@@ -389,7 +405,15 @@ extern "C" int figure_runtime_choose_roaming_direction(
         }
     }
 
-    return candidate_count > 1 ? best_direction : vanilla_direction;
+    if (candidate_count <= 1) {
+        return vanilla_direction;
+    }
+
+    // Reserve the chosen target immediately so another same-service walker
+    // choosing later in the same tick does not lockstep onto the same road.
+    const int reserved_grid_offset = f->grid_offset + map_grid_direction_delta(best_direction);
+    record_service_history(effect, reserved_grid_offset);
+    return best_direction;
 }
 
 extern "C" void figure_runtime_record_road_service_visit(figure *f)
@@ -410,16 +434,5 @@ extern "C" void figure_runtime_record_road_service_visit(figure *f)
         return;
     }
 
-    if (effect == ROAD_SERVICE_EFFECT_RELIGION_PANTHEON) {
-        // Pantheon service historically refreshed all five gods plus Pantheon
-        // itself, so the explicit profile effect expands only at record time.
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_CERES, f->grid_offset);
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_NEPTUNE, f->grid_offset);
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_MERCURY, f->grid_offset);
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_MARS, f->grid_offset);
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_VENUS, f->grid_offset);
-        map_road_service_history_record(ROAD_SERVICE_EFFECT_RELIGION_PANTHEON, f->grid_offset);
-    } else {
-        map_road_service_history_record(effect, f->grid_offset);
-    }
+    record_service_history(effect, f->grid_offset);
 }

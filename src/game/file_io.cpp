@@ -37,6 +37,7 @@ extern "C" {
 #include "figure/visited_buildings.h"
 #include "game/file.h"
 #include "game/mod_manager.h"
+#include "game/resource.h"
 #include "game/save_version.h"
 #include "game/time.h"
 #include "game/tutorial.h"
@@ -1980,6 +1981,7 @@ int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *
     if (!info) {
         return SAVEGAME_STATUS_INVALID;
     }
+
     int result = 0;
     savegame_version_t save_version;
     resource_version_t resource_version;

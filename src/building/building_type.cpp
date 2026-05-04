@@ -1,5 +1,11 @@
 #include "building/building_type.h"
 
+extern "C" {
+#include "building/monument.h"
+#include "city/festival.h"
+#include "scenario/property.h"
+}
+
 #include <utility>
 
 namespace building_type_registry_impl {
@@ -57,6 +63,12 @@ int GraphicsCondition::matches(const ::building &building) const
             }
         case GraphicsConditionType::ResourcePositive:
             return resource > RESOURCE_NONE && resource < RESOURCE_MAX && building.resources[resource] > 0;
+        case GraphicsConditionType::Climate:
+            return scenario_property_climate() == climate;
+        case GraphicsConditionType::MonumentUpgrade:
+            return building.monument.upgrades == monument_upgrade;
+        case GraphicsConditionType::FestivalGames:
+            return city_festival_games_active() == festival_games;
         case GraphicsConditionType::Days1Positive:
             return building.data.entertainment.days1 > 0;
         case GraphicsConditionType::Days1NotPositive:
@@ -138,12 +150,6 @@ void BuildModelDefinition::set_desirability_range(int value)
     desirability_range_ = value;
 }
 
-void BuildModelDefinition::set_laborers(int value)
-{
-    has_laborers_ = 1;
-    laborers_ = value;
-}
-
 int BuildModelDefinition::has_size() const
 {
     return has_size_;
@@ -204,25 +210,20 @@ int BuildModelDefinition::desirability_range() const
     return desirability_range_;
 }
 
-int BuildModelDefinition::has_laborers() const
-{
-    return has_laborers_;
-}
-
-int BuildModelDefinition::laborers() const
-{
-    return laborers_;
-}
-
 int BuildModelDefinition::has_any() const
 {
     return has_size_ || has_cost_ || has_desirability_value_ || has_desirability_step_ ||
-        has_desirability_step_size_ || has_desirability_range_ || has_laborers_;
+        has_desirability_step_size_ || has_desirability_range_;
 }
 
 void FoundationDefinition::set_policy(std::string policy)
 {
     policy_ = std::move(policy);
+}
+
+void FoundationDefinition::add_required_terrain(int flags)
+{
+    required_terrain_ |= flags;
 }
 
 int FoundationDefinition::has_policy() const
@@ -233,6 +234,11 @@ int FoundationDefinition::has_policy() const
 const char *FoundationDefinition::policy() const
 {
     return policy_.c_str();
+}
+
+int FoundationDefinition::required_terrain() const
+{
+    return required_terrain_;
 }
 
 void BuildButtonDefinition::set_group(std::string group)
@@ -601,6 +607,100 @@ unsigned char GraphicsDefinition::upgrade_level_for(const ::building &building) 
     return 0;
 }
 
+void ConstructionDefinition::set_mode(ConstructionMode mode)
+{
+    mode_ = mode;
+}
+
+void ConstructionDefinition::set_road_update_radius(int radius)
+{
+    road_update_radius_ = radius;
+}
+
+ConstructionPhase &ConstructionDefinition::add_phase(int index)
+{
+    phases_.push_back(ConstructionPhase());
+    phases_.back().index = index;
+    return phases_.back();
+}
+
+ConstructionPhase *ConstructionDefinition::last_phase()
+{
+    return phases_.empty() ? nullptr : &phases_.back();
+}
+
+const ConstructionPhase *ConstructionDefinition::phase(int index) const
+{
+    for (const ConstructionPhase &phase : phases_) {
+        if (phase.index == index) {
+            return &phase;
+        }
+    }
+    return nullptr;
+}
+
+void ConstructionDefinition::add_instant_requirement(resource_type resource, int amount)
+{
+    instant_requirements_.push_back({ resource, amount });
+}
+
+void ConstructionDefinition::add_requirement(resource_type resource, int amount)
+{
+    ConstructionPhase *current_phase = last_phase();
+    if (current_phase) {
+        current_phase->requirements.push_back({ resource, amount });
+    }
+}
+
+ConstructionMode ConstructionDefinition::mode() const
+{
+    return mode_;
+}
+
+int ConstructionDefinition::is_phased() const
+{
+    return mode_ == ConstructionMode::Phased;
+}
+
+int ConstructionDefinition::road_update_radius() const
+{
+    return road_update_radius_;
+}
+
+int ConstructionDefinition::phase_count() const
+{
+    return static_cast<int>(phases_.size());
+}
+
+int ConstructionDefinition::instant_requirement_amount(resource_type resource) const
+{
+    for (const ConstructionRequirement &requirement : instant_requirements_) {
+        if (requirement.resource == resource) {
+            return requirement.amount;
+        }
+    }
+    return 0;
+}
+
+int ConstructionDefinition::requirement_amount(resource_type resource, int phase_index) const
+{
+    const ConstructionPhase *current_phase = phase(phase_index);
+    if (!current_phase) {
+        return 0;
+    }
+    for (const ConstructionRequirement &requirement : current_phase->requirements) {
+        if (requirement.resource == resource) {
+            return requirement.amount;
+        }
+    }
+    return 0;
+}
+
+const std::vector<ConstructionPhase> &ConstructionDefinition::phases() const
+{
+    return phases_;
+}
+
 BuildingType::BuildingType(building_type type, std::string attr)
     : type_(type)
     , attr_(std::move(attr))
@@ -647,14 +747,14 @@ void BuildingType::set_model_desirability_range(int value)
     model_.set_desirability_range(value);
 }
 
-void BuildingType::set_model_laborers(int value)
-{
-    model_.set_laborers(value);
-}
-
 void BuildingType::set_foundation_policy(std::string policy)
 {
     foundation_.set_policy(std::move(policy));
+}
+
+void BuildingType::add_foundation_required_terrain(int flags)
+{
+    foundation_.add_required_terrain(flags);
 }
 
 void BuildingType::set_button_group(std::string group)
@@ -765,6 +865,47 @@ void BuildingType::add_graphics_variant_condition(GraphicsCondition condition)
     }
 }
 
+void BuildingType::set_construction_mode(ConstructionMode mode)
+{
+    has_construction_ = true;
+    construction_.set_mode(mode);
+}
+
+void BuildingType::set_construction_road_update_radius(int radius)
+{
+    has_construction_ = true;
+    construction_.set_road_update_radius(radius);
+}
+
+void BuildingType::clear_construction()
+{
+    construction_ = ConstructionDefinition();
+    has_construction_ = false;
+}
+
+ConstructionPhase &BuildingType::add_construction_phase(int index)
+{
+    has_construction_ = true;
+    return construction_.add_phase(index);
+}
+
+ConstructionPhase *BuildingType::last_construction_phase()
+{
+    return construction_.last_phase();
+}
+
+void BuildingType::add_instant_construction_requirement(resource_type resource, int amount)
+{
+    has_construction_ = true;
+    construction_.add_instant_requirement(resource, amount);
+}
+
+void BuildingType::add_construction_requirement(resource_type resource, int amount)
+{
+    has_construction_ = true;
+    construction_.add_requirement(resource, amount);
+}
+
 void BuildingType::add_spawn_policy(SpawnPolicy policy)
 {
     if (spawn_groups_.empty()) {
@@ -873,9 +1014,37 @@ const GraphicsDefinition &BuildingType::graphics() const
     return graphics_;
 }
 
+const ConstructionDefinition &BuildingType::construction() const
+{
+    return construction_;
+}
+
 const GraphicsTarget *BuildingType::resolve_graphics_target(const ::building &building) const
 {
     return graphics_.resolve_target(building);
+}
+
+const GraphicsTarget *BuildingType::resolve_construction_graphics_target(int phase) const
+{
+    const ConstructionPhase *construction_phase = construction_.phase(phase);
+    return construction_phase && construction_phase->graphics.has_path() ? &construction_phase->graphics : nullptr;
+}
+
+const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const BuildingType *definition, const ::building &building)
+{
+    if (!definition || !definition->has_graphic()) {
+        return nullptr;
+    }
+
+    if (definition->has_phased_construction() &&
+        building.monument.phase != MONUMENT_FINISHED &&
+        building.monument.phase >= MONUMENT_START) {
+        if (const GraphicsTarget *target = definition->resolve_construction_graphics_target(building.monument.phase)) {
+            return target;
+        }
+    }
+
+    return definition->resolve_graphics_target(building);
 }
 
 WaterAccessMode BuildingType::water_access_mode() const
@@ -895,7 +1064,12 @@ int BuildingType::has_model() const
 
 int BuildingType::has_foundation() const
 {
-    return foundation_.has_policy();
+    return foundation_.has_policy() || foundation_.required_terrain() != 0;
+}
+
+int BuildingType::foundation_required_terrain() const
+{
+    return foundation_.required_terrain();
 }
 
 int BuildingType::has_button() const
@@ -926,6 +1100,16 @@ int BuildingType::has_water_access_provider() const
 int BuildingType::has_graphic() const
 {
     return graphics_.has_path();
+}
+
+int BuildingType::has_construction() const
+{
+    return has_construction_;
+}
+
+int BuildingType::has_phased_construction() const
+{
+    return construction_.is_phased() && construction_.phase_count() > 0;
 }
 
 int BuildingType::has_labor() const

@@ -100,6 +100,13 @@ void lang_refresh_message_cache(void);
 const uint8_t *lang_get_string(int group, int index);
 
 /**
+ * Gets a localized string by translation key name
+ * @param key Translation key name
+ * @return String, or 0 when the key is not registered
+ */
+const uint8_t *lang_get_string_by_key(const char *key);
+
+/**
  * Gets a localized string for a building type
  * @param type The building type to get the display string of
  * @return String

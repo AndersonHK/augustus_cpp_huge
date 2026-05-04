@@ -1,12 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temple_ceres">
     <identity name_key="building.large_temple_ceres.name" />
-    <model size="3" cost="150" desirability_value="14" desirability_step="2" desirability_step_size="-2" desirability_range="5" laborers="5" />
+    <model size="3" cost="150" />
+    <desirability>
+        <value value="14" />
+        <step value="2" />
+        <step_size value="-2" />
+        <range value="5" />
+    </desirability>
     <foundation policy="land" />
     <button group="large_temples" order="10" icon="large temple ceres" text_key="building.large_temple_ceres.name" />
     <sound id="temple_ceres" />
     <event_data attr="large_temple_ceres" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Temple_Ceres" />
+            <image value="Image_0001" />
+        </default>
+    </graphics>
+    <construction mode="phased" road_update_radius="5">
+        <phase index="1">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Ceres_LT_0" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="4" />
+            <requirement type="concrete" amount="4" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Environment\Group_206" />
+                <image value="Ceres_LT_50" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="marble" amount="2" />
+        </phase>
+    </construction>
     <labor>
         <employees count="5" />
         <labor_seeker>

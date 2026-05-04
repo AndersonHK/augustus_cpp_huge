@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="small_pond">
-    <identity name_key="building.small_pond.name" />
-    <model size="2" cost="60" desirability_value="10" desirability_step="1" desirability_step_size="-2" desirability_range="4" laborers="0" />
+    <identity name_key="TR_BUILDING_SMALL_POND" />
+    <model size="2" cost="60" />
+    <desirability>
+        <value value="10" />
+        <step value="1" />
+        <step_size value="-2" />
+        <range value="4" />
+    </desirability>
     <foundation policy="land" />
-    <button group="parks" order="700" icon="Aesthetics\s_pond_south_off" text_key="building.small_pond.name" />
+    <button group="parks" order="700" icon="Aesthetics\s_pond_north_off" text_key="TR_BUILDING_SMALL_POND" />
     <sound id="aqueduct" />
     <event_data attr="small_pond" />
     <flags fire_proof="1" venus_gt_bonus="1" />
@@ -12,13 +18,24 @@
     </state>
     <graphics>
         <default>
-            <path value="Aesthetics\s_pond_south_off" />
-            <image value="s pond south off" />
+            <path value="Aesthetics\s_pond_north_off" />
+            <image value="s pond north off" />
         </default>
         <variant>
+            <condition type="climate" value="desert" />
             <condition type="water_access" />
             <path value="Aesthetics\s_pond_south_off" />
             <image value="s pond south on" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Aesthetics\s_pond_south_off" />
+            <image value="s pond south off" />
+        </variant>
+        <variant>
+            <condition type="water_access" />
+            <path value="Aesthetics\s_pond_north_off" />
+            <image value="s pond north on" />
         </variant>
     </graphics>
     <labor>

@@ -702,9 +702,24 @@ static void handle_input(const mouse *m, const hotkeys *h)
     const mouse *m_dialog = mouse_in_dialog(m);
     get_focused_grid_box(m_dialog);
     if (input_box_handle_mouse(m_dialog, &event_name_input) ||
-        generic_buttons_handle_mouse(m_dialog, 0, 0, top_buttons, NUM_TOP_BUTTONS, &data.focus_button.top) ||
-        generic_buttons_handle_mouse(m_dialog, 0, 0, select_all_none_buttons, 2, &data.focus_button.select_all_none) ||
-        generic_buttons_handle_mouse(m_dialog, 0, 0, bottom_buttons, NUM_BOTTOM_BUTTONS, &data.focus_button.bottom) ||
+        GenericButtonList(top_buttons, NUM_TOP_BUTTONS).handle_mouse(
+            *m_dialog,
+            0,
+            0,
+            &data.focus_button.top
+        ) ||
+        GenericButtonList(select_all_none_buttons, 2).handle_mouse(
+            *m_dialog,
+            0,
+            0,
+            &data.focus_button.select_all_none
+        ) ||
+        GenericButtonList(bottom_buttons, NUM_BOTTOM_BUTTONS).handle_mouse(
+            *m_dialog,
+            0,
+            0,
+            &data.focus_button.bottom
+        ) ||
         grid_box_handle_input(data.focused_grid_box, m_dialog, 1) ||
         dropdown_button_handle_mouse(m_dialog, &repeat_interval_dropdown)) {
         return;

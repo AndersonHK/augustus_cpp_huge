@@ -197,6 +197,12 @@ void widget_minimap_invalidate(void)
     data.refresh_requested = 1;
 }
 
+void widget_minimap_restore_default_functions(void)
+{
+    data.functions = &default_functions;
+    widget_minimap_invalidate();
+}
+
 static void foreach_map_tile(map_callback *callback)
 {
     city_view_foreach_minimap_tile(0, 0, data.minimap.x, data.minimap.y,

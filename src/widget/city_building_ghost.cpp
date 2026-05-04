@@ -162,7 +162,7 @@ static int is_reservoir_side_connection_tile(int tile_no)
 
 static int force_place_can_clear_terrain(int terrain)
 {
-    return terrain && !(terrain & ~(TERRAIN_TREE | TERRAIN_ROAD));
+    return terrain && !(terrain & ~(TERRAIN_TREE | TERRAIN_SHRUB | TERRAIN_ROAD));
 }
 
 static int is_blocked_for_building(int grid_offset, int building_size, int *blocked_tiles, int check_figures)
@@ -222,8 +222,7 @@ static void draw_building(int image_id, int x, int y, color_t color)
 
 static int graphics_definition_is_data_only_for_ghost(building_type type)
 {
-    return building_is_farm(type) ||
-        type == BUILDING_POTTERY_WORKSHOP;
+    return building_is_farm(type);
 }
 
 static void prepare_ghost_building(int grid_offset, building_type type)
@@ -933,10 +932,15 @@ static void draw_fountain(const map_tile *tile, int x, int y)
     } else {
         color_mask = COLOR_MASK_BUILDING_GHOST;
     }
-    int image_id = building_image_get_for_type(BUILDING_FOUNTAIN);
     if (config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
         city_water_ghost_draw_preview(BUILDING_FOUNTAIN, tile->grid_offset, 0);
     }
+    if (draw_runtime_regular_building(BUILDING_FOUNTAIN, tile->grid_offset, x, y, 1, color_mask)) {
+        draw_building_tiles(x, y, 1, &blocked);
+        return;
+    }
+
+    int image_id = building_image_get_for_type(BUILDING_FOUNTAIN);
     draw_building(image_id, x, y, color_mask);
     if (map_terrain_is(tile->grid_offset, TERRAIN_RESERVOIR_RANGE)) {
         const image *img = image_get(image_id);
@@ -958,10 +962,14 @@ static void draw_well(const map_tile *tile, int x, int y)
     } else {
         color_mask = COLOR_MASK_BUILDING_GHOST;
     }
-    int image_id = building_image_get_for_type(BUILDING_WELL);
     if (config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
         city_water_ghost_draw_preview(BUILDING_WELL, tile->grid_offset, 0);
     }
+    if (draw_runtime_regular_building(BUILDING_WELL, tile->grid_offset, x, y, 1, color_mask)) {
+        draw_building_tiles(x, y, 1, &blocked);
+        return;
+    }
+    int image_id = building_image_get_for_type(BUILDING_WELL);
     draw_building(image_id, x, y, color_mask);
     draw_building_tiles(x, y, 1, &blocked);
 }

@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="native_meeting">
+    <identity name_key="main_strings.41.89" />
+    <model size="2" cost="50" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
+    <foundation policy="land" />
+    <flags fire_proof="1" />
     <sound id="native_hut" always_play="true" />
+    <event_data attr="native_meeting" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\Native" />
+            <image value="Image_0002" />
+        </default>
+    </graphics>
 </building>

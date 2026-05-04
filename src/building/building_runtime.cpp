@@ -135,7 +135,8 @@ extern "C" void building_runtime_initialize_city_graphics_cache(void)
         if (!b || !b->id) {
             continue;
         }
-        if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED) {
+        if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED &&
+            b->state != BUILDING_STATE_CREATED) {
             continue;
         }
         if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
@@ -152,6 +153,20 @@ extern "C" void building_runtime_apply_graphic(building *b)
     if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
         instance->set_building_graphic();
     }
+}
+
+extern "C" int building_runtime_apply_graphic_if_native(building *b)
+{
+    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
+        if (instance->uses_new_graphics() &&
+            (b->state == BUILDING_STATE_CREATED ||
+                b->state == BUILDING_STATE_IN_USE ||
+                b->state == BUILDING_STATE_MOTHBALLED)) {
+            instance->set_building_graphic();
+            return 1;
+        }
+    }
+    return 0;
 }
 
 extern "C" void building_runtime_spawn_figure(building *b)
@@ -193,10 +208,19 @@ int building_runtime_owns_graphic_animation(building *b)
     return 0;
 }
 
-const RuntimeDrawSlice *building_runtime_get_graphic_animation_slice(building *b)
+const RuntimeDrawSlice *building_runtime_get_graphic_animation_slice(building *b, int animation_cursor)
 {
     if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        return instance->graphic_animation();
+        return instance->graphic_animation(animation_cursor);
     }
     return nullptr;
+}
+
+int building_runtime_advance_graphic_animation(building *b, int animation_cursor)
+{
+    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
+        instance->advance_graphic_animation(animation_cursor);
+        return instance->owns_graphic_animation();
+    }
+    return 0;
 }

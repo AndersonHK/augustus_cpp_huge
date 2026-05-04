@@ -169,7 +169,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
     int handled = 0;
     handled |= image_buttons_handle_mouse(m_dialog, 0, 0, image_buttons_bottom, 3, &data.focus_image_button_id);
     handled |= image_buttons_handle_mouse(m_dialog, 0, 0, action_button, 1, &data.focus_game_button_id);
-    handled |= generic_buttons_handle_mouse(m_dialog, 0, 0, buttons_games_size, 3, &data.focus_button_id);
+    handled |= GenericButtonList(buttons_games_size, 3).handle_mouse(
+        *m_dialog,
+        0,
+        0,
+        &data.focus_button_id
+    );
     if (data.focus_image_button_id || data.focus_game_button_id) {
         data.focus_button_id = 0;
     }

@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="hippodrome">
+    <identity name_key="main_strings.28.32" />
+    <model size="5" cost="3500" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="entertainment" order="40" icon="Health_Culture\Hippodrome_1" text_key="main_strings.28.32" />
     <sound id="hippodrome" mute_on_enemies="true" />
+    <event_data attr="hippodrome" />
+    <labor>
+        <employees count="150" />
+        <labor_seeker>
+            <method value="workforce" />
+            <amount value="50" />
+        </labor_seeker>
+    </labor>
 </building>

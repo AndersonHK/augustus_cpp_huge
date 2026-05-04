@@ -11,6 +11,7 @@ extern "C" {
 
 void building_type_id_bridge_reset_for_runtime(void);
 const char *building_type_id_bridge_text_from_runtime(building_type runtime_id);
+const char *building_type_id_bridge_text_from_save_id(uint16_t save_id);
 building_type building_type_id_bridge_runtime_from_text(const char *text_id);
 
 void building_type_id_bridge_prepare_new_save_table(void);

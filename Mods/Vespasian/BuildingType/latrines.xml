@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="latrines">
+    <identity name_key="TR_BUILDING_LATRINES" />
+    <model size="1" cost="15" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="health" order="50" icon="Health_Culture\Latrine_C" text_key="TR_BUILDING_LATRINES" />
+    <event_data attr="latrines" />
+    <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <path value="Health_Culture\Latrine_C" />
+            <image value="Latrine_C" />
+        </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Health_Culture\Latrine_N" />
+            <image value="Latrine_N" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Health_Culture\Latrine_S" />
+            <image value="Latrine_S" />
+        </variant>
+    </graphics>
+    <labor>
+        <employees count="2" />
+        <labor_seeker>
+            <method value="none" />
+        </labor_seeker>
+    </labor>
+</building>
+

@@ -1,4 +1,31 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="native_decor">
+    <identity name_key="TR_BUILDING_NATIVE_DECORATION" />
+    <model size="1" cost="0" />
+    <desirability>
+        <value value="6" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="4" />
+    </desirability>
+    <foundation policy="land" />
+    <flags fire_proof="1" />
     <sound id="native_decoration" always_play="true" />
+    <event_data attr="native_decor" />
+    <graphics>
+        <default>
+            <path value="Terrain_Maps\Native_Decoration_Central_01" />
+            <image value="Native_Decoration_Central_01" />
+        </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Terrain_Maps\Native_Decoration_Northern_01" />
+            <image value="Native_Decoration_Northern_01" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Terrain_Maps\Native_Decoration_Southern_01" />
+            <image value="Native_Decoration_Southern_01" />
+        </variant>
+    </graphics>
 </building>

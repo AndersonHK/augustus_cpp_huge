@@ -18,6 +18,7 @@ Primary design goals remain:
 - Keep save compatibility by growing runtime wrappers around legacy serialized structs instead of replacing serialized truth all at once.
 - Do not broaden a rewrite just because a subsystem is old; center the work on the best control point.
 - Prefer object-owned metadata for runtime concepts. For example, `PathingMode` instances should carry pathing requirements like `requires_road` rather than leaving those requirements in separate helper functions or scattered switch lists.
+- Natural tree-like terrain means `TERRAIN_TREE | TERRAIN_SHRUB`; timber-yard adjacency, tree-only clearing, and force-placement tree clearing should stay aligned on that mask.
 - Comment functions consistently when touching code. Prefer concise contract comments that explain ownership, invariants, save/load behavior, validation, or surprising legacy interactions; avoid comments that merely restate assignments.
 - Update the relevant markdown whenever behavior, XML contracts, save formats, new runtime classes, or major chokepoints change, unless the user explicitly says not to. Add cross-references so future sessions can find the information from the four core Codex files without crowding those files with every detail.
 - Always update save versioning and migration gates when changing any data that is stored in save files; do this even when the loader can technically tolerate the new shape.
@@ -49,6 +50,8 @@ Primary design goals remain:
 ## Save file doctrine
 - Vespasian-owned save files use `.svv`. This replaced the temporary `.savf` extension so the fork has a standard three-letter extension while remaining distinct from legacy Caesar/Julius/Augustus `.sav` and expanded `.svx` saves.
 - Existing `.savf` saves can be renamed to `.svv`; the on-disk payload format did not change with the extension rename.
+- Canonical save layout and ownership notes live in `docs/save_data_organization.md`; check that before changing any `*_save_state`, `*_load_state`, or `init_savegame_data` piece.
+- Save/load runtime bridge notes live in `docs/save_load_runtime_bridges.md`; check that before changing BuildingType save ids, monument construction loading, road service history, local workforce allocations, or runtime wrapper rebinding.
 
 ## Text / UTF doctrine
 - Do not attempt a blanket UTF-native storage migration during unrelated renderer or widget work.

@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="pottery_workshop">
-    <identity name_key="building.pottery_workshop.name" />
-    <model size="2" cost="40" desirability_value="-4" desirability_step="1" desirability_step_size="1" desirability_range="2" laborers="10" />
+    <identity name_key="main_strings.28.114" />
+    <model size="2" cost="40" />
+    <desirability>
+        <value value="-4" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="2" />
+    </desirability>
     <foundation policy="land" />
-    <button group="workshops" order="50" icon="Industry\Pottery_Workshop" text_key="building.pottery_workshop.name" />
+    <button group="workshops" order="50" icon="Industry\Pottery_Workshop" text_key="main_strings.28.114" />
     <sound id="pottery_workshop" />
     <event_data attr="pottery_workshop" />
     <graphics>

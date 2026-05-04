@@ -29,6 +29,9 @@ static figure_type building_type_to_figure_type(building_type type)
     if (type == BUILDING_THEATER) {
         return FIGURE_ACTOR;
     }
+    if (building_type_registry_has_labor_seeker(type)) {
+        return FIGURE_LABOR_SEEKER;
+    }
 
     switch (type) {
         case BUILDING_MARKET:
@@ -98,13 +101,6 @@ static figure_type building_type_to_figure_type(building_type type)
         case BUILDING_OLIVE_FARM:
         case BUILDING_VINES_FARM:
         case BUILDING_VEGETABLE_FARM:
-        case BUILDING_CLAY_PIT:
-        case BUILDING_TIMBER_YARD:
-        case BUILDING_IRON_MINE:
-        case BUILDING_MARBLE_QUARRY:
-        case BUILDING_GOLD_MINE:
-        case BUILDING_STONE_QUARRY:
-        case BUILDING_SAND_PIT:
         case BUILDING_CONCRETE_MAKER:
         case BUILDING_BRICKWORKS:
         case BUILDING_POTTERY_WORKSHOP:

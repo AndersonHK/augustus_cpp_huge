@@ -15,6 +15,8 @@ This note maps the native walker pathing work so future sessions can find the ru
 - `src/map/road_service_history.h/.cpp` owns per-road, per-effect visit stamps.
 - `src/game/file_io.cpp` saves and loads road service history.
 - `src/game/save_version.h` records save-version boundaries.
+- `docs/save_data_organization.md` is the canonical map for `.svv` save-piece order and save-backed runtime ownership.
+- `docs/save_load_runtime_bridges.md` follows the post-read fan-out for road service history, local workforce allocations, FigureType runtime rebinding, and BuildingType-owned spawns.
 
 ## XML Contract
 
@@ -42,7 +44,7 @@ The legacy roaming loop remains the source of tile movement. Native runtime code
 
 Roaming access follows the figure profile's movement type. `roads` walkers consider roads and access ramps; `roads_highway` walkers also consider highways. Building road-access checks remain separate and still answer whether the building itself touches ordinary road access.
 
-`smart_service` applies only when there is more than one valid outgoing road. It chooses the candidate road tile with the lowest visit stamp for the profile's effect. Equal stamps fall back to the vanilla-preferred direction so old behavior stays stable where history gives no preference.
+`smart_service` applies only when there is more than one valid outgoing road. It chooses the candidate road tile with the lowest visit stamp for the profile's effect. Equal stamps fall back to the vanilla-preferred direction so old behavior stays stable where history gives no preference. Once a smart-service walker commits to a target road, it immediately reserves that target in road service history so another same-service walker choosing later in the same tick does not lockstep onto the same tile.
 
 Priests use explicit profiles such as `ceres_service`, `mars_service`, and `pantheon_service`. Pantheon records the Pantheon effect and all five individual god effects on each road tile, matching the previous owner-derived behavior without a special XML effect.
 
@@ -56,7 +58,7 @@ Temporary tuning decision: Vespasian FigureType walkers should use a `max_roam_l
 
 Road service history is pathing telemetry only. It does not provide service, reset building risk, affect coverage overlays, or change building state.
 
-Each effect has a full road grid of `uint32_t` visit stamps. Zero means "never visited" and is also the default for old saves and newly placed roads. The stamp uses game time plus one, preserving zero as the stale sentinel.
+Each effect has a full road grid of `uint32_t` visit generations. Zero means "never visited" and is also the default for old saves and newly placed roads. Positive values only represent relative recency: each service-history write receives the next generation so simultaneous smart walkers do not collapse many choices into equal timestamps. If the generation space is exhausted, nonzero values are normalized back down while preserving their ordering.
 
 Effect ids are save-compatible and append-only. New entertainment effects were appended after religion:
 
@@ -69,7 +71,8 @@ Effect ids are save-compatible and append-only. New entertainment effects were a
 - `entertainment_colosseum_lion`
 - `entertainment_hippodrome`
 
-`SAVE_GAME_CURRENT_VERSION` is `0xb3`. `SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` is `0xb2`; saves at or below that version load existing grids and leave appended entertainment grids zeroed.
+`SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended entertainment history grids. See `docs/save_data_organization.md` and `src/game/save_version.h` for the current save version and full `.svv` piece layout.
+`docs/save_load_runtime_bridges.md` documents how the loaded history grids, local workforce allocation vector, and FigureType profile inference are rebuilt after the file pieces are read.
 
 ## Related Context
 

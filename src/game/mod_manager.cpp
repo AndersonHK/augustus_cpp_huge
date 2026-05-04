@@ -396,9 +396,13 @@ extern "C" int mod_manager_validate_mod_path(void)
 
 extern "C" int mod_manager_validate_graphics_path(void)
 {
-    const int has_mod_graphics = validate_directory_path(g_graphics_path.c_str()) != 0;
-    const int has_augustus_graphics = validate_directory_path(g_augustus_graphics_path.c_str()) != 0;
-    const int has_julius_graphics = validate_directory_path(g_julius_graphics_path.c_str()) != 0;
+    int has_mod_graphics = 0;
+    for (const std::string &graphics_path : g_graphics_paths) {
+        if (validate_directory_path(graphics_path.c_str())) {
+            has_mod_graphics = 1;
+            break;
+        }
+    }
     const int has_root_graphics = validate_directory_path(ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH) != 0;
-    return has_mod_graphics || has_augustus_graphics || has_julius_graphics || has_root_graphics;
+    return has_mod_graphics || has_root_graphics;
 }

@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fountain">
-    <identity name_key="building.fountain.name" />
-    <model size="1" cost="15" desirability_value="0" desirability_step="0" desirability_step_size="0" desirability_range="0" laborers="4" />
+    <identity name_key="main_strings.28.91" />
+    <model size="1" cost="15" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
     <foundation policy="land" />
-    <button group="water" order="40" icon="fountain" text_key="building.fountain.name" />
+    <button group="water" order="30" icon="Admin_Logistics\Fountain_1" text_key="main_strings.28.91" />
     <sound id="fountain" />
     <event_data attr="fountain" />
     <flags fire_proof="1" />
@@ -12,6 +18,27 @@
         <range value="4" />
         <requirement value="reservoir_network" />
     </water_access>
+    <graphics>
+        <default>
+            <path value="Admin_Logistics\Fountain_1" />
+            <image value="Image_0000" />
+        </default>
+        <variant>
+            <condition type="desirability" operator="gt" threshold="60" />
+            <path value="Admin_Logistics\Fountain_4" />
+            <image value="Image_0000" />
+        </variant>
+        <variant>
+            <condition type="desirability" operator="gt" threshold="40" />
+            <path value="Admin_Logistics\Fountain_3" />
+            <image value="Image_0000" />
+        </variant>
+        <variant>
+            <condition type="desirability" operator="gt" threshold="20" />
+            <path value="Admin_Logistics\Fountain_2" />
+            <image value="Image_0000" />
+        </variant>
+    </graphics>
     <labor>
         <employees count="4" />
         <labor_seeker>

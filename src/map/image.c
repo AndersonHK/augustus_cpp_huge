@@ -1,7 +1,9 @@
 #include "image.h"
 
+#include "building/building_runtime_api.h"
 #include "building/image.h"
 #include "building/industry.h"
+#include "building/building_type_api.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "core/image_group.h"
@@ -73,6 +75,9 @@ void map_image_update_all(void)
         }
         if (b->type == BUILDING_SHIP_BRIDGE || b->type == BUILDING_LOW_BRIDGE || b->type == BUILDING_WALL) {
             continue; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
+        }
+        if (building_runtime_apply_graphic_if_native(b)) {
+            continue;
         }
         int image_id = building_image_get(b);
 
