@@ -21,7 +21,9 @@ enum class NativeClassId {
     EngineerService,
     PrefectService,
     EntertainmentService,
-    EntertainmentVenueSeeker
+    EntertainmentVenueSeeker,
+    MarketSupplier,
+    DeliveryFollower
 };
 
 enum class FigureSlot {

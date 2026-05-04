@@ -24,17 +24,17 @@ Native figures are profile-based:
 
 - `<profiles default="...">`
 - `<profile id="...">`
-- `<native class="roaming_service|engineer_service|prefect_service|entertainment_venue_seeker|entertainment_service" />`
+- `<native class="roaming_service|engineer_service|prefect_service|market_supplier|delivery_follower|entertainment_venue_seeker|entertainment_service" />`
 - `<owner slot="none|primary|secondary|quaternary" building="any|..." state="any|in_use|in_use_or_mothballed" />`
 - `<movement terrain_usage="any|roads|roads_highway|prefer_roads|prefer_roads_highway" roam_ticks="N" max_roam_length="N" return_mode="return_to_owner_road|die_at_limit|none" />`
-- `<pathing mode="vanilla_roaming|smart_service|nearest_unemployed|venue_seeker" effect="..." />`
+- `<pathing mode="vanilla_roaming|smart_service|nearest_unemployed|venue_seeker|storage_fetch|follow_leader" effect="..." />`
 - `<graphics image_group="..." max_image_offset="N" />` at figure level
 
 BuildingType `<spawn>` nodes choose a profile with `profile="..."`. This is the narrow handoff from building policy into figure behavior: after creation, the figure's bound profile owns pathing and road-history effect selection.
 
 BuildingType `<spawn_group existing_figure="...">` is the group-level guard for legacy tracked slots. Single-type groups behave like the old hardcoded checks; comma-list groups such as `actor,gladiator` are for venues where several profile-specific spawns share one legacy `figure_id` slot and must block one another.
 
-`PathingMode` objects own mode requirements. Current native pathing modes set `requires_road`, so they require `terrain_usage="roads"` or `terrain_usage="roads_highway"`. Off-road-capable modes such as `any`, `prefer_roads`, and `prefer_roads_highway` are rejected during XML load because the roaming loop can only choose among adjacent road/path tiles.
+`PathingMode` objects own mode requirements. Current native pathing modes set `requires_road`, so they require `terrain_usage="roads"` or `terrain_usage="roads_highway"`. Off-road-capable modes such as `any`, `prefer_roads`, and `prefer_roads_highway` are rejected during XML load because the native policies are road-route, road-roaming, or road-following contracts.
 
 `smart_service` is only valid for road-only walkers with a non-none effect. `nearest_unemployed` is a road-only policy used by labor seeker profiles. `venue_seeker` uses profile venue targets to pick a destination venue.
 
@@ -51,6 +51,8 @@ Priests use explicit profiles such as `ceres_service`, `mars_service`, and `pant
 Entertainment training buildings spawn `venue_seeker` profiles. `show_duration` values are active calendar days: a venue showing 53 days left should expire after 53 active days, not 53 legacy half-days. Savegames at or before `SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS` migrate stored venue counters from the old half-day units by doubling them on load. Venue ranking uses the legacy weighted score, `2 * show_days + route_distance`, where `route_distance` comes from the same routing grid the walker will follow. Venue service walkers share the generic `entertainment_service` native class; separate profiles such as `theater_service` and `arena_service` carry the exact `<pathing mode="smart_service" effect="...">` value. Mixed venues such as amphitheaters and arenas rely on the parent BuildingType `existing_figure` list to keep alternate service walkers mutually exclusive while the FigureType profile owns the actual service effect.
 
 Labor seekers use explicit `acquisition` and `validation` profiles. The trip flag remains in `collecting_item_id` for save compatibility, but new spawns bind the profile directly and the runtime owns target selection where practical.
+
+Market walkers now have explicit FigureType policies while the legacy market BuildingType spawn source remains in place. `market_trader` is a `roaming_service` profile; Vespasian records the `market_goods` smart-service effect, while Julius/Augustus fallback XML uses `vanilla_roaming`. `market_supplier` uses `native class="market_supplier"` and `pathing mode="storage_fetch"` to preserve storage selection, halfway rerouting, pickup, delivery follower creation, and return-to-market behavior using existing save fields. `delivery_boy` uses `native class="delivery_follower"` and `pathing mode="follow_leader"` to follow `leading_figure_id` chains and deposit carried resources when the leader finishes.
 
 Temporary tuning decision: Vespasian FigureType walkers should use a `max_roam_length` roughly 50% larger than Augustus until walker range tuning is revisited.
 
@@ -70,8 +72,9 @@ Effect ids are save-compatible and append-only. New entertainment effects were a
 - `entertainment_colosseum_gladiator`
 - `entertainment_colosseum_lion`
 - `entertainment_hippodrome`
+- `market_goods`
 
-`SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended entertainment history grids. See `docs/save_data_organization.md` and `src/game/save_version.h` for the current save version and full `.svv` piece layout.
+`SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended entertainment history grids. `SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended market history grid. See `docs/save_data_organization.md` and `src/game/save_version.h` for the current save version and full `.svv` piece layout.
 `docs/save_load_runtime_bridges.md` documents how the loaded history grids, local workforce allocation vector, and FigureType profile inference are rebuilt after the file pieces are read.
 
 ## Related Context

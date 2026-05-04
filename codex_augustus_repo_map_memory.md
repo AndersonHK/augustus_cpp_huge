@@ -211,6 +211,7 @@ Pattern:
 - `src/map/routing_distance.h/.cpp`
   - C++ helper for route-grid destination distance; venue seekers rank by `2 * show_days + route_distance`
 - BuildingType native spawns choose a `FigureType` profile with `profile="..."`; figures own the native class, movement/pathing, and road-history effect after creation.
+- Market walkers are now FigureType-bound after legacy market spawning: `market_trader` uses roaming service pathing, `market_supplier` owns storage-fetch routing, and `delivery_boy` owns follow-leader behavior.
 - Priests use explicit god profiles; entertainment service walkers use generic native behavior with profile-specific smart-service effects.
 - Mixed entertainment venues use comma-list BuildingType `existing_figure` guards, such as `actor,gladiator`, so alternate profiled service walkers share one legacy slot without orphaning one another.
 - `src/figure/movement.cpp`

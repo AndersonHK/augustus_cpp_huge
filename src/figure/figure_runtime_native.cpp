@@ -4,14 +4,20 @@
 #include "map/routing_distance.h"
 
 extern "C" {
+#include "assets/assets.h"
 #include "building/list.h"
 #include "building/local_workforce.h"
 #include "building/maintenance.h"
 #include "building/building.h"
+#include "building/distribution.h"
+#include "building/granary.h"
+#include "building/market.h"
 #include "building/monument.h"
+#include "building/warehouse.h"
 #include "city/festival.h"
 #include "city/figures.h"
 #include "core/calc.h"
+#include "core/config.h"
 #include "core/image.h"
 #include "figure/action.h"
 #include "figure/combat.h"
@@ -19,8 +25,11 @@ extern "C" {
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "figuretype/supplier.h"
 #include "game/time.h"
+#include "game/resource.h"
 #include "map/building.h"
+#include "map/data.h"
 #include "map/grid.h"
 #include "map/road_access.h"
 #include "map/routing_terrain.h"
@@ -237,6 +246,344 @@ public:
 
         figure_image_update(f, image_group(graphics.image_group));
         return 1;
+    }
+};
+
+class MarketSupplierFigure : public NativeFigure {
+public:
+    using NativeFigure::NativeFigure;
+
+    int execute() override
+    {
+        figure *f = data_figure();
+        if (!f || !definition()) {
+            return 0;
+        }
+
+        building *owner = building_get(f->building_id);
+        if (!owner_binding_matches(f, owner, profile()->owner_binding())) {
+            f->state = FIGURE_STATE_DEAD;
+            update_image(f);
+            return 1;
+        }
+
+        const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
+        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->use_cross_country = 0;
+        f->max_roam_length = static_cast<short>(movement.max_roam_length);
+        figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
+
+        switch (f->action_state) {
+            case FIGURE_ACTION_150_ATTACK:
+                figure_combat_handle_attack(f);
+                break;
+            case FIGURE_ACTION_149_CORPSE:
+                figure_combat_handle_corpse(f);
+                break;
+            case FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE:
+                move_to_storage(f, movement.roam_ticks);
+                break;
+            case FIGURE_ACTION_146_SUPPLIER_RETURNING:
+                return_to_market(f, movement.roam_ticks);
+                break;
+            default:
+                retire_unsupported_native_state(f, "market_supplier");
+                break;
+        }
+
+        update_image(f);
+        return 1;
+    }
+
+private:
+    static int take_food_from_granary(figure *f, int market_id, int granary_id)
+    {
+        const resource_type resource = static_cast<resource_type>(f->collecting_item_id);
+        if (!resource_is_food(resource)) {
+            return 0;
+        }
+
+        building *granary = building_get(granary_id);
+        building *market = building_get(market_id);
+        if (!granary || !market) {
+            return 0;
+        }
+
+        const int market_units = market->resources[resource];
+        const int max_units = MAX_FOOD_STOCKED_MARKET - market_units;
+        const int granary_loads_stored = building_granary_count_available_resource(granary, resource, 1);
+        const int granary_loads_take = granary_loads_stored > (max_units / RESOURCE_ONE_LOAD) ?
+            (max_units / RESOURCE_ONE_LOAD) : granary_loads_stored;
+        if (!granary_loads_take) {
+            return 0;
+        }
+
+        const int amount_taken = building_granary_try_remove_resource(granary, resource, granary_loads_take);
+        int previous_boy = f->id;
+        for (int i = 0; i < amount_taken; i++) {
+            previous_boy = figure_supplier_create_delivery_boy(previous_boy, f->id, FIGURE_DELIVERY_BOY);
+        }
+        return 1;
+    }
+
+    static int take_resource_from_generic_building(figure *f, int building_id)
+    {
+        building *source = building_get(building_id);
+        if (!source) {
+            return 0;
+        }
+
+        const int num_loads = source->resources[RESOURCE_WINE] < 2 ? source->resources[RESOURCE_WINE] : 2;
+        if (num_loads <= 0) {
+            return 0;
+        }
+
+        source->resources[RESOURCE_WINE] -= num_loads;
+        int boy = figure_supplier_create_delivery_boy(f->id, f->id, FIGURE_DELIVERY_BOY);
+        if (num_loads > 1) {
+            figure_supplier_create_delivery_boy(boy, f->id, FIGURE_DELIVERY_BOY);
+        }
+        return 1;
+    }
+
+    static int take_resource_from_warehouse(figure *f, int warehouse_id)
+    {
+        building *warehouse = building_get(warehouse_id);
+        if (!warehouse) {
+            return 0;
+        }
+        if (warehouse->type != BUILDING_WAREHOUSE) {
+            return take_resource_from_generic_building(f, warehouse_id);
+        }
+
+        const resource_type resource = static_cast<resource_type>(f->collecting_item_id);
+        const int stored = building_warehouse_get_available_amount(warehouse, resource);
+        const int num_loads = stored < 2 ? stored : 2;
+        if (num_loads <= 0) {
+            return 0;
+        }
+
+        building_warehouse_try_remove_resource(warehouse, resource, num_loads);
+        int boy = figure_supplier_create_delivery_boy(f->id, f->id, FIGURE_DELIVERY_BOY);
+        if (num_loads > 1) {
+            figure_supplier_create_delivery_boy(boy, f->id, FIGURE_DELIVERY_BOY);
+        }
+        return 1;
+    }
+
+    static int change_destination(figure *f, int destination_building_id)
+    {
+        figure_route_remove(f);
+        f->destination_building_id = destination_building_id;
+        building *destination = building_get(destination_building_id);
+        if (!destination) {
+            return 0;
+        }
+
+        map_point road = { 0, 0 };
+        int has_road_access = 0;
+        if (destination->type == BUILDING_WAREHOUSE) {
+            has_road_access = map_has_road_access_warehouse(destination->x, destination->y, &road);
+        } else if (destination->type == BUILDING_GRANARY) {
+            has_road_access = map_has_road_access_granary(destination->x, destination->y, &road);
+        }
+        if (!has_road_access) {
+            return 0;
+        }
+
+        f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
+        f->destination_x = road.x;
+        f->destination_y = road.y;
+        return 1;
+    }
+
+    static bool is_better_destination(figure *f, resource_type resource, resource_storage_info *info)
+    {
+        building *old_destination = building_get(f->destination_building_id);
+        if (!building_is_active(old_destination)) {
+            return true;
+        }
+        if (old_destination->type == BUILDING_GRANARY && old_destination->resources[resource] <= 0) {
+            return true;
+        }
+        if (old_destination->type == BUILDING_WAREHOUSE &&
+            building_warehouse_get_amount(old_destination, resource) <= 0) {
+            return true;
+        }
+
+        const int old_distance = building_dist(f->x, f->y, 1, 1, old_destination);
+        return info->min_distance <= old_distance / 2;
+    }
+
+    static int recalculate_destination(figure *f)
+    {
+        const resource_type item = static_cast<resource_type>(f->collecting_item_id);
+        building *market = building_get(f->building_id);
+        if (!market) {
+            return 0;
+        }
+
+        resource_storage_info info[RESOURCE_MAX] = { 0 };
+        const int road_network = market->road_network_id;
+        if (!building_market_get_needed_inventory(market, info) ||
+            !building_distribution_get_resource_storages_for_figure(
+                info,
+                BUILDING_MARKET,
+                road_network,
+                f,
+                config_get(CONFIG_GP_CH_MARKET_RANGE) ? MARKET_MAX_DISTANCE : map_data.width)) {
+            return 0;
+        }
+
+        if (f->building_id == info[item].building_id ||
+            f->destination_building_id == info[item].building_id) {
+            return 1;
+        }
+
+        if (info[item].building_id) {
+            return is_better_destination(f, item, &info[item]) ?
+                change_destination(f, info[item].building_id) : 1;
+        }
+
+        const resource_type fetch_inventory = building_market_fetch_inventory(market, info);
+        if (fetch_inventory == RESOURCE_NONE) {
+            return 0;
+        }
+
+        market->data.market.fetch_inventory_id = fetch_inventory;
+        f->collecting_item_id = fetch_inventory;
+        return change_destination(f, info[fetch_inventory].building_id);
+    }
+
+    static void move_to_storage(figure *f, int roam_ticks)
+    {
+        figure_movement_move_ticks(f, roam_ticks);
+        if (f->direction == DIR_FIGURE_AT_DESTINATION) {
+            f->wait_ticks = 0;
+            f->previous_tile_x = f->x;
+            f->previous_tile_y = f->y;
+            const unsigned int id = f->id;
+            if (!resource_is_food(static_cast<resource_type>(f->collecting_item_id))) {
+                if (!take_resource_from_warehouse(f, f->destination_building_id)) {
+                    f->state = FIGURE_STATE_DEAD;
+                }
+            } else if (!take_food_from_granary(f, f->building_id, f->destination_building_id)) {
+                f->state = FIGURE_STATE_DEAD;
+            }
+
+            f = figure_get(id);
+            f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
+            f->destination_x = f->source_x;
+            f->destination_y = f->source_y;
+        } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
+            f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
+            f->destination_x = f->source_x;
+            f->destination_y = f->source_y;
+            figure_route_remove(f);
+        } else if (f->wait_ticks++ > FIGURE_REROUTE_DESTINATION_TICKS) {
+            f->wait_ticks = 0;
+            if (!recalculate_destination(f)) {
+                f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
+                f->collecting_item_id = RESOURCE_NONE;
+                f->destination_x = f->source_x;
+                f->destination_y = f->source_y;
+                figure_route_remove(f);
+            }
+        }
+    }
+
+    static void return_to_market(figure *f, int roam_ticks)
+    {
+        figure_movement_move_ticks(f, roam_ticks);
+        if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
+            f->state = FIGURE_STATE_DEAD;
+        } else if (f->direction == DIR_FIGURE_REROUTE) {
+            figure_route_remove(f);
+        }
+    }
+
+    void update_image(figure *f) const
+    {
+        const int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
+        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+            f->image_id = assets_get_image_id("Walkers", "marketbuyer_death_01") +
+                figure_image_corpse_offset(f);
+        } else {
+            f->image_id = assets_get_image_id("Walkers", "marketbuyer_ne_01") +
+                dir * 12 + f->image_offset;
+        }
+    }
+};
+
+class DeliveryFollowerFigure : public NativeFigure {
+public:
+    using NativeFigure::NativeFigure;
+
+    int execute() override
+    {
+        figure *f = data_figure();
+        if (!f || !definition()) {
+            return 0;
+        }
+
+        const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
+        f->is_ghost = 0;
+        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->use_cross_country = 0;
+        f->max_roam_length = static_cast<short>(movement.max_roam_length);
+        figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
+        f->cart_image_id = 0;
+
+        figure *leader = figure_get(f->leading_figure_id);
+        if (f->leading_figure_id <= 0 || leader->action_state == FIGURE_ACTION_149_CORPSE) {
+            f->state = FIGURE_STATE_DEAD;
+        } else if (leader->state == FIGURE_STATE_ALIVE) {
+            if (can_follow(leader)) {
+                figure_movement_follow_ticks(f, movement.roam_ticks);
+            } else {
+                f->state = FIGURE_STATE_DEAD;
+            }
+        } else {
+            building_get(f->building_id)->resources[f->collecting_item_id] += RESOURCE_ONE_LOAD;
+            f->state = FIGURE_STATE_DEAD;
+        }
+
+        if (leader->is_ghost && !leader->height_adjusted_ticks) {
+            f->is_ghost = 1;
+        }
+        update_image(f);
+        return 1;
+    }
+
+private:
+    static bool can_follow(const figure *leader)
+    {
+        switch (leader->type) {
+            case FIGURE_MARKET_SUPPLIER:
+            case FIGURE_DELIVERY_BOY:
+            case FIGURE_MESS_HALL_SUPPLIER:
+            case FIGURE_MESS_HALL_COLLECTOR:
+            case FIGURE_PRIEST_SUPPLIER:
+            case FIGURE_PRIEST:
+            case FIGURE_BARKEEP_SUPPLIER:
+            case FIGURE_CARAVANSERAI_SUPPLIER:
+            case FIGURE_CARAVANSERAI_COLLECTOR:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    void update_image(figure *f) const
+    {
+        const int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
+        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+            f->image_id = image_group(definition()->graphics_policy().image_group) + 96 +
+                figure_image_corpse_offset(f);
+        } else {
+            f->image_id = image_group(definition()->graphics_policy().image_group) +
+                dir + 8 * f->image_offset;
+        }
     }
 };
 
@@ -1183,6 +1530,10 @@ std::unique_ptr<NativeFigure> make_controller(
             return std::make_unique<EntertainmentServiceFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::EntertainmentVenueSeeker:
             return std::make_unique<EntertainmentVenueSeekerFigure>(f, definition, profile);
+        case figure_type_registry_impl::NativeClassId::MarketSupplier:
+            return std::make_unique<MarketSupplierFigure>(f, definition, profile);
+        case figure_type_registry_impl::NativeClassId::DeliveryFollower:
+            return std::make_unique<DeliveryFollowerFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::None:
         default:
             return nullptr;

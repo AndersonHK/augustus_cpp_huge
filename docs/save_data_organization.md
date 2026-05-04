@@ -2,7 +2,7 @@
 
 This document maps how Vespasian `.svv` save data is allocated, written, loaded, and handed back to runtime systems. It is a live-game save reference first. Scenario files use the same file-piece machinery, but their layout is covered separately in the scenario appendix. For the post-read bridge layer that resolves save-local ids into runtime objects, BuildingType definitions, and legacy structs, see `docs/save_load_runtime_bridges.md`.
 
-Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb5`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
+Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 
 ## Top-Level Flow
 
@@ -48,7 +48,7 @@ Save-version gates are append/order gates. Adding, removing, resizing, or reorde
 
 ## Live Save Pieces
 
-This table follows `init_savegame_data()` order exactly. "Current" means the piece is present in newly written `0xb5` saves. Old-only pieces are still allocated while reading older versions so the stream stays aligned. The `C` column means the file piece is compressed on disk.
+This table follows `init_savegame_data()` order exactly. "Current" means the piece is present in newly written `0xb6` saves. Old-only pieces are still allocated while reading older versions so the stream stays aligned. The `C` column means the file piece is compressed on disk.
 
 | # | Piece | Gate | Size allocation | C | Writer | Loader / consumer | Runtime data |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -189,7 +189,7 @@ Important owned payloads:
 - Custom empire objects: `empire_object_save()` writes a single zero if the scenario does not use a custom empire. For custom empires it writes object count, then each used or unused object. City objects write a larger record because they include per-resource trade fields. `empire_object_load()` rebuilds the object array and fixes image/resource compatibility.
 - Scenario events: `scenario_events_save_state()` writes event info as a dynamic array, condition groups as a dynamic byte stream, actions as a dynamic array, and formulas as a dynamic array. `scenario_events_load_state()` recreates events, links conditions/actions back to event ids, loads formulas for newer versions, and runs migration helpers for older formats.
 - City messages: `city_message_save_state()` splits message records, extra counters, counts, delays, and population-message flags across five pieces. The loader reconstructs the message subsystem from those pieces.
-- Road service history: `map_road_service_history_save_state()` writes dynamic format version `1`, effect count, and a full `uint32_t` grid for each nonzero service effect. The loader clears history first, handles missing old saves by leaving zeros, reads only effects supported by the save version, skips unknown/future effect grids, and leaves newly appended effects zeroed.
+- Road service history: `map_road_service_history_save_state()` writes dynamic format version `1`, effect count, and a full `uint32_t` grid for each nonzero service effect. The loader clears history first, handles missing old saves by leaving zeros, reads only effects supported by the save version, skips unknown/future effect grids, and leaves newly appended religion, entertainment, or market effects zeroed.
 - Local workforce allocations: `building_local_workforce_save_state()` writes dynamic format version `1`, record count, then `(workplace_id, house_id, workers)` triples. The loader clears allocations first, validates the format, clamps record count to payload size, and ignores invalid building ids through later reconciliation.
 - Dynamic model and production data: `model_save_model_data()` and `production_rates_save()` own their dynamic payload contents. Savegame load applies building type XML/model overrides after model load, then initializes resources and loads production rates.
 

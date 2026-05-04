@@ -125,6 +125,12 @@ const char *infer_profile_id(const figure *f)
             return f->collecting_item_id ? "validation" : "acquisition";
         case FIGURE_PRIEST:
             return profile_id_for_priest_owner(f);
+        case FIGURE_MARKET_TRADER:
+            return "service";
+        case FIGURE_MARKET_SUPPLIER:
+            return "storage_fetch";
+        case FIGURE_DELIVERY_BOY:
+            return "follow_leader";
         case FIGURE_ACTOR:
         case FIGURE_GLADIATOR:
         case FIGURE_LION_TAMER:
@@ -330,6 +336,11 @@ extern "C" figure *figure_runtime_create_profiled(
             break;
         case figure_type_registry_impl::NativeClassId::EntertainmentVenueSeeker:
             f->action_state = FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED;
+            break;
+        case figure_type_registry_impl::NativeClassId::MarketSupplier:
+            f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
+            break;
+        case figure_type_registry_impl::NativeClassId::DeliveryFollower:
             break;
         case figure_type_registry_impl::NativeClassId::RoamingService:
         default:

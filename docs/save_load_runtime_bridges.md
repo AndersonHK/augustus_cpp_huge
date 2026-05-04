@@ -2,7 +2,7 @@
 
 This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, legacy structs, and C++ wrappers.
 
-Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb5`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
+Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 
 ## Load Timeline
 
@@ -48,6 +48,7 @@ Recent runtime-bridge gates:
 | `SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY = 0xb2` | Appended entertainment service effects | Entertainment grids remain zero for older saves. |
 | `SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS = 0xb3` | Active-day entertainment show counters | `read_type_data()` doubles legacy half-day counters on load. |
 | `SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE = 0xb4` | Building type save table | Bridge synthesizes a legacy table from enum/text migration data. |
+| `SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY = 0xb5` | Appended market service effect | Market goods history remains zero for older saves. |
 
 Other broad gates still shape the bridge path:
 
@@ -236,11 +237,12 @@ The save payload is dynamic and starts with:
 2. effect count
 3. one full `GRID_SIZE * GRID_SIZE` `uint32_t` grid per saved effect id
 
-Effect ids are append-only. Removed meanings must stay reserved so old save columns do not shift. The loader receives three gates from `savegame_load_from_state()`:
+Effect ids are append-only. Removed meanings must stay reserved so old save columns do not shift. The loader receives four gates from `savegame_load_from_state()`:
 
 - `has_saved_state`
 - `has_religion_effects`
 - `has_entertainment_effects`
+- `has_market_effects`
 
 Missing payloads or missing appended effect groups start from zeroed history. Unsupported payloads reset to zero. Future extra grids are consumed so the ordinal payload remains aligned. `update_last_visit_stamp_from_history()` rebuilds the current generation counter from loaded grids.
 
