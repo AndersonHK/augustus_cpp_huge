@@ -212,7 +212,12 @@ static void draw_foreground(void)
 
 static int handle_mouse(const mouse *m)
 {
-    return GenericButton::handle_mouse(*m, 0, 0, hold_games_button, 1, &focus_button_id);
+    return GenericButtonList(hold_games_button, 1).handle_mouse(
+        *m,
+        0,
+        0,
+        &focus_button_id
+    );
 }
 
 static void button_hold_games(const generic_button *button)

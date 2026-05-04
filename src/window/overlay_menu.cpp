@@ -290,7 +290,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
     const int x_offset = get_sidebar_x_offset();
     int handled = 0;
 
-    handled |= GenericButton::handle_mouse(*m, 0, 0, data.buttons, MAX_BUTTONS, &data.menu_focus_button_index);
+    handled |= GenericButtonList(data.buttons, MAX_BUTTONS).handle_mouse(
+        *m,
+        0,
+        0,
+        &data.menu_focus_button_index
+    );
 
     if (!handled && click_outside_menu(m, x_offset)) {
         data.selected_overlay_clicked = 0;

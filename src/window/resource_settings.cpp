@@ -247,7 +247,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
             return;
         }
     }
-    if (GenericButton::handle_mouse(*m_dialog, 0, 0, resource_generic_buttons, 4, &data.focus_button_id)) {
+    if (GenericButtonList(resource_generic_buttons, 4).handle_mouse(
+        *m_dialog,
+        0,
+        0,
+        &data.focus_button_id
+    )) {
         return;
     }
     if (input_go_back_requested(m, h)) {

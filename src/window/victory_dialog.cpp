@@ -96,7 +96,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
     } else {
         num_buttons = 1;
     }
-    GenericButton::handle_mouse(*mouse_in_dialog(m), 48, 128, victory_buttons, num_buttons, &focus_button_id);
+    GenericButtonList(victory_buttons, num_buttons).handle_mouse(
+        *mouse_in_dialog(m),
+        48,
+        128,
+        &focus_button_id
+    );
 }
 
 static void button_accept(const generic_button *button)

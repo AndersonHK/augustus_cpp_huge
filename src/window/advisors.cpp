@@ -251,7 +251,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
 {
     handle_hotkeys(h);
     const mouse *m_dialog = mouse_in_dialog(m);
-    if (GenericButton::handle_mouse(*m_dialog, 0, 440, advisor_buttons, ADVISOR_MAX, &focus_button_id)) {
+    if (GenericButtonList(advisor_buttons, ADVISOR_MAX).handle_mouse(
+        *m_dialog,
+        0,
+        440,
+        &focus_button_id
+    )) {
         return;
     }
     unsigned int button_id;

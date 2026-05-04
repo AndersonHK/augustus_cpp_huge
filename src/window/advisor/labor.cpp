@@ -101,7 +101,12 @@ static void draw_foreground(void)
 
 static int handle_mouse(const mouse *m)
 {
-    if (GenericButton::handle_mouse(*m, 0, 0, category_buttons, 9, &focus_button_id)) {
+    if (GenericButtonList(category_buttons, 9).handle_mouse(
+        *m,
+        0,
+        0,
+        &focus_button_id
+    )) {
         return 1;
     }
     return arrow_buttons_handle_mouse(m, 0, 0, wage_buttons, 2, &arrow_button_focus);

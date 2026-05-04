@@ -108,7 +108,12 @@ static void draw_foreground(void)
 
 static void handle_input(const mouse *m, const hotkeys *h)
 {
-    if (data.checkbox_text && GenericButton::handle_mouse(*mouse_in_dialog(m), 0, 0, &checkbox, 1, &data.has_focus)) {
+    if (data.checkbox_text && GenericButtonList(&checkbox, 1).handle_mouse(
+        *mouse_in_dialog(m),
+        0,
+        0,
+        &data.has_focus
+    )) {
         return;
     }
     if (data.has_buttons && image_buttons_handle_mouse(mouse_in_dialog(m), 80,

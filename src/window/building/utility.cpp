@@ -552,9 +552,12 @@ int window_building_handle_rubble_button(const mouse *m, building_info_context *
 
 int window_building_handle_mouse_roadblock_button(const mouse *m, building_info_context *c)
 {
-    return GenericButton::handle_mouse(
-        *m, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
-        go_to_orders_button, 1, &data.focus_button_id);
+    return GenericButtonList(go_to_orders_button, 1).handle_mouse(
+        *m,
+        c->x_offset + 80,
+        c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
+        &data.focus_button_id
+    );
 }
 
 int window_building_handle_mouse_roadblock_orders(const mouse *m, building_info_context *c)
@@ -562,12 +565,19 @@ int window_building_handle_mouse_roadblock_orders(const mouse *m, building_info_
     int y_offset = window_building_get_vertical_offset(c, 28);
 
     data.building_id = c->building_id;
-    if (GenericButton::handle_mouse(*m, c->x_offset + 180, y_offset + 46,
-        orders_permission_buttons, size_of_orders_permission_buttons,
-        &data.figure_focus_button_id)) {
+    if (GenericButtonList(orders_permission_buttons, size_of_orders_permission_buttons).handle_mouse(
+        *m,
+        c->x_offset + 180,
+        y_offset + 46,
+        &data.figure_focus_button_id
+    )) {
         return 1;
     }
 
-    return GenericButton::handle_mouse(*m, c->x_offset + 80, y_offset + 404, roadblock_orders_buttons,
-        1, &data.orders_focus_button_id);
+    return GenericButtonList(roadblock_orders_buttons, 1).handle_mouse(
+        *m,
+        c->x_offset + 80,
+        y_offset + 404,
+        &data.orders_focus_button_id
+    );
 }

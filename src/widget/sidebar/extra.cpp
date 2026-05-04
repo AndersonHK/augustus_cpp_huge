@@ -691,8 +691,12 @@ int sidebar_extra_handle_mouse(const mouse *m)
         return 1;
     }
     if ((data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) &&
-        GenericButton::handle_mouse(*m, data.x_offset, data.request_buttons_y_offset,
-            buttons_emperor_requests, data.visible_requests, &data.focused_request_button_id)) {
+        GenericButtonList(buttons_emperor_requests, data.visible_requests).handle_mouse(
+            *m,
+            data.x_offset,
+            data.request_buttons_y_offset,
+            &data.focused_request_button_id
+        )) {
         return 1;
     }
     return 0;

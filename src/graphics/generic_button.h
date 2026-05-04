@@ -19,8 +19,6 @@ public:
 
     bool contains(const mouse &m, int origin_x, int origin_y) const;
     int handle_mouse(const mouse &m) const;
-    static int handle_mouse(const mouse &m, int x, int y, GenericButton *buttons, unsigned int num_buttons,
-        unsigned int *focus_button_id);
     int primary_parameter() const;
     int secondary_parameter() const;
     void set_bounds(short button_x, short button_y, short button_width, short button_height);
@@ -30,6 +28,40 @@ public:
     void *context() const;
     const char *name() const;
     void reset();
+};
+
+class GenericButtonList {
+public:
+    GenericButtonList(const GenericButton *items, unsigned int count)
+        : button_items(items), button_count(count)
+    {
+    }
+
+    int handle_mouse(const mouse &m, int origin_x, int origin_y, unsigned int *focus_button_id) const
+    {
+        unsigned int button_id = focused_button(m, origin_x, origin_y);
+        if (focus_button_id) {
+            *focus_button_id = button_id;
+        }
+        if (!button_id) {
+            return 0;
+        }
+        return button_items[button_id - 1].handle_mouse(m);
+    }
+
+private:
+    unsigned int focused_button(const mouse &m, int origin_x, int origin_y) const
+    {
+        for (unsigned int i = 0; i < button_count; i++) {
+            if (button_items[i].contains(m, origin_x, origin_y)) {
+                return i + 1;
+            }
+        }
+        return 0;
+    }
+
+    const GenericButton *button_items;
+    unsigned int button_count;
 };
 
 using generic_button = GenericButton;

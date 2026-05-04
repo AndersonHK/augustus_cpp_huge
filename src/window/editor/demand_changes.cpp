@@ -212,8 +212,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
     if (grid_box_handle_input(&demand_change_buttons, m_dialog, 1) ||
-        GenericButton::handle_mouse(*m_dialog, 0, 0, &new_demand_change_button, 1,
-            &data.new_demand_change_button_focused)) {
+        GenericButtonList(&new_demand_change_button, 1).handle_mouse(
+            *m_dialog,
+            0,
+            0,
+            &data.new_demand_change_button_focused
+        )) {
         return;
     }
     if (input_go_back_requested(m, h)) {

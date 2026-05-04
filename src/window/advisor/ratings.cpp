@@ -221,7 +221,12 @@ static void draw_rating_widgets(void)
 
 static int handle_mouse(const mouse *m)
 {
-    return GenericButton::handle_mouse(*m, 0, 0, rating_buttons, 4, &focus_button_id);
+    return GenericButtonList(rating_buttons, 4).handle_mouse(
+        *m,
+        0,
+        0,
+        &focus_button_id
+    );
 }
 
 static void button_rating(const generic_button *button)

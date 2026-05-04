@@ -123,7 +123,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
     if (scrollbar_handle_mouse(&scrollbar, m_dialog, 1) ||
-        GenericButton::handle_mouse(*m_dialog, 0, 0, buttons, MAX_BUTTONS, &data.focus_button_id)) {
+        GenericButtonList(buttons, MAX_BUTTONS).handle_mouse(
+            *m_dialog,
+            0,
+            0,
+            &data.focus_button_id
+        )) {
         return;
     }
     if (input_go_back_requested(m, h)) {

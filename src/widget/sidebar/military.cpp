@@ -476,12 +476,20 @@ int widget_sidebar_military_handle_input(const mouse *m)
     const formation *selected_legion = formation_get(data.active_legion.formation_id);
     if (data.active_legion.soldiers > 0) {
         generic_button *layout_buttons = buttons_formation_layout[available_layouts_for_legion(selected_legion) - 3];
-        if (GenericButton::handle_mouse(*m, x_offset, Y_OFFSET_PANEL_START + Y_OFFSET_LAYOUT_BUTTONS,
-            layout_buttons, 5, &data.inner_buttons_focus_id)) {
+        if (GenericButtonList(layout_buttons, 5).handle_mouse(
+            *m,
+            x_offset,
+            Y_OFFSET_PANEL_START + Y_OFFSET_LAYOUT_BUTTONS,
+            &data.inner_buttons_focus_id
+        )) {
             return 1;
         }
-        if (GenericButton::handle_mouse(*m, x_offset, Y_OFFSET_PANEL_START + Y_OFFSET_BOTTOM_BUTTONS,
-            buttons_bottom, 3, &data.bottom_buttons_focus_id)) {
+        if (GenericButtonList(buttons_bottom, 3).handle_mouse(
+            *m,
+            x_offset,
+            Y_OFFSET_PANEL_START + Y_OFFSET_BOTTOM_BUTTONS,
+            &data.bottom_buttons_focus_id
+        )) {
             return 1;
         }
     }

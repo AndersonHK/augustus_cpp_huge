@@ -569,8 +569,12 @@ void window_building_draw_depot_foreground(building_info_context *c)
 
 int window_building_handle_mouse_depot(const mouse *m, building_info_context *c)
 {
-    return GenericButton::handle_mouse(*m, c->x_offset + DEPOT_BUTTONS_X_OFFSET, c->y_offset + DEPOT_BUTTONS_Y_OFFSET,
-        depot_order_buttons, data.advanced_mode ? 12 : 7, &data.focus_button_id);
+    return GenericButtonList(depot_order_buttons, data.advanced_mode ? 12 : 7).handle_mouse(
+        *m,
+        c->x_offset + DEPOT_BUTTONS_X_OFFSET,
+        c->y_offset + DEPOT_BUTTONS_Y_OFFSET,
+        &data.focus_button_id
+    );
 }
 
 static void order_set_source(const generic_button *button)
@@ -870,12 +874,24 @@ static int handle_mouse_depot_select_source_destination(const mouse *m, building
         depot_view_storage_buttons[i].height = ROW_HEIGHT;
     }
 
-    return GenericButton::handle_mouse(*m, c->x_offset + 18, y_offset + 46, depot_goto_storage_orders_buttons,
-        MAX_VISIBLE_ROWS, &data.storage_building_goto_orders_focus_button_id) ||
-        GenericButton::handle_mouse(*m, c->x_offset + 18, y_offset + 46, depot_select_storage_buttons,
-        MAX_VISIBLE_ROWS, &data.storage_building_focus_button_id) ||
-        GenericButton::handle_mouse(*m, c->x_offset + 18, y_offset + 46, depot_view_storage_buttons,
-        MAX_VISIBLE_ROWS, &data.storage_building_view_focus_button_id);
+    return GenericButtonList(depot_goto_storage_orders_buttons, MAX_VISIBLE_ROWS).handle_mouse(
+        *m,
+        c->x_offset + 18,
+        y_offset + 46,
+        &data.storage_building_goto_orders_focus_button_id
+    ) ||
+        GenericButtonList(depot_select_storage_buttons, MAX_VISIBLE_ROWS).handle_mouse(
+            *m,
+            c->x_offset + 18,
+            y_offset + 46,
+            &data.storage_building_focus_button_id
+        ) ||
+        GenericButtonList(depot_view_storage_buttons, MAX_VISIBLE_ROWS).handle_mouse(
+            *m,
+            c->x_offset + 18,
+            y_offset + 46,
+            &data.storage_building_view_focus_button_id
+        );
 }
 
 int window_building_handle_mouse_depot_select_source(const mouse *m, building_info_context *c)
@@ -1077,6 +1093,10 @@ int window_building_handle_mouse_depot_select_resource(const mouse *m, building_
         depot_select_resource_buttons[i].parameter1 = data.depot_building_id;
     }
     int y_offset = window_building_get_vertical_offset(c, 28) + 46;
-    return GenericButton::handle_mouse(*m, c->x_offset, y_offset, depot_select_resource_buttons,
-        MAX_RESOURCE_ROWS, &data.depot_resource_focus_button_id);
+    return GenericButtonList(depot_select_resource_buttons, MAX_RESOURCE_ROWS).handle_mouse(
+        *m,
+        c->x_offset,
+        y_offset,
+        &data.depot_resource_focus_button_id
+    );
 }

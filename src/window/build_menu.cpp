@@ -465,10 +465,15 @@ static int click_outside_menu(const mouse *m, int x_offset)
 static int handle_build_submenu(const mouse *m)
 {
     data.handling_button_mouse = 1;
-    int handled = GenericButton::handle_mouse(
-        *m, get_sidebar_x_offset() - MENU_X_OFFSET, data.y_offset + MENU_Y_OFFSET,
-        build_menu_button_widgets.data(), static_cast<unsigned int>(build_menu_button_widgets.size()),
-        &data.focus_button_id);
+    GenericButtonList buttons(
+        build_menu_button_widgets.data(),
+        static_cast<unsigned int>(build_menu_button_widgets.size()));
+    int handled = buttons.handle_mouse(
+        *m,
+        get_sidebar_x_offset() - MENU_X_OFFSET,
+        data.y_offset + MENU_Y_OFFSET,
+        &data.focus_button_id
+    );
     data.handling_button_mouse = 0;
     if (data.rebuild_buttons_after_input) {
         data.rebuild_buttons_after_input = 0;

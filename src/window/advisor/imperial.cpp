@@ -214,7 +214,12 @@ static int handle_mouse(const mouse *m)
 {
     int request_count = city_request_has_troop_request() + scenario_request_count_visible();
     request_count = calc_bound(request_count, 0, CITY_REQUEST_MAX_ACTIVE);
-    return GenericButton::handle_mouse(*m, 0, 0, imperial_buttons, 3 + request_count, &focus_button_id);
+    return GenericButtonList(imperial_buttons, 3 + request_count).handle_mouse(
+        *m,
+        0,
+        0,
+        &focus_button_id
+    );
 }
 
 static void button_donate_to_city(const generic_button *button)

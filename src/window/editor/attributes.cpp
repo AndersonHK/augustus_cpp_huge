@@ -236,7 +236,12 @@ static void handle_input(const mouse *m, const hotkeys *h)
         active_buttons -= 1;
     }
     if (input_box_handle_mouse(m_dialog, &scenario_description_input) ||
-        GenericButton::handle_mouse(*m_dialog, 0, 0, buttons, active_buttons, &data.focus_button_id) ||
+        GenericButtonList(buttons, active_buttons).handle_mouse(
+            *m_dialog,
+            0,
+            0,
+            &data.focus_button_id
+        ) ||
         arrow_buttons_handle_mouse(m_dialog, 0, 0, image_arrows, 2, 0) ||
         widget_sidebar_editor_handle_mouse_attributes(m)) {
         return;

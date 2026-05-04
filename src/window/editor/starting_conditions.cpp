@@ -111,7 +111,12 @@ static void draw_foreground(void)
 
 static void handle_input(const mouse *m, const hotkeys *h)
 {
-    if (GenericButton::handle_mouse(*mouse_in_dialog(m), 0, 0, buttons, 10, &data.focus_button_id)) {
+    if (GenericButtonList(buttons, 10).handle_mouse(
+        *mouse_in_dialog(m),
+        0,
+        0,
+        &data.focus_button_id
+    )) {
         return;
     }
     if (input_go_back_requested(m, h)) {

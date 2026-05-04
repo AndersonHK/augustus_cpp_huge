@@ -587,8 +587,12 @@ int window_building_handle_mouse_city_mint(const mouse *m, building_info_context
     if (!data.city_mint_id) {
         return 0;
     }
-    if (GenericButton::handle_mouse(*m, c->x_offset + 16, c->y_offset + BLOCK_SIZE * c->height_blocks - 171,
-        mint_conversion_buttons, 2, &data.focus_button_id)) {
+    if (GenericButtonList(mint_conversion_buttons, 2).handle_mouse(
+        *m,
+        c->x_offset + 16,
+        c->y_offset + BLOCK_SIZE * c->height_blocks - 171,
+        &data.focus_button_id
+    )) {
         window_request_refresh();
         return 1;
     }

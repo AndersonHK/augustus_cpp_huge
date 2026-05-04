@@ -188,7 +188,12 @@ static int click_outside_window(const mouse *m)
 
 static void handle_input(const mouse *m, const hotkeys *h)
 {
-    if (GenericButton::handle_mouse(*m, data.x, data.y, buttons, 14, &data.focus_button_id)) {
+    if (GenericButtonList(buttons, 14).handle_mouse(
+        *m,
+        data.x,
+        data.y,
+        &data.focus_button_id
+    )) {
         return;
     }
     if (input_go_back_requested(m, h) || click_outside_window(m)) {

@@ -179,7 +179,12 @@ static void draw_foreground(void)
 
 static int handle_mouse(const mouse *m)
 {
-    return GenericButton::handle_mouse(*m, 0, 0, generic_buttons, 2, &focus_button_id);
+    return GenericButtonList(generic_buttons, 2).handle_mouse(
+        *m,
+        0,
+        0,
+        &focus_button_id
+    );
 }
 
 static void button_water_buildings(const generic_button *button)

@@ -85,26 +85,3 @@ void GenericButton::reset()
     context_data = nullptr;
     debug_name = nullptr;
 }
-
-static unsigned int get_button(const mouse &m, int x, int y, GenericButton *buttons, unsigned int num_buttons)
-{
-    for (unsigned int i = 0; i < num_buttons; i++) {
-        if (buttons[i].contains(m, x, y)) {
-            return i + 1;
-        }
-    }
-    return 0;
-}
-
-int GenericButton::handle_mouse(const mouse &m, int x, int y, GenericButton *buttons,
-    unsigned int num_buttons, unsigned int *focus_button_id)
-{
-    unsigned int button_id = get_button(m, x, y, buttons, num_buttons);
-    if (focus_button_id) {
-        *focus_button_id = button_id;
-    }
-    if (!button_id) {
-        return 0;
-    }
-    return buttons[button_id - 1].handle_mouse(m);
-}

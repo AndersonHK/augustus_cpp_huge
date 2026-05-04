@@ -181,7 +181,12 @@ static void draw_foreground(void)
 static void handle_input(const mouse *m, const hotkeys *h)
 {
     const mouse *m_dialog = mouse_in_dialog(m);
-    if (GenericButton::handle_mouse(*m_dialog, 0, 0, buttons, 15, &focus_button_id)) {
+    if (GenericButtonList(buttons, 15).handle_mouse(
+        *m_dialog,
+        0,
+        0,
+        &focus_button_id
+    )) {
         return;
     }
     if (scenario.earthquake.severity == EARTHQUAKE_CUSTOM) {

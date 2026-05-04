@@ -119,7 +119,12 @@ public:
 
     int handle_mouse(const mouse *m, unsigned int *focus_button_id) const
     {
-        return GenericButton::handle_mouse(*m, 0, 0, buttons_, count(), focus_button_id);
+        return GenericButtonList(buttons_, count()).handle_mouse(
+            *m,
+            0,
+            0,
+            focus_button_id
+        );
     }
 
 private:
