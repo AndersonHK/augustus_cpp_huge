@@ -15,6 +15,7 @@ This note maps the native walker pathing work so future sessions can find the ru
 - `src/map/road_service_history.h/.cpp` owns per-road, per-effect visit stamps.
 - `src/game/file_io.cpp` saves and loads road service history.
 - `src/game/save_version.h` records save-version boundaries.
+- `docs/save_data_organization.md` is the canonical map for `.svv` save-piece order and save-backed runtime ownership.
 
 ## XML Contract
 
@@ -69,7 +70,7 @@ Effect ids are save-compatible and append-only. New entertainment effects were a
 - `entertainment_colosseum_lion`
 - `entertainment_hippodrome`
 
-`SAVE_GAME_CURRENT_VERSION` is `0xb3`. `SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` is `0xb2`; saves at or below that version load existing grids and leave appended entertainment grids zeroed.
+`SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended entertainment history grids. See `docs/save_data_organization.md` and `src/game/save_version.h` for the current save version and full `.svv` piece layout.
 
 ## Related Context
 

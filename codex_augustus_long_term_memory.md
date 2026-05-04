@@ -50,6 +50,7 @@ Primary design goals remain:
 ## Save file doctrine
 - Vespasian-owned save files use `.svv`. This replaced the temporary `.savf` extension so the fork has a standard three-letter extension while remaining distinct from legacy Caesar/Julius/Augustus `.sav` and expanded `.svx` saves.
 - Existing `.savf` saves can be renamed to `.svv`; the on-disk payload format did not change with the extension rename.
+- Canonical save layout and ownership notes live in `docs/save_data_organization.md`; check that before changing any `*_save_state`, `*_load_state`, or `init_savegame_data` piece.
 
 ## Text / UTF doctrine
 - Do not attempt a blanket UTF-native storage migration during unrelated renderer or widget work.
