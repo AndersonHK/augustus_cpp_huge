@@ -38,6 +38,7 @@
     <ClCompile Include="src\building\building_runtime.cpp" />
     <ClCompile Include="src\building\building_runtime_graphics.cpp" />
     <ClCompile Include="src\building\building_runtime_spawn.cpp" />
+    <ClCompile Include="src\building\building_save_heap.cpp" />
     <ClCompile Include="src\building\building_type.cpp" />
     <ClCompile Include="src\building\building_type_id_bridge.cpp" />
     <ClCompile Include="src\building\building_type_legacy_migration.cpp" />
@@ -554,6 +555,7 @@
     <ClInclude Include="src\building\building_runtime_internal.h" />
     <ClInclude Include="src\building\building_type.h" />
     <ClInclude Include="src\building\building_type_api.h" />
+    <ClInclude Include="src\building\building_save_heap.h" />
     <ClInclude Include="src\building\building_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_legacy_migration.h" />
     <ClInclude Include="src\building\building_type_registry.h" />

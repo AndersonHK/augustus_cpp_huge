@@ -9,6 +9,8 @@ extern "C" {
 #include "game/save_version.h"
 }
 
+#include "core/crash_context.h"
+
 #include <cstddef>
 
 #define TYPE_DATA_ORIGINAL_BUFFER_SIZE 42
@@ -22,6 +24,14 @@ static uint16_t save_id_from_runtime_type(unsigned short runtime_id)
 static unsigned short runtime_type_from_save_id(uint16_t save_id)
 {
     return static_cast<unsigned short>(building_type_id_bridge_runtime_from_save_id(save_id));
+}
+
+static void fatal_legacy_state_path(const char *detail)
+{
+    ErrorContextScope scope("building_state_legacy", detail);
+    error_context_report_fatal_error_dialog("Vespasian Save Data Error",
+        "0xb6 building save/load attempted to use the legacy building type-data path; this line is wrong and needs to be cleaned up",
+        detail);
 }
 
 static void normalize_monument_phase_after_load(building *b)
@@ -39,6 +49,35 @@ static int is_industry_type(const building *b)
 {
     return b->output_resource_id || b->type == BUILDING_NATIVE_CROPS
         || b->type == BUILDING_SHIPYARD || b->type == BUILDING_WHARF;
+}
+
+static int legacy_type_data_stores_monument_fields(building_type type)
+{
+    switch (type) {
+        case BUILDING_GRAND_TEMPLE_CERES:
+        case BUILDING_GRAND_TEMPLE_NEPTUNE:
+        case BUILDING_GRAND_TEMPLE_MERCURY:
+        case BUILDING_GRAND_TEMPLE_MARS:
+        case BUILDING_GRAND_TEMPLE_VENUS:
+        case BUILDING_LARGE_TEMPLE_CERES:
+        case BUILDING_LARGE_TEMPLE_NEPTUNE:
+        case BUILDING_LARGE_TEMPLE_MERCURY:
+        case BUILDING_LARGE_TEMPLE_MARS:
+        case BUILDING_LARGE_TEMPLE_VENUS:
+        case BUILDING_ORACLE:
+        case BUILDING_PANTHEON:
+        case BUILDING_LIGHTHOUSE:
+        case BUILDING_CARAVANSERAI:
+        case BUILDING_COLOSSEUM:
+        case BUILDING_HIPPODROME:
+        case BUILDING_NYMPHAEUM:
+        case BUILDING_SMALL_MAUSOLEUM:
+        case BUILDING_LARGE_MAUSOLEUM:
+        case BUILDING_CITY_MINT:
+            return 1;
+        default:
+            return 0;
+    }
 }
 
 static building_type get_fort_type(building *b)
@@ -66,7 +105,7 @@ static int migrate_legacy_entertainment_show_days(int days)
     return active_days > 255 ? 255 : active_days;
 }
 
-static void write_type_data(buffer *buf, const building *b)
+static void write_legacy_type_data(buffer *buf, const building *b)
 {
     // This function should ALWAYS write 26 bytes.
     // If you don't write 26 bytes, the function will pad them at the end.
@@ -164,7 +203,7 @@ static void write_type_data(buffer *buf, const building *b)
     }
 }
 
-void building_state_save_to_buffer(buffer *buf, const building *b)
+void building_state_legacy_save_to_buffer(buffer *buf, const building *b)
 {
     buffer_write_u8(buf, b->state);
     buffer_write_u8(buf, b->faction_id);
@@ -217,7 +256,7 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     buffer_write_u8(buf, b->house_tax_coverage);
     buffer_write_u8(buf, b->house_pantheon_access);
     buffer_write_i16(buf, b->formation_id);
-    write_type_data(buf, b);
+    write_legacy_type_data(buf, b);
     buffer_write_i32(buf, b->tax_income_or_storage);
     buffer_write_u8(buf, b->house_days_without_food);
     buffer_write_u8(buf, b->has_plague);
@@ -275,8 +314,12 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     // up until that point in Augustus' development
 }
 
-static void read_type_data(buffer *buf, building *b, int version)
+static void read_legacy_type_data(buffer *buf, building *b, int version)
 {
+    if (version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+        fatal_legacy_state_path("read_type_data");
+    }
+
     // This function should ALWAYS read 42 bytes for versions before or at SAVE_GAME_LAST_STATIC_RESOURCES.
     // The only exception is for Caravanserai on old savegame versions, which due to an oversight only read 41 bytes.
     // For versions after SAVE_GAME_LAST_STATIC_RESOURCES, the function should ALWAYS read 26 bytes.
@@ -402,7 +445,7 @@ static void read_type_data(buffer *buf, building *b, int version)
             b->data.rubble.og_size = buffer_read_u8(buf);
             b->data.rubble.og_orientation = buffer_read_u8(buf);
         }
-    } else if (building_monument_is_monument(b) && version <= SAVE_GAME_LAST_MONUMENT_TYPE_DATA) {
+    } else if (legacy_type_data_stores_monument_fields(b->type) && version <= SAVE_GAME_LAST_MONUMENT_TYPE_DATA) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             for (int i = 0; i < RESOURCE_MAX_LEGACY; i++) {
                 b->resources[resource_remap(i)] = buffer_read_i16(buf);
@@ -508,6 +551,10 @@ static void migrate_accepted_goods(building *b, int permissions)
 
 int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_size, int save_version, int for_preview)
 {
+    if (save_version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+        fatal_legacy_state_path("building_state_load_from_buffer");
+    }
+
     b->state = buffer_read_u8(buf);
     b->faction_id = buffer_read_u8(buf);
     b->unknown_value = buffer_read_u8(buf);
@@ -576,7 +623,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     b->house_tax_coverage = buffer_read_u8(buf);
     b->house_pantheon_access = buffer_read_u8(buf);
     b->formation_id = buffer_read_i16(buf);
-    read_type_data(buf, b, save_version);
+    read_legacy_type_data(buf, b, save_version);
     b->tax_income_or_storage = buffer_read_i32(buf);
     b->house_days_without_food = buffer_read_u8(buf);
     b->has_plague = buffer_read_u8(buf);

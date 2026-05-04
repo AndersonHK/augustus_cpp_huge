@@ -32,7 +32,7 @@ The important live-save order is:
 10. Road service history and local workforce allocations.
 11. Empire, messages, building lists, building storage, deliveries, visited-building data, and old-version migrations.
 
-This order matters. Building records store save-local building type ids, so the BuildingType bridge must load before `building_state_load_from_buffer()` reads any building. Runtime wrappers load later because they need the restored legacy arrays, linked lists, and registry definitions to be stable.
+This order matters. The `0xb6` building heap and legacy building records store save-local building type ids, so the BuildingType bridge must load before `building_load_state()` materializes any building. Runtime wrappers load later because they need the restored legacy arrays, linked lists, and registry definitions to be stable.
 
 ## Version Gates
 
@@ -46,9 +46,9 @@ Recent runtime-bridge gates:
 | `SAVE_GAME_LAST_NO_RELIGION_ROAD_SERVICE_HISTORY = 0xb0` | Appended religion service effects | Older payloads read only the effects present in that version; religion grids remain zero. |
 | `SAVE_GAME_LAST_NO_LOCAL_WORKFORCE = 0xb1` | Local workforce allocation payload | `building_local_workforce_load_state()` clears allocations and rebuilds counters from zero. |
 | `SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY = 0xb2` | Appended entertainment service effects | Entertainment grids remain zero for older saves. |
-| `SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS = 0xb3` | Active-day entertainment show counters | `read_type_data()` doubles legacy half-day counters on load. |
+| `SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS = 0xb3` | Active-day entertainment show counters | `read_legacy_type_data()` doubles legacy half-day counters on load. |
 | `SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE = 0xb4` | Building type save table | Bridge synthesizes a legacy table from enum/text migration data. |
-| `SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE = 0xb5` | v2 object table with construction/default graphics | Legacy monument construction specs are applied instead of reading saved construction objects. |
+| `SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE = 0xb5` | BuildingType object table and owned building heap before the repaired `0xb6` contract | Older saves reconstruct legacy monument construction and raw building records from compatibility data. `0xb6` requires BuildingType table format `3` and the owned building heap; v1/v2 tables or legacy building records are fatal. |
 
 Other broad gates still shape the bridge path:
 
@@ -90,62 +90,46 @@ The prepare step creates a save-local table from the current runtime table. Save
 - text id
 - legacy enum hint
 - default graphics path/image
-- phased construction definition, when present
+- phased construction definition, when present or synthesized from legacy monument data
 
-The current table format is `SAVE_TABLE_OBJECT_VERSION = 2`. The older `SAVE_TABLE_TEXT_VERSION = 1` stored text identity only, so version 1 loads must recover construction from legacy rules when needed.
+The current written table format is `SAVE_TABLE_MONUMENT_CONSTRUCTION_VERSION = 3`. The older `SAVE_TABLE_TEXT_VERSION = 1` stored text identity only, and the previous object-table version `2` is retained as an old-save compatibility reader. Version `3` is mandatory for `0xb6`: the object table must carry monument construction data instead of depending on legacy monument reconstruction during load.
 
 ### Save Table On Load
 
 `building_type_id_bridge_save_table_load_state(buf, has_save_table, save_version)` calls the internal table loader with definition migration enabled.
 
-If `has_save_table` is false, or the dynamic table cannot be read, the bridge calls the legacy-table path. That path reconstructs save ids from old raw enum values and the migration table.
+If `has_save_table` is false, or the dynamic table cannot be read, older saves call the legacy-table path. That path reconstructs save ids from old raw enum values and the migration table. For `0xb6`, absent, invalid, v1, or v2 tables are fatal because current saves must not reach hidden legacy reconstruction.
 
-For each v1/v2 entry, the loader resolves runtime identity in this order:
+For each table entry, the loader resolves runtime identity in this order:
 
 1. Resolve by saved text id against the current runtime table.
 2. If missing, resolve by legacy enum hint through `building_type_legacy_migration_enum_for_text_id()` / legacy table data.
-3. For v2 object tables only, fall back to the raw legacy hint when it is still inside `BUILDING_TYPE_MAX`.
+3. For object tables, fall back to the raw legacy hint when it is still inside `BUILDING_TYPE_MAX`.
 
 Then the loader applies runtime definition migration:
 
-- v2 entries with saved construction call `apply_saved_construction_entry()`, which writes phased construction data into the current `BuildingType` definition and preserves default graphics with `ensure_default_graphics()`.
-- v1 entries and old saves call `apply_legacy_monument_entry()`, which applies compatibility monument definitions only for saves at or before `SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE`.
+- Object-table entries with saved construction call `apply_saved_construction_entry()`, which writes phased construction data into the current `BuildingType` definition and preserves default graphics with `ensure_default_graphics()`.
+- Version `3` entries that correspond to known monument construction but do not carry construction are treated as malformed/missing rather than silently reconstructed from old fallback data.
+- v1 entries, absent tables, invalid tables, and old saves call `apply_legacy_monument_entry()`, which applies compatibility monument definitions only for saves at or before `SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE`.
 - XML-owned text ids without a current definition are marked missing. `building_type_id_bridge_save_id_is_missing()` lets the building loader drop those building instances safely.
 
 Preview loading uses `building_type_id_bridge_save_table_preview_load_state()`. It snapshots the active bridge, loads the save table without applying definition migration, stamps preview building footprints, and then `building_type_id_bridge_save_table_preview_restore()` restores the previous bridge state.
 
-## Building Records
+## Building Heap and Legacy Records
 
-`building_load_state()` in `src/building/building.c` owns the legacy `array(building)` allocation.
+`building_load_state()` owns the permanent `array(building)` allocation, but `0xb6` no longer reads the old fixed building record stream. Current saves use the private singleton in `src/building/building_save_heap.cpp`.
 
-1. It reads the per-building buffer size for saves after `SAVE_GAME_LAST_STATIC_VERSION`.
-2. It computes the number of building records from the buffer size.
-3. It calls `array_init(data.buildings, BUILDING_ARRAY_SIZE_STEP, initialize_new_building, building_in_use)` and `array_expand(data.buildings, buildings_to_load)`.
-4. It clears `data.first_of_type` and `data.last_of_type`.
-5. Each record is read through `building_state_load_from_buffer()`.
-6. Missing BuildingType instances cause `map_building_tiles_remove(b->id, b->x, b->y)`.
-7. Non-unused buildings are inserted back into per-type linked lists through `fill_adjacent_types()`.
-8. The array is trimmed to the highest id still in use.
+For `0xb6`, `building_save_state()` snapshots each live `building` through `building_save_heap_capture_building()`, then writes a heap stream with `building_save_heap_write_current()`. The heap payload begins with `BSHP`, heap version, building count, and object count. Each following object has `{kind, version, object_id, payload_length, next_offset}` and a variable-length payload, so the save behaves like an object heap rather than a vector of fixed records.
 
-`building_state_load_from_buffer()` in `src/building/state.cpp` is where save-local type identity becomes legacy runtime state:
+The heap's save object classes are private to the `.cpp` file. Public code can only use the facade functions. The current object set is:
 
-- The saved type field is read as `uint16_t saved_building_type`.
-- `building_type_id_bridge_save_id_is_missing(saved_building_type)` checks whether the save id refers to a missing XML-owned type.
-- `building_type_id_bridge_runtime_from_save_id(saved_building_type)` writes the current runtime `building_type` into `b->type`.
-- If a live record resolves to no runtime type, the loader logs the mismatch.
-- If the type is missing, the record is later converted to `BUILDING_STATE_UNUSED`, `BUILDING_NONE`, and its figure ids are cleared.
+- `BuildingInstanceSaveObject`: common per-instance state, save-local BuildingType id, resources, accepted goods, workers, figures, population, risks, tax/storage, tourism, sickness, strike, variant, and multipart links.
+- Payload objects: house, supplier, dock, depot, industry, distribution, rubble, roadblock, entertainment, monument, native storage, native production, and extension.
+- `MonumentSaveObject`: explicit per-instance monument state (`upgrades`, `progress`, `phase`, `secondary_frame`). Monument instance state is not read from legacy type-data in `0xb6`.
 
-After identity is resolved, the loader fills legacy struct fields exactly in save order:
+For `0xb6`, `building_load_state()` calls `building_save_heap_load_current()`, allocates `array(building)`, then materializes each id through `building_save_heap_materialize_building()`. Materialization resolves save-local BuildingType ids through the bridge before applying payload objects. Unknown object kinds, duplicate objects, bad lengths, unresolved active BuildingType ids, missing instance objects, missing monument payloads for monument buildings, v1/v2 BuildingType tables, or legacy building bytes all report a fatal save-data error.
 
-- coordinates, grid offset, size, state, faction, road network, creation sequence, workers, population, tax/storage values, risks, sentiment, figure slots, formation id, storage id, accepted goods, tourism fields, native meeting center fields, workforce counters, and resource arrays
-- `subtype` union data, including warehouse-space resource ids and fort figure type migration
-- type-specific union data through `read_type_data()`
-- `building.monument` fields such as upgrades, progress, and phase
-- dynamic resource arrays and old resource remaps through `resource_remap()`
-
-`read_type_data()` is a compatibility choke point. It always consumes the old type-data byte count for the save version: 42 bytes at or before `SAVE_GAME_LAST_STATIC_RESOURCES`, 26 bytes after that, except for the old caravanserai offset bug. It decodes house service fields, warehouse/granary/depot/dock supplier fields, entertainment show counters, monument compatibility fields, and rubble/original-type fields. Rubble and warehouse-space original building types also go through `building_type_id_bridge_runtime_from_save_id()`.
-
-The building record is still the persistent truth for per-instance state. Runtime objects do not replace it; they wrap it.
+For `0xb5` and older, the old fixed-record path remains as legacy import only. `building_state_load_from_buffer()` reads the per-record size, resolves save-local/legacy type ids through the bridge, reads old type-specific union bytes through `read_legacy_type_data()`, applies old resource and monument gates, then `building_load_state()` rebuilds `first_of_type` / `last_of_type`. `building_state_legacy_save_to_buffer()` and `read_legacy_type_data()` are not valid current-save paths.
 
 ## BuildingType Runtime Fan-Out
 
@@ -183,9 +167,9 @@ Post-load, `building_runtime_initialize_city_graphics_cache()` clears C++ buildi
 
 ## Monuments
 
-Monuments have both legacy and BuildingType-backed construction truth.
+Monuments have legacy compatibility data and BuildingType-backed construction truth. New `0xb6` saves make the BuildingType object table authoritative for construction definitions.
 
-`src/building/monument.cpp` still contains hardcoded `monument_type` resource tables for older monuments such as Pantheon, Colosseum, Hippodrome, mausoleums, Nymphaeum, and City Mint. These remain compatibility/runtime fallback data for types that do not have BuildingType phased construction.
+`src/building/monument.cpp` still contains hardcoded `monument_type` resource tables for older monuments such as Pantheon, Colosseum, Hippodrome, mausoleums, Nymphaeum, and City Mint. These remain compatibility/runtime fallback data for types that do not have BuildingType phased construction, but `0xb6` serialization converts their construction into the BuildingType object-table payload before writing.
 
 Newer BuildingType-backed monuments use `BuildingType::ConstructionDefinition`:
 
@@ -194,7 +178,7 @@ Newer BuildingType-backed monuments use `BuildingType::ConstructionDefinition`:
 - `building_type_registry_get_construction_requirement(type, resource, phase)` provides per-phase resource needs.
 - `building_monument_resources_needed_for_monument_type()` chooses registry construction first, then falls back to the hardcoded legacy monument table.
 
-The bridge's v2 save table preserves object-level construction so saved monument definitions can survive active XML/runtime changes. Each saved construction entry carries:
+The bridge's v3 save table preserves object-level construction so saved monument definitions can survive active XML/runtime changes. Each saved construction entry carries:
 
 - whether phased construction exists
 - default graphics path and image
@@ -203,7 +187,9 @@ The bridge's v2 save table preserves object-level construction so saved monument
 - phase graphics path and image
 - per-phase resource/amount requirements
 
-For saves at or before `SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE`, `apply_legacy_monument_entry()` uses `LEGACY_MONUMENT_CONSTRUCTION` in `building_type_id_bridge.cpp`. That table covers grand temples, large temples, oracle, lighthouse, and caravanserai compatibility definitions, including default graphics and phase requirements. It skips Oracle when the active mod is Julius.
+For saves at or before `SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE`, `apply_legacy_monument_entry()` uses `LEGACY_MONUMENT_CONSTRUCTION` in `building_type_id_bridge.cpp`. That table covers grand temples, large temples, oracle, lighthouse, caravanserai, Pantheon, Colosseum, Hippodrome, Nymphaeum, mausoleums, and City Mint compatibility definitions, including default graphics and phase requirements. It skips Oracle when the active mod is Julius.
+
+There is a separate old-save per-building state hazard. Legacy building records contain the old fixed-size type-data block, and saves at or before `SAVE_GAME_LAST_MONUMENT_TYPE_DATA` stored monument instance fields inside that block for specific legacy monument types. `read_legacy_type_data()` must decide that old layout from an explicit legacy type list, not from current XML `building_monument_is_monument()` status; otherwise a type that became a monument through XML can have unrelated old union bytes interpreted as `b->monument.upgrades`, `progress`, and `phase`. `0xb6` avoids this path entirely by requiring `MonumentSaveObject`.
 
 Per-instance monument state lives in each loaded `building` record:
 
@@ -323,4 +309,4 @@ On save, `savegame_save_to_state()` writes the runtime bridge data before the re
 5. Legacy model data.
 6. Scenario, message, empire, list, storage, route, delivery, visited-building, production-rate, road-history, and workforce payloads.
 
-Building records write `building_type_id_bridge_save_id_from_runtime(b->type)` instead of raw runtime enum ids. Type-data rubble/original-type fields use the same bridge. This is what lets the save survive dynamic BuildingType ids, XML-owned definitions, and old enum migrations without treating the current process enum as stable disk data.
+The `0xb6` building heap writes `building_type_id_bridge_save_id_from_runtime(b->type)` instead of raw runtime enum ids. Legacy records and old type-data rubble/original-type fields use the same bridge while importing old saves. This is what lets the save survive dynamic BuildingType ids, XML-owned definitions, and old enum migrations without treating the current process enum as stable disk data.

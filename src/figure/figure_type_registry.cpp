@@ -4,6 +4,7 @@
 #include "core/xml_value.h"
 
 extern "C" {
+#include "building/building_type_id_bridge.h"
 #include "building/properties.h"
 #include "core/dir.h"
 #include "core/file.h"
@@ -342,6 +343,11 @@ static building_type parse_building_type_name(const char *attr)
 {
     if (!attr || xml_value::equals(attr, "any")) {
         return BUILDING_ANY;
+    }
+
+    building_type bridged_type = building_type_id_bridge_runtime_from_text(attr);
+    if (bridged_type != BUILDING_NONE) {
+        return bridged_type;
     }
 
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX;

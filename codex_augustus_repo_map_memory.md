@@ -150,7 +150,7 @@ Doctrine:
   - `savegame_save_to_state()` and `savegame_load_from_state()` dispatch subsystem writers/loaders
 - `src/game/save_version.h`
   - save and scenario version gates; update when persisted layout or behavior changes
-- Key save-backed runtime payloads currently include building records, figure records/routes, building type save tables, road service history, and local workforce allocations.
+- Key save-backed runtime payloads currently include the `0xb6` owned building save heap, legacy building records for old saves, figure records/routes, building type save tables, road service history, and local workforce allocations.
 
 ## Demographics / defines map
 - `src/game/defines.cpp`

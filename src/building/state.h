@@ -20,7 +20,7 @@ extern "C" {
 #define BUILDING_STATE_LATRINES (BUILDING_STATE_DYNAMIC_RESOURCES + 9)
 #define BUILDING_STATE_CURRENT_BUFFER_SIZE  (BUILDING_STATE_LATRINES)
 
-void building_state_save_to_buffer(buffer *buf, const building *b);
+void building_state_legacy_save_to_buffer(buffer *buf, const building *b);
 
 int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_size, int save_version, int for_preview);
 

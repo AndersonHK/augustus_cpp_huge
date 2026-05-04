@@ -14,6 +14,7 @@
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/rotation.h"
+#include "building/building_save_heap.h"
 #include "building/state.h"
 #include "building/storage.h"
 #include "building/type.h"
@@ -26,6 +27,7 @@
 #include "core/array.h"
 #include "core/calc.h"
 #include "core/config.h"
+#include "core/crash_context.h"
 #include "core/log.h"
 #include "figure/figure.h"
 #include "figure/formation_legion.h"
@@ -91,6 +93,11 @@ int building_dist(int x, int y, int w, int h, building *b)
 void building_get_from_buffer(buffer *buf, int id, building *b, int includes_building_size, int save_version,
     int buffer_offset)
 {
+    if (save_version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+        error_context_report_fatal_error_dialog("Vespasian Save Data Error",
+            "0xb6 building preview attempted to use the legacy building buffer reader; this line is wrong and needs to be cleaned up",
+            "building_get_from_buffer");
+    }
     buffer_set(buf, 0);
     int building_buf_size = BUILDING_STATE_ORIGINAL_BUFFER_SIZE;
     int buf_skip = 0;
@@ -1030,8 +1037,26 @@ int building_is_close_to_water(const building *b)
 }
 
 void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_ever,
-    buffer *sequence, buffer *corrupt_houses)
+    buffer *sequence, buffer *corrupt_houses, savegame_version_t save_version)
 {
+    if (save_version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+        building_save_heap_clear();
+        building *heap_building;
+        array_foreach(data.buildings, heap_building)
+        {
+            building_save_heap_capture_building(heap_building);
+        }
+        building_save_heap_write_current(buf);
+        buffer_write_i32(highest_id, data.buildings.size);
+        buffer_write_i32(highest_id_ever, data.buildings.size);
+        buffer_skip(highest_id_ever, 4);
+        buffer_write_i32(sequence, extra.created_sequence);
+
+        buffer_write_i32(corrupt_houses, extra.incorrect_houses);
+        buffer_write_i32(corrupt_houses, extra.unfixable_houses);
+        return;
+    }
+
     int buf_size = sizeof(int32_t) + data.buildings.size * BUILDING_STATE_CURRENT_BUFFER_SIZE;
     uint8_t *buf_data = malloc(buf_size);
     buffer_init(buf, buf_data, buf_size);
@@ -1039,7 +1064,7 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
     building *b;
     array_foreach(data.buildings, b)
     {
-        building_state_save_to_buffer(buf, b);
+        building_state_legacy_save_to_buffer(buf, b);
     }
     buffer_write_i32(highest_id, data.buildings.size);
     buffer_write_i32(highest_id_ever, data.buildings.size);
@@ -1052,6 +1077,38 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version)
 {
+    if (save_version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+        building_save_heap_load_current(buf);
+        int buildings_to_load = building_save_heap_building_count();
+
+        if (!array_init(data.buildings, BUILDING_ARRAY_SIZE_STEP, initialize_new_building, building_in_use) ||
+            !array_expand(data.buildings, buildings_to_load)) {
+            log_error("Unable to allocate enough memory for the building array. The game will now crash.", 0, 0);
+        }
+
+        memset(data.first_of_type, 0, sizeof(data.first_of_type));
+        memset(data.last_of_type, 0, sizeof(data.last_of_type));
+
+        int highest_id_in_use = 0;
+        for (int i = 0; i < buildings_to_load; i++) {
+            building *b = array_next(data.buildings);
+            building_save_heap_materialize_building(i, b);
+            if (b->state != BUILDING_STATE_UNUSED) {
+                highest_id_in_use = i;
+                fill_adjacent_types(b);
+            }
+        }
+
+        data.buildings.size = highest_id_in_use + 1;
+
+        extra.created_sequence = buffer_read_i32(sequence);
+
+        extra.incorrect_houses = buffer_read_i32(corrupt_houses);
+        extra.unfixable_houses = buffer_read_i32(corrupt_houses);
+        building_save_heap_clear();
+        return;
+    }
+
     int building_buf_size = BUILDING_STATE_ORIGINAL_BUFFER_SIZE;
     size_t buf_size = buf->size;
 

@@ -150,6 +150,25 @@ static int type_is_monument(building_type type)
         (building_type_registry_has_phased_construction(type) || legacy_monument_type(type) != nullptr);
 }
 
+static int building_has_monument_attributes(const building *b)
+{
+    return b && (b->monument.phase || b->monument.progress || b->monument.upgrades ||
+        b->monument.secondary_frame);
+}
+
+static int loaded_type_has_monument_attributes(building_type type)
+{
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return 0;
+    }
+    for (const building *b = building_first_of_type(type); b; b = b->next_of_type) {
+        if (building_has_monument_attributes(b)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 int building_monument_deliver_resource(building *b, int resource)
 {
     if (b->id <= 0 || !building_monument_is_monument(b) ||
@@ -355,12 +374,15 @@ void building_monument_set_phase(building *b, int phase)
 
 int building_monument_is_monument(const building *b)
 {
-    return building_monument_type_is_monument(b->type);
+    if (!b) {
+        return 0;
+    }
+    return building_has_monument_attributes(b) || building_monument_type_is_monument(b->type);
 }
 
 int building_monument_type_is_monument(building_type type)
 {
-    return type_is_monument(type);
+    return type_is_monument(type) || loaded_type_has_monument_attributes(type);
 }
 
 int building_monument_type_is_mini_monument(building_type type)

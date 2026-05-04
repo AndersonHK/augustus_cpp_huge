@@ -22,6 +22,8 @@ void building_type_id_bridge_save_table_preview_restore(void);
 uint16_t building_type_id_bridge_save_id_from_runtime(building_type runtime_id);
 building_type building_type_id_bridge_runtime_from_save_id(uint16_t save_id);
 int building_type_id_bridge_save_id_is_missing(uint16_t save_id);
+int building_type_id_bridge_save_id_is_in_table(uint16_t save_id);
+int building_type_id_bridge_save_id_has_phased_construction(uint16_t save_id);
 
 #ifdef __cplusplus
 }

@@ -3,6 +3,7 @@
 #include "building/type.h"
 #include "core/buffer.h"
 #include "core/time.h"
+#include "game/save_version.h"
 #include "game/resource.h"
 #include "translation/translation.h"
 
@@ -309,6 +310,6 @@ void building_make_immune_cheat(void);
 int building_is_close_to_water(const building *b);
 
 void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_ever,
-                         buffer *sequence, buffer *corrupt_houses);
+                         buffer *sequence, buffer *corrupt_houses, savegame_version_t save_version);
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version);

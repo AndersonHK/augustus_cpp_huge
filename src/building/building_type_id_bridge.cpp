@@ -8,6 +8,8 @@ extern "C" {
 #include "game/mod_manager.h"
 }
 
+#include "core/crash_context.h"
+
 #include <array>
 #include <cctype>
 #include <cstdint>
@@ -23,7 +25,14 @@ namespace {
 
 constexpr int SAVE_TABLE_TEXT_VERSION = 1;
 constexpr int SAVE_TABLE_OBJECT_VERSION = 2;
-constexpr int SAVE_TABLE_VERSION = SAVE_TABLE_OBJECT_VERSION;
+constexpr int SAVE_TABLE_MONUMENT_CONSTRUCTION_VERSION = 3;
+
+static void fatal_current_save_table(const char *message, const char *detail)
+{
+    ErrorContextScope scope("building_type_id_bridge.load_save_table", detail);
+    error_context_report_fatal_error_dialog("Vespasian Save Data Error", message, detail);
+}
+constexpr int SAVE_TABLE_VERSION = SAVE_TABLE_MONUMENT_CONSTRUCTION_VERSION;
 
 struct SavedConstructionRequirement {
     resource_type resource = RESOURCE_NONE;
@@ -219,6 +228,76 @@ static const RequirementSpec CARAVANSERAI_PHASE_2[] = {
     {RESOURCE_NONE, 1}, {RESOURCE_TIMBER, 8}, {RESOURCE_BRICKS, 12}, {RESOURCE_STONE, 12}
 };
 
+static const RequirementSpec PANTHEON_PHASE_1[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_STONE, 20}
+};
+static const RequirementSpec PANTHEON_PHASE_2[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_TIMBER, 8}, {RESOURCE_STONE, 20}
+};
+static const RequirementSpec PANTHEON_PHASE_3[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_TIMBER, 16}, {RESOURCE_CONCRETE, 40}
+};
+static const RequirementSpec PANTHEON_PHASE_4[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_TIMBER, 16}, {RESOURCE_MARBLE, 32}, {RESOURCE_GOLD, 16}
+};
+static const RequirementSpec PANTHEON_PHASE_5[] = {
+    {RESOURCE_NONE, 4}
+};
+
+static const RequirementSpec COLOSSEUM_PHASE_1[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_STONE, 12}
+};
+static const RequirementSpec COLOSSEUM_PHASE_2[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_TIMBER, 8}, {RESOURCE_CONCRETE, 16}
+};
+static const RequirementSpec COLOSSEUM_PHASE_3[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_TIMBER, 12}, {RESOURCE_STONE, 16}
+};
+static const RequirementSpec COLOSSEUM_PHASE_4[] = {
+    {RESOURCE_NONE, 4}, {RESOURCE_TIMBER, 12}, {RESOURCE_MARBLE, 20}, {RESOURCE_BRICKS, 16}
+};
+
+static const RequirementSpec HIPPODROME_PHASE_1[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_STONE, 32}
+};
+static const RequirementSpec HIPPODROME_PHASE_2[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_TIMBER, 16}, {RESOURCE_CONCRETE, 32}
+};
+static const RequirementSpec HIPPODROME_PHASE_3[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_TIMBER, 16}, {RESOURCE_STONE, 32}
+};
+static const RequirementSpec HIPPODROME_PHASE_4[] = {
+    {RESOURCE_NONE, 4}, {RESOURCE_TIMBER, 32}, {RESOURCE_MARBLE, 48}, {RESOURCE_BRICKS, 32}
+};
+
+static const RequirementSpec SMALL_MAUSOLEUM_PHASE_1[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_STONE, 2}, {RESOURCE_CONCRETE, 4}
+};
+static const RequirementSpec SMALL_MAUSOLEUM_PHASE_2[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_MARBLE, 2}
+};
+
+static const RequirementSpec NYMPHAEUM_PHASE_1[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_STONE, 12}, {RESOURCE_CONCRETE, 4}
+};
+static const RequirementSpec NYMPHAEUM_PHASE_2[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_MARBLE, 2}
+};
+
+static const RequirementSpec LARGE_MAUSOLEUM_PHASE_1[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_STONE, 8}, {RESOURCE_CONCRETE, 4}
+};
+static const RequirementSpec LARGE_MAUSOLEUM_PHASE_2[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_MARBLE, 4}
+};
+
+static const RequirementSpec CITY_MINT_PHASE_1[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_STONE, 8}
+};
+static const RequirementSpec CITY_MINT_PHASE_2[] = {
+    {RESOURCE_NONE, 1}, {RESOURCE_TIMBER, 4}, {RESOURCE_IRON, 4}, {RESOURCE_BRICKS, 4}
+};
+
 #define PHASE(path, image, requirements) {path, image, requirements, sizeof(requirements) / sizeof(requirements[0])}
 
 static const PhaseSpec GRAND_TEMPLE_CERES_PHASES[] = {
@@ -292,6 +371,41 @@ static const PhaseSpec CARAVANSERAI_PHASES[] = {
     PHASE("Environment\\Group_206", "Caravanserai_Construction_01", CARAVANSERAI_PHASE_1),
     PHASE("Monuments\\Caravanserai_Construction_02", "Caravanserai_Construction_02", CARAVANSERAI_PHASE_2)
 };
+static const PhaseSpec PANTHEON_PHASES[] = {
+    PHASE("Environment\\Group_206", "Pantheon Const 01", PANTHEON_PHASE_1),
+    PHASE("Environment\\Group_206", "Pantheon Const 02", PANTHEON_PHASE_2),
+    PHASE("Environment\\Group_206", "Pantheon Const 03", PANTHEON_PHASE_3),
+    PHASE("Environment\\Group_206", "Pantheon Const 04", PANTHEON_PHASE_4),
+    PHASE("Environment\\Group_206", "Pantheon Const 05", PANTHEON_PHASE_5)
+};
+static const PhaseSpec COLOSSEUM_PHASES[] = {
+    PHASE("Environment\\Group_206", "Colosseum_Construction_01", COLOSSEUM_PHASE_1),
+    PHASE("Monuments\\Colosseum_Construction_02", "Colosseum_Construction_02", COLOSSEUM_PHASE_2),
+    PHASE("Monuments\\Colosseum_Construction_03", "Colosseum_Construction_03", COLOSSEUM_PHASE_3),
+    PHASE("Monuments\\Colosseum_Construction_04", "Colosseum_Construction_04", COLOSSEUM_PHASE_4)
+};
+static const PhaseSpec HIPPODROME_PHASES[] = {
+    PHASE("Health_Culture\\Hippodrome_1", "Image_0004", HIPPODROME_PHASE_1),
+    PHASE("Health_Culture\\Hippodrome_1", "Image_0002", HIPPODROME_PHASE_2),
+    PHASE("Health_Culture\\Hippodrome_1", "Image_0000", HIPPODROME_PHASE_3),
+    PHASE("Health_Culture\\Hippodrome_1", "Image_0000", HIPPODROME_PHASE_4)
+};
+static const PhaseSpec SMALL_MAUSOLEUM_PHASES[] = {
+    PHASE("Environment\\Group_206", "Mausoleum_Small_Construction_01", SMALL_MAUSOLEUM_PHASE_1),
+    PHASE("Environment\\Group_206", "Mausoleum_Small_Construction_02", SMALL_MAUSOLEUM_PHASE_2)
+};
+static const PhaseSpec NYMPHAEUM_PHASES[] = {
+    PHASE("Environment\\Group_206", "Pantheon_Const_00", NYMPHAEUM_PHASE_1),
+    PHASE("Terrain_Maps\\Road", "Nymphaeum_Construction_02", NYMPHAEUM_PHASE_2)
+};
+static const PhaseSpec LARGE_MAUSOLEUM_PHASES[] = {
+    PHASE("Environment\\Group_206", "Mausoleum L Cons", LARGE_MAUSOLEUM_PHASE_1),
+    PHASE("Monuments\\Mausoleum_Large_Construction_02", "Mausoleum_Large_Construction_02", LARGE_MAUSOLEUM_PHASE_2)
+};
+static const PhaseSpec CITY_MINT_PHASES[] = {
+    PHASE("Environment\\Group_206", "City_Mint_Construction_01", CITY_MINT_PHASE_1),
+    PHASE("Monuments\\City_Mint_Construction_02", "City_Mint_Construction_02", CITY_MINT_PHASE_2)
+};
 
 #undef PHASE
 
@@ -323,7 +437,21 @@ static const LegacyConstructionSpec LEGACY_MONUMENT_CONSTRUCTION[] = {
     {BUILDING_LIGHTHOUSE, "lighthouse", "Monuments\\Lighthouse_OFF", "Lighthouse OFF", 5,
         LIGHTHOUSE_PHASES, PHASE_COUNT(LIGHTHOUSE_PHASES), false},
     {BUILDING_CARAVANSERAI, "caravanserai", "Monuments\\Caravanserai_C_OFF", "Caravanserai_C_OFF", 4,
-        CARAVANSERAI_PHASES, PHASE_COUNT(CARAVANSERAI_PHASES), false}
+        CARAVANSERAI_PHASES, PHASE_COUNT(CARAVANSERAI_PHASES), false},
+    {BUILDING_PANTHEON, "pantheon", "Monuments\\Pantheon_Off", "Pantheon Off", 9,
+        PANTHEON_PHASES, PHASE_COUNT(PANTHEON_PHASES), false},
+    {BUILDING_COLOSSEUM, "colosseum", "Health_Culture\\Colosseum", "Coloseum ON", 7,
+        COLOSSEUM_PHASES, PHASE_COUNT(COLOSSEUM_PHASES), false},
+    {BUILDING_HIPPODROME, "hippodrome", "Health_Culture\\Hippodrome_1", "Image_0000", 7,
+        HIPPODROME_PHASES, PHASE_COUNT(HIPPODROME_PHASES), false},
+    {BUILDING_SMALL_MAUSOLEUM, "small_mausoleum", "Monuments\\Mausoleum_S", "Mausoleum S", 3,
+        SMALL_MAUSOLEUM_PHASES, PHASE_COUNT(SMALL_MAUSOLEUM_PHASES), false},
+    {BUILDING_NYMPHAEUM, "nymphaeum", "Monuments\\Nymphaeum_OFF", "Nymphaeum ON", 3,
+        NYMPHAEUM_PHASES, PHASE_COUNT(NYMPHAEUM_PHASES), false},
+    {BUILDING_LARGE_MAUSOLEUM, "large_mausoleum", "Monuments\\Mausoleum_L", "Mausoleum L", 3,
+        LARGE_MAUSOLEUM_PHASES, PHASE_COUNT(LARGE_MAUSOLEUM_PHASES), false},
+    {BUILDING_CITY_MINT, "city_mint", "Monuments\\City_Mint_OFF", "City_Mint_OFF", 3,
+        CITY_MINT_PHASES, PHASE_COUNT(CITY_MINT_PHASES), false}
 };
 
 #undef PHASE_COUNT
@@ -404,6 +532,11 @@ bool active_mod_is_julius()
     return mod_name && std::strcmp(mod_name, "Julius") == 0;
 }
 
+bool legacy_construction_spec_is_active(const LegacyConstructionSpec &spec)
+{
+    return !(spec.skip_for_julius && active_mod_is_julius());
+}
+
 void ensure_default_graphics(building_type_registry_impl::BuildingType &definition, const char *path, const char *image)
 {
     if (definition.has_graphic() || !path || !*path) {
@@ -480,6 +613,53 @@ SavedConstructionDefinition construction_from_registry_definition(
         construction.phases.push_back(std::move(phase));
     }
     return construction;
+}
+
+bool definition_has_instant_construction_requirements(
+    const building_type_registry_impl::BuildingType &definition)
+{
+    if (definition.construction().mode() != building_type_registry_impl::ConstructionMode::Instant) {
+        return false;
+    }
+    for (int resource = RESOURCE_NONE; resource < RESOURCE_MAX; ++resource) {
+        if (definition.construction().instant_requirement_amount(static_cast<resource_type>(resource)) > 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+SavedConstructionDefinition construction_for_save_entry(
+    building_type type,
+    const std::string &text_id,
+    uint16_t legacy_id,
+    const building_type_registry_impl::BuildingType *definition,
+    const LegacyConstructionSpec **legacy_spec)
+{
+    if (legacy_spec) {
+        *legacy_spec = nullptr;
+    }
+    if (definition) {
+        SavedConstructionDefinition construction = construction_from_registry_definition(*definition);
+        if (construction.has_phased_construction) {
+            return construction;
+        }
+        if (definition_has_instant_construction_requirements(*definition)) {
+            return {};
+        }
+    }
+
+    const LegacyConstructionSpec *spec = legacy_construction_spec_for(legacy_id, text_id);
+    if (!spec && type > BUILDING_NONE) {
+        spec = legacy_construction_spec_for(static_cast<uint16_t>(type), text_id);
+    }
+    if (!spec || !legacy_construction_spec_is_active(*spec)) {
+        return {};
+    }
+    if (legacy_spec) {
+        *legacy_spec = spec;
+    }
+    return construction_from_legacy_spec(*spec);
 }
 
 void apply_construction_to_definition(
@@ -574,7 +754,7 @@ bool apply_legacy_monument_entry(
     }
 
     const LegacyConstructionSpec *spec = legacy_construction_spec_for(legacy_id, text_id);
-    if (!spec || (spec->skip_for_julius && active_mod_is_julius())) {
+    if (!spec || !legacy_construction_spec_is_active(*spec)) {
         return mutable_definition_for_type(runtime_id) != nullptr;
     }
 
@@ -740,9 +920,30 @@ extern "C" void building_type_id_bridge_prepare_new_save_table(void)
         entry.legacy_enum_hint = legacy_enum_hint_for_text(entry.text_id, type);
         entry.runtime_id = type;
         entry.missing = false;
+        const LegacyConstructionSpec *legacy_spec = nullptr;
         if (building_type_registry_impl::BuildingType *definition = mutable_definition_for_type(type)) {
             capture_default_graphics(*definition, entry.default_graphics_path, entry.default_graphics_image);
-            entry.construction = construction_from_registry_definition(*definition);
+            entry.construction = construction_for_save_entry(
+                type,
+                entry.text_id,
+                entry.legacy_enum_hint,
+                definition,
+                &legacy_spec);
+        } else {
+            entry.construction = construction_for_save_entry(
+                type,
+                entry.text_id,
+                entry.legacy_enum_hint,
+                nullptr,
+                &legacy_spec);
+        }
+        if (legacy_spec) {
+            if (entry.default_graphics_path.empty()) {
+                entry.default_graphics_path = legacy_spec->default_path ? legacy_spec->default_path : "";
+            }
+            if (entry.default_graphics_image.empty()) {
+                entry.default_graphics_image = legacy_spec->default_image ? legacy_spec->default_image : "";
+            }
         }
         append_save_id_mapping(save_id, type, false, &entry);
     }
@@ -860,6 +1061,11 @@ void load_save_table_internal(
     bool apply_definition_migration)
 {
     if (!has_save_table || !buf || !buf->size) {
+        if (save_version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+            fatal_current_save_table(
+                "0xb6 save is missing the BuildingType object table; this line is wrong and needs to be cleaned up",
+                "load_save_table_internal");
+        }
         load_legacy_save_table(save_version, apply_definition_migration);
         return;
     }
@@ -869,6 +1075,11 @@ void load_save_table_internal(
 
     buffer table = *buf;
     if (buffer_load_dynamic(&table) < sizeof(uint32_t) * 2) {
+        if (save_version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+            fatal_current_save_table(
+                "0xb6 BuildingType object table is invalid; legacy fallback is forbidden",
+                "load_save_table_internal");
+        }
         log_error("Building type save table is invalid; falling back to legacy enum migration", 0, 0);
         load_legacy_save_table(save_version, apply_definition_migration);
         return;
@@ -876,10 +1087,22 @@ void load_save_table_internal(
 
     uint32_t version = buffer_read_u32(&table);
     uint32_t count = buffer_read_u32(&table);
-    if (version != SAVE_TABLE_TEXT_VERSION && version != SAVE_TABLE_OBJECT_VERSION) {
+    if (version != SAVE_TABLE_TEXT_VERSION && version != SAVE_TABLE_OBJECT_VERSION &&
+        version != SAVE_TABLE_MONUMENT_CONSTRUCTION_VERSION) {
+        if (save_version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+            fatal_current_save_table(
+                "0xb6 BuildingType object table has an unsupported version; legacy fallback is forbidden",
+                "load_save_table_internal");
+        }
         log_error("Unsupported building type save table version", 0, static_cast<int>(version));
         load_legacy_save_table(save_version, apply_definition_migration);
         return;
+    }
+    if (save_version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE &&
+        version != SAVE_TABLE_MONUMENT_CONSTRUCTION_VERSION) {
+        fatal_current_save_table(
+            "0xb6 save attempted to load a pre-v3 BuildingType object table; this line is wrong and needs to be cleaned up",
+            "BuildingType save table must be version 3");
     }
 
     for (uint32_t i = 0; i < count && !buffer_at_end(&table); ++i) {
@@ -896,15 +1119,22 @@ void load_save_table_internal(
         if (runtime_id == BUILDING_NONE && entry.legacy_enum_hint > BUILDING_NONE) {
             runtime_id = runtime_from_legacy_enum(entry.legacy_enum_hint);
         }
-        if (runtime_id == BUILDING_NONE && version == SAVE_TABLE_OBJECT_VERSION &&
+        if (runtime_id == BUILDING_NONE && version >= SAVE_TABLE_OBJECT_VERSION &&
             entry.legacy_enum_hint > BUILDING_NONE && entry.legacy_enum_hint < BUILDING_TYPE_MAX) {
             runtime_id = static_cast<building_type>(entry.legacy_enum_hint);
         }
 
         entry.runtime_id = runtime_id;
         int has_definition = mutable_definition_for_type(runtime_id) != nullptr;
+        const LegacyConstructionSpec *authoritative_spec =
+            legacy_construction_spec_for(entry.legacy_enum_hint, entry.text_id);
+        bool invalid_authoritative_monument =
+            version >= SAVE_TABLE_MONUMENT_CONSTRUCTION_VERSION &&
+            !entry.construction.has_phased_construction &&
+            authoritative_spec &&
+            legacy_construction_spec_is_active(*authoritative_spec);
         if (apply_definition_migration) {
-            if (version == SAVE_TABLE_OBJECT_VERSION && entry.construction.has_phased_construction) {
+            if (version >= SAVE_TABLE_OBJECT_VERSION && entry.construction.has_phased_construction) {
                 has_definition = apply_saved_construction_entry(runtime_id, entry.text_id, entry.construction);
                 if (building_type_registry_impl::BuildingType *definition = mutable_definition_for_type(runtime_id)) {
                     ensure_default_graphics(
@@ -912,6 +1142,8 @@ void load_save_table_internal(
                         entry.default_graphics_path.c_str(),
                         entry.default_graphics_image.c_str());
                 }
+            } else if (invalid_authoritative_monument) {
+                has_definition = 0;
             } else {
                 has_definition = apply_legacy_monument_entry(
                     runtime_id,
@@ -923,7 +1155,7 @@ void load_save_table_internal(
         }
 
         const char *text = entry.text_id.empty() ? nullptr : entry.text_id.c_str();
-        entry.missing = runtime_id == BUILDING_NONE ||
+        entry.missing = invalid_authoritative_monument || runtime_id == BUILDING_NONE ||
             (building_type_legacy_migration_text_id_is_xml_owned(text) && !has_definition);
         if (entry.missing && !entry.text_id.empty()) {
             log_error("Building type referenced by save is not available in active mod", entry.text_id.c_str(), save_id);
@@ -1038,4 +1270,19 @@ extern "C" int building_type_id_bridge_save_id_is_missing(uint16_t save_id)
         return 0;
     }
     return g_bridge.save_id_missing[static_cast<size_t>(save_id)] ? 1 : 0;
+}
+
+extern "C" int building_type_id_bridge_save_id_is_in_table(uint16_t save_id)
+{
+    ensure_save_table();
+    return static_cast<size_t>(save_id) < g_bridge.save_to_runtime.size() ? 1 : 0;
+}
+
+extern "C" int building_type_id_bridge_save_id_has_phased_construction(uint16_t save_id)
+{
+    ensure_save_table();
+    if (save_id == 0 || static_cast<size_t>(save_id) >= g_bridge.save_entries.size()) {
+        return 0;
+    }
+    return g_bridge.save_entries[static_cast<size_t>(save_id)].construction.has_phased_construction ? 1 : 0;
 }

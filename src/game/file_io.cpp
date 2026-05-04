@@ -6,6 +6,7 @@ extern "C" {
 #include "building/barracks.h"
 #include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
+#include "building/building_save_heap.h"
 #include "building/count.h"
 #include "building/granary.h"
 #include "building/list.h"
@@ -1159,7 +1160,8 @@ static void savegame_save_to_state(savegame_state *state)
         state->building_extra_highest_id,
         state->building_extra_highest_id_ever,
         state->building_extra_sequence,
-        state->building_extra_corrupt_houses);
+        state->building_extra_corrupt_houses,
+        SAVE_GAME_CURRENT_VERSION);
     city_view_save_state(state->city_view_orientation, state->city_view_camera);
     game_time_save_state(state->game_time);
     random_save_state(state->random_iv);
@@ -1861,6 +1863,12 @@ static building *savegame_building(unsigned int id)
         return &b;
     }
 
+    if (minimap_data.version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+        building_save_heap_materialize_building(static_cast<int>(id), &b);
+        b.id = id;
+        return &b;
+    }
+
     // Old savegame versions had a bug where the caravanserai's building save data size was one byte too small, so all
     // buildings saved after the caravanserai need to have their offset pushed back by 1
     int offset = minimap_data.version <= SAVE_GAME_LAST_CARAVANSERAI_WRONG_OFFSET && minimap_data.caravanserai_id &&
@@ -1875,6 +1883,11 @@ static void savegame_clear_preview_building_overrides(void)
 {
     memset(preview_building_id_overrides, 0, sizeof(preview_building_id_overrides));
     preview_building_id_overrides_active = 0;
+}
+
+static void savegame_clear_preview_building_heap(void)
+{
+    building_save_heap_clear();
 }
 
 static void savegame_stamp_preview_building_footprint(const building *b)
@@ -1903,6 +1916,16 @@ static void savegame_stamp_preview_building_footprint(const building *b)
 static void savegame_build_preview_building_overrides(void)
 {
     savegame_clear_preview_building_overrides();
+
+    if (minimap_data.version > SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE) {
+        building_save_heap_load_current(savegame_data.state.buildings);
+        int buildings_to_load = building_save_heap_building_count();
+        for (int id = 1; id < buildings_to_load; id++) {
+            savegame_stamp_preview_building_footprint(savegame_building(static_cast<unsigned int>(id)));
+        }
+        preview_building_id_overrides_active = 1;
+        return;
+    }
 
     buffer buildings = *savegame_data.state.buildings;
     int building_buf_size = BUILDING_STATE_ORIGINAL_BUFFER_SIZE;
@@ -2008,6 +2031,7 @@ static savegame_load_status savegame_read_file_info(saved_game_info *info, saveg
     city_view_restore_lookup();
 
     savegame_clear_preview_building_overrides();
+    savegame_clear_preview_building_heap();
     building_type_id_bridge_save_table_preview_restore();
     widget_minimap_restore_default_functions();
 
