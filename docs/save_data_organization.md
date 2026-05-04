@@ -2,7 +2,7 @@
 
 This document maps how Vespasian `.svv` save data is allocated, written, loaded, and handed back to runtime systems. It is a live-game save reference first. Scenario files use the same file-piece machinery, but their layout is covered separately in the scenario appendix. For the post-read bridge layer that resolves save-local ids into runtime objects, BuildingType definitions, and legacy structs, see `docs/save_load_runtime_bridges.md`.
 
-Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
+Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb5`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 
 ## Top-Level Flow
 
@@ -48,7 +48,7 @@ Save-version gates are append/order gates. Adding, removing, resizing, or reorde
 
 ## Live Save Pieces
 
-This table follows `init_savegame_data()` order exactly. "Current" means the piece is present in newly written `0xb6` saves. Old-only pieces are still allocated while reading older versions so the stream stays aligned. The `C` column means the file piece is compressed on disk.
+This table follows `init_savegame_data()` order exactly. "Current" means the piece is present in newly written `0xb5` saves. Old-only pieces are still allocated while reading older versions so the stream stays aligned. The `C` column means the file piece is compressed on disk.
 
 | # | Piece | Gate | Size allocation | C | Writer | Loader / consumer | Runtime data |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -179,7 +179,7 @@ Important owned payloads:
 
 - Figures: `figure_save_state()` allocates `4 + figure_count * 170` bytes, writes the per-record byte size (`170`), then serializes every `figure`. `figure_load_state()` resets figure runtime/profile state, reads old or current record sizes, initializes `array(figure)`, expands it, reads every record, tracks the highest nonzero state, and trims `data.figures.size`. Figure records use resource remapping and version gates for image ids, building ids, routing ids, visited-building index, and last destination.
 - Buildings: `building_save_state()` allocates `4 + building_count * BUILDING_STATE_CURRENT_BUFFER_SIZE`, writes the current building record size, then calls `building_state_save_to_buffer()` for every `building`. `building_load_state()` initializes `array(building)`, expands it, reads records through `building_state_load_from_buffer()`, rebuilds building lists, and restores created-sequence/corrupt-house counters. Building type ids are saved through `building_type_id_bridge_save_id_from_runtime()`, not raw runtime enum values.
-- Building type table: `building_type_id_bridge_save_table_save_state()` writes dynamic format version `2`, entry count, each save id, text id, legacy enum hint, missing flag, and saved phased-construction data. The loader uses the table when present and falls back to legacy enum migration when absent or invalid.
+- Building type table: `building_type_id_bridge_save_table_save_state()` writes dynamic format version `1`, entry count, and each save id/text id pair. The loader uses the table when present and falls back to legacy enum migration when absent or invalid. BuildingType construction data is runtime XML state and is not persisted in this table.
 - Building storages: `building_storage_save_state()` writes a record-size header and one storage record per `array(storage)` item. Current records include storage id/building id, permissions, per-resource state, and per-resource quantity data. The loader supports original/static/current record sizes and remaps resources.
 - Building lists: `building_list_save_state()` writes small, large, and burning id lists as dynamic integer arrays plus a burning-total piece. The loader reads 16-bit ids for old static saves and 32-bit ids for newer dynamic saves.
 - Monument deliveries: `building_monument_delivery_save_state()` writes a record-size header and 16-byte `monument_delivery` records containing walker id, destination id, resource, and cartloads. The loader rebuilds the delivery array and remaps resources.
@@ -205,7 +205,7 @@ Some pieces are independent byte dumps, but several order dependencies are inten
 - `resource_init()` runs before production rates and many economy systems are used after load.
 - Road service history and local workforce load after resources/model data and before gameplay resumes; both tolerate missing old-save pieces by clearing to empty state.
 
-Preview loading for savegame thumbnails uses the same piece reader, but it does not run the full live-game loader. It reads enough city/scenario/building/map data to render minimap info and uses `building_type_id_bridge_save_table_preview_load_state()` so save-local building ids can be interpreted without permanently replacing the runtime bridge.
+Preview loading for savegame thumbnails uses the same piece reader, but it does not run the full live-game loader. It reads enough city/scenario/building/map data to render minimap info; full BuildingType/runtime rebinding remains part of the live load path.
 
 Compatibility helpers that do not own standalone pieces still matter to the load contract. `building_type_id_bridge_prepare_new_save_table()` prepares the table before writing; `map_property_load_state_u8()` reads old 8-bit map bitfields; `figure_visited_buildings_migrate()` synthesizes visited-building state for old saves; `map_terrain_migrate_old_bridges()` and `map_terrain_migrate_old_walls()` repair old terrain encodings; `scenario_events_migrate_to_formulas()`, `scenario_events_migrate_to_resolved_display_names()`, `scenario_events_migrate_to_grid_slices()`, `scenario_events_min_max_migrate_to_formulas()`, and `scenario_events_migrate_to_buys_sells()` upgrade old scenario-event data after the owning pieces load.
 

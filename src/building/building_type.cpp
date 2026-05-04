@@ -1,6 +1,7 @@
 #include "building/building_type.h"
 
 extern "C" {
+#include "building/monument.h"
 #include "scenario/property.h"
 }
 
@@ -848,21 +849,25 @@ void BuildingType::add_graphics_variant_condition(GraphicsCondition condition)
 
 void BuildingType::set_construction_mode(ConstructionMode mode)
 {
+    has_construction_ = true;
     construction_.set_mode(mode);
 }
 
 void BuildingType::set_construction_road_update_radius(int radius)
 {
+    has_construction_ = true;
     construction_.set_road_update_radius(radius);
 }
 
 void BuildingType::clear_construction()
 {
     construction_ = ConstructionDefinition();
+    has_construction_ = false;
 }
 
 ConstructionPhase &BuildingType::add_construction_phase(int index)
 {
+    has_construction_ = true;
     return construction_.add_phase(index);
 }
 
@@ -873,11 +878,13 @@ ConstructionPhase *BuildingType::last_construction_phase()
 
 void BuildingType::add_instant_construction_requirement(resource_type resource, int amount)
 {
+    has_construction_ = true;
     construction_.add_instant_requirement(resource, amount);
 }
 
 void BuildingType::add_construction_requirement(resource_type resource, int amount)
 {
+    has_construction_ = true;
     construction_.add_requirement(resource, amount);
 }
 
@@ -1005,6 +1012,23 @@ const GraphicsTarget *BuildingType::resolve_construction_graphics_target(int pha
     return construction_phase && construction_phase->graphics.has_path() ? &construction_phase->graphics : nullptr;
 }
 
+const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const BuildingType *definition, const ::building &building)
+{
+    if (!definition || !definition->has_graphic()) {
+        return nullptr;
+    }
+
+    if (definition->has_phased_construction() &&
+        building.monument.phase != MONUMENT_FINISHED &&
+        building.monument.phase >= MONUMENT_START) {
+        if (const GraphicsTarget *target = definition->resolve_construction_graphics_target(building.monument.phase)) {
+            return target;
+        }
+    }
+
+    return definition->resolve_graphics_target(building);
+}
+
 WaterAccessMode BuildingType::water_access_mode() const
 {
     return state_.water_access_mode();
@@ -1053,6 +1077,11 @@ int BuildingType::has_water_access_provider() const
 int BuildingType::has_graphic() const
 {
     return graphics_.has_path();
+}
+
+int BuildingType::has_construction() const
+{
+    return has_construction_;
 }
 
 int BuildingType::has_phased_construction() const

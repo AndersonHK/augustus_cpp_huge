@@ -10,6 +10,7 @@
 extern "C" {
 #include "building/building_runtime_api.h"
 #include "building/menu.h"
+#include "building/monument.h"
 #include "building/properties.h"
 #include "core/dir.h"
 #include "core/file.h"
@@ -2598,6 +2599,7 @@ extern "C" int building_type_registry_load(void)
     building_type_registry_apply_model_overrides();
     refresh_known_building_type_ids();
     building_type_id_bridge_reset_for_runtime();
+    building_monument_reset_runtime_bridge();
     building_runtime_reset();
     building_menu_invalidate_catalog();
     return 1;

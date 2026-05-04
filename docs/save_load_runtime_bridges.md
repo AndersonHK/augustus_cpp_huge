@@ -2,7 +2,7 @@
 
 This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, legacy structs, and C++ wrappers.
 
-Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
+Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb5`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 
 ## Load Timeline
 
@@ -48,7 +48,6 @@ Recent runtime-bridge gates:
 | `SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY = 0xb2` | Appended entertainment service effects | Entertainment grids remain zero for older saves. |
 | `SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS = 0xb3` | Active-day entertainment show counters | `read_type_data()` doubles legacy half-day counters on load. |
 | `SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE = 0xb4` | Building type save table | Bridge synthesizes a legacy table from enum/text migration data. |
-| `SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE = 0xb5` | v2 object table with construction/default graphics | Legacy monument construction specs are applied instead of reading saved construction objects. |
 
 Other broad gates still shape the bridge path:
 
@@ -88,31 +87,20 @@ The prepare step creates a save-local table from the current runtime table. Save
 
 - save id
 - text id
-- legacy enum hint
-- default graphics path/image
-- phased construction definition, when present
 
-The current table format is `SAVE_TABLE_OBJECT_VERSION = 2`. The older `SAVE_TABLE_TEXT_VERSION = 1` stored text identity only, so version 1 loads must recover construction from legacy rules when needed.
+The current table format is `SAVE_TABLE_VERSION = 1`. It stores text identity only. BuildingType graphics, construction, labor, storage, and production facts come from active XML/runtime definitions, not from the save table.
 
 ### Save Table On Load
 
-`building_type_id_bridge_save_table_load_state(buf, has_save_table, save_version)` calls the internal table loader with definition migration enabled.
+`building_type_id_bridge_save_table_load_state(buf, has_save_table)` loads the active save-local id table.
 
 If `has_save_table` is false, or the dynamic table cannot be read, the bridge calls the legacy-table path. That path reconstructs save ids from old raw enum values and the migration table.
 
-For each v1/v2 entry, the loader resolves runtime identity in this order:
+For each version-1 entry, the loader resolves runtime identity by saved text id against the current runtime table. XML-owned text ids without a current definition are marked missing. `building_type_id_bridge_save_id_is_missing()` lets the building loader drop those building instances safely.
 
-1. Resolve by saved text id against the current runtime table.
-2. If missing, resolve by legacy enum hint through `building_type_legacy_migration_enum_for_text_id()` / legacy table data.
-3. For v2 object tables only, fall back to the raw legacy hint when it is still inside `BUILDING_TYPE_MAX`.
+If a building record references a save id that is not present in the loaded table, the bridge treats that id as a legacy raw enum and recovers its canonical text id through `building_type_legacy_migration_text_id_for_enum()`. This preserves old raw-id records such as `BUILDING_ORACLE = 98` without overriding explicit save-table entries.
 
-Then the loader applies runtime definition migration:
-
-- v2 entries with saved construction call `apply_saved_construction_entry()`, which writes phased construction data into the current `BuildingType` definition and preserves default graphics with `ensure_default_graphics()`.
-- v1 entries and old saves call `apply_legacy_monument_entry()`, which applies compatibility monument definitions only for saves at or before `SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE`.
-- XML-owned text ids without a current definition are marked missing. `building_type_id_bridge_save_id_is_missing()` lets the building loader drop those building instances safely.
-
-Preview loading uses `building_type_id_bridge_save_table_preview_load_state()`. It snapshots the active bridge, loads the save table without applying definition migration, stamps preview building footprints, and then `building_type_id_bridge_save_table_preview_restore()` restores the previous bridge state.
+Preview loading does not mutate the active bridge. It reads enough city/scenario/building/map data to render minimap info, while full BuildingType/runtime rebinding remains part of the live load path.
 
 ## Building Records
 
@@ -183,27 +171,20 @@ Post-load, `building_runtime_initialize_city_graphics_cache()` clears C++ buildi
 
 ## Monuments
 
-Monuments have both legacy and BuildingType-backed construction truth.
+Monuments have legacy-shaped runtime construction truth, with XML data bridged into that shape when needed.
 
-`src/building/monument.cpp` still contains hardcoded `monument_type` resource tables for older monuments such as Pantheon, Colosseum, Hippodrome, mausoleums, Nymphaeum, and City Mint. These remain compatibility/runtime fallback data for types that do not have BuildingType phased construction.
+`src/building/monument.cpp` still contains hardcoded `monument_type` resource tables for older monuments such as Pantheon, Colosseum, Hippodrome, mausoleums, Nymphaeum, and City Mint. These hardcoded tables win first so retained legacy monuments keep their original behavior.
 
-Newer BuildingType-backed monuments use `BuildingType::ConstructionDefinition`:
+XML-declared phased monuments keep their old monument membership through a text-id vector populated from the active `BuildingType` registry, then project their current XML construction data into a local `monument_type` cache in `monument.cpp`:
 
-- `building_type_registry_has_phased_construction(type)` decides whether construction comes from the registry.
-- `building_type_registry_get_construction_phase_count(type)` returns the number of saved/XML construction phases.
-- `building_type_registry_get_construction_requirement(type, resource, phase)` provides per-phase resource needs.
-- `building_monument_resources_needed_for_monument_type()` chooses registry construction first, then falls back to the hardcoded legacy monument table.
+- `monument_type_for(type)` returns a hardcoded legacy table first.
+- Retained legacy monument ids seed the mutable text-id vector, and active XML definitions with construction nodes append their canonical ids at runtime.
+- Runtime callers resolve text ids through `building_type_id_bridge_text_from_runtime()`.
+- Save-load callers can resolve text ids directly from the save table through `building_type_id_bridge_text_from_save_id()`, which lets `read_type_data()` choose the monument branch before relying only on runtime enum identity.
+- If no hardcoded table exists, `xml_monument_type(type)` reads `BuildingType::ConstructionDefinition` through the registry facade and caches `phases` plus `[phase][resource]` requirements.
+- Phase counts, resource requests, delivery targeting, and load-time resource clamping all use this legacy-shaped bridge.
 
-The bridge's v2 save table preserves object-level construction so saved monument definitions can survive active XML/runtime changes. Each saved construction entry carries:
-
-- whether phased construction exists
-- default graphics path and image
-- road update radius
-- phase index
-- phase graphics path and image
-- per-phase resource/amount requirements
-
-For saves at or before `SAVE_GAME_LAST_NO_BUILDING_TYPE_OBJECT_TABLE`, `apply_legacy_monument_entry()` uses `LEGACY_MONUMENT_CONSTRUCTION` in `building_type_id_bridge.cpp`. That table covers grand temples, large temples, oracle, lighthouse, and caravanserai compatibility definitions, including default graphics and phase requirements. It skips Oracle when the active mod is Julius.
+This keeps construction definitions out of the save table. Save-loaded building records keep their persisted instance state, while current XML supplies the monument phase requirements that the legacy code path expects.
 
 Per-instance monument state lives in each loaded `building` record:
 
@@ -217,8 +198,9 @@ Per-instance monument state lives in each loaded `building` record:
 
 Runtime graphics refresh follows the same authority split:
 
-- Registry-backed phased monuments call `building_runtime_apply_graphic()`.
+- Registry-backed phased monuments call `building_runtime_apply_graphic()` and render from cached XML payload slices.
 - Legacy monuments redraw through `map_building_tiles_add(..., building_image_get(b), TERRAIN_BUILDING)`.
+- Runtime-owned XML buildings use `map_image` only for neutral tile bookkeeping; the actual footprint/top/animation comes from `ImageGroupPayload`, not from a saved or reconstructed integer image group id.
 
 Monument deliveries are separate dynamic state. `building_monument_delivery_load_state()` allocates `array(monument_delivery)`, reads an optional element-size prefix for newer saves, remaps resource ids, and preserves only active delivery rows. Old saves without a deliveries piece call `building_monument_initialize_deliveries()` and start with an empty delivery array.
 

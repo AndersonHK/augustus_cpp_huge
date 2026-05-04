@@ -10,6 +10,7 @@ void building_runtime_reset(void);
 // After save load/new city init, prime runtime wrappers for all live building instances and rebuild native graphics/storage/production state.
 void building_runtime_initialize_city_graphics_cache(void);
 void building_runtime_apply_graphic(building *b);
+// Returns true when XML runtime graphics own tile image bookkeeping; draw code then reads payload slices instead of map image ids.
 int building_runtime_apply_graphic_if_native(building *b);
 void building_runtime_spawn_figure(building *b);
 

@@ -2,7 +2,6 @@ extern "C" {
 #include "image.h"
 
 #include "assets/assets.h"
-#include "building/building_type_api.h"
 #include "building/connectable.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -82,15 +81,8 @@ int building_image_get_garden_gate_image(int grid_offset)
 
 int building_image_get(const building *b)
 {
-    if (b->type == BUILDING_THEATER) {
-        if (!b->upgrade_level) {
-            return assets_get_image_id("Health_Culture", "Theatre ON");
-        } else {
-            return assets_get_image_id("Health_Culture", "Theatre Upgrade ON");
-        }
-    }
-    if (b->type == BUILDING_WELL) {
-        return image_group(GROUP_BUILDING_WELL);
+    if (!b) {
+        return 0;
     }
 
     switch (b->type) {
@@ -98,7 +90,7 @@ int building_image_get(const building *b)
             if (b->house_population == 0) {
                 return image_group(GROUP_BUILDING_HOUSE_VACANT_LOT);
             }
-            // fallthrough
+            [[fallthrough]];
         case BUILDING_HOUSE_LARGE_TENT:
         case BUILDING_HOUSE_SMALL_SHACK:
         case BUILDING_HOUSE_LARGE_SHACK:
@@ -131,12 +123,6 @@ int building_image_get(const building *b)
             }
             return image_id;
         }
-        case BUILDING_AMPHITHEATER:
-            if (!b->upgrade_level) {
-                return assets_get_image_id("Health_Culture", "Amphitheatre ON");
-            } else {
-                return assets_get_image_id("Health_Culture", "Amphitheatre Upgrade ON");
-            }
         case BUILDING_COLOSSEUM:
             switch (b->monument.phase) {
                 case MONUMENT_START:
@@ -164,8 +150,6 @@ int building_image_get(const building *b)
             }
         case BUILDING_GLADIATOR_SCHOOL:
             return image_group(GROUP_BUILDING_GLADIATOR_SCHOOL);
-        case BUILDING_LION_HOUSE:
-            return image_group(GROUP_BUILDING_LION_HOUSE);
         case BUILDING_ACTOR_COLONY:
             return image_group(GROUP_BUILDING_ACTOR_COLONY);
         case BUILDING_CHARIOT_MAKER:
@@ -186,8 +170,6 @@ int building_image_get(const building *b)
                     return image_group(GROUP_BUILDING_STATUE) + 1;
             }
         }
-        case BUILDING_LARGE_STATUE:
-            return assets_get_image_id("Aesthetics", "l statue anim");
         case BUILDING_SMALL_POND:
         {
             int offset = b->has_water_access;
@@ -222,42 +204,8 @@ int building_image_get(const building *b)
             return image_group(GROUP_BUILDING_DOCTOR);
         case BUILDING_HOSPITAL:
             return image_group(GROUP_BUILDING_HOSPITAL);
-        case BUILDING_BATHHOUSE:
-            if (b->has_water_access && b->num_workers) {
-                if (!b->upgrade_level) {
-                    return image_group(GROUP_BUILDING_BATHHOUSE_WATER);
-                } else {
-                    return image_group(GROUP_BUILDING_BATHHOUSE_FANCY_WATER);
-                }
-            } else {
-                if (!b->upgrade_level) {
-                    return image_group(GROUP_BUILDING_BATHHOUSE_NO_WATER);
-                } else {
-                    return image_group(GROUP_BUILDING_BATHHOUSE_FANCY_NO_WATER);
-                }
-            }
         case BUILDING_BARBER:
             return image_group(GROUP_BUILDING_BARBER);
-        case BUILDING_SCHOOL:
-            if (!b->upgrade_level) {
-                return image_group(GROUP_BUILDING_SCHOOL);
-            } else {
-                return assets_get_image_id("Health_Culture", "Upgraded_School");
-            }
-        case BUILDING_ACADEMY:
-            if (!b->upgrade_level) {
-                return assets_get_image_id("Health_Culture", "Academy_Fix");
-            } else {
-                return assets_get_image_id("Health_Culture", "Upgraded_Academy");
-            }
-        case BUILDING_LIBRARY:
-            if (!b->upgrade_level) {
-                return assets_get_image_id("Health_Culture", "Downgraded_Library");
-            } else {
-                return image_group(GROUP_BUILDING_LIBRARY);
-            }
-        case BUILDING_PREFECTURE:
-            return image_group(GROUP_BUILDING_PREFECTURE);
         case BUILDING_MARBLE_QUARRY:
             return image_group(GROUP_BUILDING_MARBLE_QUARRY);
         case BUILDING_GOLD_MINE:
@@ -320,24 +268,8 @@ int building_image_get(const building *b)
             return image_group(GROUP_BUILDING_TIMBER_YARD);
         case BUILDING_CLAY_PIT:
             return image_group(GROUP_BUILDING_CLAY_PIT);
-        case BUILDING_WINE_WORKSHOP:
-            return image_group(GROUP_BUILDING_WINE_WORKSHOP);
-        case BUILDING_OIL_WORKSHOP:
-            return image_group(GROUP_BUILDING_OIL_WORKSHOP);
-        case BUILDING_WEAPONS_WORKSHOP:
-            return image_group(GROUP_BUILDING_WEAPONS_WORKSHOP);
-        case BUILDING_FURNITURE_WORKSHOP:
-            return image_group(GROUP_BUILDING_FURNITURE_WORKSHOP);
-        case BUILDING_POTTERY_WORKSHOP:
-            return image_group(GROUP_BUILDING_POTTERY_WORKSHOP);
         case BUILDING_GRANARY:
             return image_group(GROUP_BUILDING_GRANARY);
-        case BUILDING_MARKET:
-            if (!b->upgrade_level) {
-                return image_group(GROUP_BUILDING_MARKET);
-            } else {
-                return image_group(GROUP_BUILDING_MARKET_FANCY);
-            }
         case BUILDING_GOVERNORS_HOUSE:
             return image_group(GROUP_BUILDING_GOVERNORS_HOUSE);
         case BUILDING_GOVERNORS_VILLA:
@@ -346,14 +278,6 @@ int building_image_get(const building *b)
             return image_group(GROUP_BUILDING_GOVERNORS_PALACE);
         case BUILDING_MISSION_POST:
             return image_group(GROUP_BUILDING_MISSION_POST);
-        case BUILDING_ENGINEERS_POST:
-            return image_group(GROUP_BUILDING_ENGINEERS_POST);
-        case BUILDING_FORUM:
-            if (!b->upgrade_level) {
-                return image_group(GROUP_BUILDING_FORUM);
-            } else {
-                return assets_get_image_id("Admin_Logistics", "Upgraded_Forum");
-            }
         case BUILDING_FOUNTAIN:
             if (b->upgrade_level == 3) {
                 return scenario_property_climate() == CLIMATE_DESERT ?
@@ -366,8 +290,6 @@ int building_image_get(const building *b)
             } else {
                 return image_group(GROUP_BUILDING_FOUNTAIN_1);
             }
-        case BUILDING_RESERVOIR:
-            return image_group(GROUP_BUILDING_RESERVOIR);
         case BUILDING_MILITARY_ACADEMY:
             return image_group(GROUP_BUILDING_MILITARY_ACADEMY);
         case BUILDING_SMALL_TEMPLE_CERES:
@@ -443,23 +365,18 @@ int building_image_get(const building *b)
                 }
             }
         }
-        case BUILDING_SENATE:
-            if (!b->upgrade_level) {
-                return image_group(GROUP_BUILDING_SENATE);
-            } else {
-                return image_group(GROUP_BUILDING_SENATE_FANCY);
-            }
         case BUILDING_BARRACKS:
             return image_group(GROUP_BUILDING_BARRACKS);
         case BUILDING_WAREHOUSE:
             return image_group(GROUP_BUILDING_WAREHOUSE);
         case BUILDING_WAREHOUSE_SPACE:
         {
-            resource_type resource = static_cast<resource_type>(b->subtype.warehouse_resource_id);
-            if (resource == RESOURCE_NONE || b->resources[resource] <= 0) {
+            int resource_id = b->subtype.warehouse_resource_id;
+            if (resource_id <= RESOURCE_NONE || resource_id >= RESOURCE_MAX || b->resources[resource_id] <= 0) {
                 return image_group(GROUP_BUILDING_WAREHOUSE_STORAGE_EMPTY);
             } else {
-                return resource_get_data(resource)->image.storage + b->resources[resource] - 1;
+                resource_type resource = static_cast<resource_type>(resource_id);
+                return resource_get_data(resource)->image.storage + b->resources[resource_id] - 1;
             }
         }
         case BUILDING_HIPPODROME:
@@ -585,8 +502,6 @@ int building_image_get(const building *b)
                 default:
                     return assets_get_image_id("Admin_Logistics", "Workcamp Central");
             }
-        case BUILDING_ARCHITECT_GUILD:
-            return assets_get_image_id("Admin_Logistics", "Arch Guild ON");
         case BUILDING_MESS_HALL:
             switch (scenario_property_climate()) {
                 case CLIMATE_NORTHERN:
@@ -596,20 +511,8 @@ int building_image_get(const building *b)
                 default:
                     return assets_get_image_id("Military", "Mess ON Central");
             }
-        case BUILDING_TAVERN:
-            if (!b->upgrade_level) {
-                return assets_get_image_id("Health_Culture", "Tavern ON");
-            } else {
-                return assets_get_image_id("Health_Culture", "Tavern Upgrade ON");
-            }
         case BUILDING_GRAND_GARDEN:
             return assets_get_image_id("Engineer", "Eng Guild ON");
-        case BUILDING_ARENA:
-            if (!b->upgrade_level) {
-                return assets_get_image_id("Health_Culture", "Arena ON");
-            } else {
-                return assets_get_image_id("Health_Culture", "Arena Upgrade ON");
-            }
         case BUILDING_HORSE_STATUE:
         {
             int orientation = building_rotation_get_building_orientation(b->subtype.orientation) / 2;
@@ -831,16 +734,6 @@ int building_image_get(const building *b)
         case BUILDING_OVERGROWN_GARDENS:
             return building_properties_for_type(BUILDING_OVERGROWN_GARDENS)->image_group;
 
-        case BUILDING_ARMOURY:
-            switch (scenario_property_climate()) {
-                case CLIMATE_NORTHERN:
-                    return assets_get_image_id("Military", "Armoury_ON_N");
-                case CLIMATE_DESERT:
-                    return assets_get_image_id("Military", "Armoury_ON_S");
-                default:
-                    return assets_get_image_id("Military", "Armoury_ON_C");
-            }
-
         case BUILDING_LATRINES:
             switch (scenario_property_climate()) {
                 case CLIMATE_NORTHERN:
@@ -884,7 +777,7 @@ int building_image_get(const building *b)
 
 int building_image_get_for_type(building_type type)
 {
-    building b = {0};
+    building b = {};
     b.type = type;
     return building_image_get(&b);
 }

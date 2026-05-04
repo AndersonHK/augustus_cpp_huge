@@ -201,11 +201,18 @@ static void add_warehouse(building *b, int orientation)
 
 static void add_building(building *b)
 {
+    if (building_type_registry_has_construction(b->type) &&
+        !building_type_registry_has_phased_construction(b->type) &&
+        building_monument_type_is_monument(b->type) &&
+        !b->monument.phase) {
+        b->monument.phase = MONUMENT_FINISHED;
+    }
+    if (building_runtime_apply_graphic_if_native(b)) {
+        return;
+    }
     int image_id = building_image_get(b);
     if (image_id) {
         map_building_tiles_add(b->id, b->x, b->y, b->size, image_id, TERRAIN_BUILDING);
-    } else if (building_type_registry_has_definition(b->type)) {
-        building_runtime_apply_graphic(b);
     }
 }
 

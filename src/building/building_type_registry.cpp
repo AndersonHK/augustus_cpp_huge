@@ -2,8 +2,11 @@
 #include "building/building_type_legacy_migration.h"
 #include "building/production_method_registry.h"
 #include "building/storage_type_registry.h"
+#include "assets/image_group_payload.h"
 
 extern "C" {
+#include "assets/assets.h"
+#include "building/building.h"
 #include "building/properties.h"
 #include "game/resource.h"
 #include "platform/file_manager.h"
@@ -258,10 +261,45 @@ extern "C" int building_type_registry_get_sound_requires_water_access(building_t
             definition->water_access().requirement() != building_type_registry_impl::WaterAccessRequirement::None);
 }
 
+extern "C" int building_type_registry_get_graphics_image_id(const building *b)
+{
+    if (!b) {
+        return 0;
+    }
+
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b->type);
+    if (!definition || !definition->has_graphic()) {
+        return 0;
+    }
+
+    const building_type_registry_impl::GraphicsTarget *target =
+        building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition, *b);
+    if (!target || !target->has_path()) {
+        return 0;
+    }
+
+    const char *image_name = target->has_image() ? target->image() : nullptr;
+    if (!image_name || !*image_name) {
+        if (!image_group_payload_load(target->path())) {
+            return 0;
+        }
+        const ImageGroupPayload *payload = image_group_payload_get(target->path());
+        image_name = payload ? payload->default_image_id() : nullptr;
+    }
+    return assets_get_image_id_from_path_or_name(target->path(), image_name);
+}
+
 extern "C" int building_type_registry_has_phased_construction(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
     return definition && definition->has_phased_construction() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_has_construction(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_construction() ? 1 : 0;
 }
 
 extern "C" int building_type_registry_get_construction_phase_count(building_type type)

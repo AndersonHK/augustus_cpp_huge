@@ -35,6 +35,14 @@ static void normalize_monument_phase_after_load(building *b)
     }
 }
 
+static int saved_type_is_monument(uint16_t save_id, building_type runtime_type)
+{
+    if (building_monument_text_id_is_monument(building_type_id_bridge_text_from_save_id(save_id))) {
+        return 1;
+    }
+    return building_monument_type_is_monument(runtime_type);
+}
+
 static int is_industry_type(const building *b)
 {
     return b->output_resource_id || b->type == BUILDING_NATIVE_CROPS
@@ -275,7 +283,7 @@ void building_state_save_to_buffer(buffer *buf, const building *b)
     // up until that point in Augustus' development
 }
 
-static void read_type_data(buffer *buf, building *b, int version)
+static void read_type_data(buffer *buf, building *b, int version, int save_type_is_monument)
 {
     // This function should ALWAYS read 42 bytes for versions before or at SAVE_GAME_LAST_STATIC_RESOURCES.
     // The only exception is for Caravanserai on old savegame versions, which due to an oversight only read 41 bytes.
@@ -402,7 +410,7 @@ static void read_type_data(buffer *buf, building *b, int version)
             b->data.rubble.og_size = buffer_read_u8(buf);
             b->data.rubble.og_orientation = buffer_read_u8(buf);
         }
-    } else if (building_monument_is_monument(b) && version <= SAVE_GAME_LAST_MONUMENT_TYPE_DATA) {
+    } else if (save_type_is_monument && version <= SAVE_GAME_LAST_MONUMENT_TYPE_DATA) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             for (int i = 0; i < RESOURCE_MAX_LEGACY; i++) {
                 b->resources[resource_remap(i)] = buffer_read_i16(buf);
@@ -576,7 +584,8 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     b->house_tax_coverage = buffer_read_u8(buf);
     b->house_pantheon_access = buffer_read_u8(buf);
     b->formation_id = buffer_read_i16(buf);
-    read_type_data(buf, b, save_version);
+    int save_type_monument = saved_type_is_monument(saved_building_type, b->type);
+    read_type_data(buf, b, save_version, save_type_monument);
     b->tax_income_or_storage = buffer_read_i32(buf);
     b->house_days_without_food = buffer_read_u8(buf);
     b->has_plague = buffer_read_u8(buf);

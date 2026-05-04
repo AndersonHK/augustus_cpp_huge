@@ -158,8 +158,10 @@ extern "C" void building_runtime_apply_graphic(building *b)
 extern "C" int building_runtime_apply_graphic_if_native(building *b)
 {
     if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        const building_type_registry_impl::BuildingType *definition = instance->definition();
-        if (definition && definition->has_graphic()) {
+        if (instance->uses_new_graphics() &&
+            (b->state == BUILDING_STATE_CREATED ||
+                b->state == BUILDING_STATE_IN_USE ||
+                b->state == BUILDING_STATE_MOTHBALLED)) {
             instance->set_building_graphic();
             return 1;
         }

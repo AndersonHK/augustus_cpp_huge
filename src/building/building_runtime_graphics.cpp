@@ -29,6 +29,7 @@ extern "C" {
 #include "city/population.h"
 #include "core/calc.h"
 #include "core/config.h"
+#include "core/image_group.h"
 #include "figure/action.h"
 #include "figure/figure.h"
 #include "figure/movement.h"
@@ -51,8 +52,7 @@ namespace {
 
 int graphics_definition_is_data_only(building_type type)
 {
-    return building_is_farm(type) ||
-        type == BUILDING_POTTERY_WORKSHOP;
+    return building_is_farm(type);
 }
 
 void advance_runtime_monument_secondary_animation(building *b)
@@ -155,6 +155,24 @@ void report_rebuild_failure(
     error_context_report_error("Native building graphics cache rebuild failed. Falling back to legacy rendering.", detail);
 }
 
+int runtime_tile_sentinel_image_id()
+{
+    return image_group(GROUP_TERRAIN_FLAT_TILE);
+}
+
+int normalized_animation_frame(const building *b, const RuntimeAnimationTrack &track)
+{
+    if (!b || track.num_frames <= 0) {
+        return 0;
+    }
+    int current_frame = map_sprite_animation_at(b->grid_offset) & 0x7f;
+    if (current_frame < 1 || current_frame > track.num_frames) {
+        current_frame = 1;
+        map_sprite_animation_set(b->grid_offset, current_frame);
+    }
+    return current_frame;
+}
+
 }
 
 void building_runtime::clear_cached_graphics_bindings()
@@ -221,15 +239,7 @@ const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_gra
     if (!uses_new_graphics()) {
         return nullptr;
     }
-    if (definition_->has_phased_construction() &&
-        building_->monument.phase != MONUMENT_FINISHED &&
-        building_->monument.phase >= MONUMENT_START) {
-        if (const building_type_registry_impl::GraphicsTarget *target =
-            definition_->resolve_construction_graphics_target(building_->monument.phase)) {
-            return target;
-        }
-    }
-    return definition_->resolve_graphics_target(*building_);
+    return building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition_, *building_);
 }
 
 int building_runtime::resolve_graphic_binding(
@@ -358,10 +368,10 @@ int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track
     }
 
     if (!track.speed_id) {
-        return map_sprite_animation_at(building_->grid_offset) & 0x7f;
+        return normalized_animation_frame(building_, track);
     }
     if (!game_animation_should_advance(track.speed_id)) {
-        return map_sprite_animation_at(building_->grid_offset) & 0x7f;
+        return normalized_animation_frame(building_, track);
     }
 
     int new_sprite = 0;
@@ -604,7 +614,12 @@ void building_runtime::set_building_graphic()
     }
 
     rebuild_cached_graphics_bindings();
-    map_building_tiles_add(building_->id, building_->x, building_->y, building_->size, building_image_get(building_), TERRAIN_BUILDING);
+    // XML payload graphics render from cached RuntimeDrawSlice entries; map_image only keeps legacy tile bookkeeping alive.
+    int image_id = graphics_cache_.owns_graphics ? runtime_tile_sentinel_image_id() : building_image_get(building_);
+    if (!image_id) {
+        image_id = runtime_tile_sentinel_image_id();
+    }
+    map_building_tiles_add(building_->id, building_->x, building_->y, building_->size, image_id, TERRAIN_BUILDING);
 }
 
 int building_runtime::owns_graphics()

@@ -27,6 +27,8 @@ int building_type_registry_get_sound_id(building_type type);
 int building_type_registry_get_sound_mute_on_enemies(building_type type);
 int building_type_registry_get_sound_always_play(building_type type);
 int building_type_registry_get_sound_requires_water_access(building_type type);
+int building_type_registry_get_graphics_image_id(const building *b);
+int building_type_registry_has_construction(building_type type);
 int building_type_registry_has_phased_construction(building_type type);
 int building_type_registry_get_construction_phase_count(building_type type);
 int building_type_registry_get_construction_road_update_radius(building_type type);

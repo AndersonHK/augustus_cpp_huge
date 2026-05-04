@@ -510,6 +510,7 @@ public:
     const ConstructionDefinition &construction() const;
     const GraphicsTarget *resolve_graphics_target(const ::building &building) const;
     const GraphicsTarget *resolve_construction_graphics_target(int phase) const;
+    static const GraphicsTarget *resolve_graphics_target_for_image(const BuildingType *definition, const ::building &building);
     WaterAccessMode water_access_mode() const;
     int has_identity() const;
     int has_model() const;
@@ -520,6 +521,7 @@ public:
     int has_flags() const;
     int has_water_access_provider() const;
     int has_graphic() const;
+    int has_construction() const;
     int has_phased_construction() const;
     int has_labor() const;
     const LaborDefinition &labor() const;
@@ -546,6 +548,7 @@ private:
     WaterAccessDefinition water_access_;
     GraphicsDefinition graphics_;
     ConstructionDefinition construction_;
+    bool has_construction_ = false;
     LaborDefinition labor_;
     std::vector<SpawnDelayGroup> spawn_groups_;
     std::vector<std::string> storage_reference_paths_;

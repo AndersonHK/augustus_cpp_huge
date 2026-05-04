@@ -5,6 +5,7 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_runtime_api.h"
 #include "building/image.h"
 #include "building/list.h"
 #include "building/monument.h"
@@ -706,7 +707,9 @@ void project_building_state(const SimulationResult &result)
                 b->y,
                 b->size,
                 access_bit(building_type_registry_impl::WaterAccessType::Reservoir))) ? 1 : 0;
-        map_building_tiles_add(b->id, b->x, b->y, 1, building_image_get(b), TERRAIN_BUILDING);
+        if (!building_runtime_apply_graphic_if_native(b)) {
+            map_building_tiles_add(b->id, b->x, b->y, 1, building_image_get(b), TERRAIN_BUILDING);
+        }
     }
 
     static const building_type pond_types[] = { BUILDING_SMALL_POND, BUILDING_LARGE_POND };
@@ -721,7 +724,9 @@ void project_building_state(const SimulationResult &result)
                 b->y,
                 b->size,
                 access_bit(building_type_registry_impl::WaterAccessType::Reservoir)) ? 1 : 0;
-            map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+            if (!building_runtime_apply_graphic_if_native(b)) {
+                map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+            }
         }
     }
 
@@ -810,7 +815,9 @@ extern "C" void water_access_runtime_refresh_large_statue(building *b)
         access_bit(building_type_registry_impl::WaterAccessType::Reservoir)) ? 1 : 0;
 
     if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED || b->state == BUILDING_STATE_CREATED) {
-        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+        if (!building_runtime_apply_graphic_if_native(b)) {
+            map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+        }
     }
 }
 

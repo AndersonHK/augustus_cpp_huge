@@ -175,6 +175,23 @@ int assets_get_group_id(const char *assetlist_name)
     return data.roadblock_image_id;
 }
 
+static int image_id_from_group(const image_groups *group, const char *image_name)
+{
+    if (!group || !image_name || !*image_name ||
+        group->first_image_index < 0 || group->last_image_index < group->first_image_index) {
+        return 0;
+    }
+
+    const asset_image *img = asset_image_get_from_id(group->first_image_index);
+    while (img && img->index <= (unsigned int) group->last_image_index) {
+        if (img->id && strcmp(img->id, image_name) == 0) {
+            return img->index + IMAGE_MAIN_ENTRIES;
+        }
+        img = asset_image_get_from_id(img->index + 1);
+    }
+    return 0;
+}
+
 int assets_get_image_id(const char *assetlist_name, const char *image_name)
 {
     if (!image_name || !*image_name) {
@@ -185,16 +202,57 @@ int assets_get_image_id(const char *assetlist_name, const char *image_name)
         log_info("Asset group not found: ", assetlist_name, 0);
         return data.roadblock_image_id;
     }
-    const asset_image *img = asset_image_get_from_id(group->first_image_index);
-    while (img && img->index <= (unsigned int) group->last_image_index) {
-        if (img->id && strcmp(img->id, image_name) == 0) {
-            return img->index + IMAGE_MAIN_ENTRIES;
-        }
-        img = asset_image_get_from_id(img->index + 1);
+    int image_id = image_id_from_group(group, image_name);
+    if (image_id) {
+        return image_id;
     }
     log_info("Asset image not found: ", image_name, 0);
     log_info("Asset group is: ", assetlist_name, 0);
     return data.roadblock_image_id;
+}
+
+int assets_get_image_id_by_name(const char *image_name)
+{
+    if (!image_name || !*image_name) {
+        return 0;
+    }
+    for (int group_id = 0; group_id < group_get_total(); group_id++) {
+        int image_id = image_id_from_group(group_get_from_id(group_id), image_name);
+        if (image_id) {
+            return image_id;
+        }
+    }
+    return 0;
+}
+
+int assets_get_image_id_from_path_or_name(const char *path, const char *image_name)
+{
+    if (!image_name || !*image_name) {
+        return 0;
+    }
+
+    if (path && *path) {
+        int image_id = image_id_from_group(group_get_from_name(path), image_name);
+        if (image_id) {
+            return image_id;
+        }
+
+        char group_name[128];
+        size_t length = 0;
+        while (path[length] && path[length] != '\\' && path[length] != '/' && length < sizeof(group_name) - 1) {
+            length++;
+        }
+        if (length > 0) {
+            memcpy(group_name, path, length);
+            group_name[length] = '\0';
+            image_id = image_id_from_group(group_get_from_name(group_name), image_name);
+            if (image_id) {
+                return image_id;
+            }
+        }
+    }
+
+    return assets_get_image_id_by_name(image_name);
 }
 
 int assets_get_external_image(const char *path, int force_reload)

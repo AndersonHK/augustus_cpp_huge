@@ -4,7 +4,6 @@
 
 extern "C" {
 #include "building/barracks.h"
-#include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "building/count.h"
 #include "building/granary.h"
@@ -12,7 +11,6 @@ extern "C" {
 #include "building/local_workforce.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/state.h"
 #include "building/storage.h"
 #include "city/culture.h"
 #include "city/data.h"
@@ -329,9 +327,6 @@ static struct {
     unsigned int caravanserai_id;
     scenario_climate climate;
 } minimap_data;
-
-static unsigned int preview_building_id_overrides[GRID_SIZE * GRID_SIZE];
-static int preview_building_id_overrides_active;
 
 static struct {
     int has_mod_name;
@@ -1016,8 +1011,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
 
     building_type_id_bridge_save_table_load_state(
         state->building_type_table,
-        version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE,
-        version);
+        version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE);
     building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
     city_view_load_state(state->city_view_orientation, state->city_view_camera);
     game_time_load_state(state->game_time);
@@ -1556,7 +1550,6 @@ static int read_scenario_info(saved_game_info *info)
     city_view_set_custom_lookup(grid_start, minimap_data.city_width, minimap_data.city_height, grid_border_size);
     widget_minimap_update(&minimap_data.functions);
     city_view_restore_lookup();
-    widget_minimap_restore_default_functions();
 
     clear_scenario_pieces();
 
@@ -1841,10 +1834,6 @@ static int savegame_random_at(int grid_offset)
 
 static unsigned int savegame_get_building_id(int grid_offset)
 {
-    if (preview_building_id_overrides_active && grid_offset >= 0 && grid_offset < GRID_SIZE * GRID_SIZE &&
-        preview_building_id_overrides[grid_offset]) {
-        return preview_building_id_overrides[grid_offset];
-    }
     if (minimap_data.version <= SAVE_GAME_LAST_U16_GRIDS) {
         return map_building_from_buffer_16(savegame_data.state.building_grid, grid_offset);
     } else {
@@ -1855,68 +1844,13 @@ static unsigned int savegame_get_building_id(int grid_offset)
 static building *savegame_building(unsigned int id)
 {
     static building b;
-    memset(&b, 0, sizeof(b));
-    b.id = id;
-    if (!id) {
-        return &b;
-    }
-
     // Old savegame versions had a bug where the caravanserai's building save data size was one byte too small, so all
     // buildings saved after the caravanserai need to have their offset pushed back by 1
     int offset = minimap_data.version <= SAVE_GAME_LAST_CARAVANSERAI_WRONG_OFFSET && minimap_data.caravanserai_id &&
         id > minimap_data.caravanserai_id ? -1 : 0;
     building_get_from_buffer(savegame_data.state.buildings, id, &b,
         minimap_data.version > SAVE_GAME_LAST_STATIC_VERSION, minimap_data.version, offset);
-    b.id = id;
     return &b;
-}
-
-static void savegame_clear_preview_building_overrides(void)
-{
-    memset(preview_building_id_overrides, 0, sizeof(preview_building_id_overrides));
-    preview_building_id_overrides_active = 0;
-}
-
-static void savegame_stamp_preview_building_footprint(const building *b)
-{
-    if (!b || !b->id || b->state == BUILDING_STATE_UNUSED || b->type == BUILDING_NONE ||
-        !building_type_registry_has_definition(b->type) ||
-        b->x < 0 || b->y < 0 || b->size <= 0 ||
-        b->x + b->size > GRID_SIZE || b->y + b->size > GRID_SIZE) {
-        return;
-    }
-
-    int base_grid_offset = b->grid_offset;
-    if (base_grid_offset <= 0) {
-        base_grid_offset = b->x + b->y * GRID_SIZE;
-    }
-    for (int dy = 0; dy < b->size; dy++) {
-        for (int dx = 0; dx < b->size; dx++) {
-            int grid_offset = base_grid_offset + dx + dy * GRID_SIZE;
-            if (grid_offset >= 0 && grid_offset < GRID_SIZE * GRID_SIZE) {
-                preview_building_id_overrides[grid_offset] = b->id;
-            }
-        }
-    }
-}
-
-static void savegame_build_preview_building_overrides(void)
-{
-    savegame_clear_preview_building_overrides();
-
-    buffer buildings = *savegame_data.state.buildings;
-    int building_buf_size = BUILDING_STATE_ORIGINAL_BUFFER_SIZE;
-    size_t buildings_size = buildings.size;
-    if (minimap_data.version > SAVE_GAME_LAST_STATIC_VERSION) {
-        building_buf_size = buffer_read_i32(&buildings);
-        buildings_size -= sizeof(int32_t);
-    }
-
-    int buildings_to_load = building_buf_size > 0 ? static_cast<int>(buildings_size / building_buf_size) : 0;
-    for (int id = 1; id < buildings_to_load; id++) {
-        savegame_stamp_preview_building_footprint(savegame_building(static_cast<unsigned int>(id)));
-    }
-    preview_building_id_overrides_active = 1;
 }
 
 static void get_saved_game_origin(saved_game_info *info, const savegame_state *state)
@@ -1997,19 +1931,9 @@ static savegame_load_status savegame_read_file_info(saved_game_info *info, saveg
     minimap_data.functions.offset.terrain = savegame_terrain_at;
     minimap_data.functions.offset.tile_size = savegame_tile_size_at;
 
-    building_type_id_bridge_save_table_preview_load_state(
-        state->building_type_table,
-        version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE,
-        version);
-    savegame_build_preview_building_overrides();
-
     city_view_set_custom_lookup(grid_start, minimap_data.city_width, minimap_data.city_height, grid_border_size);
     widget_minimap_update(&minimap_data.functions);
     city_view_restore_lookup();
-
-    savegame_clear_preview_building_overrides();
-    building_type_id_bridge_save_table_preview_restore();
-    widget_minimap_restore_default_functions();
 
     clear_savegame_pieces();
 
@@ -2040,26 +1964,23 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
         file_close(fp);
         return SAVEGAME_STATUS_NEWER_VERSION;
     }
-    resource_version_t previous_resource_version = resource_mapping_get_version();
     resource_set_mapping(resource_version);
     init_savegame_data(save_version);
     result = static_cast<savegame_load_status>(savegame_read_from_file(fp, save_version));
     file_close(fp);
     if (result != SAVEGAME_STATUS_OK) {
-        resource_set_mapping(previous_resource_version);
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
-    result = savegame_read_file_info(info, save_version);
-    resource_set_mapping(previous_resource_version);
-    return result;
+    return savegame_read_file_info(info, save_version);
 }
 
 int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *info)
 {
+    memset(info, 0, sizeof(saved_game_info));
+
     if (!info) {
         return SAVEGAME_STATUS_INVALID;
     }
-    memset(info, 0, sizeof(saved_game_info));
 
     int result = 0;
     savegame_version_t save_version;
@@ -2070,24 +1991,15 @@ int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *
             return FILE_LOAD_INCOMPATIBLE_VERSION;
         }
         log_info("Savegame version", 0, save_version);
-        resource_version_t previous_resource_version = resource_mapping_get_version();
         resource_set_mapping(resource_version);
         init_savegame_data(save_version);
         result = savegame_read_from_buffer(buf, save_version);
-        savegame_load_status info_result = SAVEGAME_STATUS_INVALID;
-        if (result) {
-            info_result = savegame_read_file_info(info, save_version);
-        }
-        resource_set_mapping(previous_resource_version);
-        if (result) {
-            return info_result;
-        }
     }
     if (!result) {
         log_error("Unable to load game, incompatible savefile.", 0, 0);
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
-    return SAVEGAME_STATUS_INVALID;
+    return savegame_read_file_info(info, save_version);
 }
 
 int game_file_io_write_saved_game(const char *filename)

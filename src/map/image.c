@@ -76,11 +76,10 @@ void map_image_update_all(void)
         if (b->type == BUILDING_SHIP_BRIDGE || b->type == BUILDING_LOW_BRIDGE || b->type == BUILDING_WALL) {
             continue; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
         }
-        int image_id = building_image_get(b);
-        if (!image_id && building_type_registry_has_definition(b->type)) {
-            building_runtime_apply_graphic(b);
+        if (building_runtime_apply_graphic_if_native(b)) {
             continue;
         }
+        int image_id = building_image_get(b);
 
         for (int dy = 0; dy < b->size; dy++) {
             for (int dx = 0; dx < b->size; dx++) {

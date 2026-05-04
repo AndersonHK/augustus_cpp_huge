@@ -222,8 +222,7 @@ static void draw_building(int image_id, int x, int y, color_t color)
 
 static int graphics_definition_is_data_only_for_ghost(building_type type)
 {
-    return building_is_farm(type) ||
-        type == BUILDING_POTTERY_WORKSHOP;
+    return building_is_farm(type);
 }
 
 static void prepare_ghost_building(int grid_offset, building_type type)

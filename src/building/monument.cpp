@@ -6,6 +6,7 @@ extern "C" {
 #include "building/properties.h"
 #include "building/building_runtime_api.h"
 #include "building/building_type_api.h"
+#include "building/building_type_id_bridge.h"
 #include "city/finance.h"
 #include "city/message.h"
 #include "city/resource.h"
@@ -21,6 +22,10 @@ extern "C" {
 #include "scenario/property.h"
 }
 
+#include <cstring>
+#include <string>
+#include <vector>
+
 #define DELIVERY_ARRAY_SIZE_STEP 200
 #define ORIGINAL_DELIVERY_BUFFER_SIZE 16
 #define MODULES_PER_TEMPLE 2
@@ -34,8 +39,8 @@ extern "C" {
 #define INFINITE 10000
 
 typedef struct {
-    const int phases;
-    const int resources[MAX_PHASES][RESOURCE_MAX];
+    int phases;
+    int resources[MAX_PHASES][RESOURCE_MAX];
 } monument_type;
 
 #define RESOURCE_ROW(architects, timber, iron, marble, gold, stone, concrete, bricks) \
@@ -135,6 +140,114 @@ static const monument_type *legacy_monument_type(building_type type)
     }
 }
 
+static const char *LEGACY_MONUMENT_TEXT_IDS[] = {
+    "pantheon",
+    "colosseum",
+    "hippodrome",
+    "nymphaeum",
+    "large_mausoleum",
+    "small_mausoleum",
+    "city_mint"
+};
+
+static std::vector<std::string> MONUMENT_TEXT_IDS;
+static int monument_text_ids_initialized;
+static monument_type xml_monument_types[BUILDING_TYPE_MAX];
+static int xml_monument_types_initialized[BUILDING_TYPE_MAX];
+
+static int monument_text_id_exists(const char *text_id)
+{
+    if (!text_id || !*text_id) {
+        return 0;
+    }
+    for (const std::string &monument_text_id : MONUMENT_TEXT_IDS) {
+        if (monument_text_id == text_id) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void add_monument_text_id(const char *text_id)
+{
+    if (!text_id || !*text_id || monument_text_id_exists(text_id)) {
+        return;
+    }
+    MONUMENT_TEXT_IDS.push_back(text_id);
+}
+
+static void ensure_monument_text_ids()
+{
+    if (monument_text_ids_initialized) {
+        return;
+    }
+
+    MONUMENT_TEXT_IDS.clear();
+    for (const char *text_id : LEGACY_MONUMENT_TEXT_IDS) {
+        add_monument_text_id(text_id);
+    }
+
+    for (int type_id = 1; type_id < BUILDING_TYPE_MAX; type_id++) {
+        building_type type = static_cast<building_type>(type_id);
+        if (!building_type_registry_has_construction(type)) {
+            continue;
+        }
+        add_monument_text_id(building_type_id_bridge_text_from_runtime(type));
+    }
+
+    monument_text_ids_initialized = 1;
+}
+
+void building_monument_reset_runtime_bridge(void)
+{
+    MONUMENT_TEXT_IDS.clear();
+    monument_text_ids_initialized = 0;
+    for (int type_id = 0; type_id < BUILDING_TYPE_MAX; type_id++) {
+        xml_monument_types_initialized[type_id] = 0;
+    }
+}
+
+// XML phased monuments are projected into the legacy resource table shape so save-loaded
+// building records can keep using the old monument code path without persisting construction objects.
+static const monument_type *xml_monument_type(building_type type)
+{
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX ||
+        !building_type_registry_has_phased_construction(type)) {
+        return nullptr;
+    }
+
+    int phase_count = building_type_registry_get_construction_phase_count(type);
+    if (phase_count <= 0 || phase_count + 1 > MAX_PHASES) {
+        return nullptr;
+    }
+
+    int type_index = static_cast<int>(type);
+    if (!xml_monument_types_initialized[type_index]) {
+        monument_type &cached_type = xml_monument_types[type_index];
+        cached_type.phases = phase_count + 1;
+        for (int phase = 0; phase < MAX_PHASES; phase++) {
+            for (int resource = 0; resource < RESOURCE_MAX; resource++) {
+                cached_type.resources[phase][resource] = 0;
+            }
+        }
+        for (int phase = 1; phase <= phase_count; phase++) {
+            for (int resource = 0; resource < RESOURCE_MAX; resource++) {
+                cached_type.resources[phase - 1][resource] =
+                    building_type_registry_get_construction_requirement(type, resource, phase);
+            }
+        }
+        xml_monument_types_initialized[type_index] = 1;
+    }
+
+    return &xml_monument_types[type_index];
+}
+
+static const monument_type *monument_type_for(building_type type)
+{
+    const monument_type *legacy_type = legacy_monument_type(type);
+    return legacy_type ? legacy_type : xml_monument_type(type);
+}
+
 typedef struct {
     int walker_id;
     unsigned int destination_id;
@@ -146,8 +259,26 @@ array(monument_delivery) monument_deliveries;
 
 static int type_is_monument(building_type type)
 {
-    return type > BUILDING_NONE && type < BUILDING_TYPE_MAX &&
-        (building_type_registry_has_phased_construction(type) || legacy_monument_type(type) != nullptr);
+    if (building_monument_text_id_is_monument(building_type_id_bridge_text_from_runtime(type))) {
+        return 1;
+    }
+    return monument_type_for(type) ? 1 : 0;
+}
+
+int building_monument_text_id_is_monument(const char *text_id)
+{
+    if (!text_id || !*text_id) {
+        return 0;
+    }
+    ensure_monument_text_ids();
+    for (const std::string &monument_text_id : MONUMENT_TEXT_IDS) {
+        if (std::strcmp(text_id, monument_text_id.c_str()) == 0) {
+            return 1;
+        }
+    }
+
+    building_type runtime_type = building_type_id_bridge_runtime_from_text(text_id);
+    return monument_type_for(runtime_type) != nullptr;
 }
 
 int building_monument_deliver_resource(building *b, int resource)
@@ -324,11 +455,12 @@ int building_monument_has_unfinished_monuments(void)
 
 int building_monument_resources_needed_for_monument_type(building_type type, int resource, int phase)
 {
-    if (building_type_registry_has_phased_construction(type)) {
-        return building_type_registry_get_construction_requirement(type, resource, phase);
+    const monument_type *type_data = monument_type_for(type);
+    if (!type_data || phase < 1 || phase > type_data->phases ||
+        resource < RESOURCE_NONE || resource >= RESOURCE_MAX) {
+        return 0;
     }
-    const monument_type *legacy_type = legacy_monument_type(type);
-    return legacy_type ? legacy_type->resources[phase - 1][resource] : 0;
+    return type_data->resources[phase - 1][resource];
 }
 
 void building_monument_set_phase(building *b, int phase)
@@ -365,7 +497,10 @@ int building_monument_type_is_monument(building_type type)
 
 int building_monument_type_is_mini_monument(building_type type)
 {
-    return building_monument_type_is_monument(type) && building_properties_for_type(type)->size < 5;
+    if (!building_monument_type_is_monument(type)) {
+        return 0;
+    }
+    return building_properties_for_type(type)->size < 5 ? 1 : 0;
 }
 
 int building_monument_is_grand_temple(building_type type)
@@ -417,11 +552,8 @@ int building_monument_get_neptune_gt(void)
 
 int building_monument_phases(building_type type)
 {
-    if (building_type_registry_has_phased_construction(type)) {
-        return building_type_registry_get_construction_phase_count(type) + 1;
-    }
-    const monument_type *legacy_type = legacy_monument_type(type);
-    return legacy_type ? legacy_type->phases : 0;
+    const monument_type *type_data = monument_type_for(type);
+    return type_data ? type_data->phases : 0;
 }
 
 void building_monument_finish_monuments(void)
@@ -788,5 +920,8 @@ int building_monument_toggle_construction_halted(building *b)
 
 int building_monument_is_unfinished_monument(const building *b)
 {
-    return building_monument_is_monument(b) && b->monument.phase != MONUMENT_FINISHED;
+    if (!building_monument_is_monument(b)) {
+        return 0;
+    }
+    return b->monument.phase != MONUMENT_FINISHED ? 1 : 0;
 }

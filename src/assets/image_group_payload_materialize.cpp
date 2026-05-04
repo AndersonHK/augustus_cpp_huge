@@ -303,23 +303,77 @@ int finalize_surface_to_resolved_entry(
     return 1;
 }
 
+// Input: one animation frame raster that should be drawn as a single overlay sprite.
+// Output: a managed texture key and runtime slice for that uploaded frame payload.
+int materialize_animation_frame_surface(
+    const ImageGroupDoc &doc,
+    const ImageEntryDef &entry,
+    int frame_index,
+    RasterSurface &&frame_surface,
+    const char *key_suffix,
+    std::string &out_frame_key,
+    RuntimeDrawSlice &out_frame_slice)
+{
+    out_frame_key.clear();
+    out_frame_slice = RuntimeDrawSlice();
+    if (!raster_has_pixels(frame_surface)) {
+        return 0;
+    }
+
+    image frame_image = {};
+    frame_image.width = frame_surface.width;
+    frame_image.height = frame_surface.height;
+    frame_image.original.width = frame_surface.width;
+    frame_image.original.height = frame_surface.height;
+    out_frame_key = make_entry_payload_key(doc.key, doc.source, entry.id) +
+        "\\" + key_suffix + "_" + std::to_string(frame_index);
+    const ImagePayload *payload = image_payload_load_pixels_payload(
+            out_frame_key.c_str(),
+            frame_image,
+            frame_surface.pixels.data(),
+            frame_surface.width,
+            frame_surface.height);
+    if (!payload) {
+        out_frame_key.clear();
+        return 0;
+    }
+    if (!populate_slice_from_payload(payload, 0, out_frame_slice)) {
+        crash_context_report_error("Animation frame materialized with an invalid runtime slice", out_frame_key.c_str());
+        image_payload_release_key(out_frame_key.c_str());
+        out_frame_key.clear();
+        return 0;
+    }
+    return 1;
+}
+
 // Input: one explicit animation frame definition.
-// Output: a managed texture key for that frame, either by reusing a bare ref or by uploading a composed frame raster.
+// Output: a managed texture key plus draw slice for the composed frame payload.
 int materialize_explicit_frame(
     const ImageGroupDoc &doc,
     const ImageEntryDef &entry,
     int frame_index,
     const RawLayerDef &frame_def,
-    std::string &out_frame_key)
+    std::string &out_frame_key,
+    RuntimeDrawSlice &out_frame_slice)
 {
     if (is_bare_group_reference(frame_def)) {
         const std::string target_group = normalize_group_reference_key(frame_def.reference.group_key.c_str(), doc.key);
         const ResolvedImageEntry *resolved = materialize_merged_entry(target_group, doc.source, frame_def.reference.image_id);
-        if (!resolved || resolved->footprint.texture_key.empty()) {
+        if (!resolved) {
             return 0;
         }
-        image_payload_retain_key(resolved->footprint.texture_key.c_str());
-        out_frame_key = resolved->footprint.texture_key;
+
+        RasterSurface full_frame = surface_from_resolved_entry_part(*resolved, PART_BOTH);
+        if (!materialize_animation_frame_surface(
+                doc,
+                entry,
+                frame_index,
+                std::move(full_frame),
+                "frame",
+                out_frame_key,
+                out_frame_slice)) {
+            return 0;
+        }
         return 1;
     }
 
@@ -341,23 +395,14 @@ int materialize_explicit_frame(
     memset(frame_surface.pixels.data(), 0, sizeof(color_t) * frame_surface.pixels.size());
     compose_prepared_layer(frame_surface, frame_layer, frame_layer.mask == LAYER_MASK_ALPHA);
 
-    image frame_image = {};
-    frame_image.width = frame_surface.width;
-    frame_image.height = frame_surface.height;
-    frame_image.original.width = frame_surface.width;
-    frame_image.original.height = frame_surface.height;
-    out_frame_key = make_entry_payload_key(doc.key, doc.source, entry.id) + "\\frame_" + std::to_string(frame_index);
-    const ImagePayload *payload = image_payload_load_pixels_payload(
-            out_frame_key.c_str(),
-            frame_image,
-            frame_surface.pixels.data(),
-            frame_surface.width,
-            frame_surface.height);
-    if (!payload) {
-        out_frame_key.clear();
-        return 0;
-    }
-    return 1;
+    return materialize_animation_frame_surface(
+        doc,
+        entry,
+        frame_index,
+        std::move(frame_surface),
+        "frame",
+        out_frame_key,
+        out_frame_slice);
 }
 
 // Input: one fully resolved base entry plus an optional inherited full-image reference.
@@ -389,17 +434,17 @@ int resolve_animation(
     if (!entry.animation.explicit_frames.empty()) {
         for (size_t i = 0; i < entry.animation.explicit_frames.size(); i++) {
             std::string frame_key;
-            if (!materialize_explicit_frame(doc, entry, static_cast<int>(i), entry.animation.explicit_frames[i], frame_key)) {
+            RuntimeDrawSlice frame_slice;
+            if (!materialize_explicit_frame(
+                    doc,
+                    entry,
+                    static_cast<int>(i),
+                    entry.animation.explicit_frames[i],
+                    frame_key,
+                    frame_slice)) {
                 return 0;
             }
-            if (const ImagePayload *payload = image_payload_get(frame_key.c_str())) {
-                RuntimeDrawSlice frame_slice;
-                if (!populate_slice_from_payload(payload, 0, frame_slice)) {
-                    crash_context_report_error("Animation frame materialized with an invalid runtime slice", frame_key.c_str());
-                    return 0;
-                }
-                out_entry.animation.frames.push_back(frame_slice);
-            }
+            out_entry.animation.frames.push_back(frame_slice);
             out_entry.animation_frame_keys.push_back(std::move(frame_key));
         }
     } else if (entry.animation.implicit_frame_count > 0) {
@@ -410,12 +455,25 @@ int resolve_animation(
             }
             const std::string &frame_id = doc.ordered_ids[next_index];
             const ResolvedImageEntry *frame_entry = materialize_source_entry(doc.key, doc.source, frame_id);
-            if (!frame_entry || frame_entry->footprint.texture_key.empty()) {
+            if (!frame_entry) {
                 return 0;
             }
-            image_payload_retain_key(frame_entry->footprint.texture_key.c_str());
-            out_entry.animation_frame_keys.push_back(frame_entry->footprint.texture_key);
-            out_entry.animation.frames.push_back(frame_entry->footprint.slice);
+
+            RasterSurface full_frame = surface_from_resolved_entry_part(*frame_entry, PART_BOTH);
+            std::string frame_key;
+            RuntimeDrawSlice frame_slice;
+            if (!materialize_animation_frame_surface(
+                    doc,
+                    entry,
+                    i - 1,
+                    std::move(full_frame),
+                    "implicit_frame",
+                    frame_key,
+                    frame_slice)) {
+                return 0;
+            }
+            out_entry.animation_frame_keys.push_back(std::move(frame_key));
+            out_entry.animation.frames.push_back(frame_slice);
         }
     }
 

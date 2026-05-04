@@ -27,6 +27,7 @@ public:
 
     void set_building_graphic();
     void spawn_figure();
+    int uses_new_graphics() const;
     const RuntimeDrawSlice *graphic_footprint();
     const RuntimeDrawSlice *graphic_top();
     const RuntimeDrawSlice *graphic_animation();
@@ -71,7 +72,6 @@ private:
     void rebuild_cached_animation_slice();
     std::uint64_t graphics_state_signature() const;
     int mirror_animation_offset(const RuntimeAnimationTrack &track) const;
-    int uses_new_graphics() const;
     int building_state_supports_native_graphics() const;
     const building_type_registry_impl::GraphicsTarget *resolve_graphic_target() const;
     int resolve_graphic_binding(

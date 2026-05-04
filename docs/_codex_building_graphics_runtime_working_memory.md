@@ -3,6 +3,15 @@
 Snapshot: 2026-04-06
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 
+## 2026-05-04 payload rendering correction
+- XML `BuildingType.graphics` entries now render as `ImageGroupPayload` entries, not as legacy integer image groups.
+- `building_image_get()` is legacy-only; it must not load an XML payload and squeeze the selected image back through `assets_get_image_id_from_path_or_name`.
+- Runtime-owned buildings still populate terrain/building/multitile map bookkeeping, but `map_image` receives a neutral flat-tile sentinel while `city_draw` reads footprint/top/animation from cached `RuntimeDrawSlice` payload data.
+- `building_runtime_apply_graphic_if_native()` means "the XML runtime handled map-tile graphics ownership"; callers that get true should not immediately overwrite the tile with `building_image_get()`.
+- Pottery workshops are no longer treated as graphics-data-only; their XML `Industry\Pottery_Workshop` payload is the live renderer path.
+- Runtime animation frames normalize an active XML animation to frame 1 when the saved sprite cursor is empty, so ON states that use an OFF base plus animation overlay do not flash the OFF image between animation ticks.
+- Payload animation frame materialization now reconstructs each explicit or implicit frame as a full `PART_BOTH` raster payload before runtime drawing. Bare XML frame references no longer reuse only the referenced entry footprint, which preserves top/full overlay content for animated XML buildings.
+
 ## 2026-04-06 building graphics resolution checkpoint
 - Native building footprint rendering now routes through `src/widget/city_draw.cpp`, not the older direct `const image *` helper path documented below.
 - `src/building/building_runtime.cpp` is now split by ownership: wrapper/facade flow stays in `building_runtime.cpp`, graphics cache/rebuild behavior lives in `building_runtime_graphics.cpp`, and spawn policy execution lives in `building_runtime_spawn.cpp`.

@@ -20,8 +20,30 @@
         </default>
         <variant>
             <condition type="has_workers" />
+            <condition type="climate" value="desert" />
+            <path value="Military\Armoury_OFF_C" />
+            <image value="Armoury_ON_S" />
+        </variant>
+        <variant>
+            <condition type="has_workers" />
+            <condition type="climate" value="northern" />
+            <path value="Military\Armoury_OFF_C" />
+            <image value="Armoury_ON_N" />
+        </variant>
+        <variant>
+            <condition type="has_workers" />
             <path value="Military\Armoury_OFF_C" />
             <image value="Armoury_ON_C" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Military\Armoury_OFF_C" />
+            <image value="Armoury_OFF_S" />
+        </variant>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Military\Armoury_OFF_C" />
+            <image value="Armoury_OFF_N" />
         </variant>
     </graphics>
 
