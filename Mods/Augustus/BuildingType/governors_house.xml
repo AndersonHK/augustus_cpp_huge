@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="governors_house">
+    <identity name_key="main_strings.28.77" />
+    <model size="3" cost="150" />
+    <desirability>
+        <value value="12" />
+        <step value="2" />
+        <step_size value="-2" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="gov_res" order="0" icon="Admin_Logistics\Governors_House" text_key="main_strings.28.77" />
     <sound id="palace" mute_on_enemies="true" />
+    <event_data attr="governors_house" />
     <graphics>
         <default>
             <path value="Admin_Logistics\Governors_House" />

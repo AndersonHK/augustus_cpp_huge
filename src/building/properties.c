@@ -580,32 +580,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .max_people = 200,
             .tax_multiplier = 16}
     },
-    [BUILDING_HIPPODROME] = {
-        .size = 5,
-        .fire_proof = 1,
-        .image_group = 213,
-        .sound_id = SOUND_CITY_HIPPODROME,
-        .event_data.attr = "hippodrome",
-        .building_model_data = {.cost = 3500, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 150} // Differs from model.txt
-    },
-    [BUILDING_COLOSSEUM] = {
-        .size = 5,
-        .fire_proof = 1,
-        .image_group = 48,
-        .sound_id = SOUND_CITY_COLOSSEUM,
-        .event_data.attr = "colosseum",
-        .building_model_data = {.cost = 1500, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 100} // Differs from model.txt
-    },
-    [BUILDING_CHARIOT_MAKER] = {
-        .size = 3,
-        .image_group = 52,
-        .sound_id = SOUND_CITY_CHARIOT_MAKER,
-        .event_data.attr = "chariot_maker",
-        .building_model_data = {.cost = 75, .desirability_value = -3, .desirability_step = 1,
-            .desirability_step_size = 1, .desirability_range = 3, .laborers = 10}
-    },
     [BUILDING_PLAZA] = {
         .size = 1,
         .fire_proof = 1,
@@ -785,30 +759,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
         .event_data.attr = "wharf",
         .building_model_data = {.cost = 60, .desirability_value = -8, .desirability_step = 2,
             .desirability_step_size = 2, .desirability_range = 3, .laborers = 6}
-    },
-    [BUILDING_GOVERNORS_HOUSE] = {
-        .size = 3,
-        .image_group = 85,
-        .sound_id = SOUND_CITY_PALACE,
-        .event_data.attr = "governors_house",
-        .building_model_data = {.cost = 150, .desirability_value = 12, .desirability_step = 2,
-            .desirability_step_size = -2, .desirability_range = 3, .laborers = 0}
-    },
-    [BUILDING_GOVERNORS_VILLA] = {
-        .size = 4,
-        .image_group = 86,
-        .sound_id = SOUND_CITY_PALACE,
-        .event_data.attr = "governors_villa",
-        .building_model_data = {.cost = 400, .desirability_value = 20, .desirability_step = 2,
-            .desirability_step_size = -3, .desirability_range = 4, .laborers = 0}
-    },
-    [BUILDING_GOVERNORS_PALACE] = {
-        .size = 5,
-        .image_group = 87,
-        .sound_id = SOUND_CITY_PALACE,
-        .event_data.attr = "governors_palace",
-        .building_model_data = {.cost = 750, .desirability_value = 28, .desirability_step = 2,
-            .desirability_step_size = -4, .desirability_range = 5, .laborers = 0}
     },
     [BUILDING_MISSION_POST] = {
         .size = 2,

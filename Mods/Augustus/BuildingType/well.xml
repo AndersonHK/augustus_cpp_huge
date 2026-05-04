@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="well">
-    <identity name_key="building.well.name" />
+    <identity name_key="main_strings.28.92" />
     <model size="1" cost="5" />
     <desirability>
         <value value="-1" />
@@ -9,7 +9,7 @@
         <range value="1" />
     </desirability>
     <foundation policy="land" />
-    <button group="water" order="30" icon="Admin_Logistics\Well" text_key="building.well.name" />
+    <button group="water" order="30" icon="Admin_Logistics\Well" text_key="main_strings.28.92" />
     <sound id="well" />
     <event_data attr="well" />
     <water_access>

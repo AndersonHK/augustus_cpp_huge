@@ -1,26 +1,23 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <building type="colosseum">
+    <identity name_key="main_strings.28.33" />
+    <model size="5" cost="1500" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="entertainment" order="0" icon="Health_Culture\Colosseum_Runtime" text_key="main_strings.28.33" />
+    <flags fire_proof="1" />
     <sound id="colosseum" mute_on_enemies="true" />
+    <event_data attr="colosseum" />
     <graphics>
         <default>
-            <path value="Health_Culture\Colosseum" />
-            <image value="Col Glad Fight" />
+            <path value="Health_Culture\Colosseum_Runtime" />
+            <image value="Colosseum_Base" />
         </default>
-        <variant>
-            <condition type="festival_games" value="1" />
-            <path value="Health_Culture\Colosseum" />
-            <image value="Col Naumachia" />
-        </variant>
-        <variant>
-            <condition type="festival_games" value="2" />
-            <path value="Health_Culture\Colosseum" />
-            <image value="Col Imp Games" />
-        </variant>
-        <variant>
-            <condition type="festival_games" value="3" />
-            <path value="Health_Culture\Colosseum" />
-            <image value="Col Exec" />
-        </variant>
     </graphics>
     <construction mode="phased" road_update_radius="7">
         <phase index="1">
@@ -60,4 +57,11 @@
             <requirement type="bricks" amount="16" />
         </phase>
     </construction>
+    <labor>
+        <employees count="100" />
+        <labor_seeker>
+            <method value="workforce" />
+            <amount value="50" />
+        </labor_seeker>
+    </labor>
 </building>

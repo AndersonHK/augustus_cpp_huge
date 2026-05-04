@@ -13,6 +13,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Payload animation frame materialization now reconstructs each explicit or implicit frame as a full `PART_BOTH` raster payload before runtime drawing. Bare XML frame references no longer reuse only the referenced entry footprint, which preserves top/full overlay content for animated XML buildings.
 - Native XML animations now advance explicitly from `city_draw_runtime_building_animation()`, the same city animation layer that calls legacy `building_animation_offset()`. `graphic_animation()` reads the current cursor and returns the already-selected payload frame instead of secretly owning the tick.
 - Native XML animations use the caller-provided draw-stage animation cursor instead of `building.grid_offset`. This keeps the cursor transient like legacy rendering until BuildingType migration is far enough along to consider a saved building cursor field.
+- Well placement ghosts keep their bespoke water-range behavior, but now try the XML payload ghost renderer before falling back to `building_image_get_for_type()`. Well XML also uses the same legacy string-key bridge format as Theater (`main_strings.28.92`) so dynamic ids do not fall through to an invalid legacy string index in the build menu.
 - Augustus/Vespasian small and large pond XML now owns the legacy climate/water matrix: central/northern maps use the north payloads, desert maps use the south payloads, and water access selects the animated ON entries. The redundant `BUILDING_SMALL_POND` and `BUILDING_LARGE_POND` image.cpp switch arms were removed.
 
 ## 2026-05-04 BuildingType graphics mapping pass
@@ -34,6 +35,23 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - `BuildMenuButton` now resolves `button text_key` by key string first. It falls back to legacy `lang_get_string(28, building)` only for XML entries that still use unresolved placeholder keys.
 - The temporary theater/display-key shim and the matching specific XML-owned cases were removed from `src/core/lang.cpp`; no legacy localization function ran out of cases.
 - Known gap: many older XML buttons still use `building.*.name` placeholders because no corresponding registered `TR_BUILDING_*` button label exists yet. Those still rely on the generic legacy fallback until localization keys are added.
+
+## 2026-05-04 Julius localization JSON extraction
+- Julius language extraction now writes legacy Caesar group/index strings into flat `project_keys` in `Mods/Julius/Localization/<locale>.json`, matching the Augustus JSON style.
+- Known legacy slots that correspond to existing `TR_*` enums use those enum names; unmapped slots remain explicit `main_strings.<group>.<index>` or `editor_strings.<group>.<index>` keys.
+- JSON merge backfills legacy string slots from those project keys in mod-list order, so later mods replace only the keys they define.
+- The hard-coded `lang_get_string` aliases for small temples, editor strings, and Augustus-added building labels were removed after the JSON merge learned those aliases. The function still has locale fixes, custom translations, XML identity lookup, and the generic fallback.
+- The source `c3*` language binaries are not present in this workspace, so the new Julius locale JSON files could not be materially generated during this static pass.
+
+## 2026-05-04 incomplete BuildingType completion pass
+- Completed Julius, Augustus, and Vespasian BuildingType XML metadata for chariot maker, governor residence tiers, Colosseum, Hippodrome, native huts, native meeting huts, native crops, native decoration, native monuments, and native watchtowers.
+- Placeable additions now include real legacy name keys and button text keys: chariot maker uses `main_strings.28.37`, Colosseum uses `main_strings.28.33`, Hippodrome uses `main_strings.28.32`, and governor residences use `main_strings.28.77` through `main_strings.28.79`.
+- Chariot maker spawn moved to BuildingType XML with a new supported `charioteer` spawn figure id, preserving the legacy 7/15/30/60/90 delay bands and 50-house labor-seeker threshold. The old chariot-maker spawn branch was removed.
+- Governor residences, chariot maker, Colosseum, and Hippodrome are now enum-retained XML-owned types in `building_type_legacy_migration.cpp`; their hardcoded build-menu entries and static property rows were removed. Colosseum and Hippodrome still retain legacy spawn/construction special cases where the current XML schema does not yet express all side effects.
+- Native decoration, native monument, and native watchtower name switch cases were removed from `lang.cpp`; their XML identities use the existing `TR_BUILDING_NATIVE_*` keys. Native crops and Julius-native hut labels use legacy `main_strings.41.*` keys.
+- Julius native decoration, native monument, and native watchtower remain graphics-gap definitions: the Julius extracted sample does not contain those Augustus-added `Terrain_Maps` payloads, so their legacy property/custom-asset fallback stays in place for now.
+- Hippodrome still has no safe XML graphics or phased-construction payload mapping. Finished and construction graphics depend on orientation plus first/middle/last building part, which the current BuildingType graphics schema cannot express.
+- Follow-up correction: Augustus/Vespasian Colosseum and native meeting hut XML now avoid extracted assetlists with missing referenced entries. See `docs/missing_graphics_payloads.md` for the source-vs-extracted payload gaps and the fallbacks currently used.
 
 ## 2026-04-06 building graphics resolution checkpoint
 - Native building footprint rendering now routes through `src/widget/city_draw.cpp`, not the older direct `const image *` helper path documented below.
