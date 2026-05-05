@@ -3,7 +3,7 @@
 #include "building/building.h"
 #include "building/building_type_api.h"
 #include "building/count.h"
-#include "building/properties.h"
+#include "building/house.h"
 #include "city/culture.h"
 #include "city/data_private.h"
 #include "city/games.h"
@@ -78,9 +78,12 @@ void city_ratings_peace_building_destroyed(building_type type)
     if (type == BUILDING_WELL) {
         return;
     }
+    int legacy_house_level = building_type_registry_get_housing_legacy_level(type);
+    if (type == BUILDING_HOUSE_SMALL_TENT || type == BUILDING_HOUSE_LARGE_TENT ||
+        legacy_house_level == HOUSE_SMALL_TENT || legacy_house_level == HOUSE_LARGE_TENT) {
+        return;
+    }
     switch (type) {
-        case BUILDING_HOUSE_SMALL_TENT:
-        case BUILDING_HOUSE_LARGE_TENT:
         case BUILDING_PREFECTURE:
         case BUILDING_ENGINEERS_POST:
         case BUILDING_FORT_ARCHERS:
@@ -507,12 +510,12 @@ static void calculate_max_prosperity(void)
 {
     int points = 0;
     int houses = 0;
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state && b->house_size) {
-                points += model_get_house(b->subtype.house_level)->prosperity;
-                houses++;
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (b->state && b->house_size) {
+            const model_house *house_model = building_house_get_model(b);
+            points += house_model ? house_model->prosperity : 0;
+            houses++;
         }
     }
     if (houses > 0) {

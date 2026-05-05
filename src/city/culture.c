@@ -1,8 +1,8 @@
 #include "culture.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/count.h"
+#include "building/house.h"
 #include "building/monument.h"
 #include "city/constants.h"
 #include "city/data_private.h"
@@ -229,18 +229,17 @@ void city_culture_calculate(void)
     city_data.culture.population_with_venus_access = 0; //venus
 
     int num_houses = 0;
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE && b->house_size) {
-                num_houses++;
-                city_data.culture.average_entertainment += b->data.house.entertainment;
-                city_data.culture.average_religion += b->data.house.num_gods;
-                city_data.culture.average_education += b->data.house.education;
-                city_data.culture.average_health += b->data.house.health;
-                city_data.culture.average_desirability += b->desirability;
-                if (b->data.house.temple_venus) {
-                    city_data.culture.population_with_venus_access += b->house_population;
-                }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_house_is_active(b)) {
+            num_houses++;
+            city_data.culture.average_entertainment += b->data.house.entertainment;
+            city_data.culture.average_religion += b->data.house.num_gods;
+            city_data.culture.average_education += b->data.house.education;
+            city_data.culture.average_health += b->data.house.health;
+            city_data.culture.average_desirability += b->desirability;
+            if (b->data.house.temple_venus) {
+                city_data.culture.population_with_venus_access += b->house_population;
             }
         }
     }

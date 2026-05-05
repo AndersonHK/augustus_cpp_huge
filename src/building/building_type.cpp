@@ -22,6 +22,12 @@ void GraphicsTarget::set_image(std::string image)
     image_ = std::move(image);
 }
 
+GraphicsTarget &GraphicsTarget::add_option()
+{
+    options_.emplace_back();
+    return options_.back();
+}
+
 int GraphicsTarget::has_path() const
 {
     return !path_.empty();
@@ -40,6 +46,31 @@ int GraphicsTarget::has_image() const
 const char *GraphicsTarget::image() const
 {
     return image_.c_str();
+}
+
+int GraphicsTarget::has_options() const
+{
+    return !options_.empty();
+}
+
+int GraphicsTarget::option_count() const
+{
+    return static_cast<int>(options_.size());
+}
+
+GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
+{
+    if (options_.empty()) {
+        return *this;
+    }
+
+    // Options are authored as partial targets. Materialize one effective target so
+    // the renderer and validator can keep using the normal path/image lookup path.
+    GraphicsTarget resolved = options_[variant % options_.size()];
+    if (!resolved.has_path()) {
+        resolved.set_path(path_);
+    }
+    return resolved;
 }
 
 int GraphicsCondition::matches(const ::building &building) const

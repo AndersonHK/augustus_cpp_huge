@@ -2,7 +2,7 @@
 
 This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, legacy structs, and C++ wrappers.
 
-Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb6`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
+Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb7`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 
 ## Load Timeline
 
@@ -49,6 +49,7 @@ Recent runtime-bridge gates:
 | `SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS = 0xb3` | Active-day entertainment show counters | `read_type_data()` doubles legacy half-day counters on load. |
 | `SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE = 0xb4` | Building type save table | Bridge synthesizes a legacy table from enum/text migration data. |
 | `SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY = 0xb5` | Appended market service effect | Market goods history remains zero for older saves. |
+| `SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS = 0xb6` | Saved `building.variant` as native graphics option selector | Native graphics buildings reseed stable variants from `map_random_get(grid_offset)` during load, then clamp by the active option count. |
 
 Other broad gates still shape the bridge path:
 
@@ -76,7 +77,7 @@ There are three identities in play:
 
 Dynamic BuildingTypes such as `BUILDING_THEATER` and `BUILDING_WELL` are process-local runtime ids. They must not be trusted as stable persisted values. The bridge persists their text ids, then resolves them back to whatever runtime id the current registry assigned.
 
-Native housing BuildingTypes follow the same text-id rule. Vespasian defines the full house chain from `house_small_tent` through `house_luxury_palace`, while a housing compatibility layer maps those text ids to legacy `house_level` values only for old runtime fields that still need levels. The bridge skips seeding a legacy house enum slot when an active XML BuildingType owns the same text id so active XML ids win at runtime.
+Native housing BuildingTypes follow the same text-id rule. Vespasian, Augustus, and Julius define the full house chain from `house_small_tent` through `house_luxury_palace`, while a housing compatibility layer maps those text ids to legacy `house_level` values only for old runtime fields that still need levels. The bridge skips seeding a legacy house enum slot when an active XML BuildingType owns the same text id so active XML ids win at runtime.
 
 For old saves without a BuildingType save table, unambiguous raw legacy house ids are translated through the housing compatibility table instead of through the old enum/event-attr identity. After each building record is read, the loader normalizes the legacy house level plus the saved footprint to the active native BuildingType, so occupied small tents, merged 2x2 houses, and larger villa/palace footprints resolve to matching XML ids. Empty legacy vacant lots stay on the vacant-lot compatibility type until migrants occupy them.
 
@@ -125,6 +126,7 @@ Preview loading does not mutate the active bridge. It reads enough city/scenario
 - The saved type field is read as `uint16_t saved_building_type`.
 - `building_type_id_bridge_save_id_is_missing(saved_building_type)` checks whether the save id refers to a missing XML-owned type.
 - `building_type_id_bridge_runtime_from_save_id(saved_building_type)` writes the current runtime `building_type` into `b->type`.
+- Native BuildingType graphics normalize saved `building.variant` after the record is read; old saves through `0xb6` seed it from map randomness, while newer saves preserve it modulo the current option count.
 - If a live record resolves to no runtime type, the loader logs the mismatch.
 - If the type is missing, the record is later converted to `BUILDING_STATE_UNUSED`, `BUILDING_NONE`, and its figure ids are cleared.
 
@@ -139,6 +141,19 @@ After identity is resolved, the loader fills legacy struct fields exactly in sav
 `read_type_data()` is a compatibility choke point. It always consumes the old type-data byte count for the save version: 42 bytes at or before `SAVE_GAME_LAST_STATIC_RESOURCES`, 26 bytes after that, except for the old caravanserai offset bug. It decodes house service fields, warehouse/granary/depot/dock supplier fields, entertainment show counters, monument compatibility fields, and rubble/original-type fields. Rubble and warehouse-space original building types also go through `building_type_id_bridge_runtime_from_save_id()`.
 
 The building record is still the persistent truth for per-instance state. Runtime objects do not replace it; they wrap it.
+
+### Native Graphics Variants
+
+`building.variant` is still the legacy per-building variant byte, so older systems such as rotated pavilions and decorative variants can keep using it. Native BuildingType graphics now also use the same byte when the resolved graphics target has `<options selection="stable_variant">`.
+
+The runtime rule is:
+
+1. Conditional `<variant>` targets are resolved from live building state.
+2. If the winning target has options, `building.variant % option_count` chooses the option.
+3. If the save is at or before `SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS`, the value is reseeded from `map_random_get(grid_offset)` because old saves did not author it for native graphics.
+4. If the save is newer, the saved value is preserved and clamped with modulo so changing option counts does not break load.
+
+The normalization call lives at the end of `building_state_load_from_buffer()`, after the whole record has been read. That order matters because future conditional graphics targets may depend on fields such as water access, desirability, resources, or figure slots.
 
 ## BuildingType Runtime Fan-Out
 

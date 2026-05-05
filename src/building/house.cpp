@@ -46,8 +46,77 @@ static struct {
 
 static int find_best_corner_for_devolve(int x, int y, int old_size, int new_size);
 
+int building_house_is_active(const building *house)
+{
+    return house && house->state == BUILDING_STATE_IN_USE && house->house_size;
+}
+
+int building_house_legacy_level(const building *house)
+{
+    if (!house) {
+        return -1;
+    }
+
+    int level = building_type_registry_get_housing_legacy_level(house->type);
+    if (level >= HOUSE_MIN && level <= HOUSE_MAX) {
+        return level;
+    }
+    if (!house->house_size && (house->type < BUILDING_HOUSE_VACANT_LOT || house->type > BUILDING_HOUSE_LUXURY_PALACE)) {
+        return -1;
+    }
+    if (house->subtype.house_level >= HOUSE_MIN && house->subtype.house_level <= HOUSE_MAX) {
+        return house->subtype.house_level;
+    }
+    return -1;
+}
+
+const model_house *building_house_get_model(const building *house)
+{
+    if (!house) {
+        return nullptr;
+    }
+
+    const model_house *model = building_type_registry_get_housing_model(house->type);
+    if (model) {
+        return model;
+    }
+    int level = building_house_legacy_level(house);
+    return level >= 0 ? model_get_house(static_cast<house_level>(level)) : nullptr;
+}
+
+int building_house_has_plebeian_residents(const building *house)
+{
+    if (!house) {
+        return 0;
+    }
+    if (building_type_registry_has_housing(house->type)) {
+        return building_type_registry_housing_has_resident_class(
+            house->type, BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN);
+    }
+
+    int level = building_house_legacy_level(house);
+    return level >= HOUSE_SMALL_TENT && level < HOUSE_SMALL_VILLA;
+}
+
+int building_house_has_patrician_residents(const building *house)
+{
+    if (!house) {
+        return 0;
+    }
+    if (building_type_registry_has_housing(house->type)) {
+        return building_type_registry_housing_has_resident_class(
+            house->type, BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN);
+    }
+
+    int level = building_house_legacy_level(house);
+    return level >= HOUSE_SMALL_VILLA && level <= HOUSE_MAX;
+}
+
 static void add_house_tiles(building *house)
 {
+    // House evolution redraws often. Clamp the existing stable option here instead
+    // of reseeding so a valid visual choice survives normal evolve/devolve cycles.
+    building_runtime_assign_graphic_variant(house, 0);
     if (!building_runtime_apply_graphic_if_native(house)) {
         map_building_tiles_add(house->id, house->x, house->y, house->size, building_image_get(house), TERRAIN_BUILDING);
     }
@@ -82,6 +151,7 @@ static building_type split_type_for_house(building *house, building_type fallbac
 
 void building_house_change_to(building *house, building_type type)
 {
+    building_type old_type = house->type;
     building_change_type(house, type);
     set_house_legacy_level_from_type(house, house->type);
     if (building_type_registry_has_housing(house->type)) {
@@ -91,6 +161,9 @@ void building_house_change_to(building *house, building_type type)
             house->house_is_merged = size > 1 ? 1 : 0;
         }
     }
+    // Vacant lots do not carry a meaningful house visual variant, so first
+    // occupation gets a fresh stable choice. Other transitions preserve it.
+    building_runtime_assign_graphic_variant(house, old_type == BUILDING_HOUSE_VACANT_LOT);
     add_house_tiles(house);
 }
 

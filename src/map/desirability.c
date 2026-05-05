@@ -1,6 +1,7 @@
 #include "desirability.h"
 
 #include "building/building.h"
+#include "building/house.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "core/calc.h"
@@ -89,10 +90,11 @@ static void update_buildings(void)
 
             // Venus Module 2 House Desirability Bonus
             if (building_is_house(b->type) && b->data.house.temple_venus && venus_module2) {
-                if (b->subtype.house_level >= HOUSE_SMALL_VILLA) {
+                int legacy_level = building_house_legacy_level(b);
+                if (building_house_has_patrician_residents(b)) {
                     value += 4;
                     range += 1;
-                } else if (b->subtype.house_level <= HOUSE_LARGE_TENT) {
+                } else if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
                     // tents normally confer -3, -2, -1, 0, 0, 0 (range=3)
                     // now this becomes -1, 0, 0, 0, 0, 0 (range=1)
                     value += 2;

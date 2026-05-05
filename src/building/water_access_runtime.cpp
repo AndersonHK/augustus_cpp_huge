@@ -8,6 +8,7 @@ extern "C" {
 #include "building/building_runtime_api.h"
 #include "building/building_type_api.h"
 #include "building/count.h"
+#include "building/house.h"
 #include "building/image.h"
 #include "building/list.h"
 #include "building/monument.h"
@@ -184,23 +185,8 @@ int area_has_access(
 
 int house_water_requirement(const building *b)
 {
-    if (!b) {
-        return 0;
-    }
-
-    const model_house *native_model = building_type_registry_get_housing_model(b->type);
-    if (native_model) {
-        return native_model->water;
-    }
-
-    int legacy_level = building_type_registry_get_housing_legacy_level(b->type);
-    if (legacy_level < HOUSE_MIN || legacy_level > HOUSE_MAX) {
-        legacy_level = b->subtype.house_level;
-    }
-    if (legacy_level < HOUSE_MIN || legacy_level > HOUSE_MAX) {
-        return 0;
-    }
-    return model_get_house(static_cast<house_level>(legacy_level))->water;
+    const model_house *house_model = building_house_get_model(b);
+    return house_model ? house_model->water : 0;
 }
 
 void project_house_water_state(building *b, const SimulationResult &result)

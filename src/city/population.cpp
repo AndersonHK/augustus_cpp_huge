@@ -3,6 +3,7 @@
 extern "C" {
 #include "building/building.h"
 #include "building/count.h"
+#include "building/house.h"
 #include "building/house_population.h"
 #include "city/data_private.h"
 #include "core/calc.h"
@@ -372,17 +373,18 @@ static int calculate_people_per_house_type(void)
             continue;
         }
         int pop = b->house_population;
+        int legacy_level = building_house_legacy_level(b);
         total += pop;
-        if (b->subtype.house_level <= HOUSE_LARGE_TENT) {
+        if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
             city_data.population.people_in_tents += pop;
         }
-        if (b->subtype.house_level <= HOUSE_LARGE_SHACK) {
+        if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_SHACK) {
             city_data.population.people_in_tents_shacks += pop;
         }
-        if (b->subtype.house_level >= HOUSE_LARGE_INSULA) {
+        if (legacy_level >= HOUSE_LARGE_INSULA) {
             city_data.population.people_in_large_insula_and_above += pop;
         }
-        if (b->subtype.house_level >= HOUSE_SMALL_VILLA) {
+        if (building_house_has_patrician_residents(b)) {
             city_data.population.people_in_villas_palaces += pop;
         }
     }

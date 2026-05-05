@@ -26,6 +26,7 @@ public:
     ::building &data;
 
     void set_building_graphic();
+    void assign_graphic_variant(int force_reseed);
     void spawn_figure();
     int uses_new_graphics() const;
     const RuntimeDrawSlice *graphic_footprint();
@@ -50,9 +51,8 @@ public:
 private:
     // Per-building-instance cached native graphics bindings.
     // Input: one live building instance plus its shared BuildingType definition.
-    // Output: stable references to the selected base and animation image-group entries for that instance.
+    // Output: stable references to materialized payload entries for the current resolved target/option.
     struct CachedGraphicsBindings {
-        const building_type_registry_impl::GraphicsTarget *selected_target = nullptr;
         const ImageGroupPayload *base_payload = nullptr;
         const ImageGroupEntry *base_entry = nullptr;
         const ImageGroupPayload *animation_payload = nullptr;
@@ -76,7 +76,7 @@ private:
     int building_state_supports_native_graphics() const;
     const building_type_registry_impl::GraphicsTarget *resolve_graphic_target() const;
     int resolve_graphic_binding(
-        const building_type_registry_impl::GraphicsTarget *target,
+        const building_type_registry_impl::GraphicsTarget &target,
         const ImageGroupPayload *&payload,
         const ImageGroupEntry *&entry) const;
     const RuntimeAnimationTrack *cached_animation_track() const;

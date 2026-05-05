@@ -3,9 +3,9 @@
 #include "assets/assets.h"
 #include "building/animation.h"
 #include "building/building.h"
+#include "building/house.h"
 #include "building/industry.h"
 #include "building/monument.h"
-#include "building/properties.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
 #include "city/constants.h"
@@ -42,9 +42,20 @@ static int get_column_height_none(const building *b)
     return NO_COLUMN;
 }
 
+static int show_house_level(const building *b, int level)
+{
+    return building_house_legacy_level(b) == level;
+}
+
+static int show_house_level_range(const building *b, int min_level, int max_level)
+{
+    int level = building_house_legacy_level(b);
+    return level >= min_level && level <= max_level;
+}
+
 static int show_building_small_tent(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_TENT;
+    return show_house_level(b, HOUSE_SMALL_TENT);
 }
 
 const city_overlay *city_overlay_for_small_tent(void)
@@ -56,7 +67,7 @@ const city_overlay *city_overlay_for_small_tent(void)
 
 static int show_building_large_tent(const building *b)
 {
-    return b->type == BUILDING_HOUSE_LARGE_TENT;
+    return show_house_level(b, HOUSE_LARGE_TENT);
 }
 
 const city_overlay *city_overlay_for_large_tent(void)
@@ -68,7 +79,7 @@ const city_overlay *city_overlay_for_large_tent(void)
 
 static int show_building_small_shack(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_SHACK;
+    return show_house_level(b, HOUSE_SMALL_SHACK);
 }
 
 const city_overlay *city_overlay_for_small_shack(void)
@@ -80,7 +91,7 @@ const city_overlay *city_overlay_for_small_shack(void)
 
 static int show_building_large_shack(const building *b)
 {
-    return b->type == BUILDING_HOUSE_LARGE_SHACK;
+    return show_house_level(b, HOUSE_LARGE_SHACK);
 }
 
 const city_overlay *city_overlay_for_large_shack(void)
@@ -92,7 +103,7 @@ const city_overlay *city_overlay_for_large_shack(void)
 
 static int show_building_small_hovel(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_HOVEL;
+    return show_house_level(b, HOUSE_SMALL_HOVEL);
 }
 
 const city_overlay *city_overlay_for_small_hovel(void)
@@ -104,7 +115,7 @@ const city_overlay *city_overlay_for_small_hovel(void)
 
 static int show_building_large_hovel(const building *b)
 {
-    return b->type == BUILDING_HOUSE_LARGE_HOVEL;
+    return show_house_level(b, HOUSE_LARGE_HOVEL);
 }
 
 const city_overlay *city_overlay_for_large_hovel(void)
@@ -116,7 +127,7 @@ const city_overlay *city_overlay_for_large_hovel(void)
 
 static int show_building_small_casa(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_CASA;
+    return show_house_level(b, HOUSE_SMALL_CASA);
 }
 
 const city_overlay *city_overlay_for_small_casa(void)
@@ -128,7 +139,7 @@ const city_overlay *city_overlay_for_small_casa(void)
 
 static int show_building_large_casa(const building *b)
 {
-    return b->type == BUILDING_HOUSE_LARGE_CASA;
+    return show_house_level(b, HOUSE_LARGE_CASA);
 }
 
 const city_overlay *city_overlay_for_large_casa(void)
@@ -140,7 +151,7 @@ const city_overlay *city_overlay_for_large_casa(void)
 
 static int show_building_small_insula(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_INSULA;
+    return show_house_level(b, HOUSE_SMALL_INSULA);
 }
 
 const city_overlay *city_overlay_for_small_insula(void)
@@ -152,7 +163,7 @@ const city_overlay *city_overlay_for_small_insula(void)
 
 static int show_building_medium_insula(const building *b)
 {
-    return b->type == BUILDING_HOUSE_MEDIUM_INSULA;
+    return show_house_level(b, HOUSE_MEDIUM_INSULA);
 }
 
 const city_overlay *city_overlay_for_medium_insula(void)
@@ -164,7 +175,7 @@ const city_overlay *city_overlay_for_medium_insula(void)
 
 static int show_building_large_insula(const building *b)
 {
-    return b->type == BUILDING_HOUSE_LARGE_INSULA;
+    return show_house_level(b, HOUSE_LARGE_INSULA);
 }
 
 const city_overlay *city_overlay_for_large_insula(void)
@@ -176,7 +187,7 @@ const city_overlay *city_overlay_for_large_insula(void)
 
 static int show_building_grand_insula(const building *b)
 {
-    return b->type == BUILDING_HOUSE_GRAND_INSULA;
+    return show_house_level(b, HOUSE_GRAND_INSULA);
 }
 
 const city_overlay *city_overlay_for_grand_insula(void)
@@ -188,7 +199,7 @@ const city_overlay *city_overlay_for_grand_insula(void)
 
 static int show_building_small_villa(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_VILLA;
+    return show_house_level(b, HOUSE_SMALL_VILLA);
 }
 
 const city_overlay *city_overlay_for_small_villa(void)
@@ -200,7 +211,7 @@ const city_overlay *city_overlay_for_small_villa(void)
 
 static int show_building_medium_villa(const building *b)
 {
-    return b->type == BUILDING_HOUSE_MEDIUM_VILLA;
+    return show_house_level(b, HOUSE_MEDIUM_VILLA);
 }
 
 const city_overlay *city_overlay_for_medium_villa(void)
@@ -212,7 +223,7 @@ const city_overlay *city_overlay_for_medium_villa(void)
 
 static int show_building_large_villa(const building *b)
 {
-    return b->type == BUILDING_HOUSE_LARGE_VILLA;
+    return show_house_level(b, HOUSE_LARGE_VILLA);
 }
 
 const city_overlay *city_overlay_for_large_villa(void)
@@ -224,7 +235,7 @@ const city_overlay *city_overlay_for_large_villa(void)
 
 static int show_building_grand_villa(const building *b)
 {
-    return b->type == BUILDING_HOUSE_GRAND_VILLA;
+    return show_house_level(b, HOUSE_GRAND_VILLA);
 }
 
 const city_overlay *city_overlay_for_grand_villa(void)
@@ -236,7 +247,7 @@ const city_overlay *city_overlay_for_grand_villa(void)
 
 static int show_building_small_palace(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_PALACE;
+    return show_house_level(b, HOUSE_SMALL_PALACE);
 }
 
 const city_overlay *city_overlay_for_small_palace(void)
@@ -248,7 +259,7 @@ const city_overlay *city_overlay_for_small_palace(void)
 
 static int show_building_medium_palace(const building *b)
 {
-    return b->type == BUILDING_HOUSE_MEDIUM_PALACE;
+    return show_house_level(b, HOUSE_MEDIUM_PALACE);
 }
 
 const city_overlay *city_overlay_for_medium_palace(void)
@@ -260,7 +271,7 @@ const city_overlay *city_overlay_for_medium_palace(void)
 
 static int show_building_large_palace(const building *b)
 {
-    return b->type == BUILDING_HOUSE_LARGE_PALACE;
+    return show_house_level(b, HOUSE_LARGE_PALACE);
 }
 
 const city_overlay *city_overlay_for_large_palace(void)
@@ -272,7 +283,7 @@ const city_overlay *city_overlay_for_large_palace(void)
 
 static int show_building_luxury_palace(const building *b)
 {
-    return b->type == BUILDING_HOUSE_LUXURY_PALACE;
+    return show_house_level(b, HOUSE_LUXURY_PALACE);
 }
 
 const city_overlay *city_overlay_for_luxury_palace(void)
@@ -284,7 +295,7 @@ const city_overlay *city_overlay_for_luxury_palace(void)
 
 static int show_building_housing_groups_tents(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_TENT || b->type == BUILDING_HOUSE_LARGE_TENT;
+    return show_house_level_range(b, HOUSE_SMALL_TENT, HOUSE_LARGE_TENT);
 }
 
 const city_overlay *city_overlay_for_housing_groups_tents(void)
@@ -296,7 +307,7 @@ const city_overlay *city_overlay_for_housing_groups_tents(void)
 
 static int show_building_housing_groups_shacks(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_SHACK || b->type == BUILDING_HOUSE_LARGE_SHACK;
+    return show_house_level_range(b, HOUSE_SMALL_SHACK, HOUSE_LARGE_SHACK);
 }
 
 const city_overlay *city_overlay_for_housing_groups_shacks(void)
@@ -308,7 +319,7 @@ const city_overlay *city_overlay_for_housing_groups_shacks(void)
 
 static int show_building_housing_groups_hovels(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_HOVEL || b->type == BUILDING_HOUSE_LARGE_HOVEL;
+    return show_house_level_range(b, HOUSE_SMALL_HOVEL, HOUSE_LARGE_HOVEL);
 }
 
 const city_overlay *city_overlay_for_housing_groups_hovels(void)
@@ -320,7 +331,7 @@ const city_overlay *city_overlay_for_housing_groups_hovels(void)
 
 static int show_building_housing_groups_casae(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_CASA || b->type == BUILDING_HOUSE_LARGE_CASA;
+    return show_house_level_range(b, HOUSE_SMALL_CASA, HOUSE_LARGE_CASA);
 }
 
 const city_overlay *city_overlay_for_housing_groups_casae(void)
@@ -332,8 +343,7 @@ const city_overlay *city_overlay_for_housing_groups_casae(void)
 
 static int show_building_housing_groups_insulae(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_INSULA || b->type == BUILDING_HOUSE_MEDIUM_INSULA ||
-        b->type == BUILDING_HOUSE_LARGE_INSULA || b->type == BUILDING_HOUSE_GRAND_INSULA;
+    return show_house_level_range(b, HOUSE_SMALL_INSULA, HOUSE_GRAND_INSULA);
 }
 
 const city_overlay *city_overlay_for_housing_groups_insulae(void)
@@ -345,8 +355,7 @@ const city_overlay *city_overlay_for_housing_groups_insulae(void)
 
 static int show_building_housing_groups_villas(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_VILLA || b->type == BUILDING_HOUSE_MEDIUM_VILLA ||
-        b->type == BUILDING_HOUSE_LARGE_VILLA || b->type == BUILDING_HOUSE_GRAND_VILLA;
+    return show_house_level_range(b, HOUSE_SMALL_VILLA, HOUSE_GRAND_VILLA);
 }
 
 const city_overlay *city_overlay_for_housing_groups_villas(void)
@@ -358,8 +367,7 @@ const city_overlay *city_overlay_for_housing_groups_villas(void)
 
 static int show_building_housing_groups_palaces(const building *b)
 {
-    return b->type == BUILDING_HOUSE_SMALL_PALACE || b->type == BUILDING_HOUSE_MEDIUM_PALACE ||
-        b->type == BUILDING_HOUSE_LARGE_PALACE || b->type == BUILDING_HOUSE_LUXURY_PALACE;
+    return show_house_level_range(b, HOUSE_SMALL_PALACE, HOUSE_LUXURY_PALACE);
 }
 
 const city_overlay *city_overlay_for_housing_groups_palaces(void)

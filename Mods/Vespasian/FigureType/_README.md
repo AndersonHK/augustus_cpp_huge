@@ -45,6 +45,14 @@ Markets keep their existing BuildingType spawn flow for now, but the spawned fig
 
 Roaming access checks follow the profile movement type. A `roads` service profile considers roads and access ramps; a `roads_highway` service profile also considers highways. Use `roads_highway` only when that service should actually spread over highway networks, such as Vespasian `hippodrome_service`.
 
+Planned residential walker support:
+
+- `patrician` and `beggar` should become supported figure ids after the housing spawn path creates profiled native figures.
+- Patricians can probably use the existing `roaming_service` class with `pathing mode="vanilla_roaming"`, `terrain_usage="roads"`, `max_roam_length="128"`, and `return_mode="return_to_owner_road"`.
+- Beggars need an explicit decision: use a native moving profile such as `terrain_usage="roads_highway"` plus `return_mode="die_at_limit"`, or add a compatibility pathing mode such as `timed_idle`/`ambient_lifetime` to preserve the current mostly-stationary lifetime behavior first.
+- Residential walkers should not declare a road service `effect`, because they do not provide coverage and should not write road-service history.
+- See `docs/walker_pathing_runtime.md` for the fuller migration note, save-load inference concerns, and example XML.
+
 Related implementation notes:
 
 - `docs/walker_pathing_runtime.md` explains runtime flow, save compatibility, and effect-id rules.

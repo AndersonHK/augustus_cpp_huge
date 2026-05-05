@@ -3,6 +3,7 @@
 extern "C" {
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/house.h"
 #include "building/market.h"
 #include "city/buildings.h"
 #include "city/health.h"
@@ -256,12 +257,11 @@ static int fight_plague(figure *f, int force)
     int building_with_plague_id = 0;
 
     // Find in houses
-    for (int type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *house = building_first_of_type(static_cast<building_type>(type)); house; house = house->next_of_type) {
-            if (house->has_plague) {
-                building_with_plague_id = house->id;
-                break;
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *house = building_get(i);
+        if (building_house_is_active(house) && house->has_plague) {
+            building_with_plague_id = house->id;
+            break;
         }
     }
 

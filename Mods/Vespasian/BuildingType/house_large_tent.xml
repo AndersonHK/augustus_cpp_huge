@@ -14,7 +14,10 @@
     <graphics>
         <default>
             <path value="Aesthetics\House_Tent" />
-            <image value="Image_0000" />
+            <options selection="stable_variant">
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+            </options>
         </default>
     </graphics>
     <housing path="house_large_tent" evolve_to="house_small_shack" devolve_to="house_small_tent" merge_to="house_large_tent_2x2" />

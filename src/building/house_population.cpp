@@ -1,11 +1,11 @@
 #include "house_population.h"
 
 extern "C" {
+#include "building/house.h"
 #include "building/list.h"
 #include "building/building_type_api.h"
 #include "building/local_workforce.h"
 #include "building/monument.h"
-#include "building/properties.h"
 #include "city/labor.h"
 #include "city/message.h"
 #include "city/migration.h"
@@ -16,9 +16,12 @@ extern "C" {
 
 static int house_is_plebeian(const building *b)
 {
-    int resident_class = building_type_registry_get_housing_resident_class(b->type);
-    return resident_class == BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN ||
-        (!resident_class && b->type >= BUILDING_HOUSE_SMALL_TENT && b->type <= BUILDING_HOUSE_GRAND_INSULA);
+    return building_house_has_plebeian_residents(b);
+}
+
+static int house_is_patrician(const building *b)
+{
+    return building_house_has_patrician_residents(b);
 }
 
 int house_population_add_to_city(int num_people)
@@ -73,9 +76,8 @@ int house_population_remove_from_city(int num_people)
 
 int house_population_get_capacity(building *house)
 {
-    const model_house *housing_model = building_type_registry_get_housing_model(house->type);
-    int max_pop = housing_model ? housing_model->max_people :
-        model_get_house(static_cast<house_level>(house->subtype.house_level))->max_people;
+    const model_house *housing_model = building_house_get_model(house);
+    int max_pop = housing_model ? housing_model->max_people : 0;
 
     if (house->house_is_merged && !building_type_registry_has_housing(house->type)) {
         max_pop *= 4;
@@ -189,11 +191,9 @@ static void calculate_working_population(void)
         if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
             continue;
         }
-        int resident_class = building_type_registry_get_housing_resident_class(b->type);
-        if (resident_class == BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN ||
-            (!resident_class && b->type >= BUILDING_HOUSE_SMALL_VILLA && b->type <= BUILDING_HOUSE_LUXURY_PALACE)) {
+        if (house_is_patrician(b)) {
             num_patricians += b->house_population;
-        } else {
+        } else if (house_is_plebeian(b)) {
             num_plebs += b->house_population;
         }
     }

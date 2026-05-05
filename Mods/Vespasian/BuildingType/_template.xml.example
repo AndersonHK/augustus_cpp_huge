@@ -33,7 +33,11 @@
     <graphics>
         <default>
             <path value="Health_Culture\Example_Base" />
-            <image value="Image_0000" />
+            <!-- Options inherit the target path unless an option provides its own path. -->
+            <options selection="stable_variant">
+                <option image="Image_0000" />
+                <option path="Health_Culture\Example_Base_Alternate" image="Image_0000" />
+            </options>
         </default>
         <variant>
             <condition type="desirability" operator="gt" threshold="50" />

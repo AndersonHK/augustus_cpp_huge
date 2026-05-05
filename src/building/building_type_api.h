@@ -62,6 +62,7 @@ int building_type_registry_get_construction_requirement(building_type type, int 
 int building_type_registry_has_housing(building_type type);
 const model_house *building_type_registry_get_housing_model(building_type type);
 int building_type_registry_get_housing_resident_class(building_type type);
+int building_type_registry_housing_has_resident_class(building_type type, int resident_class);
 int building_type_registry_get_housing_legacy_level(building_type type);
 building_type building_type_registry_get_housing_type_for_legacy_level(int legacy_level, int footprint_size);
 building_type building_type_registry_get_housing_transition(building_type type, int transition);

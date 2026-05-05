@@ -121,9 +121,8 @@ int possible_workers_for_house(const building *house)
     if (!is_live_building(house) || !house->house_size || house->house_population <= 0 || city_population() <= 0) {
         return 0;
     }
-    int resident_class = building_type_registry_get_housing_resident_class(house->type);
-    if (resident_class == BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN ||
-        (!resident_class && house->type >= BUILDING_HOUSE_SMALL_VILLA && house->type <= BUILDING_HOUSE_LUXURY_PALACE)) {
+    if (!building_type_registry_housing_has_resident_class(
+            house->type, BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN)) {
         return 0;
     }
 

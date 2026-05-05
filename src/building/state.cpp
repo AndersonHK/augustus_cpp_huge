@@ -1,6 +1,7 @@
 extern "C" {
 #include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
+#include "building/building_runtime_api.h"
 #include "building/state.h"
 #include "building/industry.h"
 #include "building/monument.h"
@@ -850,6 +851,11 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
         b->figure_id2 = 0;
         b->immigrant_figure_id = 0;
         b->figure_id4 = 0;
+    }
+    if (!missing_building_type) {
+        // Do this after the whole record is read: conditional native graphics may
+        // inspect fields loaded after the variant byte itself.
+        building_runtime_assign_graphic_variant(b, save_version <= SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS);
     }
     return missing_building_type;
 }

@@ -169,6 +169,13 @@ extern "C" int building_runtime_apply_graphic_if_native(building *b)
     return 0;
 }
 
+extern "C" void building_runtime_assign_graphic_variant(building *b, int force_reseed)
+{
+    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
+        instance->assign_graphic_variant(force_reseed);
+    }
+}
+
 extern "C" void building_runtime_spawn_figure(building *b)
 {
     if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {

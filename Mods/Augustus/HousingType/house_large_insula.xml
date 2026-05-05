@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<housing_type type="house_large_insula">
+    <residents class="plebeian" />
+    <evolution devolve_desirability="29" evolve_desirability="40" />
+    <requirements entertainment="25" water="fountain" religion="1" education="2"
+        barber="1" bathhouse="1" health="1" food_types="1"
+        pottery="1" oil="1" furniture="1" wine="0" />
+    <prosperity value="65" />
+    <capacity value="84" />
+    <tax multiplier="3" />
+</housing_type>

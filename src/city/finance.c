@@ -1,10 +1,9 @@
 #include "finance.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/count.h"
+#include "building/house.h"
 #include "building/monument.h"
-#include "building/properties.h"
 #include "city/data_private.h"
 #include "city/culture.h"
 #include "city/festival.h"
@@ -16,7 +15,11 @@
 #include "map/data.h"
 #include "map/terrain.h"
 
-#define MAX_HOUSE_LEVELS 20
+static int house_tax_multiplier(const building *b)
+{
+    const model_house *model = building_house_get_model(b);
+    return model ? difficulty_adjust_money(model->tax_multiplier) : 0;
+}
 
 
 static building_levy_for_type building_levies[] = {
@@ -220,16 +223,14 @@ void city_finance_estimate_taxes(void)
 {
     city_data.taxes.monthly.collected_plebs = 0;
     city_data.taxes.monthly.collected_patricians = 0;
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE && b->house_size && b->house_tax_coverage) {
-                int is_patrician = b->subtype.house_level >= HOUSE_SMALL_VILLA;
-                int trm = difficulty_adjust_money(model_get_house(b->subtype.house_level)->tax_multiplier);
-                if (is_patrician) {
-                    city_data.taxes.monthly.collected_patricians += b->house_population * trm;
-                } else {
-                    city_data.taxes.monthly.collected_plebs += b->house_population * trm;
-                }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_house_is_active(b) && b->house_tax_coverage) {
+            int trm = house_tax_multiplier(b);
+            if (building_house_has_patrician_residents(b)) {
+                city_data.taxes.monthly.collected_patricians += b->house_population * trm;
+            } else {
+                city_data.taxes.monthly.collected_plebs += b->house_population * trm;
             }
         }
     }
@@ -257,38 +258,39 @@ static void collect_monthly_taxes(void)
     city_data.taxes.monthly.uncollected_patricians = 0;
     city_data.taxes.monthly.collected_patricians = 0;
 
-    for (int i = 0; i < MAX_HOUSE_LEVELS; i++) {
+    for (int i = HOUSE_MIN; i <= HOUSE_MAX; i++) {
         city_data.population.at_level[i] = 0;
     }
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
-                continue;
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (!building_house_is_active(b)) {
+            continue;
+        }
 
-            int is_patrician = b->subtype.house_level >= HOUSE_SMALL_VILLA;
-            int population = b->house_population;
-            int trm = difficulty_adjust_money(model_get_house(b->subtype.house_level)->tax_multiplier);
-            city_data.population.at_level[b->subtype.house_level] += population;
+        int level = building_house_legacy_level(b);
+        int is_patrician = building_house_has_patrician_residents(b);
+        int population = b->house_population;
+        int tax = population * house_tax_multiplier(b);
+        if (level >= 0) {
+            city_data.population.at_level[level] += population;
+        }
 
-            int tax = population * trm;
-            if (b->house_tax_coverage) {
-                if (is_patrician) {
-                    city_data.taxes.taxed_patricians += population;
-                    city_data.taxes.monthly.collected_patricians += tax;
-                } else {
-                    city_data.taxes.taxed_plebs += population;
-                    city_data.taxes.monthly.collected_plebs += tax;
-                }
-                b->tax_income_or_storage += tax;
+        if (b->house_tax_coverage) {
+            if (is_patrician) {
+                city_data.taxes.taxed_patricians += population;
+                city_data.taxes.monthly.collected_patricians += tax;
             } else {
-                if (is_patrician) {
-                    city_data.taxes.untaxed_patricians += population;
-                    city_data.taxes.monthly.uncollected_patricians += tax;
-                } else {
-                    city_data.taxes.untaxed_plebs += population;
-                    city_data.taxes.monthly.uncollected_plebs += tax;
-                }
+                city_data.taxes.taxed_plebs += population;
+                city_data.taxes.monthly.collected_plebs += tax;
+            }
+            b->tax_income_or_storage += tax;
+        } else {
+            if (is_patrician) {
+                city_data.taxes.untaxed_patricians += population;
+                city_data.taxes.monthly.uncollected_patricians += tax;
+            } else {
+                city_data.taxes.untaxed_plebs += population;
+                city_data.taxes.monthly.uncollected_plebs += tax;
             }
         }
     }
@@ -423,12 +425,10 @@ static void reset_taxes(void)
     city_data.taxes.yearly.uncollected_plebs = 0;
     city_data.taxes.yearly.uncollected_patricians = 0;
 
-    // reset tax income in building list
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE && b->house_size) {
-                b->tax_income_or_storage = 0;
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_house_is_active(b)) {
+            b->tax_income_or_storage = 0;
         }
     }
 }

@@ -52,6 +52,7 @@ struct ParseState {
     int parsing_provider_water_access = 0;
     int parsing_desirability = 0;
     int parsing_graphics = 0;
+    int parsing_graphics_options = 0;
     int parsing_construction = 0;
     int parsing_construction_phase = 0;
     int parsing_labor = 0;

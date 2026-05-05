@@ -4,6 +4,7 @@
 #include "building/caravanserai.h"
 #include "building/count.h"
 #include "building/granary.h"
+#include "building/house.h"
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -490,52 +491,52 @@ static int house_consume_food(void)
 {
     int total_consumed = 0;
     int ceres_module = (building_monument_gt_module_is_active(CERES_MODULE_1_REDUCE_FOOD));
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
-                continue;
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (!building_house_is_active(b)) {
+            continue;
+        }
+        const model_house *house_model = building_house_get_model(b);
+        int num_types = house_model ? house_model->food_types : 0;
+        int amount_per_type;
+        if (ceres_module && b->data.house.temple_ceres) {
+            amount_per_type = calc_adjust_with_percentage(b->house_population, 40);
+        } else {
+            amount_per_type = calc_adjust_with_percentage(b->house_population, 50);
+        }
+        int foodtypes_available = 0;
+        for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
+            if (b->resources[r] && resource_is_inventory(r)) {
+                foodtypes_available++;
             }
-            int num_types = model_get_house(b->subtype.house_level)->food_types;
-            int amount_per_type;
-            if (ceres_module && b->data.house.temple_ceres) {
-                amount_per_type = calc_adjust_with_percentage(b->house_population, 40);
-            } else {
-                amount_per_type = calc_adjust_with_percentage(b->house_population, 50);
-            }
-            int foodtypes_available = 0;
-            for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
-                if (b->resources[r] && resource_is_inventory(r)) {
-                    foodtypes_available++;
-                }
-            }
-            if (foodtypes_available) {
-                amount_per_type /= foodtypes_available;
-            }
+        }
+        if (foodtypes_available) {
+            amount_per_type /= foodtypes_available;
+        }
 
-            b->data.house.num_foods = 0;
-            if (scenario_property_rome_supplies_wheat()) {
-                city_data.resource.food_types_eaten = 1;
-                city_data.resource.food_types_available = 1;
-                b->resources[RESOURCE_WHEAT] = amount_per_type;
-                b->data.house.num_foods = 1;
-            } else if (num_types > 0) {
-                for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
-                    if (!resource_is_inventory(r)) {
-                        continue;
-                    }
-                    if (b->resources[r] >= amount_per_type) {
-                        b->resources[r] -= amount_per_type;
-                        b->data.house.num_foods++;
-                        total_consumed += amount_per_type;
-                    } else if (b->resources[r]) {
-                        // has food but not enough
-                        b->resources[r] = 0;
-                        b->data.house.num_foods++;
-                        total_consumed += amount_per_type;
-                    }
-                    if (b->data.house.num_foods > city_data.resource.food_types_eaten) {
-                        city_data.resource.food_types_eaten = b->data.house.num_foods;
-                    }
+        b->data.house.num_foods = 0;
+        if (scenario_property_rome_supplies_wheat()) {
+            city_data.resource.food_types_eaten = 1;
+            city_data.resource.food_types_available = 1;
+            b->resources[RESOURCE_WHEAT] = amount_per_type;
+            b->data.house.num_foods = 1;
+        } else if (num_types > 0) {
+            for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
+                if (!resource_is_inventory(r)) {
+                    continue;
+                }
+                if (b->resources[r] >= amount_per_type) {
+                    b->resources[r] -= amount_per_type;
+                    b->data.house.num_foods++;
+                    total_consumed += amount_per_type;
+                } else if (b->resources[r]) {
+                    // has food but not enough
+                    b->resources[r] = 0;
+                    b->data.house.num_foods++;
+                    total_consumed += amount_per_type;
+                }
+                if (b->data.house.num_foods > city_data.resource.food_types_eaten) {
+                    city_data.resource.food_types_eaten = b->data.house.num_foods;
                 }
             }
         }

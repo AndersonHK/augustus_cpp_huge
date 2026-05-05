@@ -5,6 +5,7 @@ extern "C" {
 #include "building/destruction.h"
 #include "building/granary.h"
 #include "building/distribution.h"
+#include "building/house.h"
 #include "building/storage.h"
 #include "building/warehouse.h"
 #include "city/data_private.h"
@@ -234,17 +235,16 @@ void figure_generate_criminals(void)
 
     building *min_building = 0;
     int min_happiness = 50;
-    for (int type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(static_cast<building_type>(type)); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
-                continue;
-            }
-            if (b->sentiment.house_happiness >= 50) {
-                b->house_criminal_active = 0;
-            } else if (b->sentiment.house_happiness < min_happiness) {
-                min_happiness = b->sentiment.house_happiness;
-                min_building = b;
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (!building_house_is_active(b)) {
+            continue;
+        }
+        if (b->sentiment.house_happiness >= 50) {
+            b->house_criminal_active = 0;
+        } else if (b->sentiment.house_happiness < min_happiness) {
+            min_happiness = b->sentiment.house_happiness;
+            min_building = b;
         }
     }
     if (city_sentiment_crime_cooldown() > 0) {
@@ -535,7 +535,8 @@ int figure_rioter_collapse_building(figure *f)
             default:
                 break;
         }
-        if (b->house_size && b->subtype.house_level < HOUSE_SMALL_CASA) {
+        int house_level = building_house_legacy_level(b);
+        if (b->house_size && house_level >= HOUSE_MIN && house_level < HOUSE_SMALL_CASA) {
             continue;
         }
         if (b->fire_proof) {

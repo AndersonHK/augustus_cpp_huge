@@ -33,16 +33,12 @@ static int active_devolve_delay;
 
 static const model_house *model_for_house(const building *house)
 {
-    const model_house *model = building_type_registry_get_housing_model(house->type);
-    if (model) {
-        return model;
-    }
-    return model_get_house(static_cast<house_level>(house->subtype.house_level));
+    return building_house_get_model(house);
 }
 
 static const model_house *model_for_house_requirements(building *house, int for_upgrade, int with_bonus, int *out_level)
 {
-    int level = house->subtype.house_level;
+    int level = building_house_legacy_level(house);
     if (for_upgrade) {
         ++level;
     }
@@ -69,7 +65,7 @@ static const model_house *model_for_house_requirements(building *house, int for_
 
 static evolve_status check_evolve_desirability(building *house, int bonus)
 {
-    int level = house->subtype.house_level;
+    int level = building_house_legacy_level(house);
     level -= bonus;
     level = calc_bound(level, HOUSE_MIN, HOUSE_MAX);
     const model_house *model = model_for_house(house);
@@ -707,7 +703,7 @@ void building_house_process_evolve_and_consume_goods(void)
 
 void building_house_determine_evolve_text(building *house, int worst_desirability_building)
 {
-    int level = house->subtype.house_level;
+    int level = building_house_legacy_level(house);
     if (building_monument_pantheon_module_is_active(PANTHEON_MODULE_2_HOUSING_EVOLUTION) && house->house_pantheon_access) {
         level--;
     }
@@ -864,7 +860,7 @@ void building_house_determine_evolve_text(building *house, int worst_desirabilit
         house->data.house.evolve_text_id = 65;
         return;
     }
-    if (house->subtype.house_level >= HOUSE_LUXURY_PALACE) { // max level!
+    if (level >= HOUSE_LUXURY_PALACE) { // max level!
         house->data.house.evolve_text_id = 60;
         return;
     }

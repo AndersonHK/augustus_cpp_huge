@@ -25,4 +25,4 @@ BuildingType references a HousingType with:
 
 Transition attributes are optional, but any non-empty `evolve_to`, `devolve_to`, `merge_to`, or `split_to` value must resolve to an existing BuildingType text id during BuildingType load.
 
-Vespasian currently defines native HousingType data for the full legacy residential chain from `house_small_tent` through `house_luxury_palace`. The matching BuildingType XML files own footprint and graphics, including explicit `_2x2` merged variants for the 1x1 plebeian levels.
+Vespasian, Augustus, and Julius currently define native HousingType data for the full legacy residential chain from `house_small_tent` through `house_luxury_palace`. The matching BuildingType XML files own footprint and graphics, including explicit `_2x2` merged variants for the 1x1 plebeian levels. Julius uses vanilla model values and Julius-owned `Aesthetics\House_*` graphics; Augustus and Vespasian use the Augustus house model values for now.

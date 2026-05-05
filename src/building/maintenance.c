@@ -2,6 +2,7 @@
 
 #include "building/building.h"
 #include "building/destruction.h"
+#include "building/house.h"
 #include "building/list.h"
 #include "building/monument.h"
 #include "city/buildings.h"
@@ -186,12 +187,13 @@ void building_maintenance_check_fire_collapse(void)
             continue;
         }
         int random_building = (i + map_random_get(b->grid_offset)) & 7;
+        int house_level = building_house_legacy_level(b);
         // damage
         b->damage_risk += random_building == random_global ? 3 : 1;
         if (tutorial_extra_damage_risk()) {
             b->damage_risk += 5;
         }
-        if (b->house_size && b->subtype.house_level <= HOUSE_LARGE_TENT) {
+        if (b->house_size && house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_TENT) {
             b->damage_risk = 0;
         }
         if (b->damage_risk > 200) {
@@ -206,9 +208,9 @@ void building_maintenance_check_fire_collapse(void)
                 fire_increase += 5;
             } else if (b->house_population <= 0) {
                 fire_increase = 0;
-            } else if (b->subtype.house_level <= HOUSE_LARGE_SHACK) {
+            } else if (house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_SHACK) {
                 fire_increase += 10;
-            } else if (b->subtype.house_level <= HOUSE_GRAND_INSULA) {
+            } else if (house_level >= HOUSE_MIN && house_level <= HOUSE_GRAND_INSULA) {
                 fire_increase += 5;
             } else {
                 fire_increase += 2;

@@ -3,7 +3,7 @@
 The loader reads every `*.xml` file in this folder at startup. Keep templates/examples in non-`.xml` files so they do not get loaded as live data.
 
 Templates and examples are maintained only in `Mods\Vespasian\BuildingType`.
-`Mods\Augustus\BuildingType` keeps live XML data only.
+`Mods\Augustus\BuildingType` and `Mods\Julius\BuildingType` keep live XML data only.
 
 Runtime/save identity is migrating away from stable enum slots. New saves include a `building_type_table` that maps compact save ids to BuildingType text ids, while loaded buildings continue to use compact runtime ids. Old saves without the table migrate through `src\building\building_type_legacy_migration.*`.
 
@@ -24,6 +24,7 @@ Current supported nodes:
 - `<labor> ... </labor>`
 - `<storages> ... </storages>`
 - `<production_methods> ... </production_methods>`
+- `<housing ... />`
 - `<spawn_group ...>`
 - `<spawn ... />`
 
@@ -37,7 +38,7 @@ Current supported `<model>` attributes:
 - `size="N"`
 - `cost="N"`
 
-Model `cost` currently overrides the legacy runtime model after XML load. `size` is parsed and exposed for the next placement/build-authority pass, but legacy placement still owns footprint size until that pass lands.
+Model `cost` currently overrides the legacy runtime model after XML load. `size` is parsed into BuildingType data and also bridged into the legacy building-properties footprint fields during registry load, so old placement/building code sees XML-authored sizes until placement authority reads BuildingType definitions directly.
 
 Current supported `<desirability>` child nodes:
 
@@ -145,6 +146,9 @@ Current supported `<graphics>` child nodes:
 
 - `<default> ... </default>`
 - `<variant> ... </variant>`
+- `<options selection="stable_variant"> ... </options>`
+- `<option image="..." />`
+- `<option path="..." image="..." />`
 - `<condition type="has_workers" />`
 - `<condition type="water_access" />`
 - `<condition type="figure_slot_occupied" slot="primary|secondary|quaternary" />`
@@ -163,6 +167,31 @@ Current supported `<graphics>` child nodes:
 - do not include the `.xml` suffix
 - example: `Mods\Augustus\Graphics\Health_Culture\Theatre.xml` becomes `Health_Culture\Theatre`
 
+Graphics target examples:
+
+```xml
+<graphics>
+    <default>
+        <path value="Aesthetics\House_Shack" />
+        <options selection="stable_variant">
+            <option image="Image_0000" />
+            <option image="Image_0001" />
+        </options>
+    </default>
+</graphics>
+```
+
+```xml
+<graphics>
+    <default>
+        <options selection="stable_variant">
+            <option path="Aesthetics\House_Tent" image="Image_0000" />
+            <option path="Aesthetics\House_Tent" image="Image_0001" />
+        </options>
+    </default>
+</graphics>
+```
+
 Structured `<graphics>` rules:
 
 - `<default>` is required
@@ -171,6 +200,12 @@ Structured `<graphics>` rules:
 - the first matching variant wins
 - the `<default>` target is used when no variant matches
 - `<path>` and optional `<image>` must live inside `<default>` or `<variant>`
+- `<default>` and `<variant>` may contain `<options selection="stable_variant">` instead of one `<image>`, or may contain only options when every option provides `path`
+- target selection and option selection are separate: conditions choose the target first, then `building.variant` chooses among that target's options
+- each `<option>` selects one equivalent visual using saved `building.variant % option_count`
+- an `<option>` inherits the enclosing target `<path>` unless it declares its own `path`
+- every resolved option path/image is validated at BuildingType load time
+- target-level `<image value="..."/>` is invalid when `<options>` are present; put image ids on the `<option>` nodes instead
 - put water refresh rules under `<state>`, not under `<graphics>`
 - put provider-side water radius/network data under the root `<water_access>` block, not under `<graphics>`
 
@@ -193,7 +228,7 @@ Current supported `<construction>` attributes and child nodes:
 - `mode="phased"` starts the building at `MONUMENT_START`
 - `road_update_radius="N"` updates nearby roads when the phased monument is placed
 - `<phase index="N"> ... </phase>` defines one construction phase
-- `<phase><graphics> ... </graphics></phase>` uses the same `<path>` and `<image>` target nodes as root graphics
+- `<phase><graphics> ... </graphics></phase>` uses direct `<path>` and optional `<image>` target nodes; phase graphics do not currently support `<default>`, `<variant>`, or `<options>`
 - `<requirement type="architects|stone|timber|concrete|marble|bricks|gold|iron" amount="N" />` declares phase delivery requirements
 - `<construction mode="instant"><requirement type="stone|timber|concrete|marble|bricks|gold|iron" amount="N" /></construction>` declares placement-time resource costs
 
@@ -256,7 +291,7 @@ Housing rules:
 - Residential requirements, capacity, tax multiplier, prosperity, and resident class live in the referenced HousingType
 - Any non-empty transition target must resolve to an existing BuildingType during load
 - Native housing BuildingTypes use their string ids directly; the compatibility layer maps those ids to legacy `house_level` values only where old runtime fields still need a level
-- Vespasian's native house chain includes every legacy level through `house_luxury_palace`; 1x1 levels define explicit `_2x2` merged BuildingTypes so save/load and evolution can choose by string id plus footprint.
+- Vespasian, Augustus, and Julius native house chains include every legacy level through `house_luxury_palace`; 1x1 levels define explicit `_2x2` merged BuildingTypes so save/load and evolution can choose by string id plus footprint.
 
 Shared definition path rules:
 
@@ -316,7 +351,9 @@ Current engine behavior:
 - For alternate performer venues, put all mutually exclusive performer types in the parent `existing_figure` list and keep their child policies in the same `spawn_group`.
 - Use `spawn_count="N"` when one successful policy should create several copies of the same figure at once.
 - Today a multi-spawn policy only writes one legacy tracked figure slot; extra spawned figures still exist, but they are not separately tracked by XML-defined slots yet.
-- Use `<image value="..."/>` only when a graphics group contains several named members and the building must lock to one of them.
+- Use `<image value="..."/>` when a graphics group contains several named members and the building must lock to one of them.
+- Use `<options selection="stable_variant">` when several image entries are equivalent visual variants. Runtime selection is stable per building and uses `building.variant % option_count`.
+- New buildings seed native graphics options from `map_random_get(grid_offset)`. Loaded saves from `0xb6` or earlier also reseed because older `building.variant` values did not mean native graphics options; newer saves preserve and clamp the saved value.
 - Graphics-only vertical-slice definitions are valid; runtime-owned production and storage references can be layered onto those same BuildingType files as they migrate.
 - BuildingType native storage and production references are resolved at load time; unresolved paths are hard load failures.
 - Put shared derived state such as water access under `<state>` so graphics and spawn behavior read the same runtime facts.

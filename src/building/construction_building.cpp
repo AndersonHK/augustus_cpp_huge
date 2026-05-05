@@ -235,6 +235,9 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
     if (building_variant_has_variants(b->type)) {
         b->variant = building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(b->type));
     }
+    // Native graphics options share the saved variant byte, so XML-owned
+    // buildings seed it after legacy variant/rotation setup has run.
+    building_runtime_assign_graphic_variant(b, 1);
     if (type == BUILDING_LARGE_TEMPLE_VENUS) {
         building_distribution_unaccept_all_goods(b);
     }

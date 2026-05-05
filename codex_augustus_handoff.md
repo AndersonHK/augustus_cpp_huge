@@ -1,6 +1,6 @@
 # Codex Augustus handoff memory
 
-Snapshot: 2026-04-06
+Snapshot: 2026-05-04
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Recommended next-chat posture
@@ -8,12 +8,12 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Reason: the current arc now spans VS/MSBuild repair, mixed C/C++ migration, asset-pack precedence, load-failure doctrine, renderer backend refactor, and the first shared UI runtime rollout.
 - Session bootstrap:
   - read the four core Codex memory files first
-  - then read task-specific docs such as `docs/walker_pathing_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
+  - then read task-specific docs such as `docs/walker_pathing_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, `Mods/Vespasian/BuildingType/_README.md`, `Mods/Vespasian/HousingType/_README.md`, `docs/save_load_runtime_bridges.md`, `docs/building_type_legacy_reference_ledger.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
   - when adding a new system doc, link it from the most relevant core memory file and from nearby subsystem READMEs so it is findable without crowding this file
 - The next chat should begin from the current renderer baseline:
   - request-based 2D backend active
   - render domains active
-- shared UI object chain active for common widget primitives
+  - shared UI object chain active for common widget primitives
   - graphics asset fallback chain active
 
 ## Current stable architecture
@@ -29,10 +29,22 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Recently added gameplay runtime context
 - Native walker definitions now use FigureType XML for the currently ported service walkers.
+- Native BuildingType XML now owns full bundled house chains for Vespasian, Augustus, and Julius; HousingType XML owns resident class and shared residential model data while BuildingType owns footprint, graphics, and transitions.
 - Main implementation notes live in:
   - `docs/walker_pathing_runtime.md`
   - `Mods/Vespasian/FigureType/_README.md`
+  - `Mods/Vespasian/BuildingType/_README.md`
+  - `Mods/Vespasian/HousingType/_README.md`
+  - `docs/save_load_runtime_bridges.md`
+  - `docs/building_type_legacy_reference_ledger.md`
 - Code chokepoints:
+  - `src/building/building_type.cpp`
+  - `src/building/building_type_registry.cpp`
+  - `src/building/building_type_registry_xml.cpp`
+  - `src/building/building_type_id_bridge.cpp`
+  - `src/building/housing_type.cpp`
+  - `src/building/housing_type_registry.cpp`
+  - `src/building/house.cpp`
   - `src/figure/figure_type_registry.cpp`
   - `src/figure/PathingMode.h/.cpp`
   - `src/figure/figure_runtime.cpp`
@@ -103,10 +115,10 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - reusable widget composition lives in the widget/primitives chain, not in per-window rewrites
 
 ## Graphics pack / asset loading status
-- Active graphics precedence is now:
-  - `Mods/<selected mod>/Graphics`
+- Active graphics XML precedence is now:
+  - active mod stack from top to bottom through `mod_manager_get_graphics_path_at()`
   - root Augustus assets folder (`assets/Graphics`)
-  - Caesar 3/original atlas-backed content
+  - Caesar 3/original atlas-backed content for legacy atlas/image fallback
 - Canonical path-keyed loaders are now the preferred direction for authored graphics, including UI groups that have extracted keys such as `UI\Top_Menu`; flat `assets_get_image_id("UI", ...)` lookups are compatibility fallback only
 - The startup path no longer hard-fails before that fallback chain is attempted.
 - Missing optional overrides should warn/fallback.

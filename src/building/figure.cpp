@@ -234,6 +234,18 @@ static int spawn_patrician(building *b, int spawned)
     return spawned;
 }
 
+static int housing_spawns_beggars(const building *b)
+{
+    return b && building_type_registry_housing_has_resident_class(
+        b->type, BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN);
+}
+
+static int housing_spawns_patricians(const building *b)
+{
+    return b && building_type_registry_housing_has_resident_class(
+        b->type, BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN);
+}
+
 static void spawn_figure_warehouse(building *b)
 {
     check_labor_problem(b);
@@ -1335,15 +1347,11 @@ void building_figure_generate(void)
         }
 
         b->show_on_problem_overlay = 0;
-        // range of building types
-        int resident_class = building_type_registry_get_housing_resident_class(b->type);
-        if (resident_class == BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN ||
-            (!resident_class && b->type >= BUILDING_HOUSE_SMALL_TENT && b->type <= BUILDING_HOUSE_GRAND_INSULA)) {
+        if (housing_spawns_beggars(b)) {
             if (city_labor_unemployment_percentage() > BEGGAR_UNEMPLOYMENT_THRESHOLD) {
                 spawn_beggar(b);
             }
-        } else if (resident_class == BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN ||
-            (!resident_class && b->type >= BUILDING_HOUSE_SMALL_VILLA && b->type <= BUILDING_HOUSE_LUXURY_PALACE)) {
+        } else if (housing_spawns_patricians(b)) {
             patrician_generated = spawn_patrician(b, patrician_generated);
         } else if (building_is_raw_resource_producer(b->type) ||
             building_is_farm(b->type) || building_is_workshop(b->type)) {

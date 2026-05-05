@@ -315,19 +315,26 @@ private:
     int venus_gt_bonus_ = 0;
 };
 
+// A graphics target is either one direct path/image pair or a set of equivalent
+// options that materialize into one direct target after stable variant selection.
 struct GraphicsTarget {
     void set_path(std::string path);
     void set_image(std::string image);
+    GraphicsTarget &add_option();
 
     int has_path() const;
     const char *path() const;
 
     int has_image() const;
     const char *image() const;
+    int has_options() const;
+    int option_count() const;
+    GraphicsTarget resolved_option(unsigned char variant) const;
 
 private:
     std::string path_;
     std::string image_;
+    std::vector<GraphicsTarget> options_;
 };
 
 struct GraphicsCondition {

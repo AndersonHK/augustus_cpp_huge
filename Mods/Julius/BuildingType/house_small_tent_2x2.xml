@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="house_small_tent_2x2">
     <identity name_key="TR_BUILDING_HOUSE_SMALL_TENT" />
-    <model size="2" cost="0" />
+    <model size="2" cost="10" />
     <desirability>
         <value value="-3" />
         <step value="1" />
@@ -13,8 +13,8 @@
     <event_data attr="house_small_tent_2x2" />
     <graphics>
         <default>
-            <path value="Housing\House_Tent" />
-            <image value="Small_Tent_2x2" />
+            <path value="Aesthetics\House_Tent" />
+            <image value="Image_0004" />
         </default>
     </graphics>
     <housing path="house_small_tent" evolve_to="house_large_tent_2x2" split_to="house_small_tent" />

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="house_small_palace">
+    <identity name_key="TR_BUILDING_HOUSE_SMALL_PALACE" />
+    <model size="3" cost="0" />
+    <desirability>
+        <value value="3" />
+        <step value="2" />
+        <step_size value="-1" />
+        <range value="6" />
+    </desirability>
+    <foundation policy="land" />
+    <sound id="house_posh" />
+    <event_data attr="house_small_palace" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\House_Palace_1" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
+    <housing path="house_small_palace" evolve_to="house_medium_palace" devolve_to="house_grand_villa" />
+</building>

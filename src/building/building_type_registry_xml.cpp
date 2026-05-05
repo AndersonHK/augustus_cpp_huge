@@ -1220,12 +1220,14 @@ static void finish_graphics()
     } else if (!g_parse_state.definition->graphics().has_default_node()) {
         log_error("BuildingType graphics is missing required child node 'default'", 0, 0);
         g_parse_state.error = 1;
-    } else if (!g_parse_state.definition->graphics().default_target().has_path()) {
+    } else if (!g_parse_state.definition->graphics().default_target().has_path() &&
+        !g_parse_state.definition->graphics().default_target().has_options()) {
         log_error("BuildingType graphics is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
 
     g_parse_state.parsing_graphics = 0;
+    g_parse_state.parsing_graphics_options = 0;
     g_parse_state.has_current_graphics_variant = 0;
     g_parse_state.current_graphics_variant_index = 0;
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::None;
@@ -1399,12 +1401,125 @@ static int parse_graphics_default()
     return 1;
 }
 
+static GraphicsTarget *current_graphics_target()
+{
+    if (!g_parse_state.definition) {
+        return nullptr;
+    }
+
+    switch (g_parse_state.current_graphics_target_scope) {
+        case GraphicsParseTargetScope::Default:
+            return &g_parse_state.definition->default_graphics_target();
+        case GraphicsParseTargetScope::Variant:
+            return g_parse_state.definition->last_graphics_variant() ?
+                &g_parse_state.definition->last_graphics_variant()->target :
+                nullptr;
+        case GraphicsParseTargetScope::ConstructionPhase:
+            return g_parse_state.definition->last_construction_phase() ?
+                &g_parse_state.definition->last_construction_phase()->graphics :
+                nullptr;
+        case GraphicsParseTargetScope::None:
+        default:
+            return nullptr;
+    }
+}
+
+static int parse_graphics_options()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_graphics) {
+        log_error("Encountered graphics options outside graphics node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::Default &&
+        g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::Variant) {
+        log_error("BuildingType graphics options must appear inside default or variant", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    // Keep the selector explicit so future policies can be rejected cleanly
+    // instead of silently being treated as stable building.variant selection.
+    const char *selection = xml_parser_has_attribute("selection") ? xml_parser_get_attribute_string("selection") : "stable_variant";
+    if (!selection || compare_text(selection, "stable_variant") != 0) {
+        log_error("Unsupported BuildingType graphics options selection", selection, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    GraphicsTarget *target = current_graphics_target();
+    if (!target || target->has_options()) {
+        log_error("BuildingType graphics target contains duplicate options nodes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.parsing_graphics_options = 1;
+    return 1;
+}
+
+static void finish_graphics_options()
+{
+    if (!g_parse_state.parsing_graphics_options) {
+        return;
+    }
+
+    GraphicsTarget *target = current_graphics_target();
+    if (!target || !target->has_options()) {
+        log_error("BuildingType graphics options is missing option nodes", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_graphics_options = 0;
+}
+
+static int parse_graphics_option()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_graphics_options) {
+        log_error("Encountered graphics option outside options node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("image")) {
+        log_error("BuildingType graphics option is missing required attribute 'image'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    GraphicsTarget *target = current_graphics_target();
+    if (!target) {
+        log_error("Encountered graphics option without an active target", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    GraphicsTarget &option = target->add_option();
+    if (xml_parser_has_attribute("path")) {
+        std::string normalized_path = normalize_graphics_path(xml_parser_get_attribute_string("path"));
+        if (normalized_path.empty()) {
+            log_error("Unsupported BuildingType graphics option path", xml_parser_get_attribute_string("path"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        option.set_path(std::move(normalized_path));
+    }
+
+    std::string image_id = xml_value::trim_copy(xml_parser_get_attribute_string("image"));
+    if (image_id.empty()) {
+        log_error("Unsupported BuildingType graphics option image", xml_parser_get_attribute_string("image"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    option.set_image(std::move(image_id));
+    return 1;
+}
+
 static void finish_graphics_default()
 {
     if (!g_parse_state.parsing_graphics) {
         return;
     }
-    if (!g_parse_state.definition->graphics().default_target().has_path()) {
+    if (!g_parse_state.definition->graphics().default_target().has_path() &&
+        !g_parse_state.definition->graphics().default_target().has_options()) {
         log_error("BuildingType graphics default is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
@@ -1432,7 +1547,7 @@ static void finish_graphics_variant()
     }
 
     GraphicsVariant *variant = g_parse_state.definition->last_graphics_variant();
-    if (!variant || !variant->target.has_path()) {
+    if (!variant || (!variant->target.has_path() && !variant->target.has_options())) {
         log_error("BuildingType graphics variant is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
@@ -2459,6 +2574,8 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "variant", parse_graphics_variant, finish_graphics_variant, "graphics", nullptr },
     { "path", parse_graphics_path, nullptr, "default|variant|graphics", nullptr },
     { "image", parse_graphics_image, nullptr, "default|variant|graphics", nullptr },
+    { "options", parse_graphics_options, finish_graphics_options, "default|variant", nullptr },
+    { "option", parse_graphics_option, nullptr, "options", nullptr },
     { "condition", parse_graphics_condition, nullptr, "variant", nullptr },
     { "water_access", parse_state_water_access, nullptr, "state", nullptr },
     { "labor", parse_labor, finish_labor, "building", nullptr },
@@ -2514,6 +2631,59 @@ static int validate_graphics_target_entry(
     const GraphicsTarget &target,
     const char *target_scope)
 {
+    if (target.has_options()) {
+        if (target.has_image()) {
+            char detail[512];
+            snprintf(
+                detail,
+                sizeof(detail),
+                "building=%s scope=%s",
+                definition.attr(),
+                target_scope ? target_scope : "graphics");
+            log_error("Disabling invalid runtime graphics because an option target also has a direct image", detail, 0);
+            return 0;
+        }
+
+        const int option_count = target.option_count();
+        for (int i = 0; i < option_count; i++) {
+            // Validate the exact target the renderer will see after path inheritance.
+            GraphicsTarget resolved = target.resolved_option(static_cast<unsigned char>(i));
+            char scope[96];
+            snprintf(
+                scope,
+                sizeof(scope),
+                "%s.option[%u]",
+                target_scope ? target_scope : "graphics",
+                static_cast<unsigned int>(i));
+            if (!resolved.has_image()) {
+                char detail[512];
+                snprintf(
+                    detail,
+                    sizeof(detail),
+                    "building=%s scope=%s",
+                    definition.attr(),
+                    scope);
+                log_error("Disabling invalid runtime graphics because an option is missing image", detail, 0);
+                return 0;
+            }
+            if (!resolved.has_path()) {
+                char detail[512];
+                snprintf(
+                    detail,
+                    sizeof(detail),
+                    "building=%s scope=%s",
+                    definition.attr(),
+                    scope);
+                log_error("Disabling invalid runtime graphics because an option is missing path", detail, 0);
+                return 0;
+            }
+            if (!validate_graphics_target_entry(definition, resolved, scope)) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+
     if (!target.has_path()) {
         return 1;
     }

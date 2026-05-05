@@ -294,19 +294,25 @@ extern "C" int building_type_registry_get_graphics_image_id(const building *b)
 
     const building_type_registry_impl::GraphicsTarget *target =
         building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition, *b);
-    if (!target || !target->has_path()) {
+    if (!target) {
+        return 0;
+    }
+    // This C facade still returns a legacy-style image id; resolve options first
+    // so callers that have not moved to RuntimeDrawSlice see the same target.
+    building_type_registry_impl::GraphicsTarget resolved_target = target->resolved_option(b->variant);
+    if (!resolved_target.has_path()) {
         return 0;
     }
 
-    const char *image_name = target->has_image() ? target->image() : nullptr;
+    const char *image_name = resolved_target.has_image() ? resolved_target.image() : nullptr;
     if (!image_name || !*image_name) {
-        if (!image_group_payload_load(target->path())) {
+        if (!image_group_payload_load(resolved_target.path())) {
             return 0;
         }
-        const ImageGroupPayload *payload = image_group_payload_get(target->path());
+        const ImageGroupPayload *payload = image_group_payload_get(resolved_target.path());
         image_name = payload ? payload->default_image_id() : nullptr;
     }
-    return assets_get_image_id_from_path_or_name(target->path(), image_name);
+    return assets_get_image_id_from_path_or_name(resolved_target.path(), image_name);
 }
 
 extern "C" int building_type_registry_has_phased_construction(building_type type)
@@ -383,6 +389,12 @@ extern "C" int building_type_registry_get_housing_resident_class(building_type t
         default:
             return 0;
     }
+}
+
+extern "C" int building_type_registry_housing_has_resident_class(building_type type, int resident_class)
+{
+    const int actual_class = building_type_registry_get_housing_resident_class(type);
+    return actual_class != BUILDING_TYPE_HOUSING_RESIDENT_NONE && actual_class == resident_class ? 1 : 0;
 }
 
 extern "C" int building_type_registry_get_housing_legacy_level(building_type type)
