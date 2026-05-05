@@ -215,7 +215,6 @@
     <ClCompile Include="src\figure\visited_buildings.c" />
     <ClCompile Include="src\game\animation.c" />
     <ClCompile Include="src\game\campaign\campaign.c" />
-    <ClCompile Include="src\game\campaign\file.c" />
     <ClCompile Include="src\game\campaign\file.cpp" />
     <ClCompile Include="src\game\campaign\miniz_zip.cpp" />
     <ClCompile Include="src\game\campaign\mission.c" />
