@@ -16,6 +16,7 @@ extern "C" {
 namespace building_type_registry_impl {
 
 class ProductionMethod;
+class HousingType;
 class StorageType;
 
 enum class GraphicComparison {
@@ -71,6 +72,13 @@ enum class LaborSeekerMethod {
     HousesSpawnIfBelow,
     HousesGenerateIfBelow,
     Workforce
+};
+
+enum class HousingTransitionKind {
+    EvolveTo,
+    DevolveTo,
+    MergeTo,
+    SplitTo
 };
 
 enum class GraphicTiming {
@@ -507,8 +515,12 @@ public:
     SpawnDelayGroup *last_spawn_group();
     void add_storage_reference(std::string path);
     void add_production_method_reference(std::string path);
+    void set_housing_reference(std::string path);
+    void set_housing_transition(HousingTransitionKind kind, std::string text_id);
     void add_storage_type(const StorageType *storage_type);
     void add_production_method(const ProductionMethod *production_method);
+    void set_housing_type(const HousingType *housing_type);
+    void set_housing_transition_type(HousingTransitionKind kind, building_type type);
 
     building_type type() const;
     const char *attr() const;
@@ -544,10 +556,15 @@ public:
     const std::vector<SpawnDelayGroup> &spawn_groups() const;
     const std::vector<std::string> &storage_reference_paths() const;
     const std::vector<std::string> &production_method_reference_paths() const;
+    const std::string &housing_reference_path() const;
+    const std::string &housing_transition_reference(HousingTransitionKind kind) const;
     const std::vector<const StorageType *> &storage_types() const;
     const std::vector<const ProductionMethod *> &production_methods() const;
+    const HousingType *housing_type() const;
+    building_type housing_transition_type(HousingTransitionKind kind) const;
     int has_native_storage() const;
     int has_native_production() const;
+    int has_housing() const;
     unsigned char upgrade_level_for(const ::building &building) const;
 
 private:
@@ -569,8 +586,18 @@ private:
     std::vector<SpawnDelayGroup> spawn_groups_;
     std::vector<std::string> storage_reference_paths_;
     std::vector<std::string> production_method_reference_paths_;
+    std::string housing_reference_path_;
+    std::string housing_evolve_to_;
+    std::string housing_devolve_to_;
+    std::string housing_merge_to_;
+    std::string housing_split_to_;
     std::vector<const StorageType *> storage_types_;
     std::vector<const ProductionMethod *> production_methods_;
+    const HousingType *housing_type_ = nullptr;
+    building_type housing_evolve_to_type_ = BUILDING_NONE;
+    building_type housing_devolve_to_type_ = BUILDING_NONE;
+    building_type housing_merge_to_type_ = BUILDING_NONE;
+    building_type housing_split_to_type_ = BUILDING_NONE;
 };
 
 } // namespace building_type_registry_impl

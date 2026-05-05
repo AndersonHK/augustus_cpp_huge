@@ -245,9 +245,22 @@ Current supported `<production_methods>` child nodes:
 
 - `<production_method path="..." />`
 
+Current supported `<housing>` attributes:
+
+- `path="..."` references a `HousingType` definition
+- `evolve_to="..."`, `devolve_to="..."`, `merge_to="..."`, and `split_to="..."` are optional BuildingType text-id transitions
+
+Housing rules:
+
+- Footprint remains on BuildingType via `<model size="N" />`
+- Residential requirements, capacity, tax multiplier, prosperity, and resident class live in the referenced HousingType
+- Any non-empty transition target must resolve to an existing BuildingType during load
+- Native housing BuildingTypes use their string ids directly; the compatibility layer maps those ids to legacy `house_level` values only where old runtime fields still need a level
+- Vespasian's native house chain includes every legacy level through `house_luxury_palace`; 1x1 levels define explicit `_2x2` merged BuildingTypes so save/load and evolution can choose by string id plus footprint.
+
 Shared definition path rules:
 
-- path is relative to the winning `StorageType` or `ProductionMethod` folder
+- path is relative to the winning `StorageType`, `ProductionMethod`, or `HousingType` folder
 - do not include the folder prefix
 - do not include the `.xml` suffix
 - example: `Mods\Vespasian\ProductionMethod\pottery_workshop_basic.xml` becomes `pottery_workshop_basic`

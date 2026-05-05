@@ -411,11 +411,12 @@ int building_construction_is_warehouse_corner(int tile_no)
 int building_construction_fill_vacant_lots(grid_slice *area)
 {
     int items_placed = 0;
+    building_type vacant_lot_type = building_type_registry_get_vacant_lot_fill_type();
     for (int i = 0; i < area->size; i++) {
         int grid_offset = area->grid_offsets[i];
         int x = map_grid_offset_to_x(grid_offset);
         int y = map_grid_offset_to_y(grid_offset);
-        int success = building_construction_place_building(BUILDING_HOUSE_VACANT_LOT, x, y, 1);
+        int success = building_construction_place_building(vacant_lot_type, x, y, 1);
         if (!success) {
             continue;
         }
@@ -424,7 +425,7 @@ int building_construction_fill_vacant_lots(grid_slice *area)
         items_placed++;
     }
     if (items_placed > 0) {
-        building_construction_warning_check_food_stocks(BUILDING_HOUSE_VACANT_LOT);
+        building_construction_warning_check_food_stocks(vacant_lot_type);
         map_routing_update_land();
     }
     return items_placed;

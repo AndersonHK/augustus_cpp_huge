@@ -42,6 +42,7 @@ struct ParseState {
     int saw_labor_seeker_amount = 0;
     int saw_storages = 0;
     int saw_production_methods = 0;
+    int saw_housing = 0;
     int saw_state = 0;
     int saw_provider_water_access = 0;
     int saw_provider_water_access_type = 0;
@@ -57,6 +58,7 @@ struct ParseState {
     int parsing_labor_seeker = 0;
     int parsing_storages = 0;
     int parsing_production_methods = 0;
+    int parsing_housing = 0;
     int has_current_graphics_variant = 0;
     size_t current_graphics_variant_index = 0;
     GraphicsParseTargetScope current_graphics_target_scope = GraphicsParseTargetScope::None;
@@ -71,6 +73,7 @@ extern ParseState g_parse_state;
 
 int directory_exists(const char *path);
 const BuildingType *definition_for_type(building_type type);
+building_type runtime_id_from_text(const char *text_id);
 void refresh_building_type_path();
 void refresh_known_building_type_ids();
 void clear_xml_runtime_property_fields();

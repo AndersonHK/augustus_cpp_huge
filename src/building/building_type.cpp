@@ -1,5 +1,7 @@
 #include "building/building_type.h"
 
+#include "building/housing_type.h"
+
 extern "C" {
 #include "building/monument.h"
 #include "city/festival.h"
@@ -939,6 +941,29 @@ void BuildingType::add_production_method_reference(std::string path)
     production_method_reference_paths_.push_back(std::move(path));
 }
 
+void BuildingType::set_housing_reference(std::string path)
+{
+    housing_reference_path_ = std::move(path);
+}
+
+void BuildingType::set_housing_transition(HousingTransitionKind kind, std::string text_id)
+{
+    switch (kind) {
+        case HousingTransitionKind::EvolveTo:
+            housing_evolve_to_ = std::move(text_id);
+            break;
+        case HousingTransitionKind::DevolveTo:
+            housing_devolve_to_ = std::move(text_id);
+            break;
+        case HousingTransitionKind::MergeTo:
+            housing_merge_to_ = std::move(text_id);
+            break;
+        case HousingTransitionKind::SplitTo:
+            housing_split_to_ = std::move(text_id);
+            break;
+    }
+}
+
 void BuildingType::add_storage_type(const StorageType *storage_type)
 {
     storage_types_.push_back(storage_type);
@@ -947,6 +972,29 @@ void BuildingType::add_storage_type(const StorageType *storage_type)
 void BuildingType::add_production_method(const ProductionMethod *production_method)
 {
     production_methods_.push_back(production_method);
+}
+
+void BuildingType::set_housing_type(const HousingType *housing_type)
+{
+    housing_type_ = housing_type;
+}
+
+void BuildingType::set_housing_transition_type(HousingTransitionKind kind, building_type type)
+{
+    switch (kind) {
+        case HousingTransitionKind::EvolveTo:
+            housing_evolve_to_type_ = type;
+            break;
+        case HousingTransitionKind::DevolveTo:
+            housing_devolve_to_type_ = type;
+            break;
+        case HousingTransitionKind::MergeTo:
+            housing_merge_to_type_ = type;
+            break;
+        case HousingTransitionKind::SplitTo:
+            housing_split_to_type_ = type;
+            break;
+    }
 }
 
 SpawnDelayGroup *BuildingType::last_spawn_group()
@@ -1137,6 +1185,26 @@ const std::vector<std::string> &BuildingType::production_method_reference_paths(
     return production_method_reference_paths_;
 }
 
+const std::string &BuildingType::housing_reference_path() const
+{
+    return housing_reference_path_;
+}
+
+const std::string &BuildingType::housing_transition_reference(HousingTransitionKind kind) const
+{
+    switch (kind) {
+        case HousingTransitionKind::EvolveTo:
+            return housing_evolve_to_;
+        case HousingTransitionKind::DevolveTo:
+            return housing_devolve_to_;
+        case HousingTransitionKind::MergeTo:
+            return housing_merge_to_;
+        case HousingTransitionKind::SplitTo:
+            return housing_split_to_;
+    }
+    return housing_evolve_to_;
+}
+
 const std::vector<const StorageType *> &BuildingType::storage_types() const
 {
     return storage_types_;
@@ -1147,6 +1215,26 @@ const std::vector<const ProductionMethod *> &BuildingType::production_methods() 
     return production_methods_;
 }
 
+const HousingType *BuildingType::housing_type() const
+{
+    return housing_type_;
+}
+
+building_type BuildingType::housing_transition_type(HousingTransitionKind kind) const
+{
+    switch (kind) {
+        case HousingTransitionKind::EvolveTo:
+            return housing_evolve_to_type_;
+        case HousingTransitionKind::DevolveTo:
+            return housing_devolve_to_type_;
+        case HousingTransitionKind::MergeTo:
+            return housing_merge_to_type_;
+        case HousingTransitionKind::SplitTo:
+            return housing_split_to_type_;
+    }
+    return BUILDING_NONE;
+}
+
 int BuildingType::has_native_storage() const
 {
     return !storage_types_.empty();
@@ -1155,6 +1243,11 @@ int BuildingType::has_native_storage() const
 int BuildingType::has_native_production() const
 {
     return !production_methods_.empty();
+}
+
+int BuildingType::has_housing() const
+{
+    return housing_type_ ? 1 : 0;
 }
 
 unsigned char BuildingType::upgrade_level_for(const ::building &building) const

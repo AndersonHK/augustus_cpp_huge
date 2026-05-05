@@ -20,23 +20,6 @@ extern "C" {
 #include "scenario/property.h"
 }
 
-static const struct {
-    int group;
-    int offset;
-    int num_types;
-} HOUSE_IMAGE[20] = {
-    {GROUP_BUILDING_HOUSE_TENT, 0, 2}, {GROUP_BUILDING_HOUSE_TENT, 2, 2},
-    {GROUP_BUILDING_HOUSE_SHACK, 0, 2}, {GROUP_BUILDING_HOUSE_SHACK, 2, 2},
-    {GROUP_BUILDING_HOUSE_HOVEL, 0, 2}, {GROUP_BUILDING_HOUSE_HOVEL, 2, 2},
-    {GROUP_BUILDING_HOUSE_CASA, 0, 2}, {GROUP_BUILDING_HOUSE_CASA, 2, 2},
-    {GROUP_BUILDING_HOUSE_INSULA_1, 0, 2}, {GROUP_BUILDING_HOUSE_INSULA_1, 2, 2},
-    {GROUP_BUILDING_HOUSE_INSULA_2, 0, 2}, {GROUP_BUILDING_HOUSE_INSULA_2, 2, 2},
-    {GROUP_BUILDING_HOUSE_VILLA_1, 0, 2}, {GROUP_BUILDING_HOUSE_VILLA_1, 2, 2},
-    {GROUP_BUILDING_HOUSE_VILLA_2, 0, 1}, {GROUP_BUILDING_HOUSE_VILLA_2, 1, 1},
-    {GROUP_BUILDING_HOUSE_PALACE_1, 0, 1}, {GROUP_BUILDING_HOUSE_PALACE_1, 1, 1},
-    {GROUP_BUILDING_HOUSE_PALACE_2, 0, 1}, {GROUP_BUILDING_HOUSE_PALACE_2, 1, 1},
-};
-
 int building_image_get_base_farm_crop(building_type type)
 {
     switch (type) {
@@ -96,38 +79,6 @@ int building_image_get(const building *b)
                 return image_group(GROUP_BUILDING_HOUSE_VACANT_LOT);
             }
             [[fallthrough]];
-        case BUILDING_HOUSE_LARGE_TENT:
-        case BUILDING_HOUSE_SMALL_SHACK:
-        case BUILDING_HOUSE_LARGE_SHACK:
-        case BUILDING_HOUSE_SMALL_HOVEL:
-        case BUILDING_HOUSE_LARGE_HOVEL:
-        case BUILDING_HOUSE_SMALL_CASA:
-        case BUILDING_HOUSE_LARGE_CASA:
-        case BUILDING_HOUSE_SMALL_INSULA:
-        case BUILDING_HOUSE_MEDIUM_INSULA:
-        case BUILDING_HOUSE_LARGE_INSULA:
-        case BUILDING_HOUSE_GRAND_INSULA:
-        case BUILDING_HOUSE_SMALL_VILLA:
-        case BUILDING_HOUSE_MEDIUM_VILLA:
-        case BUILDING_HOUSE_LARGE_VILLA:
-        case BUILDING_HOUSE_GRAND_VILLA:
-        case BUILDING_HOUSE_SMALL_PALACE:
-        case BUILDING_HOUSE_MEDIUM_PALACE:
-        case BUILDING_HOUSE_LARGE_PALACE:
-        case BUILDING_HOUSE_LUXURY_PALACE:
-        {
-            int image_id = image_group(HOUSE_IMAGE[b->subtype.house_level].group);
-            if (b->house_is_merged) {
-                image_id += 4;
-                if (HOUSE_IMAGE[b->subtype.house_level].offset) {
-                    image_id += 1;
-                }
-            } else {
-                image_id += HOUSE_IMAGE[b->subtype.house_level].offset;
-                image_id += map_random_get(b->grid_offset) & (HOUSE_IMAGE[b->subtype.house_level].num_types - 1);
-            }
-            return image_id;
-        }
         case BUILDING_SMALL_STATUE:
         {
             int orientation = building_rotation_get_building_orientation(b->subtype.orientation) / 2;

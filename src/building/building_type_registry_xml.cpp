@@ -1,6 +1,7 @@
 #include "building/building_type_registry_internal.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
+#include "building/housing_type_registry.h"
 #include "building/production_method_registry.h"
 #include "building/storage_type_registry.h"
 #include "assets/image_group_payload.h"
@@ -43,6 +44,9 @@ static int compare_text(const char *left, const char *right)
 
 static building_type find_building_type_by_attr(const char *type_attr)
 {
+    if (housing_type_registry_text_id_has_legacy_house_level(type_attr)) {
+        return BUILDING_NONE;
+    }
     if (building_type_legacy_migration_text_id_is_xml_owned(type_attr)) {
         uint16_t legacy_type = building_type_legacy_migration_enum_for_text_id(type_attr);
         if (legacy_type == BUILDING_LEGACY_SLOT_THEATER || legacy_type == BUILDING_LEGACY_SLOT_WELL) {
@@ -51,6 +55,20 @@ static building_type find_building_type_by_attr(const char *type_attr)
         return static_cast<building_type>(legacy_type);
     }
 
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_properties *properties = building_properties_for_type(type);
+        if (!properties->event_data.attr) {
+            continue;
+        }
+        if (xml_parser_compare_multiple(properties->event_data.attr, type_attr)) {
+            return type;
+        }
+    }
+    return BUILDING_NONE;
+}
+
+static building_type find_legacy_building_type_by_event_attr(const char *type_attr)
+{
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
         const building_properties *properties = building_properties_for_type(type);
         if (!properties->event_data.attr) {
@@ -120,6 +138,20 @@ static figure_type parse_figure_type_name(const char *name)
         }
     }
     return FIGURE_NONE;
+}
+
+static HousingTransitionKind parse_housing_transition_kind(const char *attribute)
+{
+    if (attribute && compare_text(attribute, "evolve_to") == 0) {
+        return HousingTransitionKind::EvolveTo;
+    }
+    if (attribute && compare_text(attribute, "devolve_to") == 0) {
+        return HousingTransitionKind::DevolveTo;
+    }
+    if (attribute && compare_text(attribute, "merge_to") == 0) {
+        return HousingTransitionKind::MergeTo;
+    }
+    return HousingTransitionKind::SplitTo;
 }
 
 static int parse_action_state_name(const char *name)
@@ -951,6 +983,11 @@ static int parse_sound_city_name(const char *name)
         {"fruit_farm", SOUND_CITY_FRUIT_FARM},
         {"furniture_workshop", SOUND_CITY_FURNITURE_WORKSHOP},
         {"gladiator_school", SOUND_CITY_GLADIATOR_SCHOOL},
+        {"house_slum", SOUND_CITY_HOUSE_SLUM},
+        {"house_poor", SOUND_CITY_HOUSE_POOR},
+        {"house_medium", SOUND_CITY_HOUSE_MEDIUM},
+        {"house_good", SOUND_CITY_HOUSE_GOOD},
+        {"house_posh", SOUND_CITY_HOUSE_POSH},
         {"iron_mine", SOUND_CITY_IRON_MINE},
         {"hospital", SOUND_CITY_HOSPITAL},
         {"hippodrome", SOUND_CITY_HIPPODROME},
@@ -2122,6 +2159,47 @@ static int parse_production_method_reference()
     return 1;
 }
 
+static int parse_housing()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered housing definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_housing) {
+        log_error("BuildingType xml contains duplicate housing nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("path")) {
+        log_error("BuildingType housing is missing required attribute 'path'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    std::string normalized_path = normalize_runtime_definition_path(xml_parser_get_attribute_string("path"));
+    if (normalized_path.empty()) {
+        log_error("Unsupported BuildingType housing path", xml_parser_get_attribute_string("path"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.definition->set_housing_reference(std::move(normalized_path));
+
+    const char *transition_attributes[] = {"evolve_to", "devolve_to", "merge_to", "split_to"};
+    for (const char *attribute : transition_attributes) {
+        if (!xml_parser_has_attribute(attribute)) {
+            continue;
+        }
+        std::string transition = xml_value::trim_copy(xml_parser_get_attribute_string(attribute));
+        if (!transition.empty()) {
+            g_parse_state.definition->set_housing_transition(parse_housing_transition_kind(attribute), std::move(transition));
+        }
+    }
+
+    g_parse_state.saw_housing = 1;
+    return 1;
+}
+
 static int parse_spawn_group()
 {
     if (!g_parse_state.definition) {
@@ -2392,6 +2470,7 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "storage", parse_storage_reference, nullptr, "storages", nullptr },
     { "production_methods", parse_production_methods, finish_production_methods, "building", nullptr },
     { "production_method", parse_production_method_reference, nullptr, "production_methods", nullptr },
+    { "housing", parse_housing, nullptr, "building", nullptr },
     { "spawn_group", parse_spawn_group, nullptr, "building", nullptr },
     { "spawn", parse_spawn, nullptr, "spawn_group", nullptr }
 };
@@ -2571,6 +2650,24 @@ static int resolve_runtime_references(BuildingType &definition, const char *file
         definition.add_production_method(production_method);
     }
 
+    if (!definition.housing_reference_path().empty()) {
+        const HousingType *housing_type = find_housing_type_definition(definition.housing_reference_path().c_str());
+        if (!housing_type) {
+            char detail[512];
+            snprintf(
+                detail,
+                sizeof(detail),
+                "building=%s housing_path=%s file=%s",
+                definition.attr(),
+                definition.housing_reference_path().c_str(),
+                filename ? filename : "");
+            error_context_report_error("Unable to resolve BuildingType housing reference.", detail);
+            log_error("Unable to resolve BuildingType housing reference", detail, 0);
+            return 0;
+        }
+        definition.set_housing_type(housing_type);
+    }
+
     return 1;
 }
 
@@ -2599,7 +2696,8 @@ static int parse_definition_file(const char *filename)
         g_parse_state.saw_flags || g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
         g_parse_state.saw_construction || g_parse_state.saw_spawn ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods ||
-        g_parse_state.saw_labor || g_parse_state.saw_state || g_parse_state.saw_provider_water_access;
+        g_parse_state.saw_housing || g_parse_state.saw_labor || g_parse_state.saw_state ||
+        g_parse_state.saw_provider_water_access;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
         !has_supported_node) {
         if (!has_supported_node) {
@@ -2615,6 +2713,61 @@ static int parse_definition_file(const char *filename)
         return 0;
     }
     g_building_types[g_parse_state.definition->type()] = std::move(g_parse_state.definition);
+    return 1;
+}
+
+static int resolve_housing_transition(BuildingType &definition, HousingTransitionKind kind, const char *name)
+{
+    const std::string &text_id = definition.housing_transition_reference(kind);
+    if (text_id.empty()) {
+        return 1;
+    }
+
+    building_type target = runtime_id_from_text(text_id.c_str());
+    if (target == BUILDING_NONE) {
+        target = find_building_type_by_attr(text_id.c_str());
+        if (target == BUILDING_NONE) {
+            target = find_legacy_building_type_by_event_attr(text_id.c_str());
+        }
+        if (target == BUILDING_NONE) {
+            char detail[512];
+            snprintf(detail, sizeof(detail), "building=%s transition=%s target=%s",
+                definition.attr(), name ? name : "", text_id.c_str());
+            error_context_report_error("BuildingType housing transition target does not exist.", detail);
+            return 0;
+        }
+    }
+
+    definition.set_housing_transition_type(kind, target);
+    return 1;
+}
+
+static int resolve_housing_transitions()
+{
+    ErrorContextScope error_scope("building_type_registry.resolve_housing_transitions");
+
+    for (std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition || !definition->has_housing()) {
+            continue;
+        }
+        if (!resolve_housing_transition(*definition, HousingTransitionKind::EvolveTo, "evolve_to") ||
+            !resolve_housing_transition(*definition, HousingTransitionKind::DevolveTo, "devolve_to") ||
+            !resolve_housing_transition(*definition, HousingTransitionKind::MergeTo, "merge_to") ||
+            !resolve_housing_transition(*definition, HousingTransitionKind::SplitTo, "split_to")) {
+            return 0;
+        }
+    }
+
+    building_type vacant_lot_target = runtime_id_from_text("house_small_tent");
+    const BuildingType *target_definition = definition_for_type(vacant_lot_target);
+    if (vacant_lot_target == BUILDING_NONE || !target_definition || !target_definition->has_housing() ||
+        target_definition->model().size() != 1) {
+        error_context_report_error(
+            "BuildingType housing vacant-lot fill target does not exist.",
+            "target=house_small_tent size=1");
+        return 0;
+    }
+
     return 1;
 }
 
@@ -2640,6 +2793,10 @@ extern "C" int building_type_registry_load(void)
         log_error("Unable to load ProductionMethod xml definitions", 0, 0);
         return 0;
     }
+    if (!housing_type_registry_load()) {
+        log_error("Unable to load HousingType xml definitions", 0, 0);
+        return 0;
+    }
 
     const dir_listing *files = dir_find_files_with_extension(g_building_type_path.c_str(), "xml");
     if (!files || files->num_files <= 0) {
@@ -2657,6 +2814,10 @@ extern "C" int building_type_registry_load(void)
         }
     }
 
+    if (!resolve_housing_transitions()) {
+        log_error("Unable to resolve BuildingType housing transitions", 0, 0);
+        return 0;
+    }
     building_type_registry_apply_model_overrides();
     refresh_known_building_type_ids();
     building_type_id_bridge_reset_for_runtime();

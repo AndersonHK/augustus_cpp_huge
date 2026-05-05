@@ -1,4 +1,5 @@
 extern "C" {
+#include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "building/state.h"
 #include "building/industry.h"
@@ -66,6 +67,41 @@ static building_type get_fort_type(building *b)
             return BUILDING_NONE;
     }
 
+}
+
+static void normalize_native_housing_after_load(building *b)
+{
+    if (!b || b->state == BUILDING_STATE_UNUSED || !b->house_size) {
+        return;
+    }
+
+    int legacy_level = building_type_registry_get_housing_legacy_level(b->type);
+    if (legacy_level < 0) {
+        return;
+    }
+    if (legacy_level == HOUSE_SMALL_TENT && b->house_population <= 0 &&
+        !building_type_registry_has_housing(b->type)) {
+        return;
+    }
+
+    int footprint_size = b->house_size > 0 ? b->house_size : b->size;
+    if (b->house_is_merged && footprint_size < 2) {
+        footprint_size = 2;
+    }
+
+    building_type native_type = building_type_registry_get_housing_type_for_legacy_level(legacy_level, footprint_size);
+    if (native_type == BUILDING_NONE || native_type == b->type) {
+        return;
+    }
+
+    b->type = native_type;
+    b->subtype.house_level = legacy_level;
+    int model_size = building_type_registry_get_model_size(native_type);
+    if (model_size > 0) {
+        b->size = model_size;
+        b->house_size = model_size;
+        b->house_is_merged = model_size > 1 ? 1 : b->house_is_merged;
+    }
 }
 
 static int migrate_legacy_entertainment_show_days(int days)
@@ -586,6 +622,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     b->formation_id = buffer_read_i16(buf);
     int save_type_monument = saved_type_is_monument(saved_building_type, b->type);
     read_type_data(buf, b, save_version, save_type_monument);
+    normalize_native_housing_after_load(b);
     b->tax_income_or_storage = buffer_read_i32(buf);
     b->house_days_without_food = buffer_read_u8(buf);
     b->has_plague = buffer_read_u8(buf);

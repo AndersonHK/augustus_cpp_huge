@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="house_small_insula">
+    <identity name_key="TR_BUILDING_HOUSE_SMALL_INSULA" />
+    <model size="1" cost="0" />
+    <desirability>
+        <value value="0" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="1" />
+    </desirability>
+    <foundation policy="land" />
+    <sound id="house_medium" />
+    <event_data attr="house_small_insula" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\House_Insula_1" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
+    <housing path="house_small_insula" evolve_to="house_medium_insula" devolve_to="house_large_casa" merge_to="house_small_insula_2x2" />
+</building>

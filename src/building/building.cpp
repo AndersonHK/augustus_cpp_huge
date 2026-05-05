@@ -1,3 +1,4 @@
+extern "C" {
 #include "building.h"
 
 #include "building/clone.h"
@@ -8,6 +9,7 @@
 #include "building/destruction.h"
 #include "building/distribution.h"
 #include "building/building_runtime_api.h"
+#include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/granary.h"
 #include "building/menu.h"
@@ -45,6 +47,7 @@
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
+}
 
 #define BUILDING_ARRAY_SIZE_STEP 2000
 
@@ -232,19 +235,24 @@ building *building_create(building_type type, int x, int y)
     fill_adjacent_types(b);
 
     // house size
-    if (type >= BUILDING_HOUSE_SMALL_TENT && type <= BUILDING_HOUSE_MEDIUM_INSULA) {
-        b->house_size = 1;
-    } else if (type >= BUILDING_HOUSE_LARGE_INSULA && type <= BUILDING_HOUSE_MEDIUM_VILLA) {
-        b->house_size = 2;
-    } else if (type >= BUILDING_HOUSE_LARGE_VILLA && type <= BUILDING_HOUSE_MEDIUM_PALACE) {
-        b->house_size = 3;
-    } else if (type >= BUILDING_HOUSE_LARGE_PALACE && type <= BUILDING_HOUSE_LUXURY_PALACE) {
-        b->house_size = 4;
+    if (building_type_registry_has_housing(type)) {
+        b->house_size = props->size;
+    } else {
+        if (type >= BUILDING_HOUSE_SMALL_TENT && type <= BUILDING_HOUSE_MEDIUM_INSULA) {
+            b->house_size = 1;
+        } else if (type >= BUILDING_HOUSE_LARGE_INSULA && type <= BUILDING_HOUSE_MEDIUM_VILLA) {
+            b->house_size = 2;
+        } else if (type >= BUILDING_HOUSE_LARGE_VILLA && type <= BUILDING_HOUSE_MEDIUM_PALACE) {
+            b->house_size = 3;
+        } else if (type >= BUILDING_HOUSE_LARGE_PALACE && type <= BUILDING_HOUSE_LUXURY_PALACE) {
+            b->house_size = 4;
+        }
     }
 
     // subtype
     if (building_is_house(type)) {
-        b->subtype.house_level = type - BUILDING_HOUSE_VACANT_LOT;
+        int level = building_type_registry_get_housing_legacy_level(type);
+        b->subtype.house_level = level >= 0 ? level : type - BUILDING_HOUSE_VACANT_LOT;
     }
 
     b->output_resource_id = resource_get_from_industry(type);
@@ -254,7 +262,7 @@ building *building_create(building_type type, int x, int y)
     }
 
     // Set it as accepting all available goods
-    for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r = static_cast<resource_type>(r + 1)) {
         b->accepted_goods[r] = building_distribution_resource_is_handled(r, type);
     }
 
@@ -406,7 +414,7 @@ int building_can_repair(building *b)
         if (building_is_still_burning(b)) {
             return 0;
         }
-        if (!building_can_repair_type(b->data.rubble.og_type)) {
+        if (!building_can_repair_type(static_cast<building_type>(b->data.rubble.og_type))) {
             return 0;
         } else {
             return 1;
@@ -422,16 +430,17 @@ int building_can_repair(building *b)
 
 int building_repair_cost(building *b)
 {
-    int og_grid_offset = 0, og_size = 0, og_type = 0;
+    int og_grid_offset = 0, og_size = 0;
+    building_type og_type = BUILDING_NONE;
     if (!b || !building_can_repair(b)) {
         return 0;
     }
-    int is_ruin = b->type == BUILDING_BURNING_RUIN || // ruins and collapsed warehouse parts all use rubble data 
+    int is_ruin = b->type == BUILDING_BURNING_RUIN || // ruins and collapsed warehouse parts all use rubble data
         b->type == BUILDING_WAREHOUSE_SPACE || b->type == BUILDING_WAREHOUSE;
 
     og_grid_offset = is_ruin ? b->data.rubble.og_grid_offset : b->grid_offset;
     og_size = is_ruin ? b->data.rubble.og_size : b->size;
-    og_type = is_ruin ? b->data.rubble.og_type : b->type;
+    og_type = static_cast<building_type>(is_ruin ? b->data.rubble.og_type : b->type);
 
     if (building_is_house(og_type)) {
         grid_slice *house_slice = map_grid_get_grid_slice_house(b->id, 1);
@@ -465,7 +474,7 @@ static int get_rubble_data(building *b, int *og_size, int *og_grid_offset, int *
         if (og_size) { *og_size = b->data.rubble.og_size; }
         if (og_grid_offset) { *og_grid_offset = b->data.rubble.og_grid_offset; }
         if (og_orientation) { *og_orientation = b->data.rubble.og_orientation; }
-        if (og_type) { *og_type = b->data.rubble.og_type; }
+        if (og_type) { *og_type = static_cast<building_type>(b->data.rubble.og_type); }
         return 1;
     }
 }
@@ -548,8 +557,9 @@ int building_repair(building *b)
         city_warning_show(WARNING_REPAIR_BURNING, NEW_WARNING_SLOT);
         return 0;
     }
-    if (!building_can_repair_type(b->type) && !building_can_repair_type(b->data.rubble.og_type)) {
-        if (building_monument_is_limited(b->type) || building_monument_is_limited(b->data.rubble.og_type)) {
+    if (!building_can_repair_type(b->type) && !building_can_repair_type(static_cast<building_type>(b->data.rubble.og_type))) {
+        if (building_monument_is_limited(b->type) ||
+            building_monument_is_limited(static_cast<building_type>(b->data.rubble.og_type))) {
             city_warning_show(WARNING_REPAIR_MONUMENT, NEW_WARNING_SLOT);
         } else if (b->type == BUILDING_AQUEDUCT || b->data.rubble.og_type == BUILDING_AQUEDUCT) {
             city_warning_show(WARNING_REPAIR_AQUEDUCT, NEW_WARNING_SLOT);
@@ -568,13 +578,13 @@ int building_repair(building *b)
     //  Backup building data
     building_data_transfer_backup();
     building_data_transfer_copy(b, 1);
-    //  Resolve placement data 
+    //  Resolve placement data
     int grid_offset = og_grid_offset ? og_grid_offset : b->grid_offset;
     int x = map_grid_offset_to_x(grid_offset);
     int y = map_grid_offset_to_y(grid_offset);
     int size = og_size ? og_size : b->size;
-    int type = og_type ? og_type : b->type;
-    building_type type_to_place = og_type ? og_type : b->type;
+    building_type type = og_type ? og_type : static_cast<building_type>(b->type);
+    building_type type_to_place = og_type ? og_type : static_cast<building_type>(b->type);
 
     if (building_is_house(type) || type == 1) {
         is_house_lot = 1;
@@ -582,7 +592,7 @@ int building_repair(building *b)
     }
     int placement_cost = 0;
     og_storage_id = b->storage_id; //store the original storage id before clearing it
-    // Clear terrain and place building 
+    // Clear terrain and place building
     grid_slice *grid_slice = map_grid_get_grid_slice_square(grid_offset, size);
     if (building_construction_nearby_enemy_type(grid_slice) != FIGURE_NONE) {
         city_warning_show(WARNING_ENEMY_NEARBY, NEW_WARNING_SLOT);
@@ -799,11 +809,18 @@ int building_is_primary_product_producer(building_type type)
 
 int building_is_house(building_type type)
 {
+    if (building_type_registry_has_housing(type)) {
+        return 1;
+    }
     return type >= BUILDING_HOUSE_VACANT_LOT && type <= BUILDING_HOUSE_LUXURY_PALACE;
 }
 
 int building_get_house_group(building_type type)
 {
+    int legacy_level = building_type_registry_get_housing_legacy_level(type);
+    if (building_type_registry_has_housing(type) && legacy_level >= 0) {
+        type = static_cast<building_type>(BUILDING_HOUSE_VACANT_LOT + legacy_level);
+    }
     switch (type) {
         case BUILDING_HOUSE_SMALL_TENT:
         case BUILDING_HOUSE_LARGE_TENT:
@@ -1033,7 +1050,7 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
     buffer *sequence, buffer *corrupt_houses)
 {
     int buf_size = sizeof(int32_t) + data.buildings.size * BUILDING_STATE_CURRENT_BUFFER_SIZE;
-    uint8_t *buf_data = malloc(buf_size);
+    uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     buffer_init(buf, buf_data, buf_size);
     buffer_write_i32(buf, BUILDING_STATE_CURRENT_BUFFER_SIZE);
     building *b;

@@ -2,6 +2,7 @@
 
 extern "C" {
 #include "building/list.h"
+#include "building/building_type_api.h"
 #include "building/local_workforce.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -13,9 +14,11 @@ extern "C" {
 #include "figuretype/migrant.h"
 }
 
-static building_type next_house_type(building_type type)
+static int house_is_plebeian(const building *b)
 {
-    return static_cast<building_type>(type + 1);
+    int resident_class = building_type_registry_get_housing_resident_class(b->type);
+    return resident_class == BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN ||
+        (!resident_class && b->type >= BUILDING_HOUSE_SMALL_TENT && b->type <= BUILDING_HOUSE_GRAND_INSULA);
 }
 
 int house_population_add_to_city(int num_people)
@@ -70,10 +73,14 @@ int house_population_remove_from_city(int num_people)
 
 int house_population_get_capacity(building *house)
 {
-    int max_pop = model_get_house(static_cast<house_level>(house->subtype.house_level))->max_people;
+    const model_house *housing_model = building_type_registry_get_housing_model(house->type);
+    int max_pop = housing_model ? housing_model->max_people :
+        model_get_house(static_cast<house_level>(house->subtype.house_level))->max_people;
 
-    if (house->house_is_merged) {
+    if (house->house_is_merged && !building_type_registry_has_housing(house->type)) {
         max_pop *= 4;
+    } else if (building_type_registry_has_housing(house->type) && house->house_size > 1) {
+        max_pop *= house->house_size * house->house_size;
     }
 
     // Neptune module 2 bonus
@@ -88,23 +95,22 @@ void house_population_update_room(void)
 {
     city_population_clear_capacity();
 
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type = next_house_type(type)) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
-                continue;
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
+            continue;
+        }
+        b->house_population_room = 0;
+        if (b->distance_from_entry > 0) {
+            int max_pop = house_population_get_capacity(b);
+            city_population_add_capacity(b->house_population, max_pop);
+            b->house_population_room = max_pop - b->house_population;
+            if (b->house_population > b->house_highest_population) {
+                b->house_highest_population = b->house_population;
             }
-            b->house_population_room = 0;
-            if (b->distance_from_entry > 0) {
-                int max_pop = house_population_get_capacity(b);
-                city_population_add_capacity(b->house_population, max_pop);
-                b->house_population_room = max_pop - b->house_population;
-                if (b->house_population > b->house_highest_population) {
-                    b->house_highest_population = b->house_population;
-                }
-            } else if (b->house_population) {
-                // not connected to Rome, mark people for eviction
-                b->house_population_room = -b->house_population;
-            }
+        } else if (b->house_population) {
+            // not connected to Rome, mark people for eviction
+            b->house_population_room = -b->house_population;
         }
     }
 }
@@ -113,44 +119,41 @@ int house_population_create_immigrants(int num_people)
 {
     int to_immigrate = num_people;
     // clean up any dead immigrants
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type = next_house_type(type)) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->immigrant_figure_id && figure_get(b->immigrant_figure_id)->state != FIGURE_STATE_ALIVE) {
-                b->immigrant_figure_id = 0;
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (b->house_size && b->immigrant_figure_id && figure_get(b->immigrant_figure_id)->state != FIGURE_STATE_ALIVE) {
+            b->immigrant_figure_id = 0;
         }
     }
     // houses with plenty of room
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE && to_immigrate > 0; type = next_house_type(type)) {
-        for (building *b = building_first_of_type(type); b && to_immigrate > 0; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->has_plague) {
-                continue;
-            }
-            if (b->distance_from_entry > 0 && b->house_population_room >= 8 && !b->immigrant_figure_id) {
-                if (to_immigrate <= 4) {
-                    figure_create_immigrant(b, to_immigrate);
-                    to_immigrate = 0;
-                } else {
-                    figure_create_immigrant(b, 4);
-                    to_immigrate -= 4;
-                }
+    for (int i = 1; i < building_count() && to_immigrate > 0; i++) {
+        building *b = building_get(i);
+        if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->has_plague) {
+            continue;
+        }
+        if (b->distance_from_entry > 0 && b->house_population_room >= 8 && !b->immigrant_figure_id) {
+            if (to_immigrate <= 4) {
+                figure_create_immigrant(b, to_immigrate);
+                to_immigrate = 0;
+            } else {
+                figure_create_immigrant(b, 4);
+                to_immigrate -= 4;
             }
         }
     }
     // houses with less room
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE && to_immigrate > 0; type = next_house_type(type)) {
-        for (building *b = building_first_of_type(type); b && to_immigrate > 0; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->has_plague) {
-                continue;
-            }
-            if (b->distance_from_entry > 0 && b->house_population_room > 0 && !b->immigrant_figure_id) {
-                if (to_immigrate <= b->house_population_room) {
-                    figure_create_immigrant(b, to_immigrate);
-                    to_immigrate = 0;
-                } else {
-                    figure_create_immigrant(b, b->house_population_room);
-                    to_immigrate -= b->house_population_room;
-                }
+    for (int i = 1; i < building_count() && to_immigrate > 0; i++) {
+        building *b = building_get(i);
+        if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->has_plague) {
+            continue;
+        }
+        if (b->distance_from_entry > 0 && b->house_population_room > 0 && !b->immigrant_figure_id) {
+            if (to_immigrate <= b->house_population_room) {
+                figure_create_immigrant(b, to_immigrate);
+                to_immigrate = 0;
+            } else {
+                figure_create_immigrant(b, b->house_population_room);
+                to_immigrate -= b->house_population_room;
             }
         }
     }
@@ -160,26 +163,18 @@ int house_population_create_immigrants(int num_people)
 int house_population_create_emigrants(int num_people)
 {
     int to_emigrate = num_people;
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type < BUILDING_HOUSE_LARGE_INSULA && to_emigrate > 0; type = next_house_type(type)) {
-        building *next_of_type = 0;  // figure_create_emigrant can change the building type to vacant lot
-        for (building *b = building_first_of_type(type); b && to_emigrate > 0; b = next_of_type) {
-            next_of_type = b->next_of_type;
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->house_population <= 0) {
-                continue;
-            }
-            int current_people;
-            if (b->house_population >= 4) {
-                current_people = 4;
-            } else {
-                current_people = b->house_population;
-            }
-            if (to_emigrate <= current_people) {
-                figure_create_emigrant(b, to_emigrate);
-                to_emigrate = 0;
-            } else {
-                figure_create_emigrant(b, current_people);
-                to_emigrate -= current_people;
-            }
+    for (int i = 1; i < building_count() && to_emigrate > 0; i++) {
+        building *b = building_get(i);
+        if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->house_population <= 0 || !house_is_plebeian(b)) {
+            continue;
+        }
+        int current_people = b->house_population >= 4 ? 4 : b->house_population;
+        if (to_emigrate <= current_people) {
+            figure_create_emigrant(b, to_emigrate);
+            to_emigrate = 0;
+        } else {
+            figure_create_emigrant(b, current_people);
+            to_emigrate -= current_people;
         }
     }
     return num_people - to_emigrate;
@@ -189,18 +184,17 @@ static void calculate_working_population(void)
 {
     int num_plebs = 0;
     int num_patricians = 0;
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_GRAND_INSULA; type = next_house_type(type)) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE && b->house_size) {
-                num_plebs += b->house_population;
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
+            continue;
         }
-    }
-    for (building_type type = BUILDING_HOUSE_SMALL_VILLA; type <= BUILDING_HOUSE_LUXURY_PALACE; type = next_house_type(type)) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE) {
-                num_patricians += b->house_population;
-            }
+        int resident_class = building_type_registry_get_housing_resident_class(b->type);
+        if (resident_class == BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN ||
+            (!resident_class && b->type >= BUILDING_HOUSE_SMALL_VILLA && b->type <= BUILDING_HOUSE_LUXURY_PALACE)) {
+            num_patricians += b->house_population;
+        } else {
+            num_plebs += b->house_population;
         }
     }
     city_labor_calculate_workers(num_plebs, num_patricians);
@@ -245,22 +239,21 @@ void house_population_update_migration(void)
 
 void house_population_evict_overcrowded(void)
 {
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type = next_house_type(type)) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->house_population_room >= 0) {
-                continue;
-            }
-            int num_people_to_evict = -b->house_population_room;
-            figure_create_homeless(b, num_people_to_evict);
-            if (num_people_to_evict < b->house_population) {
-                b->house_population -= num_people_to_evict;
-                building_local_workforce_reconcile_house(b);
-            } else {
-                // house has been removed
-                b->house_population = 0;
-                building_local_workforce_reconcile_house(b);
-                b->state = BUILDING_STATE_UNDO;
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (b->state != BUILDING_STATE_IN_USE || !b->house_size || b->house_population_room >= 0) {
+            continue;
+        }
+        int num_people_to_evict = -b->house_population_room;
+        figure_create_homeless(b, num_people_to_evict);
+        if (num_people_to_evict < b->house_population) {
+            b->house_population -= num_people_to_evict;
+            building_local_workforce_reconcile_house(b);
+        } else {
+            // house has been removed
+            b->house_population = 0;
+            building_local_workforce_reconcile_house(b);
+            b->state = BUILDING_STATE_UNDO;
         }
     }
 }

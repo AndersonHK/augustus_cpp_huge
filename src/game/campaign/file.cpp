@@ -1,8 +1,17 @@
+extern "C" {
 #include "file.h"
 
 #include "core/file.h"
+}
 
-#include "zip/zip.h"
+#include "miniz/miniz.h"
+
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
+#include <string>
 
 #define CAMPAIGNS_PREFIX_SIZE sizeof(CAMPAIGNS_DIRECTORY)
 
@@ -12,9 +21,21 @@ static struct {
     int file_name_offset;
     struct {
         FILE *stream;
-        struct zip_t *parser;
+        mz_zip_archive archive;
+        int is_open;
     } zip;
 } data;
+
+static std::string normalized_zip_entry_name(const char *filename)
+{
+    std::string entry_name = filename ? filename : "";
+    for (char &ch : entry_name) {
+        if (ch == '\\') {
+            ch = '/';
+        }
+    }
+    return entry_name;
+}
 
 int campaign_file_exists(const char *filename)
 {
@@ -22,12 +43,12 @@ int campaign_file_exists(const char *filename)
         snprintf(&data.file_name[data.file_name_offset], FILE_NAME_MAX - data.file_name_offset, "/%s", filename);
         return dir_get_file_at_location(data.file_name, PATH_LOCATION_CAMPAIGN) != 0;
     }
-    int close_at_end = data.zip.parser == 0;
+    int close_at_end = !data.zip.is_open;
     if (!campaign_file_open_zip()) {
         return 0;
     }
-    int has_file = zip_entry_open(data.zip.parser, filename) == 0;
-    zip_entry_close(data.zip.parser);
+    std::string entry_name = normalized_zip_entry_name(filename);
+    int has_file = mz_zip_reader_locate_file(&data.zip.archive, entry_name.c_str(), nullptr, 0) >= 0;
     if (close_at_end) {
         campaign_file_close_zip();
     }
@@ -49,7 +70,7 @@ static void *load_file_from_folder(const char *file, size_t *length)
     fseek(campaign_file, 0, SEEK_END);
     *length = ftell(campaign_file);
     fseek(campaign_file, 0, SEEK_SET);
-    uint8_t *buffer = malloc(sizeof(char) * *length);
+    uint8_t *buffer = static_cast<uint8_t *>(malloc(sizeof(char) * *length));
     if (!buffer) {
         file_close(campaign_file);
         return 0;
@@ -66,36 +87,46 @@ static void *load_file_from_folder(const char *file, size_t *length)
 static void *load_file_from_zip(const char *file, size_t *length)
 {
     *length = 0;
-    int close_at_end = data.zip.parser == 0;
+    int close_at_end = !data.zip.is_open;
     if (!campaign_file_open_zip()) {
         return 0;
     }
 
-    if (zip_entry_open(data.zip.parser, file) < 0) {
+    std::string entry_name = normalized_zip_entry_name(file);
+    int file_index = mz_zip_reader_locate_file(&data.zip.archive, entry_name.c_str(), nullptr, 0);
+    if (file_index < 0) {
         if (close_at_end) {
             campaign_file_close_zip();
         }
         return 0;
     }
 
-    *length = zip_entry_size(data.zip.parser);
-    uint8_t *buffer = malloc(*length);
+    mz_zip_archive_file_stat file_stat = {};
+    if (!mz_zip_reader_file_stat(&data.zip.archive, static_cast<mz_uint>(file_index), &file_stat) ||
+        file_stat.m_is_directory ||
+        file_stat.m_uncomp_size > static_cast<mz_uint64>(std::numeric_limits<size_t>::max())) {
+        if (close_at_end) {
+            campaign_file_close_zip();
+        }
+        return 0;
+    }
+
+    *length = static_cast<size_t>(file_stat.m_uncomp_size);
+    uint8_t *buffer = static_cast<uint8_t *>(malloc(*length ? *length : 1));
     if (!buffer) {
         *length = 0;
-        zip_entry_close(data.zip.parser);
         if (close_at_end) {
             campaign_file_close_zip();
         }
         return 0;
     }
 
-    size_t result = zip_entry_noallocread(data.zip.parser, buffer, *length);
-    zip_entry_close(data.zip.parser);
+    int result = mz_zip_reader_extract_to_mem(&data.zip.archive, static_cast<mz_uint>(file_index), buffer, *length, 0);
     if (close_at_end) {
         campaign_file_close_zip();
     }
 
-    if (result != *length) {
+    if (!result) {
         *length = 0;
         free(buffer);
         return 0;
@@ -157,21 +188,23 @@ int campaign_file_open_zip(void)
             return 0;
         }
     }
-    if (!data.zip.parser) {
-        data.zip.parser = zip_cstream_open(data.zip.stream, 0, 'r');
-        if (!data.zip.parser) {
+    if (!data.zip.is_open) {
+        std::memset(&data.zip.archive, 0, sizeof(data.zip.archive));
+        if (!mz_zip_reader_init_cfile(&data.zip.archive, data.zip.stream, 0, 0)) {
             campaign_file_close_zip();
             return 0;
         }
+        data.zip.is_open = 1;
     }
     return 1;
 }
 
 void campaign_file_close_zip(void)
 {
-    if (data.zip.parser) {
-        zip_close(data.zip.parser);
-        data.zip.parser = 0;
+    if (data.zip.is_open) {
+        mz_zip_reader_end(&data.zip.archive);
+        std::memset(&data.zip.archive, 0, sizeof(data.zip.archive));
+        data.zip.is_open = 0;
     }
     if (data.zip.stream) {
         file_close(data.zip.stream);

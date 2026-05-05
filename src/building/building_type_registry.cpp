@@ -1,5 +1,8 @@
 #include "building/building_type_registry_internal.h"
+#include "building/building_type_api.h"
 #include "building/building_type_legacy_migration.h"
+#include "building/housing_type.h"
+#include "building/housing_type_registry.h"
 #include "building/production_method_registry.h"
 #include "building/storage_type_registry.h"
 #include "assets/image_group_payload.h"
@@ -12,6 +15,7 @@ extern "C" {
 #include "platform/file_manager.h"
 }
 
+#include <cstdio>
 #include <string_view>
 
 extern "C" {
@@ -347,4 +351,96 @@ extern "C" int building_type_registry_get_construction_requirement(building_type
         return 0;
     }
     return definition->construction().requirement_amount(static_cast<resource_type>(resource), phase);
+}
+
+extern "C" int building_type_registry_has_housing(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_housing() ? 1 : 0;
+}
+
+extern "C" const model_house *building_type_registry_get_housing_model(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_housing() || !definition->housing_type()) {
+        return 0;
+    }
+    return &definition->housing_type()->model();
+}
+
+extern "C" int building_type_registry_get_housing_resident_class(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_housing() || !definition->housing_type()) {
+        return 0;
+    }
+    switch (definition->housing_type()->resident_class()) {
+        case building_type_registry_impl::HousingResidentClass::Plebeian:
+            return BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN;
+        case building_type_registry_impl::HousingResidentClass::Patrician:
+            return BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN;
+        case building_type_registry_impl::HousingResidentClass::None:
+        default:
+            return 0;
+    }
+}
+
+extern "C" int building_type_registry_get_housing_legacy_level(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    int level = 0;
+    if (definition && building_type_registry_impl::housing_type_legacy_level_for_text_id(definition->attr(), &level)) {
+        return level;
+    }
+    if (type >= BUILDING_HOUSE_VACANT_LOT && type <= BUILDING_HOUSE_LUXURY_PALACE) {
+        return type - BUILDING_HOUSE_VACANT_LOT;
+    }
+    return -1;
+}
+
+extern "C" building_type building_type_registry_get_housing_type_for_legacy_level(int legacy_level, int footprint_size)
+{
+    const char *base_text_id = building_type_registry_impl::housing_type_text_id_for_legacy_level(legacy_level);
+    if (!base_text_id || !*base_text_id) {
+        return BUILDING_NONE;
+    }
+
+    if (footprint_size > 1) {
+        char expanded_text_id[128];
+        snprintf(expanded_text_id, sizeof(expanded_text_id), "%s_2x2", base_text_id);
+        building_type expanded_type = building_type_registry_impl::runtime_id_from_text(expanded_text_id);
+        if (expanded_type != BUILDING_NONE) {
+            return expanded_type;
+        }
+    }
+
+    return building_type_registry_impl::runtime_id_from_text(base_text_id);
+}
+
+extern "C" building_type building_type_registry_get_housing_transition(building_type type, int transition)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_housing()) {
+        return BUILDING_NONE;
+    }
+
+    using building_type_registry_impl::HousingTransitionKind;
+    switch (transition) {
+        case BUILDING_TYPE_HOUSING_TRANSITION_EVOLVE_TO:
+            return definition->housing_transition_type(HousingTransitionKind::EvolveTo);
+        case BUILDING_TYPE_HOUSING_TRANSITION_DEVOLVE_TO:
+            return definition->housing_transition_type(HousingTransitionKind::DevolveTo);
+        case BUILDING_TYPE_HOUSING_TRANSITION_MERGE_TO:
+            return definition->housing_transition_type(HousingTransitionKind::MergeTo);
+        case BUILDING_TYPE_HOUSING_TRANSITION_SPLIT_TO:
+            return definition->housing_transition_type(HousingTransitionKind::SplitTo);
+        default:
+            return BUILDING_NONE;
+    }
+}
+
+extern "C" building_type building_type_registry_get_vacant_lot_fill_type(void)
+{
+    building_type type = building_type_registry_impl::runtime_id_from_text("house_small_tent");
+    return type == BUILDING_NONE ? BUILDING_HOUSE_VACANT_LOT : type;
 }
