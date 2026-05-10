@@ -124,7 +124,7 @@
     <ClCompile Include="src\city\trade.c" />
     <ClCompile Include="src\city\trade_policy.c" />
     <ClCompile Include="src\city\victory.c" />
-    <ClCompile Include="src\city\view.c" />
+    <ClCompile Include="src\city\view.cpp" />
     <ClCompile Include="src\city\warning.c" />
     <ClCompile Include="src\core\array.c" />
     <ClCompile Include="src\core\buffer.c" />
@@ -295,7 +295,7 @@
     <ClCompile Include="src\input\mouse.c" />
     <ClCompile Include="src\input\scroll.c" />
     <ClCompile Include="src\input\touch.c" />
-    <ClCompile Include="src\input\zoom.c" />
+    <ClCompile Include="src\input\zoom.cpp" />
     <ClCompile Include="src\map\aqueduct.cpp" />
     <ClCompile Include="src\map\bookmark.c" />
     <ClCompile Include="src\map\bridge.c" />
@@ -419,7 +419,7 @@
     <ClCompile Include="src\widget\city_with_overlay.cpp" />
     <ClCompile Include="src\widget\dropdown_button.c" />
     <ClCompile Include="src\widget\input_box.c" />
-    <ClCompile Include="src\widget\map_editor.c" />
+    <ClCompile Include="src\widget\map_editor.cpp" />
     <ClCompile Include="src\widget\map_editor_pause_menu.cpp" />
     <ClCompile Include="src\widget\map_editor_tool.c" />
     <ClCompile Include="src\widget\minimap.c" />

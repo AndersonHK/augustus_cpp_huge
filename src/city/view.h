@@ -36,7 +36,12 @@ void city_view_reset_orientation(void);
 int city_view_get_scale(void);
 void city_view_set_scale(int scale);
 
+int city_view_get_default_scale(void);
+int city_view_get_min_scale(void);
 int city_view_get_max_scale(void);
+int city_view_get_max_raw_scale(void);
+int city_view_scale_to_display_percentage(int scale);
+int city_view_display_percentage_to_scale(int percentage);
 
 void city_view_get_camera(int *x, int *y);
 void city_view_get_camera_absolute(int *x_abs, int *y_abs);

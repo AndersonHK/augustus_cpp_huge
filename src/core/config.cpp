@@ -128,7 +128,8 @@ static const char *ini_keys[] = {
     "ui_wt_weather_duration",
     "gameplay_change_granary_do_not_allow_walkers",
     "gameplay_change_warehouse_do_not_allow_walkers",
-    "ui_scale_filter"
+    "ui_scale_filter",
+    "debug"
 };
 
 static const char *ini_string_keys[] = {
@@ -253,7 +254,8 @@ static int default_values[CONFIG_MAX_ENTRIES] = {
     1,
     0,
     0,
-    CONFIG_UI_SCALE_FILTER_AUTO
+    static_cast<int>(CONFIG_UI_SCALE_FILTER_AUTO),
+    0
 };
 
 static const char default_string_values[CONFIG_STRING_MAX_ENTRIES][CONFIG_STRING_VALUE_MAX] = { 0 };

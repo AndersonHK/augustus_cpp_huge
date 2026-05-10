@@ -4,6 +4,10 @@
 #include "input/hotkey.h"
 #include "input/mouse.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void widget_map_editor_draw(void);
 
 void widget_map_editor_get_tooltip(tooltip_context *c);
@@ -23,3 +27,7 @@ int widget_map_editor_add_draw_context_event_tile(int grid_offset, int event_id)
 int widget_map_editor_get_event_id_at_grid_offset(int grid_offset);
 
 void widget_map_editor_custom_earthquake_request_refresh(void);
+
+#ifdef __cplusplus
+}
+#endif

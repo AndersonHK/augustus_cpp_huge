@@ -145,6 +145,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - nearest
   - linear
 - The setting is already respected by the request-based 2D pipeline and related SDL texture/filter handling.
+- `CONFIG_DEBUG` exists as `debug=0/1` in `Vespasian.ini`; it currently gates transient zoom percentage warnings.
+- City zoom start/reset/display bounds are UI-scale-relative while the stored city scale remains raw renderer/world scale.
 
 ## Recent migration landmarks that matter
 - Renderer/platform:
