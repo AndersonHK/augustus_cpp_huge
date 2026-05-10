@@ -6,6 +6,9 @@
 extern "C" {
 #include "building/building.h"
 #include "building/building_runtime_api.h"
+#include "building/building_type_api.h"
+#include "building/count.h"
+#include "building/house.h"
 #include "building/image.h"
 #include "building/list.h"
 #include "building/monument.h"
@@ -178,6 +181,45 @@ int area_has_access(
         }
     }
     return 0;
+}
+
+int house_water_requirement(const building *b)
+{
+    const model_house *house_model = building_house_get_model(b);
+    return house_model ? house_model->water : 0;
+}
+
+void project_house_water_state(building *b, const SimulationResult &result)
+{
+    const int water_requirement = house_water_requirement(b);
+    const int has_well_access = area_has_access(
+        result.masks.access,
+        b->x,
+        b->y,
+        b->size,
+        access_bit(building_type_registry_impl::WaterAccessType::Well));
+    const int has_fountain_access = area_has_access(
+        result.masks.access,
+        b->x,
+        b->y,
+        b->size,
+        access_bit(building_type_registry_impl::WaterAccessType::Fountain));
+
+    switch (water_requirement) {
+        case 1:
+            b->has_well_access = has_well_access ? 1 : 0;
+            b->has_water_access = has_fountain_access ? 1 : 0;
+            break;
+        case 2:
+            b->has_well_access = has_well_access ? 1 : 0;
+            b->has_water_access = has_fountain_access ? 1 : 0;
+            break;
+        default:
+            b->has_well_access = has_well_access ? 1 : 0;
+            b->has_water_access = has_fountain_access ? 1 : 0;
+            break;
+    }
+    b->has_latrines_access = 0;
 }
 
 void mark_building_footprint(
@@ -619,20 +661,12 @@ void mark_latrines_access(building *latrines, int radius)
 
 void project_building_state(const SimulationResult &result)
 {
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type = static_cast<building_type>(type + 1)) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
-                continue;
-            }
-            b->has_water_access = area_has_access(
-                result.masks.access,
-                b->x,
-                b->y,
-                b->size,
-                access_bit(building_type_registry_impl::WaterAccessType::Fountain)) ? 1 : 0;
-            b->has_well_access = 0;
-            b->has_latrines_access = 0;
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        if (!b || b->state != BUILDING_STATE_IN_USE || !b->house_size) {
+            continue;
         }
+        project_house_water_state(b, result);
     }
 
     for (building *b = building_first_of_type(BUILDING_CONCRETE_MAKER); b; b = b->next_of_type) {

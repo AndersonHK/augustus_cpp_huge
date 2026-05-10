@@ -4,6 +4,7 @@
 #include "building/animation.h"
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/house.h"
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -238,7 +239,8 @@ static int get_column_height_efficiency(const building *b)
 
 static int get_column_height_food_stocks(const building *b)
 {
-    if (b->house_size && model_get_house(b->subtype.house_level)->food_types) {
+    const model_house *house_model = building_house_get_model(b);
+    if (b->house_size && house_model && house_model->food_types) {
         int pop = b->house_population;
         int stocks = 0;
         for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
@@ -372,7 +374,8 @@ static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
     if (b->house_population <= 0) {
         return 0;
     }
-    if (!model_get_house(b->subtype.house_level)->food_types) {
+    const model_house *house_model = building_house_get_model(b);
+    if (!house_model || !house_model->food_types) {
         return 104;
     } else {
         int stocks_present = 0;

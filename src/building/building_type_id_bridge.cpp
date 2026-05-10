@@ -2,6 +2,7 @@
 
 #include "building/building_type_legacy_migration.h"
 #include "building/building_type_registry_internal.h"
+#include "building/housing_type_registry.h"
 
 extern "C" {
 #include "core/log.h"
@@ -80,6 +81,33 @@ void register_attr_tokens(building_type runtime_id, const char *attr)
     }
 }
 
+int active_definition_has_text_id(const char *text_id)
+{
+    if (!text_id || !*text_id) {
+        return 0;
+    }
+
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (!definition) {
+            continue;
+        }
+        std::string list(definition->attr() ? definition->attr() : "");
+        size_t start = 0;
+        while (start <= list.size()) {
+            size_t end = list.find('|', start);
+            std::string token = trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
+            if (token == text_id) {
+                return 1;
+            }
+            if (end == std::string::npos) {
+                break;
+            }
+            start = end + 1;
+        }
+    }
+    return 0;
+}
+
 void ensure_runtime_table()
 {
     if (g_bridge.runtime_ready) {
@@ -94,6 +122,10 @@ void ensure_runtime_table()
     for (uint16_t id = 1; id < BUILDING_TYPE_MAX; ++id) {
         const char *legacy_text_id = building_type_legacy_migration_text_id_for_enum(id);
         if (building_type_legacy_migration_text_id_is_xml_owned(legacy_text_id)) {
+            continue;
+        }
+        if (housing_type_registry_text_id_has_legacy_house_level(legacy_text_id) &&
+            active_definition_has_text_id(legacy_text_id)) {
             continue;
         }
         register_text_id(static_cast<building_type>(id), legacy_text_id ? legacy_text_id : "");
@@ -157,6 +189,9 @@ int save_id_has_explicit_mapping(uint16_t save_id)
 
 const char *legacy_text_from_raw_save_id(uint16_t save_id)
 {
+    if (save_id > BUILDING_HOUSE_SMALL_TENT && save_id <= BUILDING_HOUSE_LUXURY_PALACE) {
+        return building_type_registry_impl::housing_type_text_id_for_legacy_level(save_id - BUILDING_HOUSE_SMALL_TENT);
+    }
     return save_id < BUILDING_TYPE_MAX ? building_type_legacy_migration_text_id_for_enum(save_id) : 0;
 }
 

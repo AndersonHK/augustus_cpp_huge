@@ -3,9 +3,9 @@
 /************************************************SAVEGAME GUIDE*******************************************************
 
 1.  Savegame versions are used to determine the save and load functions order of reading and writing data.
-    A new data added to the savegame can be completely compatible with order versions of the code, but because the
+    New data added to the savegame can be completely compatible with older versions of the code, but because the
     writing and loading instructions change, the savegame version must be updated to prevent bricking the saves.
-2.  Versions are hexadecimal numbers, so the first version is 0x00, the second is 0x01, etc. If you areunsure what is
+2.  Versions are hexadecimal numbers, so the first version is 0x00, the second is 0x01, etc. If you are unsure what is
     going to be the next version, you can check the next hex online. When increasing the save version, you need to
     increase the SAVE_GAME_CURRENT_VERSION by 1, and add a version that best describes the save before your change, e.g.:
        If you have added a new building, a version could be 'SAVE_GAME_LAST_NO_NEW_BUILDING', or
@@ -33,17 +33,17 @@
 7.  If you are updating the data type of an already existing property, make sure that the new data type is large enough
     to hold the data, e.g. uint16_t can hold values from 0 to 65535, while uint8_t can only hold values from 0 to 255.
 8.  It's not always necessary to update the savegame version when adding new properties. Check the structure that you
-    are modifying to see if there are unusued properties that can be used instead, or if there are properties that are
+    are modifying to see if there are unused properties that can be used instead, or if there are properties that are
     not used for certain types of structure. e.g. non-combat figures don't use 'wait_ticks_next_target', so to avoid
     adding a new property, this property was used to store number of ticks to wait before changing destination for cartpushers.
-    If are using a property in non-original way, please make sure to leave a comment explaining the change.
+    If you are using a property in a non-original way, please make sure to leave a comment explaining the change.
 
 If you are unsure about anything regarding the savegame versioning, please ask on github or discord.
 **********************************************************************************************************************/
 
 typedef enum {
 
-    SAVE_GAME_CURRENT_VERSION = 0xb5,
+    SAVE_GAME_CURRENT_VERSION = 0xb7,
 
     SAVE_GAME_LAST_ORIGINAL_LIMITS_VERSION = 0x66,
     SAVE_GAME_LAST_SMALLER_IMAGE_ID_VERSION = 0x76,
@@ -104,7 +104,10 @@ typedef enum {
     SAVE_GAME_LAST_NO_LOCAL_WORKFORCE = 0xb1,
     SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY = 0xb2,
     SAVE_GAME_LAST_LEGACY_ENTERTAINMENT_SHOW_HALF_DAYS = 0xb3,
-    SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE = 0xb4
+    SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE = 0xb4,
+    SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY = 0xb5,
+    // building.variant existed before this, but older saves did not use it for native BuildingType graphics options.
+    SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS = 0xb6
 } savegame_version_t;
 
 typedef enum {

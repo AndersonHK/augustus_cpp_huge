@@ -1,13 +1,34 @@
 # Building Graphics Runtime Working Memory
 
-Snapshot: 2026-04-06
+Snapshot: 2026-05-04
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+
+## 2026-05-04 as-is audit
+- Live BuildingType graphics now center on `src/widget/city_draw.cpp` plus `src/building/building_runtime_graphics.cpp`. Older notes that name `city_with_overlay.cpp` or `city_without_overlay.cpp` as live graphics chokepoints describe the pre-split checkpoint and should be read as historical.
+- XML-owned buildings with validated `<graphics>` data render through cached `ImageGroupPayload` `RuntimeDrawSlice` entries. `map_image` is kept as neutral tile bookkeeping for native-owned graphics, not as the authoritative image id.
+- `building_image_get()` remains a legacy compatibility path for definitions without native graphics and for still-unexpressed special cases such as Hippodrome orientation/part selection and generic watchtower rotation/variant policy.
+- Graphics XML discovery follows the active mod list in top-to-bottom precedence via `mod_manager_get_graphics_path_at()`, then root `assets/Graphics`; named Augustus/Julius graphics helpers remain for extractors and explicit source resolution.
+- Vespasian, Augustus, and Julius native housing XML currently covers the full legacy house chain. Housing graphics variants are normal BuildingType graphics options selected by saved `building.variant`.
+
+## 2026-05-04 native graphics options
+- `BuildingType.graphics` targets can now contain `<options selection="stable_variant">` with one or more `<option image="...">` nodes.
+- Each option inherits the enclosing target `<path>` unless it declares a per-option `path`, which supports mixed-source variant sets without adding house-specific render code.
+- Runtime selection uses saved `building.variant % option_count`, and `building.variant` is included in the native graphics cache signature.
+- New, evolved, converted, and old-save-loaded native graphics buildings clamp or seed `building.variant` through `building_runtime_assign_graphic_variant()`.
+- Save version increased to `0xb7`; saves through `0xb6` predate native graphics variant meaning and reseed options from `map_random_get(grid_offset)` during load.
+- Vespasian, Augustus, and Julius native house BuildingTypes now use normal BuildingType graphics options for their legacy house variant tables. Julius keeps the vanilla `house_small_tent` desirability threshold from upstream `c3_model.txt` data.
+- The Julius legacy graphics extractor stamp moved to `legacy_extract_v6` and extends `GROUP_BUILDING_HOUSE_TENT` to include the merged tent images in `Aesthetics\House_Tent.xml`.
+- Conditions and stable graphics options are separate layers: conditions choose the target by live building state, then the selected target applies `building.variant` to choose among equivalent art.
+- A target may omit parent `<path>` only when every option supplies its own `path`. Load-time validation materializes each resolved option and checks the effective path/image pair.
+- The checked-in `extracted_graphics_sample\Julius\Graphics\Aesthetics\House_Tent.xml` may remain stale until extraction reruns; runtime extraction should regenerate `Image_0000` through `Image_0005`.
 
 ## 2026-05-04 payload rendering correction
 - XML `BuildingType.graphics` entries now render as `ImageGroupPayload` entries, not as legacy integer image groups.
 - `building_image_get()` is legacy-only; it must not load an XML payload and squeeze the selected image back through `assets_get_image_id_from_path_or_name`.
 - Runtime-owned buildings still populate terrain/building/multitile map bookkeeping, but `map_image` receives a neutral flat-tile sentinel while `city_draw` reads footprint/top/animation from cached `RuntimeDrawSlice` payload data.
 - `building_runtime_apply_graphic_if_native()` means "the XML runtime handled map-tile graphics ownership"; callers that get true should not immediately overwrite the tile with `building_image_get()`.
+- Native housing uses the same runtime graphics ownership as other XML BuildingTypes. House-specific image lookup must not coerce `Housing\House_Tent` XML graphics into a legacy image id; native tents install their sentinel/cache through `building_runtime_apply_graphic_if_native()` and are excluded from the legacy house image switch.
+- Vespasian, Augustus, and Julius native housing chains now route every house level through BuildingType graphics, from tents through luxury palace. The legacy house image table remains only for non-native/compatibility house definitions; native houses must render through the normal runtime BuildingType payload path.
 - Pottery workshops are no longer treated as graphics-data-only; their XML `Industry\Pottery_Workshop` payload is the live renderer path.
 - Runtime animation frames normalize an active XML animation to frame 1 when the saved sprite cursor is empty, so ON states that use an OFF base plus animation overlay do not flash the OFF image between animation ticks.
 - Payload animation frame materialization now reconstructs each explicit or implicit frame as a full `PART_BOTH` raster payload before runtime drawing. Bare XML frame references no longer reuse only the referenced entry footprint, which preserves top/full overlay content for animated XML buildings.
@@ -92,10 +113,12 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Large statue definitions now explicitly declare `water_access mode="reservoir_range"` so the existing legacy animation gate for fountains can still key off `has_water_access` under the runtime-managed path.
 - The old "best-effort fallback" assumption is no longer the active rule for explicit new-path invariants in this slice; targeted failures now prefer fatal+log.
 
-## Goal
-- Route live city building rendering through `building_runtime` plus `ImageGroupPayload` when a `BuildingType` defines graphics.
-- Keep compatibility by falling back to legacy `building_image_get` and legacy `map_image` ids when the new path is absent or incomplete.
-- Keep this rollout limited to live city rendering for now.
+## Current Runtime Shape
+- Live city building rendering routes through `building_runtime` plus `ImageGroupPayload` when a `BuildingType` owns validated graphics.
+- `building_runtime_graphics.cpp` resolves conditional targets, applies stable options with `building.variant`, and caches footprint/top/animation `RuntimeDrawSlice` entries.
+- `city_draw.cpp` is the shared live-city draw seam for native building footprints, tops, and animation overlays.
+- Legacy `building_image_get()` and legacy `map_image` ids remain compatibility paths for buildings without native graphics and special cases that the XML condition set cannot yet express.
+- Placement ghosts and editor previews are mixed: several XML-owned ghosts now try the runtime path first, but the whole placement/editor surface is not yet fully native.
 
 ## User decisions locked in
 - Do not build unless the user explicitly asks.
@@ -104,20 +127,37 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Replace the old `<graphic .../>` node instead of supporting both formats.
 - New BuildingType graphics node uses child nodes only.
 - New logical path format is relative to `Graphics`, backslash-delimited, without `Graphics\` and without `.xml`.
-- First-pass runtime rule:
-  - building has runtime BuildingType
-  - BuildingType graphics path is non-null
-  - use happy path with payload manager
-  - else use legacy path
-- Live city only for now; placement ghosts and editor previews stay legacy.
+- Current runtime rule:
+  - building has a runtime wrapper and a BuildingType definition
+  - the definition resolves a validated graphics target for the live building state
+  - the runtime cache materializes that target as payload-backed draw slices
+  - otherwise the building stays on the legacy rendering path
 
-## Planned BuildingType XML shape
+## Current BuildingType XML Shape
+
 ```xml
-<building type="theater">
+<building type="house_small_shack">
     <graphics>
-        <path value="Health_Culture\Theatre" />
-        <upgrade threshold="45" operator="gt" />
-        <water_access mode="reservoir_range" />
+        <default>
+            <path value="Aesthetics\House_Shack" />
+            <options selection="stable_variant">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+            </options>
+        </default>
+    </graphics>
+</building>
+```
+
+```xml
+<building type="future_mixed_variant_building">
+    <graphics>
+        <default>
+            <options selection="stable_variant">
+                <option path="Aesthetics\Variant_Source_A" image="Image_0000" />
+                <option path="Aesthetics\Variant_Source_B" image="Image_0000" />
+            </options>
+        </default>
     </graphics>
 </building>
 ```
@@ -125,49 +165,38 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 ## Important code seams
 - `src/building/building_type_registry_internal.h`
   - `BuildingType` now owns nested `GraphicsDefinition`
+- `src/building/building_type.cpp`
+  - `GraphicsTarget::resolved_option()` applies stable option selection and inherited target paths.
 - `src/building/building_type_registry_xml.cpp`
-  - parser now expects `<graphics>` with child `<path>`, optional `<image>`, `<upgrade>`, and `<water_access>`
-- `src/building/building_runtime.h/.cpp`
-  - runtime now resolves new-path building images and still maintains legacy compatibility state
+  - parser now expects structured `<graphics>` with `<default>`, optional conditional `<variant>`, target `<path>`, optional `<image>`, and optional stable `<options>`.
+- `src/building/building_runtime.h/.cpp` and `src/building/building_runtime_graphics.cpp`
+  - runtime now resolves new-path building images, assigns stable graphics variants, and still maintains legacy compatibility state.
+- `src/widget/city_draw.cpp`
+  - live city drawing asks native runtime-owned buildings for payload-backed footprint/top/animation slices before legacy tile-id rendering.
 - `src/assets/image_group_payload.h/.cpp`
   - path-keyed group manager now exposes default-image lookup, caches failed loads, stores implicit animation metadata/frame keys plus footprint/top composition data, and clones whole-image aliases including top/animation
 - `src/core/image_payload.h/.cpp`
   - payload-backed `image` compatibility view already exists
 - `src/graphics/image.cpp`
   - now has pointer-based isometric helpers for direct `const image *` draws and a generic pointer draw helper for payload-backed animation frames
-- `src/widget/city_with_overlay.cpp`
-  - live overlay city building footprint/top now tries runtime image first, then legacy tile id; runtime animations can also draw from payload-backed frame keys
-- `src/widget/city_without_overlay.cpp`
-  - base live city building footprint/top now tries runtime image first, then legacy tile id; runtime animations can also draw from payload-backed frame keys
+- `src/building/image.cpp`
+  - legacy image-id fallback remains for non-native graphics and special cases, but native house graphics are excluded from the house-specific legacy image table.
 
 ## Current compatibility doctrine
-- Keep `map_image` populated with legacy ids for untouched systems.
-- New runtime render lookup should prefer runtime-owned footprint/top/animation slices and fall back cleanly to legacy ids where that rollout is still incomplete.
-- Missing or incomplete extracted graphics content should warn/fallback in this phase, not hard-fail startup.
+- Keep `map_image` populated enough for untouched systems, but native-owned payload graphics may use a neutral sentinel rather than a meaningful legacy sprite id.
+- New runtime render lookup prefers runtime-owned footprint/top/animation slices and falls back to legacy ids only when the definition does not own validated native graphics or when a known special case remains legacy.
+- Missing optional extracted graphics overrides may warn/fallback, but malformed live XML and invalid graphics options should fail at BuildingType load time.
+- Native graphics option failures are caught at BuildingType load time. Validated options should render through the normal runtime payload path instead of falling back to house-specific or image-group-table logic.
 
-## Implemented runtime resolver scope
-- Supported first-pass building families:
-  - theater
-  - amphitheater
-  - arena
-  - school
-  - academy
-  - library
-  - forum
-  - actor colony
-  - gladiator school
-  - doctor
-  - hospital
-  - barber
-  - well
-  - work camp
-- The resolver uses guessed candidate image ids per family and falls back to the default image in the group when appropriate.
-- Unsupported families currently return `nullptr` and stay on legacy rendering.
-- For supported families, the payload path now synthesizes a legacy-style `image` view with `top` and implicit animation metadata from the image-group XML.
+## Current runtime resolver scope
+- Supported BuildingType graphics are no longer a small first-pass family allowlist. Any loaded BuildingType with a validated root graphics target can render through the native payload path unless code explicitly keeps that building on a legacy special path.
+- Conditional graphics select a target from live building state; options then select among equivalent images using `building.variant`.
+- The main known legacy exceptions are still data-contract gaps such as Hippodrome orientation/part matrices and generic watchtower city-view rotation/variant handling.
 
 ## Content caveats
-- Live BuildingType XML files in `Mods/Vespasian/BuildingType` and `Mods/Augustus/BuildingType` were migrated to `<graphics>`.
-- The current graphics path values are scaffolding guesses based on extracted content naming conventions.
+- Live BuildingType XML files in `Mods/Vespasian/BuildingType` and `Mods/Augustus/BuildingType` were migrated to structured `<graphics>`.
+- Vespasian, Augustus, and Julius housing XML now cover the full native house chain. Julius uses only graphics available under the Julius source chain, with `Aesthetics\House_*` paths and the upstream Julius house variant offsets.
+- Older entries in this working-memory file may mention scaffolding guesses. Current bundled housing and the documented native graphics mappings have been checked against the extracted payload names available in the workspace.
 - Augustus extractor now distinguishes materialized images from alias-only wrapper nodes so anonymous aliases no longer consume `Image_####` slots.
 - Augustus isometric replacement export now prefers canonical template inheritance for numeric Julius references and recursive same-group part inheritance for local Augustus references.
 - Missing Julius template files for brand-new Augustus-only assets are still treated as an expected bootstrap miss, but local isometric wrappers now inherit parts from already-inferred Augustus images instead of collapsing through layer-count heuristics.
@@ -175,40 +204,23 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Legacy template parsing must tolerate `animation` / `frame` children because extracted Julius XML includes them, even when we only care about layer parts for inheritance.
 - Augustus canonical output-path selection should only look at alias-only wrapper images, not materialized composite images that happen to reference a legacy group internally.
 
-## Likely touched files
-- `.gitignore`
-- `docs/_codex_building_graphics_runtime_working_memory.md`
-- `src/building/building_runtime.h`
-- `src/building/building_runtime.cpp`
-- `src/building/building_runtime_api.h`
-- `src/building/building_type_registry_internal.h`
-- `src/building/building_type_registry_xml.cpp`
-- `src/graphics/image.cpp`
-- `src/graphics/image.h`
-- `src/widget/city_with_overlay.cpp`
-- `src/widget/city_with_overlay.h`
-- `src/widget/city_without_overlay.cpp`
-- `src/widget/city_without_overlay.h`
+## Current files to re-read before graphics work
+- `docs/building_type_legacy_reference_ledger.md`
+- `docs/save_load_runtime_bridges.md`
 - `Mods/Vespasian/BuildingType/_README.md`
-- `Mods/Vespasian/BuildingType/_template.xml.example`
-- live BuildingType XML files in `Mods/Vespasian/BuildingType` and `Mods/Augustus/BuildingType`
-
-## Re-read after compaction
+- `Mods/Vespasian/HousingType/_README.md`
 - `src/building/building_runtime.h`
 - `src/building/building_runtime.cpp`
+- `src/building/building_runtime_graphics.cpp`
 - `src/building/building_runtime_api.h`
+- `src/building/building_type.cpp`
 - `src/building/building_type_registry_internal.h`
 - `src/building/building_type_registry_xml.cpp`
-- `src/core/crash_context.h`
-- `src/core/crash_context.cpp`
+- `src/building/building_type_registry.cpp`
+- `src/building/image.cpp`
+- `src/widget/city_draw.cpp`
 - `src/assets/image_group_payload.h`
 - `src/assets/image_group_payload.cpp`
+- `src/assets/image_group_payload_materialize.cpp`
+- `src/core/legacy_image_extractor.cpp`
 - `src/assets/augustus_asset_extractor.cpp`
-- `src/core/image_payload.h`
-- `src/core/image_payload.cpp`
-- `src/graphics/image.h`
-- `src/graphics/image.cpp`
-- `src/widget/city_with_overlay.cpp`
-- `src/widget/city_with_overlay.h`
-- `src/widget/city_without_overlay.cpp`
-- `src/widget/city_without_overlay.h`

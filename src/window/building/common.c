@@ -2,6 +2,7 @@
 
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/house.h"
 #include "building/local_workforce.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -305,7 +306,8 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     // Damage risk
     graphics_draw_inset_rect(x_offset + 28, y_offset, 24, 24,
         COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
-    if (b->fire_proof || (b->house_size && b->subtype.house_level <= HOUSE_LARGE_TENT)) {
+    int house_level = building_house_legacy_level(b);
+    if (b->fire_proof || (b->house_size && house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_TENT)) {
         image_draw(risks_image_id, x_offset + 28, y_offset, COLOR_MASK_NONE, SCALE_NONE);
         image_draw(risks_image_id + 3, x_offset + 28, y_offset, COLOR_MASK_NONE, SCALE_NONE);
     } else {

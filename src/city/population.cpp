@@ -2,6 +2,8 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/count.h"
+#include "building/house.h"
 #include "building/house_population.h"
 #include "city/data_private.h"
 #include "core/calc.h"
@@ -363,29 +365,27 @@ static int calculate_people_per_house_type(void)
     city_data.population.people_in_tents = 0;
     city_data.population.people_in_large_insula_and_above = 0;
     int total = 0;
-    for (int type_index = BUILDING_HOUSE_SMALL_TENT; type_index <= BUILDING_HOUSE_LUXURY_PALACE; type_index++) {
-        const building_type type = static_cast<building_type>(type_index);
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_UNUSED || b->state == BUILDING_STATE_UNDO ||
-                b->state == BUILDING_STATE_DELETED_BY_GAME || b->state == BUILDING_STATE_DELETED_BY_PLAYER ||
-                !b->house_size) {
-                continue;
-            }
-            int pop = b->house_population;
-            total += pop;
-            if (b->subtype.house_level <= HOUSE_LARGE_TENT) {
-                city_data.population.people_in_tents += pop;
-            }
-            if (b->subtype.house_level <= HOUSE_LARGE_SHACK) {
-                city_data.population.people_in_tents_shacks += pop;
-            }
-            if (b->subtype.house_level >= HOUSE_LARGE_INSULA) {
-                city_data.population.people_in_large_insula_and_above += pop;
-            }
-            if (b->subtype.house_level >= HOUSE_SMALL_VILLA) {
-                city_data.population.people_in_villas_palaces += pop;
-            }
-
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        if (!b || b->state == BUILDING_STATE_UNUSED || b->state == BUILDING_STATE_UNDO ||
+            b->state == BUILDING_STATE_DELETED_BY_GAME || b->state == BUILDING_STATE_DELETED_BY_PLAYER ||
+            !b->house_size) {
+            continue;
+        }
+        int pop = b->house_population;
+        int legacy_level = building_house_legacy_level(b);
+        total += pop;
+        if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
+            city_data.population.people_in_tents += pop;
+        }
+        if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_SHACK) {
+            city_data.population.people_in_tents_shacks += pop;
+        }
+        if (legacy_level >= HOUSE_LARGE_INSULA) {
+            city_data.population.people_in_large_insula_and_above += pop;
+        }
+        if (building_house_has_patrician_residents(b)) {
+            city_data.population.people_in_villas_palaces += pop;
         }
     }
     return total;

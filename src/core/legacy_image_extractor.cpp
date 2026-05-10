@@ -17,7 +17,7 @@ extern "C" {
 
 namespace {
 
-constexpr char kExtractionStampPrefix[] = "legacy_extract_v5:";
+constexpr char kExtractionStampPrefix[] = "legacy_extract_v6:";
 struct LegacyFamily {
     const char *folder_name;
 };
@@ -572,6 +572,13 @@ static std::vector<LegacyGroupRange> build_group_ranges(
 
         if (next_first_image_id <= first_image_id) {
             continue;
+        }
+
+        // Caesar's house table addresses tent variants past the nominal next group
+        // boundary, so keep the semantic tent set together for native house XML.
+        if (group_id == GROUP_BUILDING_HOUSE_TENT && next_first_image_id < first_image_id + 6 &&
+            first_image_id + 5 < image_count) {
+            next_first_image_id = first_image_id + 6;
         }
 
         ranges.push_back({ group_id, first_image_id, next_first_image_id - 1 });

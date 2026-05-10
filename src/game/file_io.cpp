@@ -1034,7 +1034,8 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         state->road_service_history,
         version > SAVE_GAME_LAST_NO_ROAD_SERVICE_HISTORY,
         version > SAVE_GAME_LAST_NO_RELIGION_ROAD_SERVICE_HISTORY,
-        version > SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY);
+        version > SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY,
+        version > SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY);
     building_local_workforce_load_state(
         state->local_workforce_allocations,
         version > SAVE_GAME_LAST_NO_LOCAL_WORKFORCE);

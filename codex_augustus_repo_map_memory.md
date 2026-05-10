@@ -1,6 +1,6 @@
 # Codex Augustus repository map and implementation memory
 
-Snapshot: 2026-04-06
+Snapshot: 2026-05-04
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Top-level layout that matters now
@@ -124,10 +124,10 @@ Important architectural note:
   - native building footprint/top/animation draw seam
   - native whole-building footprints now draw on the owning draw tile only
 
-Current graphics precedence:
-1. `Mods/<selected mod>/Graphics`
+Current graphics XML precedence:
+1. active mod stack from top to bottom through `mod_manager_get_graphics_path_at()`
 2. root Augustus assets folder `assets/Graphics`
-3. Caesar 3/original atlas-backed assets
+3. Caesar 3/original atlas-backed assets for legacy atlas/image fallback
 
 Doctrine:
 - optional missing overrides should warn/fallback
@@ -171,6 +171,13 @@ Doctrine:
 - `src/building/building_runtime_graphics.cpp`
 - `src/building/building_runtime_spawn.cpp`
 - `src/building/building_runtime_api.h`
+- `src/building/building_type.cpp`
+- `src/building/building_type_registry.cpp`
+- `src/building/building_type_registry_xml.cpp`
+- `src/building/building_type_id_bridge.cpp`
+- `src/building/housing_type.cpp`
+- `src/building/housing_type_registry.cpp`
+- `src/building/house.cpp`
 - `src/building/construction_session.h/.cpp`
 - `src/figure/figure_type_registry.cpp`
 - `src/figure/figure_runtime.cpp`
@@ -183,6 +190,18 @@ Doctrine:
 - `src/graphics/ui_runtime.cpp`
 - `src/graphics/ui_primitives.cpp`
 - `src/widget/top_menu.cpp`
+
+## Native BuildingType / HousingType map
+- `Mods/Vespasian/BuildingType/_README.md`
+  - current XML contract for BuildingType identity, model, foundation, button, sound, event data, flags, water access, state refresh, graphics/options, construction, labor, storage, production, housing, and spawns
+- `Mods/Vespasian/HousingType/_README.md`
+  - current XML contract for residential requirements, resident class, capacity, prosperity, tax multiplier, and legacy house-level compatibility
+- `docs/building_type_legacy_reference_ledger.md`
+  - cleanup queue for remaining building-type enum references and whether each path is migrated, bridged, retained, or still needs a future phase
+- `docs/save_load_runtime_bridges.md`
+  - save-local BuildingType id table, old raw-id migration, native graphics variant normalization, and post-load runtime wrapper rebuilding
+- Vespasian, Augustus, and Julius now define the full native house chain from `house_small_tent` through `house_luxury_palace`. BuildingType owns footprint, graphics, transitions, and runtime identity; HousingType owns shared residential model data and resident class.
+- Legacy `house_level` remains a compatibility value for old save migration, old city-stat arrays, and UI/stat surfaces that still need a level-like key.
 
 Pattern:
 - keep new reusable behavior in C++ classes
@@ -211,6 +230,7 @@ Pattern:
 - `src/map/routing_distance.h/.cpp`
   - C++ helper for route-grid destination distance; venue seekers rank by `2 * show_days + route_distance`
 - BuildingType native spawns choose a `FigureType` profile with `profile="..."`; figures own the native class, movement/pathing, and road-history effect after creation.
+- Market walkers are now FigureType-bound after legacy market spawning: `market_trader` uses roaming service pathing, `market_supplier` owns storage-fetch routing, and `delivery_boy` owns follow-leader behavior.
 - Priests use explicit god profiles; entertainment service walkers use generic native behavior with profile-specific smart-service effects.
 - Mixed entertainment venues use comma-list BuildingType `existing_figure` guards, such as `actor,gladiator`, so alternate profiled service walkers share one legacy slot without orphaning one another.
 - `src/figure/movement.cpp`

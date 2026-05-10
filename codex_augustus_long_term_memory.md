@@ -1,6 +1,6 @@
 # Codex Augustus long-term working memory
 
-Snapshot: 2026-04-06
+Snapshot: 2026-05-04
 
 ## Project identity
 This branch is still best understood as a simulation-rhythm fork of Augustus.
@@ -33,7 +33,7 @@ Primary design goals remain:
 
 ## Asset / startup failure doctrine
 - Graphics/content precedence is:
-  - selected mod graphics
+  - active mod stack graphics from top to bottom
   - root Augustus assets
   - Caesar 3/original atlas-backed content
 - When a graphics bug is caused by biased canonical extracted data, prefer fixing the extractor and exported XML/PNG semantics before adding more runtime offset compensation.
@@ -75,6 +75,8 @@ Primary design goals remain:
   - shared UI facade/orchestration
 - `building_runtime`
   - building runtime migration direction
+- `building_type_registry` / `housing_type_registry`
+  - native BuildingType and HousingType XML loading, compatibility validation, legacy house-level bridge, and registry-to-legacy fan-out
 - `figure_type_registry` / `figure_runtime`
   - native FigureType XML loading and walker runtime migration direction
 - `map_road_service_history`
@@ -100,4 +102,4 @@ Primary design goals remain:
 - Do not collapse renderer policy back into many ad hoc draw helpers once the chokepoints exist.
 
 ## Short mnemonic
-Build is stable; renderer backend exists; shared UI runtime now exists; asset fallback and retained startup failures are part of the architecture; keep moving through explicit chokepoints, not broad rewrites.
+Build is stable; renderer backend exists; shared UI runtime now exists; native BuildingType/HousingType and FigureType runtimes are active; asset fallback and retained startup failures are part of the architecture; keep moving through explicit chokepoints, not broad rewrites.

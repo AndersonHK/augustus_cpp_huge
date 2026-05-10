@@ -38,6 +38,7 @@ extern "C" {
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/building_tiles.h"
+#include "map/random.h"
 #include "map/road_access.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
@@ -226,6 +227,7 @@ std::uint64_t building_runtime::graphics_state_signature() const
     mix(static_cast<std::uint64_t>(building_->figure_id4));
     mix(static_cast<std::uint64_t>(building_->monument.phase));
     mix(static_cast<std::uint64_t>(building_->monument.upgrades));
+    mix(static_cast<std::uint64_t>(building_->variant));
 
     for (int i = 0; i < RESOURCE_MAX; i++) {
         mix(static_cast<std::uint64_t>(building_->resources[i]));
@@ -242,35 +244,65 @@ const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_gra
     return building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition_, *building_);
 }
 
+void building_runtime::assign_graphic_variant(int force_reseed)
+{
+    if (!building_) {
+        return;
+    }
+
+    refresh_runtime_state();
+    const building_type_registry_impl::GraphicsTarget *target = resolve_graphic_target();
+    if (!target || !target->has_options()) {
+        return;
+    }
+
+    unsigned char variant = building_->variant;
+    const int option_count = target->option_count();
+    if (option_count <= 1) {
+        variant = 0;
+    } else if (force_reseed) {
+        // Native graphics variants are stable per tile, not per frame. Old saves
+        // and brand-new buildings enter here when the saved byte has no useful meaning.
+        variant = static_cast<unsigned char>(map_random_get(building_->grid_offset) % option_count);
+    } else {
+        variant = static_cast<unsigned char>(building_->variant % option_count);
+    }
+    if (building_->variant == variant) {
+        return;
+    }
+    building_->variant = variant;
+    invalidate_graphics_cache();
+}
+
 int building_runtime::resolve_graphic_binding(
-    const building_type_registry_impl::GraphicsTarget *target,
+    const building_type_registry_impl::GraphicsTarget &target,
     const ImageGroupPayload *&payload,
     const ImageGroupEntry *&entry) const
 {
     payload = nullptr;
     entry = nullptr;
 
-    if (!uses_new_graphics() || !target || !target->has_path()) {
+    if (!uses_new_graphics() || !target.has_path()) {
         return 0;
     }
 
-    if (!image_group_payload_load(target->path())) {
-        report_rebuild_failure(this, "payload_group_load_failed", target);
+    if (!image_group_payload_load(target.path())) {
+        report_rebuild_failure(this, "payload_group_load_failed", &target);
         return 0;
     }
 
-    payload = image_group_payload_get(target->path());
+    payload = image_group_payload_get(target.path());
     if (!payload) {
-        report_rebuild_failure(this, "payload_group_handle_null", target);
+        report_rebuild_failure(this, "payload_group_handle_null", &target);
         return 0;
     }
 
-    entry = target->has_image() ? payload->entry_for(target->image()) : payload->default_entry();
+    entry = target.has_image() ? payload->entry_for(target.image()) : payload->default_entry();
     if (!entry) {
         report_rebuild_failure(
             this,
-            target->has_image() ? "payload_entry_lookup_failed" : "payload_default_entry_lookup_failed",
-            target);
+            target.has_image() ? "payload_entry_lookup_failed" : "payload_default_entry_lookup_failed",
+            &target);
         return 0;
     }
 
@@ -534,19 +566,21 @@ void building_runtime::rebuild_cached_graphics_bindings()
         report_rebuild_failure(this, "target_selection_failed");
         return;
     }
+    // Conditional graphics pick a target first; the saved variant byte only picks
+    // among equivalent options inside that already-selected target.
+    building_type_registry_impl::GraphicsTarget resolved_target = target->resolved_option(building_->variant);
 
     const ImageGroupPayload *payload = nullptr;
     const ImageGroupEntry *entry = nullptr;
-    if (!resolve_graphic_binding(target, payload, entry)) {
+    if (!resolve_graphic_binding(resolved_target, payload, entry)) {
         return;
     }
 
     if (!entry->footprint()) {
-        report_rebuild_failure(this, "public_footprint_invalid_after_materialization", target, entry);
+        report_rebuild_failure(this, "public_footprint_invalid_after_materialization", &resolved_target, entry);
         return;
     }
 
-    graphics_cache_.selected_target = target;
     graphics_cache_.base_payload = payload;
     graphics_cache_.base_entry = entry;
     if (entry->has_animation()) {

@@ -3,6 +3,8 @@
 extern "C" {
 #include "building/building.h"
 #include "building/distribution.h"
+#include "building/building_type_api.h"
+#include "building/house.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/buildings.h"
@@ -323,7 +325,8 @@ static void prefect_coverage(building *b, int *min_happiness_seen)
 static void tax_collector_coverage(building *b, int *max_tax_multiplier)
 {
     if (b->house_size && b->house_population > 0) {
-        int tax_multiplier = model_get_house(static_cast<house_level>(b->subtype.house_level))->tax_multiplier;
+        const model_house *house_model = building_house_get_model(b);
+        int tax_multiplier = house_model ? house_model->tax_multiplier : 0;
         if (tax_multiplier > *max_tax_multiplier) {
             *max_tax_multiplier = tax_multiplier;
         }
@@ -371,12 +374,28 @@ static void collect_offerings_from_house(building *house, building *temple)
     }
 }
 
-static void distribute_market_resources(building *b, building *market)
+static const model_house *house_evolution_target_model(const building *house)
 {
-    int level = b->subtype.house_level;
-    if (level < HOUSE_LUXURY_PALACE) {
+    building_type evolve_to = building_type_registry_get_housing_transition(
+        house->type, BUILDING_TYPE_HOUSING_TRANSITION_EVOLVE_TO);
+    if (evolve_to != BUILDING_NONE) {
+        const model_house *model = building_type_registry_get_housing_model(evolve_to);
+        if (model) {
+            return model;
+        }
+    }
+
+    int level = building_house_legacy_level(house);
+    if (level < HOUSE_MIN) {
+        level = HOUSE_MIN;
+    } else if (level < HOUSE_LUXURY_PALACE) {
         level++;
     }
+    return model_get_house(static_cast<house_level>(level));
+}
+
+static void distribute_market_resources(building *b, building *market)
+{
     int max_food_stocks = 4 * b->house_highest_population;
     int food_types_stored_max = 0;
     for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r = next_resource(r)) {
@@ -387,7 +406,7 @@ static void distribute_market_resources(building *b, building *market)
             food_types_stored_max++;
         }
     }
-    const model_house *model = model_get_house(static_cast<house_level>(level));
+    const model_house *model = house_evolution_target_model(b);
     if (model->food_types) {
         for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r = next_resource(r)) {
             if (!resource_is_inventory(r) || b->resources[r] >= max_food_stocks ||

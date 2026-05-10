@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="house_large_tent">
+    <identity name_key="TR_BUILDING_HOUSE_LARGE_TENT" />
+    <model size="1" cost="0" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <sound id="house_slum" />
+    <event_data attr="house_large_tent" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\House_Tent" />
+            <options selection="stable_variant">
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+            </options>
+        </default>
+    </graphics>
+    <housing path="house_large_tent" evolve_to="house_small_shack" devolve_to="house_small_tent" merge_to="house_large_tent_2x2" />
+</building>

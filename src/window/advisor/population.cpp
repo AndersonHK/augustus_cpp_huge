@@ -5,6 +5,7 @@ extern "C" {
 #include "population.h"
 
 #include "building/count.h"
+#include "building/house.h"
 #include "core/config.h"
 #include "core/lang.h"
 #include "core/locale.h"
@@ -271,8 +272,10 @@ static void draw_society_graph(int full_size, int x, int y)
 static int calculate_total_housing_buildings(void)
 {
     int total_houses = 0;
-    for (int house = BUILDING_HOUSE_SMALL_TENT; house <= BUILDING_HOUSE_LUXURY_PALACE; ++house) {
-        total_houses += building_count_active(static_cast<building_type>(house));
+    for (int i = 1; i < building_count(); i++) {
+        if (building_house_is_active(building_get(i))) {
+            total_houses++;
+        }
     }
     return total_houses;
 }

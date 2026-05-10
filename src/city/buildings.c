@@ -1,5 +1,6 @@
 #include "buildings.h"
 
+#include "building/house.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 
@@ -123,19 +124,18 @@ int city_buildings_get_closest_plague(int x, int y, int *distance)
     int min_occupied_dist = *distance = 10000;
 
     // Find closest in houses
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE && b->has_plague && b->distance_from_entry) {
-                int dist = calc_maximum_distance(x, y, b->x, b->y);
-                if (b->figure_id4) {
-                    if (dist < min_occupied_dist) {
-                        min_occupied_dist = dist;
-                        min_occupied_building_id = b->id;
-                    }
-                } else if (dist < *distance) {
-                    *distance = dist;
-                    min_free_building_id = b->id;
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_house_is_active(b) && b->has_plague && b->distance_from_entry) {
+            int dist = calc_maximum_distance(x, y, b->x, b->y);
+            if (b->figure_id4) {
+                if (dist < min_occupied_dist) {
+                    min_occupied_dist = dist;
+                    min_occupied_building_id = b->id;
                 }
+            } else if (dist < *distance) {
+                *distance = dist;
+                min_free_building_id = b->id;
             }
         }
     }
@@ -190,8 +190,9 @@ static void update_sickness_duration(int building_id)
 
 void city_buildings_update_plague(void)
 {
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (b->house_size) {
             update_sickness_duration(b->id);
         }
     }

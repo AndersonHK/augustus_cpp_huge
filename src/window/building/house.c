@@ -1,8 +1,8 @@
 #include "house.h"
 
 #include "building/building.h"
+#include "building/house.h"
 #include "building/local_workforce.h"
-#include "building/properties.h"
 #include "city/constants.h"
 #include "city/finance.h"
 #include "city/sentiment.h"
@@ -47,7 +47,7 @@ static void draw_population_info(building_info_context *c, int y_offset)
 {
     building *b = building_get(c->building_id);
     int icon = 13;
-    if (b->subtype.house_level <= HOUSE_GRAND_INSULA) {
+    if (building_house_has_plebeian_residents(b)) {
         icon++;
     }
 
@@ -155,7 +155,10 @@ void window_building_draw_house(building_info_context *c)
         return;
     }
     window_building_play_sound(c, "wavs/housing.wav");
-    int level = b->type - 10;
+    int level = building_house_legacy_level(b);
+    if (level < HOUSE_MIN) {
+        level = HOUSE_SMALL_TENT;
+    }
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered(29, level, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     inner_panel_draw(c->x_offset + 16, c->y_offset + 128, c->width_blocks - 2, 13);
@@ -170,7 +173,8 @@ void window_building_draw_house(building_info_context *c)
     int y_amount = 263;
 
     // food inventory
-    if (model_get_house(b->subtype.house_level)->food_types) {
+    const model_house *house_model = building_house_get_model(b);
+    if (house_model && house_model->food_types) {
         const resource_list *list = city_resource_get_available_foods();
         int total_food_types = 0;
         int total_food_amount = 0;
@@ -281,7 +285,8 @@ const uint8_t *window_building_house_get_tooltip(const building_info_context *c)
 
     building *b = building_get(c->building_id);
 
-    if (!model_get_house(b->subtype.house_level)->food_types) {
+    const model_house *house_model = building_house_get_model(b);
+    if (!house_model || !house_model->food_types) {
         return 0;
     }
     const resource_list *list = city_resource_get_available_foods();

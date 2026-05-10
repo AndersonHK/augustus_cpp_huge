@@ -314,11 +314,14 @@ static figure_type parse_figure_type_name(const char *name)
         figure_type type;
     };
 
-    static constexpr std::array<NamedFigure, 13> kFigureNames = { {
+    static constexpr std::array<NamedFigure, 16> kFigureNames = { {
         { "labor_seeker", FIGURE_LABOR_SEEKER },
         { "engineer", FIGURE_ENGINEER },
         { "prefect", FIGURE_PREFECT },
         { "priest", FIGURE_PRIEST },
+        { "market_trader", FIGURE_MARKET_TRADER },
+        { "market_supplier", FIGURE_MARKET_SUPPLIER },
+        { "delivery_boy", FIGURE_DELIVERY_BOY },
         { "actor", FIGURE_ACTOR },
         { "gladiator", FIGURE_GLADIATOR },
         { "lion_tamer", FIGURE_LION_TAMER },
@@ -373,6 +376,12 @@ static NativeClassId parse_native_class_name(const char *name)
     }
     if (xml_value::equals(name, "entertainment_venue_seeker")) {
         return NativeClassId::EntertainmentVenueSeeker;
+    }
+    if (xml_value::equals(name, "market_supplier")) {
+        return NativeClassId::MarketSupplier;
+    }
+    if (xml_value::equals(name, "delivery_follower")) {
+        return NativeClassId::DeliveryFollower;
     }
     return NativeClassId::None;
 }
@@ -471,11 +480,14 @@ static int parse_image_group_name(const char *name)
         int image_group_id;
     };
 
-    static constexpr std::array<NamedGroup, 12> kImageGroups = { {
+    static constexpr std::array<NamedGroup, 15> kImageGroups = { {
         { "labor_seeker", GROUP_FIGURE_LABOR_SEEKER },
         { "engineer", GROUP_FIGURE_ENGINEER },
         { "prefect", GROUP_FIGURE_PREFECT },
         { "priest", GROUP_FIGURE_PRIEST },
+        { "market_lady", GROUP_FIGURE_MARKET_LADY },
+        { "market_supplier", GROUP_FIGURE_MARKET_LADY },
+        { "delivery_boy", GROUP_FIGURE_DELIVERY_BOY },
         { "actor", GROUP_FIGURE_ACTOR },
         { "gladiator", GROUP_FIGURE_GLADIATOR },
         { "lion_tamer", GROUP_FIGURE_LION_TAMER },
@@ -565,6 +577,9 @@ static road_service_effect parse_service_effect_name(const char *name)
     if (xml_value::equals(name, "entertainment_hippodrome")) {
         return ROAD_SERVICE_EFFECT_ENTERTAINMENT_HIPPODROME;
     }
+    if (xml_value::equals(name, "market_goods")) {
+        return ROAD_SERVICE_EFFECT_MARKET_GOODS;
+    }
     return ROAD_SERVICE_EFFECT_NONE;
 }
 
@@ -593,7 +608,8 @@ static bool is_known_service_effect_name(const char *name)
         xml_value::equals(name, "entertainment_arena_lion") ||
         xml_value::equals(name, "entertainment_colosseum_gladiator") ||
         xml_value::equals(name, "entertainment_colosseum_lion") ||
-        xml_value::equals(name, "entertainment_hippodrome");
+        xml_value::equals(name, "entertainment_hippodrome") ||
+        xml_value::equals(name, "market_goods");
 }
 
 static bool is_road_only_terrain_usage(int terrain_usage)

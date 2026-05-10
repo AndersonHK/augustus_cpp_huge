@@ -33,7 +33,11 @@
     <graphics>
         <default>
             <path value="Health_Culture\Example_Base" />
-            <image value="Image_0000" />
+            <!-- Options inherit the target path unless an option provides its own path. -->
+            <options selection="stable_variant">
+                <option image="Image_0000" />
+                <option path="Health_Culture\Example_Base_Alternate" image="Image_0000" />
+            </options>
         </default>
         <variant>
             <condition type="desirability" operator="gt" threshold="50" />
@@ -72,6 +76,10 @@
     <production_methods>
         <production_method path="example_production_method" />
     </production_methods>
+
+    <!-- Optional native housing reference -->
+    <housing path="example_housing_type" evolve_to="next_house_type" devolve_to="previous_house_type"
+        merge_to="merged_house_type" split_to="split_house_type" />
 
     <!-- Optional shared-delay spawn group -->
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="librarian"

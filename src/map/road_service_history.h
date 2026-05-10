@@ -32,7 +32,8 @@ typedef enum {
     ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_GLADIATOR = 20,
     ROAD_SERVICE_EFFECT_ENTERTAINMENT_COLOSSEUM_LION = 21,
     ROAD_SERVICE_EFFECT_ENTERTAINMENT_HIPPODROME = 22,
-    ROAD_SERVICE_EFFECT_MAX = 23
+    ROAD_SERVICE_EFFECT_MARKET_GOODS = 23,
+    ROAD_SERVICE_EFFECT_MAX = 24
 } road_service_effect;
 
 /* Clears all pathing-only service visit stamps for a fresh city/load. */
@@ -52,7 +53,8 @@ void map_road_service_history_load_state(
     buffer *buf,
     int has_saved_state,
     int has_religion_effects,
-    int has_entertainment_effects);
+    int has_entertainment_effects,
+    int has_market_effects);
 
 #ifdef __cplusplus
 }

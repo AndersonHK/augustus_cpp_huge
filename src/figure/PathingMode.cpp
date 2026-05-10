@@ -27,6 +27,16 @@ const PathingMode VenueSeeker(
     PathingMode::RoadRequirement::RequiresRoadMovement,
     PathingMode::ServiceEffectRequirement::NoServiceEffect,
     PathingMode::VenueTargetRequirement::RequiresVenueTargets);
+const PathingMode StorageFetch(
+    "storage_fetch",
+    PathingMode::RoadRequirement::RequiresRoadMovement,
+    PathingMode::ServiceEffectRequirement::NoServiceEffect,
+    PathingMode::VenueTargetRequirement::NoVenueTargets);
+const PathingMode FollowLeader(
+    "follow_leader",
+    PathingMode::RoadRequirement::RequiresRoadMovement,
+    PathingMode::ServiceEffectRequirement::NoServiceEffect,
+    PathingMode::VenueTargetRequirement::NoVenueTargets);
 
 const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
 {
@@ -38,7 +48,9 @@ const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
         &VanillaRoaming,
         &SmartService,
         &NearestUnemployed,
-        &VenueSeeker
+        &VenueSeeker,
+        &StorageFetch,
+        &FollowLeader
     };
     for (const PathingMode *mode : modes) {
         if (std::strcmp(xml_id, mode->xml_id) == 0) {

@@ -6,6 +6,7 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_type_api.h"
 #include "building/count.h"
 #include "building/properties.h"
 #include "city/labor.h"
@@ -118,6 +119,10 @@ int assigned_workers_for_workplace(unsigned int workplace_id)
 int possible_workers_for_house(const building *house)
 {
     if (!is_live_building(house) || !house->house_size || house->house_population <= 0 || city_population() <= 0) {
+        return 0;
+    }
+    if (!building_type_registry_housing_has_resident_class(
+            house->type, BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN)) {
         return 0;
     }
 
@@ -282,9 +287,9 @@ void rebuild_counters_from_allocations()
         b->local_workforce_validation_delay = 0;
     }
 
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE;
-        type = static_cast<building_type>(type + 1)) {
-        for (building *house = building_first_of_type(type); house; house = house->next_of_type) {
+    for (int id = 1; id < building_count(); id++) {
+        building *house = building_get(id);
+        if (house && house->house_size) {
             refresh_house_unemployed(house);
         }
     }
@@ -303,29 +308,27 @@ int find_nearest_reachable_house_with_unemployed(const map_point *road, map_poin
     int best_house_id = 0;
     int best_distance = 0x7fffffff;
     map_point best_road = { 0, 0 };
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE;
-        type = static_cast<building_type>(type + 1)) {
-        for (building *house = building_first_of_type(type); house; house = house->next_of_type) {
-            if (!is_live_building(house) || !house->house_size || house->house_population <= 0) {
-                continue;
-            }
+    for (int id = 1; id < building_count(); id++) {
+        building *house = building_get(id);
+        if (!is_live_building(house) || !house->house_size || house->house_population <= 0) {
+            continue;
+        }
 
-            refresh_house_unemployed(house);
-            if (house->local_workforce_unemployed <= 0) {
-                continue;
-            }
+        refresh_house_unemployed(house);
+        if (house->local_workforce_unemployed <= 0) {
+            continue;
+        }
 
-            const routing_distance::BuildingRoadResult route =
-                routing_distance::find_access_road_to_building(house, 2, max_distance, 1);
-            if (!route.reachable) {
-                continue;
-            }
+        const routing_distance::BuildingRoadResult route =
+            routing_distance::find_access_road_to_building(house, 2, max_distance, 1);
+        if (!route.reachable) {
+            continue;
+        }
 
-            if (route.distance < best_distance) {
-                best_distance = route.distance;
-                best_house_id = house->id;
-                best_road = route.road;
-            }
+        if (route.distance < best_distance) {
+            best_distance = route.distance;
+            best_house_id = house->id;
+            best_road = route.road;
         }
     }
 

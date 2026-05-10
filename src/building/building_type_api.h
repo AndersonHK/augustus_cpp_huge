@@ -5,6 +5,7 @@ extern "C" {
 #endif
 
 #include "building/type.h"
+#include "building/properties.h"
 
 typedef struct building building;
 
@@ -15,6 +16,19 @@ enum {
     BUILDING_TYPE_TERRAIN_WATER = 1 << 3,
     BUILDING_TYPE_TERRAIN_WALL = 1 << 4,
     BUILDING_TYPE_TERRAIN_DISTANT_WATER = 1 << 5
+};
+
+enum {
+    BUILDING_TYPE_HOUSING_RESIDENT_NONE = 0,
+    BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN = 1,
+    BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN = 2
+};
+
+enum {
+    BUILDING_TYPE_HOUSING_TRANSITION_EVOLVE_TO = 1,
+    BUILDING_TYPE_HOUSING_TRANSITION_DEVOLVE_TO = 2,
+    BUILDING_TYPE_HOUSING_TRANSITION_MERGE_TO = 3,
+    BUILDING_TYPE_HOUSING_TRANSITION_SPLIT_TO = 4
 };
 
 const char *building_type_registry_get_building_type_path(void);
@@ -45,6 +59,14 @@ int building_type_registry_get_construction_phase_count(building_type type);
 int building_type_registry_get_construction_road_update_radius(building_type type);
 int building_type_registry_get_instant_construction_requirement(building_type type, int resource);
 int building_type_registry_get_construction_requirement(building_type type, int resource, int phase);
+int building_type_registry_has_housing(building_type type);
+const model_house *building_type_registry_get_housing_model(building_type type);
+int building_type_registry_get_housing_resident_class(building_type type);
+int building_type_registry_housing_has_resident_class(building_type type, int resident_class);
+int building_type_registry_get_housing_legacy_level(building_type type);
+building_type building_type_registry_get_housing_type_for_legacy_level(int legacy_level, int footprint_size);
+building_type building_type_registry_get_housing_transition(building_type type, int transition);
+building_type building_type_registry_get_vacant_lot_fill_type(void);
 
 #ifdef __cplusplus
 }

@@ -1,6 +1,6 @@
 # Codex Augustus VS2022 / MSBuild migration working memory
 
-Snapshot: 2026-04-06
+Snapshot: 2026-05-04
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## What is true in this checkout now
@@ -41,6 +41,13 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 ### Gameplay/runtime
 - `src/building/tool_mode.cpp`
 - `src/building/building_runtime.cpp`
+- `src/building/building_runtime_graphics.cpp`
+- `src/building/building_type.cpp`
+- `src/building/building_type_registry.cpp`
+- `src/building/building_type_registry_xml.cpp`
+- `src/building/housing_type.cpp`
+- `src/building/housing_type_registry.cpp`
+- `src/building/house.cpp`
 - `src/figure/figure_type_registry.cpp`
 - `src/figure/figure_runtime.cpp`
 - `src/figure/movement.cpp`
@@ -99,6 +106,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Shared UI primitives/widget/runtime chain is active for common widget primitives.
 - Graphics-pack precedence and retained critical startup failures are now part of the architecture, not temporary patches.
 - Native FigureType XML and `figure_runtime` are active for the currently ported service walkers.
+- Native BuildingType XML and HousingType XML are active for the bundled full house chains and several migrated building families; remaining legacy enum references should be treated as bridge/compatibility work, not as stable new authority.
 - Road service history is a save-backed, pathing-only telemetry grid used by smart service walkers.
 - `window.cpp` is the full-window/pass orchestrator.
 - `ui_runtime.cpp` is the shared widget facade/orchestration chokepoint.

@@ -1,7 +1,12 @@
 # Tile Graphics Runtime Working Memory
 
-Snapshot: 2026-04-06
+Snapshot: 2026-05-04
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+
+## 2026-05-04 as-is audit
+- Tile runtime plaza rendering now returns payload-backed `RuntimeDrawSlice` data through `tile_runtime_get_graphic_footprint_slice()`.
+- `src/widget/city_draw.cpp` owns the shared runtime tile draw helper; `city_without_overlay.cpp` calls that helper before falling back to legacy `map_image` ids.
+- Plaza runtime state stores authored image ids from tile XML, not a raw image-order index.
 
 ## 2026-04-06 extractor correction
 - Older notes below that describe Augustus bootstrap relying mainly on local heuristic part assignment are now stale.
@@ -43,14 +48,14 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - currently supports `type="plaza"`
 - `src/map/tile_runtime.*`
   - stores per-tile graphics state by `grid_offset`
-  - v1 stores plaza image-order index selected by legacy placement logic
+  - v1 stores the plaza image id selected by legacy placement logic and declared in tile XML
 - `src/map/tile_runtime_api.h`
   - legacy-facing bridge for reset, clear, plaza registration, and render lookup
 
 ## Plaza happy path
 - Legacy `set_plaza_image()` still decides the plaza variant.
-- It now also registers the selected image-order index with tile runtime.
-- City renderers ask `tile_runtime_get_graphic_image(grid_offset)` before falling back to `map_image_at(grid_offset)`.
+- It now also registers the selected XML image id with tile runtime.
+- City rendering calls `city_draw_runtime_tile_footprint()`, which asks `tile_runtime_get_graphic_footprint_slice(grid_offset)` before falling back to `map_image_at(grid_offset)`.
 - `map_image` stays populated with legacy ids as compatibility state.
 
 ## Canonical extractor rule
@@ -61,7 +66,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Invalid or conflicting references log and fall back without aborting extraction.
 
 ## Payload note
-- `ImageGroupPayload` now exposes stable access by image order index so plaza can reuse legacy variant selection without hardcoding image ids.
+- `ImageGroupPayload` exposes stable access by image id so plaza can reuse legacy variant selection without hardcoding legacy integer image ids.
 
 ## Large statue follow-up
 - `large_statue.xml` still points to `Aesthetics\Statue`, but now also pins `l statue anim` through the new `graphics.image` field on the building-side runtime.
@@ -77,6 +82,6 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - `src/map/tile_type_registry_xml.cpp`
 - `src/map/tile_runtime.cpp`
 - `src/map/tiles.cpp`
+- `src/widget/city_draw.cpp`
 - `src/widget/city_without_overlay.cpp`
-- `src/widget/city_with_overlay.cpp`
 - `src/building/building_runtime.cpp`

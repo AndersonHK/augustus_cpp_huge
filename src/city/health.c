@@ -5,7 +5,6 @@
 #include "building/granary.h"
 #include "building/house.h"
 #include "building/monument.h"
-#include "building/properties.h"
 #include "building/warehouse.h"
 #include "city/culture.h"
 #include "city/data_private.h"
@@ -44,6 +43,11 @@ static int is_plague_building(building_type type)
         }
     }
     return 0;
+}
+
+static int occupied_house_at_legacy_level(const building *b, int level)
+{
+    return building_house_is_active(b) && b->house_population && building_house_legacy_level(b) == level;
 }
 
 static void cause_disease_in_building(int building_id)
@@ -119,35 +123,32 @@ static int cause_disease(void)
     building_type sick_building_type = 0;
     int grid_offset = 0;
     // Kill people who have sickness level to max in houses
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        building *next_of_type = 0; // building_destroy_by_plague changes the building type
-        for (building *b = building_first_of_type(type); b; b = next_of_type) {
-            next_of_type = b->next_of_type;
-            if (b->state == BUILDING_STATE_IN_USE && b->house_size && b->house_population) {
-                if (b->sickness_level >= MAX_SICKNESS_LEVEL) {
-                    sick_people = 1;
-                    sick_building_type = b->type;
-                    grid_offset = b->grid_offset;
-                    if (city_health() < 40) {
-                        building_destroy_by_plague(b);
-                    } else {
-                        int killed_people = b->house_population -
-                            calc_adjust_with_percentage(b->house_population, city_health());
-                        if (killed_people == 0) {
-                            killed_people = 1;
-                        }
-                        if (killed_people < b->house_population) {
-                            b->house_population -= killed_people;
-                        } else {
-                            building_house_change_to_vacant_lot(b);
-                        }
-                        city_population_remove_home_removed(killed_people);
-
-                        // Cause plague in the house
-                        b->immigrant_figure_id = 0;
-                        b->has_plague = 1;
-                        b->sickness_duration = 0;
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_house_is_active(b) && b->house_population) {
+            if (b->sickness_level >= MAX_SICKNESS_LEVEL) {
+                sick_people = 1;
+                sick_building_type = b->type;
+                grid_offset = b->grid_offset;
+                if (city_health() < 40) {
+                    building_destroy_by_plague(b);
+                } else {
+                    int killed_people = b->house_population -
+                        calc_adjust_with_percentage(b->house_population, city_health());
+                    if (killed_people == 0) {
+                        killed_people = 1;
                     }
+                    if (killed_people < b->house_population) {
+                        b->house_population -= killed_people;
+                    } else {
+                        building_house_change_to_vacant_lot(b);
+                    }
+                    city_population_remove_home_removed(killed_people);
+
+                    // Cause plague in the house
+                    b->immigrant_figure_id = 0;
+                    b->has_plague = 1;
+                    b->sickness_duration = 0;
                 }
             }
         }
@@ -217,11 +218,10 @@ static void cause_plague(int total_people)
     }
     tutorial_on_disease();
     // kill people who don't have access to a doctor
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        building *next_of_type = 0; // building_destroy_by_plague changes the building type
-        for (building *b = building_first_of_type(type); b; b = next_of_type) {
-            next_of_type = b->next_of_type;
-            if (b->state == BUILDING_STATE_IN_USE && b->house_size && b->house_population) {
+    for (int level = HOUSE_MIN; level <= HOUSE_MAX; level++) {
+        for (int i = 1; i < building_count(); i++) {
+            building *b = building_get(i);
+            if (occupied_house_at_legacy_level(b, level)) {
                 if (!b->data.house.clinic) {
                     people_to_kill -= b->house_population;
                     building_destroy_by_plague(b);
@@ -233,11 +233,10 @@ static void cause_plague(int total_people)
         }
     }
     // kill anyone, starting with tents and working up the housing levels
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        building *next_of_type = 0; // building_destroy_by_plague changes the building type
-        for (building *b = building_first_of_type(type); b; b = next_of_type) {
-            next_of_type = b->next_of_type;
-            if (b->state == BUILDING_STATE_IN_USE && b->house_size && b->house_population) {
+    for (int level = HOUSE_MIN; level <= HOUSE_MAX; level++) {
+        for (int i = 1; i < building_count(); i++) {
+            building *b = building_get(i);
+            if (occupied_house_at_legacy_level(b, level)) {
                 people_to_kill -= b->house_population;
                 building_destroy_by_plague(b);
                 if (people_to_kill <= 0) {
@@ -280,7 +279,7 @@ int city_health_get_house_health_level(const building *b, int update_city_data)
     // Check if the building is a house
     if (building_is_house(b->type)) {
         // House Level: What is the level of the house?
-        house_health = calc_bound(b->subtype.house_level, 0, 10);
+        house_health = calc_bound(building_house_legacy_level(b), 0, 10);
 
         // Healthcare: Do they have access to a Clinic and/or Hospital?
         if (b->data.house.clinic && b->data.house.hospital) {
@@ -315,8 +314,8 @@ int city_health_get_house_health_level(const building *b, int update_city_data)
         // Diet: How many foods do they have access to?
         house_health += b->data.house.num_foods * 10;
         // Cap health to 40 if their house level requires food but they don't have any
-        int health_cap = (model_get_house(b->subtype.house_level)->food_types && !b->data.house.num_foods) ?
-            40 : 100;
+        const model_house *house_model = building_house_get_model(b);
+        int health_cap = (house_model && house_model->food_types && !b->data.house.num_foods) ? 40 : 100;
         house_health = calc_bound(house_health, 0, health_cap);
 
         // Update city_data
@@ -363,22 +362,21 @@ void city_health_update(void)
     city_data.health.population_access.latrines = 0;
     city_data.health.population_access.fountains = 0;
 
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
-                continue;
-            }
-            if (!b->house_population) {
-                b->sickness_level = 0;
-                continue;
-            }
-            int house_health = city_health_get_house_health_level(b, 1);
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (!building_house_is_active(b)) {
+            continue;
+        }
+        if (!b->house_population) {
+            b->sickness_level = 0;
+            continue;
+        }
+        int house_health = city_health_get_house_health_level(b, 1);
 
-            total_population += b->house_population;
-            if (!only_gather_stats) {
-                healthy_population += calc_adjust_with_percentage(b->house_population, house_health);
-                adjust_sickness_level_in_house(b, house_health, population_health_offset, hospital_coverage_bonus);
-            }
+        total_population += b->house_population;
+        if (!only_gather_stats) {
+            healthy_population += calc_adjust_with_percentage(b->house_population, house_health);
+            adjust_sickness_level_in_house(b, house_health, population_health_offset, hospital_coverage_bonus);
         }
     }
     if (only_gather_stats) {
@@ -409,17 +407,14 @@ int city_health_get_global_sickness_level(void)
     int building_sickness_level = 0;
     int max_sickness_level = 0;
 
-    for (building_type type = BUILDING_HOUSE_SMALL_TENT; type <= BUILDING_HOUSE_LUXURY_PALACE; type++) {
-        building *next_of_type;
-        for (building *b = building_first_of_type(type); b; b = next_of_type) {
-            next_of_type = b->next_of_type;
-            if (b->state == BUILDING_STATE_IN_USE && b->house_size && b->house_population) {
-                building_number++;
-                building_sickness_level += calc_bound(b->sickness_level, 0, MAX_SICKNESS_LEVEL);
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_house_is_active(b) && b->house_population) {
+            building_number++;
+            building_sickness_level += calc_bound(b->sickness_level, 0, MAX_SICKNESS_LEVEL);
 
-                if (b->sickness_level > max_sickness_level) {
-                    max_sickness_level = b->sickness_level;
-                }
+            if (b->sickness_level > max_sickness_level) {
+                max_sickness_level = b->sickness_level;
             }
         }
     }
