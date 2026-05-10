@@ -12,7 +12,7 @@ This is a research memo for tuning the `mortality_table` in `Mods/Vespasian/defi
 - `src/city/population.cpp` uses `game_defines_mortality_percentage(city_data.health.value / 10, decennium)`, so health `0-100` collapses into **11 buckets** (`0-10`).
 - Birth rates are now loaded from `birth_table/default` in `defines.xml`; the current bundled values are `0,3,16,9,2,0,0,0,0,0`.
 - `src/city/health.c` makes very high health fairly reachable for advanced housing because house level, clinic/hospital, bathhouse, barber, water/latrine, mausolea, and multiple foods can all stack toward `100`.
-- See `docs/demographics_runtime.md` for the runtime contract between the citywide census and per-house resident counts.
+- See [Demographics Runtime](demographics_runtime.md) for the runtime contract between the citywide census and per-house resident counts.
 
 ## Immediate simulation consequences
 
@@ -36,6 +36,12 @@ This is a research memo for tuning the `mortality_table` in `Mods/Vespasian/defi
 - Roman cities, especially very large ones, were not "safe" just because they had baths, fountains, or physicians. Dense settlement still meant more infection pressure, contaminated food chains, and repeated epidemic risk.
 - Seguy explicitly notes that exceptional urbanization in Rome could alter mortality and fertility, and that epidemics, malaria, and crowding mattered.
 - Later medieval evidence points the same way: a PubMed study of medieval England found that **urban adults had elevated mortality risk and lower survivorship** than rural adults.
+- A 2026 PNAS study of carbonate deposits in Pompeii's Republican Baths is a useful service-level caution. Before aqueduct supply, the baths used deep wells and water-lifting devices; the study found evidence that the bath water was not regularly renewed, with human-waste and heavy-metal contamination signals. Baths should therefore improve health only when water source, water volume, drainage, and cleaning are good enough.
+- Roman sanitation should also be modeled as partial mitigation, not a modern sewerage baseline. Koloski-Ostrow's work stresses that Roman toilets, drains, sewers, and baths were sophisticated but did not erase filth, odor, or disease risk; a Pompeii drainage study identifies 29 upper-story latrines and 286 wide-bore downpipes, while public latrines alone remained too few to represent all excrement disposal.
+
+For the service and maintenance tuning that connects to this mortality table,
+see [Roman City Facility Ratios](../research/roman_city_facility_ratios.md) and
+[Roman Building and Infrastructure Maintenance Needs](../research/roman_building_maintenance_needs.md).
 
 ### Early dark ages / early medieval
 
@@ -157,3 +163,9 @@ The table should not make Roman "perfect health" people functionally immortal un
   [https://pubmed.ncbi.nlm.nih.gov/28006969/](https://pubmed.ncbi.nlm.nih.gov/28006969/)
 - Sylva Kaupova et al., "Urban and rural infant-feeding practices and health in early medieval Central Europe (9th-10th Century, Czech Republic)":
   [https://pubmed.ncbi.nlm.nih.gov/25256815/](https://pubmed.ncbi.nlm.nih.gov/25256815/)
+- Gul Surmelihindi et al., "Seeing Roman life through water: Exploring Pompeii's public baths via carbonate deposits":
+  [https://openscience.ub.uni-mainz.de/items/def61ce2-3174-4fe5-90cc-6224ef941da5](https://openscience.ub.uni-mainz.de/items/def61ce2-3174-4fe5-90cc-6224ef941da5)
+- Ann Olga Koloski-Ostrow, *The Archaeology of Sanitation in Roman Italy* metadata:
+  [https://scholarworks.brandeis.edu/esploro/outputs/book/The-archaeology-of-sanitation-in-Roman/9924035756301921](https://scholarworks.brandeis.edu/esploro/outputs/book/The-archaeology-of-sanitation-in-Roman/9924035756301921)
+- "Downpipes and upper story latrines in Pompeii":
+  [https://www.sciencedirect.com/science/article/pii/S2352409X16306344](https://www.sciencedirect.com/science/article/pii/S2352409X16306344)

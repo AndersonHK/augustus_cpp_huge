@@ -7,6 +7,26 @@ Templates and examples are maintained only in `Mods\Vespasian\BuildingType`.
 
 Runtime/save identity is migrating away from stable enum slots. New saves include a `building_type_table` that maps compact save ids to BuildingType text ids, while loaded buildings continue to use compact runtime ids. Old saves without the table migrate through `src\building\building_type_legacy_migration.*`.
 
+Historical tuning references:
+
+- [Roman City Facility Ratios](../../../research/roman_city_facility_ratios.md)
+  gives starting ratios for service counts, area, and employment.
+- [Roman Building and Infrastructure Maintenance Needs](../../../research/roman_building_maintenance_needs.md)
+  separates public payroll from private employment and gives maintenance/failure
+  levers by building family.
+- [Roman City Size and Social Ratios](../../../research/roman_city_size_and_social_ratios.md)
+  gives resident-class and city-role assumptions for housing, service demand,
+  and labor tuning.
+- [Caesar III / Julius Housing Progression Defaults](../../../research/caesar3_julius_housing_progression_defaults.md)
+  records the vanilla house footprints, capacities, service gates, graphics
+  references, prosperity, and tax curve.
+- [Caesar III Housing Balance and Play Analysis](../../../research/caesar3_housing_balance_play_analysis.md)
+  explains which services and goods are easy, mandatory, or logistically hard in
+  vanilla play.
+- [Vespasian Housing Progression Design Notes](../../../research/vespasian_housing_progression_design_notes.md)
+  records possible future mechanics such as service capacities, market revenue,
+  deeper road access, and classed employment.
+
 Current supported nodes:
 
 - `<identity ... />`

@@ -163,6 +163,20 @@ Doctrine:
   - actual per-house resident additions/removals and consistency reconciliation
 - `docs/demographics_runtime.md`
   - runtime contract between demographic tables, census counts, and house populations
+- `research/roman_city_size_and_social_ratios.md`
+  - Roman city-size bands, plebeian/patrician interpretation, elite/common ratios, and dependent-labor caveats
+- `research/roman_city_facility_ratios.md`
+  - Roman service-building ratios for population, labor, and area tuning
+- `research/roman_building_maintenance_needs.md`
+  - maintenance labor, water, fuel, sanitation, and failure-mode guidance for service and infrastructure buildings
+- `research/caesar3_julius_housing_progression_defaults.md`
+  - vanilla housing progression values, service gates, visual descriptions, and design-preservation guidance
+- `research/caesar3_housing_balance_play_analysis.md`
+  - Caesar-specific housing efficiency, labor cliff, goods friction, and service difficulty notes
+- `research/vespasian_housing_progression_design_notes.md`
+  - forward-looking Vespasian mechanics for classed labor, demand gates, service capacity, road access, and market revenue
+- `research/comparative_citybuilder_design/`
+  - weakly linked comparative design notes for SimCity RCI, Anno tiers, Stronghold popularity, and Seven Kingdoms economy patterns
 
 ## Current migration reference points
 - `src/building/tool_mode.cpp`
@@ -196,6 +210,10 @@ Doctrine:
   - current XML contract for BuildingType identity, model, foundation, button, sound, event data, flags, water access, state refresh, graphics/options, construction, labor, storage, production, housing, and spawns
 - `Mods/Vespasian/HousingType/_README.md`
   - current XML contract for residential requirements, resident class, capacity, prosperity, tax multiplier, and legacy house-level compatibility
+- `research/caesar3_julius_housing_progression_defaults.md`
+  - Caesar III / Julius house capacities, footprints, service gates, desirability thresholds, graphics references, and tuning degrees of freedom
+- `research/caesar3_housing_balance_play_analysis.md`
+  - patrician non-labor, plebeian labor base, tier-efficiency heuristics, and goods/service friction for HousingType/BuildingType tuning
 - `docs/building_type_legacy_reference_ledger.md`
   - cleanup queue for remaining building-type enum references and whether each path is migrated, bridged, retained, or still needs a future phase
 - `docs/save_load_runtime_bridges.md`

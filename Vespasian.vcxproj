@@ -1124,7 +1124,7 @@
     <IntDir>out\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemGroup>
-    <Content Include="Mods\**\*">
+    <Content Include="Mods\**\*" Exclude="Mods\**\*.md">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <TargetPath>Mods\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </Content>
@@ -1200,4 +1200,10 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <Target Name="RemoveModMarkdownFromOutput" AfterTargets="Build">
+    <ItemGroup>
+      <ModMarkdownOutput Include="$(OutDir)Mods\**\*.md" />
+    </ItemGroup>
+    <Delete Files="@(ModMarkdownOutput)" TreatErrorsAsWarnings="true" />
+  </Target>
 </Project>

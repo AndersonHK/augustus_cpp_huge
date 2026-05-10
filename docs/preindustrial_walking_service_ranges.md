@@ -9,9 +9,17 @@ or public-safety trips should push beyond that.
 
 For the engine conversion from `max_roam_length` to approximate tiles, meters,
 game days, and wall-clock seconds, see
-`docs/tile_scale_and_walker_timescale.md`. That note currently treats 15 m/tile
-as the practical midpoint because one-tile roads represent arterial corridors
-while a 2x2 evolved house block represents four houses with paths between them.
+[Tile Scale and Walker Timescale](tile_scale_and_walker_timescale.md). That
+note currently treats 15 m/tile as the practical midpoint because one-tile roads
+represent arterial corridors while a 2x2 evolved house block represents four
+houses with paths between them.
+
+For Roman service-density ratios that should be used with these walking ranges,
+see [Roman City Facility Ratios](../research/roman_city_facility_ratios.md). For
+the maintenance side of the same problem, especially why engineers, prefects,
+water crews, and drains can use broader patrol abstractions than ordinary
+household services, see
+[Roman Building and Infrastructure Maintenance Needs](../research/roman_building_maintenance_needs.md).
 
 ## Research Summary
 
@@ -30,6 +38,13 @@ safer gameplay feel is closer to 1.0-1.25 miles / 1.6-2.0 km for ordinary
 routine services. A 45-minute one-way walk is already an exceptional trip; beyond
 that, most routine needs should either fail, decentralize to a nearer provider,
 or be treated as a special journey rather than normal coverage.
+
+Pompeii's water-access studies show the very short end of the curve. Using
+Notarian's public-fountain network, Simelius reports average dwelling-to-fountain
+distance around 47 m, median around 42 m, and a maximum around 215 m among the
+modeled dwellings. That supports treating daily water as a near-block service,
+while still allowing inequality and hidden household labor for residents at the
+network edge.
 
 ## Historical Anchors
 
@@ -120,3 +135,8 @@ For service design, a good "give up" curve is:
   https://www.cityoflondon.gov.uk/things-to-do/walks-and-itineraries/self-guided-walks-and-trails/the-medieval-city
 - Naismith walking baseline, 3 miles / 5 km per hour:
   https://en.wikipedia.org/wiki/Naismith%27s_rule
+- Matthew Notarian, "A Spatial Network Analysis of Water Distribution from
+  Public Fountains in Pompeii":
+  https://ajaonline.org/article/4585/
+- Samuli Simelius, "Networks of Inequality: Access to Water in Roman Pompeii":
+  https://journal.caa-international.org/articles/10.5334/jcaa.116

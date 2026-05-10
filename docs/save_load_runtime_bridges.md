@@ -250,7 +250,7 @@ Runtime storage is:
 - `std::array<grid_u32, ROAD_SERVICE_EFFECT_MAX> g_history`
 - `uint32_t g_last_visit_stamp`
 
-The save payload is dynamic and starts with:
+The local-workforce payload is dynamic and starts with:
 
 1. `kSaveFormatVersion = 1`
 2. effect count

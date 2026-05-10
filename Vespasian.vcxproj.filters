@@ -1061,7 +1061,6 @@
     <Content Include="Mods\Augustus\BuildingType\*.xml" />
     <Content Include="Mods\Vespasian\Tiles\*.xml" />
     <Content Include="Mods\Vespasian\BuildingType\*.xml" />
-    <Content Include="Mods\Vespasian\BuildingType\*.md" />
     <Content Include="Mods\Vespasian\BuildingType\*.example" />
   </ItemGroup>
 </Project>

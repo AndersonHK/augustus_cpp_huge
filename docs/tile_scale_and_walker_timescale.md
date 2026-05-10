@@ -31,6 +31,17 @@ Why 15 m/tile:
 
 This estimate should not be used for exact map cartography. It is a tuning
 scale: close enough to ask whether a walker is covering 500 m, 1 km, or 2 km.
+The same 15 m midpoint is used in
+[Roman City Facility Ratios](../research/roman_city_facility_ratios.md) for rough
+area estimates, where one tile is about 225 sqm. Those facility footprints
+remain symbolic compounds rather than exact archaeological plans.
+
+Two archaeological checks help keep that abstraction honest. Flohr's Pompeii
+database gives taberna units averaging about 42 sqm, far below one 15 m tile,
+so a 1x1 shop represents a frontage module rather than one literal room. Hanson's
+macella sample averages about 1,265 sqm, or about 5.6 tiles at 15 m/tile, with a
+range from less than one tile to about 34 tiles. That supports small markets at
+2x2 and major macella at 3x3 or larger.
 
 ## Engine Meaning of `max_roam_length`
 
@@ -105,7 +116,8 @@ The same table under the 12-20 m/tile uncertainty band:
 ## Comparison to Real Walking Tolerance
 
 The preindustrial walking research in
-`docs/preindustrial_walking_service_ranges.md` suggests this design curve:
+[Preindustrial Walking Service Ranges](preindustrial_walking_service_ranges.md)
+suggests this design curve:
 
 - 5-10 real minutes one-way: daily essentials, children, frequent household
   errands.
@@ -184,3 +196,7 @@ That mismatch is worth treating as a separate tuning or runtime decision:
   https://www.britannica.com/technology/insula
 - Naismith walking baseline, 5 km/h on flat ground:
   https://www.hikeclock.com/learn/naismith-rule
+- Miko Flohr, Database of Pompeian Houses:
+  https://www.mikoflohr.org/pompeii/
+- J. W. Hanson, macella footprint scaling:
+  https://www.cambridge.org/core/journals/journal-of-roman-archaeology/article/new-approaches-to-the-architectural-design-amenities-and-function-of-macella-typologies-scale-and-the-macellum-magnum/75C1747256BD9D46707E99A6B56E8F6C

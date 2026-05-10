@@ -22,6 +22,14 @@ Current supported shape:
 
 Buildings select a native profile with `profile="..."` on their `<spawn>`. The building only chooses the profile; the figure profile owns the native class, owner contract, movement, pathing mode, and road-history effect.
 
+For range tuning, pair
+[Preindustrial Walking Service Ranges](../../../docs/preindustrial_walking_service_ranges.md)
+with [Tile Scale and Walker Timescale](../../../docs/tile_scale_and_walker_timescale.md).
+For deciding which services should be very local, ordinary neighborhood range,
+or broader patrol/maintenance range, see
+[Roman City Facility Ratios](../../../research/roman_city_facility_ratios.md)
+and [Roman Building and Infrastructure Maintenance Needs](../../../research/roman_building_maintenance_needs.md).
+
 Current supported figure ids include `labor_seeker`, `engineer`, `prefect`, `priest`, `market_trader`, `market_supplier`, `delivery_boy`, `teacher`, `librarian`, `barber`, `bathhouse_worker`, `school_child`, `actor`, `gladiator`, `lion_tamer`, and `charioteer`.
 
 Current supported native classes are `roaming_service`, `engineer_service`, `prefect_service`, `market_supplier`, `delivery_follower`, `entertainment_venue_seeker`, and `entertainment_service`.
@@ -51,11 +59,11 @@ Planned residential walker support:
 - Patricians can probably use the existing `roaming_service` class with `pathing mode="vanilla_roaming"`, `terrain_usage="roads"`, `max_roam_length="128"`, and `return_mode="return_to_owner_road"`.
 - Beggars need an explicit decision: use a native moving profile such as `terrain_usage="roads_highway"` plus `return_mode="die_at_limit"`, or add a compatibility pathing mode such as `timed_idle`/`ambient_lifetime` to preserve the current mostly-stationary lifetime behavior first.
 - Residential walkers should not declare a road service `effect`, because they do not provide coverage and should not write road-service history.
-- See `docs/walker_pathing_runtime.md` for the fuller migration note, save-load inference concerns, and example XML.
+- See [Walker Pathing Runtime](../../../docs/walker_pathing_runtime.md) for the fuller migration note, save-load inference concerns, and example XML.
 
 Related implementation notes:
 
-- `docs/walker_pathing_runtime.md` explains runtime flow, save compatibility, and effect-id rules.
-- `docs/tile_scale_and_walker_timescale.md` converts `max_roam_length` into approximate tiles, meters, game days, and wall-clock time.
-- `docs/preindustrial_walking_service_ranges.md` gives historical walking-city guidance for `max_roam_length` tuning.
+- [Walker Pathing Runtime](../../../docs/walker_pathing_runtime.md) explains runtime flow, save compatibility, and effect-id rules.
+- [Tile Scale and Walker Timescale](../../../docs/tile_scale_and_walker_timescale.md) converts `max_roam_length` into approximate tiles, meters, game days, and wall-clock time.
+- [Preindustrial Walking Service Ranges](../../../docs/preindustrial_walking_service_ranges.md) gives historical walking-city guidance for `max_roam_length` tuning.
 - `codex_augustus_repo_map_memory.md` indexes the native walker chokepoints for future sessions.
