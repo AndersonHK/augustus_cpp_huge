@@ -89,6 +89,7 @@ private:
     int has_figure_of_type(figure_type type);
     int has_figure_of_any(const std::vector<figure_type> &types);
     unsigned int *figure_slot_storage(building_type_registry_impl::FigureSlot slot);
+    unsigned int find_live_owned_figure(figure_type primary_type, figure_type secondary_type = FIGURE_NONE) const;
     int slot_has_live_figure(
         building_type_registry_impl::FigureSlot slot,
         figure_type primary_type,
@@ -109,6 +110,7 @@ private:
     int resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const;
     int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
     int evaluate_condition(building_type_registry_impl::SpawnCondition condition) const;
+    int evaluate_spawn_chance(const building_type_registry_impl::SpawnPolicy &policy) const;
     int should_apply_graphic_for_timing(
         const building_type_registry_impl::SpawnDelayGroup &group,
         building_type_registry_impl::GraphicTiming timing) const;

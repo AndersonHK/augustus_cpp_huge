@@ -21,6 +21,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Augustus is a gameplay fork of Julius: https://github.com/Keriew/augustus
 - When checking vanilla behavior, compare against Julius first; when checking Augustus-added behavior, compare against the Augustus fork. This matters for XML migrations because copied mod data can accidentally pull Vespasian/Augustus behavior into Julius or vice versa.
 - Tile graphics need the same upstream care: Augustus added a newer tile graphical set on top of Julius, so Augustus/Vespasian tile XML can legitimately refer to both Julius base tile images and Augustus-added tile aliases behind the same logical path.
+- `docs/gameplay_divergences_from_augustus.md` is the living ledger for player-visible ways this repo's bundled profiles or Vespasian content intentionally diverge from upstream Augustus behavior.
 
 ## Renderer/backend map
 ### Platform layer
@@ -218,6 +219,8 @@ Doctrine:
   - cleanup queue for remaining building-type enum references and whether each path is migrated, bridged, retained, or still needs a future phase
 - `docs/save_load_runtime_bridges.md`
   - save-local BuildingType id table, old raw-id migration, native graphics variant normalization, and post-load runtime wrapper rebuilding
+- `docs/gameplay_divergences_from_augustus.md`
+  - living gameplay ledger for project-wide, bundled-Augustus, and Vespasian-only differences from upstream Augustus
 - Vespasian, Augustus, and Julius now define the full native house chain from `house_small_tent` through `house_luxury_palace`. BuildingType owns footprint, graphics, transitions, and runtime identity; HousingType owns shared residential model data and resident class.
 - Legacy `house_level` remains a compatibility value for old save migration, old city-stat arrays, and UI/stat surfaces that still need a level-like key.
 
@@ -236,7 +239,7 @@ Pattern:
 - `docs/preindustrial_walking_service_ranges.md`
   - historical walking-city calibration for walker `max_roam_length` tiers
 - `src/figure/figure_type_registry.cpp`
-  - selected-mod/Augustus/Julius FigureType XML precedence and profile validation
+  - selected-mod/Augustus/Julius FigureType XML precedence and profiled BuildingType spawn reference validation
 - `src/figure/PathingMode.h/.cpp`
   - pathing mode objects and requirements such as `requires_road`, `requires_service_effect`, and `requires_venue_targets`
 - `src/figure/figure_runtime.cpp`
@@ -247,8 +250,9 @@ Pattern:
   - local workforce labor-seeker targeting, house/workplace allocation table, and save payload
 - `src/map/routing_distance.h/.cpp`
   - C++ helper for route-grid destination distance; venue seekers rank by `2 * show_days + route_distance`
-- BuildingType native spawns choose a `FigureType` profile with `profile="..."`; figures own the native class, movement/pathing, and road-history effect after creation.
+- BuildingType native spawns choose a `FigureType` profile with `profile="..."`; figures own the native class, movement/pathing, and road-history effect after creation. Spawn policies may use constant `chance_per_million`, source `chance_per_million_bands`, or source `chance_divisor` gates.
 - Market walkers are now FigureType-bound after legacy market spawning: `market_trader` uses roaming service pathing, `market_supplier` owns storage-fetch routing, and `delivery_boy` owns follow-leader behavior.
+- Residential walkers are BuildingType-spawned and FigureType-bound: `patrician` uses `house_roamer` with `roaming_service`, while `beggar` uses `unemployment_wanderer` with `transient_wanderer` and `stand_still`. House XML uses `figure_slot="quaternary"` so each house owns at most one active residential walker.
 - Priests use explicit god profiles; entertainment service walkers use generic native behavior with profile-specific smart-service effects.
 - Mixed entertainment venues use comma-list BuildingType `existing_figure` guards, such as `actor,gladiator`, so alternate profiled service walkers share one legacy slot without orphaning one another.
 - `src/figure/movement.cpp`

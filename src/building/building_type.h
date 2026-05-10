@@ -108,6 +108,17 @@ enum class SpawnCondition {
     Days1OrDays2Positive
 };
 
+enum class SpawnChanceSource {
+    None,
+    CityUnemploymentPercent,
+    HouseUnemployedWorkers
+};
+
+struct ChanceBand {
+    int min_value = 0;
+    int chance_per_million = 0;
+};
+
 enum class GraphicsConditionType {
     None,
     HasWorkers,
@@ -161,6 +172,10 @@ struct SpawnPolicy {
     int require_water_access = 0;
     int mark_problem_if_no_water = 0;
     int block_on_success = 0;
+    SpawnChanceSource chance_source = SpawnChanceSource::None;
+    int chance_per_million = -1;
+    int chance_divisor = 0;
+    std::vector<ChanceBand> chance_bands;
     SpawnCondition condition = SpawnCondition::Always;
     std::string profile;
 };

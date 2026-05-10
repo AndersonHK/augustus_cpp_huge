@@ -52,6 +52,7 @@ Primary design goals remain:
 - Existing `.savf` saves can be renamed to `.svv`; the on-disk payload format did not change with the extension rename.
 - Canonical save layout and ownership notes live in `docs/save_data_organization.md`; check that before changing any `*_save_state`, `*_load_state`, or `init_savegame_data` piece.
 - Save/load runtime bridge notes live in `docs/save_load_runtime_bridges.md`; check that before changing BuildingType save ids, monument construction loading, road service history, local workforce allocations, or runtime wrapper rebinding.
+- Player-visible behavior differences from upstream Augustus belong in `docs/gameplay_divergences_from_augustus.md`; update it when a migration intentionally changes bundled Augustus, Julius, or Vespasian gameplay.
 
 ## Text / UTF doctrine
 - Do not attempt a blanket UTF-native storage migration during unrelated renderer or widget work.

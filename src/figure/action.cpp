@@ -1,5 +1,6 @@
-#include "action.h"
+#include "figure/action.h"
 
+extern "C" {
 #include "city/entertainment.h"
 #include "city/figures.h"
 #include "figure/figure.h"
@@ -23,11 +24,24 @@
 #include "figuretype/wall.h"
 #include "figuretype/water.h"
 #include "figuretype/workcamp.h"
+}
 
 
 static void figure_nobody_action(figure *f)
-{}
+{
+    (void) f;
+}
 
+static void figure_retired_native_action(figure *f)
+{
+    // These enum slots are now owned by FigureType controllers. If runtime
+    // binding fails, remove the figure instead of falling through to stale C.
+    if (f) {
+        f->state = FIGURE_STATE_DEAD;
+    }
+}
+
+// Indices intentionally match figure_type enum values.
 static void (*figure_action_callbacks[])(figure *f) = {
     figure_nobody_action, //0
     figure_immigrant_action,
@@ -69,7 +83,7 @@ static void (*figure_action_callbacks[])(figure *f) = {
     figure_flotsam_action,
     figure_docker_action,
     figure_supplier_action,
-    figure_patrician_action, //40
+    figure_retired_native_action, //40
     figure_indigenous_native_action,
     figure_tower_sentry_action,
     figure_enemy43_spear_action,
@@ -118,11 +132,11 @@ static void (*figure_action_callbacks[])(figure *f) = {
     figure_robber_action,
     figure_looter_action,
     figure_delivery_boy_action,
-    figure_supplier_action, 
+    figure_supplier_action,
     figure_fort_supplier_action, // 90
     figure_depot_cartpusher_action,
     figure_soldier_action,
-    figure_beggar_action,
+    figure_retired_native_action,
     figure_soldier_action,
     figure_enemy_catapult_action,
     figure_catapult_missile_action,

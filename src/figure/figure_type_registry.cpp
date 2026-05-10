@@ -1,5 +1,6 @@
 #include "figure/figure_type_registry_internal.h"
 
+#include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
 #include "core/xml_value.h"
 
@@ -314,11 +315,13 @@ static figure_type parse_figure_type_name(const char *name)
         figure_type type;
     };
 
-    static constexpr std::array<NamedFigure, 16> kFigureNames = { {
+    static constexpr std::array<NamedFigure, 18> kFigureNames = { {
         { "labor_seeker", FIGURE_LABOR_SEEKER },
         { "engineer", FIGURE_ENGINEER },
         { "prefect", FIGURE_PREFECT },
         { "priest", FIGURE_PRIEST },
+        { "patrician", FIGURE_PATRICIAN },
+        { "beggar", FIGURE_BEGGAR },
         { "market_trader", FIGURE_MARKET_TRADER },
         { "market_supplier", FIGURE_MARKET_SUPPLIER },
         { "delivery_boy", FIGURE_DELIVERY_BOY },
@@ -382,6 +385,9 @@ static NativeClassId parse_native_class_name(const char *name)
     }
     if (xml_value::equals(name, "delivery_follower")) {
         return NativeClassId::DeliveryFollower;
+    }
+    if (xml_value::equals(name, "transient_wanderer")) {
+        return NativeClassId::TransientWanderer;
     }
     return NativeClassId::None;
 }
@@ -480,11 +486,13 @@ static int parse_image_group_name(const char *name)
         int image_group_id;
     };
 
-    static constexpr std::array<NamedGroup, 15> kImageGroups = { {
+    static constexpr std::array<NamedGroup, 17> kImageGroups = { {
         { "labor_seeker", GROUP_FIGURE_LABOR_SEEKER },
         { "engineer", GROUP_FIGURE_ENGINEER },
         { "prefect", GROUP_FIGURE_PREFECT },
         { "priest", GROUP_FIGURE_PRIEST },
+        { "patrician", GROUP_FIGURE_PATRICIAN },
+        { "beggar", GROUP_FIGURE_HOMELESS },
         { "market_lady", GROUP_FIGURE_MARKET_LADY },
         { "market_supplier", GROUP_FIGURE_MARKET_LADY },
         { "delivery_boy", GROUP_FIGURE_DELIVERY_BOY },
@@ -910,6 +918,40 @@ static int parse_graphics_node()
             return 0;
         }
     }
+    if (xml_parser_has_attribute("base_image_offset")) {
+        graphics_policy.image_group_offset = xml_parser_get_attribute_int("base_image_offset");
+        if (graphics_policy.image_group_offset < 0) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node requires a non-negative base_image_offset", 0, 0);
+            return 0;
+        }
+    }
+    if (xml_parser_has_attribute("static_frame_count")) {
+        graphics_policy.static_frame_count = xml_parser_get_attribute_int("static_frame_count");
+        if (graphics_policy.static_frame_count <= 0) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node requires a positive static_frame_count", 0, 0);
+            return 0;
+        }
+    }
+    if (xml_parser_has_attribute("corpse_image_group")) {
+        graphics_policy.corpse_image_group =
+            parse_image_group_name(xml_parser_get_attribute_string("corpse_image_group"));
+        if (!graphics_policy.corpse_image_group) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node has an unknown corpse_image_group",
+                xml_parser_get_attribute_string("corpse_image_group"), 0);
+            return 0;
+        }
+    }
+    if (xml_parser_has_attribute("corpse_base_image_offset")) {
+        graphics_policy.corpse_image_group_offset = xml_parser_get_attribute_int("corpse_base_image_offset");
+        if (graphics_policy.corpse_image_group_offset < 0) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node requires a non-negative corpse_base_image_offset", 0, 0);
+            return 0;
+        }
+    }
 
     g_parse_state.definition->set_graphics_policy(graphics_policy);
     g_parse_state.saw_graphics = true;
@@ -1114,6 +1156,45 @@ static int parse_definition_file(const char *filename)
     return 1;
 }
 
+static int validate_building_spawn_profile_references()
+{
+    // BuildingType XML may now be the only place that names a FigureType
+    // profile. Validate those edges after FigureType precedence is resolved so
+    // a missing residential or service profile fails at load time, not when a
+    // city later tries to spawn the walker.
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &building_definition :
+        building_type_registry_impl::g_building_types) {
+        if (!building_definition) {
+            continue;
+        }
+
+        for (const building_type_registry_impl::SpawnDelayGroup &group : building_definition->spawn_groups()) {
+            for (const building_type_registry_impl::SpawnPolicy &policy : group.policies) {
+                if (policy.profile.empty()) {
+                    continue;
+                }
+
+                const FigureTypeDefinition *figure_definition = definition_for(policy.spawn_figure);
+                const FigureTypeProfile *figure_profile = profile_for(policy.spawn_figure, policy.profile.c_str());
+                if (figure_definition && figure_profile) {
+                    continue;
+                }
+
+                std::string detail = "building=";
+                detail += building_definition->attr();
+                detail += " figure=";
+                detail += figure_definition ? figure_definition->attr() : std::to_string(static_cast<int>(policy.spawn_figure));
+                detail += " profile=";
+                detail += policy.profile;
+                set_failure_reason("BuildingType spawn FigureType profile is missing.", detail.c_str());
+                log_error("BuildingType spawn FigureType profile is missing", detail.c_str(), 0);
+                return 0;
+            }
+        }
+    }
+    return 1;
+}
+
 } // namespace figure_type_registry_impl
 
 extern "C" const char *figure_type_registry_get_failure_reason(void)
@@ -1175,5 +1256,5 @@ extern "C" int figure_type_registry_load(void)
         return 0;
     }
 
-    return 1;
+    return figure_type_registry_impl::validate_building_spawn_profile_references();
 }

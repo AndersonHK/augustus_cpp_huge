@@ -18,4 +18,7 @@
         </default>
     </graphics>
     <housing path="house_large_casa" evolve_to="house_small_insula_2x2" devolve_to="house_small_casa_2x2" split_to="house_large_casa" />
+    <spawn_group road_access="normal" delay_bands="100:0">
+        <spawn mode="service_roamer" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="347" />
+    </spawn_group>
 </building>

@@ -26,9 +26,11 @@ extern "C" {
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/data_private.h"
+#include "city/labor.h"
 #include "city/population.h"
 #include "core/calc.h"
 #include "core/config.h"
+#include "core/random.h"
 #include "figure/action.h"
 #include "figure/figure.h"
 #include "figure/movement.h"
@@ -49,7 +51,13 @@ extern "C" {
 
 int building_runtime::worker_percentage() const
 {
-    return calc_percentage(building_->num_workers, model_get_building(building_->type)->laborers);
+    const int required_workers = model_get_building(building_->type)->laborers;
+    if (required_workers <= 0) {
+        // Houses and other zero-labor spawn owners still need their XML
+        // delay bands to fire; treat them as fully staffed for delay purposes.
+        return 100;
+    }
+    return calc_percentage(building_->num_workers, required_workers);
 }
 
 int building_runtime::default_spawn_delay() const
@@ -210,22 +218,54 @@ unsigned int *building_runtime::figure_slot_storage(building_type_registry_impl:
     }
 }
 
+unsigned int building_runtime::find_live_owned_figure(figure_type primary_type, figure_type secondary_type) const
+{
+    // Compatibility scan for figures that predate XML-owned slots, or that
+    // lost their tracked slot through legacy cleanup. Spawns identify ownership
+    // by building_id, so a live owned walker can safely rehydrate the slot.
+    for (unsigned int i = 1; i < figure_count(); i++) {
+        figure *existing = figure_get(i);
+        if (!existing || !existing->state || existing->building_id != building_->id) {
+            continue;
+        }
+        if (existing->type == primary_type || (secondary_type != FIGURE_NONE && existing->type == secondary_type)) {
+            return existing->id;
+        }
+    }
+    return 0;
+}
+
 int building_runtime::slot_has_live_figure(
     building_type_registry_impl::FigureSlot slot,
     figure_type primary_type,
     figure_type secondary_type)
 {
+    // XML spawn slots are backed by legacy figure_id fields. Before declaring
+    // the slot free, adopt any already-live owned figure so old saves and older
+    // hardcoded creation paths do not double-spawn the same walker role.
     unsigned int *slot_value = figure_slot_storage(slot);
-    if (!slot_value || *slot_value <= 0) {
+    if (!slot_value) {
         return 0;
+    }
+    if (*slot_value <= 0) {
+        // Residential walkers created before BuildingType-owned slots did not
+        // populate the house slot. Adopt one live owned walker to avoid a
+        // duplicate during the save compatibility window.
+        *slot_value = find_live_owned_figure(primary_type, secondary_type);
+        return *slot_value > 0;
     }
 
     figure *existing = figure_get(*slot_value);
     if (!existing || !existing->state || existing->building_id != building_->id) {
         *slot_value = 0;
-        return 0;
+        *slot_value = find_live_owned_figure(primary_type, secondary_type);
+        return *slot_value > 0;
     }
     if (existing->type != primary_type && existing->type != secondary_type) {
+        *slot_value = find_live_owned_figure(primary_type, secondary_type);
+        if (*slot_value > 0) {
+            return 1;
+        }
         *slot_value = 0;
         return 0;
     }
@@ -769,6 +809,56 @@ int building_runtime::evaluate_condition(building_type_registry_impl::SpawnCondi
     }
 }
 
+int building_runtime::evaluate_spawn_chance(const building_type_registry_impl::SpawnPolicy &policy) const
+{
+    // Chance gates are expressed as parts per million so XML can encode both
+    // small daily probabilities and deterministic gates without float drift.
+    // Bands use the first matching minimum value in author order; divisors turn
+    // a live source value such as unemployed workers into source / divisor.
+    int chance_per_million = policy.chance_per_million;
+    int source_value = 0;
+    switch (policy.chance_source) {
+        case building_type_registry_impl::SpawnChanceSource::CityUnemploymentPercent:
+            source_value = city_labor_unemployment_percentage();
+            break;
+        case building_type_registry_impl::SpawnChanceSource::HouseUnemployedWorkers:
+            source_value = building_local_workforce_house_available_workers(building_);
+            break;
+        case building_type_registry_impl::SpawnChanceSource::None:
+        default:
+            break;
+    }
+
+    if (policy.chance_divisor > 0) {
+        const long long scaled = static_cast<long long>(source_value) * 1000000;
+        chance_per_million = static_cast<int>((scaled + policy.chance_divisor / 2) / policy.chance_divisor);
+    } else if (!policy.chance_bands.empty()) {
+        chance_per_million = 0;
+        for (const building_type_registry_impl::ChanceBand &band : policy.chance_bands) {
+            if (source_value >= band.min_value) {
+                chance_per_million = band.chance_per_million;
+                break;
+            }
+        }
+    }
+
+    if (chance_per_million < 0) {
+        return 1;
+    }
+    if (chance_per_million <= 0) {
+        return 0;
+    }
+    if (chance_per_million >= 1000000) {
+        return 1;
+    }
+
+    random_generate_next();
+    const int roll = static_cast<int>(
+        (((static_cast<unsigned int>(random_short()) & 0x7fff) << 15) |
+            (static_cast<unsigned int>(random_short_alt()) & 0x7fff)) % 1000000);
+    return roll < chance_per_million;
+}
+
 int building_runtime::should_apply_graphic_for_timing(
     const building_type_registry_impl::SpawnDelayGroup &group,
     building_type_registry_impl::GraphicTiming timing) const
@@ -875,6 +965,10 @@ int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnP
         return 0;
     }
 
+    if (!evaluate_spawn_chance(policy)) {
+        return 0;
+    }
+
     if (policy.graphic_timing == building_type_registry_impl::GraphicTiming::BeforeSuccessfulSpawn) {
         set_building_graphic();
     }
@@ -903,7 +997,13 @@ void building_runtime::spawn_service_roamer_group(
     size_t group_index,
     int run_labor)
 {
-    check_labor_problem();
+    // A spawn group may exist only to run residential or ambient spawns. Labor
+    // overlays and labor-seeker checks belong only to definitions with explicit
+    // labor data, and only once per building-generation pass.
+    const int has_labor_phase = run_labor && definition_ && definition_->has_labor();
+    if (has_labor_phase) {
+        check_labor_problem();
+    }
     if (should_apply_graphic_for_timing(group, building_type_registry_impl::GraphicTiming::OnSpawnEntry)) {
         set_building_graphic();
     }
@@ -918,7 +1018,7 @@ void building_runtime::spawn_service_roamer_group(
         return;
     }
 
-    if (run_labor && definition_ && definition_->has_labor()) {
+    if (has_labor_phase) {
         run_labor_phase(definition_->labor(), road);
     }
 

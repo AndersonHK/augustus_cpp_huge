@@ -114,6 +114,15 @@ bool owner_binding_matches(const figure *f, const building *owner, const figure_
     return owner_state_matches(owner, owner_binding) && slot_matches(f, owner, owner_binding);
 }
 
+bool owner_binding_requires_owner(const figure_type_registry_impl::OwnerBinding &owner_binding)
+{
+    // An "any/none/any" owner node means the profile only wants a source id
+    // for save/debug context. Transient walkers can outlive that building.
+    return owner_binding.slot != figure_type_registry_impl::FigureSlot::None ||
+        owner_binding.required_building_type != BUILDING_ANY ||
+        owner_binding.required_owner_state != figure_type_registry_impl::OwnerStateRequirement::Any;
+}
+
 void retire_unsupported_native_state(figure *f, const char *native_class)
 {
     const ErrorContextScope scope("Native FigureType action", native_class);
@@ -140,6 +149,29 @@ bool is_road_history_tile(int grid_offset)
 {
     return map_terrain_is(grid_offset, TERRAIN_ROAD) ||
         map_routing_citizen_is_road(grid_offset);
+}
+
+int image_base_for_definition(const figure_type_registry_impl::FigureTypeDefinition *definition)
+{
+    // Most walkers start at the image group base. A few XML profiles address a
+    // row inside a shared group, so keep that offset centralized.
+    if (!definition) {
+        return 0;
+    }
+    const figure_type_registry_impl::GraphicsPolicy &graphics = definition->graphics_policy();
+    return image_group(graphics.image_group) + graphics.image_group_offset;
+}
+
+int corpse_image_base_for_definition(const figure_type_registry_impl::FigureTypeDefinition *definition)
+{
+    if (!definition) {
+        return 0;
+    }
+    const figure_type_registry_impl::GraphicsPolicy &graphics = definition->graphics_policy();
+    if (graphics.corpse_image_group) {
+        return image_group(graphics.corpse_image_group) + graphics.corpse_image_group_offset;
+    }
+    return image_base_for_definition(definition) + 96;
 }
 
 class RoamingServiceFigure : public NativeFigure {
@@ -194,7 +226,7 @@ public:
                     }
                 }
             }
-            figure_image_update(f, image_group(graphics.image_group));
+            figure_image_update(f, image_base_for_definition(definition()));
             return 1;
         }
 
@@ -244,8 +276,158 @@ public:
                 return 0;
         }
 
-        figure_image_update(f, image_group(graphics.image_group));
+        figure_image_update(f, image_base_for_definition(definition()));
         return 1;
+    }
+};
+
+// Ownerless ambient walkers have two generic lifetime policies: stand still on
+// their spawn tile, or roam briefly and expire instead of returning home.
+class TransientWandererFigure : public NativeFigure {
+public:
+    using NativeFigure::NativeFigure;
+
+    int execute() override
+    {
+        figure *f = data_figure();
+        if (!f || !definition() || !profile()) {
+            return 0;
+        }
+
+        const figure_type_registry_impl::OwnerBinding &owner_binding = profile()->owner_binding();
+        if (owner_binding_requires_owner(owner_binding)) {
+            building *owner = building_get(f->building_id);
+            if (!owner || !owner->id || !owner_binding_matches(f, owner, owner_binding)) {
+                f->state = FIGURE_STATE_DEAD;
+                update_image(f);
+                return 1;
+            }
+        }
+
+        const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
+        const figure_type_registry_impl::GraphicsPolicy &graphics = definition()->graphics_policy();
+
+        f->cart_image_id = 0;
+        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->use_cross_country = 0;
+        f->max_roam_length = static_cast<short>(movement.max_roam_length);
+        figure_image_increase_offset(f, graphics.max_image_offset);
+
+        if (profile()->pathing_policy().mode == &figure_type_registry_impl::StandStill) {
+            execute_stand_still(f, movement);
+            update_image(f);
+            return 1;
+        }
+        if (profile()->pathing_policy().mode != &figure_type_registry_impl::TransientWander) {
+            retire_unsupported_native_state(f, "transient_wanderer");
+            update_image(f);
+            return 1;
+        }
+
+        if (f->action_state == 0) {
+            f->action_state = FIGURE_ACTION_125_ROAMING;
+            figure_movement_init_roaming(f);
+            f->roam_length = 0;
+        }
+
+        switch (f->action_state) {
+            case FIGURE_ACTION_150_ATTACK:
+                figure_combat_handle_attack(f);
+                break;
+            case FIGURE_ACTION_149_CORPSE:
+                figure_combat_handle_corpse(f);
+                break;
+            case FIGURE_ACTION_125_ROAMING:
+                f->is_ghost = 0;
+                f->wait_ticks++;
+                f->roam_length++;
+                if (f->wait_ticks > movement.max_roam_length) {
+                    f->state = FIGURE_STATE_DEAD;
+                    f->image_offset = 0;
+                } else {
+                    figure_movement_roam_ticks(f, movement.roam_ticks);
+                }
+                break;
+            default:
+                retire_unsupported_native_state(f, "transient_wanderer");
+                break;
+        }
+
+        update_image(f);
+        return 1;
+    }
+
+private:
+    static void clear_stand_still_movement(figure *f)
+    {
+        // Buggy transient saves may already contain a roaming route. Preserve
+        // the current tile, but discard destination state so the policy is idle.
+        figure_route_remove(f);
+        f->routing_path_current_tile = 0;
+        f->routing_path_length = 0;
+        f->destination_x = f->x;
+        f->destination_y = f->y;
+        f->destination_grid_offset = f->grid_offset;
+        f->previous_tile_x = f->x;
+        f->previous_tile_y = f->y;
+        f->previous_tile_direction = f->direction;
+        f->progress_on_tile = 15;
+        f->roam_length = 0;
+        f->roam_choose_destination = 0;
+        f->roam_random_counter = 0;
+        f->roam_turn_direction = 0;
+        f->roam_ticks_until_next_turn = 0;
+    }
+
+    static void tick_stand_still_lifetime(
+        figure *f,
+        const figure_type_registry_impl::MovementProfile &movement)
+    {
+        f->is_ghost = 0;
+        f->wait_ticks++;
+        if (f->wait_ticks > movement.max_roam_length) {
+            f->state = FIGURE_STATE_DEAD;
+            f->image_offset = 0;
+        }
+    }
+
+    void execute_stand_still(
+        figure *f,
+        const figure_type_registry_impl::MovementProfile &movement) const
+    {
+        switch (f->action_state) {
+            case 0:
+                tick_stand_still_lifetime(f, movement);
+                break;
+            case FIGURE_ACTION_125_ROAMING:
+                clear_stand_still_movement(f);
+                f->action_state = 0;
+                tick_stand_still_lifetime(f, movement);
+                break;
+            case FIGURE_ACTION_150_ATTACK:
+                figure_combat_handle_attack(f);
+                break;
+            case FIGURE_ACTION_149_CORPSE:
+                figure_combat_handle_corpse(f);
+                break;
+            default:
+                retire_unsupported_native_state(f, "transient_wanderer");
+                break;
+        }
+    }
+
+    void update_image(figure *f) const
+    {
+        const figure_type_registry_impl::GraphicsPolicy &graphics = definition()->graphics_policy();
+        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+            f->image_id = corpse_image_base_for_definition(definition()) + figure_image_corpse_offset(f);
+            return;
+        }
+        if (graphics.static_frame_count > 0) {
+            f->image_id = image_base_for_definition(definition()) + (f->id % graphics.static_frame_count);
+            return;
+        }
+        figure_image_update(f, image_base_for_definition(definition()));
     }
 };
 
@@ -577,12 +759,11 @@ private:
     void update_image(figure *f) const
     {
         const int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
+        const int base_image_id = image_base_for_definition(definition());
         if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = image_group(definition()->graphics_policy().image_group) + 96 +
-                figure_image_corpse_offset(f);
+            f->image_id = base_image_id + 96 + figure_image_corpse_offset(f);
         } else {
-            f->image_id = image_group(definition()->graphics_policy().image_group) +
-                dir + 8 * f->image_offset;
+            f->image_id = base_image_id + dir + 8 * f->image_offset;
         }
     }
 };
@@ -688,7 +869,7 @@ public:
 private:
     void update_image(figure *f) const
     {
-        figure_image_update(f, image_group(definition()->graphics_policy().image_group));
+        figure_image_update(f, image_base_for_definition(definition()));
     }
 };
 
@@ -1025,6 +1206,7 @@ private:
             dir = f->previous_tile_direction;
         }
         dir = figure_image_normalize_direction(dir);
+        const int base_image_id = image_base_for_definition(definition());
 
         switch (f->action_state) {
             case FIGURE_ACTION_74_PREFECT_GOING_TO_FIRE:
@@ -1037,19 +1219,16 @@ private:
                 break;
             case FIGURE_ACTION_150_ATTACK:
                 if (f->attack_image_offset >= 12) {
-                    f->image_id = image_group(definition()->graphics_policy().image_group) +
-                        104 + dir + 8 * ((f->attack_image_offset - 12) / 2);
+                    f->image_id = base_image_id + 104 + dir + 8 * ((f->attack_image_offset - 12) / 2);
                 } else {
-                    f->image_id = image_group(definition()->graphics_policy().image_group) + 104 + dir;
+                    f->image_id = base_image_id + 104 + dir;
                 }
                 break;
             case FIGURE_ACTION_149_CORPSE:
-                f->image_id = image_group(definition()->graphics_policy().image_group) +
-                    96 + figure_image_corpse_offset(f);
+                f->image_id = base_image_id + 96 + figure_image_corpse_offset(f);
                 break;
             default:
-                f->image_id = image_group(definition()->graphics_policy().image_group) +
-                    dir + 8 * f->image_offset;
+                f->image_id = base_image_id + dir + 8 * f->image_offset;
                 break;
         }
     }
@@ -1132,15 +1311,14 @@ protected:
             f->cart_image_id = 0;
             if (f->action_state == FIGURE_ACTION_150_ATTACK ||
                 f->action_state == FIGURE_ACTION_149_CORPSE) {
-                f->image_id = image_group(definition()->graphics_policy().image_group) + dir;
+                f->image_id = image_base_for_definition(definition()) + dir;
             } else {
-                f->image_id = image_group(definition()->graphics_policy().image_group) +
-                    dir + 8 * f->image_offset;
+                f->image_id = image_base_for_definition(definition()) + dir + 8 * f->image_offset;
             }
             return;
         }
 
-        int image_id = image_group(definition()->graphics_policy().image_group);
+        int image_id = image_base_for_definition(definition());
         if (f->type == FIGURE_LION_TAMER) {
             if (f->wait_ticks_missile >= 96 && f->action_state != FIGURE_ACTION_149_CORPSE) {
                 image_id = image_group(GROUP_FIGURE_LION_TAMER_WHIP);
@@ -1534,6 +1712,8 @@ std::unique_ptr<NativeFigure> make_controller(
             return std::make_unique<MarketSupplierFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::DeliveryFollower:
             return std::make_unique<DeliveryFollowerFigure>(f, definition, profile);
+        case figure_type_registry_impl::NativeClassId::TransientWanderer:
+            return std::make_unique<TransientWandererFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::None:
         default:
             return nullptr;

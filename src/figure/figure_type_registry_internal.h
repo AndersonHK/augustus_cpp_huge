@@ -23,7 +23,8 @@ enum class NativeClassId {
     EntertainmentService,
     EntertainmentVenueSeeker,
     MarketSupplier,
-    DeliveryFollower
+    DeliveryFollower,
+    TransientWanderer
 };
 
 enum class FigureSlot {
@@ -66,7 +67,11 @@ struct MovementProfile {
 
 struct GraphicsPolicy {
     int image_group = 0;
+    int image_group_offset = 0;
     int max_image_offset = 12;
+    int static_frame_count = 0;
+    int corpse_image_group = 0;
+    int corpse_image_group_offset = 96;
 };
 
 struct PathingPolicy {

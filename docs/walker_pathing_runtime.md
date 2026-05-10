@@ -24,11 +24,11 @@ Native figures are profile-based:
 
 - `<profiles default="...">`
 - `<profile id="...">`
-- `<native class="roaming_service|engineer_service|prefect_service|market_supplier|delivery_follower|entertainment_venue_seeker|entertainment_service" />`
+- `<native class="roaming_service|engineer_service|prefect_service|market_supplier|delivery_follower|entertainment_venue_seeker|entertainment_service|transient_wanderer" />`
 - `<owner slot="none|primary|secondary|quaternary" building="any|..." state="any|in_use|in_use_or_mothballed" />`
 - `<movement terrain_usage="any|roads|roads_highway|prefer_roads|prefer_roads_highway" roam_ticks="N" max_roam_length="N" return_mode="return_to_owner_road|die_at_limit|none" />`
-- `<pathing mode="vanilla_roaming|smart_service|nearest_unemployed|venue_seeker|storage_fetch|follow_leader" effect="..." />`
-- `<graphics image_group="..." max_image_offset="N" />` at figure level
+- `<pathing mode="vanilla_roaming|smart_service|nearest_unemployed|venue_seeker|storage_fetch|follow_leader|stand_still|transient_wander" effect="..." />`
+- `<graphics image_group="..." max_image_offset="N" base_image_offset="N" static_frame_count="N" corpse_image_group="..." corpse_base_image_offset="N" />` at figure level. Optional `base_image_offset` defaults to zero, optional `static_frame_count` chooses one still frame by `figure id % N`, and optional corpse attributes let profiles use a different corpse row.
 
 BuildingType `<spawn>` nodes choose a profile with `profile="..."`. This is the narrow handoff from building policy into figure behavior: after creation, the figure's bound profile owns pathing and road-history effect selection.
 
@@ -54,21 +54,32 @@ Labor seekers use explicit `acquisition` and `validation` profiles. The trip fla
 
 Market walkers now have explicit FigureType policies while the legacy market BuildingType spawn source remains in place. `market_trader` is a `roaming_service` profile; Vespasian records the `market_goods` smart-service effect, while Julius/Augustus fallback XML uses `vanilla_roaming`. `market_supplier` uses `native class="market_supplier"` and `pathing mode="storage_fetch"` to preserve storage selection, halfway rerouting, pickup, delivery follower creation, and return-to-market behavior using existing save fields. `delivery_boy` uses `native class="delivery_follower"` and `pathing mode="follow_leader"` to follow `leading_figure_id` chains and deposit carried resources when the leader finishes.
 
-## Planned Residential Walker Pathing
+## Residential Walker Pathing
 
-Beggar and patrician spawning is now keyed from `HousingType` resident class, but the figures themselves still use legacy action handlers:
+Beggar and patrician spawning is now authored in house `BuildingType` XML, while active figure behavior is FigureType-owned:
 
-- `FIGURE_PATRICIAN` is created by patrician-class housing, stays bound to its source house through `building_id`, walks on roads, uses `max_roam_length = 128`, returns through the normal roamer action, and uses `GROUP_FIGURE_PATRICIAN`.
-- `FIGURE_BEGGAR` is created by plebeian housing when unemployment pressure is high, stores the source house in `building_id`, uses road/highway terrain, cycles homeless/beggar graphics, and dies after a fixed `wait_ticks > 800` lifetime. The current handler does not use a full native movement controller, so making beggars visibly roam is a gameplay-visible change rather than a pure data migration.
+- `FIGURE_PATRICIAN` is created by patrician-class housing through profile `house_roamer`, stays bound to its source house through `building_id`, walks on roads, returns through the native roamer action, and uses `GROUP_FIGURE_PATRICIAN`.
+- `FIGURE_BEGGAR` is created by plebeian housing when unemployment pressure is high through profile `unemployment_wanderer`, stores the source house in `building_id`, uses road/highway terrain, stands still on its spawn road, uses the beggar row inside `GROUP_FIGURE_HOMELESS`, and dies when its transient lifetime budget expires.
 
-The native conversion should start by adding FigureType ids for `patrician` and `beggar`, plus graphics keys for `patrician` and the homeless/beggar image group. Old-save rebinding should infer profiles for existing `FIGURE_PATRICIAN` and `FIGURE_BEGGAR` records in `figure_runtime.cpp::infer_profile_id()` before their legacy action handlers are retired.
+House spawns use the BuildingType runtime spawn path with `delay_bands="100:0"` and `figure_slot="quaternary"`, giving each house one active residential walker slot without colliding with the house primary slot used by legacy homeless/undo behavior. The old city-wide beggar counter and one-patrician-per-generation throttle are gone; spawn pressure is now per-house probability data.
 
-Two pathing contracts are useful here:
+Profiled BuildingType spawn references are validated after FigureType XML load. Any missing `spawn_figure` plus `profile` pair is a load failure instead of a later creation crash.
 
-- `resident_roaming`: owner-bound road roaming for walkers spawned from a house. It requires a live owner building, uses no road-service effect, and returns to the owner's access road when its roam budget expires. This is the natural patrician mode.
-- `transient_wander`: short-lived road or road/highway wandering for ambient figures that do not provide service and do not need to return. It expires at the movement/lifetime budget and should not write road service history. This is the natural beggar mode if we intentionally make beggars move through the road network.
+Current residential spawn policies:
 
-Those could be implemented either as new `PathingMode` objects with the existing `roaming_service` native class, or as clearer native classes such as `resident_roamer` and `ambient_roamer`. The lower-risk first slice is to reuse `RoamingServiceFigure` where it already matches:
+- Augustus/Julius beggars use `chance_source="city_unemployment_percent"` and a precomputed `chance_per_million_bands` table. The table targets the old expected active beggar ratios using a 16-day stationary lifetime and one daily house check.
+- Vespasian beggars use `chance_source="house_unemployed_workers"` and per-house `chance_divisor` values derived from housing capacity. This intentionally makes local unemployment pressure matter and lets wealthier plebeian houses have much lower odds.
+- Patricians use constant `chance_per_million="24390"` while inactive, matching the old per-house 40-day cadence statistically without the old global throttle.
+
+Existing saves are rebound in `figure_runtime.cpp::infer_profile_id()`: `FIGURE_PATRICIAN` recovers `house_roamer`, and `FIGURE_BEGGAR` recovers `unemployment_wanderer`. Loaded beggars with the old zero action state continue their stationary lifetime. Saves from the short-lived roaming implementation can also load `FIGURE_ACTION_125_ROAMING`; the `stand_still` policy clears that route state and leaves the figure on its current tile.
+
+Three generic pathing contracts matter for residential walkers:
+
+- `vanilla_roaming` with `roaming_service`: owner-bound road roaming for patricians. It requires a live owner building, uses no road-service effect, and returns to the owner's access road when its roam budget expires.
+- `stand_still` with `transient_wanderer`: short-lived road or road/highway idling for ambient figures that do not provide service and do not need to return. It expires at the movement/lifetime budget and does not write road service history.
+- `transient_wander` with `transient_wanderer`: reserved for short-lived ambient figures that should move. Beggars do not use it in this slice; slow periodic repositioning should be implemented as a later generic policy rather than as beggar-specific movement.
+
+Current profile examples:
 
 ```xml
 <figure type="patrician">
@@ -88,21 +99,17 @@ Those could be implemented either as new `PathingMode` objects with the existing
 <figure type="beggar">
     <profiles default="unemployment_wanderer">
         <profile id="unemployment_wanderer">
-            <native class="roaming_service" />
+            <native class="transient_wanderer" />
             <owner slot="none" building="any" state="any" />
             <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="800" return_mode="die_at_limit" />
-            <pathing mode="vanilla_roaming" />
+            <pathing mode="stand_still" />
         </profile>
     </profiles>
-    <graphics image_group="beggar" max_image_offset="64" />
+    <graphics image_group="beggar" base_image_offset="104" max_image_offset="1" static_frame_count="8" corpse_image_group="labor_seeker" corpse_base_image_offset="96" />
 </figure>
 ```
 
-If exact legacy beggar behavior must be preserved first, add a separate `timed_idle` or `ambient_lifetime` pathing mode instead of forcing movement through `vanilla_roaming`. That mode would own only lifetime, corpse handling, and animation, leaving position unchanged until a later gameplay pass decides how beggars should roam.
-
-Spawner migration should remain in `src/building/figure.cpp` initially because the conditions are city-pressure policies, not simple per-building spawn timers: beggars depend on unemployment and the global beggar counter, while patricians use a one-spawn-per-generation throttle. The immediate change is to replace `figure_create(FIGURE_PATRICIAN, ...)` and `figure_create(FIGURE_BEGGAR, ...)` with `figure_runtime_create_profiled(...)` using the profiles above, with legacy `figure_create` fallback until XML exists in all active mods. A later HousingType policy could move these city-pressure knobs into data, but the FigureType profile should own movement once the figure exists.
-
-Save compatibility does not need a new save table if the conversion only adds XML definitions and profile inference. Existing figure records already persist `type`, `building_id`, action state, route state, `wait_ticks`, and roam fields. The risk is action-state mismatch: legacy beggars may load with a state that `RoamingServiceFigure` does not handle. Either infer them to a compatibility profile whose native controller accepts the old state, or leave unrecognized loaded beggars on the legacy handler until they naturally expire.
+Save compatibility does not need a new save table for this conversion. Existing figure records already persist `type`, `building_id`, action state, route state, `wait_ticks`, and roam fields. The native transient controller accepts old beggars with action state zero, and it accepts the temporary roaming action state by discarding route state under `stand_still` while preserving the saved lifetime counter.
 
 Temporary tuning decision: Vespasian FigureType walkers should use a `max_roam_length` roughly 50% larger than Augustus until walker range tuning is revisited.
 
@@ -129,4 +136,4 @@ Effect ids are save-compatible and append-only. New entertainment effects were a
 
 ## Related Context
 
-Start new sessions with the four core Codex files, then read this file for walker runtime work and `Mods/Vespasian/FigureType/_README.md` for XML details. Use `docs/tile_scale_and_walker_timescale.md` and `docs/preindustrial_walking_service_ranges.md` when tuning `max_roam_length`.
+Start new sessions with the four core Codex files, then read this file for walker runtime work and `Mods/Vespasian/FigureType/_README.md` for XML details. Use `docs/tile_scale_and_walker_timescale.md` and `docs/preindustrial_walking_service_ranges.md` when tuning `max_roam_length`. Use `docs/gameplay_divergences_from_augustus.md` when a walker migration intentionally changes bundled Augustus, Julius, or Vespasian gameplay compared with upstream Augustus.

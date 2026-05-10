@@ -172,4 +172,12 @@ enum {
     FIGURE_ACTION_250_DEPOT_CART_PUSHER_RETURN_TO_SOURCE = 250
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void figure_action_handle(void);
+
+#ifdef __cplusplus
+}
+#endif

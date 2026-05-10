@@ -189,7 +189,7 @@
     <ClCompile Include="src\figuretype\wall.c" />
     <ClCompile Include="src\figuretype\water.cpp" />
     <ClCompile Include="src\figuretype\workcamp.cpp" />
-    <ClCompile Include="src\figure\action.c" />
+    <ClCompile Include="src\figure\action.cpp" />
     <ClCompile Include="src\figure\combat.c" />
     <ClCompile Include="src\figure\enemy_army.c" />
     <ClCompile Include="src\figure\figure.cpp" />

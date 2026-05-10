@@ -26,6 +26,10 @@ Historical tuning references:
 - [Vespasian Housing Progression Design Notes](../../../research/vespasian_housing_progression_design_notes.md)
   records possible future mechanics such as service capacities, market revenue,
   deeper road access, and classed employment.
+- [Gameplay Divergences From Augustus](../../../docs/gameplay_divergences_from_augustus.md)
+  tracks player-visible differences between this repo's bundled profiles and
+  upstream Augustus, including residential walker spawn policy and Vespasian
+  local-workforce tuning.
 
 Current supported nodes:
 
@@ -348,7 +352,7 @@ Current supported `<spawn>` modes:
 Current supported `<spawn>` attributes:
 
 - `spawn_figure="..."` using the same identifiers; required for `service_roamer`
-- `action_state="roaming|engineer_created|prefect_created|tax_collector_created|entertainer_roaming|entertainer_school_created|work_camp_worker_created|work_camp_architect_created"`; required for `service_roamer`
+- `action_state="roaming|engineer_created|prefect_created|tax_collector_created|entertainer_roaming|entertainer_school_created|work_camp_worker_created|work_camp_architect_created"`; required for legacy `service_roamer` spawns that do not use `profile`
 - `direction="top|bottom"`
 - `figure_slot="primary|secondary|quaternary|none"`
 - `spawn_count="N"` for one policy spawning the same figure several times on one trigger
@@ -359,11 +363,18 @@ Current supported `<spawn>` attributes:
 - `condition="always|days1_positive|days1_not_positive|days2_positive|days1_or_days2_positive"`
 - `block_on_success="true|false"`
 - `profile="..."` for native FigureType spawns
+- `chance_per_million="N"` for a constant probability gate from `0` to `1000000`
+- `chance_source="city_unemployment_percent|house_unemployed_workers"` for data-driven probability gates
+- `chance_per_million_bands="20:31250,19:20833,..."` as a descending list of `minimum_source_value:chance_per_million` pairs
+- `chance_divisor="N"` to use `chance_source / N`, clamped to 100%
+
+Chance gates are checked after road, water, and condition gates but before figure creation. A `<spawn>` may use only one chance policy: constant `chance_per_million`, source bands, or source divisor.
 
 Current engine behavior:
 
 - Repo-owned BuildingType graphics use only the structured `<graphics>` schema.
 - A `spawn_group` owns the shared delay/guard phase, then runs its child `<spawn>` policies in order.
+- Any BuildingType with spawn groups uses the runtime spawn path, including housing.
 - Temple-specific spawn modes preserve existing religion module behavior while moving temple spawn selection into BuildingType XML. Standard temple priest roamers still use `service_roamer`.
 - Delay evaluation now uses the explicit `delay_bands` data from XML rather than a hardcoded named profile.
 - Ordered policies can coordinate: a policy that succeeds with `block_on_success="true"` stops later sibling policies in the same group.
@@ -380,6 +391,22 @@ Current engine behavior:
 - Put provider-side water coverage and connection-node data under the root `<water_access>` block so the native water runtime stays data-driven.
 - Put BuildingType-authored employee defaults under `<labor><employees ... /></labor>` so the XML and live model table stay in sync.
 - Buildings with a validated runtime `BuildingType` graphics block usually use the native runtime renderer path as the authoritative live path; current data-only vertical slices remain on legacy live rendering until their runtime rollout lands.
+
+Residential spawn examples:
+
+```xml
+<spawn_group road_access="normal" delay_bands="100:0">
+    <spawn mode="service_roamer" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="24" />
+</spawn_group>
+```
+
+```xml
+<spawn_group road_access="normal" delay_bands="100:0">
+    <spawn mode="service_roamer" spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
+</spawn_group>
+```
+
+Residential walkers use `figure_slot="quaternary"` so the house's primary slot remains available for legacy homeless/undo behavior. FigureType profile references in BuildingType spawn XML are validated after FigureType XML load.
 
 Current raw-material producer notes:
 

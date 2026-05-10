@@ -162,6 +162,7 @@ The normalization call lives at the end of `building_state_load_from_buffer()`, 
 - `g_building_types` is a `std::array<std::unique_ptr<BuildingType>, BUILDING_TYPE_MAX>`.
 - `BuildingType` stores identity, model, foundation, build-button, sound, event data, flags, water access, graphics, construction, labor, spawn groups, storage references, and production method references.
 - `BUILDING_THEATER` and `BUILDING_WELL` are dynamic runtime ids refreshed from text ids by `refresh_known_building_type_ids()`.
+- Spawn groups can now carry probability gates. Residential beggar and patrician walkers are ordinary BuildingType spawns that use per-house figure slots plus current XML probability data rather than save-backed global counters.
 
 Saved model data and XML model overrides have a deliberate order:
 
@@ -235,9 +236,14 @@ Native FigureType runtime state is not persisted as C++ objects. It is rebuilt a
 - Saved figures generally lack exact XML profile bindings, so `infer_profile_id()` recovers a profile from legacy fields.
 - Labor seekers infer `acquisition` or `validation` from `collecting_item_id`.
 - Priests infer god profiles from the owner building type.
+- Residential walkers infer required house-spawn profiles: patricians use `house_roamer`, and beggars use `unemployment_wanderer`.
 - Entertainment walkers infer school/venue/service profiles from action state and type.
 - If no inferred profile is available, the definition's default profile is used.
 - New runtime-created walkers use `figure_runtime_create_profiled()` and `figure_runtime_bind_profile()` so they do not depend on inference.
+
+The beggar `unemployment_wanderer` profile currently uses `stand_still`. That bridge accepts old action state zero and the temporary roaming action state used by the first native conversion; in the roaming case it removes route state and resumes stationary lifetime countdown from the loaded `wait_ticks`.
+
+Residential spawn policy itself is not persisted. Houses keep their legacy figure slots in the building record; new XML-owned residential spawns use `figure_id4` as the one-active-per-house slot. When an older save has an active beggar or patrician with only `building_id` set, the runtime spawn slot check can adopt that live owned figure before deciding whether to create another one.
 
 This is the same bridge pattern as buildings: legacy records are persisted, while runtime controllers are reconstructed from legacy fields plus current XML definitions.
 

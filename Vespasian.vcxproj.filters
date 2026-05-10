@@ -341,7 +341,7 @@
     <ClCompile Include="src\empire\object.c" />
     <ClCompile Include="src\empire\trade_prices.c" />
     <ClCompile Include="src\empire\trade_route.c" />
-    <ClCompile Include="src\figure\action.c" />
+    <ClCompile Include="src\figure\action.cpp" />
     <ClCompile Include="src\figure\combat.c" />
     <ClCompile Include="src\figure\enemy_army.c" />
     <ClCompile Include="src\figure\figure.cpp" />

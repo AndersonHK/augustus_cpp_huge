@@ -23,6 +23,7 @@ extern "C" {
 #include "sound/city.h"
 }
 
+#include <climits>
 #include <cstdio>
 #include <utility>
 
@@ -122,6 +123,8 @@ static figure_type parse_figure_type_name(const char *name)
         { "charioteer", FIGURE_CHARIOTEER },
         { "librarian", FIGURE_LIBRARIAN },
         { "lion_tamer", FIGURE_LION_TAMER },
+        { "patrician", FIGURE_PATRICIAN },
+        { "beggar", FIGURE_BEGGAR },
         { "prefect", FIGURE_PREFECT },
         { "priest", FIGURE_PRIEST },
         { "school_child", FIGURE_SCHOOL_CHILD },
@@ -292,6 +295,50 @@ static int parse_delay_bands_attribute(const char *value, std::vector<DelayBand>
     return !out_delay_bands.empty();
 }
 
+static int parse_chance_bands_attribute(const char *value, std::vector<ChanceBand> &out_chance_bands)
+{
+    if (!value || !*value) {
+        return 0;
+    }
+
+    // Runtime chooses the first band whose minimum is <= the live source value,
+    // so authors must list bands from highest minimum to lowest minimum.
+    std::string list = value;
+    size_t start = 0;
+    int previous_value = INT_MAX;
+    while (start <= list.size()) {
+        size_t end = list.find(',', start);
+        std::string token = xml_value::trim_copy(list.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        if (!token.empty()) {
+            size_t separator = token.find(':');
+            if (separator == std::string::npos) {
+                return 0;
+            }
+
+            std::string value_text = xml_value::trim_copy(token.substr(0, separator));
+            std::string chance_text = xml_value::trim_copy(token.substr(separator + 1));
+            int min_value = 0;
+            int chance = 0;
+            if (!xml_value::parse_int_strict(value_text, &min_value) || !xml_value::parse_int_strict(chance_text, &chance)) {
+                return 0;
+            }
+            if (min_value < 0 || chance < 0 || chance > 1000000 || min_value >= previous_value) {
+                return 0;
+            }
+
+            out_chance_bands.push_back({ min_value, chance });
+            previous_value = min_value;
+        }
+
+        if (end == std::string::npos) {
+            break;
+        }
+        start = end + 1;
+    }
+
+    return !out_chance_bands.empty();
+}
+
 static GraphicTiming parse_graphic_timing(const char *value)
 {
     if (value && compare_text(value, "on_spawn_entry") == 0) {
@@ -304,6 +351,20 @@ static GraphicTiming parse_graphic_timing(const char *value)
         return GraphicTiming::BeforeSuccessfulSpawn;
     }
     return GraphicTiming::None;
+}
+
+static SpawnChanceSource parse_spawn_chance_source(const char *value)
+{
+    if (!value || compare_text(value, "none") == 0) {
+        return SpawnChanceSource::None;
+    }
+    if (compare_text(value, "city_unemployment_percent") == 0) {
+        return SpawnChanceSource::CityUnemploymentPercent;
+    }
+    if (compare_text(value, "house_unemployed_workers") == 0) {
+        return SpawnChanceSource::HouseUnemployedWorkers;
+    }
+    return SpawnChanceSource::None;
 }
 
 static FigureSlot parse_figure_slot(const char *value)
@@ -2522,6 +2583,63 @@ static int parse_spawn()
             g_parse_state.error = 1;
             return 0;
         }
+    }
+
+    if (xml_parser_has_attribute("chance_source")) {
+        const char *chance_source_text = xml_parser_get_attribute_string("chance_source");
+        policy.chance_source = parse_spawn_chance_source(chance_source_text);
+        if (compare_text(chance_source_text, "none") != 0 &&
+            compare_text(chance_source_text, "city_unemployment_percent") != 0 &&
+            compare_text(chance_source_text, "house_unemployed_workers") != 0) {
+            log_error("Unsupported BuildingType spawn chance_source", chance_source_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
+    if (xml_parser_has_attribute("chance_per_million")) {
+        policy.chance_per_million = xml_parser_get_attribute_int("chance_per_million");
+        if (policy.chance_per_million < 0 || policy.chance_per_million > 1000000) {
+            log_error("Unsupported BuildingType spawn chance_per_million", xml_parser_get_attribute_string("chance_per_million"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
+    if (xml_parser_has_attribute("chance_divisor")) {
+        policy.chance_divisor = xml_parser_get_attribute_int("chance_divisor");
+        if (policy.chance_divisor <= 0) {
+            log_error("Unsupported BuildingType spawn chance_divisor", xml_parser_get_attribute_string("chance_divisor"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
+    if (xml_parser_has_attribute("chance_per_million_bands")) {
+        const char *bands_text = xml_parser_get_attribute_string("chance_per_million_bands");
+        if (!parse_chance_bands_attribute(bands_text, policy.chance_bands)) {
+            log_error("Unsupported BuildingType spawn chance_per_million_bands", bands_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
+    // A policy can have no chance gate, or exactly one chance gate. Combining
+    // constants, source bands, and divisors would make spawn rates ambiguous.
+    const int chance_policy_count =
+        (policy.chance_per_million >= 0 ? 1 : 0) +
+        (policy.chance_divisor > 0 ? 1 : 0) +
+        (!policy.chance_bands.empty() ? 1 : 0);
+    if (chance_policy_count > 1) {
+        log_error("BuildingType spawn has multiple chance policies", xml_parser_get_attribute_string("spawn_figure"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if ((policy.chance_divisor > 0 || !policy.chance_bands.empty()) &&
+        policy.chance_source == SpawnChanceSource::None) {
+        log_error("BuildingType spawn chance policy requires chance_source", xml_parser_get_attribute_string("spawn_figure"), 0);
+        g_parse_state.error = 1;
+        return 0;
     }
 
     if (has_profile_attribute) {
