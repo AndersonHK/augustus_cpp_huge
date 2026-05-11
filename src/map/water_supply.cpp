@@ -25,9 +25,9 @@ extern "C" int map_water_supply_has_aqueduct_access(int grid_offset)
     return water_access_runtime_reservoir_has_network_access(grid_offset);
 }
 
-extern "C" void map_water_supply_refresh_large_statue(building *b)
+extern "C" void map_water_supply_refresh_building(building *b)
 {
-    water_access_runtime_refresh_large_statue(b);
+    water_access_runtime_refresh_building(b);
 }
 
 extern "C" int map_water_supply_is_building_unnecessary(int building_id, int radius)
@@ -46,7 +46,7 @@ extern "C" int map_water_supply_is_building_unnecessary(int building_id, int rad
             unsigned int found_building_id = map_building_at(grid_offset);
             if (found_building_id && building_get(found_building_id)->house_size) {
                 num_houses++;
-                if (!water_access_runtime_tile_has_access(grid_offset, WATER_ACCESS_RUNTIME_TYPE_FOUNTAIN) &&
+                if (!water_access_runtime_tile_has_access(grid_offset, "fountain") &&
                     !map_terrain_is(grid_offset, TERRAIN_FOUNTAIN_RANGE)) {
                     return BUILDING_NECESSARY;
                 }

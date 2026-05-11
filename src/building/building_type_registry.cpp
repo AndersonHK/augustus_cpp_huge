@@ -5,6 +5,7 @@
 #include "building/housing_type_registry.h"
 #include "building/production_method_registry.h"
 #include "building/storage_type_registry.h"
+#include "building/water_access_type_id_bridge.h"
 #include "assets/image_group_payload.h"
 
 extern "C" {
@@ -275,9 +276,13 @@ extern "C" int building_type_registry_get_sound_requires_water_access(building_t
     if (!definition || !definition->has_sound()) {
         return 0;
     }
-    return definition->water_access_mode() != building_type_registry_impl::WaterAccessMode::None ||
-        (definition->has_water_access_provider() &&
-            definition->water_access().requirement() != building_type_registry_impl::WaterAccessRequirement::None);
+    return definition->water_access().has_requirements();
+}
+
+extern "C" int building_type_registry_has_water_access_requirements(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->water_access().has_requirements() ? 1 : 0;
 }
 
 extern "C" int building_type_registry_get_graphics_image_id(const building *b)

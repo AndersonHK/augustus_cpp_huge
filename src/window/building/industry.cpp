@@ -26,6 +26,9 @@ extern "C" {
 #include "window/popup_dialog.h"
 }
 
+#include "building/building_type_registry_internal.h"
+#include "building/water_access_runtime.h"
+
 #include <stdio.h>
 
 static void set_city_mint_conversion(const generic_button *button);
@@ -39,6 +42,13 @@ static struct {
     int city_mint_id;
     unsigned int focus_button_id;
 } data;
+
+static int building_type_requires_water_access(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->water_access().has_requirements();
+}
 
 static void draw_farm(building_info_context *c, int help_id, const char *sound_file, int group_id,
     resource_type resource)
@@ -302,8 +312,9 @@ static void draw_workshop(
         window_building_draw_description_at(c, 96 + resources_y_offset, group_id, text_offset + 13);
     } else if (b->num_workers <= 0) {
         window_building_draw_description_at(c, 96 + resources_y_offset, group_id, text_offset + 5);
-    } else if (!building_industry_has_raw_materials_for_production(b) ||
-        (b->type == BUILDING_CONCRETE_MAKER && !b->has_water_access)) {
+    } else if (building_type_requires_water_access(b->type) && !b->has_water_access) {
+        window_building_draw_description_at(c, 96 + resources_y_offset, group_id, text_offset + 11);
+    } else if (!building_industry_has_raw_materials_for_production(b)) {
         window_building_draw_description_at(c, 96 + resources_y_offset, group_id, text_offset + 11);
     } else if (c->worker_percentage < 25) {
         window_building_draw_description_at(c, 96 + resources_y_offset, group_id, text_offset + 10);
@@ -313,7 +324,8 @@ static void draw_workshop(
         window_building_draw_description_at(c, 96 + resources_y_offset, group_id, text_offset + 8);
     } else if (c->worker_percentage < 100) {
         window_building_draw_description_at(c, 96 + resources_y_offset, group_id, text_offset + 7);
-    } else if (b->type == BUILDING_CONCRETE_MAKER && b->has_water_access == 1) {
+    } else if (b->type == BUILDING_CONCRETE_MAKER && b->has_water_access &&
+        !water_access_runtime_building_area_has_access(b, "reservoir")) {
         window_building_draw_description_at(c, 96 + resources_y_offset, CUSTOM_TRANSLATION,
             TR_BUILDING_CONCRETE_MAKER_IMPROVE_WATER_ACCESS);
     } else if (efficiency < 70) {

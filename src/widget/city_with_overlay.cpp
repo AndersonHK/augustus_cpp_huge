@@ -1,10 +1,10 @@
 #include "city_with_overlay.h"
 
+#include "building/animations.h"
 #include "widget/city_draw_overlay.h"
 
 extern "C" {
 #include "assets/assets.h"
-#include "building/animation.h"
 #include "building/construction.h"
 #include "building/construction_clear.h"
 #include "building/granary.h"
@@ -50,6 +50,18 @@ extern "C" {
 static const city_overlay *overlay = 0;
 static float scale = SCALE_NONE;
 static unsigned int city_roamer_preview_selected_building_id = ((unsigned int) -1); //NO_POSITION default
+
+static int legacy_animation_offset(building *b, int image_id, int grid_offset)
+{
+    building_type_registry_impl::BuildingAnimation animation(*b);
+    return animation.legacy_offset(image_id, grid_offset);
+}
+
+static void advance_storage_flag_animation(building *b, int image_id)
+{
+    building_type_registry_impl::BuildingAnimation animation(*b);
+    animation.advance_storage_flag(image_id);
+}
 
 #define SELECTED_BUILDING_COLOR_MASK COLOR_MASK_SKY_BLUE
 #define OFFSET(x,y) (x + GRID_SIZE * y)
@@ -668,7 +680,7 @@ static void draw_permissions_flag(building *b, int x, int y, color_t color_mask)
     }
     image_draw(base_permission_image[permissions] + b->data.warehouse.flag_frame, x, y, color_mask, scale);
 
-    building_animation_advance_storage_flag(b, base_permission_image[permissions]);
+    advance_storage_flag_animation(b, base_permission_image[permissions]);
 }
 
 static void draw_warehouse_ornaments(int x, int y, color_t color_mask)
@@ -843,7 +855,7 @@ static void draw_animation(int x, int y, int grid_offset)
                     }
                     draw_permissions_flag(b, x + 81, y - 101, color_mask);
                 } else {
-                    int animation_offset = building_animation_offset(b, image_id, grid_offset);
+                    int animation_offset = legacy_animation_offset(b, image_id, grid_offset);
                     if (animation_offset > 0) {
                         if (animation_offset > img->animation->num_sprites) {
                             animation_offset = img->animation->num_sprites;

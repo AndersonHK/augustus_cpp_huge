@@ -72,7 +72,6 @@ private:
     void ensure_cached_graphics_bindings();
     void rebuild_cached_animation_slice(int animation_cursor);
     std::uint64_t graphics_state_signature() const;
-    int mirror_animation_offset(const RuntimeAnimationTrack &track, int should_advance, int animation_cursor) const;
     int building_state_supports_native_graphics() const;
     const building_type_registry_impl::GraphicsTarget *resolve_graphic_target() const;
     int resolve_graphic_binding(

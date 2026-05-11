@@ -4,6 +4,8 @@
 #include "building/housing_type_registry.h"
 #include "building/production_method_registry.h"
 #include "building/storage_type_registry.h"
+#include "building/water_access_type.h"
+#include "building/water_access_type_id_bridge.h"
 #include "assets/image_group_payload.h"
 #include "core/crash_context.h"
 #include "core/xml_value.h"
@@ -412,43 +414,36 @@ static SpawnCondition parse_spawn_condition(const char *value)
     return SpawnCondition::Always;
 }
 
-static WaterAccessType parse_provider_water_access_type(const char *value)
-{
-    if (value && compare_text(value, "well") == 0) {
-        return WaterAccessType::Well;
-    }
-    if (value && compare_text(value, "fountain") == 0) {
-        return WaterAccessType::Fountain;
-    }
-    if (value && compare_text(value, "reservoir") == 0) {
-        return WaterAccessType::Reservoir;
-    }
-    return WaterAccessType::None;
-}
-
-static WaterAccessRequirement parse_provider_water_access_requirement(const char *value)
-{
-    if (!value || compare_text(value, "none") == 0) {
-        return WaterAccessRequirement::None;
-    }
-    if (compare_text(value, "reservoir_network") == 0) {
-        return WaterAccessRequirement::ReservoirNetwork;
-    }
-    if (compare_text(value, "water_source_any") == 0) {
-        return WaterAccessRequirement::WaterSourceAny;
-    }
-    if (compare_text(value, "water_source_fresh_only") == 0) {
-        return WaterAccessRequirement::WaterSourceFreshOnly;
-    }
-    return WaterAccessRequirement::None;
-}
-
 static WaterAccessNodeKind parse_provider_water_access_node_kind(const char *value)
 {
-    if (value && compare_text(value, "aqueduct_connection") == 0) {
+    if (!value || compare_text(value, "aqueduct_connection") == 0) {
         return WaterAccessNodeKind::AqueductConnection;
     }
     return WaterAccessNodeKind::None;
+}
+
+static WaterAccessOrigin parse_water_access_origin(const char *value)
+{
+    if (value && compare_text(value, "nodes") == 0) {
+        return WaterAccessOrigin::Nodes;
+    }
+    return WaterAccessOrigin::Footprint;
+}
+
+static WaterAccessRequirementWhere parse_water_access_where(const char *value)
+{
+    if (value && compare_text(value, "nodes") == 0) {
+        return WaterAccessRequirementWhere::Nodes;
+    }
+    return WaterAccessRequirementWhere::Footprint;
+}
+
+static WaterAccessRequirementMode parse_water_access_requirement_mode(const char *value)
+{
+    if (value && compare_text(value, "any") == 0) {
+        return WaterAccessRequirementMode::Any;
+    }
+    return WaterAccessRequirementMode::All;
 }
 
 static int parse_spawn_direction(const char *value)
@@ -609,29 +604,6 @@ static int parse_graphics_comparison(const char *comparison_text, GraphicCompari
     return 0;
 }
 
-static int parse_state()
-{
-    if (!g_parse_state.definition) {
-        log_error("Encountered state definition before building root", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    if (g_parse_state.saw_state) {
-        log_error("BuildingType xml contains duplicate state nodes", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    g_parse_state.saw_state = 1;
-    g_parse_state.parsing_state = 1;
-    return 1;
-}
-
-static void finish_state()
-{
-    g_parse_state.parsing_state = 0;
-}
-
 static int parse_provider_water_access()
 {
     if (!g_parse_state.definition) {
@@ -647,9 +619,7 @@ static int parse_provider_water_access()
 
     g_parse_state.saw_provider_water_access = 1;
     g_parse_state.parsing_provider_water_access = 1;
-    g_parse_state.saw_provider_water_access_type = 0;
-    g_parse_state.saw_provider_water_access_range = 0;
-    g_parse_state.saw_provider_water_access_requirement = 0;
+    g_parse_state.saw_water_access_rule = 0;
     return 1;
 }
 
@@ -659,8 +629,8 @@ static void finish_provider_water_access()
         return;
     }
 
-    if (!g_parse_state.saw_provider_water_access_type || !g_parse_state.saw_provider_water_access_range) {
-        log_error("BuildingType provider water_access is missing required child nodes", g_parse_state.definition ? g_parse_state.definition->attr() : 0, 0);
+    if (!g_parse_state.saw_water_access_rule) {
+        log_error("BuildingType water_access is missing provide/require rules", g_parse_state.definition ? g_parse_state.definition->attr() : 0, 0);
         g_parse_state.error = 1;
     }
     g_parse_state.parsing_provider_water_access = 0;
@@ -1925,120 +1895,169 @@ static int parse_graphics_condition()
     return 1;
 }
 
-static int parse_state_water_access()
+static int parse_water_access_provides()
 {
-    if (!g_parse_state.definition || !g_parse_state.parsing_state) {
-        log_error("Encountered water_access outside state node", 0, 0);
+    if (!g_parse_state.definition || !g_parse_state.parsing_provider_water_access) {
+        log_error("Encountered water_access provides outside water_access node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("type") || !xml_parser_has_attribute("range")) {
+        log_error("BuildingType water_access provides is missing required attributes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *type_text = xml_parser_get_attribute_string("type");
+    const uint8_t mask = water_access_mask_from_text(type_text);
+    if (!mask) {
+        log_error("Unsupported BuildingType water_access provides type", type_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    int range = xml_parser_get_attribute_int("range");
+    if (range < 0) {
+        log_error("Unsupported BuildingType provider water_access range", xml_parser_get_attribute_string("range"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (xml_parser_has_attribute("origin")) {
+        const char *origin_text = xml_parser_get_attribute_string("origin");
+        if (compare_text(origin_text, "footprint") != 0 && compare_text(origin_text, "nodes") != 0) {
+            log_error("Unsupported BuildingType water_access provides origin", origin_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
+    WaterAccessProvideRule rule;
+    rule.mask = mask;
+    rule.range = range;
+    rule.origin = parse_water_access_origin(xml_parser_has_attribute("origin") ? xml_parser_get_attribute_string("origin") : nullptr);
+    g_parse_state.definition->add_water_access_provide_rule(rule);
+    g_parse_state.saw_water_access_rule = 1;
+    return 1;
+}
+
+static int parse_water_access_requires()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_provider_water_access) {
+        log_error("Encountered water_access requires outside water_access node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.parsing_water_access_requirement) {
+        log_error("BuildingType water_access contains nested requires nodes", g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
         return 0;
     }
     if (!xml_parser_has_attribute("mode")) {
-        log_error("BuildingType state water_access is missing required attribute 'mode'", 0, 0);
+        log_error("BuildingType water_access requires is missing required attribute 'mode'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
     const char *mode_text = xml_parser_get_attribute_string("mode");
-    if (!mode_text || compare_text(mode_text, "reservoir_range") != 0) {
-        log_error("Unsupported BuildingType water_access mode", mode_text, 0);
+    if (compare_text(mode_text, "any") != 0 && compare_text(mode_text, "all") != 0) {
+        log_error("Unsupported BuildingType water_access requires mode", mode_text, 0);
         g_parse_state.error = 1;
         return 0;
     }
+    if (xml_parser_has_attribute("where")) {
+        const char *where_text = xml_parser_get_attribute_string("where");
+        if (compare_text(where_text, "footprint") != 0 && compare_text(where_text, "nodes") != 0) {
+            log_error("Unsupported BuildingType water_access requires where", where_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
 
-    g_parse_state.definition->set_state_water_access_mode(WaterAccessMode::ReservoirRange);
+    g_parse_state.current_water_access_requirement_rule = WaterAccessRequirementRule();
+    g_parse_state.current_water_access_requirement_rule.mode = parse_water_access_requirement_mode(mode_text);
+    g_parse_state.current_water_access_requirement_where =
+        parse_water_access_where(xml_parser_has_attribute("where") ? xml_parser_get_attribute_string("where") : nullptr);
+    g_parse_state.parsing_water_access_requirement = 1;
+    g_parse_state.saw_current_water_access_requirement_term = 0;
     return 1;
 }
 
-static int parse_provider_water_access_type_node()
+static void finish_water_access_requires()
 {
-    if (!g_parse_state.definition || !g_parse_state.parsing_provider_water_access) {
-        log_error("Encountered provider water_access type outside water_access node", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
+    if (!g_parse_state.parsing_water_access_requirement) {
+        return;
     }
-    if (g_parse_state.saw_provider_water_access_type) {
-        log_error("BuildingType provider water_access contains duplicate type nodes", g_parse_state.definition->attr(), 0);
+    if (!g_parse_state.saw_current_water_access_requirement_term) {
+        log_error("BuildingType water_access requires is missing access/source terms",
+            g_parse_state.definition ? g_parse_state.definition->attr() : 0, 0);
         g_parse_state.error = 1;
-        return 0;
+    } else if (g_parse_state.definition) {
+        g_parse_state.definition->add_water_access_requirement_rule(std::move(g_parse_state.current_water_access_requirement_rule));
+        g_parse_state.saw_water_access_rule = 1;
     }
-    if (!xml_parser_has_attribute("value")) {
-        log_error("BuildingType provider water_access type is missing required attribute 'value'", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
+    g_parse_state.parsing_water_access_requirement = 0;
+}
 
-    const char *type_text = xml_parser_get_attribute_string("value");
-    WaterAccessType type = parse_provider_water_access_type(type_text);
-    if (type == WaterAccessType::None) {
-        log_error("Unsupported BuildingType provider water_access type", type_text, 0);
+static int add_water_access_requirement_term(WaterAccessRequirementTerm term)
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_water_access_requirement) {
+        log_error("Encountered water_access requirement term outside requires node", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
-
-    g_parse_state.definition->set_water_access_type(type);
-    g_parse_state.saw_provider_water_access_type = 1;
+    if (xml_parser_has_attribute("where")) {
+        const char *where_text = xml_parser_get_attribute_string("where");
+        if (compare_text(where_text, "footprint") != 0 && compare_text(where_text, "nodes") != 0) {
+            log_error("Unsupported BuildingType water_access requirement where", where_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        term.where = parse_water_access_where(where_text);
+    } else {
+        term.where = g_parse_state.current_water_access_requirement_where;
+    }
+    g_parse_state.current_water_access_requirement_rule.terms.push_back(term);
+    g_parse_state.saw_current_water_access_requirement_term = 1;
     return 1;
 }
 
-static int parse_provider_water_access_range_node()
+static int parse_water_access_requirement_access()
 {
-    if (!g_parse_state.definition || !g_parse_state.parsing_provider_water_access) {
-        log_error("Encountered provider water_access range outside water_access node", 0, 0);
+    if (!xml_parser_has_attribute("type")) {
+        log_error("BuildingType water_access requirement access is missing required attribute 'type'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
-    if (g_parse_state.saw_provider_water_access_range) {
-        log_error("BuildingType provider water_access contains duplicate range nodes", g_parse_state.definition->attr(), 0);
+    WaterAccessRequirementTerm term;
+    term.kind = WaterAccessRequirementTermKind::Access;
+    term.mask = water_access_mask_from_text(xml_parser_get_attribute_string("type"));
+    if (!term.mask) {
+        log_error("Unsupported BuildingType water_access requirement access type", xml_parser_get_attribute_string("type"), 0);
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("value")) {
-        log_error("BuildingType provider water_access range is missing required attribute 'value'", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    int range = xml_parser_get_attribute_int("value");
-    if (range < 0) {
-        log_error("Unsupported BuildingType provider water_access range", xml_parser_get_attribute_string("value"), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    g_parse_state.definition->set_water_access_range(range);
-    g_parse_state.saw_provider_water_access_range = 1;
-    return 1;
+    return add_water_access_requirement_term(term);
 }
 
-static int parse_provider_water_access_requirement_node()
+static int parse_water_access_requirement_source()
 {
-    if (!g_parse_state.definition || !g_parse_state.parsing_provider_water_access) {
-        log_error("Encountered provider water_access requirement outside water_access node", 0, 0);
+    if (!xml_parser_has_attribute("type")) {
+        log_error("BuildingType water_access requirement source is missing required attribute 'type'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
-    if (g_parse_state.saw_provider_water_access_requirement) {
-        log_error("BuildingType provider water_access contains duplicate requirement nodes", g_parse_state.definition->attr(), 0);
+    const char *source_text = xml_parser_get_attribute_string("type");
+    WaterAccessRequirementTerm term;
+    if (compare_text(source_text, "water_source_any") == 0) {
+        term.kind = WaterAccessRequirementTermKind::WaterSourceAny;
+    } else if (compare_text(source_text, "water_source_fresh_only") == 0) {
+        term.kind = WaterAccessRequirementTermKind::WaterSourceFreshOnly;
+    } else {
+        log_error("Unsupported BuildingType water_access requirement source type", source_text, 0);
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("value")) {
-        log_error("BuildingType provider water_access requirement is missing required attribute 'value'", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    const char *requirement_text = xml_parser_get_attribute_string("value");
-    WaterAccessRequirement requirement = parse_provider_water_access_requirement(requirement_text);
-    if (requirement == WaterAccessRequirement::None && compare_text(requirement_text, "none") != 0) {
-        log_error("Unsupported BuildingType provider water_access requirement", requirement_text, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
-    g_parse_state.definition->set_water_access_requirement(requirement);
-    g_parse_state.saw_provider_water_access_requirement = 1;
-    return 1;
+    term.where = WaterAccessRequirementWhere::Footprint;
+    return add_water_access_requirement_term(term);
 }
 
 static int parse_provider_water_access_node()
@@ -2048,13 +2067,13 @@ static int parse_provider_water_access_node()
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("kind") || !xml_parser_has_attribute("x") || !xml_parser_has_attribute("y")) {
+    if (!xml_parser_has_attribute("x") || !xml_parser_has_attribute("y")) {
         log_error("BuildingType provider water_access node is missing required attributes", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    const char *kind_text = xml_parser_get_attribute_string("kind");
+    const char *kind_text = xml_parser_has_attribute("kind") ? xml_parser_get_attribute_string("kind") : nullptr;
     WaterAccessNodeKind kind = parse_provider_water_access_node_kind(kind_text);
     if (kind == WaterAccessNodeKind::None) {
         log_error("Unsupported BuildingType provider water_access node kind", kind_text, 0);
@@ -2678,14 +2697,14 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "sound", parse_sound, nullptr, "building", nullptr },
     { "event_data", parse_event_data, nullptr, "building", nullptr },
     { "flags", parse_flags, nullptr, "building", nullptr },
-    { "state", parse_state, finish_state, "building", nullptr },
     { "water_access", parse_provider_water_access, finish_provider_water_access, "building", nullptr },
     { "graphics", parse_graphics, finish_graphics, "building|phase", nullptr },
     { "construction", parse_construction, finish_construction, "building", nullptr },
     { "phase", parse_construction_phase, finish_construction_phase, "construction", nullptr },
-    { "type", parse_provider_water_access_type_node, nullptr, "water_access", nullptr },
-    { "range", parse_provider_water_access_range_node, nullptr, "water_access", nullptr },
-    { "requirement", parse_provider_water_access_requirement_node, nullptr, "water_access", nullptr },
+    { "provides", parse_water_access_provides, nullptr, "water_access", nullptr },
+    { "requires", parse_water_access_requires, finish_water_access_requires, "water_access", nullptr },
+    { "access", parse_water_access_requirement_access, nullptr, "requires", nullptr },
+    { "source", parse_water_access_requirement_source, nullptr, "requires", nullptr },
     { "requirement", parse_construction_requirement, nullptr, "phase|construction", nullptr },
     { "node", parse_provider_water_access_node, nullptr, "water_access", nullptr },
     { "default", parse_graphics_default, finish_graphics_default, "graphics", nullptr },
@@ -2695,7 +2714,6 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "options", parse_graphics_options, finish_graphics_options, "default|variant", nullptr },
     { "option", parse_graphics_option, nullptr, "options", nullptr },
     { "condition", parse_graphics_condition, nullptr, "variant", nullptr },
-    { "water_access", parse_state_water_access, nullptr, "state", nullptr },
     { "labor", parse_labor, finish_labor, "building", nullptr },
     { "employees", parse_labor_employees, nullptr, "labor", nullptr },
     { "labor_seeker", parse_labor_seeker, finish_labor_seeker, "labor", nullptr },
@@ -2984,8 +3002,7 @@ static int parse_definition_file(const char *filename)
         g_parse_state.saw_flags || g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
         g_parse_state.saw_construction || g_parse_state.saw_spawn ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods ||
-        g_parse_state.saw_housing || g_parse_state.saw_labor || g_parse_state.saw_state ||
-        g_parse_state.saw_provider_water_access;
+        g_parse_state.saw_housing || g_parse_state.saw_labor || g_parse_state.saw_provider_water_access;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
         !has_supported_node) {
         if (!has_supported_node) {
@@ -3073,6 +3090,10 @@ extern "C" int building_type_registry_load(void)
     }
     g_next_dynamic_building_type = BUILDING_DYNAMIC_TYPE_FIRST;
 
+    if (!water_access_type_registry_load()) {
+        log_error("Unable to load WaterAccessType xml definitions", 0, 0);
+        return 0;
+    }
     if (!storage_type_registry_load()) {
         log_error("Unable to load StorageType xml definitions", 0, 0);
         return 0;
@@ -3109,6 +3130,7 @@ extern "C" int building_type_registry_load(void)
     building_type_registry_apply_model_overrides();
     refresh_known_building_type_ids();
     building_type_id_bridge_reset_for_runtime();
+    water_access_type_id_bridge_reset_for_runtime();
     building_monument_reset_runtime_bridge();
     building_runtime_reset();
     building_menu_invalidate_catalog();

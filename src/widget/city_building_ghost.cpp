@@ -131,6 +131,10 @@ static struct {
         int grid_offset;
         building_type type;
     } roamer_preview;
+    struct {
+        building_type type;
+        int cursor;
+    } animation_preview;
     tile_xy_offsets offsets[4][MAX_TILES];
 } data = {
     .scale = SCALE_NONE
@@ -239,8 +243,7 @@ static void prepare_ghost_water_access_state(
     if (!definition) {
         return;
     }
-    if (definition->water_access_mode() != building_type_registry_impl::WaterAccessMode::None ||
-        definition->has_water_access_provider()) {
+    if (definition->water_access().has_requirements() || definition->has_water_access_provider()) {
         ghost.has_water_access = static_cast<unsigned char>(water_access_runtime_building_has_required_access(&ghost));
     }
 }
@@ -344,9 +347,19 @@ static void draw_runtime_payload_entry(const ImageGroupEntry &entry, int x, int 
 
 static void draw_runtime_ghost_animation(building_runtime &runtime, int animation_cursor, int x, int y, color_t color)
 {
+    if (data.animation_preview.type != runtime.data.type) {
+        data.animation_preview.type = runtime.data.type;
+        data.animation_preview.cursor = 0;
+    }
+
+    // Ghosts reuse the real grid offset as an animation cursor. Save/restore the
+    // map sprite byte so preview animation never leaks into the city map state.
     const int saved_cursor = map_sprite_animation_at(animation_cursor);
-    map_sprite_animation_set(animation_cursor, 1);
+    map_sprite_animation_set(animation_cursor, data.animation_preview.cursor);
+    runtime.advance_graphic_animation(animation_cursor);
+    data.animation_preview.cursor = map_sprite_animation_at(animation_cursor);
     if (const RuntimeDrawSlice *animation = runtime.graphic_animation(animation_cursor)) {
+        data.animation_preview.cursor = map_sprite_animation_at(animation_cursor);
         runtime_texture_draw(*animation, x, y, color, data.scale);
     }
     map_sprite_animation_set(animation_cursor, saved_cursor);
@@ -435,6 +448,11 @@ static void city_building_ghost_draw_reservoir_range_colored(int x, int y, color
 }
 
 void city_building_ghost_draw_reservoir_range(int x, int y, int grid_offset)
+{
+    city_building_ghost_draw_reservoir_range_colored(x, y, COLOR_MASK_RESERVOIR_RANGE);
+}
+
+void city_building_ghost_draw_aqueduct_range(int x, int y, int grid_offset)
 {
     city_building_ghost_draw_reservoir_range_colored(x, y, COLOR_MASK_RESERVOIR_RANGE);
 }
@@ -699,16 +717,20 @@ static void draw_water_access_context_overlays(const map_tile *tile, building_ty
     }
 
     const int uses_reservoir_range =
-        definition->water_access_mode() == building_type_registry_impl::WaterAccessMode::ReservoirRange ||
-        (definition->has_water_access_provider() &&
-            definition->water_access().requirement() ==
-                building_type_registry_impl::WaterAccessRequirement::ReservoirNetwork);
+        water_access_runtime_building_type_requires_access_text(type, "reservoir") ||
+        water_access_runtime_building_type_provides_access_text(type, "reservoir");
     if (uses_reservoir_range && config_get(CONFIG_UI_BUILD_SHOW_RESERVOIR_RANGES)) {
         city_water_ghost_draw_reservoir_ranges();
     }
 
-    if (definition->has_water_access_provider() &&
-        water_access_runtime_provider_access_type(type) != WATER_ACCESS_RUNTIME_TYPE_NONE &&
+    if (!building_is_house(type) &&
+        config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE) &&
+        (water_access_runtime_building_type_requires_access_text(type, "fountain") ||
+         water_access_runtime_building_type_requires_access_text(type, "well"))) {
+        city_water_ghost_draw_water_structure_ranges();
+    }
+
+    if (water_access_runtime_building_type_provides_access(type) &&
         config_get(CONFIG_UI_SHOW_WATER_STRUCTURE_RANGE)) {
         city_water_ghost_draw_preview(type, tile->grid_offset, 0);
     }

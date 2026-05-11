@@ -1,8 +1,8 @@
 # Save Data Organization
 
-This document maps how Vespasian `.svv` save data is allocated, written, loaded, and handed back to runtime systems. It is a live-game save reference first. Scenario files use the same file-piece machinery, but their layout is covered separately in the scenario appendix. For the post-read bridge layer that resolves save-local ids into runtime objects, BuildingType definitions, and legacy structs, see `docs/save_load_runtime_bridges.md`.
+This document maps how Vespasian `.svv` save data is allocated, written, loaded, and handed back to runtime systems. It is a live-game save reference first. Scenario files use the same file-piece machinery, but their layout is covered separately in the scenario appendix. For the post-read bridge layer that resolves save-local ids into runtime objects, BuildingType definitions, and legacy structs, see `docs/save_load_runtime_bridges.md`. For water access type identity and mask propagation after the save table resolves, see `docs/water_access_runtime.md`.
 
-Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb7`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
+Current save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb8`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 
 ## Top-Level Flow
 
@@ -48,7 +48,7 @@ Save-version gates are append/order gates. Adding, removing, resizing, or reorde
 
 ## Live Save Pieces
 
-This table follows `init_savegame_data()` order exactly. "Current" means the piece is present in newly written `0xb7` saves. Old-only pieces are still allocated while reading older versions so the stream stays aligned. The `C` column means the file piece is compressed on disk.
+This table follows `init_savegame_data()` order exactly. "Current" means the piece is present in newly written `0xb8` saves. Old-only pieces are still allocated while reading older versions so the stream stays aligned. The `C` column means the file piece is compressed on disk.
 
 | # | Piece | Gate | Size allocation | C | Writer | Loader / consumer | Runtime data |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -80,90 +80,91 @@ This table follows `init_savegame_data()` order exactly. "Current" means the pie
 | 26 | `player_name` | current | 64 | no | `scenario_settings_save_state` | `scenario_settings_load_state` | Player name |
 | 27 | `city_faction` | `<= SAVE_GAME_LAST_UNKNOWN_UNUSED_CITY_DATA` | 4 | no | old saves only | skipped by old layout | Removed city faction payload |
 | 28 | `building_type_table` | `> SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE` | dynamic | no | `building_type_id_bridge_save_table_save_state` | `building_type_id_bridge_save_table_load_state` | Save-local building type id map |
-| 29 | `buildings` | current | dynamic after `SAVE_GAME_LAST_STATIC_VERSION` | yes | `building_save_state` | `building_load_state` | `array(building)` records |
-| 30 | `city_view_orientation` | current | 4 | no | `city_view_save_state` | `city_view_load_state` | City view orientation |
-| 31 | `game_time` | current | 20 | no | `game_time_save_state` | `game_time_load_state` | Calendar/tick state |
-| 32 | `building_extra_highest_id_ever` | current | 8 | no | `building_save_state` | not consumed by current load | Legacy building high-water data |
-| 33 | `random_iv` | current | 8 | no | `random_save_state` | `random_load_state` | RNG state |
-| 34 | `city_view_camera` | current | 8 | no | `city_view_save_state` | `city_view_load_state` | Camera position |
-| 35 | `building_count_culture1` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static building counts |
-| 36 | `city_graph_order` | current | 4 or 8 | no | `city_data_save_state` | `city_data_load_state` | Graph display order |
-| 37 | `emperor_change_time` | current | 8 | no | `scenario_emperor_change_save_state` | `scenario_emperor_change_load_state` | Emperor-change timer |
-| 38 | `empire` | current | 12 | no | `empire_save_state` | `empire_load_state` | Basic empire state |
-| 39 | `empire_map` | `> SAVE_GAME_LAST_NO_CUSTOM_EMPIRE_MAP_IMAGE` | dynamic | no | `empire_save_custom_map` | `empire_load_custom_map` | Custom empire map image |
-| 40 | `empire_cities` | current | dynamic after static scenario objects | yes | `empire_city_save_state` | `empire_city_load_state` | `array(empire_city)` records |
-| 41 | `building_count_industry` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static industry counts |
-| 42 | `trade_prices` | current | `8 * resource_total_mapped()` | no | `trade_prices_save_state` | `trade_prices_load_state` | Buy/sell prices per resource |
-| 43 | `figure_names` | current | 84 | no | `figure_name_save_state` | `figure_name_load_state` | Figure name state |
-| 44 | `culture_coverage` | current | 60 | no | `city_culture_save_state` | `city_culture_load_state` | Culture coverage counters |
-| 45 | `scenario` | current | scenario buffer size for save version | no | `scenario_save_state` | `scenario_load_state` | Embedded scenario state |
-| 46 | `requests` | `> SAVE_GAME_LAST_NO_EXTENDED_REQUESTS` | dynamic | no | `scenario_request_save_state` | `scenario_request_load_state` | Scenario requests |
-| 47 | `invasions` | `> SAVE_GAME_LAST_STATIC_SCENARIO_ORIGINAL_DATA` | dynamic | yes | `scenario_invasion_save_state` | `scenario_invasion_load_state` | Scenario invasions |
-| 48 | `demand_changes` | same as above | dynamic | yes | `scenario_demand_change_save_state` | `scenario_demand_change_load_state` | Demand-change events |
-| 49 | `price_changes` | same as above | dynamic | yes | `scenario_price_change_save_state` | `scenario_price_change_load_state` | Price-change events |
-| 50 | `allowed_buildings` | same as above | dynamic | yes | `scenario_allowed_building_save_state` | `scenario_allowed_building_load_state` | Scenario build permissions |
-| 51 | `custom_variables` | same as above | dynamic | yes | `scenario_custom_variable_save_state` | `scenario_custom_variable_load_state` | Scenario custom variables |
-| 52 | `scenario_events` | `> SAVE_GAME_LAST_NO_EVENTS` | dynamic | no | `scenario_events_save_state` | `scenario_events_load_state` | Event info records |
-| 53 | `scenario_formulas` | `> SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA` | dynamic | no | `scenario_events_save_state` | `scenario_events_load_state` | Scenario formula records |
-| 54 | `scenario_conditions` | `> SAVE_GAME_LAST_NO_EVENTS` | dynamic | no | `scenario_events_save_state` | `scenario_events_load_state` | Event condition groups |
-| 55 | `scenario_actions` | `> SAVE_GAME_LAST_NO_EVENTS` | dynamic | no | `scenario_events_save_state` | `scenario_events_load_state` | Event actions |
-| 56 | `custom_messages` | `> SAVE_GAME_LAST_NO_CUSTOM_MESSAGES` | dynamic | no | `custom_messages_save_state` | `custom_messages_load_state` | Custom message records |
-| 57 | `custom_media` | same as above | dynamic | no | `custom_media_save_state` | `custom_messages_load_state` | Custom media records |
-| 58 | `message_media_text_blob` | same as above | dynamic | no | `message_media_text_blob_save_state` | `message_media_text_blob_load_state` | Shared media text bytes |
-| 59 | `message_media_metadata` | same as above | dynamic | no | `message_media_text_blob_save_state` | `message_media_text_blob_load_state` | Shared media text metadata |
-| 60 | `building_model_data` | `> SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA` | dynamic | no | `model_save_model_data` | `model_load_model_data` | Saved building model overrides |
-| 61 | `max_game_year` | current | 4 | no | `scenario_criteria_save_state` | `scenario_criteria_load_state` | Scenario max year |
-| 62 | `earthquake` | current | 60 | no | `scenario_earthquake_save_state` | `scenario_earthquake_load_state` | Earthquake state |
-| 63 | `emperor_change_state` | current | 4 | no | `scenario_emperor_change_save_state` | `scenario_emperor_change_load_state` | Emperor-change state |
-| 64 | `messages` | current | 16000 | yes | `city_message_save_state` | `city_message_load_state` | City message records |
-| 65 | `message_extra` | current | 12 | no | `city_message_save_state` | `city_message_load_state` | Message extra counters |
-| 66 | `population_messages` | current | 10 | no | `city_message_save_state` | `city_message_load_state` | Population message flags |
-| 67 | `message_counts` | current | 80 | no | `city_message_save_state` | `city_message_load_state` | Message category counts |
-| 68 | `message_delays` | current | 80 | no | `city_message_save_state` | `city_message_load_state` | Message delays |
-| 69 | `building_list_burning_totals` | current | 4 or 8 | no | `building_list_save_state` | `building_list_load_state` | Burning-list total count |
-| 70 | `figure_sequence` | current | 4 | no | `figure_save_state` | `figure_load_state` | Next figure created-sequence |
-| 71 | `scenario_settings` | current | 12 | no | `scenario_settings_save_state` | `scenario_settings_load_state` | Scenario settings block |
-| 72 | `invasion_warnings` | current | dynamic after static scenario original data | yes | `scenario_invasion_warning_save_state` | `scenario_invasion_warning_load_state` | Invasion warning records |
-| 73 | `scenario_is_custom` | current | 4 | no | `scenario_settings_save_state` | `scenario_settings_load_state` | Custom-scenario flag |
-| 74 | `city_sounds` | current | 8960 | no | no current writer | no current loader | Reserved legacy sound-state block |
-| 75 | `building_extra_highest_id` | current | 4 | no | `building_save_state` | not consumed by current load | Legacy highest building id |
-| 76 | `figure_traders` | current | resource-version-sized trader block | no | `traders_save_state` | `traders_load_state` | Trader resource state |
-| 77 | `building_list_burning` | current | dynamic after static version | yes | `building_list_save_state` | `building_list_load_state` | Burning building id list |
-| 78 | `building_list_small` | current | dynamic after static version | yes | `building_list_save_state` | `building_list_load_state` | Small-building id list |
-| 79 | `building_list_large` | current | dynamic after static version | yes | `building_list_save_state` | `building_list_load_state` | Large-building id list |
-| 80 | `tutorial_part1` | current | 32 | no | `tutorial_save_state` | `tutorial_load_state` | Tutorial state |
-| 81 | `building_count_military` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static military counts |
-| 82 | `enemy_army_totals` | current | 20 | no | `enemy_armies_save_state` | `enemy_armies_load_state` | Enemy army totals |
-| 83 | `building_storages` | current | dynamic after static version | no | `building_storage_save_state` | `building_storage_load_state` | `array(storage)` records |
-| 84 | `building_count_culture2` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static culture counts |
-| 85 | `building_count_support` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static support counts |
-| 86 | `tutorial_part2` | current | 4 | no | `tutorial_save_state` | `tutorial_load_state` | Tutorial state |
-| 87 | `gladiator_revolt` | current | 16 | no | `scenario_gladiator_revolt_save_state` | `scenario_gladiator_revolt_load_state` | Gladiator revolt state |
-| 88 | `trade_routes` | `> SAVE_GAME_LAST_NO_EMPIRE_EDITOR` | dynamic | yes | `trade_routes_save_state` | `trade_routes_load_state` | Empire trade route records |
-| 89 | `trade_route_limit` | `<= SAVE_GAME_LAST_NO_EMPIRE_EDITOR` | legacy resource-sized block | yes | old saves only | `trade_routes_migrate_to_buys_sells` | Old route import/export limits |
-| 90 | `trade_route_traded` | same old gate | legacy resource-sized block | yes | old saves only | `trade_routes_migrate_to_buys_sells` | Old route traded quantities |
-| 91 | `building_barracks_tower_sentry` | `<= SAVE_GAME_LAST_BARRACKS_TOWER_SENTRY_REQUEST` | 4 | no | old saves only | old migration | Retired sentry request state |
-| 92 | `building_extra_sequence` | current | 4 | no | `building_save_state` | `building_load_state` | Next building created-sequence |
-| 93 | `routing_counters` | current | 16 | no | `map_routing_save_state` | `map_routing_load_state` | Routing counters |
-| 94 | `building_count_culture3` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static culture counts |
-| 95 | `enemy_armies` | current | version-sized army block | no | `enemy_armies_save_state` | `enemy_armies_load_state` | Enemy army records |
-| 96 | `city_entry_exit_xy` | current | 16 | no | `city_data_save_state` | `city_data_load_state` | Entry/exit x/y pairs |
-| 97 | `last_invasion_id` | current | 2 | no | `scenario_invasion_warning_save_state` | `scenario_invasion_warning_load_state` | Last invasion warning id |
-| 98 | `building_extra_corrupt_houses` | current | 8 | no | `building_save_state` | `building_load_state` | House corruption counters |
-| 99 | `scenario_name` | current | 65 | no | `scenario_settings_save_state` | `scenario_settings_load_state` | Scenario filename/name |
-| 100 | `bookmarks` | current | 32 | no | `map_bookmark_save_state` | `map_bookmark_load_state` | Map bookmarks |
-| 101 | `tutorial_part3` | current | 4 | no | `tutorial_save_state` | `tutorial_load_state` | Tutorial state |
-| 102 | `city_entry_exit_grid_offset` | current | 8 | no | `city_data_save_state` | `city_data_load_state` | Entry/exit grid offsets |
-| 103 | `campaign_name` | `> SAVE_GAME_LAST_NO_CUSTOM_CAMPAIGNS` | dynamic | no | `scenario_settings_save_state` | `scenario_settings_load_state` | Custom campaign name |
-| 104 | `mod_metadata` | `> SAVE_GAME_LAST_NO_MOD_METADATA` | dynamic | no | `savegame_mod_metadata_save_state` | `update_loaded_save_mod_metadata` | Saved mod name and metadata version |
-| 105 | `end_marker` | current | 284 | no | reserved zero bytes | skipped on load | Reserved historical padding |
-| 106 | `deliveries` | `> SAVE_GAME_LAST_NO_DELIVERIES_VERSION` | dynamic after static monument-delivery version | no | `building_monument_delivery_save_state` | `building_monument_delivery_load_state` | Monument delivery records |
-| 107 | `custom_empire` | `> SAVE_GAME_LAST_UNVERSIONED_SCENARIOS` | dynamic | yes | `empire_object_save` | `empire_object_load` | Custom empire object graph |
-| 108 | `visited_buildings` | `> SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | dynamic | yes | `figure_visited_buildings_save_state` | `figure_visited_buildings_load_state` | Figure visited-building lists |
-| 109 | `rubble_grid` | `> SAVE_GAME_LAST_U16_GRIDS` | `GRID_SIZE_BUF_U32` | yes | `map_building_save_state` | `map_building_load_state` | Rubble original-building grid |
-| 110 | `production_rates` | `> SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA` | dynamic | yes | `production_rates_save` | `production_rates_load` | Custom production rates |
-| 111 | `road_service_history` | `> SAVE_GAME_LAST_NO_ROAD_SERVICE_HISTORY` | dynamic | yes | `map_road_service_history_save_state` | `map_road_service_history_load_state` | Smart-service road recency grids |
-| 112 | `local_workforce_allocations` | `> SAVE_GAME_LAST_NO_LOCAL_WORKFORCE` | dynamic | yes | `building_local_workforce_save_state` | `building_local_workforce_load_state` | Local workforce house/workplace allocations |
+| 29 | `water_access_type_table` | `> SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE` | dynamic | no | `water_access_type_id_bridge_save_table_save_state` | `water_access_type_id_bridge_save_table_load_state` | Save-local water access type id map |
+| 30 | `buildings` | current | dynamic after `SAVE_GAME_LAST_STATIC_VERSION` | yes | `building_save_state` | `building_load_state` | `array(building)` records |
+| 31 | `city_view_orientation` | current | 4 | no | `city_view_save_state` | `city_view_load_state` | City view orientation |
+| 32 | `game_time` | current | 20 | no | `game_time_save_state` | `game_time_load_state` | Calendar/tick state |
+| 33 | `building_extra_highest_id_ever` | current | 8 | no | `building_save_state` | not consumed by current load | Legacy building high-water data |
+| 34 | `random_iv` | current | 8 | no | `random_save_state` | `random_load_state` | RNG state |
+| 35 | `city_view_camera` | current | 8 | no | `city_view_save_state` | `city_view_load_state` | Camera position |
+| 36 | `building_count_culture1` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static building counts |
+| 37 | `city_graph_order` | current | 4 or 8 | no | `city_data_save_state` | `city_data_load_state` | Graph display order |
+| 38 | `emperor_change_time` | current | 8 | no | `scenario_emperor_change_save_state` | `scenario_emperor_change_load_state` | Emperor-change timer |
+| 39 | `empire` | current | 12 | no | `empire_save_state` | `empire_load_state` | Basic empire state |
+| 40 | `empire_map` | `> SAVE_GAME_LAST_NO_CUSTOM_EMPIRE_MAP_IMAGE` | dynamic | no | `empire_save_custom_map` | `empire_load_custom_map` | Custom empire map image |
+| 41 | `empire_cities` | current | dynamic after static scenario objects | yes | `empire_city_save_state` | `empire_city_load_state` | `array(empire_city)` records |
+| 42 | `building_count_industry` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static industry counts |
+| 43 | `trade_prices` | current | `8 * resource_total_mapped()` | no | `trade_prices_save_state` | `trade_prices_load_state` | Buy/sell prices per resource |
+| 44 | `figure_names` | current | 84 | no | `figure_name_save_state` | `figure_name_load_state` | Figure name state |
+| 45 | `culture_coverage` | current | 60 | no | `city_culture_save_state` | `city_culture_load_state` | Culture coverage counters |
+| 46 | `scenario` | current | scenario buffer size for save version | no | `scenario_save_state` | `scenario_load_state` | Embedded scenario state |
+| 47 | `requests` | `> SAVE_GAME_LAST_NO_EXTENDED_REQUESTS` | dynamic | no | `scenario_request_save_state` | `scenario_request_load_state` | Scenario requests |
+| 48 | `invasions` | `> SAVE_GAME_LAST_STATIC_SCENARIO_ORIGINAL_DATA` | dynamic | yes | `scenario_invasion_save_state` | `scenario_invasion_load_state` | Scenario invasions |
+| 49 | `demand_changes` | same as above | dynamic | yes | `scenario_demand_change_save_state` | `scenario_demand_change_load_state` | Demand-change events |
+| 50 | `price_changes` | same as above | dynamic | yes | `scenario_price_change_save_state` | `scenario_price_change_load_state` | Price-change events |
+| 51 | `allowed_buildings` | same as above | dynamic | yes | `scenario_allowed_building_save_state` | `scenario_allowed_building_load_state` | Scenario build permissions |
+| 52 | `custom_variables` | same as above | dynamic | yes | `scenario_custom_variable_save_state` | `scenario_custom_variable_load_state` | Scenario custom variables |
+| 53 | `scenario_events` | `> SAVE_GAME_LAST_NO_EVENTS` | dynamic | no | `scenario_events_save_state` | `scenario_events_load_state` | Event info records |
+| 54 | `scenario_formulas` | `> SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA` | dynamic | no | `scenario_events_save_state` | `scenario_events_load_state` | Scenario formula records |
+| 55 | `scenario_conditions` | `> SAVE_GAME_LAST_NO_EVENTS` | dynamic | no | `scenario_events_save_state` | `scenario_events_load_state` | Event condition groups |
+| 56 | `scenario_actions` | `> SAVE_GAME_LAST_NO_EVENTS` | dynamic | no | `scenario_events_save_state` | `scenario_events_load_state` | Event actions |
+| 57 | `custom_messages` | `> SAVE_GAME_LAST_NO_CUSTOM_MESSAGES` | dynamic | no | `custom_messages_save_state` | `custom_messages_load_state` | Custom message records |
+| 58 | `custom_media` | same as above | dynamic | no | `custom_media_save_state` | `custom_messages_load_state` | Custom media records |
+| 59 | `message_media_text_blob` | same as above | dynamic | no | `message_media_text_blob_save_state` | `message_media_text_blob_load_state` | Shared media text bytes |
+| 60 | `message_media_metadata` | same as above | dynamic | no | `message_media_text_blob_save_state` | `message_media_text_blob_load_state` | Shared media text metadata |
+| 61 | `building_model_data` | `> SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA` | dynamic | no | `model_save_model_data` | `model_load_model_data` | Saved building model overrides |
+| 62 | `max_game_year` | current | 4 | no | `scenario_criteria_save_state` | `scenario_criteria_load_state` | Scenario max year |
+| 63 | `earthquake` | current | 60 | no | `scenario_earthquake_save_state` | `scenario_earthquake_load_state` | Earthquake state |
+| 64 | `emperor_change_state` | current | 4 | no | `scenario_emperor_change_save_state` | `scenario_emperor_change_load_state` | Emperor-change state |
+| 65 | `messages` | current | 16000 | yes | `city_message_save_state` | `city_message_load_state` | City message records |
+| 66 | `message_extra` | current | 12 | no | `city_message_save_state` | `city_message_load_state` | Message extra counters |
+| 67 | `population_messages` | current | 10 | no | `city_message_save_state` | `city_message_load_state` | Population message flags |
+| 68 | `message_counts` | current | 80 | no | `city_message_save_state` | `city_message_load_state` | Message category counts |
+| 69 | `message_delays` | current | 80 | no | `city_message_save_state` | `city_message_load_state` | Message delays |
+| 70 | `building_list_burning_totals` | current | 4 or 8 | no | `building_list_save_state` | `building_list_load_state` | Burning-list total count |
+| 71 | `figure_sequence` | current | 4 | no | `figure_save_state` | `figure_load_state` | Next figure created-sequence |
+| 72 | `scenario_settings` | current | 12 | no | `scenario_settings_save_state` | `scenario_settings_load_state` | Scenario settings block |
+| 73 | `invasion_warnings` | current | dynamic after static scenario original data | yes | `scenario_invasion_warning_save_state` | `scenario_invasion_warning_load_state` | Invasion warning records |
+| 74 | `scenario_is_custom` | current | 4 | no | `scenario_settings_save_state` | `scenario_settings_load_state` | Custom-scenario flag |
+| 75 | `city_sounds` | current | 8960 | no | no current writer | no current loader | Reserved legacy sound-state block |
+| 76 | `building_extra_highest_id` | current | 4 | no | `building_save_state` | not consumed by current load | Legacy highest building id |
+| 77 | `figure_traders` | current | resource-version-sized trader block | no | `traders_save_state` | `traders_load_state` | Trader resource state |
+| 78 | `building_list_burning` | current | dynamic after static version | yes | `building_list_save_state` | `building_list_load_state` | Burning building id list |
+| 79 | `building_list_small` | current | dynamic after static version | yes | `building_list_save_state` | `building_list_load_state` | Small-building id list |
+| 80 | `building_list_large` | current | dynamic after static version | yes | `building_list_save_state` | `building_list_load_state` | Large-building id list |
+| 81 | `tutorial_part1` | current | 32 | no | `tutorial_save_state` | `tutorial_load_state` | Tutorial state |
+| 82 | `building_count_military` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static military counts |
+| 83 | `enemy_army_totals` | current | 20 | no | `enemy_armies_save_state` | `enemy_armies_load_state` | Enemy army totals |
+| 84 | `building_storages` | current | dynamic after static version | no | `building_storage_save_state` | `building_storage_load_state` | `array(storage)` records |
+| 85 | `building_count_culture2` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static culture counts |
+| 86 | `building_count_support` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static support counts |
+| 87 | `tutorial_part2` | current | 4 | no | `tutorial_save_state` | `tutorial_load_state` | Tutorial state |
+| 88 | `gladiator_revolt` | current | 16 | no | `scenario_gladiator_revolt_save_state` | `scenario_gladiator_revolt_load_state` | Gladiator revolt state |
+| 89 | `trade_routes` | `> SAVE_GAME_LAST_NO_EMPIRE_EDITOR` | dynamic | yes | `trade_routes_save_state` | `trade_routes_load_state` | Empire trade route records |
+| 90 | `trade_route_limit` | `<= SAVE_GAME_LAST_NO_EMPIRE_EDITOR` | legacy resource-sized block | yes | old saves only | `trade_routes_migrate_to_buys_sells` | Old route import/export limits |
+| 91 | `trade_route_traded` | same old gate | legacy resource-sized block | yes | old saves only | `trade_routes_migrate_to_buys_sells` | Old route traded quantities |
+| 92 | `building_barracks_tower_sentry` | `<= SAVE_GAME_LAST_BARRACKS_TOWER_SENTRY_REQUEST` | 4 | no | old saves only | old migration | Retired sentry request state |
+| 93 | `building_extra_sequence` | current | 4 | no | `building_save_state` | `building_load_state` | Next building created-sequence |
+| 94 | `routing_counters` | current | 16 | no | `map_routing_save_state` | `map_routing_load_state` | Routing counters |
+| 95 | `building_count_culture3` | `<= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | legacy count size | no | old saves only | old count migration | Static culture counts |
+| 96 | `enemy_armies` | current | version-sized army block | no | `enemy_armies_save_state` | `enemy_armies_load_state` | Enemy army records |
+| 97 | `city_entry_exit_xy` | current | 16 | no | `city_data_save_state` | `city_data_load_state` | Entry/exit x/y pairs |
+| 98 | `last_invasion_id` | current | 2 | no | `scenario_invasion_warning_save_state` | `scenario_invasion_warning_load_state` | Last invasion warning id |
+| 99 | `building_extra_corrupt_houses` | current | 8 | no | `building_save_state` | `building_load_state` | House corruption counters |
+| 100 | `scenario_name` | current | 65 | no | `scenario_settings_save_state` | `scenario_settings_load_state` | Scenario filename/name |
+| 101 | `bookmarks` | current | 32 | no | `map_bookmark_save_state` | `map_bookmark_load_state` | Map bookmarks |
+| 102 | `tutorial_part3` | current | 4 | no | `tutorial_save_state` | `tutorial_load_state` | Tutorial state |
+| 103 | `city_entry_exit_grid_offset` | current | 8 | no | `city_data_save_state` | `city_data_load_state` | Entry/exit grid offsets |
+| 104 | `campaign_name` | `> SAVE_GAME_LAST_NO_CUSTOM_CAMPAIGNS` | dynamic | no | `scenario_settings_save_state` | `scenario_settings_load_state` | Custom campaign name |
+| 105 | `mod_metadata` | `> SAVE_GAME_LAST_NO_MOD_METADATA` | dynamic | no | `savegame_mod_metadata_save_state` | `update_loaded_save_mod_metadata` | Saved mod name and metadata version |
+| 106 | `end_marker` | current | 284 | no | reserved zero bytes | skipped on load | Reserved historical padding |
+| 107 | `deliveries` | `> SAVE_GAME_LAST_NO_DELIVERIES_VERSION` | dynamic after static monument-delivery version | no | `building_monument_delivery_save_state` | `building_monument_delivery_load_state` | Monument delivery records |
+| 108 | `custom_empire` | `> SAVE_GAME_LAST_UNVERSIONED_SCENARIOS` | dynamic | yes | `empire_object_save` | `empire_object_load` | Custom empire object graph |
+| 109 | `visited_buildings` | `> SAVE_GAME_LAST_GLOBAL_BUILDING_INFO` | dynamic | yes | `figure_visited_buildings_save_state` | `figure_visited_buildings_load_state` | Figure visited-building lists |
+| 110 | `rubble_grid` | `> SAVE_GAME_LAST_U16_GRIDS` | `GRID_SIZE_BUF_U32` | yes | `map_building_save_state` | `map_building_load_state` | Rubble original-building grid |
+| 111 | `production_rates` | `> SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA` | dynamic | yes | `production_rates_save` | `production_rates_load` | Custom production rates |
+| 112 | `road_service_history` | `> SAVE_GAME_LAST_NO_ROAD_SERVICE_HISTORY` | dynamic | yes | `map_road_service_history_save_state` | `map_road_service_history_load_state` | Smart-service road recency grids |
+| 113 | `local_workforce_allocations` | `> SAVE_GAME_LAST_NO_LOCAL_WORKFORCE` | dynamic | yes | `building_local_workforce_save_state` | `building_local_workforce_load_state` | Local workforce house/workplace allocations |
 
 ## Allocated Runtime Structures
 
@@ -180,6 +181,7 @@ Important owned payloads:
 - Figures: `figure_save_state()` allocates `4 + figure_count * 170` bytes, writes the per-record byte size (`170`), then serializes every `figure`. `figure_load_state()` resets figure runtime/profile state, reads old or current record sizes, initializes `array(figure)`, expands it, reads every record, tracks the highest nonzero state, and trims `data.figures.size`. Figure records use resource remapping and version gates for image ids, building ids, routing ids, visited-building index, and last destination.
 - Buildings: `building_save_state()` allocates `4 + building_count * BUILDING_STATE_CURRENT_BUFFER_SIZE`, writes the current building record size, then calls `building_state_save_to_buffer()` for every `building`. `building_load_state()` initializes `array(building)`, expands it, reads records through `building_state_load_from_buffer()`, rebuilds building lists, and restores created-sequence/corrupt-house counters. Building type ids are saved through `building_type_id_bridge_save_id_from_runtime()`, not raw runtime enum values. `building.variant` is also normalized after load for native BuildingType graphics options; saves through `SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS = 0xb6` reseed from map randomness because older saves did not use that byte for native graphics selection.
 - Building type table: `building_type_id_bridge_save_table_save_state()` writes dynamic format version `1`, entry count, and each save id/text id pair. The loader uses the table when present and falls back to legacy enum migration when absent or invalid. BuildingType construction data is runtime XML state and is not persisted in this table.
+- Water access type table: `water_access_type_id_bridge_save_table_save_state()` writes dynamic format version `1`, entry count, and each save id/text id pair. The loader resolves text ids against the active mod's `WaterAccessType` XML before current numeric ids are used. Older saves synthesize the shared legacy ids for `well`, `fountain`, `reservoir`, `aqueduct`, and `latrines`.
 - Building storages: `building_storage_save_state()` writes a record-size header and one storage record per `array(storage)` item. Current records include storage id/building id, permissions, per-resource state, and per-resource quantity data. The loader supports original/static/current record sizes and remaps resources.
 - Building lists: `building_list_save_state()` writes small, large, and burning id lists as dynamic integer arrays plus a burning-total piece. The loader reads 16-bit ids for old static saves and 32-bit ids for newer dynamic saves.
 - Monument deliveries: `building_monument_delivery_save_state()` writes a record-size header and 16-byte `monument_delivery` records containing walker id, destination id, resource, and cartloads. The loader rebuilds the delivery array and remaps resources.
@@ -199,7 +201,7 @@ Some pieces are independent byte dumps, but several order dependencies are inten
 
 - Resource mapping is installed before any load that remaps resources.
 - Scenario settings and scenario data load before map/city systems that depend on scenario dimensions or climate.
-- `building_type_table` loads before `buildings`, because building records store save-local building type ids.
+- `building_type_table` and `water_access_type_table` load before `buildings`, because building records store save-local building type ids and water compatibility mirrors may need text-id resolution as water state migrates.
 - `figure_load_state()` runs before route, formation, trader, visited-building, and building-slot cleanup logic can safely refer to figure ids.
 - `model_load_model_data()` runs after buildings and before `building_type_registry_apply_model_overrides()`.
 - `resource_init()` runs before production rates and many economy systems are used after load.

@@ -1,7 +1,23 @@
 # Building Graphics Runtime Working Memory
 
-Snapshot: 2026-05-04
+Snapshot: 2026-05-11
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+
+## 2026-05-11 current graphics/animation checkpoint
+- Native BuildingType graphics now use `building_runtime_graphics.cpp` for target resolution, stable-option selection, and cached `RuntimeDrawSlice` binding. The renderer-facing accessors are still `graphic_footprint()`, `graphic_top()`, and `graphic_animation(animation_cursor)`.
+- Animation frame policy now lives in `src/building/animations.h/.cpp` as `BuildingAnimation`. This object owns frame cursor normalization, legacy animation gates, wine-workshop progress frames, reversible animation high-bit handling, looping animation, storage-yard flags, and fumigation animation.
+- The old `src/building/animation.*` facade has been removed. Legacy overlay/non-native C++ draw paths instantiate `BuildingAnimation` directly; this keeps animation policy in the concept object instead of behind another C wrapper.
+- Live native animation call chain:
+  - `src/widget/city_draw.cpp::city_draw_runtime_building_animation()`
+  - `building_runtime_advance_graphic_animation(b, grid_offset)`
+  - `building_runtime::advance_graphic_animation(grid_offset)`
+  - `BuildingAnimation::runtime_track_offset(track, should_advance=1, grid_offset)`
+  - `building_runtime_get_graphic_animation_slice(b, grid_offset)`
+  - `building_runtime::graphic_animation(grid_offset)`
+  - `BuildingAnimation::runtime_track_offset(track, should_advance=0, grid_offset)`
+- `advance_graphic_animation()` is the tick. `graphic_animation()` reads and materializes the current frame slice; it must not secretly advance the animation.
+- Placement ghosts use the same generic BuildingType renderer for XML-owned graphics. `city_building_ghost.cpp` saves/restores the map sprite animation byte because the ghost preview reuses the hovered grid offset as a temporary cursor without owning real map state.
+- Water-driven graphics now depend on generic BuildingType water rules and projected building state. See `docs/water_access_runtime.md` for the provider/consumer mask simulation that feeds `has_water_access` and related compatibility mirrors.
 
 ## 2026-05-04 as-is audit
 - Live BuildingType graphics now center on `src/widget/city_draw.cpp` plus `src/building/building_runtime_graphics.cpp`. Older notes that name `city_with_overlay.cpp` or `city_without_overlay.cpp` as live graphics chokepoints describe the pre-split checkpoint and should be read as historical.
@@ -32,7 +48,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Pottery workshops are no longer treated as graphics-data-only; their XML `Industry\Pottery_Workshop` payload is the live renderer path.
 - Runtime animation frames normalize an active XML animation to frame 1 when the saved sprite cursor is empty, so ON states that use an OFF base plus animation overlay do not flash the OFF image between animation ticks.
 - Payload animation frame materialization now reconstructs each explicit or implicit frame as a full `PART_BOTH` raster payload before runtime drawing. Bare XML frame references no longer reuse only the referenced entry footprint, which preserves top/full overlay content for animated XML buildings.
-- Native XML animations now advance explicitly from `city_draw_runtime_building_animation()`, the same city animation layer that calls legacy `building_animation_offset()`. `graphic_animation()` reads the current cursor and returns the already-selected payload frame instead of secretly owning the tick.
+- Native XML animations now advance explicitly from `city_draw_runtime_building_animation()`, the same city animation layer that drives legacy image animations through `BuildingAnimation`. `graphic_animation()` reads the current cursor and returns the already-selected payload frame instead of secretly owning the tick.
 - Native XML animations use the caller-provided draw-stage animation cursor instead of `building.grid_offset`. This keeps the cursor transient like legacy rendering until BuildingType migration is far enough along to consider a saved building cursor field.
 - Well placement ghosts keep their bespoke water-range behavior, but now try the XML payload ghost renderer before falling back to `building_image_get_for_type()`. Well XML also uses the same legacy string-key bridge format as Theater (`main_strings.28.92`) so dynamic ids do not fall through to an invalid legacy string index in the build menu.
 - Augustus/Vespasian small and large pond XML now owns the legacy climate/water matrix: central/northern maps use the north payloads, desert maps use the south payloads, and water access selects the animated ON entries. The redundant `BUILDING_SMALL_POND` and `BUILDING_LARGE_POND` image.cpp switch arms were removed.
@@ -81,7 +97,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Julius Colosseum was checked against upstream Julius `src/core/image_group.h`, `src/building/construction_building.c`, `src/building/properties.c`, and `src/widget/city_without_overlay.c`: the base city graphic is group 48 (`Health_Culture\Colosseum/Image_0000` in the extracted sample), the worker/show overlay remains legacy group 193 (`Health_Culture\Colosseum_Show`), and Julius does not mark the Colosseum fire-proof.
 - Follow-up Julius mismatch pass: upstream Julius marks Hippodrome fire-proof as false (`{5, 0, 213, 0}`) and Well fire-proof as true (`{1, 1, 23, 0}`), so `Mods/Julius/BuildingType/hippodrome.xml` and `well.xml` now match those flags. The Julius entertainment button order now follows upstream `menu.c`: theater, amphitheater, Colosseum, Hippodrome, gladiator school, lion house, actor colony, chariot maker; touched labels use legacy `main_strings.28.*` keys instead of placeholder `building.*.name` keys.
 - The Julius static pass also replaced remaining placeholder `building.*.name` labels in implemented Julius BuildingType XML with the corresponding legacy `main_strings.28.*` keys, corrected ad hoc button icon names to resolvable extracted Julius assetlist paths, and aligned the XML menu order for water, health, education, administration, and entertainment rows with upstream Julius `menu.c` where those rows are represented by XML buttons.
-- Augustus/Vespasian lararium and latrines now have complete BuildingType XML for identity, build-menu placement, model/desirability, graphics, labor, flags, and event attrs. Lararium uses `TR_BUILDING_LARARIUM`; latrines use `TR_BUILDING_LATRINES` and climate-specific `Health_Culture\Latrine_*` graphics. The static property rows, hardcoded menu rows, image cases, and redundant latrines construction case were removed. Remaining legacy-specific behavior is intentional: lararium still uses the legacy road-within-2 warning, and latrines still use the legacy radius/access updater because the current XML water provider schema only supports well/fountain/reservoir providers.
+- Augustus/Vespasian lararium and latrines now have complete BuildingType XML for identity, build-menu placement, model/desirability, graphics, labor, flags, and event attrs. Lararium uses `TR_BUILDING_LARARIUM`; latrines use `TR_BUILDING_LATRINES` and climate-specific `Health_Culture\Latrine_*` graphics. The static property rows, hardcoded menu rows, image cases, redundant latrines construction case, and old latrines-only water coverage path were removed. Remaining lararium legacy behavior is intentional: it still uses the legacy road-within-2 warning.
 
 ## 2026-04-06 building graphics resolution checkpoint
 - Native building footprint rendering now routes through `src/widget/city_draw.cpp`, not the older direct `const image *` helper path documented below.
@@ -110,7 +126,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Augustus extractor startup failures must remain fatal to startup; do not warn-and-continue there.
 - Building graphics resolution is temporarily back on soft-fallback semantics: if the new building path cannot resolve an image or animation frame, it logs once and returns `nullptr` so the legacy renderer path takes over.
 - `ImageGroupPayload` needed a same-group alias fast path plus a re-entrant load guard; local references like `group="this"` or aliases to earlier images in the same group must resolve against the payload currently being built instead of recursively reloading the group.
-- Large statue definitions now explicitly declare `water_access mode="reservoir_range"` so the existing legacy animation gate for fountains can still key off `has_water_access` under the runtime-managed path.
+- Water-driven graphics now key off BuildingType `<water_access>` requirement rules. The old state-level reservoir-range hook has been removed; large statues, ponds, concrete makers, fountains, and reservoirs use the generic typed-mask rule path.
 - The old "best-effort fallback" assumption is no longer the active rule for explicit new-path invariants in this slice; targeted failures now prefer fatal+log.
 
 ## Current Runtime Shape
@@ -121,7 +137,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Placement ghosts and editor previews are mixed: several XML-owned ghosts now try the runtime path first, but the whole placement/editor surface is not yet fully native.
 
 ## User decisions locked in
-- Do not build unless the user explicitly asks.
+- Build only when useful for the current task, and use `Release|x64`.
 - Keep CRLF on touched files.
 - Add this file to `.gitignore`.
 - Replace the old `<graphic .../>` node instead of supporting both formats.

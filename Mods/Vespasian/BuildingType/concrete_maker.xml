@@ -12,9 +12,13 @@
     <button group="workshops" order="80" icon="Industry\Concrete_Maker_C_OFF" text_key="TR_RESOURCE_CONCRETE" />
     <sound id="concrete_maker" />
     <event_data attr="concrete_maker" />
-    <state>
-        <water_access mode="reservoir_range" />
-    </state>
+    <water_access>
+        <requires mode="any">
+            <access type="reservoir" />
+            <access type="fountain" />
+            <access type="well" />
+        </requires>
+    </water_access>
     <graphics>
         <default>
             <path value="Industry\Concrete_Maker_C_OFF" />

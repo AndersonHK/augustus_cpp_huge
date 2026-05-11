@@ -12,9 +12,11 @@
     <sound id="aqueduct" />
     <event_data attr="large_statue" />
     <flags fire_proof="1" venus_gt_bonus="1" />
-    <state>
-        <water_access mode="reservoir_range" />
-    </state>
+    <water_access>
+        <requires mode="all">
+            <access type="reservoir" />
+        </requires>
+    </water_access>
     <graphics>
         <default>
             <path value="Aesthetics\Statue" />

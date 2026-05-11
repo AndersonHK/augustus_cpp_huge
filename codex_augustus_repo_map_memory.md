@@ -1,6 +1,6 @@
 # Codex Augustus repository map and implementation memory
 
-Snapshot: 2026-05-04
+Snapshot: 2026-05-11
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Top-level layout that matters now
@@ -124,6 +124,14 @@ Important architectural note:
 - `src/widget/city_draw.cpp`
   - native building footprint/top/animation draw seam
   - native whole-building footprints now draw on the owning draw tile only
+- `src/building/building_runtime_graphics.cpp`
+  - resolves BuildingType graphics targets, stable options, and cached `RuntimeDrawSlice` bindings
+  - delegates animation frame policy to `BuildingAnimation`
+- `src/building/animations.h`
+- `src/building/animations.cpp`
+  - graphics target helper classes plus `BuildingAnimation`, which owns frame cursor normalization, legacy animation gates, reversible/looping/wine-workshop advancement, storage flag animation, and fumigation animation
+- `src/widget/city_overlay_other.cpp`
+  - converted overlay translation unit that now calls `BuildingAnimation` directly instead of using the removed `building_animation_*` C facade
 
 Current graphics XML precedence:
 1. active mod stack from top to bottom through `mod_manager_get_graphics_path_at()`
@@ -154,6 +162,33 @@ Doctrine:
 - `src/game/save_version.h`
   - save and scenario version gates; update when persisted layout or behavior changes
 - Key save-backed runtime payloads currently include building records, figure records/routes, building type save tables, road service history, and local workforce allocations.
+- The current save also has a water access type save table. It persists save-local ids as text ids, then resolves them against the active mod's `WaterAccessType` XML so runtime numeric ids can remain mod-defined.
+
+## Water access runtime map
+- `Mods/<Mod>/WaterAccessType/*.xml`
+  - selected-mod declarations of water access text ids and numeric ids `0..7`
+- `src/building/water_access_type.h`
+- `src/building/water_access_type.cpp`
+  - load-time registry, uniqueness/range validation, and text-id to mask lookup
+- `src/building/water_access_type_id_bridge.h`
+- `src/building/water_access_type_id_bridge.cpp`
+  - save-local water access id table and legacy raw-id migration
+- `src/building/building_type.h`
+- `src/building/building_type.cpp`
+- `src/building/building_type_registry_xml.cpp`
+  - BuildingType `<water_access>` provider and requirement rule storage/parsing
+- `src/building/water_access_runtime.h`
+- `src/building/water_access_runtime.cpp`
+  - fixed-point provider simulation, typed access masks, aqueduct wet-state projection, terrain range projection, building `has_*_access` mirror projection, and placement-preview highlights
+- `src/widget/city_building_ghost.cpp`
+- `src/widget/city_water_ghost.cpp`
+  - placement/context overlays call the generic water runtime queries instead of hardcoded provider-type helpers
+
+Water access motive:
+- providers declare what access types they emit, where from, and at what range
+- consumers declare what access types or natural-water source terms they require
+- runtime masks are compact, but content and saves remain text-id driven
+- aqueducts are ordinary water access providers/consumers evaluated through the same fixed-point rule pass as reservoirs.
 
 ## Demographics / defines map
 - `src/game/defines.cpp`
@@ -186,12 +221,16 @@ Doctrine:
 - `src/building/building_runtime.h`
 - `src/building/building_runtime.cpp`
 - `src/building/building_runtime_graphics.cpp`
+- `src/building/animations.cpp`
 - `src/building/building_runtime_spawn.cpp`
 - `src/building/building_runtime_api.h`
 - `src/building/building_type.cpp`
 - `src/building/building_type_registry.cpp`
 - `src/building/building_type_registry_xml.cpp`
 - `src/building/building_type_id_bridge.cpp`
+- `src/building/water_access_runtime.cpp`
+- `src/building/water_access_type.cpp`
+- `src/building/water_access_type_id_bridge.cpp`
 - `src/building/housing_type.cpp`
 - `src/building/housing_type_registry.cpp`
 - `src/building/house.cpp`
@@ -211,6 +250,8 @@ Doctrine:
 ## Native BuildingType / HousingType map
 - `Mods/Vespasian/BuildingType/_README.md`
   - current XML contract for BuildingType identity, model, foundation, button, sound, event data, flags, water access, state refresh, graphics/options, construction, labor, storage, production, housing, and spawns
+- `docs/water_access_runtime.md`
+  - current architecture and call chains for WaterAccessType XML, BuildingType water rules, fixed-point propagation, aqueduct/reservoir behavior, overlays, save bridges, and compatibility mirrors
 - `Mods/Vespasian/HousingType/_README.md`
   - current XML contract for residential requirements, resident class, capacity, prosperity, tax multiplier, and legacy house-level compatibility
 - `research/caesar3_julius_housing_progression_defaults.md`

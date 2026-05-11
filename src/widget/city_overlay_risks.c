@@ -51,19 +51,13 @@ void city_overlay_problems_prepare_building(building *b)
         b->show_on_problem_overlay = 1;
     } else if (!b->num_workers && building_get_laborers(b->type)) {
         b->show_on_problem_overlay = 1;
-    } else if (b->type == BUILDING_FOUNTAIN || b->type == BUILDING_BATHHOUSE ||
-         b->type == BUILDING_LARGE_POND || b->type == BUILDING_SMALL_POND) {
-        if (!b->has_water_access) {
-            b->show_on_problem_overlay = 1;
-        }
+    } else if (building_type_registry_has_water_access_requirements(b->type) && !b->has_water_access) {
+        b->show_on_problem_overlay = 1;
     } else if (b->type >= BUILDING_WHEAT_FARM && b->type <= BUILDING_CLAY_PIT) {
         if (is_problem_cartpusher(b->figure_id)) {
             b->show_on_problem_overlay = 1;
         }
     } else if (building_is_workshop(b->type)) {
-        if (b->type == BUILDING_CONCRETE_MAKER && !b->has_water_access) {
-            b->show_on_problem_overlay = 1;
-        }
         if (is_problem_cartpusher(b->figure_id)) {
             b->show_on_problem_overlay = 1;
         } else if (!building_industry_has_raw_materials_for_production(b)) {
@@ -333,19 +327,13 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
         c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_MOTHBALLED;
     } else if (!b->num_workers && building_get_laborers(b->type)) {
         c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_LABOR;
-    } else if (b->type == BUILDING_FOUNTAIN || b->type == BUILDING_BATHHOUSE
-        || b->type == BUILDING_LARGE_POND || b->type == BUILDING_SMALL_POND) {
-        if (!b->has_water_access) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_WATER_ACCESS;
-        }
+    } else if (building_type_registry_has_water_access_requirements(b->type) && !b->has_water_access) {
+        c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_WATER_ACCESS;
     } else if (b->type >= BUILDING_WHEAT_FARM && b->type <= BUILDING_CLAY_PIT) {
         if (is_problem_cartpusher(b->figure_id)) {
             c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_CARTPUSHER;
         }
     } else if (building_is_workshop(b->type)) {
-        if (b->type == BUILDING_CONCRETE_MAKER && !b->has_water_access) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_WATER_ACCESS;
-        }
         if (is_problem_cartpusher(b->figure_id)) {
             c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_CARTPUSHER;
         } else if (!building_industry_has_raw_materials_for_production(b)) {

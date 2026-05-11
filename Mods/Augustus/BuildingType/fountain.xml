@@ -14,9 +14,10 @@
     <event_data attr="fountain" />
     <flags fire_proof="1" />
     <water_access>
-        <type value="fountain" />
-        <range value="4" />
-        <requirement value="reservoir_network" />
+        <provides type="fountain" range="4" origin="footprint" />
+        <requires mode="all">
+            <access type="reservoir" />
+        </requires>
     </water_access>
     <graphics>
         <default>

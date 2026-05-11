@@ -43,13 +43,11 @@ struct ParseState {
     int saw_storages = 0;
     int saw_production_methods = 0;
     int saw_housing = 0;
-    int saw_state = 0;
     int saw_provider_water_access = 0;
-    int saw_provider_water_access_type = 0;
-    int saw_provider_water_access_range = 0;
-    int saw_provider_water_access_requirement = 0;
-    int parsing_state = 0;
+    int saw_water_access_rule = 0;
+    int saw_current_water_access_requirement_term = 0;
     int parsing_provider_water_access = 0;
+    int parsing_water_access_requirement = 0;
     int parsing_desirability = 0;
     int parsing_graphics = 0;
     int parsing_graphics_options = 0;
@@ -64,6 +62,8 @@ struct ParseState {
     size_t current_graphics_variant_index = 0;
     GraphicsParseTargetScope current_graphics_target_scope = GraphicsParseTargetScope::None;
     LaborSeekerPolicy current_labor_seeker_policy;
+    WaterAccessRequirementRule current_water_access_requirement_rule;
+    WaterAccessRequirementWhere current_water_access_requirement_where = WaterAccessRequirementWhere::Footprint;
     int saw_spawn = 0;
     int error = 0;
 };

@@ -12,6 +12,7 @@ extern "C" {
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/storage.h"
+#include "building/water_access_type_id_bridge.h"
 #include "city/culture.h"
 #include "city/data.h"
 #include "city/message.h"
@@ -162,6 +163,7 @@ typedef struct {
     buffer *player_name;
     buffer *city_faction;
     buffer *building_type_table;
+    buffer *water_access_type_table;
     buffer *buildings;
     buffer *city_view_orientation;
     buffer *game_time;
@@ -308,6 +310,7 @@ typedef struct {
         int custom_production_rates;
         int mod_metadata;
         int building_type_table;
+        int water_access_type_table;
         int road_service_history;
         int local_workforce_allocations;
     } features;
@@ -631,6 +634,7 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     version_data->features.custom_production_rates = version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA;
     version_data->features.mod_metadata = version > SAVE_GAME_LAST_NO_MOD_METADATA;
     version_data->features.building_type_table = version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE;
+    version_data->features.water_access_type_table = version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE;
     version_data->features.road_service_history = version > SAVE_GAME_LAST_NO_ROAD_SERVICE_HISTORY;
     version_data->features.local_workforce_allocations = version > SAVE_GAME_LAST_NO_LOCAL_WORKFORCE;
 }
@@ -687,6 +691,9 @@ static void init_savegame_data(savegame_version_t version)
     }
     if (version_data.features.building_type_table) {
         state->building_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.water_access_type_table) {
+        state->water_access_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
     }
     state->buildings = create_savegame_piece(version_data.piece_sizes.buildings, 1);
     state->city_view_orientation = create_savegame_piece(4, 0);
@@ -1012,6 +1019,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     building_type_id_bridge_save_table_load_state(
         state->building_type_table,
         version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE);
+    water_access_type_id_bridge_save_table_load_state(
+        state->water_access_type_table,
+        version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE);
     building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
     city_view_load_state(state->city_view_orientation, state->city_view_camera);
     game_time_load_state(state->game_time);
@@ -1130,6 +1140,8 @@ static void savegame_save_to_state(savegame_state *state)
     savegame_mod_metadata_save_state(state->mod_metadata);
     building_type_id_bridge_prepare_new_save_table();
     building_type_id_bridge_save_table_save_state(state->building_type_table);
+    water_access_type_id_bridge_prepare_new_save_table();
+    water_access_type_id_bridge_save_table_save_state(state->water_access_type_table);
 
     map_building_save_state(state->building_grid, state->building_damage_grid, state->rubble_grid);
     map_terrain_save_state(state->terrain_grid);

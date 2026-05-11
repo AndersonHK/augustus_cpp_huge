@@ -7,6 +7,8 @@ Templates and examples are maintained only in `Mods\Vespasian\BuildingType`.
 
 Runtime/save identity is migrating away from stable enum slots. New saves include a `building_type_table` that maps compact save ids to BuildingType text ids, while loaded buildings continue to use compact runtime ids. Old saves without the table migrate through `src\building\building_type_legacy_migration.*`.
 
+Water access type identity is XML-owned as well. The selected mod's `WaterAccessType` folder declares up to eight access types, each with a stable text id and a numeric id from `0` through `7`; runtime water coverage stores those declarations as `uint8_t` masks. Augustus and Vespasian define `well`, `fountain`, `reservoir`, `aqueduct`, and `latrines`; Julius defines the same shared water types except `latrines`.
+
 Historical tuning references:
 
 - [Roman City Facility Ratios](../../../research/roman_city_facility_ratios.md)
@@ -30,6 +32,9 @@ Historical tuning references:
   tracks player-visible differences between this repo's bundled profiles and
   upstream Augustus, including residential walker spawn policy and Vespasian
   local-workforce tuning.
+- [Water Access Runtime](../../../docs/water_access_runtime.md)
+  records the current typed-mask provider/consumer simulation, aqueduct/reservoir
+  propagation, overlays, and save bridge.
 
 Current supported nodes:
 
@@ -42,7 +47,6 @@ Current supported nodes:
 - `<event_data ... />`
 - `<flags ... />`
 - `<water_access> ... </water_access>`
-- `<state> ... </state>`
 - `<graphics> ... </graphics>`
 - `<construction> ... </construction>`
 - `<labor> ... </labor>`
@@ -146,25 +150,63 @@ Current supported `<flags>` attributes:
 - `draw_desirability_range="0|1"`
 - `venus_gt_bonus="0|1"`
 
-Current supported `<state>` child nodes:
-
-- `<water_access mode="reservoir_range" />`
-
 Current supported root-level `<water_access>` child nodes:
 
-- `<type value="well|fountain|reservoir" />`
-- `<range value="N" />`
-- `<requirement value="none|reservoir_network|water_source_any|water_source_fresh_only" />`
-- `<node kind="aqueduct_connection" x="N" y="N" />`
+- `<provides type="well|fountain|reservoir|aqueduct|latrines" range="N" origin="footprint|nodes" />`
+- `<requires mode="any|all" where="footprint|nodes"> ... </requires>`
+- `<access type="well|fountain|reservoir|aqueduct|latrines" where="footprint|nodes" />`
+- `<source type="water_source_any|water_source_fresh_only" />`
+- `<node x="N" y="N" />`
 
 Root-level `<water_access>` rules:
 
-- `<type>` and `<range>` are required
-- `<requirement>` is optional and defaults to `none`
+- at least one `<provides>` or `<requires>` rule is required
+- `<provides>` may appear more than once so one building can emit multiple access types
+- `origin` is optional and defaults to `footprint`; use `nodes` for reservoir aqueduct connection points
+- `<requires>` may appear more than once; all requirement rules must pass
+- `mode="any"` means at least one term inside the rule must pass
+- `mode="all"` means every term inside the rule must pass
+- `where` is optional and defaults to `footprint`; child `<access>` terms may override the parent
+- water access type names come from the selected mod's `WaterAccessType` XML folder
 - `<node>` is optional and may appear more than once
 - `x` and `y` are local tile coordinates relative to the building's top-left footprint tile
 - node coordinates may sit outside the footprint
-- `kind="aqueduct_connection"` is the only supported node kind in this slice
+- `kind="aqueduct_connection"` is accepted as a legacy alias but no longer required
+
+Water access examples:
+
+```xml
+<water_access>
+    <provides type="reservoir" range="10" origin="footprint" />
+    <provides type="aqueduct" range="0" origin="nodes" />
+    <requires mode="any">
+        <source type="water_source_any" />
+        <access type="aqueduct" where="nodes" />
+    </requires>
+    <node x="1" y="-1" />
+    <node x="3" y="1" />
+    <node x="1" y="3" />
+    <node x="-1" y="1" />
+</water_access>
+```
+
+```xml
+<water_access>
+    <requires mode="any">
+        <access type="fountain" />
+        <access type="well" />
+    </requires>
+</water_access>
+```
+
+Runtime water behavior:
+
+- `WaterAccessType` XML declares the text ids and numeric bits; BuildingType XML only references those ids.
+- Providers are evaluated by `water_access_runtime` into map-wide access/provider masks.
+- Consumers check their requirement rules against those masks; `any` rules are the right shape for "well or fountain" requirements.
+- Reservoirs and aqueduct tiles participate in the same fixed-point propagation pass. The pass evaluates providers from the previous mask into a fresh next mask, so range-0 node providers do not satisfy themselves and adjacent dry aqueducts do not create access from nothing.
+- Legacy fields such as `has_water_access`, `has_well_access`, and `has_latrines_access` are compatibility mirrors projected from the typed masks. New graphics, placement, and gameplay checks should prefer BuildingType water rules or `water_access_runtime_*` accessors.
+- Placement/context overlays should query typed providers/requirements. Do not add new `WATER_ACCESS_RUNTIME_TYPE_*` values or provider-type switch branches.
 
 Current supported `<graphics>` child nodes:
 
@@ -230,8 +272,7 @@ Structured `<graphics>` rules:
 - an `<option>` inherits the enclosing target `<path>` unless it declares its own `path`
 - every resolved option path/image is validated at BuildingType load time
 - target-level `<image value="..."/>` is invalid when `<options>` are present; put image ids on the `<option>` nodes instead
-- put water refresh rules under `<state>`, not under `<graphics>`
-- put provider-side water radius/network data under the root `<water_access>` block, not under `<graphics>`
+- put water refresh, provider radius, network nodes, and requirement rules under the root `<water_access>` block, not under `<graphics>`
 
 Current supported graphics conditions:
 
@@ -387,8 +428,8 @@ Current engine behavior:
 - New buildings seed native graphics options from `map_random_get(grid_offset)`. Loaded saves from `0xb6` or earlier also reseed because older `building.variant` values did not mean native graphics options; newer saves preserve and clamp the saved value.
 - Graphics-only vertical-slice definitions are valid; runtime-owned production and storage references can be layered onto those same BuildingType files as they migrate.
 - BuildingType native storage and production references are resolved at load time; unresolved paths are hard load failures.
-- Put shared derived state such as water access under `<state>` so graphics and spawn behavior read the same runtime facts.
-- Put provider-side water coverage and connection-node data under the root `<water_access>` block so the native water runtime stays data-driven.
+- Put shared derived state such as water access under the root `<water_access>` block so graphics and spawn behavior read the same runtime facts.
+- Put provider-side water coverage and connection-node data under the same `<water_access>` block so the native water runtime stays data-driven.
 - Put BuildingType-authored employee defaults under `<labor><employees ... /></labor>` so the XML and live model table stay in sync.
 - Buildings with a validated runtime `BuildingType` graphics block usually use the native runtime renderer path as the authoritative live path; current data-only vertical slices remain on legacy live rendering until their runtime rollout lands.
 

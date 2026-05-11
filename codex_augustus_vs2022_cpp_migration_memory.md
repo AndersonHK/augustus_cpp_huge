@@ -1,14 +1,16 @@
 # Codex Augustus VS2022 / MSBuild migration working memory
 
-Snapshot: 2026-05-04
+Snapshot: 2026-05-11
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## What is true in this checkout now
 - The repo already has the native Visual Studio solution/project at the repository root:
   - `Vespasian.sln`
   - `Vespasian.vcxproj`
-  - `Vespasian.vcxproj.filters`
+- `Vespasian.vcxproj.filters`
 - MSBuild/VS2022 at repo root is the real Windows workflow.
+- VS is not necessarily on `PATH`; the known local MSBuild path is `D:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe`.
+- Build in `Release|x64` when compiling this project, preserving project defaults such as `/O2`. Debug builds are not the validation target for current work.
 - `vendor/` contains local SDL2 and SDL2_mixer drops and stays ignored.
 - Generated/local build state is already excluded from Git.
 
@@ -22,6 +24,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Keep public headers C-callable where old C code still depends on them.
 - Prefer introducing one C++ runtime object plus one narrow C facade rather than converting an entire subsystem in one jump.
 - Put concept-owned attributes on the concept object. For example, `PathingMode` objects own pathing requirements like `requires_road`, which keeps XML validation and runtime checks from re-encoding the same facts in ad hoc helper predicates.
+- Move concept-owned behavior onto the concept object as code migrates. Current examples are `BuildingAnimation` for frame selection/gating and `WaterAccessType` plus `water_access_runtime` for access-type identity and propagation.
 - Constructors for durable runtime concepts should be self-documenting at the call site. Prefer named enums, clearly named factory/config fields, or focused comments over positional boolean arguments such as `true, false, false`.
 - Add short contract comments around new C/C++ facade functions and converted control points, especially where save compatibility or legacy callback ownership is involved.
 - Update the relevant markdown in the same run when the migration changes runtime ownership, XML contracts, save/load pieces, or newly introduced classes.
@@ -42,12 +45,16 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - `src/building/tool_mode.cpp`
 - `src/building/building_runtime.cpp`
 - `src/building/building_runtime_graphics.cpp`
+- `src/building/animations.cpp`
 - `src/building/building_type.cpp`
 - `src/building/building_type_registry.cpp`
 - `src/building/building_type_registry_xml.cpp`
 - `src/building/housing_type.cpp`
 - `src/building/housing_type_registry.cpp`
 - `src/building/house.cpp`
+- `src/building/water_access_runtime.cpp`
+- `src/building/water_access_type.cpp`
+- `src/building/water_access_type_id_bridge.cpp`
 - `src/figure/figure_type_registry.cpp`
 - `src/figure/figure_runtime.cpp`
 - `src/figure/movement.cpp`
@@ -82,6 +89,10 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
     - runtime only orchestrates and exposes the facade
   - `building_runtime`
     - owns the building-side runtime migration direction
+  - `BuildingAnimation`
+    - owns animation advancement/gating while old C draw paths call a narrow facade
+  - `WaterAccessType` / `water_access_runtime`
+    - own typed mask access propagation while old fields remain compatibility mirrors
 
 ## Headers/linkage lessons worth preserving
 - When a C file is converted or begins calling C++ code, check header linkage immediately.
@@ -107,6 +118,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Graphics-pack precedence and retained critical startup failures are now part of the architecture, not temporary patches.
 - Native FigureType XML and `figure_runtime` are active for the currently ported service walkers.
 - Native BuildingType XML and HousingType XML are active for the bundled full house chains and several migrated building families; remaining legacy enum references should be treated as bridge/compatibility work, not as stable new authority.
+- Native WaterAccessType XML is active. BuildingType water rules now describe providers, requirements, nodes, and natural-source terms; runtime propagates typed masks through a fixed-point pass.
+- Building animation policy has been extracted from runtime drawing. `building_runtime_graphics.cpp` should resolve/copy draw slices, while `animations.cpp` decides what frame can advance or render.
 - Road service history is a save-backed, pathing-only telemetry grid used by smart service walkers.
 - `window.cpp` is the full-window/pass orchestrator.
 - `ui_runtime.cpp` is the shared widget facade/orchestration chokepoint.
@@ -122,4 +135,4 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - data definitions
 - Keep CRLF on touched files.
 - Preserve existing comments when editing files.
-- Do not build unless the user explicitly asks in that chat.
+- Build only when useful for the current task, and use `Release|x64`.

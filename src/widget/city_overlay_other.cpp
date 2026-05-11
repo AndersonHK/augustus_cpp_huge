@@ -1,7 +1,7 @@
+extern "C" {
 #include "city_overlay_other.h"
 
 #include "assets/assets.h"
-#include "building/animation.h"
 #include "building/building.h"
 #include "building/building_type_api.h"
 #include "building/house.h"
@@ -34,13 +34,21 @@
 #include "scenario/property.h"
 #include "translation/translation.h"
 #include "widget/city_draw_highway.h"
+}
 
+#include "building/animations.h"
 #include <stdio.h>
 
 #define TOOLTIP_WITH_PREFIX_MAX_LENGTH 128
 #define HIGHWAY_LEVY_MONTHLY 1
 
 static void draw_storage_ids(int x, int y, float scale, int grid_offset);
+
+static int legacy_animation_offset(building *b, int image_id, int grid_offset)
+{
+    building_type_registry_impl::BuildingAnimation animation(*b);
+    return animation.legacy_offset(image_id, grid_offset);
+}
 
 static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *message)
 {
@@ -112,7 +120,7 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
     int image_id = map_image_at(grid_offset);
     image_draw_isometric_top_from_draw_tile(image_id, x, y, COLOR_MASK_NONE, scale);
     const image *img = image_get(image_id);
-    int animation_offset = building_animation_offset(b, image_id, grid_offset);
+    int animation_offset = legacy_animation_offset(b, image_id, grid_offset);
     if (animation_offset > 0) {
         int y_offset = img->top ? img->top->original.height - FOOTPRINT_HALF_HEIGHT : 0;
         if (animation_offset > img->animation->num_sprites) {
@@ -177,7 +185,7 @@ static int show_figure_food_stocks(const figure *f)
             return 1;
 
         case FIGURE_CART_PUSHER:
-            return resource_is_food(f->resource_id);
+            return resource_is_food(static_cast<resource_type>(f->resource_id));
 
         case FIGURE_WAREHOUSEMAN:
         {
@@ -243,7 +251,8 @@ static int get_column_height_food_stocks(const building *b)
     if (b->house_size && house_model && house_model->food_types) {
         int pop = b->house_population;
         int stocks = 0;
-        for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
+        for (int resource = RESOURCE_MIN_FOOD; resource < RESOURCE_MAX_FOOD; resource++) {
+            const resource_type r = static_cast<resource_type>(resource);
             if (resource_is_inventory(r)) {
                 stocks += b->resources[r];
             }
@@ -365,7 +374,7 @@ static int get_tooltip_efficiency(tooltip_context *c, const building *b)
     } else {
         key = TR_TOOLTIP_OVERLAY_EFFICIENCY_5;
     }
-    c->precomposed_text = prefix_value_to_tooltip_text(efficiency, translation_for(key));
+    c->precomposed_text = prefix_value_to_tooltip_text(efficiency, translation_for(static_cast<translation_key>(key)));
     return 1;
 }
 
@@ -379,7 +388,8 @@ static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
         return 104;
     } else {
         int stocks_present = 0;
-        for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r++) {
+        for (int resource = RESOURCE_MIN_FOOD; resource < RESOURCE_MAX_FOOD; resource++) {
+            const resource_type r = static_cast<resource_type>(resource);
             if (resource_is_inventory(r)) {
                 stocks_present += b->resources[r];
             }
@@ -444,9 +454,9 @@ static int get_tooltip_employment(tooltip_context *c, const building *b)
 
 static int get_tooltip_water(tooltip_context *c, int grid_offset)
 {
-    int has_reservoir_access = water_access_runtime_tile_has_access(grid_offset, WATER_ACCESS_RUNTIME_TYPE_RESERVOIR);
-    int has_fountain_access = water_access_runtime_tile_has_access(grid_offset, WATER_ACCESS_RUNTIME_TYPE_FOUNTAIN);
-    int has_well_access = water_access_runtime_tile_has_access(grid_offset, WATER_ACCESS_RUNTIME_TYPE_WELL);
+    int has_reservoir_access = water_access_runtime_tile_has_access(grid_offset, "reservoir");
+    int has_fountain_access = water_access_runtime_tile_has_access(grid_offset, "fountain");
+    int has_well_access = water_access_runtime_tile_has_access(grid_offset, "well");
 
     if (has_reservoir_access) {
         if (has_fountain_access || has_well_access) {
@@ -570,7 +580,8 @@ static int get_tooltip_sentiment(tooltip_context *c, int grid_offset)
     if (happiness > 0) {
         sentiment_text_id = happiness / 10 + TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2;
     }
-    c->precomposed_text = prefix_value_to_tooltip_text(happiness, translation_for(sentiment_text_id));
+    c->precomposed_text = prefix_value_to_tooltip_text(
+        happiness, translation_for(static_cast<translation_key>(sentiment_text_id)));
     return 1;
 }
 
@@ -703,13 +714,13 @@ static int draw_footprint_water(int x, int y, float scale, int grid_offset)
 
 static color_t water_overlay_runtime_color(int grid_offset)
 {
-    if (water_access_runtime_tile_has_access(grid_offset, WATER_ACCESS_RUNTIME_TYPE_FOUNTAIN)) {
+    if (water_access_runtime_tile_has_access(grid_offset, "fountain")) {
         return COLOR_MASK_BLUE;
     }
-    if (water_access_runtime_tile_has_access(grid_offset, WATER_ACCESS_RUNTIME_TYPE_WELL)) {
+    if (water_access_runtime_tile_has_access(grid_offset, "well")) {
         return COLOR_MASK_DARK_BLUE;
     }
-    if (water_access_runtime_tile_has_access(grid_offset, WATER_ACCESS_RUNTIME_TYPE_RESERVOIR)) {
+    if (water_access_runtime_tile_has_access(grid_offset, "reservoir")) {
         return map_terrain_is(grid_offset, TERRAIN_ROAD) ? ALPHA_MASK_SEMI_TRANSPARENT : COLOR_MASK_RESERVOIR_RANGE;
     }
     return ALPHA_TRANSPARENT;
