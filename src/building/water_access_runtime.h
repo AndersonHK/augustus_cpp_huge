@@ -20,8 +20,10 @@ void water_access_runtime_refresh(void);
 void water_access_runtime_refresh_large_statue(building *b);
 
 int water_access_runtime_range_for_building(building_type type);
+int water_access_runtime_provider_access_type(building_type type);
 int water_access_runtime_tile_has_access(int grid_offset, int access_type);
 int water_access_runtime_building_area_has_access(const building *b, int access_type);
+int water_access_runtime_building_has_required_access(const building *b);
 int water_access_runtime_reservoir_has_network_access(int grid_offset);
 
 void water_access_runtime_begin_preview(building_type type, int primary_grid_offset, int secondary_grid_offset);

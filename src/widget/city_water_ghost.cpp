@@ -56,19 +56,8 @@ void draw_preview_access(int x, int y, int grid_offset)
 
 int preview_access_type_for_building(building_type type)
 {
-    if (type == BUILDING_WELL) {
-        return WATER_ACCESS_RUNTIME_TYPE_WELL;
-    }
-
-    switch (type) {
-        case BUILDING_AQUEDUCT:
-        case BUILDING_DRAGGABLE_RESERVOIR:
-        case BUILDING_RESERVOIR:
-            return WATER_ACCESS_RUNTIME_TYPE_RESERVOIR;
-        case BUILDING_FOUNTAIN:
-        default:
-            return WATER_ACCESS_RUNTIME_TYPE_FOUNTAIN;
-    }
+    int access_type = water_access_runtime_provider_access_type(type);
+    return access_type == WATER_ACCESS_RUNTIME_TYPE_NONE ? WATER_ACCESS_RUNTIME_TYPE_FOUNTAIN : access_type;
 }
 
 } // namespace

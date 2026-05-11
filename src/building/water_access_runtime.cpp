@@ -892,6 +892,21 @@ extern "C" int water_access_runtime_range_for_building(building_type type)
     }
 }
 
+extern "C" int water_access_runtime_provider_access_type(building_type type)
+{
+    switch (provider_access_type_for_building_type(type)) {
+        case building_type_registry_impl::WaterAccessType::Well:
+            return WATER_ACCESS_RUNTIME_TYPE_WELL;
+        case building_type_registry_impl::WaterAccessType::Fountain:
+            return WATER_ACCESS_RUNTIME_TYPE_FOUNTAIN;
+        case building_type_registry_impl::WaterAccessType::Reservoir:
+            return WATER_ACCESS_RUNTIME_TYPE_RESERVOIR;
+        case building_type_registry_impl::WaterAccessType::None:
+        default:
+            return WATER_ACCESS_RUNTIME_TYPE_NONE;
+    }
+}
+
 extern "C" int water_access_runtime_tile_has_access(int grid_offset, int access_type)
 {
     ensure_runtime_refreshed();
@@ -939,6 +954,36 @@ extern "C" int water_access_runtime_building_area_has_access(const building *b, 
             return 0;
     }
     return area_has_access(g_state.masks.access, b->x, b->y, b->size, bit);
+}
+
+extern "C" int water_access_runtime_building_has_required_access(const building *b)
+{
+    if (!b) {
+        return 0;
+    }
+    ensure_runtime_refreshed();
+
+    const building_type_registry_impl::BuildingType *definition = definition_for_provider(b->type);
+    if (!definition) {
+        return 0;
+    }
+    if (definition->water_access_mode() == building_type_registry_impl::WaterAccessMode::ReservoirRange) {
+        return area_has_access(
+            g_state.masks.access,
+            b->x,
+            b->y,
+            b->size,
+            access_bit(building_type_registry_impl::WaterAccessType::Reservoir));
+    }
+    if (definition->has_water_access_provider()) {
+        return requirement_is_satisfied(
+            definition->water_access().requirement(),
+            b->x,
+            b->y,
+            b->size,
+            g_state.masks.access);
+    }
+    return 0;
 }
 
 extern "C" int water_access_runtime_reservoir_has_network_access(int grid_offset)
