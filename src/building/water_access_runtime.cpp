@@ -73,6 +73,7 @@ struct SimulationInput {
     int planned_provider_count = 0;
     int preview_aqueduct_grid_offset = 0;
     int include_constructing_aqueduct = 0;
+    int force_planned_provider_access = 0;
 };
 
 struct SimulationResult {
@@ -412,7 +413,9 @@ int mark_planned_providers(
         const int x = map_grid_offset_to_x(planned.grid_offset);
         const int y = map_grid_offset_to_y(planned.grid_offset);
         const int size = provider_size_for_building_type(type);
-        if (!water->has_requirements() || requirements_are_satisfied(*water, x, y, size, requirement_masks)) {
+        if (input.force_planned_provider_access ||
+            !water->has_requirements() ||
+            requirements_are_satisfied(*water, x, y, size, requirement_masks)) {
             changed |= mark_provider_rules(result.masks, *water, x, y, planned.grid_offset, size);
         }
     }
@@ -469,8 +472,10 @@ int mark_aqueduct_tile_providers(
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
+            const int is_preview_tile = input.preview_aqueduct_grid_offset && input.preview_aqueduct_grid_offset == grid_offset;
             if (!is_aqueduct_tile_for_simulation(grid_offset, input) ||
-                !requirements_are_satisfied(*water, x, y, 1, requirement_masks)) {
+                ((!input.force_planned_provider_access || !is_preview_tile) &&
+                    !requirements_are_satisfied(*water, x, y, 1, requirement_masks))) {
                 continue;
             }
             result.wet_aqueduct[grid_offset] = 1;
@@ -838,6 +843,9 @@ extern "C" void water_access_runtime_begin_preview(building_type type, int prima
     ensure_runtime_refreshed();
 
     SimulationInput input;
+    // Coverage previews answer "what range would this provider emit once working?";
+    // ghost graphics still use the real requirement check to show wet/dry state.
+    input.force_planned_provider_access = 1;
     if (type == BUILDING_AQUEDUCT) {
         input.preview_aqueduct_grid_offset = primary_grid_offset;
         input.include_constructing_aqueduct = 1;
