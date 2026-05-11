@@ -28,7 +28,8 @@ Water access type XML lives in:
 Each file has:
 
 ```xml
-<water_access_type text_id="fountain" number_id="1" />
+<water_access_type text_id="fountain" number_id="1">
+</water_access_type>
 ```
 
 Validation happens while loading the active mod:
@@ -79,10 +80,14 @@ Requirement rules:
 Node rules:
 
 ```xml
-<node x="1" y="-1" />
-<node x="3" y="1" />
-<node x="1" y="3" />
-<node x="-1" y="1" />
+<node role="provide" x="1" y="-1" />
+<node role="provide" x="3" y="1" />
+<node role="provide" x="1" y="3" />
+<node role="provide" x="-1" y="1" />
+<node role="require" x="1" y="0" />
+<node role="require" x="2" y="1" />
+<node role="require" x="1" y="2" />
+<node role="require" x="0" y="1" />
 ```
 
 Current rule conventions:
@@ -92,9 +97,10 @@ Current rule conventions:
 - `mode="any"` means any term inside that rule can satisfy it
 - `mode="all"` means every term inside that rule must satisfy it
 - `where="footprint"` checks any tile under the footprint
-- `where="nodes"` checks the declared local nodes
+- `where="nodes"` checks `role="require"` nodes
 - `origin="footprint"` emits from the building footprint
-- `origin="nodes"` emits from each declared node
+- `origin="nodes"` emits from `role="provide"` nodes
+- `<node>` without `role` is accepted as `role="both"` for legacy definitions
 - `<source type="water_source_any" />` and `<source type="water_source_fresh_only" />` currently both use the natural-water terrain check
 
 ## Runtime Ownership
@@ -154,14 +160,14 @@ Projection:
 
 Reservoirs are ordinary water-rule buildings now:
 
-- require either natural water source access or `aqueduct` access at declared nodes
+- require either natural water source access or `aqueduct` access at their footprint-edge requirement nodes
 - provide `reservoir` access from footprint over their range
-- provide `aqueduct` access at range `0` from nodes
+- provide `aqueduct` access at range `0` from provider nodes just outside their footprint
 
 Aqueduct tiles are also modeled as a BuildingType provider/consumer:
 
-- require neighboring `aqueduct` access through their cardinal outside nodes
-- provide `aqueduct` access at range `0` from their nodes
+- require `aqueduct` access on their own tile
+- provide `aqueduct` access at range `0` to the four cardinal neighbor tiles
 - are evaluated in the fixed-point pass so two dry adjacent aqueducts do not make each other wet from nothing
 
 The terrain aqueduct image still has legacy wet/dry projection code. That projection is now an output of typed access simulation, not the source of the network truth.

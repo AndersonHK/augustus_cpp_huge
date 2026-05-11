@@ -20,10 +20,14 @@
             <source type="water_source_any" />
             <access type="aqueduct" where="nodes" />
         </requires>
-        <node x="1" y="0" />
-        <node x="2" y="1" />
-        <node x="1" y="2" />
-        <node x="0" y="1" />
+        <node role="provide" x="1" y="-1" />
+        <node role="provide" x="3" y="1" />
+        <node role="provide" x="1" y="3" />
+        <node role="provide" x="-1" y="1" />
+        <node role="require" x="1" y="0" />
+        <node role="require" x="2" y="1" />
+        <node role="require" x="1" y="2" />
+        <node role="require" x="0" y="1" />
     </water_access>
     <graphics>
         <default>

@@ -345,6 +345,18 @@ void WaterAccessDefinition::add_requirement_rule(WaterAccessRequirementRule rule
 void WaterAccessDefinition::add_node(WaterAccessNode node)
 {
     nodes_.push_back(std::move(node));
+    provider_nodes_.push_back(nodes_.back());
+    requirement_nodes_.push_back(nodes_.back());
+}
+
+void WaterAccessDefinition::add_provider_node(WaterAccessNode node)
+{
+    provider_nodes_.push_back(std::move(node));
+}
+
+void WaterAccessDefinition::add_requirement_node(WaterAccessNode node)
+{
+    requirement_nodes_.push_back(std::move(node));
 }
 
 int WaterAccessDefinition::has_provider() const
@@ -370,6 +382,16 @@ const std::vector<WaterAccessRequirementRule> &WaterAccessDefinition::requiremen
 const std::vector<WaterAccessNode> &WaterAccessDefinition::nodes() const
 {
     return nodes_;
+}
+
+const std::vector<WaterAccessNode> &WaterAccessDefinition::provider_nodes() const
+{
+    return provider_nodes_;
+}
+
+const std::vector<WaterAccessNode> &WaterAccessDefinition::requirement_nodes() const
+{
+    return requirement_nodes_;
 }
 
 void LaborDefinition::set_employee_count(int count)
@@ -622,6 +644,16 @@ void BuildingType::add_water_access_requirement_rule(WaterAccessRequirementRule 
 void BuildingType::add_water_access_node(WaterAccessNode node)
 {
     water_access_.add_node(std::move(node));
+}
+
+void BuildingType::add_water_access_provider_node(WaterAccessNode node)
+{
+    water_access_.add_provider_node(std::move(node));
+}
+
+void BuildingType::add_water_access_requirement_node(WaterAccessNode node)
+{
+    water_access_.add_requirement_node(std::move(node));
 }
 
 void BuildingType::mark_graphics_default_node()

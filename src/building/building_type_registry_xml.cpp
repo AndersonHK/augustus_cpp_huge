@@ -446,6 +446,23 @@ static WaterAccessRequirementMode parse_water_access_requirement_mode(const char
     return WaterAccessRequirementMode::All;
 }
 
+enum class WaterAccessNodeRole {
+    Both,
+    Provider,
+    Requirement
+};
+
+static WaterAccessNodeRole parse_water_access_node_role(const char *value)
+{
+    if (value && compare_text(value, "provide") == 0) {
+        return WaterAccessNodeRole::Provider;
+    }
+    if (value && compare_text(value, "require") == 0) {
+        return WaterAccessNodeRole::Requirement;
+    }
+    return WaterAccessNodeRole::Both;
+}
+
 static int parse_spawn_direction(const char *value)
 {
     if (value && compare_text(value, "bottom") == 0) {
@@ -2080,12 +2097,33 @@ static int parse_provider_water_access_node()
         g_parse_state.error = 1;
         return 0;
     }
+    if (xml_parser_has_attribute("role")) {
+        const char *role_text = xml_parser_get_attribute_string("role");
+        if (compare_text(role_text, "provide") != 0 &&
+            compare_text(role_text, "require") != 0 &&
+            compare_text(role_text, "both") != 0) {
+            log_error("Unsupported BuildingType provider water_access node role", role_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
 
     WaterAccessNode node;
     node.kind = kind;
     node.x = xml_parser_get_attribute_int("x");
     node.y = xml_parser_get_attribute_int("y");
-    g_parse_state.definition->add_water_access_node(node);
+    switch (parse_water_access_node_role(xml_parser_has_attribute("role") ? xml_parser_get_attribute_string("role") : nullptr)) {
+        case WaterAccessNodeRole::Provider:
+            g_parse_state.definition->add_water_access_provider_node(node);
+            break;
+        case WaterAccessNodeRole::Requirement:
+            g_parse_state.definition->add_water_access_requirement_node(node);
+            break;
+        case WaterAccessNodeRole::Both:
+        default:
+            g_parse_state.definition->add_water_access_node(node);
+            break;
+    }
     return 1;
 }
 

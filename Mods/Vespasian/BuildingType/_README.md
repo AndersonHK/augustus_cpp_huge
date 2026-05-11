@@ -156,7 +156,7 @@ Current supported root-level `<water_access>` child nodes:
 - `<requires mode="any|all" where="footprint|nodes"> ... </requires>`
 - `<access type="well|fountain|reservoir|aqueduct|latrines" where="footprint|nodes" />`
 - `<source type="water_source_any|water_source_fresh_only" />`
-- `<node x="N" y="N" />`
+- `<node role="provide|require|both" x="N" y="N" />`
 
 Root-level `<water_access>` rules:
 
@@ -169,6 +169,7 @@ Root-level `<water_access>` rules:
 - `where` is optional and defaults to `footprint`; child `<access>` terms may override the parent
 - water access type names come from the selected mod's `WaterAccessType` XML folder
 - `<node>` is optional and may appear more than once
+- `role` is optional and defaults to `both`; use `provide` for `origin="nodes"` emission points and `require` for `where="nodes"` checks
 - `x` and `y` are local tile coordinates relative to the building's top-left footprint tile
 - node coordinates may sit outside the footprint
 - `kind="aqueduct_connection"` is accepted as a legacy alias but no longer required
@@ -183,10 +184,14 @@ Water access examples:
         <source type="water_source_any" />
         <access type="aqueduct" where="nodes" />
     </requires>
-    <node x="1" y="-1" />
-    <node x="3" y="1" />
-    <node x="1" y="3" />
-    <node x="-1" y="1" />
+    <node role="provide" x="1" y="-1" />
+    <node role="provide" x="3" y="1" />
+    <node role="provide" x="1" y="3" />
+    <node role="provide" x="-1" y="1" />
+    <node role="require" x="1" y="0" />
+    <node role="require" x="2" y="1" />
+    <node role="require" x="1" y="2" />
+    <node role="require" x="0" y="1" />
 </water_access>
 ```
 

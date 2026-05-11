@@ -330,17 +330,23 @@ public:
     void add_provide_rule(WaterAccessProvideRule rule);
     void add_requirement_rule(WaterAccessRequirementRule rule);
     void add_node(WaterAccessNode node);
+    void add_provider_node(WaterAccessNode node);
+    void add_requirement_node(WaterAccessNode node);
 
     int has_provider() const;
     int has_requirements() const;
     const std::vector<WaterAccessProvideRule> &provide_rules() const;
     const std::vector<WaterAccessRequirementRule> &requirement_rules() const;
     const std::vector<WaterAccessNode> &nodes() const;
+    const std::vector<WaterAccessNode> &provider_nodes() const;
+    const std::vector<WaterAccessNode> &requirement_nodes() const;
 
 private:
     std::vector<WaterAccessProvideRule> provide_rules_;
     std::vector<WaterAccessRequirementRule> requirement_rules_;
     std::vector<WaterAccessNode> nodes_;
+    std::vector<WaterAccessNode> provider_nodes_;
+    std::vector<WaterAccessNode> requirement_nodes_;
 };
 
 class LaborDefinition {
@@ -424,6 +430,8 @@ public:
     void add_water_access_provide_rule(WaterAccessProvideRule rule);
     void add_water_access_requirement_rule(WaterAccessRequirementRule rule);
     void add_water_access_node(WaterAccessNode node);
+    void add_water_access_provider_node(WaterAccessNode node);
+    void add_water_access_requirement_node(WaterAccessNode node);
     void mark_graphics_default_node();
     void clear_graphics();
     GraphicsTarget &default_graphics_target();

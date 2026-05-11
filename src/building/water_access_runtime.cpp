@@ -196,7 +196,7 @@ int nodes_have_access(
     if (!bit) {
         return 0;
     }
-    for (const building_type_registry_impl::WaterAccessNode &node : water.nodes()) {
+    for (const building_type_registry_impl::WaterAccessNode &node : water.requirement_nodes()) {
         const int grid_offset = map_grid_offset(x + node.x, y + node.y);
         if (map_grid_is_valid_offset(grid_offset) && (mask[grid_offset] & bit)) {
             return 1;
@@ -330,7 +330,7 @@ int mark_rule_from_nodes(
     int y)
 {
     int changed = 0;
-    for (const building_type_registry_impl::WaterAccessNode &node : water.nodes()) {
+    for (const building_type_registry_impl::WaterAccessNode &node : water.provider_nodes()) {
         const int grid_offset = map_grid_offset(x + node.x, y + node.y);
         changed |= add_mask_tile(masks.providers, grid_offset, rule.mask);
         if (rule.range > 0) {
