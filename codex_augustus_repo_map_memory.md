@@ -1,6 +1,6 @@
 # Codex Augustus repository map and implementation memory
 
-Snapshot: 2026-05-04
+Snapshot: 2026-05-11
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Top-level layout that matters now
@@ -21,6 +21,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Augustus is a gameplay fork of Julius: https://github.com/Keriew/augustus
 - When checking vanilla behavior, compare against Julius first; when checking Augustus-added behavior, compare against the Augustus fork. This matters for XML migrations because copied mod data can accidentally pull Vespasian/Augustus behavior into Julius or vice versa.
 - Tile graphics need the same upstream care: Augustus added a newer tile graphical set on top of Julius, so Augustus/Vespasian tile XML can legitimately refer to both Julius base tile images and Augustus-added tile aliases behind the same logical path.
+- `docs/gameplay_divergences_from_augustus.md` is the living ledger for player-visible ways this repo's bundled profiles or Vespasian content intentionally diverge from upstream Augustus behavior.
 
 ## Renderer/backend map
 ### Platform layer
@@ -123,6 +124,14 @@ Important architectural note:
 - `src/widget/city_draw.cpp`
   - native building footprint/top/animation draw seam
   - native whole-building footprints now draw on the owning draw tile only
+- `src/building/building_runtime_graphics.cpp`
+  - resolves BuildingType graphics targets, stable options, and cached `RuntimeDrawSlice` bindings
+  - delegates animation frame policy to `BuildingAnimation`
+- `src/building/animations.h`
+- `src/building/animations.cpp`
+  - graphics target helper classes plus `BuildingAnimation`, which owns frame cursor normalization, legacy animation gates, reversible/looping/wine-workshop advancement, storage flag animation, and fumigation animation
+- `src/widget/city_overlay_other.cpp`
+  - converted overlay translation unit that now calls `BuildingAnimation` directly instead of using the removed `building_animation_*` C facade
 
 Current graphics XML precedence:
 1. active mod stack from top to bottom through `mod_manager_get_graphics_path_at()`
@@ -139,6 +148,8 @@ Doctrine:
   - `Vespasian.ini`
   - legacy fallback reads from `augustus.ini`
   - `CONFIG_UI_SCALE_FILTER`
+  - `CONFIG_DEBUG` / `debug`, currently used to gate zoom percentage warnings
+- City zoom stores raw renderer scale, but player-facing start/reset/display percentages are adjusted by UI scale; displayed interactive bounds are `33%` to `300%`, capped by map size.
 
 ## Save/load map
 - `docs/save_data_organization.md`
@@ -151,6 +162,33 @@ Doctrine:
 - `src/game/save_version.h`
   - save and scenario version gates; update when persisted layout or behavior changes
 - Key save-backed runtime payloads currently include building records, figure records/routes, building type save tables, road service history, and local workforce allocations.
+- The current save also has a water access type save table. It persists save-local ids as text ids, then resolves them against the active mod's `WaterAccessType` XML so runtime numeric ids can remain mod-defined.
+
+## Water access runtime map
+- `Mods/<Mod>/WaterAccessType/*.xml`
+  - selected-mod declarations of water access text ids and numeric ids `0..7`
+- `src/building/water_access_type.h`
+- `src/building/water_access_type.cpp`
+  - load-time registry, uniqueness/range validation, and text-id to mask lookup
+- `src/building/water_access_type_id_bridge.h`
+- `src/building/water_access_type_id_bridge.cpp`
+  - save-local water access id table and legacy raw-id migration
+- `src/building/building_type.h`
+- `src/building/building_type.cpp`
+- `src/building/building_type_registry_xml.cpp`
+  - BuildingType `<water_access>` provider and requirement rule storage/parsing
+- `src/building/water_access_runtime.h`
+- `src/building/water_access_runtime.cpp`
+  - fixed-point provider simulation, typed access masks, aqueduct wet-state projection, terrain range projection, building `has_*_access` mirror projection, and placement-preview highlights
+- `src/widget/city_building_ghost.cpp`
+- `src/widget/city_water_ghost.cpp`
+  - placement/context overlays call the generic water runtime queries instead of hardcoded provider-type helpers
+
+Water access motive:
+- providers declare what access types they emit, where from, and at what range
+- consumers declare what access types or natural-water source terms they require
+- runtime masks are compact, but content and saves remain text-id driven
+- aqueducts are ordinary water access providers/consumers evaluated through the same fixed-point rule pass as reservoirs.
 
 ## Demographics / defines map
 - `src/game/defines.cpp`
@@ -163,18 +201,36 @@ Doctrine:
   - actual per-house resident additions/removals and consistency reconciliation
 - `docs/demographics_runtime.md`
   - runtime contract between demographic tables, census counts, and house populations
+- `research/roman_city_size_and_social_ratios.md`
+  - Roman city-size bands, plebeian/patrician interpretation, elite/common ratios, and dependent-labor caveats
+- `research/roman_city_facility_ratios.md`
+  - Roman service-building ratios for population, labor, and area tuning
+- `research/roman_building_maintenance_needs.md`
+  - maintenance labor, water, fuel, sanitation, and failure-mode guidance for service and infrastructure buildings
+- `research/caesar3_julius_housing_progression_defaults.md`
+  - vanilla housing progression values, service gates, visual descriptions, and design-preservation guidance
+- `research/caesar3_housing_balance_play_analysis.md`
+  - Caesar-specific housing efficiency, labor cliff, goods friction, and service difficulty notes
+- `research/vespasian_housing_progression_design_notes.md`
+  - forward-looking Vespasian mechanics for classed labor, demand gates, service capacity, road access, and market revenue
+- `research/comparative_citybuilder_design/`
+  - weakly linked comparative design notes for SimCity RCI, Anno tiers, Stronghold popularity, and Seven Kingdoms economy patterns
 
 ## Current migration reference points
 - `src/building/tool_mode.cpp`
 - `src/building/building_runtime.h`
 - `src/building/building_runtime.cpp`
 - `src/building/building_runtime_graphics.cpp`
+- `src/building/animations.cpp`
 - `src/building/building_runtime_spawn.cpp`
 - `src/building/building_runtime_api.h`
 - `src/building/building_type.cpp`
 - `src/building/building_type_registry.cpp`
 - `src/building/building_type_registry_xml.cpp`
 - `src/building/building_type_id_bridge.cpp`
+- `src/building/water_access_runtime.cpp`
+- `src/building/water_access_type.cpp`
+- `src/building/water_access_type_id_bridge.cpp`
 - `src/building/housing_type.cpp`
 - `src/building/housing_type_registry.cpp`
 - `src/building/house.cpp`
@@ -194,12 +250,20 @@ Doctrine:
 ## Native BuildingType / HousingType map
 - `Mods/Vespasian/BuildingType/_README.md`
   - current XML contract for BuildingType identity, model, foundation, button, sound, event data, flags, water access, state refresh, graphics/options, construction, labor, storage, production, housing, and spawns
+- `docs/water_access_runtime.md`
+  - current architecture and call chains for WaterAccessType XML, BuildingType water rules, fixed-point propagation, aqueduct/reservoir behavior, overlays, save bridges, and compatibility mirrors
 - `Mods/Vespasian/HousingType/_README.md`
   - current XML contract for residential requirements, resident class, capacity, prosperity, tax multiplier, and legacy house-level compatibility
+- `research/caesar3_julius_housing_progression_defaults.md`
+  - Caesar III / Julius house capacities, footprints, service gates, desirability thresholds, graphics references, and tuning degrees of freedom
+- `research/caesar3_housing_balance_play_analysis.md`
+  - patrician non-labor, plebeian labor base, tier-efficiency heuristics, and goods/service friction for HousingType/BuildingType tuning
 - `docs/building_type_legacy_reference_ledger.md`
   - cleanup queue for remaining building-type enum references and whether each path is migrated, bridged, retained, or still needs a future phase
 - `docs/save_load_runtime_bridges.md`
   - save-local BuildingType id table, old raw-id migration, native graphics variant normalization, and post-load runtime wrapper rebuilding
+- `docs/gameplay_divergences_from_augustus.md`
+  - living gameplay ledger for project-wide, bundled-Augustus, and Vespasian-only differences from upstream Augustus
 - Vespasian, Augustus, and Julius now define the full native house chain from `house_small_tent` through `house_luxury_palace`. BuildingType owns footprint, graphics, transitions, and runtime identity; HousingType owns shared residential model data and resident class.
 - Legacy `house_level` remains a compatibility value for old save migration, old city-stat arrays, and UI/stat surfaces that still need a level-like key.
 
@@ -218,7 +282,7 @@ Pattern:
 - `docs/preindustrial_walking_service_ranges.md`
   - historical walking-city calibration for walker `max_roam_length` tiers
 - `src/figure/figure_type_registry.cpp`
-  - selected-mod/Augustus/Julius FigureType XML precedence and profile validation
+  - selected-mod/Augustus/Julius FigureType XML precedence and profiled BuildingType spawn reference validation
 - `src/figure/PathingMode.h/.cpp`
   - pathing mode objects and requirements such as `requires_road`, `requires_service_effect`, and `requires_venue_targets`
 - `src/figure/figure_runtime.cpp`
@@ -229,8 +293,9 @@ Pattern:
   - local workforce labor-seeker targeting, house/workplace allocation table, and save payload
 - `src/map/routing_distance.h/.cpp`
   - C++ helper for route-grid destination distance; venue seekers rank by `2 * show_days + route_distance`
-- BuildingType native spawns choose a `FigureType` profile with `profile="..."`; figures own the native class, movement/pathing, and road-history effect after creation.
+- BuildingType native spawns choose a `FigureType` profile with `profile="..."`; figures own the native class, movement/pathing, and road-history effect after creation. Spawn policies may use constant `chance_per_million`, source `chance_per_million_bands`, or source `chance_divisor` gates.
 - Market walkers are now FigureType-bound after legacy market spawning: `market_trader` uses roaming service pathing, `market_supplier` owns storage-fetch routing, and `delivery_boy` owns follow-leader behavior.
+- Residential walkers are BuildingType-spawned and FigureType-bound: `patrician` uses `house_roamer` with `roaming_service`, while `beggar` uses `unemployment_wanderer` with `transient_wanderer` and `stand_still`. House XML uses `figure_slot="quaternary"` so each house owns at most one active residential walker.
 - Priests use explicit god profiles; entertainment service walkers use generic native behavior with profile-specific smart-service effects.
 - Mixed entertainment venues use comma-list BuildingType `existing_figure` guards, such as `actor,gladiator`, so alternate profiled service walkers share one legacy slot without orphaning one another.
 - `src/figure/movement.cpp`

@@ -1,3 +1,6 @@
+#include "city/view.h"
+#include "input/zoom.h"
+
 extern "C" {
 #include "city.h"
 
@@ -5,7 +8,6 @@ extern "C" {
 #include "building/properties.h"
 #include "building/rotation.h"
 #include "city/finance.h"
-#include "city/view.h"
 #include "city/warning.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -27,7 +29,6 @@ extern "C" {
 #include "graphics/video.h"
 #include "graphics/window.h"
 #include "input/scroll.h"
-#include "input/zoom.h"
 #include "input/touch.h"
 #include "map/building.h"
 #include "map/grid.h"
@@ -65,6 +66,10 @@ void set_city_clip_rectangle(void)
 
 static void display_zoom_warning(int zoom)
 {
+    if (!config_get(static_cast<config_key>(CONFIG_DEBUG))) {
+        return;
+    }
+    zoom = city_view_scale_to_display_percentage(zoom);
     static uint8_t zoom_string[100];
     static int warning_id;
     if (!*zoom_string) {
@@ -190,7 +195,7 @@ static void draw_pause_button(void)
     inner_panel_draw(16, 40, 3, 2);
     button_border_draw(16, 40, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
     if (game_state_is_paused()) {
-        image_draw(image_group(GROUP_MESSAGE_ICON), 26, 46, COLOR_MASK_NONE, SCALE_NONE);
+        image_draw(image_group(static_cast<int>(GROUP_MESSAGE_ICON)), 26, 46, COLOR_MASK_NONE, SCALE_NONE);
     } else {
         draw_pause_icon(26, 46);
     }
@@ -216,12 +221,12 @@ static void draw_construction_buttons(void)
         button_border_draw(x_offset, y_offset, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
         // Use clip rectangle to remove the border of the "X" image
         graphics_set_clip_rectangle(x_offset + 5, y_offset + 5, 37, 24);
-        image_draw(image_group(GROUP_OK_CANCEL_SCROLL_BUTTONS) + 4, x_offset + 4, y_offset + 4,
+        image_draw(image_group(static_cast<int>(GROUP_OK_CANCEL_SCROLL_BUTTONS)) + 4, x_offset + 4, y_offset + 4,
             COLOR_MASK_NONE, SCALE_NONE);
         graphics_reset_clip_rectangle();
     }
 
-    if ((mouse_get()->is_touch || config_get(CONFIG_UI_ALWAYS_SHOW_ROTATION_BUTTONS)) &&
+    if ((mouse_get()->is_touch || config_get(static_cast<config_key>(CONFIG_UI_ALWAYS_SHOW_ROTATION_BUTTONS))) &&
         building_construction_can_rotate()) {
         if (!sidebar_extra_is_information_displayed(SIDEBAR_EXTRA_DISPLAY_GAME_SPEED)) {
             x_offset = 4 * BLOCK_SIZE + 8;
@@ -231,7 +236,7 @@ static void draw_construction_buttons(void)
         inner_panel_draw(x_offset, y_offset, 3, 2);
         button_border_draw(x_offset, y_offset, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
         graphics_set_clip_rectangle(x_offset + 8, y_offset + 6, 37, 24);
-        image_draw(image_group(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS) + 6, x_offset + 7, y_offset + 5,
+        image_draw(image_group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 6, x_offset + 7, y_offset + 5,
             COLOR_MASK_NONE, SCALE_NONE);
         graphics_reset_clip_rectangle();
 
@@ -239,7 +244,7 @@ static void draw_construction_buttons(void)
         inner_panel_draw(x_offset, y_offset, 3, 2);
         button_border_draw(x_offset, y_offset, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
         graphics_set_clip_rectangle(x_offset + 8, y_offset + 6, 37, 24);
-        image_draw(image_group(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS) + 9, x_offset + 7, y_offset + 5,
+        image_draw(image_group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 9, x_offset + 7, y_offset + 5,
             COLOR_MASK_NONE, SCALE_NONE);
         graphics_reset_clip_rectangle();
     }
@@ -336,7 +341,7 @@ static int handle_right_click_allow_building_info(const map_tile *tile)
     }
     if (allow && city_has_warnings()) {
         city_warning_clear_all();
-        if (config_get(CONFIG_UI_CLEAR_WARNINGS_RIGHTCLICK)) {
+        if (config_get(static_cast<config_key>(CONFIG_UI_CLEAR_WARNINGS_RIGHTCLICK))) {
             allow = 0;
         } else {
             allow = 1;
@@ -375,8 +380,8 @@ static void build_move(const map_tile *tile)
 static void build_end(void)
 {
     if (building_construction_in_progress()) {
-        if (building_construction_type() != BUILDING_NONE) {
-            sound_effect_play(SOUND_EFFECT_BUILD);
+        if (building_construction_type() != static_cast<building_type>(BUILDING_NONE)) {
+            sound_effect_play(static_cast<sound_effect_type>(SOUND_EFFECT_BUILD));
         }
         building_construction_place();
         widget_minimap_invalidate();
@@ -386,7 +391,7 @@ static void build_end(void)
 static void scroll_map(const mouse *m)
 {
     pixel_offset delta;
-    if (scroll_get_delta(m, &delta, SCROLL_TYPE_CITY)) {
+    if (scroll_get_delta(m, &delta, static_cast<scroll_type>(SCROLL_TYPE_CITY))) {
         city_view_scroll(delta.x, delta.y);
         sound_city_decay_views();
     }
@@ -395,11 +400,11 @@ static void scroll_map(const mouse *m)
 static int adjust_offset_for_orientation(int grid_offset, int size)
 {
     switch (city_view_orientation()) {
-        case DIR_0_TOP:
+        case static_cast<int>(DIR_0_TOP):
             return map_grid_add_delta(grid_offset, -size + 1, -size + 1);
-        case DIR_2_RIGHT:
+        case static_cast<int>(DIR_2_RIGHT):
             return map_grid_add_delta(grid_offset, 0, -size + 1);
-        case DIR_6_LEFT:
+        case static_cast<int>(DIR_6_LEFT):
             return map_grid_add_delta(grid_offset, -size + 1, 0);
         default:
             return grid_offset;
@@ -538,7 +543,7 @@ static void handle_first_touch(map_tile *tile)
             handle_legion_click(tile)) {
             return;
         }
-        if (type == BUILDING_NONE && handle_right_click_allow_building_info(tile)) {
+        if (type == static_cast<building_type>(BUILDING_NONE) && handle_right_click_allow_building_info(tile)) {
             scroll_drag_end();
             data.capture_input = 0;
             window_building_info_show(tile->grid_offset);
@@ -548,7 +553,8 @@ static void handle_first_touch(map_tile *tile)
 
     handle_touch_scroll(first);
 
-    if (!input_coords_in_city(first->current_point.x, first->current_point.y) || type == BUILDING_NONE) {
+    if (!input_coords_in_city(first->current_point.x, first->current_point.y) ||
+        type == static_cast<building_type>(BUILDING_NONE)) {
         return;
     }
 
@@ -588,7 +594,7 @@ static void handle_first_touch(map_tile *tile)
     }
 
     int size = building_properties_for_type(type)->size;
-    if (type == BUILDING_WAREHOUSE) {
+    if (type == static_cast<building_type>(BUILDING_WAREHOUSE)) {
         size = 3;
     }
 
@@ -649,7 +655,8 @@ static void handle_mouse(const mouse *m)
         if (handle_legion_click(tile)) {
             return;
         }
-        if (config_get(CONFIG_UI_ALWAYS_SHOW_ROTATION_BUTTONS) && handle_construction_buttons(m->x, m->y, 0)) {
+        if (config_get(static_cast<config_key>(CONFIG_UI_ALWAYS_SHOW_ROTATION_BUTTONS)) &&
+            handle_construction_buttons(m->x, m->y, 0)) {
             return;
         }
         if (building_construction_type()) {
@@ -734,7 +741,7 @@ static void military_map_click(int legion_formation_id, const map_tile *tile)
         formation_legion_return_home(m);
     } else {
         formation_legion_move_to(m, tile);
-        if (config_get(CONFIG_UI_MOVE_LEGION_SOUND_SWAP)) {
+        if (config_get(static_cast<config_key>(CONFIG_UI_MOVE_LEGION_SOUND_SWAP))) {
             sound_speech_play_file("wavs/marching.wav"); //replacement marching sound
         } else {
             sound_speech_play_file("wavs/cohort5.wav");
@@ -810,23 +817,24 @@ void widget_city_get_tooltip(tooltip_context *c)
     int building_id = map_building_at(grid_offset);
     int overlay = game_state_overlay();
     // cheat tooltips
-    if (overlay == OVERLAY_NONE && game_cheat_tooltip_enabled()) {
-        c->type = TOOLTIP_TILES;
+    if (overlay == static_cast<int>(OVERLAY_NONE) && game_cheat_tooltip_enabled()) {
+        c->type = static_cast<tooltip_type>(TOOLTIP_TILES);
         c->high_priority = 1;
         return;
     }
     // regular tooltips
-    if (overlay == OVERLAY_NONE && building_id && building_get(building_id)->type == BUILDING_SENATE) {
-        c->type = TOOLTIP_SENATE;
+    if (overlay == static_cast<int>(OVERLAY_NONE) && building_id &&
+        building_get(building_id)->type == static_cast<building_type>(BUILDING_SENATE)) {
+        c->type = static_cast<tooltip_type>(TOOLTIP_SENATE);
         c->high_priority = 1;
         return;
     }
     // overlay tooltips
-    if (overlay != OVERLAY_NONE) {
+    if (overlay != static_cast<int>(OVERLAY_NONE)) {
         c->text_group = 66;
         c->text_id = city_with_overlay_get_tooltip_text(c, grid_offset);
         if (c->text_id || c->translation_key) {
-            c->type = TOOLTIP_OVERLAY;
+            c->type = static_cast<tooltip_type>(TOOLTIP_OVERLAY);
             c->high_priority = 1;
         }
     }
@@ -851,7 +859,7 @@ void widget_city_clear_routing_grid_offset(void)
 
 void widget_city_setup_routing_preview(void)
 {
-    if (!config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
+    if (!config_get(static_cast<config_key>(CONFIG_UI_SHOW_ROAMING_PATH))) {
         figure_roamer_preview_reset_building_types();
         return;
     }

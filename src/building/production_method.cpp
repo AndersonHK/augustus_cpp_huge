@@ -22,7 +22,7 @@ namespace {
 int building_type_requires_water_access(const ::building &building)
 {
     const BuildingType *definition = definition_for_type(building.type);
-    return definition && definition->water_access_mode() != WaterAccessMode::None;
+    return definition && definition->water_access().has_requirements();
 }
 
 } // namespace

@@ -1,7 +1,6 @@
 #include "city_overlay_housing.h"
 
 #include "assets/assets.h"
-#include "building/animation.h"
 #include "building/building.h"
 #include "building/house.h"
 #include "building/industry.h"

@@ -71,7 +71,7 @@
     <ClCompile Include="src\widget\city_overlay_entertainment.c" />
     <ClCompile Include="src\widget\city_overlay_health.c" />
     <ClCompile Include="src\widget\city_overlay_housing.c" />
-    <ClCompile Include="src\widget\city_overlay_other.c" />
+    <ClCompile Include="src\widget\city_overlay_other.cpp" />
     <ClCompile Include="src\widget\city_overlay_risks.c" />
     <ClCompile Include="src\widget\city_pause_menu.cpp" />
     <ClCompile Include="src\widget\city_water_ghost.cpp" />
@@ -79,7 +79,7 @@
     <ClCompile Include="src\widget\city_with_overlay.cpp" />
     <ClCompile Include="src\widget\dropdown_button.c" />
     <ClCompile Include="src\widget\input_box.c" />
-    <ClCompile Include="src\widget\map_editor.c" />
+    <ClCompile Include="src\widget\map_editor.cpp" />
     <ClCompile Include="src\widget\map_editor_pause_menu.cpp" />
     <ClCompile Include="src\widget\map_editor_tool.c" />
     <ClCompile Include="src\widget\minimap.c" />
@@ -203,7 +203,7 @@
     <ClCompile Include="src\assets\image_group_payload_parse.cpp" />
     <ClCompile Include="src\assets\layer.cpp" />
     <ClCompile Include="src\assets\xml.cpp" />
-    <ClCompile Include="src\building\animation.c" />
+    <ClCompile Include="src\building\animations.cpp" />
     <ClCompile Include="src\building\armoury.c" />
     <ClCompile Include="src\building\barracks.c" />
     <ClCompile Include="src\building\building.cpp" />
@@ -213,6 +213,8 @@
     <ClCompile Include="src\building\building_type.cpp" />
     <ClCompile Include="src\building\building_type_id_bridge.cpp" />
     <ClCompile Include="src\building\building_type_legacy_migration.cpp" />
+    <ClCompile Include="src\building\water_access_type.cpp" />
+    <ClCompile Include="src\building\water_access_type_id_bridge.cpp" />
     <ClCompile Include="src\building\building_type_registry.cpp" />
     <ClCompile Include="src\building\building_type_registry_xml.cpp" />
     <ClCompile Include="src\building\housing_type.cpp" />
@@ -296,7 +298,7 @@
     <ClCompile Include="src\city\trade.c" />
     <ClCompile Include="src\city\trade_policy.c" />
     <ClCompile Include="src\city\victory.c" />
-    <ClCompile Include="src\city\view.c" />
+    <ClCompile Include="src\city\view.cpp" />
     <ClCompile Include="src\city\warning.c" />
     <ClCompile Include="src\core\array.c" />
     <ClCompile Include="src\core\buffer.c" />
@@ -341,7 +343,7 @@
     <ClCompile Include="src\empire\object.c" />
     <ClCompile Include="src\empire\trade_prices.c" />
     <ClCompile Include="src\empire\trade_route.c" />
-    <ClCompile Include="src\figure\action.c" />
+    <ClCompile Include="src\figure\action.cpp" />
     <ClCompile Include="src\figure\combat.c" />
     <ClCompile Include="src\figure\enemy_army.c" />
     <ClCompile Include="src\figure\figure.cpp" />
@@ -466,7 +468,7 @@
     <ClCompile Include="src\input\mouse.c" />
     <ClCompile Include="src\input\scroll.c" />
     <ClCompile Include="src\input\touch.c" />
-    <ClCompile Include="src\input\zoom.c" />
+    <ClCompile Include="src\input\zoom.cpp" />
     <ClCompile Include="src\map\aqueduct.cpp" />
     <ClCompile Include="src\map\bookmark.c" />
     <ClCompile Include="src\map\bridge.c" />
@@ -718,7 +720,7 @@
     <ClInclude Include="src\assets\image_group_payload.h" />
     <ClInclude Include="src\assets\layer.h" />
     <ClInclude Include="src\assets\xml.h" />
-    <ClInclude Include="src\building\animation.h" />
+    <ClInclude Include="src\building\animations.h" />
     <ClInclude Include="src\building\armoury.h" />
     <ClInclude Include="src\building\barracks.h" />
     <ClInclude Include="src\building\building.h" />
@@ -729,6 +731,8 @@
     <ClInclude Include="src\building\building_type_api.h" />
     <ClInclude Include="src\building\building_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_legacy_migration.h" />
+    <ClInclude Include="src\building\water_access_type.h" />
+    <ClInclude Include="src\building\water_access_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_registry.h" />
     <ClInclude Include="src\building\building_type_registry_internal.h" />
     <ClInclude Include="src\building\housing_type.h" />
@@ -1061,7 +1065,6 @@
     <Content Include="Mods\Augustus\BuildingType\*.xml" />
     <Content Include="Mods\Vespasian\Tiles\*.xml" />
     <Content Include="Mods\Vespasian\BuildingType\*.xml" />
-    <Content Include="Mods\Vespasian\BuildingType\*.md" />
     <Content Include="Mods\Vespasian\BuildingType\*.example" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,6 @@
 # Codex Augustus long-term working memory
 
-Snapshot: 2026-05-04
+Snapshot: 2026-05-11
 
 ## Project identity
 This branch is still best understood as a simulation-rhythm fork of Augustus.
@@ -18,6 +18,8 @@ Primary design goals remain:
 - Keep save compatibility by growing runtime wrappers around legacy serialized structs instead of replacing serialized truth all at once.
 - Do not broaden a rewrite just because a subsystem is old; center the work on the best control point.
 - Prefer object-owned metadata for runtime concepts. For example, `PathingMode` instances should carry pathing requirements like `requires_road` rather than leaving those requirements in separate helper functions or scattered switch lists.
+- Prefer concept-owned behavior as well as metadata. For example, `BuildingAnimation` owns frame advancement/gating, and water access type/rule definitions own the facts that older code used to re-encode through helper branches.
+- For small enum-like data that must survive XML mods and saves, prefer stable text ids at content/save boundaries and compact runtime ids/masks inside the simulation. Water access uses text ids plus numeric ids `0..7`, stored as `uint8_t` masks.
 - Natural tree-like terrain means `TERRAIN_TREE | TERRAIN_SHRUB`; timber-yard adjacency, tree-only clearing, and force-placement tree clearing should stay aligned on that mask.
 - Comment functions consistently when touching code. Prefer concise contract comments that explain ownership, invariants, save/load behavior, validation, or surprising legacy interactions; avoid comments that merely restate assignments.
 - Update the relevant markdown whenever behavior, XML contracts, save formats, new runtime classes, or major chokepoints change, unless the user explicitly says not to. Add cross-references so future sessions can find the information from the four core Codex files without crowding those files with every detail.
@@ -52,6 +54,8 @@ Primary design goals remain:
 - Existing `.savf` saves can be renamed to `.svv`; the on-disk payload format did not change with the extension rename.
 - Canonical save layout and ownership notes live in `docs/save_data_organization.md`; check that before changing any `*_save_state`, `*_load_state`, or `init_savegame_data` piece.
 - Save/load runtime bridge notes live in `docs/save_load_runtime_bridges.md`; check that before changing BuildingType save ids, monument construction loading, road service history, local workforce allocations, or runtime wrapper rebinding.
+- Water access runtime notes live in `docs/water_access_runtime.md`; check that before changing water provider propagation, requirement semantics, placement previews, aqueduct/reservoir network behavior, or water-related BuildingType XML.
+- Player-visible behavior differences from upstream Augustus belong in `docs/gameplay_divergences_from_augustus.md`; update it when a migration intentionally changes bundled Augustus, Julius, or Vespasian gameplay.
 
 ## Text / UTF doctrine
 - Do not attempt a blanket UTF-native storage migration during unrelated renderer or widget work.
@@ -75,6 +79,10 @@ Primary design goals remain:
   - shared UI facade/orchestration
 - `building_runtime`
   - building runtime migration direction
+- `BuildingAnimation`
+  - building animation frame selection, legacy cursor quirks, and shared native/legacy animation gating
+- `WaterAccessType` / `water_access_runtime`
+  - XML-defined water access types, mask propagation, provider/consumer rule evaluation, aqueduct wet-state projection, and compatibility mirrors
 - `building_type_registry` / `housing_type_registry`
   - native BuildingType and HousingType XML loading, compatibility validation, legacy house-level bridge, and registry-to-legacy fan-out
 - `figure_type_registry` / `figure_runtime`
@@ -91,7 +99,7 @@ Primary design goals remain:
 4. Treat future world-renderer/zoom/quad-map work as a later phase built on the current backend, not something to mix into every UI pass.
 
 ## Guardrails
-- Do not build unless the user explicitly asks in the current chat.
+- Build only when useful for the current task. When building this project, use `Release|x64`; do not rely on Debug-only compiler behavior.
 - Keep CRLF consistent on touched files.
 - Use `#pragma once` in project-owned headers.
 - Preserve existing comments when editing files.
@@ -102,4 +110,4 @@ Primary design goals remain:
 - Do not collapse renderer policy back into many ad hoc draw helpers once the chokepoints exist.
 
 ## Short mnemonic
-Build is stable; renderer backend exists; shared UI runtime now exists; native BuildingType/HousingType and FigureType runtimes are active; asset fallback and retained startup failures are part of the architecture; keep moving through explicit chokepoints, not broad rewrites.
+Build is stable; renderer backend exists; shared UI runtime now exists; native BuildingType/HousingType, FigureType, WaterAccessType, and BuildingAnimation runtimes are active; asset fallback and retained startup failures are part of the architecture; keep moving through explicit chokepoints, not broad rewrites.

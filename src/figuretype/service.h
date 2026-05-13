@@ -26,15 +26,11 @@ void figure_doctor_action(figure *f);
 
 void figure_missionary_action(figure *f);
 
-void figure_patrician_action(figure *f);
-
 void figure_labor_seeker_action(figure *f);
 
 void figure_market_trader_action(figure *f);
 
 void figure_tax_collector_action(figure *f);
-
-void figure_beggar_action(figure *f);
 
 #ifdef __cplusplus
 }

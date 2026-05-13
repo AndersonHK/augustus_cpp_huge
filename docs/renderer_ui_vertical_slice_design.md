@@ -101,6 +101,11 @@ Important world zoom note for this codebase:
 - the player-facing zoom percentage is inverse-browser style
 - `50%` means zoomed in and therefore larger logical on-screen size
 - `200%` means zoomed out and therefore smaller logical on-screen size
+- the stored city scale remains the raw world/render scale
+- player-facing start/reset/display bounds are adjusted by UI scale:
+  at `200%` UI scale, raw `50` displays as `100%`
+- interactive display bounds are `33%` to `300%`, with the upper bound still
+  capped by map size
 
 This lets us later queue both kinds of commands through the renderer without
 teaching widgets or city code different placement contracts.

@@ -1,5 +1,6 @@
-#include "view.h"
+#include "city/view.h"
 
+extern "C" {
 #include "building/construction.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -10,13 +11,33 @@
 #include "graphics/screen.h"
 #include "map/grid.h"
 #include "map/image.h"
-#include "widget/sidebar/common.h"
 #include "widget/minimap.h"
+#include "widget/sidebar/common.h"
+}
 
 #define TILE_WIDTH_PIXELS 60
 #define TILE_HEIGHT_PIXELS 30
 #define HALF_TILE_WIDTH_PIXELS 30
 #define HALF_TILE_HEIGHT_PIXELS 15
+
+namespace {
+
+constexpr int kDefaultZoomDisplayPercentage = 100;
+constexpr int kMinZoomDisplayPercentage = 33;
+constexpr int kMaxZoomDisplayPercentage = 300;
+
+int rounded_divide(int numerator, int denominator)
+{
+    if (!denominator) {
+        return 0;
+    }
+    if (numerator < 0) {
+        return -rounded_divide(-numerator, denominator);
+    }
+    return (numerator + denominator / 2) / denominator;
+}
+
+} // namespace
 
 static const int X_DIRECTION_FOR_ORIENTATION[] = {1,  1, -1, -1};
 static const int Y_DIRECTION_FOR_ORIENTATION[] = {1, -1, -1,  1};
@@ -49,7 +70,12 @@ static int view_to_grid_offset_lookup[VIEW_X_MAX][VIEW_Y_MAX];
 
 static void check_camera_boundaries(void)
 {
-    int max_scale = city_view_get_max_scale();
+    int min_scale = city_view_get_min_scale();
+    if (data.scale > 0 && data.scale < min_scale) {
+        city_view_set_scale(min_scale);
+        return;
+    }
+    int max_scale = city_view_get_max_raw_scale();
     if (max_scale < data.scale) {
         city_view_set_scale(max_scale);
         return;
@@ -115,7 +141,7 @@ static void calculate_lookup(void)
     int x_view_step;
     switch (data.orientation) {
         default:
-        case DIR_0_TOP:
+        case static_cast<int>(DIR_0_TOP):
             x_view_start = VIEW_X_MAX - 1;
             x_view_skip = -1;
             x_view_step = 1;
@@ -123,7 +149,7 @@ static void calculate_lookup(void)
             y_view_skip = 1;
             y_view_step = 1;
             break;
-        case DIR_2_RIGHT:
+        case static_cast<int>(DIR_2_RIGHT):
             x_view_start = 3;
             x_view_skip = 1;
             x_view_step = 1;
@@ -131,7 +157,7 @@ static void calculate_lookup(void)
             y_view_skip = 1;
             y_view_step = -1;
             break;
-        case DIR_4_BOTTOM:
+        case static_cast<int>(DIR_4_BOTTOM):
             x_view_start = VIEW_X_MAX - 1;
             x_view_skip = 1;
             x_view_step = -1;
@@ -139,7 +165,7 @@ static void calculate_lookup(void)
             y_view_skip = -1;
             y_view_step = -1;
             break;
-        case DIR_6_LEFT:
+        case static_cast<int>(DIR_6_LEFT):
             x_view_start = VIEW_Y_MAX;
             x_view_skip = -1;
             x_view_step = -1;
@@ -220,7 +246,7 @@ static void adjust_camera_position_for_pixels(void)
 void city_view_init(void)
 {
     calculate_lookup();
-    city_view_set_scale(100);
+    city_view_set_scale(city_view_get_default_scale());
     widget_minimap_invalidate();
 }
 
@@ -231,7 +257,7 @@ int city_view_orientation(void)
 
 void city_view_reset_orientation(void)
 {
-    data.orientation = 0;
+    data.orientation = static_cast<int>(DIR_0_TOP);
     calculate_lookup();
 }
 
@@ -240,7 +266,37 @@ int city_view_get_scale(void)
     return data.scale;
 }
 
-int city_view_get_max_scale(void)
+int city_view_display_percentage_to_scale(int percentage)
+{
+    return rounded_divide(percentage * 100, screen_scale_percentage());
+}
+
+int city_view_scale_to_display_percentage(int scale)
+{
+    if (scale <= city_view_get_min_scale()) {
+        return kMinZoomDisplayPercentage;
+    }
+    if (scale == city_view_get_default_scale()) {
+        return kDefaultZoomDisplayPercentage;
+    }
+    int max_display_scale = city_view_display_percentage_to_scale(kMaxZoomDisplayPercentage);
+    if (max_display_scale <= city_view_get_max_raw_scale() && scale >= max_display_scale) {
+        return kMaxZoomDisplayPercentage;
+    }
+    return rounded_divide(scale * screen_scale_percentage(), 100);
+}
+
+int city_view_get_default_scale(void)
+{
+    return city_view_display_percentage_to_scale(kDefaultZoomDisplayPercentage);
+}
+
+int city_view_get_min_scale(void)
+{
+    return city_view_display_percentage_to_scale(kMinZoomDisplayPercentage);
+}
+
+int city_view_get_max_raw_scale(void)
 {
     int max_x_pixels = (map_grid_width() + 4) * TILE_WIDTH_PIXELS;
     int max_y_pixels = (map_grid_height() * 2 + 4) * HALF_TILE_HEIGHT_PIXELS;
@@ -250,6 +306,13 @@ int city_view_get_max_scale(void)
     int max_scale = max_x_scale > max_y_scale ? max_x_scale : max_y_scale;
 
     return max_scale < 100 ? 100 : max_scale;
+}
+
+int city_view_get_max_scale(void)
+{
+    int max_display_scale = city_view_display_percentage_to_scale(kMaxZoomDisplayPercentage);
+    int max_raw_scale = city_view_get_max_raw_scale();
+    return max_display_scale < max_raw_scale ? max_display_scale : max_raw_scale;
 }
 
 void city_view_get_camera(int *x, int *y)
@@ -274,19 +337,19 @@ static void adjust_for_orientation(int x, int y, int orientation, int *x_out, in
 {
     switch (orientation) {
         default:
-        case DIR_0_TOP:
+        case static_cast<int>(DIR_0_TOP):
             *x_out = x;
             *y_out = y;
             break;
-        case DIR_2_RIGHT:
+        case static_cast<int>(DIR_2_RIGHT):
             *x_out = y / 2;
             *y_out = (VIEW_X_MAX - x) * 2;
             break;
-        case DIR_4_BOTTOM:
+        case static_cast<int>(DIR_4_BOTTOM):
             *x_out = VIEW_X_MAX - x;
             *y_out = VIEW_Y_MAX - y;
             break;
-        case DIR_6_LEFT:
+        case static_cast<int>(DIR_6_LEFT):
             *x_out = (VIEW_Y_MAX - y) / 2;
             *y_out = x * 2;
             break;
@@ -300,7 +363,7 @@ void city_view_get_camera_absolute(int *x_abs, int *y_abs)
     int x_center = data.camera.tile.x + x_offset;
     int y_center = data.camera.tile.y + y_offset;
     int x_center_abs, y_center_abs;
-    int to_rotate = (DIR_8_NONE - data.orientation) % DIR_8_NONE;
+    int to_rotate = (static_cast<int>(DIR_8_NONE) - data.orientation) % static_cast<int>(DIR_8_NONE);
     adjust_for_orientation(x_center, y_center, to_rotate, &x_center_abs, &y_center_abs);
     *x_abs = x_center_abs - x_offset;
     *y_abs = y_center_abs - y_offset;
@@ -551,8 +614,8 @@ void city_view_rotate_left(void)
     int center_grid_offset = get_center_grid_offset();
 
     data.orientation += 2;
-    if (data.orientation > 6) {
-        data.orientation = DIR_0_TOP;
+    if (data.orientation > static_cast<int>(DIR_6_LEFT)) {
+        data.orientation = static_cast<int>(DIR_0_TOP);
     }
     calculate_lookup();
     if (center_grid_offset >= 0) {
@@ -569,8 +632,8 @@ void city_view_rotate_right(void)
     int center_grid_offset = get_center_grid_offset();
 
     data.orientation -= 2;
-    if (data.orientation < 0) {
-        data.orientation = DIR_6_LEFT;
+    if (data.orientation < static_cast<int>(DIR_0_TOP)) {
+        data.orientation = static_cast<int>(DIR_6_LEFT);
     }
     calculate_lookup();
     if (center_grid_offset >= 0) {
@@ -608,7 +671,7 @@ static void set_viewport_without_sidebar(void)
 
 void city_view_set_scale(int scale)
 {
-    scale = calc_bound(scale, 50, city_view_get_max_scale());
+    scale = calc_bound(scale, city_view_get_min_scale(), city_view_get_max_raw_scale());
     data.scale = scale;
     if (data.sidebar_collapsed) {
         set_viewport_without_sidebar();
@@ -681,11 +744,11 @@ void city_view_load_state(buffer *orientation, buffer *camera)
     data.orientation = buffer_read_i32(orientation);
     city_view_load_scenario_state(camera);
 
-    if (data.orientation >= 0 && data.orientation <= 6) {
+    if (data.orientation >= static_cast<int>(DIR_0_TOP) && data.orientation <= static_cast<int>(DIR_6_LEFT)) {
         // ensure even number
         data.orientation = 2 * (data.orientation / 2);
     } else {
-        data.orientation = 0;
+        data.orientation = static_cast<int>(DIR_0_TOP);
     }
 }
 

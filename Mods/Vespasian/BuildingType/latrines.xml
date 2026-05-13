@@ -12,6 +12,9 @@
     <button group="health" order="50" icon="Health_Culture\Latrine_C" text_key="TR_BUILDING_LATRINES" />
     <event_data attr="latrines" />
     <flags fire_proof="1" />
+    <water_access>
+        <provides type="latrines" range="3" origin="footprint" />
+    </water_access>
     <graphics>
         <default>
             <path value="Health_Culture\Latrine_C" />

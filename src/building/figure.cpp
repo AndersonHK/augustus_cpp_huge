@@ -1,5 +1,7 @@
 #include "building/building_runtime_internal.h"
+
 #include "building/local_workforce.h"
+#include "building/building_type_registry_internal.h"
 
 extern "C" {
 #include "building/figure.h"
@@ -7,14 +9,13 @@ extern "C" {
 #include "assets/assets.h"
 #include "building/barracks.h"
 #include "building/building_runtime_api.h"
-#include "building/building_type_api.h"
 #include "building/granary.h"
 #include "building/image.h"
 #include "building/industry.h"
-#include "building/production_runtime_api.h"
 #include "building/market.h"
 #include "building/mess_hall.h"
 #include "building/monument.h"
+#include "building/production_runtime_api.h"
 #include "building/properties.h"
 #include "building/tavern.h"
 #include "building/temple.h"
@@ -43,15 +44,6 @@ extern "C" {
 #include "map/water.h"
 #include "scenario/scenario.h"
 }
-
-
-
-#define BEGGAR_UNEMPLOYMENT_THRESHOLD 6
-
-static struct {
-    int beggar_counter;
-    int houses_needed_per_beggar;
-} data;
 
 static int worker_percentage(const building *b)
 {
@@ -174,76 +166,6 @@ static void create_roaming_figure(building *b, int x, int y, figure_type type)
     f->building_id = b->id;
     b->figure_id = f->id;
     figure_movement_init_roaming(f);
-}
-
-static void calculate_houses_needed_per_beggar(void)
-{
-    int unemployed_percentage = city_labor_unemployment_percentage();
-    int houses_needed = 100;
-    if (unemployed_percentage < 9) {
-        houses_needed = 40 - unemployed_percentage;
-    } else if (unemployed_percentage < 12) {
-        houses_needed = 30 - unemployed_percentage;
-    } else if (unemployed_percentage < 15) {
-        houses_needed = 25 - unemployed_percentage;
-    } else if (unemployed_percentage < 18) {
-        houses_needed = 24 - unemployed_percentage;
-    } else if (unemployed_percentage < 21) {
-        houses_needed = 23 - unemployed_percentage;
-    } else {
-        houses_needed = 3;
-    }
-    data.houses_needed_per_beggar = houses_needed;
-
-}
-
-static void spawn_beggar(building *b)
-{
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        b->figure_spawn_delay++;
-        if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(16)) {
-            b->figure_spawn_delay = 0;
-            if (data.beggar_counter > data.houses_needed_per_beggar) {
-                data.beggar_counter = 0;
-            } else {
-                data.beggar_counter++;
-                return;
-            }
-            figure *f = figure_create(FIGURE_BEGGAR, road.x, road.y, DIR_4_BOTTOM);
-            f->building_id = b->id;
-        }
-    }
-}
-
-
-static int spawn_patrician(building *b, int spawned)
-{
-    map_point road;
-    if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        b->figure_spawn_delay++;
-        if (b->figure_spawn_delay > game_time_scale_legacy_day_ticks(40) && !spawned) {
-            b->figure_spawn_delay = 0;
-            figure *f = figure_create(FIGURE_PATRICIAN, road.x, road.y, DIR_4_BOTTOM);
-            f->action_state = FIGURE_ACTION_125_ROAMING;
-            f->building_id = b->id;
-            figure_movement_init_roaming(f);
-            return 1;
-        }
-    }
-    return spawned;
-}
-
-static int housing_spawns_beggars(const building *b)
-{
-    return b && building_type_registry_housing_has_resident_class(
-        b->type, BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN);
-}
-
-static int housing_spawns_patricians(const building *b)
-{
-    return b && building_type_registry_housing_has_resident_class(
-        b->type, BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN);
 }
 
 static void spawn_figure_warehouse(building *b)
@@ -874,16 +796,6 @@ static void spawn_figure_mission_post(building *b)
 
 static void spawn_figure_industry(building *b)
 {
-    if (b->type == BUILDING_CONCRETE_MAKER) {
-        b->has_water_access = map_terrain_exists_tile_in_area_with_type(b->x, b->y, b->size, TERRAIN_RESERVOIR_RANGE) ?
-            2 : 0;
-        if (!b->has_water_access) {
-            b->has_water_access = map_terrain_exists_tile_in_area_with_type(b->x, b->y, b->size, TERRAIN_FOUNTAIN_RANGE);
-            if (!b->has_water_access) {
-                b->has_water_access = b->has_well_access;
-            }
-        }
-    }
     check_labor_problem(b);
     map_point road;
     if (map_has_road_access(b->x, b->y, b->size, &road)) {
@@ -1280,6 +1192,11 @@ static int building_uses_runtime_spawn(const building *b)
     if (!b) {
         return 0;
     }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b->type);
+    if (definition && !definition->spawn_groups().empty()) {
+        return 1;
+    }
     if (b->type == BUILDING_SENATE || b->type == BUILDING_FORUM) {
         return 1;
     }
@@ -1327,8 +1244,6 @@ static int building_uses_runtime_spawn(const building *b)
 
 void building_figure_generate(void)
 {
-    int patrician_generated = 0;
-    calculate_houses_needed_per_beggar();
     for (int i = 1; i < building_count(); i++) {
         building_runtime *runtime_building =
             building_runtime_impl::get_city_building(static_cast<unsigned int>(i));
@@ -1347,19 +1262,13 @@ void building_figure_generate(void)
         }
 
         b->show_on_problem_overlay = 0;
-        if (housing_spawns_beggars(b)) {
-            if (city_labor_unemployment_percentage() > BEGGAR_UNEMPLOYMENT_THRESHOLD) {
-                spawn_beggar(b);
-            }
-        } else if (housing_spawns_patricians(b)) {
-            patrician_generated = spawn_patrician(b, patrician_generated);
+        if (building_uses_runtime_spawn(b)) {
+            runtime_building->spawn_figure();
         } else if (building_is_raw_resource_producer(b->type) ||
             building_is_farm(b->type) || building_is_workshop(b->type)) {
             spawn_figure_industry(b);
         } else if (b->type >= BUILDING_SENATE_1_UNUSED && b->type <= BUILDING_FORUM_2_UNUSED) {
             spawn_figure_senate_forum(b);
-        } else if (building_uses_runtime_spawn(b)) {
-            runtime_building->spawn_figure();
         } else {
             // single building type
             switch (b->type) {

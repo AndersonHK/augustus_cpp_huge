@@ -13,9 +13,7 @@
     <sound id="well" />
     <event_data attr="well" />
     <water_access>
-        <type value="well" />
-        <range value="2" />
-        <requirement value="none" />
+        <provides type="well" range="2" origin="footprint" />
     </water_access>
     <graphics>
         <default>

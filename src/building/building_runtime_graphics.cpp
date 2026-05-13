@@ -1,46 +1,18 @@
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
-#include "building/local_workforce.h"
-#include "building/water_access_runtime.h"
 
 #include "assets/image_group_payload.h"
+#include "building/animations.h"
 #include "building/building_runtime_graphics.h"
-#include "building/production_runtime_api.h"
-#include "building/storage_runtime_api.h"
 #include "core/crash_context.h"
 
 extern "C" {
-#include "building/armoury.h"
-#include "building/barracks.h"
-#include "building/building_runtime_api.h"
-#include "building/count.h"
-#include "building/caravanserai.h"
-#include "building/distribution.h"
-#include "building/granary.h"
 #include "building/image.h"
 #include "building/industry.h"
-#include "building/lighthouse.h"
-#include "building/monument.h"
-#include "building/properties.h"
-#include "building/temple.h"
-#include "building/warehouse.h"
-#include "city/buildings.h"
-#include "city/data_private.h"
-#include "city/population.h"
-#include "core/calc.h"
-#include "core/config.h"
 #include "core/image_group.h"
-#include "figure/action.h"
-#include "figure/figure.h"
-#include "figure/movement.h"
-#include "figure/figure_runtime_api.h"
-#include "game/animation.h"
 #include "game/resource.h"
-#include "game/time.h"
 #include "map/building_tiles.h"
 #include "map/random.h"
-#include "map/road_access.h"
-#include "map/sprite.h"
 #include "map/terrain.h"
 #include "core/log.h"
 }
@@ -54,16 +26,6 @@ namespace {
 int graphics_definition_is_data_only(building_type type)
 {
     return building_is_farm(type);
-}
-
-void advance_runtime_monument_secondary_animation(building *b)
-{
-    if (b && b->type == BUILDING_GRAND_TEMPLE_CERES && b->monument.upgrades == 1) {
-        b->monument.secondary_frame++;
-        if (b->monument.secondary_frame > 4) {
-            b->monument.secondary_frame = 0;
-        }
-    }
 }
 
 void make_building_context(char *buffer, size_t buffer_size, const building *b)
@@ -159,19 +121,6 @@ void report_rebuild_failure(
 int runtime_tile_sentinel_image_id()
 {
     return image_group(GROUP_TERRAIN_FLAT_TILE);
-}
-
-int normalized_animation_frame(int animation_cursor, const RuntimeAnimationTrack &track)
-{
-    if (animation_cursor < 0 || track.num_frames <= 0) {
-        return 0;
-    }
-    int current_frame = map_sprite_animation_at(animation_cursor) & 0x7f;
-    if (current_frame < 1 || current_frame > track.num_frames) {
-        current_frame = 1;
-        map_sprite_animation_set(animation_cursor, current_frame);
-    }
-    return current_frame;
 }
 
 }
@@ -309,165 +258,6 @@ int building_runtime::resolve_graphic_binding(
     return 1;
 }
 
-// Input: one runtime animation track plus the live building/grid state that owns it.
-// Output: the 1-based frame index that should be drawn now, while mirroring legacy timing/gating without using legacy image payloads.
-int building_runtime::mirror_animation_offset(const RuntimeAnimationTrack &track, int should_advance, int animation_cursor) const
-{
-    if (!building_ || animation_cursor < 0 || track.num_frames <= 0) {
-        return 0;
-    }
-
-    if (building_->type == BUILDING_FOUNTAIN && (building_->num_workers <= 0 || !building_->has_water_access)) {
-        return 0;
-    }
-    if (building_->type == BUILDING_RESERVOIR && !building_->has_water_access) {
-        return 0;
-    }
-    if (building_is_workshop(building_->type)) {
-        if (building_->num_workers <= 0 || building_->strike_duration_days > 0 ||
-            !building_industry_has_raw_materials_for_production(building_)) {
-            return 0;
-        }
-    }
-    if (building_->type == BUILDING_CONCRETE_MAKER) {
-        if (!building_->has_water_access || building_->data.industry.progress == 0) {
-            return 0;
-        }
-    }
-    if ((building_->type == BUILDING_PREFECTURE || building_->type == BUILDING_ENGINEERS_POST) && building_->num_workers <= 0) {
-        return 0;
-    }
-    if (building_->type == BUILDING_MARKET && building_->num_workers <= 0) {
-        return 0;
-    }
-    if (building_->type == BUILDING_WAREHOUSE && building_->num_workers < model_get_building(building_->type)->laborers) {
-        return 0;
-    }
-    if (building_->type == BUILDING_DOCK && building_->data.dock.num_ships <= 0) {
-        map_sprite_animation_set(animation_cursor, 1);
-        return 1;
-    }
-    if (building_is_raw_resource_producer(building_->type) && (building_->num_workers <= 0 || building_->strike_duration_days > 0)) {
-        return 0;
-    }
-    if (building_->type == BUILDING_GLADIATOR_SCHOOL) {
-        if (building_->num_workers <= 0) {
-            map_sprite_animation_set(animation_cursor, 1);
-            return 1;
-        }
-    } else if ((building_->type == BUILDING_THEATER ||
-        (building_->type >= BUILDING_HIPPODROME && building_->type <= BUILDING_CHARIOT_MAKER)) &&
-        building_->type != BUILDING_HIPPODROME && building_->num_workers <= 0) {
-        return 0;
-    }
-    if (building_->type == BUILDING_GRANARY && building_->num_workers < model_get_building(building_->type)->laborers) {
-        return 0;
-    }
-    if (building_monument_is_monument(building_) && (building_->type != BUILDING_ORACLE && building_->type != BUILDING_NYMPHAEUM &&
-        (building_->num_workers <= 0 || building_->monument.phase != MONUMENT_FINISHED))) {
-        return 0;
-    }
-    if (building_->type == BUILDING_CITY_MINT &&
-        ((building_->output_resource_id == RESOURCE_DENARII &&
-            building_->resources[RESOURCE_GOLD] < BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN) || building_->num_workers <= 0 ||
-            (building_count_active(BUILDING_SENATE) == 0))) {
-        return 0;
-    }
-    if ((building_->type == BUILDING_ARCHITECT_GUILD || building_->type == BUILDING_MESS_HALL || building_->type == BUILDING_ARENA)
-        && building_->num_workers <= 0) {
-        return 0;
-    }
-    if (building_->type == BUILDING_TAVERN && (building_->num_workers <= 0 || !building_->resources[RESOURCE_WINE])) {
-        return 0;
-    }
-    if (building_->type == BUILDING_WATCHTOWER && (building_->num_workers <= 0 || !building_->figure_id4)) {
-        return 0;
-    }
-    if (building_->type == BUILDING_LARGE_STATUE && !building_->has_water_access) {
-        return 0;
-    }
-    if (building_->type == BUILDING_DEPOT && building_->num_workers <= 0) {
-        return 0;
-    }
-    if (building_->type == BUILDING_ARMOURY && building_->num_workers <= 0) {
-        return 0;
-    }
-    if (building_->type == BUILDING_AMPHITHEATER && building_->num_workers <= 0) {
-        return 0;
-    }
-
-    if (!should_advance || !track.speed_id) {
-        return normalized_animation_frame(animation_cursor, track);
-    }
-    if (!game_animation_should_advance(track.speed_id)) {
-        return normalized_animation_frame(animation_cursor, track);
-    }
-
-    int new_sprite = 0;
-    int is_reverse = 0;
-    if (building_->type == BUILDING_WINE_WORKSHOP) {
-        const int pct_done = calc_percentage(building_->data.industry.progress, building_industry_get_max_progress(building_));
-        const int current_sprite = map_sprite_animation_at(animation_cursor);
-        if (pct_done <= 0) {
-            new_sprite = 0;
-        } else if (pct_done < 4) {
-            new_sprite = 1;
-        } else if (pct_done < 8) {
-            new_sprite = 2;
-        } else if (pct_done < 12) {
-            new_sprite = 3;
-        } else if (pct_done < 96) {
-            const int first_mid_sprite = 4;
-            const int last_mid_sprite = track.num_frames < 8 ? track.num_frames : 8;
-            if (current_sprite < first_mid_sprite) {
-                new_sprite = first_mid_sprite;
-            } else {
-                new_sprite = current_sprite + 1;
-                if (new_sprite > last_mid_sprite) {
-                    new_sprite = first_mid_sprite;
-                }
-            }
-        } else {
-            const int first_late_sprite = track.num_frames < 9 ? track.num_frames : 9;
-            if (current_sprite < first_late_sprite) {
-                new_sprite = first_late_sprite;
-            } else {
-                new_sprite = current_sprite + 1;
-                if (new_sprite > track.num_frames) {
-                    new_sprite = track.num_frames;
-                }
-            }
-        }
-    } else if (track.can_reverse) {
-        if (map_sprite_animation_at(animation_cursor) & 0x80) {
-            is_reverse = 1;
-        }
-        const int current_sprite = map_sprite_animation_at(animation_cursor) & 0x7f;
-        if (is_reverse) {
-            new_sprite = current_sprite - 1;
-            if (new_sprite < 1) {
-                new_sprite = 1;
-                is_reverse = 0;
-            }
-        } else {
-            new_sprite = current_sprite + 1;
-            if (new_sprite > track.num_frames) {
-                new_sprite = track.num_frames;
-                is_reverse = 1;
-            }
-        }
-    } else {
-        new_sprite = map_sprite_animation_at(animation_cursor) + 1;
-        if (new_sprite > track.num_frames) {
-            advance_runtime_monument_secondary_animation(building_);
-            new_sprite = 1;
-        }
-    }
-
-    map_sprite_animation_set(animation_cursor, is_reverse ? new_sprite | 0x80 : new_sprite);
-    return new_sprite;
-}
-
 // Input: one live building instance in the city animation draw stage.
 // Output: advances the native XML animation cursor at the same layer where legacy image groups tick.
 void building_runtime::advance_graphic_animation(int animation_cursor)
@@ -482,7 +272,10 @@ void building_runtime::advance_graphic_animation(int animation_cursor)
         return;
     }
 
-    mirror_animation_offset(*track_ptr, 1, animation_cursor);
+    building_type_registry_impl::BuildingAnimation animation(*building_, definition_);
+    animation.runtime_track_offset(*track_ptr, 1, animation_cursor);
+    // The frame cursor has just moved; the draw slice is rebuilt lazily by
+    // graphic_animation() so ghosts and normal city draws share one read path.
     graphics_cache_.animation_slice = RuntimeDrawSlice();
 }
 
@@ -506,7 +299,8 @@ void building_runtime::rebuild_cached_animation_slice(int animation_cursor)
     }
 
     const RuntimeAnimationTrack &track = *track_ptr;
-    const int animation_offset = mirror_animation_offset(track, 0, animation_cursor);
+    building_type_registry_impl::BuildingAnimation animation(*building_, definition_);
+    const int animation_offset = animation.runtime_track_offset(track, 0, animation_cursor);
     if (animation_offset <= 0) {
         return;
     }

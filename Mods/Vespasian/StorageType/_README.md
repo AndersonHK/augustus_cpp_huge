@@ -4,6 +4,11 @@ The loader reads every `*.xml` file in this folder at startup. Keep templates an
 
 Registry keys are the file path relative to this folder, without the `.xml` suffix.
 
+For historical capacity, spoilage, moisture, guard, and port-storage context,
+see [Roman City Facility Ratios](../../../research/roman_city_facility_ratios.md)
+and [Roman Building and Infrastructure Maintenance Needs](../../../research/roman_building_maintenance_needs.md).
+Ostia's horrea are the main storage model for port and annona-heavy cities.
+
 Example:
 
 - `Mods\Vespasian\StorageType\clay_input_pottery_workshop.xml` is referenced as `clay_input_pottery_workshop`

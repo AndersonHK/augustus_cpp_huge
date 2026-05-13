@@ -1,8 +1,8 @@
 # Save/Load Runtime Bridges
 
-This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, legacy structs, and C++ wrappers.
+This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, legacy structs, and C++ wrappers. For the water access simulation that consumes the resolved water access type table, see `docs/water_access_runtime.md`.
 
-Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb7`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
+Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb8`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 
 ## Load Timeline
 
@@ -25,12 +25,13 @@ The important live-save order is:
 3. Figure records, routes, and formations.
 4. City globals.
 5. `building_type_id_bridge_save_table_load_state()`.
-6. `building_load_state()`.
-7. View/time/random and legacy model data.
-8. XML model overrides through `building_type_registry_apply_model_overrides()`.
-9. Resource and production-rate data.
-10. Road service history and local workforce allocations.
-11. Empire, messages, building lists, building storage, deliveries, visited-building data, and old-version migrations.
+6. `water_access_type_id_bridge_save_table_load_state()`.
+7. `building_load_state()`.
+8. View/time/random and legacy model data.
+9. XML model overrides through `building_type_registry_apply_model_overrides()`.
+10. Resource and production-rate data.
+11. Road service history and local workforce allocations.
+12. Empire, messages, building lists, building storage, deliveries, visited-building data, and old-version migrations.
 
 This order matters. Building records store save-local building type ids, so the BuildingType bridge must load before `building_state_load_from_buffer()` reads any building. Runtime wrappers load later because they need the restored legacy arrays, linked lists, and registry definitions to be stable.
 
@@ -50,6 +51,7 @@ Recent runtime-bridge gates:
 | `SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE = 0xb4` | Building type save table | Bridge synthesizes a legacy table from enum/text migration data. |
 | `SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY = 0xb5` | Appended market service effect | Market goods history remains zero for older saves. |
 | `SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS = 0xb6` | Saved `building.variant` as native graphics option selector | Native graphics buildings reseed stable variants from `map_random_get(grid_offset)` during load, then clamp by the active option count. |
+| `SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE = 0xb7` | Water access type save table | Bridge synthesizes the shared legacy water access text ids and resolves them through the active mod's XML numeric ids. |
 
 Other broad gates still shape the bridge path:
 
@@ -108,6 +110,36 @@ If a building record references a save id that is not present in the loaded tabl
 
 Preview loading does not mutate the active bridge. It reads enough city/scenario/building/map data to render minimap info, while full BuildingType/runtime rebinding remains part of the live load path.
 
+## WaterAccessType Save Bridge
+
+`src/building/water_access_type_id_bridge.cpp` mirrors the BuildingType bridge for XML-owned water access identity.
+
+Water access definitions live in `Mods/<Mod>/WaterAccessType/*.xml`. Each file declares a stable text id plus a numeric id from `0` through `7`; the runtime stores coverage and provider state as `uint8_t` masks where bit `1 << number_id` is the active access type. The registry rejects missing definitions, duplicate text ids, duplicate numeric ids, ids outside `0..7`, and more than eight active types.
+
+The shared bundled ids are:
+
+| Text id | Numeric id | Notes |
+| --- | --- | --- |
+| `well` | `0` | Present in Julius, Augustus, and Vespasian. |
+| `fountain` | `1` | Present in Julius, Augustus, and Vespasian. |
+| `reservoir` | `2` | Present in Julius, Augustus, and Vespasian. |
+| `aqueduct` | `3` | Present in Julius, Augustus, and Vespasian. |
+| `latrines` | `4` | Present only in Augustus and Vespasian. Julius must not reference it. |
+
+New saves write a dynamic table with format version `1`, entry count, and each save id/text id pair. Save id `0` remains none/empty. On load, the bridge resolves saved text ids against the active mod registry, so save-local ids do not depend on the current XML numeric ids.
+
+Old saves without the table synthesize the legacy shared mapping through text ids:
+
+| Legacy raw id | Text id |
+| --- | --- |
+| `1` | `well` |
+| `2` | `fountain` |
+| `3` | `reservoir` |
+| `4` | `aqueduct` |
+| `5` | `latrines` |
+
+The current building record still persists compatibility mirror bytes such as `has_water_access`, `has_well_access`, and `has_latrines_access`. Gameplay and graphics decisions should use typed water masks and BuildingType water rules; those bytes remain save/load mirrors for old code paths while the migration continues.
+
 ## Building Records
 
 `building_load_state()` in `src/building/building.c` owns the legacy `array(building)` allocation.
@@ -162,6 +194,7 @@ The normalization call lives at the end of `building_state_load_from_buffer()`, 
 - `g_building_types` is a `std::array<std::unique_ptr<BuildingType>, BUILDING_TYPE_MAX>`.
 - `BuildingType` stores identity, model, foundation, build-button, sound, event data, flags, water access, graphics, construction, labor, spawn groups, storage references, and production method references.
 - `BUILDING_THEATER` and `BUILDING_WELL` are dynamic runtime ids refreshed from text ids by `refresh_known_building_type_ids()`.
+- Spawn groups can now carry probability gates. Residential beggar and patrician walkers are ordinary BuildingType spawns that use per-house figure slots plus current XML probability data rather than save-backed global counters.
 
 Saved model data and XML model overrides have a deliberate order:
 
@@ -235,9 +268,14 @@ Native FigureType runtime state is not persisted as C++ objects. It is rebuilt a
 - Saved figures generally lack exact XML profile bindings, so `infer_profile_id()` recovers a profile from legacy fields.
 - Labor seekers infer `acquisition` or `validation` from `collecting_item_id`.
 - Priests infer god profiles from the owner building type.
+- Residential walkers infer required house-spawn profiles: patricians use `house_roamer`, and beggars use `unemployment_wanderer`.
 - Entertainment walkers infer school/venue/service profiles from action state and type.
 - If no inferred profile is available, the definition's default profile is used.
 - New runtime-created walkers use `figure_runtime_create_profiled()` and `figure_runtime_bind_profile()` so they do not depend on inference.
+
+The beggar `unemployment_wanderer` profile currently uses `stand_still`. That bridge accepts old action state zero and the temporary roaming action state used by the first native conversion; in the roaming case it removes route state and resumes stationary lifetime countdown from the loaded `wait_ticks`.
+
+Residential spawn policy itself is not persisted. Houses keep their legacy figure slots in the building record; new XML-owned residential spawns use `figure_id4` as the one-active-per-house slot. When an older save has an active beggar or patrician with only `building_id` set, the runtime spawn slot check can adopt that live owned figure before deciding whether to create another one.
 
 This is the same bridge pattern as buildings: legacy records are persisted, while runtime controllers are reconstructed from legacy fields plus current XML definitions.
 
@@ -250,7 +288,7 @@ Runtime storage is:
 - `std::array<grid_u32, ROAD_SERVICE_EFFECT_MAX> g_history`
 - `uint32_t g_last_visit_stamp`
 
-The save payload is dynamic and starts with:
+The local-workforce payload is dynamic and starts with:
 
 1. `kSaveFormatVersion = 1`
 2. effect count
@@ -322,8 +360,9 @@ On save, `savegame_save_to_state()` writes the runtime bridge data before the re
 1. File/resource/scenario versions.
 2. Scenario settings and mod metadata.
 3. `building_type_id_bridge_prepare_new_save_table()` and `building_type_id_bridge_save_table_save_state()`.
-4. Map, figure, route, formation, city, and building records.
-5. Legacy model data.
-6. Scenario, message, empire, list, storage, route, delivery, visited-building, production-rate, road-history, and workforce payloads.
+4. `water_access_type_id_bridge_prepare_new_save_table()` and `water_access_type_id_bridge_save_table_save_state()`.
+5. Map, figure, route, formation, city, and building records.
+6. Legacy model data.
+7. Scenario, message, empire, list, storage, route, delivery, visited-building, production-rate, road-history, and workforce payloads.
 
-Building records write `building_type_id_bridge_save_id_from_runtime(b->type)` instead of raw runtime enum ids. Type-data rubble/original-type fields use the same bridge. This is what lets the save survive dynamic BuildingType ids, XML-owned definitions, and old enum migrations without treating the current process enum as stable disk data.
+Building records write `building_type_id_bridge_save_id_from_runtime(b->type)` instead of raw runtime enum ids. Type-data rubble/original-type fields use the same bridge. The water access type table is written immediately after the BuildingType table so future persisted water-type references can resolve through text ids before current XML numeric ids are used. This is what lets the save survive dynamic BuildingType ids, XML-owned definitions, water access type ids, and old enum migrations without treating the current process enum as stable disk data.

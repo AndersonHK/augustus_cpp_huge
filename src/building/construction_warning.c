@@ -4,6 +4,7 @@
 #include "building/building_type_api.h"
 #include "building/count.h"
 #include "building/properties.h"
+#include "building/water_access_runtime.h"
 #include "city/constants.h"
 #include "city/labor.h"
 #include "city/population.h"
@@ -102,25 +103,15 @@ static void check_road_access(int type, int x, int y, int size)
     }
 }
 
-static void check_water(int type, int x, int y)
+static void check_water(building_type type, int x, int y, int size)
 {
-    if (!has_warning) {
-        if (type == BUILDING_FOUNTAIN || type == BUILDING_BATHHOUSE || type == BUILDING_SMALL_POND || type == BUILDING_LARGE_POND) {
-            int grid_offset = map_grid_offset(x, y);
-            int has_water = 0;
-            if (map_terrain_is(grid_offset, TERRAIN_RESERVOIR_RANGE)) {
-                has_water = 1;
-            } else if (type == BUILDING_BATHHOUSE || type == BUILDING_SMALL_POND || type == BUILDING_LARGE_POND) {
-                if (map_terrain_is(grid_offset + map_grid_delta(1, 0), TERRAIN_RESERVOIR_RANGE) ||
-                    map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_RESERVOIR_RANGE) ||
-                    map_terrain_is(grid_offset + map_grid_delta(1, 1), TERRAIN_RESERVOIR_RANGE)) {
-                    has_water = 1;
-                }
-            }
-            if (!has_water) {
-                show(WARNING_WATER_PIPE_ACCESS_NEEDED);
-            }
-        }
+    if (has_warning || type == BUILDING_RESERVOIR || type == BUILDING_AQUEDUCT ||
+        !building_type_registry_has_water_access_requirements(type)) {
+        return;
+    }
+
+    if (!water_access_runtime_building_type_has_required_access_at(type, x, y, size)) {
+        show(WARNING_WATER_PIPE_ACCESS_NEEDED);
     }
 }
 
@@ -254,7 +245,7 @@ void building_construction_warning_check_all(building_type type, int x, int y, i
     check_armoury(type);
 
     check_wall(type, x, y, size);
-    check_water(type, x, y);
+    check_water(type, x, y, size);
 
     check_raw_material_access(type);
 

@@ -12,9 +12,11 @@
     <button group="health" order="20" icon="Health_Culture\Bathhouse_No_Water" text_key="main_strings.28.48" />
     <sound id="bathhouse" mute_on_enemies="true" />
     <event_data attr="bathhouse" />
-    <state>
-        <water_access mode="reservoir_range" />
-    </state>
+    <water_access>
+        <requires mode="all">
+            <access type="reservoir" />
+        </requires>
+    </water_access>
     <graphics>
         <default>
             <path value="Health_Culture\Bathhouse_No_Water" />

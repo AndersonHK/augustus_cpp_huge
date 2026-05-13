@@ -1,6 +1,6 @@
 # Tile Graphics Runtime Working Memory
 
-Snapshot: 2026-05-04
+Snapshot: 2026-05-11
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 
 ## 2026-05-04 as-is audit
@@ -35,7 +35,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Start with plaza in the tile runtime and keep large statue on the building runtime side.
 
 ## Locked decisions
-- Do not build unless the user explicitly asks.
+- Build only when useful for the current task, and use `Release|x64`.
 - Keep CRLF on touched files.
 - Keep both happy path and legacy path alive at the same time.
 - `Tiles/*.xml` is minimal for v1 and only carries `graphics.path`.

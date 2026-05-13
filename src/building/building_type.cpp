@@ -4,133 +4,11 @@
 
 extern "C" {
 #include "building/monument.h"
-#include "city/festival.h"
-#include "scenario/property.h"
 }
 
 #include <utility>
 
 namespace building_type_registry_impl {
-
-void GraphicsTarget::set_path(std::string path)
-{
-    path_ = std::move(path);
-}
-
-void GraphicsTarget::set_image(std::string image)
-{
-    image_ = std::move(image);
-}
-
-GraphicsTarget &GraphicsTarget::add_option()
-{
-    options_.emplace_back();
-    return options_.back();
-}
-
-int GraphicsTarget::has_path() const
-{
-    return !path_.empty();
-}
-
-const char *GraphicsTarget::path() const
-{
-    return path_.c_str();
-}
-
-int GraphicsTarget::has_image() const
-{
-    return !image_.empty();
-}
-
-const char *GraphicsTarget::image() const
-{
-    return image_.c_str();
-}
-
-int GraphicsTarget::has_options() const
-{
-    return !options_.empty();
-}
-
-int GraphicsTarget::option_count() const
-{
-    return static_cast<int>(options_.size());
-}
-
-GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
-{
-    if (options_.empty()) {
-        return *this;
-    }
-
-    // Options are authored as partial targets. Materialize one effective target so
-    // the renderer and validator can keep using the normal path/image lookup path.
-    GraphicsTarget resolved = options_[variant % options_.size()];
-    if (!resolved.has_path()) {
-        resolved.set_path(path_);
-    }
-    return resolved;
-}
-
-int GraphicsCondition::matches(const ::building &building) const
-{
-    switch (type) {
-        case GraphicsConditionType::HasWorkers:
-            return building.num_workers > 0;
-        case GraphicsConditionType::Working:
-            return building.num_workers > 0 && building.has_water_access;
-        case GraphicsConditionType::WaterAccess:
-            return building.has_water_access;
-        case GraphicsConditionType::FigureSlotOccupied:
-            switch (figure_slot) {
-                case FigureSlot::Primary:
-                    return building.figure_id > 0;
-                case FigureSlot::Secondary:
-                    return building.figure_id2 > 0;
-                case FigureSlot::Quaternary:
-                    return building.figure_id4 > 0;
-                case FigureSlot::None:
-                default:
-                    return 0;
-            }
-        case GraphicsConditionType::ResourcePositive:
-            return resource > RESOURCE_NONE && resource < RESOURCE_MAX && building.resources[resource] > 0;
-        case GraphicsConditionType::Climate:
-            return scenario_property_climate() == climate;
-        case GraphicsConditionType::MonumentUpgrade:
-            return building.monument.upgrades == monument_upgrade;
-        case GraphicsConditionType::FestivalGames:
-            return city_festival_games_active() == festival_games;
-        case GraphicsConditionType::Days1Positive:
-            return building.data.entertainment.days1 > 0;
-        case GraphicsConditionType::Days1NotPositive:
-            return building.data.entertainment.days1 <= 0;
-        case GraphicsConditionType::Days2Positive:
-            return building.data.entertainment.days2 > 0;
-        case GraphicsConditionType::Days1OrDays2Positive:
-            return building.data.entertainment.days1 > 0 || building.data.entertainment.days2 > 0;
-        case GraphicsConditionType::Desirability:
-            switch (comparison) {
-                case GraphicComparison::LessThan:
-                    return building.desirability < threshold;
-                case GraphicComparison::LessThanOrEqual:
-                    return building.desirability <= threshold;
-                case GraphicComparison::Equal:
-                    return building.desirability == threshold;
-                case GraphicComparison::GreaterThan:
-                    return building.desirability > threshold;
-                case GraphicComparison::GreaterThanOrEqual:
-                    return building.desirability >= threshold;
-                case GraphicComparison::None:
-                default:
-                    return 0;
-            }
-        case GraphicsConditionType::None:
-        default:
-            return 0;
-    }
-}
 
 void IdentityDefinition::set_name_key(std::string key)
 {
@@ -454,51 +332,66 @@ int BuildingFlagsDefinition::has_any() const
     return has_fire_proof_ || has_draw_desirability_range_ || has_venus_gt_bonus_;
 }
 
-void WaterAccessDefinition::set_type(WaterAccessType type)
+void WaterAccessDefinition::add_provide_rule(WaterAccessProvideRule rule)
 {
-    has_type_ = 1;
-    type_ = type;
+    provide_rules_.push_back(std::move(rule));
 }
 
-void WaterAccessDefinition::set_range(int range)
+void WaterAccessDefinition::add_requirement_rule(WaterAccessRequirementRule rule)
 {
-    has_range_ = 1;
-    range_ = range;
-}
-
-void WaterAccessDefinition::set_requirement(WaterAccessRequirement requirement)
-{
-    requirement_ = requirement;
+    requirement_rules_.push_back(std::move(rule));
 }
 
 void WaterAccessDefinition::add_node(WaterAccessNode node)
 {
     nodes_.push_back(std::move(node));
+    provider_nodes_.push_back(nodes_.back());
+    requirement_nodes_.push_back(nodes_.back());
+}
+
+void WaterAccessDefinition::add_provider_node(WaterAccessNode node)
+{
+    provider_nodes_.push_back(std::move(node));
+}
+
+void WaterAccessDefinition::add_requirement_node(WaterAccessNode node)
+{
+    requirement_nodes_.push_back(std::move(node));
 }
 
 int WaterAccessDefinition::has_provider() const
 {
-    return has_type_ && has_range_;
+    return !provide_rules_.empty();
 }
 
-WaterAccessType WaterAccessDefinition::type() const
+int WaterAccessDefinition::has_requirements() const
 {
-    return has_type_ ? type_ : WaterAccessType::None;
+    return !requirement_rules_.empty();
 }
 
-int WaterAccessDefinition::range() const
+const std::vector<WaterAccessProvideRule> &WaterAccessDefinition::provide_rules() const
 {
-    return has_range_ ? range_ : 0;
+    return provide_rules_;
 }
 
-WaterAccessRequirement WaterAccessDefinition::requirement() const
+const std::vector<WaterAccessRequirementRule> &WaterAccessDefinition::requirement_rules() const
 {
-    return requirement_;
+    return requirement_rules_;
 }
 
 const std::vector<WaterAccessNode> &WaterAccessDefinition::nodes() const
 {
     return nodes_;
+}
+
+const std::vector<WaterAccessNode> &WaterAccessDefinition::provider_nodes() const
+{
+    return provider_nodes_;
+}
+
+const std::vector<WaterAccessNode> &WaterAccessDefinition::requirement_nodes() const
+{
+    return requirement_nodes_;
 }
 
 void LaborDefinition::set_employee_count(int count)
@@ -536,108 +429,6 @@ const LaborSeekerPolicy &LaborDefinition::seeker_policy() const
 int LaborDefinition::has_any() const
 {
     return has_employee_count_ || has_seeker_policy_;
-}
-
-int GraphicsVariant::matches(const ::building &building) const
-{
-    for (const GraphicsCondition &condition : conditions) {
-        if (!condition.matches(building)) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-void StateDefinition::set_water_access_mode(WaterAccessMode mode)
-{
-    has_water_access_rule_ = 1;
-    water_access_mode_ = mode;
-}
-
-WaterAccessMode StateDefinition::water_access_mode() const
-{
-    return has_water_access_rule_ ? water_access_mode_ : WaterAccessMode::None;
-}
-
-GraphicsTarget &GraphicsDefinition::default_target()
-{
-    return default_target_;
-}
-
-const GraphicsTarget &GraphicsDefinition::default_target() const
-{
-    return default_target_;
-}
-
-void GraphicsDefinition::mark_default_node()
-{
-    has_default_node_ = 1;
-}
-
-GraphicsVariant &GraphicsDefinition::add_variant()
-{
-    variants_.emplace_back();
-    return variants_.back();
-}
-
-GraphicsVariant *GraphicsDefinition::last_variant()
-{
-    return variants_.empty() ? nullptr : &variants_.back();
-}
-
-const GraphicsVariant *GraphicsDefinition::last_variant() const
-{
-    return variants_.empty() ? nullptr : &variants_.back();
-}
-
-int GraphicsDefinition::has_path() const
-{
-    return default_target_.has_path();
-}
-
-int GraphicsDefinition::has_default_node() const
-{
-    return has_default_node_;
-}
-
-int GraphicsDefinition::has_variants() const
-{
-    return !variants_.empty();
-}
-
-const std::vector<GraphicsVariant> &GraphicsDefinition::variants() const
-{
-    return variants_;
-}
-
-const GraphicsTarget *GraphicsDefinition::resolve_target(const ::building &building) const
-{
-    for (const GraphicsVariant &variant : variants_) {
-        if (variant.target.has_path() && variant.matches(building)) {
-            return &variant.target;
-        }
-    }
-    if (default_target_.has_path()) {
-        return &default_target_;
-    }
-    return nullptr;
-}
-
-unsigned char GraphicsDefinition::upgrade_level_for(const ::building &building) const
-{
-    for (const GraphicsVariant &variant : variants_) {
-        if (!variant.target.has_path() || !variant.matches(building)) {
-            continue;
-        }
-
-        for (const GraphicsCondition &condition : variant.conditions) {
-            if (condition.type == GraphicsConditionType::Desirability) {
-                return 1;
-            }
-        }
-        break;
-    }
-    return 0;
 }
 
 void ConstructionDefinition::set_mode(ConstructionMode mode)
@@ -740,11 +531,6 @@ BuildingType::BuildingType(building_type type, std::string attr)
 {
 }
 
-void BuildingType::set_state_water_access_mode(WaterAccessMode mode)
-{
-    state_.set_water_access_mode(mode);
-}
-
 void BuildingType::set_identity_name_key(std::string key)
 {
     identity_.set_name_key(std::move(key));
@@ -845,24 +631,29 @@ void BuildingType::set_venus_gt_bonus(int value)
     flags_.set_venus_gt_bonus(value);
 }
 
-void BuildingType::set_water_access_type(WaterAccessType type)
+void BuildingType::add_water_access_provide_rule(WaterAccessProvideRule rule)
 {
-    water_access_.set_type(type);
+    water_access_.add_provide_rule(std::move(rule));
 }
 
-void BuildingType::set_water_access_range(int range)
+void BuildingType::add_water_access_requirement_rule(WaterAccessRequirementRule rule)
 {
-    water_access_.set_range(range);
-}
-
-void BuildingType::set_water_access_requirement(WaterAccessRequirement requirement)
-{
-    water_access_.set_requirement(requirement);
+    water_access_.add_requirement_rule(std::move(rule));
 }
 
 void BuildingType::add_water_access_node(WaterAccessNode node)
 {
     water_access_.add_node(std::move(node));
+}
+
+void BuildingType::add_water_access_provider_node(WaterAccessNode node)
+{
+    water_access_.add_provider_node(std::move(node));
+}
+
+void BuildingType::add_water_access_requirement_node(WaterAccessNode node)
+{
+    water_access_.add_requirement_node(std::move(node));
 }
 
 void BuildingType::mark_graphics_default_node()
@@ -1078,11 +869,6 @@ const BuildingFlagsDefinition &BuildingType::flags() const
     return flags_;
 }
 
-const StateDefinition &BuildingType::state() const
-{
-    return state_;
-}
-
 const WaterAccessDefinition &BuildingType::water_access() const
 {
     return water_access_;
@@ -1124,11 +910,6 @@ const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const Buil
     }
 
     return definition->resolve_graphics_target(building);
-}
-
-WaterAccessMode BuildingType::water_access_mode() const
-{
-    return state_.water_access_mode();
 }
 
 int BuildingType::has_identity() const

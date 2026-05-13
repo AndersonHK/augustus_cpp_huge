@@ -543,8 +543,6 @@ int figure_service_provide_coverage(figure *f)
     int y = f->y;
     building *b;
     switch (f->type) {
-        case FIGURE_PATRICIAN:
-            return 0;
         case FIGURE_LABOR_SEEKER:
             houses_serviced = provide_culture(x, y, labor_seeker_coverage);
             break;

@@ -2,6 +2,7 @@
 
 #include "core/crash_context.h"
 #include "core/xml_value.h"
+#include "building/water_access_type.h"
 
 extern "C" {
 #include "core/dir.h"
@@ -203,10 +204,16 @@ int parse_water_requirement(const char *value, int *out_water)
         return 1;
     }
     if (value && compare_text(value, "well") == 0) {
+        if (!water_access_mask_from_text("well")) {
+            return 0;
+        }
         *out_water = 1;
         return 1;
     }
     if (value && compare_text(value, "fountain") == 0) {
+        if (!water_access_mask_from_text("fountain")) {
+            return 0;
+        }
         *out_water = 2;
         return 1;
     }

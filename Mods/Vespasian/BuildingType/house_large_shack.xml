@@ -21,4 +21,7 @@
         </default>
     </graphics>
     <housing path="house_large_shack" evolve_to="house_small_hovel" devolve_to="house_small_shack" merge_to="house_large_shack_2x2" />
+    <spawn_group road_access="normal" delay_bands="100:0">
+        <spawn mode="service_roamer" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="116" />
+    </spawn_group>
 </building>

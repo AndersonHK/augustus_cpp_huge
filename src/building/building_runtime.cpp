@@ -51,6 +51,15 @@ namespace building_runtime_impl {
 
 std::vector<std::unique_ptr<building_runtime>> g_runtime_instances;
 
+static int building_has_required_workers_for_runtime_water(const ::building *building_data)
+{
+    if (!building_data) {
+        return 0;
+    }
+    const model_building *model = model_get_building(building_data->type);
+    return !model || model->laborers <= 0 || building_data->num_workers > 0;
+}
+
 building_runtime *get_city_building(unsigned int id)
 {
     if (!id) {
@@ -94,10 +103,10 @@ void building_runtime::refresh_runtime_state()
         return;
     }
 
-    if (definition_->water_access_mode() == building_type_registry_impl::WaterAccessMode::ReservoirRange) {
-        building_->has_water_access = water_access_runtime_building_area_has_access(
-            building_,
-            WATER_ACCESS_RUNTIME_TYPE_RESERVOIR) ? 1 : 0;
+    if (definition_->water_access().has_requirements()) {
+        building_->has_water_access =
+            building_runtime_impl::building_has_required_workers_for_runtime_water(building_) &&
+            water_access_runtime_building_has_required_access(building_) ? 1 : 0;
     }
 
     if (definition_->has_graphic()) {

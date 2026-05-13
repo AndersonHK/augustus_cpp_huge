@@ -37,6 +37,16 @@ const PathingMode FollowLeader(
     PathingMode::RoadRequirement::RequiresRoadMovement,
     PathingMode::ServiceEffectRequirement::NoServiceEffect,
     PathingMode::VenueTargetRequirement::NoVenueTargets);
+const PathingMode StandStill(
+    "stand_still",
+    PathingMode::RoadRequirement::RequiresRoadMovement,
+    PathingMode::ServiceEffectRequirement::NoServiceEffect,
+    PathingMode::VenueTargetRequirement::NoVenueTargets);
+const PathingMode TransientWander(
+    "transient_wander",
+    PathingMode::RoadRequirement::RequiresRoadMovement,
+    PathingMode::ServiceEffectRequirement::NoServiceEffect,
+    PathingMode::VenueTargetRequirement::NoVenueTargets);
 
 const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
 {
@@ -50,7 +60,9 @@ const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
         &NearestUnemployed,
         &VenueSeeker,
         &StorageFetch,
-        &FollowLeader
+        &FollowLeader,
+        &StandStill,
+        &TransientWander
     };
     for (const PathingMode *mode : modes) {
         if (std::strcmp(xml_id, mode->xml_id) == 0) {

@@ -1,5 +1,8 @@
 #pragma once
 
+#include "building/animations.h"
+#include "building/water_access_type.h"
+
 extern "C" {
 #include "building/building.h"
 #include "core/direction.h"
@@ -19,37 +22,30 @@ class ProductionMethod;
 class HousingType;
 class StorageType;
 
-enum class GraphicComparison {
-    None,
-    LessThan,
-    LessThanOrEqual,
-    Equal,
-    GreaterThan,
-    GreaterThanOrEqual
-};
-
-enum class WaterAccessType {
-    None,
-    Well,
-    Fountain,
-    Reservoir
-};
-
-enum class WaterAccessRequirement {
-    None,
-    ReservoirNetwork,
-    WaterSourceAny,
-    WaterSourceFreshOnly
-};
-
 enum class WaterAccessNodeKind {
     None,
     AqueductConnection
 };
 
-enum class WaterAccessMode {
-    None,
-    ReservoirRange
+enum class WaterAccessOrigin {
+    Footprint,
+    Nodes
+};
+
+enum class WaterAccessRequirementMode {
+    Any,
+    All
+};
+
+enum class WaterAccessRequirementWhere {
+    Footprint,
+    Nodes
+};
+
+enum class WaterAccessRequirementTermKind {
+    Access,
+    WaterSourceAny,
+    WaterSourceFreshOnly
 };
 
 enum class SpawnMode {
@@ -88,13 +84,6 @@ enum class GraphicTiming {
     BeforeSuccessfulSpawn
 };
 
-enum class FigureSlot {
-    None,
-    Primary,
-    Secondary,
-    Quaternary
-};
-
 enum class GuardTiming {
     BeforeRoadAccess,
     AfterLaborSeeker
@@ -108,21 +97,15 @@ enum class SpawnCondition {
     Days1OrDays2Positive
 };
 
-enum class GraphicsConditionType {
+enum class SpawnChanceSource {
     None,
-    HasWorkers,
-    Working,
-    WaterAccess,
-    FigureSlotOccupied,
-    ResourcePositive,
-    Climate,
-    MonumentUpgrade,
-    FestivalGames,
-    Desirability,
-    Days1Positive,
-    Days1NotPositive,
-    Days2Positive,
-    Days1OrDays2Positive
+    CityUnemploymentPercent,
+    HouseUnemployedWorkers
+};
+
+struct ChanceBand {
+    int min_value = 0;
+    int chance_per_million = 0;
 };
 
 enum class ConstructionMode {
@@ -161,6 +144,10 @@ struct SpawnPolicy {
     int require_water_access = 0;
     int mark_problem_if_no_water = 0;
     int block_on_success = 0;
+    SpawnChanceSource chance_source = SpawnChanceSource::None;
+    int chance_per_million = -1;
+    int chance_divisor = 0;
+    std::vector<ChanceBand> chance_bands;
     SpawnCondition condition = SpawnCondition::Always;
     std::string profile;
 };
@@ -315,67 +302,51 @@ private:
     int venus_gt_bonus_ = 0;
 };
 
-// A graphics target is either one direct path/image pair or a set of equivalent
-// options that materialize into one direct target after stable variant selection.
-struct GraphicsTarget {
-    void set_path(std::string path);
-    void set_image(std::string image);
-    GraphicsTarget &add_option();
-
-    int has_path() const;
-    const char *path() const;
-
-    int has_image() const;
-    const char *image() const;
-    int has_options() const;
-    int option_count() const;
-    GraphicsTarget resolved_option(unsigned char variant) const;
-
-private:
-    std::string path_;
-    std::string image_;
-    std::vector<GraphicsTarget> options_;
-};
-
-struct GraphicsCondition {
-    GraphicsConditionType type = GraphicsConditionType::None;
-    GraphicComparison comparison = GraphicComparison::None;
-    FigureSlot figure_slot = FigureSlot::None;
-    int threshold = 0;
-    resource_type resource = RESOURCE_NONE;
-    int climate = 0;
-    int monument_upgrade = 0;
-    int festival_games = 0;
-
-    int matches(const ::building &building) const;
-};
-
 struct WaterAccessNode {
     WaterAccessNodeKind kind = WaterAccessNodeKind::None;
     int x = 0;
     int y = 0;
 };
 
+struct WaterAccessProvideRule {
+    uint8_t mask = 0;
+    int range = 0;
+    WaterAccessOrigin origin = WaterAccessOrigin::Footprint;
+};
+
+struct WaterAccessRequirementTerm {
+    WaterAccessRequirementTermKind kind = WaterAccessRequirementTermKind::Access;
+    uint8_t mask = 0;
+    WaterAccessRequirementWhere where = WaterAccessRequirementWhere::Footprint;
+};
+
+struct WaterAccessRequirementRule {
+    WaterAccessRequirementMode mode = WaterAccessRequirementMode::All;
+    std::vector<WaterAccessRequirementTerm> terms;
+};
+
 class WaterAccessDefinition {
 public:
-    void set_type(WaterAccessType type);
-    void set_range(int range);
-    void set_requirement(WaterAccessRequirement requirement);
+    void add_provide_rule(WaterAccessProvideRule rule);
+    void add_requirement_rule(WaterAccessRequirementRule rule);
     void add_node(WaterAccessNode node);
+    void add_provider_node(WaterAccessNode node);
+    void add_requirement_node(WaterAccessNode node);
 
     int has_provider() const;
-    WaterAccessType type() const;
-    int range() const;
-    WaterAccessRequirement requirement() const;
+    int has_requirements() const;
+    const std::vector<WaterAccessProvideRule> &provide_rules() const;
+    const std::vector<WaterAccessRequirementRule> &requirement_rules() const;
     const std::vector<WaterAccessNode> &nodes() const;
+    const std::vector<WaterAccessNode> &provider_nodes() const;
+    const std::vector<WaterAccessNode> &requirement_nodes() const;
 
 private:
-    int has_type_ = 0;
-    int has_range_ = 0;
-    WaterAccessType type_ = WaterAccessType::None;
-    int range_ = 0;
-    WaterAccessRequirement requirement_ = WaterAccessRequirement::None;
+    std::vector<WaterAccessProvideRule> provide_rules_;
+    std::vector<WaterAccessRequirementRule> requirement_rules_;
     std::vector<WaterAccessNode> nodes_;
+    std::vector<WaterAccessNode> provider_nodes_;
+    std::vector<WaterAccessNode> requirement_nodes_;
 };
 
 class LaborDefinition {
@@ -394,46 +365,6 @@ private:
     int employee_count_ = 0;
     int has_seeker_policy_ = 0;
     LaborSeekerPolicy seeker_policy_;
-};
-
-struct GraphicsVariant {
-    GraphicsTarget target;
-    std::vector<GraphicsCondition> conditions;
-
-    int matches(const ::building &building) const;
-};
-
-class StateDefinition {
-public:
-    void set_water_access_mode(WaterAccessMode mode);
-
-    WaterAccessMode water_access_mode() const;
-
-private:
-    int has_water_access_rule_ = 0;
-    WaterAccessMode water_access_mode_ = WaterAccessMode::None;
-};
-
-class GraphicsDefinition {
-public:
-    void mark_default_node();
-    GraphicsTarget &default_target();
-    const GraphicsTarget &default_target() const;
-    GraphicsVariant &add_variant();
-    GraphicsVariant *last_variant();
-    const GraphicsVariant *last_variant() const;
-
-    int has_path() const;
-    int has_default_node() const;
-    int has_variants() const;
-    const std::vector<GraphicsVariant> &variants() const;
-    const GraphicsTarget *resolve_target(const ::building &building) const;
-    unsigned char upgrade_level_for(const ::building &building) const;
-
-private:
-    GraphicsTarget default_target_;
-    std::vector<GraphicsVariant> variants_;
-    int has_default_node_ = 0;
 };
 
 struct ConstructionRequirement {
@@ -476,7 +407,6 @@ class BuildingType {
 public:
     BuildingType(building_type type, std::string attr);
 
-    void set_state_water_access_mode(WaterAccessMode mode);
     void set_identity_name_key(std::string key);
     void set_model_size(int value);
     void set_model_cost(int value);
@@ -497,10 +427,11 @@ public:
     void set_fire_proof(int value);
     void set_draw_desirability_range(int value);
     void set_venus_gt_bonus(int value);
-    void set_water_access_type(WaterAccessType type);
-    void set_water_access_range(int range);
-    void set_water_access_requirement(WaterAccessRequirement requirement);
+    void add_water_access_provide_rule(WaterAccessProvideRule rule);
+    void add_water_access_requirement_rule(WaterAccessRequirementRule rule);
     void add_water_access_node(WaterAccessNode node);
+    void add_water_access_provider_node(WaterAccessNode node);
+    void add_water_access_requirement_node(WaterAccessNode node);
     void mark_graphics_default_node();
     void clear_graphics();
     GraphicsTarget &default_graphics_target();
@@ -538,14 +469,12 @@ public:
     const SoundDefinition &sound() const;
     const EventDataDefinition &event_data() const;
     const BuildingFlagsDefinition &flags() const;
-    const StateDefinition &state() const;
     const WaterAccessDefinition &water_access() const;
     const GraphicsDefinition &graphics() const;
     const ConstructionDefinition &construction() const;
     const GraphicsTarget *resolve_graphics_target(const ::building &building) const;
     const GraphicsTarget *resolve_construction_graphics_target(int phase) const;
     static const GraphicsTarget *resolve_graphics_target_for_image(const BuildingType *definition, const ::building &building);
-    WaterAccessMode water_access_mode() const;
     int has_identity() const;
     int has_model() const;
     int has_foundation() const;
@@ -584,7 +513,6 @@ private:
     SoundDefinition sound_;
     EventDataDefinition event_data_;
     BuildingFlagsDefinition flags_;
-    StateDefinition state_;
     WaterAccessDefinition water_access_;
     GraphicsDefinition graphics_;
     ConstructionDefinition construction_;

@@ -14,13 +14,20 @@
     <event_data attr="reservoir" />
     <flags fire_proof="1" />
     <water_access>
-        <type value="reservoir" />
-        <range value="10" />
-        <requirement value="water_source_any" />
-        <node kind="aqueduct_connection" x="1" y="-1" />
-        <node kind="aqueduct_connection" x="3" y="1" />
-        <node kind="aqueduct_connection" x="1" y="3" />
-        <node kind="aqueduct_connection" x="-1" y="1" />
+        <provides type="reservoir" range="10" origin="footprint" />
+        <provides type="aqueduct" range="0" origin="nodes" />
+        <requires mode="any">
+            <source type="water_source_any" />
+            <access type="aqueduct" where="nodes" />
+        </requires>
+        <node role="provide" x="1" y="-1" />
+        <node role="provide" x="3" y="1" />
+        <node role="provide" x="1" y="3" />
+        <node role="provide" x="-1" y="1" />
+        <node role="require" x="1" y="0" />
+        <node role="require" x="2" y="1" />
+        <node role="require" x="1" y="2" />
+        <node role="require" x="0" y="1" />
     </water_access>
     <graphics>
         <default>

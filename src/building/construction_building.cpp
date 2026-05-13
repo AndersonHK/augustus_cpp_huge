@@ -805,9 +805,7 @@ static int building_construction_place_building_internal(building_type type, int
     }
     add_to_map(type, b, size, building_orientation, waterside_orientation_abs);
     instant_building_remove_required_resources(type);
-    if (type == BUILDING_LARGE_STATUE) {
-        map_water_supply_refresh_large_statue(b);
-    }
+    map_water_supply_refresh_building(b);
     return 1;
 }
 

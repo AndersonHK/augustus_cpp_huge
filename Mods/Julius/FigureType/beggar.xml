@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="beggar">
+    <profiles default="unemployment_wanderer">
+        <profile id="unemployment_wanderer">
+            <native class="transient_wanderer" />
+            <owner slot="none" building="any" state="any" />
+            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="800" return_mode="die_at_limit" />
+            <pathing mode="stand_still" />
+        </profile>
+    </profiles>
+    <graphics image_group="beggar" base_image_offset="104" max_image_offset="1" static_frame_count="8" corpse_image_group="labor_seeker" corpse_base_image_offset="96" />
+</figure>

@@ -125,6 +125,10 @@ const char *infer_profile_id(const figure *f)
             return f->collecting_item_id ? "validation" : "acquisition";
         case FIGURE_PRIEST:
             return profile_id_for_priest_owner(f);
+        case FIGURE_PATRICIAN:
+            return "house_roamer";
+        case FIGURE_BEGGAR:
+            return "unemployment_wanderer";
         case FIGURE_MARKET_TRADER:
             return "service";
         case FIGURE_MARKET_SUPPLIER:
@@ -176,6 +180,9 @@ const char *infer_profile_id(const figure *f)
 
 RuntimeEntry *bind_entry(figure *f)
 {
+    // Save files and legacy spawners only persist figure fields, not the
+    // XML profile pointer. Rebinding lazily here lets loaded figures recover
+    // their controller the first tick they execute.
     if (!f || !f->id) {
         return nullptr;
     }
@@ -312,6 +319,8 @@ extern "C" figure *figure_runtime_create_profiled(
     const figure_type_registry_impl::FigureTypeProfile *profile =
         figure_type_registry_impl::profile_for(type, profile_id);
     if (!profile) {
+        // BuildingType spawn profile references are validated during FigureType
+        // load; callers still fail closed if a mod removes a profile later.
         return nullptr;
     }
 
@@ -341,6 +350,14 @@ extern "C" figure *figure_runtime_create_profiled(
             f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
             break;
         case figure_type_registry_impl::NativeClassId::DeliveryFollower:
+            break;
+        case figure_type_registry_impl::NativeClassId::TransientWanderer:
+            if (profile->pathing_policy().mode == &figure_type_registry_impl::StandStill) {
+                f->action_state = 0;
+            } else {
+                f->action_state = FIGURE_ACTION_125_ROAMING;
+                figure_movement_init_roaming(f);
+            }
             break;
         case figure_type_registry_impl::NativeClassId::RoamingService:
         default:

@@ -7,6 +7,35 @@ Templates and examples are maintained only in `Mods\Vespasian\BuildingType`.
 
 Runtime/save identity is migrating away from stable enum slots. New saves include a `building_type_table` that maps compact save ids to BuildingType text ids, while loaded buildings continue to use compact runtime ids. Old saves without the table migrate through `src\building\building_type_legacy_migration.*`.
 
+Water access type identity is XML-owned as well. The selected mod's `WaterAccessType` folder declares up to eight access types, each with a stable text id and a numeric id from `0` through `7`; runtime water coverage stores those declarations as `uint8_t` masks. Augustus and Vespasian define `well`, `fountain`, `reservoir`, `aqueduct`, and `latrines`; Julius defines the same shared water types except `latrines`.
+
+Historical tuning references:
+
+- [Roman City Facility Ratios](../../../research/roman_city_facility_ratios.md)
+  gives starting ratios for service counts, area, and employment.
+- [Roman Building and Infrastructure Maintenance Needs](../../../research/roman_building_maintenance_needs.md)
+  separates public payroll from private employment and gives maintenance/failure
+  levers by building family.
+- [Roman City Size and Social Ratios](../../../research/roman_city_size_and_social_ratios.md)
+  gives resident-class and city-role assumptions for housing, service demand,
+  and labor tuning.
+- [Caesar III / Julius Housing Progression Defaults](../../../research/caesar3_julius_housing_progression_defaults.md)
+  records the vanilla house footprints, capacities, service gates, graphics
+  references, prosperity, and tax curve.
+- [Caesar III Housing Balance and Play Analysis](../../../research/caesar3_housing_balance_play_analysis.md)
+  explains which services and goods are easy, mandatory, or logistically hard in
+  vanilla play.
+- [Vespasian Housing Progression Design Notes](../../../research/vespasian_housing_progression_design_notes.md)
+  records possible future mechanics such as service capacities, market revenue,
+  deeper road access, and classed employment.
+- [Gameplay Divergences From Augustus](../../../docs/gameplay_divergences_from_augustus.md)
+  tracks player-visible differences between this repo's bundled profiles and
+  upstream Augustus, including residential walker spawn policy and Vespasian
+  local-workforce tuning.
+- [Water Access Runtime](../../../docs/water_access_runtime.md)
+  records the current typed-mask provider/consumer simulation, aqueduct/reservoir
+  propagation, overlays, and save bridge.
+
 Current supported nodes:
 
 - `<identity ... />`
@@ -18,7 +47,6 @@ Current supported nodes:
 - `<event_data ... />`
 - `<flags ... />`
 - `<water_access> ... </water_access>`
-- `<state> ... </state>`
 - `<graphics> ... </graphics>`
 - `<construction> ... </construction>`
 - `<labor> ... </labor>`
@@ -122,25 +150,68 @@ Current supported `<flags>` attributes:
 - `draw_desirability_range="0|1"`
 - `venus_gt_bonus="0|1"`
 
-Current supported `<state>` child nodes:
-
-- `<water_access mode="reservoir_range" />`
-
 Current supported root-level `<water_access>` child nodes:
 
-- `<type value="well|fountain|reservoir" />`
-- `<range value="N" />`
-- `<requirement value="none|reservoir_network|water_source_any|water_source_fresh_only" />`
-- `<node kind="aqueduct_connection" x="N" y="N" />`
+- `<provides type="well|fountain|reservoir|aqueduct|latrines" range="N" origin="footprint|nodes" />`
+- `<requires mode="any|all" where="footprint|nodes"> ... </requires>`
+- `<access type="well|fountain|reservoir|aqueduct|latrines" where="footprint|nodes" />`
+- `<source type="water_source_any|water_source_fresh_only" />`
+- `<node role="provide|require|both" x="N" y="N" />`
 
 Root-level `<water_access>` rules:
 
-- `<type>` and `<range>` are required
-- `<requirement>` is optional and defaults to `none`
+- at least one `<provides>` or `<requires>` rule is required
+- `<provides>` may appear more than once so one building can emit multiple access types
+- `origin` is optional and defaults to `footprint`; use `nodes` for reservoir aqueduct connection points
+- `<requires>` may appear more than once; all requirement rules must pass
+- `mode="any"` means at least one term inside the rule must pass
+- `mode="all"` means every term inside the rule must pass
+- `where` is optional and defaults to `footprint`; child `<access>` terms may override the parent
+- water access type names come from the selected mod's `WaterAccessType` XML folder
 - `<node>` is optional and may appear more than once
+- `role` is optional and defaults to `both`; use `provide` for `origin="nodes"` emission points and `require` for `where="nodes"` checks
 - `x` and `y` are local tile coordinates relative to the building's top-left footprint tile
 - node coordinates may sit outside the footprint
-- `kind="aqueduct_connection"` is the only supported node kind in this slice
+- `kind="aqueduct_connection"` is accepted as a legacy alias but no longer required
+
+Water access examples:
+
+```xml
+<water_access>
+    <provides type="reservoir" range="10" origin="footprint" />
+    <provides type="aqueduct" range="0" origin="nodes" />
+    <requires mode="any">
+        <source type="water_source_any" />
+        <access type="aqueduct" where="nodes" />
+    </requires>
+    <node role="provide" x="1" y="-1" />
+    <node role="provide" x="3" y="1" />
+    <node role="provide" x="1" y="3" />
+    <node role="provide" x="-1" y="1" />
+    <node role="require" x="1" y="0" />
+    <node role="require" x="2" y="1" />
+    <node role="require" x="1" y="2" />
+    <node role="require" x="0" y="1" />
+</water_access>
+```
+
+```xml
+<water_access>
+    <requires mode="any">
+        <access type="fountain" />
+        <access type="well" />
+    </requires>
+</water_access>
+```
+
+Runtime water behavior:
+
+- `WaterAccessType` XML declares the text ids and numeric bits; BuildingType XML only references those ids.
+- Providers are evaluated by `water_access_runtime` into map-wide access/provider masks.
+- Consumers check their requirement rules against those masks; `any` rules are the right shape for "well or fountain" requirements.
+- Reservoirs and aqueduct tiles participate in the same fixed-point propagation pass. The pass evaluates providers from the previous mask into a fresh next mask, so range-0 node providers do not satisfy themselves and adjacent dry aqueducts do not create access from nothing.
+- Legacy fields such as `has_water_access`, `has_well_access`, and `has_latrines_access` are compatibility mirrors projected from the typed masks. New graphics, placement, and gameplay checks should prefer BuildingType water rules or `water_access_runtime_*` accessors.
+- Placement/context overlays should query typed providers/requirements. Do not add new `WATER_ACCESS_RUNTIME_TYPE_*` values or provider-type switch branches.
 
 Current supported `<graphics>` child nodes:
 
@@ -206,8 +277,7 @@ Structured `<graphics>` rules:
 - an `<option>` inherits the enclosing target `<path>` unless it declares its own `path`
 - every resolved option path/image is validated at BuildingType load time
 - target-level `<image value="..."/>` is invalid when `<options>` are present; put image ids on the `<option>` nodes instead
-- put water refresh rules under `<state>`, not under `<graphics>`
-- put provider-side water radius/network data under the root `<water_access>` block, not under `<graphics>`
+- put water refresh, provider radius, network nodes, and requirement rules under the root `<water_access>` block, not under `<graphics>`
 
 Current supported graphics conditions:
 
@@ -328,7 +398,7 @@ Current supported `<spawn>` modes:
 Current supported `<spawn>` attributes:
 
 - `spawn_figure="..."` using the same identifiers; required for `service_roamer`
-- `action_state="roaming|engineer_created|prefect_created|tax_collector_created|entertainer_roaming|entertainer_school_created|work_camp_worker_created|work_camp_architect_created"`; required for `service_roamer`
+- `action_state="roaming|engineer_created|prefect_created|tax_collector_created|entertainer_roaming|entertainer_school_created|work_camp_worker_created|work_camp_architect_created"`; required for legacy `service_roamer` spawns that do not use `profile`
 - `direction="top|bottom"`
 - `figure_slot="primary|secondary|quaternary|none"`
 - `spawn_count="N"` for one policy spawning the same figure several times on one trigger
@@ -339,11 +409,18 @@ Current supported `<spawn>` attributes:
 - `condition="always|days1_positive|days1_not_positive|days2_positive|days1_or_days2_positive"`
 - `block_on_success="true|false"`
 - `profile="..."` for native FigureType spawns
+- `chance_per_million="N"` for a constant probability gate from `0` to `1000000`
+- `chance_source="city_unemployment_percent|house_unemployed_workers"` for data-driven probability gates
+- `chance_per_million_bands="20:31250,19:20833,..."` as a descending list of `minimum_source_value:chance_per_million` pairs
+- `chance_divisor="N"` to use `chance_source / N`, clamped to 100%
+
+Chance gates are checked after road, water, and condition gates but before figure creation. A `<spawn>` may use only one chance policy: constant `chance_per_million`, source bands, or source divisor.
 
 Current engine behavior:
 
 - Repo-owned BuildingType graphics use only the structured `<graphics>` schema.
 - A `spawn_group` owns the shared delay/guard phase, then runs its child `<spawn>` policies in order.
+- Any BuildingType with spawn groups uses the runtime spawn path, including housing.
 - Temple-specific spawn modes preserve existing religion module behavior while moving temple spawn selection into BuildingType XML. Standard temple priest roamers still use `service_roamer`.
 - Delay evaluation now uses the explicit `delay_bands` data from XML rather than a hardcoded named profile.
 - Ordered policies can coordinate: a policy that succeeds with `block_on_success="true"` stops later sibling policies in the same group.
@@ -356,10 +433,26 @@ Current engine behavior:
 - New buildings seed native graphics options from `map_random_get(grid_offset)`. Loaded saves from `0xb6` or earlier also reseed because older `building.variant` values did not mean native graphics options; newer saves preserve and clamp the saved value.
 - Graphics-only vertical-slice definitions are valid; runtime-owned production and storage references can be layered onto those same BuildingType files as they migrate.
 - BuildingType native storage and production references are resolved at load time; unresolved paths are hard load failures.
-- Put shared derived state such as water access under `<state>` so graphics and spawn behavior read the same runtime facts.
-- Put provider-side water coverage and connection-node data under the root `<water_access>` block so the native water runtime stays data-driven.
+- Put shared derived state such as water access under the root `<water_access>` block so graphics and spawn behavior read the same runtime facts.
+- Put provider-side water coverage and connection-node data under the same `<water_access>` block so the native water runtime stays data-driven.
 - Put BuildingType-authored employee defaults under `<labor><employees ... /></labor>` so the XML and live model table stay in sync.
 - Buildings with a validated runtime `BuildingType` graphics block usually use the native runtime renderer path as the authoritative live path; current data-only vertical slices remain on legacy live rendering until their runtime rollout lands.
+
+Residential spawn examples:
+
+```xml
+<spawn_group road_access="normal" delay_bands="100:0">
+    <spawn mode="service_roamer" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="24" />
+</spawn_group>
+```
+
+```xml
+<spawn_group road_access="normal" delay_bands="100:0">
+    <spawn mode="service_roamer" spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
+</spawn_group>
+```
+
+Residential walkers use `figure_slot="quaternary"` so the house's primary slot remains available for legacy homeless/undo behavior. FigureType profile references in BuildingType spawn XML are validated after FigureType XML load.
 
 Current raw-material producer notes:
 

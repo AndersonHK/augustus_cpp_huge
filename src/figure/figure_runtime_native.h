@@ -2,9 +2,7 @@
 
 #include "figure/figure_type_registry_internal.h"
 
-extern "C" {
 #include "figure/figure.h"
-}
 
 #include <memory>
 

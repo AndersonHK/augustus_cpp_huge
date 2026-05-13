@@ -4,6 +4,16 @@
 
 This note records how the citywide age census, yearly births/deaths, and house populations interact.
 
+## Tuning References
+
+Use [Roman and Early Medieval Mortality Research](roman_early_medieval_mortality_research.md)
+for mortality-table shape,
+[Roman City Size and Social Ratios](../research/roman_city_size_and_social_ratios.md)
+for resident-class and city-size assumptions, and
+[Roman City Facility Ratios](../research/roman_city_facility_ratios.md) for
+service ratios that can indirectly affect health, desirability, and employment
+demand.
+
 ## XML Contract
 
 `defines.xml` owns the active demographic tables:

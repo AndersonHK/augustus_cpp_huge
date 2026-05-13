@@ -667,7 +667,7 @@ void building_update_state(void)
     {
         if (b->state == BUILDING_STATE_CREATED) {
             b->state = BUILDING_STATE_IN_USE;
-            map_water_supply_refresh_large_statue(b);
+            map_water_supply_refresh_building(b);
             // When a created building becomes live, rebuild its cached native image-group bindings immediately.
             building_runtime_apply_graphic(b);
         }

@@ -45,6 +45,8 @@ extern const PathingMode NearestUnemployed;
 extern const PathingMode VenueSeeker;
 extern const PathingMode StorageFetch;
 extern const PathingMode FollowLeader;
+extern const PathingMode StandStill;
+extern const PathingMode TransientWander;
 
 const PathingMode *pathing_mode_from_xml_id(const char *xml_id);
 

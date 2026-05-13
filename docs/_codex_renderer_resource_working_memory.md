@@ -243,7 +243,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - User-reported MSVC diagnostics were around line 144 in `src/platform/augustus.cpp` and looked like a cascading parse failure from that missing include.
 
 ## Constraints
-- Do not build unless the user explicitly asks.
+- Build only when useful for the current task, and use `Release|x64`.
 - Keep CRLF on touched files.
 - `git` is not available in this shell, so rely on direct file inspection and static searches.
 - BuildingType templates/examples are now single-source:

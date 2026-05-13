@@ -13,21 +13,24 @@
     <button group="industry" order="100" icon="Industry\Example_Icon"
         text_key="translation.key.for.localized.building.name" />
 
-    <!-- Optional provider-side water access definition -->
+    <!-- Optional rule-driven water access definition.
+         Type ids resolve through Mods/<Mod>/WaterAccessType/*.xml. -->
     <water_access>
-        <type value="reservoir" />
-        <range value="10" />
-        <requirement value="water_source_any" />
-        <node kind="aqueduct_connection" x="1" y="-1" />
-        <node kind="aqueduct_connection" x="3" y="1" />
-        <node kind="aqueduct_connection" x="1" y="3" />
-        <node kind="aqueduct_connection" x="-1" y="1" />
+        <provides type="reservoir" range="10" origin="footprint" />
+        <provides type="aqueduct" range="0" origin="nodes" />
+        <requires mode="any">
+            <source type="water_source_any" />
+            <access type="aqueduct" where="nodes" />
+        </requires>
+        <node role="provide" x="1" y="-1" />
+        <node role="provide" x="3" y="1" />
+        <node role="provide" x="1" y="3" />
+        <node role="provide" x="-1" y="1" />
+        <node role="require" x="1" y="0" />
+        <node role="require" x="2" y="1" />
+        <node role="require" x="1" y="2" />
+        <node role="require" x="0" y="1" />
     </water_access>
-
-    <!-- Optional runtime state definition -->
-    <state>
-        <water_access mode="reservoir_range" />
-    </state>
 
     <!-- Optional graphics definition -->
     <graphics>

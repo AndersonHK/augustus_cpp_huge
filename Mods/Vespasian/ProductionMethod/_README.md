@@ -4,6 +4,15 @@ The loader reads every `*.xml` file in this folder at startup. Keep templates an
 
 Registry keys are the file path relative to this folder, without the `.xml` suffix.
 
+Historical tuning references:
+
+- [Roman City Facility Ratios](../../../research/roman_city_facility_ratios.md)
+  separates resident services from production-role buildings such as
+  Volubilis-style oil presses and Ostian storage.
+- [Roman Building and Infrastructure Maintenance Needs](../../../research/roman_building_maintenance_needs.md)
+  gives fuel, water, waste, fire, and private-labor pressures for production
+  buildings.
+
 Example:
 
 - `Mods\Vespasian\ProductionMethod\pottery_workshop_basic.xml` is referenced as `pottery_workshop_basic`

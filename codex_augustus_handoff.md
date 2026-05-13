@@ -1,14 +1,14 @@
 # Codex Augustus handoff memory
 
-Snapshot: 2026-05-04
+Snapshot: 2026-05-11
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Recommended next-chat posture
 - Yes: start a new chat for the next feature.
-- Reason: the current arc now spans VS/MSBuild repair, mixed C/C++ migration, asset-pack precedence, load-failure doctrine, renderer backend refactor, and the first shared UI runtime rollout.
+- Reason: the current arc now spans VS/MSBuild repair, mixed C/C++ migration, asset-pack precedence, load-failure doctrine, renderer backend refactor, shared UI runtime rollout, BuildingType graphics migration, typed water access, and animation ownership cleanup.
 - Session bootstrap:
   - read the four core Codex memory files first
-  - then read task-specific docs such as `docs/walker_pathing_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, `Mods/Vespasian/BuildingType/_README.md`, `Mods/Vespasian/HousingType/_README.md`, `docs/save_load_runtime_bridges.md`, `docs/building_type_legacy_reference_ledger.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
+  - then read task-specific docs such as `docs/walker_pathing_runtime.md`, `docs/water_access_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, `Mods/Vespasian/BuildingType/_README.md`, `Mods/Vespasian/HousingType/_README.md`, `docs/save_load_runtime_bridges.md`, `docs/building_type_legacy_reference_ledger.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
   - when adding a new system doc, link it from the most relevant core memory file and from nearby subsystem READMEs so it is findable without crowding this file
 - The next chat should begin from the current renderer baseline:
   - request-based 2D backend active
@@ -20,7 +20,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Root build entrypoint remains:
 - `Vespasian.sln`
 - `Vespasian.vcxproj`
-- Do not build/run unless the user explicitly asks in that chat.
+- Build only when useful for the current task. When building, use `Release|x64` with the project defaults such as `/O2`; MSBuild may need to be invoked directly from `D:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\amd64\MSBuild.exe`.
 - Keep CRLF on touched files.
 - Preserve existing comments when editing files.
 - Use `#pragma once` for project-owned headers instead of classic include guards.
@@ -30,8 +30,12 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 ## Recently added gameplay runtime context
 - Native walker definitions now use FigureType XML for the currently ported service walkers.
 - Native BuildingType XML now owns full bundled house chains for Vespasian, Augustus, and Julius; HousingType XML owns resident class and shared residential model data while BuildingType owns footprint, graphics, and transitions.
+- Water access is XML-owned through `Mods/<Mod>/WaterAccessType/*.xml` plus each BuildingType's `<water_access>` rules. Runtime state is a `uint8_t` mask, and provider/consumer logic now flows through typed rules instead of hardcoded well/fountain/reservoir/aqueduct/latrine branches.
+- Building graphics animation ownership has been split out to `src/building/animations.h/.cpp`. Live native graphics, legacy overlay animation calls, and placement ghost previews all ask `BuildingAnimation` for frame selection so runtime drawing does not duplicate animation state policy.
 - Main implementation notes live in:
   - `docs/walker_pathing_runtime.md`
+  - `docs/water_access_runtime.md`
+  - `docs/_codex_building_graphics_runtime_working_memory.md`
   - `Mods/Vespasian/FigureType/_README.md`
   - `Mods/Vespasian/BuildingType/_README.md`
   - `Mods/Vespasian/HousingType/_README.md`
@@ -50,6 +54,11 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - `src/figure/figure_runtime.cpp`
   - `src/figure/movement.cpp`
   - `src/building/building_runtime.cpp`
+  - `src/building/building_runtime_graphics.cpp`
+  - `src/building/animations.cpp`
+  - `src/building/water_access_runtime.cpp`
+  - `src/building/water_access_type.cpp`
+  - `src/building/water_access_type_id_bridge.cpp`
   - `src/map/road_service_history.cpp`
 - `PathingMode` was extracted from the large FigureType registry file into its own class/files. Pathing mode declarations now own their XML id and validation requirements, so new mode metadata should be added there instead of through scattered helper predicates in the registry.
 - `map_road_service_history` is pathing telemetry only. It is saved separately and should not be treated as building coverage or risk state.
@@ -65,6 +74,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - Augustus active building variants now inherit local `group="this"` footprint/top parts instead of collapsing to footprint-only
 - Native building footprint rendering still routes through `src/widget/city_draw.cpp`, and native-owned buildings only submit their whole-building footprint on the owning draw tile.
 - The temporary runtime footprint crop/offset compensation was removed from `src/assets/image_group_payload_materialize.cpp`; extractor output is now the sole source of truth for the corrected placement.
+- Native building animations now tick through `city_draw_runtime_building_animation()` -> `building_runtime_advance_graphic_animation()` -> `building_runtime::advance_graphic_animation()` -> `BuildingAnimation::runtime_track_offset()`. `graphic_animation()` only reads the selected frame slice.
+- Placement ghosts use the same generic BuildingType renderer for XML-owned buildings. They save/restore the map sprite animation byte because the ghost cursor reuses the hovered grid offset without owning real map state.
 
 ## Renderer / display status
 - The renderer now separates:
@@ -145,6 +156,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - nearest
   - linear
 - The setting is already respected by the request-based 2D pipeline and related SDL texture/filter handling.
+- `CONFIG_DEBUG` exists as `debug=0/1` in `Vespasian.ini`; it currently gates transient zoom percentage warnings.
+- City zoom start/reset/display bounds are UI-scale-relative while the stored city scale remains raw renderer/world scale.
 
 ## Recent migration landmarks that matter
 - Renderer/platform:

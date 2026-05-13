@@ -1,10 +1,10 @@
 #include "city_without_overlay.h"
 
+#include "building/animations.h"
 #include "widget/city_draw.h"
 
 extern "C" {
 #include "assets/assets.h"
-#include "building/animation.h"
 #include "building/connectable.h"
 #include "building/construction.h"
 #include "building/construction_clear.h"
@@ -88,6 +88,24 @@ static struct {
 
     float scale;
 } draw_context;
+
+static int legacy_animation_offset(building *b, int image_id, int grid_offset)
+{
+    building_type_registry_impl::BuildingAnimation animation(*b);
+    return animation.legacy_offset(image_id, grid_offset);
+}
+
+static void advance_storage_flag_animation(building *b, int image_id)
+{
+    building_type_registry_impl::BuildingAnimation animation(*b);
+    animation.advance_storage_flag(image_id);
+}
+
+static void advance_fumigation_animation(building *b)
+{
+    building_type_registry_impl::BuildingAnimation animation(*b);
+    animation.advance_fumigation();
+}
 
 static void init_draw_context(int selected_figure_id, pixel_coordinate *figure_coord, int highlighted_formation)
 {
@@ -581,7 +599,7 @@ static void draw_fumigation(building *b, int x, int y, color_t color_mask)
     if (image_id == image_group(GROUP_FIGURE_EXPLOSION)) {
         b->fumigation_direction = 1;
     }
-    building_animation_advance_fumigation(b);
+    advance_fumigation_animation(b);
 }
 
 static void get_plague_icon_position_for_house(building *b, int *x, int *y, int is_fumigating)
@@ -773,7 +791,7 @@ static void draw_permissions_flag(building *b, int x, int y, color_t color_mask)
     }
     image_draw(base_permission_image[permissions] + b->data.warehouse.flag_frame, x, y, color_mask, draw_context.scale);
 
-    building_animation_advance_storage_flag(b, base_permission_image[permissions]);
+    advance_storage_flag_animation(b, base_permission_image[permissions]);
 }
 
 static void draw_warehouse_ornaments(int x, int y, color_t color_mask)
@@ -847,7 +865,7 @@ static void draw_animation(int x, int y, int grid_offset)
             } else if (b->type == BUILDING_BURNING_RUIN && b->has_plague) {
                 image_draw(image_group(GROUP_PLAGUE_SKULL), x + 18, y - 32, color_mask, draw_context.scale);
             }
-            int animation_offset = building_animation_offset(b, image_id, grid_offset);
+            int animation_offset = legacy_animation_offset(b, image_id, grid_offset);
             if (b->type != BUILDING_HIPPODROME && animation_offset > 0) {
                 int y_offset = img->top ? img->top->original.height - FOOTPRINT_HALF_HEIGHT : 0;
                 if (animation_offset > img->animation->num_sprites) {

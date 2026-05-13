@@ -99,7 +99,7 @@ The pass intentionally left custom rows with complex conditional text/data layou
 - Use `ui_runtime_api.h` only when C-callable compatibility is needed. C++ window files should usually call `SharedUiRuntime` directly.
 - When converting C UI files to C++, follow the `figure.cpp` include/linkage style and add explicit enum/integer casts where needed.
 - Keep CRLF line endings on touched files.
-- Do not build unless the user explicitly asks in the current chat.
+- Build only when useful for the current task, and use `Release|x64`.
 
 ## Safe Next Candidates
 
