@@ -6,6 +6,7 @@ extern "C" {
 }
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 namespace graphics_extractor {
@@ -52,6 +53,14 @@ std::string normalize_key(const char *text)
         }
     }
     return normalized;
+}
+
+std::string without_trailing_separator(std::string path)
+{
+    while (!path.empty() && (path.back() == '/' || path.back() == '\\')) {
+        path.pop_back();
+    }
+    return path;
 }
 
 int append_path_component(char *buffer, size_t buffer_size, const char *base_path, const char *component)
@@ -110,17 +119,12 @@ bool load_file_to_buffer(const std::string &path, std::vector<char> &buffer)
 
 bool read_text_file(const std::string &path, std::string &contents)
 {
-    FILE *file = file_open(path.c_str(), "rb");
-    if (!file) {
+    std::vector<char> buffer;
+    if (!load_file_to_buffer(path, buffer)) {
         contents.clear();
         return false;
     }
-
-    char buffer[256];
-    const size_t bytes_read = fread(buffer, 1, sizeof(buffer) - 1, file);
-    buffer[bytes_read] = '\0';
-    contents.assign(buffer);
-    file_close(file);
+    contents.assign(buffer.begin(), buffer.end());
     return true;
 }
 
@@ -141,6 +145,50 @@ void ensure_directory(const std::string &path)
     if (!path.empty()) {
         platform_file_manager_create_directory(path.c_str(), 0, 1);
     }
+}
+
+bool parse_generated_image_index(const std::string &image_id, int &image_index)
+{
+    image_index = 0;
+    if (image_id.size() <= 6 || image_id.compare(0, 6, "Image_") != 0) {
+        return false;
+    }
+
+    char *end = nullptr;
+    const long value = strtol(image_id.c_str() + 6, &end, 10);
+    if (!end || *end != '\0' || value < 0) {
+        return false;
+    }
+    image_index = static_cast<int>(value);
+    return true;
+}
+
+std::string make_generated_image_id(int image_index)
+{
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "Image_%04d", image_index);
+    return buffer;
+}
+
+void append_indent(std::string &xml, int depth)
+{
+    xml.append(static_cast<size_t>(depth) * 4, ' ');
+}
+
+void append_attribute(std::string &xml, const char *name, const std::string &value)
+{
+    xml += " ";
+    xml += name;
+    xml += "=\"";
+    xml += value;
+    xml += "\"";
+}
+
+void append_attribute(std::string &xml, const char *name, int value)
+{
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%d", value);
+    append_attribute(xml, name, std::string(buffer));
 }
 
 } // namespace graphics_extractor

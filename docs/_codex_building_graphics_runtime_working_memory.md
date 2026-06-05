@@ -1,7 +1,19 @@
 # Building Graphics Runtime Working Memory
 
-Snapshot: 2026-05-11
+Snapshot: 2026-06-05
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+
+## 2026-06-05 extraction checkpoint
+- Current durable extractor handoff: `docs/graphics_extraction_pipeline.md`.
+- The standalone clean-run harness is `AugustusGraphicsExtractor.exe`, built by `AugustusGraphicsExtractor.vcxproj` from `tools/augustus_graphics_extractor/main.cpp`.
+- Runtime extraction order is Julius first, Augustus second, from `src/core/image.c`. Do not move Augustus extraction back into early `src/platform/augustus.cpp` startup.
+- Clean generated output should contain `Mods\Julius\Graphics` and `Mods\Augustus\Graphics`; `Mods\Vespasian\Graphics` should be absent until Vespasian has real native graphics.
+- Current clean sample validation:
+  - Julius: 231 XML, 8933 PNG, 8465 logical images
+  - Augustus: 3200 XML, 4088 PNG, 3259 logical images
+  - BuildingType graphics refs: 505 checked across the Release mod stack, 0 missing
+- Julius `Aesthetics\House_Tent` intentionally exposes `Image_0000..Image_0005`. `Image_0001..Image_0005` are full-image aliases to `Aesthetics\House_Tent_Variants`, preserving legacy BuildingType option refs after the Julius group table split.
+- Colosseum runtime fallback notes from May are stale. Current BuildingType XML uses generated `Health_Culture\Colosseum` entries directly.
 
 ## 2026-05-11 current graphics/animation checkpoint
 - Native BuildingType graphics now use `building_runtime_graphics.cpp` for target resolution, stable-option selection, and cached `RuntimeDrawSlice` binding. The renderer-facing accessors are still `graphic_footprint()`, `graphic_top()`, and `graphic_animation(animation_cursor)`.

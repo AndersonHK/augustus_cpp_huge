@@ -2,6 +2,8 @@
 
 This note exists to keep the new XML-driven runtime graphics path legible and predictable.
 
+For generated graphics extraction details, see `docs/graphics_extraction_pipeline.md`. That document is the current authority for `AugustusGraphicsExtractor.exe`, Julius/Augustus extractor order, generated output shape, and known residual extraction misses.
+
 ## Stages
 
 1. Parse
@@ -33,6 +35,8 @@ Runtime priority order is derived from the active mod list, highest-precedence m
 4. Root/base
 
 The important rule is: entry override happens per image id, not per XML file.
+
+Generated extractor aliases rely on this rule. For example, Julius `Aesthetics\House_Tent.xml` exposes `Image_0001..Image_0005` as aliases to `Aesthetics\House_Tent_Variants` so existing BuildingType option refs remain valid while the lower-level extracted groups stay split. Future mods can still override one of those public `House_Tent` image ids without replacing the whole group.
 
 ## Manual Reference Cases
 

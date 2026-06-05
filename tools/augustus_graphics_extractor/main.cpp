@@ -21,6 +21,7 @@ struct CliOptions {
     bool force = true;
     bool write_stamp = false;
     bool extract_julius_first = false;
+    bool show_help = false;
 };
 
 std::string absolute_path(const std::string &path)
@@ -44,7 +45,7 @@ void print_usage()
         << "  --source-graphics <path>    Source packaged assets. Defaults to <game-root>\\assets\\Graphics.\n"
         << "  --output <path>             Extract output. Defaults to <game-root>\\Mods\\Augustus\\Graphics.\n"
         << "  --julius-graphics <path>    Julius template graphics. Defaults to <game-root>\\Mods\\Julius\\Graphics.\n"
-        << "  --extract-julius-first      Run the legacy Julius extractor before Augustus extraction.\n"
+        << "  --extract-julius-first      Simulate runtime: run Julius, then Augustus bootstrap.\n"
         << "  --no-force                  Reuse matching stamped output when possible.\n"
         << "  --stamp                     Write/check the extraction stamp.\n";
 }
@@ -87,8 +88,9 @@ bool parse_args(int argc, char **argv, CliOptions &options)
         } else if (arg == "--stamp") {
             options.write_stamp = true;
         } else if (arg == "--help" || arg == "-h" || arg == "/?") {
+            options.show_help = true;
             print_usage();
-            return false;
+            return true;
         } else {
             std::cerr << "Unknown option: " << arg << "\n";
             print_usage();
@@ -121,6 +123,9 @@ int main(int argc, char **argv)
     if (!parse_args(argc, argv, options)) {
         return 2;
     }
+    if (options.show_help) {
+        return 0;
+    }
 
     std::cout << "Game root: " << options.game_root << "\n";
     std::cout << "Source graphics: " << options.source_graphics << "\n";
@@ -145,8 +150,9 @@ int main(int argc, char **argv)
     config.source_graphics_path = options.source_graphics.c_str();
     config.output_graphics_path = options.output_graphics.c_str();
     config.julius_graphics_path = options.julius_graphics.c_str();
-    config.force = options.force ? 1 : 0;
-    config.write_stamp = options.write_stamp ? 1 : 0;
+    // image_load_climate(..., extract_legacy_graphics=1) already runs the runtime Augustus bootstrap.
+    config.force = options.force && !options.extract_julius_first ? 1 : 0;
+    config.write_stamp = options.write_stamp || options.extract_julius_first ? 1 : 0;
 
     const int result = augustus_asset_extractor_extract_with_config(&config);
     return result ? 0 : 1;

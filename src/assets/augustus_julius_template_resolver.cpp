@@ -11,7 +11,6 @@ extern "C" {
 
 #include <cstdlib>
 #include <algorithm>
-#include <cstdio>
 #include <cstring>
 #include <string>
 #include <unordered_map>
@@ -28,21 +27,8 @@ struct LegacyTemplateParseState {
 std::unordered_map<std::string, AugustusJuliusTemplateGroup> g_legacy_template_groups;
 LegacyTemplateParseState g_legacy_template_parse_state;
 
-static bool parse_generated_image_index(const std::string &image_id, int &index)
-{
-    index = 0;
-    if (image_id.size() <= 6 || image_id.compare(0, 6, "Image_") != 0) {
-        return false;
-    }
-
-    char *end = nullptr;
-    const long value = strtol(image_id.c_str() + 6, &end, 10);
-    if (!end || *end != '\0' || value < 0) {
-        return false;
-    }
-    index = static_cast<int>(value);
-    return true;
-}
+using graphics_extractor::make_generated_image_id;
+using graphics_extractor::parse_generated_image_index;
 
 static bool parse_reference_image_index(const std::string &reference_image, int &index)
 {
@@ -61,13 +47,6 @@ static bool parse_reference_image_index(const std::string &reference_image, int 
     }
     index = static_cast<int>(value);
     return true;
-}
-
-static std::string make_generated_image_id(int image_index)
-{
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "Image_%04d", image_index);
-    return buffer;
 }
 
 static bool split_group_key(const std::string &group_key, std::string &family_key, std::string &group_name)

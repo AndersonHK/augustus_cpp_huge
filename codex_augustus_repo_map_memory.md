@@ -111,13 +111,25 @@ Important architectural note:
   - bridges legacy image ids to asset-backed images
 
 ### Canonical extractor / building graphics seams
+- `docs/graphics_extraction_pipeline.md`
+  - current extractor handoff, standalone CLI usage, output contract, known residual generated-reference buckets, and clean validation commands
 - `src/core/legacy_image_extractor.cpp`
   - canonical Julius extraction
   - trims bottom transparent padding from isometric footprint PNG exports while preserving logical placement through exported XML height / layer `y`
+  - exports split-aware compatibility aliases for legacy visible ranges such as `Aesthetics\House_Tent/Image_0001..Image_0005`
+  - exposes `legacy_image_extractor_get_group_image_key(...)` so Augustus numeric references resolve to canonical split group/image keys
 - `src/assets/augustus_asset_extractor.cpp`
   - canonical Augustus extraction
-  - rewrites numeric Julius references through canonical group keys
-  - now resolves same-group `group="this"` part inheritance recursively so active Augustus ON variants preserve both footprint and top slices
+  - reads packaged game-folder `assets\Graphics` XML/PNG atlases and exports per-group XML plus per-image PNGs under `Mods\Augustus\Graphics`
+  - rewrites numeric Julius references through canonical split-aware group/image keys
+  - resolves same-group `group="this"` part inheritance recursively so active Augustus ON variants preserve both footprint and top slices
+  - keeps alias groups for source-visible wrapper names instead of skipping collisions silently
+- `src/assets/augustus_julius_template_resolver.cpp`
+  - parses extracted Julius XML templates for Augustus reference translation and next generated `Image_####` id discovery
+- `src/assets/graphics_extractor_common.cpp`
+  - shared path/key/file helpers used by the Julius/Augustus extraction split
+- `tools/augustus_graphics_extractor/main.cpp`
+  - standalone `AugustusGraphicsExtractor.exe` CLI for clean repo-side extraction tests
 - `src/assets/image_group_payload_materialize.cpp`
   - runtime composition/materialization seam for extracted graphics
   - no longer carries the temporary runtime footprint crop/offset workaround; extractor output now defines placement semantics

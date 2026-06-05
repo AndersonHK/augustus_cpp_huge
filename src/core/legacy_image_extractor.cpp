@@ -1,5 +1,7 @@
 #include "core/legacy_image_extractor.h"
 
+#include "assets/graphics_extractor_common.h"
+
 extern "C" {
 #include "core/file.h"
 #include "core/log.h"
@@ -56,6 +58,15 @@ constexpr int kLegacyHouseTentVariantsGroup = 18;
 
 std::vector<LegacyGroupRange> g_extracted_group_ranges;
 
+using graphics_extractor::append_attribute;
+using graphics_extractor::append_indent;
+using graphics_extractor::ensure_directory;
+using graphics_extractor::make_generated_image_id;
+using graphics_extractor::read_text_file;
+using graphics_extractor::sanitize_component;
+using graphics_extractor::write_text_file;
+using graphics_extractor::without_trailing_separator;
+
 static bool is_placeholder_main_image(int image_id)
 {
     return image_id >= 6145 && image_id <= 6192;
@@ -67,30 +78,6 @@ static bool is_exportable_main_image(const image *img)
         return false;
     }
     return (img->atlas.id >> IMAGE_ATLAS_BIT_OFFSET) == ATLAS_MAIN;
-}
-
-static std::string sanitize_component(const char *text)
-{
-    if (!text || !*text) {
-        return "unnamed";
-    }
-
-    std::string sanitized;
-    sanitized.reserve(strlen(text));
-    for (const char *cursor = text; *cursor; ++cursor) {
-        const char value = *cursor;
-        const bool is_alpha = (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z');
-        const bool is_digit = value >= '0' && value <= '9';
-        if (is_alpha || is_digit || value == '_' || value == '-') {
-            sanitized.push_back(value);
-        } else {
-            sanitized.push_back('_');
-        }
-    }
-    while (!sanitized.empty() && sanitized.back() == '_') {
-        sanitized.pop_back();
-    }
-    return sanitized.empty() ? std::string("unnamed") : sanitized;
 }
 
 static std::string make_source_stem(const char *source_name)
@@ -333,47 +320,12 @@ static std::string make_group_xml_path(const LegacyFamily &family, int group_id)
 
 static std::string make_stamp_path(void)
 {
-    return std::string(mod_manager_get_julius_graphics_path()) + ".legacy_extract.stamp";
+    return without_trailing_separator(mod_manager_get_julius_graphics_path()) + ".legacy_extract.stamp";
 }
 
 static std::string make_manifest_path(void)
 {
-    return std::string(mod_manager_get_julius_graphics_path()) + ".legacy_extract.manifest";
-}
-
-static void ensure_directory(const std::string &path)
-{
-    if (!path.empty()) {
-        platform_file_manager_create_directory(path.c_str(), 0, 1);
-    }
-}
-
-static bool read_text_file(const std::string &path, std::string &contents)
-{
-    FILE *file = file_open(path.c_str(), "rb");
-    if (!file) {
-        contents.clear();
-        return false;
-    }
-
-    char buffer[128];
-    const size_t bytes_read = fread(buffer, 1, sizeof(buffer) - 1, file);
-    buffer[bytes_read] = '\0';
-    contents.assign(buffer);
-    file_close(file);
-    return true;
-}
-
-static bool write_text_file(const std::string &path, const std::string &contents)
-{
-    FILE *file = file_open(path.c_str(), "wb");
-    if (!file) {
-        return false;
-    }
-
-    const size_t bytes_written = fwrite(contents.data(), 1, contents.size(), file);
-    file_close(file);
-    return bytes_written == contents.size();
+    return without_trailing_separator(mod_manager_get_julius_graphics_path()) + ".legacy_extract.manifest";
 }
 
 static void hash_stamp_bytes(uint64_t &hash, const void *data, size_t size)
@@ -516,19 +468,6 @@ static std::string make_stamp_contents(
         make_source_stem(source_name).c_str(),
         static_cast<unsigned long long>(fingerprint));
     return buffer;
-}
-
-static bool has_current_stamp(
-    const image *images,
-    int image_count,
-    const uint16_t *group_image_ids,
-    int group_count,
-    const char *source_name,
-    const image_atlas_data *atlas_data)
-{
-    std::string contents;
-    return read_text_file(make_stamp_path(), contents) &&
-        contents == make_stamp_contents(images, image_count, group_image_ids, group_count, source_name, atlas_data);
 }
 
 static std::vector<LegacyGroupRange> build_group_ranges(
@@ -1175,27 +1114,6 @@ static bool write_png(const std::string &path, const color_t *pixels, int width,
     return result == 0 || result == SPNG_EOI;
 }
 
-static void append_indent(std::string &xml, int depth)
-{
-    xml.append(static_cast<size_t>(depth) * 4, ' ');
-}
-
-static void append_attribute(std::string &xml, const char *name, const std::string &value)
-{
-    xml += " ";
-    xml += name;
-    xml += "=\"";
-    xml += value;
-    xml += "\"";
-}
-
-static void append_attribute(std::string &xml, const char *name, int value)
-{
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "%d", value);
-    append_attribute(xml, name, std::string(buffer));
-}
-
 static void append_image_xml(
     std::string &xml,
     int &exported_images,
@@ -1273,13 +1191,6 @@ static void append_image_xml(
     exported_images++;
 }
 
-static std::string make_image_id(int local_index)
-{
-    char image_name_buffer[32];
-    snprintf(image_name_buffer, sizeof(image_name_buffer), "Image_%04d", local_index);
-    return image_name_buffer;
-}
-
 static int compatibility_visible_image_count(int group_id)
 {
     switch (group_id) {
@@ -1351,8 +1262,8 @@ static void append_compatibility_aliases(
 
         const LegacyFamily &target_family = family_for_group(target_range->group_id);
         const std::string target_group = make_group_assetlist_name(target_family, target_range->group_id);
-        const std::string target_image = make_image_id(absolute_image_id - target_range->first_image_id);
-        append_full_image_alias_xml(xml, exported_images, make_image_id(legacy_offset), target_group, target_image, img);
+        const std::string target_image = make_generated_image_id(absolute_image_id - target_range->first_image_id);
+        append_full_image_alias_xml(xml, exported_images, make_generated_image_id(legacy_offset), target_group, target_image, img);
         exported_local_indices.insert(legacy_offset);
     }
 }
@@ -1388,7 +1299,7 @@ static bool export_group(
         }
 
         const int local_index = image_id - range.first_image_id;
-        const std::string image_name = make_image_id(local_index);
+        const std::string image_name = make_generated_image_id(local_index);
         const std::vector<color_t> pixels = extract_full_canvas(img, atlas_data);
         if (pixels.empty()) {
             continue;

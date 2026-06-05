@@ -8,7 +8,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Reason: the current arc now spans VS/MSBuild repair, mixed C/C++ migration, asset-pack precedence, load-failure doctrine, renderer backend refactor, shared UI runtime rollout, BuildingType graphics migration, typed water access, and animation ownership cleanup.
 - Session bootstrap:
   - read the four core Codex memory files first
-  - then read task-specific docs such as `docs/walker_pathing_runtime.md`, `docs/water_access_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, `Mods/Vespasian/BuildingType/_README.md`, `Mods/Vespasian/HousingType/_README.md`, `docs/save_load_runtime_bridges.md`, `docs/building_type_legacy_reference_ledger.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
+  - then read task-specific docs such as `docs/graphics_extraction_pipeline.md`, `docs/walker_pathing_runtime.md`, `docs/water_access_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, `Mods/Vespasian/BuildingType/_README.md`, `Mods/Vespasian/HousingType/_README.md`, `docs/save_load_runtime_bridges.md`, `docs/building_type_legacy_reference_ledger.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
   - when adding a new system doc, link it from the most relevant core memory file and from nearby subsystem READMEs so it is findable without crowding this file
 - The next chat should begin from the current renderer baseline:
   - request-based 2D backend active
@@ -69,9 +69,21 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Canonical graphics extraction is now load-bearing for the building runtime:
   - `src/core/legacy_image_extractor.cpp`
   - `src/assets/augustus_asset_extractor.cpp`
+- The durable current extractor handoff is `docs/graphics_extraction_pipeline.md`. Read it before changing generated graphics, BuildingType graphics targets, or `AugustusGraphicsExtractor.exe`.
+- Julius and Augustus extraction are parallel problems with shared helper code, not one monolithic extractor:
+  - Julius is stable and atlas-table driven.
+  - Augustus is dynamic and packaged under the game folder `assets\Graphics`.
+  - Runtime extraction runs Julius first from `src/core/image.c`, then Augustus bootstrap.
+  - The standalone `AugustusGraphicsExtractor.exe` can run from the repo and accepts `--extract-julius-first`, `--game-root`, `--source-graphics`, `--output`, and `--julius-graphics`.
+- A clean generated Release stack should contain `Mods\Julius\Graphics` and `Mods\Augustus\Graphics`, but no `Mods\Vespasian\Graphics`.
+- Current clean sample extraction baseline:
+  - Julius: 231 XML, 8933 PNG, 8465 logical images
+  - Augustus: 3200 XML, 4088 PNG, 3259 logical images
+  - BuildingType graphics refs: 505 checked across the Release mod stack, 0 missing
 - The recent native building graphics glitch was fixed at extraction time, not by changing final draw math:
   - Julius footprint exports now trim bottom transparent padding and preserve logical placement through XML metadata
   - Augustus active building variants now inherit local `group="this"` footprint/top parts instead of collapsing to footprint-only
+- Julius `Aesthetics\House_Tent` intentionally exposes `Image_0000..Image_0005`; `Image_0001..Image_0005` are compatibility aliases into `Aesthetics\House_Tent_Variants`, because the legacy table splits those tent variants through unnamed group id 18.
 - Native building footprint rendering still routes through `src/widget/city_draw.cpp`, and native-owned buildings only submit their whole-building footprint on the owning draw tile.
 - The temporary runtime footprint crop/offset compensation was removed from `src/assets/image_group_payload_materialize.cpp`; extractor output is now the sole source of truth for the corrected placement.
 - Native building animations now tick through `city_draw_runtime_building_animation()` -> `building_runtime_advance_graphic_animation()` -> `building_runtime::advance_graphic_animation()` -> `BuildingAnimation::runtime_track_offset()`. `graphic_animation()` only reads the selected frame slice.
