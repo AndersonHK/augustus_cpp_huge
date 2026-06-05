@@ -2418,6 +2418,19 @@ static int parse_housing()
     }
     g_parse_state.definition->set_housing_reference(std::move(normalized_path));
 
+    int capacity = 0;
+    int has_capacity = 0;
+    if (!parse_optional_int_attribute("Unsupported BuildingType housing capacity", "capacity", &capacity, &has_capacity)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!has_capacity || capacity <= 0) {
+        log_error("BuildingType housing is missing positive required attribute 'capacity'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.definition->set_housing_capacity(capacity);
+
     const char *transition_attributes[] = {"evolve_to", "devolve_to", "merge_to", "split_to"};
     for (const char *attribute : transition_attributes) {
         if (!xml_parser_has_attribute(attribute)) {

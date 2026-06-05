@@ -454,6 +454,7 @@ public:
     void add_storage_reference(std::string path);
     void add_production_method_reference(std::string path);
     void set_housing_reference(std::string path);
+    void set_housing_capacity(int capacity);
     void set_housing_transition(HousingTransitionKind kind, std::string text_id);
     void add_storage_type(const StorageType *storage_type);
     void add_production_method(const ProductionMethod *production_method);
@@ -493,6 +494,7 @@ public:
     const std::vector<std::string> &storage_reference_paths() const;
     const std::vector<std::string> &production_method_reference_paths() const;
     const std::string &housing_reference_path() const;
+    int housing_capacity() const;
     const std::string &housing_transition_reference(HousingTransitionKind kind) const;
     const std::vector<const StorageType *> &storage_types() const;
     const std::vector<const ProductionMethod *> &production_methods() const;
@@ -522,6 +524,7 @@ private:
     std::vector<std::string> storage_reference_paths_;
     std::vector<std::string> production_method_reference_paths_;
     std::string housing_reference_path_;
+    int housing_capacity_ = 0;
     std::string housing_evolve_to_;
     std::string housing_devolve_to_;
     std::string housing_merge_to_;

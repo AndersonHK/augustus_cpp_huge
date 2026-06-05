@@ -42,7 +42,6 @@ typedef struct {
     int furniture; /**< Furniture required */
     int wine; /**< Wine types required: 1 = any wine, 2 = two types of wine */
     int prosperity; /**< Prosperity contribution */
-    int max_people; /**< Maximum people per tile (medium insula and lower) or per house (large insula and up) */
     int tax_multiplier; /**< Tax rate multiplier */
 } model_house;
 

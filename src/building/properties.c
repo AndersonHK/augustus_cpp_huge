@@ -102,7 +102,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 0,
             .wine = 0,
             .prosperity = 5,
-            .max_people = 5,
             .tax_multiplier = 1}
     },
     [BUILDING_HOUSE_LARGE_TENT] = {
@@ -127,7 +126,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 0,
             .wine = 0,
             .prosperity = 10,
-            .max_people = 7,
             .tax_multiplier = 1}
     },
     [BUILDING_HOUSE_SMALL_SHACK] = {
@@ -152,7 +150,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 0,
             .wine = 0,
             .prosperity = 15,
-            .max_people = 9,
             .tax_multiplier = 1}
     },
     [BUILDING_HOUSE_LARGE_SHACK] = {
@@ -177,7 +174,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 0,
             .wine = 0,
             .prosperity = 20,
-            .max_people = 11,
             .tax_multiplier = 1}
     },
     [BUILDING_HOUSE_SMALL_HOVEL] = {
@@ -202,7 +198,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 0,
             .wine = 0,
             .prosperity = 25,
-            .max_people = 13,
             .tax_multiplier = 2}
     },
     [BUILDING_HOUSE_LARGE_HOVEL] = {
@@ -227,7 +222,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 0,
             .wine = 0,
             .prosperity = 30,
-            .max_people = 15,
             .tax_multiplier = 2}
     },
     [BUILDING_HOUSE_SMALL_CASA] = {
@@ -252,7 +246,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 0,
             .wine = 0,
             .prosperity = 35,
-            .max_people = 17,
             .tax_multiplier = 2}
     },
     [BUILDING_HOUSE_LARGE_CASA] = {
@@ -277,7 +270,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 0,
             .wine = 0,
             .prosperity = 45,
-            .max_people = 19,
             .tax_multiplier = 2}
     },
     [BUILDING_HOUSE_SMALL_INSULA] = {
@@ -302,7 +294,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 0,
             .wine = 0,
             .prosperity = 50,
-            .max_people = 19,
             .tax_multiplier = 3}
     },
     [BUILDING_HOUSE_MEDIUM_INSULA] = {
@@ -327,7 +318,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 0,
             .prosperity = 58,
-            .max_people = 20,
             .tax_multiplier = 3}
     },
     [BUILDING_HOUSE_LARGE_INSULA] = {
@@ -352,7 +342,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 0,
             .prosperity = 65,
-            .max_people = 84,
             .tax_multiplier = 3}
     },
     [BUILDING_HOUSE_GRAND_INSULA] = {
@@ -377,7 +366,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 0,
             .prosperity = 80,
-            .max_people = 84,
             .tax_multiplier = 4}
     },
     [BUILDING_HOUSE_SMALL_VILLA] = {
@@ -402,7 +390,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 1,
             .prosperity = 150,
-            .max_people = 40,
             .tax_multiplier = 9}
     },
     [BUILDING_HOUSE_MEDIUM_VILLA] = {
@@ -427,7 +414,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 1,
             .prosperity = 180,
-            .max_people = 42,
             .tax_multiplier = 10}
     },
     [BUILDING_HOUSE_LARGE_VILLA] = {
@@ -452,7 +438,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 1,
             .prosperity = 400,
-            .max_people = 90,
             .tax_multiplier = 11}
     },
     [BUILDING_HOUSE_GRAND_VILLA] = {
@@ -477,7 +462,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 1,
             .prosperity = 600,
-            .max_people = 100,
             .tax_multiplier = 11}
     },
     [BUILDING_HOUSE_SMALL_PALACE] = {
@@ -502,7 +486,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 2,
             .prosperity = 700,
-            .max_people = 106,
             .tax_multiplier = 12}
     },
     [BUILDING_HOUSE_MEDIUM_PALACE] = {
@@ -527,7 +510,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 2,
             .prosperity = 900,
-            .max_people = 112,
             .tax_multiplier = 12}
     },
     [BUILDING_HOUSE_LARGE_PALACE] = {
@@ -552,7 +534,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 2,
             .prosperity = 1500,
-            .max_people = 190,
             .tax_multiplier = 15}
     },
     [BUILDING_HOUSE_LUXURY_PALACE] = {
@@ -577,7 +558,6 @@ static building_properties properties[BUILDING_TYPE_MAX] = {
             .furniture = 1,
             .wine = 2,
             .prosperity = 1750,
-            .max_people = 200,
             .tax_multiplier = 16}
     },
     [BUILDING_PLAZA] = {

@@ -342,12 +342,14 @@ Current supported `<production_methods>` child nodes:
 Current supported `<housing>` attributes:
 
 - `path="..."` references a `HousingType` definition
+- `capacity="N"` is required and stores the complete building's residential capacity
 - `evolve_to="..."`, `devolve_to="..."`, `merge_to="..."`, and `split_to="..."` are optional BuildingType text-id transitions
 
 Housing rules:
 
 - Footprint remains on BuildingType via `<model size="N" />`
-- Residential requirements, capacity, tax multiplier, prosperity, and resident class live in the referenced HousingType
+- Residential capacity is a whole-building BuildingType value; do not derive it from tile count
+- Residential requirements, tax multiplier, prosperity, and resident class live in the referenced HousingType
 - Any non-empty transition target must resolve to an existing BuildingType during load
 - Native housing BuildingTypes use their string ids directly; the compatibility layer maps those ids to legacy `house_level` values only where old runtime fields still need a level
 - Vespasian, Augustus, and Julius native house chains include every legacy level through `house_luxury_palace`; 1x1 levels define explicit `_2x2` merged BuildingTypes so save/load and evolution can choose by string id plus footprint.

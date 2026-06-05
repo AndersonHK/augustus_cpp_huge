@@ -99,11 +99,6 @@ void HousingType::set_prosperity(int value)
     model_.prosperity = value;
 }
 
-void HousingType::set_capacity(int value)
-{
-    model_.max_people = value;
-}
-
 void HousingType::set_tax_multiplier(int value)
 {
     model_.tax_multiplier = value;

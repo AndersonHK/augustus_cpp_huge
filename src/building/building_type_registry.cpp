@@ -415,6 +415,12 @@ extern "C" int building_type_registry_get_housing_legacy_level(building_type typ
     return -1;
 }
 
+extern "C" int building_type_registry_get_housing_capacity(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_housing() ? definition->housing_capacity() : 0;
+}
+
 extern "C" building_type building_type_registry_get_housing_type_for_legacy_level(int legacy_level, int footprint_size)
 {
     const char *base_text_id = building_type_registry_impl::housing_type_text_id_for_legacy_level(legacy_level);

@@ -1,6 +1,8 @@
 # HousingType XML
 
-HousingType definitions hold residential data shared by one or more BuildingType definitions. BuildingType owns identity, footprint, cost, desirability radius, graphics, and transitions; HousingType owns resident class and house-model requirements.
+HousingType definitions hold residential data shared by one or more BuildingType definitions.
+BuildingType owns identity, footprint, cost, desirability radius, graphics, transitions, and whole-building capacity.
+HousingType owns resident class, evolution thresholds, service/goods requirements, prosperity, and tax multiplier.
 
 For resident-class tuning, city-size bands, and the reason `patrician` should
 mean elite/high-status gameplay household rather than literal legal patrician,
@@ -29,15 +31,16 @@ Required children:
 - `<evolution devolve_desirability="N" evolve_desirability="N" />`
 - `<requirements entertainment="N" water="none|well|fountain" religion="N" education="N" barber="N" bathhouse="N" health="N" food_types="N" pottery="N" oil="N" furniture="N" wine="N" />`
 - `<prosperity value="N" />`
-- `<capacity value="N" />`
 - `<tax multiplier="N" />`
 
 BuildingType references a HousingType with:
 
 ```xml
-<housing path="house_small_tent" evolve_to="house_large_tent" merge_to="house_small_tent_2x2" />
+<housing path="house_small_tent" capacity="7" evolve_to="house_large_tent" merge_to="house_small_tent_2x2" />
 ```
 
-Transition attributes are optional, but any non-empty `evolve_to`, `devolve_to`, `merge_to`, or `split_to` value must resolve to an existing BuildingType text id during BuildingType load.
+`capacity` is required on the BuildingType `<housing>` node and is the capacity of the complete building footprint. Transition attributes are optional, but any non-empty `evolve_to`, `devolve_to`, `merge_to`, or `split_to` value must resolve to an existing BuildingType text id during BuildingType load.
 
-Vespasian, Augustus, and Julius currently define native HousingType data for the full legacy residential chain from `house_small_tent` through `house_luxury_palace`. The matching BuildingType XML files own footprint and graphics, including explicit `_2x2` merged variants for the 1x1 plebeian levels. Julius uses vanilla model values and Julius-owned `Aesthetics\House_*` graphics; Augustus and Vespasian use the Augustus house model values for now. Treat the vanilla curve as a design baseline, not as a hard requirement when scenario pacing or city-builder feel needs a deliberate adjustment.
+Vespasian, Augustus, and Julius currently define native HousingType data for the full legacy residential chain from `house_small_tent` through `house_luxury_palace`.
+The matching BuildingType XML files own footprint, whole-building capacity, and graphics, including explicit `_2x2` merged variants for the 1x1 plebeian levels.
+Julius uses vanilla residential tuning values and Julius-owned `Aesthetics\House_*` graphics; Augustus and Vespasian use the Augustus residential tuning values for now. Treat the vanilla curve as a design baseline, not as a hard requirement when scenario pacing or city-builder feel needs a deliberate adjustment.

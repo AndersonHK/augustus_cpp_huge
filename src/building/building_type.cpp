@@ -768,6 +768,11 @@ void BuildingType::set_housing_reference(std::string path)
     housing_reference_path_ = std::move(path);
 }
 
+void BuildingType::set_housing_capacity(int capacity)
+{
+    housing_capacity_ = capacity;
+}
+
 void BuildingType::set_housing_transition(HousingTransitionKind kind, std::string text_id)
 {
     switch (kind) {
@@ -1000,6 +1005,11 @@ const std::vector<std::string> &BuildingType::production_method_reference_paths(
 const std::string &BuildingType::housing_reference_path() const
 {
     return housing_reference_path_;
+}
+
+int BuildingType::housing_capacity() const
+{
+    return housing_capacity_;
 }
 
 const std::string &BuildingType::housing_transition_reference(HousingTransitionKind kind) const

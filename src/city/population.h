@@ -15,7 +15,7 @@ int city_population_last_used_house_remove(void);
 void city_population_set_last_used_house_remove(int building_id);
 
 void city_population_clear_capacity(void);
-void city_population_add_capacity(int people_in_house, int max_people);
+void city_population_add_capacity(int people_in_house, int capacity);
 
 void city_population_venus_blessing(void);
 

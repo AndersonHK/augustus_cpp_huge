@@ -265,7 +265,7 @@ Water access motive:
 - `docs/water_access_runtime.md`
   - current architecture and call chains for WaterAccessType XML, BuildingType water rules, fixed-point propagation, aqueduct/reservoir behavior, overlays, save bridges, and compatibility mirrors
 - `Mods/Vespasian/HousingType/_README.md`
-  - current XML contract for residential requirements, resident class, capacity, prosperity, tax multiplier, and legacy house-level compatibility
+  - current XML contract for residential requirements, resident class, prosperity, tax multiplier, and legacy house-level compatibility
 - `research/caesar3_julius_housing_progression_defaults.md`
   - Caesar III / Julius house capacities, footprints, service gates, desirability thresholds, graphics references, and tuning degrees of freedom
 - `research/caesar3_housing_balance_play_analysis.md`
@@ -276,7 +276,8 @@ Water access motive:
   - save-local BuildingType id table, old raw-id migration, native graphics variant normalization, and post-load runtime wrapper rebuilding
 - `docs/gameplay_divergences_from_augustus.md`
   - living gameplay ledger for project-wide, bundled-Augustus, and Vespasian-only differences from upstream Augustus
-- Vespasian, Augustus, and Julius now define the full native house chain from `house_small_tent` through `house_luxury_palace`. BuildingType owns footprint, graphics, transitions, and runtime identity; HousingType owns shared residential model data and resident class.
+- Vespasian, Augustus, and Julius now define the full native house chain from `house_small_tent` through `house_luxury_palace`. BuildingType owns footprint, capacity, graphics, transitions, and runtime identity.
+- HousingType owns shared residential requirement/tax/prosperity data and resident class.
 - Legacy `house_level` remains a compatibility value for old save migration, old city-stat arrays, and UI/stat surfaces that still need a level-like key.
 
 Pattern:

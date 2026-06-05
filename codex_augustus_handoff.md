@@ -29,7 +29,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Recently added gameplay runtime context
 - Native walker definitions now use FigureType XML for the currently ported service walkers.
-- Native BuildingType XML now owns full bundled house chains for Vespasian, Augustus, and Julius; HousingType XML owns resident class and shared residential model data while BuildingType owns footprint, graphics, and transitions.
+- Native BuildingType XML now owns full bundled house chains for Vespasian, Augustus, and Julius. BuildingType owns footprint, capacity, graphics, and transitions.
+- HousingType XML owns resident class and shared residential requirement/tax/prosperity data.
 - Water access is XML-owned through `Mods/<Mod>/WaterAccessType/*.xml` plus each BuildingType's `<water_access>` rules. Runtime state is a `uint8_t` mask, and provider/consumer logic now flows through typed rules instead of hardcoded well/fountain/reservoir/aqueduct/latrine branches.
 - Building graphics animation ownership has been split out to `src/building/animations.h/.cpp`. Live native graphics, legacy overlay animation calls, and placement ghost previews all ask `BuildingAnimation` for frame selection so runtime drawing does not duplicate animation state policy.
 - Main implementation notes live in:

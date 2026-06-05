@@ -20,7 +20,7 @@
             </options>
         </default>
     </graphics>
-    <housing path="house_medium_villa" evolve_to="house_large_villa" devolve_to="house_small_villa" />
+    <housing path="house_medium_villa" capacity="42" evolve_to="house_large_villa" devolve_to="house_small_villa" />
     <spawn_group road_access="normal" delay_bands="100:0">
         <spawn mode="service_roamer" spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
     </spawn_group>
