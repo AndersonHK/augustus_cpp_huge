@@ -1,7 +1,6 @@
 #include "core/crash_context.h"
 #include "core/dir.h"
 #include "core/file.h"
-#include "core/image_payload.h"
 #include "core/log.h"
 #include "assets/assets.h"
 #include "building/type.h"
@@ -321,18 +320,19 @@ extern "C" const font_definition *font_definition_for(font_t font)
     return &g_stub_font;
 }
 
-extern "C" const char *image_payload_register(image *img, const char *path_key)
+extern "C" void assets_load_unpacked_asset(int image_id)
 {
-    (void) img;
-    return path_key;
+    (void) image_id;
 }
 
-extern "C" void image_payload_release(image *img)
+extern "C" int screen_width(void)
 {
-    if (img) {
-        img->resource_key = nullptr;
-        img->resource_payload = nullptr;
-    }
+    return 640;
+}
+
+extern "C" int screen_height(void)
+{
+    return 480;
 }
 
 extern "C" int runtime_overlay_images_init_or_reload(void)

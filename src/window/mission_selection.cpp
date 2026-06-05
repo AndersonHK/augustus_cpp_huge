@@ -11,7 +11,6 @@ extern "C" {
 #include "game/mission.h"
 #include "game/settings.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
@@ -26,6 +25,7 @@ extern "C" {
 #include "window/mission_list.h"
 #include "window/video.h"
 }
+#include "graphics/image.h"
 
 #define BACKGROUND_WIDTH 1024
 #define BACKGROUND_HEIGHT 768
@@ -83,12 +83,7 @@ public:
 
         int offset = selected_choice == index_ + 1 ? 2 : 0;
         offset = focused_choice == index_ + 1 ? 1 : offset;
-        image_draw(
-            image_group(GROUP_SELECT_MISSION_BUTTON) + offset,
-            scenario_->x,
-            scenario_->y,
-            COLOR_MASK_NONE,
-            SCALE_NONE);
+        Image::from_id(Image::group(GROUP_SELECT_MISSION_BUTTON) + offset).draw(scenario_->x, scenario_->y, COLOR_MASK_NONE, SCALE_NONE);
 
         // Scenario choices are image-backed buttons; keep the legacy art and add the missing numeric label.
         text_draw_number_centered(
@@ -182,14 +177,12 @@ static void draw_background_images(void)
     int image_offset_y = (s_height - BACKGROUND_HEIGHT) / 2;
 
     if (s_width > BACKGROUND_WIDTH || s_height > BACKGROUND_HEIGHT) {
-        image_draw_fullscreen_background(image_group(GROUP_EMPIRE_MAP));
-        image_draw(image_group(GROUP_SELECT_MISSION_BACKGROUND), image_offset_x, image_offset_y,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_EMPIRE_MAP)).draw_fullscreen_background();
+        Image::from_id(Image::group(GROUP_SELECT_MISSION_BACKGROUND)).draw(image_offset_x, image_offset_y, COLOR_MASK_NONE, SCALE_NONE);
         int image_border = assets_get_image_id("UI", "Mission Selection Border");
-        image_draw_border(image_border, image_offset_x, image_offset_y, COLOR_MASK_NONE);
+        Image::from_id(image_border).draw_border(image_offset_x, image_offset_y, COLOR_MASK_NONE);
     } else {
-        image_draw(image_group(GROUP_SELECT_MISSION_BACKGROUND), image_offset_x, image_offset_y,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_SELECT_MISSION_BACKGROUND)).draw(image_offset_x, image_offset_y, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 
@@ -199,9 +192,9 @@ static void draw_background(void)
     graphics_in_dialog();
     graphics_set_clip_rectangle(0, 0, 640, 400);
     if (data.mission.background_image_id) {
-        image_draw(data.mission.background_image_id, 0, 0, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(data.mission.background_image_id).draw(0, 0, COLOR_MASK_NONE, SCALE_NONE);
     } else {
-        image_draw(image_group(GROUP_EMPIRE_MAP), 0, 0, COLOR_MASK_NONE, 2.5f);
+        Image::from_id(Image::group(GROUP_EMPIRE_MAP)).draw(0, 0, COLOR_MASK_NONE, 2.5f);
     }
     graphics_reset_clip_rectangle();
     if (data.mission.title) {

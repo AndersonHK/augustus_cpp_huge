@@ -14,7 +14,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
 #include "graphics/rich_text.h"
@@ -30,6 +29,7 @@ extern "C" {
 #include "window/mission_selection.h"
 #include "window/plain_message_dialog.h"
 }
+#include "graphics/image.h"
 
 #define PLAYER_NAME_LENGTH 32
 #define CAMPAIGN_LIST_Y_POSITION 96
@@ -106,7 +106,7 @@ static void init(void)
 
 static void draw_background(void)
 {
-    image_draw_fullscreen_background(image_group(GROUP_MAIN_MENU_BACKGROUND));
+    Image::from_id(Image::group(GROUP_MAIN_MENU_BACKGROUND)).draw_fullscreen_background();
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);
     lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_SELECT_CAMPAIGN, 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));

@@ -21,7 +21,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/rich_text.h"
 #include "graphics/screen.h"
@@ -33,6 +32,7 @@ extern "C" {
 #include "window/city.h"
 #include "window/building/utility.h"
 }
+#include "graphics/image.h"
 
 #define CAMEL_PORTRAIT 59
 
@@ -108,7 +108,7 @@ static int big_people_image(figure_type type)
         case FIGURE_TRADE_CARAVAN_DONKEY:
         case FIGURE_TRADE_CARAVAN:
             if (scenario_property_climate() == CLIMATE_DESERT) {
-                return image_group(GROUP_BIG_PEOPLE) + CAMEL_PORTRAIT - 1;
+                return Image::group(GROUP_BIG_PEOPLE) + CAMEL_PORTRAIT - 1;
             }
             break;
         case FIGURE_BARKEEP:
@@ -133,7 +133,7 @@ static int big_people_image(figure_type type)
         default:
             break;
     }
-    return image_group(GROUP_BIG_PEOPLE) + FIGURE_TYPE_TO_BIG_FIGURE_IMAGE[type] - 1;
+    return Image::group(GROUP_BIG_PEOPLE) + FIGURE_TYPE_TO_BIG_FIGURE_IMAGE[type] - 1;
 }
 
 static figure_type figure_type_from_legacy(int type)
@@ -159,7 +159,7 @@ static void draw_trader(building_info_context *c, figure *f)
     f = get_head_of_caravan(f);
 
     int big_people = big_people_image(figure_type_from_legacy(f->type));
-    image_draw(big_people, c->x_offset + 28, c->y_offset + 83, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(big_people).draw(c->x_offset + 28, c->y_offset + 83, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw(65, f->name, c->x_offset + 90, c->y_offset + 79, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
 
     const empire_city *city = empire_city_get(f->empire_city_id);
@@ -240,7 +240,7 @@ static void draw_trader(building_info_context *c, figure *f)
                 int image_id = resource_get_data(resource_from_legacy(r))->image.icon;
                 const image *img = image_get(image_id);
                 int base_height = (25 - img->original.height) / 2;
-                image_draw(image_id, c->x_offset + 35 + width, y_base - 7 + base_height, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(image_id).draw(c->x_offset + 35 + width, y_base - 7 + base_height, COLOR_MASK_NONE, SCALE_NONE);
                 width += 25;
             }
         }
@@ -257,7 +257,7 @@ static void draw_trader(building_info_context *c, figure *f)
                 int image_id = resource_get_data(resource_from_legacy(r))->image.icon;
                 const image *img = image_get(image_id);
                 int base_height = (25 - img->original.height) / 2;
-                image_draw(image_id, c->x_offset + 35 + width, y_base - 7 + base_height, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(image_id).draw(c->x_offset + 35 + width, y_base - 7 + base_height, COLOR_MASK_NONE, SCALE_NONE);
                 width += 25;
             }
         }
@@ -271,7 +271,7 @@ static void draw_trader(building_info_context *c, figure *f)
                 const image *img = image_get(image_id);
                 int base_width = (25 - img->original.width) / 2;
                 int base_height = (25 - img->original.height) / 2;
-                image_draw(image_id, c->x_offset + 40 + width + base_width, y_base - 7 + base_height, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(image_id).draw(c->x_offset + 40 + width + base_width, y_base - 7 + base_height, COLOR_MASK_NONE, SCALE_NONE);
                 width += 25;
             }
         }
@@ -284,7 +284,7 @@ static void draw_trader(building_info_context *c, figure *f)
                 const image *img = image_get(image_id);
                 int base_width = (25 - img->original.width) / 2;
                 int base_height = (25 - img->original.height) / 2;
-                image_draw(image_id, c->x_offset + 40 + width + base_width, y_base - 7 + base_height, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(image_id).draw(c->x_offset + 40 + width + base_width, y_base - 7 + base_height, COLOR_MASK_NONE, SCALE_NONE);
                 width += 25;
             }
         }
@@ -386,8 +386,7 @@ static void draw_enemy(building_info_context *c, figure *f)
             }
             break;
     }
-    image_draw(image_group(GROUP_BIG_PEOPLE) + image_id - 1, c->x_offset + 28, c->y_offset + 112,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_BIG_PEOPLE) + image_id - 1).draw(c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
 
     lang_text_draw(65, f->name, c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     lang_text_draw(37, scenario_property_enemy() + 20, c->x_offset + 92, c->y_offset + 149, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -395,13 +394,13 @@ static void draw_enemy(building_info_context *c, figure *f)
 
 static void draw_animal(building_info_context *c, figure *f)
 {
-    image_draw(big_people_image(figure_type_from_legacy(f->type)), c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw(64, f->type, c->x_offset + 92, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
 }
 
 static void draw_boat(building_info_context *c, figure *f)
 {
-    image_draw(big_people_image(figure_type_from_legacy(f->type)), c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw(65, f->name, c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     lang_text_draw(64, f->type, c->x_offset + 92, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     int text_id;
@@ -430,9 +429,9 @@ static int cartpusher_returning_empty(figure *f)
 static void draw_cartpusher(building_info_context *c, figure *f)
 {
     if (building_get(f->building_id)->type == BUILDING_ARMOURY) {
-        image_draw(assets_get_image_id("Walkers", "barracks_worker_portrait"), c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("Walkers", "barracks_worker_portrait")).draw(c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
     } else {
-        image_draw(big_people_image(figure_type_from_legacy(f->type)), c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
     }
     lang_text_draw(65, f->name, c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     int width = 0;
@@ -443,8 +442,7 @@ static void draw_cartpusher(building_info_context *c, figure *f)
     }
 
     if (f->resource_id != RESOURCE_NONE) {
-        image_draw(resource_get_data(resource_from_legacy(f->resource_id))->image.icon,
-            c->x_offset + 92 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(resource_from_legacy(f->resource_id))->image.icon).draw(c->x_offset + 92 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     if (f->loads_sold_or_carrying > 0 && f->resource_id != RESOURCE_NONE &&
@@ -521,15 +519,14 @@ static int is_depot_cartpusher_recalled(figure *f)
 
 static void draw_depot_cartpusher(building_info_context *c, figure *f)
 {
-    image_draw(big_people_image(figure_type_from_legacy(f->type)), c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
 
     building *depot = building_get(f->building_id);
     resource_type resource = depot->data.depot.current_order.resource_type;
 
     lang_text_draw(65, f->name, c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     if (f->loads_sold_or_carrying > 0 && f->resource_id != RESOURCE_NONE) {
-        image_draw(resource_get_data(resource)->image.icon,
-            c->x_offset + 92, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(resource)->image.icon).draw(c->x_offset + 92, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
         text_draw_number(f->loads_sold_or_carrying, 'x', "", c->x_offset + 118, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), COLOR_MASK_NONE);
     }
 
@@ -549,8 +546,7 @@ static void draw_depot_cartpusher(building_info_context *c, figure *f)
 
     int width = text_draw(translation_for(TR_FIGURE_INFO_DEPOT_DELIVER), c->x_offset + 40, c->y_offset + 200,
         FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
-    image_draw(resource_get_data(resource)->image.icon,
-        c->x_offset + 40 + width, c->y_offset + 194, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(resource)->image.icon).draw(c->x_offset + 40 + width, c->y_offset + 194, COLOR_MASK_NONE, SCALE_NONE);
     int y_offset = 0;
 
     if (source->storage_id) {
@@ -572,7 +568,7 @@ static void draw_depot_cartpusher(building_info_context *c, figure *f)
 
 static void draw_supplier(building_info_context *c, figure *f)
 {
-    image_draw(big_people_image(figure_type_from_legacy(f->type)), c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
 
     lang_text_draw(65, f->name, c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     int width = 0;
@@ -589,13 +585,11 @@ static void draw_supplier(building_info_context *c, figure *f)
 
     if (f->action_state == FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE) {
         width += lang_text_draw(129, 17, c->x_offset + 90 + width, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-        image_draw(resource_get_data(resource)->image.icon,
-            c->x_offset + 90 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(resource)->image.icon).draw(c->x_offset + 90 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
     } else if (f->action_state == FIGURE_ACTION_146_SUPPLIER_RETURNING) {
         if (resource != RESOURCE_NONE) {
             width += lang_text_draw(129, 18, c->x_offset + 90 + width, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-            image_draw(resource_get_data(resource)->image.icon,
-                c->x_offset + 90 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(resource_get_data(resource)->image.icon).draw(c->x_offset + 90 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
         }
     }
     if (c->figure.phrase_id >= 0) {
@@ -606,7 +600,7 @@ static void draw_supplier(building_info_context *c, figure *f)
 
 static void draw_monument_worker(building_info_context *c, figure *f)
 {
-    image_draw(big_people_image(figure_type_from_legacy(f->type)), c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
 
     lang_text_draw(65, f->name, c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     int relative_id = f->type - FIGURE_NEW_TYPES;
@@ -615,15 +609,13 @@ static void draw_monument_worker(building_info_context *c, figure *f)
 
     if (f->action_state == FIGURE_ACTION_204_WORK_CAMP_WORKER_GETTING_RESOURCES) {
         width += lang_text_draw(129, 17, c->x_offset + 90 + width, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-        image_draw(resource_get_data(resource)->image.icon,
-            c->x_offset + 90 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(resource)->image.icon).draw(c->x_offset + 90 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
     } else if (f->action_state == FIGURE_ACTION_205_WORK_CAMP_WORKER_GOING_TO_MONUMENT ||
         f->action_state == FIGURE_ACTION_209_WORK_CAMP_SLAVE_FOLLOWING ||
         f->action_state == FIGURE_ACTION_210_WORK_CAMP_SLAVE_GOING_TO_MONUMENT ||
         f->action_state == FIGURE_ACTION_211_WORK_CAMP_SLAVE_DELIVERING_RESOURCES) {
         width += lang_text_draw(129, 18, c->x_offset + 90 + width, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-        image_draw(resource_get_data(resource)->image.icon,
-            c->x_offset + 90 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(resource)->image.icon).draw(c->x_offset + 90 + width, c->y_offset + 135, COLOR_MASK_NONE, SCALE_NONE);
     }
     if (c->figure.phrase_id >= 0) {
         lang_text_draw_multiline(130, 21 * c->figure.sound_id + c->figure.phrase_id + 1,
@@ -637,9 +629,9 @@ static void draw_normal_figure(building_info_context *c, figure *f)
     int image_id = big_people_image(figure_type_from_legacy(f->type));
     if (f->action_state == FIGURE_ACTION_74_PREFECT_GOING_TO_FIRE ||
         f->action_state == FIGURE_ACTION_75_PREFECT_AT_FIRE) {
-        image_id = image_group(GROUP_BIG_PEOPLE) + 18;
+        image_id = Image::group(GROUP_BIG_PEOPLE) + 18;
     }
-    image_draw(image_id, c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(c->x_offset + 28, c->y_offset + 112, COLOR_MASK_NONE, SCALE_NONE);
 
     lang_text_draw(65, f->name, c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     if (f->type >= FIGURE_NEW_TYPES && f->type < FIGURE_TYPE_MAX) {

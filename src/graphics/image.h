@@ -3,40 +3,120 @@
 #include "core/image.h"
 #include "graphics/color.h"
 #include "graphics/font.h"
+#include "graphics/runtime_texture.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string>
+#include <string_view>
 
-#define SCALE_NONE 1.0f
+constexpr float SCALE_NONE = 1.0f;
 
-void image_draw(int image_id, int x, int y, color_t color, float scale);
-void image_draw_image(const image *img, int x, int y, color_t color, float scale);
+class Image;
 
-void image_draw_silhouette(int image_id, int x, int y, color_t color, float scale);
-void image_draw_enemy(int image_id, int x, int y, float scale);
+class ImageManager {
+public:
+    Image &from_id(int image_id);
+    Image &from_legacy(image &legacy_image);
+    const Image &from_legacy(const image &legacy_image);
+    Image *find(std::string_view path_key);
+    const Image *find(std::string_view path_key) const;
 
-void image_draw_scaled_centered(int image_id, int x, int y, color_t color, int draw_scale_percent);
+    Image &register_image(image &legacy_image, std::string_view path_key);
+    Image *acquire(image &legacy_image, std::string_view path_key);
+    Image *load_png(image &legacy_image, std::string_view path_key, const char *file_path);
+    Image *load_png(std::string_view path_key, const char *file_path);
+    Image *load_pixels(std::string_view path_key, const image &metadata, const color_t *pixels, int width, int height);
+    void retain(std::string_view path_key);
+    void release(std::string_view path_key);
+    void release(image &legacy_image);
+    void clear();
 
-void image_draw_letter(font_t font, int letter_id, int x, int y, color_t color, float scale);
+private:
+    friend class Image;
 
-void image_draw_fullscreen_background(int image_id);
-void image_draw_blurred_fullscreen(int image_id, int intensity);
+    Image &store_legacy_image(image &legacy_image);
+    Image &store_keyed_image(std::string_view path_key, const image &legacy_image);
+};
 
-void image_draw_border(int base_image_id, int x, int y, color_t color);
+ImageManager &image_manager();
 
-void image_draw_isometric_footprint_image(const image *img, int x, int y, color_t color_mask, float scale);
-void image_draw_isometric_footprint(int image_id, int x, int y, color_t color_mask, float scale);
-void image_draw_isometric_footprint_from_draw_tile_image(const image *img, int x, int y, color_t color_mask, float scale);
-void image_draw_isometric_footprint_from_draw_tile(int image_id, int x, int y, color_t color_mask, float scale);
-void image_blend_footprint_color(int x, int y, color_t color, float scale);
+class Image {
+public:
+    Image() = default;
+    explicit Image(const image &legacy_image);
 
-void image_draw_isometric_top_image(const image *img, int x, int y, color_t color_mask, float scale);
-void image_draw_isometric_top(int image_id, int x, int y, color_t color_mask, float scale);
-void image_draw_isometric_top_from_draw_tile_image(const image *img, int x, int y, color_t color_mask, float scale);
-void image_draw_isometric_top_from_draw_tile(int image_id, int x, int y, color_t color_mask, float scale);
-void image_draw_set_isometric_top_from_draw_tile(int image_id, int x, int y, color_t color_mask, float scale);
+    static Image &from_id(int image_id);
+    static Image &from_legacy(image &legacy_image);
+    static const Image &from_legacy(const image &legacy_image);
+    static Image &letter(int letter_id);
+    static Image &enemy(int image_id);
+    static int group(int group_id);
 
-#ifdef __cplusplus
-}
-#endif
+    static int load_climate(int climate_id, int is_editor, int force_reload, int keep_atlas_buffers, int extract_legacy_graphics);
+    static int load_fonts(encoding_type encoding);
+    static int load_enemy_graphics(int enemy_id);
+
+    static void copy(const image_copy_info &copy_info);
+    static void copy_isometric_footprint(const image_copy_info &copy_info);
+    static void blend_footprint_color(int x, int y, color_t color, float scale);
+
+    const std::string &key() const;
+    const char *key_c_str() const;
+    image_handle render_handle() const;
+    int ref_count() const;
+
+    int x_offset() const;
+    int y_offset() const;
+    int width() const;
+    int height() const;
+    int original_width() const;
+    int original_height() const;
+    int is_isometric() const;
+    const image_animation *animation() const;
+    image_animation *animation();
+    const Image *top() const;
+    Image *top();
+
+    RuntimeDrawSlice runtime_slice() const;
+    const image &legacy() const;
+    image &mutable_legacy_for_image_subsystem();
+
+    void sync_from_legacy(const image &legacy_image);
+    void set_render_handle(image_handle handle);
+    void retain();
+    int release_ref();
+    void release_renderer_resource();
+
+    int is_external() const;
+    void load_external_data() const;
+    int get_external_dimensions(int &out_width, int &out_height) const;
+    void crop(const color_t *pixels);
+
+    void draw(int x, int y, color_t color, float scale) const;
+    void draw_silhouette(int x, int y, color_t color, float scale) const;
+    void draw_scaled_centered(int x, int y, color_t color, int draw_scale_percent) const;
+    void draw_letter(font_t font, int x, int y, color_t color, float scale) const;
+    void draw_fullscreen_background() const;
+    void draw_blurred_fullscreen(int intensity) const;
+    void draw_border(int x, int y, color_t color) const;
+    void draw_isometric_footprint(int x, int y, color_t color_mask, float scale) const;
+    void draw_isometric_footprint_from_draw_tile(int x, int y, color_t color_mask, float scale) const;
+    void draw_isometric_top(int x, int y, color_t color_mask, float scale) const;
+    void draw_isometric_top_from_draw_tile(int x, int y, color_t color_mask, float scale) const;
+    void draw_set_isometric_top_from_draw_tile(int x, int y, color_t color_mask, float scale) const;
+
+private:
+    friend class ImageManager;
+
+    void bind_key(std::string_view path_key);
+    void bind_legacy(image &legacy_image);
+    void clear_bound_legacy();
+    void ensure_ready_to_draw() const;
+    int legacy_id() const;
+    void set_legacy_id(int image_id);
+
+    image legacy_image_ = {};
+    std::string key_;
+    int ref_count_ = 0;
+    image *bound_legacy_ = nullptr;
+    int legacy_id_ = -1;
+};

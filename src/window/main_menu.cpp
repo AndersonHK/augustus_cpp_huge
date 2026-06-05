@@ -11,7 +11,6 @@ extern "C" {
 #include "game/system.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
@@ -29,6 +28,7 @@ extern "C" {
 #include "window/select_campaign.h"
 #include "window/video.h"
 }
+#include "graphics/image.h"
 
 #define MAX_BUTTONS 6
 
@@ -67,7 +67,7 @@ static void draw_background(void)
 {
     graphics_reset_dialog();
     graphics_reset_clip_rectangle();
-    image_draw_fullscreen_background(image_group(GROUP_INTERMEZZO_BACKGROUND));
+    Image::from_id(Image::group(GROUP_INTERMEZZO_BACKGROUND)).draw_fullscreen_background();
 
     if (!window_is(WINDOW_FILE_DIALOG)) {
         graphics_in_dialog();
@@ -75,7 +75,7 @@ static void draw_background(void)
         if (!data.logo_image_id) {
             data.logo_image_id = assets_get_image_id("UI", "Main Menu Banner");
         }
-        image_draw(data.logo_image_id, 176, 50, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(data.logo_image_id).draw(176, 50, COLOR_MASK_NONE, SCALE_NONE);
         graphics_reset_dialog();
         draw_version_string();
     }

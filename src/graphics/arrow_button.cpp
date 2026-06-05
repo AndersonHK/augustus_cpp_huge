@@ -1,4 +1,6 @@
+extern "C" {
 #include "arrow_button.h"
+}
 
 #include "graphics/image.h"
 
@@ -18,7 +20,7 @@ void arrow_buttons_draw(int x, int y, arrow_button *buttons, unsigned int num_bu
         if (buttons[i].pressed) {
             image_id += 1;
         }
-        image_draw(image_id, x + buttons[i].x_offset, y + buttons[i].y_offset, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(x + buttons[i].x_offset, y + buttons[i].y_offset, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 

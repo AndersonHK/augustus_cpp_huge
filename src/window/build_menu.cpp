@@ -16,7 +16,6 @@ extern "C" {
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
@@ -29,6 +28,7 @@ extern "C" {
 #include "widget/sidebar/city.h"
 #include "window/city.h"
 }
+#include "graphics/image.h"
 
 #include <cstddef>
 #include <vector>
@@ -208,7 +208,7 @@ static int init(build_menu_group submenu)
 int window_build_menu_image(void)
 {
     building_type type = building_construction_selection_type();
-    int image_base = image_group(GROUP_PANEL_WINDOWS);
+    int image_base = Image::group(GROUP_PANEL_WINDOWS);
     if (type == BUILDING_NONE) {
         return image_base + 12;
     }
@@ -218,19 +218,19 @@ int window_build_menu_image(void)
             return image_base;
         case BUILD_MENU_CLEAR_LAND:
             if (scenario_property_climate() == CLIMATE_DESERT) {
-                return image_group(GROUP_PANEL_WINDOWS_DESERT);
+                return Image::group(GROUP_PANEL_WINDOWS_DESERT);
             } else {
                 return image_base + 11;
             }
         case BUILD_MENU_ROAD:
             if (scenario_property_climate() == CLIMATE_DESERT) {
-                return image_group(GROUP_PANEL_WINDOWS_DESERT) + 1;
+                return Image::group(GROUP_PANEL_WINDOWS_DESERT) + 1;
             } else {
                 return image_base + 10;
             }
         case BUILD_MENU_WATER:
             if (scenario_property_climate() == CLIMATE_DESERT) {
-                return image_group(GROUP_PANEL_WINDOWS_DESERT) + 2;
+                return Image::group(GROUP_PANEL_WINDOWS_DESERT) + 2;
             } else {
                 return image_base + 3;
             }
@@ -251,7 +251,7 @@ int window_build_menu_image(void)
         case BUILD_MENU_SECURITY:
         case BUILD_MENU_FORTS:
             if (scenario_property_climate() == CLIMATE_DESERT) {
-                return image_group(GROUP_PANEL_WINDOWS_DESERT) + 3;
+                return Image::group(GROUP_PANEL_WINDOWS_DESERT) + 3;
             } else {
                 return image_base + 8;
             }
@@ -321,7 +321,7 @@ static void draw_resource_icon_scaled(int image_id, int x, int y, int max_size)
             break;
     }
 
-    image_draw_scaled_centered(image_id, x, y, COLOR_MASK_NONE, scale_percent);
+    Image::from_id(image_id).draw_scaled_centered(x, y, COLOR_MASK_NONE, scale_percent);
 }
 
 building_type BuildMenuButton::cost_type() const
@@ -423,22 +423,19 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else {
         int image_id = assets_get_image_id("UI", "Expand Menu Icon");
-        image_draw(image_id, item_x_align + MENU_ICON_X_OFFSET + 268,
-            item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(item_x_align + MENU_ICON_X_OFFSET + 268, item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     int icons_drawn = 0;
     if (has_rotation_icon()) {
         int image_id = assets_get_image_id("UI", "Rotate Build Icon");
-        image_draw(image_id, item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET,
-            item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
         icons_drawn++;
     }
 
     if (has_monument_icon()) {
         int image_id = assets_get_image_id("UI", "Monument Build Icon");
-        image_draw(image_id, item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET,
-            item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 

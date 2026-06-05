@@ -1,17 +1,18 @@
+extern "C" {
 #include "image.h"
-
 #include "assets/group.h"
 #include "core/array.h"
 #include "core/image.h"
-#include "core/image_payload.h"
 #include "core/image_packer.h"
 #include "core/log.h"
 #include "core/png_read.h"
 #include "game/campaign.h"
 #include "graphics/color.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/renderer.h"
+}
+
+#include "graphics/image.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -62,7 +63,7 @@ static image_reference_type get_image_reference_type(const asset_image *img)
     if (l->invert != INVERT_NONE || l->rotate != ROTATE_NONE || l->part != PART_BOTH || l->mask != LAYER_MASK_NONE) {
         return IMAGE_ORIGINAL;
     }
-    int reference = img->img.width == l->width && img->img.height == l->height && l->x_offset == 0 && l->y_offset == 0 ?
+    image_reference_type reference = img->img.width == l->width && img->img.height == l->height && l->x_offset == 0 && l->y_offset == 0 ?
         IMAGE_FULL_REFERENCE : IMAGE_TRANSLATED_REFERENCE;
     return reference == IMAGE_TRANSLATED_REFERENCE && image_get(l->calculated_image_id)->is_isometric ?
         IMAGE_ORIGINAL : reference;
@@ -81,7 +82,7 @@ static void translate_reference_position(asset_image *img)
         img->img.atlas.x_offset = referenced->img.atlas.x_offset;
         img->img.atlas.y_offset = referenced->img.atlas.y_offset;
         if (referenced->img.resource_key) {
-            image_payload_acquire(&img->img, referenced->img.resource_key);
+            image_manager().acquire(img->img, referenced->img.resource_key);
         } else {
             img->img.resource_handle = referenced->img.resource_handle;
         }
@@ -96,7 +97,7 @@ static void translate_reference_position(asset_image *img)
         img->img.atlas.x_offset = referenced->atlas.x_offset;
         img->img.atlas.y_offset = referenced->atlas.y_offset;
         if (referenced->resource_key) {
-            image_payload_acquire(&img->img, referenced->resource_key);
+            image_manager().acquire(img->img, referenced->resource_key);
         } else {
             img->img.resource_handle = referenced->resource_handle;
         }
@@ -229,7 +230,7 @@ static int load_image(asset_image *img, color_t **main_images, int *main_image_w
     }
     int has_alpha_mask = load_image_layers(img, main_images, main_image_widths);
 
-    color_t *pixels = malloc(sizeof(color_t) * img->img.width * img->img.height);
+    color_t *pixels = static_cast<color_t *>(malloc(sizeof(color_t) * img->img.width * img->img.height));
     if (!pixels) {
         log_error("Error creating image - out of memory", 0, 0);
         unload_image_layers(img);
@@ -271,9 +272,9 @@ static int load_image(asset_image *img, color_t **main_images, int *main_image_w
         if (!inverts_and_rotates) {
             layer_invert_type invert = l->invert;
             if (l->rotate == ROTATE_90_DEGREES || l->rotate == ROTATE_180_DEGREES) {
-                invert ^= INVERT_HORIZONTAL;
+                invert = static_cast<layer_invert_type>(static_cast<int>(invert) ^ static_cast<int>(INVERT_HORIZONTAL));
             }
-            if (invert & INVERT_HORIZONTAL) {
+            if ((static_cast<int>(invert) & static_cast<int>(INVERT_HORIZONTAL)) != 0) {
                 layer_step_x = -layer_step_x;
             }
         }
@@ -338,7 +339,7 @@ static int load_image(asset_image *img, color_t **main_images, int *main_image_w
         int footprint_height = tiles * FOOTPRINT_HEIGHT;
 
         if (has_top_part(&img->img, pixels)) {
-            img->img.top = malloc(sizeof(image));
+            img->img.top = static_cast<image *>(malloc(sizeof(image)));
             if (!img->img.top) {
                 log_error("Error creating image - out of memory", 0, 0);
                 unload_image_layers(img);
@@ -350,7 +351,7 @@ static int load_image(asset_image *img, color_t **main_images, int *main_image_w
             img->img.top->original.width = img->img.top->width;
             img->img.top->original.height = img->img.top->height;
             img->img.atlas.y_offset = img->img.top->height;
-            color_t *new_data = malloc(sizeof(color_t) * (img->img.height + img->img.top->height) * img->img.width);
+            color_t *new_data = static_cast<color_t *>(malloc(sizeof(color_t) * (img->img.height + img->img.top->height) * img->img.width));
             if (!new_data) {
                 log_error("Error creating image - out of memory", 0, 0);
                 unload_image_layers(img);
@@ -390,7 +391,7 @@ static layer *create_layer_for_image(asset_image *img)
     if (layer_is_empty(img->last_layer)) {
         return img->last_layer;
     }
-    layer *l = malloc(sizeof(layer));
+    layer *l = static_cast<layer *>(malloc(sizeof(layer)));
     if (!l) {
         log_error("Out of memory to create layer", 0, 0);
         return 0;
@@ -468,11 +469,11 @@ void asset_image_unload(asset_image *img)
     free((color_t *) img->data); // Freeing a const pointer - ugly but necessary
     if (!img->is_reference) {
         if (img->img.top) {
-            image_payload_release(img->img.top);
+            image_manager().release(*img->img.top);
         }
         free(img->img.top);
     }
-    image_payload_release(&img->img);
+    image_manager().release(img->img);
     free(img->img.animation);
     img->id = 0;
     img->data = 0;
@@ -515,7 +516,7 @@ static int upload_cropped_image_resource(
         return 0;
     }
 
-    color_t *cropped = malloc(sizeof(color_t) * img->width * img->height);
+    color_t *cropped = static_cast<color_t *>(malloc(sizeof(color_t) * img->width * img->height));
     if (!cropped) {
         return 0;
     }
@@ -565,7 +566,7 @@ static void register_asset_image_payload(asset_image *img, int is_top)
     }
     char key[FILE_NAME_MAX];
     make_asset_image_resource_key(img, is_top, key, sizeof(key));
-    image_payload_register(target, key);
+    image_manager().register_image(*target, key);
 }
 
 static int asset_image_can_use_direct_payload(const asset_image *img)
@@ -596,7 +597,7 @@ static int load_asset_image_direct_payload(asset_image *img)
     }
 
     const layer *source = &img->first_layer;
-    if (!image_payload_load_png(&img->img, source->asset_image_path, source->asset_image_path)) {
+    if (!image_manager().load_png(img->img, source->asset_image_path, source->asset_image_path)) {
         return 0;
     }
 
@@ -856,7 +857,7 @@ const asset_image *asset_image_create_external(const char *filename)
     img->img.original.width = img->img.width;
     img->img.original.height = img->img.height;
 
-    color_t *pixels = malloc(sizeof(color_t) * img->img.width * img->img.height);
+    color_t *pixels = static_cast<color_t *>(malloc(sizeof(color_t) * img->img.width * img->img.height));
     if (!pixels) {
         free(png);
         png_unload();
@@ -872,7 +873,7 @@ const asset_image *asset_image_create_external(const char *filename)
     img->data = pixels;
     free(png);
     png_unload();
-    char *id = malloc(sizeof(char) * (strlen(filename) + 1));
+    char *id = static_cast<char *>(malloc(sizeof(char) * (strlen(filename) + 1)));
     if (!id) {
         asset_image_unload(img);
         return 0;
@@ -885,7 +886,7 @@ const asset_image *asset_image_create_external(const char *filename)
     if (renderer && renderer->upload_image_resource) {
         renderer->upload_image_resource(&img->img, pixels, img->img.width, img->img.height);
     }
-    image_payload_register(&img->img, filename);
+    image_manager().register_image(img->img, filename);
     return img;
 #else
     return 0;

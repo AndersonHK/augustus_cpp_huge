@@ -21,7 +21,6 @@ extern "C" {
 #include "game/resource.h"
 #include "game/state.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/runtime_overlay_images.h"
 #include "graphics/text.h"
 #include "map/bridge.h"
@@ -35,6 +34,7 @@ extern "C" {
 #include "translation/translation.h"
 #include "widget/city_draw_highway.h"
 }
+#include "graphics/image.h"
 
 #include "building/animations.h"
 #include <stdio.h>
@@ -118,7 +118,7 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
         return 0;
     }
     int image_id = map_image_at(grid_offset);
-    image_draw_isometric_top_from_draw_tile(image_id, x, y, COLOR_MASK_NONE, scale);
+    Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, COLOR_MASK_NONE, scale);
     const image *img = image_get(image_id);
     int animation_offset = legacy_animation_offset(b, image_id, grid_offset);
     if (animation_offset > 0) {
@@ -126,10 +126,7 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
         if (animation_offset > img->animation->num_sprites) {
             animation_offset = img->animation->num_sprites;
         }
-        image_draw(image_id + img->animation->start_offset + animation_offset,
-            x + img->animation->sprite_offset_x,
-            y + img->animation->sprite_offset_y - y_offset,
-            COLOR_MASK_NONE, scale);
+        Image::from_id(image_id + img->animation->start_offset + animation_offset).draw(x + img->animation->sprite_offset_x, y + img->animation->sprite_offset_y - y_offset, COLOR_MASK_NONE, scale);
     }
     return 1;
 }
@@ -682,23 +679,23 @@ static int draw_footprint_water(int x, int y, float scale, int grid_offset)
     if (map_is_bridge(grid_offset)) {
         int water_image = map_image_at(grid_offset);  // Get the water image for the bridge
         if (!water_image) {
-            water_image = image_group(GROUP_TERRAIN_WATER);  // fallback - first image in water group
+            water_image = Image::group(GROUP_TERRAIN_WATER);  // fallback - first image in water group
         }
-        image_draw_isometric_footprint_from_draw_tile(water_image, x, y, 0, scale);
+        Image::from_id(water_image).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     }
     int is_building = map_terrain_is(grid_offset, TERRAIN_BUILDING);
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         city_draw_highway_footprint(x, y, scale, grid_offset, COLOR_MASK_NONE);
     } else if (map_terrain_is(grid_offset, terrain_on_water_overlay()) && !is_building) {
-        image_draw_isometric_footprint_from_draw_tile(map_image_at(grid_offset), x, y, 0, scale);
+        Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     } else if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
         // display grass
-        int image_id = image_group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7);
-        image_draw_isometric_footprint_from_draw_tile(image_id, x, y, 0, scale);
+        int image_id = Image::group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7);
+        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     } else if (is_building) {
         city_with_overlay_draw_building_footprint(x, y, grid_offset, 0);
     } else {
-        image_draw_isometric_footprint_from_draw_tile(map_image_at(grid_offset), x, y, 0, scale);
+        Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     }
     if (config_get(CONFIG_UI_SHOW_GRID) && map_property_is_draw_tile(grid_offset)
                                     && !map_building_at(grid_offset) && scale <= 2.0f) {
@@ -707,7 +704,7 @@ static int draw_footprint_water(int x, int y, float scale, int grid_offset)
         if (!grid_id) {
             grid_id = assets_get_image_id("UI", "Grid_Full");
         }
-        image_draw(grid_id, x, y, COLOR_GRID, scale);
+        Image::from_id(grid_id).draw(x, y, COLOR_GRID, scale);
     }
     return 1;
 }
@@ -739,7 +736,7 @@ static void draw_water_runtime_overlay(int x, int y, float scale, int grid_offse
 
     const image *overlay = runtime_overlay_image_get(RUNTIME_OVERLAY_IMAGE_WATER_RANGE);
     if (overlay) {
-        image_draw_image(overlay, x, y, color, scale);
+        Image::from_legacy(*(overlay)).draw(x, y, color, scale);
     }
 }
 
@@ -754,7 +751,7 @@ static int draw_top_water(int x, int y, float scale, int grid_offset)
             if (map_property_is_deleted(grid_offset) && map_property_multi_tile_size(grid_offset) == 1) {
                 color_mask = COLOR_MASK_RED;
             }
-            image_draw_isometric_top_from_draw_tile(map_image_at(grid_offset), x, y, color_mask, scale);
+            Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
         }
     } else if (map_building_at(grid_offset)) {
         city_with_overlay_draw_building_top(x, y, grid_offset);
@@ -795,13 +792,13 @@ static void blend_color_to_footprint(int x, int y, int size, color_t color, floa
 
     for (int step = 1; step <= total_steps; step++) {
         if (tiles % 2) {
-            image_draw(image_group(GROUP_TERRAIN_FLAT_TILE), x, y, color, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, color, scale);
         }
         int y_offset = 15 + 15 * (tiles % 2);
 
         for (int i = 1; i <= tiles / 2; i++) {
-            image_draw(image_group(GROUP_TERRAIN_FLAT_TILE), x, y - y_offset, color, scale);
-            image_draw(image_group(GROUP_TERRAIN_FLAT_TILE), x, y + y_offset, color, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y - y_offset, color, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y + y_offset, color, scale);
             y_offset += 30;
         }
         x += 30;
@@ -839,7 +836,7 @@ static int draw_sentiment_top(int x, int y, float scale, int grid_offset)
     if (map_property_is_draw_tile(grid_offset)) {
         city_with_overlay_draw_building_top(x, y, grid_offset);
         color_t color = get_color_for_percentage(b->sentiment.house_happiness);
-        image_draw_set_isometric_top_from_draw_tile(map_image_at(grid_offset), x, y, color, scale);
+        Image::from_id(map_image_at(grid_offset)).draw_set_isometric_top_from_draw_tile(x, y, color, scale);
     }
     return 1;
 }
@@ -907,7 +904,7 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
             color_t desirability_color = get_color_for_percentage(get_desirability_image_offset(b->desirability) * 10);
             blend_color_to_footprint(x, y, b->house_size, desirability_color, scale);
             city_with_overlay_draw_building_top(x, y, grid_offset);
-            image_draw_set_isometric_top_from_draw_tile(map_image_at(grid_offset), x, y, desirability_color, scale);
+            Image::from_id(map_image_at(grid_offset)).draw_set_isometric_top_from_draw_tile(x, y, desirability_color, scale);
         }
     } else {
         int desirability;
@@ -919,10 +916,8 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
         }
         if (desirability) {
             int offset = get_desirability_image_offset(desirability);
-            image_draw_isometric_footprint_from_draw_tile(image_group(GROUP_TERRAIN_DESIRABILITY) + offset, x, y,
-                ALPHA_FONT_SEMI_TRANSPARENT, scale);
-            image_draw_isometric_top_from_draw_tile(image_group(GROUP_TERRAIN_DESIRABILITY) + offset, x, y,
-                ALPHA_FONT_SEMI_TRANSPARENT, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_DESIRABILITY) + offset).draw_isometric_footprint_from_draw_tile(x, y, ALPHA_FONT_SEMI_TRANSPARENT, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_DESIRABILITY) + offset).draw_isometric_top_from_draw_tile(x, y, ALPHA_FONT_SEMI_TRANSPARENT, scale);
         }
     }
 }

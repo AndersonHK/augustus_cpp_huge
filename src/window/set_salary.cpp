@@ -9,13 +9,13 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "input/input.h"
 #include "window/advisors.h"
 }
+#include "graphics/image.h"
 
 #define MIN_DIALOG_WIDTH 384
 
@@ -59,7 +59,7 @@ static void draw_foreground(void)
     int dialog_width = get_dialog_width();
     int dialog_x = 128 - (dialog_width - MIN_DIALOG_WIDTH) / 2;
     outer_panel_draw(dialog_x, 32, dialog_width / BLOCK_SIZE, 25);
-    image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, dialog_x + 10, 42, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_DENARII)->image.icon).draw(dialog_x + 10, 42, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw_centered(52, 15, dialog_x + 25, 48, dialog_width - 64, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     inner_panel_draw(144, 80, 22, 15);

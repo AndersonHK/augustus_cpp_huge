@@ -7,7 +7,6 @@ extern "C" {
 #include "core/xml_parser.h"
 #include "game/mod_manager.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 }

@@ -201,8 +201,8 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - live city drawing asks native runtime-owned buildings for payload-backed footprint/top/animation slices before legacy tile-id rendering.
 - `src/assets/image_group_payload.h/.cpp`
   - path-keyed group manager now exposes default-image lookup, caches failed loads, stores implicit animation metadata/frame keys plus footprint/top composition data, and clones whole-image aliases including top/animation
-- `src/core/image_payload.h/.cpp`
-  - payload-backed `image` compatibility view already exists
+- `src/graphics/image.h/.cpp`
+  - manager-owned `Image` objects now expose the temporary legacy `image` compatibility view where still needed
 - `src/graphics/image.cpp`
   - now has pointer-based isometric helpers for direct `const image *` draws and a generic pointer draw helper for payload-backed animation frames
 - `src/building/image.cpp`

@@ -1,5 +1,5 @@
+extern "C" {
 #include "minimap.h"
-
 #include "assets/assets.h"
 #include "building/building.h"
 #include "building/building_type_api.h"
@@ -9,7 +9,6 @@
 #include "core/calc.h"
 #include "figure/formation.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/renderer.h"
 #include "map/building.h"
 #include "map/figure.h"
@@ -17,6 +16,9 @@
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
+}
+
+#include "graphics/image.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -54,17 +56,18 @@ typedef struct {
 static void get_viewport(int *x, int *y, int *width, int *height);
 
 static minimap_functions default_functions = {
-    .climate = scenario_property_climate,
-    .map.width = map_grid_width,
-    .map.height = map_grid_height,
-    .offset.figure = map_figure_foreach_until,
-    .offset.terrain = map_terrain_get,
-    .offset.building_id = map_building_at,
-    .offset.is_draw_tile = map_property_is_draw_tile,
-    .offset.tile_size = map_property_multi_tile_size,
-    .offset.random = map_random_get,
-    .building = building_get,
-    .viewport = get_viewport
+    scenario_property_climate,
+    building_get,
+    {map_grid_width, map_grid_height},
+    {
+        map_figure_foreach_until,
+        map_terrain_get,
+        map_building_at,
+        map_property_is_draw_tile,
+        map_property_multi_tile_size,
+        map_random_get
+    },
+    get_viewport
 };
 
 static const tile_color_climate_variants CLIMATE_VARIANTS[3] = {

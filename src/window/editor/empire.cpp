@@ -16,7 +16,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/screen.h"
@@ -36,6 +35,7 @@ extern "C" {
 #include "window/select_list.h"
 #include "window/text_input.h"
 }
+#include "graphics/image.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -260,7 +260,7 @@ void set_battles_shown(int show)
 
 static void draw_paneling(void)
 {
-    int image_base = image_group(GROUP_EDITOR_EMPIRE_PANELS);
+    int image_base = Image::group(GROUP_EDITOR_EMPIRE_PANELS);
     int bottom_panel_is_larger = data.x_min != data.panel.x_min;
     int vertical_y_limit = bottom_panel_is_larger ? data.y_max - 120 : data.y_max;
 
@@ -269,52 +269,52 @@ static void draw_paneling(void)
 
     // bottom panel background
     for (int x = data.panel.x_min; x < data.panel.x_max; x += 70) {
-        image_draw(image_base + 3, x, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 3, x, data.y_max - 120, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 3, x, data.y_max - 80, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 3, x, data.y_max - 40, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 120, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 80, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 40, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     // horizontal bar borders
     for (int x = data.panel.x_min; x < data.panel.x_max; x += 86) {
-        image_draw(image_base + 1, x, data.y_max - 10, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 1, x, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 1, x, data.y_max - 16, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_max - 10, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_max - 16, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     // extra vertical bar borders
     if (bottom_panel_is_larger) {
         for (int y = vertical_y_limit + 16; y < data.y_max; y += 86) {
-            image_draw(image_base, data.panel.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
-            image_draw(image_base, data.panel.x_max - 16, y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_base).draw(data.panel.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_base).draw(data.panel.x_max - 16, y, COLOR_MASK_NONE, SCALE_NONE);
         }
     }
 
     graphics_set_clip_rectangle(data.x_min, data.y_min, data.x_max - data.x_min, vertical_y_limit - data.y_min);
 
     for (int x = data.x_min; x < data.x_max; x += 86) {
-        image_draw(image_base + 1, x, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     // vertical bar borders
     for (int y = data.y_min + 16; y < vertical_y_limit; y += 86) {
-        image_draw(image_base, data.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base, data.x_max - 16, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base).draw(data.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base).draw(data.x_max - 16, y, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     graphics_reset_clip_rectangle();
 
     // crossbars
-    image_draw(image_base + 2, data.x_min, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.x_min, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.panel.x_min, data.y_max - 16, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.x_max - 16, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.x_max - 16, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.panel.x_max - 16, data.y_max - 16, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_min, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_min, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - 16, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_max - 16, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_max - 16, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.panel.x_max - 16, data.y_max - 16, COLOR_MASK_NONE, SCALE_NONE);
 
     if (bottom_panel_is_larger) {
-        image_draw(image_base + 2, data.panel.x_min, data.y_max - 120, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 2, data.panel.x_max - 16, data.y_max - 120, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - 120, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 2).draw(data.panel.x_max - 16, data.y_max - 120, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 
@@ -382,7 +382,7 @@ static int draw_preview_image(int x, int y, int center, color_t color_mask, int 
         image_id = empire_city_get_icon_image_id(obj->empire_city_icon);
     } else {
         if (empire_editor_get_moving_ornament_id() < 0) {
-            image_id = image_group(preview_image_group);
+            image_id = Image::group(preview_image_group);
             if (preview_image_group == GROUP_EMPIRE_TRADE_LAND) {
                 image_id = assets_get_image_id("UI", "LandWaypoint");
             } else if (preview_image_group == GROUP_EMPIRE_TRADE_SEA) {
@@ -399,10 +399,9 @@ static int draw_preview_image(int x, int y, int center, color_t color_mask, int 
     const image *img = image_get(image_id);
     int x_offset = x + (center - img->width) / 2;
     int y_offset = y + (center - img->height) / 2;
-    image_draw(image_id, x_offset, y_offset, color_mask, SCALE_NONE);
+    Image::from_id(image_id).draw(x_offset, y_offset, color_mask, SCALE_NONE);
     if (img->animation && img->animation->speed_id) {
-        image_draw(image_id + 1, x_offset + img->animation->sprite_offset_x,
-            y_offset + img->animation->sprite_offset_y, color_mask, SCALE_NONE);
+        Image::from_id(image_id + 1).draw(x_offset + img->animation->sprite_offset_x, y_offset + img->animation->sprite_offset_y, color_mask, SCALE_NONE);
     }
     if (draw_borders) {
         graphics_draw_rect(x_offset, y_offset, img->width, img->height, COLOR_BLACK);
@@ -414,7 +413,7 @@ static void draw_background(void)
 {
     update_screen_size();
     if (data.x_min || data.y_min) {
-        image_draw_blurred_fullscreen(image_group(GROUP_EDITOR_EMPIRE_MAP), 3);
+        Image::from_id(Image::group(GROUP_EDITOR_EMPIRE_MAP)).draw_blurred_fullscreen(3);
         graphics_shade_rect(0, 0, screen_width(), screen_height(), 7);
     }
     draw_paneling();
@@ -481,19 +480,16 @@ static void draw_empire_object(const empire_object *obj)
             image_id = assets_lookup_image_id(ASSET_FIRST_ORNAMENT) - 1 - image_id;
         }
     }
-    image_draw(image_id, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
     const image *img = image_get(image_id);
     if (img->animation && img->animation->speed_id) {
         int new_animation = empire_object_update_animation(obj, image_id);
-        image_draw(image_id + new_animation,
-            data.x_draw_offset + x + img->animation->sprite_offset_x,
-            data.y_draw_offset + y + img->animation->sprite_offset_y,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id + new_animation).draw(data.x_draw_offset + x + img->animation->sprite_offset_x, data.y_draw_offset + y + img->animation->sprite_offset_y, COLOR_MASK_NONE, SCALE_NONE);
     }
     // Manually fix the Hagia Sophia
     if (obj->image_id == 3372) {
         image_id = assets_lookup_image_id(ASSET_HAGIA_SOPHIA_FIX);
-        image_draw(image_id, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 
@@ -598,8 +594,7 @@ static void draw_map(void)
     data.x_draw_offset = data.x_min + 16;
     data.y_draw_offset = data.y_min + 16;
     empire_adjust_scroll(&data.x_draw_offset, &data.y_draw_offset);
-    image_draw(empire_get_image_id(), data.x_draw_offset, data.y_draw_offset,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(empire_get_image_id()).draw(data.x_draw_offset, data.y_draw_offset, COLOR_MASK_NONE, SCALE_NONE);
     
     if (data.resource_pulse_start == 0) {
         data.resource_pulse_start = time_get_millis();
@@ -621,8 +616,7 @@ static void draw_map(void)
 static int draw_resource(resource_type resource, int trade_max, int x_offset, int y_offset, int is_highlighted)
 {
     graphics_draw_inset_rect(x_offset, y_offset, RESOURCE_ICON_WIDTH, RESOURCE_ICON_HEIGHT, COLOR_INSET_DARK, COLOR_INSET_LIGHT);
-    image_draw(resource_get_data(resource)->image.editor.empire, x_offset + 1, y_offset + 1,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(resource)->image.editor.empire).draw(x_offset + 1, y_offset + 1, COLOR_MASK_NONE, SCALE_NONE);
     if (is_highlighted) {
         time_millis elapsed = time_get_millis() - data.resource_pulse_start;
         float time_seconds = elapsed / 1000.0f; // Convert to seconds
@@ -779,8 +773,7 @@ static void draw_city_info(const empire_city *city)
                     24, 24, data.focus_city_button_id == 1);
                 int image_id = assets_get_image_id("UI", empire_object_is_sea_trade_route(city->route_id) ?
                     "SeaWaypoint" : "LandWaypoint");
-                image_draw(image_id, data.panel.x_max - 500 + trade_city_buttons[0].x + 3,
-                    data.y_max - 93 + 3, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(image_id).draw(data.panel.x_max - 500 + trade_city_buttons[0].x + 3, data.y_max - 93 + 3, COLOR_MASK_NONE, SCALE_NONE);
             }
             if (!trade_city_buttons[2].parameter1) {
                 // if the future trade after icon button isn't hidden draw it
@@ -790,13 +783,10 @@ static void draw_city_info(const empire_city *city)
                 int image_id = empire_city_get_icon_image_id(obj->future_trade_after_icon);
                 if (image_id > 0) {
                     float scale = obj->width > obj->height ? obj->width : obj->height / 24.0f;
-                    image_draw(image_id, (int) ((data.panel.x_max - 500 + trade_city_buttons[2].x) * scale),
-                        (int) ((data.y_max - 93) * scale), COLOR_MASK_NONE, scale);
+                    Image::from_id(image_id).draw((int) ((data.panel.x_max - 500 + trade_city_buttons[2].x) * scale), (int) ((data.y_max - 93) * scale), COLOR_MASK_NONE, scale);
                     const image *img = image_get(image_id);
                     if (img->animation && img->animation->speed_id) {
-                        image_draw(image_id + obj->animation_index,
-                        (int) ((data.panel.x_max - 500 + trade_city_buttons[2].x + img->animation->sprite_offset_x / 2) * scale),
-                        (int) ((data.y_max - 93 + img->animation->sprite_offset_y / 2) * scale), COLOR_MASK_NONE, scale);
+                        Image::from_id(image_id + obj->animation_index).draw((int) ((data.panel.x_max - 500 + trade_city_buttons[2].x + img->animation->sprite_offset_x / 2) * scale), (int) ((data.y_max - 93 + img->animation->sprite_offset_y / 2) * scale), COLOR_MASK_NONE, scale);
                     }
                 }
             }
@@ -1503,7 +1493,7 @@ static void button_route_type(const generic_button *button)
     city->is_sea_trade = !city->is_sea_trade;
     empire_object *route_obj = empire_object_get(city->empire_object_id + 1);
     route_obj->type = city->is_sea_trade ? EMPIRE_OBJECT_SEA_TRADE_ROUTE : EMPIRE_OBJECT_LAND_TRADE_ROUTE;
-    route_obj->image_id = image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + !city->is_sea_trade;
+    route_obj->image_id = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + !city->is_sea_trade;
 }
 
 static void set_opening_cost(int value)

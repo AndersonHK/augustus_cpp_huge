@@ -9,7 +9,6 @@ extern "C" {
 #include "graphics/arrow_button.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
@@ -21,6 +20,7 @@ extern "C" {
 #include "window/message_dialog.h"
 #include "window/empire.h"
 }
+#include "graphics/image.h"
 
 static void button_help(int param1, int param2);
 static void button_ok(int param1, int param2);
@@ -73,7 +73,7 @@ static void draw_foreground(void)
     graphics_in_dialog();
 
     outer_panel_draw(16, 128, 38, 15);
-    image_draw(resource_get_data(data.resource)->image.icon, 26, 136, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(data.resource)->image.icon).draw(26, 136, COLOR_MASK_NONE, SCALE_NONE);
 
     text_draw(resource_get_data(data.resource)->text, 60, 137, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), COLOR_MASK_NONE);
 

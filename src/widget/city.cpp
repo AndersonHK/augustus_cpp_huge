@@ -23,7 +23,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/graphics.h"
 #include "graphics/menu.h"
-#include "graphics/image.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/video.h"
@@ -45,6 +44,7 @@ extern "C" {
 #include "window/building_info.h"
 #include "window/city.h"
 }
+#include "graphics/image.h"
 
 #define NO_POSITION ((unsigned int)-1)
 
@@ -195,7 +195,7 @@ static void draw_pause_button(void)
     inner_panel_draw(16, 40, 3, 2);
     button_border_draw(16, 40, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
     if (game_state_is_paused()) {
-        image_draw(image_group(static_cast<int>(GROUP_MESSAGE_ICON)), 26, 46, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(static_cast<int>(GROUP_MESSAGE_ICON))).draw(26, 46, COLOR_MASK_NONE, SCALE_NONE);
     } else {
         draw_pause_icon(26, 46);
     }
@@ -221,8 +221,7 @@ static void draw_construction_buttons(void)
         button_border_draw(x_offset, y_offset, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
         // Use clip rectangle to remove the border of the "X" image
         graphics_set_clip_rectangle(x_offset + 5, y_offset + 5, 37, 24);
-        image_draw(image_group(static_cast<int>(GROUP_OK_CANCEL_SCROLL_BUTTONS)) + 4, x_offset + 4, y_offset + 4,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(static_cast<int>(GROUP_OK_CANCEL_SCROLL_BUTTONS)) + 4).draw(x_offset + 4, y_offset + 4, COLOR_MASK_NONE, SCALE_NONE);
         graphics_reset_clip_rectangle();
     }
 
@@ -236,16 +235,14 @@ static void draw_construction_buttons(void)
         inner_panel_draw(x_offset, y_offset, 3, 2);
         button_border_draw(x_offset, y_offset, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
         graphics_set_clip_rectangle(x_offset + 8, y_offset + 6, 37, 24);
-        image_draw(image_group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 6, x_offset + 7, y_offset + 5,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 6).draw(x_offset + 7, y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
         graphics_reset_clip_rectangle();
 
         x_offset += 3 * BLOCK_SIZE + 8;
         inner_panel_draw(x_offset, y_offset, 3, 2);
         button_border_draw(x_offset, y_offset, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
         graphics_set_clip_rectangle(x_offset + 8, y_offset + 6, 37, 24);
-        image_draw(image_group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 9, x_offset + 7, y_offset + 5,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 9).draw(x_offset + 7, y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
         graphics_reset_clip_rectangle();
     }
 }

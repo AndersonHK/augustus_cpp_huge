@@ -8,7 +8,6 @@ extern "C" {
 #include "game/game.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
@@ -21,6 +20,7 @@ extern "C" {
 #include "window/popup_dialog.h"
 #include "window/editor/attributes.h"
 }
+#include "graphics/image.h"
 
 #include "widget/top_menu_editor.h"
 
@@ -46,7 +46,7 @@ static void draw_cancel_construction(void)
     width = screen_pixel_to_ui(width);
     width -= 4 * BLOCK_SIZE;
     inner_panel_draw(width - 4, 40, 3, 2);
-    image_draw(image_group(GROUP_OK_CANCEL_SCROLL_BUTTONS) + 4, width, 44, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_OK_CANCEL_SCROLL_BUTTONS) + 4).draw(width, 44, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 static void draw_foreground(void)

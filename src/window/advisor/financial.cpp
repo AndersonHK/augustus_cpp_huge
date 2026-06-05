@@ -1,16 +1,18 @@
+extern "C" {
 #include "financial.h"
-
 #include "city/data_private.h"
 #include "city/finance.h"
 #include "core/calc.h"
 #include "graphics/arrow_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "translation/translation.h"
+}
+
+#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 
@@ -30,7 +32,7 @@ static void draw_row(int group, int number, int y, int value_last_year, int valu
     text_draw_number_finances(value_this_year, 490, y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 
-static void draw_tr_row(int tr_string, int y, int value_last_year, int value_this_year)
+static void draw_tr_row(translation_key tr_string, int y, int value_last_year, int value_this_year)
 {
     text_draw(translation_for(tr_string), 80, y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     text_draw_number_finances(value_last_year, 350, y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -40,7 +42,7 @@ static void draw_tr_row(int tr_string, int y, int value_last_year, int value_thi
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 10, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 10).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
 
     lang_text_draw(60, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     inner_panel_draw(64, 48, 34, 5);

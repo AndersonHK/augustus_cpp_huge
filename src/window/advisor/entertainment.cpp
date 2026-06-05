@@ -16,13 +16,13 @@ extern "C" {
 #include "core/calc.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "translation/translation.h"
 #include "window/hold_games.h"
 }
+#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 
@@ -108,7 +108,7 @@ static int draw_background(void)
     city_culture_calculate();
 
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 8, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 8).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
 
     lang_text_draw(58, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); // Entertainment
 

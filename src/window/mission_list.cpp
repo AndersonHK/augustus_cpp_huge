@@ -14,7 +14,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
 #include "graphics/text.h"
@@ -25,6 +24,7 @@ extern "C" {
 #include "window/mission_selection.h"
 #include "window/select_campaign.h"
 }
+#include "graphics/image.h"
 
 #define MISSION_LIST_Y_POSITION 48
 #define MISSION_MAP_MAX_WIDTH 352.0f
@@ -276,8 +276,7 @@ static void draw_scenario_selection_button(const campaign_scenario *camp_scenari
         return;
     }
 
-    image_draw(image_group(GROUP_SELECT_MISSION_BUTTON),
-        (int) (x_offset * scale) + camp_scenario->x, (int) (y_offset * scale) + camp_scenario->y, COLOR_MASK_NONE, scale);
+    Image::from_id(Image::group(GROUP_SELECT_MISSION_BUTTON)).draw((int) (x_offset * scale) + camp_scenario->x, (int) (y_offset * scale) + camp_scenario->y, COLOR_MASK_NONE, scale);
 }
 
 static int draw_mission_selection_map(void)
@@ -285,7 +284,7 @@ static int draw_mission_selection_map(void)
     int image_id;
     float extra_scale = 1.0f;
     if (!data.selected_item->mission.background_image.id) {
-        image_id = image_group(GROUP_EMPIRE_MAP);
+        image_id = Image::group(GROUP_EMPIRE_MAP);
         extra_scale = 2.5f;
     } else {
         image_id = data.selected_item->mission.background_image.id;
@@ -301,8 +300,7 @@ static int draw_mission_selection_map(void)
 
     int x_offset = SELECTED_ITEM_INFO_X_OFFSET + (int) ((MISSION_MAP_MAX_WIDTH - img->original.width / scale) / 2);
 
-    image_draw(image_id, (int) (x_offset * scale), (int) (MISSION_LIST_Y_POSITION * scale),
-        COLOR_MASK_NONE, scale);
+    Image::from_id(image_id).draw((int) (x_offset * scale), (int) (MISSION_LIST_Y_POSITION * scale), COLOR_MASK_NONE, scale);
 
     for (int i = 1; i <= data.selected_item->mission.total_scenarios; i++) {
         draw_scenario_selection_button(data.items[data.selected_item->index + i].scenario,
@@ -333,7 +331,7 @@ static void draw_rank(int y_offset)
 
 static void draw_background(void)
 {
-    image_draw_fullscreen_background(image_group(GROUP_EMPIRE_MAP));
+    Image::from_id(Image::group(GROUP_EMPIRE_MAP)).draw_fullscreen_background();
 
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);

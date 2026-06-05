@@ -8,13 +8,13 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "input/input.h"
 #include "window/advisors.h"
 }
+#include "graphics/image.h"
 
 static void button_increase_amount(const generic_button *button);
 static void button_donate(const generic_button *button);
@@ -60,7 +60,7 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(64, 160, 32, 10);
-    image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, 80, 176, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_DENARII)->image.icon).draw(80, 176, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw_centered(52, 16, 112, 176, 448, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     inner_panel_draw(112, 208, 26, 4);

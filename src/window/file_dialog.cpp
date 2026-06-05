@@ -25,7 +25,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
@@ -52,6 +51,7 @@ extern "C" {
 #include "window/plain_message_dialog.h"
 #include "window/popup_dialog.h"
 }
+#include "graphics/image.h"
 
 #include <string.h>
 
@@ -495,10 +495,10 @@ static void draw_foreground(void)
                 // Image is smaller than box, just center it without scaling
                 int centered_x = 352 + (266 - img->width) / 2;
                 int centered_y = 80 + (352 - img->height) / 2;
-                image_draw(data.preview_image_id, centered_x, centered_y, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(data.preview_image_id).draw(centered_x, centered_y, COLOR_MASK_NONE, SCALE_NONE);
             } else {
                 // Image is larger than box, scale it down to fit
-                image_draw(data.preview_image_id, (int) (352 * scale), (int) (80 * scale), COLOR_MASK_NONE, scale);
+                Image::from_id(data.preview_image_id).draw((int) (352 * scale), (int) (80 * scale), COLOR_MASK_NONE, scale);
             }
         } else {
             text_draw_centered(translation_for(TR_SAVE_DIALOG_SELECT_FILE), 362, 246, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -835,7 +835,7 @@ static void update_preview_image(void)
         }
     }
     if (!filename || !*filename) {
-        data.preview_image_id = image_group(editor_is_active() ? GROUP_EDITOR_EMPIRE_MAP : GROUP_EMPIRE_MAP);
+        data.preview_image_id = Image::group(editor_is_active() ? GROUP_EDITOR_EMPIRE_MAP : GROUP_EMPIRE_MAP);
     } else {
         data.preview_image_id = assets_get_external_image(filename, 1);
     }

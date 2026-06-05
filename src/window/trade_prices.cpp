@@ -1,5 +1,5 @@
+extern "C" {
 #include "trade_prices.h"
-
 #include "building/caravanserai.h"
 #include "building/lighthouse.h"
 #include "building/monument.h"
@@ -9,7 +9,6 @@
 #include "empire/city.h"
 #include "empire/trade_prices.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
@@ -17,6 +16,9 @@
 #include "graphics/window.h"
 #include "input/input.h"
 #include "window/advisors.h"
+}
+
+#include "graphics/image.h"
 
 static struct {
     int x;
@@ -123,12 +125,11 @@ static void draw_background(void)
         resource_type r = list->items[i];
 
         int image_id = resource_get_data(r)->image.icon;
-        const image *img = image_get(image_id);
-        int base_width = (25 - img->original.width) / 2;
-        int base_height = (25 - img->original.height) / 2;
+        const Image &img = Image::from_id(image_id);
+        int base_width = (25 - img.original_width()) / 2;
+        int base_height = (25 - img.original_height()) / 2;
 
-        image_draw(resource_get_data(r)->image.icon, icon_shift + base_width - 4 + i * resource_offset,
-            50 + base_height, COLOR_MASK_NONE, SCALE_NONE);
+        img.draw(icon_shift + base_width - 4 + i * resource_offset, 50 + base_height, COLOR_MASK_NONE, SCALE_NONE);
 
         if (!data.four_line || no_policy) {//same price on land and sea
             if (no_policy) {
@@ -196,16 +197,16 @@ static void draw_background(void)
             line_sell_position + 2 * number_margin     // sea sell
         };
 
-        int image_id_land = image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1;
-        int image_id_sea = image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE);
+        int image_id_land = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1;
+        int image_id_sea = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE);
 
         // Land route icons
-        image_draw(image_id_land, 13, y_positions[0] - 10, COLOR_MASK_NONE, SCALE_NONE); // land buy
-        image_draw(image_id_land, 13, y_positions[2] - 10, COLOR_MASK_NONE, SCALE_NONE); // land sell
+        Image::from_id(image_id_land).draw(13, y_positions[0] - 10, COLOR_MASK_NONE, SCALE_NONE); // land buy
+        Image::from_id(image_id_land).draw(13, y_positions[2] - 10, COLOR_MASK_NONE, SCALE_NONE); // land sell
 
         // Sea route icons
-        image_draw(image_id_sea, 10, y_positions[1] - 5, COLOR_MASK_NONE, SCALE_NONE);  // sea buy
-        image_draw(image_id_sea, 10, y_positions[3] - 5, COLOR_MASK_NONE, SCALE_NONE);  // sea sell
+        Image::from_id(image_id_sea).draw(10, y_positions[1] - 5, COLOR_MASK_NONE, SCALE_NONE);  // sea buy
+        Image::from_id(image_id_sea).draw(10, y_positions[3] - 5, COLOR_MASK_NONE, SCALE_NONE);  // sea sell
     }
 
     lang_text_draw_centered(13, 1, 0, button_position, data.window_width * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));

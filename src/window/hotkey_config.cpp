@@ -10,7 +10,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
@@ -21,6 +20,7 @@ extern "C" {
 #include "window/hotkey_editor.h"
 #include "window/plain_message_dialog.h"
 }
+#include "graphics/image.h"
 
 #define TR_NONE -1
 #define GROUP_BUILDINGS 28

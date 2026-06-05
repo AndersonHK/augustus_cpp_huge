@@ -18,7 +18,6 @@ extern "C" {
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/grid_box.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
@@ -29,6 +28,7 @@ extern "C" {
 #include "window/resource_settings.h"
 #include "window/trade_prices.h"
 }
+#include "graphics/image.h"
 
 #include <string.h>
 
@@ -116,7 +116,7 @@ static void init(void)
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 4, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 4).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
 
     lang_text_draw(54, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     int width = lang_text_get_width(54, 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -219,8 +219,8 @@ static void draw_resource_info(const grid_box_item *item)
     const image *img = image_get(image_id);
     int image_x = (40 - img->original.width) / 2;
     int image_y = (item->height - img->original.height) / 2;
-    image_draw(image_id, item->x + image_x, item->y + image_y, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_id, item->x + item->width - 40 + image_x, item->y + image_y, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(item->x + image_x, item->y + image_y, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(item->x + item->width - 40 + image_x, item->y + image_y, COLOR_MASK_NONE, SCALE_NONE);
 
     if (item->is_focused) {
         button_border_draw(item->x + 40, item->y - 2, item->width - 80, item->height, 1);
@@ -259,14 +259,14 @@ static void draw_foreground(void)
         390,
         land_policy_available,
         land_policy_available && data.focus_button_id == 3,
-        image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1,
+        Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1,
         "Land Trade Policy Off Button");
     draw_policy_button(
         95,
         390,
         sea_policy_available,
         sea_policy_available && data.focus_button_id == 4,
-        image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE),
+        Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE),
         "Sea Trade Policy Off Button");
 }
 

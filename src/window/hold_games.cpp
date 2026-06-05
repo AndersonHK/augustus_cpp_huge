@@ -15,7 +15,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
@@ -26,6 +25,7 @@ extern "C" {
 #include "window/city.h"
 #include "window/message_dialog.h"
 }
+#include "graphics/image.h"
 
 static void button_game(const generic_button *button);
 static void button_help(int param1, int param2);
@@ -98,9 +98,9 @@ static void draw_background(void)
             border_color = COLOR_BORDER_RED;
             highlight_color = COLOR_BLACK;
         }
-        image_draw_border(border_image_id, 100 * i + 170, 96, border_color);
-        image_draw(game_icon_image_id(i), 100 * i + 175, 101, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(highlight_image_id, 100 * i + 175, 101, highlight_color, SCALE_NONE);
+        Image::from_id(border_image_id).draw_border(100 * i + 170, 96, border_color);
+        Image::from_id(game_icon_image_id(i)).draw(100 * i + 175, 101, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(highlight_image_id).draw(100 * i + 175, 101, highlight_color, SCALE_NONE);
     }
     text_draw_multiline(translation_for(static_cast<translation_key>(game->description_key)),
         70, 215, 510, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -120,7 +120,7 @@ static void draw_background(void)
             if (city_resource_get_amount_including_granaries(resource_type_id, resource_cost, 0, 1) < resource_cost) {
                 has_resources = 0;
             }
-            image_draw(resource_get_data(resource_type_id)->image.icon, 164 + width, 316, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(resource_get_data(resource_type_id)->image.icon).draw(164 + width, 316, COLOR_MASK_NONE, SCALE_NONE);
             width += 32;
         }
     }

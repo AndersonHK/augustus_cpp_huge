@@ -1,5 +1,5 @@
+extern "C" {
 #include "map_editor_tool.h"
-
 #include "assets/assets.h"
 #include "building/image.h"
 #include "building/properties.h"
@@ -8,11 +8,13 @@
 #include "core/image_group_editor.h"
 #include "editor/tool.h"
 #include "editor/tool_restriction.h"
-#include "graphics/image.h"
 #include "input/scroll.h"
 #include "map/grid.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
+}
+
+#include "graphics/image.h"
 
 #define MAX_TILES 16
 
@@ -31,11 +33,11 @@ static void offset_to_view_offset(int dx, int dy, int *view_dx, int *view_dy)
 static void draw_flat_tile(int x, int y, color_t color_mask)
 {
     if (color_mask == COLOR_MASK_GREEN && scenario_property_climate() != CLIMATE_DESERT) {
-        image_draw(image_group(GROUP_TERRAIN_FLAT_TILE), x, y, ALPHA_MASK_SEMI_TRANSPARENT & color_mask, scale);
+        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, ALPHA_MASK_SEMI_TRANSPARENT & color_mask, scale);
     } else if (color_mask != COLOR_MASK_GREEN && color_mask != COLOR_MASK_RED) {
-        image_draw(image_group(GROUP_TERRAIN_FLAT_TILE), x, y, color_mask, scale);
+        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, color_mask, scale);
     } else {
-        image_blend_footprint_color(x, y, color_mask, scale);
+        Image::blend_footprint_color(x, y, color_mask, scale);
     }
 }
 
@@ -54,8 +56,8 @@ static void draw_partially_blocked(int x, int y, int num_tiles, int *blocked_til
 
 static void draw_building_image(int image_id, int x, int y)
 {
-    image_draw_isometric_footprint(image_id, x, y, COLOR_MASK_GREEN, scale);
-    image_draw_isometric_top(image_id, x, y, COLOR_MASK_GREEN, scale);
+    Image::from_id(image_id).draw_isometric_footprint(x, y, COLOR_MASK_GREEN, scale);
+    Image::from_id(image_id).draw_isometric_top(x, y, COLOR_MASK_GREEN, scale);
 }
 
 static void draw_building(const map_tile *tile, int x_view, int y_view, building_type type)
@@ -69,16 +71,16 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
     if (blocked) {
         draw_partially_blocked(x_view, y_view, num_tiles, blocked_tiles);
     } else if (editor_tool_is_in_use()) {
-        int image_id = image_group(GROUP_TERRAIN_OVERLAY);
+        int image_id = Image::group(GROUP_TERRAIN_OVERLAY);
         for (int i = 0; i < num_tiles; i++) {
             int x_offset = x_view + X_VIEW_OFFSETS[i];
             int y_offset = y_view + Y_VIEW_OFFSETS[i];
-            image_draw_isometric_footprint(image_id, x_offset, y_offset, 0, scale);
+            Image::from_id(image_id).draw_isometric_footprint(x_offset, y_offset, 0, scale);
         }
     } else {
         int image_id;
         if (type == BUILDING_NATIVE_CROPS) {
-            image_id = image_group(GROUP_EDITOR_BUILDING_CROPS);
+            image_id = Image::group(GROUP_EDITOR_BUILDING_CROPS);
         } else if (type == BUILDING_NATIVE_HUT_ALT) {
             switch (scenario_property_climate()) {
                 case CLIMATE_NORTHERN:
@@ -96,7 +98,7 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
         } else if (props->image_group <= 0) {
             image_id = building_image_get_for_type(type);
         } else {
-            image_id = image_group(props->image_group) + props->image_offset;
+            image_id = Image::group(props->image_group) + props->image_offset;
         }
         draw_building_image(image_id, x_view, y_view);
     }
@@ -110,7 +112,7 @@ static void draw_road(const map_tile *tile, int x, int y)
     if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
         blocked = 1;
     } else {
-        image_id = image_group(GROUP_TERRAIN_ROAD);
+        image_id = Image::group(GROUP_TERRAIN_ROAD);
         if (!map_terrain_has_adjacent_x_with_type(grid_offset, TERRAIN_ROAD) &&
             map_terrain_has_adjacent_y_with_type(grid_offset, TERRAIN_ROAD)) {
             image_id++;
@@ -135,7 +137,7 @@ static void draw_terrain_preview(int x, int y, tool_type type, int ring)
     int image_id;
     switch (type) {
         case TOOL_TREES:
-            image_id = image_group(GROUP_TERRAIN_TREE);
+            image_id = Image::group(GROUP_TERRAIN_TREE);
             if (ring >= 3) {
                 image_id += 24;
             } else if (ring >= 2) {
@@ -145,13 +147,13 @@ static void draw_terrain_preview(int x, int y, tool_type type, int ring)
             }
             break;
         case TOOL_ROCKS:
-            image_id = image_group(GROUP_TERRAIN_ROCK);
+            image_id = Image::group(GROUP_TERRAIN_ROCK);
             break;
         case TOOL_SHRUB:
-            image_id = image_group(GROUP_TERRAIN_SHRUB);
+            image_id = Image::group(GROUP_TERRAIN_SHRUB);
             break;
         case TOOL_MEADOW:
-            image_id = image_group(GROUP_TERRAIN_MEADOW);
+            image_id = Image::group(GROUP_TERRAIN_MEADOW);
             if (ring >= 2) {
                 image_id += 8;
             } else if (ring >= 1) {
@@ -159,7 +161,7 @@ static void draw_terrain_preview(int x, int y, tool_type type, int ring)
             }
             break;
         case TOOL_EARTHQUAKE_CUSTOM:
-            image_id = image_group(GROUP_TERRAIN_EARTHQUAKE);
+            image_id = Image::group(GROUP_TERRAIN_EARTHQUAKE);
             if (ring >= 1) {
                 image_id += 29;
             } else {
@@ -170,9 +172,9 @@ static void draw_terrain_preview(int x, int y, tool_type type, int ring)
             draw_flat_tile(x, y, COLOR_MASK_GREEN);
             return;
     }
-    image_blend_footprint_color(x, y, COLOR_MASK_GREEN, scale);
-    image_draw_isometric_footprint(image_id, x, y, COLOR_MASK_BUILDING_GHOST, scale);
-    image_draw_isometric_top(image_id, x, y, COLOR_MASK_BUILDING_GHOST, scale);
+    Image::blend_footprint_color(x, y, COLOR_MASK_GREEN, scale);
+    Image::from_id(image_id).draw_isometric_footprint(x, y, COLOR_MASK_BUILDING_GHOST, scale);
+    Image::from_id(image_id).draw_isometric_top(x, y, COLOR_MASK_BUILDING_GHOST, scale);
 }
 
 static void draw_brush_tile(const void *data, int dx, int dy)
@@ -194,7 +196,7 @@ static void draw_access_ramp(const map_tile *tile, int x, int y)
 {
     int orientation;
     if (editor_tool_can_place_access_ramp(tile, &orientation)) {
-        int image_id = image_group(GROUP_TERRAIN_ACCESS_RAMP) + orientation;
+        int image_id = Image::group(GROUP_TERRAIN_ACCESS_RAMP) + orientation;
         draw_building_image(image_id, x, y);
     } else {
         int blocked[4] = { 1, 1, 1, 1 };

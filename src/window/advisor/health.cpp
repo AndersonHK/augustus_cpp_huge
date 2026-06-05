@@ -12,11 +12,11 @@ extern "C" {
 #include "core/calc.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 }
+#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 26
 
@@ -119,7 +119,7 @@ int window_advisor_health_get_rating_text_id(void)
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 6, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 6).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
 
     int sickness_level = city_health_get_global_sickness_level();
 

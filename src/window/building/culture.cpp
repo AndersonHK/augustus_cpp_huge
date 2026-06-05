@@ -14,7 +14,6 @@ extern "C" {
 #include "core/dir.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "scenario/allowed_building.h"
@@ -26,6 +25,7 @@ extern "C" {
 #include "window/option_popup.h"
 #include "window/race_bet.h"
 }
+#include "graphics/image.h"
 
 #define GOD_PANTHEON 5
 #define MODULE_COST 1000
@@ -267,32 +267,27 @@ static void draw_temple_info(building_info_context *c, int image_offset)
         resource_type food = city_resource_ceres_temple_food();
         font_t font = building_distribution_is_good_accepted(b, food) ?
             FONT_NORMAL_BLACK : FONT_NORMAL_RED;
-        image_draw(resource_get_data(food)->image.icon, c->x_offset + 112, c->y_offset + 60,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(food)->image.icon).draw(c->x_offset + 112, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
         text_draw_number(b->resources[food], '@', " ",
             c->x_offset + 132, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-        image_draw(resource_get_data(RESOURCE_OIL)->image.icon, c->x_offset + 202, c->y_offset + 60,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(RESOURCE_OIL)->image.icon).draw(c->x_offset + 202, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
         font = building_distribution_is_good_accepted(b, RESOURCE_OIL) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
         text_draw_number(b->resources[RESOURCE_OIL], '@', " ",
             c->x_offset + 222, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         text_draw_multiline(translation_for(TR_BUILDING_CERES_TEMPLE_MODULE_DESC),
             c->x_offset + 112, c->y_offset + 90, BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        image_draw(image_offset + image_group(GROUP_PANEL_WINDOWS),
-            c->x_offset + 16, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 16, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
         return;
     }
 
     if (building_is_venus_temple(b->type) && building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
         font_t font = building_distribution_is_good_accepted(b, RESOURCE_WINE) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
-        image_draw(resource_get_data(RESOURCE_WINE)->image.icon, c->x_offset + 112, c->y_offset + 60,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(RESOURCE_WINE)->image.icon).draw(c->x_offset + 112, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
         text_draw_number(b->resources[RESOURCE_WINE], '@', " ",
             c->x_offset + 132, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         text_draw_multiline(translation_for(TR_BUILDING_VENUS_TEMPLE_MODULE_DESC),
             c->x_offset + 112, c->y_offset + 90, BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        image_draw(image_offset + image_group(GROUP_PANEL_WINDOWS),
-            c->x_offset + BLOCK_SIZE, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + BLOCK_SIZE, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
 
         return;
     }
@@ -305,8 +300,7 @@ static void draw_temple_info(building_info_context *c, int image_offset)
             if (!resource_is_inventory(r) || (list->size > 4 && !b->resources[r])) {
                 continue;
             }
-            image_draw(resource_get_data(r)->image.icon, c->x_offset + x_offset, c->y_offset + 60,
-                COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(resource_get_data(r)->image.icon).draw(c->x_offset + x_offset, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
             text_draw_number(b->resources[r], '@', " ",
                 c->x_offset + x_offset + 20, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
@@ -323,14 +317,12 @@ static void draw_temple_info(building_info_context *c, int image_offset)
                 BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
 
-        image_draw(image_offset + image_group(GROUP_PANEL_WINDOWS), c->x_offset + 16, c->y_offset + 45,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 16, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
 
         return;
     }
 
-    image_draw(image_offset + image_group(GROUP_PANEL_WINDOWS),
-        c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 void window_building_draw_temple_ceres(building_info_context *c)
@@ -572,8 +564,7 @@ static void draw_grand_temple_venus_wine(building_info_context *c)
 {
     int y = 50;
     data.building_id = c->building_id;
-    image_draw(resource_get_data(RESOURCE_WINE)->image.icon, c->x_offset + 24, c->y_offset + y - 5,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_WINE)->image.icon).draw(c->x_offset + 24, c->y_offset + y - 5, COLOR_MASK_NONE, SCALE_NONE);
     building *b = building_get(c->building_id);
     if (b->resources[RESOURCE_WINE] < 1) {
         lang_text_draw_amount(8, 10, 0, c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -587,8 +578,7 @@ static void draw_grand_temple_mars_military(building_info_context *c)
 {
     int y = 60;
     data.building_id = c->building_id;
-    image_draw(resource_get_data(RESOURCE_WEAPONS)->image.icon, c->x_offset + 25, c->y_offset + y - 5,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_WEAPONS)->image.icon).draw(c->x_offset + 25, c->y_offset + y - 5, COLOR_MASK_NONE, SCALE_NONE);
     building *b = building_get(c->building_id);
     if (b->resources[RESOURCE_WEAPONS] < 1) {
         lang_text_draw_amount(8, 10, 0, c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -669,8 +659,7 @@ void window_building_draw_shrine_ceres(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 92, 1);
-    image_draw(21 + image_group(GROUP_PANEL_WINDOWS),
-        c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(21 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 void window_building_draw_shrine_neptune(building_info_context *c)
@@ -684,8 +673,7 @@ void window_building_draw_shrine_neptune(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 93, 1);
-    image_draw(22 + image_group(GROUP_PANEL_WINDOWS),
-        c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(22 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 void window_building_draw_shrine_mercury(building_info_context *c)
@@ -699,8 +687,7 @@ void window_building_draw_shrine_mercury(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 94, 1);
-    image_draw(23 + image_group(GROUP_PANEL_WINDOWS),
-        c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(23 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 void window_building_draw_shrine_mars(building_info_context *c)
@@ -714,8 +701,7 @@ void window_building_draw_shrine_mars(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 95, 1);
-    image_draw(24 + image_group(GROUP_PANEL_WINDOWS),
-        c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(24 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 void window_building_draw_shrine_venus(building_info_context *c)
@@ -729,8 +715,7 @@ void window_building_draw_shrine_venus(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 96, 1);
-    image_draw(25 + image_group(GROUP_PANEL_WINDOWS),
-        c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(25 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 static void draw_grand_temple(building_info_context *c, const char *sound_file,
@@ -783,10 +768,8 @@ static void draw_grand_temple(building_info_context *c, const char *sound_file,
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76,
             c->y_offset + 94 + height + extra_y);
         if (c->height_blocks > 26) {
-            image_draw_border(assets_get_image_id("UI", "Large_Banner_Border"),
-                c->x_offset + 32, c->y_offset + 166 + height + extra_y, COLOR_MASK_NONE);
-            image_draw(banner_id, c->x_offset + 37, c->y_offset + 171 + height + extra_y,
-                COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + 166 + height + extra_y, COLOR_MASK_NONE);
+            Image::from_id(banner_id).draw(c->x_offset + 37, c->y_offset + 171 + height + extra_y, COLOR_MASK_NONE, SCALE_NONE);
             text_draw_multiline(translation_for(quote),
                 c->x_offset + 10, c->y_offset + 386 + height + extra_y, BLOCK_SIZE * c->width_blocks - 16,
                 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -922,24 +905,21 @@ void window_building_draw_tavern(building_info_context *c)
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     int x_offset = 32;
-    image_draw(resource_get_data(RESOURCE_WINE)->image.icon, c->x_offset + x_offset, c->y_offset + 60,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_WINE)->image.icon).draw(c->x_offset + x_offset, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
     font_t font = building_distribution_is_good_accepted(b, RESOURCE_WINE) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
 
     text_draw_number(b->resources[RESOURCE_WINE], '@', " ", c->x_offset + x_offset + 25, c->y_offset + 66, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
 
     if (building_distribution_resource_is_handled(RESOURCE_MEAT, BUILDING_TAVERN)) {
         x_offset += 85;
-        image_draw(resource_get_data(RESOURCE_MEAT)->image.icon, c->x_offset + x_offset, c->y_offset + 60,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(RESOURCE_MEAT)->image.icon).draw(c->x_offset + x_offset, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
         font = building_distribution_is_good_accepted(b, RESOURCE_MEAT) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
         text_draw_number(b->resources[RESOURCE_MEAT], '@', " ", c->x_offset + x_offset + 25, c->y_offset + 66, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
     }
 
     if (building_distribution_resource_is_handled(RESOURCE_FISH, BUILDING_TAVERN)) {
         x_offset += 85;
-        image_draw(resource_get_data(RESOURCE_FISH)->image.icon, c->x_offset + x_offset, c->y_offset + 60,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(RESOURCE_FISH)->image.icon).draw(c->x_offset + x_offset, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
         font = building_distribution_is_good_accepted(b, RESOURCE_FISH) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
         text_draw_number(b->resources[RESOURCE_FISH], '@', " ", c->x_offset + x_offset + 25, c->y_offset + 66, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
     }
@@ -1068,10 +1048,8 @@ void window_building_draw_colosseum_background(building_info_context *c)
             int extra_y_offset = 56;
             if (c->height_blocks > 27) {
                 extra_y_offset += 200;
-                image_draw_border(assets_get_image_id("UI", "Large_Banner_Border"),
-                    c->x_offset + 32, c->y_offset + extra_y_offset, COLOR_MASK_NONE);
-                image_draw(assets_get_image_id("UI", "Colosseum Banner"),
-                    c->x_offset + 37, c->y_offset + extra_y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + extra_y_offset, COLOR_MASK_NONE);
+                Image::from_id(assets_get_image_id("UI", "Colosseum Banner")).draw(c->x_offset + 37, c->y_offset + extra_y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
             }
             draw_games_info(c, extra_y_offset);
         }
@@ -1223,9 +1201,8 @@ void window_building_draw_hippodrome_background(building_info_context *c)
         if (c->height_blocks > 27) {
             y_offset += 223;
             int banner_id = assets_get_image_id("UI", "Circus Banner");
-            image_draw_border(assets_get_image_id("UI", "Large_Banner_Border"),
-                c->x_offset + 32, c->y_offset + y_offset, COLOR_MASK_NONE);
-            image_draw(banner_id, c->x_offset + 37, c->y_offset + y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + y_offset, COLOR_MASK_NONE);
+            Image::from_id(banner_id).draw(c->x_offset + 37, c->y_offset + y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
         }
 
         if (city_data.games.chosen_horse) {
@@ -1234,10 +1211,9 @@ void window_building_draw_hippodrome_background(building_info_context *c)
             int image_id = assets_get_image_id("UI", "Hipp_Team_Blue");
             int border = assets_get_image_id("UI", "Image Border Small");
 
-            image_draw(image_id + (city_data.games.chosen_horse - 1),
-                c->x_offset + 37, c->y_offset + y_offset + 245, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id + (city_data.games.chosen_horse - 1)).draw(c->x_offset + 37, c->y_offset + y_offset + 245, COLOR_MASK_NONE, SCALE_NONE);
 
-            image_draw_border(border, c->x_offset + 32, c->y_offset + y_offset + 240, COLOR_BORDER_RED);
+            Image::from_id(border).draw_border(c->x_offset + 32, c->y_offset + y_offset + 240, COLOR_BORDER_RED);
 
             text_draw_multiline(translation_for(static_cast<translation_key>(
                 TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION + city_data.games.chosen_horse - 1)),

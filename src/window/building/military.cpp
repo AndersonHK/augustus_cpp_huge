@@ -16,7 +16,6 @@ extern "C" {
 #include "figure/formation_legion.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
@@ -25,6 +24,7 @@ extern "C" {
 #include "window/city.h"
 #include "window/building/culture.h"
 }
+#include "graphics/image.h"
 
 static void button_return_to_fort(const generic_button *button);
 static void button_all_legions_return_to_fort(const generic_button *button);
@@ -89,7 +89,7 @@ static void draw_priority_buttons(int x, int y, unsigned int buttons, int buildi
         if (has_focus || priority == i) {
             button_border_draw(x_adj - 3, y_adj - 3, 46, 46, 1);
         }
-        image_draw(base_priority_image_id + i * 2 + (i == priority ? 1 : 0), x_adj, y_adj, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(base_priority_image_id + i * 2 + (i == priority ? 1 : 0)).draw(x_adj, y_adj, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 
@@ -105,11 +105,10 @@ static void draw_delivery_buttons(int x, int y, int building_id)
         inner_panel_draw(x + 2, y + 2, 3, 3);
     }
 
-    image_draw(image_group(GROUP_FIGURE_CARTPUSHER_CART) + 104, x + 7, y + 7, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 104).draw(x + 7, y + 7, COLOR_MASK_NONE, SCALE_NONE);
 
     if (!accept_delivery) {
-        image_draw(assets_get_image_id("UI", "Large_Widget_Cross"), x + 15, y + 15,
-        COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Large_Widget_Cross")).draw(x + 15, y + 15, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     button_border_draw(x, y, 52, 52, data.focus_delivery_button_id || !accept_delivery ? 1 : 0);
@@ -165,8 +164,7 @@ void window_building_draw_barracks(building_info_context *c)
     window_building_play_sound(c, "wavs/barracks.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered(136, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    image_draw(resource_get_data(RESOURCE_WEAPONS)->image.icon, c->x_offset + 32, c->y_offset + 60,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_WEAPONS)->image.icon).draw(c->x_offset + 32, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
 
     building *b = building_get(c->building_id);
     if (b->resources[RESOURCE_WEAPONS] < 1) {
@@ -320,10 +318,8 @@ void window_building_draw_fort(building_info_context *c)
     if (building_get_levy(b)) {
         window_building_draw_levy(building_get_levy(b), c->x_offset + 56, c->y_offset + 130);
     }
-    image_draw(assets_get_image_id("UI", "Fort_Banner_01"),
-        c->x_offset + 37, c->y_offset + 195, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw_border(assets_get_image_id("UI", "Large_Banner_Border"),
-        c->x_offset + 32, c->y_offset + 190, COLOR_MASK_NONE);
+    Image::from_id(assets_get_image_id("UI", "Fort_Banner_01")).draw(c->x_offset + 37, c->y_offset + 195, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + 190, COLOR_MASK_NONE);
 }
 
 void window_building_draw_legion_info(building_info_context *c)
@@ -341,10 +337,9 @@ void window_building_draw_legion_info(building_info_context *c)
     int icon_image_id = m->legion_flag_id;
     const image *icon_image = image_get(icon_image_id);
     int icon_height = icon_image->height;
-    image_draw(icon_image_id, c->x_offset + 16 + (40 - icon_image->width - icon_image->x_offset) / 2, c->y_offset + 16,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(icon_image_id).draw(c->x_offset + 16 + (40 - icon_image->width - icon_image->x_offset) / 2, c->y_offset + 16, COLOR_MASK_NONE, SCALE_NONE);
     // standard flag
-    int flag_image_id = image_group(GROUP_FIGURE_FORT_FLAGS);
+    int flag_image_id = Image::group(GROUP_FIGURE_FORT_FLAGS);
     if (m->figure_type == FIGURE_FORT_JAVELIN) {
         flag_image_id += 9;
     } else if (m->figure_type == FIGURE_FORT_MOUNTED) {
@@ -370,17 +365,15 @@ void window_building_draw_legion_info(building_info_context *c)
 
     const image *flag_image = image_get(flag_image_id);
     int flag_height = flag_image->height;
-    image_draw(flag_image_id, c->x_offset + 16 + (40 - flag_image->width - flag_image->x_offset) / 2,
-        c->y_offset + 16 + icon_height, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(flag_image_id).draw(c->x_offset + 16 + (40 - flag_image->width - flag_image->x_offset) / 2, c->y_offset + 16 + icon_height, COLOR_MASK_NONE, SCALE_NONE);
     // standard pole and morale ball
     int morale_offset = m->morale / 5;
     if (morale_offset > 20) {
         morale_offset = 20;
     }
-    int pole_image_id = image_group(GROUP_FIGURE_FORT_STANDARD_POLE) + 20 - morale_offset;
+    int pole_image_id = Image::group(GROUP_FIGURE_FORT_STANDARD_POLE) + 20 - morale_offset;
     const image *pole_image = image_get(pole_image_id);
-    image_draw(pole_image_id, c->x_offset + 16 + (40 - pole_image->width - pole_image->x_offset * 2) / 2,
-        c->y_offset + 16 + icon_height + flag_height, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(pole_image_id).draw(c->x_offset + 16 + (40 - pole_image->width - pole_image->x_offset * 2) / 2, c->y_offset + 16 + icon_height + flag_height, COLOR_MASK_NONE, SCALE_NONE);
 
     // number of soldiers
     lang_text_draw(138, 23, c->x_offset + 100, c->y_offset + 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -468,8 +461,7 @@ void window_building_draw_legion_info(building_info_context *c)
             offsets = OFFSETS_OTHER[index];
         }
         for (int i = 5 - c->formation_types; i < 5; i++) {
-            image_draw(image_group(GROUP_FORT_FORMATIONS) + offsets[i], c->x_offset + 21 + 85 * i, c->y_offset + 181,
-                COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_FORT_FORMATIONS) + offsets[i]).draw(c->x_offset + 21 + 85 * i, c->y_offset + 181, COLOR_MASK_NONE, SCALE_NONE);
         }
         window_building_draw_legion_info_foreground(c);
     } else {

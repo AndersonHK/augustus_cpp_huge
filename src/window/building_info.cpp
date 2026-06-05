@@ -23,7 +23,6 @@ extern "C" {
 #include "game/state.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/screen.h"
@@ -52,6 +51,7 @@ extern "C" {
 #include "window/building/terrain.h"
 #include "window/building/utility.h"
 }
+#include "graphics/image.h"
 
 enum {
     HEIGHT_0_22_BLOCKS = 0,

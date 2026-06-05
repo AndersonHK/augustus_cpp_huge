@@ -20,7 +20,6 @@ extern "C" {
 #include "game/tutorial.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
@@ -42,6 +41,7 @@ extern "C" {
 #include "window/advisor/trade.h"
 #include "window/advisor/housing.h"
 }
+#include "graphics/image.h"
 
 static void button_change_advisor(const generic_button *button);
 static void button_help(int param1, int param2);
@@ -194,23 +194,23 @@ static void prepare_advisor_image_ids(void)
             advisor_image_ids[1][ADVISOR_HOUSING - 1] = assets_get_image_id("UI",
                 "Housing Advisor Button Selected");
         } else {
-            advisor_image_ids[0][i] = image_group(GROUP_ADVISOR_ICONS) + i - reduce;
-            advisor_image_ids[1][i] = image_group(GROUP_ADVISOR_ICONS) + i - reduce + 13;
+            advisor_image_ids[0][i] = Image::group(GROUP_ADVISOR_ICONS) + i - reduce;
+            advisor_image_ids[1][i] = Image::group(GROUP_ADVISOR_ICONS) + i - reduce + 13;
         }
     }
 }
 
 void window_advisors_draw_dialog_background(void)
 {
-    image_draw_fullscreen_background(image_group(GROUP_ADVISOR_BACKGROUND));
+    Image::from_id(Image::group(GROUP_ADVISOR_BACKGROUND)).draw_fullscreen_background();
     graphics_in_dialog();
-    image_draw(image_group(GROUP_PANEL_WINDOWS) + 13, 0, 432, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 13).draw(0, 432, COLOR_MASK_NONE, SCALE_NONE);
 
     prepare_advisor_image_ids();
 
     for (int i = 0; i < ADVISOR_MAX; i++) {
         int selected = current_advisor && i == (current_advisor % ADVISOR_MAX) - 1;
-        image_draw(advisor_image_ids[selected][i], 45 * i + 8, 441, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(advisor_image_ids[selected][i]).draw(45 * i + 8, 441, COLOR_MASK_NONE, SCALE_NONE);
     }
     graphics_reset_dialog();
 }

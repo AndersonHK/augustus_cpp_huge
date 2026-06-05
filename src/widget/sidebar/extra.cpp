@@ -23,7 +23,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/menu.h"
@@ -37,6 +36,7 @@ extern "C" {
 #include "window/empire.h"
 #include "window/popup_dialog.h"
 }
+#include "graphics/image.h"
 
 #include <stdlib.h>
 
@@ -465,7 +465,7 @@ static int draw_request_buttons(int y_offset)
             const image *img = image_get(image_id);
             int image_y_offset = (EXTRA_INFO_LINE_SPACE - img->height) / 2;
 
-            image_draw(image_id, width, y_offset + image_y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id).draw(width, y_offset + image_y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
 
             int force_text_offset = get_text_offset_for_force_size(r->amount);
 
@@ -483,7 +483,7 @@ static int draw_request_buttons(int y_offset)
             const image *img = image_get(image_id);
             int image_y_offset = (EXTRA_INFO_LINE_SPACE - img->height) / 2;
 
-            image_draw(image_id, width, y_offset + image_y_offset, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id).draw(width, y_offset + image_y_offset, COLOR_MASK_NONE, SCALE_NONE);
 
             width += img->width + 6;
             int request_index = data.requests[i].index;
@@ -499,8 +499,7 @@ static int draw_request_buttons(int y_offset)
                 if (status) {
                     if (status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES) {
                         if (is_stockpiled) {
-                            image_draw(assets_get_image_id("UI", "Store Icon"),
-                                data.x_offset + 5, y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
+                            Image::from_id(assets_get_image_id("UI", "Store Icon")).draw(data.x_offset + 5, y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
                         }
                     } else {
                         enough_resource = 1;
@@ -592,14 +591,14 @@ static void draw_extra_info_panel(void)
 
         font_t font_type = data.gods.angry > 0 ? FONT_NORMAL_RED : FONT_NORMAL_GREEN;
         int width = text_draw_number(data.gods.angry, 0, "", data.x_offset + 42, y_offset + 2, font_type, screen_ui_to_pixel(font_definition_for(font_type)->line_height), 0);
-        image_draw(image_group(GROUP_GOD_BOLT), data.x_offset + 42 + width, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_GOD_BOLT)).draw(data.x_offset + 42 + width, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
 
         static int happy_image_id;
         if (!happy_image_id) {
             happy_image_id = assets_get_image_id("UI", "Happy God Icon");
         }
         width = text_draw_number(data.gods.happy, 0, "", data.x_offset + 82, y_offset + 2, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-        image_draw(happy_image_id, data.x_offset + 82 + width, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(happy_image_id).draw(data.x_offset + 82 + width, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
 
         y_offset += EXTRA_INFO_VERTICAL_PADDING * 2;
     }

@@ -1,12 +1,10 @@
+extern "C" {
 #include "image.h"
-
-#include "assets/augustus_asset_extractor.h"
 #include "assets/assets.h"
 #include "building/building.h"
 #include "building/image.h"
 #include "core/buffer.h"
 #include "core/file.h"
-#include "core/image_payload.h"
 #include "core/image_packer.h"
 #include "core/io.h"
 #include "core/log.h"
@@ -17,6 +15,10 @@
 #include "map/image.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
+}
+
+#include "assets/augustus_asset_extractor.h"
+#include "graphics/image.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -623,9 +625,9 @@ static void release_image_resource_tree(image *img)
         return;
     }
     if (img->top) {
-        image_payload_release(img->top);
+        image_manager().release(*img->top);
     }
-    image_payload_release(img);
+    image_manager().release(*img);
 }
 
 static int upload_cropped_image_resource(
@@ -707,7 +709,7 @@ static void register_legacy_image_payload(
     }
     char key[FILE_NAME_MAX];
     make_legacy_image_resource_key(key, sizeof(key), domain, source_name, index, is_top);
-    image_payload_register(img, key);
+    image_manager().register_image(*img, key);
 }
 
 static void upload_atlas_image_resources(

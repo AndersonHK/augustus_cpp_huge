@@ -10,7 +10,6 @@ extern "C" {
 #include "core/lang.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
@@ -18,6 +17,7 @@ extern "C" {
 #include "scenario/criteria.h"
 #include "scenario/property.h"
 }
+#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 
@@ -35,26 +35,26 @@ static unsigned int focus_button_id;
 
 void draw_rating_column(int x_offset, int y_offset, int value, int has_reached)
 {
-    int image_base = image_group(GROUP_RATINGS_COLUMN);
+    int image_base = Image::group(GROUP_RATINGS_COLUMN);
     int y = y_offset - image_get(image_base)->height;
     int value_to_draw = value;
     if (has_reached && value < 25) {
         value_to_draw = 25;
     }
 
-    image_draw(image_base, x_offset, y, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base).draw(x_offset, y, COLOR_MASK_NONE, SCALE_NONE);
     for (int i = 0; i < 2 * value_to_draw; i++) {
-        image_draw(image_base + 1, x_offset + 11, --y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x_offset + 11, --y, COLOR_MASK_NONE, SCALE_NONE);
     }
     if (has_reached) {
-        image_draw(image_base + 2, x_offset - 6, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 2).draw(x_offset - 6, y, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 3, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 3).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
     int width = lang_text_draw(53, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     if (!scenario_criteria_population_enabled() || scenario_is_open_play()) {
         lang_text_draw(53, 7, 80 + width, 17, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -63,7 +63,7 @@ static int draw_background(void)
         text_draw_number(scenario_criteria_population(), '@', ")", 80 + width, 17, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
-    image_draw(image_group(GROUP_RATINGS_BACKGROUND), 60, 48, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_RATINGS_BACKGROUND)).draw(60, 48, COLOR_MASK_NONE, SCALE_NONE);
 
     int open_play = scenario_is_open_play();
 

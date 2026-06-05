@@ -10,7 +10,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
@@ -41,6 +40,7 @@ extern "C" {
 #include "window/editor/win_criteria.h"
 #include "window/select_list.h"
 }
+#include "graphics/image.h"
 
 #define BRIEF_DESC_LENGTH 64
 
@@ -120,8 +120,8 @@ static void draw_background(void)
     outer_panel_draw(0, 30, 46, 28);
 
     button_border_draw(18, 278, 184, 144, 0);
-    int group_id = editor_is_active() ? image_group(GROUP_EDITOR_SCENARIO_IMAGE) : image_group(GROUP_SCENARIO_IMAGE);
-    image_draw(group_id + scenario_image_id(), 20, 280, COLOR_MASK_NONE, SCALE_NONE);
+    int group_id = editor_is_active() ? Image::group(GROUP_EDITOR_SCENARIO_IMAGE) : Image::group(GROUP_SCENARIO_IMAGE);
+    Image::from_id(group_id + scenario_image_id()).draw(20, 280, COLOR_MASK_NONE, SCALE_NONE);
 
     graphics_reset_dialog();
 }

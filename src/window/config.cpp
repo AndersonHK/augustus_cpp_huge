@@ -19,7 +19,6 @@ extern "C" {
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
-#include "graphics/image.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
@@ -39,6 +38,7 @@ extern "C" {
 #include "window/text_input.h"
 #include "window/user_path_setup.h"
 }
+#include "graphics/image.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -1859,7 +1859,7 @@ static void draw_background(void)
     update_has_changes();
 
     if (data.show_background_image) {
-        image_draw_fullscreen_background(image_group(GROUP_INTERMEZZO_BACKGROUND) + 5);
+        Image::from_id(Image::group(GROUP_INTERMEZZO_BACKGROUND) + 5).draw_fullscreen_background();
     } else {
         window_draw_underlying_window();
     }

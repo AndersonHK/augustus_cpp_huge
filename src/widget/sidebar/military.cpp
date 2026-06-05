@@ -10,7 +10,6 @@ extern "C" {
 #include "graphics/arrow_button.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
@@ -28,6 +27,7 @@ extern "C" {
 #include "window/city.h"
 #include "window/military_menu.h"
 }
+#include "graphics/image.h"
 
 
 #define LAYOUTS_PER_LEGION 5
@@ -187,8 +187,7 @@ static void draw_layout_buttons(int x, int y, int background, const formation *m
         const generic_button *btn = &button_offsets[i - start_formation];
 
         if (background) {
-            image_draw(image_group(GROUP_FORT_FORMATIONS) + offsets[i], (x + btn->x + 3) * 2, (y + btn->y + 3) * 2,
-                COLOR_MASK_NONE, 2.0f);
+            Image::from_id(Image::group(GROUP_FORT_FORMATIONS) + offsets[i]).draw((x + btn->x + 3) * 2, (y + btn->y + 3) * 2, COLOR_MASK_NONE, 2.0f);
         } else {
             int is_selected_formation = m->layout == IMAGE_OFFSETS_TO_FORMATION[offsets[i]];
             int is_button_focused = i == data.inner_buttons_focus_id - 1 + start_formation;
@@ -220,16 +219,16 @@ int widget_sidebar_military_get_standard_image(int legion_id)
 {
     switch (legion_id) {
         case 0: return 0; // No standard for non-legion formations;
-        case 1:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS + 0);
-        case 2:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 1;
-        case 3:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 2;
-        case 4:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 3;
-        case 5:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 4;
-        case 6:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 5;
-        case 7:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 6;
-        case 8:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 7;
-        case 9:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 8;
-        case 10:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 9;
+        case 1:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS + 0);
+        case 2:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 1;
+        case 3:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 2;
+        case 4:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 3;
+        case 5:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 4;
+        case 6:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 5;
+        case 7:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 6;
+        case 8:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 7;
+        case 9:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 8;
+        case 10:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 9;
         case 11: return assets_get_image_id("UI", "11Legion_Elephants");
         case 12: return assets_get_image_id("UI", "12Legion_Thunder_Bolts");
         case 13: return assets_get_image_id("UI", "13Legion_Bulls");
@@ -240,7 +239,7 @@ int widget_sidebar_military_get_standard_image(int legion_id)
         case 18: return assets_get_image_id("UI", "18Legion_Camels");
         case 19: return assets_get_image_id("UI", "19Legion_Dolphins");
         case 20: return assets_get_image_id("UI", "20Legion_Sea_Goats");
-        default: return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS + 9);
+        default: return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS + 9);
     }
 }
 
@@ -295,9 +294,7 @@ static void draw_military_info_text(int x_offset, int y_offset)
     const image *formation_image = image_get(formation_image_id);
 
     // Legion name
-    image_draw(formation_image_id,
-        x_offset + (CONTENT_WIDTH - formation_image->width - formation_image->x_offset) / 2, y_offset + 12,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_image_id).draw(x_offset + (CONTENT_WIDTH - formation_image->width - formation_image->x_offset) / 2, y_offset + 12, COLOR_MASK_NONE, SCALE_NONE);
 
     lang_text_draw_centered(m->legion_name_group, m->legion_name_id, x_offset, y_offset + 40, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
@@ -353,21 +350,19 @@ static void draw_military_info_buttons(int x_offset, int y_offset)
     // Formation layout
     draw_layout_buttons(x_offset, y_offset + Y_OFFSET_LAYOUT_BUTTONS, 1, m);
 
-    int formation_options_image = image_group(GROUP_FORT_ICONS);
+    int formation_options_image = Image::group(GROUP_FORT_ICONS);
 
     // Go to legion button
     const generic_button *btn = buttons_bottom;
-    image_draw(formation_options_image, x_offset + btn->x + 3, y_offset + 260, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_options_image).draw(x_offset + btn->x + 3, y_offset + 260, COLOR_MASK_NONE, SCALE_NONE);
 
     // Return to fort button
     ++btn;
-    image_draw(formation_options_image + 1 + m->is_at_fort, x_offset + btn->x + 3, y_offset + 260,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_options_image + 1 + m->is_at_fort).draw(x_offset + btn->x + 3, y_offset + 260, COLOR_MASK_NONE, SCALE_NONE);
 
     // Empire service button
     ++btn;
-    image_draw(formation_options_image + 4 - m->empire_service, x_offset + btn->x + 3, y_offset + 260,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_options_image + 4 - m->empire_service).draw(x_offset + btn->x + 3, y_offset + 260, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 static void draw_military_panel_background(int x_offset)
@@ -403,7 +398,7 @@ static void draw_legion_buttons(int x_offset, int y_offset)
 
 static void draw_background(int x_offset)
 {
-    image_draw(image_group(GROUP_SIDE_PANEL) + 1, x_offset, 24, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_SIDE_PANEL) + 1).draw(x_offset, 24, COLOR_MASK_NONE, SCALE_NONE);
     image_buttons_draw(x_offset, 24, buttons_title_close, 2);
     lang_text_draw_centered(61, 5, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     widget_minimap_update(0);

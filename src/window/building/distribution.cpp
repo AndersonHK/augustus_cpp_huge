@@ -28,7 +28,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/scrollbar.h"
@@ -41,6 +40,7 @@ extern "C" {
 #include "window/option_popup.h"
 
 }
+#include "graphics/image.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -292,9 +292,9 @@ int get_storage_permission_image(building_storage_permission_states permission)
         case BUILDING_STORAGE_PERMISSION_MARKET:
             return assets_get_image_id("Walkers", "marketbuyer_sw_01");
         case BUILDING_STORAGE_PERMISSION_TRADERS:
-            return image_group(GROUP_FIGURE_TRADE_CARAVAN) + 4;
+            return Image::group(GROUP_FIGURE_TRADE_CARAVAN) + 4;
         case BUILDING_STORAGE_PERMISSION_DOCK:
-            return image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE);
+            return Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE);
         case BUILDING_STORAGE_PERMISSION_BARKEEP:
             return assets_get_image_id("Walkers", "Barkeep SW 01");
         case BUILDING_STORAGE_PERMISSION_QUARTERMASTER:
@@ -304,13 +304,13 @@ int get_storage_permission_image(building_storage_permission_states permission)
         case BUILDING_STORAGE_PERMISSION_CARAVANSERAI:
             return assets_get_image_id("Walkers", "caravanserai_overseer_sw_01");
         case BUILDING_STORAGE_PERMISSION_LIGHTHOUSE:
-            return image_group(GROUP_FIGURE_CARTPUSHER_CART) + 80;
+            return Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 80;
         case BUILDING_STORAGE_PERMISSION_ARMOURY:
-            return image_group(GROUP_FIGURE_CARTPUSHER_CART) + 104;
+            return Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 104;
         case BUILDING_STORAGE_PERMISSION_WORKCAMP:
             return assets_get_image_id("Walkers", "overseer_sw_01");
         case BUILDING_STORAGE_PERMISSION_NATIVES:
-            return image_group(GROUP_FIGURE_CARTPUSHER_CART) + 136;
+            return Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 136;
         case BUILDING_STORAGE_PERMISSION_CAESAR:
             return assets_get_image_id("Walkers", "caesar_static_sw_02");
         default:
@@ -340,9 +340,9 @@ static void draw_accept_none_button(int x, int y, int focused, affect_all_button
 {
     button_border_draw(x, y, 20, 20, focused ? 1 : 0);
     if (state == ACCEPT_ALL) {
-        image_draw(assets_get_image_id("UI", "Selection_Checkmark"), x + 4, y + 4, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Selection_Checkmark")).draw(x + 4, y + 4, COLOR_MASK_NONE, SCALE_NONE);
     } else {
-        image_draw(assets_get_image_id("UI", "Denied_Walker_Checkmark"), x + 4, y + 4, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x + 4, y + 4, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 static void toggle_permissions_all(int param1, int param2)
@@ -459,12 +459,10 @@ static void draw_permissions_buttons(int x, int y, building_info_context *c)
         image_offset_y = (int) (is_sea_trade_route ? 16 * original_scaling_factor : 7 * original_scaling_factor);
         int scale = (int) (original_scaling_factor * 100);
 
-        image_draw_scaled_centered(get_storage_permission_image(permission),
-            x + image_offset_x, y + image_offset_y, COLOR_MASK_NONE, scale);
+        Image::from_id(get_storage_permission_image(permission)).draw_scaled_centered(x + image_offset_x, y + image_offset_y, COLOR_MASK_NONE, scale);
 
         if (!permission_state) {
-            image_draw_scaled_centered(assets_get_image_id("UI", "Large_Widget_Cross"),
-            x + (int) (15 * original_scaling_factor), y + (int) (15 * original_scaling_factor), COLOR_MASK_NONE, scale);
+            Image::from_id(assets_get_image_id("UI", "Large_Widget_Cross")).draw_scaled_centered(x + (int) (15 * original_scaling_factor), y + (int) (15 * original_scaling_factor), COLOR_MASK_NONE, scale);
         }
 
         button_border_draw(x, y, button_width, button_width,
@@ -676,8 +674,7 @@ static void draw_food_stocks(building_info_context *c, building *b, int y_offset
         const image *img = image_get(image_id);
         int base_width = (25 - img->original.width) / 2;
         int base_height = (25 - img->original.height) / 2;
-        image_draw(resource_get_data(r)->image.icon, c->x_offset + x_offset + base_width, c->y_offset + y_offset + base_height,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(r)->image.icon).draw(c->x_offset + x_offset + base_width, c->y_offset + y_offset + base_height, COLOR_MASK_NONE, SCALE_NONE);
         text_draw_number(b->resources[r], '@', " ",
             c->x_offset + x_offset + 25, c->y_offset + y_offset + 7, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         x_offset += 85;
@@ -698,8 +695,7 @@ static void draw_good_stocks(building_info_context *c, building *b, int y_offset
         const image *img = image_get(image_id);
         int base_width = (25 - img->original.width) / 2;
         int base_height = (25 - img->original.height) / 2;
-        image_draw(resource_get_data(r)->image.icon, c->x_offset + x_offset + base_width, c->y_offset + y_offset + base_height,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(r)->image.icon).draw(c->x_offset + x_offset + base_width, c->y_offset + y_offset + base_height, COLOR_MASK_NONE, SCALE_NONE);
         text_draw_number(b->resources[r], '@', " ",
             c->x_offset + x_offset + 25, c->y_offset + y_offset + 7, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         x_offset += 85;
@@ -846,9 +842,9 @@ void window_building_draw_distributor_orders_foreground(building_info_context *c
         int base_width = (25 - img->original.width) / 2;
         int base_height = (25 - img->original.height) / 2;
 
-        image_draw(image_id, c->x_offset + 32 + base_width, y_offset + 43 + 22 * i + base_height, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(c->x_offset + 32 + base_width, y_offset + 43 + 22 * i + base_height, COLOR_MASK_NONE, SCALE_NONE);
         if (!scrollbar_shown) {
-            image_draw(image_id, c->x_offset + 408 + base_width, y_offset + 43 + 22 * i + base_height, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id).draw(c->x_offset + 408 + base_width, y_offset + 43 + 22 * i + base_height, COLOR_MASK_NONE, SCALE_NONE);
         }
         text_draw(resource_get_data(resource)->text, c->x_offset + 72, y_offset + 50 + 22 * i,
             FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
@@ -924,8 +920,7 @@ void window_building_draw_primary_product_stockpiling(building_info_context *c)
     int x = c->x_offset + primary_product_producer_button_stockpiling->x + BLOCK_SIZE * c->width_blocks - 40;
     int y = c->y_offset + primary_product_producer_button_stockpiling->y + 10;
     button_border_draw(x, y, 30, 30, data.primary_product_stockpiling_id);
-    image_draw(assets_get_image_id("UI", "Stockpile_Sprite"), x + 7, y + 6,
-    building_stockpiling_enabled(building_get(c->building_id)) ? 0xfff5a46b : COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(assets_get_image_id("UI", "Stockpile_Sprite")).draw(x + 7, y + 6, building_stockpiling_enabled(building_get(c->building_id)) ? 0xfff5a46b : COLOR_MASK_NONE, SCALE_NONE);
 }
 
 static void draw_button_from_state(resource_storage_entry entry, int x, int y, building_type type, resource_type resource)
@@ -937,11 +932,11 @@ static void draw_button_from_state(resource_storage_entry entry, int x, int y, b
     switch (entry.state) {
         case BUILDING_STORAGE_STATE_GETTING:
         {
-            image_width = image_get(image_group(GROUP_CONTEXT_ICONS) + 12)->width + 10;
+            image_width = image_get(Image::group(GROUP_CONTEXT_ICONS) + 12)->width + 10;
             int group_number = resource_is_food(resource) ? 10 : 9;  // 10 = "getting food", 9 = "getting goods"
             text_width = lang_text_get_width(99, group_number, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             start_x = x + (210 - image_width - text_width) / 2;
-            image_draw(image_group(GROUP_CONTEXT_ICONS) + 12, start_x, y - 2, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 12).draw(start_x, y - 2, COLOR_MASK_NONE, SCALE_NONE);
             lang_text_draw(99, group_number, start_x + image_width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             snprintf(text, sizeof(text), "%d", entry.quantity);
             break;
@@ -956,7 +951,7 @@ static void draw_button_from_state(resource_storage_entry entry, int x, int y, b
             text_width = lang_text_get_width(CUSTOM_TRANSLATION, TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING,
                  FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             start_x = x + (210 - image_width - text_width) / 2;
-            image_draw(maintain_goods_icon_id, start_x, y - 2, COLOR_MAINTAIN_ICON, SCALE_NONE);
+            Image::from_id(maintain_goods_icon_id).draw(start_x, y - 2, COLOR_MAINTAIN_ICON, SCALE_NONE);
             // this icon needs scaling to be similar to getting goods - draw at 80% scale
             lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING,
                 start_x + image_width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
@@ -988,9 +983,9 @@ static void draw_resource_orders_buttons(int x, int y, const resource_list *list
         int base_height = (25 - img->original.height) / 2;
 
         int y_offset = y + 22 * i;
-        image_draw(image_id, x + base_width, y_offset - 2 + base_height, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(x + base_width, y_offset - 2 + base_height, COLOR_MASK_NONE, SCALE_NONE);
         if (!scrollbar_shown) {
-            image_draw(image_id, x + 390 + base_width, y_offset - 2 + base_height, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id).draw(x + 390 + base_width, y_offset - 2 + base_height, COLOR_MASK_NONE, SCALE_NONE);
             text_draw(resource_get_data(resource)->text, x + 30, y_offset + 4, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
             button_border_draw(x + 148, y_offset, 210, 22, data.resource_focus_button_id == i + 1);
             button_border_draw(x + 358, y_offset, 28, 22, data.partial_resource_focus_button_id == i + 1);
@@ -998,7 +993,7 @@ static void draw_resource_orders_buttons(int x, int y, const resource_list *list
             draw_button_from_state(storage->resource_state[resource], x + 148, y_offset + 5, type, resource);
         }
         if (scrollbar_shown) {
-            image_draw(image_id, x + 360 + base_width, y_offset - 2 + base_height, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id).draw(x + 360 + base_width, y_offset - 2 + base_height, COLOR_MASK_NONE, SCALE_NONE);
             text_draw(resource_get_data(resource)->text, x + 30, y_offset + 4, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
             button_border_draw(x + 118, y_offset, 210, 22, data.resource_focus_button_id == i + 1);
             button_border_draw(x + 328, y_offset, 28, 22, data.partial_resource_focus_button_id == i + 1);
@@ -1174,7 +1169,7 @@ void window_building_draw_storage(building_info_context *c)
                 const image *img = image_get(resource_get_data(r)->image.icon);
                 int base_width = (25 - img->original.width) / 2;
                 int base_height = (25 - img->original.height) / 2;
-                image_draw(resource_get_data(r)->image.icon, x + base_width, y + 5 + base_height, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(resource_get_data(r)->image.icon).draw(x + base_width, y + 5 + base_height, COLOR_MASK_NONE, SCALE_NONE);
 
                 int width = text_draw_number(amount, '@', " ", x + 32, y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
                 text_draw(resource_get_data(r)->text, x + 32 + width, y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
@@ -1204,8 +1199,7 @@ void window_building_draw_storage(building_info_context *c)
     figure *f = figure_get(b->figure_id);
     if (b->figure_id && f && f->state == FIGURE_STATE_ALIVE) {
         resource_type resource = resource_from_int(f->resource_id);
-        image_draw(resource_get_data(resource != RESOURCE_NONE ? resource : resource_from_int(f->collecting_item_id))->image.icon,
-            c->x_offset + 32, c->y_offset + y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(resource != RESOURCE_NONE ? resource : resource_from_int(f->collecting_item_id))->image.icon).draw(c->x_offset + 32, c->y_offset + y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
 
         if (resource != RESOURCE_NONE) {
             if (f->action_state == FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE) {
@@ -1742,8 +1736,7 @@ int window_building_handle_mouse_caravanserai(const mouse *m, building_info_cont
 void window_building_draw_caravanserai_foreground(building_info_context *c)
 {
     int id = assets_get_image_id("UI", "Image Border Medium");
-    image_draw_border(id, c->x_offset + 32, c->y_offset + 160 + data.caravanserai_button_y_offset,
-        data.caravanserai_focus_button_id == 1 ? COLOR_BORDER_RED : COLOR_BORDER_GREEN);
+    Image::from_id(id).draw_border(c->x_offset + 32, c->y_offset + 160 + data.caravanserai_button_y_offset, data.caravanserai_focus_button_id == 1 ? COLOR_BORDER_RED : COLOR_BORDER_GREEN);
 }
 
 static void apply_policy_land(int selected_policy)
@@ -1818,18 +1811,15 @@ void window_building_draw_caravanserai(building_info_context *c)
             text_draw_multiline(translation_for(translation_key_from_int(land_trade_policy.items[policy].desc)),
                 c->x_offset + 160, c->y_offset + 195 + y_offset, 260, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
-        image_draw(land_trade_policy.items[policy].image_id, c->x_offset + 32, c->y_offset + 160 + y_offset,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(land_trade_policy.items[policy].image_id).draw(c->x_offset + 32, c->y_offset + 160 + y_offset, COLOR_MASK_NONE, SCALE_NONE);
 
         inner_panel_draw(c->x_offset + 16, c->y_offset + 270 + y_offset, c->width_blocks - 2, 4);
         window_building_draw_employment(c, 274 + y_offset);
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 278 + y_offset);
 
         if (c->height_blocks >= 38) {
-            image_draw_border(assets_get_image_id("UI", "Large_Banner_Border"),
-                c->x_offset + 32, c->y_offset + 350 + y_offset, COLOR_MASK_NONE);
-            image_draw(assets_get_image_id("UI", "Caravanserai Banner"),
-                c->x_offset + 37, c->y_offset + 355 + y_offset, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + 350 + y_offset, COLOR_MASK_NONE);
+            Image::from_id(assets_get_image_id("UI", "Caravanserai Banner")).draw(c->x_offset + 37, c->y_offset + 355 + y_offset, COLOR_MASK_NONE, SCALE_NONE);
         }
     } else {
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
@@ -1853,8 +1843,7 @@ extern "C" int window_building_handle_mouse_lighthouse(const mouse *m, building_
 extern "C" void window_building_draw_lighthouse_foreground(building_info_context *c)
 {
     int id = assets_get_image_id("UI", "Image Border Medium");
-    image_draw_border(id, c->x_offset + 32, c->y_offset + 150,
-        data.lighthouse_focus_button_id == 1 ? COLOR_BORDER_RED : COLOR_BORDER_GREEN);
+    Image::from_id(id).draw_border(c->x_offset + 32, c->y_offset + 150, data.lighthouse_focus_button_id == 1 ? COLOR_BORDER_RED : COLOR_BORDER_GREEN);
 }
 
 static void apply_policy_sea(int selected_policy)
@@ -1884,8 +1873,7 @@ extern "C" void window_building_draw_lighthouse(building_info_context *c)
         window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/Lighthouse.ogg");
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
 
-        image_draw(resource_get_data(RESOURCE_TIMBER)->image.icon, c->x_offset + 32, c->y_offset + 46,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(RESOURCE_TIMBER)->image.icon).draw(c->x_offset + 32, c->y_offset + 46, COLOR_MASK_NONE, SCALE_NONE);
         int width = lang_text_draw(125, 12, c->x_offset + 60, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (b->resources[RESOURCE_TIMBER] < 1) {
             lang_text_draw_amount(8, 10, 0, c->x_offset + 60 + width, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -1923,18 +1911,15 @@ extern "C" void window_building_draw_lighthouse(building_info_context *c)
             text_draw_multiline(translation_for(translation_key_from_int(sea_trade_policy.items[policy].desc)),
                 c->x_offset + 160, c->y_offset + 181, 260, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
-        image_draw(sea_trade_policy.items[policy].image_id, c->x_offset + 32, c->y_offset + 150,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(sea_trade_policy.items[policy].image_id).draw(c->x_offset + 32, c->y_offset + 150, COLOR_MASK_NONE, SCALE_NONE);
 
         inner_panel_draw(c->x_offset + 16, c->y_offset + 270, c->width_blocks - 2, 4);
         window_building_draw_employment(c, 278);
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 278);
 
         if (c->height_blocks >= 38) {
-            image_draw_border(assets_get_image_id("UI", "Large_Banner_Border"),
-                c->x_offset + 32, c->y_offset + 350, COLOR_MASK_NONE);
-            image_draw(assets_get_image_id("UI", "Lighthouse Banner"),
-                c->x_offset + 37, c->y_offset + 355, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + 350, COLOR_MASK_NONE);
+            Image::from_id(assets_get_image_id("UI", "Lighthouse Banner")).draw(c->x_offset + 37, c->y_offset + 355, COLOR_MASK_NONE, SCALE_NONE);
         }
 
     } else {

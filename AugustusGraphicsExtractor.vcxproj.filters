@@ -36,7 +36,7 @@
     <ClCompile Include="src\core\buffer.c">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\image.c">
+    <ClCompile Include="src\core\image.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\image_packer.c">
@@ -52,6 +52,9 @@
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\xml_parser.c">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\image.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\graphics\renderer.c">

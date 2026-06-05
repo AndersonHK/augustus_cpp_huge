@@ -1,12 +1,11 @@
+extern "C" {
 #include "empire_sidebar_sort.h"
-
 #include "empire/city.h"
 #include "empire/trade_prices.h"
 #include "empire/trade_route.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/grid_box.h"
@@ -14,21 +13,24 @@
 #include "core/string.h"
 #include "input/mouse.h"
 #include "translation/translation.h"
+}
+
+#include "graphics/image.h"
 
 #include <string.h>
 
-#define NO_POSITION ((unsigned int) -1)
+#define NO_POSITION (-1)
 #define WIDTH_BORDER 16
 
 // Forward declaration of sidebar_city_entry structure
-typedef struct {
+struct sidebar_city_entry {
     int sidebar_item_id;
     int empire_object_id;
     int city_id;
     int x, y;
     int width;
     int height;
-} sidebar_city_entry;
+};
 
 // Static variables for sorting and filtering state
 static struct {
@@ -62,7 +64,8 @@ static int sorting_arrow_focused = 0;
 int window_empire_sidebar_sort_count_trade_resources(const empire_city *city, int is_sell)
 {
     int count = 0;
-    for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+        const resource_type r = static_cast<resource_type>(resource);
         if (resource_is_storable(r)) {
             if ((is_sell && city->sells_resource[r]) ||
                 (!is_sell && city->buys_resource[r])) {
@@ -78,7 +81,8 @@ static int get_city_trade_quota_fill(const empire_city *city, int is_sell)
     int total_now = 0;
     int total_max = 0;
 
-    for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+        const resource_type r = static_cast<resource_type>(resource);
         if (!resource_is_storable(r)) continue;
 
         if ((is_sell && !city->sells_resource[r]) || (!is_sell && !city->buys_resource[r])) continue;
@@ -124,8 +128,8 @@ int window_empire_sidebar_sort_get_expanded_main(void) { return sort_data.expand
 int window_empire_sidebar_sort_get_resource_selection_active(void) { return sort_data.resource_selection_active; }
 
 // Setter functions
-void window_empire_sidebar_sort_set_current_sorting(int sorting) { sort_data.current_sorting = sorting; }
-void window_empire_sidebar_sort_set_current_filtering(int filtering) { sort_data.current_filtering = filtering; }
+void window_empire_sidebar_sort_set_current_sorting(int sorting) { sort_data.current_sorting = static_cast<sort_method>(sorting); }
+void window_empire_sidebar_sort_set_current_filtering(int filtering) { sort_data.current_filtering = static_cast<filter_method>(filtering); }
 void window_empire_sidebar_sort_set_selected_filter_resource(resource_type resource) { sort_data.selected_filter_resource = resource; }
 void window_empire_sidebar_sort_set_hovered_sorting_button(int button) { sort_data.hovered_sorting_button = button; }
 void window_empire_sidebar_sort_set_sorting_reversed(int reversed) { sort_data.sorting_reversed = reversed; }
@@ -147,7 +151,7 @@ const sorting_button *window_empire_sidebar_sort_get_sorting_button(int index)
 void window_empire_sidebar_sort_register_sorting_button(int x, int y, int width, int height, int button_type)
 {
     if (sorting_button_count >= MAX_SORTING_BUTTONS) return;
-    sorting_buttons[sorting_button_count++] = (sorting_button) { x, y, width, height, button_type };
+    sorting_buttons[sorting_button_count++] = {x, y, width, height, button_type};
 }
 
 int window_empire_sidebar_sort_sidebar_city_sorter(const void *a, const void *b)
@@ -200,7 +204,8 @@ int window_empire_sidebar_sort_sidebar_city_sorter(const void *a, const void *b)
             int profit_a = 0;
             int profit_b = 0;
 
-            for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+                const resource_type r = static_cast<resource_type>(resource);
                 if (!resource_is_storable(r)) continue;
 
                 if (city_a->sells_resource[r]) {
@@ -253,7 +258,8 @@ int window_empire_sidebar_sort_city_matches_current_filter(const empire_city *ci
             return !city->is_open;
         case FILTER_BY_RESOURCE:
         {
-            for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+                const resource_type r = static_cast<resource_type>(resource);
                 if ((city->buys_resource[r] || city->sells_resource[r]) &&
                     sort_data.selected_filter_resource == r) {
                     return 1;
@@ -263,7 +269,8 @@ int window_empire_sidebar_sort_city_matches_current_filter(const empire_city *ci
         }
         case FILTER_BY_RESOURCE_SELL:
         {
-            for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+                const resource_type r = static_cast<resource_type>(resource);
                 if (city->sells_resource[r] &&
                     sort_data.selected_filter_resource == r) {
                     return 1;
@@ -273,7 +280,8 @@ int window_empire_sidebar_sort_city_matches_current_filter(const empire_city *ci
         }
         case FILTER_BY_RESOURCE_BUY:
         {
-            for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+                const resource_type r = static_cast<resource_type>(resource);
                 if (city->buys_resource[r] &&
                     sort_data.selected_filter_resource == r) {
                     return 1;
@@ -306,13 +314,13 @@ void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int 
         group2 = -1;
         number2 = -1;
     }
+    const Image *button_image = image_id > 0 ? &Image::from_id(image_id) : nullptr;
     if (image_id > 0) {
-        const image *img = image_get(image_id);
-        image_width = img->width;
+        image_width = button_image->width();
     }
     // Special handling for resource buttons - use resource name instead of lang_text
     if (button_type >= BUTTON_INDEX_FILTERING_RESOURCES) {
-        resource_type r = button_type - BUTTON_INDEX_FILTERING_RESOURCES;
+        resource_type r = static_cast<resource_type>(button_type - BUTTON_INDEX_FILTERING_RESOURCES);
         const uint8_t *resource_name = resource_get_data(r)->text;
         int text_width = text_get_width(resource_name, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         // Account for image width if present
@@ -334,9 +342,8 @@ void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int 
         }
     }
     if (image_id > 0) {
-        const image *img = image_get(image_id);
-        int img_y_offset = y + (height - img->height) / 2;
-        image_draw(image_id, cursor_x + 4, img_y_offset, COLOR_MASK_NONE, SCALE_NONE); // 4px spacing
+        int img_y_offset = y + (height - button_image->height()) / 2;
+        button_image->draw(cursor_x + 4, img_y_offset, COLOR_MASK_NONE, SCALE_NONE); // 4px spacing
     }
 
     window_empire_sidebar_sort_register_sorting_button(x, y, width, height, button_type);
@@ -347,18 +354,19 @@ void window_empire_sidebar_sort_draw_sorting_arrow_button(int button_x, int butt
     int margin = 10; // Margin from right edge to keep arrow fully inside
     sorting_arrow_button.is_down = window_empire_sidebar_sort_get_sorting_reversed() ? 0 : 1; // Down when not reversed
     int image_id = sorting_arrow_button.is_down ? 17 : 15; // 17 for down, 15 for up
+    const Image &arrow_image = Image::from_id(image_id);
 
     // Update arrow button info for hit detection
-    sorting_arrow_button.x = button_x + button_width - image_get(image_id)->width - margin;
-    sorting_arrow_button.y = button_y + (button_height - image_get(image_id)->height) / 2; // Center vertically
-    sorting_arrow_button.width = image_get(image_id)->width;
-    sorting_arrow_button.height = image_get(image_id)->height;
+    sorting_arrow_button.x = button_x + button_width - arrow_image.width() - margin;
+    sorting_arrow_button.y = button_y + (button_height - arrow_image.height()) / 2; // Center vertically
+    sorting_arrow_button.width = arrow_image.width();
+    sorting_arrow_button.height = arrow_image.height();
     if (sorting_arrow_focused) {
         button_border_draw(sorting_arrow_button.x - 3, sorting_arrow_button.y - 3,
              sorting_arrow_button.width + 5, sorting_arrow_button.height + 5, sorting_arrow_focused);
         // -3 + 5 to account for the 1px innate border of the button 
     }
-    image_draw(image_id, sorting_arrow_button.x, sorting_arrow_button.y, COLOR_MASK_NONE, SCALE_NONE);
+    arrow_image.draw(sorting_arrow_button.x, sorting_arrow_button.y, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int sidebar_y_min, int sidebar_width, int has_scrollbar)
@@ -396,10 +404,10 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
             }
             break;
         case FILTER_BY_LAND:
-            filter_image_id = image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1;
+            filter_image_id = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1;
             break;
         case FILTER_BY_SEA:
-            filter_image_id = image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE);
+            filter_image_id = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE);
             break;
     }
 
@@ -419,7 +427,8 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
         if (window_empire_sidebar_sort_get_resource_selection_active()) {
             // Show resource list instead of normal filter options
             int resource_count = 0;
-            for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+                const resource_type r = static_cast<resource_type>(resource);
                 if (resource_is_storable(r) &&
                 (empire_can_export_resource_potentially(r) || empire_can_import_resource_potentially(r))) {
                     int button_type = BUTTON_INDEX_FILTERING_RESOURCES + r; // Use 100+ range for resource buttons
@@ -438,8 +447,8 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
                 int y = base_y + v_margin + button_height + i * button_v_spacing;
                 int translation_key = TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE + i;
                 int is_focused = (window_empire_sidebar_sort_get_hovered_sorting_button() == button_type);
-                int image_id = (i == FILTER_BY_LAND) ? image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 :
-                    (i == FILTER_BY_SEA) ? image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) : 0; //default 0
+                int image_id = (i == FILTER_BY_LAND) ? Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 :
+                    (i == FILTER_BY_SEA) ? Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) : 0; //default 0
                 window_empire_sidebar_sort_draw_simple_button(x_filter, y, button_width, button_height, is_focused,
                     CUSTOM_TRANSLATION, translation_key, -1, -1, button_type, image_id);
             }
@@ -521,7 +530,7 @@ int window_empire_sidebar_sort_handle_expanding_buttons_input(const mouse *m)
                     }
                 } else if (btn->button_type >= BUTTON_INDEX_FILTERING_RESOURCES) {
                     // Resource button clicked (in resource selection mode)
-                    resource_type selected_resource = btn->button_type - BUTTON_INDEX_FILTERING_RESOURCES;
+                    resource_type selected_resource = static_cast<resource_type>(btn->button_type - BUTTON_INDEX_FILTERING_RESOURCES);
                     // Validate resource is within bounds
                     if (selected_resource >= RESOURCE_MIN && selected_resource < RESOURCE_MAX) {
                         window_empire_sidebar_sort_set_selected_filter_resource(selected_resource);

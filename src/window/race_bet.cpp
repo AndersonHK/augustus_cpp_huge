@@ -6,7 +6,6 @@ extern "C" {
 #include "graphics/arrow_button.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
@@ -16,6 +15,7 @@ extern "C" {
 #include "race_bet.h"
 #include "translation/translation.h"
 }
+#include "graphics/image.h"
 
 static void arrow_button_bet(int is_down, int param2);
 static void button_horse_selection(const generic_button *button);
@@ -78,7 +78,7 @@ static void draw_background(void)
 
     outer_panel_draw(0, 0, data.width_blocks, data.height_blocks);
 
-    image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, 20, 20, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_DENARII)->image.icon).draw(20, 20, COLOR_MASK_NONE, SCALE_NONE);
 
     text_draw_centered(translation_for(TR_WINDOW_RACE_BET_TITLE), 0, 20, BLOCK_SIZE * data.width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
@@ -111,7 +111,7 @@ static void draw_background(void)
     int image_id = assets_get_image_id("UI", "Hipp_Team_Blue");
 
     for (int i = 0; i < 4; i++) {
-        image_draw(image_id + i, 39 + i * 110, 150, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id + i).draw(39 + i * 110, 150, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     graphics_reset_dialog();
@@ -126,7 +126,7 @@ static void draw_foreground(void)
     for (unsigned int i = 0; i < 4; i++) {
         color_t color = data.focus_button_id == (i + 1) || data.chosen_horse == (i + 1) ?
             COLOR_BORDER_RED : COLOR_BORDER_GREEN;
-        image_draw_border(border_id, 34 + i * 110, 145, color);
+        Image::from_id(border_id).draw_border(34 + i * 110, 145, color);
     }
 
     arrow_buttons_draw(0, 0, amount_buttons, 2);

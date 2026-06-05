@@ -23,7 +23,6 @@ extern "C" {
 #include "game/time.h"
 #include "game/undo.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/menu.h"
 #include "graphics/ui_runtime_api.h"
@@ -46,6 +45,7 @@ extern "C" {
 #include "window/plain_message_dialog.h"
 #include "window/popup_dialog.h"
 }
+#include "graphics/image.h"
 
 enum {
     INFO_NONE = 0,
@@ -271,10 +271,10 @@ static void top_menu_window_show(void)
 static void refresh_background(void)
 {
     int block_width = 24;
-    int image_base = image_group(GROUP_TOP_MENU);
+    int image_base = Image::group(GROUP_TOP_MENU);
     int s_width = screen_width();
     for (int i = 0; i * block_width < s_width; i++) {
-        image_draw(image_base + i % 8, i * block_width, 0, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + i % 8).draw(i * block_width, 0, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 

@@ -19,7 +19,6 @@ extern "C" {
 #include "game/settings.h"
 #include "game/tutorial.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/rich_text.h"
@@ -44,6 +43,7 @@ extern "C" {
 #include "window/plain_message_dialog.h"
 #include "window/video.h"
 }
+#include "graphics/image.h"
 
 namespace {
 
@@ -554,12 +554,12 @@ static void draw_background_image(void)
             }
         }
         if (!image_id) {
-            image_id = image_group(GROUP_INTERMEZZO_BACKGROUND) + 2 * (scenario_campaign_mission() % 11) + 2;
+            image_id = Image::group(GROUP_INTERMEZZO_BACKGROUND) + 2 * (scenario_campaign_mission() % 11) + 2;
         }
         data.background_image_id = image_id;
     }
 
-    image_draw_fullscreen_background(data.background_image_id);
+    Image::from_id(data.background_image_id).draw_fullscreen_background();
 }
 
 static void get_briefing_texts(const uint8_t **title, const uint8_t **subtitle, const uint8_t **content)

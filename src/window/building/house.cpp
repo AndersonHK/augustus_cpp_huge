@@ -1,5 +1,5 @@
+extern "C" {
 #include "house.h"
-
 #include "building/building.h"
 #include "building/house.h"
 #include "building/local_workforce.h"
@@ -11,7 +11,6 @@
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/font.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
@@ -19,6 +18,9 @@
 #include "sound/speech.h"
 #include "translation/translation.h"
 #include "window/building/figures.h"
+}
+
+#include "graphics/image.h"
 
 static void draw_vacant_lot(building_info_context *c)
 {
@@ -51,18 +53,18 @@ static void draw_population_info(building_info_context *c, int y_offset)
         icon++;
     }
 
-    const int image_id = image_group(GROUP_CONTEXT_ICONS) + icon;
-    const image *icon_image = image_get(image_id);
+    const int image_id = Image::group(GROUP_CONTEXT_ICONS) + icon;
+    const Image &icon_image = Image::from_id(image_id);
     const int icon_x = c->x_offset + 34;
     const int icon_y = y_offset + 4;
-    const int text_x = icon_x + icon_image->width + 8;
+    const int text_x = icon_x + icon_image.width() + 8;
     const int line_height = font_definition_for(FONT_NORMAL_BROWN)->line_height;
     const int line_padding = 4;
     const int text_block_height = 2 * line_height + line_padding;
-    const int text_y = icon_y + (icon_image->height - text_block_height) / 2;
+    const int text_y = icon_y + (icon_image.height() - text_block_height) / 2;
     const int workers_text_y = text_y + line_height + line_padding;
 
-    image_draw(image_id, icon_x, icon_y, COLOR_MASK_NONE, SCALE_NONE);
+    icon_image.draw(icon_x, icon_y, COLOR_MASK_NONE, SCALE_NONE);
     int width = text_draw_number(b->house_population, '@', " ", text_x, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     width += lang_text_draw(127, 20, text_x + width, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
 
@@ -100,7 +102,7 @@ static void draw_happiness_info(building_info_context *c, int y_offset)
     if (happiness > 0) {
         sentiment_text_id = happiness / 10 + TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2;
     }
-    text_draw(translation_for(sentiment_text_id), c->x_offset + 36, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+    text_draw(translation_for(static_cast<translation_key>(sentiment_text_id)), c->x_offset + 36, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
 
     int message = building_get(c->building_id)->house_sentiment_message;
     switch (message) {
@@ -200,12 +202,11 @@ void window_building_draw_house(building_info_context *c)
                     continue;
                 }
                 int image_id = resource_get_data(r)->image.icon;
-                const image *img = image_get(image_id);
-                int base_width = (25 - img->original.width) / 2;
-                int base_height = (25 - img->original.height) / 2;
-                image_draw(image_id, c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height,
-                    COLOR_MASK_NONE, SCALE_NONE);
-                x_offset += img->original.width + 6;
+                const Image &img = Image::from_id(image_id);
+                int base_width = (25 - img.original_width()) / 2;
+                int base_height = (25 - img.original_height()) / 2;
+                img.draw(c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height, COLOR_MASK_NONE, SCALE_NONE);
+                x_offset += img.original_width() + 6;
             }
             text_draw(string_from_ascii(")"), c->x_offset + x_offset, c->y_offset + y_content + 2,
                 FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
@@ -216,11 +217,10 @@ void window_building_draw_house(building_info_context *c)
                     continue;
                 }
                 int image_id = resource_get_data(r)->image.icon;
-                const image *img = image_get(image_id);
-                int base_width = (25 - img->original.width) / 2;
-                int base_height = (25 - img->original.height) / 2;
-                image_draw(resource_get_data(r)->image.icon, c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height,
-                    COLOR_MASK_NONE, SCALE_NONE);
+                const Image &img = Image::from_id(image_id);
+                int base_width = (25 - img.original_width()) / 2;
+                int base_height = (25 - img.original_height()) / 2;
+                img.draw(c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height, COLOR_MASK_NONE, SCALE_NONE);
                 text_draw_number(b->resources[r], '@', " ",
                     c->x_offset + x_offset + 25, c->y_offset + y_amount + 2, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
                 x_offset += 85;
@@ -236,16 +236,16 @@ void window_building_draw_house(building_info_context *c)
     y_content += 35;
     y_amount += 35;
 
-    for (resource_type r = RESOURCE_MIN_NON_FOOD; r < RESOURCE_MAX_NON_FOOD; r++) {
+    for (int resource = RESOURCE_MIN_NON_FOOD; resource < RESOURCE_MAX_NON_FOOD; resource++) {
+        const resource_type r = static_cast<resource_type>(resource);
         if (!resource_is_inventory(r)) {
             continue;
         }
         int image_id = resource_get_data(r)->image.icon;
-        const image *img = image_get(image_id);
-        int base_width = (25 - img->original.width) / 2;
-        int base_height = (25 - img->original.height) / 2;
-        image_draw(resource_get_data(r)->image.icon, c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height,
-            COLOR_MASK_NONE, SCALE_NONE);
+        const Image &img = Image::from_id(image_id);
+        int base_width = (25 - img.original_width()) / 2;
+        int base_height = (25 - img.original_height()) / 2;
+        img.draw(c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height, COLOR_MASK_NONE, SCALE_NONE);
         text_draw_number(b->resources[r], '@', " ",
             c->x_offset + x_offset + 25, c->y_offset + y_amount + 2, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
         x_offset += 85;

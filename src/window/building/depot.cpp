@@ -16,7 +16,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/complex_button.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
@@ -26,6 +25,7 @@ extern "C" {
 #include "widget/dropdown_button.h"
 #include "window/building_info.h"
 }
+#include "graphics/image.h"
 
 static void order_set_source(const generic_button *button);
 static void order_set_destination(const generic_button *button);
@@ -363,7 +363,7 @@ static void depot_draw_cart_status(const building *b, building_info_context *c)
                 const image *img = image_get(rdata->image.icon);
                 int draw_x = x_icon - (img->original.width / 2);
                 int draw_y = y_pos - (img->original.height / 2);
-                image_draw(rdata->image.icon, draw_x, draw_y + 5, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(rdata->image.icon).draw(draw_x, draw_y + 5, COLOR_MASK_NONE, SCALE_NONE);
             }
 
             if (f->loads_sold_or_carrying > 0) {
@@ -463,15 +463,11 @@ void window_building_draw_depot_foreground(building_info_context *c)
     const image *img = image_get(image_id);
     button_border_draw(x_offset + depot_order_buttons[0].x, y_offset + depot_order_buttons[0].y,
         depot_order_buttons[0].width, depot_order_buttons[0].height, data.focus_button_id == 1);
-    image_draw(image_id,
-        x_offset + depot_order_buttons[0].x + (26 - img->original.width) / 2,
-        y_offset + depot_order_buttons[0].y + (26 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(x_offset + depot_order_buttons[0].x + (26 - img->original.width) / 2, y_offset + depot_order_buttons[0].y + (26 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
     text_draw_centered(resource_get_data(resource)->text,
         x_offset + depot_order_buttons[0].x, y_offset + depot_order_buttons[0].y + 8, depot_order_buttons[0].width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    image_draw(image_id,
-        x_offset + depot_order_buttons[0].x + depot_order_buttons[0].width - 26 + (26 - img->original.width) / 2,
-        y_offset + depot_order_buttons[0].y + (26 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(x_offset + depot_order_buttons[0].x + depot_order_buttons[0].width - 26 + (26 - img->original.width) / 2, y_offset + depot_order_buttons[0].y + (26 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
 
     order_condition_type condition_type = b->data.depot.current_order.condition.condition_type;
     text_draw(translation_for(TR_BUILDING_INFO_DEPOT_CONDITION), x_offset, y_offset + depot_order_buttons[3].y + 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -496,8 +492,7 @@ void window_building_draw_depot_foreground(building_info_context *c)
             depot_order_buttons[1].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         button_border_draw(x_offset + depot_order_buttons[5].x, y_offset + depot_order_buttons[5].y,
             depot_order_buttons[5].width, depot_order_buttons[5].height, data.focus_button_id == 6);
-        image_draw(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING), x_offset + depot_order_buttons[5].x + 3,
-            y_offset + depot_order_buttons[5].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
+        Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(x_offset + depot_order_buttons[5].x + 3, y_offset + depot_order_buttons[5].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
         depot_order_buttons[5].parameter1 = src->id;
     } else if (total_storages() > 1) {
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_INFO_DEPOT_SELECT_SOURCE,
@@ -522,8 +517,7 @@ void window_building_draw_depot_foreground(building_info_context *c)
             depot_order_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         button_border_draw(x_offset + depot_order_buttons[6].x, y_offset + depot_order_buttons[6].y,
             depot_order_buttons[6].width, depot_order_buttons[6].height, data.focus_button_id == 7);
-        image_draw(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING), x_offset + depot_order_buttons[6].x + 3,
-            y_offset + depot_order_buttons[6].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
+        Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(x_offset + depot_order_buttons[6].x + 3, y_offset + depot_order_buttons[6].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
         depot_order_buttons[6].parameter1 = dst->id;
     } else if (total_storages() > 1) {
         lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_INFO_DEPOT_SELECT_DESTINATION,
@@ -540,12 +534,10 @@ void window_building_draw_depot_foreground(building_info_context *c)
     if (data.advanced_mode) {
         button_border_draw(x_offset + depot_order_buttons[7].x, y_offset + depot_order_buttons[7].y,
             depot_order_buttons[7].width, depot_order_buttons[7].height, data.focus_button_id == 8);
-        image_draw(assets_lookup_image_id(ASSET_UI_COPY_ICON), x_offset + depot_order_buttons[7].x + 3,
-            y_offset + depot_order_buttons[7].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
+        Image::from_id(assets_lookup_image_id(ASSET_UI_COPY_ICON)).draw(x_offset + depot_order_buttons[7].x + 3, y_offset + depot_order_buttons[7].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
         button_border_draw(x_offset + depot_order_buttons[8].x, y_offset + depot_order_buttons[8].y,
             depot_order_buttons[8].width, depot_order_buttons[8].height, data.focus_button_id == 9);
-        image_draw(assets_lookup_image_id(ASSET_UI_PASTE_ICON), x_offset + depot_order_buttons[8].x + 3,
-            y_offset + depot_order_buttons[8].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
+        Image::from_id(assets_lookup_image_id(ASSET_UI_PASTE_ICON)).draw(x_offset + depot_order_buttons[8].x + 3, y_offset + depot_order_buttons[8].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
 
         button_border_draw(x_offset + depot_order_buttons[9].x, y_offset + depot_order_buttons[9].y,
             depot_order_buttons[9].width, depot_order_buttons[9].height, data.focus_button_id == 10);
@@ -555,15 +547,11 @@ void window_building_draw_depot_foreground(building_info_context *c)
 
         button_border_draw(x_offset + depot_order_buttons[10].x, y_offset + depot_order_buttons[10].y,
             depot_order_buttons[10].width, depot_order_buttons[10].height, data.focus_button_id == 11);
-        image_draw(assets_get_image_id("UI", "Denied_Walker_Checkmark"),
-            x_offset + depot_order_buttons[10].x + 5,
-            y_offset + depot_order_buttons[10].y + 5, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x_offset + depot_order_buttons[10].x + 5, y_offset + depot_order_buttons[10].y + 5, COLOR_MASK_NONE, SCALE_NONE);
 
         button_border_draw(x_offset + depot_order_buttons[11].x, y_offset + depot_order_buttons[11].y,
             depot_order_buttons[11].width, depot_order_buttons[11].height, data.focus_button_id == 12);
-        image_draw(assets_get_image_id("UI", "Denied_Walker_Checkmark"),
-            x_offset + depot_order_buttons[11].x + 5,
-            y_offset + depot_order_buttons[11].y + 5, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x_offset + depot_order_buttons[11].x + 5, y_offset + depot_order_buttons[11].y + 5, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 
@@ -669,10 +657,8 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             // Left button - goto storage orders
             button_border_draw(c->x_offset + 18, y_offset + 46 + ROW_HEIGHT * drawn_rows, BLOCK_SIZE * 2, 22,
                 data.storage_building_goto_orders_focus_button_id == drawn_rows + 1);
-            image_draw(assets_lookup_image_id(ASSET_UI_GEAR_ICON),
-                c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            image_draw(assets_lookup_image_id(ASSET_UI_GEAR_ICON),
-                c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
 
             // Middle button - select storage
             button_border_draw(c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows, base_width,
@@ -684,12 +670,8 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             // Right button - view storage
             button_border_draw(c->x_offset + 18 + base_width + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
                 BLOCK_SIZE * 2, 22, data.storage_building_view_focus_button_id == drawn_rows + 1);
-            image_draw(
-                assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING), c->x_offset + 22 + base_width + BLOCK_SIZE * 2,
-                y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            image_draw(
-                assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING), c->x_offset + 21 + base_width + BLOCK_SIZE * 2,
-                y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 22 + base_width + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
 
             drawn_rows++;
         }
@@ -740,10 +722,8 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             // Left button - goto storage orders
             button_border_draw(c->x_offset + 18, y_offset + 46 + ROW_HEIGHT * drawn_rows, BLOCK_SIZE * 2, 22,
                 data.storage_building_goto_orders_focus_button_id == drawn_rows + 1);
-            image_draw(assets_lookup_image_id(ASSET_UI_GEAR_ICON),
-                c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            image_draw(assets_lookup_image_id(ASSET_UI_GEAR_ICON),
-                c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
 
             // Middle button - select storage (disabled for inactive storages)
             button_border_draw(c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
@@ -755,12 +735,8 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             // Right button - view storage - center camera on storage
             button_border_draw(c->x_offset + 18 + base_width + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
                 BLOCK_SIZE * 2, 22, data.storage_building_view_focus_button_id == drawn_rows + 1);
-            image_draw(
-                assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING), c->x_offset + 22 + base_width + BLOCK_SIZE * 2,
-                y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            image_draw(
-                assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING), c->x_offset + 21 + base_width + BLOCK_SIZE * 2,
-                y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 22 + base_width + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
 
             drawn_rows++;
         }
@@ -1077,8 +1053,7 @@ void window_building_draw_depot_select_resource_foreground(building_info_context
             y_offset + 46 + depot_select_resource_buttons[i].y,
             depot_select_resource_buttons[i].width, depot_select_resource_buttons[i].height,
             data.depot_resource_focus_button_id == i + 1);
-        image_draw(image_id, c->x_offset + depot_select_resource_buttons[i].x + 3,
-            y_offset + 46 + depot_select_resource_buttons[i].y + 3, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(c->x_offset + depot_select_resource_buttons[i].x + 3, y_offset + 46 + depot_select_resource_buttons[i].y + 3, COLOR_MASK_NONE, SCALE_NONE);
         text_draw(str, c->x_offset + depot_select_resource_buttons[i].x + 33,
             y_offset + 46 + depot_select_resource_buttons[i].y + 8, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     }

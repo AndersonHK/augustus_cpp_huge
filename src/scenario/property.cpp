@@ -1,10 +1,12 @@
+extern "C" {
 #include "property.h"
-
 #include "core/calc.h"
 #include "core/string.h"
 #include "game/campaign.h"
-#include "graphics/image.h"
 #include "scenario/data.h"
+}
+
+#include "graphics/image.h"
 
 int scenario_is_custom(void)
 {
@@ -173,7 +175,7 @@ int scenario_victory_message(void)
 
 void scenario_change_climate(scenario_climate climate)
 {
-    climate = calc_bound(climate, CLIMATE_CENTRAL, CLIMATE_DESERT);
+    climate = static_cast<scenario_climate>(calc_bound(climate, CLIMATE_CENTRAL, CLIMATE_DESERT));
     scenario.climate = climate;
-    image_load_climate(scenario_property_climate(), 0, 0, 0, 0);
+    Image::load_climate(scenario_property_climate(), 0, 0, 0, 0);
 }

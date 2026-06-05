@@ -12,7 +12,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/complex_button.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
@@ -22,6 +21,7 @@ extern "C" {
 #include "window/building_info.h"
 #include "window/building/figures.h"
 }
+#include "graphics/image.h"
 
 #include <stdlib.h>
 
@@ -167,9 +167,9 @@ static int affect_all_button_state(void)
 static void draw_roadblock_orders_buttons(int x, int y, int focused)
 {
     if (affect_all_button_state() == ACCEPT_ALL) {
-        image_draw(assets_lookup_image_id(ASSET_UI_SELECTION_CHECKMARK), x + 29, y + 4, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_lookup_image_id(ASSET_UI_SELECTION_CHECKMARK)).draw(x + 29, y + 4, COLOR_MASK_NONE, SCALE_NONE);
     } else {
-        image_draw(assets_get_image_id("UI", "Denied_Walker_Checkmark"), x + 29, y + 4, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x + 29, y + 4, COLOR_MASK_NONE, SCALE_NONE);
     }
     button_border_draw(x + 25, y, 20, 20, data.orders_focus_button_id == 1);
 }
@@ -215,9 +215,8 @@ void window_building_draw_roadblock_orders_foreground(building_info_context *c)
     draw_roadblock_orders_buttons(c->x_offset + 365, y_offset + 404, data.orders_focus_button_id == 1);
 
     for (unsigned int i = 0; i < size_of_orders_permission_buttons; i++) {
-        image_draw(image_group(ids[i * 2]) + 4, c->x_offset + 32, y_offset + 46 + 32 * i, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_group(ids[i * 2 + 1]) + 4, c->x_offset + 64, y_offset + 46 + 32 * i,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(ids[i * 2]) + 4).draw(c->x_offset + 32, y_offset + 46 + 32 * i, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(ids[i * 2 + 1]) + 4).draw(c->x_offset + 64, y_offset + 46 + 32 * i, COLOR_MASK_NONE, SCALE_NONE);
         button_border_draw(c->x_offset + 180, y_offset + 50 + 32 * i, 210, 22, data.figure_focus_button_id == i + 1);
         int state = building_roadblock_get_permission(static_cast<roadblock_permission>(i + 1), b);
         if (state) {

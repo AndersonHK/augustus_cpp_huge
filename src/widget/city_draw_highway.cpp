@@ -1,15 +1,17 @@
+extern "C" {
 #include "city_draw_highway.h"
-
 #include "assets/assets.h"
 #include "building/building.h"
 #include "city/view.h"
-#include "graphics/image.h"
 #include "map/aqueduct.h"
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/random.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
+}
+
+#include "graphics/image.h"
 
 static int highway_barrier_direction_offsets[4] = { 1, -GRID_SIZE, -1, GRID_SIZE };
 
@@ -74,19 +76,19 @@ static void draw_barrier_image(int grid_offset, int direction_index, int x, int 
         barrier_offset += 4;
     }
     int barrier_image_id = assets_lookup_image_id(ASSET_HIGHWAY_BARRIER_START) + barrier_offset;
-    image_draw_isometric_footprint_from_draw_tile(barrier_image_id, x, y, color_mask, scale);
+    Image::from_id(barrier_image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
 }
 
 void city_draw_highway_footprint(int x, int y, float scale, int grid_offset, color_t color_mask)
 {
     int random_offset = map_random_get(grid_offset) & 15;
     int base_image_id = assets_lookup_image_id(ASSET_HIGHWAY_BASE_START) + random_offset;
-    image_draw_isometric_footprint_from_draw_tile(base_image_id, x, y, color_mask, scale);
+    Image::from_id(base_image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
     draw_barrier_image(grid_offset, 1, x, y, scale, color_mask);
     draw_barrier_image(grid_offset, 2, x, y, scale, color_mask);
     if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
         int aqueduct_image_id = map_tiles_highway_get_aqueduct_image(grid_offset);
-        image_draw_isometric_footprint_from_draw_tile(aqueduct_image_id, x, y, color_mask, scale);
+        Image::from_id(aqueduct_image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
     }
     draw_barrier_image(grid_offset, 0, x, y, scale, color_mask);
     draw_barrier_image(grid_offset, 3, x, y, scale, color_mask);

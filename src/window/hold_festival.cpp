@@ -11,7 +11,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/window.h"
@@ -19,6 +18,7 @@ extern "C" {
 #include "window/advisors.h"
 #include "window/message_dialog.h"
 }
+#include "graphics/image.h"
 
 static void button_god(const generic_button *button);
 static void button_size(const generic_button *button);
@@ -81,7 +81,7 @@ static void draw_button_labels(void)
     width = lang_text_draw_colored(58, 33, 92, 284, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     width += lang_text_draw_amount_colored(8, 0, city_festival_grand_cost(), 92 + width, 284, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     width += lang_text_draw_amount_colored(8, 10, city_festival_grand_wine(), 97 + width, 284, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
-    image_draw(wine_image_id, 97 + width, 279, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(wine_image_id).draw(97 + width, 279, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 static void draw_buttons(void)
@@ -107,9 +107,9 @@ static void draw_background(void)
     for (int god = 0; god < MAX_GODS; god++) {
         if (god == city_festival_selected_god()) {
             button_border_draw(100 * god + 75, 91, 91, 101, 1);
-            image_draw(image_group(GROUP_PANEL_WINDOWS) + god + 21, 100 * god + 80, 96, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + god + 21).draw(100 * god + 80, 96, COLOR_MASK_NONE, SCALE_NONE);
         } else {
-            image_draw(image_group(GROUP_PANEL_WINDOWS) + god + 16, 100 * god + 80, 96, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + god + 16).draw(100 * god + 80, 96, COLOR_MASK_NONE, SCALE_NONE);
         }
     }
     draw_buttons();

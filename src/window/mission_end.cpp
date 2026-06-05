@@ -17,7 +17,6 @@ extern "C" {
 #include "game/undo.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/rich_text.h"
@@ -35,6 +34,7 @@ extern "C" {
 #include "window/mission_selection.h"
 #include "window/video.h"
 }
+#include "graphics/image.h"
 
 #include <string.h>
 
@@ -174,11 +174,11 @@ static void draw_background_image(void)
             }
         }
         if (!image_id) {
-            image_id = image_group(GROUP_INTERMEZZO_BACKGROUND) + 2 * (scenario_campaign_mission() % 11) + 2;
+            image_id = Image::group(GROUP_INTERMEZZO_BACKGROUND) + 2 * (scenario_campaign_mission() % 11) + 2;
         }
         data.background_image_id = image_id;
     }
-    image_draw_fullscreen_background(data.background_image_id);
+    Image::from_id(data.background_image_id).draw_fullscreen_background();
 }
 
 static void draw_won(void)

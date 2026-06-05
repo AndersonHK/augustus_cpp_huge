@@ -26,7 +26,7 @@
     <ClCompile Include="src\assets\augustus_julius_template_resolver.cpp" />
     <ClCompile Include="src\assets\graphics_extractor_common.cpp" />
     <ClCompile Include="src\core\buffer.c" />
-    <ClCompile Include="src\core\image.c">
+    <ClCompile Include="src\core\image.cpp">
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <ClCompile Include="src\core\image_packer.c" />
@@ -34,6 +34,7 @@
     <ClCompile Include="src\core\legacy_image_extractor.cpp" />
     <ClCompile Include="src\core\png_read.c" />
     <ClCompile Include="src\core\xml_parser.c" />
+    <ClCompile Include="src\graphics\image.cpp" />
     <ClCompile Include="src\graphics\renderer.c" />
     <ClCompile Include="ext\sxml\sxml.c" />
     <ClCompile Include="ext\spng\spng.c" />

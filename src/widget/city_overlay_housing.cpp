@@ -1,5 +1,5 @@
+extern "C" {
 #include "city_overlay_housing.h"
-
 #include "assets/assets.h"
 #include "building/building.h"
 #include "building/house.h"
@@ -16,7 +16,6 @@
 #include "game/resource.h"
 #include "game/state.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/text.h"
 #include "map/bridge.h"
 #include "map/building.h"
@@ -28,6 +27,9 @@
 #include "scenario/property.h"
 #include "translation/translation.h"
 #include "widget/city_draw_highway.h"
+}
+
+#include "graphics/image.h"
 
 #include <stdio.h>
 

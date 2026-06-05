@@ -1,14 +1,16 @@
+extern "C" {
 #include "education.h"
-
 #include "building/count.h"
 #include "city/culture.h"
 #include "city/houses.h"
 #include "city/population.h"
 #include "core/lang.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
+}
+
+#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 17
 
@@ -56,7 +58,7 @@ static int get_education_advice(void)
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 7, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 7).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw(57, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); // Education
 
     // x population, y school age, z academy age

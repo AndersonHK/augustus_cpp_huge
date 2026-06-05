@@ -1,14 +1,16 @@
+extern "C" {
 #include "intermezzo.h"
-
 #include "core/time.h"
 #include "game/campaign.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
 #include "sound/music.h"
 #include "sound/speech.h"
+}
+
+#include "graphics/image.h"
 
 #define DISPLAY_TIME_MILLIS 1000
 
@@ -97,13 +99,13 @@ static void draw_background(void)
     graphics_clear_screen();
 
     int mission = !game_campaign_is_original() ? 0 : scenario_campaign_mission();
-    int image_id = image_group(GROUP_INTERMEZZO_BACKGROUND) + 2 * mission;
+    int image_id = Image::group(GROUP_INTERMEZZO_BACKGROUND) + 2 * mission;
     if (data.type == INTERMEZZO_MISSION_BRIEFING) {
         image_id++;
     } else if (data.type == INTERMEZZO_WON) {
         image_id += 2;
     }
-    image_draw_fullscreen_background(image_id);
+    Image::from_id(image_id).draw_fullscreen_background();
 }
 
 static void handle_input(const mouse *m, const hotkeys *h)

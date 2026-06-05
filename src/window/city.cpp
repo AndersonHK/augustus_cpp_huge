@@ -26,7 +26,6 @@ extern "C" {
 #include "game/undo.h"
 #include "graphics/complex_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
@@ -54,6 +53,7 @@ extern "C" {
 #include "window/message_list.h"
 #include "window/overlay_menu.h"
 }
+#include "graphics/image.h"
 
 #define TOPLEFT_MESSAGES_X 5
 #define TOPLEFT_MESSAGES_Y_SPACING 24
@@ -250,7 +250,7 @@ static void draw_time_left(void)
 
 void label_draw_masked(int x, int y, int width_blocks, int type, color_t color)
 {
-    int image_base = image_group(GROUP_PANEL_BUTTON);
+    int image_base = Image::group(GROUP_PANEL_BUTTON);
     for (int i = 0; i < width_blocks; i++) {
         int image_id;
         if (i == 0) {
@@ -260,7 +260,7 @@ void label_draw_masked(int x, int y, int width_blocks, int type, color_t color)
         } else {
             image_id = 3 * type + 42;
         }
-        image_draw(image_base + image_id, x + BLOCK_SIZE * i, y, color, SCALE_NONE);
+        Image::from_id(image_base + image_id).draw(x + BLOCK_SIZE * i, y, color, SCALE_NONE);
     }
 }
 

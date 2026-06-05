@@ -10,8 +10,9 @@ extern "C" {
 #include "core/string.h"
 #include "core/time.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 }
+
+#include "graphics/image.h"
 
 #include <string.h>
 #include <string>
@@ -656,7 +657,7 @@ int text_draw(const uint8_t *str, int x, int y, font_t font, int pixel_size, col
                 width = def->space_width;
             } else {
                 int height = def->image_y_offset(*str, font_image_height_for_letter(def, letter_id), def->line_height);
-                image_draw_letter(def->font, letter_id, current_x, y - height, color, SCALE_NONE);
+                Image::letter(letter_id).draw_letter(def->font, current_x, y - height, color, SCALE_NONE);
                 width = def->letter_spacing + font_image_width_for_letter(def, letter_id);
             }
             if (input_cursor.capture && input_cursor.position == input_cursor.cursor_position) {
@@ -761,7 +762,7 @@ int text_draw_number(int value, char prefix, const char *postfix, int x, int y, 
                 width = def->space_width;
             } else {
                 int height = def->image_y_offset(*str, font_image_height_for_letter(def, letter_id), def->line_height);
-                image_draw_letter(def->font, letter_id, current_x, y - height, color, SCALE_NONE);
+                Image::letter(letter_id).draw_letter(def->font, current_x, y - height, color, SCALE_NONE);
                 width = def->letter_spacing + font_image_width_for_letter(def, letter_id);
             }
 
@@ -875,7 +876,7 @@ void text_draw_number_finances(int value, int x, int y, font_t font, int pixel_s
                 }
                 int logical_width = font_image_width_for_letter(def, letter_id);
                 int height = def->image_y_offset(*str, font_image_height_for_letter(def, letter_id), def->line_height);
-                image_draw_letter(def->font, letter_id, current_x + (number_width - logical_width) / 2, y - height, color, SCALE_NONE);
+                Image::letter(letter_id).draw_letter(def->font, current_x + (number_width - logical_width) / 2, y - height, color, SCALE_NONE);
             }
             current_x -= number_width;
         }

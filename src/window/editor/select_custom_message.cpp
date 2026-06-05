@@ -5,7 +5,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
@@ -21,6 +20,7 @@ extern "C" {
 #include "window/file_dialog.h"
 #include "window/numeric_input.h"
 }
+#include "graphics/image.h"
 
 #define MESSAGES_Y_OFFSET 146
 #define MESSAGES_ROW_HEIGHT 32

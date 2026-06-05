@@ -1,5 +1,5 @@
+extern "C" {
 #include "chief.h"
-
 #include "city/data_private.h"
 #include "city/figures.h"
 #include "city/finance.h"
@@ -12,21 +12,22 @@
 #include "city/resource.h"
 #include "city/sentiment.h"
 #include "core/calc.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "scenario/invasion.h"
 #include "scenario/property.h"
 #include "translation/translation.h"
+}
 
+#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 26
 #define X_OFFSET 225
 
 static void draw_title(int y, int text_id)
 {
-    image_draw(image_group(GROUP_BULLET), 32, y + 1, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_BULLET)).draw(32, y + 1, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw(61, text_id, 52, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 }
 
@@ -35,7 +36,7 @@ static int draw_background(void)
     int width;
 
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 11, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 11).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
 
     lang_text_draw(61, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     inner_panel_draw(24, 60, 37, 19);
@@ -100,7 +101,7 @@ static int draw_background(void)
     }
 
     // housing capacity
-    image_draw(image_group(GROUP_BULLET), 32, 126 + 1, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_BULLET)).draw(32, 126 + 1, COLOR_MASK_NONE, SCALE_NONE);
     text_draw(translation_for(TR_HEADER_HOUSING), 52, 126, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     if (!city_population_open_housing_capacity()) {
@@ -156,7 +157,7 @@ static int draw_background(void)
         food_text = TR_ADVISOR_LEGION_FOOD_NEEDED;
     }
     if (food_text && city_figures_soldiers() > 0) {
-        text_draw(translation_for(food_text), X_OFFSET, 186, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height), 0);
+        text_draw(translation_for(static_cast<translation_key>(food_text)), X_OFFSET, 186, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height), 0);
     } else if (city_figures_imperial_soldiers()) {
         lang_text_draw(61, 76, X_OFFSET, 186, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
     } else if (city_figures_enemies()) {
@@ -242,7 +243,7 @@ static int draw_background(void)
         lang_text_draw(61, sentiment / 10 + 51, X_OFFSET, 306, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
     // water coverage
-    image_draw(image_group(GROUP_BULLET), 32, 326 + 1, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_BULLET)).draw(32, 326 + 1, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_CHIEF_WATER_COVERAGE, 52, 326, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     int population = city_population();

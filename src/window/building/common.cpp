@@ -1,5 +1,5 @@
+extern "C" {
 #include "common.h"
-
 #include "assets/assets.h"
 #include "building/building.h"
 #include "building/house.h"
@@ -12,13 +12,15 @@
 #include "city/view.h"
 #include "core/calc.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "translation/translation.h"
 #include "sound/speech.h"
+}
+
+#include "graphics/image.h"
 
 #include <stdlib.h>
 #include <math.h>
@@ -98,7 +100,7 @@ static int get_employment_info_text(const building *b, int consider_house_coveri
 
 void window_building_draw_levy(int amount, int x_offset, int y_offset)
 {
-    image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, x_offset, y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_DENARII)->image.icon).draw(x_offset, y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
     int width = text_draw_money(abs(amount), x_offset + 20, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     if (amount > 0) {
         text_draw(translation_for(TR_BUILDING_INFO_MONTHLY_LEVY),
@@ -113,7 +115,6 @@ void window_building_draw_levy(int amount, int x_offset, int y_offset)
 {
     building *b = building_get(c->building_id);
     if (b->tourism_income_this_year > 0) {
-        //image_draw(image_group(GROUP_RESOURCE_ICONS) + 16, x_offset + 0, y_offset + 5);
         int width = text_draw_money(b->tourism_income_this_year, x_offset + 0, y_offset + 10, FONT_NORMAL_BROWN);
         text_draw(translation_for(TR_WINDOW_BUILDING_TOURISM_ANNUAL),
             x_offset + 0 + width, y_offset + 10, FONT_NORMAL_BROWN, 0);
@@ -126,8 +127,7 @@ void window_building_draw_levy(int amount, int x_offset, int y_offset)
 static void draw_employment_details(building_info_context *c, building *b, int y_offset, int text_id)
 {
     y_offset += c->y_offset;
-    image_draw(image_group(GROUP_CONTEXT_ICONS) + 14,
-        c->x_offset + 40, y_offset + 6, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 14).draw(c->x_offset + 40, y_offset + 6, COLOR_MASK_NONE, SCALE_NONE);
 
     int levy = building_get_levy(b);
     if (levy) {
@@ -205,15 +205,15 @@ static void window_building_draw_monument_resources_needed(building_info_context
     int y_offset = 95;
     inner_panel_draw(c->x_offset + 16, c->y_offset + y_offset, c->width_blocks - 2, 5);
     if (building_monument_needs_resources(b)) {
-        for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+        for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+            const resource_type r = static_cast<resource_type>(resource);
             int resource_needed_amount = building_monument_resources_needed_for_monument_type(b->type, r,
                 b->monument.phase);
             if (!resource_needed_amount) {
                 continue;
             }
             int resource_delivered_amount = resource_needed_amount - b->resources[r];
-            image_draw(resource_get_data(r)->image.icon, c->x_offset + 32, c->y_offset + y_offset + 10,
-                COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(resource_get_data(r)->image.icon).draw(c->x_offset + 32, c->y_offset + y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
             int width = text_draw_number(resource_delivered_amount, '@', "/",
                 c->x_offset + 64, c->y_offset + y_offset + 15, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
             width += text_draw_number(resource_needed_amount, '@', "",
@@ -237,7 +237,7 @@ void window_building_draw_monument_construction_process(building_info_context *c
         if (!c->has_road_access) {
             window_building_draw_description(c, CUSTOM_TRANSLATION,
                 TR_WINDOW_BUILDING_INFO_WARNING_NO_MONUMENT_ROAD_ACCESS);
-            text_draw_multiline(translation_for(tr_construction_desc),
+            text_draw_multiline(translation_for(static_cast<translation_key>(tr_construction_desc)),
                 c->x_offset + 32, c->y_offset + 180, 16 * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             return;
         }
@@ -245,11 +245,11 @@ void window_building_draw_monument_construction_process(building_info_context *c
             c->x_offset + 32, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         width += text_draw_number_pair(b->monument.phase, building_monument_phases(b->type) - 1, '@', "/",
             c->x_offset + 32 + width, c->y_offset + 50, 0, 0, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        text_draw(translation_for(tr_phase_name + b->monument.phase - 1),
+        text_draw(translation_for(static_cast<translation_key>(tr_phase_name + b->monument.phase - 1)),
             c->x_offset + 32 + width, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         text_draw(translation_for(TR_REQUIRED_RESOURCES), c->x_offset + 32, c->y_offset + 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         window_building_draw_monument_resources_needed(c);
-        int height = text_draw_multiline(translation_for(tr_phase_name_text + b->monument.phase - 1),
+        int height = text_draw_multiline(translation_for(static_cast<translation_key>(tr_phase_name_text + b->monument.phase - 1)),
             c->x_offset + 32, c->y_offset + 190, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
         if (building_monument_is_construction_halted(b)) {
@@ -257,16 +257,15 @@ void window_building_draw_monument_construction_process(building_info_context *c
                 c->x_offset + 32, c->y_offset + 200 + height, BLOCK_SIZE * (c->width_blocks - 4),
                 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
-            height += text_draw_multiline(translation_for(tr_construction_desc),
+            height += text_draw_multiline(translation_for(static_cast<translation_key>(tr_construction_desc)),
                 c->x_offset + 32, c->y_offset + 200 + height, BLOCK_SIZE * (c->width_blocks - 4),
                 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
         if (c->height_blocks > 28) {
             int phase_offset = b->monument.phase % 2;
-            image_draw_border(assets_get_image_id("UI", "Large_Banner_Border"),
-                c->x_offset + 32, c->y_offset + 216 + height, COLOR_MASK_NONE);
-            image_draw(assets_get_image_id("UI", "Construction_Banner_01") +
-                phase_offset, c->x_offset + 37, c->y_offset + 221 + height, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + 216 + height, COLOR_MASK_NONE);
+            Image::from_id(assets_get_image_id("UI", "Construction_Banner_01") +
+                phase_offset).draw(c->x_offset + 37, c->y_offset + 221 + height, COLOR_MASK_NONE, SCALE_NONE);
         }
     }
 }
@@ -291,16 +290,16 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     if (b->house_size && b->house_population) {
         graphics_draw_inset_rect(x_offset - 28, y_offset, 24, 24,
             COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
-        image_draw(risks_image_id + 2, x_offset - 28, y_offset, get_color_for_risk(b->sickness_level / 10), SCALE_NONE);
+        Image::from_id(risks_image_id + 2).draw(x_offset - 28, y_offset, get_color_for_risk(b->sickness_level / 10), SCALE_NONE);
     }
 
     // Fire risk
     graphics_draw_inset_rect(x_offset, y_offset, 24, 24, COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
     if (b->fire_proof) {
-        image_draw(risks_image_id + 1, x_offset, y_offset, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(risks_image_id + 3, x_offset, y_offset, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(risks_image_id + 1).draw(x_offset, y_offset, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(risks_image_id + 3).draw(x_offset, y_offset, COLOR_MASK_NONE, SCALE_NONE);
     } else {
-        image_draw(risks_image_id + 1, x_offset, y_offset, get_color_for_risk(b->fire_risk / 10), SCALE_NONE);
+        Image::from_id(risks_image_id + 1).draw(x_offset, y_offset, get_color_for_risk(b->fire_risk / 10), SCALE_NONE);
     }
 
     // Damage risk
@@ -308,10 +307,10 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
         COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
     int house_level = building_house_legacy_level(b);
     if (b->fire_proof || (b->house_size && house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_TENT)) {
-        image_draw(risks_image_id, x_offset + 28, y_offset, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(risks_image_id + 3, x_offset + 28, y_offset, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(risks_image_id).draw(x_offset + 28, y_offset, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(risks_image_id + 3).draw(x_offset + 28, y_offset, COLOR_MASK_NONE, SCALE_NONE);
     } else {
-        image_draw(risks_image_id, x_offset + 28, y_offset, get_color_for_risk(b->damage_risk / 20), SCALE_NONE);
+        Image::from_id(risks_image_id).draw(x_offset + 28, y_offset, get_color_for_risk(b->damage_risk / 20), SCALE_NONE);
     }
 }
 

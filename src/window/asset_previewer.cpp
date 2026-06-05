@@ -19,7 +19,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
 #include "graphics/renderer.h"
@@ -32,6 +31,7 @@ extern "C" {
 #include "window/popup_dialog.h"
 #include "window/select_list.h"
 }
+#include "graphics/image.h"
 
 #include <string.h>
 
@@ -314,8 +314,7 @@ static void draw_terrain_background(void)
             random_generate_next();
             int image_offset = random_byte() % NUM_GRASS_TILES;
             int group = (random_byte_alt() & 1) ? GROUP_TERRAIN_GRASS_1 : GROUP_TERRAIN_GRASS_2;
-            image_draw_isometric_footprint(image_group(group) + image_offset, x_offset, y_offset,
-                COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(group) + image_offset).draw_isometric_footprint(x_offset, y_offset, COLOR_MASK_NONE, SCALE_NONE);
             x_offset += TILE_X_SIZE;
         }
         y_offset += HALF_TYLE_Y_SIZE;
@@ -344,16 +343,13 @@ static void draw_asset(void)
     int y_offset = calc_adjust_with_percentage(y_start + (int) (height - asset_height / scale) / 2, data.scale);
     if (img->is_isometric) {
         y_offset += img->height / 2;
-        image_draw_isometric_top_from_draw_tile(image_id, x_offset, y_offset, COLOR_MASK_NONE, scale);
-        image_draw_isometric_footprint_from_draw_tile(image_id, x_offset, y_offset, COLOR_MASK_NONE, scale);
+        Image::from_id(image_id).draw_isometric_top_from_draw_tile(x_offset, y_offset, COLOR_MASK_NONE, scale);
+        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x_offset, y_offset, COLOR_MASK_NONE, scale);
     } else {
-        image_draw(image_id, x_offset, y_offset, COLOR_MASK_NONE, scale);
+        Image::from_id(image_id).draw(x_offset, y_offset, COLOR_MASK_NONE, scale);
     }
     if (data.animation.enabled && img->animation) {
-        image_draw(image_id + img->animation->start_offset + data.animation.frame,
-            x_offset + img->animation->sprite_offset_x,
-            y_offset + img->animation->sprite_offset_y - (img->top ? img->top->original.height - HALF_TYLE_Y_SIZE : 0),
-            COLOR_MASK_NONE, scale);
+        Image::from_id(image_id + img->animation->start_offset + data.animation.frame).draw(x_offset + img->animation->sprite_offset_x, y_offset + img->animation->sprite_offset_y - (img->top ? img->top->original.height - HALF_TYLE_Y_SIZE : 0), COLOR_MASK_NONE, scale);
     }
 }
 
@@ -365,10 +361,8 @@ static void draw_refreshed_info(void)
     int x_offset = (screen_width() - label_width) / 2;
     int y_offset = BLOCK_SIZE * 8;
     label_draw(x_offset, y_offset, label_width / BLOCK_SIZE, 1);
-    image_draw(image_group(GROUP_CONTEXT_ICONS) + 15, x_offset + 2, y_offset + 2,
-    COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_group(GROUP_CONTEXT_ICONS) + 15, x_offset + label_width - 36, y_offset + 2,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 15).draw(x_offset + 2, y_offset + 2, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 15).draw(x_offset + label_width - 36, y_offset + 2, COLOR_MASK_NONE, SCALE_NONE);
 
     text_draw_centered(text, x_offset, y_offset + 4, label_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 }

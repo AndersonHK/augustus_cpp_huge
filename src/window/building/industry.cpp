@@ -15,7 +15,6 @@ extern "C" {
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
@@ -25,6 +24,7 @@ extern "C" {
 #include "translation/translation.h"
 #include "window/popup_dialog.h"
 }
+#include "graphics/image.h"
 
 #include "building/building_type_registry_internal.h"
 #include "building/water_access_runtime.h"
@@ -58,8 +58,7 @@ static void draw_farm(building_info_context *c, int help_id, const char *sound_f
     window_building_play_sound(c, sound_file);
 
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    image_draw(resource_get_data(resource)->image.icon, c->x_offset + 10, c->y_offset + 10,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(resource)->image.icon).draw(c->x_offset + 10, c->y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw_centered(group_id, 0, c->x_offset, c->y_offset + 10,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
@@ -147,8 +146,7 @@ static void draw_raw_material(
     window_building_play_sound(c, sound_file);
 
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    image_draw(resource_get_data(resource)->image.icon, c->x_offset + 10, c->y_offset + 10,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(resource)->image.icon).draw(c->x_offset + 10, c->y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw_centered(group_id, text_offset, c->x_offset, c->y_offset + 10,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
@@ -247,8 +245,7 @@ static void draw_workshop(
     window_building_play_sound(c, sound_file);
 
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    image_draw(resource_get_data(resource)->image.icon, c->x_offset + 10, c->y_offset + 10,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(resource)->image.icon).draw(c->x_offset + 10, c->y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw_centered(group_id, text_offset, c->x_offset, c->y_offset + 10,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
@@ -274,8 +271,7 @@ static void draw_workshop(
             for (int i = 0; i < num_raw_materials; i++) {
                 font_t font = chain[i].raw_amount > b->resources[chain[i].raw_material] ?
                     FONT_NORMAL_RED : FONT_NORMAL_BLACK;
-                image_draw(resource_get_data(chain[i].raw_material)->image.icon,
-                    c->x_offset + 32, c->y_offset + 56 + resources_y_offset, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(resource_get_data(chain[i].raw_material)->image.icon).draw(c->x_offset + 32, c->y_offset + 56 + resources_y_offset, COLOR_MASK_NONE, SCALE_NONE);
                 lang_text_draw(group_id, text_offset + 12 + i,
                     c->x_offset + 60, c->y_offset + 60 + resources_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
                 int extra_width = lang_text_draw_amount(8, 10, b->resources[chain[i].raw_material],
@@ -393,8 +389,7 @@ void window_building_draw_city_mint(building_info_context *c)
     if (b->monument.phase == MONUMENT_FINISHED) {
         c->advisor_button = ADVISOR_FINANCIAL;
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-        image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, c->x_offset + 10, c->y_offset + 10,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(RESOURCE_DENARII)->image.icon).draw(c->x_offset + 10, c->y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
 
         int pct_done = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
         int width = lang_text_draw(CUSTOM_TRANSLATION, TR_BUILDING_GOLD_MINE_PRODUCTION,
@@ -403,8 +398,7 @@ void window_building_draw_city_mint(building_info_context *c)
         lang_text_draw(CUSTOM_TRANSLATION, TR_BUILDING_GOLD_MINE_COMPLETE,
             c->x_offset + 32 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-        image_draw(resource_get_data(RESOURCE_GOLD)->image.icon, c->x_offset + 32, c->y_offset + 56,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(RESOURCE_GOLD)->image.icon).draw(c->x_offset + 32, c->y_offset + 56, COLOR_MASK_NONE, SCALE_NONE);
         width = lang_text_draw(CUSTOM_TRANSLATION, TR_BUILDING_CITY_MINT_STORED_GOLD,
             c->x_offset + 60, c->y_offset + 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         lang_text_draw_amount(8, 10, b->resources[RESOURCE_GOLD],
@@ -480,7 +474,7 @@ void window_building_draw_city_mint_foreground(building_info_context *c)
     button_border_draw(x, y, 20, 20, data.focus_button_id == 1);
     button_border_draw(x, y + 24, 20, 20, data.focus_button_id == 2);
     int selected_offset = building_get(data.city_mint_id)->output_resource_id == RESOURCE_DENARII ? 0 : 24;
-    image_draw(assets_get_image_id("UI", "Denied_Walker_Checkmark"), x + 4, y + 4 + selected_offset, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x + 4, y + 4 + selected_offset, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 static int shipyard_boats_needed(void)
@@ -531,8 +525,7 @@ void window_building_draw_wharf(building_info_context *c)
     window_building_play_sound(c, "wavs/wharf.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered(102, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    image_draw(resource_get_data(RESOURCE_FISH)->image.icon,
-        c->x_offset + 10, c->y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_FISH)->image.icon).draw(c->x_offset + 10, c->y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
 
     building *b = building_get(c->building_id);
 
@@ -559,8 +552,7 @@ void window_building_draw_wharf(building_info_context *c)
         c->x_offset + 32, c->y_offset + 110, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     width += text_draw_number(b->data.industry.average_production_per_month, '@', "",
         c->x_offset + 32 + width, c->y_offset + 110, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    image_draw(resource_get_data(RESOURCE_FISH)->image.icon, c->x_offset + 32 + width, c->y_offset + 110,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_FISH)->image.icon).draw(c->x_offset + 32 + width, c->y_offset + 110, COLOR_MASK_NONE, SCALE_NONE);
 
     inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
     window_building_draw_employment(c, 140);

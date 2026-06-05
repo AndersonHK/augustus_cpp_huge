@@ -1,8 +1,7 @@
+extern "C" {
 #include "logo.h"
-
 #include "core/config.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/window.h"
 #include "sound/music.h"
@@ -11,6 +10,9 @@
 #include "window/plain_message_dialog.h"
 #include "window/popup_dialog.h"
 #include "window/user_path_setup.h"
+}
+
+#include "graphics/image.h"
 
 static int pending_actions;
 
@@ -64,7 +66,7 @@ static void draw_background(void)
     graphics_clear_screen();
 
     graphics_in_dialog();
-    image_draw(image_group(GROUP_LOGO), 0, 0, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_LOGO)).draw(0, 0, COLOR_MASK_NONE, SCALE_NONE);
     lang_text_draw_centered_colored(13, 7, 160, 462, 320, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_WHITE);
     graphics_reset_dialog();
 }

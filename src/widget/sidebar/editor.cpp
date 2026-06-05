@@ -1,9 +1,8 @@
+extern "C" {
 #include "editor.h"
-
 #include "core/image_group_editor.h"
 #include "editor/tool.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
@@ -21,6 +20,9 @@
 #include "window/editor/attributes.h"
 #include "window/editor/build_menu.h"
 #include "window/editor/map.h"
+}
+
+#include "graphics/image.h"
 
 #define MINIMAP_Y_OFFSET 30
 
@@ -135,9 +137,9 @@ static void draw_status(void)
 
 void widget_sidebar_editor_draw_background(void)
 {
-    int image_base = image_group(GROUP_EDITOR_SIDE_PANEL);
+    int image_base = Image::group(GROUP_EDITOR_SIDE_PANEL);
     int x_offset = sidebar_common_get_x_offset_expanded();
-    image_draw(image_base, x_offset, TOP_MENU_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base).draw(x_offset, TOP_MENU_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
     draw_buttons();
     widget_minimap_update(0);
     widget_minimap_draw_decorated(x_offset + 8, MINIMAP_Y_OFFSET, MINIMAP_WIDTH, MINIMAP_HEIGHT);
@@ -188,7 +190,7 @@ static void button_build_tool(int tool, int param2)
 {
     window_editor_build_menu_hide();
     widget_map_editor_clear_current_tile();
-    editor_tool_set_type(tool);
+    editor_tool_set_type(static_cast<tool_type>(tool));
     if (window_is(WINDOW_EDITOR_BUILD_MENU)) {
         window_editor_map_show();
     } else {

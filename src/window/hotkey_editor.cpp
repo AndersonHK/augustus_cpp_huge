@@ -7,11 +7,11 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "translation/translation.h"
 }
+#include "graphics/image.h"
 
 #define NUM_BOTTOM_BUTTONS 2
 

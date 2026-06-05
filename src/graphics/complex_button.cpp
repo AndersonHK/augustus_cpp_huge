@@ -1,9 +1,12 @@
+extern "C" {
 #include "complex_button.h"
-
 #include "graphics/ui_runtime_api.h"
 #include "graphics/graphics.h"
 #include "graphics/window.h"
 #include "input/mouse.h"
+}
+
+#include "graphics/image.h"
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -77,15 +80,16 @@ static void draw_default_style(const complex_button *button, font_t base_font, c
     int seq_width = lang_text_get_sequence_width(button->sequence, button->sequence_size, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     seq_width = seq_width % 2 ? seq_width - 1 : seq_width; // even up for better centering
     int img_before_w = 0, img_after_w = 0;
-    const image *img_before = NULL, *img_after = NULL;
+    const Image *img_before = nullptr;
+    const Image *img_after = nullptr;
 
     if (button->image_before > 0) {
-        img_before = image_get(button->image_before);
-        img_before_w = img_before->width + inner_margin;
+        img_before = &Image::from_id(button->image_before);
+        img_before_w = img_before->width() + inner_margin;
     }
     if (button->image_after > 0) {
-        img_after = image_get(button->image_after);
-        img_after_w = img_after->width + inner_margin;
+        img_after = &Image::from_id(button->image_after);
+        img_after_w = img_after->width() + inner_margin;
     }
 
     int total_width = img_before_w + seq_width + img_after_w;
@@ -113,9 +117,9 @@ static void draw_default_style(const complex_button *button, font_t base_font, c
     // Draw before-image if present
     color_t mask = !button->is_disabled ? COLOR_MASK_NONE : COLOR_MASK_GRAY;
     if (img_before) {
-        int img_y = button->y + (button->height - img_before->height) / 2;
-        image_draw(button->image_before, cursor_x, img_y, mask, SCALE_NONE);
-        cursor_x += img_before->width + inner_margin;
+        int img_y = button->y + (button->height - img_before->height()) / 2;
+        img_before->draw(cursor_x, img_y, mask, SCALE_NONE);
+        cursor_x += img_before->width() + inner_margin;
     }
 
     // Draw sequence (centered version if enum is 2,5,8)
@@ -134,8 +138,8 @@ static void draw_default_style(const complex_button *button, font_t base_font, c
 
     // Draw after-image if present
     if (img_after) {
-        int img_y = button->y + (button->height - img_after->height) / 2;
-        image_draw(button->image_after, cursor_x + inner_margin, img_y, mask, SCALE_NONE);
+        int img_y = button->y + (button->height - img_after->height()) / 2;
+        img_after->draw(cursor_x + inner_margin, img_y, mask, SCALE_NONE);
     }
 
     graphics_reset_clip_rectangle();

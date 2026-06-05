@@ -14,7 +14,6 @@ extern "C" {
 #include "game/resource.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
@@ -22,6 +21,7 @@ extern "C" {
 #include "scenario/property.h"
 #include "translation/translation.h"
 }
+#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 
@@ -85,15 +85,13 @@ static void draw_housing_table(void)
         int base_width = (26 - img->original.width) / 2;
         int base_height = (26 - img->original.height) / 2;
 
-        image_draw(resource_get_data(list.items[i])->image.icon, 54 + base_width, y_offset + 260 + (23 * i) + base_height - 5,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(list.items[i])->image.icon).draw(54 + base_width, y_offset + 260 + (23 * i) + base_height - 5, COLOR_MASK_NONE, SCALE_NONE);
         text_draw(translation_for(static_cast<translation_key>(TR_ADVISOR_RESIDENCES_USING_POTTERY + i)),
             90, y_offset + 263 + (23 * i),
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         text_draw_number(houses_using_goods[list.items[i]], '@', " ", 499, y_offset + 263 + (23 * i),
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        image_draw(resource_get_data(list.items[i])->image.icon, 550 + base_width, y_offset + 260 + (23 * i) + base_height - 5,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(resource_get_data(list.items[i])->image.icon).draw(550 + base_width, y_offset + 260 + (23 * i) + base_height - 5, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 
@@ -107,7 +105,7 @@ static int draw_background(void)
     inner_panel_draw(24, 60, 37, 16);
 
     text_draw(translation_for(TR_HEADER_HOUSING), 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    image_draw(housing_advisor_image, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(housing_advisor_image).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
 
     int x_offset = text_get_number_width(city_population(), 0, "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset += lang_text_get_width(CUSTOM_TRANSLATION, TR_ADVISOR_TOTAL_POPULATION, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));

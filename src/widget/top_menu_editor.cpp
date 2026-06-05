@@ -138,10 +138,10 @@ static void top_menu_window_show(void)
 void widget_top_menu_editor_draw(void)
 {
     int block_width = 24;
-    int image_base = image_group(GROUP_TOP_MENU);
+    int image_base = Image::group(GROUP_TOP_MENU);
     int s_width = screen_width();
     for (int i = 0; i * block_width < s_width; i++) {
-        image_draw(image_base + i % 8, i * block_width, 0, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + i % 8).draw(i * block_width, 0, COLOR_MASK_NONE, SCALE_NONE);
     }
     menu_bar_draw(menu, 5, s_width);
 }

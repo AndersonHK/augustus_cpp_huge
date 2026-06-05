@@ -10,7 +10,6 @@ extern "C" {
 #include "game/file_io.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
@@ -25,6 +24,7 @@ extern "C" {
 
 #include <string.h>
 }
+#include "graphics/image.h"
 
 #define MAX_SCENARIOS 15
 
@@ -103,7 +103,7 @@ static void draw_scenario_info(void)
     const int scenario_info_width = 280;
     const int scenario_criteria_x = 420;
 
-    image_draw(image_group(GROUP_SCENARIO_IMAGE) + data.info.image_id, 78, 36, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_SCENARIO_IMAGE) + data.info.image_id).draw(78, 36, COLOR_MASK_NONE, SCALE_NONE);
 
     text_ellipsize(data.selected_scenario_display, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), scenario_info_width + 10);
     text_draw_centered(data.selected_scenario_display,
@@ -196,8 +196,7 @@ static void draw_scenario_info(void)
 static void draw_toggle_minimap_button_contents(void)
 {
     if (data.show_minimap) {
-        image_draw(image_group(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS),
-            toggle_minimap_button.x + 3, toggle_minimap_button.y + 3, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)).draw(toggle_minimap_button.x + 3, toggle_minimap_button.y + 3, COLOR_MASK_NONE, SCALE_NONE);
         return;
     }
 
@@ -212,13 +211,12 @@ static void draw_toggle_minimap_button_contents(void)
 
 static void draw_background(void)
 {
-    image_draw_fullscreen_background(image_group(GROUP_INTERMEZZO_BACKGROUND) + 25);
+    Image::from_id(Image::group(GROUP_INTERMEZZO_BACKGROUND) + 25).draw_fullscreen_background();
 
     graphics_set_clip_rectangle(0, 0,
         WINDOW_WIDTH, WINDOW_HEIGHT);
     graphics_in_dialog();
-    image_draw(image_group(GROUP_CCK_BACKGROUND), (WINDOW_WIDTH - BACKGROUND_WIDTH) / 2,
-        (WINDOW_HEIGHT - BACKGROUND_HEIGHT) / 2, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_CCK_BACKGROUND)).draw((WINDOW_WIDTH - BACKGROUND_WIDTH) / 2, (WINDOW_HEIGHT - BACKGROUND_HEIGHT) / 2, COLOR_MASK_NONE, SCALE_NONE);
     graphics_reset_clip_rectangle();
     list_box_request_refresh(&list_box);
     draw_scenario_info();

@@ -14,7 +14,6 @@ extern "C" {
 #include "graphics/color.h"
 #include "graphics/complex_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/menu.h"
 #include "graphics/renderer.h"
 #include "graphics/ui_runtime_api.h"
@@ -38,6 +37,7 @@ extern "C" {
 #include "widget/map_editor_tool.h"
 #include "window/editor/empire.h"
 }
+#include "graphics/image.h"
 
 #include <cstdio>
 #include <cstring>
@@ -73,7 +73,7 @@ static void init_draw_context(void)
         draw_context.last_water_animation_time = now;
         draw_context.advance_water_animation = 1;
     }
-    draw_context.image_id_water_first = image_group(static_cast<int>(GROUP_TERRAIN_WATER));
+    draw_context.image_id_water_first = Image::group(static_cast<int>(GROUP_TERRAIN_WATER));
     draw_context.image_id_water_last = 5 + draw_context.image_id_water_first;
     draw_context.scale = city_view_get_scale() / 100.0f;
 }
@@ -122,7 +122,7 @@ static void draw_footprint(int x, int y, int grid_offset)
     if (event_tiles[grid_offset][0] != -1) {
         color_mask = complex_button_basic_colors((event_tiles[grid_offset][0] % 10) + 1);
     }
-    image_draw_isometric_footprint_from_draw_tile(image_id, x, y, color_mask, draw_context.scale);
+    Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale);
 
     if (config_get(static_cast<config_key>(CONFIG_UI_SHOW_GRID)) && draw_context.scale <= 2.0f) {
         //grid is drawn by the renderer directly at zoom > 200%
@@ -130,7 +130,7 @@ static void draw_footprint(int x, int y, int grid_offset)
         if (!grid_id) {
             grid_id = assets_get_image_id("UI", "Grid_Full");
         }
-        image_draw(grid_id, x, y, COLOR_GRID, draw_context.scale);
+        Image::from_id(grid_id).draw(x, y, COLOR_GRID, draw_context.scale);
     }
 }
 
@@ -146,8 +146,8 @@ static void draw_custom_earthquake(int x, int y, int grid_offset)
             images[grid_offset] = *map_image_context_get_future_earthquake(grid_offset);
         }
         if (images[grid_offset].is_valid) {
-            image_draw_isometric_footprint_from_draw_tile(image_group(static_cast<int>(GROUP_TERRAIN_EARTHQUAKE)) +
-                images[grid_offset].group_offset + images[grid_offset].item_offset, x, y, ALPHA_MASK_CUSTOM_EARTHQUAKE, draw_context.scale);
+            Image::from_id(Image::group(static_cast<int>(GROUP_TERRAIN_EARTHQUAKE)) +
+                images[grid_offset].group_offset + images[grid_offset].item_offset).draw_isometric_footprint_from_draw_tile(x, y, ALPHA_MASK_CUSTOM_EARTHQUAKE, draw_context.scale);
         }
     }
 }
@@ -162,7 +162,7 @@ static void draw_top(int x, int y, int grid_offset)
     if (event_tiles[grid_offset][0] != -1) {
         color_mask = complex_button_basic_colors((event_tiles[grid_offset][0] % 10) + 1);
     }
-    image_draw_isometric_top_from_draw_tile(image_id, x, y, color_mask, draw_context.scale);
+    Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, color_mask, draw_context.scale);
 }
 
 static void draw_flags(int x, int y, int grid_offset)

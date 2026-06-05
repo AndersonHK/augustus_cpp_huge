@@ -10,7 +10,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/scrollbar.h"
@@ -24,6 +23,7 @@ extern "C" {
 #include "window/message_dialog.h"
 #include "window/mission_briefing.h"
 }
+#include "graphics/image.h"
 
 #define MAX_MESSAGES 10
 
@@ -220,11 +220,9 @@ static void draw_messages(unsigned int total_messages)
             }
         }
         if (msg->is_read) {
-            image_draw(image_group(GROUP_MESSAGE_ICON) + 15 + image_offset,
-                data.x_text + 12, data.y_text + 6 + 20 * i, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 15 + image_offset).draw(data.x_text + 12, data.y_text + 6 + 20 * i, COLOR_MASK_NONE, SCALE_NONE);
         } else {
-            image_draw(image_group(GROUP_MESSAGE_ICON) + 14 + image_offset,
-                data.x_text + 12, data.y_text + 6 + 20 * i, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 14 + image_offset).draw(data.x_text + 12, data.y_text + 6 + 20 * i, COLOR_MASK_NONE, SCALE_NONE);
         }
         font_t font = FONT_NORMAL_WHITE;
         if (data.focus_button_id == i + 1) {

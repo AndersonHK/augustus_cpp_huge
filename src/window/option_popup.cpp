@@ -8,7 +8,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
@@ -17,6 +16,7 @@ extern "C" {
 #include "input/input.h"
 #include "translation/translation.h"
 }
+#include "graphics/image.h"
 
 #define CANCEL_BUTTON 0
 #define CONFIRM_BUTTON 1
@@ -169,8 +169,7 @@ static void draw_background(void)
         int text_x = 20;
 
         if (data.options[i + scrollbar.scroll_position].image_id) {
-            image_draw(data.options[i + scrollbar.scroll_position].image_id, text_x, y_offset + 42,
-                COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(data.options[i + scrollbar.scroll_position].image_id).draw(text_x, y_offset + 42, COLOR_MASK_NONE, SCALE_NONE);
             int offset = data.row_size == OPTION_MENU_SMALL_ROW ? 128 : 160;
             text_x += offset;
             text_width -= offset;
@@ -192,7 +191,7 @@ static void draw_foreground(void)
     for (unsigned int i = 0; i < data.visible_options; i++) {
         if (data.options[i + scrollbar.scroll_position].image_id) {
             color_t color = data.focus_button_id == i + 3 ? COLOR_BORDER_RED : COLOR_BORDER_GREEN;
-            image_draw_border(border_image_ids[data.row_size], 20, buttons[i + 2].y + 2, color);
+            Image::from_id(border_image_ids[data.row_size]).draw_border(20, buttons[i + 2].y + 2, color);
         }
     }
 

@@ -1,7 +1,6 @@
 #include "game.h"
 
 #include "building/building_type_registry.h"
-#include "core/image_payload.h"
 #include "figure/figure_type_registry.h"
 #include "game/defines.h"
 #include "graphics/declarative_window.h"
@@ -50,6 +49,7 @@ extern "C" {
 #include "window/logo.h"
 #include "window/main_menu.h"
 }
+#include "graphics/image.h"
 
 #include <stdio.h>
 
@@ -118,7 +118,7 @@ int game_init(void)
 {
     clear_init_failure_message();
 
-    if (!image_load_climate(CLIMATE_CENTRAL, 0, 1, 0, 1)) {
+    if (!Image::load_climate(CLIMATE_CENTRAL, 0, 1, 0, 1)) {
         const char *asset_failure_reason = assets_get_failure_reason();
         if (asset_failure_reason && *asset_failure_reason) {
             set_init_failure_message("Failed to load graphics assets.", asset_failure_reason);
@@ -128,13 +128,13 @@ int game_init(void)
         errlog("unable to load main graphics");
         return 0;
     }
-    if (!image_load_enemy(ENEMY_0_BARBARIAN)) {
+    if (!Image::load_enemy_graphics(ENEMY_0_BARBARIAN)) {
         set_init_failure_message("Failed to load enemy graphics.", 0);
         errlog("unable to load enemy graphics");
         return 0;
     }
     int missing_fonts = 0;
-    if (!image_load_fonts(encoding_get())) {
+    if (!Image::load_fonts(encoding_get())) {
         set_init_failure_message("Failed to load the selected language font graphics.", 0);
         errlog("unable to load font graphics");
         if (encoding_get() == ENCODING_KOREAN || encoding_get() == ENCODING_JAPANESE) {
@@ -230,7 +230,7 @@ static int reload_language(int is_editor, int reload_images)
         load_augustus_messages();
     }
 
-    if (!image_load_fonts(encoding)) {
+    if (!Image::load_fonts(encoding)) {
         errlog("unable to load font graphics");
         return 0;
     }
@@ -238,7 +238,7 @@ static int reload_language(int is_editor, int reload_images)
         errlog("unable to load mod font pack");
         return 0;
     }
-    if (!image_load_climate(scenario_property_climate(), is_editor, reload_images, 0, 0)) {
+    if (!Image::load_climate(scenario_property_climate(), is_editor, reload_images, 0, 0)) {
         errlog("unable to load main graphics");
         return 0;
     }
@@ -319,7 +319,7 @@ void game_exit(void)
     tile_runtime_reset();
     image_group_payload_clear_all();
     runtime_overlay_images_reset();
-    image_payload_clear_all();
+    image_manager().clear();
     font_reset_mod_font_pack();
 
     video_shutdown();

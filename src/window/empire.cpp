@@ -23,7 +23,6 @@ extern "C" {
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/grid_box.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
@@ -46,6 +45,7 @@ extern "C" {
 #include "window/trade_opened.h"
 #include "window/trade_prices.h"
 }
+#include "graphics/image.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -195,7 +195,7 @@ static int g_trade_edge_count = 0;
 static int trade_city_edges[MAX_SIDEBAR_CITIES][MAX_TRADE_EDGES];
 // measurements and scales helper functions
 static int measure_trade_row_width(const empire_city *city, int is_sell, const trade_row_style *style); // ???
-static void image_draw_silh_scaled_centered(int image_id, int x, int y, color_t color, int draw_scale_percent);
+static void draw_silhouette_scaled_centered(int image_id, int x, int y, color_t color, int draw_scale_percent);
 static void animation_draw_scaled(const image *img, int image_id, int new_animation, int x, int y, color_t color, int draw_scale_percent);
 static int open_trade_button_icon_fits(const empire_city *city, const open_trade_button_style *style, trade_icon_type icon_type);
 static void draw_sidebar_city_item(const grid_box_item *item);
@@ -617,7 +617,7 @@ static int measure_trade_row_width(const empire_city *city, int is_sell, const t
 
 static void draw_paneling(void)
 {
-    int image_base = image_group(GROUP_EMPIRE_PANELS);
+    int image_base = Image::group(GROUP_EMPIRE_PANELS);
     int bottom_panel_is_larger = data.x_min != data.panel.x_min;
     int vertical_y_limit = bottom_panel_is_larger ? data.y_max - BOTTOM_PANEL_HEIGHT : data.y_max;
 
@@ -626,50 +626,50 @@ static void draw_paneling(void)
 
     // bottom panel background
     for (int x = data.panel.x_min; x < data.panel.x_max; x += 70) {
-        image_draw(image_base + 3, x, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 3, x, data.y_max - 80, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 3, x, data.y_max - 40, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 3).draw(x, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 80, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 40, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     // horizontal bar borders
     for (int x = data.panel.x_min; x < data.panel.x_max; x += 86) {
-        image_draw(image_base + 1, x, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 1, x, data.y_max - WIDTH_BORDER, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_max - WIDTH_BORDER, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     // extra vertical bar borders
     if (bottom_panel_is_larger) {
         for (int y = vertical_y_limit + WIDTH_BORDER; y < data.y_max; y += 86) {
-            image_draw(image_base, data.panel.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
-            image_draw(image_base, data.panel.x_max - WIDTH_BORDER, y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_base).draw(data.panel.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_base).draw(data.panel.x_max - WIDTH_BORDER, y, COLOR_MASK_NONE, SCALE_NONE);
         }
     }
 
     graphics_set_clip_rectangle(data.x_min, data.y_min, data.x_max - data.x_min, vertical_y_limit - data.y_min);
 
     for (int x = data.x_min; x < data.x_max; x += 86) {
-        image_draw(image_base + 1, x, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     // vertical bar borders
     for (int y = data.y_min + WIDTH_BORDER; y < vertical_y_limit; y += 86) {
-        image_draw(image_base, data.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base, data.x_max - WIDTH_BORDER, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base).draw(data.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base).draw(data.x_max - WIDTH_BORDER, y, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     graphics_reset_clip_rectangle();
 
     // crossbars
-    image_draw(image_base + 2, data.x_min, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.x_min, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.panel.x_min, data.y_max - WIDTH_BORDER, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.x_max - WIDTH_BORDER, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.x_max - WIDTH_BORDER, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.panel.x_max - WIDTH_BORDER, data.y_max - WIDTH_BORDER, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_min, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_min, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - WIDTH_BORDER, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_max - WIDTH_BORDER, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_max - WIDTH_BORDER, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.panel.x_max - WIDTH_BORDER, data.y_max - WIDTH_BORDER, COLOR_MASK_NONE, SCALE_NONE);
 
     if (bottom_panel_is_larger) {
-        image_draw(image_base + 2, data.panel.x_min, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 2, data.panel.x_max - WIDTH_BORDER, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 2).draw(data.panel.x_max - WIDTH_BORDER, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
     }
     // Sidebar background 
     graphics_set_clip_rectangle(data.sidebar.x_min - WIDTH_BORDER, data.sidebar.y_min, //clipping - border, to let border be drawn OUTSIDE
@@ -679,12 +679,12 @@ static void draw_paneling(void)
 
     for (int x = data.sidebar.x_min; x <= data.sidebar.x_max; x += 40) {
         for (int y = data.sidebar.y_min; y < data.sidebar.y_max; y += 70) {
-            image_draw(asset_id, x, y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(asset_id).draw(x, y, COLOR_MASK_NONE, SCALE_NONE);
         }
     }
     // Sidebar border 
     for (int y = data.sidebar.y_min; y < data.sidebar.y_max; y += 86) {
-        image_draw(image_base, data.sidebar.x_min - WIDTH_BORDER, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base).draw(data.sidebar.x_min - WIDTH_BORDER, y, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     data.sidebar.border_btn.is_collapsed = (data.sidebar.width_percent > 0) ? 0 : 1;
@@ -892,7 +892,7 @@ static void draw_trade_route_pulse_index(int image_id, int x_offset, int y_offse
             int x = calc_adjust_with_percentage(along, x_factor) + edge->x1;
             int y = calc_adjust_with_percentage(along, y_factor) + edge->y1;
 
-            image_draw_scaled_centered(image_id, x_offset + x, y_offset + y, COLOR_MASK_NONE, TRADE_DOT_ANIMATION_SCALE);
+            Image::from_id(image_id).draw_scaled_centered(x_offset + x, y_offset + y, COLOR_MASK_NONE, TRADE_DOT_ANIMATION_SCALE);
             return;
         }
         accumulated_distance += segment_length;
@@ -945,7 +945,7 @@ static void window_empire_draw_trade_route_pulses(const empire_object *route_obj
 static void draw_trade_resource(resource_type r, int trade_max, int x, int y)
 {
     graphics_draw_inset_rect(x - 1, y - 1, 26, 26, COLOR_INSET_DARK, COLOR_INSET_LIGHT);
-    image_draw(resource_get_data(r)->image.empire, x, y, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(r)->image.empire).draw(x, y, COLOR_MASK_NONE, SCALE_NONE);
     window_empire_draw_resource_shields(trade_max, x, y);
 }
 
@@ -965,10 +965,10 @@ void window_empire_draw_resource_shields(int trade_max, int x_offset, int y_offs
         top_left_x = x_offset + 11;
     }
     int top_left_y = y_offset - 1;
-    int bronze_shield = image_group(GROUP_TRADE_AMOUNT);
+    int bronze_shield = Image::group(GROUP_TRADE_AMOUNT);
     for (int i = 0; i < num_bronze_shields; i++) {
         px_point pt = trade_amount_px_offsets[i];
-        image_draw(bronze_shield, top_left_x + pt.x, top_left_y + pt.y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(bronze_shield).draw(top_left_x + pt.x, top_left_y + pt.y, COLOR_MASK_NONE, SCALE_NONE);
     }
 
     int num_gold_shields = trade_max / 100;
@@ -979,7 +979,7 @@ void window_empire_draw_resource_shields(int trade_max, int x_offset, int y_offs
     top_left_y = y_offset + 22;
     int gold_shield = assets_lookup_image_id(ASSET_GOLD_SHIELD);
     for (int i = 0; i < num_gold_shields; i++) {
-        image_draw(gold_shield, top_left_x + i * 3, top_left_y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(gold_shield).draw(top_left_x + i * 3, top_left_y, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 
@@ -1055,7 +1055,7 @@ static int build_open_trade_button_widget_spec(
 
     if (draw_icon) {
         cursor_x += style->seg_space_3;
-        spec->icon_image_id = image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 - icon_type;
+        spec->icon_image_id = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 - icon_type;
         spec->icon_x = cursor_x;
         spec->icon_y = y + style->y_offset_icon + 2 * icon_type;
     }
@@ -1300,7 +1300,7 @@ static void draw_sidebar_city_item(const grid_box_item *item)
 
     int badge_id = assets_get_image_id("UI", "Empire_sidebar_city_badge");
     int badge_width = image_get(badge_id)->width;
-    int image_id = image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 - city->is_sea_trade;
+    int image_id = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 - city->is_sea_trade;
     int available_width = item_usable_width - data.sidebar.margin_right;
     int badge_and_icon_width = badge_width + 2 + 34;
     int badge_margin = 5;
@@ -1309,24 +1309,24 @@ static void draw_sidebar_city_item(const grid_box_item *item)
 
     if (badge_and_icon_width <= available_width) {
         // Everything fits
-        image_draw(badge_id, x_offset + badge_margin, y_offset + badge_margin, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(badge_id).draw(x_offset + badge_margin, y_offset + badge_margin, COLOR_MASK_NONE, SCALE_NONE);
 
         text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         if (city->is_open || draw_icon_on_top) {
             //if city is open, draw trade route icon to remind of type, same if it doesnt fit in the button
             int trade_route_icon_offset = badge_width + BLOCK_SIZE;
             if ((trade_route_icon_offset + badge_margin + 2 + 34) <= item_usable_width) {
-                image_draw(image_id, x_offset + trade_route_icon_offset + badge_margin, y_offset + 9 + 2 * city->is_sea_trade, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(image_id).draw(x_offset + trade_route_icon_offset + badge_margin, y_offset + 9 + 2 * city->is_sea_trade, COLOR_MASK_NONE, SCALE_NONE);
             }
         }
 
     } else if (badge_width <= available_width) {
         // Only badge fits, check if the icon fits inside it
-        image_draw(badge_id, x_offset + badge_margin, y_offset + badge_margin, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(badge_id).draw(x_offset + badge_margin, y_offset + badge_margin, COLOR_MASK_NONE, SCALE_NONE);
         int city_name_end = text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         int icon_fits_in_badge = (city_name_end + badge_margin + 2 + 34) <= (x_offset + badge_margin + badge_width);
         if (icon_fits_in_badge) {
-            image_draw(image_id, x_offset + badge_margin + city_name_end + BLOCK_SIZE + 2, y_offset + 9 + 2 * city->is_sea_trade, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id).draw(x_offset + badge_margin + city_name_end + BLOCK_SIZE + 2, y_offset + 9 + 2 * city->is_sea_trade, COLOR_MASK_NONE, SCALE_NONE);
         }
 
     } else { // Not enough room for badge + icon
@@ -1466,7 +1466,7 @@ static void draw_background(void)
     }
 
     if (data.x_min || data.y_min) {
-        image_draw_blurred_fullscreen(image_group(GROUP_EMPIRE_MAP), 3);
+        Image::from_id(Image::group(GROUP_EMPIRE_MAP)).draw_blurred_fullscreen(3);
         graphics_shade_rect(0, 0, screen_width(), screen_height(), 7);
     }
     setup_sidebar();
@@ -1492,7 +1492,7 @@ static int draw_images_at_interval(int image_id, int x_draw_offset, int y_draw_o
         for (int j = 0; j <= num_dots; j++) {
             int x = calc_adjust_with_percentage(j * interval + offset, x_factor) + start_x;
             int y = calc_adjust_with_percentage(j * interval + offset, y_factor) + start_y;
-            image_draw(image_id, x_draw_offset + x, y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id).draw(x_draw_offset + x, y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
         }
     }
     return remaining;
@@ -1591,11 +1591,11 @@ static void draw_empire_object(const empire_object *obj)
         const empire_city *city = empire_city_get(empire_city_get_for_object(obj->id));
         if (city->type == EMPIRE_CITY_DISTANT_FOREIGN ||
             city->type == EMPIRE_CITY_FUTURE_ROMAN) {
-            image_id = image_group(GROUP_EMPIRE_FOREIGN_CITY);
+            image_id = Image::group(GROUP_EMPIRE_FOREIGN_CITY);
         } else if (city->type == EMPIRE_CITY_TRADE) {
             // Fix cases where empire map still gives a blue flag for new trade cities
             // (e.g. Massilia in campaign Lugdunum)
-            image_id = image_group(GROUP_EMPIRE_CITY_TRADE);
+            image_id = Image::group(GROUP_EMPIRE_CITY_TRADE);
         }
     }
     if (obj->type == EMPIRE_OBJECT_BATTLE_ICON) {
@@ -1644,18 +1644,18 @@ static void draw_empire_object(const empire_object *obj)
             for (int i = 0; i < 16; i++) {
                 int dx = offsets[i][0];
                 int dy = offsets[i][1];
-                image_draw_silh_scaled_centered(image_id,
+        draw_silhouette_scaled_centered(image_id,
                     data.x_draw_offset + x + dx, data.y_draw_offset + y + dy, COLOR_MASK_ORANGE_GOLD, 130);
                 // any mask will work
             }
 
-            image_draw_scaled_centered(image_id, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, 130);
+            Image::from_id(image_id).draw_scaled_centered(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, 130);
 
             int new_animation = empire_object_update_animation(obj, image_id);
             animation_draw_scaled(img, image_id, new_animation, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, 130);
 
         } else {
-            image_draw_scaled_centered(image_id, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, 120);
+            Image::from_id(image_id).draw_scaled_centered(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, 120);
 
             if (img->animation && img->animation->speed_id) {
                 int new_animation = empire_object_update_animation(obj, image_id);
@@ -1664,20 +1664,17 @@ static void draw_empire_object(const empire_object *obj)
         }
 
     } else {
-        image_draw(image_id, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
         if (img->animation && img->animation->speed_id) {
             int new_animation = empire_object_update_animation(obj, image_id);
-            image_draw(image_id + new_animation,
-                data.x_draw_offset + x + img->animation->sprite_offset_x,
-                data.y_draw_offset + y + img->animation->sprite_offset_y,
-                COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id + new_animation).draw(data.x_draw_offset + x + img->animation->sprite_offset_x, data.y_draw_offset + y + img->animation->sprite_offset_y, COLOR_MASK_NONE, SCALE_NONE);
         }
     }
 
     // Manually fix the Hagia Sophia
     if (obj->image_id == 8122) {
         image_id = assets_lookup_image_id(ASSET_HAGIA_SOPHIA_FIX);
-        image_draw(image_id, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 
@@ -1704,10 +1701,10 @@ static void animation_draw_scaled(const image *img, int image_id, int new_animat
          anim_y += img->animation->sprite_offset_y;
     }
 
-    image_draw(image_id + new_animation, anim_x, anim_y, color, 100.0f / draw_scale_percent);
+    Image::from_id(image_id + new_animation).draw(anim_x, anim_y, color, 100.0f / draw_scale_percent);
 }
 
-static void image_draw_silh_scaled_centered(int image_id, int x, int y, color_t color, int draw_scale_percent)
+static void draw_silhouette_scaled_centered(int image_id, int x, int y, color_t color, int draw_scale_percent)
 {
     float obj_draw_scale = 100.0f / draw_scale_percent;
     const image *img = image_get(image_id);
@@ -1715,12 +1712,12 @@ static void image_draw_silh_scaled_centered(int image_id, int x, int y, color_t 
     float scaled_x = (((x) +img->width / 2.0f) - (img->width / obj_draw_scale) / 2.0f) * obj_draw_scale;
     float scaled_y = (((y) +img->height / 2.0f) - (img->height / obj_draw_scale) / 2.0f) * obj_draw_scale;
 
-    image_draw_silhouette(image_id, (int) scaled_x, (int) scaled_y, color, obj_draw_scale);
+    Image::from_id(image_id).draw_silhouette((int) scaled_x, (int) scaled_y, color, obj_draw_scale);
 }
 
 static void draw_invasion_warning(int x, int y, int image_id)
 {
-    image_draw(image_id, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
 }
 
 void empire_reset_route_drawn_flags(void)
@@ -1748,7 +1745,7 @@ static void draw_map(void)
     data.y_draw_offset = map_clip_y_min;
     empire_adjust_scroll(&data.x_draw_offset, &data.y_draw_offset);
 
-    image_draw(empire_get_image_id(), data.x_draw_offset, data.y_draw_offset, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(empire_get_image_id()).draw(data.x_draw_offset, data.y_draw_offset, COLOR_MASK_NONE, SCALE_NONE);
     if (data.trade_route_anim_start == 0) {
         data.trade_route_anim_start = time_get_millis();
     }
@@ -1767,15 +1764,15 @@ static void draw_map(void)
 
 static void draw_city_name(const empire_city *city)
 {
-    int image_base = image_group(GROUP_EMPIRE_PANELS);
+    int image_base = Image::group(GROUP_EMPIRE_PANELS);
     int draw_ornaments_outside = data.x_min - data.panel.x_min > 90;
     int base_x_min = draw_ornaments_outside ? data.panel.x_min : data.x_min;
     int base_x_max = draw_ornaments_outside ? data.panel.x_max : data.x_max;
-    image_draw(image_base + 6, base_x_min + 2, data.y_max - 199, COLOR_MASK_NONE, SCALE_NONE);//left bird
+    Image::from_id(image_base + 6).draw(base_x_min + 2, data.y_max - 199, COLOR_MASK_NONE, SCALE_NONE);//left bird
     if (data.sidebar.border_btn.is_collapsed) {
-        image_draw(image_base + 7, base_x_max - 84, data.y_max - 199, COLOR_MASK_NONE, SCALE_NONE);//right bird
+        Image::from_id(image_base + 7).draw(base_x_max - 84, data.y_max - 199, COLOR_MASK_NONE, SCALE_NONE);//right bird
     }
-    image_draw(image_base + 8, (data.x_min + data.x_max - 332) / 2, data.y_max - 181, COLOR_MASK_NONE, SCALE_NONE); //city badge big
+    Image::from_id(image_base + 8).draw((data.x_min + data.x_max - 332) / 2, data.y_max - 181, COLOR_MASK_NONE, SCALE_NONE); //city badge big
     if (city) {
         int x_offset = (data.panel.x_min + data.panel.x_max - 332) / 2 + 64;
         int y_offset = data.y_max - 118;

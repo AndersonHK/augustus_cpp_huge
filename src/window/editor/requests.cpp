@@ -8,7 +8,6 @@ extern "C" {
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/grid_box.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
@@ -21,6 +20,7 @@ extern "C" {
 #include "window/editor/edit_request.h"
 #include "window/editor/map.h"
 }
+#include "graphics/image.h"
 
 static void button_edit_request(const grid_box_item *item);
 static void button_new_request(const generic_button *button);
@@ -146,7 +146,7 @@ static void draw_request_button(const grid_box_item *item)
     const image *img = image_get(image_id);
     int base_width = (25 - img->original.width) / 2;   //centering resource icon
     int base_height = (item->height - img->original.height) / 2;
-    image_draw(image_id, 150 + base_width, item->y + base_height, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(150 + base_width, item->y + base_height, COLOR_MASK_NONE, SCALE_NONE);
     text_draw(resource_get_data(static_cast<resource_type>(request->resource))->text, 180, item->y + 7,
         FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
 

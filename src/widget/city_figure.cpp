@@ -1,11 +1,13 @@
+extern "C" {
 #include "city_figure.h"
-
 #include "city/view.h"
 #include "figure/formation.h"
 #include "figure/image.h"
 #include "figuretype/editor.h"
-#include "graphics/image.h"
 #include "graphics/text.h"
+}
+
+#include "graphics/image.h"
 
 static color_t get_highlight_mask(int highlight_mask)
 {
@@ -24,11 +26,11 @@ static color_t get_highlight_mask(int highlight_mask)
 static void draw_figure_with_cart(const figure *f, int x, int y, color_t color_mask, float scale)
 {
     if (f->y_offset_cart >= 0) {
-        image_draw(f->image_id, x, y, color_mask, scale);
-        image_draw(f->cart_image_id, x + f->x_offset_cart, y + f->y_offset_cart, color_mask, scale);
+        Image::from_id(f->image_id).draw(x, y, color_mask, scale);
+        Image::from_id(f->cart_image_id).draw(x + f->x_offset_cart, y + f->y_offset_cart, color_mask, scale);
     } else {
-        image_draw(f->cart_image_id, x + f->x_offset_cart, y + f->y_offset_cart, color_mask, scale);
-        image_draw(f->image_id, x, y, color_mask, scale);
+        Image::from_id(f->cart_image_id).draw(x + f->x_offset_cart, y + f->y_offset_cart, color_mask, scale);
+        Image::from_id(f->image_id).draw(x, y, color_mask, scale);
     }
 }
 
@@ -119,22 +121,25 @@ static void draw_fort_standard(const figure *f, int x, int y, float scale)
 {
     if (!formation_get(f->formation_id)->in_distant_battle) {
         // base
-        image_draw(f->image_id, x, y, COLOR_MASK_NONE, scale);
+        Image::from_id(f->image_id).draw(x, y, COLOR_MASK_NONE, scale);
         // flag
-        int flag_height = image_get(f->cart_image_id)->height;
-        image_draw(f->cart_image_id, x, y - flag_height, COLOR_MASK_NONE, scale);
+        const Image &flag_image = Image::from_id(f->cart_image_id);
+        int flag_height = flag_image.height();
+        flag_image.draw(x, y - flag_height, COLOR_MASK_NONE, scale);
         // top icon
         int icon_image_id = formation_get(f->formation_id)->legion_flag_id;
-        image_draw(icon_image_id, x, y - image_get(icon_image_id)->height - flag_height, COLOR_MASK_NONE, scale);
+        const Image &icon_image = Image::from_id(icon_image_id);
+        icon_image.draw(x, y - icon_image.height() - flag_height, COLOR_MASK_NONE, scale);
     }
 }
 
 static void draw_map_flag(const figure *f, int x, int y, float scale)
 {
     // base
-    image_draw(f->image_id, x, y, COLOR_MASK_NONE, scale);
+    Image::from_id(f->image_id).draw(x, y, COLOR_MASK_NONE, scale);
     // flag
-    image_draw(f->cart_image_id, x, y - image_get(f->cart_image_id)->height, COLOR_MASK_NONE, scale);
+    const Image &flag_image = Image::from_id(f->cart_image_id);
+    flag_image.draw(x, y - flag_image.height(), COLOR_MASK_NONE, scale);
     // flag number
     int number = 0;
     int id = f->resource_id;
@@ -255,9 +260,10 @@ static void adjust_pixel_offset(const figure *f, int *pixel_x, int *pixel_y)
     }
 
 
-    const image *img = f->is_enemy_image ? image_get_enemy(f->image_id) : image_get(f->image_id);
-    *pixel_x += x_offset - (img->animation ? img->animation->sprite_offset_x : 0);
-    *pixel_y += y_offset - (img->animation ? img->animation->sprite_offset_y : 0);
+    const Image &img = f->is_enemy_image ? Image::enemy(f->image_id) : Image::from_id(f->image_id);
+    const image_animation *animation = img.animation();
+    *pixel_x += x_offset - (animation ? animation->sprite_offset_x : 0);
+    *pixel_y += y_offset - (animation ? animation->sprite_offset_y : 0);
 }
 
 static void draw_figure(const figure *f, int x, int y, float scale, int highlight)
@@ -286,15 +292,15 @@ static void draw_figure(const figure *f, int x, int y, float scale, int highligh
                 draw_map_flag(f, x, y, scale);
                 break;
             default:
-                image_draw(f->image_id, x, y, color_mask, scale);
+                Image::from_id(f->image_id).draw(x, y, color_mask, scale);
                 break;
         }
     } else {
         if (f->is_enemy_image) {
-            image_draw_enemy(f->image_id, x, y, scale);
+            Image::enemy(f->image_id).draw(x, y, COLOR_MASK_NONE, scale);
         } else {
 
-            image_draw(f->image_id, x, y, color_mask, scale);
+            Image::from_id(f->image_id).draw(x, y, color_mask, scale);
         }
     }
 }

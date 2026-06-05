@@ -16,7 +16,6 @@ extern "C" {
 #include "figure/formation_legion.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
@@ -30,6 +29,7 @@ extern "C" {
 #include "window/resource_settings.h"
 #include "window/set_salary.h"
 }
+#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 #define RESOURCE_INFO_MAX_TEXT 200
@@ -74,7 +74,7 @@ static void draw_troop_request(int index, int focused)
 {
     int y_offset = 96 + 42 * index;
     button_border_draw(38, y_offset, 560, 40, focused);
-    image_draw(resource_get_data(RESOURCE_WEAPONS)->image.icon, 50, y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(RESOURCE_WEAPONS)->image.icon).draw(50, y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
 
     int width = lang_text_draw(52, 72, 80, y_offset + 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     empire_city *city = empire_city_get(city_military_distant_battle_city());
@@ -104,7 +104,7 @@ static void draw_request_row(int index, const scenario_request *request, int foc
     button_border_draw(38, 96 + 42 * index, 560, 40, focused);
     text_draw_number(request->amount.requested, '@', " ", 40, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     const resource_type request_resource = static_cast<resource_type>(request->resource);
-    image_draw(resource_get_data(request_resource)->image.icon, 110, 100 + 42 * index, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(resource_get_data(request_resource)->image.icon).draw(110, 100 + 42 * index, COLOR_MASK_NONE, SCALE_NONE);
     text_draw(resource_get_data(request_resource)->text, 150, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
 
     int width = lang_text_draw_amount(8, 4, request->months_to_comply, 310, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
@@ -150,7 +150,7 @@ static int draw_background(void)
     city_emperor_calculate_gift_costs();
 
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 2, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 2).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
 
     text_draw_ellipsized(scenario_player_name(), 60, 12, 564, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 

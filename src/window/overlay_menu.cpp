@@ -10,7 +10,6 @@ extern "C" {
 #include "core/time.h"
 #include "game/state.h"
 #include "graphics/generic_button.h"
-#include "graphics/image.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
@@ -19,6 +18,7 @@ extern "C" {
 #include "translation/translation.h"
 #include "window/city.h"
 }
+#include "graphics/image.h"
 
 #include <stdlib.h>
 
@@ -230,7 +230,7 @@ static void draw_menu_item(const overlay_menu_entry *entry, const int i, const i
 
     if (entry->submenu != NULL) {
         const int image_id = assets_get_image_id("UI", "Expand Menu Icon");
-        image_draw(image_id, x + MENU_ITEM_WIDTH - 16, y + 3, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(x + MENU_ITEM_WIDTH - 16, y + 3, COLOR_MASK_NONE, SCALE_NONE);
     }
 }
 

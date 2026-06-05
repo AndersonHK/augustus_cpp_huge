@@ -135,8 +135,8 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - `src/platform/augustus.cpp`
   - `src/assets/xml.cpp`
   - `src/assets/assets.cpp`
-  - `src/core/image_payload.h`
-  - `src/core/image_payload.cpp`
+  - `src/graphics/image.h`
+  - `src/graphics/image.cpp`
 - Important restated architectural rule from the user:
   - the new image system must become the real core
   - legacy `image` access is allowed as a compatibility view, not as the authoritative model
@@ -145,16 +145,13 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - C++ runtime object owns behavior
   - legacy `::building &data` remains attached and publicly reachable during migration
   - this is the pattern to mirror for images
-- Current `ImagePayload` is still too thin:
-  - it started as mostly a keyed handle/refcount table
-  - user requested the actual image object be split into its own class and then imported by payload
-  - current direction is now:
-    - standalone `ImageData` class owns image-facing metadata/resolution and embedded legacy view
-    - `ImagePayload` owns key/handle/refcount plus an `ImageData`
-    - legacy `image` structs point at payload through opaque `resource_payload`
+- Current `Image` direction:
+  - `Image` is the authoritative manager-owned image object
+  - it owns key, handle, refcount, dimensions, offsets, crop/original dimensions, and image-facing metadata directly
+  - legacy `image` structs point at the owning `Image` through opaque `resource_payload` only as a bridge
 - Important implementation correction:
-  - `image_payload_register` must adopt freshly uploaded renderer handles
-  - do not release the handle before transferring ownership into the payload
+  - `image_manager().register_image(...)` must adopt freshly uploaded renderer handles
+  - do not release the handle before transferring ownership into the manager-owned `Image`
 - Current renderer still violates the final plan in specific ways:
   - `draw_image_request` still falls back to `get_texture(request->img->atlas.id)` if no managed texture exists
   - `draw_texture_request` still uses `img->atlas.x_offset` / `img->atlas.y_offset` for source rects when atlas fallback is active
@@ -177,9 +174,9 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - Julius extraction produces canonical fallback graphics content under `Mods/Julius/Graphics`
   - Augustus extraction produces canonical fallback graphics content under `Mods/Augustus/Graphics`
 - New direct-source happy path now added:
-  - `image_payload_load_png(image*, path_key, file_path)` loads a PNG directly into a payload-managed renderer resource
-  - `asset_image_load_all()` now detects simple non-isometric single-layer XML/mod images and routes them through that direct payload path before atlas packing
-  - those direct assets use the resolved PNG path as the payload key
+  - `image_manager().load_png(...)` loads a PNG directly into a manager-owned renderer resource
+  - `asset_image_load_all()` now detects simple non-isometric single-layer XML/mod images and routes them through that direct image path before atlas packing
+  - those direct assets use the resolved PNG path as the image key
   - complex/composed/isometric assets still fall back to the older composition + atlas-assisted path for now
 - Julius extraction is now being implemented as a separate C++ module:
   - `src/core/legacy_image_extractor.h`
@@ -226,9 +223,9 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - do not classify groups by loose numeric ranges, because the legacy enum space interleaves unrelated categories
   - classification must be explicit per known building/figure group
 - Near-term implementation direction after this refresh:
-  1. Evolve `ImagePayload` from keyed handle table into the authoritative runtime image object with metadata ownership.
+  1. Keep `Image` as the authoritative runtime image object with metadata ownership.
   2. Attach legacy `image` structs to that runtime object in the same spirit as `building_runtime`.
-  3. Move renderer draw submission and metadata lookup to the payload/handle path first, leaving atlas fallback only as temporary coexistence debt.
+  3. Move renderer draw submission and metadata lookup to the image/handle path first, leaving atlas fallback only as temporary coexistence debt.
   4. Then push the same ownership model into XML assets, legacy climate/font/enemy loads, and external images.
   5. After that, remove more atlas-based draw assumptions and revisit UI seam behavior on top of the cleaner resource core.
 
@@ -246,8 +243,8 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 4. Revisit UI primitives
    - keep explicit container/border/fill composition
    - stabilize shared snapped edges where needed after renderer path is changed
-5. Move toward the intended path-keyed payload core
-   - introduce an actual C++ image payload/container keyed by canonical path
+5. Move toward the intended path-keyed image core
+   - keep the C++ `Image` manager keyed by canonical path
    - keep legacy `image` access as an attached compatibility view rather than the authoritative core
 
 ## Latest known compile issue
@@ -295,12 +292,12 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - New importer path:
   - `src/assets/image_group_payload.h/.cpp`
   - `src/assets/image_group_entry.h/.cpp`
-  - `ImageGroupPayload` is the path-keyed XML-group manager above image payloads
-  - `ImageGroupEntry` is a separate class holding one group image relationship, mirroring the earlier `ImageData` / `ImagePayload` split
+  - `ImageGroupPayload` is the temporary path-keyed XML-group manager above manager-owned images
+  - `ImageGroupEntry` is a separate bridge for one group image relationship until the later image-group class refactor
   - importer behavior currently:
     - resolve logical key to the winning XML path and winning source
     - parse the assetlist with a dedicated parser instead of reusing the old flat asset registry
-    - load `src` PNGs into `ImagePayload` using logical image keys like `Military\Barracks\Image_0000`
+    - load `src` PNGs into manager-owned images using logical image keys like `Military\Barracks\Image_0000`
     - support group/image references by recursively loading referenced image groups and retaining the referenced image payload keys
 - Important caveat:
   - the new importer exists as a parallel happy path, but it is not yet hooked into building definitions or other gameplay callers
