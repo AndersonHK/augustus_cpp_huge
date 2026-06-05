@@ -29,7 +29,8 @@ typedef struct building building;
 
 namespace {
 
-struct ListingStorage {
+class ListingStorage {
+public:
     dir_listing listing = {};
     std::vector<dir_entry> entries;
     std::vector<std::string> names;
@@ -41,7 +42,8 @@ std::filesystem::path g_game_root = std::filesystem::current_path();
 std::string g_augustus_graphics_path = "Mods/Augustus/Graphics/";
 std::string g_julius_graphics_path = "Mods/Julius/Graphics/";
 
-struct HarnessAtlas {
+class HarnessAtlas {
+public:
     image_atlas_data data = {};
     std::vector<std::vector<color_t>> pixel_pages;
     std::vector<color_t *> page_pointers;

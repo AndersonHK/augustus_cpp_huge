@@ -14,6 +14,12 @@ Runtime entrypoint:
 tools\augustus_graphics_extractor\main.cpp
 ```
 
+The harness is intentionally thin:
+
+- `HarnessCli` owns CLI parsing, defaults, and path normalization.
+- `--extract-julius-first` calls `image_load_climate(..., extract_legacy_graphics = 1)`, which reaches the runtime `RuntimeGraphicsExtractionService` bridge.
+- The final configured Augustus pass calls the C++ `AugustusExtractor` API directly with `ExtractorPaths` and `ExtractorOptions`.
+
 Full design, CLI usage, expected output counts, and validation commands are documented in:
 
 ```text

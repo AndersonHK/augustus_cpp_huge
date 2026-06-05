@@ -981,6 +981,22 @@ static int parse_button()
         any_value = 1;
     }
 
+    if (xml_parser_has_attribute("icon_image")) {
+        if (!xml_parser_has_attribute("icon")) {
+            log_error("BuildingType button icon_image requires icon", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        std::string icon_image = xml_value::trim_copy(xml_parser_get_attribute_string("icon_image"));
+        if (icon_image.empty()) {
+            log_error("Unsupported BuildingType button icon_image", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_button_icon_image(std::move(icon_image));
+        any_value = 1;
+    }
+
     if (xml_parser_has_attribute("text_key")) {
         std::string text_key = xml_value::trim_copy(xml_parser_get_attribute_string("text_key"));
         if (text_key.empty()) {

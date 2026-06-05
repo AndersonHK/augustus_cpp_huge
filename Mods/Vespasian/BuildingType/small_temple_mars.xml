@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="small_temples" order="40" icon="small temple mars" text_key="TR_BUILDING_SMALL_TEMPLE_MARS_NAME" />
+    <button group="small_temples" order="40" icon="Health_Culture\Temple_Mars" icon_image="Image_0000" text_key="TR_BUILDING_SMALL_TEMPLE_MARS_NAME" />
     <sound id="temple_mars" />
     <event_data attr="small_temple_mars" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />

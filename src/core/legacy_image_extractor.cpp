@@ -16,22 +16,26 @@ extern "C" {
 #include <cstring>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace {
 
 constexpr char kExtractionStampPrefix[] = "legacy_extract_v8:";
-struct LegacyFamily {
+class LegacyFamily {
+public:
     const char *folder_name;
 };
 
-struct LegacyGroupRange {
+class LegacyGroupRange {
+public:
     int group_id;
     int first_image_id;
     int last_image_id;
 };
 
-struct ExtractionStats {
+class ExtractionStats {
+public:
     int groups_exported = 0;
     int images_exported = 0;
     int pngs_written = 0;
@@ -1009,7 +1013,8 @@ static std::vector<color_t> extract_full_canvas(const image *img, const image_at
     return pixels;
 }
 
-struct FootprintExportData {
+class FootprintExportData {
+public:
     std::vector<color_t> pixels;
     int height = 0;
     int trimmed_bottom_rows = 0;
@@ -1375,56 +1380,61 @@ static bool export_group(
 
 } // namespace
 
-extern "C" int legacy_image_extractor_extract_climate(
-    const image *images,
-    int image_count,
-    const uint16_t *group_image_ids,
-    int group_count,
-    const char *source_name,
-    const image_atlas_data *atlas_data)
+namespace vespasian::graphics::extraction {
+
+JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climate)
 {
-    if (!images || image_count <= 0 || !group_image_ids || group_count <= 0 || !source_name || !*source_name || !atlas_data) {
-        return 0;
+    if (!climate.valid()) {
+        return JuliusExtractionReport();
     }
 
-    const std::vector<LegacyGroupRange> ranges = build_group_ranges(group_image_ids, group_count, image_count);
+    const std::vector<LegacyGroupRange> ranges =
+        build_group_ranges(climate.group_image_ids(), climate.group_count(), climate.image_count());
     g_extracted_group_ranges = ranges;
 
     std::string existing_stamp;
     const int has_existing_stamp = read_text_file(make_stamp_path(), existing_stamp);
     const std::string expected_stamp = make_stamp_contents(
-        images, image_count, group_image_ids, group_count, source_name, atlas_data);
+        climate.images(),
+        climate.image_count(),
+        climate.group_image_ids(),
+        climate.group_count(),
+        climate.source_name(),
+        climate.atlas_data());
 
     if (has_existing_stamp && existing_stamp == expected_stamp) {
-        return 1;
+        return JuliusExtractionReport(true, 0, 0, 0);
     }
 
     if (!has_existing_stamp) {
-        log_info("Extracting Julius graphics because no extraction stamp was found", source_name, 0);
+        log_info("Extracting Julius graphics because no extraction stamp was found", climate.source_name(), 0);
     } else {
-        log_info("Extracting Julius graphics because the legacy source fingerprint or XML metadata version changed", source_name, 0);
+        log_info(
+            "Extracting Julius graphics because the legacy source fingerprint or XML metadata version changed",
+            climate.source_name(),
+            0);
     }
 
-    log_info("Starting Julius legacy graphics extraction", source_name, 0);
+    log_info("Starting Julius legacy graphics extraction", climate.source_name(), 0);
     clear_existing_output();
 
     std::vector<std::string> manifest_entries;
     ExtractionStats stats;
     for (const LegacyGroupRange &range : ranges) {
-        if (!export_group(images, ranges, range, atlas_data, manifest_entries, stats)) {
-            log_error("Julius graphics extraction failed", source_name, 0);
-            return 0;
+        if (!export_group(climate.images(), ranges, range, climate.atlas_data(), manifest_entries, stats)) {
+            log_error("Julius graphics extraction failed", climate.source_name(), 0);
+            return JuliusExtractionReport();
         }
     }
 
     ensure_directory(mod_manager_get_julius_graphics_path());
     if (!write_manifest_entries(manifest_entries)) {
         log_error("Failed to write Julius extraction manifest", make_manifest_path().c_str(), 0);
-        return 0;
+        return JuliusExtractionReport();
     }
     if (!write_text_file(make_stamp_path(), expected_stamp)) {
         log_error("Failed to write Julius extraction stamp", make_stamp_path().c_str(), 0);
-        return 0;
+        return JuliusExtractionReport();
     }
 
     char summary[256];
@@ -1436,52 +1446,40 @@ extern "C" int legacy_image_extractor_extract_climate(
         stats.images_exported,
         stats.pngs_written);
     log_info("Julius legacy graphics extraction completed", summary, 0);
-    return 1;
+    return JuliusExtractionReport(true, stats.groups_exported, stats.images_exported, stats.pngs_written);
 }
 
-extern "C" int legacy_image_extractor_get_group_key(int group_id, char *buffer, size_t buffer_size)
+std::string JuliusExtractor::resolveLegacyGroup(int group_id) const
 {
-    if (!buffer || buffer_size == 0) {
-        return 0;
-    }
-
     const LegacyFamily &family = family_for_group(group_id);
-    const std::string key = make_group_assetlist_name(family, group_id);
-    if (key.empty() || key.size() + 1 > buffer_size) {
-        return 0;
-    }
-
-    snprintf(buffer, buffer_size, "%s", key.c_str());
-    return 1;
+    return make_group_assetlist_name(family, group_id);
 }
 
-extern "C" int legacy_image_extractor_get_group_image_key(
-    int group_id,
-    int image_id,
-    char *group_buffer,
-    size_t group_buffer_size,
-    char *image_buffer,
-    size_t image_buffer_size)
+GroupImageKey JuliusExtractor::resolveLegacyImage(int group_id, int image_offset) const
 {
-    if (!group_buffer || group_buffer_size == 0 || !image_buffer || image_buffer_size == 0 || image_id < 0) {
-        return 0;
+    if (image_offset < 0) {
+        return {};
     }
 
     const LegacyGroupRange *source_range = find_range_for_group(g_extracted_group_ranges, group_id);
     if (!source_range) {
-        return 0;
+        return {};
     }
 
-    const int absolute_image_id = source_range->first_image_id + image_id;
+    const int absolute_image_id = source_range->first_image_id + image_offset;
     const LegacyGroupRange *target_range = find_range_for_absolute_image(g_extracted_group_ranges, absolute_image_id);
     if (!target_range) {
-        return 0;
+        return {};
     }
 
-    if (!legacy_image_extractor_get_group_key(target_range->group_id, group_buffer, group_buffer_size)) {
-        return 0;
+    const std::string group_key = resolveLegacyGroup(target_range->group_id);
+    if (group_key.empty()) {
+        return {};
     }
 
-    const int local_image_id = absolute_image_id - target_range->first_image_id;
-    return snprintf(image_buffer, image_buffer_size, "Image_%04d", local_image_id) < static_cast<int>(image_buffer_size);
+    char image_id[32];
+    snprintf(image_id, sizeof(image_id), "Image_%04d", absolute_image_id - target_range->first_image_id);
+    return GroupImageKey(group_key, image_id);
 }
+
+} // namespace vespasian::graphics::extraction

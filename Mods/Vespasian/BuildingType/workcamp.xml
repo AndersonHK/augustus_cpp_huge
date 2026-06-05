@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="engineering" order="20" icon="workcamp" text_key="TR_BUILDING_WORK_CAMP" />
+    <button group="engineering" order="20" icon="Admin_Logistics\Workcamp_Central" icon_image="Workcamp Central" text_key="TR_BUILDING_WORK_CAMP" />
     <sound id="workcamp" />
     <event_data attr="workcamp" />
     <graphics>

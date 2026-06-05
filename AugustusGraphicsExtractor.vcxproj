@@ -26,7 +26,9 @@
     <ClCompile Include="src\assets\augustus_julius_template_resolver.cpp" />
     <ClCompile Include="src\assets\graphics_extractor_common.cpp" />
     <ClCompile Include="src\core\buffer.c" />
-    <ClCompile Include="src\core\image.c" />
+    <ClCompile Include="src\core\image.c">
+      <CompileAs>CompileAsCpp</CompileAs>
+    </ClCompile>
     <ClCompile Include="src\core\image_packer.c" />
     <ClCompile Include="src\core\io.c" />
     <ClCompile Include="src\core\legacy_image_extractor.cpp" />

@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="health" order="20" icon="hospital" text_key="building.hospital.name" />
+    <button group="health" order="20" icon="Health_Culture\Hospital" icon_image="Image_0000" text_key="building.hospital.name" />
     <sound id="hospital" />
     <event_data attr="hospital" />
     <graphics>

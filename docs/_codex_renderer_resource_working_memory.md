@@ -14,7 +14,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - The standalone harness lives in `tools/augustus_graphics_extractor/main.cpp` and builds as `AugustusGraphicsExtractor.exe`.
 - Runtime order:
   - `src/core/image.c` loads the Julius climate atlas and runs Julius extraction first.
-  - After Julius extraction, `image_load_climate(..., extract_legacy_graphics = 1)` runs `augustus_asset_extractor_bootstrap()`.
+  - After Julius atlas decoding, `image_load_climate(..., extract_legacy_graphics = 1)` constructs `RuntimeGraphicsExtractionService` directly from the C++-compiled image loader.
   - `src/platform/augustus.cpp` only prepares directories and should not run Augustus extraction early.
 - Clean generated output currently means:
   - `Mods\Julius\Graphics` exists.
@@ -23,7 +23,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Current clean sample baseline from `D:\Games\GOG Games\Caesar 3\assets\Graphics`:
   - Julius: 231 XML, 8933 PNG, 8465 logical images
   - Augustus: 3200 XML, 4088 PNG, 3259 logical images
-  - BuildingType graphics refs: 505 checked across the Release mod stack, 0 missing
+  - BuildingType graphics refs: 494 explicit path/image refs plus 152 button icon refs checked across Augustus and Vespasian BuildingType XML, 646 total, 0 missing; button `icon` values are generated graphics group keys and optional `icon_image` values pin image ids.
 - Julius `Aesthetics\House_Tent` intentionally includes compatibility aliases for `Image_0001..Image_0005` into `Aesthetics\House_Tent_Variants`; do not collapse those variants into `House_Shack`.
 
 ## 2026-04-06 canonical extractor correction
@@ -319,9 +319,9 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - Augustus should be treated like Julius
   - packed `assets\Graphics\*.xml` + `*.png` atlases must be exploded into canonical per-group XMLs and per-image PNGs under `Mods\Augustus\Graphics`
   - folder families should match the Julius/canonical layout shape, not a generic copied root atlas set
-- Current implementation change:
+- Historical implementation change at that point:
   - new module `src/assets/augustus_asset_extractor.h/.cpp`
-  - `src/core/image.c` calls `augustus_asset_extractor_bootstrap()` after Julius extraction instead of copying `assets\Graphics`
+  - `src/core/image.c` called the then-current Augustus bootstrap after Julius extraction instead of copying `assets\Graphics`; current code compiles that file as C++ and calls `RuntimeGraphicsExtractionService` directly
   - the new extractor:
     - fingerprints top-level Augustus source XML/PNG files using names + modified times with metadata version in the stamp prefix
     - clears/rebuilds `Mods/Augustus/Graphics`
@@ -334,7 +334,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
     - preserves alias groups for source-visible wrapper names instead of skipping path collisions
     - keeps its extraction stamp under `Mods/Augustus/Graphics/.graphics_extract.stamp`, matching Julius keeping its stamp under `Mods/Julius/Graphics/...`
 - Shared helper update:
-  - `src/core/legacy_image_extractor.cpp` implements `legacy_image_extractor_get_group_key(...)` and `legacy_image_extractor_get_group_image_key(...)`
+    - `src/core/legacy_image_extractor.cpp` implements native `JuliusExtractor::resolveLegacyGroup()` and `JuliusExtractor::resolveLegacyImage()`
   - this is the bridge from Augustus packed XML legacy numeric refs back into canonical Julius-style path and image keys
 - Important current caveat:
   - Augustus data is still variable and upstream-packaged, so future fixes should inspect wrapper names, alias collisions, and BuildingType references before flattening a case into a broad heuristic

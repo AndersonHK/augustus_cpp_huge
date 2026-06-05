@@ -57,6 +57,10 @@ typedef struct {
     void *internal_data;
 } image_packer;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Initiates an image_packer object, allocating memory as needed.
  *
@@ -102,3 +106,7 @@ int image_packer_pack(image_packer *packer);
  * @param packer The object to free.
  */
 void image_packer_free(image_packer *packer);
+
+#ifdef __cplusplus
+}
+#endif

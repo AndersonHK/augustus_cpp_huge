@@ -161,6 +161,21 @@ extern "C" void building_type_registry_apply_model_overrides(void)
     }
 }
 
+static int image_id_for_group_reference(const char *path, const char *image_name)
+{
+    if (!path || !*path) {
+        return 0;
+    }
+    if (!image_name || !*image_name) {
+        if (!image_group_payload_load(path)) {
+            return 0;
+        }
+        const ImageGroupPayload *payload = image_group_payload_get(path);
+        image_name = payload ? payload->default_image_id() : nullptr;
+    }
+    return assets_get_image_id_from_path_or_name(path, image_name);
+}
+
 extern "C" building_type building_type_registry_runtime_id_from_text(const char *text_id)
 {
     return building_type_registry_impl::runtime_id_from_text(text_id);
@@ -229,6 +244,25 @@ extern "C" const char *building_type_registry_get_button_icon(building_type type
         return 0;
     }
     return definition->button().icon();
+}
+
+extern "C" const char *building_type_registry_get_button_icon_image(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_button() || !definition->button().has_icon_image()) {
+        return 0;
+    }
+    return definition->button().icon_image();
+}
+
+extern "C" int building_type_registry_get_button_icon_image_id(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_button() || !definition->button().has_icon()) {
+        return 0;
+    }
+    const building_type_registry_impl::BuildButtonDefinition &button = definition->button();
+    return image_id_for_group_reference(button.icon(), button.has_icon_image() ? button.icon_image() : nullptr);
 }
 
 extern "C" const char *building_type_registry_get_button_text_key(building_type type)
@@ -309,15 +343,9 @@ extern "C" int building_type_registry_get_graphics_image_id(const building *b)
         return 0;
     }
 
-    const char *image_name = resolved_target.has_image() ? resolved_target.image() : nullptr;
-    if (!image_name || !*image_name) {
-        if (!image_group_payload_load(resolved_target.path())) {
-            return 0;
-        }
-        const ImageGroupPayload *payload = image_group_payload_get(resolved_target.path());
-        image_name = payload ? payload->default_image_id() : nullptr;
-    }
-    return assets_get_image_id_from_path_or_name(resolved_target.path(), image_name);
+    return image_id_for_group_reference(
+        resolved_target.path(),
+        resolved_target.has_image() ? resolved_target.image() : nullptr);
 }
 
 extern "C" int building_type_registry_has_phased_construction(building_type type)

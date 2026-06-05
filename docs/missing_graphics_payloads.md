@@ -3,8 +3,8 @@
 ## 2026-06-05 Current Extraction Status
 
 - The Colosseum runtime fallback described below is superseded. The current extractor resolves the generated Colosseum group directly, and Augustus/Vespasian BuildingType XML points at `Health_Culture\Colosseum` entries such as `Coloseum ON` instead of `Health_Culture\Colosseum_Runtime/Colosseum_Base`.
-- BuildingType graphics validation on the clean Release extract currently reports `505` refs and `0` missing groups/images across the Release mod stack, including tent option variants.
-- The remaining broad generated-graphics unresolved references are not BuildingType misses. Known buckets include `UI\Big_People`, `UI\Ratings_Background`, `UI\Message_Images`, `Warriors\Fort_Formations`, `Environment\Group_206/Construction_Part_TimberPad_Shadow`, and catapult rock frames under `Warriors`.
+- BuildingType graphics validation on the clean Release extract currently reports `494` explicit path/image refs plus `152` button icon refs, for `646` checked refs and `0` missing groups/images across Augustus and Vespasian BuildingType XML, including tent option variants. Button `icon` values are generated graphics group keys; `icon_image` pins the image id when the group default is not specific enough.
+- The remaining broad generated-graphics unresolved references are not BuildingType misses. They are `28` refs across `7` target groups, including `UI\Big_People`, `UI\Ratings_Background`, `UI\Message_Images`, `Warriors\Fort_Formations`, `Environment\Group_206/Construction_Part_TimberPad_Shadow`, and catapult rock frames under `Warriors`.
 - The timber pad and catapult rock misses are known Augustus upstream issues from unfinished or alpha features.
 - The durable extractor reference is `docs/graphics_extraction_pipeline.md`.
 

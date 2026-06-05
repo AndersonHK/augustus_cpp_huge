@@ -2,6 +2,10 @@
 
 #include "core/buffer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 unsigned int map_image_at(int grid_offset);
 
 void map_image_set(int grid_offset, int image_id);
@@ -19,3 +23,7 @@ void map_image_update_all(void);
 void map_image_save_state_legacy(buffer *buf);
 
 void map_image_load_state_legacy(buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif

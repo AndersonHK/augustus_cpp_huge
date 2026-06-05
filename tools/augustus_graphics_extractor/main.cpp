@@ -13,130 +13,179 @@ extern "C" void augustus_graphics_extractor_shims_install_renderer(void);
 
 namespace {
 
-struct CliOptions {
-    std::string game_root;
-    std::string source_graphics;
-    std::string output_graphics;
-    std::string julius_graphics;
-    bool force = true;
-    bool write_stamp = false;
-    bool extract_julius_first = false;
-    bool show_help = false;
-};
+class HarnessCli {
+public:
+    bool parse(int argc, char **argv)
+    {
+        game_root_ = std::filesystem::current_path().string();
 
-std::string absolute_path(const std::string &path)
-{
-    if (path.empty()) {
-        return {};
+        for (int index = 1; index < argc; ++index) {
+            const std::string arg = argv[index];
+            if (arg == "--game-root") {
+                if (!read_value(argc, argv, index, arg, game_root_)) {
+                    return false;
+                }
+            } else if (arg == "--source-graphics") {
+                if (!read_value(argc, argv, index, arg, source_graphics_)) {
+                    return false;
+                }
+            } else if (arg == "--output") {
+                if (!read_value(argc, argv, index, arg, output_graphics_)) {
+                    return false;
+                }
+            } else if (arg == "--julius-graphics") {
+                if (!read_value(argc, argv, index, arg, julius_graphics_)) {
+                    return false;
+                }
+            } else if (arg == "--extract-julius-first") {
+                extract_julius_first_ = true;
+            } else if (arg == "--no-force") {
+                force_ = false;
+            } else if (arg == "--stamp") {
+                write_stamp_ = true;
+            } else if (arg == "--help" || arg == "-h" || arg == "/?") {
+                show_help_ = true;
+                print_usage();
+                return true;
+            } else {
+                std::cerr << "Unknown option: " << arg << "\n";
+                print_usage();
+                return false;
+            }
+        }
+
+        game_root_ = absolute_path(game_root_);
+        if (source_graphics_.empty()) {
+            source_graphics_ = append_path(game_root_, "assets\\Graphics");
+        }
+        if (output_graphics_.empty()) {
+            output_graphics_ = append_path(game_root_, "Mods\\Augustus\\Graphics");
+        }
+        if (julius_graphics_.empty()) {
+            julius_graphics_ = append_path(game_root_, "Mods\\Julius\\Graphics");
+        }
+
+        source_graphics_ = absolute_path(source_graphics_);
+        output_graphics_ = absolute_path(output_graphics_);
+        julius_graphics_ = absolute_path(julius_graphics_);
+        return true;
     }
-    return std::filesystem::absolute(std::filesystem::path(path)).string();
-}
 
-std::string append_path(const std::string &base, const char *relative)
-{
-    return (std::filesystem::path(base) / relative).string();
-}
+    bool show_help() const
+    {
+        return show_help_;
+    }
 
-void print_usage()
-{
-    std::cout
-        << "Usage: AugustusGraphicsExtractor [options]\n"
-        << "  --game-root <path>          Caesar 3 folder. Defaults to current directory.\n"
-        << "  --source-graphics <path>    Source packaged assets. Defaults to <game-root>\\assets\\Graphics.\n"
-        << "  --output <path>             Extract output. Defaults to <game-root>\\Mods\\Augustus\\Graphics.\n"
-        << "  --julius-graphics <path>    Julius template graphics. Defaults to <game-root>\\Mods\\Julius\\Graphics.\n"
-        << "  --extract-julius-first      Simulate runtime: run Julius, then Augustus bootstrap.\n"
-        << "  --no-force                  Reuse matching stamped output when possible.\n"
-        << "  --stamp                     Write/check the extraction stamp.\n";
-}
+    bool extract_julius_first() const
+    {
+        return extract_julius_first_;
+    }
 
-bool parse_args(int argc, char **argv, CliOptions &options)
-{
-    options.game_root = std::filesystem::current_path().string();
+    const std::string &game_root() const
+    {
+        return game_root_;
+    }
 
-    for (int index = 1; index < argc; ++index) {
-        const std::string arg = argv[index];
-        auto require_value = [&](std::string &target) -> bool {
-            if (index + 1 >= argc) {
-                std::cerr << "Missing value for " << arg << "\n";
-                return false;
-            }
-            target = argv[++index];
-            return true;
-        };
+    const std::string &source_graphics() const
+    {
+        return source_graphics_;
+    }
 
-        if (arg == "--game-root") {
-            if (!require_value(options.game_root)) {
-                return false;
-            }
-        } else if (arg == "--source-graphics") {
-            if (!require_value(options.source_graphics)) {
-                return false;
-            }
-        } else if (arg == "--output") {
-            if (!require_value(options.output_graphics)) {
-                return false;
-            }
-        } else if (arg == "--julius-graphics") {
-            if (!require_value(options.julius_graphics)) {
-                return false;
-            }
-        } else if (arg == "--extract-julius-first") {
-            options.extract_julius_first = true;
-        } else if (arg == "--no-force") {
-            options.force = false;
-        } else if (arg == "--stamp") {
-            options.write_stamp = true;
-        } else if (arg == "--help" || arg == "-h" || arg == "/?") {
-            options.show_help = true;
-            print_usage();
-            return true;
-        } else {
-            std::cerr << "Unknown option: " << arg << "\n";
-            print_usage();
+    const std::string &output_graphics() const
+    {
+        return output_graphics_;
+    }
+
+    const std::string &julius_graphics() const
+    {
+        return julius_graphics_;
+    }
+
+    vespasian::graphics::extraction::ExtractorPaths extractor_paths() const
+    {
+        return vespasian::graphics::extraction::ExtractorPaths(
+            game_root_,
+            source_graphics_,
+            output_graphics_,
+            julius_graphics_);
+    }
+
+    vespasian::graphics::extraction::ExtractorOptions extractor_options() const
+    {
+        return vespasian::graphics::extraction::ExtractorOptions(
+            force_ && !extract_julius_first_,
+            write_stamp_ || extract_julius_first_);
+    }
+
+private:
+    static std::string absolute_path(const std::string &path)
+    {
+        if (path.empty()) {
+            return {};
+        }
+        return std::filesystem::absolute(std::filesystem::path(path)).string();
+    }
+
+    static std::string append_path(const std::string &base, const char *relative)
+    {
+        return (std::filesystem::path(base) / relative).string();
+    }
+
+    static void print_usage()
+    {
+        std::cout
+            << "Usage: AugustusGraphicsExtractor [options]\n"
+            << "  --game-root <path>          Caesar 3 folder. Defaults to current directory.\n"
+            << "  --source-graphics <path>    Source packaged assets. Defaults to <game-root>\\assets\\Graphics.\n"
+            << "  --output <path>             Extract output. Defaults to <game-root>\\Mods\\Augustus\\Graphics.\n"
+            << "  --julius-graphics <path>    Julius template graphics. Defaults to <game-root>\\Mods\\Julius\\Graphics.\n"
+            << "  --extract-julius-first      Simulate runtime: run Julius, then Augustus bootstrap.\n"
+            << "  --no-force                  Reuse matching stamped output when possible.\n"
+            << "  --stamp                     Write/check the extraction stamp.\n";
+    }
+
+    static bool read_value(int argc, char **argv, int &index, const std::string &arg, std::string &target)
+    {
+        if (index + 1 >= argc) {
+            std::cerr << "Missing value for " << arg << "\n";
             return false;
         }
+        target = argv[++index];
+        return true;
     }
 
-    options.game_root = absolute_path(options.game_root);
-    if (options.source_graphics.empty()) {
-        options.source_graphics = append_path(options.game_root, "assets\\Graphics");
-    }
-    if (options.output_graphics.empty()) {
-        options.output_graphics = append_path(options.game_root, "Mods\\Augustus\\Graphics");
-    }
-    if (options.julius_graphics.empty()) {
-        options.julius_graphics = append_path(options.game_root, "Mods\\Julius\\Graphics");
-    }
-
-    options.source_graphics = absolute_path(options.source_graphics);
-    options.output_graphics = absolute_path(options.output_graphics);
-    options.julius_graphics = absolute_path(options.julius_graphics);
-    return true;
-}
+    std::string game_root_;
+    std::string source_graphics_;
+    std::string output_graphics_;
+    std::string julius_graphics_;
+    bool force_ = true;
+    bool write_stamp_ = false;
+    bool extract_julius_first_ = false;
+    bool show_help_ = false;
+};
 
 } // namespace
 
 int main(int argc, char **argv)
 {
-    CliOptions options;
-    if (!parse_args(argc, argv, options)) {
+    HarnessCli cli;
+    if (!cli.parse(argc, argv)) {
         return 2;
     }
-    if (options.show_help) {
+    if (cli.show_help()) {
         return 0;
     }
 
-    std::cout << "Game root: " << options.game_root << "\n";
-    std::cout << "Source graphics: " << options.source_graphics << "\n";
-    std::cout << "Output graphics: " << options.output_graphics << "\n";
-    std::cout << "Julius graphics: " << options.julius_graphics << "\n";
+    std::cout << "Game root: " << cli.game_root() << "\n";
+    std::cout << "Source graphics: " << cli.source_graphics() << "\n";
+    std::cout << "Output graphics: " << cli.output_graphics() << "\n";
+    std::cout << "Julius graphics: " << cli.julius_graphics() << "\n";
 
-    augustus_graphics_extractor_shims_set_game_root(options.game_root.c_str());
-    augustus_graphics_extractor_shims_set_augustus_graphics_path(options.output_graphics.c_str());
-    augustus_graphics_extractor_shims_set_julius_graphics_path(options.julius_graphics.c_str());
+    augustus_graphics_extractor_shims_set_game_root(cli.game_root().c_str());
+    augustus_graphics_extractor_shims_set_augustus_graphics_path(cli.output_graphics().c_str());
+    augustus_graphics_extractor_shims_set_julius_graphics_path(cli.julius_graphics().c_str());
 
-    if (options.extract_julius_first) {
+    if (cli.extract_julius_first()) {
         std::cout << "Extracting Julius graphics first through image_load_climate.\n";
         augustus_graphics_extractor_shims_install_renderer();
         if (!image_load_climate(CLIMATE_CENTRAL, 0, 1, 1, 1)) {
@@ -145,15 +194,6 @@ int main(int argc, char **argv)
         }
     }
 
-    augustus_asset_extractor_config config = {};
-    config.game_root_path = options.game_root.c_str();
-    config.source_graphics_path = options.source_graphics.c_str();
-    config.output_graphics_path = options.output_graphics.c_str();
-    config.julius_graphics_path = options.julius_graphics.c_str();
-    // image_load_climate(..., extract_legacy_graphics=1) already runs the runtime Augustus bootstrap.
-    config.force = options.force && !options.extract_julius_first ? 1 : 0;
-    config.write_stamp = options.write_stamp || options.extract_julius_first ? 1 : 0;
-
-    const int result = augustus_asset_extractor_extract_with_config(&config);
-    return result ? 0 : 1;
+    vespasian::graphics::extraction::AugustusExtractor extractor;
+    return extractor.extract(cli.extractor_paths(), cli.extractor_options()).succeeded() ? 0 : 1;
 }

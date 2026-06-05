@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="workshops" order="70" icon="brickworks" text_key="TR_RESOURCE_BRICKS" />
+    <button group="workshops" order="70" icon="Industry\Brickworks_On_01" icon_image="Brickworks_C_ON" text_key="TR_RESOURCE_BRICKS" />
     <sound id="brickworks" />
     <event_data attr="brickworks" />
     <graphics>

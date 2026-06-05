@@ -127,7 +127,8 @@ Current supported `<button>` attributes:
 
 - `group="..."` stores the target build submenu key
 - `order="N"` stores generated button ordering
-- `icon="..."` stores the generated button icon key
+- `icon="..."` stores the generated button icon graphics group key
+- `icon_image="..."` optionally stores the image id inside that group; if omitted, runtime uses the group's default image
 - `text_key="..."` optionally overrides the button text key; otherwise generated UI can use `<identity name_key="...">`
 
 `<menu>` is accepted as a temporary alias for `<button>` only during this migration slice. Prefer `<button>` in new XML.

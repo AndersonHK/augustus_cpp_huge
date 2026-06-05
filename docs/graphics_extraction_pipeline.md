@@ -25,7 +25,7 @@ Mods\Julius\Graphics
 Mods\Augustus\Graphics
 ```
 
-Julius extraction must run before Augustus extraction. `src/core/image.c` performs that order during `image_load_climate(..., extract_legacy_graphics = 1)`: the Julius atlas is decoded first, then `augustus_asset_extractor_bootstrap()` runs before asset XML loading. `src/platform/augustus.cpp` should not start the Augustus graphics extractor early, because Augustus needs the extracted Julius template data to resolve numeric legacy references and image numbering.
+Julius extraction must run before Augustus extraction. `src/core/image.c` is compiled as C++ in the runtime and harness projects, and `image_load_climate(..., extract_legacy_graphics = 1)` now constructs `RuntimeGraphicsExtractionService` directly. The service calls `JuliusExtractor` first and then `AugustusExtractor` before asset XML loading. `src/platform/augustus.cpp` should not start the Augustus graphics extractor early, because Augustus needs the extracted Julius template data to resolve numeric legacy references and image numbering.
 
 ## Standalone Harness
 
@@ -72,7 +72,7 @@ Harness defaults are intentionally test-friendly:
 
 Runtime defaults are different:
 
-- `augustus_asset_extractor_bootstrap()` calls the extractor with `force = 0` and `write_stamp = 1`.
+- `RuntimeGraphicsExtractionService::bootstrapAfterClimateLoad(...)` runs Julius and Augustus with `force = 0` and `write_stamp = 1`.
 - Runtime source and output paths are resolved from the game folder.
 - The stamp allows runtime startup to skip extraction when the source fingerprint and metadata version match.
 
@@ -123,8 +123,8 @@ Important Julius rules:
 - Isometric footprint PNGs are trimmed when safe, while XML `height` and layer `y` preserve logical placement.
 - `.legacy_extract.manifest` records generated files and directories so stale output can be removed before a rewrite.
 - `.legacy_extract.stamp` currently uses prefix `legacy_extract_v8:`.
-- `legacy_image_extractor_get_group_key()` maps a legacy group id to a canonical group key.
-- `legacy_image_extractor_get_group_image_key()` maps a legacy group id plus source-visible image offset to the canonical split group and image id.
+- `JuliusExtractor::resolveLegacyGroup()` maps a legacy group id to a canonical group key.
+- `JuliusExtractor::resolveLegacyImage()` maps a legacy group id plus source-visible image offset to the canonical split group and image id.
 
 The `House_Tent` case is intentionally special. BuildingType XML uses `Aesthetics\House_Tent/Image_0000..Image_0005`, but the packaged legacy group table splits the first tent image from the remaining tent variants. The extractor preserves the split and exports:
 
@@ -147,6 +147,15 @@ src/assets/augustus_julius_template_resolver.cpp
 src/assets/graphics_extractor_common.h
 src/assets/graphics_extractor_common.cpp
 ```
+
+The public C++ surface is intentionally small:
+
+- `LegacyClimateAtlas`, `JuliusExtractor`, and `GroupImageKey` live in `src/core/legacy_image_extractor.h`.
+- `ExtractorPaths`, `ExtractorOptions`, `ExtractionReport`, `AugustusExtractor`, and `RuntimeGraphicsExtractionService` live in `src/assets/augustus_asset_extractor.h`.
+- Runtime climate loading calls `RuntimeGraphicsExtractionService` directly from the C++-compiled `src/core/image.c`; extractor order belongs to the service.
+- `XmlReader`, `XmlElement`, and `XmlToken` in `graphics_extractor_common` are the extractor-owned XML parser. The Augustus extractor and Julius template resolver no longer depend on `core/xml_parser.c`.
+- `JuliusTemplateCatalog`, `JuliusTemplateGroup`, and `JuliusTemplateImage` own extracted-Julius template parsing and translation.
+- The standalone harness owns argument parsing through `HarnessCli`, then calls `AugustusExtractor` directly for the configured extraction pass.
 
 Augustus is dynamic and source-packaged. The distributed Caesar 3 `assets\Graphics` folder contains packed XML plus packed PNG atlases. Those packed files are generated from Augustus source graphics under the repo's `res\assets\Graphics`, but runtime extraction must only depend on the game-folder `assets\Graphics` package.
 
@@ -211,10 +220,12 @@ Vespasian Graphics: absent
 The BuildingType graphics reference validator currently sees:
 
 ```text
-graphics_groups=3398 building_refs=505 missing=0
+graphics_groups=3398 graphics_refs=494 button_icon_refs=152 checked_refs=646 missing=0
 ```
 
-The broad generated graphics XML cross-reference scan currently reports 28 unresolved references. Those are not BuildingType misses and are not tent-related. Known buckets include:
+`graphics_refs` above counts explicit BuildingType path/image references across Augustus and Vespasian in the Release mod stack. `button_icon_refs` counts `<button icon="..." icon_image="...">` references; `icon` is a generated graphics group key and `icon_image` is optional, falling back to the group's default image when omitted.
+
+The broad generated graphics XML cross-reference scan currently reports 28 unresolved references across 7 target groups. Those are not BuildingType misses and are not tent-related. Known buckets include:
 
 - `UI\Big_People`
 - `UI\Ratings_Background`
@@ -286,6 +297,62 @@ Expected boolean checks:
 Mods\Vespasian\Graphics: False
 UI\Group_018.xml: False
 Aesthetics\House_Tent_Variants.xml: True
+```
+
+Validate BuildingType graphics and button icons against the Release mod stack:
+
+```powershell
+$release = (Resolve-Path 'x64\Release').Path
+$groups = @{}
+foreach ($mod in @('Julius', 'Augustus', 'Vespasian')) {
+    $graphicsRoot = Join-Path $release "Mods\$mod\Graphics"
+    if (-not (Test-Path $graphicsRoot)) { continue }
+    foreach ($file in Get-ChildItem $graphicsRoot -Recurse -Filter *.xml) {
+        $key = $file.FullName.Substring($graphicsRoot.Length + 1, $file.FullName.Length - $graphicsRoot.Length - 5).Replace('/', '\')
+        if (-not $groups.ContainsKey($key)) {
+            $groups[$key] = [System.Collections.Generic.List[string]]::new()
+        }
+        [xml]$xml = Get-Content $file.FullName -Raw
+        foreach ($node in $xml.SelectNodes('//image[@id]')) {
+            $groups[$key].Add([string]$node.id)
+        }
+    }
+}
+
+$refs = @()
+foreach ($mod in @('Augustus', 'Vespasian')) {
+    foreach ($file in Get-ChildItem (Join-Path $release "Mods\$mod\BuildingType") -Filter *.xml) {
+        [xml]$xml = Get-Content $file.FullName -Raw
+        foreach ($pathNode in $xml.SelectNodes('//path[@value]')) {
+            $imageNode = $pathNode.ParentNode.SelectSingleNode('image[@value]')
+            $refs += [pscustomobject]@{
+                Kind = 'graphics'
+                Group = [string]$pathNode.value
+                Image = if ($imageNode) { [string]$imageNode.value } else { '' }
+            }
+        }
+        if ($xml.building.button.icon) {
+            $refs += [pscustomobject]@{
+                Kind = 'button_icon'
+                Group = [string]$xml.building.button.icon
+                Image = [string]$xml.building.button.icon_image
+            }
+        }
+    }
+}
+
+$missing = $refs | Where-Object {
+    -not $groups.ContainsKey($_.Group) -or
+    ($_.Image -and -not ($groups[$_.Group] -contains $_.Image)) -or
+    (-not $_.Image -and $groups.ContainsKey($_.Group) -and $groups[$_.Group].Count -eq 0)
+}
+"graphics_refs=$(($refs | Where-Object Kind -eq 'graphics').Count) button_icon_refs=$(($refs | Where-Object Kind -eq 'button_icon').Count) checked_refs=$($refs.Count) missing=$($missing.Count)"
+```
+
+Expected:
+
+```text
+graphics_refs=494 button_icon_refs=152 checked_refs=646 missing=0
 ```
 
 `git diff --check` may print CRLF conversion warnings on Windows; those are not whitespace errors.

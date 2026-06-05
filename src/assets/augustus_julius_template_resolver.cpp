@@ -6,37 +6,22 @@
 extern "C" {
 #include "core/dir.h"
 #include "core/file.h"
-#include "core/xml_parser.h"
 }
 
-#include <cstdlib>
 #include <algorithm>
-#include <cstring>
-#include <string>
-#include <unordered_map>
-#include <vector>
+#include <cstdlib>
+
+namespace vespasian::graphics::extraction {
 
 namespace {
 
-struct LegacyTemplateParseState {
-    AugustusJuliusTemplateGroup group;
-    std::string current_image_id;
-    int error = 0;
-};
-
-std::unordered_map<std::string, AugustusJuliusTemplateGroup> g_legacy_template_groups;
-LegacyTemplateParseState g_legacy_template_parse_state;
-
-using graphics_extractor::make_generated_image_id;
-using graphics_extractor::parse_generated_image_index;
-
-static bool parse_reference_image_index(const std::string &reference_image, int &index)
+bool parse_reference_image_index(const std::string &reference_image, int &index)
 {
     index = 0;
     if (reference_image.empty()) {
         return true;
     }
-    if (parse_generated_image_index(reference_image, index)) {
+    if (graphics_extractor::parse_generated_image_index(reference_image, index)) {
         return true;
     }
 
@@ -49,7 +34,7 @@ static bool parse_reference_image_index(const std::string &reference_image, int 
     return true;
 }
 
-static bool split_group_key(const std::string &group_key, std::string &family_key, std::string &group_name)
+bool split_group_key(const std::string &group_key, std::string &family_key, std::string &group_name)
 {
     const size_t separator = group_key.rfind('\\');
     if (separator == std::string::npos || separator == 0 || separator + 1 >= group_key.size()) {
@@ -63,62 +48,24 @@ static bool split_group_key(const std::string &group_key, std::string &family_ke
     return true;
 }
 
-static int legacy_template_start_assetlist(void)
-{
-    return 1;
-}
-
-static int legacy_template_start_image(void)
-{
-    const char *id = xml_parser_get_attribute_string("id");
-    g_legacy_template_parse_state.current_image_id = id ? id : "";
-    if (!g_legacy_template_parse_state.current_image_id.empty()) {
-        g_legacy_template_parse_state.group.images[g_legacy_template_parse_state.current_image_id];
-        int image_index = 0;
-        if (parse_generated_image_index(g_legacy_template_parse_state.current_image_id, image_index)) {
-            g_legacy_template_parse_state.group.next_generated_image_index =
-                std::max(g_legacy_template_parse_state.group.next_generated_image_index, image_index + 1);
-        }
-    }
-    return 1;
-}
-
-static int legacy_template_start_layer(void)
-{
-    if (g_legacy_template_parse_state.current_image_id.empty()) {
-        return 1;
-    }
-
-    const char *part = xml_parser_get_attribute_string("part");
-    if (part && *part) {
-        g_legacy_template_parse_state.group.images[g_legacy_template_parse_state.current_image_id].parts.push_back(part);
-    }
-    return 1;
-}
-
-static void legacy_template_end_image(void)
-{
-    g_legacy_template_parse_state.current_image_id.clear();
-}
-
-static const xml_parser_element kLegacyTemplateXmlElements[] = {
-    { "assetlist", legacy_template_start_assetlist, 0 },
-    { "image", legacy_template_start_image, legacy_template_end_image, "assetlist" },
-    { "layer", legacy_template_start_layer, 0, "image" },
-    { "animation", 0, 0, "image" },
-    { "frame", 0, 0, "animation" }
-};
-
 } // namespace
 
-void augustus_julius_template_resolver_clear_cache(void)
+JuliusTemplateImage &JuliusTemplateGroup::ensure_image(const std::string &image_id)
 {
-    g_legacy_template_groups.clear();
+    return images_[image_id];
 }
 
-int augustus_julius_template_resolver_translate_group_key(
+void JuliusTemplateGroup::observe_generated_image_id(const std::string &image_id)
+{
+    int image_index = 0;
+    if (graphics_extractor::parse_generated_image_index(image_id, image_index)) {
+        next_generated_image_index_ = std::max(next_generated_image_index_, image_index + 1);
+    }
+}
+
+int JuliusTemplateCatalog::translate_group_key(
     const std::string &reference_group,
-    std::string &translated_group_key)
+    std::string &translated_group_key) const
 {
     translated_group_key.clear();
     if (reference_group.empty()) {
@@ -129,11 +76,7 @@ int augustus_julius_template_resolver_translate_group_key(
     char *end = nullptr;
     const long numeric_group = strtol(normalized_group.c_str(), &end, 10);
     if (end && *end == '\0') {
-        char group_key[FILE_NAME_MAX];
-        if (!legacy_image_extractor_get_group_key(static_cast<int>(numeric_group), group_key, sizeof(group_key))) {
-            return -1;
-        }
-        translated_group_key = group_key;
+        translated_group_key = JuliusExtractor().resolveLegacyGroup(static_cast<int>(numeric_group));
         return translated_group_key.empty() ? -1 : 1;
     }
 
@@ -141,18 +84,18 @@ int augustus_julius_template_resolver_translate_group_key(
     return translated_group_key.empty() ? -1 : 1;
 }
 
-int augustus_julius_template_resolver_next_generated_image_index(
+int JuliusTemplateCatalog::next_generated_image_index(
     const std::string &julius_graphics_root,
     const std::string &group_key)
 {
-    AugustusJuliusTemplateGroup group;
-    if (!augustus_julius_template_resolver_load_group(julius_graphics_root, group_key, group)) {
+    JuliusTemplateGroup group;
+    if (!load_group(julius_graphics_root, group_key, group)) {
         return 0;
     }
-    return group.next_generated_image_index;
+    return group.next_generated_image_index();
 }
 
-static std::vector<std::string> collect_semantic_continuation_group_keys(
+std::vector<std::string> JuliusTemplateCatalog::collect_semantic_continuation_group_keys(
     const std::string &julius_graphics_root,
     const std::string &base_group_key)
 {
@@ -198,7 +141,7 @@ static std::vector<std::string> collect_semantic_continuation_group_keys(
     return group_keys;
 }
 
-static int translate_numeric_group_image_from_extracted_julius(
+int JuliusTemplateCatalog::translate_numeric_group_image_from_extracted_julius(
     const std::string &julius_graphics_root,
     const std::string &base_group_key,
     int requested_image_index,
@@ -206,16 +149,17 @@ static int translate_numeric_group_image_from_extracted_julius(
     std::string &translated_image_id)
 {
     int remaining_image_index = requested_image_index;
-    for (const std::string &candidate_group_key : collect_semantic_continuation_group_keys(julius_graphics_root, base_group_key)) {
-        AugustusJuliusTemplateGroup group;
-        if (!augustus_julius_template_resolver_load_group(julius_graphics_root, candidate_group_key, group)) {
+    for (const std::string &candidate_group_key :
+        collect_semantic_continuation_group_keys(julius_graphics_root, base_group_key)) {
+        JuliusTemplateGroup group;
+        if (!load_group(julius_graphics_root, candidate_group_key, group)) {
             continue;
         }
 
-        const int next_index = group.next_generated_image_index;
+        const int next_index = group.next_generated_image_index();
         if (remaining_image_index < next_index) {
-            const std::string candidate_image_id = make_generated_image_id(remaining_image_index);
-            if (group.images.find(candidate_image_id) == group.images.end()) {
+            const std::string candidate_image_id = graphics_extractor::make_generated_image_id(remaining_image_index);
+            if (!group.has_image(candidate_image_id)) {
                 return 0;
             }
             translated_group_key = candidate_group_key;
@@ -228,7 +172,7 @@ static int translate_numeric_group_image_from_extracted_julius(
     return 0;
 }
 
-int augustus_julius_template_resolver_translate_group_image(
+int JuliusTemplateCatalog::translate_group_image(
     const std::string &julius_graphics_root,
     const std::string &reference_group,
     const std::string &reference_image,
@@ -248,7 +192,7 @@ int augustus_julius_template_resolver_translate_group_image(
         translated_group_key = normalized_group;
         int image_index = 0;
         if (parse_reference_image_index(reference_image, image_index)) {
-            translated_image_id = make_generated_image_id(image_index);
+            translated_image_id = graphics_extractor::make_generated_image_id(image_index);
         } else {
             translated_image_id = reference_image.empty() ? std::string("Image_0000") : reference_image;
         }
@@ -260,22 +204,17 @@ int augustus_julius_template_resolver_translate_group_image(
         return -1;
     }
 
-    char live_group_key[FILE_NAME_MAX] = { 0 };
-    char live_image_id[32] = { 0 };
-    if (legacy_image_extractor_get_group_image_key(
-            static_cast<int>(numeric_group),
-            requested_image_index,
-            live_group_key,
-            sizeof(live_group_key),
-            live_image_id,
-            sizeof(live_image_id))) {
-        translated_group_key = live_group_key;
-        translated_image_id = live_image_id;
+    const GroupImageKey live_key = JuliusExtractor().resolveLegacyImage(
+        static_cast<int>(numeric_group),
+        requested_image_index);
+    if (live_key.valid()) {
+        translated_group_key = live_key.group_key();
+        translated_image_id = live_key.image_id();
         return 1;
     }
 
-    char base_group_key[FILE_NAME_MAX] = { 0 };
-    if (!legacy_image_extractor_get_group_key(static_cast<int>(numeric_group), base_group_key, sizeof(base_group_key))) {
+    const std::string base_group_key = JuliusExtractor().resolveLegacyGroup(static_cast<int>(numeric_group));
+    if (base_group_key.empty()) {
         return -1;
     }
 
@@ -289,47 +228,74 @@ int augustus_julius_template_resolver_translate_group_image(
     }
 
     translated_group_key = base_group_key;
-    translated_image_id = make_generated_image_id(requested_image_index);
+    translated_image_id = graphics_extractor::make_generated_image_id(requested_image_index);
     return translated_group_key.empty() ? -1 : 1;
 }
 
-int augustus_julius_template_resolver_load_group(
+bool JuliusTemplateCatalog::parse_group_xml(
+    const std::string &xml_path,
+    JuliusTemplateGroup &group) const
+{
+    std::string contents;
+    if (!graphics_extractor::read_text_file(xml_path, contents)) {
+        return false;
+    }
+
+    group = JuliusTemplateGroup();
+    std::string current_image_id;
+    const XmlReader reader;
+    for (const XmlToken &token : reader.parse(contents)) {
+        const XmlElement &element = token.element();
+        if (token.type() == XmlToken::Type::end) {
+            if (element.name() == "image") {
+                current_image_id.clear();
+            }
+            continue;
+        }
+
+        if (element.name() == "image") {
+            current_image_id = element.attribute("id");
+            if (!current_image_id.empty()) {
+                group.ensure_image(current_image_id);
+                group.observe_generated_image_id(current_image_id);
+            }
+            if (token.is_self_closing()) {
+                current_image_id.clear();
+            }
+            continue;
+        }
+        if (element.name() == "layer" && !current_image_id.empty()) {
+            const std::string &part = element.attribute("part");
+            if (!part.empty()) {
+                group.ensure_image(current_image_id).add_part(part);
+            }
+        }
+    }
+    return true;
+}
+
+bool JuliusTemplateCatalog::load_group(
     const std::string &julius_graphics_root,
     const std::string &group_key,
-    AugustusJuliusTemplateGroup &group)
+    JuliusTemplateGroup &group)
 {
-    auto cached = g_legacy_template_groups.find(group_key);
-    if (cached != g_legacy_template_groups.end()) {
+    auto cached = cached_groups_.find(group_key);
+    if (cached != cached_groups_.end()) {
         group = cached->second;
-        return 1;
+        return true;
     }
 
     const std::string xml_path = graphics_extractor::append_path_component(julius_graphics_root, group_key + ".xml");
     if (xml_path.empty() || !file_exists(xml_path.c_str(), NOT_LOCALIZED)) {
-        return 0;
+        return false;
     }
 
-    std::vector<char> buffer;
-    if (!graphics_extractor::load_file_to_buffer(xml_path, buffer)) {
-        return 0;
+    if (!parse_group_xml(xml_path, group)) {
+        return false;
     }
 
-    g_legacy_template_parse_state = {};
-    g_legacy_template_parse_state.group.group_key = group_key;
-    if (!xml_parser_init(
-            kLegacyTemplateXmlElements,
-            static_cast<int>(sizeof(kLegacyTemplateXmlElements) / sizeof(kLegacyTemplateXmlElements[0])),
-            1)) {
-        return 0;
-    }
-
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
-    if (!parsed || g_legacy_template_parse_state.error) {
-        return 0;
-    }
-
-    g_legacy_template_groups.emplace(group_key, g_legacy_template_parse_state.group);
-    group = g_legacy_template_parse_state.group;
-    return 1;
+    cached_groups_.emplace(group_key, group);
+    return true;
 }
+
+} // namespace vespasian::graphics::extraction

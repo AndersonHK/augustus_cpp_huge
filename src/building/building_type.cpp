@@ -168,6 +168,11 @@ void BuildButtonDefinition::set_icon(std::string icon)
     icon_ = std::move(icon);
 }
 
+void BuildButtonDefinition::set_icon_image(std::string image)
+{
+    icon_image_ = std::move(image);
+}
+
 void BuildButtonDefinition::set_text_key(std::string key)
 {
     text_key_ = std::move(key);
@@ -203,6 +208,16 @@ const char *BuildButtonDefinition::icon() const
     return icon_.c_str();
 }
 
+int BuildButtonDefinition::has_icon_image() const
+{
+    return !icon_image_.empty();
+}
+
+const char *BuildButtonDefinition::icon_image() const
+{
+    return icon_image_.c_str();
+}
+
 int BuildButtonDefinition::has_text_key() const
 {
     return !text_key_.empty();
@@ -215,7 +230,7 @@ const char *BuildButtonDefinition::text_key() const
 
 int BuildButtonDefinition::has_any() const
 {
-    return has_group() || has_order() || has_icon() || has_text_key();
+    return has_group() || has_order() || has_icon() || has_icon_image() || has_text_key();
 }
 
 void SoundDefinition::set_city_sound(int sound)
@@ -589,6 +604,11 @@ void BuildingType::set_button_order(int order)
 void BuildingType::set_button_icon(std::string icon)
 {
     button_.set_icon(std::move(icon));
+}
+
+void BuildingType::set_button_icon_image(std::string image)
+{
+    button_.set_icon_image(std::move(image));
 }
 
 void BuildingType::set_button_text_key(std::string key)

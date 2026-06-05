@@ -9,6 +9,219 @@ extern "C" {
 #include <cstdlib>
 #include <cstring>
 
+#include <cctype>
+#include <utility>
+
+namespace vespasian::graphics::extraction {
+
+namespace {
+
+const std::string kEmptyXmlAttribute;
+
+bool is_name_char(char value)
+{
+    return std::isalnum(static_cast<unsigned char>(value)) || value == '_' || value == '-' || value == ':' || value == '\\';
+}
+
+void skip_whitespace(const std::string &xml, size_t &index, int &line_number)
+{
+    while (index < xml.size() && std::isspace(static_cast<unsigned char>(xml[index]))) {
+        if (xml[index] == '\n') {
+            line_number++;
+        }
+        index++;
+    }
+}
+
+std::string parse_name(const std::string &xml, size_t &index)
+{
+    const size_t start = index;
+    while (index < xml.size() && is_name_char(xml[index])) {
+        index++;
+    }
+    return xml.substr(start, index - start);
+}
+
+void skip_until(const std::string &xml, size_t &index, const char *terminator, int &line_number)
+{
+    const std::string marker = terminator;
+    while (index < xml.size()) {
+        if (xml.compare(index, marker.size(), marker) == 0) {
+            index += marker.size();
+            return;
+        }
+        if (xml[index] == '\n') {
+            line_number++;
+        }
+        index++;
+    }
+}
+
+} // namespace
+
+const std::string &XmlElement::attribute(const std::string &name) const
+{
+    auto it = attributes_.find(name);
+    return it == attributes_.end() ? kEmptyXmlAttribute : it->second;
+}
+
+int XmlElement::int_attribute(const std::string &name) const
+{
+    const std::string &value = attribute(name);
+    return value.empty() ? 0 : std::atoi(value.c_str());
+}
+
+bool XmlElement::bool_attribute(const std::string &name) const
+{
+    const std::string &value = attribute(name);
+    if (value.empty()) {
+        return false;
+    }
+    std::string lower = value;
+    for (char &character : lower) {
+        character = static_cast<char>(std::tolower(static_cast<unsigned char>(character)));
+    }
+    return lower == "true" || lower == "1" || lower == "yes" || lower == "y" || lower == name;
+}
+
+std::string XmlReader::decode_entities(const std::string &value)
+{
+    std::string decoded;
+    decoded.reserve(value.size());
+    for (size_t index = 0; index < value.size(); ++index) {
+        if (value[index] != '&') {
+            decoded.push_back(value[index]);
+            continue;
+        }
+        const size_t semicolon = value.find(';', index + 1);
+        if (semicolon == std::string::npos) {
+            decoded.push_back(value[index]);
+            continue;
+        }
+        const std::string entity = value.substr(index + 1, semicolon - index - 1);
+        if (entity == "amp") {
+            decoded.push_back('&');
+        } else if (entity == "lt") {
+            decoded.push_back('<');
+        } else if (entity == "gt") {
+            decoded.push_back('>');
+        } else if (entity == "quot") {
+            decoded.push_back('"');
+        } else if (entity == "apos") {
+            decoded.push_back('\'');
+        } else {
+            decoded += "&";
+            decoded += entity;
+            decoded += ";";
+        }
+        index = semicolon;
+    }
+    return decoded;
+}
+
+std::vector<XmlToken> XmlReader::parse(const std::string &xml) const
+{
+    std::vector<XmlToken> tokens;
+    int line_number = 1;
+    size_t index = 0;
+    while (index < xml.size()) {
+        if (xml[index] != '<') {
+            if (xml[index] == '\n') {
+                line_number++;
+            }
+            index++;
+            continue;
+        }
+
+        const int token_line = line_number;
+        index++;
+        if (index >= xml.size()) {
+            break;
+        }
+        if (xml.compare(index, 3, "!--") == 0) {
+            index += 3;
+            skip_until(xml, index, "-->", line_number);
+            continue;
+        }
+        if (xml[index] == '?') {
+            index++;
+            skip_until(xml, index, "?>", line_number);
+            continue;
+        }
+        if (xml[index] == '!') {
+            index++;
+            skip_until(xml, index, ">", line_number);
+            continue;
+        }
+
+        if (xml[index] == '/') {
+            index++;
+            skip_whitespace(xml, index, line_number);
+            std::string name = parse_name(xml, index);
+            skip_until(xml, index, ">", line_number);
+            if (!name.empty()) {
+                tokens.emplace_back(XmlToken::Type::end, XmlElement(std::move(name), {}, token_line), false);
+            }
+            continue;
+        }
+
+        std::string name = parse_name(xml, index);
+        std::unordered_map<std::string, std::string> attributes;
+        bool self_closing = false;
+        while (index < xml.size()) {
+            skip_whitespace(xml, index, line_number);
+            if (index >= xml.size()) {
+                break;
+            }
+            if (xml[index] == '/') {
+                self_closing = true;
+                index++;
+                skip_whitespace(xml, index, line_number);
+                if (index < xml.size() && xml[index] == '>') {
+                    index++;
+                }
+                break;
+            }
+            if (xml[index] == '>') {
+                index++;
+                break;
+            }
+
+            std::string attribute_name = parse_name(xml, index);
+            skip_whitespace(xml, index, line_number);
+            std::string attribute_value;
+            if (index < xml.size() && xml[index] == '=') {
+                index++;
+                skip_whitespace(xml, index, line_number);
+                if (index < xml.size() && (xml[index] == '"' || xml[index] == '\'')) {
+                    const char quote = xml[index++];
+                    const size_t value_start = index;
+                    while (index < xml.size() && xml[index] != quote) {
+                        if (xml[index] == '\n') {
+                            line_number++;
+                        }
+                        index++;
+                    }
+                    attribute_value = decode_entities(xml.substr(value_start, index - value_start));
+                    if (index < xml.size()) {
+                        index++;
+                    }
+                }
+            }
+            if (!attribute_name.empty()) {
+                attributes.emplace(std::move(attribute_name), std::move(attribute_value));
+            }
+        }
+
+        if (!name.empty()) {
+            tokens.emplace_back(XmlToken::Type::start, XmlElement(std::move(name), std::move(attributes), token_line), self_closing);
+        }
+    }
+    return tokens;
+}
+
+} // namespace vespasian::graphics::extraction
+
 namespace graphics_extractor {
 
 std::string sanitize_component(const char *text)
@@ -85,7 +298,7 @@ std::string append_path_component(const std::string &base_path, const std::strin
     return buffer;
 }
 
-bool load_file_to_buffer(const std::string &path, std::vector<char> &buffer)
+static bool load_file_to_buffer(const std::string &path, std::vector<char> &buffer)
 {
     FILE *file = file_open(path.c_str(), "rb");
     if (!file) {

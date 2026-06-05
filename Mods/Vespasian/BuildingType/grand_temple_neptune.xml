@@ -9,7 +9,7 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="grand_temples" order="20" icon="grand temple neptune" text_key="TR_BUILDING_GRAND_TEMPLE_NEPTUNE" />
+    <button group="grand_temples" order="20" icon="Monuments\Neptune_worshippers" icon_image="Neptune Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_NEPTUNE" />
     <sound id="temple_neptune" />
     <event_data attr="grand_temple_neptune" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />

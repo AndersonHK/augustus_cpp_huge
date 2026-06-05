@@ -6,6 +6,10 @@
 #include "game/resource.h"
 #include "translation/translation.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum order_condition_type {
     ORDER_CONDITION_NEVER = 0,
     ORDER_CONDITION_ALWAYS,
@@ -312,3 +316,7 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
                          buffer *sequence, buffer *corrupt_houses);
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version);
+
+#ifdef __cplusplus
+}
+#endif

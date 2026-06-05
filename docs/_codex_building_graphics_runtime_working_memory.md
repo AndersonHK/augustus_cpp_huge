@@ -6,12 +6,12 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 ## 2026-06-05 extraction checkpoint
 - Current durable extractor handoff: `docs/graphics_extraction_pipeline.md`.
 - The standalone clean-run harness is `AugustusGraphicsExtractor.exe`, built by `AugustusGraphicsExtractor.vcxproj` from `tools/augustus_graphics_extractor/main.cpp`.
-- Runtime extraction order is Julius first, Augustus second, from `src/core/image.c`. Do not move Augustus extraction back into early `src/platform/augustus.cpp` startup.
+- Runtime extraction order is Julius first, Augustus second, from the C++-compiled `src/core/image.c` through `RuntimeGraphicsExtractionService`. Do not move Augustus extraction back into early `src/platform/augustus.cpp` startup.
 - Clean generated output should contain `Mods\Julius\Graphics` and `Mods\Augustus\Graphics`; `Mods\Vespasian\Graphics` should be absent until Vespasian has real native graphics.
 - Current clean sample validation:
   - Julius: 231 XML, 8933 PNG, 8465 logical images
   - Augustus: 3200 XML, 4088 PNG, 3259 logical images
-  - BuildingType graphics refs: 505 checked across the Release mod stack, 0 missing
+  - BuildingType graphics refs: 494 explicit path/image refs plus 152 button icon refs checked across Augustus and Vespasian BuildingType XML, 646 total, 0 missing; button `icon` values are generated graphics group keys and optional `icon_image` values pin image ids.
 - Julius `Aesthetics\House_Tent` intentionally exposes `Image_0000..Image_0005`. `Image_0001..Image_0005` are full-image aliases to `Aesthetics\House_Tent_Variants`, preserving legacy BuildingType option refs after the Julius group table split.
 - Colosseum runtime fallback notes from May are stale. Current BuildingType XML uses generated `Health_Culture\Colosseum` entries directly.
 

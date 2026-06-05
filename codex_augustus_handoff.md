@@ -74,13 +74,13 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Julius and Augustus extraction are parallel problems with shared helper code, not one monolithic extractor:
   - Julius is stable and atlas-table driven.
   - Augustus is dynamic and packaged under the game folder `assets\Graphics`.
-  - Runtime extraction runs Julius first from `src/core/image.c`, then Augustus bootstrap.
+  - Runtime extraction runs Julius first from `src/core/image.c` through `runtime_graphics_extraction_bootstrap_after_climate(...)`, then Augustus through `RuntimeGraphicsExtractionService`.
   - The standalone `AugustusGraphicsExtractor.exe` can run from the repo and accepts `--extract-julius-first`, `--game-root`, `--source-graphics`, `--output`, and `--julius-graphics`.
 - A clean generated Release stack should contain `Mods\Julius\Graphics` and `Mods\Augustus\Graphics`, but no `Mods\Vespasian\Graphics`.
 - Current clean sample extraction baseline:
   - Julius: 231 XML, 8933 PNG, 8465 logical images
   - Augustus: 3200 XML, 4088 PNG, 3259 logical images
-  - BuildingType graphics refs: 505 checked across the Release mod stack, 0 missing
+  - BuildingType graphics refs: 494 explicit path/image refs plus 152 button icon refs checked across Augustus and Vespasian BuildingType XML, 646 total, 0 missing; button `icon` values are generated graphics group keys and optional `icon_image` values pin image ids.
 - The recent native building graphics glitch was fixed at extraction time, not by changing final draw math:
   - Julius footprint exports now trim bottom transparent padding and preserve logical placement through XML metadata
   - Augustus active building variants now inherit local `group="this"` footprint/top parts instead of collapsing to footprint-only

@@ -59,7 +59,7 @@ public:
     building_type type() const;
     int shortcut_index() const;
     const uint8_t *display_name() const;
-    int resource_icon() const;
+    int menu_icon() const;
     int cost() const;
     int has_rotation_icon() const;
     int has_monument_icon() const;
@@ -74,12 +74,14 @@ private:
     int menu_item_index = -1;
     unsigned int display_index = 0;
     building_type building = BUILDING_NONE;
+    int menu_icon_id = -1;
 };
 
 static void button_menu_button_clicked(const generic_button *button);
 static void rebuild_visible_menu_buttons(void);
 static void request_visible_menu_button_rebuild(void);
 static const BuildMenuButton *focused_menu_button(void);
+static int produced_resource_icon(building_type type);
 
 static std::vector<generic_button> build_menu_button_widgets;
 static std::vector<BuildMenuButton> build_menu_buttons;
@@ -116,6 +118,10 @@ void BuildMenuButton::bind(build_menu_group button_submenu, int item_index, unsi
     menu_item_index = item_index;
     display_index = button_display_index;
     building = building_menu_type(submenu, menu_item_index);
+    menu_icon_id = building_type_registry_get_button_icon_image_id(building);
+    if (!menu_icon_id) {
+        menu_icon_id = produced_resource_icon(building);
+    }
 
     button_widget.reset();
     button_widget.set_bounds(0, static_cast<short>(MENU_ITEM_HEIGHT * display_index), 290, 20);
@@ -130,6 +136,7 @@ void BuildMenuButton::clear()
     menu_item_index = -1;
     display_index = 0;
     building = BUILDING_NONE;
+    menu_icon_id = -1;
 }
 
 int BuildMenuButton::is_bound() const
@@ -340,9 +347,9 @@ const uint8_t *BuildMenuButton::display_name() const
     return lang_get_string(28, building);
 }
 
-int BuildMenuButton::resource_icon() const
+int BuildMenuButton::menu_icon() const
 {
-    return produced_resource_icon(building);
+    return menu_icon_id;
 }
 
 int BuildMenuButton::cost() const
@@ -392,9 +399,9 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
     }
 
     int text_offset = MENU_TEXT_X_OFFSET;
-    int production_icon = resource_icon();
-    if (production_icon >= 0 && config_get(CONFIG_UI_CV_BUILD_MENU_ICONS)) {
-        draw_resource_icon_scaled(production_icon, item_x_align + MENU_TEXT_X_OFFSET + 2 +
+    int icon = menu_icon();
+    if (icon >= 0 && config_get(CONFIG_UI_CV_BUILD_MENU_ICONS)) {
+        draw_resource_icon_scaled(icon, item_x_align + MENU_TEXT_X_OFFSET + 2 +
             (has_monument_icon() + has_rotation_icon()) * MENU_ICON_WIDTH,
             item_y + 2, MENU_RESOURCE_ICON_SIZE);
         text_offset += MENU_RESOURCE_ICON_SIZE + 4;

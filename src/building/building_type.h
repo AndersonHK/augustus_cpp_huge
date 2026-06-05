@@ -228,6 +228,7 @@ public:
     void set_group(std::string group);
     void set_order(int order);
     void set_icon(std::string icon);
+    void set_icon_image(std::string image);
     void set_text_key(std::string key);
 
     int has_group() const;
@@ -236,6 +237,8 @@ public:
     int order() const;
     int has_icon() const;
     const char *icon() const;
+    int has_icon_image() const;
+    const char *icon_image() const;
     int has_text_key() const;
     const char *text_key() const;
     int has_any() const;
@@ -245,6 +248,7 @@ private:
     int has_order_ = 0;
     int order_ = 0;
     std::string icon_;
+    std::string icon_image_;
     std::string text_key_;
 };
 
@@ -419,6 +423,7 @@ public:
     void set_button_group(std::string group);
     void set_button_order(int order);
     void set_button_icon(std::string icon);
+    void set_button_icon_image(std::string image);
     void set_button_text_key(std::string key);
     void set_sound_id(int sound);
     void set_sound_mute_on_enemies(int value);
