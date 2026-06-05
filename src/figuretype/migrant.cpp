@@ -164,9 +164,9 @@ void figure_immigrant_action(figure *f)
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
                 f->state = FIGURE_STATE_DEAD;
-                int max_people = house_population_get_capacity(b);
+                int capacity = house_population_get_capacity(b);
 
-                int room = max_people - b->house_population;
+                int room = capacity - b->house_population;
                 if (room < 0) {
                     room = 0;
                 }
@@ -175,7 +175,7 @@ void figure_immigrant_action(figure *f)
                 }
                 int is_empty = b->house_population == 0;
                 b->house_population += f->migrant_num_people;
-                b->house_population_room = max_people - b->house_population;
+                b->house_population_room = capacity - b->house_population;
                 city_population_add(f->migrant_num_people);
                 if (is_empty) {
                     building_house_change_to(b, building_type_registry_get_vacant_lot_fill_type());
@@ -316,8 +316,8 @@ void figure_homeless_action(figure *f)
                 f->state = FIGURE_STATE_DEAD;
                 building *b = building_get(f->immigrant_building_id);
                 if (f->immigrant_building_id && building_is_house(b->type) && !b->has_plague) {
-                    int max_people = house_population_get_capacity(b);
-                    int room = max_people - b->house_population;
+                    int capacity = house_population_get_capacity(b);
+                    int room = capacity - b->house_population;
                     if (room < 0) {
                         room = 0;
                     }
@@ -326,7 +326,7 @@ void figure_homeless_action(figure *f)
                     }
                     int is_empty = b->house_population == 0;
                     b->house_population += f->migrant_num_people;
-                    b->house_population_room = max_people - b->house_population;
+                    b->house_population_room = capacity - b->house_population;
                     city_population_add_homeless(f->migrant_num_people);
                     if (is_empty) {
                         building_house_change_to(b, building_type_registry_get_vacant_lot_fill_type());

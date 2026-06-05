@@ -1,11 +1,11 @@
 #include "image.h"
 
+#include "assets/augustus_asset_extractor.h"
 #include "assets/assets.h"
 #include "building/building.h"
 #include "building/image.h"
 #include "core/buffer.h"
 #include "core/file.h"
-#include "core/legacy_image_extractor.h"
 #include "core/image_payload.h"
 #include "core/image_packer.h"
 #include "core/io.h"
@@ -274,7 +274,7 @@ static void read_index_entry(buffer *buf, image *img, image_draw_data *draw_data
     buffer_skip(buf, 6);
     int num_sprites = buffer_read_u16(buf);
     if (num_sprites) {
-        img->animation = malloc(sizeof(image_animation));
+        img->animation = (image_animation *) malloc(sizeof(image_animation));
         if (!img->animation) {
             log_error("Not enough memory to add animations. The game will probably crash.", 0, 0);
             buffer_skip(buf, 18);
@@ -300,7 +300,7 @@ static void read_index_entry(buffer *buf, image *img, image_draw_data *draw_data
     }
     int has_top = buffer_read_i8(buf);
     if (has_top && img->is_isometric) {
-        img->top = malloc(sizeof(image));
+        img->top = (image *) malloc(sizeof(image));
         if (!img->top) {
             log_error("Not enough memory to add animations. The game will probably crash.", 0, 0);
         }
@@ -332,7 +332,7 @@ static int prepare_images(buffer *buf, image *images, image_draw_data *draw_data
         }
     }
     if (image_type == ATLAS_MAIN) {
-        data.external_draw_data = malloc(data.total_external_images * sizeof(image_draw_data));
+        data.external_draw_data = (image_draw_data *) malloc(data.total_external_images * sizeof(image_draw_data));
         if (!data.external_draw_data) {
             return 0;
         }
@@ -383,8 +383,8 @@ static int crop_and_pack_images(buffer *buf, image *images, image_draw_data *dra
                 memset(draw_data->buffer, 0, sizeof(color_t) * img->width * img->height);
                 buffer_set(buf, draw_data->offset);
                 convert_compressed(buf, img->width, img->height, 0, 0,
-                    draw_data->data_length, draw_data->buffer, img->width);
-                image_crop(img, draw_data->buffer);
+                    draw_data->data_length, (color_t *) draw_data->buffer, img->width);
+                image_crop(img, (const color_t *) draw_data->buffer);
             }
         }
         data.packer.rects[rect].input.width = img->width;
@@ -397,8 +397,8 @@ static int crop_and_pack_images(buffer *buf, image *images, image_draw_data *dra
                 memset(draw_data->buffer, 0, sizeof(color_t) * img->top->width * img->top->height);
                 buffer_set(buf, draw_data->offset + draw_data->uncompressed_length);
                 convert_compressed(buf, img->top->width, img->top->height, 0, 0,
-                    draw_data->data_length - draw_data->uncompressed_length, draw_data->buffer, img->top->width);
-                image_crop(img->top, draw_data->buffer);
+                    draw_data->data_length - draw_data->uncompressed_length, (color_t *) draw_data->buffer, img->top->width);
+                image_crop(img->top, (const color_t *) draw_data->buffer);
                 if (!img->top->height) {
                     free(img->top);
                     img->top = 0;
@@ -652,7 +652,7 @@ static int upload_cropped_image_resource(
         return 0;
     }
 
-    color_t *cropped = malloc(sizeof(color_t) * img->width * img->height);
+    color_t *cropped = (color_t *) malloc(sizeof(color_t) * img->width * img->height);
     if (!cropped) {
         return 0;
     }
@@ -743,6 +743,20 @@ static void release_external_buffers(void)
     }
 }
 
+static int bootstrap_runtime_graphics_extraction_after_climate(
+    image *images,
+    int image_count,
+    const uint16_t *group_image_ids,
+    int group_count,
+    const char *source_name,
+    const image_atlas_data *atlas_data)
+{
+    using namespace vespasian::graphics::extraction;
+    LegacyClimateAtlas climate(images, image_count, group_image_ids, group_count, source_name, atlas_data);
+    RuntimeGraphicsExtractionService service;
+    return service.bootstrapAfterClimateLoad(climate, ExtractorOptions(false, true)).succeeded() ? 1 : 0;
+}
+
 static void update_native_images(int old_climate, int new_climate)
 {
     if (old_climate == new_climate) {
@@ -821,8 +835,8 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
 
     const char *filename_bmp = is_editor ? EDITOR_GRAPHICS_555[climate_id] : MAIN_GRAPHICS_555[climate_id];
     const char *filename_idx = is_editor ? EDITOR_GRAPHICS_SG2[climate_id] : MAIN_GRAPHICS_SG2[climate_id];
-    uint8_t *tmp_data = malloc(MAIN_DATA_SIZE * sizeof(uint8_t));
-    image_draw_data *draw_data = malloc((IMAGE_MAIN_ENTRIES + data.images_with_tops) * sizeof(image_draw_data));
+    uint8_t *tmp_data = (uint8_t *) malloc(MAIN_DATA_SIZE * sizeof(uint8_t));
+    image_draw_data *draw_data = (image_draw_data *) malloc((IMAGE_MAIN_ENTRIES + data.images_with_tops) * sizeof(image_draw_data));
     if (!tmp_data || !draw_data ||
         MAIN_INDEX_SIZE != io_read_file_into_buffer(filename_idx, MAY_BE_LOCALIZED, tmp_data, MAIN_INDEX_SIZE)) {
         free(tmp_data);
@@ -879,13 +893,16 @@ int image_load_climate(int climate_id, int is_editor, int force_reload, int keep
     free(tmp_data);
     make_plain_fonts_white(data.main, atlas_data, image_group(GROUP_FONT));
     if (extract_legacy_graphics) {
-        legacy_image_extractor_extract_climate(
+        if (!bootstrap_runtime_graphics_extraction_after_climate(
             data.main,
             IMAGE_MAIN_ENTRIES,
             data.group_image_ids,
             IMAGE_MAX_GROUPS,
             filename_idx,
-            atlas_data);
+            atlas_data)) {
+            image_packer_free(&data.packer);
+            return 0;
+        }
     }
     upload_atlas_image_resources(data.main, IMAGE_MAIN_ENTRIES, atlas_data, ATLAS_MAIN, "main", filename_idx);
     if (!keep_atlas_buffers) {
@@ -943,8 +960,8 @@ static int alloc_font_memory(int font_entries)
 
 static int load_external_fonts(int base_offset)
 {
-    uint8_t *tmp_data = malloc(EXTERNAL_FONT_DATA_SIZE * sizeof(uint8_t));
-    image_draw_data *draw_data = malloc(EXTERNAL_FONT_ENTRIES * sizeof(image_draw_data));
+    uint8_t *tmp_data = (uint8_t *) malloc(EXTERNAL_FONT_DATA_SIZE * sizeof(uint8_t));
+    image_draw_data *draw_data = (image_draw_data *) malloc(EXTERNAL_FONT_ENTRIES * sizeof(image_draw_data));
     if (!tmp_data || !draw_data || !alloc_font_memory(EXTERNAL_FONT_ENTRIES)) {
         free(tmp_data);
         free_draw_data(draw_data, EXTERNAL_FONT_ENTRIES);
@@ -1139,7 +1156,7 @@ static int load_multibyte_font(multibyte_font_type type)
 
     int entries = FONT_STYLES * font_info->chars;
 
-    uint8_t *tmp_data = malloc(font_info->data_size * sizeof(uint8_t));
+    uint8_t *tmp_data = (uint8_t *) malloc(font_info->data_size * sizeof(uint8_t));
     if (!tmp_data || !alloc_font_memory(entries)) {
         free(tmp_data);
         return 0;
@@ -1195,7 +1212,7 @@ static int load_multibyte_font(multibyte_font_type type)
         font_sizes[1].half_width * font_sizes[1].height +
         font_sizes[2].half_width * font_sizes[2].height) * num_half_width;
 
-    color_t *font_data = malloc(font_data_size);
+    color_t *font_data = (color_t *) malloc(font_data_size);
     if (!font_data) {
         image_packer_free(&data.packer);
         free_font_memory();
@@ -1297,16 +1314,16 @@ int image_load_enemy(int enemy_id)
 
     memset(data.enemy, 0, sizeof(data.enemy));
 
-    uint8_t *tmp_data = malloc(ENEMY_DATA_SIZE * sizeof(uint8_t));
-    image_draw_data *draw_data = malloc(ENEMY_ENTRIES * sizeof(image_draw_data));
-    memset(draw_data, 0, ENEMY_ENTRIES * sizeof(image_draw_data));
+    uint8_t *tmp_data = (uint8_t *) malloc(ENEMY_DATA_SIZE * sizeof(uint8_t));
+    image_draw_data *draw_data = (image_draw_data *) malloc(ENEMY_ENTRIES * sizeof(image_draw_data));
 
-    if (!tmp_data || ENEMY_INDEX_SIZE != io_read_file_part_into_buffer(
+    if (!tmp_data || !draw_data || ENEMY_INDEX_SIZE != io_read_file_part_into_buffer(
         filename_idx, MAY_BE_LOCALIZED, tmp_data, ENEMY_INDEX_SIZE, ENEMY_INDEX_OFFSET)) {
         free(tmp_data);
         free_draw_data(draw_data, ENEMY_ENTRIES);
         return 0;
     }
+    memset(draw_data, 0, ENEMY_ENTRIES * sizeof(image_draw_data));
 
     buffer buf;
     buffer_init(&buf, tmp_data, ENEMY_INDEX_SIZE);

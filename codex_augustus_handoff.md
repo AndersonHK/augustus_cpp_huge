@@ -8,7 +8,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Reason: the current arc now spans VS/MSBuild repair, mixed C/C++ migration, asset-pack precedence, load-failure doctrine, renderer backend refactor, shared UI runtime rollout, BuildingType graphics migration, typed water access, and animation ownership cleanup.
 - Session bootstrap:
   - read the four core Codex memory files first
-  - then read task-specific docs such as `docs/walker_pathing_runtime.md`, `docs/water_access_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, `Mods/Vespasian/BuildingType/_README.md`, `Mods/Vespasian/HousingType/_README.md`, `docs/save_load_runtime_bridges.md`, `docs/building_type_legacy_reference_ledger.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
+  - then read task-specific docs such as `docs/graphics_extraction_pipeline.md`, `docs/walker_pathing_runtime.md`, `docs/water_access_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, `Mods/Vespasian/BuildingType/_README.md`, `Mods/Vespasian/HousingType/_README.md`, `docs/save_load_runtime_bridges.md`, `docs/building_type_legacy_reference_ledger.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
   - when adding a new system doc, link it from the most relevant core memory file and from nearby subsystem READMEs so it is findable without crowding this file
 - The next chat should begin from the current renderer baseline:
   - request-based 2D backend active
@@ -29,7 +29,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Recently added gameplay runtime context
 - Native walker definitions now use FigureType XML for the currently ported service walkers.
-- Native BuildingType XML now owns full bundled house chains for Vespasian, Augustus, and Julius; HousingType XML owns resident class and shared residential model data while BuildingType owns footprint, graphics, and transitions.
+- Native BuildingType XML now owns full bundled house chains for Vespasian, Augustus, and Julius. BuildingType owns footprint, capacity, graphics, and transitions.
+- HousingType XML owns resident class and shared residential requirement/tax/prosperity data.
 - Water access is XML-owned through `Mods/<Mod>/WaterAccessType/*.xml` plus each BuildingType's `<water_access>` rules. Runtime state is a `uint8_t` mask, and provider/consumer logic now flows through typed rules instead of hardcoded well/fountain/reservoir/aqueduct/latrine branches.
 - Building graphics animation ownership has been split out to `src/building/animations.h/.cpp`. Live native graphics, legacy overlay animation calls, and placement ghost previews all ask `BuildingAnimation` for frame selection so runtime drawing does not duplicate animation state policy.
 - Main implementation notes live in:
@@ -69,9 +70,21 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Canonical graphics extraction is now load-bearing for the building runtime:
   - `src/core/legacy_image_extractor.cpp`
   - `src/assets/augustus_asset_extractor.cpp`
+- The durable current extractor handoff is `docs/graphics_extraction_pipeline.md`. Read it before changing generated graphics, BuildingType graphics targets, or `AugustusGraphicsExtractor.exe`.
+- Julius and Augustus extraction are parallel problems with shared helper code, not one monolithic extractor:
+  - Julius is stable and atlas-table driven.
+  - Augustus is dynamic and packaged under the game folder `assets\Graphics`.
+  - Runtime extraction runs Julius first from `src/core/image.c` through `runtime_graphics_extraction_bootstrap_after_climate(...)`, then Augustus through `RuntimeGraphicsExtractionService`.
+  - The standalone `AugustusGraphicsExtractor.exe` can run from the repo and accepts `--extract-julius-first`, `--game-root`, `--source-graphics`, `--output`, and `--julius-graphics`.
+- A clean generated Release stack should contain `Mods\Julius\Graphics` and `Mods\Augustus\Graphics`, but no `Mods\Vespasian\Graphics`.
+- Current clean sample extraction baseline:
+  - Julius: 231 XML, 8933 PNG, 8465 logical images
+  - Augustus: 3200 XML, 4088 PNG, 3259 logical images
+  - BuildingType graphics refs: 494 explicit path/image refs plus 152 button icon refs checked across Augustus and Vespasian BuildingType XML, 646 total, 0 missing; button `icon` values are generated graphics group keys and optional `icon_image` values pin image ids.
 - The recent native building graphics glitch was fixed at extraction time, not by changing final draw math:
   - Julius footprint exports now trim bottom transparent padding and preserve logical placement through XML metadata
   - Augustus active building variants now inherit local `group="this"` footprint/top parts instead of collapsing to footprint-only
+- Julius `Aesthetics\House_Tent` intentionally exposes `Image_0000..Image_0005`; `Image_0001..Image_0005` are compatibility aliases into `Aesthetics\House_Tent_Variants`, because the legacy table splits those tent variants through unnamed group id 18.
 - Native building footprint rendering still routes through `src/widget/city_draw.cpp`, and native-owned buildings only submit their whole-building footprint on the owning draw tile.
 - The temporary runtime footprint crop/offset compensation was removed from `src/assets/image_group_payload_materialize.cpp`; extractor output is now the sole source of truth for the corrected placement.
 - Native building animations now tick through `city_draw_runtime_building_animation()` -> `building_runtime_advance_graphic_animation()` -> `building_runtime::advance_graphic_animation()` -> `BuildingAnimation::runtime_track_offset()`. `graphic_animation()` only reads the selected frame slice.

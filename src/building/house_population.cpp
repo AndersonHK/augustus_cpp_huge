@@ -10,7 +10,6 @@ extern "C" {
 #include "city/message.h"
 #include "city/migration.h"
 #include "city/population.h"
-#include "core/calc.h"
 #include "figuretype/migrant.h"
 }
 
@@ -22,6 +21,14 @@ static int house_is_plebeian(const building *b)
 static int house_is_patrician(const building *b)
 {
     return building_house_has_patrician_residents(b);
+}
+
+static building_type housing_capacity_type(const building *house)
+{
+    if (house->type == BUILDING_HOUSE_VACANT_LOT && house->house_population == 0) {
+        return building_type_registry_get_vacant_lot_fill_type();
+    }
+    return house->type;
 }
 
 int house_population_add_to_city(int num_people)
@@ -36,11 +43,11 @@ int house_population_add_to_city(int num_people)
         if (b->state == BUILDING_STATE_IN_USE && b->house_size
             && b->distance_from_entry > 0 && b->house_population > 0) {
             city_population_set_last_used_house_add(building_id);
-            int max_people = house_population_get_capacity(b);
-            if (b->house_population < max_people) {
+            int capacity = house_population_get_capacity(b);
+            if (b->house_population < capacity) {
                 ++added;
                 ++b->house_population;
-                b->house_population_room = max_people - b->house_population;
+                b->house_population_room = capacity - b->house_population;
             }
         }
     }
@@ -76,21 +83,18 @@ int house_population_remove_from_city(int num_people)
 
 int house_population_get_capacity(building *house)
 {
-    const model_house *housing_model = building_house_get_model(house);
-    int max_pop = housing_model ? housing_model->max_people : 0;
-
-    if (house->house_is_merged && !building_type_registry_has_housing(house->type)) {
-        max_pop *= 4;
-    } else if (building_type_registry_has_housing(house->type) && house->house_size > 1) {
-        max_pop *= house->house_size * house->house_size;
-    }
+    // This is the single runtime capacity path for houses; XML load has already
+    // rejected residential BuildingTypes without an authored whole-building capacity.
+    // Empty vacant lots borrow the capacity of the validated first-occupancy
+    // house so immigration can target them before they transform into housing.
+    int capacity = building_type_registry_get_housing_capacity(housing_capacity_type(house));
 
     // Neptune module 2 bonus
     if (building_monument_gt_module_is_active(NEPTUNE_MODULE_2_CAPACITY_AND_WATER) &&
         house->data.house.temple_neptune) {
-        max_pop += (max_pop + 1) / 20;
+        capacity += (capacity + 1) / 20;
     }
-    return max_pop;
+    return capacity;
 }
 
 void house_population_update_room(void)
@@ -104,9 +108,9 @@ void house_population_update_room(void)
         }
         b->house_population_room = 0;
         if (b->distance_from_entry > 0) {
-            int max_pop = house_population_get_capacity(b);
-            city_population_add_capacity(b->house_population, max_pop);
-            b->house_population_room = max_pop - b->house_population;
+            int capacity = house_population_get_capacity(b);
+            city_population_add_capacity(b->house_population, capacity);
+            b->house_population_room = capacity - b->house_population;
             if (b->house_population > b->house_highest_population) {
                 b->house_highest_population = b->house_population;
             }

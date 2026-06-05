@@ -17,7 +17,7 @@
             <image value="Image_0001" />
         </default>
     </graphics>
-    <housing path="house_luxury_palace" devolve_to="house_large_palace" />
+    <housing path="house_luxury_palace" capacity="200" devolve_to="house_large_palace" />
     <spawn_group road_access="normal" delay_bands="100:0">
         <spawn mode="service_roamer" spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
     </spawn_group>

@@ -127,7 +127,8 @@ Current supported `<button>` attributes:
 
 - `group="..."` stores the target build submenu key
 - `order="N"` stores generated button ordering
-- `icon="..."` stores the generated button icon key
+- `icon="..."` stores the generated button icon graphics group key
+- `icon_image="..."` optionally stores the image id inside that group; if omitted, runtime uses the group's default image
 - `text_key="..."` optionally overrides the button text key; otherwise generated UI can use `<identity name_key="...">`
 
 `<menu>` is accepted as a temporary alias for `<button>` only during this migration slice. Prefer `<button>` in new XML.
@@ -252,17 +253,6 @@ Graphics target examples:
 </graphics>
 ```
 
-```xml
-<graphics>
-    <default>
-        <options selection="stable_variant">
-            <option path="Aesthetics\House_Tent" image="Image_0000" />
-            <option path="Aesthetics\House_Tent" image="Image_0001" />
-        </options>
-    </default>
-</graphics>
-```
-
 Structured `<graphics>` rules:
 
 - `<default>` is required
@@ -353,12 +343,14 @@ Current supported `<production_methods>` child nodes:
 Current supported `<housing>` attributes:
 
 - `path="..."` references a `HousingType` definition
+- `capacity="N"` is required and stores the complete building's residential capacity
 - `evolve_to="..."`, `devolve_to="..."`, `merge_to="..."`, and `split_to="..."` are optional BuildingType text-id transitions
 
 Housing rules:
 
 - Footprint remains on BuildingType via `<model size="N" />`
-- Residential requirements, capacity, tax multiplier, prosperity, and resident class live in the referenced HousingType
+- Residential capacity is a whole-building BuildingType value; do not derive it from tile count
+- Residential requirements, tax multiplier, prosperity, and resident class live in the referenced HousingType
 - Any non-empty transition target must resolve to an existing BuildingType during load
 - Native housing BuildingTypes use their string ids directly; the compatibility layer maps those ids to legacy `house_level` values only where old runtime fields still need a level
 - Vespasian, Augustus, and Julius native house chains include every legacy level through `house_luxury_palace`; 1x1 levels define explicit `_2x2` merged BuildingTypes so save/load and evolution can choose by string id plus footprint.

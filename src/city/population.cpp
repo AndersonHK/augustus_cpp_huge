@@ -53,10 +53,10 @@ void city_population_clear_capacity(void)
     city_data.population.room_in_houses = 0;
 }
 
-void city_population_add_capacity(int people_in_house, int max_people)
+void city_population_add_capacity(int people_in_house, int capacity)
 {
-    city_data.population.total_capacity += max_people;
-    city_data.population.room_in_houses += max_people - people_in_house;
+    city_data.population.total_capacity += capacity;
+    city_data.population.room_in_houses += capacity - people_in_house;
 }
 
 static void recalculate_population(void)

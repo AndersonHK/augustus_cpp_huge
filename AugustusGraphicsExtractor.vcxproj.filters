@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Tools">
+      <UniqueIdentifier>{B30C1654-5E40-472B-A19A-97444A49D020}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Extractor">
+      <UniqueIdentifier>{7D0B97F1-5369-40B1-9D14-47EBF712013A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Core">
+      <UniqueIdentifier>{1D6AD5C5-4A28-48ED-A637-95472208727B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{3527AEBC-A603-4FFB-B56D-481D462E4D54}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="tools\augustus_graphics_extractor\main.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="tools\augustus_graphics_extractor\extractor_shims.cpp">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="tools\augustus_graphics_extractor\miniz_impl.c">
+      <Filter>Tools</Filter>
+    </ClCompile>
+    <ClCompile Include="src\assets\augustus_asset_extractor.cpp">
+      <Filter>Extractor</Filter>
+    </ClCompile>
+    <ClCompile Include="src\assets\augustus_julius_template_resolver.cpp">
+      <Filter>Extractor</Filter>
+    </ClCompile>
+    <ClCompile Include="src\assets\graphics_extractor_common.cpp">
+      <Filter>Extractor</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\buffer.c">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\image.c">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\image_packer.c">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\io.c">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\legacy_image_extractor.cpp">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\png_read.c">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\core\xml_parser.c">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\renderer.c">
+      <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="ext\sxml\sxml.c">
+      <Filter>External</Filter>
+    </ClCompile>
+    <ClCompile Include="ext\spng\spng.c">
+      <Filter>External</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\assets\augustus_asset_extractor.h">
+      <Filter>Extractor</Filter>
+    </ClInclude>
+    <ClInclude Include="src\assets\augustus_julius_template_resolver.h">
+      <Filter>Extractor</Filter>
+    </ClInclude>
+    <ClInclude Include="src\assets\graphics_extractor_common.h">
+      <Filter>Extractor</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

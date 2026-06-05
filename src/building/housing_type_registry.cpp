@@ -32,7 +32,6 @@ struct ParseState {
     int saw_evolution = 0;
     int saw_requirements = 0;
     int saw_prosperity = 0;
-    int saw_capacity = 0;
     int saw_tax = 0;
     int error = 0;
 };
@@ -362,20 +361,6 @@ int parse_prosperity()
     return 1;
 }
 
-int parse_capacity()
-{
-    int value = 0;
-    if (!g_parse_state.definition || g_parse_state.saw_capacity ||
-        !parse_non_negative_attribute("capacity", "value", &value) || value <= 0) {
-        log_error("Unsupported HousingType capacity", 0, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    g_parse_state.definition->set_capacity(value);
-    g_parse_state.saw_capacity = 1;
-    return 1;
-}
-
 int parse_tax()
 {
     int value = 0;
@@ -395,22 +380,8 @@ const xml_parser_element XML_ELEMENTS[] = {
     {"evolution", parse_evolution, nullptr, "housing_type", nullptr},
     {"requirements", parse_requirements, nullptr, "housing_type", nullptr},
     {"prosperity", parse_prosperity, nullptr, "housing_type", nullptr},
-    {"capacity", parse_capacity, nullptr, "housing_type", nullptr},
     {"tax", parse_tax, nullptr, "housing_type", nullptr}
 };
-
-int validate_definition(const HousingType &definition, const char *filename)
-{
-    if (definition.resident_class() == HousingResidentClass::None) {
-        error_context_report_error("HousingType residents class is required.", filename);
-        return 0;
-    }
-    if (definition.model().max_people <= 0) {
-        error_context_report_error("HousingType capacity must be positive.", filename);
-        return 0;
-    }
-    return 1;
-}
 
 int parse_definition_file(const char *filename, const char *definition_path)
 {
@@ -434,14 +405,10 @@ int parse_definition_file(const char *filename, const char *definition_path)
     xml_parser_free();
     if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_residents ||
         !g_parse_state.saw_evolution || !g_parse_state.saw_requirements || !g_parse_state.saw_prosperity ||
-        !g_parse_state.saw_capacity || !g_parse_state.saw_tax) {
+        !g_parse_state.saw_tax) {
         error_context_report_error("Unable to parse HousingType xml.", filename);
         return 0;
     }
-    if (!validate_definition(*g_parse_state.definition, filename)) {
-        return 0;
-    }
-
     const std::string key = g_parse_state.definition->path();
     if (g_housing_types.find(key) != g_housing_types.end()) {
         log_error("Duplicate HousingType definition path", key.c_str(), 0);

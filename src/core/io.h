@@ -9,6 +9,10 @@
  * I/O functions.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Reads the entire file into the buffer
  * @param filepath File to read
@@ -37,3 +41,7 @@ int io_read_file_part_into_buffer(const char *filepath, int localizable, void *b
  * @return Number of bytes written
  */
 int io_write_buffer_to_file(const char *filepath, const void *buffer, size_t size);
+
+#ifdef __cplusplus
+}
+#endif

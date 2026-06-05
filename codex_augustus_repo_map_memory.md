@@ -111,13 +111,27 @@ Important architectural note:
   - bridges legacy image ids to asset-backed images
 
 ### Canonical extractor / building graphics seams
+- `docs/graphics_extraction_pipeline.md`
+  - current extractor handoff, standalone CLI usage, output contract, known residual generated-reference buckets, and clean validation commands
 - `src/core/legacy_image_extractor.cpp`
   - canonical Julius extraction
+  - exposes `LegacyClimateAtlas`, `JuliusExtractor`, and `GroupImageKey` through the C++ header while retaining narrow C bridges
   - trims bottom transparent padding from isometric footprint PNG exports while preserving logical placement through exported XML height / layer `y`
+  - exports split-aware compatibility aliases for legacy visible ranges such as `Aesthetics\House_Tent/Image_0001..Image_0005`
+  - exposes native `JuliusExtractor::resolveLegacyGroup()` and `JuliusExtractor::resolveLegacyImage()` so Augustus numeric references resolve to canonical split group/image keys
 - `src/assets/augustus_asset_extractor.cpp`
   - canonical Augustus extraction
-  - rewrites numeric Julius references through canonical group keys
-  - now resolves same-group `group="this"` part inheritance recursively so active Augustus ON variants preserve both footprint and top slices
+  - exposes `ExtractorPaths`, `ExtractorOptions`, `ExtractionReport`, `AugustusExtractor`, and `RuntimeGraphicsExtractionService`; runtime C calls forward through the service
+  - reads packaged game-folder `assets\Graphics` XML/PNG atlases and exports per-group XML plus per-image PNGs under `Mods\Augustus\Graphics`
+  - rewrites numeric Julius references through canonical split-aware group/image keys
+  - resolves same-group `group="this"` part inheritance recursively so active Augustus ON variants preserve both footprint and top slices
+  - keeps alias groups for source-visible wrapper names instead of skipping collisions silently
+- `src/assets/augustus_julius_template_resolver.cpp`
+  - class-based `JuliusTemplateCatalog` parses extracted Julius XML templates for Augustus reference translation and next generated `Image_####` id discovery
+- `src/assets/graphics_extractor_common.cpp`
+  - shared path/key/file helpers and the extractor-owned `XmlReader`/`XmlElement` parser used by the Julius/Augustus extraction split
+- `tools/augustus_graphics_extractor/main.cpp`
+  - standalone `AugustusGraphicsExtractor.exe` CLI for clean repo-side extraction tests
 - `src/assets/image_group_payload_materialize.cpp`
   - runtime composition/materialization seam for extracted graphics
   - no longer carries the temporary runtime footprint crop/offset workaround; extractor output now defines placement semantics
@@ -253,7 +267,7 @@ Water access motive:
 - `docs/water_access_runtime.md`
   - current architecture and call chains for WaterAccessType XML, BuildingType water rules, fixed-point propagation, aqueduct/reservoir behavior, overlays, save bridges, and compatibility mirrors
 - `Mods/Vespasian/HousingType/_README.md`
-  - current XML contract for residential requirements, resident class, capacity, prosperity, tax multiplier, and legacy house-level compatibility
+  - current XML contract for residential requirements, resident class, prosperity, tax multiplier, and legacy house-level compatibility
 - `research/caesar3_julius_housing_progression_defaults.md`
   - Caesar III / Julius house capacities, footprints, service gates, desirability thresholds, graphics references, and tuning degrees of freedom
 - `research/caesar3_housing_balance_play_analysis.md`
@@ -264,7 +278,8 @@ Water access motive:
   - save-local BuildingType id table, old raw-id migration, native graphics variant normalization, and post-load runtime wrapper rebuilding
 - `docs/gameplay_divergences_from_augustus.md`
   - living gameplay ledger for project-wide, bundled-Augustus, and Vespasian-only differences from upstream Augustus
-- Vespasian, Augustus, and Julius now define the full native house chain from `house_small_tent` through `house_luxury_palace`. BuildingType owns footprint, graphics, transitions, and runtime identity; HousingType owns shared residential model data and resident class.
+- Vespasian, Augustus, and Julius now define the full native house chain from `house_small_tent` through `house_luxury_palace`. BuildingType owns footprint, capacity, graphics, transitions, and runtime identity.
+- HousingType owns shared residential requirement/tax/prosperity data and resident class.
 - Legacy `house_level` remains a compatibility value for old save migration, old city-stat arrays, and UI/stat surfaces that still need a level-like key.
 
 Pattern:

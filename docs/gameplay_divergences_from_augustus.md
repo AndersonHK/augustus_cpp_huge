@@ -104,6 +104,7 @@ These are likely places to check before claiming the divergence list is complete
 
 - Building costs, labor counts, and footprint changes in `Mods/Vespasian/BuildingType`.
 - Production rates and resource costs in `Mods/Vespasian/ProductionMethod`.
-- Housing capacity, prosperity, resident class, tax multipliers, and evolution gates in `Mods/Vespasian/HousingType`.
+- Housing capacity in `Mods/Vespasian/BuildingType`.
+- Prosperity, resident class, tax multipliers, and evolution gates in `Mods/Vespasian/HousingType`.
 - Service and walker lifetime values after each new FigureType migration.
 - Any future upstream Augustus commits that add slow beggar repositioning or other residential walker changes.

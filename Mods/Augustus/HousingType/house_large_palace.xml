@@ -6,6 +6,5 @@
         barber="1" bathhouse="1" health="2" food_types="3"
         pottery="1" oil="1" furniture="1" wine="2" />
     <prosperity value="1500" />
-    <capacity value="190" />
     <tax multiplier="15" />
 </housing_type>

@@ -38,7 +38,6 @@ public:
     void set_furniture(int value);
     void set_wine(int value);
     void set_prosperity(int value);
-    void set_capacity(int value);
     void set_tax_multiplier(int value);
 
     const model_house &model() const;
