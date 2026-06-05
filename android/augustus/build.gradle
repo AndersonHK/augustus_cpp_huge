@@ -2,66 +2,20 @@ apply plugin: 'com.android.application'
 // apply plugin: 'com.github.triplet.play'
 
 tasks.register('getVersion') {
-    def cmakeFile = rootProject.file("../CMakeLists.txt").text
-    def versionMajor = (cmakeFile =~ /set\(PROJECT_VERSION_MAJOR (\d+)\)/)[0][1].toInteger()
-    def versionMinor = (cmakeFile =~ /set\(PROJECT_VERSION_MINOR (\d+)\)/)[0][1].toInteger()
-    def versionPatch = (cmakeFile =~ /set\(PROJECT_VERSION_PATCH (\d+)\)/)[0][1].toInteger()
-    def isRelease = (cmakeFile =~ /set\(IS_RELEASE_VERSION ([A-Z]+)\)/)[0][1].toBoolean()
-
-    def versionTweak = 0
-    def versionDetail
-    if (isRelease) {
-        versionDetail = ""
-    } else {
-        try {
-            def stdout = new ByteArrayOutputStream()
-            def stderr = new ByteArrayOutputStream()
-
-            def tweakResult = exec {
-                commandLine "git", "rev-list", "--count", "HEAD", "^tags/v${versionMajor}.${versionMinor}.${versionPatch}"
-                workingDir = "../.."
-                standardOutput = stdout
-                errorOutput = stderr
-                ignoreExitValue = true
-            }.exitValue
-
-            versionTweak = stdout.toString().trim().toInteger()
-            stdout.reset()
-
-            def lastCommitResult = exec {
-                commandLine "git", "rev-parse", "--short", "--verify", "HEAD"
-                workingDir "../.."
-                standardOutput = stdout
-                errorOutput = stderr
-                ignoreExitValue = true
-            }.exitValue
-            def versionCommit = stdout.toString().trim()
-
-            def isDirty = exec {
-                commandLine "git", "diff-index", "--quiet", "HEAD", "--"
-                workingDir "../.."
-                ignoreExitValue = true
-            }.exitValue
-
-            versionDetail = ""
-            if (tweakResult == 0) {
-                versionDetail += ".$versionTweak"
-            }
-            if (lastCommitResult == 0) {
-                versionDetail += "-$versionCommit"
-            }
-            if (isDirty) {
-                versionDetail += "-dirty"
-            }
-        } catch (ignored) {
-            versionDetail = " unknown development version"
-        }
+    def versionFile = rootProject.file("../res/version.txt")
+    def versionText = versionFile.exists() ? versionFile.text.trim() : "0.0.0"
+    def versionMajor = 0
+    def versionMinor = 0
+    def versionPatch = 0
+    def versionMatch = versionText =~ /(\d+)\.(\d+)\.(\d+)/
+    if (versionMatch.find()) {
+        versionMajor = versionMatch.group(1).toInteger()
+        versionMinor = versionMatch.group(2).toInteger()
+        versionPatch = versionMatch.group(3).toInteger()
     }
 
-    def versionNumber = "${versionMajor}.${versionMinor}.${versionPatch}"
-
-    ext.versionCode = versionMajor * 10000000 + versionMinor * 100000 + versionPatch * 1000 + versionTweak
-    ext.versionName = versionNumber + versionDetail
+    ext.versionCode = versionMajor * 10000000 + versionMinor * 100000 + versionPatch * 1000
+    ext.versionName = versionText
 }
 
 android {
@@ -77,12 +31,6 @@ android {
         versionName getVersion.versionName
         versionCode getVersion.versionCode
 
-        externalNativeBuild {
-            cmake {
-                version "3.31.5"
-                arguments "-DAV1_VIDEO_SUPPORT=ON", "-DTARGET_PLATFORM=android", "-DSYSTEM_LIBS=OFF","-DANDROID_STL=c++_shared"
-            }
-        }
         ndk {
             abiFilters 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
         }
@@ -116,7 +64,6 @@ android {
         debug {
             ext.alwaysUpdateBuildId = false
             applicationIdSuffix ".debug"
-            externalNativeBuild.cmake.arguments += "-DDRAW_FPS=1"
             if (file('libs/SDL2-debug.aar').exists()) {
                 println 'Using pre-packed SDL2 Debug AAR'
                 rootProject.ext.usingAAR = true
@@ -132,12 +79,6 @@ android {
                 rootProject.ext.usingAAR = true
                 dependencies.releaseImplementation files('libs/SDL2-release.aar')
             }
-        }
-    }
-    externalNativeBuild {
-        cmake {
-            version "3.31.5"
-            path "../../CMakeLists.txt"
         }
     }
     namespace 'com.github.Keriew.augustus'

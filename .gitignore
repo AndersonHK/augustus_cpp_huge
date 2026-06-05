@@ -3,8 +3,6 @@
 *.kdev4
 .vs
 .vscode
-/CMakeSettings.json*
-/CMakePresets.json*
 
 # Generated resources
 src/platform/version.c
@@ -19,7 +17,6 @@ res/packed_assets/
 /build*/
 /release
 out/
-cmake-build-debug
 /data
 ext/SDL2/*/
 *~
@@ -30,7 +27,6 @@ ext/mpg123*
 # Asset packer
 /res/asset_packer*/build*/
 /res/asset_packer/.ionide/
-/res/asset_packer/CMakeSettings.json*
 
 # Android
 *.iml
@@ -38,9 +34,7 @@ ext/mpg123*
 local.properties
 .DS_Store
 /captures
-.externalNativeBuild
 .idea
-.cxx/
 *.log
 /android/build/
 /android/*/build/

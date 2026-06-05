@@ -12,7 +12,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - `x64/`, `.vs/`, local output folders - local build state only
 
 ## Build/project facts
-- There is no active root-CMake workflow to center normal work around.
+- The active local build workflow is the root Visual Studio/MSBuild project.
 - The Visual Studio solution/project at repo root is the build path that matters.
 - `res/augustus.rc` is part of the project and provides the executable icon/resource wiring.
 
