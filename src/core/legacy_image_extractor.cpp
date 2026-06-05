@@ -13,11 +13,12 @@ extern "C" {
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace {
 
-constexpr char kExtractionStampPrefix[] = "legacy_extract_v6:";
+constexpr char kExtractionStampPrefix[] = "legacy_extract_v8:";
 struct LegacyFamily {
     const char *folder_name;
 };
@@ -49,32 +50,11 @@ constexpr LegacyFamily kFonts { "Fonts" };
 constexpr LegacyFamily kFx { "FX" };
 constexpr LegacyFamily kPaperMap { "PaperMap" };
 constexpr LegacyFamily kMap { "Map" };
-constexpr LegacyFamily kLoadingScreens { "LoadingScreens" };
-constexpr LegacyFamily kPortraits { "Portraits" };
 constexpr LegacyFamily kEnvironment { "Environment" };
-constexpr LegacyFamily kBuildings { "Buildings" };
 
-constexpr const LegacyFamily *kAllFamilies[] = {
-    &kAdminLogistics,
-    &kAesthetics,
-    &kHealthCulture,
-    &kIndustry,
-    &kMilitary,
-    &kMonuments,
-    &kShips,
-    &kTerrainMaps,
-    &kUi,
-    &kWalkers,
-    &kWarriors,
-    &kFonts,
-    &kFx,
-    &kPaperMap,
-    &kMap,
-    &kLoadingScreens,
-    &kPortraits,
-    &kEnvironment,
-    &kBuildings
-};
+constexpr int kLegacyHouseTentVariantsGroup = 18;
+
+std::vector<LegacyGroupRange> g_extracted_group_ranges;
 
 static bool is_placeholder_main_image(int image_id)
 {
@@ -231,6 +211,7 @@ static std::string make_group_folder_name(int group_id)
         case GROUP_SELECT_MISSION_BUTTON: return "Select_Mission_Button";
 
         case GROUP_BUILDING_TOWER: return "Tower";
+        case kLegacyHouseTentVariantsGroup: return "House_Tent_Variants";
         case GROUP_BUILDING_AQUEDUCT: return "Aqueduct";
         case GROUP_BUILDING_MARKET: return "Market";
         case GROUP_BUILDING_WELL: return "Well";
@@ -574,16 +555,31 @@ static std::vector<LegacyGroupRange> build_group_ranges(
             continue;
         }
 
-        // Caesar's house table addresses tent variants past the nominal next group
-        // boundary, so keep the semantic tent set together for native house XML.
-        if (group_id == GROUP_BUILDING_HOUSE_TENT && next_first_image_id < first_image_id + 6 &&
-            first_image_id + 5 < image_count) {
-            next_first_image_id = first_image_id + 6;
-        }
-
         ranges.push_back({ group_id, first_image_id, next_first_image_id - 1 });
     }
     return ranges;
+}
+
+static const LegacyGroupRange *find_range_for_group(const std::vector<LegacyGroupRange> &ranges, int group_id)
+{
+    for (const LegacyGroupRange &range : ranges) {
+        if (range.group_id == group_id) {
+            return &range;
+        }
+    }
+    return nullptr;
+}
+
+static const LegacyGroupRange *find_range_for_absolute_image(
+    const std::vector<LegacyGroupRange> &ranges,
+    int absolute_image_id)
+{
+    for (const LegacyGroupRange &range : ranges) {
+        if (absolute_image_id >= range.first_image_id && absolute_image_id <= range.last_image_id) {
+            return &range;
+        }
+    }
+    return nullptr;
 }
 
 static std::vector<std::string> read_manifest_entries(void)
@@ -751,7 +747,7 @@ static const LegacyFamily &family_for_building_group(int group_id)
             return kMonuments;
 
         default:
-            return kBuildings;
+            return kUi;
     }
 }
 
@@ -803,12 +799,6 @@ static const LegacyFamily &family_for_other_group(int group_id)
         case GROUP_FONT:
             return kFonts;
 
-        case GROUP_MAIN_MENU_BACKGROUND:
-        case GROUP_WIN_GAME_BACKGROUND:
-        case GROUP_LOADING_SCREEN:
-        case GROUP_INTERMEZZO_BACKGROUND:
-            return kLoadingScreens;
-
         case GROUP_EMPIRE_MAP:
         case GROUP_EMPIRE_PANELS:
         case GROUP_EMPIRE_RESOURCES:
@@ -842,9 +832,6 @@ static const LegacyFamily &family_for_other_group(int group_id)
         case GROUP_MINIMAP_BLACK:
             return kMap;
 
-        case GROUP_BIG_PEOPLE:
-            return kPortraits;
-
         case GROUP_GOD_BOLT:
         case GROUP_PLAGUE_SKULL:
             return kFx;
@@ -861,6 +848,9 @@ static const LegacyFamily &family_for_other_group(int group_id)
 static const LegacyFamily &family_for_group(int group_id)
 {
     switch (group_id) {
+        case kLegacyHouseTentVariantsGroup:
+            return kAesthetics;
+
         case GROUP_TERRAIN_BLACK:
         case GROUP_TERRAIN_SHRUB:
         case GROUP_TERRAIN_UGLY_GRASS:
@@ -1283,8 +1273,93 @@ static void append_image_xml(
     exported_images++;
 }
 
+static std::string make_image_id(int local_index)
+{
+    char image_name_buffer[32];
+    snprintf(image_name_buffer, sizeof(image_name_buffer), "Image_%04d", local_index);
+    return image_name_buffer;
+}
+
+static int compatibility_visible_image_count(int group_id)
+{
+    switch (group_id) {
+        case GROUP_BUILDING_HOUSE_TENT:
+            return 6;
+
+        default:
+            return 0;
+    }
+}
+
+static void append_full_image_alias_xml(
+    std::string &xml,
+    int &exported_images,
+    const std::string &id,
+    const std::string &target_group,
+    const std::string &target_image,
+    const image *img)
+{
+    const int width = img->original.width > 0 ? img->original.width : img->width;
+    const int height = img->original.height > 0 ? img->original.height : img->height;
+
+    append_indent(xml, 1);
+    xml += "<image";
+    append_attribute(xml, "id", id);
+    if (width > 0) {
+        append_attribute(xml, "width", width);
+    }
+    if (height > 0) {
+        append_attribute(xml, "height", height);
+    }
+    if (img->is_isometric) {
+        append_attribute(xml, "isometric", "true");
+    }
+    append_attribute(xml, "group", target_group);
+    append_attribute(xml, "image", target_image);
+    xml += "/>\n";
+    exported_images++;
+}
+
+static void append_compatibility_aliases(
+    std::string &xml,
+    int &exported_images,
+    const image *images,
+    const LegacyGroupRange &range,
+    const std::vector<LegacyGroupRange> &ranges,
+    std::unordered_set<int> &exported_local_indices)
+{
+    const int visible_image_count = compatibility_visible_image_count(range.group_id);
+    if (visible_image_count <= 0) {
+        return;
+    }
+
+    for (int legacy_offset = 0; legacy_offset < visible_image_count; ++legacy_offset) {
+        if (exported_local_indices.find(legacy_offset) != exported_local_indices.end()) {
+            continue;
+        }
+
+        const int absolute_image_id = range.first_image_id + legacy_offset;
+        const LegacyGroupRange *target_range = find_range_for_absolute_image(ranges, absolute_image_id);
+        if (!target_range) {
+            continue;
+        }
+
+        const image *img = &images[absolute_image_id];
+        if (is_placeholder_main_image(absolute_image_id) || !is_exportable_main_image(img)) {
+            continue;
+        }
+
+        const LegacyFamily &target_family = family_for_group(target_range->group_id);
+        const std::string target_group = make_group_assetlist_name(target_family, target_range->group_id);
+        const std::string target_image = make_image_id(absolute_image_id - target_range->first_image_id);
+        append_full_image_alias_xml(xml, exported_images, make_image_id(legacy_offset), target_group, target_image, img);
+        exported_local_indices.insert(legacy_offset);
+    }
+}
+
 static bool export_group(
     const image *images,
+    const std::vector<LegacyGroupRange> &ranges,
     const LegacyGroupRange &range,
     const image_atlas_data *atlas_data,
     std::vector<std::string> &manifest_entries,
@@ -1292,7 +1367,6 @@ static bool export_group(
 {
     const LegacyFamily &family = family_for_group(range.group_id);
     const std::string group_directory = make_group_directory(family, range.group_id);
-    ensure_directory(group_directory);
 
     const std::string assetlist_name = make_group_assetlist_name(family, range.group_id);
     const std::string xml_path = make_group_xml_path(family, range.group_id);
@@ -1301,6 +1375,7 @@ static bool export_group(
     append_attribute(xml, "name", assetlist_name);
     xml += ">\n";
     int exported_images = 0;
+    std::unordered_set<int> exported_local_indices;
 
     for (int image_id = range.first_image_id; image_id <= range.last_image_id; ++image_id) {
         if (is_placeholder_main_image(image_id)) {
@@ -1313,10 +1388,7 @@ static bool export_group(
         }
 
         const int local_index = image_id - range.first_image_id;
-        char image_name_buffer[32];
-        snprintf(image_name_buffer, sizeof(image_name_buffer), "Image_%04d", local_index);
-
-        const std::string image_name = image_name_buffer;
+        const std::string image_name = make_image_id(local_index);
         const std::vector<color_t> pixels = extract_full_canvas(img, atlas_data);
         if (pixels.empty()) {
             continue;
@@ -1340,6 +1412,7 @@ static bool export_group(
             ? footprint_export.trimmed_bottom_rows
             : 0;
         const std::string image_path = group_directory + "/" + image_name + ".png";
+        ensure_directory(group_directory);
         if (!write_png(image_path, footprint_export.pixels.data(), width, footprint_export.height)) {
             log_error("Failed to write Julius PNG", image_path.c_str(), 0);
             return false;
@@ -1369,12 +1442,13 @@ static bool export_group(
             img,
             exported_image_height,
             footprint_layer_y);
+        exported_local_indices.insert(local_index);
     }
+
+    append_compatibility_aliases(xml, exported_images, images, range, ranges, exported_local_indices);
 
     xml += "</assetlist>\n";
     if (exported_images <= 0) {
-        platform_file_manager_remove_file(xml_path.c_str());
-        platform_file_manager_remove_directory(group_directory.c_str());
         return true;
     }
     if (!write_text_file(xml_path, xml)) {
@@ -1402,6 +1476,9 @@ extern "C" int legacy_image_extractor_extract_climate(
         return 0;
     }
 
+    const std::vector<LegacyGroupRange> ranges = build_group_ranges(group_image_ids, group_count, image_count);
+    g_extracted_group_ranges = ranges;
+
     std::string existing_stamp;
     const int has_existing_stamp = read_text_file(make_stamp_path(), existing_stamp);
     const std::string expected_stamp = make_stamp_contents(
@@ -1417,24 +1494,19 @@ extern "C" int legacy_image_extractor_extract_climate(
         log_info("Extracting Julius graphics because the legacy source fingerprint or XML metadata version changed", source_name, 0);
     }
 
-    ensure_directory(mod_manager_get_julius_graphics_path());
-    for (const LegacyFamily *family : kAllFamilies) {
-        ensure_directory(make_family_root_directory(*family));
-    }
-
     log_info("Starting Julius legacy graphics extraction", source_name, 0);
     clear_existing_output();
 
-    const std::vector<LegacyGroupRange> ranges = build_group_ranges(group_image_ids, group_count, image_count);
     std::vector<std::string> manifest_entries;
     ExtractionStats stats;
     for (const LegacyGroupRange &range : ranges) {
-        if (!export_group(images, range, atlas_data, manifest_entries, stats)) {
+        if (!export_group(images, ranges, range, atlas_data, manifest_entries, stats)) {
             log_error("Julius graphics extraction failed", source_name, 0);
             return 0;
         }
     }
 
+    ensure_directory(mod_manager_get_julius_graphics_path());
     if (!write_manifest_entries(manifest_entries)) {
         log_error("Failed to write Julius extraction manifest", make_manifest_path().c_str(), 0);
         return 0;
@@ -1470,4 +1542,35 @@ extern "C" int legacy_image_extractor_get_group_key(int group_id, char *buffer, 
 
     snprintf(buffer, buffer_size, "%s", key.c_str());
     return 1;
+}
+
+extern "C" int legacy_image_extractor_get_group_image_key(
+    int group_id,
+    int image_id,
+    char *group_buffer,
+    size_t group_buffer_size,
+    char *image_buffer,
+    size_t image_buffer_size)
+{
+    if (!group_buffer || group_buffer_size == 0 || !image_buffer || image_buffer_size == 0 || image_id < 0) {
+        return 0;
+    }
+
+    const LegacyGroupRange *source_range = find_range_for_group(g_extracted_group_ranges, group_id);
+    if (!source_range) {
+        return 0;
+    }
+
+    const int absolute_image_id = source_range->first_image_id + image_id;
+    const LegacyGroupRange *target_range = find_range_for_absolute_image(g_extracted_group_ranges, absolute_image_id);
+    if (!target_range) {
+        return 0;
+    }
+
+    if (!legacy_image_extractor_get_group_key(target_range->group_id, group_buffer, group_buffer_size)) {
+        return 0;
+    }
+
+    const int local_image_id = absolute_image_id - target_range->first_image_id;
+    return snprintf(image_buffer, image_buffer_size, "Image_%04d", local_image_id) < static_cast<int>(image_buffer_size);
 }

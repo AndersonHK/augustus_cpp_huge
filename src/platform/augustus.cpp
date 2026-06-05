@@ -1,5 +1,4 @@
 extern "C" {
-#include "assets/augustus_asset_extractor.h"
 #include "assets/assets.h"
 #include "core/config.h"
 #include "core/encoding.h"
@@ -322,13 +321,7 @@ static int bootstrap_augustus_graphics_directory(void)
 {
     ensure_graphics_directory("Mods");
     ensure_graphics_directory("Mods/Augustus");
-    if (!augustus_asset_extractor_bootstrap()) {
-        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to bootstrap Augustus graphics fallback directory");
-        platform_screen_show_error_message_box(
-            "Startup error",
-            "Failed to bootstrap Augustus graphics.\n\nMore details were written to augustus-log.txt.");
-        return 0;
-    }
+    ensure_graphics_directory(mod_manager_get_augustus_graphics_path());
     return 1;
 }
 

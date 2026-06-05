@@ -252,17 +252,6 @@ Graphics target examples:
 </graphics>
 ```
 
-```xml
-<graphics>
-    <default>
-        <options selection="stable_variant">
-            <option path="Aesthetics\House_Tent" image="Image_0000" />
-            <option path="Aesthetics\House_Tent" image="Image_0001" />
-        </options>
-    </default>
-</graphics>
-```
-
 Structured `<graphics>` rules:
 
 - `<default>` is required

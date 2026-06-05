@@ -33,17 +33,15 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - New, evolved, converted, and old-save-loaded native graphics buildings clamp or seed `building.variant` through `building_runtime_assign_graphic_variant()`.
 - Save version increased to `0xb7`; saves through `0xb6` predate native graphics variant meaning and reseed options from `map_random_get(grid_offset)` during load.
 - Vespasian, Augustus, and Julius native house BuildingTypes now use normal BuildingType graphics options for their legacy house variant tables. Julius keeps the vanilla `house_small_tent` desirability threshold from upstream `c3_model.txt` data.
-- The Julius legacy graphics extractor stamp moved to `legacy_extract_v6` and extends `GROUP_BUILDING_HOUSE_TENT` to include the merged tent images in `Aesthetics\House_Tent.xml`.
 - Conditions and stable graphics options are separate layers: conditions choose the target by live building state, then the selected target applies `building.variant` to choose among equivalent art.
 - A target may omit parent `<path>` only when every option supplies its own `path`. Load-time validation materializes each resolved option and checks the effective path/image pair.
-- The checked-in `extracted_graphics_sample\Julius\Graphics\Aesthetics\House_Tent.xml` may remain stale until extraction reruns; runtime extraction should regenerate `Image_0000` through `Image_0005`.
 
 ## 2026-05-04 payload rendering correction
 - XML `BuildingType.graphics` entries now render as `ImageGroupPayload` entries, not as legacy integer image groups.
 - `building_image_get()` is legacy-only; it must not load an XML payload and squeeze the selected image back through `assets_get_image_id_from_path_or_name`.
 - Runtime-owned buildings still populate terrain/building/multitile map bookkeeping, but `map_image` receives a neutral flat-tile sentinel while `city_draw` reads footprint/top/animation from cached `RuntimeDrawSlice` payload data.
 - `building_runtime_apply_graphic_if_native()` means "the XML runtime handled map-tile graphics ownership"; callers that get true should not immediately overwrite the tile with `building_image_get()`.
-- Native housing uses the same runtime graphics ownership as other XML BuildingTypes. House-specific image lookup must not coerce `Housing\House_Tent` XML graphics into a legacy image id; native tents install their sentinel/cache through `building_runtime_apply_graphic_if_native()` and are excluded from the legacy house image switch.
+- Native housing uses the same runtime graphics ownership as other XML BuildingTypes. House-specific image lookup must not coerce generated house graphics into a legacy image id; native houses install their sentinel/cache through `building_runtime_apply_graphic_if_native()` and are excluded from the legacy house image switch.
 - Vespasian, Augustus, and Julius native housing chains now route every house level through BuildingType graphics, from tents through luxury palace. The legacy house image table remains only for non-native/compatibility house definitions; native houses must render through the normal runtime BuildingType payload path.
 - Pottery workshops are no longer treated as graphics-data-only; their XML `Industry\Pottery_Workshop` payload is the live renderer path.
 - Runtime animation frames normalize an active XML animation to frame 1 when the saved sprite cursor is empty, so ON states that use an OFF base plus animation overlay do not flash the OFF image between animation ticks.

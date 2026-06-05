@@ -20,7 +20,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\assets\augustus_asset_extractor.cpp" />
+    <ClCompile Include="src\assets\augustus_julius_template_resolver.cpp" />
     <ClCompile Include="src\assets\assets.cpp" />
+    <ClCompile Include="src\assets\graphics_extractor_common.cpp" />
     <ClCompile Include="src\assets\group.c" />
     <ClCompile Include="src\assets\image.c" />
     <ClCompile Include="src\assets\image_group_entry.cpp" />
@@ -542,7 +544,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\assets\augustus_asset_extractor.h" />
+    <ClInclude Include="src\assets\augustus_julius_template_resolver.h" />
     <ClInclude Include="src\assets\assets.h" />
+    <ClInclude Include="src\assets\graphics_extractor_common.h" />
     <ClInclude Include="src\assets\group.h" />
     <ClInclude Include="src\assets\image.h" />
     <ClInclude Include="src\assets\image_group_entry.h" />

@@ -1,8 +1,8 @@
 #include "assets/augustus_asset_extractor.h"
 
-#include "assets/xml.h"
+#include "assets/augustus_julius_template_resolver.h"
+#include "assets/graphics_extractor_common.h"
 #include "core/crash_context.h"
-#include "core/legacy_image_extractor.h"
 
 extern "C" {
 #include "assets/assets.h"
@@ -24,6 +24,7 @@ extern "C" {
 #include <cstring>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -36,6 +37,12 @@ struct ExtractionStats {
     int groups_exported = 0;
     int images_exported = 0;
     int pngs_written = 0;
+};
+
+struct ExtractionPaths {
+    std::string source_graphics_path;
+    std::string output_graphics_path;
+    std::string julius_graphics_path;
 };
 
 struct AtlasReference {
@@ -115,71 +122,33 @@ struct OutputGroup {
     std::string group_key;
     std::string directory_path;
     std::string xml_path;
+    std::vector<std::string> alias_group_keys;
     std::vector<int> image_indices;
 };
 
-struct LegacyTemplateImage {
-    std::vector<std::string> parts;
-};
-
-struct LegacyTemplateGroup {
-    std::unordered_map<std::string, LegacyTemplateImage> images;
-};
-
 ParseState g_parse_state;
-std::unordered_map<std::string, LegacyTemplateGroup> g_legacy_template_groups;
-
-struct LegacyTemplateParseState {
-    LegacyTemplateGroup group;
-    std::string current_image_id;
-    int error = 0;
-};
-
-LegacyTemplateParseState g_legacy_template_parse_state;
 
 struct InferredPartCache {
     std::unordered_map<std::string, std::vector<std::string>> parts_by_image_id;
     std::unordered_map<std::string, int> resolution_state_by_image_id;
 };
 
-static bool load_file_to_buffer(const std::string &filename, std::vector<char> &buffer);
-static std::string make_numeric_image_id(const char *image_name);
+struct LocalReferenceTargets {
+    std::unordered_map<std::string, std::string> group_key_by_image_id;
+    std::unordered_set<std::string> ambiguous_image_ids;
+};
 
-static std::string sanitize_component(const char *text)
-{
-    if (!text || !*text) {
-        return "unnamed";
-    }
+const ExtractionPaths *g_active_paths = nullptr;
 
-    std::string sanitized;
-    sanitized.reserve(strlen(text));
-    for (const char *cursor = text; *cursor; ++cursor) {
-        const char value = *cursor;
-        const bool is_alpha = (value >= 'a' && value <= 'z') || (value >= 'A' && value <= 'Z');
-        const bool is_digit = value >= '0' && value <= '9';
-        if (is_alpha || is_digit || value == '_' || value == '-') {
-            sanitized.push_back(value);
-        } else {
-            sanitized.push_back('_');
-        }
-    }
+using graphics_extractor::append_path_component;
+using graphics_extractor::ensure_directory;
+using graphics_extractor::load_file_to_buffer;
+using graphics_extractor::normalize_key;
+using graphics_extractor::read_text_file;
+using graphics_extractor::sanitize_component;
+using graphics_extractor::write_text_file;
 
-    while (!sanitized.empty() && sanitized.back() == '_') {
-        sanitized.pop_back();
-    }
-    return sanitized.empty() ? std::string("unnamed") : sanitized;
-}
-
-static std::string normalize_key(const char *text)
-{
-    std::string normalized = text ? text : "";
-    for (char &value : normalized) {
-        if (value == '/') {
-            value = '\\';
-        }
-    }
-    return normalized;
-}
+static std::string make_generated_image_id(int image_index);
 
 static void set_crash_scope_stage(const char *stage, const char *detail)
 {
@@ -208,62 +177,62 @@ static int image_has_materialized_pixels(const AtlasImage &image_data)
     return 0;
 }
 
-static int append_path_component(char *buffer, size_t buffer_size, const char *base_path, const char *component)
+static std::string ensure_trailing_separator(std::string path)
 {
-    if (!buffer || buffer_size == 0 || !base_path || !*base_path || !component || !*component) {
-        return 0;
+    if (!path.empty() && path.back() != '/' && path.back() != '\\') {
+        path.push_back('/');
     }
-
-    const size_t base_length = strlen(base_path);
-    const int has_separator = base_length > 0 &&
-        (base_path[base_length - 1] == '/' || base_path[base_length - 1] == '\\');
-    return snprintf(buffer, buffer_size, has_separator ? "%s%s" : "%s/%s", base_path, component) <
-        static_cast<int>(buffer_size);
+    return path;
 }
 
-static std::string append_path_component(const std::string &base_path, const std::string &component)
+static std::string make_game_relative_path(const char *game_root_path, const char *relative_path)
 {
-    char buffer[FILE_NAME_MAX];
-    if (!append_path_component(buffer, sizeof(buffer), base_path.c_str(), component.c_str())) {
-        return {};
-    }
-    return buffer;
+    const std::string game_root = game_root_path && *game_root_path ? game_root_path : ".";
+    return graphics_extractor::append_path_component(game_root, relative_path ? relative_path : "");
 }
 
-static bool read_text_file(const std::string &path, std::string &contents)
+static bool build_extraction_paths(const augustus_asset_extractor_config *config, ExtractionPaths &paths)
 {
-    FILE *file = file_open(path.c_str(), "rb");
-    if (!file) {
-        contents.clear();
-        return false;
+    const char *game_root = config ? config->game_root_path : nullptr;
+    if (config && config->source_graphics_path && *config->source_graphics_path) {
+        paths.source_graphics_path = config->source_graphics_path;
+    } else {
+        paths.source_graphics_path = make_game_relative_path(game_root, ASSETS_DIR_NAME "/" ASSETS_IMAGE_PATH);
     }
 
-    char buffer[256];
-    const size_t bytes_read = fread(buffer, 1, sizeof(buffer) - 1, file);
-    buffer[bytes_read] = '\0';
-    contents.assign(buffer);
-    file_close(file);
-    return true;
-}
-
-static bool write_text_file(const std::string &path, const std::string &contents)
-{
-    FILE *file = file_open(path.c_str(), "wb");
-    if (!file) {
-        return false;
+    if (config && config->output_graphics_path && *config->output_graphics_path) {
+        paths.output_graphics_path = config->output_graphics_path;
+    } else {
+        paths.output_graphics_path = make_game_relative_path(game_root, "Mods/Augustus/Graphics");
     }
 
-    const size_t bytes_written = fwrite(contents.data(), 1, contents.size(), file);
-    file_close(file);
-    return bytes_written == contents.size();
+    if (config && config->julius_graphics_path && *config->julius_graphics_path) {
+        paths.julius_graphics_path = config->julius_graphics_path;
+    } else {
+        paths.julius_graphics_path = make_game_relative_path(game_root, "Mods/Julius/Graphics");
+    }
+
+    paths.output_graphics_path = ensure_trailing_separator(std::move(paths.output_graphics_path));
+    paths.julius_graphics_path = ensure_trailing_separator(std::move(paths.julius_graphics_path));
+    return !paths.source_graphics_path.empty() && !paths.output_graphics_path.empty();
 }
 
-static void ensure_directory(const std::string &path)
-{
-    if (!path.empty()) {
-        platform_file_manager_create_directory(path.c_str(), 0, 1);
+class ScopedExtractionPaths {
+public:
+    explicit ScopedExtractionPaths(const ExtractionPaths *paths)
+        : previous_(g_active_paths)
+    {
+        g_active_paths = paths;
     }
-}
+
+    ~ScopedExtractionPaths()
+    {
+        g_active_paths = previous_;
+    }
+
+private:
+    const ExtractionPaths *previous_ = nullptr;
+};
 
 static void hash_bytes(uint64_t &hash, const void *data_ptr, size_t size)
 {
@@ -290,7 +259,18 @@ static void hash_int64(uint64_t &hash, uint64_t value)
 
 static std::string make_augustus_graphics_root(void)
 {
+    if (g_active_paths) {
+        return g_active_paths->output_graphics_path;
+    }
     return mod_manager_get_augustus_graphics_path();
+}
+
+static std::string make_julius_graphics_root(void)
+{
+    if (g_active_paths) {
+        return g_active_paths->julius_graphics_path;
+    }
+    return mod_manager_get_julius_graphics_path();
 }
 
 static std::string make_stamp_path(void)
@@ -300,6 +280,10 @@ static std::string make_stamp_path(void)
 
 static std::string make_source_graphics_path(void)
 {
+    if (g_active_paths) {
+        return g_active_paths->source_graphics_path;
+    }
+
     char path[FILE_NAME_MAX];
     const char *asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET, 0);
     if (!append_path_component(path, sizeof(path), asset_root, ASSETS_IMAGE_PATH)) {
@@ -497,19 +481,7 @@ static int translate_reference_group_key(const AtlasReference &source_reference,
         return 0;
     }
 
-    char *end = nullptr;
-    const long numeric_group = strtol(source_reference.group.c_str(), &end, 10);
-    if (end && *end == '\0') {
-        char group_key[FILE_NAME_MAX];
-        if (!legacy_image_extractor_get_group_key(static_cast<int>(numeric_group), group_key, sizeof(group_key))) {
-            return -1;
-        }
-        translated_group_key = group_key;
-        return translated_group_key.empty() ? -1 : 1;
-    }
-
-    translated_group_key = normalize_key(source_reference.group.c_str());
-    return translated_group_key.empty() ? -1 : 1;
+    return augustus_julius_template_resolver_translate_group_key(source_reference.group, translated_group_key);
 }
 
 static void set_output_group_key(OutputGroup &output_group, const std::string &group_key)
@@ -527,6 +499,57 @@ static void set_output_group_key(OutputGroup &output_group, const std::string &g
 
     output_group.directory_path = append_path_component(make_augustus_graphics_root(), output_group.group_key);
     output_group.xml_path = append_path_component(make_augustus_graphics_root(), output_group.group_key + ".xml");
+}
+
+static void add_output_group_alias(OutputGroup &output_group, const std::string &alias_group_key)
+{
+    if (alias_group_key.empty() || alias_group_key == output_group.group_key) {
+        return;
+    }
+    if (std::find(output_group.alias_group_keys.begin(), output_group.alias_group_keys.end(), alias_group_key) !=
+        output_group.alias_group_keys.end()) {
+        return;
+    }
+    output_group.alias_group_keys.push_back(alias_group_key);
+}
+
+static bool parse_generated_image_index(const std::string &image_id, int &image_index)
+{
+    image_index = 0;
+    if (image_id.size() <= 6 || image_id.compare(0, 6, "Image_") != 0) {
+        return false;
+    }
+
+    char *end = nullptr;
+    const long parsed = strtol(image_id.c_str() + 6, &end, 10);
+    if (!end || *end != '\0' || parsed < 0) {
+        return false;
+    }
+    image_index = static_cast<int>(parsed);
+    return true;
+}
+
+static std::string make_generated_image_id(int image_index)
+{
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "Image_%04d", image_index);
+    return buffer;
+}
+
+static int output_group_has_image_id(
+    const AtlasDocument &document,
+    const OutputGroup &output_group,
+    const std::string &image_id)
+{
+    if (image_id.empty()) {
+        return 0;
+    }
+    for (int image_index : output_group.image_indices) {
+        if (document.images[image_index].id == image_id) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 static std::string choose_canonical_group_key(const AtlasDocument &document, const OutputGroup &output_group)
@@ -598,89 +621,6 @@ static std::string choose_canonical_group_key(const AtlasDocument &document, con
     return canonical_group_key;
 }
 
-static int legacy_template_start_assetlist(void)
-{
-    return 1;
-}
-
-static int legacy_template_start_image(void)
-{
-    const char *id = xml_parser_get_attribute_string("id");
-    g_legacy_template_parse_state.current_image_id = id ? id : "";
-    if (!g_legacy_template_parse_state.current_image_id.empty()) {
-        g_legacy_template_parse_state.group.images[g_legacy_template_parse_state.current_image_id];
-    }
-    return 1;
-}
-
-static int legacy_template_start_layer(void)
-{
-    if (g_legacy_template_parse_state.current_image_id.empty()) {
-        return 1;
-    }
-
-    const char *part = xml_parser_get_attribute_string("part");
-    if (part && *part) {
-        g_legacy_template_parse_state.group.images[g_legacy_template_parse_state.current_image_id].parts.push_back(part);
-    }
-    return 1;
-}
-
-static void legacy_template_end_image(void)
-{
-    g_legacy_template_parse_state.current_image_id.clear();
-}
-
-static const xml_parser_element kLegacyTemplateXmlElements[] = {
-    { "assetlist", legacy_template_start_assetlist, 0 },
-    { "image", legacy_template_start_image, legacy_template_end_image, "assetlist" },
-    { "layer", legacy_template_start_layer, 0, "image" },
-    { "animation", 0, 0, "image" },
-    { "frame", 0, 0, "animation" }
-};
-
-static int load_legacy_template_group(const std::string &group_key, LegacyTemplateGroup &group)
-{
-    auto cached = g_legacy_template_groups.find(group_key);
-    if (cached != g_legacy_template_groups.end()) {
-        group = cached->second;
-        return 1;
-    }
-
-    char xml_path[FILE_NAME_MAX] = { 0 };
-    xml_asset_source resolved_source = XML_ASSET_SOURCE_AUTO;
-    if (!xml_resolve_assetlist_path(xml_path, group_key.c_str(), XML_ASSET_SOURCE_JULIUS, &resolved_source)) {
-        return 0;
-    }
-    (void) resolved_source;
-    if (!file_exists(xml_path, NOT_LOCALIZED)) {
-        return 0;
-    }
-
-    std::vector<char> buffer;
-    if (!load_file_to_buffer(xml_path, buffer)) {
-        return 0;
-    }
-
-    g_legacy_template_parse_state = {};
-    if (!xml_parser_init(
-            kLegacyTemplateXmlElements,
-            static_cast<int>(sizeof(kLegacyTemplateXmlElements) / sizeof(kLegacyTemplateXmlElements[0])),
-            1)) {
-        return 0;
-    }
-
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
-    if (!parsed || g_legacy_template_parse_state.error) {
-        return 0;
-    }
-
-    g_legacy_template_groups.emplace(group_key, g_legacy_template_parse_state.group);
-    group = g_legacy_template_parse_state.group;
-    return 1;
-}
-
 static const AtlasImage *find_output_group_image(
     const AtlasDocument &document,
     const OutputGroup &output_group,
@@ -695,35 +635,28 @@ static const AtlasImage *find_output_group_image(
     return nullptr;
 }
 
-static std::string resolve_reference_image_id(const AtlasReference &reference)
-{
-    if (reference.image.empty()) {
-        return "Image_0000";
-    }
-    if (strncmp(reference.image.c_str(), "Image_", 6) == 0) {
-        return reference.image;
-    }
-    return make_numeric_image_id(reference.image.c_str());
-}
-
 static int load_reference_template_parts(
     const AtlasReference &reference,
-    LegacyTemplateGroup &template_group,
+    AugustusJuliusTemplateGroup &template_group,
     std::string &template_image_id)
 {
     template_image_id.clear();
 
     std::string translated_group_key;
-    const int translated = translate_reference_group_key(reference, translated_group_key);
+    const int translated = augustus_julius_template_resolver_translate_group_image(
+        make_julius_graphics_root(),
+        reference.group,
+        reference.image,
+        translated_group_key,
+        template_image_id);
     if (translated <= 0) {
         return translated;
     }
 
-    if (!load_legacy_template_group(translated_group_key, template_group)) {
+    if (!augustus_julius_template_resolver_load_group(make_julius_graphics_root(), translated_group_key, template_group)) {
         return 0;
     }
 
-    template_image_id = resolve_reference_image_id(reference);
     return !template_image_id.empty();
 }
 
@@ -777,6 +710,7 @@ static int infer_image_parts(
     const AtlasDocument &document,
     const AtlasImage &image_data,
     const OutputGroup &output_group,
+    const LocalReferenceTargets &local_targets,
     InferredPartCache &cache,
     std::vector<std::string> &parts);
 
@@ -784,6 +718,7 @@ static int infer_reference_parts(
     const AtlasDocument &document,
     const AtlasReference &reference,
     const OutputGroup &output_group,
+    const LocalReferenceTargets &local_targets,
     InferredPartCache &cache,
     std::vector<std::string> &parts)
 {
@@ -800,12 +735,17 @@ static int infer_reference_parts(
         const std::string image_id = reference.image.empty() ? std::string("Image_0000") : reference.image;
         const AtlasImage *local_image = find_output_group_image(document, output_group, image_id);
         if (!local_image) {
+            auto owner = local_targets.group_key_by_image_id.find(image_id);
+            if (owner != local_targets.group_key_by_image_id.end() &&
+                local_targets.ambiguous_image_ids.find(image_id) == local_targets.ambiguous_image_ids.end()) {
+                return 0;
+            }
             return 0;
         }
-        return infer_image_parts(document, *local_image, output_group, cache, parts);
+        return infer_image_parts(document, *local_image, output_group, local_targets, cache, parts);
     }
 
-    LegacyTemplateGroup template_group;
+    AugustusJuliusTemplateGroup template_group;
     std::string template_image_id;
     const int loaded = load_reference_template_parts(reference, template_group, template_image_id);
     if (loaded <= 0) {
@@ -825,6 +765,7 @@ static int build_output_layers(
     const AtlasDocument &document,
     const AtlasImage &image_data,
     const OutputGroup &output_group,
+    const LocalReferenceTargets &local_targets,
     InferredPartCache &cache,
     std::vector<AtlasReference> &output_layers)
 {
@@ -843,7 +784,7 @@ static int build_output_layers(
         }
 
         std::vector<std::string> inherited_parts;
-        const int inherited = infer_reference_parts(document, reference, output_group, cache, inherited_parts);
+        const int inherited = infer_reference_parts(document, reference, output_group, local_targets, cache, inherited_parts);
         if (inherited < 0) {
             return 0;
         }
@@ -865,6 +806,7 @@ static int infer_image_parts(
     const AtlasDocument &document,
     const AtlasImage &image_data,
     const OutputGroup &output_group,
+    const LocalReferenceTargets &local_targets,
     InferredPartCache &cache,
     std::vector<std::string> &parts)
 {
@@ -887,7 +829,7 @@ static int infer_image_parts(
 
     resolution_state = 1;
     std::vector<AtlasReference> output_layers;
-    const int built = build_output_layers(document, image_data, output_group, cache, output_layers);
+    const int built = build_output_layers(document, image_data, output_group, local_targets, cache, output_layers);
     if (!built) {
         resolution_state = 0;
         return 0;
@@ -1020,44 +962,12 @@ static const xml_parser_element kXmlElements[] = {
     { "frame", xml_start_frame, 0, "animation" }
 };
 
-static bool load_file_to_buffer(const std::string &path, std::vector<char> &buffer)
-{
-    FILE *file = file_open(path.c_str(), "rb");
-    if (!file) {
-        log_error("Unable to open Augustus source xml", path.c_str(), 0);
-        return false;
-    }
-
-    if (fseek(file, 0, SEEK_END) != 0) {
-        file_close(file);
-        return false;
-    }
-
-    long file_size = ftell(file);
-    if (file_size < 0) {
-        file_close(file);
-        return false;
-    }
-    rewind(file);
-
-    buffer.resize(static_cast<size_t>(file_size));
-    if (!buffer.empty()) {
-        const size_t bytes_read = fread(buffer.data(), 1, buffer.size(), file);
-        if (bytes_read != buffer.size()) {
-            file_close(file);
-            return false;
-        }
-    }
-
-    file_close(file);
-    return true;
-}
-
 static bool parse_document(const std::string &xml_path, AtlasDocument &document)
 {
     CrashContextScope crash_scope("augustus_extractor.parse_document", xml_path.c_str());
     std::vector<char> buffer;
     if (!load_file_to_buffer(xml_path, buffer)) {
+        log_error("Unable to open Augustus source xml", xml_path.c_str(), 0);
         return false;
     }
 
@@ -1134,6 +1044,73 @@ struct DisjointSet {
         }
     }
 };
+
+static void merge_output_group_into(
+    const AtlasDocument &document,
+    OutputGroup &target_group,
+    const OutputGroup &source_group)
+{
+    for (int image_index : source_group.image_indices) {
+        if (std::find(target_group.image_indices.begin(), target_group.image_indices.end(), image_index) !=
+            target_group.image_indices.end()) {
+            continue;
+        }
+        const AtlasImage &image_data = document.images[image_index];
+        if (output_group_has_image_id(document, target_group, image_data.id)) {
+            log_info("Augustus extractor duplicate image id in merged group", image_data.id.c_str(), 0);
+            continue;
+        }
+        target_group.image_indices.push_back(image_index);
+    }
+
+    add_output_group_alias(target_group, source_group.group_key);
+    for (const std::string &alias_group_key : source_group.alias_group_keys) {
+        add_output_group_alias(target_group, alias_group_key);
+    }
+}
+
+static std::vector<OutputGroup> merge_output_groups_by_visible_key(
+    const AtlasDocument &document,
+    const std::vector<OutputGroup> &groups)
+{
+    if (groups.empty()) {
+        return {};
+    }
+
+    DisjointSet disjoint_set(groups.size());
+    std::unordered_map<std::string, int> key_owner;
+    for (size_t group_index = 0; group_index < groups.size(); ++group_index) {
+        const OutputGroup &group = groups[group_index];
+        auto register_key = [&](const std::string &group_key) {
+            if (group_key.empty()) {
+                return;
+            }
+            const auto inserted = key_owner.emplace(group_key, static_cast<int>(group_index));
+            if (!inserted.second) {
+                disjoint_set.unite(static_cast<int>(group_index), inserted.first->second);
+            }
+        };
+
+        register_key(group.group_key);
+        for (const std::string &alias_group_key : group.alias_group_keys) {
+            register_key(alias_group_key);
+        }
+    }
+
+    std::vector<OutputGroup> merged_groups;
+    std::unordered_map<int, size_t> root_to_group_index;
+    for (size_t group_index = 0; group_index < groups.size(); ++group_index) {
+        const int root = disjoint_set.find(static_cast<int>(group_index));
+        const auto inserted = root_to_group_index.emplace(root, merged_groups.size());
+        if (inserted.second) {
+            merged_groups.push_back(groups[group_index]);
+        } else {
+            merge_output_group_into(document, merged_groups[inserted.first->second], groups[group_index]);
+        }
+    }
+
+    return merged_groups;
+}
 
 static bool is_local_reference(const AtlasReference &reference)
 {
@@ -1238,12 +1215,23 @@ static std::vector<OutputGroup> build_output_groups(const AtlasDocument &documen
         set_output_group_key(output_group, output_group.family_name + "\\" + output_group.group_name);
 
         const std::string canonical_group_key = choose_canonical_group_key(document, output_group);
-        if (!canonical_group_key.empty()) {
+        if (!canonical_group_key.empty() && canonical_group_key != output_group.group_key) {
+            add_output_group_alias(output_group, output_group.group_key);
             set_output_group_key(output_group, canonical_group_key);
+        }
+
+        for (int image_index : output_group.image_indices) {
+            const AtlasImage &image_data = document.images[image_index];
+            if (image_data.synthetic_id || image_data.id.empty()) {
+                continue;
+            }
+            add_output_group_alias(
+                output_group,
+                document.family_name + "\\" + sanitize_component(image_data.id.c_str()));
         }
     }
 
-    return grouped_output;
+    return merge_output_groups_by_visible_key(document, grouped_output);
 }
 
 static int resolve_crop_width(const AtlasReference &reference, const AtlasImage &image_data)
@@ -1405,19 +1393,10 @@ static bool write_direct_crop(
     return true;
 }
 
-static std::string make_numeric_image_id(const char *image_name)
-{
-    if (!image_name || !*image_name) {
-        return "Image_0000";
-    }
-    char buffer[32];
-    snprintf(buffer, sizeof(buffer), "Image_%04d", atoi(image_name));
-    return buffer;
-}
-
 static bool translate_reference(
     const AtlasReference &source_reference,
     const OutputGroup &output_group,
+    const LocalReferenceTargets &local_targets,
     AtlasReference &translated_reference)
 {
     translated_reference = source_reference;
@@ -1429,27 +1408,34 @@ static bool translate_reference(
     }
 
     if (is_local_reference(source_reference)) {
-        translated_reference.group = output_group.group_key;
         if (translated_reference.image.empty()) {
             translated_reference.image = "Image_0000";
         }
-        return true;
-    }
 
-    char *end = nullptr;
-    const long numeric_group = strtol(source_reference.group.c_str(), &end, 10);
-    if (end && *end == '\0') {
-        char group_key[FILE_NAME_MAX];
-        if (!legacy_image_extractor_get_group_key(static_cast<int>(numeric_group), group_key, sizeof(group_key))) {
-            log_error("Unable to translate Augustus legacy group reference", source_reference.group.c_str(), 0);
-            return false;
+        auto owner = local_targets.group_key_by_image_id.find(translated_reference.image);
+        if (owner != local_targets.group_key_by_image_id.end() &&
+            local_targets.ambiguous_image_ids.find(translated_reference.image) == local_targets.ambiguous_image_ids.end()) {
+            translated_reference.group = owner->second;
+        } else {
+            translated_reference.group = output_group.group_key;
         }
-        translated_reference.group = group_key;
-        translated_reference.image = make_numeric_image_id(source_reference.image.c_str());
         return true;
     }
 
-    translated_reference.group = normalize_key(source_reference.group.c_str());
+    std::string translated_group_key;
+    std::string translated_image_id;
+    if (augustus_julius_template_resolver_translate_group_image(
+            make_julius_graphics_root(),
+            source_reference.group,
+            source_reference.image,
+            translated_group_key,
+            translated_image_id) <= 0) {
+        log_error("Unable to translate Augustus legacy image reference", source_reference.group.c_str(), 0);
+        return false;
+    }
+
+    translated_reference.group = translated_group_key;
+    translated_reference.image = translated_image_id;
     return true;
 }
 
@@ -1489,6 +1475,7 @@ static bool append_reference_xml(
     const AtlasImage &image_data,
     const AtlasReference &reference,
     const OutputGroup &output_group,
+    const LocalReferenceTargets &local_targets,
     const char *tag_name,
     const char *file_stem,
     ExtractionStats &stats)
@@ -1496,6 +1483,7 @@ static bool append_reference_xml(
     AtlasReference translated_reference;
     if (reference.is_direct_crop) {
         const std::string output_path = append_path_component(output_group.directory_path, std::string(file_stem) + ".png");
+        ensure_directory(output_group.directory_path);
         if (!write_direct_crop(image_data, reference, output_path, stats)) {
             return false;
         }
@@ -1504,7 +1492,7 @@ static bool append_reference_xml(
         translated_reference.group.clear();
         translated_reference.image.clear();
         translated_reference.is_direct_crop = false;
-    } else if (!translate_reference(reference, output_group, translated_reference)) {
+    } else if (!translate_reference(reference, output_group, local_targets, translated_reference)) {
         return false;
     }
 
@@ -1521,13 +1509,14 @@ static bool append_image_xml(
     const AtlasDocument &document,
     const AtlasImage &image_data,
     const OutputGroup &output_group,
+    const LocalReferenceTargets &local_targets,
     InferredPartCache &part_cache,
     ExtractionStats &stats)
 {
     CrashContextScope crash_scope("augustus_extractor.emit_image", image_data.id.c_str());
     const std::string image_stem = sanitize_component(image_data.id.c_str());
     std::vector<AtlasReference> output_layers;
-    if (!build_output_layers(document, image_data, output_group, part_cache, output_layers)) {
+    if (!build_output_layers(document, image_data, output_group, local_targets, part_cache, output_layers)) {
         crash_context_report_error("Augustus extractor could not infer image layer parts", image_data.id.c_str());
         return false;
     }
@@ -1561,7 +1550,15 @@ static bool append_image_xml(
         } else {
             snprintf(stem, sizeof(stem), "%s_Layer_%02d", image_stem.c_str(), static_cast<int>(layer_index + 1));
         }
-        if (!append_reference_xml(xml, image_data, output_layers[layer_index], output_group, "layer", stem, stats)) {
+        if (!append_reference_xml(
+                xml,
+                image_data,
+                output_layers[layer_index],
+                output_group,
+                local_targets,
+                "layer",
+                stem,
+                stats)) {
             return false;
         }
     }
@@ -1596,6 +1593,7 @@ static bool append_image_xml(
                         image_data,
                         image_data.animation.frames_data[frame_index].reference,
                         output_group,
+                        local_targets,
                         "frame",
                         frame_stem,
                         stats)) {
@@ -1613,11 +1611,119 @@ static bool append_image_xml(
     return true;
 }
 
-static bool export_group(const AtlasDocument &document, const OutputGroup &output_group, ExtractionStats &stats)
+static int next_generated_image_index_after_visible_julius(const OutputGroup &output_group)
+{
+    const std::string julius_graphics_root = make_julius_graphics_root();
+    int next_image_index = augustus_julius_template_resolver_next_generated_image_index(
+        julius_graphics_root,
+        output_group.group_key);
+    for (const std::string &alias_group_key : output_group.alias_group_keys) {
+        next_image_index = std::max(
+            next_image_index,
+            augustus_julius_template_resolver_next_generated_image_index(julius_graphics_root, alias_group_key));
+    }
+    return next_image_index;
+}
+
+static void remap_local_reference_image_id(
+    AtlasReference &reference,
+    const std::unordered_map<std::string, std::string> &image_id_remap)
+{
+    if (!is_local_reference(reference)) {
+        return;
+    }
+
+    const std::string lookup_image_id = reference.image.empty() ? std::string("Image_0000") : reference.image;
+    auto remapped = image_id_remap.find(lookup_image_id);
+    if (remapped != image_id_remap.end()) {
+        reference.image = remapped->second;
+    }
+}
+
+static void offset_generated_image_ids_after_julius(AtlasDocument &document, const OutputGroup &output_group)
+{
+    int next_image_index = next_generated_image_index_after_visible_julius(output_group);
+    if (next_image_index <= 0) {
+        return;
+    }
+
+    std::unordered_set<std::string> reserved_image_ids;
+    for (int image_index : output_group.image_indices) {
+        const AtlasImage &image_data = document.images[image_index];
+        int generated_index = 0;
+        if (!image_data.synthetic_id || !parse_generated_image_index(image_data.id, generated_index)) {
+            reserved_image_ids.insert(image_data.id);
+        }
+    }
+
+    std::unordered_map<std::string, std::string> image_id_remap;
+    for (int image_index : output_group.image_indices) {
+        AtlasImage &image_data = document.images[image_index];
+        int generated_index = 0;
+        if (!image_data.synthetic_id || !parse_generated_image_index(image_data.id, generated_index)) {
+            continue;
+        }
+
+        const std::string old_image_id = image_data.id;
+        std::string new_image_id;
+        do {
+            new_image_id = make_generated_image_id(next_image_index++);
+        } while (reserved_image_ids.find(new_image_id) != reserved_image_ids.end());
+
+        reserved_image_ids.insert(new_image_id);
+        image_data.id = new_image_id;
+        if (old_image_id != new_image_id) {
+            image_id_remap.emplace(old_image_id, new_image_id);
+        }
+    }
+
+    if (image_id_remap.empty()) {
+        return;
+    }
+
+    for (int image_index : output_group.image_indices) {
+        AtlasImage &image_data = document.images[image_index];
+        for (AtlasReference &reference : image_data.layers) {
+            remap_local_reference_image_id(reference, image_id_remap);
+        }
+        for (AtlasAnimationFrame &frame : image_data.animation.frames_data) {
+            remap_local_reference_image_id(frame.reference, image_id_remap);
+        }
+    }
+}
+
+static LocalReferenceTargets build_local_reference_targets(
+    const AtlasDocument &document,
+    const std::vector<OutputGroup> &groups)
+{
+    LocalReferenceTargets targets;
+    for (const OutputGroup &output_group : groups) {
+        for (int image_index : output_group.image_indices) {
+            if (image_index < 0 || image_index >= static_cast<int>(document.images.size())) {
+                continue;
+            }
+
+            const std::string &image_id = document.images[image_index].id;
+            if (image_id.empty()) {
+                continue;
+            }
+
+            auto inserted = targets.group_key_by_image_id.emplace(image_id, output_group.group_key);
+            if (!inserted.second && inserted.first->second != output_group.group_key) {
+                targets.ambiguous_image_ids.insert(image_id);
+            }
+        }
+    }
+    return targets;
+}
+
+static bool export_group(
+    const AtlasDocument &document,
+    const OutputGroup &output_group,
+    const LocalReferenceTargets &local_targets,
+    ExtractionStats &stats)
 {
     CrashContextScope crash_scope("augustus_extractor.export_group", output_group.group_key.c_str());
-    ensure_directory(append_path_component(make_augustus_graphics_root(), output_group.family_name));
-    ensure_directory(output_group.directory_path);
     InferredPartCache part_cache;
 
     std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist";
@@ -1625,12 +1731,13 @@ static bool export_group(const AtlasDocument &document, const OutputGroup &outpu
     xml += ">\n";
 
     for (int image_index : output_group.image_indices) {
-        if (!append_image_xml(xml, document, document.images[image_index], output_group, part_cache, stats)) {
+        if (!append_image_xml(xml, document, document.images[image_index], output_group, local_targets, part_cache, stats)) {
             return false;
         }
     }
 
     xml += "</assetlist>\n";
+    ensure_directory(append_path_component(make_augustus_graphics_root(), output_group.family_name));
     if (!write_text_file(output_group.xml_path, xml)) {
         log_error("Failed to write Augustus extracted xml", output_group.xml_path.c_str(), 0);
         return false;
@@ -1640,7 +1747,56 @@ static bool export_group(const AtlasDocument &document, const OutputGroup &outpu
     return true;
 }
 
-static bool export_document(const AtlasDocument &document, ExtractionStats &stats)
+static void append_alias_image_xml(std::string &xml, const AtlasImage &image_data, const std::string &target_group_key)
+{
+    append_indent(xml, 1);
+    xml += "<image";
+    append_attribute(xml, "id", image_data.id);
+    if (image_data.has_width && image_data.width > 0) {
+        append_attribute(xml, "width", image_data.width);
+    }
+    if (image_data.has_height && image_data.height > 0) {
+        append_attribute(xml, "height", image_data.height);
+    }
+    if (image_data.is_isometric) {
+        append_attribute(xml, "isometric", "true");
+    }
+    append_attribute(xml, "group", target_group_key);
+    append_attribute(xml, "image", image_data.id);
+    xml += "/>\n";
+}
+
+static bool export_alias_group(
+    const AtlasDocument &document,
+    const OutputGroup &target_group,
+    const std::string &alias_group_key,
+    ExtractionStats &stats)
+{
+    CrashContextScope crash_scope("augustus_extractor.export_alias_group", alias_group_key.c_str());
+
+    OutputGroup alias_group;
+    set_output_group_key(alias_group, alias_group_key);
+
+    std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist";
+    append_attribute(xml, "name", alias_group.group_key);
+    xml += ">\n";
+
+    for (int image_index : target_group.image_indices) {
+        append_alias_image_xml(xml, document.images[image_index], target_group.group_key);
+    }
+
+    xml += "</assetlist>\n";
+    ensure_directory(append_path_component(make_augustus_graphics_root(), alias_group.family_name));
+    if (!write_text_file(alias_group.xml_path, xml)) {
+        log_error("Failed to write Augustus extracted alias xml", alias_group.xml_path.c_str(), 0);
+        return false;
+    }
+
+    stats.groups_exported++;
+    return true;
+}
+
+static bool export_document(AtlasDocument &document, ExtractionStats &stats)
 {
     CrashContextScope crash_scope("augustus_extractor.export_document", document.xml_path.c_str());
     if (!png_load_from_file(document.png_path.c_str(), 0)) {
@@ -1648,11 +1804,34 @@ static bool export_document(const AtlasDocument &document, ExtractionStats &stat
         return false;
     }
 
-    const std::vector<OutputGroup> groups = build_output_groups(document);
+    std::vector<OutputGroup> groups = build_output_groups(document);
     for (const OutputGroup &output_group : groups) {
-        if (!export_group(document, output_group, stats)) {
+        offset_generated_image_ids_after_julius(document, output_group);
+    }
+    const LocalReferenceTargets local_targets = build_local_reference_targets(document, groups);
+
+    std::unordered_set<std::string> exported_group_keys;
+    for (const OutputGroup &output_group : groups) {
+        exported_group_keys.insert(output_group.group_key);
+    }
+
+    for (const OutputGroup &output_group : groups) {
+        if (!export_group(document, output_group, local_targets, stats)) {
             png_unload();
             return false;
+        }
+    }
+
+    for (const OutputGroup &output_group : groups) {
+        for (const std::string &alias_group_key : output_group.alias_group_keys) {
+            if (!exported_group_keys.insert(alias_group_key).second) {
+                log_info("Augustus extractor duplicate alias key after merge", alias_group_key.c_str(), 0);
+                continue;
+            }
+            if (!export_alias_group(document, output_group, alias_group_key, stats)) {
+                png_unload();
+                return false;
+            }
         }
     }
 
@@ -1669,8 +1848,16 @@ static bool extract_all_documents(ExtractionStats &stats)
     }
 
     const dir_listing *xml_files = dir_find_files_with_extension(source_graphics_path.c_str(), "xml");
-    for (int i = 0; i < xml_files->num_files; ++i) {
-        const std::string xml_name = xml_files->files[i].name;
+    std::vector<std::string> xml_names;
+    xml_names.reserve(xml_files ? xml_files->num_files : 0);
+    for (int i = 0; xml_files && i < xml_files->num_files; ++i) {
+        xml_names.emplace_back(xml_files->files[i].name ? xml_files->files[i].name : "");
+    }
+
+    for (const std::string &xml_name : xml_names) {
+        if (xml_name.empty()) {
+            continue;
+        }
         const std::string xml_path = append_path_component(source_graphics_path, xml_name);
 
         AtlasDocument document;
@@ -1688,12 +1875,14 @@ static bool extract_all_documents(ExtractionStats &stats)
     return true;
 }
 
-} // namespace
-
-extern "C" int augustus_asset_extractor_bootstrap(void)
+static int run_extraction(int force, int write_stamp)
 {
     const std::string graphics_root = make_augustus_graphics_root();
     const std::string stamp_path = make_stamp_path();
+    if (graphics_root.empty()) {
+        log_error("Unable to resolve Augustus extracted graphics directory", 0, 0);
+        return 0;
+    }
 
     std::string expected_stamp;
     if (!build_expected_stamp(expected_stamp)) {
@@ -1702,15 +1891,17 @@ extern "C" int augustus_asset_extractor_bootstrap(void)
     }
 
     std::string existing_stamp;
-    const int has_existing_stamp = read_text_file(stamp_path, existing_stamp);
-    const int has_current_stamp = has_existing_stamp && existing_stamp == expected_stamp;
-    if (has_current_stamp &&
+    const int has_existing_stamp = write_stamp && read_text_file(stamp_path, existing_stamp);
+    const int has_current_stamp = write_stamp && has_existing_stamp && existing_stamp == expected_stamp;
+    if (!force && has_current_stamp &&
         platform_file_manager_list_directory_contents(
             graphics_root.c_str(), TYPE_DIR | TYPE_FILE, 0, stop_on_first_entry) == LIST_MATCH) {
         return 1;
     }
 
-    if (!has_existing_stamp) {
+    if (force) {
+        log_info("Bootstrapping Augustus graphics because extraction was forced", 0, 0);
+    } else if (!has_existing_stamp) {
         log_info("Bootstrapping Augustus graphics because no extraction stamp was found", 0, 0);
     } else if (!has_current_stamp) {
         log_info("Bootstrapping Augustus graphics because the source fingerprint or XML metadata version changed", 0, 0);
@@ -1719,19 +1910,20 @@ extern "C" int augustus_asset_extractor_bootstrap(void)
     }
 
     platform_file_manager_remove_directory(graphics_root.c_str());
-    ensure_directory("Mods");
-    ensure_directory("Mods/Augustus");
-    ensure_directory(graphics_root);
 
     ExtractionStats stats;
+    augustus_julius_template_resolver_clear_cache();
     log_info("Extracting canonical Augustus graphics from packed source atlases", 0, 0);
     if (!extract_all_documents(stats)) {
         log_error("Augustus graphics extraction failed", 0, 0);
         return 0;
     }
-    if (!write_text_file(stamp_path, expected_stamp)) {
-        log_error("Failed to write Augustus extraction stamp", stamp_path.c_str(), 0);
-        return 0;
+    if (write_stamp) {
+        ensure_directory(graphics_root);
+        if (!write_text_file(stamp_path, expected_stamp)) {
+            log_error("Failed to write Augustus extraction stamp", stamp_path.c_str(), 0);
+            return 0;
+        }
     }
 
     char summary[256];
@@ -1745,4 +1937,23 @@ extern "C" int augustus_asset_extractor_bootstrap(void)
         stats.pngs_written);
     log_info("Augustus graphics extraction completed", summary, 0);
     return 1;
+}
+
+} // namespace
+
+extern "C" int augustus_asset_extractor_bootstrap(void)
+{
+    return run_extraction(0, 1);
+}
+
+extern "C" int augustus_asset_extractor_extract_with_config(const augustus_asset_extractor_config *config)
+{
+    ExtractionPaths paths;
+    if (!build_extraction_paths(config, paths)) {
+        log_error("Invalid Augustus extraction paths", 0, 0);
+        return 0;
+    }
+
+    ScopedExtractionPaths scoped_paths(&paths);
+    return run_extraction(config ? config->force : 0, config ? config->write_stamp : 1);
 }
