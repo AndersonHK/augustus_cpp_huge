@@ -1,37 +1,39 @@
-extern "C" {
+#include "building/construction.h"
+#include "building/rotation.h"
+#include "city/warning.h"
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "widget/city.h"
+#include "widget/sidebar/city.h"
+#include "window/city.h"
+
 #include "build_menu.h"
 
+#include "translation/translation.h"
+extern "C" {
+
 #include "assets/assets.h"
-#include "building/construction.h"
 #include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/rotation.h"
 #include "city/view.h"
-#include "city/warning.h"
 #include "core/config.h"
 #include "core/image.h"
 #include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-#include "widget/city.h"
-#include "widget/sidebar/city.h"
-#include "window/city.h"
 }
 #include "building/building_type_registry_internal.h"
 #include <building/industry.h>
-#include "graphics/image.h"
-#include "game/resource_graphics.h"
 
 #include <cstddef>
 #include <vector>
@@ -316,9 +318,18 @@ static void draw_resource_icon_scaled(const ImageGroupEntryRef &image, int x, in
     if (!image.is_bound()) {
         return;
     }
+    const int image_width = image.width();
     const int image_height = image.height();
-    const int scale_percent = image_height < max_size ? 100 : (max_size * 100) / image_height;
-    image.draw_scaled_centered(x, y, COLOR_MASK_NONE, scale_percent);
+    if (image_width <= 0 || image_height <= 0) {
+        return;
+    }
+    const int larger_dimension = image_width > image_height ? image_width : image_height;
+    const float draw_scale = larger_dimension > max_size ?
+        static_cast<float>(larger_dimension) / static_cast<float>(max_size) :
+        SCALE_NONE;
+    const int scaled_width = static_cast<int>(image_width / draw_scale);
+    const int scaled_height = static_cast<int>(image_height / draw_scale);
+    image.draw(x + (max_size - scaled_width) / 2, y + (max_size - scaled_height) / 2, COLOR_MASK_NONE, draw_scale);
 }
 
 building_type BuildMenuButton::cost_type() const
@@ -337,9 +348,16 @@ const building_type_registry_impl::BuildingType *BuildMenuButton::definition() c
 const uint8_t *BuildMenuButton::display_name() const
 {
     if (is_auto_cycle()) {
-        return translation_for(TR_AUTO_CYCLE_TEMPLES);
+        return translation_for_key("TR_AUTO_CYCLE_TEMPLES");
     }
     const char *text_key = definition() ? definition()->button_text_key() : nullptr;
+    if (text_key && *text_key) {
+        const uint8_t *display_name = lang_get_string_by_key(text_key);
+        if (display_name) {
+            return display_name;
+        }
+    }
+    text_key = definition() && definition()->identity().has_name_key() ? definition()->identity().name_key() : nullptr;
     if (text_key && *text_key) {
         const uint8_t *display_name = lang_get_string_by_key(text_key);
         if (display_name) {

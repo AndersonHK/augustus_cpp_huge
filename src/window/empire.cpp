@@ -1,52 +1,54 @@
+#include "city/warning.h"
+#include "empire/empire.h"
+#include "graphics/arrow_button.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "input/cursor.h"
+#include "platform/cursor.h"
+#include "window/city.h"
+#include "window/empire_sidebar_sort.h"
+#include "window/message_dialog.h"
+#include "window/resource_settings.h"
+#include "window/trade_prices.h"
+
+#include "empire.h"
+
+#include "graphics/grid_box.h"
+#include "window/advisors.h"
+#include "window/popup_dialog.h"
+#include "window/trade_opened.h"
 #include "graphics/empire_trade_route_button_widget.h"
 #include "graphics/ui_runtime.h"
 #include "game/resource_graphics.h"
 
 extern "C" {
-#include "empire.h"
 
 #include "assets/assets.h"
 #include "building/menu.h"
 #include "city/military.h"
-#include "city/warning.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/image_group.h"
 #include "empire/city.h"
-#include "empire/empire.h"
 #include "empire/object.h"
 #include "empire/trade_route.h"
 #include "empire/trade_prices.h"
 #include "empire/type.h"
 #include "game/tutorial.h"
 #include "game/system.h"
-#include "graphics/arrow_button.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "input/scroll.h"
-#include "input/cursor.h"
-#include "platform/cursor.h"
 #include "scenario/empire.h"
 #include "scenario/invasion.h"
-#include "window/advisors.h"
-#include "window/city.h"
-#include "window/empire_sidebar_sort.h"
-#include "window/message_dialog.h"
-#include "window/popup_dialog.h"
-#include "window/resource_settings.h"
-#include "window/trade_opened.h"
-#include "window/trade_prices.h"
 }
-#include "graphics/image.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -2354,8 +2356,8 @@ void window_empire_show_checked(void)
     if (avail == AVAILABLE) {
         window_empire_show();
     } else if (avail == NOT_AVAILABLE) {
-        city_warning_show(WARNING_NOT_AVAILABLE, translation_for(TR_CITY_WARNING_NOT_AVAILABLE));
+        city_warning_show(WARNING_NOT_AVAILABLE, translation_for_key("TR_CITY_WARNING_NOT_AVAILABLE"));
     } else {
-        city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for(TR_CITY_WARNING_NOT_AVAILABLE_YET));
+        city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for_key("TR_CITY_WARNING_NOT_AVAILABLE_YET"));
     }
 }

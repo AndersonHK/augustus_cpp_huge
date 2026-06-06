@@ -1,28 +1,29 @@
-#include "figure/action.h"
-
-extern "C" {
 #include "city/entertainment.h"
-#include "city/figures.h"
-#include "figure/figure.h"
-#include "figure/figure_runtime_api.h"
 #include "figuretype/animal.h"
 #include "figuretype/cartpusher.h"
 #include "figuretype/crime.h"
 #include "figuretype/docker.h"
-#include "figuretype/editor.h"
-#include "figuretype/enemy.h"
 #include "figuretype/entertainer.h"
 #include "figuretype/maintenance.h"
 #include "figuretype/migrant.h"
-#include "figuretype/missile.h"
 #include "figuretype/native.h"
 #include "figuretype/service.h"
-#include "figuretype/soldier.h"
 #include "figuretype/supplier.h"
-#include "figuretype/trader.h"
 #include "figuretype/wall.h"
-#include "figuretype/water.h"
 #include "figuretype/workcamp.h"
+
+#include "figure/action.h"
+#include "figuretype/soldier.h"
+
+extern "C" {
+#include "city/figures.h"
+#include "figure/figure.h"
+#include "figure/figure_runtime_api.h"
+#include "figuretype/editor.h"
+#include "figuretype/enemy.h"
+#include "figuretype/missile.h"
+#include "figuretype/trader.h"
+#include "figuretype/water.h"
 }
 
 

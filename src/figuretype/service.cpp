@@ -1,3 +1,9 @@
+#include "building/house.h"
+#include "city/health.h"
+#include "figuretype/supplier.h"
+#include "map/building.h"
+#include "map/road_access.h"
+
 #include "service.h"
 
 #include "building/building.h"
@@ -7,18 +13,13 @@ extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
-#include "building/house.h"
 #include "city/buildings.h"
-#include "city/health.h"
 #include "core/calc.h"
 #include "figure/combat.h"
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
-#include "figuretype/supplier.h"
 #include "game/time.h"
-#include "map/building.h"
-#include "map/road_access.h"
 }
 
 static const int DOCTOR_HEALING_OFFSETS[] = { 0, 1, 2, 3, 4, 5, 4, 3, 2, 1};

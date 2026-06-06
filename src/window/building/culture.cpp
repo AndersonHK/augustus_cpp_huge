@@ -1,3 +1,17 @@
+#include "city/festival.h"
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/image_border.h"
+#include "graphics/lang_text.h"
+#include "window/advisor/entertainment.h"
+#include "window/hold_games.h"
+#include "window/race_bet.h"
+
+#include "translation/translation.h"
+#include "window/building/culture.h"
+#include "window/building/military.h"
+#include "window/option_popup.h"
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
@@ -6,33 +20,19 @@
 #include "building/market.h"
 
 extern "C" {
-#include "window/building/culture.h"
-
 #include "assets/assets.h"
 #include "building/monument.h"
 #include "city/buildings.h"
 #include "city/constants.h"
 #include "city/data_private.h"
-#include "city/festival.h"
 #include "city/finance.h"
 #include "city/trade_policy.h"
 #include "core/dir.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "scenario/allowed_building.h"
 #include "sound/speech.h"
-#include "translation/translation.h"
-#include "window/advisor/entertainment.h"
-#include "window/building/military.h"
-#include "window/hold_games.h"
-#include "window/option_popup.h"
-#include "window/race_bet.h"
 }
-#include "game/resource_graphics.h"
-#include "graphics/image_border.h"
-#include "graphics/image.h"
 
 #define GOD_PANTHEON 5
 #define MODULE_COST 1000
@@ -347,7 +347,7 @@ static void draw_temple_info(building_info_context *c, int image_offset)
         font = building_accepts_resource(b, resource_oil()) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
         text_draw_number(b->resources[resource_oil()], '@', " ",
             c->x_offset + 222, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-        text_draw_multiline(translation_for(TR_BUILDING_CERES_TEMPLE_MODULE_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_CERES_TEMPLE_MODULE_DESC"),
             c->x_offset + 112, c->y_offset + 90, BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 16, c->y_offset + 45);
         return;
@@ -358,7 +358,7 @@ static void draw_temple_info(building_info_context *c, int image_offset)
         resource_graphics(resource_wine()).panel_icon().draw(c->x_offset + 112, c->y_offset + 60);
         text_draw_number(b->resources[resource_wine()], '@', " ",
             c->x_offset + 132, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-        text_draw_multiline(translation_for(TR_BUILDING_VENUS_TEMPLE_MODULE_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_VENUS_TEMPLE_MODULE_DESC"),
             c->x_offset + 112, c->y_offset + 90, BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + BLOCK_SIZE, c->y_offset + 45);
 
@@ -381,11 +381,11 @@ static void draw_temple_info(building_info_context *c, int image_offset)
         }
 
         if (city_buildings_get_mess_hall()) {
-            text_draw_multiline(translation_for(TR_BUILDING_MARS_TEMPLE_MODULE_DESC),
+            text_draw_multiline(translation_for_key("TR_BUILDING_MARS_TEMPLE_MODULE_DESC"),
                 c->x_offset + 112, c->y_offset + 90,
                 BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
-            text_draw_multiline(translation_for(TR_BUILDING_MARS_TEMPLE_MODULE_DESC_NO_MESS),
+            text_draw_multiline(translation_for_key("TR_BUILDING_MARS_TEMPLE_MODULE_DESC_NO_MESS"),
                 c->x_offset + 112, c->y_offset + 90,
                 BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
@@ -699,7 +699,7 @@ void window_building_draw_oracle(building_info_context *c)
         inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
         window_building_draw_employment(c, 150);
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
-        text_draw_multiline(translation_for(TR_BUILDING_ORACLE_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_ORACLE_DESC"),
             c->x_offset + 32, c->y_offset + 56, 14 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
@@ -714,7 +714,7 @@ void window_building_draw_lararium(building_info_context *c)
     c->help_id = 67;
     window_building_play_sound(c, "wavs/oracle.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_LARARIUM),
+    text_draw_centered(translation_for_key("TR_BUILDING_LARARIUM"),
         c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 144);
@@ -727,7 +727,7 @@ void window_building_draw_shrine_ceres(building_info_context *c)
     c->help_id = 67;
     window_building_play_sound(c, "wavs/temple_farm.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_SHRINE_CERES),
+    text_draw_centered(translation_for_key("TR_BUILDING_SHRINE_CERES"),
         c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
@@ -741,7 +741,7 @@ void window_building_draw_shrine_neptune(building_info_context *c)
     c->help_id = 67;
     window_building_play_sound(c, "wavs/temple_ship.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_SHRINE_NEPTUNE),
+    text_draw_centered(translation_for_key("TR_BUILDING_SHRINE_NEPTUNE"),
         c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
@@ -755,7 +755,7 @@ void window_building_draw_shrine_mercury(building_info_context *c)
     c->help_id = 67;
     window_building_play_sound(c, "wavs/temple_comm.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_SHRINE_MERCURY),
+    text_draw_centered(translation_for_key("TR_BUILDING_SHRINE_MERCURY"),
         c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
@@ -769,7 +769,7 @@ void window_building_draw_shrine_mars(building_info_context *c)
     c->help_id = 67;
     window_building_play_sound(c, "wavs/temple_war.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_SHRINE_MARS),
+    text_draw_centered(translation_for_key("TR_BUILDING_SHRINE_MARS"),
         c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
@@ -783,7 +783,7 @@ void window_building_draw_shrine_venus(building_info_context *c)
     c->help_id = 67;
     window_building_play_sound(c, "wavs/temple_love.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_SHRINE_VENUS),
+    text_draw_centered(translation_for_key("TR_BUILDING_SHRINE_VENUS"),
         c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
@@ -806,8 +806,7 @@ static void draw_grand_temple(building_info_context *c, const char *sound_file,
         window_building_draw_monument_temple_construction_process(c);
     }
     if (b->monument.upgrades) {
-        const translation_key module_name = static_cast<translation_key>(
-            temple_module_options[data.god_id * 2 + (b->monument.upgrades - 1)].option.header);
+        const translation_key module_name = temple_module_options[data.god_id * 2 + (b->monument.upgrades - 1)].option.header;
         text_draw_centered(translation_for(module_name),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     } else {
@@ -817,14 +816,13 @@ static void draw_grand_temple(building_info_context *c, const char *sound_file,
     int height = 0;
     if (b->monument.phase == MONUMENT_FINISHED) {
         if (building_monument_has_labour_problems(b)) {
-            height = text_draw_multiline(translation_for(TR_BUILDING_GRAND_TEMPLE_NEEDS_WORKERS),
+            height = text_draw_multiline(translation_for_key("TR_BUILDING_GRAND_TEMPLE_NEEDS_WORKERS"),
                 c->x_offset + 22, c->y_offset + 56 + extra_y, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
             height = text_draw_multiline(translation_for(bonus_desc),
                 c->x_offset + 22, c->y_offset + 56 + extra_y, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             if (b->monument.upgrades) {
-                const translation_key module_desc = static_cast<translation_key>(
-                    temple_module_options[data.god_id * 2 + (b->monument.upgrades - 1)].option.desc);
+                const translation_key module_desc = temple_module_options[data.god_id * 2 + (b->monument.upgrades - 1)].option.desc;
                 height += text_draw_multiline(translation_for(module_desc),
                     c->x_offset + 22, c->y_offset + 66 + height + extra_y, 15 * c->width_blocks,
                     0, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
@@ -859,7 +857,7 @@ void window_building_draw_grand_temple_foreground(building_info_context *c)
     if (!b->monument.upgrades) {
         button_border_draw(c->x_offset + 80, c->y_offset + 16 * c->height_blocks - 37,
             16 * (c->width_blocks - 10), 20, data.focus_button_id == 1 ? 1 : 0);
-        text_draw_centered(translation_for(TR_BUILDING_GRAND_TEMPLE_ADD_MODULE),
+        text_draw_centered(translation_for_key("TR_BUILDING_GRAND_TEMPLE_ADD_MODULE"),
             c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 33,
             16 * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
@@ -941,12 +939,12 @@ void window_building_draw_work_camp(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
     window_building_draw_employment(c, 140);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 144);
-    text_draw_centered(translation_for(TR_BUILDING_WORK_CAMP),
+    text_draw_centered(translation_for_key("TR_BUILDING_WORK_CAMP"),
         c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     if (!c->has_road_access) {
         window_building_draw_description_at(c, 76, 69, 25);
     } else
-        text_draw_multiline(translation_for(TR_BUILDING_WORK_CAMP_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_WORK_CAMP_DESC"),
             c->x_offset + 32, c->y_offset + 76, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 
@@ -957,12 +955,12 @@ void window_building_draw_architect_guild(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
     window_building_draw_employment(c, 140);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 144);
-    text_draw_centered(translation_for(TR_BUILDING_ARCHITECT_GUILD),
+    text_draw_centered(translation_for_key("TR_BUILDING_ARCHITECT_GUILD"),
         c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     if (!c->has_road_access) {
         window_building_draw_description_at(c, 76, 69, 25);
     } else
-        text_draw_multiline(translation_for(TR_BUILDING_ARCHITECT_GUILD_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_ARCHITECT_GUILD_DESC"),
             c->x_offset + 32, c->y_offset + 76, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 
@@ -975,7 +973,7 @@ void window_building_draw_tavern(building_info_context *c)
     window_building_play_sound(c, "wavs/market3.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
 
-    text_draw_centered(translation_for(TR_BUILDING_TAVERN), c->x_offset, c->y_offset + 12,
+    text_draw_centered(translation_for_key("TR_BUILDING_TAVERN"), c->x_offset, c->y_offset + 12,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     int x_offset = 32;
@@ -1005,10 +1003,10 @@ void window_building_draw_tavern(building_info_context *c)
     if (!c->has_road_access) {
         window_building_draw_description_at(c, 96, 69, 25);
     } else if (b->num_workers <= 0) {
-        text_draw_multiline(translation_for(TR_BUILDING_TAVERN_DESC_1),
+        text_draw_multiline(translation_for_key("TR_BUILDING_TAVERN_DESC_1"),
             c->x_offset + 32, c->y_offset + 96, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (!has_primary_resource) {
-        text_draw_multiline(translation_for(TR_BUILDING_TAVERN_DESC_2),
+        text_draw_multiline(translation_for_key("TR_BUILDING_TAVERN_DESC_2"),
             c->x_offset + 32, c->y_offset + 96, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (!has_secondary_resource) {
         translation_key string_key = TR_BUILDING_TAVERN_DESC_3;
@@ -1088,7 +1086,7 @@ void window_building_draw_colosseum_background(building_info_context *c)
         }
 
         if (is_arena) {
-            text_draw_centered(translation_for(TR_BUILDING_ARENA),
+            text_draw_centered(translation_for_key("TR_BUILDING_ARENA"),
                 c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         } else {
             lang_text_draw_centered(74, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
@@ -1096,13 +1094,13 @@ void window_building_draw_colosseum_background(building_info_context *c)
 
         // todo: better link of venue to game
         if (is_colosseum && building_monument_has_labour_problems(b)) {
-            text_draw_multiline(translation_for(TR_BUILDING_COLOSSEUM_NEEDS_WORKERS),
+            text_draw_multiline(translation_for_key("TR_BUILDING_COLOSSEUM_NEEDS_WORKERS"),
                 c->x_offset + 22, c->y_offset + 56, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
             if (active_games && active_games <= 3 && is_colosseum) {
                 window_building_draw_description(c, CUSTOM_TRANSLATION, TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_NG +
                     ((active_games - 1) * 2));
-                int width = text_draw(translation_for(TR_WINDOW_BUILDING_GAMES_REMAINING_DURATION),
+                int width = text_draw(translation_for_key("TR_WINDOW_BUILDING_GAMES_REMAINING_DURATION"),
                     c->x_offset + 32, c->y_offset + 221, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
                 lang_text_draw_amount(8, 44, 2 * city_festival_games_remaining_duration(),
                     c->x_offset + width + 32, c->y_offset + 221, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -1152,7 +1150,7 @@ void window_building_draw_colosseum_foreground(building_info_context *c)
     if (!city_festival_games_active() && !city_festival_games_planning_time() && !city_festival_games_cooldown()) {
         button_border_draw(c->x_offset + 88, c->y_offset + (c->height_blocks > 27 ? 535 : 335),
             300, 20, data.focus_button_id == 1);
-        text_draw_centered(translation_for(TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_BUTTON),
+        text_draw_centered(translation_for_key("TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_BUTTON"),
             c->x_offset + 88, c->y_offset + (c->height_blocks > 27 ? 540 : 340), 300, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 }
@@ -1168,7 +1166,7 @@ void window_building_draw_arena(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 168, c->width_blocks - 2, 7);
     window_building_draw_employment(c, 172);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 176);
-    text_draw_centered(translation_for(TR_BUILDING_ARENA),
+    text_draw_centered(translation_for_key("TR_BUILDING_ARENA"),
         c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     if (b->data.entertainment.days1 > 0) {
         int width = lang_text_draw(74, 8, c->x_offset + 32, c->y_offset + 214, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -1242,7 +1240,7 @@ void window_building_draw_hippodrome_foreground(building_info_context *c)
     if (!city_data.games.chosen_horse) {
         button_border_draw(c->x_offset + 88, c->y_offset + (c->height_blocks > 27 ? 603 : 380),
                            300, 20, data.focus_button_id == 1);
-        text_draw_centered(translation_for(TR_WINDOW_RACE_BET_TITLE),
+        text_draw_centered(translation_for_key("TR_WINDOW_RACE_BET_TITLE"),
             c->x_offset + 88, c->y_offset + (c->height_blocks > 27 ? 608 : 385), 300, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 }
@@ -1259,7 +1257,7 @@ void window_building_draw_hippodrome_background(building_info_context *c)
         if (!c->has_road_access) {
             window_building_draw_description(c, 69, 25);
         } else if (building_monument_has_labour_problems(b)) {
-            text_draw_multiline(translation_for(TR_BUILDING_HIPPODROME_NEEDS_WORKERS),
+            text_draw_multiline(translation_for_key("TR_BUILDING_HIPPODROME_NEEDS_WORKERS"),
                 c->x_offset + 22, c->y_offset + 56, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else if (!b->data.entertainment.num_shows) {
             window_building_draw_description(c, 73, 2);
@@ -1286,13 +1284,19 @@ void window_building_draw_hippodrome_background(building_info_context *c)
         }
 
         if (city_data.games.chosen_horse) {
-            text_draw_with_money(translation_for(TR_WINDOW_RACE_YOUR_BET), city_data.games.bet_amount, " - ", "",
+            static const translation_key horse_description_keys[] = {
+                TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION,
+                TR_WINDOW_RACE_RED_HORSE_DESCRIPTION,
+                TR_WINDOW_RACE_WHITE_HORSE_DESCRIPTION,
+                TR_WINDOW_RACE_GREEN_HORSE_DESCRIPTION
+            };
+            const int horse_index = city_data.games.chosen_horse - 1;
+            text_draw_with_money(translation_for_key("TR_WINDOW_RACE_YOUR_BET"), city_data.games.bet_amount, " - ", "",
                 c->x_offset + 32, c->y_offset + y_offset + 215, 438, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-            HORSE_TEAM_IMAGES[city_data.games.chosen_horse - 1].draw(c->x_offset + 37, c->y_offset + y_offset + 245);
+            HORSE_TEAM_IMAGES[horse_index].draw(c->x_offset + 37, c->y_offset + y_offset + 245);
             ImageBorder::image_small().draw(c->x_offset + 32, c->y_offset + y_offset + 240, COLOR_BORDER_RED);
 
-            text_draw_multiline(translation_for(static_cast<translation_key>(
-                TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION + city_data.games.chosen_horse - 1)),
+            text_draw_multiline(translation_for(horse_description_keys[horse_index]),
                 c->x_offset + 125, c->y_offset + y_offset + 240, 320,
                 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
@@ -1309,7 +1313,7 @@ void window_building_draw_grand_garden(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 144);
-    text_draw_centered(translation_for(TR_BUILDING_GRAND_GARDEN),
+    text_draw_centered(translation_for_key("TR_BUILDING_GRAND_GARDEN"),
         c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 }
 
@@ -1321,9 +1325,9 @@ void window_building_draw_nymphaeum(building_info_context *c)
         c->advisor_button = ADVISOR_RELIGION;
         window_building_play_sound(c, "wavs/oracle.wav");
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-        text_draw_centered(translation_for(TR_BUILDING_NYMPHAEUM),
+        text_draw_centered(translation_for_key("TR_BUILDING_NYMPHAEUM"),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-        text_draw_multiline(translation_for(TR_BUILDING_NYMPHAEUM_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_NYMPHAEUM_DESC"),
             c->x_offset + 32, c->y_offset + 56, 14 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
         window_building_draw_employment(c, 150);
@@ -1331,7 +1335,7 @@ void window_building_draw_nymphaeum(building_info_context *c)
         window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 148, 110, 1);
     } else {
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-        text_draw_centered(translation_for(TR_BUILDING_NYMPHAEUM),
+        text_draw_centered(translation_for_key("TR_BUILDING_NYMPHAEUM"),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         window_building_draw_monument_nymphaeum_construction_process(c);
     }
@@ -1345,18 +1349,18 @@ void window_building_draw_small_mausoleum(building_info_context *c)
         c->advisor_button = ADVISOR_RELIGION;
         window_building_play_sound(c, "wavs/oracle.wav");
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-        text_draw_centered(translation_for(TR_BUILDING_SMALL_MAUSOLEUM),
+        text_draw_centered(translation_for_key("TR_BUILDING_SMALL_MAUSOLEUM"),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-        text_draw_multiline(translation_for(TR_BUILDING_SMALL_MAUSOLEUM_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_SMALL_MAUSOLEUM_DESC"),
             c->x_offset + 32, c->y_offset + 56, 14 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
         window_building_draw_employment(c, 150);
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
-        text_draw_multiline(translation_for(TR_BUILDING_BOTH_MAUSOLEUM_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_BOTH_MAUSOLEUM_DESC"),
             c->x_offset + 32, c->y_offset + 236, 14 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-        text_draw_centered(translation_for(TR_BUILDING_SMALL_MAUSOLEUM),
+        text_draw_centered(translation_for_key("TR_BUILDING_SMALL_MAUSOLEUM"),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         window_building_draw_monument_small_mausoleum_construction_process(c);
     }
@@ -1370,18 +1374,18 @@ void window_building_draw_large_mausoleum(building_info_context *c)
         c->advisor_button = ADVISOR_RELIGION;
         window_building_play_sound(c, "wavs/oracle.wav");
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-        text_draw_centered(translation_for(TR_BUILDING_LARGE_MAUSOLEUM),
+        text_draw_centered(translation_for_key("TR_BUILDING_LARGE_MAUSOLEUM"),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-        text_draw_multiline(translation_for(TR_BUILDING_LARGE_MAUSOLEUM_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_LARGE_MAUSOLEUM_DESC"),
             c->x_offset + 32, c->y_offset + 56, 14 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
         window_building_draw_employment(c, 150);
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
-        text_draw_multiline(translation_for(TR_BUILDING_BOTH_MAUSOLEUM_DESC),
+        text_draw_multiline(translation_for_key("TR_BUILDING_BOTH_MAUSOLEUM_DESC"),
             c->x_offset + 32, c->y_offset + 236, 14 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-        text_draw_centered(translation_for(TR_BUILDING_LARGE_MAUSOLEUM),
+        text_draw_centered(translation_for_key("TR_BUILDING_LARGE_MAUSOLEUM"),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         window_building_draw_monument_large_mausoleum_construction_process(c);
     }

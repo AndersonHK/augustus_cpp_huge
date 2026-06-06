@@ -5,8 +5,7 @@
 namespace localization::detail {
 
 runtime_state g_runtime;
-std::vector<localized_text> g_missing_project_key_fallbacks(TRANSLATION_MAX_KEY);
-std::vector<uint8_t> g_missing_project_key_reported(TRANSLATION_MAX_KEY, 0);
+std::map<std::string, bool> g_missing_project_key_reported;
 std::map<uint64_t, bool> g_missing_legacy_string_reported;
 std::vector<std::string> *g_list_result = nullptr;
 
@@ -138,29 +137,13 @@ std::string make_julius_manifest_path()
     return append_path_component(make_julius_localization_root(), ".localization_extract.manifest");
 }
 
-localized_text &fallback_project_key(translation_key key)
+void report_missing_project_key(const char *key)
 {
-    localized_text &fallback = g_missing_project_key_fallbacks[key];
-    if (fallback.utf8.empty()) {
-        const char *key_name = translation_key_to_name(key);
-        if (key_name && *key_name) {
-            fallback.utf8 = key_name;
-        } else {
-            fallback.utf8 = "MISSING_LOCALIZATION_KEY";
-        }
-        fallback.rebuild_legacy();
-    }
-    return fallback;
-}
-
-void report_missing_project_key(translation_key key)
-{
-    if (key < 0 || key >= TRANSLATION_MAX_KEY || g_missing_project_key_reported[key]) {
+    if (!key || !*key || g_missing_project_key_reported[key]) {
         return;
     }
-    g_missing_project_key_reported[key] = 1;
-    const char *key_name = translation_key_to_name(key);
-    log_error("Missing localized project string", key_name ? key_name : "MISSING_LOCALIZATION_KEY", 0);
+    g_missing_project_key_reported[key] = true;
+    log_error("Missing localized project string", key, 0);
 }
 
 void report_missing_legacy_string(int is_editor, int group, int index)
@@ -277,13 +260,6 @@ void rebuild_text_groups(std::map<int, std::vector<localized_text>> &groups)
     }
 }
 
-void rebuild_project_keys(std::vector<localized_text> &project_keys)
-{
-    for (localized_text &entry : project_keys) {
-        entry.rebuild_legacy();
-    }
-}
-
 void rebuild_named_project_keys(std::map<std::string, localized_text> &project_keys)
 {
     for (auto &entry : project_keys) {
@@ -302,9 +278,9 @@ void rebuild_messages(std::vector<message_definition> &messages, language_type l
 
         auto rebuild_field = [&](message_string_definition &field) {
             if (language == LANGUAGE_GERMAN && field.has_legacy_offset && field.legacy_offset == 289) {
-                const localized_text &fix = g_runtime.catalog.project_keys[TR_FIX_GERMAN_CITY_RETAKEN];
-                if (!fix.utf8.empty()) {
-                    field.text.utf8 = fix.utf8;
+                const auto fix = g_runtime.catalog.named_project_keys.find("TR_FIX_GERMAN_CITY_RETAKEN");
+                if (fix != g_runtime.catalog.named_project_keys.end() && !fix->second.utf8.empty()) {
+                    field.text.utf8 = fix->second.utf8;
                 }
             }
             field.text.rebuild_legacy();

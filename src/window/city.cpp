@@ -1,65 +1,67 @@
+#include "building/building_type.h"
+#include "building/clone.h"
+#include "building/construction.h"
+#include "building/data_transfer.h"
+#include "building/industry.h"
+#include "building/rotation.h"
+#include "building/variant.h"
+#include "city/victory.h"
+#include "city/warning.h"
+#include "figure/roamer_preview.h"
+#include "game/orientation.h"
+#include "game/state.h"
+#include "game/undo.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/weather.h"
+#include "map/building.h"
+#include "widget/city.h"
+#include "widget/city_with_overlay.h"
+#include "widget/sidebar/city.h"
+#include "widget/sidebar/extra.h"
+#include "widget/sidebar/military.h"
+#include "widget/top_menu.h"
+#include "window/building_info.h"
+#include "window/empire.h"
+#include "window/file_dialog.h"
+
+#include "city.h"
+
+#include "graphics/complex_button.h"
+#include "window/message_list.h"
+#include "window/overlay_menu.h"
+#include "window/advisors.h"
 #include "building/building.h"
 #include "building/building_record.h"
 
 extern "C" {
-#include "city.h"
 
-#include "building/clone.h"
-#include "building/construction.h"
-#include "building/data_transfer.h"
 #include "building/building_type_api.h"
-#include "building/industry.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/rotation.h"
-#include "building/building_type.h"
-#include "building/variant.h"
 #include "city/message.h"
-#include "city/victory.h"
 #include "city/view.h"
-#include "city/warning.h"
 #include "core/config.h"
 #include "core/string.h"
 #include "figure/formation.h"
 #include "figure/formation_legion.h"
-#include "figure/roamer_preview.h"
 #include "game/settings.h"
-#include "game/state.h"
 #include "game/time.h"
-#include "game/undo.h"
-#include "graphics/complex_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
-#include "graphics/weather.h"
 #include "graphics/window.h"
 #include "map/bookmark.h"
-#include "map/building.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/terrain.h"
 #include "scenario/allowed_building.h"
 #include "scenario/criteria.h"
 #include "scenario/custom_variable.h"
-#include "widget/city.h"
-#include "widget/city_with_overlay.h"
-#include "widget/top_menu.h"
-#include "widget/sidebar/city.h"
-#include "widget/sidebar/extra.h"
-#include "widget/sidebar/military.h"
-#include "window/advisors.h"
-#include "window/building_info.h"
-#include "window/empire.h"
-#include "window/file_dialog.h"
-#include "window/message_list.h"
-#include "window/overlay_menu.h"
 }
 
-#include "game/orientation.h"
-#include "graphics/image.h"
 
 #include <initializer_list>
 
@@ -710,9 +712,9 @@ static void handle_hotkeys(const hotkeys *h)
         if (building_id && model_get_building(b->type)->laborers) {
             building_mothball_toggle(b);
             if (b->state == BUILDING_STATE_IN_USE) {
-                city_warning_show(WARNING_DATA_MOTHBALL_OFF, translation_for(TR_CITY_WARNING_DATA_MOTHBALL_OFF));
+                city_warning_show(WARNING_DATA_MOTHBALL_OFF, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_OFF"));
             } else if (b->state == BUILDING_STATE_MOTHBALLED) {
-                city_warning_show(WARNING_DATA_MOTHBALL_ON, translation_for(TR_CITY_WARNING_DATA_MOTHBALL_ON));
+                city_warning_show(WARNING_DATA_MOTHBALL_ON, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_ON"));
             }
         }
     }

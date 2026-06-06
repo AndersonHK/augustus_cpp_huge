@@ -1,7 +1,20 @@
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "window/empire.h"
+#include "window/resource_settings.h"
+#include "window/trade_prices.h"
+
+#include "trade.h"
+
+#include "graphics/grid_box.h"
+#include "translation/translation.h"
+#include "window/option_popup.h"
 #include "graphics/ui_runtime.h"
 
 extern "C" {
-#include "trade.h"
 
 #include "assets/assets.h"
 #include "building/building_type_api.h"
@@ -15,21 +28,10 @@ extern "C" {
 #include "empire/city.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "sound/speech.h"
-#include "translation/translation.h"
-#include "window/empire.h"
-#include "window/option_popup.h"
-#include "window/resource_settings.h"
-#include "window/trade_prices.h"
 }
-#include "game/resource_graphics.h"
-#include "graphics/image.h"
 
 #include <string.h>
 
@@ -69,8 +71,8 @@ static generic_button resource_buttons[] = {
 };
 
 static struct {
-    int title;
-    int subtitle;
+    translation_key title;
+    translation_key subtitle;
     const char *base_image_name;
     option_menu_item items[3];
     const char *wav_file;
@@ -200,12 +202,12 @@ static void draw_resource_status_text(resource_type resource, int x, int y, int 
         if (import_limit > 0) {
             text_draw_number(import_limit, 0, " ", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         } else {
-            text_draw(translation_for(TR_ADVISOR_TRADE_MAX), x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+            text_draw(translation_for_key("TR_ADVISOR_TRADE_MAX"), x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         }
     } else if (trade_flags & TRADE_STATUS_IMPORT) {
-        text_draw_centered(translation_for(TR_ADVISOR_TRADE_IMPORTABLE), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_ADVISOR_TRADE_IMPORTABLE"), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else if (trade_flags_potential & TRADE_STATUS_IMPORT) {
-        text_draw_centered(translation_for(TR_ADVISOR_OPEN_TO_IMPORT), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_ADVISOR_OPEN_TO_IMPORT"), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
 
     if (two_lines) {
@@ -219,9 +221,9 @@ static void draw_resource_status_text(resource_type resource, int x, int y, int 
         width += lang_text_draw(54, 6, x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         text_draw_number(city_resource_export_over(resource), 0, " ", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (trade_flags & TRADE_STATUS_EXPORT) {
-        text_draw_centered(translation_for(TR_ADVISOR_TRADE_EXPORTABLE), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_ADVISOR_TRADE_EXPORTABLE"), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else if (trade_flags_potential & TRADE_STATUS_EXPORT) {
-        text_draw_centered(translation_for(TR_ADVISOR_OPEN_TO_EXPORT), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_ADVISOR_OPEN_TO_EXPORT"), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
 }
 
@@ -387,7 +389,7 @@ static void write_resource_storage_tooltip(tooltip_context *c, resource_type res
     text += string_from_int(text, amount_granary, 0);
     *text = ' ';
     text++;
-    text = string_copy(translation_for(TR_ADVISOR_FROM_GRANARIES), text, 200 - (int) (text - tooltip_resource_info));
+    text = string_copy(translation_for_key("TR_ADVISOR_FROM_GRANARIES"), text, 200 - (int) (text - tooltip_resource_info));
     c->precomposed_text = tooltip_resource_info;
 }
 

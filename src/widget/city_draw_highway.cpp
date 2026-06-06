@@ -1,18 +1,20 @@
-extern "C" {
-#include "city_draw_highway.h"
-#include "assets/assets.h"
 #include "building/building.h"
-#include "building/building_record.h"
-#include "city/view.h"
+#include "graphics/image.h"
 #include "map/aqueduct.h"
 #include "map/building.h"
+#include "map/tiles.h"
+
+#include "city_draw_highway.h"
+
+extern "C" {
+#include "assets/assets.h"
+#include "building/building_record.h"
+#include "city/view.h"
 #include "map/grid.h"
 #include "map/random.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
 }
 
-#include "graphics/image.h"
 
 static int highway_barrier_direction_offsets[4] = { 1, -GRID_SIZE, -1, GRID_SIZE };
 

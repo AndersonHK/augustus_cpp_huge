@@ -1,13 +1,23 @@
-extern "C" {
-#include "city_overlay_housing.h"
-#include "assets/assets.h"
 #include "building/building.h"
-#include "building/building_record.h"
 #include "building/house.h"
 #include "building/industry.h"
-#include "building/monument.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
+#include "game/state.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "map/bridge.h"
+#include "map/building.h"
+#include "map/image.h"
+#include "widget/city_draw_highway.h"
+
+#include "city_overlay_housing.h"
+
+#include "translation/translation.h"
+extern "C" {
+#include "assets/assets.h"
+#include "building/building_record.h"
+#include "building/monument.h"
 #include "city/constants.h"
 #include "city/finance.h"
 #include "core/calc.h"
@@ -15,22 +25,14 @@ extern "C" {
 #include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
-#include "game/state.h"
-#include "graphics/graphics.h"
 #include "graphics/text.h"
-#include "map/bridge.h"
-#include "map/building.h"
 #include "map/desirability.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-#include "widget/city_draw_highway.h"
 }
 
-#include "graphics/image.h"
 
 #include <stdio.h>
 

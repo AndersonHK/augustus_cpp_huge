@@ -1,22 +1,24 @@
-extern "C" {
-#include "starting_conditions.h"
-
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
-#include "graphics/text.h"
-#include "graphics/screen.h"
-#include "graphics/window.h"
 #include "input/input.h"
-#include "scenario/editor.h"
-#include "scenario/map.h"
-#include "scenario/property.h"
 #include "window/editor/attributes.h"
-#include "window/editor/map.h"
 #include "window/editor/start_year.h"
 #include "window/numeric_input.h"
 #include "window/select_list.h"
+
+#include "starting_conditions.h"
+
+#include "window/editor/map.h"
+extern "C" {
+
+#include "graphics/ui_runtime_api.h"
+#include "graphics/text.h"
+#include "graphics/screen.h"
+#include "graphics/window.h"
+#include "scenario/editor.h"
+#include "scenario/map.h"
+#include "scenario/property.h"
 }
 
 static void button_rank(const generic_button *button);

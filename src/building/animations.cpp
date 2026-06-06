@@ -1,3 +1,9 @@
+#include "building/count.h"
+#include "building/image.h"
+#include "building/industry.h"
+#include "city/festival.h"
+#include "map/image.h"
+
 #include "building/animations.h"
 
 #include "assets/assets.h"
@@ -14,16 +20,11 @@
 #include "graphics/runtime_texture.h"
 
 extern "C" {
-#include "building/count.h"
-#include "building/image.h"
-#include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "city/festival.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "game/animation.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/sprite.h"
 #include "scenario/property.h"

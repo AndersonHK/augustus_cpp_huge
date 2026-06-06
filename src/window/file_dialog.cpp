@@ -1,3 +1,34 @@
+#include "editor/empire.h"
+#include "empire/empire.h"
+#include "empire/export_xml.h"
+#include "empire/import_xml.h"
+#include "game/file.h"
+#include "game/file_editor.h"
+#include "game/file_io.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/list_box.h"
+#include "input/input.h"
+#include "scenario/custom_messages_export_xml.h"
+#include "scenario/custom_messages_import_xml.h"
+#include "scenario/event/export_xml.h"
+#include "scenario/event/import_xml.h"
+#include "scenario/model_xml.h"
+#include "widget/minimap.h"
+#include "window/city.h"
+#include "window/editor/custom_messages.h"
+#include "window/editor/empire.h"
+#include "window/editor/model_data.h"
+#include "window/editor/scenario_events.h"
+#include "window/plain_message_dialog.h"
+
+#include "editor/editor.h"
+#include "widget/input_box.h"
+#include "window/editor/map.h"
+#include "translation/translation.h"
+#include "window/popup_dialog.h"
 #include "game/resource_id_bridge.h"
 #include "file_dialog.h"
 
@@ -13,46 +44,16 @@ extern "C" {
 #include "core/image_group_editor.h"
 #include "core/lang.h"
 #include "core/string.h"
-#include "editor/editor.h"
-#include "editor/empire.h"
-#include "empire/empire.h"
 #include "empire/object.h"
-#include "empire/export_xml.h"
-#include "empire/import_xml.h"
-#include "game/file.h"
-#include "game/file_editor.h"
-#include "game/file_io.h"
 #include "game/save_version.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
-#include "graphics/list_box.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "platform/file_manager.h"
-#include "scenario/custom_messages_export_xml.h"
-#include "scenario/custom_messages_import_xml.h"
 #include "scenario/editor.h"
 #include "scenario/empire.h"
-#include "scenario/event/export_xml.h"
-#include "scenario/event/import_xml.h"
-#include "scenario/model_xml.h"
-#include "translation/translation.h"
-#include "widget/input_box.h"
-#include "window/city.h"
-#include "window/editor/custom_messages.h"
-#include "window/editor/empire.h"
-#include "window/editor/map.h"
-#include "window/editor/model_data.h"
-#include "window/editor/scenario_events.h"
-#include "widget/minimap.h"
-#include "window/plain_message_dialog.h"
-#include "window/popup_dialog.h"
 }
-#include "graphics/image.h"
 
 #include <string.h>
 
@@ -310,12 +311,12 @@ static void draw_mission_info(int x_offset, int y_offset, int box_size)
     uint8_t *cursor = text;
 
     if (data.info.origin.type == SAVEGAME_FROM_CUSTOM_SCENARIO) {
-        cursor = string_copy(translation_for(TR_SAVE_DIALOG_CUSTOM_SCENARIO), cursor, FILE_NAME_MAX);
+        cursor = string_copy(translation_for_key("TR_SAVE_DIALOG_CUSTOM_SCENARIO"), cursor, FILE_NAME_MAX);
         cursor = string_copy(string_from_ascii(" - "), cursor, FILE_NAME_MAX - (int) (cursor - text));
         encoding_from_utf8(data.info.origin.scenario_name, cursor, FILE_NAME_MAX - (int) (cursor - text));
     } else if (data.info.origin.type == SAVEGAME_FROM_ORIGINAL_CAMPAIGN) {
         if (data.info.origin.mission == 0) {
-            text_draw_centered(translation_for(TR_SAVE_DIALOG_FIRST_MISSION),
+            text_draw_centered(translation_for_key("TR_SAVE_DIALOG_FIRST_MISSION"),
                 x_offset, y_offset, box_size, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             return;
         } else {
@@ -457,12 +458,12 @@ static void draw_foreground(void)
                 }
                 if (data.type == FILE_TYPE_SAVED_GAME) {
                     draw_mission_info(362, 356, 246);
-                    text_draw(translation_for(TR_SAVE_DIALOG_FUNDS), 362, 376, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                    text_draw(translation_for_key("TR_SAVE_DIALOG_FUNDS"), 362, 376, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                     text_draw_money(data.info.treasury, 494, 376, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-                    text_draw(translation_for(TR_SAVE_DIALOG_DATE), 362, 396, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                    text_draw(translation_for_key("TR_SAVE_DIALOG_DATE"), 362, 396, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                     lang_text_draw_month_year_max_width(data.info.month, data.info.year,
                         500, 396, 108, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-                    text_draw(translation_for(TR_SAVE_DIALOG_POPULATION), 362, 416, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                    text_draw(translation_for_key("TR_SAVE_DIALOG_POPULATION"), 362, 416, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                     text_draw_number(data.info.population, '\0', "",
                         500, 416, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
                     widget_minimap_draw(352, 80, 266, 272);
@@ -472,10 +473,10 @@ static void draw_foreground(void)
             } else {
                 if (data.dialog_type == FILE_DIALOG_SAVE) {
                     if (*data.typed_name) {
-                        text_draw_centered(translation_for(TR_SAVE_DIALOG_NEW_FILE),
+                        text_draw_centered(translation_for_key("TR_SAVE_DIALOG_NEW_FILE"),
                             362, 246, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                     } else {
-                        text_draw_centered(translation_for(TR_SAVE_DIALOG_SELECT_FILE),
+                        text_draw_centered(translation_for_key("TR_SAVE_DIALOG_SELECT_FILE"),
                             362, 246, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                     }
                 } else {
@@ -502,7 +503,7 @@ static void draw_foreground(void)
                 Image::from_id(data.preview_image_id).draw((int) (352 * scale), (int) (80 * scale), COLOR_MASK_NONE, scale);
             }
         } else {
-            text_draw_centered(translation_for(TR_SAVE_DIALOG_SELECT_FILE), 362, 246, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+            text_draw_centered(translation_for_key("TR_SAVE_DIALOG_SELECT_FILE"), 362, 246, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
         data.redraw_full_window = 0;
     }
@@ -766,8 +767,8 @@ static void button_ok_cancel(int is_ok, int param2)
             int result = (filename != 0) && (file_exists(filename, MAY_BE_LOCALIZED) != 0);
             if (result) {
                 if (image_get(assets_get_external_image(filename, 1))->width < 1440) {
-                    window_popup_dialog_show_confirmation(translation_for(TR_EDITOR_IMAGE_TO_SMALL),
-                        translation_for(TR_EDITOR_IMAGE_TO_SMALL_EXPLANATION), NULL, confirm_small_image);
+                    window_popup_dialog_show_confirmation(translation_for_key("TR_EDITOR_IMAGE_TO_SMALL"),
+                        translation_for_key("TR_EDITOR_IMAGE_TO_SMALL_EXPLANATION"), NULL, confirm_small_image);
                 } else {
                     confirm_small_image(1, 0);
                 }

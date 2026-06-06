@@ -1,3 +1,18 @@
+#include "city/warning.h"
+#include "editor/tool.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/menu.h"
+#include "map/image.h"
+#include "map/image_context.h"
+#include "widget/city_figure.h"
+#include "widget/map_editor_pause_menu.h"
+#include "widget/map_editor_tool.h"
+#include "window/editor/empire.h"
+
+#include "editor/editor.h"
+#include "graphics/complex_button.h"
+#include "translation/translation.h"
 #include <array>
 
 #include "widget/map_editor.h"
@@ -9,24 +24,16 @@
 
 extern "C" {
 #include "assets/assets.h"
-#include "city/warning.h"
 #include "core/config.h"
 #include "core/lang.h"
 #include "core/string.h"
-#include "editor/editor.h"
-#include "editor/tool.h"
 #include "graphics/color.h"
-#include "graphics/complex_button.h"
-#include "graphics/graphics.h"
-#include "graphics/menu.h"
 #include "graphics/renderer.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
 #include "input/scroll.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/image.h"
-#include "map/image_context.h"
 #include "map/point.h"
 #include "map/property.h"
 #include "map/terrain.h"
@@ -35,13 +42,7 @@ extern "C" {
 #include "scenario/event/controller.h"
 #include "sound/city.h"
 #include "sound/effect.h"
-#include "translation/translation.h"
-#include "widget/city_figure.h"
-#include "widget/map_editor_pause_menu.h"
-#include "widget/map_editor_tool.h"
-#include "window/editor/empire.h"
 }
-#include "graphics/image.h"
 
 #include <cstdio>
 #include <cstring>

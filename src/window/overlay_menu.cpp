@@ -1,4 +1,4 @@
-extern "C" {
+#include "translation/translation.h"
 #include "overlay_menu.h"
 
 #include "assets/assets.h"
@@ -16,9 +16,7 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "input/input.h"
-#include "translation/translation.h"
 #include "window/city.h"
-}
 #include "graphics/image.h"
 
 #include <stdlib.h>
@@ -33,7 +31,7 @@ extern "C" {
 #define LABEL_WIDTH_BLOCKS 10
 #define SIDEBAR_MARGIN_X 10
 #define MAX_BUTTONS 20
-#define OVERLAY_MENU_END { -1, -1, JULIUS, NULL, NULL }
+#define OVERLAY_MENU_END { -1, {}, JULIUS, NULL, NULL }
 
 static void button_menu_item(const generic_button *button);
 
@@ -44,13 +42,41 @@ typedef enum
     XML_BUILDING_NAME = 2,
 } translation_type;
 
-typedef struct overlay_menu_entry {
+struct overlay_menu_entry {
     int overlay;
-    int translation;
-    int translation_type;
+    translation_key translation;
+    translation_type translation_kind;
     const struct overlay_menu_entry *submenu;
     const char *building_text_id;
-} overlay_menu_entry;
+
+    constexpr overlay_menu_entry(
+        int overlay_id,
+        translation_key key,
+        translation_type type,
+        const overlay_menu_entry *child_menu,
+        const char *building_id = nullptr)
+        : overlay(overlay_id),
+          translation(key),
+          translation_kind(type),
+          submenu(child_menu),
+          building_text_id(building_id)
+    {
+    }
+
+    constexpr overlay_menu_entry(
+        int overlay_id,
+        int,
+        translation_type type,
+        const overlay_menu_entry *child_menu,
+        const char *building_id = nullptr)
+        : overlay(overlay_id),
+          translation(),
+          translation_kind(type),
+          submenu(child_menu),
+          building_text_id(building_id)
+    {
+    }
+};
 
 static const overlay_menu_entry OVERLAY_MENU_SENTINEL = OVERLAY_MENU_END;
 
@@ -199,11 +225,11 @@ static int is_mouse_hovering(const overlay_menu_entry *entry)
 
 static const uint8_t *get_overlay_text(const overlay_menu_entry *entry)
 {
-    if (entry->translation_type == AUGUSTUS) {
-        return translation_for(static_cast<translation_key>(entry->translation));
+    if (entry->translation_kind == AUGUSTUS) {
+        return translation_for(entry->translation);
     }
 
-    if (entry->translation_type == XML_BUILDING_NAME) {
+    if (entry->translation_kind == XML_BUILDING_NAME) {
         building_type type = building_type_registry_runtime_id_from_text(entry->building_text_id);
         return lang_get_building_type_string(type);
     }

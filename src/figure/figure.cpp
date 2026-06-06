@@ -1,10 +1,12 @@
+#
+
 #include "figure/figure.h"
 
+#include "building/building.h"
 #include "figure/figure_runtime_api.h"
 #include "map/road_service_history.h"
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "core/array.h"

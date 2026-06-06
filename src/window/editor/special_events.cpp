@@ -1,22 +1,24 @@
-extern "C" {
-#include "special_events.h"
-
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/attributes.h"
+#include "window/numeric_input.h"
+
+#include "special_events.h"
+
+#include "window/editor/map.h"
+#include "widget/dropdown_button.h"
+extern "C" {
+
+#include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/editor_events.h"
 #include "scenario/property.h"
 #include "scenario/types.h"
 #include "scenario/data.h"
-#include "widget/dropdown_button.h"
-#include "window/editor/attributes.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
 }
 
 static void button_earthquake_severity(const generic_button *button);
@@ -99,7 +101,7 @@ static void draw_foreground(void)
     if (!(scenario_editor_earthquake_severity() == EARTHQUAKE_CUSTOM)) {
         lang_text_draw_centered(40, scenario_editor_earthquake_severity(), 216, 112, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        text_draw_centered(translation_for(TR_EDITOR_EARTHQUAKE_CUSTOM), 216, 112, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_EDITOR_EARTHQUAKE_CUSTOM"), 216, 112, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
     button_border_draw(326, 106, 130, 24, focus_button_id == 2);

@@ -2,6 +2,10 @@
 
 #include "core/buffer.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef enum {
     MESSAGE_MEDIA_TEXT_BLOB_VERSION = 1,
 
@@ -43,3 +47,7 @@ void message_media_text_blob_load_state(buffer *blob_buffer, buffer *meta_buffer
 
 void message_media_text_blob_mark_entry_as_unused(const text_blob_string_t *entry);
 void message_media_text_blob_remove_unused(void);
+
+#ifdef __cplusplus
+}
+#endif

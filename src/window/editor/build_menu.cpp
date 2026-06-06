@@ -1,18 +1,20 @@
-extern "C" {
-#include "build_menu.h"
-
-#include "city/view.h"
 #include "editor/tool.h"
 #include "graphics/generic_button.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "widget/map_editor.h"
+#include "widget/sidebar/editor.h"
+
+#include "build_menu.h"
+
+#include "window/editor/map.h"
+#include "translation/translation.h"
+extern "C" {
+
+#include "city/view.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "translation/translation.h"
-#include "widget/map_editor.h"
-#include "widget/sidebar/editor.h"
-#include "window/editor/map.h"
 }
 
 #define MENU_X_OFFSET 170

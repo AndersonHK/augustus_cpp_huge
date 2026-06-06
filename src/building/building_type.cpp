@@ -1,12 +1,14 @@
+#
+
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/building_type.h"
 
 #include "building/housing_type.h"
+#include "building/industry.h"
 #include "building/religion.h"
 
 extern "C" {
-#include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/constants.h"

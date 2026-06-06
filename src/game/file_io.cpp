@@ -1,3 +1,21 @@
+#include "building/count.h"
+#include "building/list.h"
+#include "building/local_workforce.h"
+#include "building/storage.h"
+#include "building/water_access_type_id_bridge.h"
+#include "city/culture.h"
+#include "city/data.h"
+#include "empire/empire.h"
+#include "game/file.h"
+#include "game/mod_manager.h"
+#include "map/aqueduct.h"
+#include "map/building.h"
+#include "map/image.h"
+#include "map/road_service_history.h"
+#include "map/tiles.h"
+#include "scenario/earthquake.h"
+#include "widget/minimap.h"
+
 #include "file_io.h"
 
 #include "building/building.h"
@@ -7,16 +25,9 @@
 
 extern "C" {
 #include "building/building_type_id_bridge.h"
-#include "building/count.h"
 #include "building/granary.h"
-#include "building/list.h"
-#include "building/local_workforce.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/storage.h"
-#include "building/water_access_type_id_bridge.h"
-#include "city/culture.h"
-#include "city/data.h"
 #include "city/message.h"
 #include "city/view.h"
 #include "core/dir.h"
@@ -28,7 +39,6 @@ extern "C" {
 #include "core/zip.h"
 #include "core/zlib_helper.h"
 #include "empire/city.h"
-#include "empire/empire.h"
 #include "empire/object.h"
 #include "empire/trade_prices.h"
 #include "empire/trade_route.h"
@@ -38,34 +48,26 @@ extern "C" {
 #include "figure/route.h"
 #include "figure/trader.h"
 #include "figure/visited_buildings.h"
-#include "game/file.h"
-#include "game/mod_manager.h"
 #include "game/resource.h"
 #include "game/resource_id_bridge.h"
 #include "game/save_version.h"
 #include "game/time.h"
 #include "game/tutorial.h"
-#include "map/aqueduct.h"
 #include "map/bookmark.h"
-#include "map/building.h"
 #include "map/desirability.h"
 #include "map/elevation.h"
 #include "map/figure.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/road_service_history.h"
 #include "map/routing.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
 #include "scenario/allowed_building.h"
 #include "scenario/criteria.h"
 #include "scenario/custom_media.h"
 #include "scenario/custom_messages.h"
 #include "scenario/custom_variable.h"
 #include "scenario/demand_change.h"
-#include "scenario/earthquake.h"
 #include "scenario/emperor_change.h"
 #include "scenario/empire.h"
 #include "scenario/event/controller.h"
@@ -77,7 +79,6 @@ extern "C" {
 #include "scenario/request.h"
 #include "scenario/scenario.h"
 #include "sound/city.h"
-#include "widget/minimap.h"
 }
 
 #include <stdio.h>
@@ -883,7 +884,9 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
         scenario_invasion_load_state(file->invasions);
         scenario_demand_change_load_state(file->demand_changes, version);
         scenario_price_change_load_state(file->price_changes);
-        scenario_allowed_building_load_state(file->allowed_buildings);
+        scenario_allowed_building_load_state_keyed(
+            file->allowed_buildings,
+            version > SCENARIO_LAST_NO_KEYED_ALLOWED_BUILDINGS);
         scenario_custom_variable_load_state(file->custom_variables, version);
     }
     if (version > SCENARIO_LAST_NO_EVENTS) {
@@ -1005,7 +1008,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         scenario_invasion_load_state(state->invasions);
         scenario_demand_change_load_state(state->demand_changes, scenario_version);
         scenario_price_change_load_state(state->price_changes);
-        scenario_allowed_building_load_state(state->allowed_buildings);
+        scenario_allowed_building_load_state_keyed(
+            state->allowed_buildings,
+            version > SAVE_GAME_LAST_NO_KEYED_ALLOWED_BUILDINGS);
         scenario_custom_variable_load_state(state->custom_variables, scenario_version);
     }
 
@@ -1046,6 +1051,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         state->water_access_type_table,
         version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE);
     building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
+    map_building_remove_invalid_references();
     if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
         building_resource_state_load(state->building_resource_state);
     }

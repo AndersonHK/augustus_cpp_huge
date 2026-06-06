@@ -1,18 +1,30 @@
-extern "C" {
-#include "city_overlay_other.h"
-
-#include "assets/assets.h"
+#include "building/animations.h"
 #include "building/building.h"
-#include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/house.h"
 #include "building/industry.h"
-#include "building/monument.h"
-#include "building/properties.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
 #include "building/storage.h"
 #include "building/water_access_runtime.h"
+#include "game/state.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/runtime_overlay_images.h"
+#include "map/bridge.h"
+#include "map/building.h"
+#include "map/image.h"
+#include "widget/city_draw_highway.h"
+
+#include "city_overlay_other.h"
+
+#include "translation/translation.h"
+extern "C" {
+
+#include "assets/assets.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
+#include "building/monument.h"
+#include "building/properties.h"
 #include "city/constants.h"
 #include "city/finance.h"
 #include "core/calc.h"
@@ -20,24 +32,14 @@ extern "C" {
 #include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
-#include "game/state.h"
-#include "graphics/graphics.h"
-#include "graphics/runtime_overlay_images.h"
 #include "graphics/text.h"
-#include "map/bridge.h"
-#include "map/building.h"
 #include "map/desirability.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-#include "widget/city_draw_highway.h"
 }
-#include "graphics/image.h"
 
-#include "building/animations.h"
 #include <initializer_list>
 #include <stdio.h>
 
@@ -84,6 +86,47 @@ static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *mes
     cursor = string_copy(string_from_ascii(" - "), cursor, TOOLTIP_WITH_PREFIX_MAX_LENGTH - (cursor - text));
     string_copy(message, cursor, TOOLTIP_WITH_PREFIX_MAX_LENGTH - (cursor - text));
     return text;
+}
+
+static translation_key house_sentiment_key_for_happiness(int happiness)
+{
+    static constexpr translation_key keys[] = {
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_3,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_4,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_5,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_6,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_7,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_8,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_9,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_10,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_11,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_12,
+    };
+    int index = happiness > 0 ? happiness / 10 + 1 : 0;
+    if (index < 0) {
+        index = 0;
+    } else if (index >= static_cast<int>(sizeof(keys) / sizeof(keys[0]))) {
+        index = static_cast<int>(sizeof(keys) / sizeof(keys[0])) - 1;
+    }
+    return keys[index];
+}
+
+static translation_key efficiency_key_for_value(int efficiency)
+{
+    if (efficiency == 0) {
+        return TR_TOOLTIP_OVERLAY_EFFICIENCY_0;
+    } else if (efficiency < 25) {
+        return TR_TOOLTIP_OVERLAY_EFFICIENCY_1;
+    } else if (efficiency < 50) {
+        return TR_TOOLTIP_OVERLAY_EFFICIENCY_2;
+    } else if (efficiency < 80) {
+        return TR_TOOLTIP_OVERLAY_EFFICIENCY_3;
+    } else if (efficiency < 95) {
+        return TR_TOOLTIP_OVERLAY_EFFICIENCY_4;
+    }
+    return TR_TOOLTIP_OVERLAY_EFFICIENCY_5;
 }
 
 static int show_building_religion(const building *b)
@@ -375,21 +418,7 @@ static int get_tooltip_efficiency(tooltip_context *c, const building *b)
     if (efficiency == -1) {
         return 0;
     }
-    int key;
-    if (efficiency == 0) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_0;
-    } else if (efficiency < 25) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_1;
-    } else if (efficiency < 50) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_2;
-    } else if (efficiency < 80) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_3;
-    } else if (efficiency < 95) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_4;
-    } else {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_5;
-    }
-    c->precomposed_text = prefix_value_to_tooltip_text(efficiency, translation_for(static_cast<translation_key>(key)));
+    c->precomposed_text = prefix_value_to_tooltip_text(efficiency, translation_for(efficiency_key_for_value(efficiency)));
     return 1;
 }
 
@@ -591,12 +620,8 @@ static int get_tooltip_sentiment(tooltip_context *c, int grid_offset)
         return 0;
     }
     int happiness = b->sentiment.house_happiness;
-    int sentiment_text_id = TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1;
-    if (happiness > 0) {
-        sentiment_text_id = happiness / 10 + TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2;
-    }
     c->precomposed_text = prefix_value_to_tooltip_text(
-        happiness, translation_for(static_cast<translation_key>(sentiment_text_id)));
+        happiness, translation_for(house_sentiment_key_for_happiness(happiness)));
     return 1;
 }
 

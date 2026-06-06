@@ -101,7 +101,7 @@ typedef struct {
     } custom_asset;
     struct {
         const char *attr;
-        int key;
+        const char *key;
         int cannot_count;
     } event_data;
     model_building building_model_data;

@@ -1,7 +1,20 @@
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "window/donate_to_city.h"
+#include "window/empire.h"
+#include "window/gift_to_emperor.h"
+#include "window/resource_settings.h"
+#include "window/set_salary.h"
+
+#include "imperial.h"
+
+#include "translation/translation.h"
+#include "window/popup_dialog.h"
 #include "graphics/ui_runtime.h"
 
 extern "C" {
-#include "imperial.h"
 
 #include "city/emperor.h"
 #include "city/finance.h"
@@ -15,22 +28,11 @@ extern "C" {
 #include "empire/city.h"
 #include "figure/formation_legion.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-#include "translation/translation.h"
-#include "window/donate_to_city.h"
-#include "window/empire.h"
-#include "window/gift_to_emperor.h"
-#include "window/popup_dialog.h"
-#include "window/resource_settings.h"
-#include "window/set_salary.h"
 }
-#include "game/resource_graphics.h"
-#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 #define RESOURCE_INFO_MAX_TEXT 200
@@ -129,7 +131,7 @@ static void draw_request_row(int index, const scenario_request *request, int foc
         int y_offset = 120 + 42 * index;
         width = text_draw_number(amount_stored, '@', " ", 40, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         if (using_granaries) {
-            width += text_draw(translation_for(TR_ADVISOR_IN_STORAGE), 40 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+            width += text_draw(translation_for_key("TR_ADVISOR_IN_STORAGE"), 40 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         } else {
             width += lang_text_draw(52, 43, 40 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
@@ -285,15 +287,15 @@ void button_request(const generic_button *button)
             selected_request_id = (status - CITY_REQUEST_STATUS_MAX) & ~CITY_REQUEST_STATUS_RESOURCES_FROM_GRANARY;
             if (status & CITY_REQUEST_STATUS_RESOURCES_FROM_GRANARY) {
                 window_popup_dialog_show_confirmation(
-                    translation_for(TR_ADVISOR_DISPATCHING_FOOD_FROM_GRANARIES_TITLE),
-                    translation_for(TR_ADVISOR_DISPATCHING_FOOD_FROM_GRANARIES_TEXT),
-                    city_resource_is_stockpiled(selected_resource) ? translation_for(TR_ADVISOR_KEEP_STOCKPILING) : 0,
+                    translation_for_key("TR_ADVISOR_DISPATCHING_FOOD_FROM_GRANARIES_TITLE"),
+                    translation_for_key("TR_ADVISOR_DISPATCHING_FOOD_FROM_GRANARIES_TEXT"),
+                    city_resource_is_stockpiled(selected_resource) ? translation_for_key("TR_ADVISOR_KEEP_STOCKPILING") : 0,
                     confirm_send_goods);
             } else {
                 window_popup_dialog_show_confirmation(
                     lang_get_string(5, POPUP_DIALOG_SEND_GOODS),
                     lang_get_string(5, POPUP_DIALOG_SEND_GOODS + 1),
-                    city_resource_is_stockpiled(selected_resource) ? translation_for(TR_ADVISOR_KEEP_STOCKPILING) : 0,
+                    city_resource_is_stockpiled(selected_resource) ? translation_for_key("TR_ADVISOR_KEEP_STOCKPILING") : 0,
                     confirm_send_goods);
             }
             break;
@@ -337,7 +339,7 @@ static void write_resource_storage_tooltip(advisor_tooltip_result *r, resource_t
     text += string_from_int(text, amount_granary, 0);
     *text = ' ';
     text++;
-    text = string_copy(translation_for(TR_ADVISOR_FROM_GRANARIES), text, RESOURCE_INFO_MAX_TEXT - (int) (text - tooltip_resource_info));
+    text = string_copy(translation_for_key("TR_ADVISOR_FROM_GRANARIES"), text, RESOURCE_INFO_MAX_TEXT - (int) (text - tooltip_resource_info));
     r->precomposed_text = tooltip_resource_info;
 }
 

@@ -1,16 +1,17 @@
+#include "building/image.h"
+#include "building/industry.h"
+#include "map/building_tiles.h"
+
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/production.h"
 
 extern "C" {
-#include "building/image.h"
-#include "building/industry.h"
 #include "city/finance.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 #include "figure/figure.h"
 #include "game/resource.h"
-#include "map/building_tiles.h"
 }
 
 namespace {

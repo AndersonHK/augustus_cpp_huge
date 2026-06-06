@@ -1,10 +1,11 @@
+#include "assets/image.h"
+#include "assets/group.h"
+#include "assets/xml.h"
+
 #include "layer.h"
 
 extern "C" {
 #include "assets/assets.h"
-#include "assets/group.h"
-#include "assets/image.h"
-#include "assets/xml.h"
 #include "core/file.h"
 #include "core/log.h"
 #include "core/png_read.h"

@@ -1,23 +1,25 @@
+#include "building/count.h"
+#include "city/festival.h"
+#include "city/houses.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "window/hold_festival.h"
+
+#include "religion.h"
+
 #include "city/god.h"
 #include "graphics/advisor_text_button_widget.h"
 #include "graphics/ui_runtime.h"
 
 extern "C" {
-#include "religion.h"
 
 #include "assets/assets.h"
 #include "building/building_type_api.h"
-#include "building/count.h"
-#include "city/festival.h"
-#include "city/houses.h"
 #include "game/settings.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
-#include "window/hold_festival.h"
 }
-#include "graphics/image.h"
 
 static void button_hold_festival(const generic_button *button);
 static void draw_hold_festival_widget(void);
@@ -140,7 +142,7 @@ static int draw_background(void)
 
     lang_text_draw(59, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); // Religion
 
-    text_draw_centered(translation_for(TR_WINDOW_ADVISOR_RELIGION_ALTARS_HEADER), 165, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0); // Altars
+    text_draw_centered(translation_for_key("TR_WINDOW_ADVISOR_RELIGION_ALTARS_HEADER"), 165, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0); // Altars
     lang_text_draw_centered(59, 5, 256, 32, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Temples
     lang_text_draw_centered(59, 1, 226, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Small
     lang_text_draw_centered(59, 2, 285, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // large

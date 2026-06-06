@@ -1,28 +1,36 @@
-extern "C" {
+#include "city/sentiment.h"
+#include "game/resource_graphics.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/rich_text.h"
+#include "input/input.h"
+#include "window/city.h"
+
 #include "window/message_dialog.h"
+
+#include "editor/editor.h"
+#include "graphics/complex_button.h"
+#include "window/editor/map.h"
+#include "translation/translation.h"
+#include "window/advisors.h"
+extern "C" {
 
 #include "city/emperor.h"
 #include "city/message.h"
 #include "city/resource.h"
-#include "city/sentiment.h"
 #include "city/view.h"
 #include "core/image_group.h"
 #include "core/lang.h"
 #include "core/string.h"
-#include "editor/editor.h"
 #include "empire/city.h"
 #include "figure/formation.h"
 #include "game/settings.h"
-#include "graphics/complex_button.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/rich_text.h"
 #include "graphics/text.h"
 #include "graphics/video.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "input/scroll.h"
 #include "scenario/custom_messages.h"
 #include "scenario/property.h"
@@ -30,13 +38,7 @@ extern "C" {
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-#include "translation/translation.h"
-#include "window/advisors.h"
-#include "window/city.h"
-#include "window/editor/map.h"
 }
-#include "graphics/image.h"
-#include "game/resource_graphics.h"
 
 #define MAX_HISTORY 200
 #define POPUP_PROTECTION_MILIS 400
@@ -392,7 +394,7 @@ static void draw_city_message_text(const lang_message *msg)
                 BLOCK_SIZE * data.text_width_blocks, data.text_height_blocks - 1, 0);
             break;
         case MESSAGE_TYPE_BUILDING_COMPLETION:
-            text_draw(translation_for(TR_BUTTON_GO_TO_SITE), data.x + 100, data.y_text + 44, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+            text_draw(translation_for_key("TR_BUTTON_GO_TO_SITE"), data.x + 100, data.y_text + 44, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
             rich_text_draw(msg->content.text, data.x_text + 8, data.y_text + 86,
                 16 * data.text_width_blocks, data.text_height_blocks - 1, 0);
             break;

@@ -1,7 +1,17 @@
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/image_border.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/mission_briefing.h"
+#include "window/mission_list.h"
+
+#include "mission_selection.h"
+
+#include "window/video.h"
 #include <cstdlib>
 
 extern "C" {
-#include "mission_selection.h"
 
 #include "assets/assets.h"
 #include "core/image_group.h"
@@ -10,23 +20,15 @@ extern "C" {
 #include "game/campaign.h"
 #include "game/mission.h"
 #include "game/settings.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/property.h"
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-#include "window/mission_briefing.h"
-#include "window/mission_list.h"
-#include "window/video.h"
 }
-#include "graphics/image_border.h"
-#include "graphics/image.h"
 
 #define BACKGROUND_WIDTH 1024
 #define BACKGROUND_HEIGHT 768

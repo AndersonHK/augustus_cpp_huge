@@ -108,13 +108,13 @@ static int can_transfer_to(const Building &target, int supress_warnings)
     building_data_type data_type = building_data_transfer_data_type_from_building_type(target.type_id());
     if (data.data_type == DATA_TYPE_NOT_SUPPORTED || data_type == DATA_TYPE_NOT_SUPPORTED) {
         if (!supress_warnings) {
-            city_warning_show(WARNING_DATA_PASTE_FAILURE, translation_for(TR_CITY_WARNING_DATA_PASTE_NOT_SUPPORTED));
+            city_warning_show(WARNING_DATA_PASTE_FAILURE, translation_for_key("TR_CITY_WARNING_DATA_PASTE_NOT_SUPPORTED"));
         }
         return 0;
     }
     if (data.data_type != data_type) {
         if (!supress_warnings) {
-            city_warning_show(WARNING_DATA_PASTE_FAILURE, translation_for(TR_CITY_WARNING_DATA_PASTE_NOT_SUPPORTED));
+            city_warning_show(WARNING_DATA_PASTE_FAILURE, translation_for_key("TR_CITY_WARNING_DATA_PASTE_NOT_SUPPORTED"));
         }
 
         return 0;
@@ -138,7 +138,7 @@ int building_data_transfer_copy(building *b, int supress_warnings)
     if (data_type == DATA_TYPE_NOT_SUPPORTED) {
 
         if (!supress_warnings) {
-            city_warning_show(WARNING_DATA_COPY_NOT_SUPPORTED, translation_for(TR_CITY_WARNING_DATA_COPY_NOT_SUPPORTED));
+            city_warning_show(WARNING_DATA_COPY_NOT_SUPPORTED, translation_for_key("TR_CITY_WARNING_DATA_COPY_NOT_SUPPORTED"));
         }
         return 0;
     } else {
@@ -183,7 +183,7 @@ int building_data_transfer_copy(building *b, int supress_warnings)
 
     }
     if (!supress_warnings) {
-        city_warning_show(WARNING_DATA_COPY_SUCCESS, translation_for(TR_CITY_WARNING_DATA_COPY_SUCCESS));
+        city_warning_show(WARNING_DATA_COPY_SUCCESS, translation_for_key("TR_CITY_WARNING_DATA_COPY_SUCCESS"));
     }
     return 1;
 }
@@ -225,7 +225,7 @@ int building_data_transfer_paste(building *b, int supress_warnings)
     }
     target.set_mothballed(data.mothball);
     if (!supress_warnings) {
-        city_warning_show(WARNING_DATA_PASTE_SUCCESS, translation_for(TR_CITY_WARNING_DATA_PASTE_SUCCESS));
+        city_warning_show(WARNING_DATA_PASTE_SUCCESS, translation_for_key("TR_CITY_WARNING_DATA_PASTE_SUCCESS"));
     }
     return 1;
 

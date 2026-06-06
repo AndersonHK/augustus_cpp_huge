@@ -1,3 +1,26 @@
+#include "building/building_type.h"
+#include "building/clone.h"
+#include "building/construction.h"
+#include "building/construction_building.h"
+#include "building/construction_clear.h"
+#include "building/data_transfer.h"
+#include "building/distribution.h"
+#include "building/image.h"
+#include "building/industry.h"
+#include "building/roadblock.h"
+#include "building/rotation.h"
+#include "building/state.h"
+#include "building/storage.h"
+#include "building/variant.h"
+#include "city/warning.h"
+#include "game/undo.h"
+#include "map/bridge.h"
+#include "map/building.h"
+#include "map/building_tiles.h"
+#include "map/road_access.h"
+#include "map/tiles.h"
+#include "map/water_supply.h"
+
 #include "building.h"
 
 #include "building/animations.h"
@@ -16,33 +39,18 @@
 #include <vector>
 
 extern "C" {
-#include "building/clone.h"
-#include "building/construction.h"
-#include "building/construction_building.h"
-#include "building/construction_clear.h"
-#include "building/data_transfer.h"
 #include "building/destruction.h"
-#include "building/distribution.h"
 #include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
-#include "building/industry.h"
-#include "building/image.h"
 #include "building/granary.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/roadblock.h"
-#include "building/rotation.h"
-#include "building/state.h"
-#include "building/storage.h"
-#include "building/building_type.h"
-#include "building/variant.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/finance.h"
 #include "city/population.h"
-#include "city/warning.h"
 #include "core/array.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -51,21 +59,14 @@ extern "C" {
 #include "figuretype/missile.h"
 #include "game/difficulty.h"
 #include "game/save_version.h"
-#include "game/undo.h"
-#include "map/building.h"
-#include "map/building_tiles.h"
-#include "map/bridge.h"
 #include "map/desirability.h"
 #include "map/elevation.h"
-#include "map/water_supply.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/road_access.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
 }
 
 #define BUILDING_ARRAY_SIZE_STEP 2000
@@ -1117,7 +1118,7 @@ building *building_create(building_type type, int x, int y)
     building *b;
     array_new_item_after_index(data.buildings, 1, b);
     if (!b) {
-        city_warning_show(WARNING_DATA_LIMIT_REACHED, translation_for(TR_CITY_WARNING_DATA_LIMIT_REACHED));
+        city_warning_show_translated(WARNING_DATA_LIMIT_REACHED);
         return array_first(data.buildings);
     }
 
@@ -1416,7 +1417,7 @@ static int warehouse_repair(building *b)
     int std_y = map_grid_offset_to_y(standard_grid_offset);
     grid_slice *grid_slice = map_grid_get_grid_slice_square(standard_grid_offset, og_size);
     if (building_construction_nearby_enemy_type(grid_slice) != FIGURE_NONE) {
-        city_warning_show(WARNING_ENEMY_NEARBY, translation_for(TR_CITY_WARNING_ENEMY_NEARBY));
+        city_warning_show_translated(WARNING_ENEMY_NEARBY);
         building_data_transfer_restore_and_clear_backup();
         return 0;
     }
@@ -1431,7 +1432,7 @@ static int warehouse_repair(building *b)
     if (!success || !cleared) {
         map_terrain_restore(); // restore terrain on failure
         city_finance_process_construction(-cleared); // refund clearing cost
-        city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for(TR_WARNING_REPAIR_IMPOSSIBLE));
+        city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
         return 0;
     }
 
@@ -1465,17 +1466,17 @@ int building_repair(building *b)
         return 0;
     }
     if (building_matches(b, "burning_ruin") && building_is_still_burning(b)) {
-        city_warning_show(WARNING_REPAIR_BURNING, translation_for(TR_WARNING_REPAIR_BURNING));
+        city_warning_show(WARNING_REPAIR_BURNING, translation_for_key("TR_WARNING_REPAIR_BURNING"));
         return 0;
     }
     if (!building_can_repair_type(b->type) && !building_can_repair_type(static_cast<building_type>(b->data.rubble.og_type))) {
         if (building_monument_is_limited(b->type) ||
             building_monument_is_limited(static_cast<building_type>(b->data.rubble.og_type))) {
-            city_warning_show(WARNING_REPAIR_MONUMENT, translation_for(TR_WARNING_CANT_REPAIR_MONUMENTS));
+            city_warning_show(WARNING_REPAIR_MONUMENT, translation_for_key("TR_WARNING_CANT_REPAIR_MONUMENTS"));
         } else if (building_matches(b, "aqueduct") || original_type_matches(b, "aqueduct")) {
-            city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for(TR_WARNING_CANT_REPAIR_AQUEDUCTS));
+            city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for_key("TR_WARNING_CANT_REPAIR_AQUEDUCTS"));
         } else {
-            city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for(TR_WARNING_REPAIR_IMPOSSIBLE));
+            city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
         }
         return 0;
     }
@@ -1506,7 +1507,7 @@ int building_repair(building *b)
     // Clear terrain and place building
     grid_slice *grid_slice = map_grid_get_grid_slice_square(grid_offset, size);
     if (building_construction_nearby_enemy_type(grid_slice) != FIGURE_NONE) {
-        city_warning_show(WARNING_ENEMY_NEARBY, translation_for(TR_CITY_WARNING_ENEMY_NEARBY));
+        city_warning_show_translated(WARNING_ENEMY_NEARBY);
         building_data_transfer_restore_and_clear_backup();
         return 0;
     }
@@ -1539,7 +1540,7 @@ int building_repair(building *b)
     if (!success || !cleared) {
         map_terrain_restore(); // restore terrain on failure
         city_finance_process_construction(-cleared); // refund clearing cost
-        city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for(TR_WARNING_REPAIR_IMPOSSIBLE));
+        city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
         return 0;
     }
     if (building_is_storage(type_to_place) && b->storage_id) {

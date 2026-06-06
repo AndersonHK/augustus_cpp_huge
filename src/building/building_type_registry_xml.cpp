@@ -1,3 +1,5 @@
+#
+
 #include "building/building_record.h"
 #include "building/building_runtime.h"
 #include "building/building_type_api.h"
@@ -25,7 +27,6 @@ extern "C" {
 #include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "figure/action.h"
 #include "game/resource.h"
 #include "scenario/property.h"
 #include "sound/city.h"

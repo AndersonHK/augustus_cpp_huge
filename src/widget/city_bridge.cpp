@@ -1,14 +1,16 @@
-extern "C" {
-#include "city_bridge.h"
 #include "building/construction.h"
-#include "building/building_type_api.h"
+#include "graphics/image.h"
 #include "map/bridge.h"
+
+#include "city_bridge.h"
+
+extern "C" {
+#include "building/building_type_api.h"
 #include "map/property.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
 }
 
-#include "graphics/image.h"
 
 static building_type runtime_type(const char *text_id)
 {

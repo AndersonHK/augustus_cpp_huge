@@ -1,3 +1,12 @@
+#include "building/count.h"
+#include "building/house.h"
+#include "building/image.h"
+#include "map/aqueduct.h"
+#include "map/building.h"
+#include "map/building_tiles.h"
+#include "map/image.h"
+#include "map/tiles.h"
+
 #include "building/water_access_runtime.h"
 
 #include "assets/assets.h"
@@ -8,23 +17,15 @@
 
 extern "C" {
 #include "building/building_record.h"
-#include "building/count.h"
-#include "building/image.h"
 #include "building/monument.h"
 #include "city/view.h"
-#include "map/aqueduct.h"
-#include "map/building.h"
-#include "map/building_tiles.h"
 #include "map/data.h"
 #include "map/grid.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
 #include "scenario/property.h"
 }
 
-#include "building/house.h"
 
 #include <array>
 #include <cstdint>

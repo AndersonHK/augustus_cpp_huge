@@ -1,19 +1,21 @@
-extern "C" {
-#include "start_year.h"
-
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/starting_conditions.h"
+#include "window/numeric_input.h"
+
+#include "start_year.h"
+
+#include "window/editor/map.h"
+extern "C" {
+
+#include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-#include "window/editor/map.h"
-#include "window/editor/starting_conditions.h"
-#include "window/numeric_input.h"
 }
 
 static void button_era(const generic_button *button);

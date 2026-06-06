@@ -383,8 +383,8 @@ void building_maintenance_check_rome_access(void)
         building_destroy_last_placed();
     } else if (problem_grid_offset) {
         // parts of city disconnected
-        city_warning_show(WARNING_CITY_BOXED_IN, translation_for(TR_CITY_WARNING_CITY_BOXED_IN));
-        city_warning_show(WARNING_CITY_BOXED_IN_PEOPLE_WILL_PERISH, translation_for(TR_CITY_WARNING_CITY_BOXED_IN_PEOPLE_WILL_PERISH));
+        city_warning_show(WARNING_CITY_BOXED_IN, translation_for_key("TR_CITY_WARNING_CITY_BOXED_IN"));
+        city_warning_show(WARNING_CITY_BOXED_IN_PEOPLE_WILL_PERISH, translation_for_key("TR_CITY_WARNING_CITY_BOXED_IN_PEOPLE_WILL_PERISH"));
         city_view_go_to_grid_offset(problem_grid_offset);
         game_state_pause();
     } else {

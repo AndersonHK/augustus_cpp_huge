@@ -1,23 +1,25 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_list.h"
+
 #include "edit_request.h"
+
+#include "window/editor/map.h"
+extern "C" {
 
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-#include "window/plain_message_dialog.h"
-#include "window/select_list.h"
 }
 
 enum {
@@ -541,13 +543,13 @@ static unsigned int validate(void)
     }
 
     if (data.request.resource == RESOURCE_NONE) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_NO_RESOURCE);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_NO_RESOURCE");
     }
     if (data.request.amount.min <= 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_NO_AMOUNT);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_NO_AMOUNT");
     }
     if (data.request.deadline_years == 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_SET_DEADLINE);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_SET_DEADLINE");
     }
 
     return num_errors;

@@ -1,3 +1,8 @@
+#include "building/storage.h"
+#include "city/health.h"
+#include "city/trade.h"
+#include "empire/empire.h"
+
 #include "trader.h"
 
 #include <math.h>
@@ -15,14 +20,11 @@ extern "C" {
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/warehouse.h"
-#include "building/storage.h"
 #include "city/buildings.h"
 #include "city/finance.h"
-#include "city/health.h"
 #include "city/map.h"
 #include "city/message.h"
 #include "city/resource.h"
-#include "city/trade.h"
 #include "city/trade_policy.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -30,7 +32,6 @@ extern "C" {
 #include "core/log.h"
 #include "core/random.h"
 #include "empire/city.h"
-#include "empire/empire.h"
 #include "empire/object.h"
 #include "empire/trade_prices.h"
 #include "empire/trade_route.h"

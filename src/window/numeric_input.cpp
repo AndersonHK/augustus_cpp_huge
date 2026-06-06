@@ -1,16 +1,18 @@
-extern "C" {
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+
 #include "numeric_input.h"
+
+extern "C" {
 
 #include "core/string.h"
 #include "game/system.h"
 #include "graphics/color.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "input/keyboard.h"
 #include "sound/effect.h"
 }

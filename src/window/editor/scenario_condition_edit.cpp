@@ -1,33 +1,35 @@
-extern "C" {
-#include "scenario_condition_edit.h"
-
-#include "core/string.h"
 #include "editor/tool.h"
-#include "game/resource.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
-#include "graphics/screen.h"
-#include "graphics/text.h"
-#include "graphics/window.h"
 #include "input/input.h"
-#include "scenario/event/condition_handler.h"
-#include "scenario/event/controller.h"
 #include "scenario/event/parameter_data.h"
-#include "widget/input_box.h"
 #include "widget/map_editor.h"
 #include "window/editor/custom_variables.h"
-#include "window/editor/map.h"
 #include "window/editor/requests.h"
-#include "window/editor/select_scenario_condition_type.h"
 #include "window/editor/select_city_by_type.h"
-#include "window/editor/select_city_trade_route.h"
 #include "window/editor/select_custom_message.h"
+#include "window/editor/select_scenario_condition_type.h"
 #include "window/editor/select_special_attribute_mapping.h"
 #include "window/numeric_input.h"
 #include "window/select_list.h"
+
+#include "scenario_condition_edit.h"
+
+#include "widget/input_box.h"
+#include "window/editor/map.h"
+#include "window/editor/select_city_trade_route.h"
 #include "window/text_input.h"
+extern "C" {
+
+#include "core/string.h"
+#include "game/resource.h"
+#include "graphics/ui_runtime_api.h"
+#include "graphics/screen.h"
+#include "graphics/text.h"
+#include "graphics/window.h"
+#include "scenario/event/condition_handler.h"
+#include "scenario/event/controller.h"
 }
 
 #define BUTTON_LEFT_PADDING 32
@@ -108,7 +110,7 @@ static void draw_foreground(void)
         large_label_draw(buttons[i].x, buttons[i].y, buttons[i].width / 16, data.focus_button_id == i + 1 ? 1 : 0);
     }
 
-    text_draw_centered(translation_for(TR_EDITOR_DELETE), 288, 40, 80, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
+    text_draw_centered(translation_for_key("TR_EDITOR_DELETE"), 288, 40, 80, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
 
     text_draw_centered(translation_for(data.xml_info->xml_attr.key), 32, 72, BUTTON_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
 

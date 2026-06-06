@@ -40,7 +40,6 @@ bool load_active_locale(int is_editor)
 
     detail::locale_catalog catalog;
     std::string error;
-    catalog.project_keys.resize(TRANSLATION_MAX_KEY);
     for (int i = 0; i < mod_manager_get_mod_count(); ++i) {
         const std::string locale_path = detail::append_path_component(
             detail::append_path_component(mod_manager_get_mod_path_at(i), "Localization"),
@@ -104,7 +103,6 @@ int rebuild_legacy_cache(language_type language)
     }
 
     encoding_determine(language);
-    detail::rebuild_project_keys(detail::g_runtime.catalog.project_keys);
     detail::rebuild_named_project_keys(detail::g_runtime.catalog.named_project_keys);
     detail::rebuild_text_groups(detail::g_runtime.catalog.main_strings);
     detail::rebuild_text_groups(detail::g_runtime.catalog.editor_strings);
@@ -143,19 +141,6 @@ language_type active_language()
     return detail::g_runtime.active_language;
 }
 
-std::string_view utf8_project_string(translation_key key)
-{
-    if (!detail::g_runtime.locale_loaded || key < 0 || key >= TRANSLATION_MAX_KEY) {
-        return {};
-    }
-    const detail::localized_text &entry = detail::g_runtime.catalog.project_keys[key];
-    if (!entry.utf8.empty()) {
-        return entry.utf8;
-    }
-    detail::report_missing_project_key(key);
-    return detail::fallback_project_key(key).utf8;
-}
-
 std::string_view utf8_named_project_string(const char *key)
 {
     if (!detail::g_runtime.locale_loaded || !key || !*key) {
@@ -184,19 +169,6 @@ std::string_view utf8_legacy_string(int is_editor, int group, int index)
         return {};
     }
     return group_it->second[index].utf8;
-}
-
-const uint8_t *legacy_project_string(translation_key key)
-{
-    if (!detail::g_runtime.locale_loaded || key < 0 || key >= TRANSLATION_MAX_KEY) {
-        return detail::kEmptyLegacy;
-    }
-    const detail::localized_text &entry = detail::g_runtime.catalog.project_keys[key];
-    if (!entry.utf8.empty()) {
-        return entry.legacy_ptr();
-    }
-    detail::report_missing_project_key(key);
-    return detail::fallback_project_key(key).legacy_ptr();
 }
 
 const uint8_t *legacy_named_project_string(const char *key)

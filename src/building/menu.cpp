@@ -124,6 +124,7 @@ static build_menu_group button_group_from_string(const char *group)
     static const group_mapping groups[] = {
         {"vacant_house", BUILD_MENU_VACANT_HOUSE},
         {"clear_land", BUILD_MENU_CLEAR_LAND},
+        {"tools", BUILD_MENU_CLEAR_LAND},
         {"road", BUILD_MENU_ROAD},
         {"water", BUILD_MENU_WATER},
         {"health", BUILD_MENU_HEALTH},

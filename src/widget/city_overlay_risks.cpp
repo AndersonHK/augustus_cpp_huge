@@ -1,25 +1,27 @@
+#include "building/industry.h"
+#include "game/state.h"
+#include "graphics/image.h"
+#include "map/bridge.h"
+#include "map/building.h"
+#include "map/image.h"
+#include "widget/city_draw_highway.h"
+
+#include "city_overlay_risks.h"
+
+#include "translation/translation.h"
 #include "building/building.h"
 #include "building/building_record.h"
 
 extern "C" {
-#include "city_overlay_risks.h"
 #include "assets/assets.h"
 #include "building/building_type_api.h"
-#include "building/industry.h"
 #include "core/config.h"
 #include "figure/properties.h"
-#include "game/state.h"
-#include "map/building.h"
-#include "map/bridge.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
-#include "translation/translation.h"
-#include "widget/city_draw_highway.h"
 }
 
-#include "graphics/image.h"
 
 enum crime_level {
     NO_CRIME = 0,

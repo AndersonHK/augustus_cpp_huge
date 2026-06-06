@@ -1,3 +1,5 @@
+#include "graphics/image.h"
+
 extern "C" {
 #include "property.h"
 #include "core/calc.h"
@@ -6,7 +8,6 @@ extern "C" {
 #include "scenario/data.h"
 }
 
-#include "graphics/image.h"
 
 int scenario_is_custom(void)
 {

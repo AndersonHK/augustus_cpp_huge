@@ -1,3 +1,10 @@
+#include "building/building.h"
+#include "building/distribution.h"
+#include "building/house.h"
+#include "figure/roamer_preview.h"
+#include "figuretype/crime.h"
+#include "map/building.h"
+
 #include "service.h"
 
 #include "building/building_type_registry_internal.h"
@@ -6,22 +13,16 @@
 #include <initializer_list>
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
-#include "building/distribution.h"
 #include "building/building_type_api.h"
-#include "building/house.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/buildings.h"
 #include "city/finance.h"
 #include "core/config.h"
 #include "core/random.h"
-#include "figure/roamer_preview.h"
-#include "figuretype/crime.h"
 #include "game/resource.h"
 #include "game/time.h"
-#include "map/building.h"
 #include "map/grid.h"
 }
 

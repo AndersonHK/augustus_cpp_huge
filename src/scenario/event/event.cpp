@@ -110,6 +110,21 @@ void scenario_event_init(scenario_event_t *event)
     }
 }
 
+void scenario_event_release_contents(scenario_event_t *event)
+{
+    if (!event) {
+        return;
+    }
+    scenario_condition_group_t *condition_group;
+    array_foreach(event->condition_groups, condition_group) {
+        array_clear(condition_group->conditions);
+    }
+    array_clear(event->condition_groups);
+    array_clear(event->actions);
+    memset(event, 0, sizeof(scenario_event_t));
+    event->state = EVENT_STATE_UNDEFINED;
+}
+
 void scenario_event_save_state(buffer *buf, scenario_event_t *event)
 {
     if (event->state == EVENT_STATE_UNDEFINED) {
@@ -273,6 +288,117 @@ static int link_action_to_event(scenario_event_t *event, scenario_action_t *acti
 int scenario_event_link_action_by_id(int event_id, scenario_action_t *action)
 {
     return ScenarioEventLinker::link_action(event_id, action);
+}
+
+unsigned int scenario_event_condition_group_count(const scenario_event_t *event)
+{
+    return event ? event->condition_groups.size : 0;
+}
+
+scenario_condition_group_t *scenario_event_condition_group_get(scenario_event_t *event, unsigned int index)
+{
+    if (!event || index >= event->condition_groups.size) {
+        return 0;
+    }
+    return array_item(event->condition_groups, index);
+}
+
+const scenario_condition_group_t *scenario_event_condition_group_get_const(const scenario_event_t *event, unsigned int index)
+{
+    if (!event || index >= event->condition_groups.size) {
+        return 0;
+    }
+    return array_item(event->condition_groups, index);
+}
+
+scenario_condition_group_t *scenario_event_condition_group_add(scenario_event_t *event)
+{
+    return event ? array_advance(event->condition_groups) : 0;
+}
+
+scenario_condition_group_t *scenario_event_condition_group_add_after(scenario_event_t *event, unsigned int index)
+{
+    if (!event) {
+        return 0;
+    }
+    scenario_condition_group_t *group = 0;
+    array_new_item_after_index(event->condition_groups, index, group);
+    return group;
+}
+
+void scenario_event_condition_groups_pack(scenario_event_t *event)
+{
+    if (event) {
+        array_pack(event->condition_groups);
+    }
+}
+
+unsigned int scenario_condition_group_condition_count(const scenario_condition_group_t *group)
+{
+    return group ? group->conditions.size : 0;
+}
+
+scenario_condition_t *scenario_condition_group_condition_get(scenario_condition_group_t *group, unsigned int index)
+{
+    if (!group || index >= group->conditions.size) {
+        return 0;
+    }
+    return array_item(group->conditions, index);
+}
+
+const scenario_condition_t *scenario_condition_group_condition_get_const(const scenario_condition_group_t *group, unsigned int index)
+{
+    if (!group || index >= group->conditions.size) {
+        return 0;
+    }
+    return array_item(group->conditions, index);
+}
+
+scenario_condition_t *scenario_condition_group_condition_add(scenario_condition_group_t *group)
+{
+    return group ? array_advance(group->conditions) : 0;
+}
+
+void scenario_condition_group_conditions_clear(scenario_condition_group_t *group)
+{
+    if (group) {
+        array_clear(group->conditions);
+    }
+}
+
+void scenario_condition_group_conditions_pack(scenario_condition_group_t *group)
+{
+    if (group) {
+        array_pack(group->conditions);
+    }
+}
+
+unsigned int scenario_event_action_count(const scenario_event_t *event)
+{
+    return event ? event->actions.size : 0;
+}
+
+scenario_action_t *scenario_event_action_get(scenario_event_t *event, unsigned int index)
+{
+    if (!event || index >= event->actions.size) {
+        return 0;
+    }
+    return array_item(event->actions, index);
+}
+
+const scenario_action_t *scenario_event_action_get_const(const scenario_event_t *event, unsigned int index)
+{
+    if (!event || index >= event->actions.size) {
+        return 0;
+    }
+    return array_item(event->actions, index);
+}
+
+void scenario_event_actions_pack(scenario_event_t *event)
+{
+    if (event) {
+        array_pack(event->actions);
+    }
 }
 
 int scenario_event_can_repeat(scenario_event_t *event)

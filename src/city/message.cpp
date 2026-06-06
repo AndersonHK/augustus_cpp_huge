@@ -1,7 +1,10 @@
-extern "C" {
-#include "message.h"
-
 #include "city/warning.h"
+#include "message.h"
+#include "window/message_dialog.h"
+
+#include "translation/translation.h"
+extern "C" {
+
 #include "core/config.h"
 #include "core/encoding.h"
 #include "core/file.h"
@@ -16,8 +19,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "scenario/request.h"
 #include "sound/effect.h"
-#include "translation/translation.h"
-#include "window/message_dialog.h"
 }
 
 #define MAX_MESSAGES 1000
@@ -91,18 +92,18 @@ static const uint8_t *blessing_alert_title_fallback(city_message_type message_ty
 {
     switch (message_type) {
         case MESSAGE_BLESSING_FROM_CERES:
-            return translation_for(TR_PARAMETER_VALUE_MESSAGE_BLESSING_FROM_CERES);
+            return translation_for_key("TR_PARAMETER_VALUE_MESSAGE_BLESSING_FROM_CERES");
         case MESSAGE_BLESSING_FROM_NEPTUNE:
         case MESSAGE_BLESSING_FROM_NEPTUNE_ALTERNATE:
-            return translation_for(TR_CITY_MESSAGE_TITLE_NEPTUNE_BLESSING);
+            return translation_for_key("TR_CITY_MESSAGE_TITLE_NEPTUNE_BLESSING");
         case MESSAGE_BLESSING_FROM_MERCURY:
         case MESSAGE_BLESSING_FROM_MERCURY_ALTERNATE:
-            return translation_for(TR_CITY_MESSAGE_TITLE_MERCURY_BLESSING);
+            return translation_for_key("TR_CITY_MESSAGE_TITLE_MERCURY_BLESSING");
         case MESSAGE_BLESSING_FROM_MARS:
-            return translation_for(TR_PARAMETER_VALUE_MESSAGE_BLESSING_FROM_MARS);
+            return translation_for_key("TR_PARAMETER_VALUE_MESSAGE_BLESSING_FROM_MARS");
         case MESSAGE_BLESSING_FROM_VENUS:
         case MESSAGE_BLESSING_FROM_VENUS_ALTERNATE:
-            return translation_for(TR_CITY_MESSAGE_TITLE_VENUS_BLESSING);
+            return translation_for_key("TR_CITY_MESSAGE_TITLE_VENUS_BLESSING");
         default:
             return 0;
     }

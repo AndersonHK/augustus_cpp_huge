@@ -1,13 +1,15 @@
-extern "C" {
-#include "labor_priority.h"
-
 #include "city/labor.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+
+#include "labor_priority.h"
+
+extern "C" {
+
 #include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
-#include "input/input.h"
 }
 
 #define MIN_DIALOG_WIDTH 320

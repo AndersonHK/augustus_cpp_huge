@@ -1,8 +1,12 @@
-extern "C" {
+#
+
 #include "arrow_button.h"
-}
 
 #include "graphics/image.h"
+
+extern "C" {
+}
+
 
 static const int REPEATS[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0,

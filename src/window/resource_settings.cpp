@@ -1,28 +1,30 @@
-extern "C" {
+#include "building/count.h"
+#include "game/resource_graphics.h"
+#include "graphics/arrow_button.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/advisor/trade.h"
+#include "window/empire.h"
+#include "window/message_dialog.h"
+
 #include "resource_settings.h"
 
-#include "building/count.h"
+#include "translation/translation.h"
+extern "C" {
+
 #include "city/resource.h"
 #include "core/calc.h"
 #include "core/image_group.h"
 #include "empire/city.h"
-#include "graphics/arrow_button.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "translation/translation.h"
-#include "window/advisor/trade.h"
-#include "window/message_dialog.h"
-#include "window/empire.h"
 }
 #include <building/industry.h>
-#include "graphics/image.h"
-#include "game/resource_graphics.h"
 
 static void button_help(int param1, int param2);
 static void button_ok(int param1, int param2);
@@ -155,20 +157,20 @@ static void draw_foreground(void)
                 width = lang_text_draw(54, 5, x_offset, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
                 int trade_quantity = city_resource_import_over(data.resource);
                 if (trade_quantity == 0) {
-                    text_draw(translation_for(TR_ADVISOR_TRADE_NO_LIMIT), x_offset + width, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                    text_draw(translation_for_key("TR_ADVISOR_TRADE_NO_LIMIT"), x_offset + width, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                 } else {
                     text_draw_number(trade_quantity, 0, " ", x_offset + width, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                 }
                 arrow_buttons_draw(0, 0, import_amount_arrow_buttons, 2);
             } else {
-                text_draw_centered(translation_for(TR_ADVISOR_TRADE_NOT_IMPORTING), 32, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                text_draw_centered(translation_for_key("TR_ADVISOR_TRADE_NOT_IMPORTING"), 32, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             }
         } else {
             if (!can_import_potentially) {
-                text_draw_centered(translation_for(TR_ADVISOR_TRADE_NO_SELLERS), 34, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                text_draw_centered(translation_for_key("TR_ADVISOR_TRADE_NO_SELLERS"), 34, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             } else {
                 button_border_draw(30, 212, 286, 30, data.focus_button_id == 2);
-                text_draw_centered(translation_for(TR_ADVISOR_OPEN_TO_IMPORT), 34, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                text_draw_centered(translation_for_key("TR_ADVISOR_OPEN_TO_IMPORT"), 34, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             }
         }
         if (trade_flags & TRADE_STATUS_EXPORT) {
@@ -180,14 +182,14 @@ static void draw_foreground(void)
                 text_draw_number(trade_quantity, 0, " ", x_offset + width, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                 arrow_buttons_draw(0, 0, export_amount_arrow_buttons, 2);
             } else {
-                text_draw_centered(translation_for(TR_ADVISOR_TRADE_NOT_EXPORTING), 324, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                text_draw_centered(translation_for_key("TR_ADVISOR_TRADE_NOT_EXPORTING"), 324, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             }
         } else {
             if (!can_export_potentially) {
-                text_draw_centered(translation_for(TR_ADVISOR_TRADE_NO_BUYERS), 324, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                text_draw_centered(translation_for_key("TR_ADVISOR_TRADE_NO_BUYERS"), 324, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             } else {
                 button_border_draw(322, 212, 286, 30, data.focus_button_id == 3);
-                text_draw_centered(translation_for(TR_ADVISOR_OPEN_TO_EXPORT), 324, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                text_draw_centered(translation_for_key("TR_ADVISOR_OPEN_TO_EXPORT"), 324, 221, 282, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             }
         }
     } else {

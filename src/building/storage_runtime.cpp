@@ -1,9 +1,11 @@
+#
+
 #include "building/storage_runtime.h"
 
+#include "building/building.h"
 #include "building/building_runtime_internal.h"
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
 }
 

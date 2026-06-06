@@ -1,14 +1,14 @@
-extern "C" {
-#include "lang.h"
 #include "building/building.h"
+#include "lang.h"
+
+#include "translation/translation.h"
+extern "C" {
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "city/message.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "core/file.h"
-#include "translation/translation.h"
-#include "translation/translation_key_table.h"
 }
 
 #include "translation/localization.h"
@@ -68,8 +68,8 @@ extern "C" int lang_dir_is_valid(const char *dir)
 
 static void set_message_parameters(
     lang_message *m,
-    int title,
-    int text,
+    const char *title,
+    const char *text,
     int urgent,
     lang_message_type message_type)
 {
@@ -83,8 +83,8 @@ static void set_message_parameters(
     m->title.y = 0;
     m->urgent = urgent;
 
-    m->title.text = translation_for(static_cast<translation_key>(title));
-    m->content.text = translation_for(static_cast<translation_key>(text));
+    m->title.text = title ? translation_for_key(title) : reinterpret_cast<const uint8_t *>("");
+    m->content.text = text ? translation_for_key(text) : reinterpret_cast<const uint8_t *>("");
 }
 
 static int augustus_message_text_id(city_message_type message_type)
@@ -148,11 +148,6 @@ static const uint8_t *building_type_display_key_text(const char *display_key)
         return legacy_text;
     }
 
-    translation_key translation;
-    if (translation_key_from_name(display_key, &translation)) {
-        return translation_for(translation);
-    }
-
     const uint8_t *named_translation = localization::legacy_named_project_string(display_key);
     if (named_translation && named_translation[0]) {
         return named_translation;
@@ -168,10 +163,6 @@ static int building_type_display_key_is_localized(const char *display_key)
         return 1;
     }
 
-    translation_key translation;
-    if (translation_key_from_name(display_key, &translation)) {
-        return 1;
-    }
     const uint8_t *named_translation = localization::legacy_named_project_string(display_key);
     return named_translation && named_translation[0] ? 1 : 0;
 }
@@ -181,10 +172,10 @@ extern "C" const uint8_t *lang_get_string_by_key(const char *key)
     return building_type_display_key_is_localized(key) ? building_type_display_key_text(key) : 0;
 }
 
-static lang_message *set_augustus_message_parameters(
+static lang_message *set_augustus_message_parameters_by_key(
     city_message_type message_type,
-    int title,
-    int text,
+    const char *title,
+    const char *text,
     int urgent,
     lang_message_type message_kind)
 {
@@ -198,6 +189,13 @@ static lang_message *set_augustus_message_parameters(
     return m;
 }
 
+static const char *optional_project_key(const char *key)
+{
+    return key && strcmp(key, "0") == 0 ? nullptr : key;
+}
+
+#define set_augustus_message_parameters(message_type, title, text, urgent, message_kind) \
+    set_augustus_message_parameters_by_key(message_type, optional_project_key(#title), optional_project_key(#text), urgent, message_kind)
 
 void load_augustus_messages(void)
 {
@@ -283,18 +281,37 @@ void load_augustus_messages(void)
         m->video.text = (uint8_t *) "smk/1st_Chariot.smk";
     }
 
+    static const char *const new_games_messages[] = {
+        "TR_CITY_MESSAGE_TEXT_NAVAL_GAMES_PLANNING",
+        "TR_CITY_MESSAGE_TEXT_NAVAL_GAMES_STARTING",
+        "TR_CITY_MESSAGE_TEXT_NAVAL_GAMES_ENDING",
+        "TR_CITY_MESSAGE_TEXT_ANIMAL_GAMES_PLANNING",
+        "TR_CITY_MESSAGE_TEXT_ANIMAL_GAMES_STARTING",
+        "TR_CITY_MESSAGE_TEXT_ANIMAL_GAMES_ENDING",
+        "TR_CITY_MESSAGE_TEXT_KALENDS_GAMES_PLANNING",
+        "TR_CITY_MESSAGE_TEXT_KALENDS_GAMES_STARTING",
+        "TR_CITY_MESSAGE_TEXT_KALENDS_GAMES_ENDING",
+        "TR_CITY_MESSAGE_TEXT_OLYMPIC_GAMES_PLANNING",
+        "TR_CITY_MESSAGE_TEXT_OLYMPIC_GAMES_STARTING",
+        "TR_CITY_MESSAGE_TEXT_OLYMPIC_GAMES_ENDING",
+    };
     for (int j = 0; j < 12; ++j) {
-        set_augustus_message_parameters(static_cast<city_message_type>(MESSAGE_NG_GAMES_PLANNED + j),
-            TR_CITY_MESSAGE_TITLE_GREAT_GAMES, TR_CITY_MESSAGE_TEXT_NAVAL_GAMES_PLANNING + j, 1,
+        set_augustus_message_parameters_by_key(static_cast<city_message_type>(MESSAGE_NG_GAMES_PLANNED + j),
+            "TR_CITY_MESSAGE_TITLE_GREAT_GAMES", new_games_messages[j], 1,
             MESSAGE_TYPE_GENERAL);
     }
 
     set_augustus_message_parameters(MESSAGE_LOOTING, TR_CITY_MESSAGE_TITLE_LOOTING, TR_CITY_MESSAGE_TEXT_LOOTING, 1,
         MESSAGE_TYPE_DISASTER);
 
+    static const char *const imperial_games_messages[] = {
+        "TR_CITY_MESSAGE_TEXT_IMPERIAL_GAMES_PLANNING",
+        "TR_CITY_MESSAGE_TEXT_IMPERIAL_GAMES_STARTING",
+        "TR_CITY_MESSAGE_TEXT_IMPERIAL_GAMES_ENDING",
+    };
     for (int j = 0; j < 3; ++j) {
-        set_augustus_message_parameters(static_cast<city_message_type>(MESSAGE_IG_GAMES_PLANNED + j),
-            TR_CITY_MESSAGE_TITLE_GREAT_GAMES, TR_CITY_MESSAGE_TEXT_IMPERIAL_GAMES_PLANNING + j, 1,
+        set_augustus_message_parameters_by_key(static_cast<city_message_type>(MESSAGE_IG_GAMES_PLANNED + j),
+            "TR_CITY_MESSAGE_TITLE_GREAT_GAMES", imperial_games_messages[j], 1,
             MESSAGE_TYPE_GENERAL);
     }
 
@@ -357,14 +374,14 @@ extern "C" const uint8_t *lang_get_string(int group, int index)
     //locale-dependent fixes
     language_type l_type = locale_last_determined_language();
     if (l_type == LANGUAGE_KOREAN && group == 28 && index == 46) {
-        const uint8_t *try_translation = translation_for(TR_FIX_KOREAN_BUILDING_DOCTORS_CLINIC);
+        const uint8_t *try_translation = translation_for_key("TR_FIX_KOREAN_BUILDING_DOCTORS_CLINIC");
         if (try_translation) {
             return try_translation;
         }
     }
     //Custom translations
     if (group == CUSTOM_TRANSLATION) {
-        return translation_for(static_cast<translation_key>(index));
+        return reinterpret_cast<const uint8_t *>("");
     }
     // XML overrides of original strings
     if ((group == 28 || group == 41) && index > BUILDING_NONE && index < BUILDING_TYPE_MAX &&

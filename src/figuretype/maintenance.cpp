@@ -1,9 +1,11 @@
+#
+
 #include "figuretype/maintenance.h"
 
+#include "building/building.h"
 #include "core/crash_context.h"
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
 }
 

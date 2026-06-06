@@ -1,24 +1,25 @@
+#include "building/image.h"
+#include "game/undo.h"
+#include "map/building.h"
+#include "map/building_tiles.h"
+#include "map/image.h"
+#include "map/road_access.h"
+
 #include "house.h"
 
 #include "building/building.h"
 #include "building/building_record.h"
 
 extern "C" {
-#include "building/image.h"
 #include "building/building_type_api.h"
 #include "city/population.h"
 #include "core/config.h"
 #include "core/image.h"
 #include "figure/figure.h"
 #include "game/resource.h"
-#include "game/undo.h"
-#include "map/building.h"
-#include "map/building_tiles.h"
 #include "map/grid.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/road_access.h"
 #include "map/terrain.h"
 }
 

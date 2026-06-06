@@ -1,28 +1,38 @@
+#include "game/game.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/list_box.h"
+#include "graphics/weather.h"
+#include "window/main_menu.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_list.h"
+#include "window/user_path_setup.h"
+
+#include "core/config.h"
+
+#include "window/hotkey_config.h"
+#include "window/text_input.h"
+#include "translation/translation.h"
 #include "config.h"
 
 #include "translation/localization.h"
 
 extern "C" {
 #include "core/calc.h"
-#include "core/config.h"
 #include "core/image_group.h"
 #include "core/lang.h"
 #include "core/log.h"
 #include "core/string.h"
-#include "game/game.h"
 #include "game/settings.h"
 #include "game/system.h"
 #include "game/speed.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/color.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
-#include "graphics/list_box.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
-#include "graphics/weather.h"
 #include "graphics/window.h"
 #include "platform/screen.h"
 #include "sound/city.h"
@@ -30,15 +40,7 @@ extern "C" {
 #include "sound/effect.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-#include "translation/translation.h"
-#include "window/hotkey_config.h"
-#include "window/main_menu.h"
-#include "window/plain_message_dialog.h"
-#include "window/select_list.h"
-#include "window/text_input.h"
-#include "window/user_path_setup.h"
 }
-#include "graphics/image.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -145,7 +147,7 @@ enum {
 typedef struct {
     int type;
     int subtype;
-    int description;          //  label / header text key
+    translation_key description;          //  label / header text key
     const uint8_t *(*get_display_text)(void);
     int y_offset; //  kept for compatibility 
     int enabled; //  runtime on/off
@@ -212,41 +214,41 @@ static config_widget page_general[] = {
     {TYPE_SELECT, SELECT_PLAYER_NAME, TR_CONFIG_DEFAULT_PLAYER_NAME, display_text_player_name, 0, 1, ITEM_BASE_H, 8},
 
     {TYPE_NUMERICAL_DESC, RANGE_GAME_SPEED, TR_CONFIG_GAME_SPEED, NULL, 0, 1, ITEM_BASE_H, 10},
-    {TYPE_NUMERICAL_RANGE, RANGE_GAME_SPEED, 0, display_text_game_speed, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_GAME_SPEED, {}, display_text_game_speed, 0, 1, ITEM_BASE_H, 2},
 
     {TYPE_NUMERICAL_DESC, RANGE_DEFAULT_GAME_SPEED, TR_CONFIG_DEFAULT_GAME_SPEED, NULL, 0, 1, ITEM_BASE_H, 10},
-    {TYPE_NUMERICAL_RANGE, RANGE_DEFAULT_GAME_SPEED, 0, display_text_default_game_speed, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_DEFAULT_GAME_SPEED, {}, display_text_default_game_speed, 0, 1, ITEM_BASE_H, 2},
 
     {TYPE_NUMERICAL_DESC, RANGE_MAX_AUTOSAVE_SLOTS, TR_CONFIG_MAX_AUTOSAVE_SLOTS, NULL, 0, 1, ITEM_BASE_H, 10},
-    {TYPE_NUMERICAL_RANGE, RANGE_MAX_AUTOSAVE_SLOTS, 0, display_text_autosave_slots, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_MAX_AUTOSAVE_SLOTS, {}, display_text_autosave_slots, 0, 1, ITEM_BASE_H, 2},
     {TYPE_CHECKBOX, CONFIG_GP_CH_YEARLY_AUTOSAVE, TR_BUTTON_YEARLY_AUTOSAVE_ON, display_text_yearly_autosave, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
 
     {TYPE_HEADER, 0, TR_CONFIG_VIDEO, NULL, 0, 1, ITEM_BASE_H, 14},
     {TYPE_CHECKBOX, CONFIG_ORIGINAL_FULLSCREEN, TR_CONFIG_FULLSCREEN, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_NUMERICAL_DESC, RANGE_RESOLUTION, TR_CONFIG_WINDOWED_RESOLUTION, NULL, 0, 1, ITEM_BASE_H, 10},
-    {TYPE_NUMERICAL_RANGE, RANGE_RESOLUTION, 0, display_text_resolution, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_RESOLUTION, {}, display_text_resolution, 0, 1, ITEM_BASE_H, 2},
     {TYPE_NUMERICAL_DESC, RANGE_DISPLAY_SCALE, TR_CONFIG_DISPLAY_SCALE, NULL, 0, 1, ITEM_BASE_H, 10},
-    {TYPE_NUMERICAL_RANGE, RANGE_DISPLAY_SCALE, 0, display_text_display_scale, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_DISPLAY_SCALE, {}, display_text_display_scale, 0, 1, ITEM_BASE_H, 2},
     {TYPE_NUMERICAL_DESC, RANGE_CURSOR_SCALE, TR_CONFIG_CURSOR_SCALE, NULL, 0, 1, ITEM_BASE_H, 10},
-    {TYPE_NUMERICAL_RANGE, RANGE_CURSOR_SCALE, 0, display_text_cursor_scale, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_CURSOR_SCALE, {}, display_text_cursor_scale, 0, 1, ITEM_BASE_H, 2},
     {TYPE_CHECKBOX, CONFIG_SCREEN_COLOR_CURSORS, TR_CONFIG_USE_COLOR_CURSORS, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GENERAL_UNLOCK_MOUSE, TR_CONFIG_GENERAL_UNLOCK_MOUSE, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
 
     {TYPE_HEADER, 0, TR_CONFIG_AUDIO, NULL, 0, 1, ITEM_BASE_H, 14},
     {TYPE_CHECKBOX, CONFIG_GENERAL_ENABLE_AUDIO, TR_CONFIG_ENABLE_AUDIO, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
-    {TYPE_NUMERICAL_RANGE, RANGE_MASTER_VOLUME, 0, display_text_master_volume, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_MASTER_VOLUME, {}, display_text_master_volume, 0, 1, ITEM_BASE_H, 2},
     {TYPE_CHECKBOX, CONFIG_ORIGINAL_ENABLE_MUSIC, TR_CONFIG_MUSIC, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GENERAL_ENABLE_MUSIC_RANDOMISE, TR_CONFIG_RANDOMISE_MUSIC, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
-    {TYPE_NUMERICAL_RANGE, RANGE_MUSIC_VOLUME, 0, display_text_music_volume, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_MUSIC_VOLUME, {}, display_text_music_volume, 0, 1, ITEM_BASE_H, 2},
     {TYPE_CHECKBOX, CONFIG_ORIGINAL_ENABLE_SPEECH, TR_CONFIG_SPEECH, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
-    {TYPE_NUMERICAL_RANGE, RANGE_SPEECH_VOLUME, 0, display_text_speech_volume, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_SPEECH_VOLUME, {}, display_text_speech_volume, 0, 1, ITEM_BASE_H, 2},
     {TYPE_CHECKBOX, CONFIG_ORIGINAL_ENABLE_SOUND_EFFECTS, TR_CONFIG_EFFECTS, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_UI_MOVE_LEGION_SOUND_SWAP, TR_CONFIG_MOVE_LEGION_SOUND_SWAP, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
-    {TYPE_NUMERICAL_RANGE, RANGE_SOUND_EFFECTS_VOLUME, 0, display_text_sound_effects_volume, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_SOUND_EFFECTS_VOLUME, {}, display_text_sound_effects_volume, 0, 1, ITEM_BASE_H, 2},
     {TYPE_CHECKBOX, CONFIG_ORIGINAL_ENABLE_CITY_SOUNDS, TR_CONFIG_CITY_SOUNDS, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
-    {TYPE_NUMERICAL_RANGE, RANGE_CITY_SOUNDS_VOLUME, 0, display_text_city_sounds_volume, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_CITY_SOUNDS_VOLUME, {}, display_text_city_sounds_volume, 0, 1, ITEM_BASE_H, 2},
     {TYPE_CHECKBOX, CONFIG_GENERAL_ENABLE_VIDEO_SOUND, TR_CONFIG_VIDEO_SOUND, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
-    {TYPE_NUMERICAL_RANGE, RANGE_VIDEO_VOLUME, 0, display_text_video_volume, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_VIDEO_VOLUME, {}, display_text_video_volume, 0, 1, ITEM_BASE_H, 2},
     {TYPE_NONE}
 };
 
@@ -266,7 +268,7 @@ static config_widget ui_widgets_by_category[CATEGORY_UI_COUNT][MAX_WIDGETS] = {
     // Scrolling
     {
         {TYPE_NUMERICAL_DESC, RANGE_SCROLL_SPEED, TR_CONFIG_SCROLL_SPEED, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_SCROLL_SPEED, 0, display_text_scroll_speed, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_SCROLL_SPEED, {}, display_text_scroll_speed, 0, 1, ITEM_BASE_H, 2},
         {TYPE_CHECKBOX, CONFIG_UI_SMOOTH_SCROLLING, TR_CONFIG_SMOOTH_SCROLLING, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_UI_DISABLE_MOUSE_EDGE_SCROLLING, TR_CONFIG_DISABLE_MOUSE_EDGE_SCROLLING, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_UI_DISABLE_RIGHT_CLICK_MAP_DRAG, TR_CONFIG_DISABLE_RIGHT_CLICK_MAP_DRAG, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
@@ -308,33 +310,33 @@ static config_widget ui_widgets_by_category[CATEGORY_UI_COUNT][MAX_WIDGETS] = {
         {TYPE_CHECKBOX, CONFIG_UI_DRAW_CLOUD_SHADOWS, TR_CONFIG_DRAW_CLOUD_SHADOWS, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_UI_DRAW_WEATHER, TR_CONFIG_DRAW_WEATHER, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_NUMERICAL_DESC, RANGE_WEATHER_DURATION, TR_CONFIG_WT_WEATHER_DURATION, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_WEATHER_DURATION, 0, display_text_weather_duration, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_WEATHER_DURATION, {}, display_text_weather_duration, 0, 1, ITEM_BASE_H, 2},
         {TYPE_HEADER, 0, TR_CONFIG_HEADER_RAIN, NULL, 0, 1, ITEM_BASE_H, 14},
         {TYPE_CHECKBOX, CONFIG_UI_WT_PREVIEW_RAIN, TR_CONFIG_UI_WT_PREVIEW_RAIN, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_UI_WT_PREVIEW_HEAVY_RAIN, TR_CONFIG_UI_WT_PREVIEW_HEAVY_RAIN, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_NUMERICAL_DESC, RANGE_RAIN_INTENSITY, TR_CONFIG_WT_RAIN_INTENSITY, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_RAIN_INTENSITY, 0, display_text_rain_intensity, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_RAIN_INTENSITY, {}, display_text_rain_intensity, 0, 1, ITEM_BASE_H, 2},
         {TYPE_NUMERICAL_DESC, RANGE_RAIN_SPEED, TR_CONFIG_WT_RAIN_SPEED, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_RAIN_SPEED, 0, display_text_rain_speed, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_RAIN_SPEED, {}, display_text_rain_speed, 0, 1, ITEM_BASE_H, 2},
         {TYPE_NUMERICAL_DESC, RANGE_RAIN_LENGTH, TR_CONFIG_WT_RAIN_LENGTH, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_RAIN_LENGTH, 0, display_text_rain_length, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_RAIN_LENGTH, {}, display_text_rain_length, 0, 1, ITEM_BASE_H, 2},
         {TYPE_HEADER, 0, TR_CONFIG_HEADER_SNOW, NULL, 0, 1, ITEM_BASE_H, 14},
         {TYPE_CHECKBOX, CONFIG_UI_WT_PREVIEW_SNOW, TR_CONFIG_UI_WT_PREVIEW_SNOW, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_CHECKBOX, CONFIG_UI_WT_ENABLE_SNOW_CENTRAL, TR_CONFIG_UI_WT_ENABLE_SNOW_CENTRAL, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_NUMERICAL_DESC, RANGE_SNOW_INTENSITY, TR_CONFIG_WT_SNOW_INTENSITY, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_SNOW_INTENSITY, 0, display_text_snow_intensity, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_SNOW_INTENSITY, {}, display_text_snow_intensity, 0, 1, ITEM_BASE_H, 2},
         {TYPE_NUMERICAL_DESC, RANGE_SNOW_SPEED, TR_CONFIG_WT_SNOW_SPEED, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_SNOW_SPEED, 0, display_text_snow_speed, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_SNOW_SPEED, {}, display_text_snow_speed, 0, 1, ITEM_BASE_H, 2},
         {TYPE_NUMERICAL_DESC, RANGE_SNOWFLAKE_SIZE, TR_CONFIG_WT_SNOWFLAKE_SIZE, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_SNOWFLAKE_SIZE, 0, display_text_snowflake_size, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_SNOWFLAKE_SIZE, {}, display_text_snowflake_size, 0, 1, ITEM_BASE_H, 2},
         {TYPE_HEADER, 0, TR_CONFIG_HEADER_SAND, NULL, 0, 1, ITEM_BASE_H, 14},
         {TYPE_CHECKBOX, CONFIG_UI_WT_PREVIEW_SANDSTORM, TR_CONFIG_UI_WT_PREVIEW_SANDSTORM, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
         {TYPE_NUMERICAL_DESC, RANGE_SANDSTORM_INTENSITY, TR_CONFIG_WT_SANDSTORM_INTENSITY, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_SANDSTORM_INTENSITY, 0, display_text_sandstorm_intensity, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_SANDSTORM_INTENSITY, {}, display_text_sandstorm_intensity, 0, 1, ITEM_BASE_H, 2},
         {TYPE_NUMERICAL_DESC, RANGE_SANDSTORM_SPEED, TR_CONFIG_WT_SANDSTORM_SPEED, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_SANDSTORM_SPEED, 0, display_text_sandstorm_speed, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_SANDSTORM_SPEED, {}, display_text_sandstorm_speed, 0, 1, ITEM_BASE_H, 2},
         {TYPE_NUMERICAL_DESC, RANGE_SANDSTORM_SIZE, TR_CONFIG_WT_SANDSTORM_SIZE, NULL, 0, 1, ITEM_BASE_H, 10},
-        {TYPE_NUMERICAL_RANGE, RANGE_SANDSTORM_SIZE, 0, display_text_sandstorm_size, 0, 1, ITEM_BASE_H, 2},
+        {TYPE_NUMERICAL_RANGE, RANGE_SANDSTORM_SIZE, {}, display_text_sandstorm_size, 0, 1, ITEM_BASE_H, 2},
 
         {TYPE_NONE}
     },
@@ -353,7 +355,7 @@ static config_widget ui_widgets_by_category[CATEGORY_UI_COUNT][MAX_WIDGETS] = {
 // ---------- Difficulty (GAMEPLAY) ----------------------
 static config_widget page_difficulty[] = {
     {TYPE_NUMERICAL_DESC, RANGE_DIFFICULTY, TR_CONFIG_DIFFICULTY, NULL, 0, 1, ITEM_BASE_H, 0},
-    {TYPE_NUMERICAL_RANGE, RANGE_DIFFICULTY, 0, display_text_difficulty, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_NUMERICAL_RANGE, RANGE_DIFFICULTY, {}, display_text_difficulty, 0, 1, ITEM_BASE_H, 2},
     {TYPE_CHECKBOX, CONFIG_ORIGINAL_GODS_EFFECTS, TR_CONFIG_GODS_EFFECTS, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_JEALOUS_GODS, TR_CONFIG_JEALOUS_GODS, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_GLOBAL_LABOUR, TR_CONFIG_GLOBAL_LABOUR, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
@@ -365,9 +367,9 @@ static config_widget page_difficulty[] = {
     {TYPE_CHECKBOX, CONFIG_GP_CH_RANDOM_COLLAPSES_TAKE_MONEY, TR_CONFIG_RANDOM_COLLAPSES_TAKE_MONEY, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_CHECKBOX, CONFIG_GP_CH_DISABLE_INFINITE_WOLVES_SPAWNING, TR_CONFIG_GP_CH_DISABLE_INFINITE_WOLVES_SPAWNING, NULL, 0, 1, ITEM_BASE_H, CHECKBOX_MARGIN},
     {TYPE_NUMERICAL_DESC, RANGE_MAX_GRAND_TEMPLES, TR_CONFIG_MAX_GRAND_TEMPLES, NULL, 0, 1, ITEM_BASE_H, 10},
-    {TYPE_NUMERICAL_RANGE, RANGE_MAX_GRAND_TEMPLES, 0, display_text_max_grand_temples, 0, 1, ITEM_BASE_H, 2},
-    {TYPE_SPACE, 0, 0, NULL, 0, 1, ITEM_BASE_H, 0},
-    {TYPE_SPACE, 0, 0, NULL, 0, 1, ITEM_BASE_H, 0}, //two spaces to visually match the padding to the general settings
+    {TYPE_NUMERICAL_RANGE, RANGE_MAX_GRAND_TEMPLES, {}, display_text_max_grand_temples, 0, 1, ITEM_BASE_H, 2},
+    {TYPE_SPACE, 0, {}, NULL, 0, 1, ITEM_BASE_H, 0},
+    {TYPE_SPACE, 0, {}, NULL, 0, 1, ITEM_BASE_H, 0}, //two spaces to visually match the padding to the general settings
     {TYPE_NONE}
 };
 
@@ -525,11 +527,19 @@ static void button_close(const generic_button *button);
 static void button_page(const generic_button *button);
 
 static generic_button bottom_buttons[NUM_BOTTOM_BUTTONS] = {
-    {  20, 436,  120, 30, button_hotkeys, 0, 0, TR_BUTTON_CONFIGURE_HOTKEYS },
-    { 170, 436, 150, 30, button_reset_defaults, 0, 0, TR_BUTTON_RESET_DEFAULTS },
-    { 330, 436,  90, 30, button_close, 0, 0, TR_BUTTON_CANCEL },
-    { 430, 436,  90, 30, button_close, 0, 1, TR_BUTTON_OK },
-    { 530, 436,  90, 30, button_close, 0, 2, TR_OPTION_MENU_APPLY }
+    {  20, 436,  120, 30, button_hotkeys },
+    { 170, 436, 150, 30, button_reset_defaults },
+    { 330, 436,  90, 30, button_close, 0, 0 },
+    { 430, 436,  90, 30, button_close, 0, 1 },
+    { 530, 436,  90, 30, button_close, 0, 2 }
+};
+
+static const translation_key bottom_button_labels[NUM_BOTTOM_BUTTONS] = {
+    TR_BUTTON_CONFIGURE_HOTKEYS,
+    TR_BUTTON_RESET_DEFAULTS,
+    TR_BUTTON_CANCEL,
+    TR_BUTTON_OK,
+    TR_OPTION_MENU_APPLY
 };
 
 static generic_button page_buttons[] = {
@@ -881,8 +891,8 @@ static int config_change_string_language(int key)
     system_change_window_title(title);
     memcpy(data.config_string_values[key].original_value, data.config_string_values[key].new_value,
            CONFIG_STRING_VALUE_MAX);
-    string_copy(translation_for(TR_CONFIG_LANGUAGE_DEFAULT), data.language_options.data[0], CONFIG_STRING_VALUE_MAX);
-    data.volume_offset = string_copy(translation_for(TR_CONFIG_VOLUME), data.volume_text, 63);
+    string_copy(translation_for_key("TR_CONFIG_LANGUAGE_DEFAULT"), data.language_options.data[0], CONFIG_STRING_VALUE_MAX);
+    data.volume_offset = string_copy(translation_for_key("TR_CONFIG_VOLUME"), data.volume_text, 63);
     data.volume_offset = string_copy(string_from_ascii(" "), data.volume_offset,
                                      (int) (data.volume_offset - data.volume_text - 1));
     return 1;
@@ -945,7 +955,7 @@ static const uint8_t *display_text_language(void)
 }
 static const uint8_t *display_text_user_directory(void)
 {
-    return translation_for(TR_USER_DIRECTORIES_WINDOW_TITLE);
+    return translation_for_key("TR_USER_DIRECTORIES_WINDOW_TITLE");
 }
 static const uint8_t *display_text_player_name(void)
 {
@@ -1449,7 +1459,7 @@ static const uint8_t *checkbox_text(const config_widget *w)
     if (w->get_display_text) {
         return w->get_display_text();
     }
-    return translation_for(static_cast<translation_key>(w->description));
+    return translation_for(w->description);
 }
 
 static void op_measure_checkbox(const config_widget *w, int avail_text_w, int *out_h)
@@ -1509,7 +1519,7 @@ static void op_measure_select(const config_widget *w, int avail_text_w, int *out
 }
 static void op_draw_bg_select(const config_widget *w, int x, int y, int avail_text_w)
 {
-    text_draw(translation_for(static_cast<translation_key>(w->description)), x, y + 6 + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw(translation_for(w->description), x, y + 6 + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     const generic_button *btn = &select_buttons[w->subtype];
     text_draw_centered(w->get_display_text(), btn->x + 8, y + btn->y + 6 + w->y_offset,
                        btn->width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -1546,7 +1556,7 @@ static void op_measure_desc(const config_widget *w, int avail_text_w, int *out_h
 }
 static void op_draw_bg_desc(const config_widget *w, int x, int y, int avail_text_w)
 {
-    text_draw(translation_for(static_cast<translation_key>(w->description)), x, y + 10 + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw(translation_for(w->description), x, y + 10 + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 static void op_draw_fg_desc(const config_widget *w, int x, int y, int avail_text_w, int focused)
 {
@@ -1651,9 +1661,10 @@ static void op_measure_header(const config_widget *w, int avail_text_w, int *out
 static void op_draw_bg_header(const config_widget *w, int x, int y, int avail_text_w)
 {
     int header_text_margins_sum = 30 + font_definition_for(FONT_NORMAL_BLACK)->space_width; // 30 is the sum of both sides' margins, minus one space to account for the fact that the text is drawn flush with the left margin
-    int header_text_width = lang_text_get_width(CUSTOM_TRANSLATION, w->description, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) + header_text_margins_sum;
+    const uint8_t *header_text = translation_for(w->description);
+    int header_text_width = text_get_width(header_text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) + header_text_margins_sum;
     int new_x = x + avail_text_w / 2 - (header_text_width - header_text_margins_sum) / 2;
-    text_draw(translation_for(static_cast<translation_key>(w->description ? w->description : w->subtype)), new_x, y + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw(header_text, new_x, y + w->y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     int line_width = (avail_text_w - header_text_width) / 2;
     // y is constant - if y+5 works, keep it this way, it should be right in the middle of the text's y axis
     // Draw lines on either side of the header text, with a small gap
@@ -1867,7 +1878,7 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 0, 40, 30);
-    text_draw_centered(translation_for(TR_CONFIG_TITLE), 16, 16, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_centered(translation_for_key("TR_CONFIG_TITLE"), 16, 16, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     //  tabs
 
@@ -1911,7 +1922,7 @@ static void draw_background(void)
     //  bottom buttons text
     for (size_t i = 0; i < sizeof(bottom_buttons) / sizeof(*bottom_buttons); i++) {
         int disabled = i == NUM_BOTTOM_BUTTONS - 1 && !data.has_changes;
-        text_draw_centered(translation_for(static_cast<translation_key>(bottom_buttons[i].parameter2)),
+        text_draw_centered(translation_for(bottom_button_labels[i]),
             bottom_buttons[i].x, bottom_buttons[i].y + 9, bottom_buttons[i].width,
             disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(disabled ? FONT_NORMAL_PLAIN : FONT_NORMAL_BLACK)->line_height),
             disabled ? COLOR_FONT_LIGHT_GRAY : 0);
@@ -2201,6 +2212,37 @@ static void disable_widget_globally(int type, int subtype)
 
 }
 
+static void disable_header_globally(translation_key description)
+{
+    for (int i = 0; page_general[i].type != TYPE_NONE; i++) {
+        if (page_general[i].type == TYPE_HEADER && page_general[i].description == description) {
+            page_general[i].enabled = 0;
+        }
+    }
+    for (int i = 0; page_difficulty[i].type != TYPE_NONE; i++) {
+        if (page_difficulty[i].type == TYPE_HEADER && page_difficulty[i].description == description) {
+            page_difficulty[i].enabled = 0;
+        }
+    }
+
+    for (int c = 0; c < CATEGORY_UI_COUNT; ++c) {
+        for (int i = 0; i < MAX_WIDGETS && ui_widgets_by_category[c][i].type != TYPE_NONE; ++i) {
+            if (ui_widgets_by_category[c][i].type == TYPE_HEADER &&
+                ui_widgets_by_category[c][i].description == description) {
+                ui_widgets_by_category[c][i].enabled = 0;
+            }
+        }
+    }
+    for (int c = 0; c < CATEGORY_CITY_COUNT; ++c) {
+        for (int i = 0; i < MAX_WIDGETS && city_mgmt_widgets_by_category[c][i].type != TYPE_NONE; ++i) {
+            if (city_mgmt_widgets_by_category[c][i].type == TYPE_HEADER &&
+                city_mgmt_widgets_by_category[c][i].description == description) {
+                city_mgmt_widgets_by_category[c][i].enabled = 0;
+            }
+        }
+    }
+}
+
 static void set_page(unsigned int page)
 {
     data.page = page;
@@ -2230,7 +2272,7 @@ static void init(unsigned int page, unsigned int category, int show_background_i
 
     //  init volume prefix
 
-    data.volume_offset = string_copy(translation_for(TR_CONFIG_VOLUME), data.volume_text, 63);
+    data.volume_offset = string_copy(translation_for_key("TR_CONFIG_VOLUME"), data.volume_text, 63);
     data.volume_offset = string_copy(string_from_ascii(" "), data.volume_offset, (int) (data.volume_offset - data.volume_text - 1));
 
     //  prime numeric configs from core config
@@ -2260,7 +2302,7 @@ static void init(unsigned int page, unsigned int category, int show_background_i
 
     //  language options (default + available locales)
 
-    string_copy(translation_for(TR_CONFIG_LANGUAGE_DEFAULT), data.language_options.data[0], CONFIG_STRING_VALUE_MAX);
+    string_copy(translation_for_key("TR_CONFIG_LANGUAGE_DEFAULT"), data.language_options.data[0], CONFIG_STRING_VALUE_MAX);
     data.language_options.options[0] = data.language_options.data[0];
     data.language_options.total = 1;
     data.language_options.selected = 0;
@@ -2287,7 +2329,7 @@ static void init(unsigned int page, unsigned int category, int show_background_i
     //  system constraints
 
     if (!system_can_scale_display(0, 0)) {
-        disable_widget_globally(TYPE_HEADER, TR_CONFIG_VIDEO);
+        disable_header_globally(TR_CONFIG_VIDEO);
         disable_widget_globally(TYPE_NUMERICAL_DESC, RANGE_RESOLUTION);
         disable_widget_globally(TYPE_NUMERICAL_RANGE, RANGE_RESOLUTION);
         disable_widget_globally(TYPE_NUMERICAL_DESC, RANGE_DISPLAY_SCALE);
@@ -2313,3 +2355,4 @@ extern "C" void window_config_show(window_config_page page, unsigned int categor
     init(page, category, show_background_image);
     window_show(&window);
 }
+

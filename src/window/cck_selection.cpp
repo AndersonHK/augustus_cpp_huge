@@ -1,5 +1,17 @@
-extern "C" {
+#include "game/file.h"
+#include "game/file_io.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/list_box.h"
+#include "input/input.h"
+#include "widget/minimap.h"
+#include "window/mission_briefing.h"
+
 #include "window/cck_selection.h"
+
+extern "C" {
 
 #include "assets/assets.h"
 #include "core/dir.h"
@@ -7,25 +19,15 @@ extern "C" {
 #include "core/file.h"
 #include "core/image_group.h"
 #include "core/lang.h"
-#include "game/file.h"
-#include "game/file_io.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
-#include "graphics/list_box.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "sound/music.h"
-#include "widget/minimap.h"
-#include "window/mission_briefing.h"
 
 #include <string.h>
 }
-#include "graphics/image.h"
 
 #define MAX_SCENARIOS 15
 

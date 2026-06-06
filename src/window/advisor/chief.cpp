@@ -1,26 +1,28 @@
-extern "C" {
+#include "city/health.h"
+#include "city/labor.h"
+#include "city/migration.h"
+#include "city/houses.h"
+#include "city/sentiment.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+
 #include "chief.h"
+
+#include "translation/translation.h"
+extern "C" {
 #include "city/data_private.h"
 #include "city/figures.h"
 #include "city/finance.h"
-#include "city/health.h"
-#include "city/houses.h"
-#include "city/labor.h"
-#include "city/migration.h"
 #include "city/military.h"
 #include "city/population.h"
 #include "city/resource.h"
-#include "city/sentiment.h"
 #include "core/calc.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "scenario/invasion.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
 }
 
-#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 26
 #define X_OFFSET 225
@@ -102,12 +104,12 @@ static int draw_background(void)
 
     // housing capacity
     Image::from_id(Image::group(GROUP_BULLET)).draw(32, 126 + 1);
-    text_draw(translation_for(TR_HEADER_HOUSING), 52, 126, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    text_draw(translation_for_key("TR_HEADER_HOUSING"), 52, 126, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     if (!city_population_open_housing_capacity()) {
-        width = text_draw(translation_for(TR_ADVISOR_HOUSING_NO_ROOM), X_OFFSET, 126, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        width = text_draw(translation_for_key("TR_ADVISOR_HOUSING_NO_ROOM"), X_OFFSET, 126, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else {
-        width = text_draw(translation_for(TR_ADVISOR_HOUSING_ROOM), X_OFFSET, 126, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        width = text_draw(translation_for_key("TR_ADVISOR_HOUSING_ROOM"), X_OFFSET, 126, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         text_draw_number(city_population_open_housing_capacity(), '@', " ", X_OFFSET + width, 126, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
 
@@ -148,7 +150,7 @@ static int draw_background(void)
     // military
     draw_title(186, 5);
 
-    int food_text = 0;
+    translation_key food_text;
     int food_stress = city_data.mess_hall.food_stress_cumulative;
 
     if (food_stress > 60) {
@@ -157,7 +159,7 @@ static int draw_background(void)
         food_text = TR_ADVISOR_LEGION_FOOD_NEEDED;
     }
     if (food_text && city_figures_soldiers() > 0) {
-        text_draw(translation_for(static_cast<translation_key>(food_text)), X_OFFSET, 186, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height), 0);
+        text_draw(translation_for(food_text), X_OFFSET, 186, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height), 0);
     } else if (city_figures_imperial_soldiers()) {
         lang_text_draw(61, 76, X_OFFSET, 186, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
     } else if (city_figures_enemies()) {

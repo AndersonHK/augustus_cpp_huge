@@ -1,6 +1,10 @@
-extern "C" {
-#include "image.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+
 #include "assets/group.h"
+#include "image.h"
+
+extern "C" {
 #include "core/array.h"
 #include "core/image.h"
 #include "core/image_packer.h"
@@ -8,11 +12,9 @@ extern "C" {
 #include "core/png_read.h"
 #include "game/campaign.h"
 #include "graphics/color.h"
-#include "graphics/graphics.h"
 #include "graphics/renderer.h"
 }
 
-#include "graphics/image.h"
 
 #include <stdlib.h>
 #include <string.h>

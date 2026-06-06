@@ -1,10 +1,15 @@
+#include "import_xml.h"
+#include "scenario/event/event.h"
+#include "scenario/event/parameter_city.h"
+#include "scenario/event/parameter_data.h"
+#include "window/plain_message_dialog.h"
+
+#include "window/editor/select_city_trade_route.h"
 #include <array>
 
 extern "C" {
-#include "import_xml.h"
 
 #include "building/building_type_api.h"
-#include "core/array.h"
 #include "core/encoding.h"
 #include "core/file.h"
 #include "core/lang.h"
@@ -17,11 +22,6 @@ extern "C" {
 #include "scenario/custom_variable.h"
 #include "scenario/event/controller.h"
 #include "scenario/event/data.h"
-#include "scenario/event/event.h"
-#include "scenario/event/parameter_city.h"
-#include "scenario/event/parameter_data.h"
-#include "window/plain_message_dialog.h"
-#include "window/editor/select_city_trade_route.h"
 }
 
 #include <math.h>
@@ -270,17 +270,17 @@ static int xml_import_start_event(void)
 
 static void xml_import_end_event(void)
 {
-    if (data.current_event->condition_groups.size == 0) {
-        array_advance(data.current_event->condition_groups);
+    if (scenario_event_condition_group_count(data.current_event) == 0) {
+        scenario_event_condition_group_add(data.current_event);
     }
 }
 
 static scenario_condition_group_t *get_first_group(void)
 {
-    if (data.current_event->condition_groups.size == 0) {
-        return array_advance(data.current_event->condition_groups);
+    if (scenario_event_condition_group_count(data.current_event) == 0) {
+        return scenario_event_condition_group_add(data.current_event);
     }
-    return array_item(data.current_event->condition_groups, 0);
+    return scenario_event_condition_group_get(data.current_event, 0);
 }
 
 static int xml_import_start_group(void)
@@ -301,7 +301,7 @@ static int xml_import_start_group(void)
     if (type == FULFILLMENT_TYPE_ALL) {
         data.current_group = get_first_group();
     } else {
-        array_new_item_after_index(data.current_event->condition_groups, 1, data.current_group);
+        data.current_group = scenario_event_condition_group_add_after(data.current_event, 1);
     }
     return data.current_group != 0;
 }
@@ -450,7 +450,7 @@ static void xml_import_log_error(const char *msg)
     log_error("Error while import scenario events from XML. ", data.error_message, 0);
     log_error("Line:", 0, data.error_line_number);
 
-    string_copy(translation_for(TR_EDITOR_IMPORT_LINE), data.error_line_number_text, 50);
+    string_copy(translation_for_key("TR_EDITOR_IMPORT_LINE"), data.error_line_number_text, 50);
     int length = string_length(data.error_line_number_text);
 
     uint8_t number_as_text[15];

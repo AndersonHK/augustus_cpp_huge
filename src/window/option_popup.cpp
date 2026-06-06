@@ -1,7 +1,7 @@
+#include "translation/translation.h"
+#include "window/option_popup.h"
 #include "graphics/ui_runtime.h"
 
-extern "C" {
-#include "window/option_popup.h"
 
 #include "core/image_group.h"
 #include "graphics/ui_runtime_api.h"
@@ -13,8 +13,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "input/input.h"
-#include "translation/translation.h"
-}
 #include "graphics/image_border.h"
 #include "graphics/image.h"
 
@@ -40,8 +38,8 @@ static generic_button buttons[] = {
 static scrollbar_type scrollbar = { 420, START_Y_OFFSET + 40, 0, 400, 0, on_scroll, 0, 4 };
 
 static struct {
-    int title;
-    int subtitle;
+    translation_key title;
+    translation_key subtitle;
     option_menu_item *options;
     unsigned int num_options;
     int width_blocks;
@@ -57,7 +55,7 @@ static struct {
     option_menu_row_size row_size;
 } data;
 
-static int init(int title, int subtitle, option_menu_item *options, int num_options,
+static int init(translation_key title, translation_key subtitle, option_menu_item *options, int num_options,
     void (*close_func)(int selection), int original_option, int price, option_menu_row_size row_size)
 {
     if (window_is(WINDOW_POPUP_DIALOG)) {
@@ -117,19 +115,19 @@ static void draw_apply_button(int x, int y, int box_width)
     font_t font = data.selected_option != data.original_option ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN;
     color_t color = data.selected_option != data.original_option ? 0 : COLOR_FONT_LIGHT_GRAY;
     if (!data.price) {
-        text_draw_centered(translation_for(TR_OPTION_MENU_APPLY), x, y, box_width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
+        text_draw_centered(translation_for_key("TR_OPTION_MENU_APPLY"), x, y, box_width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     } else {
-        text_draw_with_money(translation_for(TR_OPTION_MENU_APPLY), data.price, " (", ")",
+        text_draw_with_money(translation_for_key("TR_OPTION_MENU_APPLY"), data.price, " (", ")",
             x, y, box_width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     }
 }
 
 static void draw_popup_text(void)
 {
-    text_draw_centered(translation_for(static_cast<translation_key>(data.title)), 0, 20, 480, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    text_draw_multiline(translation_for(static_cast<translation_key>(data.subtitle)), 20, 60, 440, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw_centered(translation_for(data.title), 0, 20, 480, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_multiline(translation_for(data.subtitle), 20, 60, 440, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     if (data.price) {
-        text_draw_with_money(translation_for(TR_OPTION_MENU_COST), data.price, " ", ".",
+        text_draw_with_money(translation_for_key("TR_OPTION_MENU_COST"), data.price, " ", ".",
             20, 110, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
@@ -143,10 +141,10 @@ static void draw_popup_text(void)
             text_x += offset;
             text_width -= offset;
         }
-        text_draw_multiline(translation_for(static_cast<translation_key>(data.options[i + scrollbar.scroll_position].header)),
+        text_draw_multiline(translation_for(data.options[i + scrollbar.scroll_position].header),
             text_x, y_offset + 49, text_width - 8, 0,
             data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK)->line_height), 0);
-        text_draw_multiline(translation_for(static_cast<translation_key>(data.options[i + scrollbar.scroll_position].desc)),
+        text_draw_multiline(translation_for(data.options[i + scrollbar.scroll_position].desc),
             text_x, y_offset + 69, text_width - 8, 0,
             data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK)->line_height), 0);
 
@@ -261,7 +259,7 @@ static void button_select_option(const generic_button *button)
     }
 }
 
-extern "C" void window_option_popup_show(int title, int subtitle, option_menu_item *options, int num_options,
+void window_option_popup_show(translation_key title, translation_key subtitle, option_menu_item *options, int num_options,
     void (*close_func)(int selection), int current_option, int price, option_menu_row_size row_size)
 {
     if (init(title, subtitle, options, num_options, close_func, current_option, price, row_size)) {

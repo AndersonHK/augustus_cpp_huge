@@ -1,3 +1,6 @@
+#include "game/undo.h"
+#include "map/road_access.h"
+
 #include "migrant.h"
 
 #include "building/building.h"
@@ -18,8 +21,6 @@ extern "C" {
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "game/time.h"
-#include "game/undo.h"
-#include "map/road_access.h"
 }
 
 static struct {

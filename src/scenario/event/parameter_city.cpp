@@ -1,16 +1,20 @@
+#include "building/count.h"
+#include "city/data.h"
+#include "city/health.h"
+#include "city/labor.h"
+#include "scenario/event/parameter_data.h"
+
+#include "window/editor/select_city_trade_route.h"
+#include "window/advisors.h"
 #include "scenario/event/parameter_city.h"
 
 extern "C" {
 #include "building/building_type_api.h"
-#include "building/count.h"
 #include "building/granary.h"
 #include "building/warehouse.h"
 #include "city/constants.h"
 #include "city/emperor.h"
 #include "city/finance.h"
-#include "city/health.h"
-#include "city/labor.h"
-#include "city/data.h"
 #include "city/population.h"
 #include "city/ratings.h"
 #include "city/resource.h"
@@ -22,10 +26,7 @@ extern "C" {
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/terrain.h"
-#include "scenario/event/parameter_data.h"
 #include "game/settings.h"
-#include "window/advisors.h"
-#include "window/editor/select_city_trade_route.h"
 }
 
 #define RESOURCE_ALL_BUYS RESOURCE_SLOT_COUNT + 1 // max +1 indicates all resources that this trade route buys

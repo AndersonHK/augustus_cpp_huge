@@ -1,26 +1,28 @@
+#include "game/resource_graphics.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+
+#include "trade_prices.h"
+
+#include "window/advisors.h"
 #include "building/caravanserai.h"
 #include "building/lighthouse.h"
 
 extern "C" {
-#include "trade_prices.h"
 #include "building/monument.h"
 #include "city/buildings.h"
 #include "city/resource.h"
 #include "city/trade_policy.h"
 #include "empire/city.h"
 #include "empire/trade_prices.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/advisors.h"
 }
 
-#include "graphics/image.h"
-#include "game/resource_graphics.h"
 
 static struct {
     int x;

@@ -1,3 +1,16 @@
+#include "building/distribution.h"
+#include "building/list.h"
+#include "building/local_workforce.h"
+#include "building/maintenance.h"
+#include "building/storage.h"
+#include "city/festival.h"
+#include "city/health.h"
+#include "figure/action.h"
+#include "figuretype/supplier.h"
+#include "game/resource_graphics.h"
+#include "map/building.h"
+#include "map/road_access.h"
+
 #include "figure/figure_runtime_native.h"
 
 #include "building/building.h"
@@ -8,34 +21,23 @@
 
 extern "C" {
 #include "assets/assets.h"
-#include "building/list.h"
-#include "building/local_workforce.h"
-#include "building/maintenance.h"
 #include "building/building_record.h"
-#include "building/distribution.h"
 #include "building/granary.h"
 #include "building/monument.h"
-#include "building/storage.h"
 #include "building/warehouse.h"
-#include "city/health.h"
-#include "city/festival.h"
 #include "city/figures.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/image.h"
-#include "figure/action.h"
 #include "figure/combat.h"
 #include "figure/enemy_army.h"
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
-#include "figuretype/supplier.h"
 #include "game/time.h"
 #include "game/resource.h"
-#include "map/building.h"
 #include "map/data.h"
 #include "map/grid.h"
-#include "map/road_access.h"
 #include "map/routing.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
@@ -43,7 +45,6 @@ extern "C" {
 #include "sound/effect.h"
 }
 
-#include "game/resource_graphics.h"
 
 #include <cstdint>
 #include <limits>

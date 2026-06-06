@@ -1,17 +1,20 @@
-extern "C" {
-#include "minimap.h"
-#include "assets/assets.h"
 #include "building/building.h"
+#include "building/industry.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "map/building.h"
+
+#include "minimap.h"
+
+extern "C" {
+#include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
-#include "building/industry.h"
 #include "building/monument.h"
 #include "city/view.h"
 #include "core/calc.h"
 #include "figure/formation.h"
-#include "graphics/graphics.h"
 #include "graphics/renderer.h"
-#include "map/building.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/property.h"
@@ -19,7 +22,6 @@ extern "C" {
 #include "map/terrain.h"
 }
 
-#include "graphics/image.h"
 
 #include <initializer_list>
 #include <stdlib.h>

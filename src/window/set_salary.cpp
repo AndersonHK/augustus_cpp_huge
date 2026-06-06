@@ -1,22 +1,24 @@
-extern "C" {
+#include "city/victory.h"
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+
 #include "set_salary.h"
+
+#include "window/advisors.h"
+extern "C" {
 
 #include "city/emperor.h"
 #include "city/finance.h"
 #include "city/ratings.h"
-#include "city/victory.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/advisors.h"
 }
-#include "graphics/image.h"
-#include "game/resource_graphics.h"
 
 #define MIN_DIALOG_WIDTH 384
 

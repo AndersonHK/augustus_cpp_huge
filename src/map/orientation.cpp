@@ -1,3 +1,16 @@
+#include "building/connectable.h"
+#include "building/house.h"
+#include "building/image.h"
+#include "building/variant.h"
+#include "figuretype/animal.h"
+#include "figuretype/wall.h"
+#include "game/undo.h"
+#include "map/bridge.h"
+#include "map/building_tiles.h"
+#include "map/natives.h"
+#include "map/tiles.h"
+#include "map/water.h"
+
 #include "orientation.h"
 
 #include "building/building.h"
@@ -6,27 +19,15 @@
 
 extern "C" {
 #include "assets/assets.h"
-#include "building/connectable.h"
-#include "building/house.h"
-#include "building/image.h"
 #include "building/properties.h"
-#include "building/variant.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
-#include "figuretype/animal.h"
-#include "figuretype/wall.h"
-#include "game/undo.h"
-#include "map/bridge.h"
-#include "map/building_tiles.h"
 #include "map/data.h"
 #include "map/grid.h"
-#include "map/natives.h"
 #include "map/property.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
-#include "map/water.h"
 }
 
 #include <math.h>

@@ -1,10 +1,12 @@
+#include "city/warning.h"
+#include "map/orientation.h"
+#include "translation/translation.h"
+#include "widget/minimap.h"
+
 #include "orientation.h"
 
 extern "C" {
 #include "city/view.h"
-#include "city/warning.h"
-#include "map/orientation.h"
-#include "widget/minimap.h"
 }
 
 namespace {

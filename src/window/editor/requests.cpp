@@ -1,27 +1,29 @@
-extern "C" {
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/attributes.h"
+#include "window/editor/edit_request.h"
+
 #include "requests.h"
+
+#include "window/editor/map.h"
+#include "graphics/grid_box.h"
+extern "C" {
 
 #include "core/image_group_editor.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/data.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-#include "window/editor/attributes.h"
-#include "window/editor/edit_request.h"
-#include "window/editor/map.h"
 }
-#include "game/resource_graphics.h"
-#include "graphics/image.h"
 
 static void button_edit_request(const grid_box_item *item);
 static void button_new_request(const generic_button *button);

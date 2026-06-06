@@ -28,8 +28,8 @@ static void imperial_games_start(void);
 
 static games_type make_game(
     int id,
-    int header_key,
-    int description_key,
+    translation_key header_key,
+    translation_key description_key,
     int message_planning,
     int cost_base,
     int cost_scaling,

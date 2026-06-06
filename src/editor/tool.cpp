@@ -1,4 +1,4 @@
-﻿#include "tool.h"
+#include "tool.h"
 
 #include "assets/assets.h"
 #include "building/building.h"
@@ -388,37 +388,34 @@ void editor_tool_update_use(const map_tile *tile)
 static void place_earthquake_flag(const map_tile *tile)
 {
     warning_type warning = WARNING_NONE;
-    translation_key text_key = TR_NO_PATCH_TITLE;
-    if (editor_tool_can_place_flag(data.type, tile, &warning, &text_key)) {
+    if (editor_tool_can_place_flag(data.type, tile, &warning)) {
         if (scenario_editor_earthquake_severity()) {
             scenario_editor_set_earthquake_point(tile->x, tile->y);
         } else {
-            city_warning_show(WARNING_EDITOR_NO_EARTHQUAKE_SCHEDULED, translation_for(TR_CITY_WARNING_EDITOR_NO_EARTHQUAKE_SCHEDULED));
+            city_warning_show(WARNING_EDITOR_NO_EARTHQUAKE_SCHEDULED, translation_for_key("TR_CITY_WARNING_EDITOR_NO_EARTHQUAKE_SCHEDULED"));
         }
     } else {
-        city_warning_show(warning, translation_for(text_key));
+        city_warning_show_translated(warning);
     }
 }
 
 static void place_flag(const map_tile *tile, void (*update)(int x, int y))
 {
     warning_type warning = WARNING_NONE;
-    translation_key text_key = TR_NO_PATCH_TITLE;
-    if (editor_tool_can_place_flag(data.type, tile, &warning, &text_key)) {
+    if (editor_tool_can_place_flag(data.type, tile, &warning)) {
         update(tile->x, tile->y);
     } else {
-        city_warning_show(warning, translation_for(text_key));
+        city_warning_show_translated(warning);
     }
 }
 
 static void place_flag_with_id(const map_tile *tile, void (*update)(int id, int x, int y))
 {
     warning_type warning = WARNING_NONE;
-    translation_key text_key = TR_NO_PATCH_TITLE;
-    if (editor_tool_can_place_flag(data.type, tile, &warning, &text_key)) {
+    if (editor_tool_can_place_flag(data.type, tile, &warning)) {
         update(data.id, tile->x, tile->y);
     } else {
-        city_warning_show(warning, translation_for(text_key));
+        city_warning_show_translated(warning);
     }
 }
 
@@ -484,7 +481,7 @@ static void place_building(const map_tile *tile)
         map_building_tiles_add(building.id(), tile->x, tile->y, size, image_id, TERRAIN_BUILDING);
         scenario_editor_set_as_unsaved();
     } else {
-        city_warning_show(WARNING_EDITOR_CANNOT_PLACE, translation_for(TR_CITY_WARNING_EDITOR_CANNOT_PLACE));
+        city_warning_show_translated(WARNING_EDITOR_CANNOT_PLACE);
     }
 }
 
@@ -520,7 +517,7 @@ static void place_access_ramp(const map_tile *tile)
         update_terrain_after_elevation_changes();
         scenario_editor_set_as_unsaved();
     } else {
-        city_warning_show(WARNING_EDITOR_CANNOT_PLACE, translation_for(TR_CITY_WARNING_EDITOR_CANNOT_PLACE));
+        city_warning_show_translated(WARNING_EDITOR_CANNOT_PLACE);
     }
 }
 

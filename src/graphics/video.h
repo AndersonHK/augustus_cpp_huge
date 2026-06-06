@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Start playing the video
  * @param filename Video file
@@ -44,3 +48,7 @@ void video_shutdown(void);
  * @param height Height of the video container
  */
 void video_draw(int x_offset, int y_offset, int width, int height);
+
+#ifdef __cplusplus
+}
+#endif

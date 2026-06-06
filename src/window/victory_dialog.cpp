@@ -1,20 +1,21 @@
-extern "C" {
-#include "victory_dialog.h"
-
-#include "assets/assets.h"
 #include "city/victory.h"
-#include "game/campaign.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
+#include "graphics/image.h"
 #include "graphics/lang_text.h"
+#include "window/city.h"
+
+#include "victory_dialog.h"
+
+extern "C" {
+#include "assets/assets.h"
+#include "game/campaign.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
 #include "sound/music.h"
-#include "window/city.h"
 }
-#include "graphics/image.h"
 
 #define MAX_RANK 10
 

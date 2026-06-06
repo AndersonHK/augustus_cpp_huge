@@ -1,7 +1,8 @@
+#
+
 #include "depot.h"
 
 extern "C" {
-#include "figure/action.h"
 #include "figure/figure.h"
 }
 

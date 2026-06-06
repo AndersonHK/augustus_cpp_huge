@@ -1,21 +1,23 @@
-extern "C" {
-#include "government.h"
-#include "assets/assets.h"
 #include "building/building.h"
+#include "game/resource_graphics.h"
+#include "graphics/image.h"
+#include "graphics/image_border.h"
+#include "graphics/lang_text.h"
+
+#include "government.h"
+
+#include "translation/translation.h"
+#include "window/building/figures.h"
+extern "C" {
+#include "assets/assets.h"
 #include "building/building_record.h"
 #include "city/constants.h"
 #include "core/dir.h"
 #include "game/resource.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
-#include "translation/translation.h"
-#include "window/building/figures.h"
 }
 
-#include "game/resource_graphics.h"
-#include "graphics/image_border.h"
-#include "graphics/image.h"
 
 void window_building_draw_forum(building_info_context *c)
 {
@@ -155,7 +157,7 @@ void window_building_draw_pond(building_info_context *c)
     window_building_play_sound(c, "wavs/fountain.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
 
-    text_draw_centered(translation_for(TR_BUILDING_WINDOW_POND),
+    text_draw_centered(translation_for_key("TR_BUILDING_WINDOW_POND"),
         c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_POND_DESC);
 }
@@ -166,7 +168,7 @@ void window_building_draw_obelisk(building_info_context *c)
     window_building_play_sound(c, "wavs/statue.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
 
-    text_draw_centered(translation_for(TR_BUILDING_OBELISK),
+    text_draw_centered(translation_for_key("TR_BUILDING_OBELISK"),
         c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_OBELISK_DESC);
 }

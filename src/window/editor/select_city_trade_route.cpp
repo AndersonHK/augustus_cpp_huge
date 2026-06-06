@@ -1,21 +1,23 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+
 #include "select_city_trade_route.h"
+
+#include "window/editor/map.h"
+extern "C" {
 
 #include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/trade_route.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
 }
 
 #include <string.h>
@@ -132,11 +134,11 @@ static void populate_resource_list_for_route(int offset)
             // Handle special 'All' entries (first two positions)
             if (list_index == 0) {
                 route_resource_data.list[i].id = RESOURCE_ALL_BUYS;
-                route_resource_data.list[i].name = translation_for(TR_EDITOR_ALL_BUYS);
+                route_resource_data.list[i].name = translation_for_key("TR_EDITOR_ALL_BUYS");
                 continue;
             } else if (list_index == 1) {
                 route_resource_data.list[i].id = RESOURCE_ALL_SELLS;
-                route_resource_data.list[i].name = translation_for(TR_EDITOR_ALL_SELLS);
+                route_resource_data.list[i].name = translation_for_key("TR_EDITOR_ALL_SELLS");
                 continue;
             }
 
@@ -149,8 +151,8 @@ static void populate_resource_list_for_route(int offset)
             if (r_data) {
                 const uint8_t *resource_name = r_data->text;
                 const uint8_t *suffix =
-                    route_resource_data.resource[r] == RESOURCE_BUYS ? translation_for(TR_EDITOR_BUYS) :
-                    route_resource_data.resource[r] == RESOURCE_SELLS ? translation_for(TR_EDITOR_SELLS) :
+                    route_resource_data.resource[r] == RESOURCE_BUYS ? translation_for_key("TR_EDITOR_BUYS") :
+                    route_resource_data.resource[r] == RESOURCE_SELLS ? translation_for_key("TR_EDITOR_SELLS") :
                     NULL;
 
                 static uint8_t name_buffer[MAX_VISIBLE_ROWS][64];
@@ -393,9 +395,9 @@ const uint8_t *window_editor_select_city_trade_route_show_get_selected_name(int 
 
     // Handle special 'All' cases
     if (resource_id == RESOURCE_ALL_BUYS) {
-        return translation_for(TR_EDITOR_ALL_BUYS);
+        return translation_for_key("TR_EDITOR_ALL_BUYS");
     } else if (resource_id == RESOURCE_ALL_SELLS) {
-        return translation_for(TR_EDITOR_ALL_SELLS);
+        return translation_for_key("TR_EDITOR_ALL_SELLS");
     }
 
     // Get the resource data
@@ -417,9 +419,9 @@ const uint8_t *window_editor_select_city_trade_route_show_get_selected_name(int 
 
     const uint8_t *suffix = NULL;
     if (buys) {
-        suffix = translation_for(TR_EDITOR_BUYS);
+        suffix = translation_for_key("TR_EDITOR_BUYS");
     } else if (sells) {
-        suffix = translation_for(TR_EDITOR_SELLS);
+        suffix = translation_for_key("TR_EDITOR_SELLS");
     }
 
     // Combine resource name with suffix

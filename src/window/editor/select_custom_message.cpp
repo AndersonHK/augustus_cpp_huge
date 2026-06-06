@@ -1,26 +1,28 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/attributes.h"
+#include "window/file_dialog.h"
+#include "window/numeric_input.h"
+
 #include "select_custom_message.h"
+
+#include "window/editor/map.h"
+extern "C" {
 
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/property.h"
 #include "scenario/custom_media.h"
 #include "scenario/custom_messages.h"
 #include "scenario/message_media_text_blob.h"
-#include "window/editor/attributes.h"
-#include "window/editor/map.h"
-#include "window/file_dialog.h"
-#include "window/numeric_input.h"
 }
-#include "graphics/image.h"
 
 #define MESSAGES_Y_OFFSET 146
 #define MESSAGES_ROW_HEIGHT 32
@@ -95,8 +97,8 @@ static void draw_foreground(void)
 
     outer_panel_draw(16, 16, 26, 30);
 
-    text_draw_centered(translation_for(TR_EDITOR_CUSTOM_MESSAGES_TITLE), 48, 58, BUTTON_WIDTH, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    text_draw_label_and_number(translation_for(TR_EDITOR_CUSTOM_MESSAGES_COUNT), data.total_messages, "", 48, 106, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
+    text_draw_centered(translation_for_key("TR_EDITOR_CUSTOM_MESSAGES_TITLE"), 48, 58, BUTTON_WIDTH, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_label_and_number(translation_for_key("TR_EDITOR_CUSTOM_MESSAGES_COUNT"), data.total_messages, "", 48, 106, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
 
     int y_offset = MESSAGES_Y_OFFSET;
     for (unsigned int i = 0; i < MAX_VISIBLE_ROWS; i++) {

@@ -1,7 +1,21 @@
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/list_box.h"
+#include "graphics/rich_text.h"
+#include "input/input.h"
+#include "window/main_menu.h"
+#include "window/mission_list.h"
+#include "window/mission_selection.h"
+#include "window/plain_message_dialog.h"
+
+#include "window/select_campaign.h"
+
+#include "widget/input_box.h"
 #include "graphics/ui_runtime.h"
 
 extern "C" {
-#include "window/select_campaign.h"
 
 #include "core/dir.h"
 #include "core/direction.h"
@@ -12,24 +26,12 @@ extern "C" {
 #include "game/campaign.h"
 #include "game/settings.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
-#include "graphics/list_box.h"
-#include "graphics/rich_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/property.h"
 #include "scenario/scenario.h"
-#include "widget/input_box.h"
-#include "window/main_menu.h"
-#include "window/mission_list.h"
-#include "window/mission_selection.h"
-#include "window/plain_message_dialog.h"
 }
-#include "graphics/image.h"
 
 #define PLAYER_NAME_LENGTH 32
 #define CAMPAIGN_LIST_Y_POSITION 96

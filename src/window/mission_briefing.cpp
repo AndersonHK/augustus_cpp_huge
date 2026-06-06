@@ -1,3 +1,19 @@
+#include "game/file.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/rich_text.h"
+#include "window/city.h"
+#include "window/intermezzo.h"
+#include "window/main_menu.h"
+#include "window/mission_list.h"
+#include "window/mission_selection.h"
+#include "window/plain_message_dialog.h"
+
+#include "window/mission_briefing.h"
+
+#include "window/video.h"
+#include "translation/translation.h"
 #include "graphics/declarative_window.h"
 #include "graphics/ui_runtime.h"
 
@@ -6,7 +22,6 @@
 #include <memory>
 
 extern "C" {
-#include "window/mission_briefing.h"
 
 #include "city/mission.h"
 #include "core/config.h"
@@ -14,14 +29,10 @@ extern "C" {
 #include "core/image_group.h"
 #include "core/lang.h"
 #include "game/campaign.h"
-#include "game/file.h"
 #include "game/mission.h"
 #include "game/settings.h"
 #include "game/tutorial.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
-#include "graphics/rich_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/ui_runtime_api.h"
@@ -34,16 +45,7 @@ extern "C" {
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-#include "translation/translation.h"
-#include "window/city.h"
-#include "window/intermezzo.h"
-#include "window/main_menu.h"
-#include "window/mission_list.h"
-#include "window/mission_selection.h"
-#include "window/plain_message_dialog.h"
-#include "window/video.h"
 }
-#include "graphics/image.h"
 
 namespace {
 

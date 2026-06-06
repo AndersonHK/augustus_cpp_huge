@@ -1,12 +1,13 @@
-#include "translation/localization.h"
 #include "translation/translation.h"
+#include "translation/localization.h"
+#include "translation/localization_internal.h"
 
 extern "C" {
 #include "core/lang.h"
 #include "core/log.h"
 }
 
-extern "C" void translation_load(language_type language)
+void translation_load(language_type language)
 {
     if (!localization::rebuild_legacy_cache(language)) {
         log_error("Invalid translation selected", 0, 0);
@@ -15,7 +16,13 @@ extern "C" void translation_load(language_type language)
     lang_refresh_message_cache();
 }
 
-extern "C" const uint8_t *translation_for(translation_key key)
+const uint8_t *translation_for_key(const char *key)
 {
-    return localization::legacy_project_string(key);
+    const uint8_t *text = localization::legacy_named_project_string(key);
+    if (text && text[0]) {
+        return text;
+    }
+
+    localization::detail::report_missing_project_key(key);
+    return reinterpret_cast<const uint8_t *>(key && *key ? key : "");
 }

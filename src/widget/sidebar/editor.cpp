@@ -1,10 +1,19 @@
-extern "C" {
-#include "editor.h"
-#include "core/image_group_editor.h"
 #include "editor/tool.h"
 #include "graphics/graphics.h"
-#include "graphics/image_button.h"
+#include "graphics/image.h"
 #include "graphics/lang_text.h"
+#include "widget/map_editor.h"
+#include "widget/minimap.h"
+#include "widget/sidebar/common.h"
+#include "window/editor/attributes.h"
+#include "window/editor/build_menu.h"
+
+#include "editor.h"
+
+#include "window/editor/map.h"
+extern "C" {
+#include "core/image_group_editor.h"
+#include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
@@ -14,15 +23,8 @@ extern "C" {
 #include "scenario/editor_map.h"
 #include "scenario/invasion.h"
 #include "scenario/map.h"
-#include "widget/map_editor.h"
-#include "widget/minimap.h"
-#include "widget/sidebar/common.h"
-#include "window/editor/attributes.h"
-#include "window/editor/build_menu.h"
-#include "window/editor/map.h"
 }
 
-#include "graphics/image.h"
 
 #define MINIMAP_Y_OFFSET 30
 

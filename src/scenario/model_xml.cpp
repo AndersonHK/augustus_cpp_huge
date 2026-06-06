@@ -1,9 +1,12 @@
+#include "building/industry.h"
+#include "model_xml.h"
+#include "scenario/event/parameter_data.h"
+#include "window/plain_message_dialog.h"
+
 #include "building/building_type_registry.h"
 
 extern "C" {
-#include "model_xml.h"
 
-#include "building/industry.h"
 #include "building/properties.h"
 #include "building/building_type_api.h"
 #include "core/buffer.h"
@@ -13,8 +16,6 @@ extern "C" {
 #include "core/xml_exporter.h"
 #include "core/xml_parser.h"
 #include "game/resource.h"
-#include "scenario/event/parameter_data.h"
-#include "window/plain_message_dialog.h"
 }
 
 #include <stdio.h>

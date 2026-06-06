@@ -111,6 +111,8 @@ extern "C" {
 #endif
 
 int city_warning_show(warning_type warning, const uint8_t *text);
+int city_warning_show_translated(warning_type warning);
+const uint8_t *city_warning_get_text(warning_type warning);
 
 int city_has_warnings(void);
 

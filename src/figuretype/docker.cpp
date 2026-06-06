@@ -1,3 +1,10 @@
+#include "building/storage.h"
+#include "city/health.h"
+#include "city/trade.h"
+#include "empire/empire.h"
+#include "game/resource_graphics.h"
+#include "map/road_access.h"
+
 #include "docker.h"
 
 #include "building/building.h"
@@ -7,15 +14,11 @@ extern "C" {
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/granary.h"
-#include "building/storage.h"
 #include "building/warehouse.h"
-#include "city/health.h"
-#include "city/trade.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/image.h"
 #include "empire/city.h"
-#include "empire/empire.h"
 #include "empire/trade_route.h"
 #include "figure/combat.h"
 #include "figure/image.h"
@@ -25,10 +28,8 @@ extern "C" {
 #include "figuretype/trader.h"
 #include "game/resource.h"
 #include "game/time.h"
-#include "map/road_access.h"
 }
 
-#include "game/resource_graphics.h"
 
 #define INFINITE 10000
 

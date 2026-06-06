@@ -1,30 +1,45 @@
+#include "building/construction.h"
+#include "city/health.h"
+#include "game/file.h"
+#include "game/state.h"
+#include "game/undo.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/menu.h"
+#include "widget/city.h"
+#include "window/advisor/health.h"
+#include "window/city.h"
+#include "window/config.h"
+#include "window/file_dialog.h"
+#include "window/main_menu.h"
+#include "window/message_dialog.h"
+#include "window/mission_selection.h"
+#include "window/plain_message_dialog.h"
+
+#include "top_menu.h"
+
+#include "window/hotkey_config.h"
+#include "window/advisors.h"
+#include "window/popup_dialog.h"
 #include "building/building_type_registry.h"
 
 extern "C" {
-#include "top_menu.h"
 
 #include "assets/assets.h"
-#include "building/construction.h"
 #include "building/properties.h"
 #include "city/constants.h"
 #include "city/emperor.h"
 #include "city/finance.h"
-#include "city/health.h"
 #include "city/population.h"
 #include "city/ratings.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/lang.h"
 #include "game/campaign.h"
-#include "game/file.h"
 #include "game/settings.h"
-#include "game/state.h"
 #include "game/system.h"
 #include "game/time.h"
-#include "game/undo.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
-#include "graphics/menu.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
@@ -32,20 +47,7 @@ extern "C" {
 #include "scenario/criteria.h"
 #include "scenario/event/controller.h"
 #include "scenario/property.h"
-#include "widget/city.h"
-#include "window/advisors.h"
-#include "window/advisor/health.h"
-#include "window/city.h"
-#include "window/config.h"
-#include "window/file_dialog.h"
-#include "window/hotkey_config.h"
-#include "window/main_menu.h"
-#include "window/message_dialog.h"
-#include "window/mission_selection.h"
-#include "window/plain_message_dialog.h"
-#include "window/popup_dialog.h"
 }
-#include "graphics/image.h"
 
 enum {
     INFO_NONE = 0,
@@ -936,7 +938,7 @@ static void main_menu_confirmed(int confirmed, int checked)
 static void menu_file_exit_to_main_menu(int param)
 {
     clear_state();
-    window_popup_dialog_show_confirmation(translation_for(TR_BUTTON_BACK_TO_MAIN_MENU), 0, 0,
+    window_popup_dialog_show_confirmation(translation_for_key("TR_BUTTON_BACK_TO_MAIN_MENU"), 0, 0,
         main_menu_confirmed);
 }
 

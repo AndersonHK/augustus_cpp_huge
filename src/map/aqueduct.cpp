@@ -1,5 +1,6 @@
+#include "map/aqueduct.h"
+
 extern "C" {
-#include "aqueduct.h"
 #include "map/grid.h"
 }
 

@@ -1,5 +1,8 @@
-extern "C" {
+#
+
 #include "city_figure.h"
+
+extern "C" {
 #include "city/view.h"
 #include "figure/formation.h"
 #include "figure/image.h"
@@ -7,7 +10,6 @@ extern "C" {
 #include "graphics/text.h"
 }
 
-#include "graphics/image.h"
 
 static color_t get_highlight_mask(int highlight_mask)
 {

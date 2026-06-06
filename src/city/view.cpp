@@ -1,18 +1,19 @@
-#include "city/view.h"
-
-extern "C" {
 #include "building/construction.h"
-#include "core/calc.h"
-#include "core/config.h"
-#include "core/direction.h"
-#include "editor/editor.h"
 #include "graphics/menu.h"
-#include "graphics/renderer.h"
-#include "graphics/screen.h"
-#include "map/grid.h"
 #include "map/image.h"
 #include "widget/minimap.h"
 #include "widget/sidebar/common.h"
+
+#include "editor/editor.h"
+#include "city/view.h"
+
+extern "C" {
+#include "core/calc.h"
+#include "core/config.h"
+#include "core/direction.h"
+#include "graphics/renderer.h"
+#include "graphics/screen.h"
+#include "map/grid.h"
 }
 
 #define TILE_WIDTH_PIXELS 60

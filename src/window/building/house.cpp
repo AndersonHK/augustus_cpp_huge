@@ -1,28 +1,30 @@
-extern "C" {
-#include "house.h"
 #include "building/building.h"
-#include "building/building_record.h"
 #include "building/house.h"
 #include "building/local_workforce.h"
+#include "city/sentiment.h"
+#include "game/resource_graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "map/road_access.h"
+
+#include "house.h"
+
+#include "translation/translation.h"
+#include "window/building/figures.h"
+extern "C" {
+#include "building/building_record.h"
 #include "city/constants.h"
 #include "city/finance.h"
-#include "city/sentiment.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/font.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
-#include "map/road_access.h"
 #include "sound/speech.h"
-#include "translation/translation.h"
-#include "window/building/figures.h"
 }
 
-#include "game/resource_graphics.h"
-#include "graphics/image.h"
 
 static void draw_vacant_lot(building_info_context *c)
 {
@@ -100,40 +102,54 @@ static void draw_tax_info(building_info_context *c, int y_offset)
 static void draw_happiness_info(building_info_context *c, int y_offset)
 {
     int happiness = building_get(c->building_id)->sentiment.house_happiness;
-    int sentiment_text_id = TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1;
+    static const translation_key sentiment_keys[] = {
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_3,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_4,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_5,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_6,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_7,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_8,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_9,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_10,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_11,
+        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_12
+    };
+    int sentiment_index = 0;
     if (happiness > 0) {
-        sentiment_text_id = happiness / 10 + TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2;
+        sentiment_index = calc_bound(happiness / 10 + 1, 1, 11);
     }
-    text_draw(translation_for(static_cast<translation_key>(sentiment_text_id)), c->x_offset + 36, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+    text_draw(translation_for(sentiment_keys[sentiment_index]), c->x_offset + 36, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
 
     int message = building_get(c->building_id)->house_sentiment_message;
     switch (message) {
         case LOW_MOOD_CAUSE_NO_JOBS:
-            text_draw(translation_for(TR_BUILDING_WINDOW_HOUSE_UPSET_UNEMPLOYMENT),
+            text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_UPSET_UNEMPLOYMENT"),
                 c->x_offset + 36, y_offset + 20, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             break;
         case LOW_MOOD_CAUSE_HIGH_TAXES:
-            text_draw(translation_for(TR_BUILDING_WINDOW_HOUSE_UPSET_HIGH_TAXES),
+            text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_UPSET_HIGH_TAXES"),
                 c->x_offset + 36, y_offset + 20, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             break;
         case LOW_MOOD_CAUSE_LOW_WAGES:
-            text_draw(translation_for(TR_BUILDING_WINDOW_HOUSE_UPSET_LOW_WAGES),
+            text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_UPSET_LOW_WAGES"),
                 c->x_offset + 36, y_offset + 20, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             break;
         case LOW_MOOD_CAUSE_SQUALOR:
-            text_draw(translation_for(TR_BUILDING_WINDOW_HOUSE_UPSET_SQUALOR),
+            text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_UPSET_SQUALOR"),
                 c->x_offset + 36, y_offset + 20, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             break;
         case SUGGEST_MORE_ENT:
-            text_draw(translation_for(TR_BUILDING_WINDOW_HOUSE_SUGGEST_ENTERTAINMENT),
+            text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_SUGGEST_ENTERTAINMENT"),
                 c->x_offset + 36, y_offset + 20, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             break;
         case SUGGEST_MORE_FOOD:
-            text_draw(translation_for(TR_BUILDING_WINDOW_HOUSE_SUGGEST_FOOD),
+            text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_SUGGEST_FOOD"),
                 c->x_offset + 36, y_offset + 20, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             break;
         case SUGGEST_MORE_DESIRABILITY:
-            text_draw(translation_for(TR_BUILDING_WINDOW_HOUSE_SUGGEST_DESIRABILITY),
+            text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_SUGGEST_DESIRABILITY"),
                 c->x_offset + 36, y_offset + 20, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             break;
         default:
@@ -141,10 +157,10 @@ static void draw_happiness_info(building_info_context *c, int y_offset)
     }
 
     if (city_sentiment_get_blessing_festival_boost() > 3) {
-        text_draw(translation_for(TR_BUILDING_WINDOW_HOUSE_RECENT_EVENT_POSITIVE),
+        text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_RECENT_EVENT_POSITIVE"),
             c->x_offset + 36, y_offset + 40, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     } else if (city_sentiment_get_blessing_festival_boost() < -3) {
-        text_draw(translation_for(TR_BUILDING_WINDOW_HOUSE_RECENT_EVENT_NEGATIVE),
+        text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_RECENT_EVENT_NEGATIVE"),
             c->x_offset + 36, y_offset + 40, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     }
 }

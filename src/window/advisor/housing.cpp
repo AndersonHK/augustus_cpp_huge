@@ -1,4 +1,4 @@
-extern "C" {
+#include "translation/translation.h"
 #include "housing.h"
 
 #include "assets/assets.h"
@@ -20,8 +20,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-}
 #include "game/resource_graphics.h"
 #include "graphics/image.h"
 
@@ -84,14 +82,30 @@ static void draw_housing_table(void)
         }
     }
 
-    text_draw(translation_for(TR_ADVISOR_TOTAL_NUM_HOUSES), 320, y_offset + 180, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+    text_draw(translation_for_key("TR_ADVISOR_TOTAL_NUM_HOUSES"), 320, y_offset + 180, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     text_draw_number(total_residences, '@', " ", 500, y_offset + 180, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
-    text_draw(translation_for(TR_ADVISOR_AVAILABLE_HOUSING_CAPACITY), 320, y_offset + 200, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+    text_draw(translation_for_key("TR_ADVISOR_AVAILABLE_HOUSING_CAPACITY"), 320, y_offset + 200, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     text_draw_number(city_population_open_housing_capacity(), '@', " ", 500, y_offset + 200, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
-    text_draw(translation_for(TR_ADVISOR_TOTAL_HOUSING_CAPACITY), 320, y_offset + 220, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+    text_draw(translation_for_key("TR_ADVISOR_TOTAL_HOUSING_CAPACITY"), 320, y_offset + 220, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     text_draw_number(city_population_total_housing_capacity(), '@', " ", 500, y_offset + 220, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+
+    auto goods_label = [](resource_type resource) -> translation_key {
+        if (resource == resource_pottery()) {
+            return TR_ADVISOR_RESIDENCES_USING_POTTERY;
+        }
+        if (resource == resource_furniture()) {
+            return TR_ADVISOR_RESIDENCES_USING_FURNITURE;
+        }
+        if (resource == resource_oil()) {
+            return TR_ADVISOR_RESIDENCES_USING_OIL;
+        }
+        if (resource == resource_wine()) {
+            return TR_ADVISOR_RESIDENCES_USING_WINE;
+        }
+        return {};
+    };
 
     for (unsigned int i = 0; i < list.size; i++) {
 
@@ -100,9 +114,14 @@ static void draw_housing_table(void)
         int base_height = (26 - icon.height()) / 2;
 
         icon.draw(54 + base_width, y_offset + 260 + (23 * i) + base_height - 5);
-        text_draw(translation_for(static_cast<translation_key>(TR_ADVISOR_RESIDENCES_USING_POTTERY + i)),
-            90, y_offset + 263 + (23 * i),
-            FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+        translation_key label = goods_label(list.items[i]);
+        if (label) {
+            text_draw(translation_for(label), 90, y_offset + 263 + (23 * i),
+                FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+        } else {
+            text_draw(resource_get_data(list.items[i])->text, 90, y_offset + 263 + (23 * i),
+                FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+        }
         text_draw_number(houses_using_goods[list.items[i]], '@', " ", 499, y_offset + 263 + (23 * i),
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         icon.draw(550 + base_width, y_offset + 260 + (23 * i) + base_height - 5);
@@ -118,7 +137,7 @@ static int draw_background(void)
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
     inner_panel_draw(24, 60, 37, 16);
 
-    text_draw(translation_for(TR_HEADER_HOUSING), 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw(translation_for_key("TR_HEADER_HOUSING"), 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     Image::from_id(housing_advisor_image).draw(10, 10);
 
     int x_offset = text_get_number_width(city_population(), 0, "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -126,7 +145,7 @@ static int draw_background(void)
     x_offset = 620 - x_offset;
 
     int width = text_draw_number(city_population(), 0, "", x_offset, 25, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    text_draw(translation_for(TR_ADVISOR_TOTAL_POPULATION), x_offset + width, 25, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw(translation_for_key("TR_ADVISOR_TOTAL_POPULATION"), x_offset + width, 25, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     draw_housing_table();
 

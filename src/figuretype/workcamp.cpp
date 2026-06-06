@@ -1,3 +1,6 @@
+#include "building/storage.h"
+#include "figure/action.h"
+
 #include "workcamp.h"
 
 #include "building/building.h"
@@ -8,13 +11,11 @@ extern "C" {
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/storage.h"
 #include "building/warehouse.h"
 #include "city/resource.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "core/random.h"
-#include "figure/action.h"
 #include "figure/combat.h"
 #include "figure/image.h"
 #include "figure/movement.h"

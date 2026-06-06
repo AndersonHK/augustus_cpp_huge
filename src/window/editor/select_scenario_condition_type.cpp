@@ -1,19 +1,21 @@
-extern "C" {
-#include "select_scenario_condition_type.h"
-
-#include "core/string.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "scenario/event/parameter_data.h"
+#include "window/numeric_input.h"
+
+#include "select_scenario_condition_type.h"
+
+#include "window/editor/map.h"
+extern "C" {
+
+#include "core/string.h"
+#include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "scenario/event/parameter_data.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
 }
 
 #define MAX_BUTTONS 14

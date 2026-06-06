@@ -1,9 +1,11 @@
+#include "building/building.h"
+#include "map/water.h"
+
 #include "water.h"
 
 #include "city/god.h"
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/monument.h"
@@ -18,7 +20,6 @@ extern "C" {
 #include "game/time.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/water.h"
 #include "scenario/map.h"
 }
 

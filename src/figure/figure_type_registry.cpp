@@ -1,3 +1,5 @@
+#
+
 #include "figure/figure_type_registry_internal.h"
 
 #include "building/building_type_registry_internal.h"
@@ -11,7 +13,6 @@ extern "C" {
 #include "core/image.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
 #include "platform/file_manager.h"
 }
 

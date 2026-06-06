@@ -1,3 +1,8 @@
+#include "building/industry.h"
+#include "building/storage.h"
+#include "city/health.h"
+#include "game/resource_graphics.h"
+
 #include "cartpusher.h"
 
 #include "building/barracks.h"
@@ -9,11 +14,8 @@ extern "C" {
 #include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "building/granary.h"
-#include "building/industry.h"
 #include "building/monument.h"
-#include "building/storage.h"
 #include "building/warehouse.h"
-#include "city/health.h"
 #include "city/map.h"
 #include "city/resource.h"
 #include "core/calc.h"
@@ -30,7 +32,6 @@ extern "C" {
 #include "map/terrain.h"
 }
 
-#include "game/resource_graphics.h"
 
 #define NON_STORABLE_RESOURCE_CARTPUSHER_MAX_WAIT_TICKS 300
 #define VALID_MONUMENT_RECHECK_TICKS 60

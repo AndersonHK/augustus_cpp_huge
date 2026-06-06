@@ -1,3 +1,10 @@
+#include "building/building_type.h"
+#include "building/industry.h"
+#include "core/xml_value.h"
+#include "game/mod_manager.h"
+#include "game/resource_graphics.h"
+
+#include "translation/translation.h"
 #include "resource.h"
 
 #include "building/production_method_registry.h"
@@ -6,27 +13,20 @@
 extern "C" {
 #endif
 
-#include "building/industry.h"
-#include "building/building_type.h"
 #include "core/crash_context.h"
 #include "core/dir.h"
 #include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
 #include "game/save_version.h"
 #include "scenario/allowed_building.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-#include "translation/translation_key_table.h"
 
 #ifdef __cplusplus
 }
 #endif
 
-#include "core/xml_value.h"
 #include "game/resource_id_bridge.h"
-#include "game/resource_graphics.h"
 
 #include <array>
 #include <algorithm>

@@ -1,12 +1,6 @@
 ﻿#pragma once
 
 #include "core/buffer.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
-
 int map_aqueduct_has_water_access_at(int grid_offset);
 int map_aqueduct_image_at(int grid_offset);
 
@@ -29,6 +23,3 @@ void map_aqueduct_save_state(buffer *buf, buffer *backup);
 
 void map_aqueduct_load_state(buffer *buf, buffer *backup);
 
-#ifdef __cplusplus
-}
-#endif

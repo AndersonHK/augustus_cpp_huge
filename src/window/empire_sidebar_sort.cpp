@@ -1,22 +1,24 @@
-extern "C" {
+#include "game/resource_graphics.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+
 #include "empire_sidebar_sort.h"
+
+#include "graphics/grid_box.h"
+#include "translation/translation.h"
+extern "C" {
 #include "empire/city.h"
 #include "empire/trade_prices.h"
 #include "empire/trade_route.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
-#include "graphics/grid_box.h"
 #include "core/image_group.h"
 #include "core/string.h"
 #include "input/mouse.h"
-#include "translation/translation.h"
 }
 
-#include "graphics/image.h"
-#include "game/resource_graphics.h"
 
 #include <string.h>
 

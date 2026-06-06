@@ -1,24 +1,26 @@
-#include "graphics/advisor_text_button_widget.h"
-#include "graphics/ui_runtime.h"
-
-extern "C" {
-#include "health.h"
-
-#include "building/building_type_api.h"
 #include "building/count.h"
 #include "city/culture.h"
 #include "city/health.h"
 #include "city/houses.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+
+#include "health.h"
+
+#include "graphics/advisor_text_button_widget.h"
+#include "graphics/ui_runtime.h"
+
+extern "C" {
+
+#include "building/building_type_api.h"
 #include "city/population.h"
 #include "core/calc.h"
 #include "core/lang.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 }
-#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 26
 
@@ -167,7 +169,14 @@ static int draw_background(void)
 
     lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_HEALTH_SURVEILLANCE, 45, 246 + text_height, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_height += 16;
-    text_draw_multiline(translation_for(static_cast<translation_key>(TR_ADVISOR_SICKNESS_LEVEL_LOW + sickness_level)),
+    static const translation_key sickness_level_keys[] = {
+        TR_ADVISOR_SICKNESS_LEVEL_LOW,
+        TR_ADVISOR_SICKNESS_LEVEL_MEDIUM,
+        TR_ADVISOR_SICKNESS_LEVEL_HIGH,
+        TR_ADVISOR_SICKNESS_LEVEL_PLAGUE
+    };
+    sickness_level = calc_bound(sickness_level, 0, static_cast<int>(sizeof(sickness_level_keys) / sizeof(sickness_level_keys[0])) - 1);
+    text_draw_multiline(translation_for(sickness_level_keys[sickness_level]),
         45, 246 + text_height, 560, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     return ADVISOR_HEIGHT;

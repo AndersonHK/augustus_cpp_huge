@@ -65,8 +65,7 @@ static void detect_project_key_sections(const json_value *project_keys, bool &ha
         if (entry.second.type != json_type::string) {
             continue;
         }
-        translation_key key;
-        if (translation_key_from_name(entry.first.c_str(), &key) && key >= 0 && key < TRANSLATION_MAX_KEY) {
+        if (entry.first.rfind("TR_", 0) == 0) {
             has_main_strings = true;
             if (entry.first.rfind("TR_EDITOR_", 0) == 0) {
                 has_editor_strings = true;
@@ -551,18 +550,13 @@ bool merge_locale_json(const std::string &path, locale_catalog &catalog, std::st
             detect_project_key_sections(project_keys, catalog.has_main_strings, catalog.has_editor_strings);
             for (const auto &entry : project_keys->object_value) {
                 if (entry.second.type != json_type::string) continue;
-                translation_key key;
-                if (translation_key_from_name(entry.first.c_str(), &key) && key >= 0 && key < TRANSLATION_MAX_KEY) {
-                    catalog.project_keys[key].utf8 = entry.second.string_value;
+                int is_editor = 0;
+                int group = 0;
+                int index = 0;
+                if (parse_legacy_project_key_name(entry.first, is_editor, group, index)) {
+                    set_legacy_string_slot(catalog, is_editor, group, index, entry.second.string_value);
                 } else {
-                    int is_editor = 0;
-                    int group = 0;
-                    int index = 0;
-                    if (parse_legacy_project_key_name(entry.first, is_editor, group, index)) {
-                        set_legacy_string_slot(catalog, is_editor, group, index, entry.second.string_value);
-                    } else {
-                        catalog.named_project_keys[entry.first].utf8 = entry.second.string_value;
-                    }
+                    catalog.named_project_keys[entry.first].utf8 = entry.second.string_value;
                 }
             }
         }

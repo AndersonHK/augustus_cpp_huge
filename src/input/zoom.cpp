@@ -1,10 +1,13 @@
+#
+
 #include "input/zoom.h"
+
+#include "graphics/menu.h"
 
 extern "C" {
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/speed.h"
-#include "graphics/menu.h"
 #include "input/hotkey.h"
 }
 

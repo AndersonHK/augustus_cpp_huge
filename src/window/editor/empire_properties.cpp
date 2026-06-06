@@ -1,42 +1,77 @@
-#include "game/resource_id_bridge.h"
-extern "C" {
-#include "empire_properties.h"
-
-#include "assets/assets.h"
-#include "core/hotkey_config.h"
-#include "core/image.h"
-#include "core/image_group.h"
-#include "core/image_group_editor.h"
-#include "core/string.h"
-#include "editor/editor.h"
 #include "empire/editor.h"
 #include "empire/empire.h"
-#include "empire/object.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
-#include "graphics/text.h"
-#include "graphics/window.h"
-#include "input/hotkey.h"
 #include "input/input.h"
-#include "input/mouse.h"
-#include "scenario/empire.h"
-#include "scenario/data.h"
-#include "translation/translation.h"
-#include "window/hotkey_config.h"
 #include "window/config.h"
 #include "window/editor/empire.h"
 #include "window/file_dialog.h"
 #include "window/numeric_input.h"
 #include "window/select_list.h"
+
+#include "empire_properties.h"
+
+#include "core/hotkey_config.h"
+#include "editor/editor.h"
+#include "window/hotkey_config.h"
+#include "translation/translation.h"
+#include "game/resource_id_bridge.h"
+
+extern "C" {
+
+#include "assets/assets.h"
+#include "core/image.h"
+#include "core/image_group.h"
+#include "core/image_group_editor.h"
+#include "core/string.h"
+#include "empire/object.h"
+#include "graphics/ui_runtime_api.h"
+#include "graphics/text.h"
+#include "graphics/window.h"
+#include "input/hotkey.h"
+#include "input/mouse.h"
+#include "scenario/empire.h"
+#include "scenario/data.h"
 }
 
 static struct {
     unsigned int focus_button_id;
     int listed_ornaments[TOTAL_ORNAMENTS];
 } data;
+
+static const translation_key EMPIRE_ORNAMENT_KEYS[] = {
+    TR_EMPIRE_ORNAMENT_STONEHENGE,
+    TR_EMPIRE_ORNAMENT_GALLIC_WHEAT,
+    TR_EMPIRE_ORNAMENT_THE_PYRENEES,
+    TR_EMPIRE_ORNAMENT_IBERIAN_AQUEDUCT,
+    TR_EMPIRE_ORNAMENT_TRIUMPHAL_ARCH,
+    TR_EMPIRE_ORNAMENT_WEST_DESERT_WHEAT,
+    TR_EMPIRE_ORNAMENT_LIGHTHOUSE_ALEXANDRIA,
+    TR_EMPIRE_ORNAMENT_WEST_DESERT_PALMS,
+    TR_EMPIRE_ORNAMENT_TRADE_SHIP,
+    TR_EMPIRE_ORNAMENT_WATERSIDE_PALMS,
+    TR_EMPIRE_ORNAMENT_THE_COLOSSEUM,
+    TR_EMPIRE_ORNAMENT_THE_ALPS,
+    TR_EMPIRE_ORNAMENT_ROMAN_TREE,
+    TR_EMPIRE_ORNAMENT_GREEK_MOUNTAINS,
+    TR_EMPIRE_ORNAMENT_THE_PARTHENON,
+    TR_EMPIRE_ORNAMENT_THE_PYRAMIDS,
+    TR_EMPIRE_ORNAMENT_HAGIA_SOPHIA,
+    TR_EMPIRE_ORNAMENT_EAST_DESERT_PALMS,
+    TR_EMPIRE_ORNAMENT_EAST_DESERT_WHEAT,
+    TR_EMPIRE_ORNAMENT_TRADE_CAMEL,
+    TR_EMPIRE_ORNAMENT_MOUNT_ETNA,
+    TR_EMPIRE_ORNAMENT_COLOSSUS_RHODES,
+    TR_EMPIRE_ORNAMENT_THE_TEMPLE,
+    TR_EMPIRE_ORNAMENT_IRELAND
+};
+
+static translation_key empire_ornament_key(int ornament_id)
+{
+    return EMPIRE_ORNAMENT_KEYS[ornament_id];
+}
 
 static void button_select_image(const generic_button *button);
 static void button_default_image(const generic_button *button);
@@ -274,8 +309,7 @@ static void button_add_ornament(const generic_button *button)
         if (empire_object_get_ornament(empire_object_ornament_image_id_get(ornament_id))) {
             continue;
         }
-        ornament_texts[ornament_count] = translation_for(
-            static_cast<translation_key>(TR_EMPIRE_ORNAMENT_STONEHENGE + ornament_id));
+        ornament_texts[ornament_count] = translation_for(empire_ornament_key(ornament_id));
         data.listed_ornaments[ornament_count] = ornament_id;
         ornament_count++;
     }

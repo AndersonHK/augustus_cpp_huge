@@ -1,12 +1,14 @@
+#
+
 #include "labor.h"
 
+#include "building/building.h"
 #include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/local_workforce.h"
 #include "city/god.h"
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "building/properties.h"

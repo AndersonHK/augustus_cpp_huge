@@ -1,11 +1,13 @@
-extern "C" {
+#include "graphics/image.h"
+#include "widget/minimap.h"
+
 #include "common.h"
+
+extern "C" {
 #include "city/view.h"
 #include "graphics/screen.h"
-#include "widget/minimap.h"
 }
 
-#include "graphics/image.h"
 
 int sidebar_common_get_x_offset_expanded(void)
 {

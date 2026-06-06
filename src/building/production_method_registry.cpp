@@ -1,3 +1,5 @@
+#
+
 #include "building/building_record.h"
 #include "building/production_method_registry.h"
 
@@ -8,7 +10,6 @@ extern "C" {
 #include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
 }
 
 #include <cstdio>

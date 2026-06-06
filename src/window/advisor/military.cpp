@@ -1,7 +1,14 @@
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "window/city.h"
+
+#include "military.h"
+
+#include "translation/translation.h"
 #include "graphics/ui_runtime.h"
 
 extern "C" {
-#include "military.h"
 
 #include "city/data_private.h"
 #include "city/figures.h"
@@ -10,17 +17,12 @@ extern "C" {
 #include "core/calc.h"
 #include "figure/formation_legion.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "map/grid.h"
 #include "scenario/invasion.h"
-#include "translation/translation.h"
-#include "window/city.h"
 }
-#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 
@@ -192,19 +194,19 @@ static int draw_background(void)
         int width = text_draw_number(formation_legion_count_alive_soldiers(m->id), '@', " ", 84, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         switch (m->figure_type) {
             case FIGURE_FORT_LEGIONARY:
-                text_draw(translation_for(TR_WINDOW_ADVISOR_LEGIONARIES), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+                text_draw(translation_for_key("TR_WINDOW_ADVISOR_LEGIONARIES"), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
                 break;
             case FIGURE_FORT_MOUNTED:
-                text_draw(translation_for(TR_WINDOW_ADVISOR_MOUNTED), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+                text_draw(translation_for_key("TR_WINDOW_ADVISOR_MOUNTED"), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
                 break;
             case FIGURE_FORT_JAVELIN:
-                text_draw(translation_for(TR_WINDOW_ADVISOR_JAVELIN), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+                text_draw(translation_for_key("TR_WINDOW_ADVISOR_JAVELIN"), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
                 break;
             case FIGURE_FORT_INFANTRY:
-                text_draw(translation_for(TR_WINDOW_ADVISOR_MILITARY_INFANTRY), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+                text_draw(translation_for_key("TR_WINDOW_ADVISOR_MILITARY_INFANTRY"), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
                 break;
             case FIGURE_FORT_ARCHER:
-                text_draw(translation_for(TR_WINDOW_ADVISOR_MILITARY_ARCHER), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+                text_draw(translation_for_key("TR_WINDOW_ADVISOR_MILITARY_ARCHER"), 84 + width, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         }
         int morale_offset = m->morale / 5;
         if (morale_offset > 20) {

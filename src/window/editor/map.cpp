@@ -1,28 +1,30 @@
-extern "C" {
-#include "map.h"
-
-#include "city/view.h"
-#include "core/config.h"
-#include "editor/editor.h"
 #include "editor/tool.h"
 #include "game/game.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
+#include "graphics/image.h"
 #include "graphics/lang_text.h"
+#include "widget/map_editor.h"
+#include "widget/sidebar/editor.h"
+#include "widget/top_menu_editor.h"
+#include "window/editor/attributes.h"
+#include "window/file_dialog.h"
+
+#include "map.h"
+
+#include "editor/editor.h"
+#include "window/popup_dialog.h"
+extern "C" {
+
+#include "city/view.h"
+#include "core/config.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/event/controller.h"
-#include "widget/map_editor.h"
-#include "widget/sidebar/editor.h"
-#include "window/file_dialog.h"
-#include "window/popup_dialog.h"
-#include "window/editor/attributes.h"
 }
-#include "graphics/image.h"
 
-#include "widget/top_menu_editor.h"
 
 static void init(void)
 {

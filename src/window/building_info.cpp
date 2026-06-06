@@ -1,7 +1,9 @@
+#include "window/advisors.h"
+#include "window/building/figures.h"
+#include "window/building/military.h"
 #include "building/barracks.h"
 #include "building/roadblock.h"
 
-extern "C" {
 #include "building_info.h"
 
 #include "assets/assets.h"
@@ -40,19 +42,15 @@ extern "C" {
 #include "map/property.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
-#include "window/advisors.h"
 #include "window/city.h"
 #include "window/message_dialog.h"
 #include "window/building/depot.h"
 #include "window/building/distribution.h"
-#include "window/building/figures.h"
 #include "window/building/government.h"
 #include "window/building/industry.h"
 #include "window/building/house.h"
-#include "window/building/military.h"
 #include "window/building/terrain.h"
 #include "window/building/utility.h"
-}
 #include "building/building.h"
 #include "building/building_record.h"
 #include "graphics/image.h"
@@ -294,9 +292,9 @@ static void draw_halt_monument_construction_button(int x, int y, int focused, bu
     int width = BLOCK_SIZE * (context.width_blocks - 10);
     button_border_draw(x, y, width, 20, focused ? 1 : 0);
     if (monument->state != BUILDING_STATE_MOTHBALLED) {
-        text_draw_centered(translation_for(TR_BUTTON_HALT_MONUMENT_CONSTRUCTION), x, y + 4, width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_BUTTON_HALT_MONUMENT_CONSTRUCTION"), x, y + 4, width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
-        text_draw_centered(translation_for(TR_BUTTON_RESUME_MONUMENT_CONSTRUCTION), x, y + 4, width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_BUTTON_RESUME_MONUMENT_CONSTRUCTION"), x, y + 4, width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 }
 
@@ -577,13 +575,13 @@ static void draw_background(void)
             window_building_draw_city_mint(&context);
         } else if (type_matches(btype, "market")) {
             if (context.show_special_orders) {
-                window_building_draw_distributor_orders(&context, translation_for(TR_MARKET_SPECIAL_ORDERS_HEADER));
+                window_building_draw_distributor_orders(&context, translation_for_key("TR_MARKET_SPECIAL_ORDERS_HEADER"));
             } else {
                 window_building_draw_market(&context);
             }
         } else if (building_type_registry_is_mess_hall(btype)) {
             if (context.show_special_orders) {
-                window_building_draw_distributor_orders(&context, translation_for(TR_MESS_HALL_SPECIAL_ORDERS_HEADER));
+                window_building_draw_distributor_orders(&context, translation_for_key("TR_MESS_HALL_SPECIAL_ORDERS_HEADER"));
             } else {
                 window_building_draw_mess_hall(&context);
             }
@@ -640,7 +638,7 @@ static void draw_background(void)
             window_building_draw_library(&context);
         } else if (type_matches_any(btype, {"small_temple_ceres", "large_temple_ceres"})) {
             if (context.show_special_orders) {
-                window_building_draw_distributor_orders(&context, translation_for(TR_TEMPLE_SPECIAL_ORDERS_HEADER));
+                window_building_draw_distributor_orders(&context, translation_for_key("TR_TEMPLE_SPECIAL_ORDERS_HEADER"));
             } else {
                 window_building_draw_temple_ceres(&context);
             }
@@ -652,7 +650,7 @@ static void draw_background(void)
             window_building_draw_temple_mars(&context);
         } else if (type_matches_any(btype, {"small_temple_venus", "large_temple_venus"})) {
             if (context.show_special_orders) {
-                window_building_draw_distributor_orders(&context, translation_for(TR_TEMPLE_SPECIAL_ORDERS_HEADER));
+                window_building_draw_distributor_orders(&context, translation_for_key("TR_TEMPLE_SPECIAL_ORDERS_HEADER"));
             } else {
                 window_building_draw_temple_venus(&context);
             }
@@ -672,7 +670,7 @@ static void draw_background(void)
             window_building_draw_architect_guild(&context);
         } else if (type_matches(btype, "tavern")) {
             if (context.show_special_orders) {
-                window_building_draw_distributor_orders(&context, translation_for(TR_TAVERN_SPECIAL_ORDERS_HEADER));
+                window_building_draw_distributor_orders(&context, translation_for_key("TR_TAVERN_SPECIAL_ORDERS_HEADER"));
             } else {
                 window_building_draw_tavern(&context);
             }
@@ -702,7 +700,7 @@ static void draw_background(void)
             window_building_draw_shipyard(&context);
         } else if (type_matches(btype, "dock")) {
             if (context.show_special_orders) {
-                window_building_draw_distributor_orders(&context, translation_for(TR_DOCK_SPECIAL_ORDERS_HEADER));
+                window_building_draw_distributor_orders(&context, translation_for_key("TR_DOCK_SPECIAL_ORDERS_HEADER"));
             } else {
                 window_building_draw_dock(&context);
             }
@@ -772,7 +770,7 @@ static void draw_background(void)
         } else if (building_type_registry_is_caravanserai(btype)) {
             if (context.show_special_orders) {
                 window_building_draw_distributor_orders(&context,
-                    translation_for(TR_CARAVANSERAI_SPECIAL_ORDERS_HEADER));
+                    translation_for_key("TR_CARAVANSERAI_SPECIAL_ORDERS_HEADER"));
             } else {
                 window_building_draw_caravanserai(&context);
             }
@@ -1074,7 +1072,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static void get_tooltip(tooltip_context *c)
 {
-    int text_id = 0, group_id = 0, translation = 0;
+    int text_id = 0, group_id = 0;
+    translation_key translation;
     const uint8_t *precomposed_text = 0;
     building *b = building_get(context.building_id);
     building_type btype = static_cast<building_type>(b->type);

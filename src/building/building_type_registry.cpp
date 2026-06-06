@@ -1,4 +1,7 @@
+#
+
 #include "building/building_type_registry_internal.h"
+#include "building/building.h"
 #include "building/building_type_api.h"
 #include "building/building_type_legacy_migration.h"
 #include "building/housing_type.h"
@@ -10,10 +13,10 @@
 
 extern "C" {
 #include "assets/assets.h"
-#include "building/building.h"
 #include "building/building_record.h"
 #include "building/properties.h"
 #include "game/resource.h"
+#include "game/mod_manager.h"
 #include "platform/file_manager.h"
 }
 

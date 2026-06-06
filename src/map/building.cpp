@@ -4,8 +4,11 @@
 #include "building/building.h"
 #include "building/building_type_api.h"
 #include "core/config.h"
+#include "core/log.h"
 #include "game/save_version.h"
+#include "map/building_tiles.h"
 #include "map/grid.h"
+#include "map/sprite.h"
 #include "map/terrain.h"
 
 static grid_u32 buildings_grid;
@@ -158,6 +161,55 @@ void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, 
         map_grid_load_state_u32(buildings_grid.items, buildings);
         map_grid_load_state_u8(damage_grid.items, damage);
         map_grid_load_state_u32(rubble_info_grid.items, rubble);
+    }
+}
+
+static int map_building_reference_is_live(unsigned int building_id)
+{
+    if (!building_id || building_id >= building_count()) {
+        return 0;
+    }
+    building *b = building_get(building_id);
+    return b && b->state != BUILDING_STATE_UNUSED && b->type != BUILDING_NONE &&
+        building_type_registry_has_definition(b->type);
+}
+
+static void clear_single_invalid_building_reference(int grid_offset)
+{
+    map_building_set(grid_offset, 0);
+    map_building_damage_clear(grid_offset);
+    map_sprite_clear_tile(grid_offset);
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+        map_terrain_remove(grid_offset, TERRAIN_BUILDING);
+    }
+}
+
+void map_building_remove_invalid_references(void)
+{
+    int removed = 0;
+    for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
+        unsigned int building_id = buildings_grid.items[grid_offset];
+        if (map_building_reference_is_live(building_id)) {
+            continue;
+        }
+        if (!building_id) {
+            if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+                clear_single_invalid_building_reference(grid_offset);
+                removed++;
+            }
+            continue;
+        }
+        if (building_id < building_count()) {
+            int x = map_grid_offset_to_x(grid_offset);
+            int y = map_grid_offset_to_y(grid_offset);
+            map_building_tiles_remove(building_id, x, y);
+        } else {
+            clear_single_invalid_building_reference(grid_offset);
+        }
+        removed++;
+    }
+    if (removed) {
+        log_warning("Removed invalid building references from map grid after save load", 0, removed);
     }
 }
 

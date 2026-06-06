@@ -41,10 +41,8 @@ const char *active_locale_code();
 const char *active_locale_display_name();
 language_type active_language();
 
-std::string_view utf8_project_string(translation_key key);
 std::string_view utf8_named_project_string(const char *key);
 std::string_view utf8_legacy_string(int is_editor, int group, int index);
-const uint8_t *legacy_project_string(translation_key key);
 const uint8_t *legacy_named_project_string(const char *key);
 const uint8_t *legacy_legacy_string(int is_editor, int group, int index);
 

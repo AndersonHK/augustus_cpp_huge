@@ -1,3 +1,6 @@
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+
 #include "text.h"
 #include "font_vector_runtime.h"
 #include "text_runtime_internal.h"
@@ -9,10 +12,8 @@ extern "C" {
 #include "core/locale.h"
 #include "core/string.h"
 #include "core/time.h"
-#include "graphics/graphics.h"
 }
 
-#include "graphics/image.h"
 
 #include <string.h>
 #include <string>

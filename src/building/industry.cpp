@@ -1,3 +1,9 @@
+#include "building/count.h"
+#include "building/image.h"
+#include "building/list.h"
+#include "city/warning.h"
+#include "map/building_tiles.h"
+
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
@@ -6,20 +12,15 @@
 #include "building/production_method.h"
 
 extern "C" {
-#include "building/count.h"
-#include "building/image.h"
-#include "building/list.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/buildings.h"
 #include "city/data_private.h"
-#include "city/warning.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "core/random.h"
 #include "figure/figure.h"
 #include "game/time.h"
-#include "map/building_tiles.h"
 #include "scenario/property.h"
 }
 
@@ -307,7 +308,7 @@ static void force_strike(int num_strikes)
         }
     }
     if (random_industry_strikes(num_strikes)) {
-        city_warning_show(WARNING_SECESSION, translation_for(TR_CITY_WARNING_SECESSION));
+        city_warning_show(WARNING_SECESSION, translation_for_key("TR_CITY_WARNING_SECESSION"));
     }
 }
 
@@ -863,6 +864,6 @@ void building_industry_start_strikes(void)
     city_data.building.num_striking_industries += strikes;
 
     if (strikes) {
-        city_warning_show(WARNING_SECESSION, translation_for(TR_CITY_WARNING_SECESSION));
+        city_warning_show(WARNING_SECESSION, translation_for_key("TR_CITY_WARNING_SECESSION"));
     }
 }

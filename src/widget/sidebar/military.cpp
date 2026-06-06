@@ -1,34 +1,36 @@
-extern "C" {
+#include "building/count.h"
+#include "graphics/arrow_button.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "widget/minimap.h"
+#include "widget/sidebar/city.h"
+#include "widget/sidebar/common.h"
+#include "widget/sidebar/extra.h"
+#include "window/city.h"
+#include "window/military_menu.h"
+
 #include "military.h"
+
+#include "widget/sidebar/slide.h"
+#include "window/building/military.h"
+extern "C" {
 
 #include "assets/assets.h"
 #include "building/building_type_api.h"
-#include "building/count.h"
 #include "city/view.h"
 #include "core/calc.h"
 #include "figure/formation.h"
 #include "figure/formation_legion.h"
-#include "graphics/arrow_button.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "map/grid.h"
 #include "sound/speech.h"
-#include "widget/minimap.h"
-#include "widget/sidebar/city.h"
-#include "widget/sidebar/common.h"
-#include "widget/sidebar/extra.h"
-#include "widget/sidebar/slide.h"
-#include "window/building/military.h"
-#include "window/city.h"
-#include "window/military_menu.h"
 }
-#include "graphics/image.h"
 
 
 #define LAYOUTS_PER_LEGION 5
@@ -307,15 +309,15 @@ static void draw_military_info_text(int x_offset, int y_offset)
     // Number of soldiers
     int width = text_draw_number(m->num_figures, '@', " ", x_offset, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     if (m->figure_type == FIGURE_FORT_INFANTRY) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_MILITARY_INFANTRY), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_MILITARY_INFANTRY"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (m->figure_type == FIGURE_FORT_ARCHER) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_MILITARY_ARCHER), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_MILITARY_ARCHER"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (m->figure_type == FIGURE_FORT_LEGIONARY) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_LEGIONARIES), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_LEGIONARIES"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (m->figure_type == FIGURE_FORT_JAVELIN) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_JAVELIN), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_JAVELIN"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (m->figure_type == FIGURE_FORT_MOUNTED) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_MOUNTED), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_MOUNTED"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     }
     // No soldiers
     if (!m->num_figures) {

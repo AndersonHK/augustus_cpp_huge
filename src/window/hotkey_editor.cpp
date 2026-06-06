@@ -1,17 +1,19 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+
 #include "hotkey_editor.h"
 
 #include "core/hotkey_config.h"
+#include "translation/translation.h"
+extern "C" {
+
 #include "core/image_group.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "translation/translation.h"
 }
-#include "graphics/image.h"
 
 #define NUM_BOTTOM_BUTTONS 2
 
@@ -54,7 +56,7 @@ static void draw_background(void)
     graphics_in_dialog();
     outer_panel_draw(128, 128, 24, 9);
 
-    text_draw_centered(translation_for(TR_HOTKEY_EDIT_TITLE), 136, 144, 376, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_centered(translation_for_key("TR_HOTKEY_EDIT_TITLE"), 136, 144, 376, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     for (int i = 0; i < NUM_BOTTOM_BUTTONS; i++) {
         generic_button *btn = &bottom_buttons[i];

@@ -1,3 +1,7 @@
+#include "building/image.h"
+#include "building/industry.h"
+#include "map/building_tiles.h"
+
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/building_runtime_internal.h"
@@ -9,11 +13,8 @@
 #include "core/crash_context.h"
 
 extern "C" {
-#include "building/image.h"
-#include "building/industry.h"
 #include "core/image_group.h"
 #include "game/resource.h"
-#include "map/building_tiles.h"
 #include "map/random.h"
 #include "map/terrain.h"
 #include "core/log.h"

@@ -1,23 +1,25 @@
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+
+#include "ratings.h"
+
 #include "graphics/advisor_card_button_widget.h"
 #include "graphics/ui_runtime.h"
 
 extern "C" {
-#include "ratings.h"
 
 #include "city/ratings.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/lang.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/criteria.h"
 #include "scenario/property.h"
 }
-#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 

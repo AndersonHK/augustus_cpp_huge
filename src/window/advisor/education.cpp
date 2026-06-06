@@ -1,17 +1,19 @@
-extern "C" {
-#include "education.h"
-#include "building/building_type_api.h"
 #include "building/count.h"
 #include "city/culture.h"
 #include "city/houses.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+
+#include "education.h"
+
+extern "C" {
+#include "building/building_type_api.h"
 #include "city/population.h"
 #include "core/lang.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 }
 
-#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 17
 
@@ -141,7 +143,7 @@ static int draw_background(void)
     if (count == 1) {
         text_draw(lang_get_building_type_string(mission_post), 40 + width, 165, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_EDUCATION_MISSION_POSTS), 40 + width, 165, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_EDUCATION_MISSION_POSTS"), 40 + width, 165, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     }
 
     text_draw_number_centered(building_count_active(mission_post), 170, 165, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));

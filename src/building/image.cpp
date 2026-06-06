@@ -1,3 +1,9 @@
+#include "building/connectable.h"
+#include "building/rotation.h"
+#include "building/variant.h"
+#include "game/resource_graphics.h"
+#include "map/building.h"
+
 #include "building/building_record.h"
 #include "building/building.h"
 
@@ -5,25 +11,20 @@ extern "C" {
 #include "image.h"
 
 #include "assets/assets.h"
-#include "building/connectable.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/rotation.h"
-#include "building/variant.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
 #include "core/image_group.h"
 #include "core/random.h"
 #include "game/resource.h"
-#include "map/building.h"
 #include "map/random.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 }
 
 #include "building/building_type_api.h"
-#include "game/resource_graphics.h"
 
 struct type_image_handler {
     const char *text_id;

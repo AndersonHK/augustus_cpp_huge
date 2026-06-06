@@ -1,26 +1,27 @@
+#include "game/undo.h"
+#include "map/building.h"
+#include "map/tiles.h"
+
 #include "building/building_record.h"
 #include "house_evolution.h"
 
 #include "building/building.h"
 #include "building/house.h"
+#include "city/houses.h"
 
 extern "C" {
 #include "building/building_type_api.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "city/houses.h"
 #include "city/resource.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/time.h"
 #include "game/resource.h"
 #include "game/time.h"
-#include "game/undo.h"
-#include "map/building.h"
 #include "map/grid.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
 }
 
 #define DEVOLVE_DELAY 2

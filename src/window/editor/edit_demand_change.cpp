@@ -1,5 +1,15 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_list.h"
+
 #include "edit_demand_change.h"
+
+#include "window/editor/map.h"
+extern "C" {
 
 #include "core/lang.h"
 #include "core/string.h"
@@ -7,20 +17,12 @@ extern "C" {
 #include "empire/trade_route.h"
 #include "empire/type.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/demand_change.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-#include "window/plain_message_dialog.h"
-#include "window/select_list.h"
 }
 
 #include <stdlib.h>
@@ -297,16 +299,16 @@ static unsigned int validate(void)
     }
 
     if (data.demand_change.resource == RESOURCE_NONE) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_NO_RESOURCE);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_NO_RESOURCE");
     }
     if (data.demand_change.amount <= 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_NO_AMOUNT);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_NO_AMOUNT");
     }
     if (data.demand_change.year == 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_DEMAND_CHANGE_NO_YEAR);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_DEMAND_CHANGE_NO_YEAR");
     }
     if (!is_valid_route()) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_DEMAND_CHANGE_INVALID_ROUTE_SET);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_DEMAND_CHANGE_INVALID_ROUTE_SET");
     }
 
     return num_errors;

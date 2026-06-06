@@ -1,14 +1,16 @@
-extern "C" {
-#include "warning.h"
 #include "city/warning.h"
 #include "game/state.h"
+#include "graphics/image.h"
+
+#include "warning.h"
+
+extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 }
 
-#include "graphics/image.h"
 
 static const int TOP_OFFSETS[] = { 30, 55, 80, 105, 130 };
 

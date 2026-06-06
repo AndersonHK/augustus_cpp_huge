@@ -1,34 +1,35 @@
-extern "C" {
-#include "construction_clear.h"
-
 #include "building/building.h"
-#include "building/building_record.h"
 #include "building/connectable.h"
 #include "building/construction.h"
-#include "building/monument.h"
+#include "building/local_workforce.h"
 #include "city/warning.h"
-#include "core/config.h"
-#include "core/string.h"
+#include "construction_clear.h"
 #include "figure/roamer_preview.h"
 #include "figuretype/migrant.h"
 #include "game/undo.h"
-#include "graphics/color.h"
-#include "graphics/window.h"
 #include "map/aqueduct.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
+#include "map/tiles.h"
+
+#include "translation/translation.h"
+#include "window/popup_dialog.h"
+extern "C" {
+
+#include "building/building_record.h"
+#include "building/monument.h"
+#include "core/config.h"
+#include "core/string.h"
+#include "graphics/color.h"
+#include "graphics/window.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
-#include "translation/translation.h"
-#include "window/popup_dialog.h"
 }
 
 #include "building/building_type_api.h"
-#include "building/local_workforce.h"
 
 #include <string.h>
 
@@ -203,7 +204,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                 map_aqueduct_remove(grid_offset);
             } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) { //only bridges fall here
                 if (!measure_only && (map_bridge_has_figures(grid_offset) && !config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES))) {
-                    city_warning_show(WARNING_PEOPLE_ON_BRIDGE, translation_for(TR_CITY_WARNING_PEOPLE_ON_BRIDGE));
+                    city_warning_show_translated(WARNING_PEOPLE_ON_BRIDGE);
                 } else if (confirm.bridge_confirmed == 1) {
                     map_bridge_remove(grid_offset, measure_only);
                     items_placed++;
@@ -373,7 +374,7 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
         window_popup_dialog_show(POPUP_DIALOG_DELETE_FORT, confirm_delete_fort, 2);
         return -1;
     } else if (ask_confirm_monument) {
-        window_popup_dialog_show_confirmation(translation_for(TR_CONFIRM_DELETE_MONUMENT), 0, 0, confirm_delete_monument);
+        window_popup_dialog_show_confirmation(translation_for_key("TR_CONFIRM_DELETE_MONUMENT"), 0, 0, confirm_delete_monument);
         return -1;
     } else if (ask_confirm_bridge) {
         window_popup_dialog_show(POPUP_DIALOG_DELETE_BRIDGE, confirm_delete_bridge, 2);
@@ -479,11 +480,11 @@ static int repair_land_confirmed(int measure_only, int x_start, int y_start, int
                 }
             } else {
                 if (building_monument_is_limited(b->type)) {
-                    city_warning_show(WARNING_REPAIR_MONUMENT, translation_for(TR_WARNING_CANT_REPAIR_MONUMENTS));
+                    city_warning_show(WARNING_REPAIR_MONUMENT, translation_for_key("TR_WARNING_CANT_REPAIR_MONUMENTS"));
                 } else if (is_xml_type(b->type, "aqueduct")) {
-                    city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for(TR_WARNING_CANT_REPAIR_AQUEDUCTS));
+                    city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for_key("TR_WARNING_CANT_REPAIR_AQUEDUCTS"));
                 } else {
-                    city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for(TR_WARNING_REPAIR_IMPOSSIBLE));
+                    city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
                 }
             }
         }
@@ -514,10 +515,10 @@ int building_construction_repair_land(int measure_only, int x_start, int y_start
 
         static uint8_t big_buffer[120];
         memset(big_buffer, 0, sizeof(big_buffer)); // Clear buffer
-        const uint8_t *custom_text = translation_for(TR_CONFIRM_REPAIR_BUILDINGS_TITLE);
+        const uint8_t *custom_text = translation_for_key("TR_CONFIRM_REPAIR_BUILDINGS_TITLE");
 
         int offset = 0;
-        const uint8_t *prefix = translation_for(TR_CONFIRM_REPAIR_BUILDINGS);
+        const uint8_t *prefix = translation_for_key("TR_CONFIRM_REPAIR_BUILDINGS");
         string_copy(prefix, &big_buffer[offset], sizeof(big_buffer) - offset);
         offset += string_length(prefix);
         big_buffer[offset++] = ' ';

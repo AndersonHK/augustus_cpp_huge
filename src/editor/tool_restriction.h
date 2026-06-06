@@ -8,7 +8,7 @@ extern "C" {
 #endif
 
 
-int editor_tool_can_place_flag(tool_type type, const map_tile *tile, warning_type *warning, translation_key *text_key);
+int editor_tool_can_place_flag(tool_type type, const map_tile *tile, warning_type *warning);
 
 int editor_tool_can_place_access_ramp(const map_tile *tile, int *orientation_index);
 

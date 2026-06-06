@@ -1,4 +1,4 @@
-extern "C" {
+#include "translation/translation.h"
 #include "message_list.h"
 
 #include "city/message.h"
@@ -18,11 +18,9 @@ extern "C" {
 #include "input/input.h"
 #include "scenario/custom_messages.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
 #include "window/city.h"
 #include "window/message_dialog.h"
 #include "window/mission_briefing.h"
-}
 #include "graphics/image.h"
 
 #define MAX_MESSAGES 10
@@ -110,9 +108,14 @@ static struct {
 
 static void draw_message_type_button(int x, int y, int focused)
 {
+    static const translation_key message_type_keys[] = {
+        TR_WINDOW_MESSAGE_LIST_SELECTED_ALL,
+        TR_WINDOW_MESSAGE_LIST_SELECTED_COMMON,
+        TR_WINDOW_MESSAGE_LIST_SELECTED_CUSTOM
+    };
+
     button_border_draw(x, y, generic_button_messages_type->width, generic_button_messages_type->height, focused ? 1 : 0);
-    text_draw_centered(translation_for(static_cast<translation_key>(
-            TR_WINDOW_MESSAGE_LIST_SELECTED_ALL + data.type_displayed)), x + 4, y + 4,
+    text_draw_centered(translation_for(message_type_keys[data.type_displayed]), x + 4, y + 4,
         generic_button_messages_type->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 
@@ -241,7 +244,7 @@ static void draw_messages(unsigned int total_messages)
                 text_draw_ellipsized(custom_msg->title->text, data.x_text + 180, data.y_text + 8 + 20 * i,
                     data.text_width_blocks * BLOCK_SIZE - 180, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
             } else {
-                text_draw(translation_for(TR_ACTION_TYPE_A_MESSAGE), data.x_text + 180, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
+                text_draw(translation_for_key("TR_ACTION_TYPE_A_MESSAGE"), data.x_text + 180, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
             }
         }
     }

@@ -1,10 +1,16 @@
+#include "assets/augustus_asset_extractor.h"
+#include "building/building.h"
+#include "building/image.h"
+#include "graphics/image.h"
+#include "graphics/runtime_overlay_images.h"
+#include "map/building_tiles.h"
+#include "map/image.h"
+
 extern "C" {
 #include "image.h"
 #include "assets/assets.h"
-#include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
-#include "building/image.h"
 #include "core/buffer.h"
 #include "core/file.h"
 #include "core/image_packer.h"
@@ -12,15 +18,10 @@ extern "C" {
 #include "core/log.h"
 #include "graphics/font.h"
 #include "graphics/renderer.h"
-#include "graphics/runtime_overlay_images.h"
-#include "map/building_tiles.h"
-#include "map/image.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 }
 
-#include "assets/augustus_asset_extractor.h"
-#include "graphics/image.h"
 
 #include <stdlib.h>
 #include <string.h>

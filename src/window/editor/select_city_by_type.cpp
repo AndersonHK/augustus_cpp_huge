@@ -1,21 +1,23 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+
 #include "select_city_by_type.h"
+
+#include "window/editor/map.h"
+extern "C" {
 
 #include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/type.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
 }
 
 #include <stdlib.h>

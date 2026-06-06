@@ -1,3 +1,7 @@
+#include "game/mod_manager.h"
+#include "graphics/graphics.h"
+#include "graphics/runtime_texture.h"
+
 #include "graphics/font_vector_runtime.h"
 
 extern "C" {
@@ -5,13 +9,10 @@ extern "C" {
 #include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
-#include "graphics/graphics.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 }
 
-#include "graphics/runtime_texture.h"
 #include "translation/localization.h"
 
 #include <SDL.h>

@@ -1,8 +1,22 @@
+#include "game/file.h"
+#include "game/file_io.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/list_box.h"
+#include "input/input.h"
+#include "widget/minimap.h"
+#include "window/mission_briefing.h"
+#include "window/mission_selection.h"
+#include "window/select_campaign.h"
+
+#include "mission_list.h"
+
 #include <cstdlib>
 #include <cstring>
 
 extern "C" {
-#include "mission_list.h"
 
 #include "assets/assets.h"
 #include "core/image_group.h"
@@ -10,22 +24,10 @@ extern "C" {
 #include "core/log.h"
 #include "core/string.h"
 #include "game/campaign.h"
-#include "game/file.h"
-#include "game/file_io.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
-#include "graphics/list_box.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "widget/minimap.h"
-#include "window/mission_briefing.h"
-#include "window/mission_selection.h"
-#include "window/select_campaign.h"
 }
-#include "graphics/image.h"
 
 #define MISSION_LIST_Y_POSITION 48
 #define MISSION_MAP_MAX_WIDTH 352.0f

@@ -1,3 +1,4 @@
+#include "translation/translation.h"
 #include "city_overlay_health.h"
 
 #include "building/building.h"
@@ -5,7 +6,6 @@
 #include "building/building_type_api.h"
 #include "city/health.h"
 #include "game/state.h"
-#include "translation/translation.h"
 
 static int type_matches(building_type type, const char *text_id)
 {

@@ -1,3 +1,6 @@
+#include "building/count.h"
+#include "map/road_access.h"
+
 #include "construction_warning.h"
 
 #include "building/building.h"
@@ -15,13 +18,10 @@
 #include "city/constants.h"
 #include "city/warning.h"
 #include "map/grid.h"
-#include "translation/translation_key_table.h"
 
 extern "C" {
-#include "building/count.h"
 #include "core/calc.h"
 #include "empire/city.h"
-#include "map/road_access.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 }
@@ -98,7 +98,7 @@ static void show(warning_type warning, translation_key key)
 
 static void show_missing_resource(resource_type resource)
 {
-    std::string text = legacy_text(translation_for(TR_CITY_WARNING_TEMPLATE_MISSING_RESOURCE));
+    std::string text = legacy_text(translation_for_key("TR_CITY_WARNING_TEMPLATE_MISSING_RESOURCE"));
     resource_data *data = resource_get_data(resource);
     replace_all(text, "<resource>", data ? legacy_text(data->text) : "");
     city_warning_show(WARNING_MISSING_RESOURCE, reinterpret_cast<const uint8_t *>(text.c_str()));
@@ -107,23 +107,28 @@ static void show_missing_resource(resource_type resource)
 
 static std::string building_type_name(building_type type)
 {
-    translation_key key;
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
     const char *name_key = definition && definition->has_identity() ? definition->identity().name_key() : nullptr;
-    if (name_key && translation_key_from_name(name_key, &key)) {
-        return legacy_text(translation_for(key));
+    if (name_key) {
+        std::string name = legacy_text(translation_for_key(name_key));
+        if (!name.empty()) {
+            return name;
+        }
     }
     const char *button_key = definition ? definition->button_text_key() : nullptr;
-    if (button_key && translation_key_from_name(button_key, &key)) {
-        return legacy_text(translation_for(key));
+    if (button_key) {
+        std::string name = legacy_text(translation_for_key(button_key));
+        if (!name.empty()) {
+            return name;
+        }
     }
     return "";
 }
 
 static void show_missing_producer(building_type producer)
 {
-    std::string text = legacy_text(translation_for(TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER));
+    std::string text = legacy_text(translation_for_key("TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER"));
     replace_all(text, "<building-type>", building_type_name(producer));
     city_warning_show(WARNING_MISSING_PRODUCER, reinterpret_cast<const uint8_t *>(text.c_str()));
     has_warning = 1;

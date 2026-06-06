@@ -1,10 +1,11 @@
+#include "map/bridge.h"
+#include "tool_mode.h"
+
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 extern "C" {
-#include "tool_mode.h"
 #include "city/view.h"
 #include "core/direction.h"
-#include "map/bridge.h"
 #include "map/terrain.h"
 }
 

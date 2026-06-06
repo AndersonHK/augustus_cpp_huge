@@ -1,18 +1,20 @@
-extern "C" {
+#include "city/labor.h"
+#include "graphics/arrow_button.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "window/labor_priority.h"
+
 #include "labor.h"
 
+extern "C" {
+
 #include "city/finance.h"
-#include "city/labor.h"
 #include "core/calc.h"
-#include "graphics/arrow_button.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "window/labor_priority.h"
 }
-#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 26
 

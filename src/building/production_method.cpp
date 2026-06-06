@@ -1,3 +1,6 @@
+#include "building/industry.h"
+#include "building/local_workforce.h"
+
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/production_method.h"
@@ -5,8 +8,6 @@
 #include "building/building_type_registry_internal.h"
 
 extern "C" {
-#include "building/industry.h"
-#include "building/local_workforce.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/finance.h"

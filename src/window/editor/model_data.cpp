@@ -1,28 +1,30 @@
+#include "building/building_type.h"
+#include "building/industry.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/file_dialog.h"
+#include "window/numeric_input.h"
+
+#include "model_data.h"
+
+#include "window/editor/map.h"
+#include "graphics/grid_box.h"
+#include "translation/translation.h"
 #include "building/building_type_registry.h"
 
 extern "C" {
-#include "model_data.h"
 
 #include "building/building_type_api.h"
-#include "building/industry.h"
 #include "building/properties.h"
-#include "building/building_type.h"
 #include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/font.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "translation/translation.h"
-#include "window/editor/map.h"
-#include "window/file_dialog.h"
-#include "window/numeric_input.h"
 }
 
 #define NO_SELECTION (unsigned int) -1
@@ -384,11 +386,23 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static int desirability_tooltip(tooltip_context *c)
 {
+    static const translation_key desirability_data_keys[] = {
+        TR_EDITOR_MODEL_DATA_DES_VALUE,
+        TR_EDITOR_MODEL_DATA_DES_STEP,
+        TR_EDITOR_MODEL_DATA_DES_STEP_SIZE,
+        TR_EDITOR_MODEL_DATA_DES_RANGE
+    };
+    static const translation_key desirability_tooltip_keys[] = {
+        TR_EDITOR_DESIRABILITY_VALUE,
+        TR_EDITOR_DESIRABILITY_STEP,
+        TR_EDITOR_DESIRABILITY_STEP_SIZE,
+        TR_EDITOR_DESIRABILITY_RANGE
+    };
     const mouse *m_global = mouse_get();
     const mouse *m = mouse_in_dialog(m_global);
 
     for (int i = 0; i < 4; i++) {
-        const uint8_t *text = translation_for(static_cast<translation_key>(TR_EDITOR_MODEL_DATA_DES_VALUE + i));
+        const uint8_t *text = translation_for(desirability_data_keys[i]);
         int width = text_get_width(text, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         int x;
 
@@ -410,8 +424,7 @@ static int desirability_tooltip(tooltip_context *c)
 
         if (x <= m->x && x + width > m->x &&
             75 <= m->y && 75 + 10 > m->y) {
-            c->text_group = CUSTOM_TRANSLATION;
-            c->text_id = static_cast<translation_key>(TR_EDITOR_DESIRABILITY_VALUE + i);
+            c->translation_key = desirability_tooltip_keys[i];
             c->type = TOOLTIP_BUTTON;
             return 1;
         }

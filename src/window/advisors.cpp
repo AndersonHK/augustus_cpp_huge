@@ -1,4 +1,4 @@
-extern "C" {
+#include "translation/translation.h"
 #include "advisors.h"
 
 #include "assets/assets.h"
@@ -24,7 +24,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
 #include "input/input.h"
-#include "translation/translation.h"
 #include "window/city.h"
 #include "window/message_dialog.h"
 #include "window/advisor/chief.h"
@@ -40,7 +39,6 @@ extern "C" {
 #include "window/advisor/religion.h"
 #include "window/advisor/trade.h"
 #include "window/advisor/housing.h"
-}
 #include "graphics/image.h"
 
 static void button_change_advisor(const generic_button *button);
@@ -306,7 +304,7 @@ static void get_tooltip(tooltip_context *c)
     }
     advisor_tooltip_result result = {
         .text_id = 0,
-        .translation_key = 0,
+        .translation_key = {},
         .precomposed_text = 0
     };
     if (current_advisor_window->get_tooltip_text != 0) {
@@ -349,9 +347,9 @@ void window_advisors_show_checked(void)
         window_advisors_set_advisor(static_cast<advisor_type>(setting_last_advisor()));
         window_advisors_show();
     } else if (avail == NOT_AVAILABLE) {
-        city_warning_show(WARNING_NOT_AVAILABLE, translation_for(TR_CITY_WARNING_NOT_AVAILABLE));
+        city_warning_show(WARNING_NOT_AVAILABLE, translation_for_key("TR_CITY_WARNING_NOT_AVAILABLE"));
     } else {
-        city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for(TR_CITY_WARNING_NOT_AVAILABLE_YET));
+        city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for_key("TR_CITY_WARNING_NOT_AVAILABLE_YET"));
     }
 }
 
@@ -359,11 +357,11 @@ int window_advisors_show_advisor(advisor_type advisor)
 {
     tutorial_availability avail = tutorial_advisor_empire_availability();
     if (avail == NOT_AVAILABLE) {
-        city_warning_show(WARNING_NOT_AVAILABLE, translation_for(TR_CITY_WARNING_NOT_AVAILABLE));
+        city_warning_show(WARNING_NOT_AVAILABLE, translation_for_key("TR_CITY_WARNING_NOT_AVAILABLE"));
         return 0;
     }
     if (avail == NOT_AVAILABLE_YET) {
-        city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for(TR_CITY_WARNING_NOT_AVAILABLE_YET));
+        city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for_key("TR_CITY_WARNING_NOT_AVAILABLE_YET"));
         return 0;
     }
     window_advisors_set_advisor(advisor);

@@ -1,3 +1,10 @@
+#include "building/building_type_registry.h"
+#include "game/game.h"
+#include "game/mod_manager.h"
+#include "platform/cursor.h"
+#include "platform/joystick.h"
+#include "window/asset_previewer.h"
+
 extern "C" {
 #include "assets/assets.h"
 #include "core/config.h"
@@ -6,8 +13,6 @@ extern "C" {
 #include "core/lang.h"
 #include "core/log.h"
 #include "core/time.h"
-#include "game/game.h"
-#include "game/mod_manager.h"
 #include "game/settings.h"
 #include "game/system.h"
 #include "graphics/screen.h"
@@ -16,12 +21,10 @@ extern "C" {
 #include "input/touch.h"
 #include "platform/android/android.h"
 #include "platform/arguments.h"
-#include "platform/cursor.h"
 #include "platform/emscripten/emscripten.h"
 #include "platform/file_manager.h"
 #include "platform/file_manager_cache.h"
 #include "platform/ios/ios.h"
-#include "platform/joystick.h"
 #include "platform/keyboard_input.h"
 #include "platform/platform.h"
 #include "platform/prefs.h"
@@ -31,8 +34,6 @@ extern "C" {
 #include "platform/touch.h"
 #include "platform/user_path.h"
 #include "platform/vita/vita.h"
-#include "window/asset_previewer.h"
-#include "building/building_type_registry.h"
 }
 
 #include "SDL.h"

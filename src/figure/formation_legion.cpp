@@ -1,4 +1,4 @@
-﻿#include "formation_legion.h"
+#include "formation_legion.h"
 
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
@@ -150,7 +150,7 @@ void formation_legion_move_to(formation *m, const map_tile *tile)
     }
 
     if (m->morale <= 20) {
-        city_warning_show(WARNING_LEGION_MORALE_TOO_LOW, translation_for(TR_CITY_WARNING_LEGION_MORALE_TOO_LOW));
+        city_warning_show(WARNING_LEGION_MORALE_TOO_LOW, translation_for_key("TR_CITY_WARNING_LEGION_MORALE_TOO_LOW"));
     }
     for (int i = 0; i < MAX_FORMATION_FIGURES && m->figures[i]; i++) {
         figure *f = figure_get(m->figures[i]);

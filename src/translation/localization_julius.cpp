@@ -377,7 +377,6 @@ bool generated_locale_json_is_complete(const std::string &path)
 {
     locale_catalog catalog;
     std::string error;
-    catalog.project_keys.resize(TRANSLATION_MAX_KEY);
     return merge_locale_json(path, catalog, error) && catalog.has_main_strings && catalog.has_main_messages;
 }
 

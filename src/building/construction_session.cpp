@@ -1,9 +1,11 @@
+#
+
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/construction_session.h"
+#include "building/tool_mode.h"
 
 extern "C" {
-#include "building/tool_mode.h"
 #include "map/grid.h"
 }
 

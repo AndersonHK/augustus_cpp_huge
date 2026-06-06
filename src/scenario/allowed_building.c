@@ -1,14 +1,18 @@
 #include "allowed_building.h"
 
 #include "building/building_type_api.h"
+#include "building/building_type_id_bridge.h"
+#include "building/building_type_legacy_migration.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
+#include "core/log.h"
 #include "scenario/data.h"
 
 #include <string.h>
 
 #define MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT (11 + 1) // 11 buildings + BUILDING_NONE
+#define ALLOWED_BUILDINGS_KEYED_STATE_VERSION 1
 
 static const char *const CONVERSION_FROM_ORIGINAL_TEXT[MAX_ORIGINAL_ALLOWED_BUILDINGS][MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT] = {
     { 0 },
@@ -70,6 +74,18 @@ static uint8_t allowed_buildings[BUILDING_TYPE_MAX];
 static building_type runtime_type(const char *text_id)
 {
     return text_id ? building_type_registry_runtime_id_from_text(text_id) : BUILDING_NONE;
+}
+
+static building_type runtime_type_for_legacy_allowed_slot(unsigned int save_id)
+{
+    if (!save_id) {
+        return BUILDING_NONE;
+    }
+    const char *text_id = building_type_legacy_migration_text_id_for_enum((uint16_t) save_id);
+    if (!text_id || !*text_id) {
+        return BUILDING_NONE;
+    }
+    return building_type_id_bridge_runtime_from_text(text_id);
 }
 
 static void refresh_dynamic_original_allowed_slots(void)
@@ -159,7 +175,61 @@ void scenario_allowed_building_load_state(buffer *buf)
     size_t buildings = buffer_load_dynamic_array(buf);
 
     for (size_t i = 0; i < buildings; i++) {
-        allowed_buildings[i] = buffer_read_i8(buf);
+        int allowed = buffer_read_i8(buf);
+        building_type type = runtime_type_for_legacy_allowed_slot((unsigned int) i);
+        if (type > BUILDING_NONE && type < BUILDING_TYPE_MAX) {
+            allowed_buildings[type] = allowed;
+        }
+    }
+}
+
+void scenario_allowed_building_load_state_keyed(buffer *buf, int has_keyed_state)
+{
+    if (!has_keyed_state) {
+        scenario_allowed_building_load_state(buf);
+        return;
+    }
+
+    scenario_allowed_building_enable_all();
+    if (!buf || !buf->size) {
+        return;
+    }
+
+    buffer state = *buf;
+    if (buffer_load_dynamic(&state) < sizeof(uint32_t) * 2) {
+        log_error("Scenario allowed-building state is invalid; falling back to legacy enum migration", 0, 0);
+        scenario_allowed_building_load_state(buf);
+        return;
+    }
+
+    uint32_t version = buffer_read_u32(&state);
+    uint32_t count = buffer_read_u32(&state);
+    if (version != ALLOWED_BUILDINGS_KEYED_STATE_VERSION) {
+        log_error("Unsupported scenario allowed-building state version; falling back to legacy enum migration", 0, version);
+        scenario_allowed_building_load_state(buf);
+        return;
+    }
+
+    for (uint32_t i = 0; i < count && !buffer_at_end(&state); i++) {
+        uint16_t text_length = buffer_read_u16(&state);
+        char text_id[256];
+        if (text_length >= sizeof(text_id)) {
+            log_error("Scenario allowed-building text id too long", 0, text_length);
+            buffer_skip(&state, text_length);
+            if (!buffer_at_end(&state)) {
+                buffer_read_i8(&state);
+            }
+            continue;
+        }
+        if (text_length) {
+            buffer_read_raw(&state, text_id, text_length);
+        }
+        text_id[text_length] = 0;
+        int allowed = buffer_read_i8(&state);
+        building_type type = building_type_id_bridge_runtime_from_text(text_id);
+        if (type > BUILDING_NONE && type < BUILDING_TYPE_MAX) {
+            allowed_buildings[type] = allowed;
+        }
     }
 }
 
@@ -185,9 +255,37 @@ void scenario_allowed_building_load_state_old_version(buffer *buf)
 
 void scenario_allowed_building_save_state(buffer *buf)
 {
-    buffer_init_dynamic_array(buf, BUILDING_TYPE_MAX, sizeof(int8_t));
+    size_t count = 0;
+    size_t payload_size = sizeof(uint32_t) * 2;
+    for (unsigned int i = 1; i < BUILDING_TYPE_MAX; i++) {
+        const char *text_id = building_type_id_bridge_text_from_runtime((building_type) i);
+        if (!text_id || !*text_id) {
+            continue;
+        }
+        size_t text_length = strlen(text_id);
+        if (text_length > UINT16_MAX) {
+            log_error("Scenario allowed-building text id too long", text_id, (int) text_length);
+            continue;
+        }
+        payload_size += sizeof(uint16_t) + text_length + sizeof(int8_t);
+        count++;
+    }
 
-    for (unsigned int i = 0; i < BUILDING_TYPE_MAX; i++) {
+    buffer_init_dynamic(buf, payload_size);
+    buffer_write_u32(buf, ALLOWED_BUILDINGS_KEYED_STATE_VERSION);
+    buffer_write_u32(buf, (uint32_t) count);
+
+    for (unsigned int i = 1; i < BUILDING_TYPE_MAX; i++) {
+        const char *text_id = building_type_id_bridge_text_from_runtime((building_type) i);
+        if (!text_id || !*text_id) {
+            continue;
+        }
+        size_t text_length = strlen(text_id);
+        if (text_length > UINT16_MAX) {
+            continue;
+        }
+        buffer_write_u16(buf, (uint16_t) text_length);
+        buffer_write_raw(buf, text_id, text_length);
         buffer_write_i8(buf, allowed_buildings[i]);
     }
 }

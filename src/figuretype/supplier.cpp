@@ -1,3 +1,9 @@
+#include "building/distribution.h"
+#include "building/storage.h"
+#include "figuretype/wall.h"
+#include "game/resource_graphics.h"
+#include "map/road_access.h"
+
 #include "supplier.h"
 
 #include "building/building.h"
@@ -7,9 +13,7 @@ extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
-#include "building/distribution.h"
 #include "building/granary.h"
-#include "building/storage.h"
 #include "building/warehouse.h"
 #include "core/config.h"
 #include "core/image.h"
@@ -18,15 +22,12 @@ extern "C" {
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
-#include "figuretype/wall.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/data.h"
-#include "map/road_access.h"
 #include "map/road_network.h"
 }
 
-#include "game/resource_graphics.h"
 
 static building_type runtime_type(const char *text_id)
 {

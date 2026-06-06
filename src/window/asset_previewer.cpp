@@ -1,8 +1,17 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/list_box.h"
+#include "assets/group.h"
+#include "window/select_list.h"
+
 #include "asset_previewer.h"
 
+#include "window/popup_dialog.h"
+extern "C" {
+
 #include "assets/assets.h"
-#include "assets/group.h"
 #include "core/calc.h"
 #include "core/dir.h"
 #include "core/direction.h"
@@ -17,10 +26,6 @@ extern "C" {
 #include "game/settings.h"
 #include "game/system.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
-#include "graphics/list_box.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
@@ -28,10 +33,7 @@ extern "C" {
 #include "input/scroll.h"
 #include "scenario/property.h"
 #include "sound/music.h"
-#include "window/popup_dialog.h"
-#include "window/select_list.h"
 }
-#include "graphics/image.h"
 
 #include <string.h>
 

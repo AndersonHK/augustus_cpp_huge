@@ -1,18 +1,20 @@
-extern "C" {
-#include "logo.h"
-#include "core/config.h"
 #include "graphics/graphics.h"
+#include "graphics/image.h"
 #include "graphics/lang_text.h"
-#include "graphics/window.h"
-#include "sound/music.h"
-#include "window/intro_video.h"
 #include "window/main_menu.h"
 #include "window/plain_message_dialog.h"
-#include "window/popup_dialog.h"
 #include "window/user_path_setup.h"
+
+#include "logo.h"
+
+#include "window/intro_video.h"
+#include "window/popup_dialog.h"
+extern "C" {
+#include "core/config.h"
+#include "graphics/window.h"
+#include "sound/music.h"
 }
 
-#include "graphics/image.h"
 
 static int pending_actions;
 

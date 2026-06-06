@@ -1,53 +1,55 @@
-#include "building/construction_session.h"
-
-extern "C" {
-#include "construction.h"
-
-#include "assets/assets.h"
 #include "building/building.h"
-#include "building/building_record.h"
 #include "building/connectable.h"
 #include "building/construction_building.h"
 #include "building/construction_clear.h"
 #include "building/construction_routed.h"
 #include "building/construction_warning.h"
 #include "building/count.h"
-#include "building/building_type_api.h"
 #include "building/image.h"
 #include "building/industry.h"
-#include "building/monument.h"
-#include "building/properties.h"
 #include "building/rotation.h"
-#include "building/variant.h"
-#include "building/warehouse.h"
 #include "building/tool_mode.h"
-#include "city/buildings.h"
-#include "city/finance.h"
-#include "city/resource.h"
-#include "city/view.h"
+#include "building/variant.h"
 #include "city/warning.h"
-#include "core/calc.h"
-#include "core/config.h"
-#include "core/image.h"
-#include "figure/formation.h"
+#include "construction.h"
 #include "game/undo.h"
-#include "graphics/window.h"
-#include "input/hotkey.h"
 #include "map/aqueduct.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
+#include "map/image.h"
+#include "map/tiles.h"
+#include "map/water.h"
+#include "map/water_supply.h"
+
+#include "building/construction_session.h"
+#include "translation/translation.h"
+
+extern "C" {
+
+#include "assets/assets.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
+#include "building/monument.h"
+#include "building/properties.h"
+#include "building/warehouse.h"
+#include "city/buildings.h"
+#include "city/finance.h"
+#include "city/resource.h"
+#include "city/view.h"
+#include "core/calc.h"
+#include "core/config.h"
+#include "core/image.h"
+#include "figure/formation.h"
+#include "graphics/window.h"
+#include "input/hotkey.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/image.h"
 #include "map/point.h"
 #include "map/property.h"
 #include "map/routing.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
-#include "map/water.h"
-#include "map/water_supply.h"
 #include "scenario/allowed_building.h"
 }
 
@@ -442,7 +444,7 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
     if (!measure_only) {
         building_construction_warning_check_food_stocks(building_type_registry_get_vacant_lot_fill_type());
         if (needs_road_warning) {
-            city_warning_show(WARNING_HOUSE_TOO_FAR_FROM_ROAD, translation_for(TR_CITY_WARNING_HOUSE_TOO_FAR_FROM_ROAD));
+            city_warning_show_translated(WARNING_HOUSE_TOO_FAR_FROM_ROAD);
         }
         map_routing_update_land();
         window_invalidate();
@@ -1222,7 +1224,7 @@ void building_construction_place(void)
         } else {
             // For all other buildings or if we already have 5+ wells
             map_property_clear_constructing_and_deleted();
-            city_warning_show(WARNING_OUT_OF_MONEY, translation_for(TR_CITY_WARNING_OUT_OF_MONEY));
+            city_warning_show_translated(WARNING_OUT_OF_MONEY);
             return;
         }
     }
@@ -1240,9 +1242,9 @@ void building_construction_place(void)
             map_property_clear_constructing_and_deleted();
         }
         if (enemy_figure_type == FIGURE_WOLF) {
-            city_warning_show(WARNING_WOLF_NEARBY, translation_for(TR_WARNING_NEARBY_WOLF));
+            city_warning_show(WARNING_WOLF_NEARBY, translation_for_key("TR_WARNING_NEARBY_WOLF"));
         } else {
-            city_warning_show(WARNING_ENEMY_NEARBY, translation_for(TR_CITY_WARNING_ENEMY_NEARBY));
+            city_warning_show_translated(WARNING_ENEMY_NEARBY);
         }
         return;
     }
@@ -1286,21 +1288,21 @@ void building_construction_place(void)
     } else if (type_matches(type, "low_bridge")) {
         int length = map_bridge_add(x_end, y_end, 0);
         if (length <= 1) {
-            city_warning_show(WARNING_SHORE_NEEDED, translation_for(TR_CITY_WARNING_SHORE_NEEDED));
+            city_warning_show_translated(WARNING_SHORE_NEEDED);
             return;
         }
         placement_cost *= length;
     } else if (type_matches(type, "ship_bridge")) {
         int length = map_bridge_add(x_end, y_end, 1);
         if (length <= 1) {
-            city_warning_show(WARNING_SHORE_NEEDED, translation_for(TR_CITY_WARNING_SHORE_NEEDED));
+            city_warning_show_translated(WARNING_SHORE_NEEDED);
             return;
         }
         placement_cost *= length;
     } else if (type_matches(type, "aqueduct")) {
         int cost;
         if (!building_construction_place_aqueduct(x_start, y_start, x_end, y_end, &cost)) {
-            city_warning_show(WARNING_CLEAR_LAND_NEEDED, translation_for(TR_CITY_WARNING_CLEAR_LAND_NEEDED));
+            city_warning_show_translated(WARNING_CLEAR_LAND_NEEDED);
             return;
         }
         placement_cost = cost;
@@ -1310,7 +1312,7 @@ void building_construction_place(void)
         struct reservoir_info info;
         if (!place_reservoir_and_aqueducts(0, x_start, y_start, x_end, y_end, &info)) {
             map_property_clear_constructing_and_deleted();
-            city_warning_show(WARNING_CLEAR_LAND_NEEDED, translation_for(TR_CITY_WARNING_CLEAR_LAND_NEEDED));
+            city_warning_show_translated(WARNING_CLEAR_LAND_NEEDED);
             return;
         }
         unsigned int removed_aqueduct_tiles = 0;

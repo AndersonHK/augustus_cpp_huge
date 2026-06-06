@@ -1,22 +1,24 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/attributes.h"
+#include "window/editor/edit_invasion.h"
+
 #include "invasions.h"
+
+#include "window/editor/map.h"
+#include "graphics/grid_box.h"
+extern "C" {
 
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/data.h"
 #include "scenario/editor.h"
 #include "scenario/invasion.h"
 #include "scenario/property.h"
-#include "window/editor/attributes.h"
-#include "window/editor/edit_invasion.h"
-#include "window/editor/map.h"
 }
 
 static void button_invasion(const grid_box_item *item);

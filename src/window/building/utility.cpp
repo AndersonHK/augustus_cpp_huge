@@ -1,29 +1,30 @@
+#include "building/clone.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "map/building.h"
+#include "map/water_supply.h"
+#include "window/building_info.h"
+
+#include "graphics/complex_button.h"
+#include "translation/translation.h"
+#include "utility.h"
+#include "window/building/figures.h"
 #include "building/building.h"
 #include "building/roadblock.h"
 
 extern "C" {
-#include "utility.h"
 #include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "building/building_record.h"
-#include "building/clone.h"
 #include "city/constants.h"
 #include "city/finance.h"
 #include "core/dir.h"
 #include "core/image.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/complex_button.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "map/building.h"
-#include "map/water_supply.h"
-#include "translation/translation.h"
-#include "window/building_info.h"
-#include "window/building/figures.h"
 }
-#include "graphics/image.h"
 
 #include <stdlib.h>
 
@@ -67,7 +68,7 @@ static generic_button orders_permission_buttons[] = {
     {0, 288, 210, 22, button_toggle_figure_state, 0, PERMISSION_WATCHMAN},
 };
 
-static int permission_tooltip_translations[] = { 0,
+static translation_key permission_tooltip_translations[] = { {},
 TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MAINTENANCE,TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_PRIEST,
 TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MARKET, TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_ENTERTAINER,
 TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_EDUCATION, TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MEDICINE,
@@ -75,7 +76,7 @@ TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_TAX_COLLECTOR, TR_TOOLTIP_BUTTON_ROADBLOC
 TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MISSIONARY, TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_WATCHMAN,
 };
 
-static int permission_orders_tooltip_translations[] = {
+static translation_key permission_orders_tooltip_translations[] = {
     TR_TOOLTIP_BUTTON_ROADBLOCK_ORDER_REJECT_ALL, TR_TOOLTIP_BUTTON_ROADBLOCK_ORDER_ACCEPT_ALL };
 
 static generic_button roadblock_orders_buttons[] = {
@@ -200,7 +201,7 @@ void window_building_draw_roadblock_button(building_info_context *c)
 {
     button_border_draw(c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
         BLOCK_SIZE * (c->width_blocks - 10), 20, data.focus_button_id == 1 ? 1 : 0);
-    text_draw_centered(translation_for(TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION), c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30,
+    text_draw_centered(translation_for_key("TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION"), c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30,
         BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 
@@ -209,7 +210,7 @@ void window_building_draw_roadblock_orders(building_info_context *c)
     c->help_id = 3;
     int y_offset = window_building_get_vertical_offset(c, 28);
     outer_panel_draw(c->x_offset, y_offset, 29, 28);
-    text_draw_centered(translation_for(TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION), c->x_offset, y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_centered(translation_for_key("TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION"), c->x_offset, y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     inner_panel_draw(c->x_offset + 16, y_offset + 42, c->width_blocks - 2, 21);
 }
 
@@ -239,14 +240,14 @@ void window_building_draw_roadblock_orders_foreground(building_info_context *c)
     }
 }
 
-void window_building_roadblock_get_tooltip_walker_permissions(int *translation)
+void window_building_roadblock_get_tooltip_walker_permissions(translation_key *translation)
 {
     if (data.figure_focus_button_id) {
         *translation = permission_tooltip_translations[data.figure_focus_button_id];
     } else if (data.orders_focus_button_id) {
         *translation = permission_orders_tooltip_translations[affect_all_button_state()];
     } else {
-        *translation = 0;
+        *translation = {};
     }
 }
 
@@ -256,7 +257,7 @@ void window_building_draw_garden_gate(building_info_context *c)
     window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/Road.ogg");
     //window_building_play_sound(c, "wavs/garden.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_GARDEN_WALL_GATE), c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_centered(translation_for_key("TR_BUILDING_GARDEN_WALL_GATE"), c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_GARDEN_WALL_GATE_DESC);
 }
 
@@ -266,7 +267,7 @@ void window_building_draw_palisade_gate(building_info_context *c)
     window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/Road.ogg");
     //window_building_play_sound(c, "wavs/gatehouse.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_PALISADE_GATE), c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_centered(translation_for_key("TR_BUILDING_PALISADE_GATE"), c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_PALISADE_GATE_DESC);
 }
 

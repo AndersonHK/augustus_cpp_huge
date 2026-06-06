@@ -1,10 +1,11 @@
-extern "C" {
+#include "core/hotkey_config.h"
+#include "window/hotkey_editor.h"
+#include "translation/translation.h"
 #include "hotkey_config.h"
 
 #include "building/building_type_api.h"
 #include "building/building_type.h"
 #include "core/calc.h"
-#include "core/hotkey_config.h"
 #include "core/image_group.h"
 #include "core/lang.h"
 #include "core/string.h"
@@ -16,14 +17,10 @@ extern "C" {
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "translation/translation.h"
 #include "window/config.h"
-#include "window/hotkey_editor.h"
 #include "window/plain_message_dialog.h"
-}
 #include "graphics/image.h"
 
-#define TR_NONE -1
 #define GROUP_BUILDINGS 28
 
 #define NUM_VISIBLE_OPTIONS 14
@@ -39,7 +36,7 @@ static scrollbar_type scrollbar = { 580, 72, 352, 560, NUM_VISIBLE_OPTIONS, on_s
 
 typedef struct {
     hotkey_action action;
-    int name_translation;
+    translation_key name_translation;
     int name_text_group;
     int name_text_id;
     const char *building_text_id;
@@ -86,27 +83,27 @@ static hotkey_widget hotkey_widgets[] = {
     {HOTKEY_STORAGE_ORDER, TR_HOTKEY_SPECIAL_ORDERS},
     {HOTKEY_BUILD_CLEAR_LAND, TR_BUILDING_LAND_CLEAR},
     {HOTKEY_BUILD_REPAIR_LAND, TR_BUILDING_LAND_REPAIR},
-    {HOTKEY_BUILD_VACANT_HOUSE, TR_NONE, 67, 7},
-    {HOTKEY_BUILD_ROAD, TR_NONE, 0, 0, "road"},
-    {HOTKEY_BUILD_PLAZA, TR_NONE, 0, 0, "plaza"},
-    {HOTKEY_BUILD_GARDENS, TR_NONE, 0, 0, "gardens"},
-    {HOTKEY_BUILD_OVERGROWN_GARDENS, TR_NONE, 0, 0, "overgrown_gardens"},
-    {HOTKEY_BUILD_PREFECTURE, TR_NONE, 0, 0, "prefecture"},
-    {HOTKEY_BUILD_ENGINEERS_POST, TR_NONE, 0, 0, "engineers_post"},
-    {HOTKEY_BUILD_DOCTOR, TR_NONE, 0, 0, "doctor"},
-    {HOTKEY_BUILD_BARBER, TR_NONE, 0, 0, "barber"},
-    {HOTKEY_BUILD_GRANARY, TR_NONE, 0, 0, "granary"},
-    {HOTKEY_BUILD_WAREHOUSE, TR_NONE, 0, 0, "warehouse"},
-    {HOTKEY_BUILD_MARKET, TR_NONE, 0, 0, "market"},
-    {HOTKEY_BUILD_WALL, TR_NONE, 0, 0, "wall"},
-    {HOTKEY_BUILD_GATEHOUSE, TR_NONE, 0, 0, "gatehouse"},
-    {HOTKEY_BUILD_RESERVOIR, TR_NONE, 0, 0, "reservoir"},
-    {HOTKEY_BUILD_AQUEDUCT, TR_NONE, 0, 0, "aqueduct"},
-    {HOTKEY_BUILD_FOUNTAIN, TR_NONE, 0, 0, "fountain"},
-    {HOTKEY_BUILD_ROADBLOCK, TR_NONE, 0, 0, "roadblock"},
+    {HOTKEY_BUILD_VACANT_HOUSE, {}, 67, 7},
+    {HOTKEY_BUILD_ROAD, {}, 0, 0, "road"},
+    {HOTKEY_BUILD_PLAZA, {}, 0, 0, "plaza"},
+    {HOTKEY_BUILD_GARDENS, {}, 0, 0, "gardens"},
+    {HOTKEY_BUILD_OVERGROWN_GARDENS, {}, 0, 0, "overgrown_gardens"},
+    {HOTKEY_BUILD_PREFECTURE, {}, 0, 0, "prefecture"},
+    {HOTKEY_BUILD_ENGINEERS_POST, {}, 0, 0, "engineers_post"},
+    {HOTKEY_BUILD_DOCTOR, {}, 0, 0, "doctor"},
+    {HOTKEY_BUILD_BARBER, {}, 0, 0, "barber"},
+    {HOTKEY_BUILD_GRANARY, {}, 0, 0, "granary"},
+    {HOTKEY_BUILD_WAREHOUSE, {}, 0, 0, "warehouse"},
+    {HOTKEY_BUILD_MARKET, {}, 0, 0, "market"},
+    {HOTKEY_BUILD_WALL, {}, 0, 0, "wall"},
+    {HOTKEY_BUILD_GATEHOUSE, {}, 0, 0, "gatehouse"},
+    {HOTKEY_BUILD_RESERVOIR, {}, 0, 0, "reservoir"},
+    {HOTKEY_BUILD_AQUEDUCT, {}, 0, 0, "aqueduct"},
+    {HOTKEY_BUILD_FOUNTAIN, {}, 0, 0, "fountain"},
+    {HOTKEY_BUILD_ROADBLOCK, {}, 0, 0, "roadblock"},
     {HOTKEY_BUILD_WHEAT_FARM, TR_HOTKEY_BUILD_WHEAT_FARM},
     {HOTKEY_BUILD_HIGHWAY, TR_HOTKEY_BUILD_HIGHWAY},
-    {HOTKEY_UNDO, TR_NONE, GROUP_BUILDINGS, 1},
+    {HOTKEY_UNDO, {}, GROUP_BUILDINGS, 1},
     {HOTKEY_HEADER, TR_HOTKEY_HEADER_ADVISORS},
     {HOTKEY_SHOW_ADVISOR_LABOR, TR_HOTKEY_SHOW_ADVISOR_LABOR},
     {HOTKEY_SHOW_ADVISOR_MILITARY, TR_HOTKEY_SHOW_ADVISOR_MILITARY},
@@ -272,11 +269,11 @@ static void draw_background(void)
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);
 
-    text_draw_centered(translation_for(TR_HOTKEY_TITLE), 16, 16, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_centered(translation_for_key("TR_HOTKEY_TITLE"), 16, 16, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
-    text_draw_centered(translation_for(TR_HOTKEY_LABEL), HOTKEY_X_OFFSET_1, 55,
+    text_draw_centered(translation_for_key("TR_HOTKEY_LABEL"), HOTKEY_X_OFFSET_1, 55,
         HOTKEY_BTN_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    text_draw_centered(translation_for(TR_HOTKEY_ALTERNATIVE_LABEL), HOTKEY_X_OFFSET_2, 55,
+    text_draw_centered(translation_for_key("TR_HOTKEY_ALTERNATIVE_LABEL"), HOTKEY_X_OFFSET_2, 55,
         HOTKEY_BTN_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     inner_panel_draw(20, 72, 35, 22);
@@ -285,12 +282,12 @@ static void draw_background(void)
         hotkey_widget *widget = &hotkey_widgets[i + scrollbar.scroll_position];
         int text_offset = y_base + 6 + 24 * i;
         if (widget->action == HOTKEY_HEADER) {
-            text_draw(translation_for(static_cast<translation_key>(widget->name_translation)),
+            text_draw(translation_for(widget->name_translation),
                 32, text_offset, FONT_NORMAL_WHITE,
                 screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         } else {
-            if (widget->name_translation != TR_NONE) {
-                text_draw(translation_for(static_cast<translation_key>(widget->name_translation)),
+            if (widget->name_translation) {
+                text_draw(translation_for(widget->name_translation),
                     32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else if (widget->building_text_id) {
                 building_type type = building_type_registry_runtime_id_from_text(widget->building_text_id);
@@ -387,8 +384,8 @@ static const uint8_t *hotkey_action_name_for(hotkey_action action)
     for (unsigned int i = 0; i < NUM_VISIBLE_OPTIONS + scrollbar.max_scroll_position; i++) {
         hotkey_widget *widget = &hotkey_widgets[i];
         if (widget->action == action) {
-            if (widget->name_translation != TR_NONE) {
-                name = translation_for(static_cast<translation_key>(widget->name_translation));
+            if (widget->name_translation) {
+                name = translation_for(widget->name_translation);
             } else {
                 name = lang_get_string(widget->name_text_group, widget->name_text_id);
             }
@@ -487,3 +484,4 @@ void window_hotkey_config_show(int position)
     init(position);
     window_show(&window);
 }
+

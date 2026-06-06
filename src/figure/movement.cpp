@@ -1,3 +1,8 @@
+#include "figure/service.h"
+#include "map/bridge.h"
+#include "map/building.h"
+#include "map/road_access.h"
+
 #include "figure/movement.h"
 
 #include "building/building.h"
@@ -14,15 +19,11 @@ extern "C" {
 #include "core/config.h"
 #include "figure/combat.h"
 #include "figure/route.h"
-#include "figure/service.h"
 #include "game/time.h"
-#include "map/bridge.h"
-#include "map/building.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/road_access.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 }

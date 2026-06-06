@@ -1,3 +1,15 @@
+#include "building/figure.h"
+#include "building/image.h"
+#include "building/industry.h"
+#include "building/mess_hall.h"
+#include "building/tavern.h"
+#include "city/entertainment.h"
+#include "city/games.h"
+#include "map/building_tiles.h"
+#include "map/image.h"
+#include "map/road_access.h"
+#include "map/water.h"
+
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/barracks.h"
@@ -14,21 +26,14 @@
 #include <initializer_list>
 
 extern "C" {
-#include "building/figure.h"
 
 #include "assets/assets.h"
 #include "building/granary.h"
-#include "building/image.h"
-#include "building/industry.h"
-#include "building/mess_hall.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/tavern.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/data_private.h"
-#include "city/entertainment.h"
-#include "city/games.h"
 #include "city/message.h"
 #include "city/population.h"
 #include "core/calc.h"
@@ -39,13 +44,9 @@ extern "C" {
 #include "figure/movement.h"
 #include "game/resource.h"
 #include "game/time.h"
-#include "map/building_tiles.h"
 #include "map/desirability.h"
-#include "map/image.h"
 #include "map/random.h"
-#include "map/road_access.h"
 #include "map/terrain.h"
-#include "map/water.h"
 #include "scenario/scenario.h"
 }
 

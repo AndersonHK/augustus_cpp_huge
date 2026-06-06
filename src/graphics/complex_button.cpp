@@ -1,12 +1,13 @@
-extern "C" {
-#include "complex_button.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/graphics.h"
+#include "graphics/image.h"
+
+#include "complex_button.h"
+extern "C" {
+#include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
 #include "input/mouse.h"
 }
 
-#include "graphics/image.h"
 
 #include <stddef.h>
 #include <stdlib.h>

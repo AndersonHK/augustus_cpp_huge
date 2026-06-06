@@ -1,3 +1,8 @@
+#include "building/building.h"
+#include "building/count.h"
+#include "city/labor.h"
+#include "figure/action.h"
+
 #include "building/local_workforce.h"
 
 #include "building/building_type_registry_internal.h"
@@ -5,15 +10,11 @@
 #include "map/routing_distance.h"
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
-#include "building/count.h"
 #include "building/properties.h"
-#include "city/labor.h"
 #include "city/population.h"
 #include "core/config.h"
-#include "figure/action.h"
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/movement.h"

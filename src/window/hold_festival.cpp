@@ -1,26 +1,28 @@
+#include "city/festival.h"
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/message_dialog.h"
+
+#include "window/hold_festival.h"
+
+#include "window/advisors.h"
 #include "city/god.h"
 
 extern "C" {
-#include "window/hold_festival.h"
 
 #include "assets/assets.h"
 #include "city/constants.h"
-#include "city/festival.h"
 #include "city/finance.h"
 #include "core/image_group.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/advisors.h"
-#include "window/message_dialog.h"
 }
-#include "graphics/image.h"
-#include "game/resource_graphics.h"
 
 static void button_god(const generic_button *button);
 static void button_size(const generic_button *button);

@@ -1,24 +1,26 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_list.h"
+
 #include "edit_invasion.h"
+
+#include "window/editor/map.h"
+extern "C" {
 
 #include "core/lang.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/editor.h"
 #include "scenario/invasion.h"
 #include "scenario/property.h"
 #include "scenario/types.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-#include "window/plain_message_dialog.h"
-#include "window/select_list.h"
 }
 
 enum {
@@ -506,13 +508,13 @@ static unsigned int validate(void)
     }
 
     if (data.invasion.type == INVASION_TYPE_NONE) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_INVASION_NO_TYPE);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_INVASION_NO_TYPE");
     }
     if (data.invasion.amount.min <= 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_INVASION_NO_SOLDIERS);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_INVASION_NO_SOLDIERS");
     }
     if (data.invasion.year == 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_INVASION_SET_YEAR);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_INVASION_SET_YEAR");
     }
 
     return num_errors;

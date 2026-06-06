@@ -1,12 +1,14 @@
+#include "building/building.h"
+#include "building/list.h"
+#include "city/festival.h"
+#include "map/road_access.h"
+
 #include "figuretype/entertainer.h"
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
-#include "building/list.h"
 #include "building/monument.h"
-#include "city/festival.h"
 #include "city/figures.h"
 #include "city/map.h"
 #include "core/calc.h"
@@ -18,7 +20,6 @@ extern "C" {
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "map/grid.h"
-#include "map/road_access.h"
 #include "map/road_network.h"
 #include "scenario/gladiator_revolt.h"
 }

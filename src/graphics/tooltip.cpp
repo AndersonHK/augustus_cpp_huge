@@ -1,11 +1,18 @@
+#include "building/building.h"
+#include "city/labor.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "map/building.h"
+#include "map/image.h"
+
+#include "translation/translation.h"
+#include "window/advisors.h"
 #include "tooltip.h"
 
 #include "core/crash_context.h"
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
-#include "city/labor.h"
 #include "city/ratings.h"
 #include "city/view.h"
 #include "core/calc.h"
@@ -15,22 +22,16 @@ extern "C" {
 #include "core/time.h"
 #include "game/cheats.h"
 #include "game/settings.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "map/building.h"
 #include "map/desirability.h"
 #include "map/grid.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/terrain.h"
 #include "scenario/criteria.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-#include "window/advisors.h"
 }
 
 #include <stdio.h>
@@ -108,8 +109,7 @@ static const uint8_t *get_tooltip_text(const tooltip_context *c)
         return c->precomposed_text;
     }
     if (c->translation_key) {
-        const translation_key key = static_cast<translation_key>(c->translation_key);
-        text = translation_for(key);
+        text = translation_for(c->translation_key);
     } else {
         text = lang_get_string(c->text_group, c->text_id);
     }
@@ -164,12 +164,12 @@ static void log_empty_button_tooltip(const tooltip_context *c)
 {
     char detail[256];
     snprintf(detail, sizeof(detail),
-        "window=%d domain=%d text_group=%d text_id=%d translation=%d mouse=(%d,%d)",
+        "window=%d domain=%d text_group=%d text_id=%d translation=%s mouse=(%d,%d)",
         window_get_id(),
         c->domain,
         c->text_group,
         c->text_id,
-        c->translation_key,
+        c->translation_key.id ? c->translation_key.id : "<none>",
         c->mouse_x,
         c->mouse_y);
     error_context_report_error("Button tooltip resolved to no text", detail);

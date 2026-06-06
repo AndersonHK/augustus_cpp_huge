@@ -1,8 +1,6 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "translation/translation.h"
 
 typedef enum {
     OPTION_MENU_SMALL_ROW = 0,
@@ -10,14 +8,10 @@ typedef enum {
 } option_menu_row_size;
 
 typedef struct {
-    int header;
-    int desc;
+    translation_key header;
+    translation_key desc;
     int image_id;
 } option_menu_item;
 
-void window_option_popup_show(int title, int subtitle, option_menu_item *options, int num_options,
+void window_option_popup_show(translation_key title, translation_key subtitle, option_menu_item *options, int num_options,
     void (*close_func)(int selection), int current_option, int price, option_menu_row_size row_size);
-
-#ifdef __cplusplus
-}
-#endif

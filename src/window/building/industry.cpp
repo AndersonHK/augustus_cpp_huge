@@ -1,12 +1,21 @@
-extern "C" {
-#include "industry.h"
-
-#include "assets/assets.h"
 #include "building/building.h"
-#include "building/building_type_api.h"
-#include "building/building_record.h"
 #include "building/count.h"
 #include "building/industry.h"
+#include "building/water_access_runtime.h"
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+
+#include "industry.h"
+
+#include "translation/translation.h"
+#include "window/popup_dialog.h"
+extern "C" {
+
+#include "assets/assets.h"
+#include "building/building_type_api.h"
+#include "building/building_record.h"
 #include "building/monument.h"
 #include "city/buildings.h"
 #include "city/resource.h"
@@ -16,21 +25,14 @@ extern "C" {
 #include "figure/figure.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "input/mouse.h"
 #include "scenario/allowed_building.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-#include "window/popup_dialog.h"
 }
-#include "game/resource_graphics.h"
-#include "graphics/image.h"
 
 #include "building/building_type_registry_internal.h"
-#include "building/water_access_runtime.h"
 
 #include <stdio.h>
 
@@ -290,7 +292,7 @@ static void draw_workshop(
                 int extra_width = lang_text_draw_amount(8, 10, b->resources[chain[i].raw_material],
                     c->x_offset + 60 + width, c->y_offset + 60 + resources_y_offset, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
                 text_draw_number(chain[i].raw_amount, '(',
-                    reinterpret_cast<const char *>(translation_for(TR_BUILDING_WINDOW_INDUSTRY_NEEDED)),
+                    reinterpret_cast<const char *>(translation_for_key("TR_BUILDING_WINDOW_INDUSTRY_NEEDED")),
                     c->x_offset + 60 + width + extra_width, c->y_offset + 60 + resources_y_offset,
                     FONT_NORMAL_BLACK,
                     screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height),
@@ -595,8 +597,8 @@ static void set_city_mint_conversion(const generic_button *button)
 {
     resource_type resource = static_cast<resource_type>(button->parameter1);
     if (building_get(data.city_mint_id)->output_resource_id != resource) {
-        window_popup_dialog_show_confirmation(translation_for(TR_BUILDING_CITY_MINT_CHANGE_PRODUCTION),
-            translation_for(TR_BUILDING_CITY_MINT_PROGRESS_WILL_BE_LOST), 0, city_mint_conversion_changed);
+        window_popup_dialog_show_confirmation(translation_for_key("TR_BUILDING_CITY_MINT_CHANGE_PRODUCTION"),
+            translation_for_key("TR_BUILDING_CITY_MINT_PROGRESS_WILL_BE_LOST"), 0, city_mint_conversion_changed);
     }
 }
 
@@ -617,7 +619,7 @@ int window_building_handle_mouse_city_mint(const mouse *m, building_info_context
     return 0;
 }
 
-void window_building_industry_get_tooltip(building_info_context *c, int *translation)
+void window_building_industry_get_tooltip(building_info_context *c, translation_key *translation)
 {
     building_type type = building_get(c->building_id)->type;
     int needed_resources = building_get_raw_materials_for_workshop(0, type);

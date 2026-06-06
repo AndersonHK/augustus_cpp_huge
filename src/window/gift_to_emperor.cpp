@@ -1,19 +1,21 @@
-extern "C" {
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+
 #include "window/gift_to_emperor.h"
+
+#include "window/advisors.h"
+extern "C" {
 
 #include "city/emperor.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/advisors.h"
 }
-#include "graphics/image.h"
-#include "game/resource_graphics.h"
 
 static void button_set_gift(const generic_button *button);
 static void button_send_gift(const generic_button *button);

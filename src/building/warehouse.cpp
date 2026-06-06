@@ -1,3 +1,9 @@
+#include "building/count.h"
+#include "building/industry.h"
+#include "building/storage.h"
+#include "game/resource_graphics.h"
+#include "map/image.h"
+
 #include "warehouse.h"
 
 #include "building/barracks.h"
@@ -8,8 +14,6 @@
 extern "C" {
 #endif
 
-#include "building/count.h"
-#include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/finance.h"
@@ -21,7 +25,6 @@ extern "C" {
 #include "figure/figure.h"
 #include "game/tutorial.h"
 #include "map/grid.h"
-#include "map/image.h"
 #include "scenario/property.h"
 
 #ifdef __cplusplus
@@ -29,8 +32,6 @@ extern "C" {
 #endif
 
 #include "building/granary.h"
-#include "building/storage.h"
-#include "game/resource_graphics.h"
 
 #define INFINITE 10000
 #define MIN(a, b) ((a) < (b) ? (a) : (b))

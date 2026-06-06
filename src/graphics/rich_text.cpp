@@ -1,3 +1,6 @@
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+
 #include "rich_text.h"
 #include "font_vector_runtime.h"
 #include "text_runtime_internal.h"
@@ -12,7 +15,6 @@ extern "C" {
 #include "core/locale.h"
 #include "core/string.h"
 #include "game/campaign.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/scrollbar.h"
@@ -20,7 +22,6 @@ extern "C" {
 #include "graphics/screen.h"
 }
 
-#include "graphics/image.h"
 
 #include <stdlib.h>
 #include <string.h>

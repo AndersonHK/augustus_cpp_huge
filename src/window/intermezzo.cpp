@@ -1,8 +1,11 @@
-extern "C" {
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+
 #include "intermezzo.h"
+
+extern "C" {
 #include "core/time.h"
 #include "game/campaign.h"
-#include "graphics/graphics.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
@@ -10,7 +13,6 @@ extern "C" {
 #include "sound/speech.h"
 }
 
-#include "graphics/image.h"
 
 #define DISPLAY_TIME_MILLIS 1000
 

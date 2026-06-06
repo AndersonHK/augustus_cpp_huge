@@ -1,10 +1,11 @@
+#include "building/construction.h"
+#include "game/state.h"
+
 #include "game/speed.h"
 
 extern "C" {
-#include "building/construction.h"
 #include "core/time.h"
 #include "game/settings.h"
-#include "game/state.h"
 #include "graphics/window.h"
 #include "input/scroll.h"
 }

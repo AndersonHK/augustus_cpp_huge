@@ -1,7 +1,9 @@
-extern "C" {
+#
+
 #include "dropdown_button.h"
+
+extern "C" {
 #include "graphics/font.h"
-#include "graphics/lang_text.h"
 #include "graphics/window.h"
 }
 

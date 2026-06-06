@@ -1,17 +1,19 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "widget/sidebar/military.h"
+#include "window/city.h"
+
 #include "military_menu.h"
+
+extern "C" {
 
 #include "city/view.h"
 #include "figure/formation.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "map/grid.h"
-#include "widget/sidebar/military.h"
-#include "window/city.h"
 }
 
 #define MENU_X_OFFSET 170

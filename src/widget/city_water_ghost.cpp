@@ -1,10 +1,12 @@
+#
+
 #include "city_water_ghost.h"
 
 #include "building/water_access_runtime.h"
+#include "widget/city_building_ghost.h"
 
 extern "C" {
 #include "city/view.h"
-#include "widget/city_building_ghost.h"
 }
 
 #include <cstring>

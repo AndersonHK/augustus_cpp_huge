@@ -1,13 +1,17 @@
-extern "C" {
+#
+
 #include "select_list.h"
+
+#include "graphics/lang_text.h"
+#include "input/input.h"
+
+extern "C" {
 
 #include "graphics/ui_runtime_api.h"
 #include "graphics/color.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 }
 
 #define MAX_ITEMS_PER_LIST 20

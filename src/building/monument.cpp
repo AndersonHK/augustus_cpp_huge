@@ -1,12 +1,16 @@
+#include "building/image.h"
+#include "map/building_tiles.h"
+#include "map/orientation.h"
+#include "map/road_access.h"
+#include "monument.h"
+
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 extern "C" {
-#include "monument.h"
 
 #include "assets/assets.h"
-#include "building/image.h"
 #include "building/properties.h"
 #include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
@@ -18,10 +22,7 @@ extern "C" {
 #include "core/log.h"
 #include "empire/city.h"
 #include "game/resource_id_bridge.h"
-#include "map/building_tiles.h"
 #include "map/grid.h"
-#include "map/orientation.h"
-#include "map/road_access.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 }

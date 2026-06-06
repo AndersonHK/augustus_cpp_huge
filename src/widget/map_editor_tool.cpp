@@ -1,21 +1,23 @@
-extern "C" {
-#include "map_editor_tool.h"
-#include "assets/assets.h"
 #include "building/image.h"
+#include "editor/tool.h"
+#include "editor/tool_restriction.h"
+#include "graphics/image.h"
+
+#include "map_editor_tool.h"
+
+extern "C" {
+#include "assets/assets.h"
 #include "building/properties.h"
 #include "building/building_type_api.h"
 #include "city/view.h"
 #include "core/image_group.h"
 #include "core/image_group_editor.h"
-#include "editor/tool.h"
-#include "editor/tool_restriction.h"
 #include "input/scroll.h"
 #include "map/grid.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 }
 
-#include "graphics/image.h"
 
 #define MAX_TILES 16
 
@@ -287,7 +289,7 @@ void map_editor_tool_draw(const map_tile *tile)
         case TOOL_INVASION_POINT:
         case TOOL_FISHING_POINT:
         case TOOL_HERD_POINT:
-            draw_map_flag(x, y, editor_tool_can_place_flag(type, tile, 0, 0));
+            draw_map_flag(x, y, editor_tool_can_place_flag(type, tile, 0));
             break;
 
         case TOOL_ACCESS_RAMP:

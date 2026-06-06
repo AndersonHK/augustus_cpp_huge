@@ -1,16 +1,17 @@
-#include "city/population.h"
-
-extern "C" {
 #include "building/building.h"
-#include "building/building_record.h"
 #include "building/count.h"
 #include "building/house.h"
 #include "building/house_population.h"
+#include "game/defines.h"
+
+#include "city/population.h"
+
+extern "C" {
+#include "building/building_record.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/random.h"
-#include "game/defines.h"
 }
 
 int city_population(void)

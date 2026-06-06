@@ -1,3 +1,4 @@
+#include "translation/translation.h"
 #include "warning.h"
 
 extern "C" {
@@ -8,6 +9,7 @@ extern "C" {
 #include "game/settings.h"
 #include "graphics/window.h"
 
+#include <cstdio>
 #include <cstring>
 
 #define MAX_WARNINGS 5
@@ -87,6 +89,15 @@ static warning *get_warning_slot(warning_type type, const uint8_t *text)
     return slot;
 }
 
+const uint8_t *city_warning_get_text(warning_type type)
+{
+    static char key[128];
+    if (!type.name || snprintf(key, sizeof(key), "TR_CITY_%s", type.name) >= static_cast<int>(sizeof(key))) {
+        return translation_for_key("TR_CITY_WARNING_NOT_AVAILABLE");
+    }
+    return translation_for_key(key);
+}
+
 int city_warning_show(warning_type type, const uint8_t *text)
 {
     if (!setting_warnings()) {
@@ -103,6 +114,11 @@ int city_warning_show(warning_type type, const uint8_t *text)
         string_copy(text, w->text, MAX_TEXT);
     }
     return 1;
+}
+
+int city_warning_show_translated(warning_type type)
+{
+    return city_warning_show(type, city_warning_get_text(type));
 }
 
 int city_has_warnings(void)

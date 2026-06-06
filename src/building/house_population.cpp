@@ -1,3 +1,9 @@
+#include "building/list.h"
+#include "building/local_workforce.h"
+#include "city/labor.h"
+#include "city/migration.h"
+#include "figuretype/migrant.h"
+
 #include "building/building_record.h"
 #include "house_population.h"
 
@@ -5,15 +11,10 @@
 #include "building/house.h"
 
 extern "C" {
-#include "building/list.h"
 #include "building/building_type_api.h"
-#include "building/local_workforce.h"
 #include "building/monument.h"
-#include "city/labor.h"
 #include "city/message.h"
-#include "city/migration.h"
 #include "city/population.h"
-#include "figuretype/migrant.h"
 }
 
 static int house_is_plebeian(const building *b)

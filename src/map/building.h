@@ -57,6 +57,8 @@ void map_building_save_state(buffer *buildings, buffer *damage, buffer *rubble);
 
 void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, savegame_version_t version);
 
+void map_building_remove_invalid_references(void);
+
 int map_building_is_reservoir(int x, int y);
 
 #ifdef __cplusplus

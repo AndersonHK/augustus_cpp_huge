@@ -1,3 +1,22 @@
+#include "building/construction.h"
+#include "building/construction_warning.h"
+#include "building/count.h"
+#include "building/distribution.h"
+#include "building/image.h"
+#include "building/industry.h"
+#include "building/roadblock.h"
+#include "building/rotation.h"
+#include "building/storage.h"
+#include "building/variant.h"
+#include "city/warning.h"
+#include "game/undo.h"
+#include "map/building.h"
+#include "map/building_tiles.h"
+#include "map/orientation.h"
+#include "map/tiles.h"
+#include "map/water.h"
+#include "map/water_supply.h"
+
 #include "construction_building.h"
 
 #include "building/building.h"
@@ -9,46 +28,26 @@ extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
-#include "building/construction.h"
-#include "building/construction_warning.h"
-#include "building/count.h"
-#include "building/distribution.h"
-#include "building/image.h"
-#include "building/industry.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/roadblock.h"
-#include "building/rotation.h"
-#include "building/storage.h"
-#include "building/variant.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/finance.h"
 #include "city/resource.h"
 #include "city/view.h"
-#include "city/warning.h"
 #include "core/config.h"
 #include "core/image.h"
 #include "core/random.h"
 #include "empire/city.h"
-#include "game/undo.h"
-#include "map/building.h"
-#include "map/building_tiles.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/orientation.h"
 #include "map/property.h"
 #include "map/routing.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
-#include "map/water.h"
-#include "map/water_supply.h"
 #include "scenario/property.h"
 }
-
-#include "translation/translation_key_table.h"
 
 #include <initializer_list>
 #include <string>
@@ -154,11 +153,7 @@ static void replace_all(std::string &text, std::string_view placeholder, std::st
 
 static std::string localized_text_from_key_name(const char *key_name)
 {
-    translation_key key;
-    if (key_name && translation_key_from_name(key_name, &key)) {
-        return localized_text(key);
-    }
-    return "";
+    return key_name ? legacy_text(translation_for_key(key_name)) : "";
 }
 
 static std::string building_type_name(building_type type)

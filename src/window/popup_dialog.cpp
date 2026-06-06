@@ -1,19 +1,20 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+
+#include "translation/translation.h"
 #include "popup_dialog.h"
 
+extern "C" {
 #include "core/image_group.h"
 #include "core/lang.h"
 #include "core/string.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "translation/translation.h"
 }
 
 #define GROUP 5

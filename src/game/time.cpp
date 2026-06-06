@@ -1,7 +1,10 @@
+#
+
 #include "game/time.h"
 
-extern "C" {
 #include "game/defines.h"
+
+extern "C" {
 }
 
 #include <climits>

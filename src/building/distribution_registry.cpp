@@ -1,3 +1,5 @@
+#
+
 #include "building/distribution.h"
 
 #include "building/storage_type_registry.h"
@@ -10,7 +12,6 @@ extern "C" {
 #include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
 }
 
 #include <cstdio>

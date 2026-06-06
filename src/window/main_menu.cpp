@@ -1,34 +1,36 @@
-extern "C" {
+#include "game/game.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/weather.h"
+#include "window/cck_selection.h"
+#include "window/config.h"
+#include "window/file_dialog.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_campaign.h"
+
 #include "main_menu.h"
+
+#include "editor/editor.h"
+#include "window/editor/map.h"
+#include "window/video.h"
+#include "window/popup_dialog.h"
+extern "C" {
 
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/string.h"
-#include "editor/editor.h"
 #include "game/campaign.h"
-#include "game/game.h"
 #include "game/system.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/screen.h"
-#include "graphics/weather.h"
 #include "graphics/window.h"
 #include "sound/music.h"
-#include "window/cck_selection.h"
-#include "window/config.h"
-#include "window/editor/map.h"
-#include "window/file_dialog.h"
-#include "window/plain_message_dialog.h"
-#include "window/popup_dialog.h"
-#include "window/select_campaign.h"
-#include "window/video.h"
 }
-#include "graphics/image.h"
 
 #define MAX_BUTTONS 6
 

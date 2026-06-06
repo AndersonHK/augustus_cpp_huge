@@ -1,3 +1,5 @@
+#
+
 #include "building/building_record.h"
 #include "building/water_access_type.h"
 
@@ -9,7 +11,6 @@ extern "C" {
 #include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
 }
 
 #include <array>

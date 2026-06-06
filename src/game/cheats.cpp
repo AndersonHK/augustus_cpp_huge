@@ -1,3 +1,4 @@
+#include "translation/translation.h"
 #include "cheats.h"
 
 #include "building/building.h"
@@ -28,7 +29,6 @@
 #include "scenario/invasion.h"
 #include "scenario/property.h"
 #include "scenario/scenario.h"
-#include "translation/translation.h"
 #include "window/building_info.h"
 #include "window/city.h"
 #include "window/console.h"

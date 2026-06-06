@@ -2,6 +2,7 @@
 
 #include "graphics/renderer.h"
 #include "input/mouse.h"
+#include "translation/translation.h"
 
 #include <stdint.h>
 
@@ -37,7 +38,7 @@ typedef struct {
     int num_extra_values;
     int extra_value_text_groups[TOOLTIP_MAX_EXTRA_VALUES];
     int extra_value_text_ids[TOOLTIP_MAX_EXTRA_VALUES];
-    int translation_key;
+    translation_key translation_key;
     int num_extra_texts;
     tooltip_extra_text_type extra_text_type;
     int extra_text_groups[TOOLTIP_MAX_EXTRA_VALUES];

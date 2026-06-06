@@ -1,9 +1,11 @@
+#include "assets/image.h"
+#include "assets/group.h"
+#include "game/mod_manager.h"
+
 #include "xml.h"
 
 extern "C" {
 #include "assets/assets.h"
-#include "assets/group.h"
-#include "assets/image.h"
 #include "core/calc.h"
 #include "core/dir.h"
 #include "core/file.h"
@@ -11,7 +13,6 @@ extern "C" {
 #include "core/png_read.h"
 #include "core/string.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
 #include "graphics/renderer.h"
 }
 

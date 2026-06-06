@@ -18,6 +18,7 @@ void scenario_allowed_building_enable_all(void);
 void scenario_allowed_building_disable_all(void);
 
 void scenario_allowed_building_load_state(buffer *buf);
+void scenario_allowed_building_load_state_keyed(buffer *buf, int has_keyed_state);
 void scenario_allowed_building_load_state_old_version(buffer *buf);
 void scenario_allowed_building_save_state(buffer *buf);
 

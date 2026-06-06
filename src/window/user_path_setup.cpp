@@ -1,5 +1,13 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_list.h"
+
 #include "user_path_setup.h"
+
+#include "window/popup_dialog.h"
+extern "C" {
 
 #include "core/encoding.h"
 #include "core/file.h"
@@ -7,19 +15,13 @@ extern "C" {
 #include "core/string.h"
 #include "game/system.h"
 #include "graphics/image_button.h"
-#include "graphics/generic_button.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "platform/file_manager.h"
 #include "platform/prefs.h"
 #include "platform/user_path.h"
-#include "window/plain_message_dialog.h"
-#include "window/popup_dialog.h"
-#include "window/select_list.h"
 }
 
 #include <string.h>
@@ -91,9 +93,9 @@ static const uint8_t *get_path_text(void)
     const uint8_t *path_text;
     if (*data.user_path) {
         if (strcmp(data.user_path, "./") == 0) {
-            path_text = translation_for(TR_CONFIG_USER_PATH_WITH_SUBDIRECTORIES);
+            path_text = translation_for_key("TR_CONFIG_USER_PATH_WITH_SUBDIRECTORIES");
         } else if (platform_user_path_recommend() && strcmp(data.user_path, platform_user_path_recommend()) == 0) {
-            uint8_t *cursor = string_copy(translation_for(TR_CONFIG_USER_PATH_RECOMMENDED), text, FILE_NAME_MAX);
+            uint8_t *cursor = string_copy(translation_for_key("TR_CONFIG_USER_PATH_RECOMMENDED"), text, FILE_NAME_MAX);
             cursor += encode_path(cursor, data.user_path, FILE_NAME_MAX - (int) (cursor - text));
             string_copy(string_from_ascii(")"), cursor, FILE_NAME_MAX - (cursor - text));
             path_text = text;
@@ -102,7 +104,7 @@ static const uint8_t *get_path_text(void)
             path_text = text;
         }
     } else {
-        path_text = translation_for(TR_CONFIG_USER_PATH_DEFAULT);
+        path_text = translation_for_key("TR_CONFIG_USER_PATH_DEFAULT");
     }
     return path_text;
 }
@@ -215,17 +217,17 @@ static void button_pick_option(const generic_button *button)
     const char *recommended = platform_user_path_recommend();
     static int total_options = 2;
     if (!texts[0]) {
-        texts[0] = translation_for(TR_CONFIG_USER_PATH_DEFAULT);
-        texts[1] = translation_for(TR_CONFIG_USER_PATH_WITH_SUBDIRECTORIES);
+        texts[0] = translation_for_key("TR_CONFIG_USER_PATH_DEFAULT");
+        texts[1] = translation_for_key("TR_CONFIG_USER_PATH_WITH_SUBDIRECTORIES");
         if (recommended) {
             texts[total_options++] = recommended_text;
-            uint8_t *cursor = string_copy(translation_for(TR_CONFIG_USER_PATH_RECOMMENDED),
+            uint8_t *cursor = string_copy(translation_for_key("TR_CONFIG_USER_PATH_RECOMMENDED"),
                 recommended_text, FILE_NAME_MAX);
             cursor += encode_path(cursor, recommended, FILE_NAME_MAX - (int) (cursor - recommended_text));
             string_copy(string_from_ascii(")"), cursor, FILE_NAME_MAX - (cursor - recommended_text));
         }
         if (system_supports_select_folder_dialog()) {
-            texts[total_options++] = translation_for(TR_CONFIG_USER_PATH_CUSTOM);
+            texts[total_options++] = translation_for_key("TR_CONFIG_USER_PATH_CUSTOM");
         }
     };
 
@@ -261,9 +263,9 @@ static void button_ok_cancel(int is_ok, int param2)
             TR_USER_DIRECTORIES_NOT_WRITEABLE_TEXT, !data.first_time);
         return;
     }
-    window_popup_dialog_show_confirmation(translation_for(TR_USER_DIRECTORIES_USER_PATH_CHANGED_TITLE),
-        translation_for(TR_USER_DIRECTORIES_USER_PATH_CHANGED_TEXT),
-        translation_for(TR_USER_DIRECTORIES_USER_PATH_CHANGED_OVERWRITE), copy_user_files);
+    window_popup_dialog_show_confirmation(translation_for_key("TR_USER_DIRECTORIES_USER_PATH_CHANGED_TITLE"),
+        translation_for_key("TR_USER_DIRECTORIES_USER_PATH_CHANGED_TEXT"),
+        translation_for_key("TR_USER_DIRECTORIES_USER_PATH_CHANGED_OVERWRITE"), copy_user_files);
 }
 
 static void get_tooltip(tooltip_context *c)
@@ -289,7 +291,7 @@ void window_user_path_setup_show(int first_time)
     init(first_time);
     window_show(&window);
     if (data.first_time) {
-        window_popup_dialog_show_confirmation(translation_for(TR_USER_DIRECTORIES_NOT_SET_UP_TITLE),
-            translation_for(TR_USER_DIRECTORIES_NOT_SET_UP_TEXT), 0, show_window);
+        window_popup_dialog_show_confirmation(translation_for_key("TR_USER_DIRECTORIES_NOT_SET_UP_TITLE"),
+            translation_for_key("TR_USER_DIRECTORIES_NOT_SET_UP_TEXT"), 0, show_window);
     }
 }

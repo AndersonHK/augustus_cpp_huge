@@ -1,3 +1,7 @@
+#include "building/roadblock.h"
+#include "building/state.h"
+#include "map/building_tiles.h"
+
 #include "game/resource_id_bridge.h"
 #include "building/building.h"
 #include "building/building_record.h"
@@ -6,13 +10,10 @@ extern "C" {
 #include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
-#include "building/state.h"
 #include "building/monument.h"
-#include "building/roadblock.h"
 #include "core/log.h"
 #include "figure/figure.h"
 #include "game/save_version.h"
-#include "map/building_tiles.h"
 #include "map/grid.h"
 }
 

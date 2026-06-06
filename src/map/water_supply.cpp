@@ -1,13 +1,14 @@
+#include "building/building.h"
+#include "building/list.h"
+#include "map/building.h"
+
 #include "water_supply.h"
 
 #include "building/water_access_runtime.h"
 
 extern "C" {
-#include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
-#include "building/list.h"
-#include "map/building.h"
 #include "map/grid.h"
 #include "map/terrain.h"
 }

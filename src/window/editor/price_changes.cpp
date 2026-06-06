@@ -1,25 +1,27 @@
-extern "C" {
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/attributes.h"
+#include "window/editor/edit_price_change.h"
+
 #include "price_changes.h"
+
+#include "window/editor/map.h"
+#include "graphics/grid_box.h"
+extern "C" {
 
 #include "core/image_group_editor.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/editor.h"
 #include "scenario/price_change.h"
 #include "scenario/property.h"
-#include "window/editor/attributes.h"
-#include "window/editor/edit_price_change.h"
-#include "window/editor/map.h"
 }
-#include "game/resource_graphics.h"
-#include "graphics/image.h"
 
 #include <stdlib.h>
 

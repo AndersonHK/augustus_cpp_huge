@@ -1,36 +1,38 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/attributes.h"
+#include "window/numeric_input.h"
+#include "window/plain_message_dialog.h"
+
 #include "custom_variables.h"
+
+#include "editor/editor.h"
+#include "graphics/complex_button.h"
+#include "window/editor/map.h"
+#include "window/text_input.h"
+#include "graphics/grid_box.h"
+#include "widget/dropdown_button.h"
+#include "window/popup_dialog.h"
+extern "C" {
 
 #include "assets/assets.h"
 #include "core/lang.h"
 #include "core/log.h"
 #include "core/string.h"
-#include "editor/editor.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/complex_button.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/custom_variable.h"
 #include "scenario/event/controller.h"
 #include "scenario/message_media_text_blob.h"
 #include "scenario/property.h"
 #include "scenario/scenario.h"
-#include "widget/dropdown_button.h"
-#include "window/editor/attributes.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-#include "window/plain_message_dialog.h"
-#include "window/popup_dialog.h"
-#include "window/text_input.h"
 }
-#include "graphics/image.h"
 
 #define CHECKBOX_ROW_WIDTH 25
 #define ID_ROW_WIDTH 32
@@ -253,8 +255,8 @@ static void draw_background(void)
 
     outer_panel_draw(16, 16, 40, data.callback ? 28 : 30);
 
-    text_draw_centered(translation_for(TR_EDITOR_CUSTOM_VARIABLES_TITLE), 20, 27, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    text_draw_label_and_number(translation_for(TR_EDITOR_CUSTOM_VARIABLES_COUNT), data.custom_variables_in_use,
+    text_draw_centered(translation_for_key("TR_EDITOR_CUSTOM_VARIABLES_TITLE"), 20, 27, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_label_and_number(translation_for_key("TR_EDITOR_CUSTOM_VARIABLES_COUNT"), data.custom_variables_in_use,
         "", 32, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
 
     int base_x_offset = variable_buttons.x + variable_buttons.item_margin.horizontal / 2;
@@ -517,7 +519,7 @@ static void show_name_edit_popup(void)
     const uint8_t *name = 0;
     if (data.target_index != NO_SELECTION) {
         static uint8_t text_input_title[100];
-        uint8_t *cursor = string_copy(translation_for(TR_PARAMETER_TYPE_CUSTOM_VARIABLE), text_input_title, 100);
+        uint8_t *cursor = string_copy(translation_for_key("TR_PARAMETER_TYPE_CUSTOM_VARIABLE"), text_input_title, 100);
         cursor = string_copy(string_from_ascii(" "), cursor, 100 - (cursor - text_input_title));
         unsigned int id = data.custom_variable_ids[data.target_index];
         string_from_int(cursor, id, 0);
@@ -609,7 +611,7 @@ static void variable_item_click(const grid_box_item *item)
 static void show_used_event_sigle_variable_popup_dialog(const scenario_event_t *event)
 {
     static uint8_t event_id_text[50];
-    uint8_t *cursor = string_copy(translation_for(TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_EVENT_ID),
+    uint8_t *cursor = string_copy(translation_for_key("TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_EVENT_ID"),
         event_id_text, 50);
     string_from_int(cursor, event->id, 0);
     window_plain_message_dialog_show_with_extra(TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_TITLE,
@@ -619,7 +621,7 @@ static void show_used_event_sigle_variable_popup_dialog(const scenario_event_t *
 static void show_multiple_variables_in_use_popup_dialog(unsigned int *variables_in_use, unsigned int total)
 {
     static uint8_t event_id_text[200];
-    uint8_t *cursor = string_copy(translation_for(TR_EDITOR_CUSTOM_VARIABLES_IN_USE),
+    uint8_t *cursor = string_copy(translation_for_key("TR_EDITOR_CUSTOM_VARIABLES_IN_USE"),
         event_id_text, 200);
     cursor += string_from_int(cursor, variables_in_use[0], 0);
     for (unsigned int i = 1; i < total; i++) {

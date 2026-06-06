@@ -1,5 +1,6 @@
-extern "C" {
 #include "file.h"
+
+extern "C" {
 
 #include "core/file.h"
 }

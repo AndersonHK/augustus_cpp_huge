@@ -1,29 +1,31 @@
+#include "building/count.h"
+#include "city/culture.h"
+#include "city/entertainment.h"
+#include "city/festival.h"
+#include "city/games.h"
+#include "city/houses.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "window/hold_games.h"
+
+#include "entertainment.h"
+
+#include "translation/translation.h"
 #include "city/god.h"
 #include "graphics/advisor_text_button_widget.h"
 #include "graphics/ui_runtime.h"
 
 extern "C" {
-#include "entertainment.h"
 
 #include "assets/assets.h"
 #include "building/building_type_api.h"
-#include "building/count.h"
-#include "city/culture.h"
-#include "city/entertainment.h"
-#include "city/festival.h"
 #include "city/finance.h"
-#include "city/games.h"
-#include "city/houses.h"
 #include "core/calc.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "translation/translation.h"
-#include "window/hold_games.h"
 }
-#include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 
@@ -50,7 +52,7 @@ struct games_text {
     translation_key preparation_text;
     translation_key ongoing_text;
 } text_data[] = {
-    {static_cast<translation_key>(0), static_cast<translation_key>(0)}, // 0 element unused
+    {{}, {}}, // 0 element unused
     {TR_WINDOW_ADVISOR_ENTERTAINMENT_PREPARING_NG, TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_NG},
     {TR_WINDOW_ADVISOR_ENTERTAINMENT_PREPARING_IG, TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_IG},
     {TR_WINDOW_ADVISOR_ENTERTAINMENT_PREPARING_AG, TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_AG},
@@ -77,13 +79,13 @@ void window_entertainment_draw_games_text(int x, int y, int draw_button_text)
     int cooldown = city_festival_games_cooldown();
 
     if (cooldown) {
-        text_draw_centered(translation_for(TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_COOLDOWN_TEXT), x, y + 15,
+        text_draw_centered(translation_for_key("TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_COOLDOWN_TEXT"), x, y + 15,
             400, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-        int width = text_draw(translation_for(TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_COOLDOWN), x + 46, y + 50,
+        int width = text_draw(translation_for_key("TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_COOLDOWN"), x + 46, y + 50,
             FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         text_draw_number(cooldown, '@', "", x + 46 + width, y + 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (city_festival_games_planning_time()) {
-        text_draw_centered(translation_for(TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_PREPARING), x, y + 15, 400,
+        text_draw_centered(translation_for_key("TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_PREPARING"), x, y + 15, 400,
             FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         int width = text_draw(translation_for(text_data[game->id].preparation_text), x + 56, y + 50,
             FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
@@ -91,10 +93,10 @@ void window_entertainment_draw_games_text(int x, int y, int draw_button_text)
     } else if (city_festival_games_active()) {
         text_draw_multiline(translation_for(text_data[game->id].ongoing_text), x + 4, y, 400, 0, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else {
-        text_draw_multiline(translation_for(TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_DESC), x + 4, y,
+        text_draw_multiline(translation_for_key("TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_DESC"), x + 4, y,
             400, 0, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         if (draw_button_text) {
-            text_draw_centered(translation_for(TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_BUTTON), x + 56, y + 60,
+            text_draw_centered(translation_for_key("TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_BUTTON"), x + 56, y + 60,
                 300, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         }
     }
@@ -103,7 +105,7 @@ void window_entertainment_draw_games_text(int x, int y, int draw_button_text)
 static void draw_games_info(void)
 {
     inner_panel_draw(48, 302, 34, 6);
-    text_draw(translation_for(TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_HEADER), 52, 274, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw(translation_for_key("TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_HEADER"), 52, 274, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     draw_games_banner_widget_assets();
     window_entertainment_draw_games_text(56, 315, 0);
 }
@@ -242,7 +244,7 @@ static void draw_hold_games_button_widget(void)
     UiTextSpec button_text = {};
     button_text.content_type = UiTextContentType::Raw;
     button_text.alignment = UiTextAlignment::Center;
-    button_text.raw_text = translation_for(TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_BUTTON);
+    button_text.raw_text = translation_for_key("TR_WINDOW_ADVISOR_ENTERTAINMENT_GAMES_BUTTON");
     button_text.x = 102;
     button_text.y = 375;
     button_text.box_width = 300;
