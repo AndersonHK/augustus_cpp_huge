@@ -113,7 +113,8 @@ typedef enum {
     // building.variant existed before this, but older saves did not use it for native BuildingType graphics options.
     SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS = 0xb6,
     SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE = 0xb7,
-    SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE = 0xb8
+    SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE = 0xb8,
+    SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE = 0xb8
 } savegame_version_t;
 
 typedef enum {

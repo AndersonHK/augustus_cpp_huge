@@ -9,15 +9,16 @@ extern "C" {
 #include "building/state.h"
 #include "building/monument.h"
 #include "building/roadblock.h"
-#include "core/crash_context.h"
 #include "core/log.h"
 #include "figure/figure.h"
 #include "game/save_version.h"
+#include "map/building_tiles.h"
+#include "map/grid.h"
 }
 
 #include <cstdio>
 #include <cstddef>
-#include <exception>
+#include <cstring>
 
 #define TYPE_DATA_ORIGINAL_BUFFER_SIZE 42
 #define TYPE_DATA_CURRENT_BUFFER_SIZE 26
@@ -229,16 +230,67 @@ static void format_loaded_building_type_problem(
         b ? b->is_deleted : 0);
 }
 
-static void fail_loaded_building_type_problem(const building *b, uint16_t saved_type, const char *reason)
+static void log_loaded_building_type_problem(const building *b, uint16_t saved_type, const char *reason)
 {
     char detail[1200];
     format_loaded_building_type_problem(detail, sizeof(detail), b, saved_type, reason);
-    log_error("Building save produced a live building without a type definition", detail, b ? b->id : 0);
-    error_context_report_fatal_error_dialog(
-        "Building save error",
-        "Building save produced a live building without a type definition.",
-        detail);
-    std::terminate();
+    log_warning("Building save contained an unsupported building type; removing saved building", detail, b ? b->id : 0);
+}
+
+static void remove_figures_referencing_unsupported_building(unsigned int building_id)
+{
+    if (!building_id) {
+        return;
+    }
+    const unsigned int count = figure_count();
+    for (unsigned int i = 1; i < count; i++) {
+        figure *f = figure_get(i);
+        if (!f || !f->state) {
+            continue;
+        }
+        if (f->building_id == building_id ||
+            f->destination_building_id == building_id ||
+            f->immigrant_building_id == building_id) {
+            figure_delete(f);
+        }
+    }
+}
+
+static void remove_tiles_for_unsupported_building(const building *b)
+{
+    if (!b) {
+        return;
+    }
+    int x = b->x;
+    int y = b->y;
+    if (!map_grid_is_inside(x, y, 1)) {
+        if (!map_grid_is_valid_offset(b->grid_offset)) {
+            return;
+        }
+        x = map_grid_offset_to_x(b->grid_offset);
+        y = map_grid_offset_to_y(b->grid_offset);
+    }
+    map_building_tiles_remove(b->id, x, y);
+}
+
+static void quarantine_loaded_building_type_problem(
+    building *b,
+    uint16_t saved_type,
+    const char *reason,
+    int for_preview)
+{
+    if (!b) {
+        return;
+    }
+    log_loaded_building_type_problem(b, saved_type, reason);
+    if (!for_preview) {
+        b->type = BUILDING_NONE;
+        remove_figures_referencing_unsupported_building(b->id);
+        remove_tiles_for_unsupported_building(b);
+    }
+    const unsigned int id = b->id;
+    memset(b, 0, sizeof(building));
+    b->id = id;
 }
 
 static void skip_remaining_building_record(buffer *buf, size_t record_start, int building_buf_size)
@@ -250,6 +302,34 @@ static void skip_remaining_building_record(buffer *buf, size_t record_start, int
     if (bytes_read < static_cast<size_t>(building_buf_size)) {
         buffer_skip(buf, static_cast<int>(static_cast<size_t>(building_buf_size) - bytes_read));
     }
+}
+
+static int remaining_building_record_bytes(const buffer *buf, size_t record_start, int building_buf_size)
+{
+    if (!buf || building_buf_size <= 0) {
+        return 0;
+    }
+    size_t record_end = record_start + static_cast<size_t>(building_buf_size);
+    if (buf->index >= record_end) {
+        return 0;
+    }
+    return static_cast<int>(record_end - buf->index);
+}
+
+static int flat_resource_slots_left_in_record(const buffer *buf, size_t record_start, int building_buf_size)
+{
+    int bytes = remaining_building_record_bytes(buf, record_start, building_buf_size);
+    if (building_buf_size >= BUILDING_STATE_LATRINES && bytes > 0) {
+        bytes--;
+    }
+    if (bytes <= 0) {
+        return 0;
+    }
+    int slots = bytes / 3;
+    if (slots < 0) {
+        return 0;
+    }
+    return slots > RESOURCE_SLOT_COUNT ? RESOURCE_SLOT_COUNT : slots;
 }
 
 static void normalize_monument_phase_after_load(building *b)
@@ -844,7 +924,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
 
     const char *early_type_problem = loaded_building_type_problem(b, saved_building_type, missing_building_type);
     if (early_type_problem) {
-        fail_loaded_building_type_problem(b, saved_building_type, early_type_problem);
+        quarantine_loaded_building_type_problem(b, saved_building_type, early_type_problem, for_preview);
         skip_remaining_building_record(buf, record_start, building_buf_size);
         return 1;
     }
@@ -965,15 +1045,17 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     }
 
     if (save_version > SAVE_GAME_LAST_STATIC_RESOURCES) {
-        for (int i = 0; i < resource_total_mapped(); i++) {
+        int resource_slots = flat_resource_slots_left_in_record(buf, record_start, building_buf_size);
+        for (int i = 0; i < resource_slots; i++) {
             b->resources[resource_remap(i)] = buffer_read_i16(buf);
         }
-        for (int i = 0; i < resource_total_mapped(); i++) {
+        for (int i = 0; i < resource_slots; i++) {
             b->accepted_goods[resource_remap(i)] = buffer_read_u8(buf);
         }
     }
 
-    if (building_buf_size >= BUILDING_STATE_LATRINES) {
+    if (building_buf_size >= BUILDING_STATE_LATRINES &&
+        remaining_building_record_bytes(buf, record_start, building_buf_size) > 0) {
         b->has_latrines_access = buffer_read_u8(buf);
     }
 
@@ -1046,18 +1128,16 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     // The following code should only be executed if the savegame includes building information that is not
     // supported on this specific version of Augustus. The extra bytes in the buffer must be skipped in order
     // to prevent reading bogus data for the next building
-    if (building_buf_size > BUILDING_STATE_CURRENT_BUFFER_SIZE) {
-        buffer_skip(buf, building_buf_size - BUILDING_STATE_CURRENT_BUFFER_SIZE);
-    }
+    skip_remaining_building_record(buf, record_start, building_buf_size);
 
     const char *type_problem = loaded_building_type_problem(b, saved_building_type, missing_building_type);
     if (type_problem) {
-        fail_loaded_building_type_problem(b, saved_building_type, type_problem);
+        quarantine_loaded_building_type_problem(b, saved_building_type, type_problem, for_preview);
+        return 1;
     }
-    if (!type_problem) {
-        // Do this after the whole record is read: conditional native graphics may
-        // inspect fields loaded after the variant byte itself.
-        Building(b).assign_graphic_variant(save_version <= SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS);
-    }
-    return type_problem ? 1 : 0;
+
+    // Do this after the whole record is read: conditional native graphics may
+    // inspect fields loaded after the variant byte itself.
+    Building(b).assign_graphic_variant(save_version <= SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS);
+    return 0;
 }

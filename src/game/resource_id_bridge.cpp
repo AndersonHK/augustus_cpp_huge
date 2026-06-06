@@ -487,6 +487,22 @@ extern "C" resource_type resource_remap(int id)
     return runtime_from_save_id(static_cast<uint16_t>(id));
 }
 
+extern "C" uint16_t resource_id_bridge_save_id_from_runtime(resource_type runtime_id)
+{
+    ensure_save_table();
+    if (runtime_id == RESOURCE_NONE) {
+        return 0;
+    }
+    for (size_t save_id = 0; save_id < g_bridge.save_to_runtime.size(); ++save_id) {
+        if (g_bridge.save_id_has_mapping[save_id] && g_bridge.save_to_runtime[save_id] == runtime_id) {
+            return static_cast<uint16_t>(save_id);
+        }
+    }
+
+    log_error("Resource runtime id has no save mapping", resource_text_id(runtime_id), runtime_id);
+    return 0;
+}
+
 extern "C" int resource_total_mapped(void)
 {
     ensure_save_table();

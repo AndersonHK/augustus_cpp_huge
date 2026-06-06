@@ -27,6 +27,7 @@ void resource_set_mapping(resource_version_t version);
 resource_version_t resource_mapping_get_version(void);
 resource_type resource_map_legacy_inventory(int id);
 resource_type resource_remap(int id);
+uint16_t resource_id_bridge_save_id_from_runtime(resource_type runtime_id);
 int resource_total_mapped(void);
 int resource_total_food_mapped(void);
 

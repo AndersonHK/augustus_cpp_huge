@@ -277,6 +277,10 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version);
 
+void building_resource_state_save(buffer *buf);
+
+void building_resource_state_load(buffer *buf);
+
 #ifdef __cplusplus
 }
 #endif

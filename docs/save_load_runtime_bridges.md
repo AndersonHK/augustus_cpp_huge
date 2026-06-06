@@ -28,11 +28,12 @@ The important live-save order is:
 6. `building_type_id_bridge_save_table_load_state()`.
 7. `water_access_type_id_bridge_save_table_load_state()`.
 8. `building_load_state()`.
-9. View/time/random and legacy model data.
-10. XML model overrides through `building_type_registry_apply_model_overrides()`.
-11. Resource and production-rate data.
-12. Road service history and local workforce allocations.
-13. Empire, messages, building lists, building storage, deliveries, visited-building data, and old-version migrations.
+9. `building_resource_state_load()` for keyed resource state in current saves.
+10. View/time/random and legacy model data.
+11. XML model overrides through `building_type_registry_apply_model_overrides()`.
+12. Resource and production-rate data.
+13. Road service history and local workforce allocations.
+14. Empire, messages, building lists, building storage, deliveries, visited-building data, and old-version migrations.
 
 This order matters. Resource-bearing scenario requests, figures, city arrays, building records, trade routes, prices, and empire objects use save-local resource ids, so the Resource bridge must load before those payloads are decoded. Building records store save-local building type ids, so the BuildingType bridge must load before `building_state_load_from_buffer()` reads any building. Runtime wrappers load later because they need the restored legacy arrays, linked lists, and registry definitions to be stable.
 
@@ -54,6 +55,7 @@ Recent runtime-bridge gates:
 | `SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS = 0xb6` | Saved `building.variant` as native graphics option selector | Native graphics buildings reseed stable variants from `map_random_get(grid_offset)` during load, then clamp by the active option count. |
 | `SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE = 0xb7` | Water access type save table | Bridge synthesizes the shared legacy water access text ids and resolves them through the active mod's XML numeric ids. |
 | `SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE = 0xb8` | Resource save table | Bridge synthesizes the legacy raw resource-id maps and resolves them through active `Resources` XML text ids. |
+| `SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE = 0xb8` | Keyed city/building resource state | Current saves use table-backed resource save ids in dynamic city/building resource payloads; old flat arrays remain load-only compatibility. |
 
 Other broad gates still shape the bridge path:
 
@@ -75,9 +77,11 @@ There are three identities in play:
 | Runtime id | Current process | `resource_type` slot from the active Resource XML `slot` attribute. |
 | Save id | One save file | Numeric id used inside saved resource arrays and resource-bearing records. |
 
-New saves write a dynamic table with format version `1`, entry count, and each save id/text id pair. Save id `0` remains `none`. For current XML-backed resources, the save id is the XML numeric `slot`, so existing resource arrays keep their slot-shaped layout while identity is resolved by text.
+New saves write a dynamic table with format version `1`, entry count, and each save id/text id pair. Save id `0` remains `none`. Runtime code still uses the active numeric `resource_type`; save payloads use the save-local numeric id, and the table is the only place where that numeric id is tied back to the stable XML text id.
 
 On load, `resource_id_bridge_save_table_load_state()` resolves saved text ids against the active Resource XML before scenario requests, figures, city data, buildings, trade routes, prices, empire objects, or other resource-bearing payloads are decoded. If the save lacks the table, the bridge synthesizes the old raw-id maps for `RESOURCE_ORIGINAL_VERSION` through `RESOURCE_HAS_NEW_MONUMENT_ELEMENTS` and then resolves those legacy ids through the same XML text ids.
+
+For saves after `SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE`, city resource arrays and per-building resource state are dynamic keyed payloads. Each keyed entry stores a resource save id and the associated value; it does not embed resource strings inline and does not trust the active runtime slot as stable disk identity. For saves at or before that gate, old flat resource arrays are decoded through the bridge and copied into current runtime slots.
 
 The legacy raw resource id tables belong only to this bridge. Runtime resource facts such as special status, food/storable/inventory flags, trade defaults, XML attribute names, and graphics are read from Resource XML.
 
@@ -162,16 +166,17 @@ The current building record still persists compatibility mirror bytes such as `h
 
 ## Building Records
 
-`building_load_state()` in `src/building/building.c` owns the legacy `array(building)` allocation.
+`building_load_state()` in `src/building/building.cpp` owns the legacy `array(building)` allocation.
 
 1. It reads the per-building buffer size for saves after `SAVE_GAME_LAST_STATIC_VERSION`.
 2. It computes the number of building records from the buffer size.
 3. It calls `array_init(data.buildings, BUILDING_ARRAY_SIZE_STEP, initialize_new_building, building_in_use)` and `array_expand(data.buildings, buildings_to_load)`.
 4. It clears `data.first_of_type` and `data.last_of_type`.
 5. Each record is read through `building_state_load_from_buffer()`.
-6. Missing BuildingType instances cause `map_building_tiles_remove(b->id, b->x, b->y)`.
+6. A live building that cannot resolve to a BuildingType is quarantined by the save bridge: the mismatch is logged, figures that point at the unsupported building are removed, map tile ownership is cleared, and the record becomes `BUILDING_STATE_UNUSED` / `BUILDING_NONE`.
 7. Non-unused buildings are inserted back into per-type linked lists through `fill_adjacent_types()`.
-8. The array is trimmed to the highest id still in use.
+8. Current saves then load `building_resource_state`, which replaces compatibility flat resource mirrors with table-backed resource values.
+9. The array is trimmed to the highest id still in use.
 
 `building_state_load_from_buffer()` in `src/building/state.cpp` is where save-local type identity becomes legacy runtime state:
 
@@ -179,8 +184,8 @@ The current building record still persists compatibility mirror bytes such as `h
 - `building_type_id_bridge_save_id_is_missing(saved_building_type)` checks whether the save id refers to a missing XML-owned type.
 - `building_type_id_bridge_runtime_from_save_id(saved_building_type)` writes the current runtime `building_type` into `b->type`.
 - Native BuildingType graphics normalize saved `building.variant` after the record is read; old saves through `0xb6` seed it from map randomness, while newer saves preserve it modulo the current option count.
-- If a live record resolves to no runtime type, the loader logs the mismatch.
-- If the type is missing, the record is later converted to `BUILDING_STATE_UNUSED`, `BUILDING_NONE`, and its figure ids are cleared.
+- If a live record resolves to no runtime type, the loader reports the save/load mismatch with the saved id, runtime id, text ids, position, state, and link fields, then removes that record as unsupported content. This is required for cross-mod compatibility, such as loading an Augustus save in Julius where Augustus-only building ids have no active definition.
+- After load, the runtime invariant is still strict: any live `Building` object asked for `Building::type()` must already have a valid BuildingType definition. The bridge quarantine exists so unsupported saved content never reaches that runtime path as a glitched live record.
 
 After identity is resolved, the loader fills legacy struct fields exactly in save order:
 
@@ -380,11 +385,12 @@ On save, `savegame_save_to_state()` writes the runtime bridge data before the re
 
 1. File/resource/scenario versions.
 2. Scenario settings and mod metadata.
-3. `resource_id_bridge_prepare_new_save_table()` and `resource_id_bridge_save_table_save_state()`.
+3. `resource_id_bridge_save_table_save_state()`.
 4. `building_type_id_bridge_prepare_new_save_table()` and `building_type_id_bridge_save_table_save_state()`.
 5. `water_access_type_id_bridge_prepare_new_save_table()` and `water_access_type_id_bridge_save_table_save_state()`.
 6. Map, figure, route, formation, city, and building records.
-7. Legacy model data.
-8. Scenario, message, empire, list, storage, route, delivery, visited-building, production-rate, road-history, and workforce payloads.
+7. `building_resource_state_save()` for table-backed per-building resource values.
+8. Legacy model data.
+9. Scenario, message, empire, list, storage, route, delivery, visited-building, production-rate, road-history, and workforce payloads.
 
-Building records write `building_type_id_bridge_save_id_from_runtime(b->type)` instead of raw runtime enum ids. Type-data rubble/original-type fields use the same bridge. The resource type table is written before resource-bearing records so saved resource ids resolve through XML text ids instead of current runtime slots. The water access type table is written immediately after the BuildingType table so future persisted water-type references can resolve through text ids before current XML numeric ids are used. This is what lets the save survive dynamic BuildingType ids, XML-owned resource definitions, XML-owned water access type ids, and old enum migrations without treating the current process enum as stable disk data.
+Building records write `building_type_id_bridge_save_id_from_runtime(b->type)` instead of raw runtime enum ids. Type-data rubble/original-type fields use the same bridge. The resource type table is written before resource-bearing records so saved resource ids resolve through XML text ids instead of current runtime slots. Current city and building resource values are saved as resource save ids plus amounts/states, while old flat arrays remain only as compatibility mirrors for older save versions. The water access type table is written immediately after the BuildingType table so future persisted water-type references can resolve through text ids before current XML numeric ids are used. This is what lets the save survive dynamic BuildingType ids, XML-owned resource definitions, XML-owned water access type ids, and old enum migrations without treating the current process enum as stable disk data.

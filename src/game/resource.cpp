@@ -536,6 +536,16 @@ resource_type resource_type_from_text_id(const char *text_id)
     return found == resource_text_id_lookup.end() ? RESOURCE_NONE : found->second;
 }
 
+void resource_save_write_ref(buffer *buf, resource_type resource)
+{
+    buffer_write_u16(buf, resource_id_bridge_save_id_from_runtime(resource));
+}
+
+resource_type resource_save_read_ref(buffer *buf)
+{
+    return resource_remap(buffer_read_u16(buf));
+}
+
 int resource_matches_text_id(resource_type resource, const char *text_id)
 {
     const char *resource_id = resource_text_id(resource);

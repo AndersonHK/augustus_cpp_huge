@@ -3,7 +3,6 @@
 #include "building/animations.h"
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
-#include "building/distribution.h"
 #include "building/dock.h"
 #include "building/building_type_registry_internal.h"
 #include "building/production_runtime.h"
@@ -14,6 +13,7 @@
 #include <exception>
 #include <initializer_list>
 #include <source_location>
+#include <vector>
 
 extern "C" {
 #include "building/clone.h"
@@ -1940,6 +1940,240 @@ void building_make_immune_cheat(void)
     array_foreach(data.buildings, b)
     {
         b->fire_proof = 1;
+    }
+}
+
+static int building_resource_save_value(resource_type resource, int value)
+{
+    if (!value || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return 0;
+    }
+    return resource == RESOURCE_NONE || resource_is_declared(resource);
+}
+
+static int building_resource_i16_count(const short *values)
+{
+    int count = building_resource_save_value(RESOURCE_NONE, values[RESOURCE_NONE]);
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource_type resource = resource_get_loaded(i);
+        if (resource != RESOURCE_NONE && building_resource_save_value(resource, values[resource])) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static int building_resource_u8_count(const unsigned char *values)
+{
+    int count = building_resource_save_value(RESOURCE_NONE, values[RESOURCE_NONE]);
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource_type resource = resource_get_loaded(i);
+        if (resource != RESOURCE_NONE && building_resource_save_value(resource, values[resource])) {
+            count++;
+        }
+    }
+    return count;
+}
+
+static void building_write_resource_i16_values(buffer *buf, const short *values)
+{
+    buffer_write_u32(buf, building_resource_i16_count(values));
+    if (building_resource_save_value(RESOURCE_NONE, values[RESOURCE_NONE])) {
+        resource_save_write_ref(buf, RESOURCE_NONE);
+        buffer_write_i16(buf, values[RESOURCE_NONE]);
+    }
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource_type resource = resource_get_loaded(i);
+        if (resource != RESOURCE_NONE && building_resource_save_value(resource, values[resource])) {
+            resource_save_write_ref(buf, resource);
+            buffer_write_i16(buf, values[resource]);
+        }
+    }
+}
+
+static void building_write_resource_u8_values(buffer *buf, const unsigned char *values)
+{
+    buffer_write_u32(buf, building_resource_u8_count(values));
+    if (building_resource_save_value(RESOURCE_NONE, values[RESOURCE_NONE])) {
+        resource_save_write_ref(buf, RESOURCE_NONE);
+        buffer_write_u8(buf, values[RESOURCE_NONE]);
+    }
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource_type resource = resource_get_loaded(i);
+        if (resource != RESOURCE_NONE && building_resource_save_value(resource, values[resource])) {
+            resource_save_write_ref(buf, resource);
+            buffer_write_u8(buf, values[resource]);
+        }
+    }
+}
+
+static int building_uses_fetch_inventory(const building *b)
+{
+    if (!b) {
+        return 0;
+    }
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(b->type);
+    return definition && (definition->has_distribution() || definition->is_caravanserai());
+}
+
+static void building_resource_state_write_payload(buffer *buf)
+{
+    int live_count = 0;
+    building *b;
+    array_foreach(data.buildings, b)
+    {
+        if (b->state != BUILDING_STATE_UNUSED) {
+            live_count++;
+        }
+    }
+
+    buffer_write_u32(buf, 1);
+    buffer_write_u32(buf, live_count);
+    array_foreach(data.buildings, b)
+    {
+        if (b->state == BUILDING_STATE_UNUSED) {
+            continue;
+        }
+
+        buffer_write_u32(buf, b->id);
+        resource_save_write_ref(buf, static_cast<resource_type>(b->output_resource_id));
+        resource_save_write_ref(buf,
+            building_matches(b, "warehouse_space") ?
+                static_cast<resource_type>(b->subtype.warehouse_resource_id) :
+                RESOURCE_NONE);
+        resource_save_write_ref(buf,
+            building_uses_fetch_inventory(b) ?
+                static_cast<resource_type>(b->data.market.fetch_inventory_id) :
+                RESOURCE_NONE);
+        resource_save_write_ref(buf,
+            building_matches(b, "depot") ?
+                static_cast<resource_type>(b->data.depot.current_order.resource_type) :
+                RESOURCE_NONE);
+        building_write_resource_i16_values(buf, b->resources);
+        building_write_resource_u8_values(buf, b->accepted_goods);
+    }
+}
+
+static int building_resource_state_read_count(buffer *buf, const char *field_name)
+{
+    uint32_t count = buffer_read_u32(buf);
+    if (count > 4096) {
+        log_error("Malformed keyed building resource count in save", field_name, static_cast<int>(count));
+        return 0;
+    }
+    return static_cast<int>(count);
+}
+
+static void building_resource_state_load_i16_values(buffer *buf, building *b)
+{
+    int count = building_resource_state_read_count(buf, "resources");
+    for (int i = 0; i < count; i++) {
+        resource_type resource = resource_save_read_ref(buf);
+        int value = buffer_read_i16(buf);
+        if (b && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
+            b->resources[resource] = static_cast<short>(value);
+        }
+    }
+}
+
+static void building_resource_state_load_u8_values(buffer *buf, building *b)
+{
+    int count = building_resource_state_read_count(buf, "accepted_goods");
+    for (int i = 0; i < count; i++) {
+        resource_type resource = resource_save_read_ref(buf);
+        int value = buffer_read_u8(buf);
+        if (b && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
+            b->accepted_goods[resource] = static_cast<unsigned char>(value);
+        }
+    }
+}
+
+void building_resource_state_save(buffer *buf)
+{
+    if (!buf) {
+        return;
+    }
+
+    size_t capacity = 65536;
+    std::vector<uint8_t> data;
+    buffer scratch;
+    for (;;) {
+        data.assign(capacity, 0);
+        buffer_init(&scratch, data.data(), data.size());
+        building_resource_state_write_payload(&scratch);
+        if (!scratch.overflow) {
+            break;
+        }
+        capacity *= 2;
+        if (capacity > 4 * 1024 * 1024) {
+            log_error("Unable to save building resource state: payload is too large", 0, static_cast<int>(capacity));
+            break;
+        }
+    }
+
+    buffer_init_dynamic(buf, scratch.index);
+    buffer_write_raw(buf, data.data(), scratch.index);
+}
+
+void building_resource_state_load(buffer *buf)
+{
+    if (!buf || !buf->size) {
+        return;
+    }
+
+    buffer payload = *buf;
+    if (buffer_load_dynamic(&payload) < 2 * sizeof(uint32_t)) {
+        log_error("Unable to load building resource state: payload is invalid", 0, 0);
+        return;
+    }
+
+    uint32_t format_version = buffer_read_u32(&payload);
+    if (format_version != 1) {
+        log_error("Unable to load building resource state: unsupported format version", 0,
+            static_cast<int>(format_version));
+        return;
+    }
+
+    int building_entries = building_resource_state_read_count(&payload, "buildings");
+    for (int i = 0; i < building_entries; i++) {
+        uint32_t id = buffer_read_u32(&payload);
+        building *b = id < static_cast<uint32_t>(data.buildings.size) ? building_get(id) : nullptr;
+        if (b && b->state == BUILDING_STATE_UNUSED) {
+            b = nullptr;
+        }
+
+        resource_type output = resource_save_read_ref(&payload);
+        resource_type warehouse_resource = resource_save_read_ref(&payload);
+        resource_type fetch_inventory = resource_save_read_ref(&payload);
+        resource_type depot_order_resource = resource_save_read_ref(&payload);
+
+        if (b) {
+            b->output_resource_id = static_cast<unsigned char>(
+                output >= RESOURCE_NONE && output < RESOURCE_SLOT_COUNT ? output : RESOURCE_NONE);
+            if (building_matches(b, "warehouse_space")) {
+                b->subtype.warehouse_resource_id =
+                    warehouse_resource >= RESOURCE_NONE && warehouse_resource < RESOURCE_SLOT_COUNT ?
+                        static_cast<short>(warehouse_resource) :
+                        RESOURCE_NONE;
+            }
+            if (building_uses_fetch_inventory(b)) {
+                b->data.market.fetch_inventory_id =
+                    fetch_inventory >= RESOURCE_NONE && fetch_inventory < RESOURCE_SLOT_COUNT ?
+                        static_cast<unsigned char>(fetch_inventory) :
+                        RESOURCE_NONE;
+            }
+            if (building_matches(b, "depot")) {
+                b->data.depot.current_order.resource_type =
+                    depot_order_resource >= RESOURCE_NONE && depot_order_resource < RESOURCE_SLOT_COUNT ?
+                        static_cast<resource_type>(depot_order_resource) :
+                        RESOURCE_NONE;
+            }
+            memset(b->resources, 0, sizeof(b->resources));
+            memset(b->accepted_goods, 0, sizeof(b->accepted_goods));
+        }
+
+        building_resource_state_load_i16_values(&payload, b);
+        building_resource_state_load_u8_values(&payload, b);
     }
 }
 

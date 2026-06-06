@@ -79,6 +79,9 @@ int resource_production_count(void);
 
 int resource_units_per_load(void);
 
+void resource_save_write_ref(buffer *buf, resource_type resource);
+resource_type resource_save_read_ref(buffer *buf);
+
 resource_type resource_wheat(void);
 resource_type resource_vegetables(void);
 resource_type resource_fruit(void);

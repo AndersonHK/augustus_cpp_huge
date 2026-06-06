@@ -171,6 +171,7 @@ typedef struct {
     buffer *building_type_table;
     buffer *water_access_type_table;
     buffer *buildings;
+    buffer *building_resource_state;
     buffer *city_view_orientation;
     buffer *game_time;
     buffer *building_extra_highest_id_ever;
@@ -318,6 +319,7 @@ typedef struct {
         int mod_metadata;
         int building_type_table;
         int water_access_type_table;
+        int keyed_resource_state;
         int road_service_history;
         int local_workforce_allocations;
     } features;
@@ -556,7 +558,9 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     version_data->piece_sizes.enemy_armies = version > SAVE_GAME_LAST_ENEMY_ARMIES_BUFFER_BUG ? (MAX_ENEMY_ARMIES * sizeof(int) * 9) : 900;
     version_data->piece_sizes.graph_order = version > SAVE_GAME_LAST_UNKNOWN_UNUSED_CITY_DATA ? 4 : 8;
     // Due to an oversight, we only reduced the city_data buffer size when we added dynamic resources
-    if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
+    if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
+        version_data->piece_sizes.city_data = PIECE_SIZE_DYNAMIC;
+    } else if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
         version_data->piece_sizes.city_data = 36136;
     } else {
         version_data->piece_sizes.city_data = 11885;
@@ -643,6 +647,7 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     version_data->features.mod_metadata = version > SAVE_GAME_LAST_NO_MOD_METADATA;
     version_data->features.building_type_table = version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE;
     version_data->features.water_access_type_table = version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE;
+    version_data->features.keyed_resource_state = version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE;
     version_data->features.road_service_history = version > SAVE_GAME_LAST_NO_ROAD_SERVICE_HISTORY;
     version_data->features.local_workforce_allocations = version > SAVE_GAME_LAST_NO_LOCAL_WORKFORCE;
 }
@@ -707,6 +712,9 @@ static void init_savegame_data(savegame_version_t version)
         state->water_access_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
     }
     state->buildings = create_savegame_piece(version_data.piece_sizes.buildings, 1);
+    if (version_data.features.keyed_resource_state) {
+        state->building_resource_state = create_savegame_piece(PIECE_SIZE_DYNAMIC, 1);
+    }
     state->city_view_orientation = create_savegame_piece(4, 0);
     state->game_time = create_savegame_piece(20, 0);
     state->building_extra_highest_id_ever = create_savegame_piece(8, 0);
@@ -1038,6 +1046,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         state->water_access_type_table,
         version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE);
     building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
+    if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
+        building_resource_state_load(state->building_resource_state);
+    }
     city_view_load_state(state->city_view_orientation, state->city_view_camera);
     game_time_load_state(state->game_time);
     random_load_state(state->random_iv);
@@ -1183,6 +1194,7 @@ static void savegame_save_to_state(savegame_state *state)
         state->building_extra_highest_id_ever,
         state->building_extra_sequence,
         state->building_extra_corrupt_houses);
+    building_resource_state_save(state->building_resource_state);
     city_view_save_state(state->city_view_orientation, state->city_view_camera);
     game_time_save_state(state->game_time);
     random_save_state(state->random_iv);
