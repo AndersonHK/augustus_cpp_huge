@@ -10,6 +10,7 @@ extern "C" {
 #include "core/time.h"
 #include "figure/formation.h"
 #include "game/resource.h"
+#include "game/resource_id_bridge.h"
 #include "game/settings.h"
 #include "game/time.h"
 #include "graphics/window.h"
@@ -287,7 +288,7 @@ void city_message_post(int use_popup, int message_type, int param1, int param2)
     // Since custom messages are scenario specific, don't show them as simple alerts at the top
     // Also, beware: should we change this behavior, the below code will crash
     if (message_type != MESSAGE_CUSTOM_MESSAGE && config_get(CONFIG_UI_MESSAGE_ALERTS)) {
-        city_warning_show_custom(alert_title_for_message(typed_message_type, lang_msg), NEW_WARNING_SLOT);
+        city_warning_show(WARNING_MESSAGE_ALERT, alert_title_for_message(typed_message_type, lang_msg));
         use_popup = 0;
     }
     if (is_invasion_message(typed_message_type) && setting_game_speed() > 70) {

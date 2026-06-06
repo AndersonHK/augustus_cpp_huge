@@ -28,8 +28,8 @@ extern "C" {
 #define DETAILS_ROW_HEIGHT 32
 #define MAX_VISIBLE_ROWS 14
 
-#define RESOURCE_ALL_BUYS RESOURCE_MAX + 1 // max +1 indicates all resources that this trade route buys
-#define RESOURCE_ALL_SELLS RESOURCE_MAX + 2 // max +2 indicates all resources that this trade route sells
+#define RESOURCE_ALL_BUYS RESOURCE_SLOT_COUNT + 1 // max +1 indicates all resources that this trade route buys
+#define RESOURCE_ALL_SELLS RESOURCE_SLOT_COUNT + 2 // max +2 indicates all resources that this trade route sells
 
 typedef enum {
     WINDOW_TYPE_TRADE_ROUTES,
@@ -80,10 +80,10 @@ static struct {
 } data;
 
 static struct {
-    city_resource_state resource[RESOURCE_MAX];
+    city_resource_state resource[RESOURCE_SLOT_COUNT];
     int trade_route_id;
     list_item_entry_t list[MAX_VISIBLE_ROWS];
-    resource_type traded_resources[RESOURCE_MAX]; // Maps list index to actual resource_type
+    resource_type traded_resources[RESOURCE_SLOT_COUNT]; // Maps list index to actual resource_type
     unsigned int resource_list_size;
     void (*callback)(int);
     unsigned int focus_button_id;
@@ -178,7 +178,7 @@ static void create_resource_list_for_route(int route_id)
     route_resource_data.resource_list_size = 2;
 
     // Build a sequential list of traded resources (starting after the 'All' entries)
-    for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         resource_type resource = static_cast<resource_type>(r);
         if (!resource_is_storable(resource)) {
             continue;

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="draggable_reservoir">
+    <identity name_key="building.draggable_reservoir.name" />
+    <button group="water" order="5" text_key="building.draggable_reservoir.name" />
+    <sound id="reservoir" />
+    <event_data attr="draggable_reservoir" />
+</building>

@@ -1,3 +1,5 @@
+#include "building/building_record.h"
+#include "building/building.h"
 #include "building/production_method.h"
 
 #include "building/building_type_registry_internal.h"
@@ -19,9 +21,9 @@ namespace building_type_registry_impl {
 
 namespace {
 
-int building_type_requires_water_access(const ::building &building)
+int building_type_requires_water_access(const Building &building)
 {
-    const BuildingType *definition = definition_for_type(building.type);
+    const BuildingType *definition = building.type_definition();
     return definition && definition->water_access().has_requirements();
 }
 
@@ -55,6 +57,32 @@ void ProductionMethod::set_output_resource(resource_type resource)
 resource_type ProductionMethod::output_resource() const
 {
     return output_resource_;
+}
+
+void ProductionMethod::set_base_monthly_production(int production)
+{
+    base_monthly_production_ = production;
+    default_base_monthly_production_ = production;
+}
+
+void ProductionMethod::override_base_monthly_production(int production)
+{
+    base_monthly_production_ = production < 0 ? 0 : production;
+}
+
+void ProductionMethod::reset_base_monthly_production_override()
+{
+    base_monthly_production_ = default_base_monthly_production_;
+}
+
+int ProductionMethod::base_monthly_production() const
+{
+    return base_monthly_production_;
+}
+
+int ProductionMethod::default_base_monthly_production() const
+{
+    return default_base_monthly_production_;
 }
 
 void ProductionMethod::set_batch_size(int batch_size)
@@ -136,16 +164,16 @@ int ProductionMethod::uses_blessing_multiplier() const
 
 int ProductionMethod::effective_monthly_production() const
 {
-    if (output_resource_ == RESOURCE_NONE) {
+    if (output_resource_ == RESOURCE_NONE || base_monthly_production_ <= 0) {
         return 0;
     }
 
-    int monthly_production = resource_base_production_per_month(output_resource_);
+    int monthly_production = base_monthly_production_;
     monthly_production += (monthly_production * climate_bonus_percent(scenario_property_climate())) / 100;
     return monthly_production;
 }
 
-int ProductionMethod::max_progress_for(const ::building &building) const
+int ProductionMethod::max_progress_for(const Building &building) const
 {
     if (output_resource_ == RESOURCE_NONE) {
         return 0;
@@ -157,18 +185,18 @@ int ProductionMethod::max_progress_for(const ::building &building) const
     }
 
     const int base_max_progress =
-        calc_percentage(GAME_TIME_DAYS_PER_MONTH * 2 * model_get_building(building.type)->laborers, monthly_production);
+        calc_percentage(
+            GAME_TIME_DAYS_PER_MONTH * 2 * model_get_building(building.type_id())->laborers, monthly_production);
     return base_max_progress * batch_size_;
 }
 
-int ProductionMethod::has_required_inputs(const ::building &building) const
+int ProductionMethod::has_required_inputs(const Building &building) const
 {
     for (const ProductionResourceAmount &input : inputs_) {
-        if (input.resource <= RESOURCE_NONE || input.resource >= RESOURCE_MAX) {
+        if (input.resource <= RESOURCE_NONE || input.resource >= RESOURCE_SLOT_COUNT) {
             return 0;
         }
-        const int resource_index = static_cast<int>(input.resource);
-        if (building.resources[resource_index] < scaled_input_amount(input)) {
+        if (building.resource_amount(input.resource) < scaled_input_amount(input)) {
             return 0;
         }
     }
@@ -180,37 +208,45 @@ int ProductionMethod::scaled_input_amount(const ProductionResourceAmount &input)
     return input.amount * batch_size_;
 }
 
-int ProductionMethod::labor_access_for(const ::building &building) const
+int ProductionMethod::labor_access_for(const Building &building) const
 {
-    // Native production follows the building's declared labor model instead of legacy coverage unconditionally.
-    if (building_local_workforce_is_workforce_building(&building)) {
-        return building_local_workforce_access_score(&building);
+    const ::building *record = building.legacy_record();
+    if (!record) {
+        return 0;
     }
-    return building.houses_covered > 0 ? building.houses_covered : 0;
+    // Native production follows the building's declared labor model instead of legacy coverage unconditionally.
+    if (building_local_workforce_is_workforce_building(record)) {
+        return building_local_workforce_access_score(record);
+    }
+    return record->houses_covered > 0 ? record->houses_covered : 0;
 }
 
-int ProductionMethod::can_start_cycle(const ::building &building) const
+int ProductionMethod::can_start_cycle(const Building &building) const
 {
+    const ::building *record = building.legacy_record();
+    if (!record) {
+        return 0;
+    }
     // This is the shared production eligibility contract; live Production only mutates progress once it passes.
-    if (labor_access_for(building) <= 0 || building.num_workers <= 0 || building.strike_duration_days > 0) {
+    if (labor_access_for(building) <= 0 || !building.has_workers() || record->strike_duration_days > 0) {
         return 0;
     }
     if (max_progress_for(building) <= 0) {
         return 0;
     }
-    if (building_type_requires_water_access(building) && !building.has_water_access) {
+    if (building_type_requires_water_access(building) && !building.has_water_access()) {
         return 0;
     }
-    if (treasury_cost_per_cycle_ > 0 && building.data.industry.progress == 0 && city_finance_out_of_money()) {
+    if (treasury_cost_per_cycle_ > 0 && record->data.industry.progress == 0 && city_finance_out_of_money()) {
         return 0;
     }
     if (!has_required_inputs(building)) {
         return 0;
     }
     const int output_resource = static_cast<int>(output_resource_);
-    if (!resource_is_storable(output_resource_) && building.data.industry.progress == 0 &&
-        !building_has_workshop_for_raw_material_with_room(output_resource, building.road_network_id) &&
-        !building_monument_get_monument(building.x, building.y, output_resource, building.road_network_id, 0)) {
+    if (!resource_is_storable(output_resource_) && record->data.industry.progress == 0 &&
+        !building_has_workshop_for_raw_material_with_room(output_resource, building.road_network_id()) &&
+        !building_monument_get_monument(building.x(), building.y(), output_resource, building.road_network_id(), 0)) {
         return 0;
     }
     return 1;

@@ -1,7 +1,10 @@
 #include "crime.h"
 
-extern "C" {
 #include "building/building.h"
+
+extern "C" {
+#include "building/building_record.h"
+#include "building/building_type_api.h"
 #include "building/destruction.h"
 #include "building/granary.h"
 #include "building/distribution.h"
@@ -45,17 +48,40 @@ typedef struct {
     resource_type resource;
 } looter_destination;
 
+static building_type runtime_type(const char *text_id)
+{
+    if (!text_id) {
+        return BUILDING_NONE;
+    }
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
+static int type_matches_any(building_type type, const char * const *text_ids)
+{
+    for (int i = 0; text_ids[i]; i++) {
+        if (type_matches(type, text_ids[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int get_looter_destination(figure *f)
 {
-    resource_storage_info info[RESOURCE_MAX] = { 0 };
+    resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
 
     // Check everything
-    for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         info[r].needed = 1;
     }
 
-    looter_destination possible_destinations[RESOURCE_MAX];
-    if (!building_distribution_get_resource_storages_for_figure(info, BUILDING_NONE, 0, f, MAX_LOOTING_DISTANCE)) {
+    looter_destination possible_destinations[RESOURCE_SLOT_COUNT];
+    if (!building_type_registry_impl::find_distribution_sources_for_figure(info, BUILDING_NONE, 0, f, MAX_LOOTING_DISTANCE)) {
         return 0;
     }
 
@@ -63,7 +89,7 @@ static int get_looter_destination(figure *f)
     int building_id = 0;
     int options = 0;
 
-    for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         if (info[r].building_id > 0) {
             possible_destinations[options].building_id = info[r].building_id;
             possible_destinations[options].resource = static_cast<resource_type>(r);
@@ -91,18 +117,18 @@ static int get_looter_destination(figure *f)
 
 static void loot_storage(figure *f, resource_type resource, int building_id)
 {
-    building *storage = building_get(building_id);
+    Building storage = Building::from_id(building_id);
 
-    if (storage->type == BUILDING_GRANARY) {
+    if (storage.type().is_granary()) {
         building_granary_try_remove_resource(storage, resource, 100);
-        city_warning_show(WARNING_GRANARY_BREAKIN, NEW_WARNING_SLOT);
+        city_warning_show(WARNING_GRANARY_BREAKIN, translation_for(TR_CITY_WARNING_GRANARY_BREAKIN));
     } else {
         building_warehouse_try_remove_resource(storage, resource, 1);
-        city_warning_show(WARNING_WAREHOUSE_BREAKIN, NEW_WARNING_SLOT);
+        city_warning_show(WARNING_WAREHOUSE_BREAKIN, translation_for(TR_CITY_WARNING_WAREHOUSE_BREAKIN));
     }
 
     city_message_apply_sound_interval(MESSAGE_CAT_THEFT);
-    city_message_post_with_popup_delay(MESSAGE_CAT_THEFT, MESSAGE_LOOTING, storage->type, f->grid_offset);
+    city_message_post_with_popup_delay(MESSAGE_CAT_THEFT, MESSAGE_LOOTING, storage.type_id(), f->grid_offset);
 }
 
 static void figure_crime_steal_money(figure *f)
@@ -118,7 +144,7 @@ static void figure_crime_steal_money(figure *f)
     }
     city_message_apply_sound_interval(MESSAGE_CAT_THEFT);
     city_message_post_with_popup_delay(MESSAGE_CAT_THEFT, MESSAGE_THEFT, money_stolen, f->grid_offset);
-    city_warning_show(WARNING_THEFT, NEW_WARNING_SLOT);
+    city_warning_show(WARNING_THEFT, translation_for(TR_CITY_WARNING_THEFT));
     city_finance_process_stolen(money_stolen);
 }
 
@@ -225,11 +251,10 @@ void figure_generate_criminals(void)
         return;
     }
 
-    for (int type = BUILDING_MARBLE_QUARRY; type <= BUILDING_POTTERY_WORKSHOP; type++) {
-        for (building *b = building_first_of_type(static_cast<building_type>(type)); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE && b->strike_duration_days > 0) {
-                generate_striker(b);
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (b->state == BUILDING_STATE_IN_USE && b->strike_duration_days > 0) {
+            generate_striker(b);
         }
     }
 
@@ -237,7 +262,7 @@ void figure_generate_criminals(void)
     int min_happiness = 50;
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (!building_house_is_active(b)) {
+        if (!building_house_is_active(Building(b))) {
             continue;
         }
         if (b->sentiment.house_happiness >= 50) {
@@ -499,43 +524,45 @@ void figure_looter_action(figure *f)
 
 int figure_rioter_collapse_building(figure *f)
 {
+    static const char * const non_collapsible_types[] = {
+        "warehouse_space",
+        "warehouse",
+        "fort_archers",
+        "fort_legionaries",
+        "fort_javelin",
+        "fort_mounted",
+        "fort_auxilia_infantry",
+        "fort_ground",
+        "burning_ruin",
+        "native_crops",
+        "native_hut",
+        "native_hut_alt",
+        "native_meeting",
+        "native_decor",
+        "native_watchtower",
+        "native_monument",
+        "reservoir",
+        "fountain",
+        "market",
+        "granary",
+        "forum",
+        "senate",
+        0
+    };
+
     for (int dir = 0; dir < 8; dir += 2) {
         int grid_offset = f->grid_offset + map_grid_direction_delta(dir);
         if (!map_building_at(grid_offset)) {
             continue;
         }
         building *b = building_get(map_building_at(grid_offset));
-        if (b->type == BUILDING_WELL) {
+        if (building_type_registry_is_well(b->type)) {
             continue;
         }
-        switch (b->type) {
-            case BUILDING_WAREHOUSE_SPACE:
-            case BUILDING_WAREHOUSE:
-            case BUILDING_FORT_ARCHERS:
-            case BUILDING_FORT_LEGIONARIES:
-            case BUILDING_FORT_JAVELIN:
-            case BUILDING_FORT_MOUNTED:
-            case BUILDING_FORT_AUXILIA_INFANTRY:
-            case BUILDING_FORT_GROUND:
-            case BUILDING_BURNING_RUIN:
-            case BUILDING_NATIVE_CROPS:
-            case BUILDING_NATIVE_HUT:
-            case BUILDING_NATIVE_HUT_ALT:
-            case BUILDING_NATIVE_MEETING:
-            case BUILDING_NATIVE_DECORATION:
-            case BUILDING_NATIVE_WATCHTOWER:
-            case BUILDING_NATIVE_MONUMENT:
-            case BUILDING_RESERVOIR:
-            case BUILDING_FOUNTAIN:
-            case BUILDING_MARKET:
-            case BUILDING_GRANARY:
-            case BUILDING_FORUM:
-            case BUILDING_SENATE:
-                continue;
-            default:
-                break;
+        if (type_matches_any(b->type, non_collapsible_types)) {
+            continue;
         }
-        int house_level = building_house_legacy_level(b);
+        int house_level = building_house_legacy_level(Building(b));
         if (b->house_size && house_level >= HOUSE_MIN && house_level < HOUSE_SMALL_CASA) {
             continue;
         }
@@ -553,5 +580,3 @@ int figure_rioter_collapse_building(figure *f)
     }
     return 0;
 }
-
-

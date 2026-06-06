@@ -12,6 +12,7 @@
         <employees count="0" />
     </labor>
     <foundation policy="land" />
+    <temple religion="oracle" />
     <button group="temples" order="500" icon="Health_Culture\Oracle" icon_image="Image_0000" text_key="building.oracle.name" />
     <sound id="oracle" />
     <event_data attr="oracle" />

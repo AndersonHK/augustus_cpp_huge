@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct {
     int x;
     int y;
@@ -24,3 +28,7 @@ typedef struct {
 void map_point_store_result(int x, int y, map_point *point);
 
 void map_point_get_last_result(map_point *point);
+
+#ifdef __cplusplus
+}
+#endif

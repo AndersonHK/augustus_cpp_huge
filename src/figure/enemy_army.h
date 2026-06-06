@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define MAX_ENEMY_ARMIES 125
 
@@ -44,3 +48,7 @@ int enemy_army_is_stronger_than_legions(void);
 void enemy_armies_save_state(buffer *buf, buffer *totals_buf);
 
 void enemy_armies_load_state(buffer *buf, buffer *totals_buf);
+
+#ifdef __cplusplus
+}
+#endif

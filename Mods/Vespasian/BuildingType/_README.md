@@ -1,6 +1,8 @@
 # BuildingType XML
 
-The loader reads every `*.xml` file in this folder at startup. Keep templates/examples in non-`.xml` files so they do not get loaded as live data.
+The loader reads every `<building>` XML root in the selected mod's `BuildingType`, `BuildingTypeMenu`, and `Tiles` folders at startup.
+
+Keep templates/examples in non-`.xml` files so they do not get loaded as live data.
 
 Templates and examples are maintained only in `Mods\Vespasian\BuildingType`.
 `Mods\Augustus\BuildingType` and `Mods\Julius\BuildingType` keep live XML data only.
@@ -43,8 +45,12 @@ Current supported nodes:
 - `<desirability> ... </desirability>`
 - `<foundation ... />`
 - `<button ... />`
+- `<roadblock ... />`
+- `<tile ... />`
+- `<temple ... />`
 - `<sound ... />`
 - `<event_data ... />`
+- `<market ... />`
 - `<flags ... />`
 - `<water_access> ... </water_access>`
 - `<graphics> ... </graphics>`
@@ -133,6 +139,44 @@ Current supported `<button>` attributes:
 
 `<menu>` is accepted as a temporary alias for `<button>` only during this migration slice. Prefer `<button>` in new XML.
 
+Current supported `<roadblock>` attributes:
+
+- `kind="standard|storage|bridge"` stores the roadblock category used by roadblock routing and permissions
+
+Current supported `<tile>` attributes:
+
+- `kind="plaza"` marks a BuildingType as tile-backed plaza data
+
+Tile-backed BuildingTypes use the normal root-level `<graphics>` block. Do not add a tile-specific graphics node. For plaza, the default graphics target supplies single-tile images and a `<variant role="tile_large">` target supplies two-by-two plaza images.
+
+Current supported `<temple>` attributes:
+
+- `religion="path"` references a definition under the selected mod's `Religions` folder
+
+Temple rules:
+
+- `<temple ... />` marks the BuildingType as the temple child type
+- god identity, temple tier, and religion capacity belong to the referenced Religion module, not to BuildingType names
+- Religion modules reference God definitions from the selected mod's `Gods` folder
+- Pantheon is represented by a Religion module that references all five God definitions and uses `tier="pantheon"`
+- religion and temple behavior must read this tag-backed module data, not infer temple status from BuildingType text ids or file names
+
+Current supported `Gods` XML:
+
+```xml
+<god legacy="ceres|neptune|mercury|mars|venus" />
+```
+
+Current supported `Religions` XML:
+
+```xml
+<religion>
+    <god path="ceres" />
+    <tier value="shrine|small|large|grand|pantheon" />
+    <capacity amount="N" />
+</religion>
+```
+
 Current supported `<sound>` attributes:
 
 - `id="..."`, `value="..."`, or `city="..."` selects the city ambient sound key
@@ -144,6 +188,11 @@ Raw-material producer sound ids currently include `clay_pit`, `iron_mine`, `timb
 Current supported `<event_data>` attributes:
 
 - `attr="..."` stores the scenario-event/query building attribute key
+
+Current supported `<market>` attributes:
+
+- `max_distance="N"` stores the market supplier search and placement-preview range
+- `max_food_stock="N"` stores the fallback food stock threshold used after wanted goods are already stocked
 
 Current supported `<flags>` attributes:
 
@@ -218,6 +267,7 @@ Current supported `<graphics>` child nodes:
 
 - `<default> ... </default>`
 - `<variant> ... </variant>`
+- `<variant role="tile_large"> ... </variant>`
 - `<options selection="stable_variant"> ... </options>`
 - `<option image="..." />`
 - `<option path="..." image="..." />`
@@ -257,6 +307,7 @@ Structured `<graphics>` rules:
 
 - `<default>` is required
 - `<variant>` entries are checked in XML order
+- `<variant role="tile_large">` is reserved for tile-backed large-plaza graphics and is not considered by normal building rendering
 - all `<condition>` nodes inside one `<variant>` must match
 - the first matching variant wins
 - the `<default>` target is used when no variant matches

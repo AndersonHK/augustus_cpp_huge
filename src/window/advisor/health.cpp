@@ -4,12 +4,14 @@
 extern "C" {
 #include "health.h"
 
+#include "building/building_type_api.h"
 #include "building/count.h"
 #include "city/culture.h"
 #include "city/health.h"
 #include "city/houses.h"
 #include "city/population.h"
 #include "core/calc.h"
+#include "core/lang.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/lang_text.h"
@@ -22,6 +24,11 @@ extern "C" {
 
 static unsigned int focus_button_id;
 static int display_water_coverage = 0;
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
 
 static void button_water_buildings(const generic_button *button);
 static void draw_coverage_toggle_widgets(void);
@@ -48,29 +55,22 @@ static int get_health_advice(void)
     }
 }
 
-static void print_water_building_info(int y_offset, building_type type, int population_served)
+static void draw_counted_building_name(building_type type, int count, int x, int y)
 {
-    // total amount & building name
-    int total_count = building_count_total(type);
-    int group = 28;
-    int index = type;
-    if (total_count != 1) {
-        group = CUSTOM_TRANSLATION;
-        if (type == BUILDING_LATRINES) {
-            index = TR_BUILDING_LATRINE;
-        } else if (type == BUILDING_FOUNTAIN) {
-            index = TR_BUILDING_FOUNTAINS;
-        } else if (type == BUILDING_WELL) {
-            index = TR_BUILDING_WELLS;
-        }
-    }
+    int desc_offset_x = text_draw_number(count, ' ', " ", x, y, FONT_NORMAL_WHITE,
+        screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    text_draw(lang_get_building_type_string(type), x + desc_offset_x, y, FONT_NORMAL_WHITE,
+        screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+}
 
-    int desc_offset_x = text_draw_number(total_count, ' ', " ", 40, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-    lang_text_draw(group, index, 40 + desc_offset_x, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+static void print_water_building_info(int y_offset, building_type type, int active_count, int population_served)
+{
+    int total_count = building_count_total(type);
+    draw_counted_building_name(type, total_count, 40, y_offset);
 
     // working
-    text_draw_number_centered(type == BUILDING_WELL ? total_count : building_count_active(type),
-        180, y_offset, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    text_draw_number_centered(active_count, 180, y_offset, 100, FONT_NORMAL_WHITE,
+        screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // care for
     int width = text_draw_number(population_served, '@', " ", 305, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
@@ -83,18 +83,14 @@ static void print_water_building_info(int y_offset, building_type type, int popu
 
 static void print_health_building_info(int y_offset, building_type type, int population_served, int coverage)
 {
-    // total amount & building name
-    static const int BUILDING_ID_TO_STRING_ID[] = { 28, 30, 24, 26 };
-    
-    lang_text_draw_amount(8, BUILDING_ID_TO_STRING_ID[type - BUILDING_DOCTOR],
-        building_count_total(type), 40, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    draw_counted_building_name(type, building_count_total(type), 40, y_offset);
     // working
     text_draw_number_centered(building_count_active(type), 180, y_offset, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // care for
     int width = text_draw_number(population_served, '@', " ", 305, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
-    if (type == BUILDING_DOCTOR || type == BUILDING_HOSPITAL) {
+    if (type == runtime_type("doctor") || type == runtime_type("hospital")) {
         lang_text_draw(56, 6, 305 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else {
         lang_text_draw(58, 5, 305 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
@@ -119,7 +115,7 @@ int window_advisor_health_get_rating_text_id(void)
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 6).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 6).draw(10, 10);
 
     int sickness_level = city_health_get_global_sickness_level();
 
@@ -142,25 +138,30 @@ static int draw_background(void)
     int population = city_population();
     if (display_water_coverage) {
         int people_covered = city_health_get_population_with_well_access();
-        print_water_building_info(128, BUILDING_WELL, people_covered);
+        building_type well = building_type_registry_well_type();
+        print_water_building_info(128, well, building_count_total(well), people_covered);
 
         people_covered = city_health_get_population_with_latrines_access();
-        print_water_building_info(148, BUILDING_LATRINES, people_covered);
+        building_type latrines = runtime_type("latrines");
+        print_water_building_info(148, latrines, building_count_active(latrines), people_covered);
 
         people_covered = city_health_get_population_with_water_access();
-        print_water_building_info(168, BUILDING_FOUNTAIN, people_covered);
+        building_type fountain = runtime_type("fountain");
+        print_water_building_info(168, fountain, building_count_active(fountain), people_covered);
     } else {
         int people_covered = city_health_get_population_with_baths_access();
-        print_health_building_info(128, BUILDING_BATHHOUSE, people_covered, calc_percentage(people_covered, population));
+        print_health_building_info(128, runtime_type("bathhouse"), people_covered, calc_percentage(people_covered, population));
 
         people_covered = city_health_get_population_with_barber_access();
-        print_health_building_info(148, BUILDING_BARBER, people_covered, calc_percentage(people_covered, population));
+        print_health_building_info(148, runtime_type("barber"), people_covered, calc_percentage(people_covered, population));
 
         people_covered = city_health_get_population_with_clinic_access();
-        print_health_building_info(168, BUILDING_DOCTOR, people_covered, calc_percentage(people_covered, population));
+        building_type doctor = runtime_type("doctor");
+        print_health_building_info(168, doctor, people_covered, calc_percentage(people_covered, population));
 
-        people_covered = 1000 * building_count_active(BUILDING_HOSPITAL);
-        print_health_building_info(188, BUILDING_HOSPITAL, people_covered, city_culture_coverage_hospital());
+        building_type hospital = runtime_type("hospital");
+        people_covered = 1000 * building_count_active(hospital);
+        print_health_building_info(188, hospital, people_covered, city_culture_coverage_hospital());
     }
     int text_height = lang_text_draw_multiline(56, 7 + get_health_advice(), 45, 226, 560, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 

@@ -5,12 +5,39 @@
 #include "graphics/font.h"
 #include "graphics/runtime_texture.h"
 
+#include <optional>
 #include <string>
 #include <string_view>
 
 constexpr float SCALE_NONE = 1.0f;
 
 class Image;
+class ImageGroupEntry;
+
+class ImageGroupEntryRef {
+public:
+    ImageGroupEntryRef() = default;
+
+    static ImageGroupEntryRef from_group(std::string group_path, std::string entry_id = {});
+    int is_bound() const;
+    const std::string &group_path() const;
+    const std::string &entry_id() const;
+    int image_id() const;
+    const Image &image() const;
+    RuntimeDrawSlice runtime_slice() const;
+    int width() const;
+    int height() const;
+
+    void draw(int x, int y, color_t color = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
+    void draw_scaled_centered(int x, int y, color_t color, int draw_scale_percent) const;
+
+private:
+    const ImageGroupEntry *entry() const;
+
+    std::string group_path_;
+    std::string entry_id_;
+    mutable int cached_image_id_ = 0;
+};
 
 class ImageManager {
 public:
@@ -91,18 +118,17 @@ public:
     int get_external_dimensions(int &out_width, int &out_height) const;
     void crop(const color_t *pixels);
 
-    void draw(int x, int y, color_t color, float scale) const;
-    void draw_silhouette(int x, int y, color_t color, float scale) const;
+    void draw(int x, int y, color_t color = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
+    void draw_silhouette(int x, int y, color_t color, float scale = SCALE_NONE) const;
     void draw_scaled_centered(int x, int y, color_t color, int draw_scale_percent) const;
-    void draw_letter(font_t font, int x, int y, color_t color, float scale) const;
+    void draw_letter(font_t font, int x, int y, color_t color, float scale = SCALE_NONE) const;
     void draw_fullscreen_background() const;
     void draw_blurred_fullscreen(int intensity) const;
-    void draw_border(int x, int y, color_t color) const;
-    void draw_isometric_footprint(int x, int y, color_t color_mask, float scale) const;
-    void draw_isometric_footprint_from_draw_tile(int x, int y, color_t color_mask, float scale) const;
-    void draw_isometric_top(int x, int y, color_t color_mask, float scale) const;
-    void draw_isometric_top_from_draw_tile(int x, int y, color_t color_mask, float scale) const;
-    void draw_set_isometric_top_from_draw_tile(int x, int y, color_t color_mask, float scale) const;
+    void draw_isometric_footprint(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
+    void draw_isometric_footprint_from_draw_tile(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
+    void draw_isometric_top(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
+    void draw_isometric_top_from_draw_tile(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
+    void draw_set_isometric_top_from_draw_tile(int x, int y, color_t color_mask = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
 
 private:
     friend class ImageManager;
@@ -111,12 +137,11 @@ private:
     void bind_legacy(image &legacy_image);
     void clear_bound_legacy();
     void ensure_ready_to_draw() const;
-    int legacy_id() const;
-    void set_legacy_id(int image_id);
+    void set_source_image_id(int image_id);
 
     image legacy_image_ = {};
     std::string key_;
     int ref_count_ = 0;
     image *bound_legacy_ = nullptr;
-    int legacy_id_ = -1;
+    int source_image_id_ = -1;
 };

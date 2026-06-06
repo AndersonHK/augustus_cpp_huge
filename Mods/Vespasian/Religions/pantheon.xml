@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<religion>
+    <god path="all" />
+    <tier value="pantheon" />
+    <capacity amount="1500" />
+</religion>

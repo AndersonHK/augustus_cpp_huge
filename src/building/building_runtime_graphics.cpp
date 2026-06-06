@@ -1,3 +1,5 @@
+#include "building/building_record.h"
+#include "building/building.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 
@@ -23,20 +25,17 @@ extern "C" {
 
 namespace {
 
-int graphics_definition_is_data_only(building_type type)
+void make_building_context(char *buffer, size_t buffer_size, const building_runtime *runtime)
 {
-    return building_is_farm(type);
-}
-
-void make_building_context(char *buffer, size_t buffer_size, const building *b)
-{
+    const building *b = runtime ? runtime->legacy_record() : nullptr;
+    const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
     if (b) {
         snprintf(
             buffer,
             buffer_size,
-            "building_id=%u type=%d grid_offset=%d",
+            "building_id=%u type=%s grid_offset=%d",
             b->id,
-            static_cast<int>(b->type),
+            definition ? definition->attr() : "unknown",
             b->grid_offset);
     } else {
         snprintf(buffer, buffer_size, "building=null");
@@ -46,14 +45,14 @@ void make_building_context(char *buffer, size_t buffer_size, const building *b)
 void log_building_scope_state(void *userdata)
 {
     const building_runtime *runtime = static_cast<const building_runtime *>(userdata);
-    const building *b = runtime ? runtime->building() : nullptr;
+    const building *b = runtime ? runtime->legacy_record() : nullptr;
     const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
     if (!b) {
         return;
     }
 
     const building_type_registry_impl::GraphicsTarget *target =
-        definition ? definition->resolve_graphics_target(*b) : nullptr;
+        definition && runtime ? definition->resolve_graphics_target(runtime->building()) : nullptr;
 
     char details[256];
     snprintf(
@@ -132,18 +131,18 @@ void building_runtime::clear_cached_graphics_bindings()
 
 int building_runtime::uses_new_graphics() const
 {
-    return building_ &&
-        definition_ &&
-        definition_->has_graphic() &&
-        !graphics_definition_is_data_only(building_->type);
+    return legacy_record() &&
+        definition() &&
+        type().has_graphic() &&
+        !type().has_data_only_graphics();
 }
 
 int building_runtime::building_state_supports_native_graphics() const
 {
-    return building_ &&
-        (building_->state == BUILDING_STATE_CREATED ||
-            building_->state == BUILDING_STATE_IN_USE ||
-            building_->state == BUILDING_STATE_MOTHBALLED);
+    return legacy_record() &&
+        (record().state == BUILDING_STATE_CREATED ||
+            record().state == BUILDING_STATE_IN_USE ||
+            record().state == BUILDING_STATE_MOTHBALLED);
 }
 
 void building_runtime::invalidate_graphics_cache()
@@ -153,7 +152,7 @@ void building_runtime::invalidate_graphics_cache()
 
 std::uint64_t building_runtime::graphics_state_signature() const
 {
-    if (!building_) {
+    if (!legacy_record()) {
         return 0;
     }
 
@@ -163,23 +162,23 @@ std::uint64_t building_runtime::graphics_state_signature() const
         hash *= 1099511628211ull;
     };
 
-    mix(static_cast<std::uint64_t>(building_->state));
-    mix(static_cast<std::uint64_t>(building_->num_workers));
-    mix(static_cast<std::uint64_t>(building_->has_water_access));
-    mix(static_cast<std::uint64_t>(building_->desirability));
-    mix(static_cast<std::uint64_t>(building_->strike_duration_days));
-    mix(static_cast<std::uint64_t>(building_->data.industry.progress));
-    mix(static_cast<std::uint64_t>(building_->data.industry.has_raw_materials));
-    mix(static_cast<std::uint64_t>(building_->output_resource_id));
-    mix(static_cast<std::uint64_t>(building_->figure_id));
-    mix(static_cast<std::uint64_t>(building_->figure_id2));
-    mix(static_cast<std::uint64_t>(building_->figure_id4));
-    mix(static_cast<std::uint64_t>(building_->monument.phase));
-    mix(static_cast<std::uint64_t>(building_->monument.upgrades));
-    mix(static_cast<std::uint64_t>(building_->variant));
+    mix(static_cast<std::uint64_t>(record().state));
+    mix(static_cast<std::uint64_t>(record().num_workers));
+    mix(static_cast<std::uint64_t>(record().has_water_access));
+    mix(static_cast<std::uint64_t>(record().desirability));
+    mix(static_cast<std::uint64_t>(record().strike_duration_days));
+    mix(static_cast<std::uint64_t>(record().data.industry.progress));
+    mix(static_cast<std::uint64_t>(record().data.industry.has_raw_materials));
+    mix(static_cast<std::uint64_t>(record().output_resource_id));
+    mix(static_cast<std::uint64_t>(record().figure_id));
+    mix(static_cast<std::uint64_t>(record().figure_id2));
+    mix(static_cast<std::uint64_t>(record().figure_id4));
+    mix(static_cast<std::uint64_t>(record().monument.phase));
+    mix(static_cast<std::uint64_t>(record().monument.upgrades));
+    mix(static_cast<std::uint64_t>(record().variant));
 
-    for (int i = 0; i < RESOURCE_MAX; i++) {
-        mix(static_cast<std::uint64_t>(building_->resources[i]));
+    for (int i = 0; i < RESOURCE_SLOT_COUNT; i++) {
+        mix(static_cast<std::uint64_t>(record().resources[i]));
     }
 
     return hash;
@@ -190,12 +189,12 @@ const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_gra
     if (!uses_new_graphics()) {
         return nullptr;
     }
-    return building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition_, *building_);
+    return type().resolve_graphics_target(building());
 }
 
 void building_runtime::assign_graphic_variant(int force_reseed)
 {
-    if (!building_) {
+    if (!legacy_record()) {
         return;
     }
 
@@ -205,21 +204,21 @@ void building_runtime::assign_graphic_variant(int force_reseed)
         return;
     }
 
-    unsigned char variant = building_->variant;
+    unsigned char variant = record().variant;
     const int option_count = target->option_count();
     if (option_count <= 1) {
         variant = 0;
     } else if (force_reseed) {
         // Native graphics variants are stable per tile, not per frame. Old saves
         // and brand-new buildings enter here when the saved byte has no useful meaning.
-        variant = static_cast<unsigned char>(map_random_get(building_->grid_offset) % option_count);
+        variant = static_cast<unsigned char>(map_random_get(record().grid_offset) % option_count);
     } else {
-        variant = static_cast<unsigned char>(building_->variant % option_count);
+        variant = static_cast<unsigned char>(record().variant % option_count);
     }
-    if (building_->variant == variant) {
+    if (record().variant == variant) {
         return;
     }
-    building_->variant = variant;
+    record().variant = variant;
     invalidate_graphics_cache();
 }
 
@@ -272,8 +271,7 @@ void building_runtime::advance_graphic_animation(int animation_cursor)
         return;
     }
 
-    building_type_registry_impl::BuildingAnimation animation(*building_, definition_);
-    animation.runtime_track_offset(*track_ptr, 1, animation_cursor);
+    building().animate().runtime_track_offset(*track_ptr, 1, animation_cursor);
     // The frame cursor has just moved; the draw slice is rebuilt lazily by
     // graphic_animation() so ghosts and normal city draws share one read path.
     graphics_cache_.animation_slice = RuntimeDrawSlice();
@@ -299,8 +297,7 @@ void building_runtime::rebuild_cached_animation_slice(int animation_cursor)
     }
 
     const RuntimeAnimationTrack &track = *track_ptr;
-    building_type_registry_impl::BuildingAnimation animation(*building_, definition_);
-    const int animation_offset = animation.runtime_track_offset(track, 0, animation_cursor);
+    const int animation_offset = building().animate().runtime_track_offset(track, 0, animation_cursor);
     if (animation_offset <= 0) {
         return;
     }
@@ -362,7 +359,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
     }
     // Conditional graphics pick a target first; the saved variant byte only picks
     // among equivalent options inside that already-selected target.
-    building_type_registry_impl::GraphicsTarget resolved_target = target->resolved_option(building_->variant);
+    building_type_registry_impl::GraphicsTarget resolved_target = target->resolved_option(record().variant);
 
     const ImageGroupPayload *payload = nullptr;
     const ImageGroupEntry *entry = nullptr;
@@ -394,7 +391,7 @@ const RuntimeDrawSlice *building_runtime::graphic_footprint()
     }
 
     char context[256];
-    make_building_context(context, sizeof(context), building_);
+    make_building_context(context, sizeof(context), this);
     CrashContextScope crash_scope(
         "building_runtime.resolve_base_image",
         context,
@@ -413,7 +410,7 @@ const RuntimeDrawSlice *building_runtime::graphic_top()
     }
 
     char context[256];
-    make_building_context(context, sizeof(context), building_);
+    make_building_context(context, sizeof(context), this);
     CrashContextScope crash_scope(
         "building_runtime.resolve_top_image",
         context,
@@ -432,7 +429,7 @@ const RuntimeDrawSlice *building_runtime::graphic_animation(int animation_cursor
     }
 
     char context[256];
-    make_building_context(context, sizeof(context), building_);
+    make_building_context(context, sizeof(context), this);
     CrashContextScope crash_scope(
         "building_runtime.resolve_animation_image",
         context,
@@ -458,11 +455,11 @@ void building_runtime::set_building_graphic()
 
     rebuild_cached_graphics_bindings();
     // XML payload graphics render from cached RuntimeDrawSlice entries; map_image only keeps legacy tile bookkeeping alive.
-    int image_id = graphics_cache_.owns_graphics ? runtime_tile_sentinel_image_id() : building_image_get(building_);
+    int image_id = graphics_cache_.owns_graphics ? runtime_tile_sentinel_image_id() : building_image_get(legacy_record());
     if (!image_id) {
         image_id = runtime_tile_sentinel_image_id();
     }
-    map_building_tiles_add(building_->id, building_->x, building_->y, building_->size, image_id, TERRAIN_BUILDING);
+    map_building_tiles_add(record().id, record().x, record().y, record().size, image_id, TERRAIN_BUILDING);
 }
 
 int building_runtime::owns_graphics()

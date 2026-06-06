@@ -1,6 +1,10 @@
+#include <array>
+
 #include "widget/map_editor.h"
 
 #include "city/view.h"
+#include "game/resource.h"
+#include "game/resource_id_bridge.h"
 #include "input/zoom.h"
 
 extern "C" {
@@ -184,7 +188,6 @@ static void display_zoom_warning(int zoom)
     }
     zoom = city_view_scale_to_display_percentage(zoom);
     static uint8_t zoom_string[100];
-    static int warning_id;
     if (!*zoom_string) {
         uint8_t *cursor = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM), zoom_string, 100);
         string_copy(string_from_ascii(" "), cursor, (int) (cursor - zoom_string));
@@ -192,7 +195,7 @@ static void display_zoom_warning(int zoom)
     int position = string_length(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM)) + 1;
     position += string_from_int(zoom_string + position, zoom, 0);
     string_copy(string_from_ascii("%"), zoom_string + position, 100 - position);
-    warning_id = city_warning_show_custom(zoom_string, warning_id);
+    city_warning_show(WARNING_ZOOM, zoom_string);
 }
 
 static void update_zoom_level(void)
@@ -483,9 +486,9 @@ void widget_map_editor_handle_input(const mouse *m, const hotkeys *h)
     
     if (h->show_empire_map) {
         if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE) {
-            resource_set_mapping(static_cast<resource_version_t>(RESOURCE_CURRENT_VERSION));
+            resource_set_mapping(static_cast<resource_version_t>(resource_id_bridge_current_version()));
         } else {
-            resource_set_mapping(static_cast<resource_version_t>(RESOURCE_ORIGINAL_VERSION));
+            resource_set_mapping(static_cast<resource_version_t>(resource_id_bridge_original_version()));
         }
         window_editor_empire_show();
         return;

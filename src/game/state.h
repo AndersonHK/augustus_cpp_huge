@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 enum {
     OVERLAY_NONE = 0,
@@ -87,3 +91,7 @@ void game_state_reset_overlay(void);
 void game_state_toggle_overlay(void);
 
 void game_state_set_overlay(int overlay);
+
+#ifdef __cplusplus
+}
+#endif

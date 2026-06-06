@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="all_gardens">
+    <identity name_key="building.all_gardens.name" />
+    <event_data attr="all_gardens" />
+</building>

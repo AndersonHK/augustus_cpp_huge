@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define EMPIRE_IS_DEFAULT_IMAGE empire_get_image_id() == image_group(editor_is_active() ?\
     GROUP_EDITOR_EMPIRE_MAP : GROUP_EMPIRE_MAP)
@@ -41,3 +45,7 @@ void empire_save_custom_map(buffer *buf);
 void empire_load_custom_map(buffer *buf);
 
 void empire_clear(void);
+
+#ifdef __cplusplus
+}
+#endif

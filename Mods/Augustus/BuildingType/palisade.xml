@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="palisade">
+    <identity name_key="building.palisade.name" />
+    <model size="1" cost="6" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="security" order="150" text_key="building.palisade.name" />
+    <event_data attr="palisade" />
+    <flags fire_proof="1" draw_desirability_range="1" />
+    <graphics>
+        <default>
+            <path value="Military\Pal_Wall_C_01" />
+            <image value="Pal Wall C 01" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

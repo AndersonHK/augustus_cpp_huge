@@ -1,5 +1,6 @@
 #include "figure/figure_runtime_api.h"
 
+#include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
 #include "figure/figure_runtime_native.h"
 #include "figure/figure_type_registry_internal.h"
@@ -11,6 +12,7 @@ extern "C" {
 #include "building/local_workforce.h"
 #include "building/maintenance.h"
 #include "building/building.h"
+#include "building/building_record.h"
 #include "core/buffer.h"
 #include "building/monument.h"
 #include "city/festival.h"
@@ -75,6 +77,17 @@ int entry_matches_figure(const RuntimeEntry &entry, const figure *f)
     return entry.data == f && entry.created_sequence == f->created_sequence;
 }
 
+const building_type_registry_impl::BuildingType *definition_for(building_type type)
+{
+    return building_type_registry_impl::definition_for_type(type);
+}
+
+bool type_matches(building_type type, const char *text_id)
+{
+    const building_type resolved = building_type_registry_impl::runtime_id_from_text(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
 const char *profile_id_for_priest_owner(const figure *f)
 {
     const building *owner = f ? building_get(f->building_id) : nullptr;
@@ -84,32 +97,29 @@ const char *profile_id_for_priest_owner(const figure *f)
 
     // Legacy saves do not persist XML profile bindings. Priest recovery keeps
     // the old temple-to-god mapping, then the recovered profile owns the effect.
-    switch (owner->type) {
-        case BUILDING_SMALL_TEMPLE_CERES:
-        case BUILDING_LARGE_TEMPLE_CERES:
-        case BUILDING_GRAND_TEMPLE_CERES:
-            return "ceres_service";
-        case BUILDING_SMALL_TEMPLE_NEPTUNE:
-        case BUILDING_LARGE_TEMPLE_NEPTUNE:
-        case BUILDING_GRAND_TEMPLE_NEPTUNE:
-            return "neptune_service";
-        case BUILDING_SMALL_TEMPLE_MERCURY:
-        case BUILDING_LARGE_TEMPLE_MERCURY:
-        case BUILDING_GRAND_TEMPLE_MERCURY:
-            return "mercury_service";
-        case BUILDING_SMALL_TEMPLE_MARS:
-        case BUILDING_LARGE_TEMPLE_MARS:
-        case BUILDING_GRAND_TEMPLE_MARS:
-            return "mars_service";
-        case BUILDING_SMALL_TEMPLE_VENUS:
-        case BUILDING_LARGE_TEMPLE_VENUS:
-        case BUILDING_GRAND_TEMPLE_VENUS:
-            return "venus_service";
-        case BUILDING_PANTHEON:
-            return "pantheon_service";
-        default:
-            return nullptr;
+    const building_type_registry_impl::BuildingType *type = definition_for(owner->type);
+    if (!type) {
+        return nullptr;
     }
+    if (type->is_pantheon()) {
+        return "pantheon_service";
+    }
+    if (type->is_ceres_temple()) {
+        return "ceres_service";
+    }
+    if (type->is_neptune_temple()) {
+        return "neptune_service";
+    }
+    if (type->is_mercury_temple()) {
+        return "mercury_service";
+    }
+    if (type->is_mars_temple()) {
+        return "mars_service";
+    }
+    if (type->is_venus_temple()) {
+        return "venus_service";
+    }
+    return nullptr;
 }
 
 const char *infer_profile_id(const figure *f)
@@ -135,6 +145,8 @@ const char *infer_profile_id(const figure *f)
             return "storage_fetch";
         case FIGURE_DELIVERY_BOY:
             return "follow_leader";
+        case FIGURE_DEPOT_CART_PUSHER:
+            return "order_runner";
         case FIGURE_ACTOR:
         case FIGURE_GLADIATOR:
         case FIGURE_LION_TAMER:
@@ -151,19 +163,19 @@ const char *infer_profile_id(const figure *f)
                         return nullptr;
                     }
                     if (f->type == FIGURE_ACTOR) {
-                        return owner->type == BUILDING_AMPHITHEATER ? "amphitheater_service" : "theater_service";
+                        return type_matches(owner->type, "amphitheater") ? "amphitheater_service" : "theater_service";
                     }
                     if (f->type == FIGURE_GLADIATOR) {
-                        if (owner->type == BUILDING_ARENA) {
+                        if (type_matches(owner->type, "arena")) {
                             return "arena_service";
                         }
-                        if (owner->type == BUILDING_COLOSSEUM) {
+                        if (type_matches(owner->type, "colosseum")) {
                             return "colosseum_service";
                         }
                         return "amphitheater_service";
                     }
                     if (f->type == FIGURE_LION_TAMER) {
-                        return owner->type == BUILDING_COLOSSEUM ? "colosseum_service" : "arena_service";
+                        return type_matches(owner->type, "colosseum") ? "colosseum_service" : "arena_service";
                     }
                     if (f->type == FIGURE_CHARIOTEER) {
                         return "hippodrome_service";
@@ -348,6 +360,9 @@ extern "C" figure *figure_runtime_create_profiled(
             break;
         case figure_type_registry_impl::NativeClassId::MarketSupplier:
             f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
+            break;
+        case figure_type_registry_impl::NativeClassId::DepotCartPusher:
+            f->action_state = FIGURE_ACTION_238_DEPOT_CART_PUSHER_INITIAL;
             break;
         case figure_type_registry_impl::NativeClassId::DeliveryFollower:
             break;

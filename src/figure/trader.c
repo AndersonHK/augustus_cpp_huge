@@ -10,11 +10,11 @@
 struct trader {
     int32_t bought_amount;
     int32_t bought_value;
-    uint8_t bought_resources[RESOURCE_MAX];
+    uint8_t bought_resources[RESOURCE_SLOT_COUNT];
 
     int32_t sold_amount;
     int32_t sold_value;
-    uint8_t sold_resources[RESOURCE_MAX];
+    uint8_t sold_resources[RESOURCE_SLOT_COUNT];
 };
 
 static struct {
@@ -94,10 +94,10 @@ void traders_save_state(buffer *buf)
         struct trader *t = &data.traders[i];
         buffer_write_i32(buf, t->bought_amount);
         buffer_write_i32(buf, t->sold_amount);
-        for (int r = 0; r < RESOURCE_MAX; r++) {
+        for (int r = 0; r < RESOURCE_SLOT_COUNT; r++) {
             buffer_write_u8(buf, t->bought_resources[r]);
         }
-        for (int r = 0; r < RESOURCE_MAX; r++) {
+        for (int r = 0; r < RESOURCE_SLOT_COUNT; r++) {
             buffer_write_u8(buf, t->sold_resources[r]);
         }
         buffer_write_i32(buf, t->bought_value);

@@ -1,10 +1,12 @@
 extern "C" {
 #include "lang.h"
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "city/message.h"
 #include "core/log.h"
 #include "core/string.h"
+#include "core/file.h"
 #include "translation/translation.h"
 #include "translation/translation_key_table.h"
 }
@@ -21,9 +23,46 @@ static struct {
     int editor_mode;
 } data;
 
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
+static int native_building_uses_editor_name_group(building_type type)
+{
+    static const char *native_buildings[] = {"native_meeting", "native_hut", "native_hut_alt", "native_crops", nullptr};
+    for (int i = 0; native_buildings[i]; i++) {
+        if (type_matches(type, native_buildings[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 extern "C" int lang_dir_is_valid(const char *dir)
 {
-    return localization::is_locale_available(dir, 0) ? 1 : 0;
+    auto has_files = [](const char *base, const char *strings, const char *messages) -> bool {
+        char strings_path[FILE_NAME_MAX];
+        char messages_path[FILE_NAME_MAX];
+        if (base && *base && strcmp(base, ".") != 0) {
+            const size_t base_length = strlen(base);
+            const int has_separator = base_length > 0 && (base[base_length - 1] == '/' || base[base_length - 1] == '\\');
+            if (snprintf(strings_path, sizeof(strings_path), has_separator ? "%s%s" : "%s/%s", base, strings) >= static_cast<int>(sizeof(strings_path)) ||
+                snprintf(messages_path, sizeof(messages_path), has_separator ? "%s%s" : "%s/%s", base, messages) >= static_cast<int>(sizeof(messages_path))) {
+                return false;
+            }
+        } else {
+            snprintf(strings_path, sizeof(strings_path), "%s", strings);
+            snprintf(messages_path, sizeof(messages_path), "%s", messages);
+        }
+        return file_exists(strings_path, NOT_LOCALIZED) && file_exists(messages_path, NOT_LOCALIZED);
+    };
+    return has_files(dir, "c3.eng", "c3_mm.eng") || has_files(dir, "c3.rus", "c3_mm.rus");
 }
 
 
@@ -342,9 +381,8 @@ extern "C" const uint8_t *lang_get_string(int group, int index)
 
 const uint8_t *lang_get_building_type_string(int type)
 {
-    if (building_is_house(static_cast<building_type>(type)) || type == BUILDING_NATIVE_MEETING ||
-        type == BUILDING_NATIVE_HUT || type == BUILDING_NATIVE_HUT_ALT ||
-        type == BUILDING_NATIVE_CROPS) {
+    building_type building_type_id = static_cast<building_type>(type);
+    if (building_is_house(building_type_id) || native_building_uses_editor_name_group(building_type_id)) {
         return lang_get_string(41, type);
     } else {
         return lang_get_string(28, type);

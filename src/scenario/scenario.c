@@ -1,3 +1,4 @@
+#include "game/resource_id_bridge.h"
 #include "scenario.h"
 
 #include "city/resource.h"
@@ -566,7 +567,7 @@ void scenario_load_state(buffer *buf, int version)
 
     // We can only remap resources at the end of the scenario load as the remapping relies on the allowed building list
     // being loaded, otherwise on some edge cases changes to meat may affect fish instead
-    if (resource_mapping_get_version() < RESOURCE_CURRENT_VERSION) {
+    if (resource_mapping_get_version() < resource_id_bridge_current_version()) {
         scenario_request_remap_resource();
         scenario_demand_change_remap_resource();
         scenario_price_change_remap_resource();

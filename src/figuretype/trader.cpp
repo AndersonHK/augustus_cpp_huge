@@ -3,12 +3,15 @@
 #include <math.h>
 #include <stdio.h>
 
-extern "C" {
 #include "building/building.h"
 #include "building/caravanserai.h"
 #include "building/dock.h"
-#include "building/granary.h"
 #include "building/lighthouse.h"
+
+extern "C" {
+#include "building/building_record.h"
+#include "building/building_type_api.h"
+#include "building/granary.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/warehouse.h"
@@ -68,11 +71,11 @@ but will consider price a factor when buying goods from the player -> the more e
 the trader will go to the location to buy it. */
 
 typedef struct {
-    int value_multiplier[RESOURCE_MAX];
+    int value_multiplier[RESOURCE_SLOT_COUNT];
 } sell_multipliers;
 
 typedef struct {
-    int value_multiplier[RESOURCE_MAX];
+    int value_multiplier[RESOURCE_SLOT_COUNT];
 } buy_multipliers;
 
 static struct {
@@ -80,7 +83,41 @@ static struct {
     buy_multipliers buy_multiplier;
 } data;
 
-static resource_type get_least_filled_quota_resource(building *b, int city_id, signed char trader_buying);
+static resource_type get_least_filled_quota_resource(Building &building, int city_id, signed char trader_buying);
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type runtime_id = runtime_type(text_id);
+    return runtime_id != BUILDING_NONE && type == runtime_id;
+}
+
+static int building_matches(const building *b, const char *text_id)
+{
+    return b && type_matches(b->type, text_id);
+}
+
+static int building_matches(Building &building, const char *text_id)
+{
+    building_type runtime_id = runtime_type(text_id);
+    return runtime_id != BUILDING_NONE && building.is_type(runtime_id);
+}
+
+static building *first_building(const char *text_id)
+{
+    building_type runtime_id = runtime_type(text_id);
+    return runtime_id == BUILDING_NONE ? nullptr : building_first_of_type(runtime_id);
+}
+
+static int find_building_id(const char *text_id)
+{
+    building_type runtime_id = runtime_type(text_id);
+    return runtime_id == BUILDING_NONE ? 0 : building_find(runtime_id);
+}
 
 static int random_initial_wait_ticks(void)
 {
@@ -104,7 +141,7 @@ static int calculate_log_score(int baseline, int multiplier_min, int multiplier_
 
 static void resource_multiplier_init(void)
 {
-    for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         const resource_type resource = static_cast<resource_type>(r);
         // player buys, traders sell
         int price_sell_multiplier = calculate_log_score(PRICE_BASELINE, MULTIPLIER_PRICE_MIN, MULTIPLIER_PRICE_MAX,
@@ -119,7 +156,7 @@ static void resource_multiplier_init(void)
 
 static void resource_multiplier_reset(void)
 {
-    for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         data.sell_multiplier.value_multiplier[r] = 0;
         data.buy_multiplier.value_multiplier[r] = 0;
     }
@@ -128,7 +165,7 @@ static void resource_multiplier_reset(void)
 // Mercury Grand Temple base bonus to trader speed
 static int trader_bonus_speed(void)
 {
-    if (building_monument_working(BUILDING_GRAND_TEMPLE_MERCURY)) {
+    if (building_monument_working_grand_temple_for_god(GOD_MERCURY)) {
         return 25;
     } else {
         return 0;
@@ -138,7 +175,7 @@ static int trader_bonus_speed(void)
 // Neptune Grand Temple base bonus to trader speed
 static int sea_trader_bonus_speed(void)
 {
-    if (building_monument_working(BUILDING_GRAND_TEMPLE_NEPTUNE)) {
+    if (building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
         return 25;
     } else {
         return 0;
@@ -173,18 +210,18 @@ int figure_create_trade_ship(int x, int y, int city_id)
 
 int figure_trade_caravan_can_buy(figure *trader, int building_id, int city_id)
 {
-    building *b = building_get(building_id);
-    if (b->type != BUILDING_WAREHOUSE &&
-        !(config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES) && b->type == BUILDING_GRANARY)) {
+    Building building = Building::from_id(building_id);
+    if (!building_matches(building, "warehouse") &&
+        !(config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES) && building_matches(building, "granary"))) {
         return 0;
     }
-    if (b->has_plague) {
+    if (building.has_plague()) {
         return 0;
     }
     if (trader->trader_amount_bought >= figure_trade_land_trade_units()) {
         return 0;
     }
-    if (!building_storage_get_permission(BUILDING_STORAGE_PERMISSION_TRADERS, b)) {
+    if (!building_storage_get_permission(BUILDING_STORAGE_PERMISSION_TRADERS, building)) {
         return 0;
     }
     return 1;
@@ -192,32 +229,33 @@ int figure_trade_caravan_can_buy(figure *trader, int building_id, int city_id)
 
 int figure_trade_caravan_can_sell(figure *trader, int building_id, int city_id)
 {
-    building *b = building_get(building_id);
-    if (b->type != BUILDING_WAREHOUSE && b->type != BUILDING_GRANARY) {
+    Building building = Building::from_id(building_id);
+    if (!building_matches(building, "warehouse") && !building_matches(building, "granary")) {
         return 0;
     }
-    if (b->has_plague) {
+    if (building.has_plague()) {
         return 0;
     }
     if (trader->loads_sold_or_carrying >= figure_trade_land_trade_units()) {
         return 0;
     }
-    if (!building_storage_get_permission(BUILDING_STORAGE_PERMISSION_TRADERS, b)) {
+    if (!building_storage_get_permission(BUILDING_STORAGE_PERMISSION_TRADERS, building)) {
         return 0;
     }
-    if (building_storage_get(b->storage_id)->empty_all) {
+    if (building_storage_get(building.storage_id())->empty_all) {
         return 0;
     }
     return 1;
 }
 
-resource_type get_native_trader_buy_resource(building *b)
+resource_type get_native_trader_buy_resource(Building &storage)
 {
+    building *b = storage.legacy_record();
     resource_type highest_resource = RESOURCE_NONE;
-    if (b->type == BUILDING_WAREHOUSE) {
-        building_warehouse_recount_resources(b);
+    if (building_matches(b, "warehouse")) {
+        building_warehouse_recount_resources(storage);
     }
-    for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         const resource_type resource = static_cast<resource_type>(r);
         if (b->resources[resource] > highest_resource &&
             (city_resource_trade_status(resource) & TRADE_STATUS_EXPORT)) {
@@ -232,25 +270,26 @@ static resource_type trader_get_buy_resource(int building_id, int city_id)
     //TODO: get all the logic of trade happening into this function, rather than decision making in the action function
     unsigned char land_trader = 1; // 1 = land trader, 0 = sea trader
     building *b = building_get(building_id);
-    if (!b || (b->type != BUILDING_WAREHOUSE && b->type != BUILDING_GRANARY)) {
+    Building building(b);
+    if (!building_matches(b, "warehouse") && !building_matches(b, "granary")) {
         return RESOURCE_NONE;
     }
 
-    if (b->type == BUILDING_GRANARY && !config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES)) {
+    if (building_matches(b, "granary") && !config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES)) {
         return RESOURCE_NONE;
     }
-    resource_type resource = get_least_filled_quota_resource(b, city_id, 1); // 1 = trader buying
+    resource_type resource = get_least_filled_quota_resource(building, city_id, 1); // 1 = trader buying
     if (resource == RESOURCE_NONE && city_id == 0) { //native trader
-        resource = static_cast<resource_type>(building_storage_get_highest_quantity_resource(b));
+        resource = static_cast<resource_type>(building_storage_get_highest_quantity_resource(building));
     }
     if (resource == RESOURCE_NONE) {
         return RESOURCE_NONE;
     }
     unsigned char success = 0;
-    if (b->type == BUILDING_GRANARY) {
-        success = building_granary_remove_export(b, resource, 1, land_trader);
+    if (building_matches(b, "granary")) {
+        success = building_granary_remove_export(building, resource, 1, land_trader);
     } else {
-        success = building_warehouse_remove_export(b, resource, 1, land_trader);
+        success = building_warehouse_remove_export(building, resource, 1, land_trader);
     }
 
     return success ? resource : RESOURCE_NONE;
@@ -260,29 +299,32 @@ static resource_type trader_get_sell_resource(int building_id, int city_id)
 {
     unsigned char land_trader = 1; // 1 = land trader, 0 = sea trader
     building *b = building_get(building_id);
-    if (!b || (b->type != BUILDING_WAREHOUSE && b->type != BUILDING_GRANARY)) {
+    Building building(b);
+    if (!building_matches(b, "warehouse") && !building_matches(b, "granary")) {
         return RESOURCE_NONE;
     }
 
-    resource_type resource = get_least_filled_quota_resource(b, city_id, 0); // 0 = trader selling
+    resource_type resource = get_least_filled_quota_resource(building, city_id, 0); // 0 = trader selling
     if (resource == RESOURCE_NONE) {
         return RESOURCE_NONE;
     }
 
     unsigned char success = 0;
-    if (b->type == BUILDING_GRANARY) {
-        success = building_granary_add_import(b, resource, 1, land_trader);
+    if (building_matches(b, "granary")) {
+        success = building_granary_add_import(building, resource, 1, land_trader);
     } else {
-        success = building_warehouse_add_import(b, resource, 1, land_trader);
+        success = building_warehouse_add_import(building, resource, 1, land_trader);
     }
 
     return success ? resource : RESOURCE_NONE;
 }
 
-static resource_type get_least_filled_quota_resource(building *b, int city_id, signed char trader_buying)
+static resource_type get_least_filled_quota_resource(Building &storage, int city_id, signed char trader_buying)
 {
-    int r_start = (b->type == BUILDING_GRANARY) ? RESOURCE_MIN_FOOD : RESOURCE_MIN;
-    int r_end = (b->type == BUILDING_GRANARY) ? RESOURCE_MAX_FOOD : RESOURCE_MAX;
+    building *b = storage.legacy_record();
+    const int is_granary = building_matches(b, "granary");
+    int r_start = RESOURCE_NONE + 1;
+    int r_end = RESOURCE_SLOT_COUNT;
 
     resource_type best_resource = RESOURCE_NONE;
     int lowest_percent = 101; // Higher than max possible fill (100%)
@@ -293,17 +335,17 @@ static resource_type get_least_filled_quota_resource(building *b, int city_id, s
         // Check if resource is available
         const resource_type resource = static_cast<resource_type>(r);
         if (trader_buying) {
-            if (b->type == BUILDING_GRANARY) {
-                available = building_granary_count_available_resource(b, resource, 1);
+            if (is_granary) {
+                available = building_granary_count_available_resource(storage, resource, 1);
             } else {
-                available = building_warehouse_get_available_amount(b, resource);
+                available = building_warehouse_get_available_amount(storage, resource);
             }
 
         } else {
-            if (b->type == BUILDING_GRANARY) {
-                available = building_granary_maximum_receptible_amount(b, resource);
+            if (is_granary) {
+                available = building_granary_maximum_receptible_amount(storage, resource);
             } else {
-                available = building_warehouse_maximum_receptible_amount(b, resource);
+                available = building_warehouse_maximum_receptible_amount(storage, resource);
             }
         }
         if (available <= 0) {
@@ -340,11 +382,11 @@ static int get_closest_storage(const figure *f, int x, int y, int city_id, map_p
         figure_trade_land_trade_units() : figure_trade_land_trade_units() / 3 + 1;
 
     resource_multiplier_init();
-    int sellable[RESOURCE_MAX] = { 0 };
-    int buyable[RESOURCE_MAX] = { 0 };
+    int sellable[RESOURCE_SLOT_COUNT] = { 0 };
+    int buyable[RESOURCE_SLOT_COUNT] = { 0 };
     int route_id = empire_city_get_route_id(f->empire_city_id);
     // 1. Determine what resources and how many can this caravan sell and buy
-    for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         const resource_type resource = static_cast<resource_type>(r);
         signed char resource_sell = empire_can_import_resource_from_city(city_id, resource) ? 1 : 0;
         signed char resource_buy = empire_can_export_resource_to_city(city_id, resource) ? 1 : 0;
@@ -367,32 +409,33 @@ static int get_closest_storage(const figure *f, int x, int y, int city_id, map_p
     int sell_capacity = max_trade_units - f->loads_sold_or_carrying;
     int buy_capacity = max_trade_units - f->trader_amount_bought;
     int best_score = -1;
-    building_type building_types[] = { BUILDING_GRANARY, BUILDING_WAREHOUSE };
     int best_building_id = 0;
     for (int t = 0; t < 2; t++) {
-        // Loop over all buildings of the current type (granary or warehouse)
-        for (building *b = building_first_of_type(building_types[t]); b; b = b->next_of_type) {
+        const char *storage_text_id = t == 0 ? "granary" : "warehouse";
+        const int is_granary = t == 0;
+        for (building *b = first_building(storage_text_id); b; b = b->next_of_type) {
+            Building building(b);
             // Skip buildings
             if (b->state != BUILDING_STATE_IN_USE || b->has_plague || !b->has_road_access
             || (figure_visited_building_in_list(f->last_visited_index, b->id)) || b->id == (unsigned int) f->destination_building_id ||
-            !building_storage_get_permission(permissions, b)) {
+            !building_storage_get_permission(permissions, building)) {
                 continue; // Not active, infected, unreachable by road, recently visited, currenty at, not accepted
             }
 
             int sell_score = 0; // Score for how many units the trader can sell to this building
             int buy_score = 0;  // Score for how many units the trader can buy from this building
             // Loop through all resource types
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
                 const resource_type resource = static_cast<resource_type>(r);
-                if (building_types[t] == BUILDING_GRANARY && !resource_is_food(resource)) {
+                if (is_granary && !resource_is_food(resource)) {
                     continue;
                 }
                 // === SELL SCORING: Trader -> Building ===
                 if (sellable[r] > 0 && sell_capacity > 0) {
                     // Get how much of this resource the building can accept
-                    int receptable = (building_types[t] == BUILDING_GRANARY)
-                        ? building_granary_maximum_receptible_amount(b, resource) :
-                        building_warehouse_maximum_receptible_amount(b, resource);
+                    int receptable = is_granary
+                        ? building_granary_maximum_receptible_amount(building, resource) :
+                        building_warehouse_maximum_receptible_amount(building, resource);
                     // Limit to how much can actually be sold here
                     int can_add = MIN(MIN(sellable[r], receptable), sell_capacity);
                     can_add = can_add * data.sell_multiplier.value_multiplier[r]; // Apply sell multiplier
@@ -402,8 +445,8 @@ static int get_closest_storage(const figure *f, int x, int y, int city_id, map_p
                 // === BUY SCORING: Building -> Trader ===
                 if (buyable[r] > 0 && buy_capacity > 0) {
                     // Get how much of this resource the building currently holds
-                    int available = (building_types[t] == BUILDING_GRANARY)
-                        ? building_granary_get_amount(b, resource) : building_warehouse_get_available_amount(b, resource);
+                    int available = is_granary
+                        ? building_granary_get_amount(building, resource) : building_warehouse_get_available_amount(building, resource);
                     // Limit to how much the trader can actually buy from here
                     int can_take = MIN(MIN(buyable[r], available), buy_capacity);
                     can_take = can_take * data.buy_multiplier.value_multiplier[r]; // Apply buy multiplier
@@ -431,10 +474,10 @@ static int get_closest_storage(const figure *f, int x, int y, int city_id, map_p
     // 5. Return result 
     if (best_building_id) {
         const building *best_building = building_get(best_building_id);
-        if (best_building->type == BUILDING_GRANARY && best_building->has_road_access >= 1) {
+        if (building_matches(best_building, "granary") && best_building->has_road_access >= 1) {
             // go to center of granary
             map_point_store_result(best_building->x + 1, best_building->y + 1, dst);
-        } else if (best_building->type == BUILDING_WAREHOUSE && best_building->has_road_access >= 1) {
+        } else if (building_matches(best_building, "warehouse") && best_building->has_road_access >= 1) {
             map_point_store_result(best_building->x, best_building->y, dst);
         } else if (!map_has_road_access_warehouse(best_building->x, best_building->y, dst) &&
              !map_has_road_access_granary(best_building->x, best_building->y, dst)) {
@@ -684,15 +727,15 @@ void figure_native_trader_action(figure *f)
             f->wait_ticks++;
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(10)) {
                 f->wait_ticks = 0;
-                building *b = building_get(f->destination_building_id);
-                resource_type resource = get_native_trader_buy_resource(b); // preemptive check of resource to avoid standing idle
-                if (building_storage_get_permission(BUILDING_STORAGE_PERMISSION_NATIVES, b) &&
+                Building building = Building::from_id(f->destination_building_id);
+                resource_type resource = get_native_trader_buy_resource(building); // preemptive check of resource to avoid standing idle
+                if (building_storage_get_permission(BUILDING_STORAGE_PERMISSION_NATIVES, building) &&
                     f->trader_amount_bought < figure_trade_land_trade_units() && resource != RESOURCE_NONE) {
                     int removed = 0;
-                    if (b->type == BUILDING_GRANARY) {
-                        removed = building_granary_try_remove_resource(b, resource, 1);
-                    } else if (b->type == BUILDING_WAREHOUSE) {
-                        removed = building_warehouse_try_remove_resource(b, resource, 1);
+                    if (building_matches(building, "granary")) {
+                        removed = building_granary_try_remove_resource(building, resource, 1);
+                    } else if (building_matches(building, "warehouse")) {
+                        removed = building_warehouse_try_remove_resource(building, resource, 1);
                     }
                     if (removed) {
                         trader_record_bought_resource(f->trader_id, resource);
@@ -739,7 +782,7 @@ void figure_native_trader_action(figure *f)
 int figure_trade_ship_is_trading(figure *ship)
 {
     building *b = building_get(ship->destination_building_id);
-    if (b->state != BUILDING_STATE_IN_USE || b->type != BUILDING_DOCK) {
+    if (b->state != BUILDING_STATE_IN_USE || !building_matches(b, "dock")) {
         return TRADE_SHIP_BUYING;
     }
     for (int i = 0; i < 3; i++) {
@@ -766,7 +809,7 @@ int figure_trade_ship_is_trading(figure *ship)
 static int trade_dock_ignoring_ship(figure *f)
 {
     building *b = building_get(f->destination_building_id);
-    if (b->state == BUILDING_STATE_IN_USE && b->type == BUILDING_DOCK && b->num_workers > 0 &&
+    if (b->state == BUILDING_STATE_IN_USE && building_matches(b, "dock") && b->num_workers > 0 &&
         (unsigned int) b->data.dock.trade_ship_id == f->id) {
         for (int i = 0; i < 3; i++) {
             if (b->data.distribution.cartpusher_ids[i]) {
@@ -1026,16 +1069,18 @@ int figure_trade_land_trade_units(void)
 {
     int unit = 8;
 
-    if (building_monument_working(BUILDING_GRAND_TEMPLE_MERCURY)) {
+    if (building_monument_working_grand_temple_for_god(GOD_MERCURY)) {
         int add_unit = 0;
-        int monument_id = building_monument_get_id(BUILDING_GRAND_TEMPLE_MERCURY);
-        building *b = building_get(monument_id);
+        int mercury_gt_id = building_monument_get_grand_temple_for_god(GOD_MERCURY);
+        building *b = mercury_gt_id ? building_get(mercury_gt_id) : nullptr;
 
-        int pct_workers = calc_percentage(b->num_workers, model_get_building(b->type)->laborers);
-        if (pct_workers >= 100) { // full laborers
-            add_unit = 4;
-        } else if (pct_workers > 0) {
-            add_unit = 2;
+        if (b) {
+            int pct_workers = calc_percentage(b->num_workers, model_get_building(b->type)->laborers);
+            if (pct_workers >= 100) { // full laborers
+                add_unit = 4;
+            } else if (pct_workers > 0) {
+                add_unit = 2;
+            }
         }
         unit += add_unit;
     }
@@ -1062,15 +1107,18 @@ int figure_trade_land_trade_units(void)
 int figure_trade_sea_trade_units(void)
 {
     int unit = 12;
-    if (building_monument_working(BUILDING_GRAND_TEMPLE_MERCURY)) {
+    if (building_monument_working_grand_temple_for_god(GOD_MERCURY)) {
         int add_unit = 0;
-        building *b = building_get(building_find(BUILDING_GRAND_TEMPLE_MERCURY));
+        int mercury_gt_id = building_monument_get_grand_temple_for_god(GOD_MERCURY);
+        building *b = mercury_gt_id ? building_get(mercury_gt_id) : nullptr;
 
-        int pct_workers = calc_percentage(b->num_workers, model_get_building(b->type)->laborers);
-        if (pct_workers >= 100) { // full laborers
-            add_unit = 6;
-        } else if (pct_workers > 0) {
-            add_unit = 3;
+        if (b) {
+            int pct_workers = calc_percentage(b->num_workers, model_get_building(b->type)->laborers);
+            if (pct_workers >= 100) { // full laborers
+                add_unit = 6;
+            } else if (pct_workers > 0) {
+                add_unit = 3;
+            }
         }
         unit += add_unit;
     }
@@ -1080,13 +1128,15 @@ int figure_trade_sea_trade_units(void)
 
         int add_unit = 0;
         if (policy == TRADE_POLICY_3) {
-            building *b = building_get(building_find(BUILDING_LIGHTHOUSE));
+            building *b = building_get(find_building_id("lighthouse"));
 
-            int pct_workers = calc_percentage(b->num_workers, model_get_building(b->type)->laborers);
-            if (pct_workers >= 100) { // full laborers
-                add_unit = POLICY_3_BONUS;
-            } else if (pct_workers > 0) {
-                add_unit = POLICY_3_BONUS / 2;
+            if (b) {
+                int pct_workers = calc_percentage(b->num_workers, model_get_building(b->type)->laborers);
+                if (pct_workers >= 100) { // full laborers
+                    add_unit = POLICY_3_BONUS;
+                } else if (pct_workers > 0) {
+                    add_unit = POLICY_3_BONUS / 2;
+                }
             }
         }
         unit += add_unit;
@@ -1119,7 +1169,7 @@ int figure_trader_ship_get_distance_to_dock(const figure *ship, unsigned int doc
     if (ship->destination_building_id == dock_id) {
         return ship->routing_path_length - ship->routing_path_current_tile;
     }
-    building *dock = building_get(dock_id);
+    Building dock = Building::from_id(dock_id);
     map_routing_calculate_distances_water_boat(ship->x, ship->y);
     map_point tile;
     building_dock_get_ship_request_tile(dock, SHIP_DOCK_REQUEST_1_DOCKING, &tile);

@@ -3,7 +3,7 @@
 #include "building/storage_type.h"
 
 extern "C" {
-#include "building/building.h"
+#include "building/building_fwd.h"
 }
 
 #include <cstddef>

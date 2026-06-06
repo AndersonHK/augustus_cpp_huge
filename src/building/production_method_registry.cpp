@@ -1,3 +1,4 @@
+#include "building/building_record.h"
 #include "building/production_method_registry.h"
 
 #include "core/crash_context.h"
@@ -158,21 +159,7 @@ resource_type parse_resource_type_name(const char *name)
         return RESOURCE_NONE;
     }
 
-    const std::string normalized_name = trim_copy(name);
-    if (normalized_name.empty()) {
-        return RESOURCE_NONE;
-    }
-
-    for (resource_type type = RESOURCE_MIN; type < RESOURCE_MAX; type = static_cast<resource_type>(type + 1)) {
-        resource_data *data = resource_get_data(type);
-        if (!data || !data->xml_attr_name) {
-            continue;
-        }
-        if (xml_parser_compare_multiple(data->xml_attr_name, normalized_name.c_str())) {
-            return type;
-        }
-    }
-    return RESOURCE_NONE;
+    return resource_type_from_xml_attr(name);
 }
 
 int parse_scenario_climate_name(const char *name, scenario_climate *out_climate)
@@ -223,13 +210,13 @@ int validate_definition(const ProductionMethod &definition, const char *filename
         return 0;
     }
 
-    const int base_output_production = resource_base_production_per_month(definition.output_resource());
+    const int base_output_production = definition.base_monthly_production();
     if (base_output_production <= 0) {
         char detail[512];
-        snprintf(detail, sizeof(detail), "file=%s path=%s output_resource=%d", filename, definition_path ? definition_path : "",
-            definition.output_resource());
-        log_error("ProductionMethod output resource has invalid base production", definition.path(), 0);
-        error_context_report_error("ProductionMethod output resource has invalid base production.", detail);
+        snprintf(detail, sizeof(detail), "file=%s path=%s output_resource=%d production_per_month=%d", filename,
+            definition_path ? definition_path : "", definition.output_resource(), base_output_production);
+        log_error("ProductionMethod output has invalid production_per_month", definition.path(), 0);
+        error_context_report_error("ProductionMethod output has invalid production_per_month.", detail);
         return 0;
     }
 
@@ -306,6 +293,11 @@ int parse_output()
         g_parse_state.error = 1;
         return 0;
     }
+    if (!xml_parser_has_attribute("production_per_month")) {
+        log_error("ProductionMethod output is missing required attribute 'production_per_month'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
 
     const char *resource_text = xml_parser_get_attribute_string("resource");
     const resource_type resource = parse_resource_type_name(resource_text);
@@ -316,6 +308,7 @@ int parse_output()
     }
 
     g_parse_state.definition->set_output_resource(resource);
+    g_parse_state.definition->set_base_monthly_production(xml_parser_get_attribute_int("production_per_month"));
     g_parse_state.saw_output = 1;
     return 1;
 }
@@ -521,11 +514,68 @@ int parse_definition_file(const char *filename, const char *definition_path)
 
 } // namespace
 
-const ProductionMethod *find_production_method_definition(const char *path)
+ProductionMethod *find_production_method_definition(const char *path)
 {
     const std::string normalized = normalize_definition_path(path);
     const auto found = g_production_methods.find(normalized);
     return found != g_production_methods.end() ? found->second.get() : nullptr;
+}
+
+int production_per_month_for_resource(resource_type resource)
+{
+    for (const auto &entry : g_production_methods) {
+        const ProductionMethod *method = entry.second.get();
+        if (method && method->output_resource() == resource) {
+            return method->base_monthly_production();
+        }
+    }
+    return 0;
+}
+
+int default_production_per_month_for_resource(resource_type resource)
+{
+    for (const auto &entry : g_production_methods) {
+        const ProductionMethod *method = entry.second.get();
+        if (method && method->output_resource() == resource) {
+            return method->default_base_monthly_production();
+        }
+    }
+    return 0;
+}
+
+int set_production_per_month_for_resource(resource_type resource, int production)
+{
+    int changed = 0;
+    for (const auto &entry : g_production_methods) {
+        ProductionMethod *method = entry.second.get();
+        if (method && method->output_resource() == resource) {
+            method->override_base_monthly_production(production);
+            changed = 1;
+        }
+    }
+    return changed;
+}
+
+int adjust_production_per_month_for_resource(resource_type resource, int delta)
+{
+    int changed = 0;
+    for (const auto &entry : g_production_methods) {
+        ProductionMethod *method = entry.second.get();
+        if (method && method->output_resource() == resource) {
+            method->override_base_monthly_production(method->base_monthly_production() + delta);
+            changed = 1;
+        }
+    }
+    return changed;
+}
+
+void reset_production_overrides()
+{
+    for (const auto &entry : g_production_methods) {
+        if (entry.second) {
+            entry.second->reset_base_monthly_production_override();
+        }
+    }
 }
 
 } // namespace building_type_registry_impl
@@ -562,4 +612,87 @@ extern "C" int production_method_registry_load(void)
     }
 
     return 1;
+}
+
+extern "C" int production_method_registry_production_per_month_for_resource(resource_type resource)
+{
+    return building_type_registry_impl::production_per_month_for_resource(resource);
+}
+
+extern "C" int production_method_registry_default_production_per_month_for_resource(resource_type resource)
+{
+    return building_type_registry_impl::default_production_per_month_for_resource(resource);
+}
+
+extern "C" int production_method_registry_set_production_per_month_for_resource(resource_type resource, int production)
+{
+    return building_type_registry_impl::set_production_per_month_for_resource(resource, production);
+}
+
+extern "C" int production_method_registry_adjust_production_per_month_for_resource(resource_type resource, int delta)
+{
+    return building_type_registry_impl::adjust_production_per_month_for_resource(resource, delta);
+}
+
+extern "C" void production_method_registry_reset_production_overrides(void)
+{
+    building_type_registry_impl::reset_production_overrides();
+}
+
+extern "C" int production_method_registry_supply_chain_for_good(
+    resource_supply_chain *chain,
+    resource_type good,
+    int max_entries)
+{
+    using namespace building_type_registry_impl;
+
+    int count = 0;
+    for (const auto &entry : g_production_methods) {
+        const ProductionMethod *method = entry.second.get();
+        if (!method || method->output_resource() != good) {
+            continue;
+        }
+        for (const ProductionResourceAmount &input : method->inputs()) {
+            if (!resource_is_declared(input.resource)) {
+                continue;
+            }
+            if (chain) {
+                if (count >= max_entries) {
+                    continue;
+                }
+                chain[count] = { input.amount, input.resource, good };
+            }
+            count++;
+        }
+    }
+    return count;
+}
+
+extern "C" int production_method_registry_supply_chain_for_raw_material(
+    resource_supply_chain *chain,
+    resource_type raw_material,
+    int max_entries)
+{
+    using namespace building_type_registry_impl;
+
+    int count = 0;
+    for (const auto &entry : g_production_methods) {
+        const ProductionMethod *method = entry.second.get();
+        if (!method || !resource_is_declared(method->output_resource())) {
+            continue;
+        }
+        for (const ProductionResourceAmount &input : method->inputs()) {
+            if (input.resource != raw_material) {
+                continue;
+            }
+            if (chain) {
+                if (count >= max_entries) {
+                    continue;
+                }
+                chain[count] = { input.amount, raw_material, method->output_resource() };
+            }
+            count++;
+        }
+    }
+    return count;
 }

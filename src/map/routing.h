@@ -1,7 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
 #include "map/grid.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef enum {
     ROUTED_BUILDING_ROAD = 0,
@@ -45,3 +49,7 @@ void map_routing_block(int x, int y, int size);
 void map_routing_save_state(buffer *buf);
 
 void map_routing_load_state(buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif

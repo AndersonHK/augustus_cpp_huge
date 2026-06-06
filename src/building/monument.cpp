@@ -1,10 +1,13 @@
+#include "building/building_record.h"
+#include "building/building.h"
+#include "building/building_type_registry_internal.h"
+#include "building/religion.h"
 extern "C" {
 #include "monument.h"
 
 #include "assets/assets.h"
 #include "building/image.h"
 #include "building/properties.h"
-#include "building/building_runtime_api.h"
 #include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "city/finance.h"
@@ -14,6 +17,7 @@ extern "C" {
 #include "core/calc.h"
 #include "core/log.h"
 #include "empire/city.h"
+#include "game/resource_id_bridge.h"
 #include "map/building_tiles.h"
 #include "map/grid.h"
 #include "map/orientation.h"
@@ -23,6 +27,7 @@ extern "C" {
 }
 
 #include <cstring>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -33,14 +38,12 @@ extern "C" {
 
 #define MAX_PHASES 6
 
-#define BUILDING_MONUMENT_FIRST_ID BUILDING_HIPPODROME
-
 #define NOTHING 0
 #define INFINITE 10000
 
 typedef struct {
     int phases;
-    int resources[MAX_PHASES][RESOURCE_MAX];
+    int resources[MAX_PHASES][RESOURCE_SLOT_COUNT];
 } monument_type;
 
 #define RESOURCE_ROW(architects, timber, iron, marble, gold, stone, concrete, bricks) \
@@ -118,26 +121,71 @@ static const monument_type city_mint = {
 
 #undef RESOURCE_ROW
 
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
+static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (type_matches(type, text_id)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int building_matches(const building *b, const char *text_id)
+{
+    return b && type_matches(b->type, text_id);
+}
+
+static const char *GRAND_TEMPLE_TEXT_IDS[] = {
+    "grand_temple_ceres",
+    "grand_temple_neptune",
+    "grand_temple_mercury",
+    "grand_temple_mars",
+    "grand_temple_venus"
+};
+
+static int type_is_grand_temple(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_temple(GOD_ALL, building_type_registry_impl::ReligionTier::Grand);
+}
+
 static const monument_type *legacy_monument_type(building_type type)
 {
-    switch (type) {
-        case BUILDING_PANTHEON:
-            return &pantheon;
-        case BUILDING_COLOSSEUM:
-            return &colosseum;
-        case BUILDING_HIPPODROME:
-            return &hippodrome;
-        case BUILDING_NYMPHAEUM:
-            return &nymphaeum;
-        case BUILDING_LARGE_MAUSOLEUM:
-            return &large_mausoleum;
-        case BUILDING_SMALL_MAUSOLEUM:
-            return &small_mausoleum;
-        case BUILDING_CITY_MINT:
-            return &city_mint;
-        default:
-            return nullptr;
+    if (type_matches(type, "pantheon")) {
+        return &pantheon;
     }
+    if (type_matches(type, "colosseum")) {
+        return &colosseum;
+    }
+    if (type_matches(type, "hippodrome")) {
+        return &hippodrome;
+    }
+    if (type_matches(type, "nymphaeum")) {
+        return &nymphaeum;
+    }
+    if (type_matches(type, "large_mausoleum")) {
+        return &large_mausoleum;
+    }
+    if (type_matches(type, "small_mausoleum")) {
+        return &small_mausoleum;
+    }
+    if (type_matches(type, "city_mint")) {
+        return &city_mint;
+    }
+    return nullptr;
 }
 
 static const char *LEGACY_MONUMENT_TEXT_IDS[] = {
@@ -226,12 +274,12 @@ static const monument_type *xml_monument_type(building_type type)
         monument_type &cached_type = xml_monument_types[type_index];
         cached_type.phases = phase_count + 1;
         for (int phase = 0; phase < MAX_PHASES; phase++) {
-            for (int resource = 0; resource < RESOURCE_MAX; resource++) {
+            for (int resource = 0; resource < RESOURCE_SLOT_COUNT; resource++) {
                 cached_type.resources[phase][resource] = 0;
             }
         }
         for (int phase = 1; phase <= phase_count; phase++) {
-            for (int resource = 0; resource < RESOURCE_MAX; resource++) {
+            for (int resource = 0; resource < RESOURCE_SLOT_COUNT; resource++) {
                 cached_type.resources[phase - 1][resource] =
                     building_type_registry_get_construction_requirement(type, resource, phase);
             }
@@ -303,7 +351,7 @@ int building_monument_deliver_resource(building *b, int resource)
 
 int building_monument_access_point(building *b, map_point *dst)
 {
-    if (b->size < 3 || b->type == BUILDING_HIPPODROME) {
+    if (b->size < 3 || building_matches(b, "hippodrome")) {
         dst->x = b->x;
         dst->y = b->y;
         return 1;
@@ -362,12 +410,12 @@ int building_monument_add_module(building *b, int module)
 {
     if (!building_monument_is_monument(b) ||
         b->monument.phase != MONUMENT_FINISHED ||
-        (b->monument.upgrades && b->type != BUILDING_CARAVANSERAI && b->type != BUILDING_LIGHTHOUSE)) {
+        (b->monument.upgrades && !building_matches(b, "caravanserai") && !building_matches(b, "lighthouse"))) {
         return 0;
     }
     b->monument.upgrades = module;
     if (building_type_registry_has_phased_construction(b->type)) {
-        building_runtime_apply_graphic(b);
+        Building(b).refresh_graphic();
     } else {
         map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
     }
@@ -376,22 +424,14 @@ int building_monument_add_module(building *b, int module)
 
 int building_monument_is_limited(building_type type)
 {
-    switch (type) {
-        case BUILDING_GRAND_TEMPLE_CERES:
-        case BUILDING_GRAND_TEMPLE_NEPTUNE:
-        case BUILDING_GRAND_TEMPLE_MERCURY:
-        case BUILDING_GRAND_TEMPLE_MARS:
-        case BUILDING_GRAND_TEMPLE_VENUS:
-        case BUILDING_PANTHEON:
-        case BUILDING_LIGHTHOUSE:
-        case BUILDING_CARAVANSERAI:
-        case BUILDING_COLOSSEUM:
-        case BUILDING_HIPPODROME:
-        case BUILDING_CITY_MINT:
-            return 1;
-        default:
-            return 0;
-    }
+    return type_is_grand_temple(type) || type_matches_any(type, {
+        "pantheon",
+        "lighthouse",
+        "caravanserai",
+        "colosseum",
+        "hippodrome",
+        "city_mint"
+    });
 }
 
 int building_monument_get_monument(int x, int y, int resource, int road_network_id, map_point *dst)
@@ -401,7 +441,7 @@ int building_monument_get_monument(int x, int y, int resource, int road_network_
     }
     int min_dist = INFINITE;
     building *min_building = 0;
-    for (int type_id = BUILDING_MONUMENT_FIRST_ID; type_id < BUILDING_TYPE_MAX; type_id++) {
+    for (int type_id = 1; type_id < BUILDING_TYPE_MAX; type_id++) {
         building_type type = static_cast<building_type>(type_id);
         if (!type_is_monument(type)) {
             continue;
@@ -439,7 +479,7 @@ int building_monument_get_monument(int x, int y, int resource, int road_network_
 
 int building_monument_has_unfinished_monuments(void)
 {
-    for (int type_id = BUILDING_MONUMENT_FIRST_ID; type_id < BUILDING_TYPE_MAX; type_id++) {
+    for (int type_id = 1; type_id < BUILDING_TYPE_MAX; type_id++) {
         building_type type = static_cast<building_type>(type_id);
         if (!type_is_monument(type)) {
             continue;
@@ -457,7 +497,7 @@ int building_monument_resources_needed_for_monument_type(building_type type, int
 {
     const monument_type *type_data = monument_type_for(type);
     if (!type_data || phase < 1 || phase > type_data->phases ||
-        resource < RESOURCE_NONE || resource >= RESOURCE_MAX) {
+        resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
         return 0;
     }
     return type_data->resources[phase - 1][resource];
@@ -473,12 +513,12 @@ void building_monument_set_phase(building *b, int phase)
     }
     b->monument.phase = phase;
     if (building_type_registry_has_phased_construction(b->type)) {
-        building_runtime_apply_graphic(b);
+        Building(b).refresh_graphic();
     } else {
         map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
     }
     if (b->monument.phase != MONUMENT_FINISHED) {
-        for (int resource = 0; resource < RESOURCE_MAX; resource++) {
+        for (int resource = 0; resource < RESOURCE_SLOT_COUNT; resource++) {
             b->resources[resource] =
                 building_monument_resources_needed_for_monument_type(b->type, resource, b->monument.phase);
         }
@@ -505,16 +545,7 @@ int building_monument_type_is_mini_monument(building_type type)
 
 int building_monument_is_grand_temple(building_type type)
 {
-    switch (type) {
-        case BUILDING_GRAND_TEMPLE_CERES:
-        case BUILDING_GRAND_TEMPLE_NEPTUNE:
-        case BUILDING_GRAND_TEMPLE_MERCURY:
-        case BUILDING_GRAND_TEMPLE_MARS:
-        case BUILDING_GRAND_TEMPLE_VENUS:
-            return 1;
-        default:
-            return 0;
-    }
+    return type_is_grand_temple(type);
 }
 
 int building_monument_needs_resource(building *b, int resource)
@@ -527,7 +558,7 @@ int building_monument_needs_resource(building *b, int resource)
 
 void building_monuments_set_construction_phase(int phase)
 {
-    for (int type_id = BUILDING_MONUMENT_FIRST_ID; type_id < BUILDING_TYPE_MAX; type_id++) {
+    for (int type_id = 1; type_id < BUILDING_TYPE_MAX; type_id++) {
         building_type type = static_cast<building_type>(type_id);
         if (!type_is_monument(type)) {
             continue;
@@ -538,16 +569,30 @@ void building_monuments_set_construction_phase(int phase)
     }
 }
 
+int building_monument_get_grand_temple_for_god(god_type god)
+{
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (!definition || !definition->is_temple(god, building_type_registry_impl::ReligionTier::Grand)) {
+            continue;
+        }
+        building *monument = building_first_of_type(type);
+        if (monument) {
+            return monument->id;
+        }
+    }
+    return 0;
+}
+
 int building_monument_get_venus_gt(void)
 {
-    building *monument = building_first_of_type(BUILDING_GRAND_TEMPLE_VENUS);
-    return monument ? monument->id : 0;
+    return building_monument_get_grand_temple_for_god(GOD_VENUS);
 }
 
 int building_monument_get_neptune_gt(void)
 {
-    building *monument = building_first_of_type(BUILDING_GRAND_TEMPLE_NEPTUNE);
-    return monument ? monument->id : 0;
+    return building_monument_get_grand_temple_for_god(GOD_NEPTUNE);
 }
 
 int building_monument_phases(building_type type)
@@ -558,7 +603,7 @@ int building_monument_phases(building_type type)
 
 void building_monument_finish_monuments(void)
 {
-    for (int type_id = BUILDING_MONUMENT_FIRST_ID; type_id < BUILDING_TYPE_MAX; type_id++) {
+    for (int type_id = 1; type_id < BUILDING_TYPE_MAX; type_id++) {
         building_type type = static_cast<building_type>(type_id);
         if (!type_is_monument(type)) {
             continue;
@@ -568,7 +613,7 @@ void building_monument_finish_monuments(void)
                 continue;
             }
             building_monument_set_phase(b, MONUMENT_FINISHED);
-            for (int resource = 0; resource < RESOURCE_MAX; resource++) {
+            for (int resource = 0; resource < RESOURCE_SLOT_COUNT; resource++) {
                 b->resources[resource] = 0;
             }
         }
@@ -580,7 +625,7 @@ int building_monument_needs_resources(building *b)
     if (b->monument.phase == MONUMENT_FINISHED) {
         return 0;
     }
-    for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+    for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
         if (b->resources[resource] > 0) {
             return 1;
         }
@@ -608,15 +653,15 @@ int building_monument_progress(building *b)
     if (b->monument.phase == MONUMENT_FINISHED) {
         if (building_monument_is_grand_temple(b->type)) {
             city_message_post(1, MESSAGE_GRAND_TEMPLE_COMPLETE, 0, b->grid_offset);
-        } else if (b->type == BUILDING_PANTHEON) {
+        } else if (building_matches(b, "pantheon")) {
             city_message_post(1, MESSAGE_PANTHEON_COMPLETE, 0, b->grid_offset);
-        } else if (b->type == BUILDING_LIGHTHOUSE) {
+        } else if (building_matches(b, "lighthouse")) {
             city_message_post(1, MESSAGE_LIGHTHOUSE_COMPLETE, 0, b->grid_offset);
-        } else if (b->type == BUILDING_COLOSSEUM) {
+        } else if (building_matches(b, "colosseum")) {
             city_message_post(1, MESSAGE_COLOSSEUM_COMPLETE, 0, b->grid_offset);
-        } else if (b->type == BUILDING_HIPPODROME) {
+        } else if (building_matches(b, "hippodrome")) {
             city_message_post(1, MESSAGE_HIPPODROME_COMPLETE, 0, b->grid_offset);
-        } else if (b->type == BUILDING_CARAVANSERAI) {
+        } else if (building_matches(b, "caravanserai")) {
             city_message_post(1, MESSAGE_CARAVANSERAI_COMPLETE, 0, b->grid_offset);
         }
     }
@@ -738,15 +783,10 @@ int building_monument_get_id(building_type type)
 int building_monument_count_grand_temples(void)
 {
     int count = 0;
-    static const building_type grand_temples[] = {
-        BUILDING_GRAND_TEMPLE_CERES,
-        BUILDING_GRAND_TEMPLE_NEPTUNE,
-        BUILDING_GRAND_TEMPLE_MERCURY,
-        BUILDING_GRAND_TEMPLE_MARS,
-        BUILDING_GRAND_TEMPLE_VENUS
-    };
-    for (int i = 0; i < 5; i++) {
-        building_type type = grand_temples[i];
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        if (!type_is_grand_temple(type)) {
+            continue;
+        }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             count++;
         }
@@ -783,6 +823,22 @@ int building_monument_working(building_type type)
     return monument_id;
 }
 
+int building_monument_working_grand_temple_for_god(god_type god)
+{
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (!definition || !definition->is_temple(god, building_type_registry_impl::ReligionTier::Grand)) {
+            continue;
+        }
+        int monument_id = building_monument_working(type);
+        if (monument_id) {
+            return monument_id;
+        }
+    }
+    return 0;
+}
+
 int building_monument_requires_resource(building_type type, int resource)
 {
     int phases = building_monument_phases(type);
@@ -798,7 +854,7 @@ int building_monument_has_required_resources_to_build(building_type type)
 {
     int phases = building_monument_phases(type);
     for (int phase = 1; phase < phases; phase++) {
-        for (int resource_id = RESOURCE_MIN; resource_id < RESOURCE_MAX; resource_id++) {
+        for (int resource_id = (RESOURCE_NONE + 1); resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
             resource_type r = static_cast<resource_type>(resource_id);
             if (building_monument_resources_needed_for_monument_type(type, r, phase) > 0 &&
                 !empire_can_produce_resource_potentially(r) && !empire_can_import_resource_potentially(r)) {
@@ -837,14 +893,18 @@ int building_monument_module_type(building_type type)
 int building_monument_gt_module_is_active(int module)
 {
     int module_num = module % MODULES_PER_TEMPLE + 1;
-    building_type temple_type = static_cast<building_type>(module / MODULES_PER_TEMPLE + BUILDING_GRAND_TEMPLE_CERES);
+    int temple_index = module / MODULES_PER_TEMPLE;
+    if (temple_index < 0 || temple_index >= static_cast<int>(sizeof(GRAND_TEMPLE_TEXT_IDS) / sizeof(GRAND_TEMPLE_TEXT_IDS[0]))) {
+        return 0;
+    }
+    building_type temple_type = runtime_type(GRAND_TEMPLE_TEXT_IDS[temple_index]);
 
     return building_monument_module_type(temple_type) == module_num;
 }
 
 int building_monument_pantheon_module_is_active(int module)
 {
-    return building_monument_module_type(BUILDING_PANTHEON) == (module - (PANTHEON_MODULE_1_DESTINATION_PRIESTS - 1));
+    return building_monument_module_type(runtime_type("pantheon")) == (module - (PANTHEON_MODULE_1_DESTINATION_PRIESTS - 1));
 }
 
 static void delivery_save(buffer *buf, monument_delivery *delivery)

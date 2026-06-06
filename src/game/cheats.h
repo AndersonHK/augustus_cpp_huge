@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define MAX_COMMAND_SIZE 64
 
@@ -30,3 +34,7 @@ int game_cheat_disabled_invasions(void);
 void game_cheat_show_custom_events(uint8_t *args);
 
 void game_cheat_show_editor(uint8_t *args);
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="shipyard">
+    <identity name_key="building.shipyard.name" />
+    <model size="2" cost="100" />
+    <desirability>
+        <value value="-8" />
+        <step value="2" />
+        <step_size value="2" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="shoreline" />
+    <button group="water_crossings" order="30" text_key="building.shipyard.name" />
+    <event_data attr="shipyard" />
+    <labor>
+        <employees count="10" />
+    </labor>
+</building>

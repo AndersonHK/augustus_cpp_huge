@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<storage_type>
+    <accepts resource="gold" />
+    <capacity amount="100" />
+</storage_type>
+

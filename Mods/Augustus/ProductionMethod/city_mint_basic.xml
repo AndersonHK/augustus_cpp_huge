@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<production_method>
+    <kind value="workshop" />
+    <output resource="denarii" production_per_month="200" />
+    <batch_size value="1" />
+    <input resource="gold" amount="20" />
+</production_method>

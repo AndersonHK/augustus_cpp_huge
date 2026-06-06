@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="shrines">
+    <identity name_key="building.shrines.name" />
+    <event_data attr="shrines|all_shrines" />
+</building>

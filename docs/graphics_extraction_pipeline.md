@@ -25,7 +25,7 @@ Mods\Julius\Graphics
 Mods\Augustus\Graphics
 ```
 
-Julius extraction must run before Augustus extraction. `src/core/image.c` is compiled as C++ in the runtime and harness projects, and `image_load_climate(..., extract_legacy_graphics = 1)` now constructs `RuntimeGraphicsExtractionService` directly. The service calls `JuliusExtractor` first and then `AugustusExtractor` before asset XML loading. `src/platform/augustus.cpp` should not start the Augustus graphics extractor early, because Augustus needs the extracted Julius template data to resolve numeric legacy references and image numbering.
+Julius extraction must run before Augustus extraction. `src/core/image.cpp` is compiled as C++ in the runtime and harness projects, and `image_load_climate(..., extract_legacy_graphics = 1)` now constructs `RuntimeGraphicsExtractionService` directly. The service calls `JuliusExtractor` first and then `AugustusExtractor` before asset XML loading. `src/platform/augustus.cpp` should not start the Augustus graphics extractor early, because Augustus needs the extracted Julius template data to resolve numeric legacy references and image numbering.
 
 ## Standalone Harness
 
@@ -152,7 +152,7 @@ The public C++ surface is intentionally small:
 
 - `LegacyClimateAtlas`, `JuliusExtractor`, and `GroupImageKey` live in `src/core/legacy_image_extractor.h`.
 - `ExtractorPaths`, `ExtractorOptions`, `ExtractionReport`, `AugustusExtractor`, and `RuntimeGraphicsExtractionService` live in `src/assets/augustus_asset_extractor.h`.
-- Runtime climate loading calls `RuntimeGraphicsExtractionService` directly from the C++-compiled `src/core/image.c`; extractor order belongs to the service.
+- Runtime climate loading calls `RuntimeGraphicsExtractionService` directly from the C++-compiled `src/core/image.cpp`; extractor order belongs to the service.
 - `XmlReader`, `XmlElement`, and `XmlToken` in `graphics_extractor_common` are the extractor-owned XML parser. The Augustus extractor and Julius template resolver no longer depend on `core/xml_parser.c`.
 - `JuliusTemplateCatalog`, `JuliusTemplateGroup`, and `JuliusTemplateImage` own extracted-Julius template parsing and translation.
 - The standalone harness owns argument parsing through `HarnessCli`, then calls `AugustusExtractor` directly for the configured extraction pass.

@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 enum {
     VICTORY_STATE_LOST = -1,
@@ -23,3 +27,7 @@ void city_victory_continue_governing(int months);
 void city_victory_stop_governing(void);
 
 int city_victory_has_won(void);
+
+#ifdef __cplusplus
+}
+#endif

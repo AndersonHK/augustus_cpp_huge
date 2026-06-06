@@ -1,16 +1,29 @@
-#pragma once
+﻿#pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "figure/formation.h"
 #include "map/point.h"
+#ifdef __cplusplus
+extern "C++" {
+class Building;
+}
+extern "C" {
+#endif
 
-int formation_legion_create_for_fort(building *fort);
 
-void formation_legion_delete_for_fort(building *fort);
+#ifdef __cplusplus
+}
+extern "C++" {
+int formation_legion_create_for_fort(const Building &fort);
+
+void formation_legion_delete_for_fort(const Building &fort);
 
 int formation_legion_recruits_needed(void);
 
-void formation_legion_update_recruit_status(building *fort);
+void formation_legion_update_recruit_status(const Building &fort);
+}
+extern "C" {
+#endif
 
 void formation_legion_change_layout(formation *m, int new_layout);
 
@@ -39,3 +52,7 @@ int formation_legion_at_building(int grid_offset);
 void formation_legion_update(void);
 
 void formation_legion_decrease_damage(void);
+
+#ifdef __cplusplus
+}
+#endif

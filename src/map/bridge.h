@@ -1,6 +1,10 @@
 #pragma once
-#include "building/type.h"
+#include "building/building_type.h"
 #include "map/grid.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 int map_bridge_building_length(void);
 
@@ -34,3 +38,7 @@ int map_bridge_has_figures(int grid_offset);
 int map_is_bridge(int grid_offset);
 
 int map_bridge_height(int grid_offset);
+
+#ifdef __cplusplus
+}
+#endif

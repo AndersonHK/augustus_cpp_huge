@@ -1,9 +1,15 @@
+#include "building/building_record.h"
+#include "building/building.h"
 #include "building/building_type.h"
 
 #include "building/housing_type.h"
+#include "building/religion.h"
 
 extern "C" {
+#include "building/industry.h"
 #include "building/monument.h"
+#include "building/properties.h"
+#include "city/constants.h"
 }
 
 #include <utility>
@@ -218,6 +224,14 @@ const char *BuildButtonDefinition::icon_image() const
     return icon_image_.c_str();
 }
 
+ImageGroupEntryRef BuildButtonDefinition::icon_ref() const
+{
+    if (!has_icon()) {
+        return ImageGroupEntryRef();
+    }
+    return ImageGroupEntryRef::from_group(icon(), has_icon_image() ? icon_image() : "");
+}
+
 int BuildButtonDefinition::has_text_key() const
 {
     return !text_key_.empty();
@@ -231,6 +245,61 @@ const char *BuildButtonDefinition::text_key() const
 int BuildButtonDefinition::has_any() const
 {
     return has_group() || has_order() || has_icon() || has_icon_image() || has_text_key();
+}
+
+void RoadblockDefinition::set_kind(RoadblockKind kind)
+{
+    kind_ = kind;
+}
+
+RoadblockKind RoadblockDefinition::kind() const
+{
+    return kind_;
+}
+
+int RoadblockDefinition::has_any() const
+{
+    return kind_ != RoadblockKind::None;
+}
+
+void TileDefinition::set_kind(TileKind kind)
+{
+    kind_ = kind;
+}
+
+TileKind TileDefinition::kind() const
+{
+    return kind_;
+}
+
+int TileDefinition::has_any() const
+{
+    return kind_ != TileKind::None;
+}
+
+void TempleDefinition::set_religion_reference(std::string path)
+{
+    religion_reference_path_ = std::move(path);
+}
+
+void TempleDefinition::set_religion(const Religion *religion)
+{
+    religion_ = religion;
+}
+
+const std::string &TempleDefinition::religion_reference_path() const
+{
+    return religion_reference_path_;
+}
+
+const Religion *TempleDefinition::religion() const
+{
+    return religion_;
+}
+
+int TempleDefinition::has_any() const
+{
+    return !religion_reference_path_.empty();
 }
 
 void SoundDefinition::set_city_sound(int sound)
@@ -292,6 +361,31 @@ const char *EventDataDefinition::attr() const
 int EventDataDefinition::has_any() const
 {
     return has_attr();
+}
+
+void MarketDefinition::set_max_distance(int value)
+{
+    max_distance_ = value;
+}
+
+void MarketDefinition::set_max_food_stock(int value)
+{
+    max_food_stock_ = value;
+}
+
+int MarketDefinition::max_distance() const
+{
+    return max_distance_;
+}
+
+int MarketDefinition::max_food_stock() const
+{
+    return max_food_stock_;
+}
+
+int MarketDefinition::has_any() const
+{
+    return max_distance_ > 0 && max_food_stock_ > 0;
 }
 
 void BuildingFlagsDefinition::set_fire_proof(int value)
@@ -616,6 +710,21 @@ void BuildingType::set_button_text_key(std::string key)
     button_.set_text_key(std::move(key));
 }
 
+void BuildingType::set_roadblock_kind(RoadblockKind kind)
+{
+    roadblock_.set_kind(kind);
+}
+
+void BuildingType::set_tile_kind(TileKind kind)
+{
+    tile_.set_kind(kind);
+}
+
+void BuildingType::set_temple_religion_reference(std::string path)
+{
+    temple_.set_religion_reference(std::move(path));
+}
+
 void BuildingType::set_sound_id(int sound)
 {
     sound_.set_city_sound(sound);
@@ -634,6 +743,16 @@ void BuildingType::set_sound_always_play(int value)
 void BuildingType::set_event_attr(std::string attr)
 {
     event_data_.set_attr(std::move(attr));
+}
+
+void BuildingType::set_market_max_distance(int value)
+{
+    market_.set_max_distance(value);
+}
+
+void BuildingType::set_market_max_food_stock(int value)
+{
+    market_.set_max_food_stock(value);
 }
 
 void BuildingType::set_fire_proof(int value)
@@ -783,6 +902,11 @@ void BuildingType::add_production_method_reference(std::string path)
     production_method_reference_paths_.push_back(std::move(path));
 }
 
+void BuildingType::set_distribution_reference(std::string path)
+{
+    distribution_reference_path_ = std::move(path);
+}
+
 void BuildingType::set_housing_reference(std::string path)
 {
     housing_reference_path_ = std::move(path);
@@ -816,14 +940,24 @@ void BuildingType::add_storage_type(const StorageType *storage_type)
     storage_types_.push_back(storage_type);
 }
 
-void BuildingType::add_production_method(const ProductionMethod *production_method)
+void BuildingType::add_production_method(ProductionMethod *production_method)
 {
     production_methods_.push_back(production_method);
+}
+
+void BuildingType::set_distribution(const Distribution *distribution)
+{
+    distribution_ = distribution;
 }
 
 void BuildingType::set_housing_type(const HousingType *housing_type)
 {
     housing_type_ = housing_type;
+}
+
+void BuildingType::set_temple_religion(const Religion *religion)
+{
+    temple_.set_religion(religion);
 }
 
 void BuildingType::set_housing_transition_type(HousingTransitionKind kind, building_type type)
@@ -879,6 +1013,21 @@ const BuildButtonDefinition &BuildingType::button() const
     return button_;
 }
 
+const RoadblockDefinition &BuildingType::roadblock() const
+{
+    return roadblock_;
+}
+
+const TileDefinition &BuildingType::tile() const
+{
+    return tile_;
+}
+
+const TempleDefinition &BuildingType::temple() const
+{
+    return temple_;
+}
+
 const SoundDefinition &BuildingType::sound() const
 {
     return sound_;
@@ -887,6 +1036,11 @@ const SoundDefinition &BuildingType::sound() const
 const EventDataDefinition &BuildingType::event_data() const
 {
     return event_data_;
+}
+
+const MarketDefinition &BuildingType::market() const
+{
+    return market_;
 }
 
 const BuildingFlagsDefinition &BuildingType::flags() const
@@ -909,7 +1063,140 @@ const ConstructionDefinition &BuildingType::construction() const
     return construction_;
 }
 
-const GraphicsTarget *BuildingType::resolve_graphics_target(const ::building &building) const
+ImageGroupEntryRef BuildingType::button_icon_ref() const
+{
+    return has_button() ? button_.icon_ref() : ImageGroupEntryRef();
+}
+
+const char *BuildingType::button_text_key() const
+{
+    return has_button() && button_.has_text_key() ? button_.text_key() : nullptr;
+}
+
+int BuildingType::required_workers() const
+{
+    const model_building *model = model_get_building(type_);
+    return model ? model->laborers : 0;
+}
+
+int BuildingType::has_data_only_graphics() const
+{
+    return building_is_farm(type_);
+}
+
+int BuildingType::is_temple() const
+{
+    return temple_.religion() ? 1 : 0;
+}
+
+int BuildingType::is_temple(god_type god, ReligionTier tier) const
+{
+    const Religion *religion = temple_.religion();
+    if (!religion) {
+        return 0;
+    }
+    if (god != GOD_ALL && !religion->has_god(god)) {
+        return 0;
+    }
+    return tier == ReligionTier::None || religion->is_tier(tier);
+}
+
+int BuildingType::is_temple_for_god(god_type god) const
+{
+    return is_temple(god, ReligionTier::None);
+}
+
+int BuildingType::is_temple_tier(ReligionTier tier) const
+{
+    return is_temple(GOD_ALL, tier);
+}
+
+int BuildingType::is_ceres_temple() const
+{
+    return is_temple_for_god(GOD_CERES);
+}
+
+int BuildingType::is_venus_temple() const
+{
+    return is_temple_for_god(GOD_VENUS);
+}
+
+int BuildingType::is_mars_temple() const
+{
+    return is_temple_for_god(GOD_MARS);
+}
+
+int BuildingType::is_mercury_temple() const
+{
+    return is_temple_for_god(GOD_MERCURY);
+}
+
+int BuildingType::is_neptune_temple() const
+{
+    return is_temple_for_god(GOD_NEPTUNE);
+}
+
+int BuildingType::is_pantheon() const
+{
+    return is_temple_tier(ReligionTier::Pantheon);
+}
+
+int BuildingType::is_oracle() const
+{
+    return is_temple_tier(ReligionTier::Oracle);
+}
+
+int BuildingType::is_grand_temple_mars() const
+{
+    return is_temple(GOD_MARS, ReligionTier::Grand);
+}
+
+int BuildingType::is_grand_temple_venus() const
+{
+    return is_temple(GOD_VENUS, ReligionTier::Grand);
+}
+
+int BuildingType::is_warehouse() const
+{
+    return attr_ == "warehouse";
+}
+
+int BuildingType::is_granary() const
+{
+    return attr_ == "granary";
+}
+
+int BuildingType::is_mess_hall() const
+{
+    return attr_ == "mess_hall";
+}
+
+int BuildingType::is_architect_guild() const
+{
+    return attr_ == "architect_guild";
+}
+
+int BuildingType::is_caravanserai() const
+{
+    return attr_ == "caravanserai";
+}
+
+int BuildingType::is_lighthouse() const
+{
+    return attr_ == "lighthouse";
+}
+
+int BuildingType::is_watchtower() const
+{
+    return attr_ == "watchtower";
+}
+
+int BuildingType::is_armoury() const
+{
+    return attr_ == "armoury";
+}
+
+const GraphicsTarget *BuildingType::resolve_graphics_target(const Building &building) const
 {
     return graphics_.resolve_target(building);
 }
@@ -920,16 +1207,17 @@ const GraphicsTarget *BuildingType::resolve_construction_graphics_target(int pha
     return construction_phase && construction_phase->graphics.has_path() ? &construction_phase->graphics : nullptr;
 }
 
-const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const BuildingType *definition, const ::building &building)
+const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const BuildingType *definition, const Building &building)
 {
     if (!definition || !definition->has_graphic()) {
         return nullptr;
     }
+    const auto *record = building.legacy_record();
 
     if (definition->has_phased_construction() &&
-        building.monument.phase != MONUMENT_FINISHED &&
-        building.monument.phase >= MONUMENT_START) {
-        if (const GraphicsTarget *target = definition->resolve_construction_graphics_target(building.monument.phase)) {
+        record->monument.phase != MONUMENT_FINISHED &&
+        record->monument.phase >= MONUMENT_START) {
+        if (const GraphicsTarget *target = definition->resolve_construction_graphics_target(record->monument.phase)) {
             return target;
         }
     }
@@ -962,6 +1250,21 @@ int BuildingType::has_button() const
     return button_.has_any();
 }
 
+int BuildingType::has_roadblock() const
+{
+    return roadblock_.has_any();
+}
+
+int BuildingType::has_tile() const
+{
+    return tile_.has_any();
+}
+
+int BuildingType::has_temple() const
+{
+    return temple_.has_any();
+}
+
 int BuildingType::has_sound() const
 {
     return sound_.has_any();
@@ -970,6 +1273,11 @@ int BuildingType::has_sound() const
 int BuildingType::has_event_data() const
 {
     return event_data_.has_any();
+}
+
+int BuildingType::has_market() const
+{
+    return market_.has_any();
 }
 
 int BuildingType::has_flags() const
@@ -1022,9 +1330,19 @@ const std::vector<std::string> &BuildingType::production_method_reference_paths(
     return production_method_reference_paths_;
 }
 
+const std::string &BuildingType::distribution_reference_path() const
+{
+    return distribution_reference_path_;
+}
+
 const std::string &BuildingType::housing_reference_path() const
 {
     return housing_reference_path_;
+}
+
+const std::string &BuildingType::temple_religion_reference_path() const
+{
+    return temple_.religion_reference_path();
 }
 
 int BuildingType::housing_capacity() const
@@ -1052,9 +1370,14 @@ const std::vector<const StorageType *> &BuildingType::storage_types() const
     return storage_types_;
 }
 
-const std::vector<const ProductionMethod *> &BuildingType::production_methods() const
+const std::vector<ProductionMethod *> &BuildingType::production_methods() const
 {
     return production_methods_;
+}
+
+const Distribution *BuildingType::distribution() const
+{
+    return distribution_;
 }
 
 const HousingType *BuildingType::housing_type() const
@@ -1087,12 +1410,17 @@ int BuildingType::has_native_production() const
     return !production_methods_.empty();
 }
 
+int BuildingType::has_distribution() const
+{
+    return distribution_ ? 1 : 0;
+}
+
 int BuildingType::has_housing() const
 {
     return housing_type_ ? 1 : 0;
 }
 
-unsigned char BuildingType::upgrade_level_for(const ::building &building) const
+unsigned char BuildingType::upgrade_level_for(const Building &building) const
 {
     return graphics_.upgrade_level_for(building);
 }

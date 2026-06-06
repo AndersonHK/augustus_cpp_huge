@@ -1,6 +1,6 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "figure/figure.h"
 #include "graphics/tooltip.h"
 

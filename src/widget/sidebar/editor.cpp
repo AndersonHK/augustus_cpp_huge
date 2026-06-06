@@ -139,7 +139,7 @@ void widget_sidebar_editor_draw_background(void)
 {
     int image_base = Image::group(GROUP_EDITOR_SIDE_PANEL);
     int x_offset = sidebar_common_get_x_offset_expanded();
-    Image::from_id(image_base).draw(x_offset, TOP_MENU_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base).draw(x_offset, TOP_MENU_HEIGHT);
     draw_buttons();
     widget_minimap_update(0);
     widget_minimap_draw_decorated(x_offset + 8, MINIMAP_Y_OFFSET, MINIMAP_WIDTH, MINIMAP_HEIGHT);

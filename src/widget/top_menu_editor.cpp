@@ -7,6 +7,7 @@ extern "C" {
 #include "empire/object.h"
 #include "game/file_editor.h"
 #include "game/resource.h"
+#include "game/resource_id_bridge.h"
 #include "graphics/menu.h"
 #include "scenario/data.h"
 #include "scenario/editor.h"
@@ -141,7 +142,7 @@ void widget_top_menu_editor_draw(void)
     int image_base = Image::group(GROUP_TOP_MENU);
     int s_width = screen_width();
     for (int i = 0; i * block_width < s_width; i++) {
-        Image::from_id(image_base + i % 8).draw(i * block_width, 0, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + i % 8).draw(i * block_width, 0);
     }
     menu_bar_draw(menu, 5, s_width);
 }
@@ -362,7 +363,7 @@ static void menu_empire_choose(int param)
     clear_state();
     window_go_back();
     scenario_editor_unset_custom_empire();
-    resource_set_mapping(RESOURCE_ORIGINAL_VERSION);
+    resource_set_mapping(resource_id_bridge_original_version());
     empire_load(1, scenario_empire_id());
     empire_object_init_cities(scenario_empire_id());
     window_editor_empire_show();
@@ -372,7 +373,7 @@ static void menu_empire_custom(int param)
 {
     clear_state();
     window_go_back();
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     window_file_dialog_show(FILE_TYPE_EMPIRE, FILE_DIALOG_LOAD);
 }
 
@@ -381,9 +382,9 @@ static void menu_empire_view(int param)
     clear_state();
     window_go_back();
     if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE) {
-        resource_set_mapping(RESOURCE_CURRENT_VERSION);
+        resource_set_mapping(resource_id_bridge_current_version());
     } else {
-        resource_set_mapping(RESOURCE_ORIGINAL_VERSION);
+        resource_set_mapping(resource_id_bridge_original_version());
     }
     empire_editor_init(0);
     window_editor_empire_show();
@@ -395,7 +396,7 @@ static void menu_empire_create(int param)
     window_go_back();
     scenario.empire.id = SCENARIO_CUSTOM_EMPIRE;
     string_copy(string_from_ascii("\0"), (uint8_t *)scenario.empire.custom_name, 300);
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     empire_clear();
     empire_object_clear();
     empire_object_init_cities(SCENARIO_CUSTOM_EMPIRE);

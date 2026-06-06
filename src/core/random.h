@@ -1,8 +1,12 @@
-#pragma once
+﻿#pragma once
 
 #include <stdint.h>
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /**
  * @file
@@ -72,3 +76,7 @@ int random_from_stdlib(void);
 int random_between_from_stdlib(int min, int max);
 
 double random_fractional_from_stdlib(void);
+
+#ifdef __cplusplus
+}
+#endif

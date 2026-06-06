@@ -1,5 +1,6 @@
 #include "export_xml.h"
 
+#include "core/array.h"
 #include "core/buffer.h"
 #include "core/io.h"
 #include "core/log.h"
@@ -77,7 +78,7 @@ static int export_attribute_route(xml_data_attribute_t *attr, int target)
 
 static int export_attribute_resource(xml_data_attribute_t *attr, int target)
 {
-    if (target < RESOURCE_MIN || target > RESOURCE_MAX) {
+    if (target < (RESOURCE_NONE + 1) || target > RESOURCE_SLOT_COUNT) {
         log_exporting_error("Error while exporting resource.");
         return 0;
     }

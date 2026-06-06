@@ -1,6 +1,7 @@
 #include "game.h"
 
 #include "building/building_type_registry.h"
+#include "building/building_runtime.h"
 #include "figure/figure_type_registry.h"
 #include "game/defines.h"
 #include "graphics/declarative_window.h"
@@ -9,7 +10,6 @@ extern "C" {
 #include "assets/assets.h"
 #include "assets/image_group_payload_api.h"
 #include "building/properties.h"
-#include "building/building_runtime_api.h"
 #include "city/view.h"
 #include "core/config.h"
 #include "core/hotkey_config.h"
@@ -36,7 +36,6 @@ extern "C" {
 #include "graphics/video.h"
 #include "graphics/window.h"
 #include "map/tile_runtime_api.h"
-#include "map/tile_type_registry.h"
 #include "platform/file_manager.h"
 #include "platform/prefs.h"
 #include "platform/user_path.h"
@@ -173,11 +172,6 @@ int game_init(void)
     if (!figure_type_registry_load()) {
         set_init_failure_message("Failed to load FigureType definitions.", figure_type_registry_get_failure_reason());
         errlog("unable to load FigureType xml definitions");
-        return 0;
-    }
-    if (!tile_type_registry_load()) {
-        set_init_failure_message("Failed to load Tile definitions.", 0);
-        errlog("unable to load Tile xml definitions");
         return 0;
     }
     building_runtime_reset();

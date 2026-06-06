@@ -1,7 +1,14 @@
-#pragma once
+﻿#pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "figure/figure.h"
+#ifdef __cplusplus
+extern "C++" {
+class Building;
+}
+extern "C" {
+#endif
+
 
 #define SICKNESS_LEVEL_LOW 0
 #define SICKNESS_LEVEL_MEDIUM 1
@@ -18,7 +25,13 @@ void city_health_change(int amount);
 
 void city_health_set(int new_value);
 
-int city_health_get_house_health_level(const building *b, int update_city_data);
+#ifdef __cplusplus
+}
+extern "C++" {
+int city_health_get_house_health_level(Building house, int update_city_data);
+}
+extern "C" {
+#endif
 
 void city_health_update(void);
 
@@ -34,3 +47,7 @@ int city_health_get_population_with_baths_access(void);
 int city_health_get_population_with_well_access(void);
 int city_health_get_population_with_latrines_access(void);
 int city_health_get_population_with_water_access(void);
+
+#ifdef __cplusplus
+}
+#endif

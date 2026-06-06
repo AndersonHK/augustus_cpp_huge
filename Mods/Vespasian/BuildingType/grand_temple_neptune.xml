@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="grand_temple_neptune">
     <identity name_key="TR_BUILDING_GRAND_TEMPLE_NEPTUNE" />
+    <temple religion="grand_temple_neptune" />
     <model size="7" cost="2500" />
     <desirability>
         <value value="20" />

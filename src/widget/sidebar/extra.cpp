@@ -1,10 +1,11 @@
+#include "city/god.h"
+
 extern "C" {
 #include "extra.h"
 
 #include "assets/assets.h"
 #include "city/figures.h"
 #include "city/finance.h"
-#include "city/gods.h"
 #include "city/labor.h"
 #include "city/military.h"
 #include "city/population.h"
@@ -37,6 +38,7 @@ extern "C" {
 #include "window/popup_dialog.h"
 }
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 #include <stdlib.h>
 
@@ -261,7 +263,7 @@ static void set_extra_info_objectives(void)
 static int count_happy_gods(void)
 {
     int happy_gods = 0;
-    for (int god = 0; god < MAX_GODS; god++) {
+    for (int god = 0; god < city_gods_count(); god++) {
         if (city_god_happy_bolts(god) > 0) {
             happy_gods++;
         }
@@ -324,7 +326,7 @@ static int update_extra_info(int is_background)
         new_requests |= update_extra_info_value(city_request_has_troop_request(), &data.troop_requests);
 
         if (data.troop_requests) {
-            changed |= update_extra_info_value(RESOURCE_TROOPS, &data.requests[0].resource);
+            changed |= update_extra_info_value(resource_troops(), &data.requests[0].resource);
             changed |= update_extra_info_value(city_military_months_until_distant_battle(), &data.requests[0].time);
             changed |= update_extra_info_value(city_military_distant_battle_enemy_strength(), &data.requests[0].amount);
             changed |= update_extra_info_value(city_military_empire_service_legions(), &data.requests[0].available);
@@ -344,7 +346,7 @@ static int update_extra_info(int is_background)
             }
             changed |= update_extra_info_value(r->months_to_comply, &slot->time);
             changed |= update_extra_info_value(r->amount.requested, &slot->amount);
-            if (r->resource == RESOURCE_DENARII) {
+            if (r->resource == resource_denarii()) {
                 changed |= update_extra_info_value(city_finance_treasury(), &slot->available);
             } else {
                 changed |= update_extra_info_value(city_resource_get_amount_including_granaries(
@@ -415,7 +417,7 @@ static void draw_request_action_label(unsigned int slot, int button_y_offset)
     font_t color = FONT_NORMAL_GREEN;
     const uint8_t *label = translation_for(TR_SIDEBAR_EXTRA_REQUESTS_SEND);
 
-    if (r->resource != RESOURCE_TROOPS) {
+    if (r->resource != resource_troops()) {
         int request_index = data.requests[slot].index;
         if (city_request_has_troop_request() && slot != 0) {
             request_index++;
@@ -426,7 +428,7 @@ static void draw_request_action_label(unsigned int slot, int button_y_offset)
             return;
         }
 
-        if (r->resource == RESOURCE_DENARII) {
+        if (r->resource == resource_denarii()) {
             color = status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES ? FONT_NORMAL_RED : FONT_NORMAL_GREEN;
         } else if (status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES) {
             label = translation_for(city_resource_is_stockpiled(static_cast<resource_type>(r->resource)) ?
@@ -460,12 +462,11 @@ static int draw_request_buttons(int y_offset)
         buttons_emperor_requests[i].y = base_button_y_offset + 28;
         buttons_emperor_requests[i].height = 20;
         int width = data.x_offset + 10;
-        if (r->resource == RESOURCE_TROOPS) {
-            int image_id = resource_get_data(RESOURCE_WEAPONS)->image.icon;
-            const image *img = image_get(image_id);
-            int image_y_offset = (EXTRA_INFO_LINE_SPACE - img->height) / 2;
+        if (r->resource == resource_troops()) {
+            const ImageGroupEntryRef &request_icon = resource_graphics(resource_weapons()).panel_icon();
+            int image_y_offset = (EXTRA_INFO_LINE_SPACE - request_icon.height()) / 2;
 
-            Image::from_id(image_id).draw(width, y_offset + image_y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+            request_icon.draw(width, y_offset + image_y_offset - 2);
 
             int force_text_offset = get_text_offset_for_force_size(r->amount);
 
@@ -479,27 +480,26 @@ static int draw_request_buttons(int y_offset)
             draw_request_action_label(i, y_offset + 20);
         } else {
             resource_type resource = static_cast<resource_type>(r->resource);
-            int image_id = resource_get_data(resource)->image.icon;
-            const image *img = image_get(image_id);
-            int image_y_offset = (EXTRA_INFO_LINE_SPACE - img->height) / 2;
+            const ImageGroupEntryRef &request_icon = resource_graphics(resource).panel_icon();
+            int image_y_offset = (EXTRA_INFO_LINE_SPACE - request_icon.height()) / 2;
 
-            Image::from_id(image_id).draw(width, y_offset + image_y_offset, COLOR_MASK_NONE, SCALE_NONE);
+            request_icon.draw(width, y_offset + image_y_offset);
 
-            width += img->width + 6;
+            width += request_icon.width() + 6;
             int request_index = data.requests[i].index;
             if (city_request_has_troop_request() && i != 0) {
                 request_index++;
             }
 
             int status = city_request_get_status(request_index);
-            if (r->resource != RESOURCE_DENARII) {
+            if (r->resource != resource_denarii()) {
                 int is_stockpiled = city_resource_is_stockpiled(resource);
                 int enough_resource = 0;
                 // button text
                 if (status) {
                     if (status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES) {
                         if (is_stockpiled) {
-                            Image::from_id(assets_get_image_id("UI", "Store Icon")).draw(data.x_offset + 5, y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
+                            Image::from_id(assets_get_image_id("UI", "Store Icon")).draw(data.x_offset + 5, y_offset + 10);
                         }
                     } else {
                         enough_resource = 1;
@@ -591,14 +591,14 @@ static void draw_extra_info_panel(void)
 
         font_t font_type = data.gods.angry > 0 ? FONT_NORMAL_RED : FONT_NORMAL_GREEN;
         int width = text_draw_number(data.gods.angry, 0, "", data.x_offset + 42, y_offset + 2, font_type, screen_ui_to_pixel(font_definition_for(font_type)->line_height), 0);
-        Image::from_id(Image::group(GROUP_GOD_BOLT)).draw(data.x_offset + 42 + width, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_GOD_BOLT)).draw(data.x_offset + 42 + width, y_offset - 2);
 
         static int happy_image_id;
         if (!happy_image_id) {
             happy_image_id = assets_get_image_id("UI", "Happy God Icon");
         }
         width = text_draw_number(data.gods.happy, 0, "", data.x_offset + 82, y_offset + 2, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-        Image::from_id(happy_image_id).draw(data.x_offset + 82 + width, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(happy_image_id).draw(data.x_offset + 82 + width, y_offset - 2);
 
         y_offset += EXTRA_INFO_VERTICAL_PADDING * 2;
     }

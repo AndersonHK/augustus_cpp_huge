@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "figure/figure.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 void figure_create_explosion_cloud(int x, int y, int size, int alt_sound);
 
@@ -19,3 +23,7 @@ void figure_javelin_action(figure *f);
 void figure_bolt_action(figure *f);
 
 void figure_catapult_missile_action(figure *f);
+
+#ifdef __cplusplus
+}
+#endif

@@ -8,8 +8,8 @@
 #include <string.h>
 
 typedef struct {
-    int limit[RESOURCE_MAX];
-    int traded[RESOURCE_MAX];
+    int limit[RESOURCE_SLOT_COUNT];
+    int traded[RESOURCE_SLOT_COUNT];
 } route_resource;
 
 typedef struct {
@@ -127,7 +127,7 @@ void trade_route_increase_traded(int route_id, resource_type resource, int buyin
 void trade_route_reset_traded(int route_id)
 {
     trade_route *route = array_item(routes, route_id);
-    for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         route->buys.traded[r] = route->sells.traded[r] = 0;
     }
 }
@@ -140,7 +140,7 @@ int trade_route_limit_reached(int route_id, resource_type resource, int buying)
 
 void trade_routes_save_state(buffer *trade_routes)
 {
-    int buf_size = sizeof(int32_t) * RESOURCE_MAX * 2 * routes.size * 2;
+    int buf_size = sizeof(int32_t) * RESOURCE_SLOT_COUNT * 2 * routes.size * 2;
     uint8_t *buf_data = malloc(buf_size + sizeof(int32_t));
     buffer_init(trade_routes, buf_data, buf_size + sizeof(int32_t));
     buffer_write_i32(trade_routes, routes.size);
@@ -148,7 +148,7 @@ void trade_routes_save_state(buffer *trade_routes)
     trade_route *route;
     array_foreach(routes, route) {
         for (int i = 0; i < 2; i++) {
-            for (resource_type r = 0; r < RESOURCE_MAX; r++) {
+            for (resource_type r = 0; r < RESOURCE_SLOT_COUNT; r++) {
                 buffer_write_i32(trade_routes, i ? route->buys.limit[r] : route->sells.limit[r]);
                 buffer_write_i32(trade_routes, i ? route->buys.traded[r] : route->sells.traded[r]);
             }

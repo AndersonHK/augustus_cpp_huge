@@ -359,13 +359,13 @@ static void set_resource_value(int value)
 
 static void resource_selection(const generic_button *button)
 {
-    static const uint8_t *resource_texts[RESOURCE_MAX];
-    for (int resource_id = RESOURCE_MIN_FOOD; resource_id < RESOURCE_MAX; resource_id++) {
+    static const uint8_t *resource_texts[RESOURCE_SLOT_COUNT];
+    for (int resource_id = (RESOURCE_NONE + 1); resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
         resource_type resource = static_cast<resource_type>(resource_id);
         resource_texts[resource - 1] = resource_get_data(resource)->text;
     }
     window_select_list_show_text(screen_dialog_offset_x(), screen_dialog_offset_y(), button,
-        resource_texts, RESOURCE_MAX - 1, set_resource_value);
+        resource_texts, RESOURCE_SLOT_COUNT - 1, set_resource_value);
 }
 
 static void custom_message_selection(void)

@@ -1,7 +1,10 @@
+#include "building/building_record.h"
 #include "house_population.h"
 
-extern "C" {
+#include "building/building.h"
 #include "building/house.h"
+
+extern "C" {
 #include "building/list.h"
 #include "building/building_type_api.h"
 #include "building/local_workforce.h"
@@ -15,20 +18,25 @@ extern "C" {
 
 static int house_is_plebeian(const building *b)
 {
-    return building_house_has_plebeian_residents(b);
+    return building_house_has_plebeian_residents(Building(const_cast<building *>(b)));
 }
 
 static int house_is_patrician(const building *b)
 {
-    return building_house_has_patrician_residents(b);
+    return building_house_has_patrician_residents(Building(const_cast<building *>(b)));
 }
 
-static building_type housing_capacity_type(const building *house)
+static building_type housing_capacity_type(Building house_object)
 {
-    if (house->type == BUILDING_HOUSE_VACANT_LOT && house->house_population == 0) {
-        return building_type_registry_get_vacant_lot_fill_type();
+    const building *house = house_object.legacy_record();
+    if (!house) {
+        return BUILDING_NONE;
     }
-    return house->type;
+    building_type type = house_object.type_id();
+    if (house->house_population == 0 && type == building_type_registry_get_vacant_lot_fill_type()) {
+        return type;
+    }
+    return type;
 }
 
 int house_population_add_to_city(int num_people)
@@ -43,7 +51,7 @@ int house_population_add_to_city(int num_people)
         if (b->state == BUILDING_STATE_IN_USE && b->house_size
             && b->distance_from_entry > 0 && b->house_population > 0) {
             city_population_set_last_used_house_add(building_id);
-            int capacity = house_population_get_capacity(b);
+            int capacity = house_population_get_capacity(Building(b));
             if (b->house_population < capacity) {
                 ++added;
                 ++b->house_population;
@@ -81,13 +89,17 @@ int house_population_remove_from_city(int num_people)
     return removed;
 }
 
-int house_population_get_capacity(building *house)
+int house_population_get_capacity(Building house_object)
 {
+    const building *house = house_object.legacy_record();
+    if (!house) {
+        return 0;
+    }
     // This is the single runtime capacity path for houses; XML load has already
     // rejected residential BuildingTypes without an authored whole-building capacity.
     // Empty vacant lots borrow the capacity of the validated first-occupancy
     // house so immigration can target them before they transform into housing.
-    int capacity = building_type_registry_get_housing_capacity(housing_capacity_type(house));
+    int capacity = building_type_registry_get_housing_capacity(housing_capacity_type(house_object));
 
     // Neptune module 2 bonus
     if (building_monument_gt_module_is_active(NEPTUNE_MODULE_2_CAPACITY_AND_WATER) &&
@@ -108,7 +120,7 @@ void house_population_update_room(void)
         }
         b->house_population_room = 0;
         if (b->distance_from_entry > 0) {
-            int capacity = house_population_get_capacity(b);
+            int capacity = house_population_get_capacity(Building(b));
             city_population_add_capacity(b->house_population, capacity);
             b->house_population_room = capacity - b->house_population;
             if (b->house_population > b->house_highest_population) {

@@ -3,6 +3,7 @@ extern "C" {
 
 #include "assets/assets.h"
 #include "building/count.h"
+#include "building/building_type_api.h"
 #include "building/house.h"
 #include "building/house_population.h"
 #include "building/properties.h"
@@ -21,11 +22,17 @@ extern "C" {
 #include "scenario/property.h"
 #include "translation/translation.h"
 }
+#include "game/resource_graphics.h"
 #include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
 
 static int housing_advisor_image;
+
+static building_type housing_type_for_level(int level_id)
+{
+    return building_type_registry_get_housing_type_for_level(level_id, 1);
+}
 
 static void draw_housing_table(void)
 {
@@ -33,7 +40,7 @@ static void draw_housing_table(void)
     int rows = 0;
 
     resource_list list = { 0 };
-    for (int resource = RESOURCE_MIN_NON_FOOD; resource < RESOURCE_MAX_NON_FOOD; resource++) {
+    for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
         resource_type r = static_cast<resource_type>(resource);
         if (resource_is_inventory(r)) {
             list.items[list.size++] = r;
@@ -42,12 +49,20 @@ static void draw_housing_table(void)
 
     int x = 40;
     int total_residences = 0;
-    int houses_using_goods[RESOURCE_MAX] = { 0 };
+    int houses_using_goods[RESOURCE_SLOT_COUNT] = { 0 };
 
-    for (int level_id = HOUSE_MIN; level_id <= HOUSE_MAX; level_id++) {
+    const int housing_level_count = building_type_registry_get_housing_level_count();
+    for (int index = 0; index < housing_level_count; index++) {
+        int level_id = building_type_registry_get_housing_level_at(index);
+        if (level_id < 0) {
+            continue;
+        }
         house_level level = static_cast<house_level>(level_id);
-        int residences_at_level = building_count_active(
-            static_cast<building_type>(BUILDING_HOUSE_SMALL_TENT + level_id));
+        building_type type = housing_type_for_level(level_id);
+        if (type <= BUILDING_NONE) {
+            continue;
+        }
+        int residences_at_level = building_count_active(type);
         if (!residences_at_level) {
             continue;
         }
@@ -80,18 +95,17 @@ static void draw_housing_table(void)
 
     for (unsigned int i = 0; i < list.size; i++) {
 
-        int image_id = resource_get_data(list.items[i])->image.icon;
-        const image *img = image_get(image_id);
-        int base_width = (26 - img->original.width) / 2;
-        int base_height = (26 - img->original.height) / 2;
+        const ImageGroupEntryRef &icon = resource_graphics(list.items[i]).panel_icon();
+        int base_width = (26 - icon.width()) / 2;
+        int base_height = (26 - icon.height()) / 2;
 
-        Image::from_id(resource_get_data(list.items[i])->image.icon).draw(54 + base_width, y_offset + 260 + (23 * i) + base_height - 5, COLOR_MASK_NONE, SCALE_NONE);
+        icon.draw(54 + base_width, y_offset + 260 + (23 * i) + base_height - 5);
         text_draw(translation_for(static_cast<translation_key>(TR_ADVISOR_RESIDENCES_USING_POTTERY + i)),
             90, y_offset + 263 + (23 * i),
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         text_draw_number(houses_using_goods[list.items[i]], '@', " ", 499, y_offset + 263 + (23 * i),
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        Image::from_id(resource_get_data(list.items[i])->image.icon).draw(550 + base_width, y_offset + 260 + (23 * i) + base_height - 5, COLOR_MASK_NONE, SCALE_NONE);
+        icon.draw(550 + base_width, y_offset + 260 + (23 * i) + base_height - 5);
     }
 }
 
@@ -105,7 +119,7 @@ static int draw_background(void)
     inner_panel_draw(24, 60, 37, 16);
 
     text_draw(translation_for(TR_HEADER_HOUSING), 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    Image::from_id(housing_advisor_image).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(housing_advisor_image).draw(10, 10);
 
     int x_offset = text_get_number_width(city_population(), 0, "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset += lang_text_get_width(CUSTOM_TRANSLATION, TR_ADVISOR_TOTAL_POPULATION, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));

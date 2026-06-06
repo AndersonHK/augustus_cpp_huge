@@ -20,7 +20,9 @@ extern "C" {
 #include "window/message_dialog.h"
 #include "window/empire.h"
 }
+#include <building/industry.h>
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 static void button_help(int param1, int param2);
 static void button_ok(int param1, int param2);
@@ -73,14 +75,15 @@ static void draw_foreground(void)
     graphics_in_dialog();
 
     outer_panel_draw(16, 128, 38, 15);
-    Image::from_id(resource_get_data(data.resource)->image.icon).draw(26, 136, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(data.resource).panel_icon().draw(26, 136);
 
     text_draw(resource_get_data(data.resource)->text, 60, 137, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), COLOR_MASK_NONE);
 
-    int total_buildings = building_count_total(resource_get_data(data.resource)->industry);
+    building_type producer = building_producer_for_resource(data.resource);
+    int total_buildings = building_count_total(producer);
 
     if (empire_can_produce_resource(data.resource)) {
-        int active_buildings = building_count_active(resource_get_data(data.resource)->industry);
+        int active_buildings = building_count_active(producer);
         if (total_buildings <= 0) {
             lang_text_draw(54, 7, 66, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else if (city_resource_is_mothballed(data.resource)) {
@@ -281,7 +284,7 @@ static void button_trade_up_down(int trade_type, int is_down)
 
 static void button_toggle_industry(const generic_button *button)
 {
-    if (building_count_total(resource_get_data(data.resource)->industry) > 0) {
+    if (building_count_total(building_producer_for_resource(data.resource)) > 0) {
         city_resource_toggle_mothballed(data.resource);
     }
 }

@@ -48,9 +48,9 @@ static void make_request_visible_and_send_message(scenario_request *request)
         request->can_comply_dialog_shown = 1;
     }
     int requested = request->amount.requested;
-    if (request->resource == RESOURCE_DENARII) {
+    if (request->resource == resource_denarii()) {
         city_message_post(1, MESSAGE_CAESAR_REQUESTS_MONEY, request->id, requested);
-    } else if (request->resource == RESOURCE_TROOPS) {
+    } else if (request->resource == resource_troops()) {
         city_message_post(1, MESSAGE_CAESAR_REQUESTS_ARMY, request->id, requested);
     } else {
         city_message_post(1, MESSAGE_CAESAR_REQUESTS_GOODS, request->id, requested);
@@ -215,11 +215,11 @@ void scenario_request_dispatch(int id)
     request->visible = 0;
     request->can_comply_dialog_shown = 1;
     int amount = request->amount.requested;
-    if (request->resource == RESOURCE_DENARII) {
+    if (request->resource == resource_denarii()) {
         city_finance_process_sundry(amount);
-    } else if (request->resource == RESOURCE_TROOPS) {
+    } else if (request->resource == resource_troops()) {
         city_population_remove_for_troop_request(amount);
-        building_warehouses_remove_resource(RESOURCE_WEAPONS, amount);
+        building_warehouses_remove_resource(resource_weapons(), amount);
     } else {
         int amount_left = building_warehouses_send_resources_to_rome(request->resource, amount);
         if (amount_left > 0 && resource_is_food(request->resource)) {

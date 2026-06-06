@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="grand_temples">
+    <identity name_key="building.grand_temples.name" />
+    <event_data attr="grand_temples|all_grand_temples" />
+</building>

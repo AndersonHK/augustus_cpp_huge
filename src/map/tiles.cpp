@@ -3,6 +3,8 @@
 extern "C" {
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
 #include "building/connectable.h"
 #include "building/image.h"
 #include "city/map.h"
@@ -47,6 +49,12 @@ extern "C" {
 static int aqueduct_include_construction = 0;
 static int highway_top_tile_offsets[4] = { 0, -GRID_SIZE, -1, -GRID_SIZE - 1 };
 static int elevation_recalculate_trees = 0;
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
 static int is_clear(int x, int y, int size, int disallowed_terrain, int terrain_exception,
     int check_figure, int check_image)
 {
@@ -739,7 +747,10 @@ int map_tiles_is_paved_road(int grid_offset)
     if (desirability > 0 && map_terrain_is(grid_offset, TERRAIN_FOUNTAIN_RANGE)) {
         return 1;
     }
-    if (map_tiles_is_adjacent_to_building_type(grid_offset, BUILDING_GRANARY, 1) && config_get(CONFIG_UI_PAVED_ROADS_NEAR_GRANNARIES)) {
+    building_type granary_type = runtime_type("granary");
+    if (granary_type != BUILDING_NONE &&
+        map_tiles_is_adjacent_to_building_type(grid_offset, granary_type, 1) &&
+        config_get(CONFIG_UI_PAVED_ROADS_NEAR_GRANNARIES)) {
         return 1;
     }
     int x = map_grid_offset_to_x(grid_offset);
@@ -879,8 +890,11 @@ static void update_granaries(int x, int y)
     for (int yy = y - 1; yy <= y + 1; yy++) {
         for (int xx = x - 1; xx <= x + 1; xx++) {
             building *b = building_get(map_building_at(map_grid_offset(xx, yy)));
-            if (b->type == BUILDING_GRANARY) {
-                map_update_granary_internal_roads(b);
+            if (b) {
+                Building current(b);
+                if (current.has_type_definition() && current.type().is_granary()) {
+                    map_update_granary_internal_roads(b);
+                }
             }
         }
     }

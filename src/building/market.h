@@ -1,13 +1,22 @@
 #pragma once
 
+#include "building/building.h"
 #include "building/distribution.h"
 
-#define MARKET_MAX_DISTANCE 40
+class Market : public Building {
+public:
+    using Building::Building;
+    explicit Market(Building building) : Building(building.legacy_record(), building.type_definition()) {}
 
-int building_market_get_max_food_stock(building *market);
-int building_market_get_max_goods_stock(building *market);
+    int max_food_stock() const;
+    int max_supplier_distance() const;
+    int needed_inventory(resource_storage_info info[RESOURCE_SLOT_COUNT]) const;
+    int resource_storages_for_supplier(resource_storage_info info[RESOURCE_SLOT_COUNT], figure *supplier) const;
+    resource_type fetch_inventory(resource_storage_info data[RESOURCE_SLOT_COUNT]) const;
+    int storage_destination();
 
-int building_market_get_needed_inventory(building *market, resource_storage_info info[RESOURCE_MAX]);
-resource_type building_market_fetch_inventory(building *market, resource_storage_info data[RESOURCE_MAX]);
-
-int building_market_get_storage_destination(building *market);
+private:
+    int handles_distribution(resource_type resource) const;
+    int supply_search_distance() const;
+    int wants_good(resource_type resource) const;
+};

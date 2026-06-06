@@ -64,7 +64,7 @@ static struct {
     unsigned int bottom_button_focus_id;
     int is_new_request;
     int repeat_type;
-    resource_type avaialble_resources[RESOURCE_MAX];
+    resource_type avaialble_resources[RESOURCE_SLOT_COUNT];
     int section_title_width;
     const uint8_t *errors[MAX_POSSIBLE_ERRORS];
 } data;
@@ -369,7 +369,7 @@ static void button_amount(const generic_button *button)
 
     int max_amount = 999;
     int max_digits = 3;
-    if (data.request.resource == RESOURCE_DENARII) {
+    if (data.request.resource == resource_denarii()) {
         max_amount = 30000;
         max_digits = 5;
     }
@@ -380,7 +380,7 @@ static void button_amount(const generic_button *button)
 static void set_resource(int value)
 {
     data.request.resource = data.avaialble_resources[value];
-    if (data.request.resource != RESOURCE_DENARII) {
+    if (data.request.resource != resource_denarii()) {
         if (data.request.amount.min > 999) {
             data.request.amount.min = 999;
         }
@@ -392,12 +392,12 @@ static void set_resource(int value)
 
 static void button_resource(const generic_button *button)
 {
-    static const uint8_t *resource_texts[RESOURCE_MAX + RESOURCE_TOTAL_SPECIAL];
+    static const uint8_t *resource_texts[RESOURCE_SLOT_COUNT];
     static int total_resources = 0;
     if (!total_resources) {
-        for (int resource_id = RESOURCE_NONE; resource_id < RESOURCE_MAX + RESOURCE_TOTAL_SPECIAL; resource_id++) {
-            resource_type resource = static_cast<resource_type>(resource_id);
-            if ((!resource_is_storable(resource) && resource < RESOURCE_MAX) || resource == RESOURCE_TROOPS) {
+        for (int i = 0; i < resource_loaded_count(); i++) {
+            resource_type resource = resource_get_loaded(i);
+            if ((!resource_is_storable(resource) && !resource_is_special(resource)) || resource == resource_troops()) {
                 continue;
             }
             resource_texts[total_resources] = resource_get_data(resource)->text;

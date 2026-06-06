@@ -1,7 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include <stdlib.h>
 #include <string.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /**
  * Creates an array structure
@@ -299,3 +303,7 @@ void array_free(void **data, unsigned int blocks);
 #define array_active_bit_3(n) (((n) >= 1 << 4) ? (4 + array_active_bit_2((n) >> 4)) : array_active_bit_2(n))
 #define array_active_bit_4(n) (((n) >= 1 << 8) ? (8 + array_active_bit_3((n) >> 8)) : array_active_bit_3(n))
 #define array_active_bit(n)   (((n) >= 1 << 16) ? (16 + array_active_bit_4((n) >> 16)) : array_active_bit_4(n))
+
+#ifdef __cplusplus
+}
+#endif

@@ -340,6 +340,9 @@ static int bootstrap_canonical_graphics_sources(void)
 
 static int pre_init_with_current_base_path(void)
 {
+    if (!lang_dir_is_valid(".")) {
+        return 0;
+    }
     if (!bootstrap_canonical_graphics_sources()) {
         return 0;
     }

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="small_temple_mercury">
     <identity name_key="TR_BUILDING_SMALL_TEMPLE_MERCURY_NAME" />
+    <temple religion="small_temple_mercury" />
     <model size="2" cost="50" />
     <desirability>
         <value value="4" />

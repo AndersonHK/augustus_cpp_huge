@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<distribution>
+    <takes storage="wheat_output_wheat_farm" max_stock="600" />
+    <takes storage="vegetables_output_vegetable_farm" max_stock="600" />
+    <takes storage="fruit_output_fruit_farm" max_stock="600" />
+    <takes storage="meat_output_pig_farm" max_stock="600" />
+    <takes storage="fish_output_wharf" max_stock="600" />
+    <takes storage="oil_output_oil_workshop" baseline_stock="50" />
+</distribution>

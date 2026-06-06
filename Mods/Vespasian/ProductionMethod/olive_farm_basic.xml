@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <production_method>
     <kind value="farm" />
-    <output resource="olives" />
+    <output resource="olives" production_per_month="80" />
     <batch_size value="4" />
 </production_method>

@@ -224,7 +224,7 @@ static void show_saved_notice(const char *filename)
     int prefix_length = string_length(prefix);
     encoding_from_utf8(filename, &notice_text[prefix_length], FILE_NAME_MAX - prefix_length);
 
-    city_warning_show_custom(notice_text, 0);
+    city_warning_show(WARNING_SCREENSHOT_SAVED, notice_text);
 }
 
 static void create_window_screenshot(void)

@@ -5,6 +5,7 @@ extern "C" {
 
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/connectable.h"
 #include "building/construction_building.h"
 #include "building/construction_clear.h"
@@ -13,6 +14,7 @@ extern "C" {
 #include "building/count.h"
 #include "building/building_type_api.h"
 #include "building/image.h"
+#include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/rotation.h"
@@ -49,6 +51,8 @@ extern "C" {
 #include "scenario/allowed_building.h"
 }
 
+#include <initializer_list>
+
 #define MAX_CYCLE_SIZE 10
 
 struct reservoir_info {
@@ -60,7 +64,7 @@ struct reservoir_info {
 struct cycle {
     unsigned int size;
     unsigned int rotations_to_next;
-    building_type array[MAX_CYCLE_SIZE];
+    const char *array[MAX_CYCLE_SIZE];
 };
 
 enum {
@@ -92,24 +96,96 @@ static struct {
 
 static int last_items_cleared;
 
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
+static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (type_matches(type, text_id)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int is_tree_type(building_type type)
+{
+    return type_matches_any(type, {"pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree", "palm_tree", "date_tree"});
+}
+
+static int is_path_type(building_type type)
+{
+    return type_matches_any(type, {"pine_path", "fir_path", "oak_path", "elm_path", "fig_path", "plum_path", "palm_path", "date_path"});
+}
+
+static int is_alternate_small_statue_type(building_type type)
+{
+    return type_matches_any(type, {"goddess_statue", "senator_statue"});
+}
+
+static int is_hedge_type(building_type type)
+{
+    return type_matches_any(type, {"hedge_dark", "hedge_light"});
+}
+
+static int is_path_rotation_type(building_type type)
+{
+    return type_matches_any(type, {"garden_path", "looped_garden_wall", "roofed_garden_wall", "panelled_garden_wall"});
+}
+
+static int is_hedge_rotation_type(building_type type)
+{
+    return is_hedge_type(type) || type_matches_any(type, {"colonnade", "palisade"});
+}
+
+static int is_waterside_type(building_type type)
+{
+    return type_matches_any(type, {"shipyard", "wharf", "dock"});
+}
+
+static int is_bridge_type(building_type type)
+{
+    return type_matches_any(type, {"low_bridge", "ship_bridge"});
+}
+
+static int is_vacant_lot_type(building_type type)
+{
+    building_type vacant_lot = building_type_registry_get_vacant_lot_fill_type();
+    return vacant_lot != BUILDING_NONE && type == vacant_lot;
+}
+
 static const int FORT_X_OFFSET[4][4] = { {3,4,4,3},{-1,0,0,-1},{-4,-3,-3,4},{0,1,1,0} };
 static const int FORT_Y_OFFSET[4][4] = { {-1,-1,0,0},{-4,-4,-3,-3},{0,0,1,1},{3,3,4,4} };
 
 static const struct cycle building_cycles[] = {
-    { 5, 1, { BUILDING_SMALL_TEMPLE_CERES, BUILDING_SMALL_TEMPLE_NEPTUNE, BUILDING_SMALL_TEMPLE_MERCURY,
-      BUILDING_SMALL_TEMPLE_MARS,  BUILDING_SMALL_TEMPLE_VENUS }},
-    { 5, 1, {BUILDING_LARGE_TEMPLE_CERES, BUILDING_LARGE_TEMPLE_NEPTUNE, BUILDING_LARGE_TEMPLE_MERCURY,
-      BUILDING_LARGE_TEMPLE_MARS,  BUILDING_LARGE_TEMPLE_VENUS}},
-    { 5, 2, { BUILDING_SHRINE_CERES, BUILDING_SHRINE_NEPTUNE, BUILDING_SHRINE_MERCURY,
-      BUILDING_SHRINE_MARS,  BUILDING_SHRINE_VENUS }},
-    { 9, 2, {BUILDING_GARDEN_PATH, BUILDING_DATE_PATH, BUILDING_ELM_PATH,  BUILDING_FIG_PATH,  BUILDING_FIR_PATH,
-      BUILDING_OAK_PATH,  BUILDING_PALM_PATH, BUILDING_PINE_PATH, BUILDING_PLUM_PATH}},
-    { 8, 1, {BUILDING_DATE_TREE, BUILDING_ELM_TREE,  BUILDING_FIG_TREE,  BUILDING_FIR_TREE,
-      BUILDING_OAK_TREE,  BUILDING_PALM_TREE, BUILDING_PINE_TREE, BUILDING_PLUM_TREE }},
-    { 2, 1, {BUILDING_GARDENS, BUILDING_OVERGROWN_GARDENS }},
+    { 5, 1, { "small_temple_ceres", "small_temple_neptune", "small_temple_mercury",
+      "small_temple_mars", "small_temple_venus" }},
+    { 5, 1, {"large_temple_ceres", "large_temple_neptune", "large_temple_mercury",
+      "large_temple_mars", "large_temple_venus"}},
+    { 5, 2, { "shrine_ceres", "shrine_neptune", "shrine_mercury",
+      "shrine_mars", "shrine_venus" }},
+    { 9, 2, {"garden_path", "date_path", "elm_path", "fig_path", "fir_path",
+      "oak_path", "palm_path", "pine_path", "plum_path"}},
+    { 8, 1, {"date_tree", "elm_tree", "fig_tree", "fir_tree",
+      "oak_tree", "palm_tree", "pine_tree", "plum_tree" }},
+    { 2, 1, {"gardens", "overgrown_gardens" }},
 };
 
 #define BUILDING_CYCLES (sizeof(building_cycles) / sizeof(struct cycle))
+
+static building_type cycle_type(unsigned int cycle_index, unsigned int type_index)
+{
+    return runtime_type(building_cycles[cycle_index].array[type_index]);
+}
 
 static void set_required_terrain(building_type type)
 {
@@ -131,30 +207,19 @@ static void set_required_terrain(building_type type)
         return;
     }
 
-    switch (type) {
-        case BUILDING_WHEAT_FARM:
-        case BUILDING_VEGETABLE_FARM:
-        case BUILDING_FRUIT_FARM:
-        case BUILDING_OLIVE_FARM:
-        case BUILDING_VINES_FARM:
-        case BUILDING_PIG_FARM:
-            data.required_terrain.meadow = 1;
-            break;
-        case BUILDING_TOWER:
-            data.required_terrain.wall = 1;
-            break;
-        case BUILDING_LIGHTHOUSE:
-            data.required_terrain.distant_water = 1;
-            [[fallthrough]];
-        default:
-            break;
+    if (building_is_farm(type)) {
+        data.required_terrain.meadow = 1;
+    } else if (type_matches(type, "tower")) {
+        data.required_terrain.wall = 1;
+    } else if (type_matches(type, "lighthouse")) {
+        data.required_terrain.distant_water = 1;
     }
 }
 
 static void sync_construction_type(void)
 {
     building_type old_type = data.tool.type;
-    if (!data.tool.sync_type(hotkey_get_modifiers())) {
+    if (!data.tool.sync_type(hotkey_get_modifiers(), data.in_progress)) {
         return;
     }
     if (data.tool.type != old_type) {
@@ -170,35 +235,33 @@ static void sync_construction_type(void)
 
 int building_construction_is_land_work_type(building_type type)
 {
-    return type == BUILDING_CLEAR_LAND || type == BUILDING_CLEAR_TREES || type == BUILDING_REPAIR_LAND;
+    return type_matches_any(type, {"clear_land", "clear_trees", "repair_land"});
 }
 
 static int building_type_allows_force_place(building_type type)
 {
-    switch (type) {
-        case BUILDING_NONE:
-        case BUILDING_CLEAR_LAND:
-        case BUILDING_CLEAR_TREES:
-        case BUILDING_REPAIR_LAND:
-        case BUILDING_ROAD:
-        case BUILDING_HIGHWAY:
-        case BUILDING_ROADBLOCK:
-        case BUILDING_WALL:
-        case BUILDING_GATEHOUSE:
-        case BUILDING_TOWER:
-        case BUILDING_PLAZA:
-        case BUILDING_GARDENS:
-        case BUILDING_OVERGROWN_GARDENS:
-        case BUILDING_LOW_BRIDGE:
-        case BUILDING_SHIP_BRIDGE:
-        case BUILDING_AQUEDUCT:
-        case BUILDING_RESERVOIR:
-        case BUILDING_DRAGGABLE_RESERVOIR:
-        case BUILDING_HOUSE_VACANT_LOT:
-            return 0;
-        default:
-            return !building_construction_is_updatable();
+    if (type == BUILDING_NONE || is_vacant_lot_type(type) || type_matches_any(type, {
+        "clear_land",
+        "clear_trees",
+        "repair_land",
+        "road",
+        "highway",
+        "roadblock",
+        "wall",
+        "gatehouse",
+        "tower",
+        "plaza",
+        "gardens",
+        "overgrown_gardens",
+        "low_bridge",
+        "ship_bridge",
+        "aqueduct",
+        "reservoir",
+        "draggable_reservoir",
+    })) {
+        return 0;
     }
+    return !building_construction_is_updatable();
 }
 
 int building_construction_force_place_active(void)
@@ -210,7 +273,7 @@ static unsigned int count_enabled_buildings_for_cycling(unsigned int cycle_index
 {
     unsigned int count = 0;
     for (int i = 0; i < (int) building_cycles[cycle_index].size; i++) {
-        if (scenario_allowed_building(building_cycles[cycle_index].array[i])) {
+        if (scenario_allowed_building(cycle_type(cycle_index, i))) {
             count++;
         }
     }
@@ -222,7 +285,7 @@ int building_construction_type_can_cycle(building_type type)
     for (unsigned int i = 0; i < BUILDING_CYCLES; i++) {
         unsigned int size = building_cycles[i].size;
         for (unsigned int j = 0; j < size; j++) {
-            if (building_cycles[i].array[j] == type && count_enabled_buildings_for_cycling(i) > 1) {
+            if (cycle_type(i, j) == type && count_enabled_buildings_for_cycling(i) > 1) {
                 return 1;
             }
         }
@@ -235,7 +298,7 @@ int building_construction_type_num_cycles(building_type type)
     for (int i = 0; i < BUILDING_CYCLES; i++) {
         int size = building_cycles[i].size;
         for (int j = 0; j < size; j++) {
-            if (building_cycles[i].array[j] == type) {
+            if (cycle_type(i, j) == type) {
                 return count_enabled_buildings_for_cycling(i) * building_cycles[i].rotations_to_next;
             }
         }
@@ -248,7 +311,7 @@ int building_construction_type_cycle_steps(building_type type)
     for (int i = 0; i < BUILDING_CYCLES; i++) {
         int size = building_cycles[i].size;
         for (int j = 0; j < size; j++) {
-            if (building_cycles[i].array[j] == type) {
+            if (cycle_type(i, j) == type) {
                 return building_cycles[i].rotations_to_next;
             }
         }
@@ -265,7 +328,7 @@ int building_construction_cycle_forward(void)
     for (int i = 0; i < BUILDING_CYCLES; i++) {
         int size = building_cycles[i].size;
         for (int j = 0; j < size; j++) {
-            if (building_cycles[i].array[j] == building_construction_type()) {
+            if (cycle_type(i, j) == building_construction_type()) {
                 data.cycle_step += 1;
                 if (data.cycle_step < (int) building_cycles[i].rotations_to_next) {
                     return 0;
@@ -278,7 +341,7 @@ int building_construction_cycle_forward(void)
                     } else { // Otherwise pick the first one
                         j++;
                     }
-                    new_type = building_cycles[i].array[j];
+                    new_type = cycle_type(i, j);
                     if (scenario_allowed_building(new_type)) {
                         break;
                     }
@@ -301,7 +364,7 @@ int building_construction_cycle_back(void)
     for (int i = 0; i < BUILDING_CYCLES; i++) {
         int size = building_cycles[i].size;
         for (int j = 0; j < size; j++) {
-            if (building_cycles[i].array[j] == building_construction_type()) {
+            if (cycle_type(i, j) == building_construction_type()) {
                 data.cycle_step -= 1;
                 if (data.cycle_step >= 0) {
                     return 0;
@@ -314,7 +377,7 @@ int building_construction_cycle_back(void)
                     } else { // Otherwise pick the previous element
                         j--;
                     }
-                    new_type = building_cycles[i].array[j];
+                    new_type = cycle_type(i, j);
                     if (scenario_allowed_building(new_type)) {
                         break;
                     }
@@ -363,7 +426,7 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
                 map_property_mark_constructing(grid_offset);
                 items_placed++;
             } else {
-                building *b = building_create(BUILDING_HOUSE_VACANT_LOT, x, y);
+                building *b = building_create(building_type_registry_get_vacant_lot_fill_type(), x, y);
                 game_undo_add_building(b);
                 if (b->id > 0) {
                     items_placed++;
@@ -377,9 +440,9 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
         }
     }
     if (!measure_only) {
-        building_construction_warning_check_food_stocks(BUILDING_HOUSE_VACANT_LOT);
+        building_construction_warning_check_food_stocks(building_type_registry_get_vacant_lot_fill_type());
         if (needs_road_warning) {
-            city_warning_show(WARNING_HOUSE_TOO_FAR_FROM_ROAD, NEW_WARNING_SLOT);
+            city_warning_show(WARNING_HOUSE_TOO_FAR_FROM_ROAD, translation_for(TR_CITY_WARNING_HOUSE_TOO_FAR_FROM_ROAD));
         }
         map_routing_update_land();
         window_invalidate();
@@ -455,7 +518,7 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
                 items_placed++;
                 map_tiles_set_wall(x, y);
                 if (!measure_only) {
-                    building *wall = building_create(BUILDING_WALL, x, y);
+                    building *wall = building_create(runtime_type("wall"), x, y);
                     map_building_set(grid_offset, wall->id);
                     map_terrain_add(grid_offset, TERRAIN_BUILDING);
                     map_terrain_add(grid_offset, TERRAIN_WALL);
@@ -601,7 +664,7 @@ static int place_reservoir_and_aqueducts(int measure_only, int x_start, int y_st
     }
     if (!distance) {
         if (info->place_reservoir_at_end == PLACE_RESERVOIR_YES) {
-            info->cost = model_get_building(BUILDING_RESERVOIR)->cost;
+            info->cost = model_get_building(runtime_type("reservoir"))->cost;
         }
         return 1;
     }
@@ -649,13 +712,13 @@ static int place_reservoir_and_aqueducts(int measure_only, int x_start, int y_st
     building_construction_place_aqueduct_for_reservoir(0, x_start + x_aq_start, y_start + y_aq_start,
         x_end + x_aq_end, y_end + y_aq_end, &aq_items);
     if (info->place_reservoir_at_start == PLACE_RESERVOIR_YES) {
-        info->cost += model_get_building(BUILDING_RESERVOIR)->cost;
+        info->cost += model_get_building(runtime_type("reservoir"))->cost;
     }
     if (info->place_reservoir_at_end == PLACE_RESERVOIR_YES) {
-        info->cost += model_get_building(BUILDING_RESERVOIR)->cost;
+        info->cost += model_get_building(runtime_type("reservoir"))->cost;
     }
     if (aq_items) {
-        info->cost += aq_items * model_get_building(BUILDING_AQUEDUCT)->cost;
+        info->cost += aq_items * model_get_building(runtime_type("aqueduct"))->cost;
     }
     return 1;
 }
@@ -733,6 +796,16 @@ building_type building_construction_selection_type(void)
     return data.tool.type;
 }
 
+void building_construction_set_hover_tile(int x, int y, int grid_offset)
+{
+    if (data.in_progress || !grid_offset) {
+        return;
+    }
+    data.tool.set_raw_start(x, y, grid_offset);
+    sync_construction_type();
+    data.tool.sync_drag_points(hotkey_get_modifiers());
+}
+
 int building_construction_cost(void)
 {
     return data.cost_preview;
@@ -773,34 +846,27 @@ int building_construction_in_progress(void)
 void building_construction_start(int x, int y, int grid_offset)
 {
     data.tool.set_raw_start(x, y, grid_offset);
+    sync_construction_type();
     data.tool.sync_drag_points(hotkey_get_modifiers());
 
     if (game_undo_start_build(data.tool.type)) {
         data.in_progress = 1;
         int can_start = 1;
-        switch (data.tool.type) {
-            case BUILDING_ROAD:
-                can_start = map_routing_calculate_distances_for_building(
-                    ROUTED_BUILDING_ROAD, data.tool.start.x, data.tool.start.y);
-                break;
-            case BUILDING_AQUEDUCT:
-                can_start = map_routing_calculate_distances_for_building(
-                    ROUTED_BUILDING_AQUEDUCT, data.tool.start.x, data.tool.start.y);
-                break;
-            case BUILDING_DRAGGABLE_RESERVOIR:
-                can_start = map_routing_calculate_distances_for_building(
-                    ROUTED_BUILDING_DRAGGABLE_RESERVOIR, data.tool.start.x, data.tool.start.y);
-                break;
-            case BUILDING_WALL:
-                can_start = map_routing_calculate_distances_for_building(
-                    ROUTED_BUILDING_WALL, data.tool.start.x, data.tool.start.y);
-                break;
-            case BUILDING_HIGHWAY:
-                can_start = map_routing_calculate_distances_for_building(
-                    ROUTED_BUILDING_HIGHWAY, data.tool.start.x, data.tool.start.y);
-                [[fallthrough]];
-            default:
-                break;
+        if (type_matches(data.tool.type, "road")) {
+            can_start = map_routing_calculate_distances_for_building(
+                ROUTED_BUILDING_ROAD, data.tool.start.x, data.tool.start.y);
+        } else if (type_matches(data.tool.type, "aqueduct")) {
+            can_start = map_routing_calculate_distances_for_building(
+                ROUTED_BUILDING_AQUEDUCT, data.tool.start.x, data.tool.start.y);
+        } else if (type_matches(data.tool.type, "draggable_reservoir")) {
+            can_start = map_routing_calculate_distances_for_building(
+                ROUTED_BUILDING_DRAGGABLE_RESERVOIR, data.tool.start.x, data.tool.start.y);
+        } else if (type_matches(data.tool.type, "wall")) {
+            can_start = map_routing_calculate_distances_for_building(
+                ROUTED_BUILDING_WALL, data.tool.start.x, data.tool.start.y);
+        } else if (type_matches(data.tool.type, "highway")) {
+            can_start = map_routing_calculate_distances_for_building(
+                ROUTED_BUILDING_HIGHWAY, data.tool.start.x, data.tool.start.y);
         }
         if (!can_start) {
             building_construction_cancel();
@@ -814,48 +880,44 @@ int building_construction_is_updatable(void)
         return 1;
     }
 
-    switch (data.tool.type) {
-        case BUILDING_CLEAR_LAND:
-        case BUILDING_CLEAR_TREES:
-        case BUILDING_REPAIR_LAND:
-        case BUILDING_ROAD:
-        case BUILDING_AQUEDUCT:
-        case BUILDING_DRAGGABLE_RESERVOIR:
-        case BUILDING_PINE_TREE:
-        case BUILDING_FIR_TREE:
-        case BUILDING_OAK_TREE:
-        case BUILDING_ELM_TREE:
-        case BUILDING_FIG_TREE:
-        case BUILDING_PLUM_TREE:
-        case BUILDING_PALM_TREE:
-        case BUILDING_DATE_TREE:
-        case BUILDING_PINE_PATH:
-        case BUILDING_FIR_PATH:
-        case BUILDING_OAK_PATH:
-        case BUILDING_ELM_PATH:
-        case BUILDING_FIG_PATH:
-        case BUILDING_PLUM_PATH:
-        case BUILDING_PALM_PATH:
-        case BUILDING_DATE_PATH:
-        case BUILDING_HEDGE_DARK:
-        case BUILDING_HEDGE_LIGHT:
-        case BUILDING_COLONNADE:
-        case BUILDING_GARDEN_PATH:
-        case BUILDING_LOOPED_GARDEN_WALL:
-        case BUILDING_ROOFED_GARDEN_WALL:
-        case BUILDING_PANELLED_GARDEN_WALL:
-        case BUILDING_DECORATIVE_COLUMN:
-        case BUILDING_WALL:
-        case BUILDING_PLAZA:
-        case BUILDING_GARDENS:
-        case BUILDING_OVERGROWN_GARDENS:
-        case BUILDING_HOUSE_VACANT_LOT:
-        case BUILDING_PALISADE:
-        case BUILDING_HIGHWAY:
-            return 1;
-        default:
-            return 0;
-    }
+    return is_vacant_lot_type(data.tool.type) || type_matches_any(data.tool.type, {
+        "clear_land",
+        "clear_trees",
+        "repair_land",
+        "road",
+        "aqueduct",
+        "draggable_reservoir",
+        "pine_tree",
+        "fir_tree",
+        "oak_tree",
+        "elm_tree",
+        "fig_tree",
+        "plum_tree",
+        "palm_tree",
+        "date_tree",
+        "pine_path",
+        "fir_path",
+        "oak_path",
+        "elm_path",
+        "fig_path",
+        "plum_path",
+        "palm_path",
+        "date_path",
+        "hedge_dark",
+        "hedge_light",
+        "colonnade",
+        "garden_path",
+        "looped_garden_wall",
+        "roofed_garden_wall",
+        "panelled_garden_wall",
+        "decorative_column",
+        "wall",
+        "plaza",
+        "gardens",
+        "overgrown_gardens",
+        "palisade",
+        "highway",
+    });
 }
 
 void building_construction_cancel(void)
@@ -875,21 +937,21 @@ void building_construction_cancel(void)
 
 static int should_mark_for_construction(building_type type)
 {
-    if (type == BUILDING_SENATE && city_buildings_has_senate()) {
+    if (type_matches(type, "senate") && city_buildings_has_senate()) {
         return 0;
-    } else if (type == BUILDING_CITY_MINT && (city_buildings_has_city_mint() || !city_buildings_has_senate())) {
+    } else if (type_matches(type, "city_mint") && (city_buildings_has_city_mint() || !city_buildings_has_senate())) {
         return 0;
-    } else if (type == BUILDING_BARRACKS && city_buildings_has_barracks() &&
+    } else if (type_matches(type, "barracks") && city_buildings_has_barracks() &&
         !config_get(CONFIG_GP_CH_MULTIPLE_BARRACKS)) {
         return 0;
-    } else if (type == BUILDING_MESS_HALL && city_buildings_has_mess_hall()) {
+    } else if (type_matches(type, "mess_hall") && city_buildings_has_mess_hall()) {
         return 0;
     } else if (building_monument_get_id(type)) {
         return 0;
     } else if (building_monument_is_grand_temple(type) &&
         building_monument_count_grand_temples() >= config_get(CONFIG_GP_CH_MAX_GRAND_TEMPLES)) {
         return 0;
-    } else if (type == BUILDING_AQUEDUCT) {
+    } else if (type_matches(type, "aqueduct")) {
         return 0;
     }
     return 1;
@@ -897,7 +959,6 @@ static int should_mark_for_construction(building_type type)
 
 void building_construction_update(int x, int y, int grid_offset)
 {
-    building_type type = building_construction_type();
     if (grid_offset) {
         data.tool.set_raw_end(x, y, grid_offset);
     } else {
@@ -905,10 +966,12 @@ void building_construction_update(int x, int y, int grid_offset)
         y = data.tool.raw_end.grid_offset ? data.tool.raw_end.y : data.tool.raw_start.y;
         grid_offset = data.tool.raw_end.grid_offset ? data.tool.raw_end.grid_offset : data.tool.raw_start.grid_offset;
     }
+    sync_construction_type();
     data.tool.sync_drag_points(hotkey_get_modifiers());
     x = data.tool.end.x;
     y = data.tool.end.y;
     grid_offset = data.tool.end.grid_offset;
+    building_type type = data.tool.type;
     data.force_place_clear_cost = 0;
     if (!type || city_finance_out_of_money()) {
         data.cost_preview = 0;
@@ -918,122 +981,122 @@ void building_construction_update(int x, int y, int grid_offset)
     map_property_clear_constructing_and_deleted();
     int current_cost = model_get_building(type)->cost;
     int repaired_buildings = 0;
-    if (type == BUILDING_CLEAR_LAND) {
+    if (type_matches(type, "clear_land")) {
         int items_placed = last_items_cleared = building_construction_clear_land(1, data.tool.start.x, data.tool.start.y, x, y);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_CLEAR_TREES) {
+    } else if (type_matches(type, "clear_trees")) {
         int items_placed = building_construction_clear_trees(1, data.tool.start.x, data.tool.start.y, x, y);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_REPAIR_LAND) {
+    } else if (type_matches(type, "repair_land")) {
         int cost = building_construction_repair_land(1, data.tool.start.x, data.tool.start.y, x, y, &repaired_buildings);
         if (cost >= 0) {
             current_cost = cost;  // Use total cost directly, don't multiply
         }
-    } else if (type == BUILDING_WALL) {
+    } else if (type_matches(type, "wall")) {
         int items_placed = place_wall(data.tool.start.x, data.tool.start.y, x, y, 1, 1);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_ROAD) {
+    } else if (type_matches(type, "road")) {
         int items_placed = building_construction_place_road(1, data.tool.start.x, data.tool.start.y, x, y);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_HIGHWAY) {
+    } else if (type_matches(type, "highway")) {
         int items_placed = building_construction_place_highway(1, data.tool.start.x, data.tool.start.y, x, y);
         if (items_placed >= 0) {
             current_cost *= items_placed;
             current_cost /= 4; // Highway special case: cost is 100dn per 2x2 tiles, so it's 1/4 the price per tile
         }
-    } else if (type == BUILDING_PLAZA) {
+    } else if (type_matches(type, "plaza")) {
         int items_placed = place_plaza(data.tool.start.x, data.tool.start.y, x, y);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_GARDENS) {
+    } else if (type_matches(type, "gardens")) {
         int items_placed = place_garden(data.tool.start.x, data.tool.start.y, x, y, 0);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_OVERGROWN_GARDENS) {
+    } else if (type_matches(type, "overgrown_gardens")) {
         int items_placed = place_garden(data.tool.start.x, data.tool.start.y, x, y, 1);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type >= BUILDING_PINE_TREE && type <= BUILDING_DATE_TREE) {
+    } else if (is_tree_type(type)) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type >= BUILDING_PINE_PATH && type <= BUILDING_DATE_PATH) {
+    } else if (is_path_type(type)) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type >= BUILDING_GODDESS_STATUE && type <= BUILDING_SENATOR_STATUE) {
+    } else if (is_alternate_small_statue_type(type)) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_HEDGE_DARK || type == BUILDING_HEDGE_LIGHT) {
+    } else if (is_hedge_type(type)) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_COLONNADE) {
+    } else if (type_matches(type, "colonnade")) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_GARDEN_PATH) {
+    } else if (type_matches(type, "garden_path")) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_LOOPED_GARDEN_WALL) {
+    } else if (type_matches(type, "looped_garden_wall")) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_ROOFED_GARDEN_WALL) {
+    } else if (type_matches(type, "roofed_garden_wall")) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_PANELLED_GARDEN_WALL) {
+    } else if (type_matches(type, "panelled_garden_wall")) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_DECORATIVE_COLUMN) {
+    } else if (type_matches(type, "decorative_column")) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_PALISADE) {
+    } else if (type_matches(type, "palisade")) {
         int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (type == BUILDING_LOW_BRIDGE || type == BUILDING_SHIP_BRIDGE) {
+    } else if (is_bridge_type(type)) {
         int length = map_bridge_building_length();
         if (length > 1) {
             current_cost *= length;
         }
-    } else if (type == BUILDING_AQUEDUCT) {
+    } else if (type_matches(type, "aqueduct")) {
         building_construction_place_aqueduct(data.tool.start.x, data.tool.start.y, x, y, &current_cost);
         map_tiles_update_all_aqueducts(0);
-    } else if (type == BUILDING_DRAGGABLE_RESERVOIR) {
+    } else if (type_matches(type, "draggable_reservoir")) {
         struct reservoir_info info;
         place_reservoir_and_aqueducts(1, data.tool.start.x, data.tool.start.y, x, y, &info);
         current_cost = info.cost;
         map_tiles_update_all_aqueducts(1);
         data.draw_as_constructing = 0;
-    } else if (type == BUILDING_HOUSE_VACANT_LOT) {
+    } else if (is_vacant_lot_type(type)) {
         int items_placed = place_houses(1, data.tool.start.x, data.tool.start.y, x, y);
         if (items_placed >= 0) {
             current_cost *= items_placed;
@@ -1044,13 +1107,13 @@ void building_construction_update(int x, int y, int grid_offset)
             data.force_place_clear_cost = clear_cost;
             current_cost = model_get_building(type)->cost;
         }
-    } else if (type == BUILDING_GATEHOUSE) {
+    } else if (type_matches(type, "gatehouse")) {
         mark_construction(x, y, 2, ~TERRAIN_ROAD, 0);
-    } else if (type == BUILDING_ROADBLOCK) {
+    } else if (type_matches(type, "roadblock")) {
         // Don't show the footprint for roadblocks
-    } else if (type == BUILDING_TRIUMPHAL_ARCH) {
+    } else if (type_matches(type, "triumphal_arch")) {
         mark_construction(x, y, 3, ~TERRAIN_ROAD, 0);
-    } else if (type == BUILDING_WAREHOUSE) {
+    } else if (type_matches(type, "warehouse")) {
         mark_construction(x, y, 3, TERRAIN_ALL, 0);
     } else if (building_is_fort(type)) {
         if (formation_get_num_legions_cached() < formation_get_max_legions()) {
@@ -1064,7 +1127,7 @@ void building_construction_update(int x, int y, int grid_offset)
                 mark_construction(x, y, 3, TERRAIN_ALL, 0);
             }
         }
-    } else if (type == BUILDING_HIPPODROME) {
+    } else if (type_matches(type, "hippodrome")) {
         int x_offset_1, y_offset_1;
         building_rotation_get_offset_with_rotation(5, building_rotation_get_rotation(), &x_offset_1, &y_offset_1);
         int x_offset_2, y_offset_2;
@@ -1075,7 +1138,7 @@ void building_construction_update(int x, int y, int grid_offset)
             !city_buildings_has_hippodrome()) {
             mark_construction(x, y, 5, TERRAIN_ALL, 0);
         }
-    } else if (type == BUILDING_SHIPYARD || type == BUILDING_WHARF || type == BUILDING_DOCK) {
+    } else if (is_waterside_type(type)) {
         if (!map_water_determine_orientation(x, y, building_properties_for_type(type)->size, 1, 0, 0, 1, 0)) {
             data.draw_as_constructing = 1;
         }
@@ -1138,6 +1201,7 @@ void building_construction_offset_start_from_orientation(int *x, int *y, int siz
 
 void building_construction_place(void)
 {
+    building_type type = building_construction_type();
     data.cost_preview = 0;
     data.force_place_clear_cost = 0;
     data.in_progress = 0;
@@ -1146,44 +1210,46 @@ void building_construction_place(void)
     int x_end = data.tool.end.x;
     int y_end = data.tool.end.y;
     grid_slice *slice = map_grid_get_grid_slice_from_corners(x_start, y_start, x_end, y_end);
-    building_type type = building_construction_type();
     building_construction_warning_reset();
     if (!type) {
         return;
     }
 
     if (city_finance_out_of_money()) {
-        building_type well = BUILDING_WELL;
+        building_type well = building_type_registry_well_type();
         if (type == well && well != BUILDING_NONE && building_count_total(well) < 5) {
             // allow wells even when out of money, but limit to 5
         } else {
             // For all other buildings or if we already have 5+ wells
             map_property_clear_constructing_and_deleted();
-            city_warning_show(WARNING_OUT_OF_MONEY, NEW_WARNING_SLOT);
+            city_warning_show(WARNING_OUT_OF_MONEY, translation_for(TR_CITY_WARNING_OUT_OF_MONEY));
             return;
         }
     }
 
     figure_type enemy_figure_type = building_construction_nearby_enemy_type(slice);
 
-    if (type != BUILDING_CLEAR_LAND && type != BUILDING_CLEAR_TREES && enemy_figure_type != FIGURE_NONE) {
-        if (type == BUILDING_WALL || type == BUILDING_ROAD || type == BUILDING_AQUEDUCT || type == BUILDING_HIGHWAY) {
+    if (!type_matches_any(type, {"clear_land", "clear_trees"}) && enemy_figure_type != FIGURE_NONE) {
+        if (type_matches_any(type, {"wall", "road", "aqueduct", "highway"})) {
             game_undo_restore_map(0);
-        } else if (type == BUILDING_PLAZA || type == BUILDING_GARDENS ||
-            type == BUILDING_OVERGROWN_GARDENS || building_is_connectable(type)) {
+        } else if (type_matches_any(type, {"plaza", "gardens", "overgrown_gardens"}) || building_is_connectable(type)) {
             game_undo_restore_map(1);
-        } else if (type == BUILDING_LOW_BRIDGE || type == BUILDING_SHIP_BRIDGE) {
+        } else if (is_bridge_type(type)) {
             map_bridge_reset_building_length();
         } else {
             map_property_clear_constructing_and_deleted();
         }
-        city_warning_show(enemy_figure_type == FIGURE_WOLF ? WARNING_WOLF_NEARBY : WARNING_ENEMY_NEARBY, NEW_WARNING_SLOT);
+        if (enemy_figure_type == FIGURE_WOLF) {
+            city_warning_show(WARNING_WOLF_NEARBY, translation_for(TR_WARNING_NEARBY_WOLF));
+        } else {
+            city_warning_show(WARNING_ENEMY_NEARBY, translation_for(TR_CITY_WARNING_ENEMY_NEARBY));
+        }
         return;
     }
 
     int placement_cost = model_get_building(type)->cost;
     int repaired_buildings = 0;
-    if (type == BUILDING_CLEAR_LAND) {
+    if (type_matches(type, "clear_land")) {
         // BUG in original (keep this behaviour): if confirmation has to be asked (bridge/fort),
         // the previous cost is deducted from treasury and if user chooses 'no', they still pay for removal.
         // If we don't do it this way, the user doesn't pay for the removal at all since we don't come back
@@ -1194,69 +1260,70 @@ void building_construction_place(void)
         }
         placement_cost *= items_placed;
         map_property_clear_constructing_and_deleted();
-    } else if (type == BUILDING_CLEAR_TREES) {
+    } else if (type_matches(type, "clear_trees")) {
         int items_placed = building_construction_clear_trees(0, x_start, y_start, x_end, y_end);
         placement_cost *= items_placed;
         map_property_clear_constructing_and_deleted();
-    } else if (type == BUILDING_REPAIR_LAND) {
+    } else if (type_matches(type, "repair_land")) {
         building_construction_repair_land(0, data.tool.start.x, data.tool.start.y, x_end, y_end, &repaired_buildings);
         //cost processed inside the repair land function
         map_property_clear_constructing_and_deleted();
-    } else if (type == BUILDING_WALL) {
+    } else if (type_matches(type, "wall")) {
         placement_cost *= place_wall(x_start, y_start, x_end, y_end, 0, 1);
-    } else if (type == BUILDING_ROAD) {
+    } else if (type_matches(type, "road")) {
         placement_cost *= building_construction_place_road(0, x_start, y_start, x_end, y_end);
-    } else if (type == BUILDING_HIGHWAY) {
+    } else if (type_matches(type, "highway")) {
         placement_cost *= building_construction_place_highway(0, x_start, y_start, x_end, y_end);
         placement_cost /= 4; // Highway special case: cost is 100dn per 2x2 tiles, so it's 1/4 the price per tile
-    } else if (type == BUILDING_PLAZA) {
+    } else if (type_matches(type, "plaza")) {
         placement_cost *= place_plaza(x_start, y_start, x_end, y_end);
-    } else if (type == BUILDING_GARDENS) {
+    } else if (type_matches(type, "gardens")) {
         placement_cost *= place_garden(x_start, y_start, x_end, y_end, 0);
         map_routing_update_land();
-    } else if (type == BUILDING_OVERGROWN_GARDENS) {
+    } else if (type_matches(type, "overgrown_gardens")) {
         placement_cost *= place_garden(x_start, y_start, x_end, y_end, 1);
         map_routing_update_land();
-    } else if (type == BUILDING_LOW_BRIDGE) {
+    } else if (type_matches(type, "low_bridge")) {
         int length = map_bridge_add(x_end, y_end, 0);
         if (length <= 1) {
-            city_warning_show(WARNING_SHORE_NEEDED, NEW_WARNING_SLOT);
+            city_warning_show(WARNING_SHORE_NEEDED, translation_for(TR_CITY_WARNING_SHORE_NEEDED));
             return;
         }
         placement_cost *= length;
-    } else if (type == BUILDING_SHIP_BRIDGE) {
+    } else if (type_matches(type, "ship_bridge")) {
         int length = map_bridge_add(x_end, y_end, 1);
         if (length <= 1) {
-            city_warning_show(WARNING_SHORE_NEEDED, NEW_WARNING_SLOT);
+            city_warning_show(WARNING_SHORE_NEEDED, translation_for(TR_CITY_WARNING_SHORE_NEEDED));
             return;
         }
         placement_cost *= length;
-    } else if (type == BUILDING_AQUEDUCT) {
+    } else if (type_matches(type, "aqueduct")) {
         int cost;
         if (!building_construction_place_aqueduct(x_start, y_start, x_end, y_end, &cost)) {
-            city_warning_show(WARNING_CLEAR_LAND_NEEDED, NEW_WARNING_SLOT);
+            city_warning_show(WARNING_CLEAR_LAND_NEEDED, translation_for(TR_CITY_WARNING_CLEAR_LAND_NEEDED));
             return;
         }
         placement_cost = cost;
         map_tiles_update_all_aqueducts(0);
         map_routing_update_land();
-    } else if (type == BUILDING_DRAGGABLE_RESERVOIR) {
+    } else if (type_matches(type, "draggable_reservoir")) {
         struct reservoir_info info;
         if (!place_reservoir_and_aqueducts(0, x_start, y_start, x_end, y_end, &info)) {
             map_property_clear_constructing_and_deleted();
-            city_warning_show(WARNING_CLEAR_LAND_NEEDED, NEW_WARNING_SLOT);
+            city_warning_show(WARNING_CLEAR_LAND_NEEDED, translation_for(TR_CITY_WARNING_CLEAR_LAND_NEEDED));
             return;
         }
         unsigned int removed_aqueduct_tiles = 0;
+        building_type reservoir_type = runtime_type("reservoir");
         if (info.place_reservoir_at_start == PLACE_RESERVOIR_YES) {
-            building *reservoir = building_create(BUILDING_RESERVOIR, x_start - 1, y_start - 1);
+            building *reservoir = building_create(reservoir_type, x_start - 1, y_start - 1);
             game_undo_add_building(reservoir);
             removed_aqueduct_tiles += remove_aqueduct_tiles_for_reservoir(x_start - 1, y_start - 1);
             map_building_tiles_add(reservoir->id, x_start - 1, y_start - 1, 3,
                 image_group(GROUP_BUILDING_RESERVOIR), TERRAIN_BUILDING);
         }
         if (info.place_reservoir_at_end == PLACE_RESERVOIR_YES) {
-            building *reservoir = building_create(BUILDING_RESERVOIR, x_end - 1, y_end - 1);
+            building *reservoir = building_create(reservoir_type, x_end - 1, y_end - 1);
             game_undo_add_building(reservoir);
             removed_aqueduct_tiles += remove_aqueduct_tiles_for_reservoir(x_end - 1, y_end - 1);
             map_building_tiles_add(reservoir->id, x_end - 1, y_end - 1, 3,
@@ -1264,7 +1331,7 @@ void building_construction_place(void)
             if (!map_terrain_exists_tile_in_area_with_type(x_start - 2, y_start - 2, 5, TERRAIN_WATER)
                 && info.place_reservoir_at_start == PLACE_RESERVOIR_NO &&
                 !map_water_supply_has_aqueduct_access(reservoir->grid_offset)) {
-                building_construction_warning_check_reservoir(BUILDING_RESERVOIR);
+                building_construction_warning_check_reservoir(reservoir_type);
             }
         }
         if (removed_aqueduct_tiles) {
@@ -1273,40 +1340,40 @@ void building_construction_place(void)
         placement_cost = info.cost;
         map_tiles_update_all_aqueducts(0);
         map_routing_update_land();
-    } else if (type >= BUILDING_PINE_TREE && type <= BUILDING_DATE_TREE) {
+    } else if (is_tree_type(type)) {
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, 0);
-    } else if (type >= BUILDING_PINE_PATH && type <= BUILDING_DATE_PATH) {
+    } else if (is_path_type(type)) {
         int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (type >= BUILDING_GODDESS_STATUE && type <= BUILDING_SENATOR_STATUE) {
+    } else if (is_alternate_small_statue_type(type)) {
         int rotation = building_rotation_get_rotation();
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation % 2);
-    } else if (type >= BUILDING_HEDGE_DARK && type <= BUILDING_HEDGE_LIGHT) {
+    } else if (is_hedge_type(type)) {
         int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (type == BUILDING_COLONNADE) {
+    } else if (type_matches(type, "colonnade")) {
         int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (type == BUILDING_GARDEN_PATH) {
+    } else if (type_matches(type, "garden_path")) {
         int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (type == BUILDING_LOOPED_GARDEN_WALL) {
+    } else if (type_matches(type, "looped_garden_wall")) {
         int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (type == BUILDING_ROOFED_GARDEN_WALL) {
+    } else if (type_matches(type, "roofed_garden_wall")) {
         int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (type == BUILDING_PANELLED_GARDEN_WALL) {
+    } else if (type_matches(type, "panelled_garden_wall")) {
         int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (type == BUILDING_DECORATIVE_COLUMN) {
+    } else if (type_matches(type, "decorative_column")) {
         int variant_numbers = building_variant_get_number_of_variants(type);
         int rotation = building_rotation_get_rotation_with_limit(variant_numbers);
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (type == BUILDING_PALISADE) {
+    } else if (type_matches(type, "palisade")) {
         int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
         placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (type == BUILDING_HOUSE_VACANT_LOT) {
+    } else if (is_vacant_lot_type(type)) {
         placement_cost *= place_houses(0, x_start, y_start, x_end, y_end);
     } else {
         int force_place_clear_cost = 0;
@@ -1329,44 +1396,47 @@ void building_construction_place(void)
     game_undo_finish_build(placement_cost);
 }
 
-static void set_warning(int *warning_id, int warning)
+static void set_warning(warning_type *warning, translation_key *text_key, warning_type type, translation_key key)
 {
-    if (warning_id) {
-        *warning_id = warning;
+    if (warning) {
+        *warning = type;
+    }
+    if (text_key) {
+        *text_key = key;
     }
 }
 
 
-int building_construction_can_place_on_terrain(int x, int y, int *warning_id)
+int building_construction_can_place_on_terrain(int x, int y, warning_type *warning, translation_key *text_key)
 {
     if (data.required_terrain.meadow) {
         if (!map_terrain_exists_tile_in_radius_with_type(x, y, 3, 1, TERRAIN_MEADOW)) {
-            set_warning(warning_id, WARNING_MEADOW_NEEDED);
+            set_warning(warning, text_key, WARNING_MEADOW_NEEDED, TR_CITY_WARNING_MEADOW_NEEDED);
             return 0;
         }
     } else if (data.required_terrain.rock) {
         if (!map_terrain_exists_rock_in_radius(x, y, 2, 1)) {
-            set_warning(warning_id, WARNING_ROCK_NEEDED);
+            set_warning(warning, text_key, WARNING_ROCK_NEEDED, TR_CITY_WARNING_ROCK_NEEDED);
             return 0;
         }
     } else if (data.required_terrain.tree) {
         if (!map_terrain_exists_tile_in_radius_with_type(x, y, 2, 1, TERRAIN_SHRUB | TERRAIN_TREE)) {
-            set_warning(warning_id, WARNING_TREE_NEEDED);
+            set_warning(warning, text_key, WARNING_TREE_NEEDED, TR_CITY_WARNING_TREE_NEEDED);
             return 0;
         }
     } else if (data.required_terrain.water) {
         if (!map_terrain_exists_tile_in_radius_with_type(x, y, 2, 3, TERRAIN_WATER)) {
-            set_warning(warning_id, WARNING_WATER_NEEDED);
+            set_warning(warning, text_key, WARNING_WATER_NEEDED, TR_CITY_WARNING_WATER_NEEDED);
             return 0;
         }
     } else if (data.required_terrain.wall) {
         if (!map_terrain_all_tiles_in_radius_are(x, y, 2, 0, TERRAIN_WALL)) {
-            set_warning(warning_id, WARNING_WALL_NEEDED);
+            set_warning(warning, text_key, WARNING_WALL_NEEDED, TR_CITY_WARNING_WALL_NEEDED);
             return 0;
         }
     } else if (data.required_terrain.distant_water) {
         if (!map_terrain_exists_tile_in_radius_with_type(x, y, 3, 9, TERRAIN_WATER)) {
-            set_warning(warning_id, WARNING_WATER_NEEDED_FOR_BUILDING);
+            set_warning(warning, text_key, WARNING_WATER_NEEDED_FOR_BUILDING, TR_WARNING_WATER_NEEDED_FOR_BUILDING);
             return 0;
         }
     }
@@ -1404,5 +1474,5 @@ int building_construction_draw_as_constructing(void)
 
 int building_construction_uses_custom_ghost_preview(void)
 {
-    return building_construction_type() == BUILDING_DRAGGABLE_RESERVOIR;
+    return type_matches(building_construction_type(), "draggable_reservoir");
 }

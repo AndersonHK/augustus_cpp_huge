@@ -1,15 +1,16 @@
 #pragma once
 
-extern "C" {
 #include "game/resource.h"
-}
+#include "graphics/color.h"
 
 #include <string>
 #include <vector>
 
-struct building;
-struct image;
+class Image;
+class Building;
+struct BuildingDrawContext;
 struct RuntimeAnimationTrack;
+typedef struct building building;
 
 namespace building_type_registry_impl {
 
@@ -62,6 +63,7 @@ struct GraphicsTarget {
     const char *image() const;
     int has_options() const;
     int option_count() const;
+    const GraphicsTarget *option(int index) const;
     GraphicsTarget resolved_option(unsigned char variant) const;
 
 private:
@@ -79,15 +81,14 @@ struct GraphicsCondition {
     int climate = 0;
     int monument_upgrade = 0;
     int festival_games = 0;
-
-    int matches(const ::building &building) const;
 };
 
 struct GraphicsVariant {
     GraphicsTarget target;
     std::vector<GraphicsCondition> conditions;
+    std::string role;
 
-    int matches(const ::building &building) const;
+    int matches(const Building &building) const;
 };
 
 class GraphicsDefinition {
@@ -103,8 +104,11 @@ public:
     int has_default_node() const;
     int has_variants() const;
     const std::vector<GraphicsVariant> &variants() const;
-    const GraphicsTarget *resolve_target(const ::building &building) const;
-    unsigned char upgrade_level_for(const ::building &building) const;
+    const GraphicsTarget *resolve_target(const Building &building) const;
+    int draw_footprint(Building building, const BuildingDrawContext &ctx) const;
+    int draw_top(Building building, const BuildingDrawContext &ctx) const;
+    int draw_animation(Building building, const BuildingDrawContext &ctx) const;
+    unsigned char upgrade_level_for(const Building &building) const;
 
 private:
     GraphicsTarget default_target_;
@@ -116,22 +120,23 @@ private:
 // object what frame should draw; the object owns legacy cursor quirks.
 class BuildingAnimation {
 public:
-    explicit BuildingAnimation(::building &building);
-    BuildingAnimation(::building &building, const BuildingType *definition);
+    explicit BuildingAnimation(Building building);
 
     int runtime_track_offset(const ::RuntimeAnimationTrack &track, int should_advance, int animation_cursor);
-    int legacy_offset(int image_id, int animation_cursor);
-    int legacy_offset_for_image(const ::image *img, int animation_cursor);
-    int advance_storage_flag(int image_id);
+    int offset_for(const Image &image, int animation_cursor);
+    int advance_storage_flag(const Image &image);
     int advance_fumigation();
 
 private:
-    int gated_offset(int animation_cursor, int *offset) const;
+    building &record();
+    const building &record() const;
+
+    int legacy_gate_offset(int animation_cursor, int *offset) const;
     int advance_wine_workshop_offset(int animation_cursor, int max_frame, int clamp_to_available) const;
     int advance_reversible_offset(int animation_cursor, int max_frame) const;
-    int advance_looping_offset(int animation_cursor, int max_frame) const;
+    int advance_looping_offset(int animation_cursor, int max_frame);
 
-    ::building &building_;
+    ::building *record_;
     const BuildingType *definition_;
 };
 

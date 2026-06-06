@@ -22,12 +22,18 @@ typedef enum {
 	ROADBLOCK_NONE = 0,
 	ROADBLOCK_STANDARD = 1,
 	ROADBLOCK_STORAGE = 2,
+    ROADBLOCK_BRIDGE = 3,
 }roadblock_type;
 
-void building_roadblock_set_permission(roadblock_permission p, building *b);
-int building_roadblock_get_permission(roadblock_permission p, building *b);
-void building_roadblock_accept_none(building *b);
-void building_roadblock_accept_all(building *b);
+class Roadblock : public Building {
+public:
+    using Building::Building;
 
-
-int building_type_is_roadblock(building_type type);
+    roadblock_type kind() const; //By the time we are asking the kind, we already estabilished it is a roadblock, so it should be safe to run this, modify on callers instead. Removed: static roadblock_type kind_for(building_type type);
+    int exceptions() const;
+    void set_exceptions(int exceptions);
+    void toggle_permission(roadblock_permission permission);
+    int has_permission(roadblock_permission permission) const;
+    void accept_none();
+    void accept_all();
+};

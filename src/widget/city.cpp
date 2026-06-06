@@ -1,10 +1,12 @@
 #include "city/view.h"
+#include "building/building.h"
 #include "input/zoom.h"
 
 extern "C" {
 #include "city.h"
 
 #include "building/construction.h"
+#include "building/building_type_api.h"
 #include "building/properties.h"
 #include "building/rotation.h"
 #include "city/finance.h"
@@ -48,6 +50,16 @@ extern "C" {
 
 #define NO_POSITION ((unsigned int)-1)
 
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
 static struct {
     map_tile current_tile;
     map_tile selected_tile;
@@ -71,7 +83,6 @@ static void display_zoom_warning(int zoom)
     }
     zoom = city_view_scale_to_display_percentage(zoom);
     static uint8_t zoom_string[100];
-    static int warning_id;
     if (!*zoom_string) {
         uint8_t *cursor = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM), zoom_string, 100);
         string_copy(string_from_ascii(" "), cursor, (int) (cursor - zoom_string));
@@ -79,7 +90,7 @@ static void display_zoom_warning(int zoom)
     int position = string_length(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM)) + 1;
     position += string_from_int(zoom_string + position, zoom, 0);
     string_copy(string_from_ascii("%"), zoom_string + position, 100 - position);
-    warning_id = city_warning_show_custom(zoom_string, warning_id);
+    city_warning_show(WARNING_ZOOM, zoom_string);
 }
 
 static void update_zoom_level(void)
@@ -195,7 +206,7 @@ static void draw_pause_button(void)
     inner_panel_draw(16, 40, 3, 2);
     button_border_draw(16, 40, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
     if (game_state_is_paused()) {
-        Image::from_id(Image::group(static_cast<int>(GROUP_MESSAGE_ICON))).draw(26, 46, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(static_cast<int>(GROUP_MESSAGE_ICON))).draw(26, 46);
     } else {
         draw_pause_icon(26, 46);
     }
@@ -221,7 +232,7 @@ static void draw_construction_buttons(void)
         button_border_draw(x_offset, y_offset, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
         // Use clip rectangle to remove the border of the "X" image
         graphics_set_clip_rectangle(x_offset + 5, y_offset + 5, 37, 24);
-        Image::from_id(Image::group(static_cast<int>(GROUP_OK_CANCEL_SCROLL_BUTTONS)) + 4).draw(x_offset + 4, y_offset + 4, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(static_cast<int>(GROUP_OK_CANCEL_SCROLL_BUTTONS)) + 4).draw(x_offset + 4, y_offset + 4);
         graphics_reset_clip_rectangle();
     }
 
@@ -235,14 +246,14 @@ static void draw_construction_buttons(void)
         inner_panel_draw(x_offset, y_offset, 3, 2);
         button_border_draw(x_offset, y_offset, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
         graphics_set_clip_rectangle(x_offset + 8, y_offset + 6, 37, 24);
-        Image::from_id(Image::group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 6).draw(x_offset + 7, y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 6).draw(x_offset + 7, y_offset + 5);
         graphics_reset_clip_rectangle();
 
         x_offset += 3 * BLOCK_SIZE + 8;
         inner_panel_draw(x_offset, y_offset, 3, 2);
         button_border_draw(x_offset, y_offset, 3 * BLOCK_SIZE, 2 * BLOCK_SIZE, 0);
         graphics_set_clip_rectangle(x_offset + 8, y_offset + 6, 37, 24);
-        Image::from_id(Image::group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 9).draw(x_offset + 7, y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(static_cast<int>(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)) + 9).draw(x_offset + 7, y_offset + 5);
         graphics_reset_clip_rectangle();
     }
 }
@@ -591,7 +602,7 @@ static void handle_first_touch(map_tile *tile)
     }
 
     int size = building_properties_for_type(type)->size;
-    if (type == static_cast<building_type>(BUILDING_WAREHOUSE)) {
+    if (type_matches(type, "warehouse")) {
         size = 3;
     }
 
@@ -672,8 +683,8 @@ static void handle_mouse(const mouse *m)
             int grid_offset = tile->grid_offset;
             int building_id = map_building_at(grid_offset);
             if (building_id) {
-                building *b = building_main(building_get(building_id));
-                grid_offset = b->grid_offset;
+                Building b = Building::from_id(building_id).main();
+                grid_offset = b.grid_offset();
             }
             if (data.routing_grid_offset != grid_offset) {
                 data.routing_grid_offset = grid_offset;
@@ -694,7 +705,7 @@ static void handle_mouse(const mouse *m)
             return;
         }
         if (handle_right_click_allow_building_info(tile)) {
-            int building_id = building_main(building_get(map_building_at(tile->grid_offset)))->id; //building inception!
+            int building_id = Building::from_id(map_building_at(tile->grid_offset)).main().id();
             data.selected_building_id = building_id ? building_id : NO_POSITION; //no position if selected 0
             window_building_info_show(tile->grid_offset);
             return;
@@ -821,7 +832,7 @@ void widget_city_get_tooltip(tooltip_context *c)
     }
     // regular tooltips
     if (overlay == static_cast<int>(OVERLAY_NONE) && building_id &&
-        building_get(building_id)->type == static_cast<building_type>(BUILDING_SENATE)) {
+        Building::from_id(building_id).is_type(runtime_type("senate"))) {
         c->type = static_cast<tooltip_type>(TOOLTIP_SENATE);
         c->high_priority = 1;
         return;
@@ -865,9 +876,9 @@ void widget_city_setup_routing_preview(void)
 
     if (building_id) {
         data.selected_building_id = building_id;
-        building *b = building_main(building_get(building_id));
-        figure_roamer_preview_reset(b->type);
-        figure_roamer_preview_create(b->type, b->x, b->y);
+        Building b = Building::from_id(building_id).main();
+        figure_roamer_preview_reset(b.type_id());
+        figure_roamer_preview_create(b.type_id(), b.x(), b.y());
     } else {
         data.selected_building_id = NO_POSITION;
         figure_roamer_preview_reset(building_construction_type());

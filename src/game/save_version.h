@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /************************************************SAVEGAME GUIDE*******************************************************
 
@@ -43,7 +47,7 @@ If you are unsure about anything regarding the savegame versioning, please ask o
 
 typedef enum {
 
-    SAVE_GAME_CURRENT_VERSION = 0xb8,
+    SAVE_GAME_CURRENT_VERSION = 0xb9,
 
     SAVE_GAME_LAST_ORIGINAL_LIMITS_VERSION = 0x66,
     SAVE_GAME_LAST_SMALLER_IMAGE_ID_VERSION = 0x76,
@@ -108,7 +112,8 @@ typedef enum {
     SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY = 0xb5,
     // building.variant existed before this, but older saves did not use it for native BuildingType graphics options.
     SAVE_GAME_LAST_NO_NATIVE_GRAPHICS_VARIANTS = 0xb6,
-    SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE = 0xb7
+    SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE = 0xb7,
+    SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE = 0xb8
 } savegame_version_t;
 
 typedef enum {
@@ -143,3 +148,7 @@ typedef enum {
     SAVEGAME_STATUS_INVALID = 0,
     SAVEGAME_STATUS_OK = 1
 } savegame_load_status;
+
+#ifdef __cplusplus
+}
+#endif

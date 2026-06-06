@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 int city_buildings_has_senate(void);
 int city_buildings_has_governor_house(void);
@@ -31,3 +35,7 @@ void city_buildings_main_native_meeting_center(int *x, int *y);
 
 int city_buildings_get_closest_plague(int x, int y, int *distance);
 void city_buildings_update_plague(void);
+
+#ifdef __cplusplus
+}
+#endif

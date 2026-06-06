@@ -1,7 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include "figure/figure.h"
 #include "map/point.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define MAP_WATER_WATERSIDE_ROWS_NEEDED 3
 
@@ -37,3 +41,7 @@ int map_water_find_alternative_fishing_boat_tile(figure *boat, map_point *tile);
 int map_water_find_shipwreck_tile(figure *wreck, map_point *tile);
 
 int map_water_can_spawn_fishing_boat(int x, int y, int size, map_point *tile);
+
+#ifdef __cplusplus
+}
+#endif

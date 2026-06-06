@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="pantheon">
     <identity name_key="TR_BUILDING_PANTHEON" />
+    <temple religion="pantheon" />
     <model size="7" cost="3500" />
     <desirability>
         <value value="20" />

@@ -1,7 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include "city/constants.h"
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define THEATER_COVERAGE 500
 #define THEATER_UPGRADE_BONUS_COVERAGE 700
@@ -56,3 +60,7 @@ int city_culture_get_arena_person_coverage(void);
 void city_culture_save_state(buffer *buf);
 
 void city_culture_load_state(buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif

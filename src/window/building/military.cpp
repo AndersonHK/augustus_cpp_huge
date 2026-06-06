@@ -2,8 +2,8 @@ extern "C" {
 #include "military.h"
 
 #include "assets/assets.h"
-#include "building/barracks.h"
-#include "building/building.h"
+#include "building/building_type_api.h"
+#include "building/building_record.h"
 #include "building/count.h"
 #include "city/data_private.h"
 #include "city/buildings.h"
@@ -24,12 +24,21 @@ extern "C" {
 #include "window/city.h"
 #include "window/building/culture.h"
 }
+#include "building/barracks.h"
+#include "building/building.h"
+#include "game/resource_graphics.h"
+#include "graphics/image_border.h"
 #include "graphics/image.h"
 
 static void button_return_to_fort(const generic_button *button);
 static void button_all_legions_return_to_fort(const generic_button *button);
 static void button_layout(const generic_button *button);
 static void button_priority(const generic_button *button);
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
 static void button_delivery(const generic_button *button);
 
 static generic_button layout_buttons[] = {
@@ -84,12 +93,12 @@ static void draw_priority_buttons(int x, int y, unsigned int buttons, int buildi
         int y_adj = y + priority_buttons[i].y;
 
         building *barracks = building_get(data.building_id);
-        unsigned int priority = building_barracks_get_priority(barracks);
+        unsigned int priority = Barracks(barracks).priority();
 
         if (has_focus || priority == i) {
             button_border_draw(x_adj - 3, y_adj - 3, 46, 46, 1);
         }
-        Image::from_id(base_priority_image_id + i * 2 + (i == priority ? 1 : 0)).draw(x_adj, y_adj, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(base_priority_image_id + i * 2 + (i == priority ? 1 : 0)).draw(x_adj, y_adj);
     }
 }
 
@@ -99,16 +108,16 @@ static void draw_delivery_buttons(int x, int y, int building_id)
 
     building *barracks = building_get(data.building_id);
 
-    int accept_delivery = barracks->accepted_goods[RESOURCE_WEAPONS];
+    int accept_delivery = barracks->accepted_goods[resource_weapons()];
 
     if (!accept_delivery) {
         inner_panel_draw(x + 2, y + 2, 3, 3);
     }
 
-    Image::from_id(Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 104).draw(x + 7, y + 7, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 104).draw(x + 7, y + 7);
 
     if (!accept_delivery) {
-        Image::from_id(assets_get_image_id("UI", "Large_Widget_Cross")).draw(x + 15, y + 15, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Large_Widget_Cross")).draw(x + 15, y + 15);
     }
 
     button_border_draw(x, y, 52, 52, data.focus_delivery_button_id || !accept_delivery ? 1 : 0);
@@ -164,13 +173,13 @@ void window_building_draw_barracks(building_info_context *c)
     window_building_play_sound(c, "wavs/barracks.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered(136, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    Image::from_id(resource_get_data(RESOURCE_WEAPONS)->image.icon).draw(c->x_offset + 32, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(resource_weapons()).panel_icon().draw(c->x_offset + 32, c->y_offset + 60);
 
     building *b = building_get(c->building_id);
-    if (b->resources[RESOURCE_WEAPONS] < 1) {
+    if (b->resources[resource_weapons()] < 1) {
         lang_text_draw_amount(8, 10, 0, c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_amount(8, 10, b->resources[RESOURCE_WEAPONS], c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_amount(8, 10, b->resources[resource_weapons()], c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     if (!c->has_road_access) {
@@ -181,7 +190,7 @@ void window_building_draw_barracks(building_info_context *c)
         window_building_draw_description_at(c, 106, 136, 4);
     } else {
         int offset = 0;
-        if (b->resources[RESOURCE_WEAPONS] > 0) {
+        if (b->resources[resource_weapons()] > 0) {
             offset = 4;
         }
         if (city_data.mess_hall.food_stress_cumulative > 50) {
@@ -318,8 +327,8 @@ void window_building_draw_fort(building_info_context *c)
     if (building_get_levy(b)) {
         window_building_draw_levy(building_get_levy(b), c->x_offset + 56, c->y_offset + 130);
     }
-    Image::from_id(assets_get_image_id("UI", "Fort_Banner_01")).draw(c->x_offset + 37, c->y_offset + 195, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + 190, COLOR_MASK_NONE);
+    Image::from_id(assets_get_image_id("UI", "Fort_Banner_01")).draw(c->x_offset + 37, c->y_offset + 195);
+    ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 190);
 }
 
 void window_building_draw_legion_info(building_info_context *c)
@@ -337,7 +346,7 @@ void window_building_draw_legion_info(building_info_context *c)
     int icon_image_id = m->legion_flag_id;
     const image *icon_image = image_get(icon_image_id);
     int icon_height = icon_image->height;
-    Image::from_id(icon_image_id).draw(c->x_offset + 16 + (40 - icon_image->width - icon_image->x_offset) / 2, c->y_offset + 16, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(icon_image_id).draw(c->x_offset + 16 + (40 - icon_image->width - icon_image->x_offset) / 2, c->y_offset + 16);
     // standard flag
     int flag_image_id = Image::group(GROUP_FIGURE_FORT_FLAGS);
     if (m->figure_type == FIGURE_FORT_JAVELIN) {
@@ -365,7 +374,7 @@ void window_building_draw_legion_info(building_info_context *c)
 
     const image *flag_image = image_get(flag_image_id);
     int flag_height = flag_image->height;
-    Image::from_id(flag_image_id).draw(c->x_offset + 16 + (40 - flag_image->width - flag_image->x_offset) / 2, c->y_offset + 16 + icon_height, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(flag_image_id).draw(c->x_offset + 16 + (40 - flag_image->width - flag_image->x_offset) / 2, c->y_offset + 16 + icon_height);
     // standard pole and morale ball
     int morale_offset = m->morale / 5;
     if (morale_offset > 20) {
@@ -373,7 +382,7 @@ void window_building_draw_legion_info(building_info_context *c)
     }
     int pole_image_id = Image::group(GROUP_FIGURE_FORT_STANDARD_POLE) + 20 - morale_offset;
     const image *pole_image = image_get(pole_image_id);
-    Image::from_id(pole_image_id).draw(c->x_offset + 16 + (40 - pole_image->width - pole_image->x_offset * 2) / 2, c->y_offset + 16 + icon_height + flag_height, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(pole_image_id).draw(c->x_offset + 16 + (40 - pole_image->width - pole_image->x_offset * 2) / 2, c->y_offset + 16 + icon_height + flag_height);
 
     // number of soldiers
     lang_text_draw(138, 23, c->x_offset + 100, c->y_offset + 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -461,7 +470,7 @@ void window_building_draw_legion_info(building_info_context *c)
             offsets = OFFSETS_OTHER[index];
         }
         for (int i = 5 - c->formation_types; i < 5; i++) {
-            Image::from_id(Image::group(GROUP_FORT_FORMATIONS) + offsets[i]).draw(c->x_offset + 21 + 85 * i, c->y_offset + 181, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_FORT_FORMATIONS) + offsets[i]).draw(c->x_offset + 21 + 85 * i, c->y_offset + 181);
         }
         window_building_draw_legion_info_foreground(c);
     } else {
@@ -470,7 +479,7 @@ void window_building_draw_legion_info(building_info_context *c)
         if (m->cursed_by_mars) {
             group_id = 89;
             text_id = 1;
-        } else if (building_count_active(BUILDING_BARRACKS)) {
+        } else if (building_count_active(runtime_type("barracks"))) {
             group_id = 138;
             text_id = 10;
         } else {
@@ -671,7 +680,7 @@ void window_building_barracks_get_tooltip_priority(int *translation)
 
     if (data.focus_delivery_button_id) {
         building *barracks = building_get(data.building_id);
-        if (barracks->accepted_goods[RESOURCE_WEAPONS]) {
+        if (barracks->accepted_goods[resource_weapons()]) {
             *translation = TR_TOOLTIP_BUTTON_REJECT_DELIVERY;
         } else {
             *translation = TR_TOOLTIP_BUTTON_ACCEPT_DELIVERY;
@@ -741,13 +750,13 @@ static void button_priority(const generic_button *button)
 {
     int index = button->parameter1;
     building *barracks = building_get(data.building_id);
-    building_barracks_set_priority(barracks, index);
+    Barracks(barracks).set_priority(index);
 }
 
 static void button_delivery(const generic_button *button)
 {
     building *barracks = building_get(data.building_id);
-    building_barracks_toggle_delivery(barracks);
+    Building(barracks).toggle_accepted_good(resource_weapons());
 }
 
 void window_building_draw_watchtower(building_info_context *c)

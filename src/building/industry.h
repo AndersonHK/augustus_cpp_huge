@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "game/resource.h"
 #include "map/point.h"
 
@@ -13,6 +13,11 @@ extern "C" {
 int building_is_farm(building_type type);
 int building_is_raw_resource_producer(building_type type);
 int building_is_workshop(building_type type);
+resource_type building_output_resource(building_type type);
+building_type building_producer_for_resource(resource_type resource);
+int building_production_per_month(building_type type);
+int building_default_production_per_month(building_type type);
+int building_set_production_per_month(building_type type, int production);
 
 int building_get_raw_materials_for_workshop(resource_supply_chain *chain, building_type type);
 int building_get_required_raw_amount_for_production(building_type type, int resource);

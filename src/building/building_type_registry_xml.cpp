@@ -1,17 +1,23 @@
+#include "building/building_record.h"
+#include "building/building_runtime.h"
+#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
+#include "building/distribution.h"
+#include "building/god_registry.h"
 #include "building/housing_type_registry.h"
 #include "building/production_method_registry.h"
+#include "building/religion_registry.h"
 #include "building/storage_type_registry.h"
 #include "building/water_access_type.h"
 #include "building/water_access_type_id_bridge.h"
 #include "assets/image_group_payload.h"
 #include "core/crash_context.h"
+#include "core/xml_definition.h"
 #include "core/xml_value.h"
 
 extern "C" {
-#include "building/building_runtime_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -25,13 +31,17 @@ extern "C" {
 #include "sound/city.h"
 }
 
+#include <cctype>
 #include <climits>
 #include <cstdio>
+#include <cstring>
 #include <utility>
 
 namespace building_type_registry_impl {
 
 static building_type g_next_dynamic_building_type = BUILDING_DYNAMIC_TYPE_FIRST;
+constexpr uint16_t LEGACY_BUILDING_THEATER = 31;
+constexpr uint16_t LEGACY_BUILDING_WELL = 92;
 
 static int compare_text(const char *left, const char *right)
 {
@@ -47,12 +57,12 @@ static int compare_text(const char *left, const char *right)
 
 static building_type find_building_type_by_attr(const char *type_attr)
 {
-    if (housing_type_registry_text_id_has_legacy_house_level(type_attr)) {
+    if (find_housing_type_definition_for_building_path(type_attr)) {
         return BUILDING_NONE;
     }
     if (building_type_legacy_migration_text_id_is_xml_owned(type_attr)) {
         uint16_t legacy_type = building_type_legacy_migration_enum_for_text_id(type_attr);
-        if (legacy_type == BUILDING_LEGACY_SLOT_THEATER || legacy_type == BUILDING_LEGACY_SLOT_WELL) {
+        if (legacy_type == LEGACY_BUILDING_THEATER || legacy_type == LEGACY_BUILDING_WELL) {
             return BUILDING_NONE;
         }
         return static_cast<building_type>(legacy_type);
@@ -556,43 +566,6 @@ static std::string normalize_graphics_path(const char *value)
     return normalized;
 }
 
-static std::string normalize_runtime_definition_path(const char *value)
-{
-    std::string normalized = xml_value::trim_copy(value ? value : "");
-    if (normalized.empty()) {
-        return std::string();
-    }
-
-    for (char &ch : normalized) {
-        if (ch == '/') {
-            ch = '\\';
-        }
-    }
-
-    std::string collapsed;
-    collapsed.reserve(normalized.size());
-    char previous = '\0';
-    for (char ch : normalized) {
-        if (ch == '\\' && previous == '\\') {
-            continue;
-        }
-        collapsed.push_back(ch);
-        previous = ch;
-    }
-    normalized = collapsed;
-
-    if (!normalized.empty() && normalized.front() == '\\') {
-        return std::string();
-    }
-    if (!normalized.empty() && normalized.back() == '\\') {
-        return std::string();
-    }
-    if (ends_with_ignore_case_ascii(normalized, ".xml")) {
-        normalized.resize(normalized.size() - 4);
-    }
-    return normalized;
-}
-
 static int parse_graphics_comparison(const char *comparison_text, GraphicComparison *out_comparison)
 {
     if (!out_comparison) {
@@ -1018,6 +991,129 @@ static int parse_button()
     return 1;
 }
 
+static RoadblockKind parse_roadblock_kind(const char *text)
+{
+    if (compare_text(text, "standard") == 0) {
+        return RoadblockKind::Standard;
+    }
+    if (compare_text(text, "storage") == 0) {
+        return RoadblockKind::Storage;
+    }
+    if (compare_text(text, "bridge") == 0) {
+        return RoadblockKind::Bridge;
+    }
+    return RoadblockKind::None;
+}
+
+static int parse_roadblock()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered roadblock definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_roadblock) {
+        log_error("BuildingType xml contains duplicate roadblock nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("kind")) {
+        log_error("BuildingType roadblock is missing required attribute 'kind'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *kind_text = xml_parser_get_attribute_string("kind");
+    RoadblockKind kind = parse_roadblock_kind(kind_text);
+    if (kind == RoadblockKind::None) {
+        log_error("Unsupported BuildingType roadblock kind", kind_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_roadblock_kind(kind);
+    g_parse_state.saw_roadblock = 1;
+    return 1;
+}
+
+static TileKind parse_tile_kind(const char *text)
+{
+    if (compare_text(text, "plaza") == 0) {
+        return TileKind::Plaza;
+    }
+    return TileKind::None;
+}
+
+static int parse_tile()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered tile definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_tile) {
+        log_error("BuildingType xml contains duplicate tile nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("kind")) {
+        log_error("BuildingType tile is missing required attribute 'kind'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *kind_text = xml_parser_get_attribute_string("kind");
+    TileKind kind = parse_tile_kind(kind_text);
+    if (kind == TileKind::None) {
+        log_error("Unsupported BuildingType tile kind", kind_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_tile_kind(kind);
+    g_parse_state.saw_tile = 1;
+    g_parse_state.parsing_tile = 1;
+    return 1;
+}
+
+static int parse_temple()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered temple definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_temple) {
+        log_error("BuildingType xml contains duplicate temple nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("religion")) {
+        log_error("BuildingType temple is missing required attribute 'religion'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    std::string normalized_path = xml_definition::normalize_path(xml_parser_get_attribute_string("religion"));
+    if (normalized_path.empty()) {
+        log_error("Unsupported BuildingType temple religion path", xml_parser_get_attribute_string("religion"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_temple_religion_reference(std::move(normalized_path));
+    g_parse_state.saw_temple = 1;
+    return 1;
+}
+
+static void finish_tile()
+{
+    if (!g_parse_state.parsing_tile) {
+        return;
+    }
+    g_parse_state.parsing_tile = 0;
+}
+
 static int parse_sound_city_name(const char *name)
 {
     struct named_sound {
@@ -1041,6 +1137,8 @@ static int parse_sound_city_name(const char *name)
         {"clinic", SOUND_CITY_CLINIC},
         {"colosseum", SOUND_CITY_COLOSSEUM},
         {"concrete_maker", SOUND_CITY_CONCRETE_MAKER},
+        {"city_mint", SOUND_CITY_CITY_MINT},
+        {"city_depot", SOUND_CITY_DEPOT},
         {"engineers_post", SOUND_CITY_ENGINEERS_POST},
         {"forum", SOUND_CITY_FORUM},
         {"fountain", SOUND_CITY_FOUNTAIN},
@@ -1086,6 +1184,7 @@ static int parse_sound_city_name(const char *name)
         {"watchtower", SOUND_CITY_WATCHTOWER},
         {"weapons_workshop", SOUND_CITY_WEAPONS_WORKSHOP},
         {"well", SOUND_CITY_WELL},
+        {"wharf", SOUND_CITY_WHARF},
         {"wheat_farm", SOUND_CITY_WHEAT_FARM},
         {"wine_workshop", SOUND_CITY_WINE_WORKSHOP},
         {"workcamp", SOUND_CITY_WORKCAMP}
@@ -1180,6 +1279,52 @@ static int parse_event_data()
 
     g_parse_state.definition->set_event_attr(std::move(attr));
     g_parse_state.saw_event_data = 1;
+    return 1;
+}
+
+static int parse_market()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered market definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_market) {
+        log_error("BuildingType xml contains duplicate market nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int max_distance = 0;
+    int has_max_distance = 0;
+    if (!parse_optional_int_attribute("Unsupported BuildingType market numeric attribute", "max_distance",
+            &max_distance, &has_max_distance)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    int max_food_stock = 0;
+    int has_max_food_stock = 0;
+    if (!parse_optional_int_attribute("Unsupported BuildingType market numeric attribute", "max_food_stock",
+            &max_food_stock, &has_max_food_stock)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!has_max_distance || max_distance <= 0) {
+        log_error("BuildingType market is missing positive required attribute 'max_distance'",
+            g_parse_state.definition->attr(), max_distance);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!has_max_food_stock || max_food_stock <= 0) {
+        log_error("BuildingType market is missing positive required attribute 'max_food_stock'",
+            g_parse_state.definition->attr(), max_food_stock);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_market_max_distance(max_distance);
+    g_parse_state.definition->set_market_max_food_stock(max_food_stock);
+    g_parse_state.saw_market = 1;
     return 1;
 }
 
@@ -1597,7 +1742,16 @@ static int parse_graphics_variant()
         g_parse_state.error = 1;
         return 0;
     }
-    g_parse_state.definition->add_graphics_variant();
+    GraphicsVariant &variant = g_parse_state.definition->add_graphics_variant();
+    if (xml_parser_has_attribute("role")) {
+        std::string role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
+        if (role.empty() || compare_text(role.c_str(), "tile_large") != 0) {
+            log_error("Unsupported BuildingType graphics variant role", xml_parser_get_attribute_string("role"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        variant.role = std::move(role);
+    }
     g_parse_state.has_current_graphics_variant = 1;
     g_parse_state.current_graphics_variant_index = g_parse_state.definition->graphics().variants().size() - 1;
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::Variant;
@@ -1741,7 +1895,7 @@ static resource_type parse_resource_type_name(const char *name)
         return RESOURCE_NONE;
     }
 
-    for (resource_type type = RESOURCE_MIN; type < RESOURCE_MAX; type = static_cast<resource_type>(type + 1)) {
+    for (resource_type type = (RESOURCE_NONE + 1); type < RESOURCE_SLOT_COUNT; type = static_cast<resource_type>(type + 1)) {
         resource_data *data = resource_get_data(type);
         if (!data || !data->xml_attr_name) {
             continue;
@@ -2350,7 +2504,7 @@ static int parse_storage_reference()
         return 0;
     }
 
-    std::string normalized_path = normalize_runtime_definition_path(xml_parser_get_attribute_string("path"));
+    std::string normalized_path = xml_definition::normalize_path(xml_parser_get_attribute_string("path"));
     if (normalized_path.empty()) {
         log_error("Unsupported BuildingType storage reference path", xml_parser_get_attribute_string("path"), 0);
         g_parse_state.error = 1;
@@ -2397,7 +2551,7 @@ static int parse_production_method_reference()
         return 0;
     }
 
-    std::string normalized_path = normalize_runtime_definition_path(xml_parser_get_attribute_string("path"));
+    std::string normalized_path = xml_definition::normalize_path(xml_parser_get_attribute_string("path"));
     if (normalized_path.empty()) {
         log_error("Unsupported BuildingType production_method reference path", xml_parser_get_attribute_string("path"), 0);
         g_parse_state.error = 1;
@@ -2405,6 +2559,36 @@ static int parse_production_method_reference()
     }
 
     g_parse_state.definition->add_production_method_reference(std::move(normalized_path));
+    return 1;
+}
+
+static int parse_distribution()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered distribution definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_distribution) {
+        log_error("BuildingType xml contains duplicate distribution nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("path")) {
+        log_error("BuildingType distribution is missing required attribute 'path'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    std::string normalized_path = xml_definition::normalize_path(xml_parser_get_attribute_string("path"));
+    if (normalized_path.empty()) {
+        log_error("Unsupported BuildingType distribution path", xml_parser_get_attribute_string("path"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_distribution_reference(std::move(normalized_path));
+    g_parse_state.saw_distribution = 1;
     return 1;
 }
 
@@ -2426,7 +2610,7 @@ static int parse_housing()
         return 0;
     }
 
-    std::string normalized_path = normalize_runtime_definition_path(xml_parser_get_attribute_string("path"));
+    std::string normalized_path = xml_definition::normalize_path(xml_parser_get_attribute_string("path"));
     if (normalized_path.empty()) {
         log_error("Unsupported BuildingType housing path", xml_parser_get_attribute_string("path"), 0);
         g_parse_state.error = 1;
@@ -2761,8 +2945,12 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "terrain", parse_foundation_terrain, nullptr, "foundation", nullptr },
     { "button", parse_button, nullptr, "building", nullptr },
     { "menu", parse_button, nullptr, "building", nullptr },
+    { "roadblock", parse_roadblock, nullptr, "building", nullptr },
+    { "tile", parse_tile, finish_tile, "building", nullptr },
+    { "temple", parse_temple, nullptr, "building", nullptr },
     { "sound", parse_sound, nullptr, "building", nullptr },
     { "event_data", parse_event_data, nullptr, "building", nullptr },
+    { "market", parse_market, nullptr, "building", nullptr },
     { "flags", parse_flags, nullptr, "building", nullptr },
     { "water_access", parse_provider_water_access, finish_provider_water_access, "building", nullptr },
     { "graphics", parse_graphics, finish_graphics, "building|phase", nullptr },
@@ -2790,6 +2978,7 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "storage", parse_storage_reference, nullptr, "storages", nullptr },
     { "production_methods", parse_production_methods, finish_production_methods, "building", nullptr },
     { "production_method", parse_production_method_reference, nullptr, "production_methods", nullptr },
+    { "distribution", parse_distribution, nullptr, "building", nullptr },
     { "housing", parse_housing, nullptr, "building", nullptr },
     { "spawn_group", parse_spawn_group, nullptr, "building", nullptr },
     { "spawn", parse_spawn, nullptr, "spawn_group", nullptr }
@@ -2825,6 +3014,72 @@ static int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
         return 0;
     }
     return 1;
+}
+
+static int starts_with_token(const char *cursor, const char *end, const char *token)
+{
+    size_t token_length = strlen(token);
+    return end - cursor >= static_cast<long>(token_length) &&
+        strncmp(cursor, token, token_length) == 0;
+}
+
+static const char *find_token(const char *cursor, const char *end, const char *token)
+{
+    while (cursor < end) {
+        if (starts_with_token(cursor, end, token)) {
+            return cursor;
+        }
+        cursor++;
+    }
+    return nullptr;
+}
+
+static const char *skip_xml_preamble(const char *cursor, const char *end)
+{
+    if (end - cursor >= 3 &&
+        static_cast<unsigned char>(cursor[0]) == 0xef &&
+        static_cast<unsigned char>(cursor[1]) == 0xbb &&
+        static_cast<unsigned char>(cursor[2]) == 0xbf) {
+        cursor += 3;
+    }
+
+    while (cursor < end) {
+        while (cursor < end && std::isspace(static_cast<unsigned char>(*cursor))) {
+            cursor++;
+        }
+        if (starts_with_token(cursor, end, "<?")) {
+            const char *close = find_token(cursor, end, "?>");
+            if (!close) {
+                return cursor;
+            }
+            cursor = close + 2;
+            continue;
+        }
+        if (starts_with_token(cursor, end, "<!--")) {
+            const char *close = find_token(cursor, end, "-->");
+            if (!close) {
+                return cursor;
+            }
+            cursor = close + 3;
+            continue;
+        }
+        return cursor;
+    }
+    return cursor;
+}
+
+static int buffer_has_building_root(const std::vector<char> &buffer)
+{
+    const char *start = buffer.data();
+    const char *end = start + buffer.size();
+    const char *cursor = skip_xml_preamble(start, end);
+    if (!starts_with_token(cursor, end, "<building")) {
+        return 0;
+    }
+
+    cursor += strlen("<building");
+    return cursor < end &&
+        (*cursor == '>' || *cursor == '/' || std::isspace(static_cast<unsigned char>(*cursor)));
 }
 
 // Input: one authored graphics target from a BuildingType plus a short scope label for logging.
@@ -3006,7 +3261,7 @@ static int resolve_runtime_references(BuildingType &definition, const char *file
     }
 
     for (const std::string &production_path : definition.production_method_reference_paths()) {
-        const ProductionMethod *production_method = find_production_method_definition(production_path.c_str());
+        ProductionMethod *production_method = find_production_method_definition(production_path.c_str());
         if (!production_method) {
             char detail[512];
             snprintf(
@@ -3021,6 +3276,24 @@ static int resolve_runtime_references(BuildingType &definition, const char *file
             return 0;
         }
         definition.add_production_method(production_method);
+    }
+
+    if (!definition.distribution_reference_path().empty()) {
+        const Distribution *distribution = find_distribution_definition(definition.distribution_reference_path().c_str());
+        if (!distribution) {
+            char detail[512];
+            snprintf(
+                detail,
+                sizeof(detail),
+                "building=%s distribution_path=%s file=%s",
+                definition.attr(),
+                definition.distribution_reference_path().c_str(),
+                filename ? filename : "");
+            error_context_report_error("Unable to resolve BuildingType distribution reference.", detail);
+            log_error("Unable to resolve BuildingType distribution reference", detail, 0);
+            return 0;
+        }
+        definition.set_distribution(distribution);
     }
 
     if (!definition.housing_reference_path().empty()) {
@@ -3041,17 +3314,45 @@ static int resolve_runtime_references(BuildingType &definition, const char *file
         definition.set_housing_type(housing_type);
     }
 
+    if (!definition.temple_religion_reference_path().empty()) {
+        const Religion *religion = find_religion_definition(definition.temple_religion_reference_path().c_str());
+        if (!religion) {
+            char detail[512];
+            snprintf(
+                detail,
+                sizeof(detail),
+                "building=%s religion_path=%s file=%s",
+                definition.attr(),
+                definition.temple_religion_reference_path().c_str(),
+                filename ? filename : "");
+            error_context_report_error("Unable to resolve BuildingType temple religion reference.", detail);
+            log_error("Unable to resolve BuildingType temple religion reference", detail, 0);
+            return 0;
+        }
+        definition.set_temple_religion(religion);
+    }
+
     return 1;
 }
 
-static int parse_definition_file(const char *filename)
+static int validate_runtime_class_nodes(const BuildingType &definition)
 {
-    ErrorContextScope error_scope("building_type_registry.parse_definition", filename);
-
-    std::vector<char> buffer;
-    if (!load_file_to_buffer(filename, buffer)) {
+    if (compare_text(definition.attr(), "market") == 0 && !definition.has_market()) {
+        log_error("BuildingType market is missing required market node", definition.attr(), 0);
         return 0;
     }
+    if ((compare_text(definition.attr(), "market") == 0 ||
+         compare_text(definition.attr(), "tavern") == 0) &&
+        !definition.has_distribution()) {
+        log_error("BuildingType class is missing required distribution node", definition.attr(), 0);
+        return 0;
+    }
+    return 1;
+}
+
+static int parse_definition_buffer(const char *filename, std::vector<char> &buffer)
+{
+    ErrorContextScope error_scope("building_type_registry.parse_definition", filename);
 
     g_parse_state = {};
     if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
@@ -3065,10 +3366,11 @@ static int parse_definition_file(const char *filename)
     // This must tighten again once metadata, graphics, placement, and runtime behavior are all XML-owned.
     // Live bad XML should fail at load time instead of quietly registering incomplete building definitions.
     int has_supported_node = g_parse_state.saw_identity || g_parse_state.saw_model || g_parse_state.saw_foundation ||
-        g_parse_state.saw_button || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
-        g_parse_state.saw_flags || g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
+        g_parse_state.saw_button || g_parse_state.saw_roadblock || g_parse_state.saw_tile ||
+        g_parse_state.saw_temple || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
+        g_parse_state.saw_market || g_parse_state.saw_flags || g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
         g_parse_state.saw_construction || g_parse_state.saw_spawn ||
-        g_parse_state.saw_storages || g_parse_state.saw_production_methods ||
+        g_parse_state.saw_storages || g_parse_state.saw_production_methods || g_parse_state.saw_distribution ||
         g_parse_state.saw_housing || g_parse_state.saw_labor || g_parse_state.saw_provider_water_access;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
         !has_supported_node) {
@@ -3082,6 +3384,9 @@ static int parse_definition_file(const char *filename)
         return 0;
     }
     if (!resolve_runtime_references(*g_parse_state.definition, filename)) {
+        return 0;
+    }
+    if (!validate_runtime_class_nodes(*g_parse_state.definition)) {
         return 0;
     }
     g_building_types[g_parse_state.definition->type()] = std::move(g_parse_state.definition);
@@ -3130,16 +3435,71 @@ static int resolve_housing_transitions()
         }
     }
 
-    building_type vacant_lot_target = runtime_id_from_text("house_small_tent");
+    const int first_housing_level = housing_type_level_at(0);
+    building_type vacant_lot_target =
+        first_housing_level < 0 ? BUILDING_NONE : building_type_registry_get_housing_type_for_level(first_housing_level, 1);
     const BuildingType *target_definition = definition_for_type(vacant_lot_target);
     if (vacant_lot_target == BUILDING_NONE || !target_definition || !target_definition->has_housing() ||
         target_definition->model().size() != 1) {
         error_context_report_error(
             "BuildingType housing vacant-lot fill target does not exist.",
-            "target=house_small_tent size=1");
+            "target=first_housing_level size=1");
         return 0;
     }
 
+    return 1;
+}
+
+static std::string building_type_category_path(const char *folder)
+{
+    return std::string(mod_manager_get_mod_path()) + folder + "/";
+}
+
+static int load_building_type_definitions_from_path(
+    const char *path,
+    int require_building_files,
+    int allow_non_building_files,
+    int *loaded_count)
+{
+    const dir_listing *files = dir_find_files_with_extension(path, "xml");
+    if (!files || files->num_files <= 0) {
+        if (require_building_files) {
+            log_error("No BuildingType xml files found in", path, 0);
+            return 0;
+        }
+        return 1;
+    }
+
+    int path_building_file_count = 0;
+    for (int i = 0; i < files->num_files; i++) {
+        char full_path[FILE_NAME_MAX];
+        snprintf(full_path, FILE_NAME_MAX, "%s%s", path, files->files[i].name);
+
+        std::vector<char> buffer;
+        if (!load_file_to_buffer(full_path, buffer)) {
+            return 0;
+        }
+        if (!buffer_has_building_root(buffer)) {
+            if (!allow_non_building_files) {
+                log_error("BuildingType xml root is not <building>", full_path, 0);
+                return 0;
+            }
+            continue;
+        }
+        if (!parse_definition_buffer(full_path, buffer)) {
+            log_error("Unable to parse BuildingType xml", full_path, 0);
+            return 0;
+        }
+        path_building_file_count++;
+        if (loaded_count) {
+            (*loaded_count)++;
+        }
+    }
+
+    if (require_building_files && path_building_file_count <= 0) {
+        log_error("No BuildingType <building> xml files found in", path, 0);
+        return 0;
+    }
     return 1;
 }
 
@@ -3161,8 +3521,20 @@ extern "C" int building_type_registry_load(void)
         log_error("Unable to load WaterAccessType xml definitions", 0, 0);
         return 0;
     }
+    if (!god_registry_load()) {
+        log_error("Unable to load God xml definitions", 0, 0);
+        return 0;
+    }
+    if (!religion_registry_load()) {
+        log_error("Unable to load Religion xml definitions", 0, 0);
+        return 0;
+    }
     if (!storage_type_registry_load()) {
         log_error("Unable to load StorageType xml definitions", 0, 0);
+        return 0;
+    }
+    if (!distribution_registry_load()) {
+        log_error("Unable to load Distribution xml definitions", 0, 0);
         return 0;
     }
     if (!production_method_registry_load()) {
@@ -3174,20 +3546,21 @@ extern "C" int building_type_registry_load(void)
         return 0;
     }
 
-    const dir_listing *files = dir_find_files_with_extension(g_building_type_path.c_str(), "xml");
-    if (!files || files->num_files <= 0) {
-        log_error("No BuildingType xml files found in", g_building_type_path.c_str(), 0);
+    int loaded_building_type_count = 0;
+    if (!load_building_type_definitions_from_path(g_building_type_path.c_str(), 1, 0, &loaded_building_type_count)) {
         return 0;
     }
 
-    // Load every live BuildingType definition from the selected mod folder.
-    for (int i = 0; i < files->num_files; i++) {
-        char full_path[FILE_NAME_MAX];
-        snprintf(full_path, FILE_NAME_MAX, "%s%s", g_building_type_path.c_str(), files->files[i].name);
-        if (!parse_definition_file(full_path)) {
-            log_error("Unable to parse BuildingType xml", full_path, 0);
-            return 0;
-        }
+    std::string tiles_path = building_type_category_path("Tiles");
+    if (directory_exists(tiles_path.c_str()) &&
+        !load_building_type_definitions_from_path(tiles_path.c_str(), 0, 0, &loaded_building_type_count)) {
+        return 0;
+    }
+
+    std::string menu_path = building_type_category_path("BuildingTypeMenu");
+    if (directory_exists(menu_path.c_str()) &&
+        !load_building_type_definitions_from_path(menu_path.c_str(), 0, 0, &loaded_building_type_count)) {
+        return 0;
     }
 
     if (!resolve_housing_transitions()) {
@@ -3195,7 +3568,6 @@ extern "C" int building_type_registry_load(void)
         return 0;
     }
     building_type_registry_apply_model_overrides();
-    refresh_known_building_type_ids();
     building_type_id_bridge_reset_for_runtime();
     water_access_type_id_bridge_reset_for_runtime();
     building_monument_reset_runtime_bridge();

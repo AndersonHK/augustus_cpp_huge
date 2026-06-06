@@ -1,28 +1,29 @@
+#include "building/building_record.h"
+#include "building/building.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 #include "building/local_workforce.h"
 #include "building/water_access_runtime.h"
 
 #include "assets/image_group_payload.h"
+#include "building/armoury.h"
+#include "building/barracks.h"
 #include "building/building_runtime_graphics.h"
-#include "building/production_runtime_api.h"
-#include "building/storage_runtime_api.h"
+#include "building/caravanserai.h"
+#include "building/lighthouse.h"
+#include "building/production_runtime.h"
+#include "building/storage_runtime.h"
+#include "building/temple.h"
 #include "core/crash_context.h"
 
 extern "C" {
-#include "building/armoury.h"
-#include "building/barracks.h"
-#include "building/building_runtime_api.h"
 #include "building/count.h"
-#include "building/caravanserai.h"
 #include "building/distribution.h"
 #include "building/granary.h"
 #include "building/image.h"
 #include "building/industry.h"
-#include "building/lighthouse.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/temple.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/data_private.h"
@@ -47,17 +48,23 @@ extern "C" {
 #include <cstdint>
 #include <string>
 
+Building building_runtime::building() const
+{
+    return Building(record_, definition_);
+}
+
 namespace building_runtime_impl {
 
 std::vector<std::unique_ptr<building_runtime>> g_runtime_instances;
 
-static int building_has_required_workers_for_runtime_water(const ::building *building_data)
+static int building_has_required_workers_for_runtime_water(const Building &building)
 {
-    if (!building_data) {
+    const ::building *record = building.legacy_record();
+    if (!record) {
         return 0;
     }
-    const model_building *model = model_get_building(building_data->type);
-    return !model || model->laborers <= 0 || building_data->num_workers > 0;
+    const int required_workers = building.type().required_workers();
+    return required_workers <= 0 || record->num_workers > 0;
 }
 
 building_runtime *get_city_building(unsigned int id)
@@ -85,11 +92,11 @@ building_runtime *get_or_create_instance(::building *building_data)
     }
 
     // Every live building gets a runtime object, even before that type has migrated to XML-driven behavior.
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::g_building_types[building_data->type].get();
+    const Building runtime_building(building_data);
+    const building_type_registry_impl::BuildingType *definition = runtime_building.type_definition();
 
     std::unique_ptr<building_runtime> &slot = g_runtime_instances[building_data->id];
-    if (!slot || slot->building() != building_data || slot->definition() != definition) {
+    if (!slot || slot->legacy_record() != building_data || slot->definition() != definition) {
         slot = std::make_unique<building_runtime>(building_data, definition);
     }
     return slot.get();
@@ -99,41 +106,41 @@ building_runtime *get_or_create_instance(::building *building_data)
 
 void building_runtime::refresh_runtime_state()
 {
-    if (!building_ || !definition_) {
+    if (!legacy_record() || !definition()) {
         return;
     }
 
-    if (definition_->water_access().has_requirements()) {
-        building_->has_water_access =
-            building_runtime_impl::building_has_required_workers_for_runtime_water(building_) &&
-            water_access_runtime_building_has_required_access(building_) ? 1 : 0;
+    if (type().water_access().has_requirements()) {
+        record().has_water_access =
+            building_runtime_impl::building_has_required_workers_for_runtime_water(building()) &&
+            water_access_runtime_building_has_required_access(legacy_record()) ? 1 : 0;
     }
 
-    if (definition_->has_graphic()) {
-        building_->upgrade_level = definition_->upgrade_level_for(*building_);
+    if (type().has_graphic()) {
+        record().upgrade_level = type().upgrade_level_for(building());
     }
 }
 
 int building_runtime::owns_native_storage() const
 {
-    return definition_ && definition_->has_native_storage();
+    return definition() && type().has_native_storage();
 }
 
 int building_runtime::owns_native_production() const
 {
-    return definition_ && definition_->has_native_production();
+    return definition() && type().has_native_production();
 }
 
-extern "C" void building_runtime_reset(void)
+void building_runtime_reset(void)
 {
     building_runtime_impl::g_runtime_instances.clear();
-    production_runtime_reset();
-    storage_runtime_reset();
+    production_runtime_impl::reset();
+    storage_runtime_impl::reset();
 }
 
 // After save load/new city init, bind each live building instance to its runtime wrapper, rebuild native storage/production instances,
 // and precompute cached image-group bindings.
-extern "C" void building_runtime_initialize_city_graphics_cache(void)
+void building_runtime_initialize_city_graphics_cache(void)
 {
     building_runtime_reset();
     building_local_workforce_initialize_city();
@@ -153,90 +160,6 @@ extern "C" void building_runtime_initialize_city_graphics_cache(void)
         }
     }
 
-    storage_runtime_initialize_city();
-    production_runtime_initialize_city();
-}
-
-extern "C" void building_runtime_apply_graphic(building *b)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        instance->set_building_graphic();
-    }
-}
-
-extern "C" int building_runtime_apply_graphic_if_native(building *b)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        if (instance->uses_new_graphics() &&
-            (b->state == BUILDING_STATE_CREATED ||
-                b->state == BUILDING_STATE_IN_USE ||
-                b->state == BUILDING_STATE_MOTHBALLED)) {
-            instance->set_building_graphic();
-            return 1;
-        }
-    }
-    return 0;
-}
-
-extern "C" void building_runtime_assign_graphic_variant(building *b, int force_reseed)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        instance->assign_graphic_variant(force_reseed);
-    }
-}
-
-extern "C" void building_runtime_spawn_figure(building *b)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        instance->spawn_figure();
-    }
-}
-
-const RuntimeDrawSlice *building_runtime_get_graphic_footprint_slice(building *b)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        return instance->graphic_footprint();
-    }
-    return nullptr;
-}
-
-const RuntimeDrawSlice *building_runtime_get_graphic_top_slice(building *b)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        return instance->graphic_top();
-    }
-    return nullptr;
-}
-
-int building_runtime_owns_graphics(building *b)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        return instance->owns_graphics();
-    }
-    return 0;
-}
-
-int building_runtime_owns_graphic_animation(building *b)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        return instance->owns_graphic_animation();
-    }
-    return 0;
-}
-
-const RuntimeDrawSlice *building_runtime_get_graphic_animation_slice(building *b, int animation_cursor)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        return instance->graphic_animation(animation_cursor);
-    }
-    return nullptr;
-}
-
-int building_runtime_advance_graphic_animation(building *b, int animation_cursor)
-{
-    if (building_runtime *instance = building_runtime_impl::get_or_create_instance(b)) {
-        instance->advance_graphic_animation(animation_cursor);
-        return instance->owns_graphic_animation();
-    }
-    return 0;
+    storage_runtime_impl::initialize_city();
+    production_runtime_impl::initialize_city();
 }

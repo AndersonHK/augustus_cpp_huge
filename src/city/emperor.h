@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 enum {
     GIFT_MODEST = 0,
@@ -65,3 +69,7 @@ void city_emperor_mark_soldier_killed(void);
 void city_emperor_force_attack(int size);
 
 void city_emperor_decrement_personal_savings(int amount);
+
+#ifdef __cplusplus
+}
+#endif

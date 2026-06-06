@@ -42,19 +42,19 @@ void draw_rating_column(int x_offset, int y_offset, int value, int has_reached)
         value_to_draw = 25;
     }
 
-    Image::from_id(image_base).draw(x_offset, y, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base).draw(x_offset, y);
     for (int i = 0; i < 2 * value_to_draw; i++) {
-        Image::from_id(image_base + 1).draw(x_offset + 11, --y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x_offset + 11, --y);
     }
     if (has_reached) {
-        Image::from_id(image_base + 2).draw(x_offset - 6, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 2).draw(x_offset - 6, y);
     }
 }
 
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 3).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 3).draw(10, 10);
     int width = lang_text_draw(53, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     if (!scenario_criteria_population_enabled() || scenario_is_open_play()) {
         lang_text_draw(53, 7, 80 + width, 17, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -63,7 +63,7 @@ static int draw_background(void)
         text_draw_number(scenario_criteria_population(), '@', ")", 80 + width, 17, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
-    Image::from_id(Image::group(GROUP_RATINGS_BACKGROUND)).draw(60, 48, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_RATINGS_BACKGROUND)).draw(60, 48);
 
     int open_play = scenario_is_open_play();
 

@@ -1,7 +1,8 @@
 extern "C" {
 #include "hotkey_config.h"
 
-#include "building/type.h"
+#include "building/building_type_api.h"
+#include "building/building_type.h"
 #include "core/calc.h"
 #include "core/hotkey_config.h"
 #include "core/image_group.h"
@@ -41,6 +42,7 @@ typedef struct {
     int name_translation;
     int name_text_group;
     int name_text_id;
+    const char *building_text_id;
 } hotkey_widget;
 
 static hotkey_widget hotkey_widgets[] = {
@@ -82,28 +84,28 @@ static hotkey_widget hotkey_widgets[] = {
     {HOTKEY_PASTE_BUILDING_SETTINGS, TR_HOTKEY_PASTE_SETTINGS},
     {HOTKEY_MOTHBALL_TOGGLE, TR_HOTKEY_MOTHBALL_TOGGLE},
     {HOTKEY_STORAGE_ORDER, TR_HOTKEY_SPECIAL_ORDERS},
-    {HOTKEY_BUILD_CLEAR_LAND, TR_NONE, 68, 21},
+    {HOTKEY_BUILD_CLEAR_LAND, TR_BUILDING_LAND_CLEAR},
     {HOTKEY_BUILD_REPAIR_LAND, TR_BUILDING_LAND_REPAIR},
     {HOTKEY_BUILD_VACANT_HOUSE, TR_NONE, 67, 7},
-    {HOTKEY_BUILD_ROAD, TR_NONE, GROUP_BUILDINGS, BUILDING_ROAD},
-    {HOTKEY_BUILD_PLAZA, TR_NONE, GROUP_BUILDINGS, BUILDING_PLAZA},
-    {HOTKEY_BUILD_GARDENS, TR_NONE, GROUP_BUILDINGS, BUILDING_GARDENS},
-    {HOTKEY_BUILD_OVERGROWN_GARDENS, TR_NONE, GROUP_BUILDINGS, BUILDING_OVERGROWN_GARDENS},
-    {HOTKEY_BUILD_PREFECTURE, TR_NONE, GROUP_BUILDINGS, BUILDING_PREFECTURE},
-    {HOTKEY_BUILD_ENGINEERS_POST, TR_NONE, GROUP_BUILDINGS, BUILDING_ENGINEERS_POST},
-    {HOTKEY_BUILD_DOCTOR, TR_NONE, GROUP_BUILDINGS, BUILDING_DOCTOR},
-    {HOTKEY_BUILD_BARBER, TR_NONE, GROUP_BUILDINGS, BUILDING_BARBER},
-    {HOTKEY_BUILD_GRANARY, TR_NONE, GROUP_BUILDINGS, BUILDING_GRANARY},
-    {HOTKEY_BUILD_WAREHOUSE, TR_NONE, GROUP_BUILDINGS, BUILDING_WAREHOUSE},
-    {HOTKEY_BUILD_MARKET, TR_NONE, GROUP_BUILDINGS, BUILDING_MARKET},
-    {HOTKEY_BUILD_WALL, TR_NONE, GROUP_BUILDINGS, BUILDING_WALL},
-    {HOTKEY_BUILD_GATEHOUSE, TR_NONE, GROUP_BUILDINGS, BUILDING_GATEHOUSE},
-    {HOTKEY_BUILD_RESERVOIR, TR_NONE, GROUP_BUILDINGS, BUILDING_RESERVOIR},
-    {HOTKEY_BUILD_AQUEDUCT, TR_NONE, GROUP_BUILDINGS, BUILDING_AQUEDUCT},
-    {HOTKEY_BUILD_FOUNTAIN, TR_NONE, GROUP_BUILDINGS, BUILDING_FOUNTAIN},
-    {HOTKEY_BUILD_ROADBLOCK, TR_NONE, GROUP_BUILDINGS, BUILDING_ROADBLOCK},
-    {HOTKEY_BUILD_WHEAT_FARM, TR_HOTKEY_BUILD_WHEAT_FARM, GROUP_BUILDINGS, BUILDING_WHEAT_FARM},
-    {HOTKEY_BUILD_HIGHWAY, TR_HOTKEY_BUILD_HIGHWAY, GROUP_BUILDINGS, BUILDING_HIGHWAY},
+    {HOTKEY_BUILD_ROAD, TR_NONE, 0, 0, "road"},
+    {HOTKEY_BUILD_PLAZA, TR_NONE, 0, 0, "plaza"},
+    {HOTKEY_BUILD_GARDENS, TR_NONE, 0, 0, "gardens"},
+    {HOTKEY_BUILD_OVERGROWN_GARDENS, TR_NONE, 0, 0, "overgrown_gardens"},
+    {HOTKEY_BUILD_PREFECTURE, TR_NONE, 0, 0, "prefecture"},
+    {HOTKEY_BUILD_ENGINEERS_POST, TR_NONE, 0, 0, "engineers_post"},
+    {HOTKEY_BUILD_DOCTOR, TR_NONE, 0, 0, "doctor"},
+    {HOTKEY_BUILD_BARBER, TR_NONE, 0, 0, "barber"},
+    {HOTKEY_BUILD_GRANARY, TR_NONE, 0, 0, "granary"},
+    {HOTKEY_BUILD_WAREHOUSE, TR_NONE, 0, 0, "warehouse"},
+    {HOTKEY_BUILD_MARKET, TR_NONE, 0, 0, "market"},
+    {HOTKEY_BUILD_WALL, TR_NONE, 0, 0, "wall"},
+    {HOTKEY_BUILD_GATEHOUSE, TR_NONE, 0, 0, "gatehouse"},
+    {HOTKEY_BUILD_RESERVOIR, TR_NONE, 0, 0, "reservoir"},
+    {HOTKEY_BUILD_AQUEDUCT, TR_NONE, 0, 0, "aqueduct"},
+    {HOTKEY_BUILD_FOUNTAIN, TR_NONE, 0, 0, "fountain"},
+    {HOTKEY_BUILD_ROADBLOCK, TR_NONE, 0, 0, "roadblock"},
+    {HOTKEY_BUILD_WHEAT_FARM, TR_HOTKEY_BUILD_WHEAT_FARM},
+    {HOTKEY_BUILD_HIGHWAY, TR_HOTKEY_BUILD_HIGHWAY},
     {HOTKEY_UNDO, TR_NONE, GROUP_BUILDINGS, 1},
     {HOTKEY_HEADER, TR_HOTKEY_HEADER_ADVISORS},
     {HOTKEY_SHOW_ADVISOR_LABOR, TR_HOTKEY_SHOW_ADVISOR_LABOR},
@@ -289,6 +291,10 @@ static void draw_background(void)
         } else {
             if (widget->name_translation != TR_NONE) {
                 text_draw(translation_for(static_cast<translation_key>(widget->name_translation)),
+                    32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+            } else if (widget->building_text_id) {
+                building_type type = building_type_registry_runtime_id_from_text(widget->building_text_id);
+                text_draw(lang_get_building_type_string(type),
                     32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else {
                 lang_text_draw(widget->name_text_group, widget->name_text_id,

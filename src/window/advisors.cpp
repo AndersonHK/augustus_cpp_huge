@@ -204,13 +204,13 @@ void window_advisors_draw_dialog_background(void)
 {
     Image::from_id(Image::group(GROUP_ADVISOR_BACKGROUND)).draw_fullscreen_background();
     graphics_in_dialog();
-    Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 13).draw(0, 432, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 13).draw(0, 432);
 
     prepare_advisor_image_ids();
 
     for (int i = 0; i < ADVISOR_MAX; i++) {
         int selected = current_advisor && i == (current_advisor % ADVISOR_MAX) - 1;
-        Image::from_id(advisor_image_ids[selected][i]).draw(45 * i + 8, 441, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(advisor_image_ids[selected][i]).draw(45 * i + 8, 441);
     }
     graphics_reset_dialog();
 }
@@ -348,16 +348,22 @@ void window_advisors_show_checked(void)
     if (avail == AVAILABLE) {
         window_advisors_set_advisor(static_cast<advisor_type>(setting_last_advisor()));
         window_advisors_show();
+    } else if (avail == NOT_AVAILABLE) {
+        city_warning_show(WARNING_NOT_AVAILABLE, translation_for(TR_CITY_WARNING_NOT_AVAILABLE));
     } else {
-        city_warning_show(avail == NOT_AVAILABLE ? WARNING_NOT_AVAILABLE : WARNING_NOT_AVAILABLE_YET, NEW_WARNING_SLOT);
+        city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for(TR_CITY_WARNING_NOT_AVAILABLE_YET));
     }
 }
 
 int window_advisors_show_advisor(advisor_type advisor)
 {
     tutorial_availability avail = tutorial_advisor_empire_availability();
-    if (avail == NOT_AVAILABLE || avail == NOT_AVAILABLE_YET) {
-        city_warning_show(avail == NOT_AVAILABLE ? WARNING_NOT_AVAILABLE : WARNING_NOT_AVAILABLE_YET, NEW_WARNING_SLOT);
+    if (avail == NOT_AVAILABLE) {
+        city_warning_show(WARNING_NOT_AVAILABLE, translation_for(TR_CITY_WARNING_NOT_AVAILABLE));
+        return 0;
+    }
+    if (avail == NOT_AVAILABLE_YET) {
+        city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for(TR_CITY_WARNING_NOT_AVAILABLE_YET));
         return 0;
     }
     window_advisors_set_advisor(advisor);

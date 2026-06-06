@@ -1,11 +1,12 @@
 #pragma once
 
+#include "building/building_type.h"
+#include "building/properties.h"
+#include "figure/type.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include "building/type.h"
-#include "building/properties.h"
 
 typedef struct building building;
 
@@ -38,6 +39,20 @@ int building_type_registry_load(void);
 void building_type_registry_apply_model_overrides(void);
 
 building_type building_type_registry_runtime_id_from_text(const char *text_id);
+building_type building_type_registry_theater_type(void);
+building_type building_type_registry_well_type(void);
+int building_type_registry_is_theater(building_type type);
+int building_type_registry_is_well(building_type type);
+int building_type_registry_is_temple(building_type type);
+int building_type_registry_is_warehouse(building_type type);
+int building_type_registry_is_granary(building_type type);
+int building_type_registry_is_mess_hall(building_type type);
+int building_type_registry_is_architect_guild(building_type type);
+int building_type_registry_is_caravanserai(building_type type);
+int building_type_registry_is_lighthouse(building_type type);
+int building_type_registry_is_armoury(building_type type);
+int building_type_registry_has_native_storage(building_type type);
+int building_type_registry_has_distribution(building_type type);
 int building_type_registry_has_definition(building_type type);
 const char *building_type_registry_get_name_key(building_type type);
 int building_type_registry_get_model_size(building_type type);
@@ -50,6 +65,7 @@ const char *building_type_registry_get_button_icon_image(building_type type);
 int building_type_registry_get_button_icon_image_id(building_type type);
 const char *building_type_registry_get_button_text_key(building_type type);
 int building_type_registry_has_labor_seeker(building_type type);
+figure_type building_type_registry_get_preview_figure(building_type type);
 int building_type_registry_get_sound_id(building_type type);
 int building_type_registry_get_sound_mute_on_enemies(building_type type);
 int building_type_registry_get_sound_always_play(building_type type);
@@ -66,9 +82,11 @@ int building_type_registry_has_housing(building_type type);
 const model_house *building_type_registry_get_housing_model(building_type type);
 int building_type_registry_get_housing_resident_class(building_type type);
 int building_type_registry_housing_has_resident_class(building_type type, int resident_class);
-int building_type_registry_get_housing_legacy_level(building_type type);
+int building_type_registry_get_housing_level(building_type type);
 int building_type_registry_get_housing_capacity(building_type type);
-building_type building_type_registry_get_housing_type_for_legacy_level(int legacy_level, int footprint_size);
+int building_type_registry_get_housing_level_count(void);
+int building_type_registry_get_housing_level_at(int index);
+building_type building_type_registry_get_housing_type_for_level(int level, int footprint_size);
 building_type building_type_registry_get_housing_transition(building_type type, int transition);
 building_type building_type_registry_get_vacant_lot_fill_type(void);
 

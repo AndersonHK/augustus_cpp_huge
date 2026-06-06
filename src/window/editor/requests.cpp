@@ -20,6 +20,7 @@ extern "C" {
 #include "window/editor/edit_request.h"
 #include "window/editor/map.h"
 }
+#include "game/resource_graphics.h"
 #include "graphics/image.h"
 
 static void button_edit_request(const grid_box_item *item);
@@ -142,11 +143,10 @@ static void draw_request_button(const grid_box_item *item)
     text_draw_number(request->year, '+', " ", item->x + 5, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     lang_text_draw_year(scenario_property_start_year() + request->year, item->x + 40, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    int image_id = resource_get_data(static_cast<resource_type>(request->resource))->image.editor.icon;
-    const image *img = image_get(image_id);
-    int base_width = (25 - img->original.width) / 2;   //centering resource icon
-    int base_height = (item->height - img->original.height) / 2;
-    Image::from_id(image_id).draw(150 + base_width, item->y + base_height, COLOR_MASK_NONE, SCALE_NONE);
+    const ImageGroupEntryRef &icon = resource_graphics(static_cast<resource_type>(request->resource)).editor_icon();
+    int base_width = (25 - icon.width()) / 2;
+    int base_height = (item->height - icon.height()) / 2;
+    icon.draw(150 + base_width, item->y + base_height);
     text_draw(resource_get_data(static_cast<resource_type>(request->resource))->text, 180, item->y + 7,
         FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
 

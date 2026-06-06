@@ -20,7 +20,7 @@ void arrow_buttons_draw(int x, int y, arrow_button *buttons, unsigned int num_bu
         if (buttons[i].pressed) {
             image_id += 1;
         }
-        Image::from_id(image_id).draw(x + buttons[i].x_offset, y + buttons[i].y_offset, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(x + buttons[i].x_offset, y + buttons[i].y_offset);
     }
 }
 

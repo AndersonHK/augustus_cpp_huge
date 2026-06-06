@@ -18,6 +18,7 @@ extern "C" {
 #include "window/editor/edit_price_change.h"
 #include "window/editor/map.h"
 }
+#include "game/resource_graphics.h"
 #include "graphics/image.h"
 
 #include <stdlib.h>
@@ -130,10 +131,9 @@ static void draw_price_change_button(const grid_box_item *item)
     text_draw_number(price_change->year, '+', " ", item->x + 5, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     int width = lang_text_draw_year(scenario_property_start_year() + price_change->year, item->x + 40, item->y + 7,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    int image_id = resource_get_data(static_cast<resource_type>(price_change->resource))->image.editor.icon;
-    const image *img = image_get(image_id);
-    int base_height = (item->height - img->original.height) / 2;
-    Image::from_id(image_id).draw(item->x + 45 + width, item->y + base_height, COLOR_MASK_NONE, SCALE_NONE);
+    const ImageGroupEntryRef &icon = resource_graphics(static_cast<resource_type>(price_change->resource)).editor_icon();
+    int base_height = (item->height - icon.height()) / 2;
+    icon.draw(item->x + 45 + width, item->y + base_height);
     //width += lang_text_draw(44, price_change->is_rise ? 104 : 103, item->x + 75 + width, item->y + 7, FONT_NORMAL_BLACK);
     if (price_change->is_rise) {
         width += lang_text_draw_colored(44, 104, item->x + 75 + width, item->y + 7, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_DARK_GREEN);

@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef enum {
     DATA_TYPE_NOT_SUPPORTED,
@@ -26,3 +30,7 @@ int building_data_transfer_paste(building *b, int supress_warnings);
 int building_data_transfer_possible(building *b, int supress_warnings);
 
 building_data_type building_data_transfer_data_type_from_building_type(building_type type);
+
+#ifdef __cplusplus
+}
+#endif

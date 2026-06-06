@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 int scenario_criteria_population_enabled(void);
 int scenario_criteria_population(void);
@@ -31,3 +35,7 @@ int scenario_criteria_max_year(void);
 void scenario_criteria_save_state(buffer *buf);
 
 void scenario_criteria_load_state(buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif

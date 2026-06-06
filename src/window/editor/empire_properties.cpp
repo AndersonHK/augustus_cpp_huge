@@ -1,3 +1,4 @@
+#include "game/resource_id_bridge.h"
 extern "C" {
 #include "empire_properties.h"
 
@@ -234,7 +235,7 @@ static void button_select_image(const generic_button *button)
 static void button_default_image(const generic_button *button)
 {
     scenario.empire.id = SCENARIO_CUSTOM_EMPIRE;
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     empire_clear();
     empire_object_clear();
     empire_object_init_cities(SCENARIO_CUSTOM_EMPIRE);

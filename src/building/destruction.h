@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 
 void building_destroy_by_collapse(building *b);
 

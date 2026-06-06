@@ -16,6 +16,7 @@ extern "C" {
 #include "window/advisors.h"
 }
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 #define MIN_DIALOG_WIDTH 384
 
@@ -59,7 +60,7 @@ static void draw_foreground(void)
     int dialog_width = get_dialog_width();
     int dialog_x = 128 - (dialog_width - MIN_DIALOG_WIDTH) / 2;
     outer_panel_draw(dialog_x, 32, dialog_width / BLOCK_SIZE, 25);
-    Image::from_id(resource_get_data(RESOURCE_DENARII)->image.icon).draw(dialog_x + 10, 42, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(resource_denarii()).panel_icon().draw(dialog_x + 10, 42);
     lang_text_draw_centered(52, 15, dialog_x + 25, 48, dialog_width - 64, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     inner_panel_draw(144, 80, 22, 15);

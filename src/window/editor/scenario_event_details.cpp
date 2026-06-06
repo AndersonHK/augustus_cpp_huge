@@ -1,7 +1,11 @@
+#include <array>
+
 #include "scenario_event_details.h"
+#include "graphics/image.h"
 
 extern "C" {
 #include "assets/assets.h"
+#include "core/array.h"
 #include "core/lang.h"
 #include "core/log.h"
 #include "core/string.h"
@@ -28,7 +32,6 @@ extern "C" {
 #include "window/popup_dialog.h"
 #include "window/select_list.h"
 }
-#include "graphics/image.h"
 
 #define BUTTON_LEFT_PADDING 32
 #define BUTTON_WIDTH 608
@@ -516,7 +519,7 @@ static void draw_background(void)
         text_draw(string_from_ascii("-"), select_all_none_buttons[0].x + 8, select_all_none_buttons[0].y + 4,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (data.conditions.selection_type == CHECKBOX_ALL_SELECTED) {
-        Image::from_id(checkmark_id).draw(select_all_none_buttons[0].x + (20 - img->original.width) / 2, select_all_none_buttons[0].y + (20 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(checkmark_id).draw(select_all_none_buttons[0].x + (20 - img->original.width) / 2, select_all_none_buttons[0].y + (20 - img->original.height) / 2);
     }
 
     // "Set selected to group..." option label
@@ -534,7 +537,7 @@ static void draw_background(void)
         text_draw(string_from_ascii("-"), select_all_none_buttons[1].x + 8, select_all_none_buttons[1].y + 4,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (data.actions.selection_type == CHECKBOX_ALL_SELECTED) {
-        Image::from_id(checkmark_id).draw(select_all_none_buttons[1].x + (20 - img->original.width) / 2, select_all_none_buttons[1].y + (20 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(checkmark_id).draw(select_all_none_buttons[1].x + (20 - img->original.width) / 2, select_all_none_buttons[1].y + (20 - img->original.height) / 2);
     }
 
     // Action grid box label
@@ -594,7 +597,7 @@ static void draw_condition_button(const grid_box_item *item)
     if (data.conditions.selected && data.conditions.selected[item->index]) {
         int checkmark_id = assets_lookup_image_id(ASSET_UI_SELECTION_CHECKMARK);
         const image *img = image_get(checkmark_id);
-        Image::from_id(checkmark_id).draw(item->x + (20 - img->original.width) / 2, item->y + selection_button_y_offset + (20 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(checkmark_id).draw(item->x + (20 - img->original.width) / 2, item->y + selection_button_y_offset + (20 - img->original.height) / 2);
     }
 
     const int label_button_has_focus = item->is_focused ? (item->mouse.x >= 24 ? 1 : 0) : 0;
@@ -620,7 +623,7 @@ static void draw_action_button(const grid_box_item *item)
     if (data.actions.selected && data.actions.selected[item->index]) {
         int checkmark_id = assets_lookup_image_id(ASSET_UI_SELECTION_CHECKMARK);
         const image *img = image_get(checkmark_id);
-        Image::from_id(checkmark_id).draw(item->x + (20 - img->original.width) / 2, item->y + selection_button_y_offset + (20 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(checkmark_id).draw(item->x + (20 - img->original.width) / 2, item->y + selection_button_y_offset + (20 - img->original.height) / 2);
     }
 
     const int label_button_has_focus = item->is_focused ? (item->mouse.x >= 24 ? 1 : 0) : 0;

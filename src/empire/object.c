@@ -1,3 +1,4 @@
+#include "game/resource_id_bridge.h"
 #include "object.h"
 
 #include "assets/assets.h"
@@ -119,7 +120,7 @@ void empire_object_load(buffer *buf, int version)
     resource_version_t resource_version = resource_mapping_get_version();
 
     if (version <= SCENARIO_LAST_UNVERSIONED) {
-        resource_set_mapping(RESOURCE_ORIGINAL_VERSION);
+        resource_set_mapping(resource_id_bridge_original_version());
     }
 
     int objects_to_load = version <= SCENARIO_LAST_NO_DYNAMIC_OBJECTS ? LEGACY_EMPIRE_OBJECTS : buffer_read_u32(buf);
@@ -184,24 +185,24 @@ void empire_object_load(buffer *buf, int version)
                 old_buys_resource[r] = buffer_read_u8(buf);
             }
         } else if (version <= SCENARIO_LAST_EMPIRE_RESOURCES_U8) {
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX_LEGACY; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < resource_id_bridge_legacy_resource_count(); r++) {
                 full->city_sells_resource[resource_remap(r)] = buffer_read_u8(buf);
             }
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX_LEGACY; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < resource_id_bridge_legacy_resource_count(); r++) {
                 full->city_buys_resource[resource_remap(r)] = buffer_read_u8(buf);
             }
         } else if (version <= SCENARIO_LAST_EMPIRE_RESOURCES_ALWAYS_WRITE) {
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX_LEGACY; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < resource_id_bridge_legacy_resource_count(); r++) {
                 full->city_sells_resource[resource_remap(r)] = buffer_read_i32(buf);
             }
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX_LEGACY; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < resource_id_bridge_legacy_resource_count(); r++) {
                 full->city_buys_resource[resource_remap(r)] = buffer_read_i32(buf);
             }
         } else if (obj->type == EMPIRE_OBJECT_CITY) {
-            for (int r = RESOURCE_MIN; r < resource_total_mapped(); r++) {
+            for (int r = (RESOURCE_NONE + 1); r < resource_total_mapped(); r++) {
                 full->city_sells_resource[resource_remap(r)] = buffer_read_i16(buf);
             }
-            for (int r = RESOURCE_MIN; r < resource_total_mapped(); r++) {
+            for (int r = (RESOURCE_NONE + 1); r < resource_total_mapped(); r++) {
                 full->city_buys_resource[resource_remap(r)] = buffer_read_i16(buf);
             }
         }
@@ -211,7 +212,7 @@ void empire_object_load(buffer *buf, int version)
             int trade40 = buffer_read_u16(buf);
             int trade25 = buffer_read_u16(buf);
             int trade15 = buffer_read_u16(buf);
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX_LEGACY; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < resource_id_bridge_legacy_resource_count(); r++) {
                 int resource_flag = 1 << r;
                 int amount = 0;
                 if (trade40 & resource_flag) {
@@ -283,7 +284,7 @@ void empire_object_save(buffer *buf)
         return;
     }
     int size_per_obj = 87;
-    int size_per_city = size_per_obj + 4 * (RESOURCE_MAX - RESOURCE_MIN);
+    int size_per_city = size_per_obj + 4 * (RESOURCE_SLOT_COUNT - (RESOURCE_NONE + 1));
     int total_size = 0;
 
     full_empire_object *full;
@@ -325,10 +326,10 @@ void empire_object_save(buffer *buf)
         buffer_write_u8(buf, full->trade_route_open);
         buffer_write_u32(buf, full->trade_route_cost);
         if (obj->type == EMPIRE_OBJECT_CITY) {
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
                 buffer_write_i16(buf, full->city_sells_resource[r]);
             }
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
                 buffer_write_i16(buf, full->city_buys_resource[r]);
             }
         }
@@ -380,7 +381,7 @@ void empire_object_add_to_cities(full_empire_object *full)
         city->is_sea_trade = empire_object_is_sea_trade_route(full->obj.trade_route_id);
         
         // set sell/buy resources and set trade route accordingly
-        for (resource_type resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+        for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             city->sells_resource[resource] = 0;
             city->buys_resource[resource] = 0;
             if (empire_object_city_sells_resource(full->obj.id, resource)) {
@@ -401,7 +402,7 @@ void empire_object_add_to_cities(full_empire_object *full)
     }
     if (city->type == EMPIRE_CITY_OURS) {
         // When it's our city set the sell resources but don't create route
-        for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+        for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             city->sells_resource[resource] = 0;
             city->buys_resource[resource] = 0;
             if (empire_object_city_sells_resource(full->obj.id, resource)) {
@@ -466,7 +467,7 @@ void empire_object_init_cities(int empire_id)
         city->cost_to_open = obj->trade_route_cost;
         city->is_sea_trade = empire_object_is_sea_trade_route(obj->obj.trade_route_id);
 
-        for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+        for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             city->sells_resource[resource] = 0;
             city->buys_resource[resource] = 0;
             if (city->type == EMPIRE_CITY_DISTANT_ROMAN

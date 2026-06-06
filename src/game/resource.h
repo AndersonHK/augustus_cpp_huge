@@ -1,90 +1,32 @@
 #pragma once
 
-#include "building/type.h"
-#include "city/warning.h"
 #include "core/buffer.h"
 #include "core/lang.h"
 
 /**
  * @file
- * Type definitions for resources
+ * Runtime-facing resource definitions.
+ *
+ * Resource identity is authored by Mods/<Mod>/Resources/*.xml. Runtime ids are
+ * process-local slots from the active XML definitions; old raw save ids are
+ * private to the resource save bridge.
  */
 
-/**
- * Resource types
- *
- * If you add a new resource, please follow the order: food -> raw materials -> goods, as the game expects resources
- * to be in that order.
- *
- * If you add a resource to the end of the food, raw materials or goods list, please update the "RESOURCE_MAX_*" value
- * Same if you add it to the start of a food, raw materials or goods list, in which case you need to update the
- * "RESOURCE_MIN_*" value.
- */
-typedef enum {
+typedef int resource_type;
+
+enum {
     RESOURCE_NONE = 0,
-    RESOURCE_WHEAT,
-    RESOURCE_VEGETABLES,
-    RESOURCE_FRUIT,
-    RESOURCE_MEAT,
-    RESOURCE_FISH,
-    RESOURCE_CLAY,
-    RESOURCE_TIMBER,
-    RESOURCE_OLIVES,
-    RESOURCE_VINES,
-    RESOURCE_IRON,
-    RESOURCE_MARBLE,
-    RESOURCE_GOLD,
-    RESOURCE_SAND,
-    RESOURCE_STONE,
-    RESOURCE_POTTERY,
-    RESOURCE_FURNITURE,
-    RESOURCE_OIL,
-    RESOURCE_WINE,
-    RESOURCE_WEAPONS,
-    RESOURCE_CONCRETE,
-    RESOURCE_BRICKS,
-    RESOURCE_DENARII,
-    RESOURCE_TROOPS,
-    // helper constants
-    RESOURCE_MIN_FOOD = RESOURCE_WHEAT,
-    RESOURCE_MAX_FOOD = RESOURCE_FISH + 1,
-    RESOURCE_MIN_NON_FOOD = RESOURCE_MAX_FOOD,
-    RESOURCE_MAX_NON_FOOD = RESOURCE_BRICKS + 1,
-    RESOURCE_MIN = RESOURCE_MIN_FOOD,
-    RESOURCE_MAX = RESOURCE_MAX_NON_FOOD,
-    RESOURCE_TOTAL_SPECIAL = 2,
-
-    // Values for old versions
-    RESOURCE_MAX_FOOD_LEGACY = 7,
-    RESOURCE_MAX_FOOD_REORDERED = 5,
-    RESOURCE_MAX_FOOD_WITH_FISH = 6,
-
-    RESOURCE_MAX_LEGACY = 16,
-    RESOURCE_MAX_WITH_FISH = 17,
-    RESOURCE_MAX_WITH_GOLD = 18,
-    RESOURCE_MAX_WITH_MONUMENT_RESOURCES = 22
-} resource_type;
-
-#define LEGACY_INVENTORY_MAX 8
-#define RESOURCE_ONE_LOAD 100
+    RESOURCE_SLOT_COUNT = 24
+};
 
 #define RESOURCE_SUPPLY_CHAIN_MAX_SIZE 10
-
-typedef enum {
-    RESOURCE_ORIGINAL_VERSION = 0,
-    RESOURCE_DYNAMIC_VERSION = 1,
-    RESOURCE_REORDERED_VERSION = 2,
-    RESOURCE_SEPARATE_FISH_AND_MEAT_VERSION = 3,
-    RESOURCE_HAS_GOLD_VERSION = 4,
-    RESOURCE_HAS_NEW_MONUMENT_ELEMENTS = 5,
-    RESOURCE_CURRENT_VERSION = RESOURCE_HAS_NEW_MONUMENT_ELEMENTS
-} resource_version_t;
 
 typedef enum {
     RESOURCE_FLAG_NONE = 0,
     RESOURCE_FLAG_FOOD = 1,
     RESOURCE_FLAG_STORABLE = 2,
-    RESOURCE_FLAG_INVENTORY = 4 | RESOURCE_FLAG_STORABLE // Inventory goods are always storable
+    RESOURCE_FLAG_INVENTORY = 4 | RESOURCE_FLAG_STORABLE, // Inventory goods are always storable
+    RESOURCE_FLAG_SPECIAL = 8
 } resource_flags;
 
 typedef struct {
@@ -97,65 +39,73 @@ typedef struct {
     resource_type type;
     resource_flags flags;
     const uint8_t *text;
+    const char *text_id;
+    const char *name_key;
     const char *xml_attr_name;
-    building_type industry;
-    int production_per_month;
-    struct {
-        warning_type needed;
-        warning_type create_industry;
-    } warning;
-    struct {
-        int storage;
-        struct {
-            int single_load;
-            int multiple_loads;
-            int eight_loads;
-        } cart;
-        int icon;
-        int empire;
-        struct {
-            int icon;
-            int empire;
-        } editor;
-    } image;
     struct {
         int buy;
         int sell;
     } default_trade_price;
 } resource_data;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void resource_init(void);
 
 int resource_is_food(resource_type resource);
-
 int resource_is_raw_material(resource_type resource);
-
 int resource_is_inventory(resource_type resource);
 int resource_is_storable(resource_type resource);
-
-resource_type resource_get_from_industry(building_type industry);
+int resource_is_special(resource_type resource);
+int resource_is_declared(resource_type resource);
+int resource_is_tradeable(resource_type resource);
 
 int resource_get_supply_chain_for_good(resource_supply_chain *chain, resource_type good);
 int resource_get_supply_chain_for_raw_material(resource_supply_chain *chain, resource_type raw_material);
 
 resource_data *resource_get_data(resource_type resource);
 
-resource_data *resource_get_defaults(resource_type resource);
+const char *resource_text_id(resource_type resource);
+resource_type resource_type_from_text_id(const char *text_id);
+resource_type resource_type_from_xml_attr(const char *name);
+int resource_matches_text_id(resource_type resource, const char *text_id);
 
-void resource_set_mapping(resource_version_t version);
+resource_type resource_get_loaded(int index);
+int resource_loaded_count(void);
+resource_type resource_get_production(int index);
+int resource_production_count(void);
 
-resource_version_t resource_mapping_get_version(void);
+int resource_units_per_load(void);
 
-resource_type resource_map_legacy_inventory(int id);
-
-int resource_base_production_per_month(resource_type resource);
-int resource_production_per_month(resource_type);
-
-resource_type resource_remap(int id);
-
-int resource_total_mapped(void);
-
-int resource_total_food_mapped(void);
+resource_type resource_wheat(void);
+resource_type resource_vegetables(void);
+resource_type resource_fruit(void);
+resource_type resource_meat(void);
+resource_type resource_fish(void);
+resource_type resource_clay(void);
+resource_type resource_timber(void);
+resource_type resource_olives(void);
+resource_type resource_vines(void);
+resource_type resource_iron(void);
+resource_type resource_marble(void);
+resource_type resource_gold(void);
+resource_type resource_sand(void);
+resource_type resource_stone(void);
+resource_type resource_pottery(void);
+resource_type resource_furniture(void);
+resource_type resource_oil(void);
+resource_type resource_wine(void);
+resource_type resource_weapons(void);
+resource_type resource_concrete(void);
+resource_type resource_bricks(void);
+resource_type resource_denarii(void);
+resource_type resource_troops(void);
 
 void production_rates_load(buffer *buf);
 void production_rates_save(buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif

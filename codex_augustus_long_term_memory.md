@@ -77,12 +77,16 @@ Primary design goals remain:
   - shared UI object behavior/composition
 - `SharedUiRuntime`
   - shared UI facade/orchestration
-- `building_runtime`
-  - building runtime migration direction
+- `Building` / `building_runtime`
+  - C++ runtime object over saved building records; city rendering now enters native building graphics through `Building::draw(BuildingDrawPass::...)`, while raw records are persistence/legacy-boundary data
 - `BuildingAnimation`
   - building animation frame selection, legacy cursor quirks, and shared native/legacy animation gating
 - `WaterAccessType` / `water_access_runtime`
   - XML-defined water access types, mask propagation, provider/consumer rule evaluation, aqueduct wet-state projection, and compatibility mirrors
+- `Image` / `ImageGroupEntryRef`
+  - manager-owned renderable images plus semantic image-group entry references for UI/resource/building callers
+- `ResourceGraphics`
+  - resource-owned image-group references for carts, storage stacks, panel icons, empire icons, and editor icons
 - `building_type_registry` / `housing_type_registry`
   - native BuildingType and HousingType XML loading, compatibility validation, legacy house-level bridge, and registry-to-legacy fan-out
 - `figure_type_registry` / `figure_runtime`

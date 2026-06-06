@@ -1,11 +1,15 @@
 #include "figure/movement.h"
 
+#include "building/building.h"
+#include "building/building_type_registry_internal.h"
+#include "building/roadblock.h"
 #include "figure/figure_runtime_api.h"
 
+#include <initializer_list>
+
 extern "C" {
-#include "building/building.h"
+#include "building/building_record.h"
 #include "building/destruction.h"
-#include "building/roadblock.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "figure/combat.h"
@@ -29,6 +33,33 @@ constexpr int kPalisadeHp = 60;
 constexpr int kBuildingHp = 10;
 constexpr int kWallHp = 200;
 constexpr int kGatehouseHp = 150;
+
+building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_impl::runtime_id_from_text(text_id);
+}
+
+bool type_matches(building_type type, const char *text_id)
+{
+    const building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
+bool type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (type_matches(type, text_id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool building_at_matches(int grid_offset, const char *text_id)
+{
+    building *b = building_get(map_building_at(grid_offset));
+    return b && type_matches(b->type, text_id);
+}
 
 } // namespace
 
@@ -221,15 +252,8 @@ static void advance_route_tile(figure *f, int roaming_enabled)
                 case DESTROYABLE_BUILDING:
                 {
                     building *b = building_get(map_building_at(target_grid_offset));
-                    switch (b->type) {
-                        case BUILDING_PALISADE:
-                        case BUILDING_PALISADE_GATE:
-                            max_damage = kPalisadeHp;
-                            break;
-                        default:
-                            max_damage = kBuildingHp;
-                            break;
-                    }
+                    max_damage = b && type_matches_any(b->type, {"palisade", "palisade_gate"}) ?
+                        kPalisadeHp : kBuildingHp;
                     break;
                 }
                 case DESTROYABLE_AQUEDUCT_GARDEN:
@@ -261,15 +285,15 @@ static void advance_route_tile(figure *f, int roaming_enabled)
     } else if (map_terrain_is(target_grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP)) {
         if (roaming_enabled && map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
             building *b = building_get(map_building_at(target_grid_offset));
-            if (b->type == BUILDING_GRANARY) {
+            if (b && Building(b).type().is_granary()) {
                 if (map_road_get_granary_inner_road_tiles_count(b) < 3) {
                     f->direction = DIR_FIGURE_REROUTE; // do not roam into dead-end granaries
                 }
             }
-            if (building_type_is_roadblock(b->type)) {
+            if (Roadblock(b).kind() != ROADBLOCK_NONE) {
                 // do not allow roaming through roadblock without permissions
                 roadblock_permission permission = get_permission_for_figure_type(f);
-                if (!building_roadblock_get_permission(permission, b)) {
+                if (!Roadblock(b).has_permission(permission)) {
                     f->direction = DIR_FIGURE_REROUTE;
                 }
             }
@@ -280,13 +304,13 @@ static void advance_route_tile(figure *f, int roaming_enabled)
             return; // passable terrain - no reroute
         }
         building *b = building_get(map_building_at(target_grid_offset));
-        if (building_type_is_roadblock(b->type) && roaming_enabled) { //only block roaming
+        if (Roadblock(b).kind() != ROADBLOCK_NONE && roaming_enabled) { //only block roaming
             roadblock_permission permission = get_permission_for_figure_type(f);
-            if (!building_roadblock_get_permission(permission, b)) {
+            if (!Roadblock(b).has_permission(permission)) {
                 f->direction = DIR_FIGURE_REROUTE;
             }
         } else {
-            if (b->type != BUILDING_FORT_GROUND) {
+            if (!type_matches(b->type, "fort_ground")) {
                 f->direction = DIR_FIGURE_REROUTE;
             }
 
@@ -398,17 +422,18 @@ static bool is_valid_road_for_roaming(const figure *f, int grid_offset, roadbloc
         return false;
     }
 
-    if (building_type_is_roadblock(b->type)) {
-        return is_path && building_roadblock_get_permission(permission, b);
+    if (Roadblock(b).kind() != ROADBLOCK_NONE) {
+        return is_path && Roadblock(b).has_permission(permission);
     }
 
     // Granaries mix road and non-road building tiles; walkers should only roam
     // across the internal cross when it connects to at least two exits.
-    if (b->type == BUILDING_GRANARY) {
+    Building building_obj(b);
+    if (building_obj.type().is_granary()) {
         return map_routing_citizen_is_road(grid_offset) &&
             map_road_get_granary_inner_road_tiles_count(b) >= 3;
     }
-    if (b->type == BUILDING_WAREHOUSE) {
+    if (building_obj.type().is_warehouse()) {
         return map_routing_citizen_is_passable_terrain(grid_offset) ||
             map_routing_citizen_is_road(grid_offset);
     }
@@ -881,8 +906,9 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
     figure *f = figure_get(0); // abuse unused figure 0 as scratch
     f->cross_country_x = 15 * x_src;
     f->cross_country_y = 15 * y_src;
-    if (map_terrain_is(map_grid_offset(x_src, y_src), TERRAIN_WALL_OR_GATEHOUSE) ||
-        building_get(map_building_at(map_grid_offset(x_src, y_src)))->type == BUILDING_WATCHTOWER) {
+    const int source_grid_offset = map_grid_offset(x_src, y_src);
+    if (map_terrain_is(source_grid_offset, TERRAIN_WALL_OR_GATEHOUSE) ||
+        building_at_matches(source_grid_offset, "watchtower")) {
         height = 6;
     }
     figure_movement_set_cross_country_direction(f, 15 * x_src, 15 * y_src, 15 * x_dst, 15 * y_dst, 0);
@@ -905,8 +931,8 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
                 break;
             }
             if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && map_property_multi_tile_size(grid_offset) > 1) {
-                building_type type = building_get(map_building_at(grid_offset))->type;
-                if (type != BUILDING_FORT_GROUND) {
+                building *b = building_get(map_building_at(grid_offset));
+                if (!b || !type_matches(b->type, "fort_ground")) {
                     break;
                 }
             }

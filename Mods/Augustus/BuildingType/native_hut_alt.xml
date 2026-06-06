@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="native_hut_alt">
+    <identity name_key="building.native_hut_alt.name" />
+    <model size="1" cost="50" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
+    <foundation policy="land" />
+    <sound id="native_hut" />
+    <event_data attr="native_hut_alt" />
+    <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <path value="Terrain_Maps\Native_Hut_Central_01" />
+            <image value="Native_Hut_Central_01" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

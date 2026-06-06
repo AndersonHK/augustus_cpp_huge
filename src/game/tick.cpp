@@ -1,9 +1,13 @@
 #include "game/tick.h"
 
+#include "building/building.h"
+#include "building/dock.h"
+#include "building/lighthouse.h"
+#include "city/god.h"
+
 extern "C" {
 #include "building/connectable.h"
 #include "building/count.h"
-#include "building/dock.h"
 #include "building/entertainment.h"
 #include "building/figure.h"
 #include "building/government.h"
@@ -12,7 +16,6 @@ extern "C" {
 #include "building/house_population.h"
 #include "building/house_service.h"
 #include "building/industry.h"
-#include "building/lighthouse.h"
 #include "building/maintenance.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
@@ -21,7 +24,6 @@ extern "C" {
 #include "city/festival.h"
 #include "city/finance.h"
 #include "city/games.h"
-#include "city/gods.h"
 #include "city/health.h"
 #include "city/labor.h"
 #include "city/message.h"

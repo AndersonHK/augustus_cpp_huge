@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="wharf">
+    <identity name_key="building.wharf.name" />
+    <model size="2" cost="60" />
+    <desirability>
+        <value value="-8" />
+        <step value="2" />
+        <step_size value="2" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="custom">
+        <terrain value="water" />
+    </foundation>
+    <button group="water_crossings" order="40" icon="Industry\Wharf" text_key="building.wharf.name" />
+    <sound id="wharf" />
+    <event_data attr="wharf" />
+    <graphics>
+        <default>
+            <path value="Industry\Wharf" />
+            <image value="Image_0000" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="6" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+        </labor_seeker>
+    </labor>
+    <production_methods>
+        <production_method path="fish_wharf_basic" />
+    </production_methods>
+</building>

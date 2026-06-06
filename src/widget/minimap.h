@@ -1,9 +1,13 @@
-#pragma once
+﻿#pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "figure/figure.h"
 #include "input/mouse.h"
 #include "scenario/property.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef struct {
     scenario_climate(*climate)(void);
@@ -33,3 +37,7 @@ void widget_minimap_draw(int x_offset, int y_offset, int width, int height);
 void widget_minimap_draw_decorated(int x_offset, int y_offset, int width, int height);
 
 int widget_minimap_handle_mouse(const mouse *m);
+
+#ifdef __cplusplus
+}
+#endif

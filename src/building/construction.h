@@ -1,6 +1,7 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
+#include "city/warning.h"
 #include "figure/type.h"
 #include "map/grid.h"
 
@@ -35,6 +36,8 @@ building_type building_construction_type(void);
 
 building_type building_construction_selection_type(void);
 
+void building_construction_set_hover_tile(int x, int y, int grid_offset);
+
 int building_construction_cost(void);
 int building_construction_force_place_clear_cost(void);
 
@@ -57,7 +60,7 @@ void building_construction_offset_start_from_orientation(int *x, int *y, int siz
 
 void building_construction_place(void);
 
-int building_construction_can_place_on_terrain(int x, int y, int *warning_id);
+int building_construction_can_place_on_terrain(int x, int y, warning_type *warning, translation_key *text_key);
 
 void building_construction_record_view_position(int view_x, int view_y, int grid_offset);
 void building_construction_get_view_position(int *view_x, int *view_y);

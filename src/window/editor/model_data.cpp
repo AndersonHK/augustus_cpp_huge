@@ -3,9 +3,10 @@
 extern "C" {
 #include "model_data.h"
 
+#include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/properties.h"
-#include "building/type.h"
+#include "building/building_type.h"
 #include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
@@ -23,8 +24,6 @@ extern "C" {
 #include "window/file_dialog.h"
 #include "window/numeric_input.h"
 }
-
-#include <stdio.h>
 
 #define NO_SELECTION (unsigned int) -1
 #define NUM_DATA_BUTTONS (sizeof(data_buttons) / sizeof(generic_button))
@@ -86,6 +85,37 @@ static grid_box_type model_buttons = {
     .handle_tooltip = building_tooltip
 };
 
+static building_type runtime_type(const char *text_id)
+{
+    return text_id ? building_type_registry_runtime_id_from_text(text_id) : BUILDING_NONE;
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
+static int is_extra_editor_model_type(building_type type)
+{
+    return type_matches(type, "clear_land") ||
+        type_matches(type, "repair_land") ||
+        type_matches(type, "clear_trees");
+}
+
+static int is_hidden_editor_model_type(building_type type)
+{
+    return type_matches(type, "grand_garden") || type_matches(type, "dolphin_fountain");
+}
+
+static int has_production_field(building_type type)
+{
+    return building_is_raw_resource_producer(type) ||
+        building_is_workshop(type) ||
+        type_matches(type, "wharf") ||
+        building_is_farm(type);
+}
+
 static void init(void)
 {
     data.target_index = NO_SELECTION;
@@ -100,8 +130,8 @@ static void populate_list(void)
         building_type type = static_cast<building_type>(i);
         const building_properties *props = building_properties_for_type(type);
         if (((props->size && props->event_data.attr) &&
-            (i != BUILDING_GRAND_GARDEN && i != BUILDING_DOLPHIN_FOUNTAIN)) ||
-            i == BUILDING_CLEAR_LAND || i == BUILDING_REPAIR_LAND || i == BUILDING_CLEAR_TREES) {
+            !is_hidden_editor_model_type(type)) ||
+            is_extra_editor_model_type(type)) {
             data.items[data.total_items++] = type;
         }
     }
@@ -207,17 +237,16 @@ static void button_edit_laborers(const generic_button *button)
 
 static void set_production(int value)
 {
-    resource_data *resource = resource_get_data(resource_get_from_industry(data.items[data.target_index]));
-    resource->production_per_month = value;
+    building_set_production_per_month(data.items[data.target_index], value);
     data.target_index = NO_SELECTION;
 }
 
 static void button_edit_production(const generic_button *button)
 {
     building_type type = data.items[data.target_index];
-    if (building_is_raw_resource_producer(type) || building_is_workshop(type) || type == BUILDING_WHARF || building_is_farm(type)) {
+    if (has_production_field(type)) {
         window_numeric_input_bound_show(model_buttons.focused_item.x, model_buttons.focused_item.y, button,
-            9, -1000000000, 1000000000, set_production);
+            9, 0, 1000000000, set_production);
     }
 }
 
@@ -229,16 +258,7 @@ static void model_item_click(const grid_box_item *item)
 static void get_building_translation(building_type b_type, uint8_t *buffer, int buffer_size)
 {
     const uint8_t *b_type_string = lang_get_building_type_string(b_type);
-
-    if (BUILDING_SMALL_TEMPLE_CERES <= b_type && b_type <= BUILDING_SMALL_TEMPLE_VENUS) {
-        const uint8_t *temple_prefix = lang_get_building_type_string(BUILDING_MENU_SMALL_TEMPLES);
-        snprintf((char *) buffer, buffer_size, "%s %s", temple_prefix, b_type_string);
-    } else if (BUILDING_LARGE_TEMPLE_CERES <= b_type && b_type <= BUILDING_LARGE_TEMPLE_VENUS) {
-        const uint8_t *temple_prefix = lang_get_building_type_string(BUILDING_MENU_LARGE_TEMPLES);
-        snprintf((char *) buffer, buffer_size, "%s %s", temple_prefix, b_type_string);
-    } else {
-        string_copy(b_type_string, buffer, buffer_size);
-    }
+    string_copy(b_type_string, buffer, buffer_size);
 }
 
 static void draw_model_item(const grid_box_item *item)
@@ -250,8 +270,7 @@ static void draw_model_item(const grid_box_item *item)
     get_building_translation(b_type, b_string, sizeof(b_string));
     text_draw_ellipsized(b_string, item->x + 8, item->y + 8, 12 * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    for (unsigned int i = 0; i < MAX_DATA_BUTTONS - (!(building_is_raw_resource_producer(b_type) ||
-        building_is_workshop(b_type) || b_type == BUILDING_WHARF || building_is_farm(b_type))); i++) {
+    for (unsigned int i = 0; i < MAX_DATA_BUTTONS - (!has_production_field(b_type)); i++) {
         button_border_draw(item->x + data_buttons[i].x, item->y + data_buttons[i].y,
             data_buttons[i].width, data_buttons[i].height, item->is_focused && data.data_buttons_focus_id == i + 1);
 
@@ -270,7 +289,7 @@ static void draw_model_item(const grid_box_item *item)
             case 5:
                 value = model_get_building(b_type)->laborers; break;
             case 6:
-                value = resource_get_data(resource_get_from_industry(b_type))->production_per_month;
+                value = building_production_per_month(b_type);
         }
         text_draw_number(value, 0, NULL, item->x + data_buttons[i].x + 8, item->y + data_buttons[i].y + 6,
                   FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);

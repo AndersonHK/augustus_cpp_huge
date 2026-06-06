@@ -1,7 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
 #include "figure/figure.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 void figure_route_clear_all(void);
 
@@ -18,3 +22,7 @@ void figure_route_advance_tile(int path_id);
 void figure_route_save_state(buffer *figures, buffer *buf_paths);
 
 void figure_route_load_state(buffer *figures, buffer *buf_paths, int version);
+
+#ifdef __cplusplus
+}
+#endif

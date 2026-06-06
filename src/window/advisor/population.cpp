@@ -1,3 +1,5 @@
+#include "building/building.h"
+#include "building/house.h"
 #include "graphics/advisor_card_button_widget.h"
 #include "graphics/ui_runtime.h"
 
@@ -5,7 +7,6 @@ extern "C" {
 #include "population.h"
 
 #include "building/count.h"
-#include "building/house.h"
 #include "core/config.h"
 #include "core/lang.h"
 #include "core/locale.h"
@@ -139,16 +140,16 @@ static void draw_history_graph(int full_size, int x, int y)
             if (val > 0) {
                 switch (max_months) {
                     case 20:
-                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR)).draw(x + 20 * m, y + 200 - val, COLOR_MASK_NONE, SCALE_NONE);
+                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR)).draw(x + 20 * m, y + 200 - val);
                         break;
                     case 40:
-                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 1).draw(x + 10 * m, y + 200 - val, COLOR_MASK_NONE, SCALE_NONE);
+                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 1).draw(x + 10 * m, y + 200 - val);
                         break;
                     case 100:
-                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 2).draw(x + 4 * m, y + 200 - val, COLOR_MASK_NONE, SCALE_NONE);
+                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 2).draw(x + 4 * m, y + 200 - val);
                         break;
                     case 200:
-                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 3).draw(x + 2 * m, y + 200 - val, COLOR_MASK_NONE, SCALE_NONE);
+                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 3).draw(x + 2 * m, y + 200 - val);
                         break;
                     default:
                         graphics_draw_line(x + m, x + m, y + 200 - val, y + 199, COLOR_RED);
@@ -203,7 +204,7 @@ static void draw_census_graph(int full_size, int x, int y)
                 val = pop >> y_shift;
             }
             if (val > 0) {
-                Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 2).draw(x + 4 * i, y + 200 - val, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 2).draw(x + 4 * i, y + 200 - val);
             }
         }
         graphics_reset_clip_rectangle();
@@ -248,7 +249,7 @@ static void draw_society_graph(int full_size, int x, int y)
                 val = pop >> y_shift;
             }
             if (val > 0) {
-                Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR)).draw(x + 20 * i, y + 200 - val, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR)).draw(x + 20 * i, y + 200 - val);
             }
         }
         graphics_reset_clip_rectangle();
@@ -267,7 +268,7 @@ static int calculate_total_housing_buildings(void)
 {
     int total_houses = 0;
     for (int i = 1; i < building_count(); i++) {
-        if (building_house_is_active(building_get(i))) {
+        if (building_house_is_active(Building(building_get(i)))) {
             total_houses++;
         }
     }
@@ -382,7 +383,7 @@ static int draw_background(void)
     int width;
 
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 5).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 5).draw(10, 10);
 
     int graph_order = city_population_graph_order();
     // Title: depends on big graph shown
@@ -394,7 +395,7 @@ static int draw_background(void)
         lang_text_draw(55, 2, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     }
 
-    Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 14).draw(62, 60, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 14).draw(62, 60);
 
     int x_offset = text_get_number_width(city_population(), 0, "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset += lang_text_get_width(CUSTOM_TRANSLATION, TR_ADVISOR_TOTAL_POPULATION, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -481,11 +482,11 @@ static int draw_background(void)
     // info panel
     inner_panel_draw(48, 336, 34, 5);
     int image_id = Image::group(GROUP_BULLET);
-    Image::from_id(image_id).draw(56, 344, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_id).draw(56, 362, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_id).draw(56, 380, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(56, 344);
+    Image::from_id(image_id).draw(56, 362);
+    Image::from_id(image_id).draw(56, 380);
     if (graph_order < 4) {
-        Image::from_id(image_id).draw(56, 398, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(56, 398);
     }
 
     info_panel();

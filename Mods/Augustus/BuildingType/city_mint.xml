@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="city_mint">
+    <identity name_key="TR_BUILDING_CITY_MINT" />
+    <model size="3" cost="250" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="gov_res" order="300" icon="Monuments\City_Mint_ON" text_key="TR_BUILDING_CITY_MINT" />
+    <sound id="city_mint" />
+    <event_data attr="city_mint" />
+    <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <path value="Monuments\City_Mint_ON" />
+            <image value="City_Mint_ON" />
+        </default>
+    </graphics>
+    <construction mode="phased" road_update_radius="5">
+        <phase index="1">
+            <graphics>
+                <path value="Monuments\City_Mint_Construction_01" />
+                <image value="City_Mint_Construction_01" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="8" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <path value="Monuments\City_Mint_Construction_02" />
+                <image value="City_Mint_Construction_02" />
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="4" />
+            <requirement type="iron" amount="4" />
+            <requirement type="bricks" amount="4" />
+        </phase>
+    </construction>
+    <labor>
+        <employees count="40" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
+    </labor>
+    <storages>
+        <storage path="gold_input_city_mint" />
+    </storages>
+    <production_methods>
+        <production_method path="city_mint_basic" />
+        <production_method path="city_mint_gold_basic" />
+    </production_methods>
+</building>

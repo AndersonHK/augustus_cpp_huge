@@ -1,12 +1,21 @@
-#pragma once
+﻿#pragma once
 
+#include "city/warning.h"
 #include "editor/tool.h"
 #include "map/point.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-int editor_tool_can_place_flag(tool_type type, const map_tile *tile, int *warning);
+
+int editor_tool_can_place_flag(tool_type type, const map_tile *tile, warning_type *warning, translation_key *text_key);
 
 int editor_tool_can_place_access_ramp(const map_tile *tile, int *orientation_index);
 
 int editor_tool_can_place_building(const map_tile *tile, int num_tiles, int *blocked_tiles);
 
 int editor_tool_can_place_custom_earthquake(const map_tile *tile);
+
+#ifdef __cplusplus
+}
+#endif

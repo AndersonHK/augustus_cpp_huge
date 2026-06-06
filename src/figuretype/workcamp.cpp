@@ -1,13 +1,15 @@
 #include "workcamp.h"
 
+#include "building/building.h"
+#include "city/god.h"
+
 extern "C" {
 #include "assets/assets.h"
-#include "building/building.h"
+#include "building/building_record.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/storage.h"
 #include "building/warehouse.h"
-#include "city/gods.h"
 #include "city/resource.h"
 #include "core/calc.h"
 #include "core/image.h"
@@ -44,9 +46,10 @@ static int create_slave_workers(int leader_id, int first_figure_id)
 static int take_resource_from_warehouse(figure *f, int warehouse_id)
 {
     const resource_type resource = static_cast<resource_type>(f->collecting_item_id);
-    building *warehouse = building_get(warehouse_id);
-    building *monument = building_get(f->destination_building_id);
-    int resources_needed = monument->resources[resource] - building_monument_resource_in_delivery(monument, resource);
+    Building warehouse = Building::from_id(warehouse_id);
+    Building monument = Building::from_id(f->destination_building_id);
+    int resources_needed = monument.resource_amount(resource) -
+        building_monument_resource_in_delivery(monument.legacy_record(), resource);
     int num_loads;
     int stored = building_warehouse_get_amount(warehouse, resource);
     if (stored <= CARTLOADS_PER_MONUMENT_DELIVERY) {
@@ -118,7 +121,7 @@ void figure_workcamp_worker_action(figure *f)
                 f->state = FIGURE_STATE_DEAD;
                 break;
             }
-            for (int resource_id = RESOURCE_MIN; resource_id < RESOURCE_MAX; resource_id++) {
+            for (int resource_id = (RESOURCE_NONE + 1); resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
                 const resource_type resource = static_cast<resource_type>(resource_id);
                 if (city_resource_is_stockpiled(resource) || !resource_is_storable(resource)) {
                     continue;

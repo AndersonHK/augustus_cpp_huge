@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define MAX_ORIGINAL_PRICE_CHANGES 20
 
@@ -40,3 +44,7 @@ void scenario_price_change_save_state(buffer *buf);
 void scenario_price_change_load_state(buffer *buf);
 
 void scenario_price_change_load_state_old_version(buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif

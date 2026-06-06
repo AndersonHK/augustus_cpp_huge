@@ -6,6 +6,7 @@ extern "C" {
 
 #include "assets/assets.h"
 #include "core/image_group.h"
+#include "core/lang.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "game/campaign.h"

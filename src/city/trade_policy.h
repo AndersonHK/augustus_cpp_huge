@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define TRADE_POLICY_COST 500
 #define POLICY_1_BONUS_PERCENT 20
@@ -22,3 +26,7 @@ typedef enum {
 
 trade_policy city_trade_policy_get(trade_policy_type type);
 void city_trade_policy_set(trade_policy_type type, trade_policy policy);
+
+#ifdef __cplusplus
+}
+#endif

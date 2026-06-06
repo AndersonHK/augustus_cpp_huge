@@ -1,9 +1,11 @@
 #include "file_io.h"
 
+#include "building/building.h"
+#include "building/barracks.h"
+#include "building/building_record.h"
 #include "building/building_type_registry.h"
 
 extern "C" {
-#include "building/barracks.h"
 #include "building/building_type_id_bridge.h"
 #include "building/count.h"
 #include "building/granary.h"
@@ -39,6 +41,7 @@ extern "C" {
 #include "game/file.h"
 #include "game/mod_manager.h"
 #include "game/resource.h"
+#include "game/resource_id_bridge.h"
 #include "game/save_version.h"
 #include "game/time.h"
 #include "game/tutorial.h"
@@ -82,6 +85,8 @@ extern "C" {
 #include <string.h>
 
 #define COMPRESS_BUFFER_INITIAL_SIZE 1000000
+#define MAX_DYNAMIC_PIECE_SIZE (256 * 1024 * 1024)
+#define MAX_COMPRESSED_CHUNK_SIZE (256 * 1024 * 1024)
 #define UNCOMPRESSED 0x80000000
 #define PIECE_SIZE_DYNAMIC 0
 #define GRID_SIZE_BUF_U8 GRID_SIZE * GRID_SIZE
@@ -136,6 +141,7 @@ static struct {
 
 typedef struct {
     buffer *resource_version;
+    buffer *resource_type_table;
     buffer *scenario_campaign_mission;
     buffer *file_version;
     buffer *scenario_version;
@@ -301,6 +307,7 @@ typedef struct {
         int custom_messages_and_media;
         int city_faction_info;
         int resource_version;
+        int resource_type_table;
         int static_building_counts;
         int visited_buildings;
         int custom_campaigns;
@@ -516,8 +523,8 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     int multiplier = 1;
     int count_multiplier = 1;
 
-    int total_new_resources = resource_total_mapped() - RESOURCE_MAX_LEGACY;
-    int total_new_food = resource_total_food_mapped() - RESOURCE_MAX_FOOD_LEGACY;
+    int total_new_resources = resource_total_mapped() - resource_id_bridge_legacy_resource_count();
+    int total_new_food = resource_total_food_mapped() - resource_id_bridge_legacy_food_count();
 
     version_data->piece_sizes.burning_totals = 8;
     if (version > SAVE_GAME_LAST_ORIGINAL_LIMITS_VERSION) {
@@ -625,6 +632,7 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     version_data->features.scenario_version = version > SAVE_GAME_LAST_NO_SCENARIO_VERSION;
     version_data->features.city_faction_info = version <= SAVE_GAME_LAST_UNKNOWN_UNUSED_CITY_DATA;
     version_data->features.resource_version = version > SAVE_GAME_LAST_STATIC_RESOURCES;
+    version_data->features.resource_type_table = version > SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE;
     version_data->features.static_building_counts = version <= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO;
     version_data->features.visited_buildings = version > SAVE_GAME_LAST_GLOBAL_BUILDING_INFO;
     version_data->features.custom_campaigns = version > SAVE_GAME_LAST_NO_CUSTOM_CAMPAIGNS;
@@ -652,6 +660,9 @@ static void init_savegame_data(savegame_version_t version)
     state->file_version = create_savegame_piece(4, 0);
     if (version_data.features.resource_version) {
         state->resource_version = create_savegame_piece(4, 0);
+    }
+    if (version_data.features.resource_type_table) {
+        state->resource_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
     }
     if (version_data.features.scenario_version) {
         state->scenario_version = create_savegame_piece(4, 0);
@@ -834,7 +845,7 @@ static void init_savegame_data(savegame_version_t version)
 
 static void scenario_load_from_state(scenario_state *file, scenario_version_t version)
 {
-    resource_version_t resource_version = RESOURCE_ORIGINAL_VERSION;
+    resource_version_t resource_version = resource_id_bridge_original_version();
     if (version > SCENARIO_LAST_NO_STATIC_RESOURCES) {
         resource_version = static_cast<resource_version_t>(buffer_read_u32(file->resource_version));
     }
@@ -878,7 +889,7 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
     
     if (version > SCENARIO_LAST_UNVERSIONED) {
         empire_object_load(file->empire, version);
-        if (resource_mapping_get_version() < RESOURCE_SEPARATE_FISH_AND_MEAT_VERSION) {
+        if (resource_id_bridge_mapping_joins_meat_and_fish()) {
             empire_city_update_our_fish_and_meat_production();
         }
         empire_city_update_trading_data(scenario_empire_id());
@@ -911,7 +922,7 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
 
 static void scenario_save_to_state(scenario_state *file)
 {
-    buffer_write_u32(file->resource_version, RESOURCE_CURRENT_VERSION);
+    buffer_write_u32(file->resource_version, resource_id_bridge_current_version());
 
     map_image_save_state_legacy(file->graphic_ids);
     map_terrain_save_state_legacy(file->terrain);
@@ -973,6 +984,10 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         custom_messages_load_state(state->custom_messages, state->custom_media);
     }
     scenario_load_state(state->scenario, scenario_version);
+
+    resource_id_bridge_save_table_load_state(
+        state->resource_type_table,
+        version > SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE);
 
     if (scenario_version > SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
         scenario_request_load_state(state->requests, scenario_version);
@@ -1097,7 +1112,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     }
     if (version > SAVE_GAME_LAST_UNVERSIONED_SCENARIOS) {
         empire_object_load(state->custom_empire, scenario_version);
-        if (resource_mapping_get_version() < RESOURCE_SEPARATE_FISH_AND_MEAT_VERSION) {
+        if (resource_id_bridge_mapping_joins_meat_and_fish()) {
             empire_city_update_our_fish_and_meat_production();
         }
         empire_city_update_trading_data(scenario_empire_id());
@@ -1128,7 +1143,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
 static void savegame_save_to_state(savegame_state *state)
 {
     buffer_write_i32(state->file_version, SAVE_GAME_CURRENT_VERSION);
-    buffer_write_u32(state->resource_version, RESOURCE_CURRENT_VERSION);
+    buffer_write_u32(state->resource_version, resource_id_bridge_current_version());
     buffer_write_i32(state->scenario_version, SCENARIO_CURRENT_VERSION);
 
     scenario_settings_save_state(state->scenario_campaign_mission,
@@ -1138,6 +1153,7 @@ static void savegame_save_to_state(savegame_state *state)
         state->scenario_name,
         state->campaign_name);
     savegame_mod_metadata_save_state(state->mod_metadata);
+    resource_id_bridge_save_table_save_state(state->resource_type_table);
     building_type_id_bridge_prepare_new_save_table();
     building_type_id_bridge_save_table_save_state(state->building_type_table);
     water_access_type_id_bridge_prepare_new_save_table();
@@ -1274,20 +1290,24 @@ static int read_compressed_chunk_from_buffer(buffer *buf, void *dst, size_t byte
     int input_size = buffer_read_i32(buf);
     if ((unsigned int) input_size == UNCOMPRESSED) {
         return buffer_read_raw(buf, dst, (int) bytes_to_read) == bytes_to_read;
-    } else {
-        if (!core_memory_block_ensure_size(compress_buffer, input_size)) {
-            return 0;
-        }
-        if (buffer_read_raw(buf, compress_buffer->memory, input_size) != input_size) {
-            return 0;
-        }
+    }
+    if (input_size <= 0 || input_size > MAX_COMPRESSED_CHUNK_SIZE) {
+        log_error("Invalid compressed save chunk size", 0, input_size);
+        return 0;
+    }
 
-        if (!read_as_zlib) {
-            return zip_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read);
-        } else {
-            int output_size = 0;
-            return zlib_helper_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read, &output_size);
-        }
+    if (!core_memory_block_ensure_size(compress_buffer, input_size)) {
+        return 0;
+    }
+    if (buffer_read_raw(buf, compress_buffer->memory, input_size) != input_size) {
+        return 0;
+    }
+
+    if (!read_as_zlib) {
+        return zip_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read);
+    } else {
+        int output_size = 0;
+        return zlib_helper_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read, &output_size);
     }
 }
 
@@ -1297,20 +1317,24 @@ static int read_compressed_chunk(FILE *fp, void *dst, size_t bytes_to_read, int 
     int input_size = read_int32(fp);
     if ((unsigned int) input_size == UNCOMPRESSED) {
         return fread(dst, 1, bytes_to_read, fp) == bytes_to_read;
-    } else {
-        if (!core_memory_block_ensure_size(compress_buffer, input_size)) {
-            return 0;
-        }
-        if (fread(compress_buffer->memory, 1, input_size, fp) != input_size) {
-            return 0;
-        }
+    }
+    if (input_size <= 0 || input_size > MAX_COMPRESSED_CHUNK_SIZE) {
+        log_error("Invalid compressed save chunk size", 0, input_size);
+        return 0;
+    }
 
-        if (!read_as_zlib) {
-            return zip_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read);
-        } else {
-            int output_size = 0;
-            return zlib_helper_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read, &output_size);
-        }
+    if (!core_memory_block_ensure_size(compress_buffer, input_size)) {
+        return 0;
+    }
+    if (fread(compress_buffer->memory, 1, input_size, fp) != input_size) {
+        return 0;
+    }
+
+    if (!read_as_zlib) {
+        return zip_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read);
+    } else {
+        int output_size = 0;
+        return zlib_helper_decompress(compress_buffer->memory, input_size, dst, (int) bytes_to_read, &output_size);
     }
 }
 
@@ -1345,8 +1369,12 @@ static int prepare_dynamic_piece_from_file(FILE *fp, file_piece *piece)
         if (!size) {
             return 0;
         }
+        if (size < 0 || size > MAX_DYNAMIC_PIECE_SIZE) {
+            log_error("Invalid dynamic save piece size", 0, size);
+            return -1;
+        }
         if (!allocate_zeroed_piece_buffer(&piece->buf, size)) {
-            return 0;
+            return -1;
         }
     }
     return 1;
@@ -1359,8 +1387,12 @@ static int prepare_dynamic_piece_from_buffer(buffer *buf, file_piece *piece)
         if (!size) {
             return 0;
         }
+        if (size < 0 || size > MAX_DYNAMIC_PIECE_SIZE) {
+            log_error("Invalid dynamic save piece size", 0, size);
+            return -1;
+        }
         if (!allocate_zeroed_piece_buffer(&piece->buf, size)) {
-            return 0;
+            return -1;
         }
     }
     return 1;
@@ -1396,7 +1428,12 @@ static int load_scenario_from_buffer(buffer *buf)
     for (int i = 0; i < scenario_data.num_pieces; i++) {
         file_piece *piece = &scenario_data.pieces[i];
         int result = 0;
-        if (!prepare_dynamic_piece_from_buffer(buf, piece)) {
+        int prepared = prepare_dynamic_piece_from_buffer(buf, piece);
+        if (prepared < 0) {
+            core_memory_block_free(&compress_buffer);
+            return 0;
+        }
+        if (!prepared) {
             continue;
         }
         if (piece->compressed) {
@@ -1432,7 +1469,13 @@ static int load_scenario_to_buffers(const char *filename)
     for (int i = 0; i < scenario_data.num_pieces; i++) {
         file_piece *piece = &scenario_data.pieces[i];
         int result = 0;
-        if (!prepare_dynamic_piece_from_file(fp, piece)) {
+        int prepared = prepare_dynamic_piece_from_file(fp, piece);
+        if (prepared < 0) {
+            file_close(fp);
+            core_memory_block_free(&compress_buffer);
+            return 0;
+        }
+        if (!prepared) {
             continue;
         }
         if (piece->compressed) {
@@ -1606,7 +1649,7 @@ int game_file_io_read_scenario_info_from_buffer(buffer *buf, saved_game_info *in
 int game_file_io_write_scenario(const char *filename)
 {
     log_info("Saving scenario", filename, 0);
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     init_scenario_data(SCENARIO_CURRENT_VERSION);// SCENARIO_CURRENT_VERSION
     scenario_save_to_state(&scenario_data.state);
 
@@ -1647,7 +1690,12 @@ static int savegame_read_from_buffer(buffer *buf, savegame_version_t version)
     for (int i = 0; i < savegame_data.num_pieces; i++) {
         file_piece *piece = &savegame_data.pieces[i];
         size_t result = 0;
-        if (!prepare_dynamic_piece_from_buffer(buf, piece)) {
+        int prepared = prepare_dynamic_piece_from_buffer(buf, piece);
+        if (prepared < 0) {
+            core_memory_block_free(&compress_buffer);
+            return 0;
+        }
+        if (!prepared) {
             continue;
         }
         if (piece->compressed) {
@@ -1675,7 +1723,12 @@ static int savegame_read_from_file(FILE *fp, savegame_version_t version)
     for (int i = 0; i < savegame_data.num_pieces; i++) {
         file_piece *piece = &savegame_data.pieces[i];
         int result = 0;
-        if (!prepare_dynamic_piece_from_file(fp, piece)) {
+        int prepared = prepare_dynamic_piece_from_file(fp, piece);
+        if (prepared < 0) {
+            core_memory_block_free(&compress_buffer);
+            return 0;
+        }
+        if (!prepared) {
             continue;
         }
         if (piece->compressed) {
@@ -1721,7 +1774,7 @@ static int get_savegame_versions_from_buffer(buffer *buf, savegame_version_t *sa
     if (*save_version > SAVE_GAME_LAST_STATIC_RESOURCES) {
         *resource_version = static_cast<resource_version_t>(buffer_read_i32(buf));
     } else {
-        *resource_version = RESOURCE_ORIGINAL_VERSION;
+        *resource_version = resource_id_bridge_original_version();
     }
     buffer_reset(buf);
     return *save_version != 0;
@@ -1746,7 +1799,7 @@ static int get_savegame_versions(FILE *fp, savegame_version_t *save_version, res
         *resource_version = static_cast<resource_version_t>(buffer_read_i32(&buf));
         seek_back_bytes = -12;
     } else {
-        *resource_version = RESOURCE_ORIGINAL_VERSION;
+        *resource_version = resource_id_bridge_original_version();
     }
     if (fseek(fp, seek_back_bytes, SEEK_CUR)) {
         return 0;
@@ -1761,7 +1814,7 @@ int game_file_io_read_save_game_from_buffer(buffer *buf)
     savegame_version_t save_version;
     resource_version_t resource_version;
     if (get_savegame_versions_from_buffer(buf, &save_version, &resource_version)) {
-        if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > RESOURCE_CURRENT_VERSION) {
+        if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > resource_id_bridge_current_version()) {
             log_error("Newer save game version than supported. Please update Augustus. Version:", 0, save_version);
             return FILE_LOAD_INCOMPATIBLE_VERSION;
         }
@@ -1796,7 +1849,7 @@ int game_file_io_read_saved_game(const char *filename, int offset)
     savegame_version_t save_version;
     resource_version_t resource_version;
     if (get_savegame_versions(fp, &save_version, &resource_version)) {
-        if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > RESOURCE_CURRENT_VERSION) {
+        if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > resource_id_bridge_current_version()) {
             log_error("Newer save game version than supported. Please update Augustus. Version:", 0, save_version);
             file_close(fp);
             return FILE_LOAD_INCOMPATIBLE_VERSION;
@@ -1973,7 +2026,7 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
         file_close(fp);
         return SAVEGAME_STATUS_INVALID;
     }
-    if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > RESOURCE_CURRENT_VERSION) {
+    if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > resource_id_bridge_current_version()) {
         file_close(fp);
         return SAVEGAME_STATUS_NEWER_VERSION;
     }
@@ -1999,7 +2052,7 @@ int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *
     savegame_version_t save_version;
     resource_version_t resource_version;
     if (get_savegame_versions_from_buffer(buf, &save_version, &resource_version)) {
-        if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > RESOURCE_CURRENT_VERSION) {
+        if (save_version > SAVE_GAME_CURRENT_VERSION || resource_version > resource_id_bridge_current_version()) {
             log_error("Newer save game version than supported. Please update Augustus. Version:", 0, save_version);
             return FILE_LOAD_INCOMPATIBLE_VERSION;
         }
@@ -2017,7 +2070,7 @@ int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *
 
 int game_file_io_write_saved_game(const char *filename)
 {
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     init_savegame_data(SAVE_GAME_CURRENT_VERSION);
 
     log_info("Saving game", filename, 0);

@@ -1,7 +1,15 @@
-#pragma once
+﻿#pragma once
 
+#include "building/building_fwd.h"
 #include "core/buffer.h"
 #include "figure/type.h"
+#ifdef __cplusplus
+extern "C++" {
+class Building;
+}
+extern "C" {
+#endif
+
 
 #define MAX_LEGIONS 6
 #define MAX_FORMATION_FIGURES 16
@@ -144,7 +152,13 @@ void formations_clear(void);
 
 void formation_clear(int formation_id);
 
-formation *formation_create_legion(int building_id, figure_type type);
+#ifdef __cplusplus
+}
+extern "C++" {
+formation *formation_create_legion(const Building &fort);
+}
+extern "C" {
+#endif
 int formation_create_herd(figure_type type, int x, int y, int num_animals);
 int formation_create_enemy(figure_type type, int x, int y, int layout, int orientation,
                            int enemy_type, int attack_type, int invasion_id, int invasion_sequence);
@@ -211,3 +225,7 @@ void formation_update_all(int second_time);
 
 void formations_save_state(buffer *buf, buffer *totals);
 void formations_load_state(buffer *buf, buffer *totals, int version);
+
+#ifdef __cplusplus
+}
+#endif

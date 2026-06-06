@@ -3,6 +3,7 @@ extern "C" {
 #include "assets/assets.h"
 #include "building/image.h"
 #include "building/properties.h"
+#include "building/building_type_api.h"
 #include "city/view.h"
 #include "core/image_group.h"
 #include "core/image_group_editor.h"
@@ -22,6 +23,16 @@ static const int X_VIEW_OFFSETS[MAX_TILES] = { 0, -30, 30, 0, -60, 60, -30, 30, 
 static const int Y_VIEW_OFFSETS[MAX_TILES] = { 0, 15, 15, 30, 30, 30, 45, 45, 60, 45, 45, 60, 60, 75, 75, 90 };
 
 static float scale = SCALE_NONE;
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
 
 static void offset_to_view_offset(int dx, int dy, int *view_dx, int *view_dy)
 {
@@ -79,9 +90,9 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
         }
     } else {
         int image_id;
-        if (type == BUILDING_NATIVE_CROPS) {
+        if (type_matches(type, "native_crops")) {
             image_id = Image::group(GROUP_EDITOR_BUILDING_CROPS);
-        } else if (type == BUILDING_NATIVE_HUT_ALT) {
+        } else if (type_matches(type, "native_hut_alt")) {
             switch (scenario_property_climate()) {
                 case CLIMATE_NORTHERN:
                     image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Northern_01");
@@ -92,8 +103,8 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
                 default:
                     image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Central_01");
             };
-        } else if (type == BUILDING_NATIVE_DECORATION || type == BUILDING_NATIVE_MONUMENT ||
-            type == BUILDING_NATIVE_WATCHTOWER) {
+        } else if (type_matches(type, "native_decor") || type_matches(type, "native_monument") ||
+            type_matches(type, "native_watchtower")) {
             image_id = building_image_get_for_type(type);
         } else if (props->image_group <= 0) {
             image_id = building_image_get_for_type(type);
@@ -248,25 +259,25 @@ void map_editor_tool_draw(const map_tile *tile)
     city_view_get_selected_tile_pixels(&x, &y);
     switch (type) {
         case TOOL_NATIVE_CENTER:
-            draw_building(tile, x, y, BUILDING_NATIVE_MEETING);
+            draw_building(tile, x, y, runtime_type("native_meeting"));
             break;
         case TOOL_NATIVE_HUT:
-            draw_building(tile, x, y, BUILDING_NATIVE_HUT);
+            draw_building(tile, x, y, runtime_type("native_hut"));
             break;
         case TOOL_NATIVE_HUT_ALT:
-            draw_building(tile, x, y, BUILDING_NATIVE_HUT_ALT);
+            draw_building(tile, x, y, runtime_type("native_hut_alt"));
             break;
         case TOOL_NATIVE_FIELD:
-            draw_building(tile, x, y, BUILDING_NATIVE_CROPS);
+            draw_building(tile, x, y, runtime_type("native_crops"));
             break;
         case TOOL_NATIVE_DECORATION:
-            draw_building(tile, x, y, BUILDING_NATIVE_DECORATION);
+            draw_building(tile, x, y, runtime_type("native_decor"));
             break;
         case TOOL_NATIVE_MONUMENT:
-            draw_building(tile, x, y, BUILDING_NATIVE_MONUMENT);
+            draw_building(tile, x, y, runtime_type("native_monument"));
             break;
         case TOOL_NATIVE_WATCHTOWER:
-            draw_building(tile, x, y, BUILDING_NATIVE_WATCHTOWER);
+            draw_building(tile, x, y, runtime_type("native_watchtower"));
             break;
         case TOOL_EARTHQUAKE_POINT:
         case TOOL_ENTRY_POINT:
@@ -276,7 +287,7 @@ void map_editor_tool_draw(const map_tile *tile)
         case TOOL_INVASION_POINT:
         case TOOL_FISHING_POINT:
         case TOOL_HERD_POINT:
-            draw_map_flag(x, y, editor_tool_can_place_flag(type, tile, 0));
+            draw_map_flag(x, y, editor_tool_can_place_flag(type, tile, 0, 0));
             break;
 
         case TOOL_ACCESS_RAMP:

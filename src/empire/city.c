@@ -1,6 +1,7 @@
 #include "city.h"
 
 #include "assets/assets.h"
+#include "building/building_type_api.h"
 #include "building/monument.h"
 #include "core/array.h"
 #include "core/calc.h"
@@ -36,7 +37,7 @@
 
 #define NOT_SELLING 0
 
-#define EMPIRE_CITY_CURRENT_BUF_SIZE (20 + 2 * RESOURCE_MAX)
+#define EMPIRE_CITY_CURRENT_BUF_SIZE (20 + 2 * RESOURCE_SLOT_COUNT)
 
 static array(empire_city) cities;
 
@@ -154,6 +155,14 @@ static int can_produce_resource_naturally(resource_type resource)
     return 0;
 }
 
+static building_type runtime_type(const char *text_id)
+{
+    if (!text_id) {
+        return BUILDING_NONE;
+    }
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
 int empire_can_produce_resource_locally(int resource)
 {
     if (can_produce_resource_naturally(resource)) {
@@ -161,17 +170,20 @@ int empire_can_produce_resource_locally(int resource)
     }
 
     // Wine can also be produced via Venus Grand Temple
-    if (resource == RESOURCE_WINE) {
-        return !building_monument_requires_resource(BUILDING_GRAND_TEMPLE_VENUS, RESOURCE_WINE) &&
-            scenario_allowed_building(BUILDING_MENU_GRAND_TEMPLES) &&
-            scenario_allowed_building(BUILDING_GRAND_TEMPLE_VENUS) &&
-            building_monument_has_required_resources_to_build(BUILDING_GRAND_TEMPLE_VENUS);
+    if (resource == resource_wine()) {
+        building_type venus_type = runtime_type("grand_temple_venus");
+        return venus_type > BUILDING_NONE &&
+            !building_monument_requires_resource(venus_type, resource_wine()) &&
+            scenario_allowed_building(venus_type) &&
+            building_monument_has_required_resources_to_build(venus_type);
     }
     // Gold can also be produced via City Mint
-    if (resource == RESOURCE_GOLD) {
-        return !building_monument_requires_resource(BUILDING_CITY_MINT, RESOURCE_GOLD) &&
-            scenario_allowed_building(BUILDING_CITY_MINT) &&
-            building_monument_has_required_resources_to_build(BUILDING_CITY_MINT);
+    if (resource == resource_gold()) {
+        building_type city_mint_type = runtime_type("city_mint");
+        return city_mint_type > BUILDING_NONE &&
+            !building_monument_requires_resource(city_mint_type, resource_gold()) &&
+            scenario_allowed_building(city_mint_type) &&
+            building_monument_has_required_resources_to_build(city_mint_type);
     }
     return 0;
 }
@@ -378,7 +390,7 @@ int empire_city_count_wine_sources(void)
     int sources = 0;
     empire_city *city;
     array_foreach(cities, city) {
-        if (city->in_use && city->is_open && city->sells_resource[RESOURCE_WINE]) {
+        if (city->in_use && city->is_open && city->sells_resource[resource_wine()]) {
             sources++;
         }
     }
@@ -426,7 +438,7 @@ static int generate_trader(int city_id, empire_city *city)
 
     // Check that we have space to trade
     int trade_potential = 0;
-    for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         if (city->buys_resource[r] || city->sells_resource[r]) {
             trade_potential += trade_route_limit(city->route_id, r, city->buys_resource[r]);
         }
@@ -533,7 +545,7 @@ int empire_unlock_all_resources(void)
     empire_city *city;
     array_foreach(cities, city) {
         if (city->in_use && (city->type == EMPIRE_CITY_OURS)) {
-            for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+            for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
                 city->sells_resource[resource] = 1;
             }
             return 1;
@@ -577,10 +589,10 @@ void empire_city_save_state(buffer *buf)
         buffer_write_u8(buf, city->name_id);
         buffer_write_u8(buf, city->route_id);
         buffer_write_u8(buf, city->is_open);
-        for (int r = 0; r < RESOURCE_MAX; r++) {
+        for (int r = 0; r < RESOURCE_SLOT_COUNT; r++) {
             buffer_write_u8(buf, city->buys_resource[r]);
         }
-        for (int r = 0; r < RESOURCE_MAX; r++) {
+        for (int r = 0; r < RESOURCE_SLOT_COUNT; r++) {
             buffer_write_u8(buf, city->sells_resource[r]);
         }
         buffer_write_u32(buf, city->cost_to_open);
@@ -610,8 +622,8 @@ static int city_can_mine_gold(int city_name_id)
 
 static void set_gold_production(empire_city *city)
 {
-    if (city_can_mine_gold(city->name_id) && city->sells_resource[RESOURCE_IRON]) {
-        empire_city_change_selling_of_resource(city, RESOURCE_GOLD, 5);
+    if (city_can_mine_gold(city->name_id) && city->sells_resource[resource_iron()]) {
+        empire_city_change_selling_of_resource(city, resource_gold(), 5);
     }
 }
 
@@ -629,28 +641,28 @@ static void set_new_monument_elements_production(int empire_id, empire_city *cit
 
     // Original Caesarea, allow import of clay for Tingis
     if (empire_id == caesarea_empire_id && city->name_id == 14) {
-        empire_city_change_selling_of_resource(city, RESOURCE_CLAY, 15);
+        empire_city_change_selling_of_resource(city, resource_clay(), 15);
     }
 
-    if (city->sells_resource[RESOURCE_IRON] || city->sells_resource[RESOURCE_MARBLE]) {
-        empire_city_change_selling_of_resource(city, RESOURCE_STONE, 25);
+    if (city->sells_resource[resource_iron()] || city->sells_resource[resource_marble()]) {
+        empire_city_change_selling_of_resource(city, resource_stone(), 25);
     }
-    if (city->sells_resource[RESOURCE_CLAY]) {
-        empire_city_change_selling_of_resource(city, RESOURCE_SAND, 25);
+    if (city->sells_resource[resource_clay()]) {
+        empire_city_change_selling_of_resource(city, resource_sand(), 25);
     }
     // If a city sells both sand and stone and also sells more than four items,
     // make land routes sell stone and water routes sell sand
-    if (city->type != EMPIRE_CITY_OURS && city->sells_resource[RESOURCE_SAND] && city->sells_resource[RESOURCE_STONE]) {
+    if (city->type != EMPIRE_CITY_OURS && city->sells_resource[resource_sand()] && city->sells_resource[resource_stone()]) {
         int resources_sold = 0;
-        for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
             if (city->sells_resource[r]) {
                 resources_sold++;
                 if (resources_sold > 4) {
                     // Original Damascus, Tarsus should sell sand instead of stone, which can be produced locally
                     if (city->is_sea_trade || (empire_id == damascus_empire_id && city->name_id == 12)) {
-                        empire_city_change_selling_of_resource(city, RESOURCE_STONE, NOT_SELLING);
+                        empire_city_change_selling_of_resource(city, resource_stone(), NOT_SELLING);
                     } else {
-                        empire_city_change_selling_of_resource(city, RESOURCE_SAND, NOT_SELLING);
+                        empire_city_change_selling_of_resource(city, resource_sand(), NOT_SELLING);
                     }
                     break;
                 }
@@ -667,10 +679,13 @@ void empire_city_update_our_fish_and_meat_production(void)
         if (city->type != EMPIRE_CITY_OURS) {
             continue;
         }
-        if (city->sells_resource[RESOURCE_FISH]) {
-            empire_city_change_selling_of_resource(city, RESOURCE_MEAT, !NOT_SELLING);
-        } else if (scenario_allowed_building(BUILDING_WHARF)) {
-            empire_city_change_selling_of_resource(city, RESOURCE_FISH, !NOT_SELLING);
+        if (city->sells_resource[resource_fish()]) {
+            empire_city_change_selling_of_resource(city, resource_meat(), !NOT_SELLING);
+        } else {
+            building_type wharf_type = runtime_type("wharf");
+            if (wharf_type > BUILDING_NONE && scenario_allowed_building(wharf_type)) {
+                empire_city_change_selling_of_resource(city, resource_fish(), !NOT_SELLING);
+            }
         }
         return;
     }

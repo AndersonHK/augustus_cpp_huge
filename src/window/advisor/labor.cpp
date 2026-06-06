@@ -42,7 +42,7 @@ static unsigned int arrow_button_focus;
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    Image::from_id(Image::group(GROUP_ADVISOR_ICONS)).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS)).draw(10, 10);
 
     lang_text_draw(50, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));   // Labor Allocation
 
@@ -86,7 +86,7 @@ static void draw_foreground(void)
         button_border_draw(40, 77 + 25 * i, 560, 22, focus);
         const labor_category_data *cat = city_labor_category(i);
         if (cat->priority) {
-            Image::from_id(Image::group(GROUP_LABOR_PRIORITY_LOCK)).draw(70, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_LABOR_PRIORITY_LOCK)).draw(70, y_offset - 2);
             text_draw_number(cat->priority, '@', " ", 90, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         }
         lang_text_draw(50, i + 1, 170, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));

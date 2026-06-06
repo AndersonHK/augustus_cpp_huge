@@ -4,6 +4,7 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
 }
 
 namespace storage_runtime_impl {
@@ -80,24 +81,3 @@ void initialize_city()
 }
 
 } // namespace storage_runtime_impl
-
-extern "C" void storage_runtime_reset(void)
-{
-    storage_runtime_impl::reset();
-}
-
-extern "C" void storage_runtime_initialize_city(void)
-{
-    storage_runtime_impl::initialize_city();
-}
-
-extern "C" int storage_runtime_get_slot_count(building *b)
-{
-    return static_cast<int>(storage_runtime_impl::get_slot_count(b));
-}
-
-extern "C" const char *storage_runtime_get_slot_type_path(building *b, int slot_index)
-{
-    StorageSlot *slot = storage_runtime_impl::get_or_create(b, static_cast<size_t>(slot_index));
-    return slot && slot->type() ? slot->type()->path() : "";
-}

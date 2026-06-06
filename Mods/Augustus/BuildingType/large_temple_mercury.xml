@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temple_mercury">
     <identity name_key="building.large_temple_mercury.name" />
+    <temple religion="large_temple_mercury" />
     <model size="3" cost="150" />
     <desirability>
         <value value="14" />

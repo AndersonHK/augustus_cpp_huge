@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<housing_type type="house_large_insula">
+<housing_type type="house_large_insula" level="10">
     <residents class="plebeian" />
     <evolution devolve_desirability="29" evolve_desirability="40" />
     <requirements entertainment="25" water="fountain" religion="1" education="2"

@@ -5,7 +5,7 @@ extern "C" {
 
 #include "building/industry.h"
 #include "building/properties.h"
-#include "building/type.h"
+#include "building/building_type_api.h"
 #include "core/buffer.h"
 #include "core/io.h"
 #include "core/log.h"
@@ -30,6 +30,27 @@ static struct {
     int error_line_number;
 } data;
 
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
+static int type_matches_any(building_type type, const char *const *text_ids, int count)
+{
+    for (int i = 0; i < count; i++) {
+        if (type_matches(type, text_ids[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 // EXPORT
 
 static void export_model_data(buffer *buf)
@@ -39,19 +60,26 @@ static void export_model_data(buffer *buf)
 
     int edited_models = 0;
 
-    for (int i = BUILDING_ANY + 1; i < BUILDING_TYPE_MAX; ++i) {
+    static const char *const editor_tools[] = {
+        "clear_land",
+        "repair_land",
+        "clear_trees"
+    };
+    static const char *const excluded_models[] = {
+        "grand_garden",
+        "dolphin_fountain"
+    };
+
+    for (int i = BUILDING_NONE + 1; i < BUILDING_TYPE_MAX; ++i) {
         building_type type = static_cast<building_type>(i);
         const building_properties *props = building_properties_for_type(type);
         if (!props) {
             continue;
         }
 
-        if (((!props->size || !props->event_data.attr)
-                && type != BUILDING_CLEAR_LAND
-                && type != BUILDING_REPAIR_LAND
-                && type != BUILDING_CLEAR_TREES)
-             || type == BUILDING_GRAND_GARDEN
-             || type == BUILDING_DOLPHIN_FOUNTAIN) {
+        if (((!props->size || !props->event_data.attr) &&
+                !type_matches_any(type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]))) ||
+            type_matches_any(type, excluded_models, sizeof(excluded_models) / sizeof(excluded_models[0]))) {
             continue;
         }
 
@@ -61,8 +89,10 @@ static void export_model_data(buffer *buf)
             continue;
         }
 
-        resource_data *resource = resource_get_data(resource_get_from_industry(type));
-        if (resource->production_per_month == resource_get_defaults(resource_get_from_industry(type))->production_per_month) {
+        const int production_per_month = building_production_per_month(type);
+        const int default_production_per_month = building_default_production_per_month(type);
+        const int production_changed = production_per_month != default_production_per_month;
+        if (!production_changed) {
             if (model == prop_model) {
                 continue;
             }
@@ -80,9 +110,9 @@ static void export_model_data(buffer *buf)
         xml_exporter_add_attribute_int("desirability_step_size", model->desirability_step_size);
         xml_exporter_add_attribute_int("desirability_range", model->desirability_range);
         xml_exporter_add_attribute_int("laborers", model->laborers);
-        if ((building_is_raw_resource_producer(type) || building_is_workshop(type) || type == BUILDING_WHARF)) {
-            if (resource->production_per_month != resource_get_defaults(resource_get_from_industry(type))->production_per_month) {
-                xml_exporter_add_attribute_int("production_rate", resource->production_per_month);
+        if ((building_is_raw_resource_producer(type) || building_is_workshop(type) || type_matches(type, "wharf"))) {
+            if (production_changed) {
+                xml_exporter_add_attribute_int("production_rate", production_per_month);
             }
         }
         xml_exporter_close_element();
@@ -183,8 +213,7 @@ static int start_building_model(void)
     model_ptr->desirability_range = xml_parser_get_attribute_int("desirability_range");
     model_ptr->laborers = xml_parser_get_attribute_int("laborers");
     if (xml_parser_has_attribute("production_rate")) {
-        resource_data *resource = resource_get_data(resource_get_from_industry(type));
-        resource->production_per_month = xml_parser_get_attribute_int("production_rate");
+        building_set_production_per_month(type, xml_parser_get_attribute_int("production_rate"));
     }
 
     return 1;

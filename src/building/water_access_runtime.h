@@ -4,7 +4,7 @@
 extern "C" {
 #endif
 
-#include "building/type.h"
+#include "building/building_type.h"
 
 typedef struct building building;
 

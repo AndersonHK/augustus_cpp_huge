@@ -16,6 +16,7 @@ extern "C" {
 namespace {
 
 constexpr int kMaxCrashScopes = 32;
+constexpr size_t kErrorDialogWrapColumn = 96;
 
 enum class ErrorReportSeverity {
     Info,
@@ -62,6 +63,42 @@ static void copy_text(char *destination, size_t destination_size, const char *so
     }
 
     snprintf(destination, destination_size, "%s", source);
+}
+
+static void append_wrapped_line(std::string &out, const std::string &line)
+{
+    size_t start = 0;
+    while (line.size() - start > kErrorDialogWrapColumn) {
+        size_t break_at = line.rfind(' ', start + kErrorDialogWrapColumn);
+        if (break_at == std::string::npos || break_at <= start) {
+            break_at = start + kErrorDialogWrapColumn;
+        }
+        out.append(line, start, break_at - start);
+        out.push_back('\n');
+        start = break_at;
+        while (start < line.size() && line[start] == ' ') {
+            ++start;
+        }
+    }
+    out.append(line, start, std::string::npos);
+}
+
+static std::string wrap_error_dialog_text(const std::string &message)
+{
+    std::string wrapped;
+    size_t start = 0;
+    while (start <= message.size()) {
+        size_t end = message.find('\n', start);
+        append_wrapped_line(
+            wrapped,
+            message.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        if (end == std::string::npos) {
+            break;
+        }
+        wrapped.push_back('\n');
+        start = end + 1;
+    }
+    return wrapped;
 }
 
 static ScopeState *find_scope(int token)
@@ -342,16 +379,14 @@ static void report_issue_internal(
 
     flush_issue_counts_internal();
 
-    char box_message[1024];
-    snprintf(
-        box_message,
-        sizeof(box_message),
-        "%s\n\n%s%s%s\n\nMore details were written to augustus-log.txt.",
-        message ? message : severity_label(severity),
-        detail && *detail ? detail : "",
-        detail && *detail ? "\n\n" : "",
-        "The game will now close after you press OK.");
-    platform_screen_show_error_message_box(title ? title : "Vespasian Fatal Error", box_message);
+    std::string box_message = std::string(message ? message : severity_label(severity)) + "\n\n";
+    if (detail && *detail) {
+        box_message += detail;
+        box_message += "\n\n";
+    }
+    box_message += "The game will now close after you press OK.\n\nMore details were written to augustus-log.txt.";
+    std::string wrapped_box_message = wrap_error_dialog_text(box_message);
+    platform_screen_show_error_message_box(title ? title : "Vespasian Fatal Error", wrapped_box_message.c_str());
     exit_with_status(1);
 }
 

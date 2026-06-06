@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "scenario/event/data.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 int scenario_action_type_change_allowed_buildings_execute(scenario_action_t *action);
 
@@ -86,3 +90,7 @@ int scenario_action_type_change_rank_execute(scenario_action_t *action);
 int scenario_action_type_change_production_rate_execute(scenario_action_t *action);
 
 int scenario_action_type_lock_trade_route_execute(scenario_action_t *action);
+
+#ifdef __cplusplus
+}
+#endif

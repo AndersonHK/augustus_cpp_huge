@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="dock">
+    <identity name_key="building.dock.name" />
+    <model size="3" cost="100" />
+    <desirability>
+        <value value="-8" />
+        <step value="2" />
+        <step_size value="2" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="shoreline" />
+    <button group="water_crossings" order="40" text_key="building.dock.name" />
+    <event_data attr="dock" />
+    <labor>
+        <employees count="12" />
+    </labor>
+</building>

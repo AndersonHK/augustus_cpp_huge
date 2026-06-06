@@ -15,6 +15,7 @@ extern "C" {
 #include "window/advisors.h"
 }
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 static void button_increase_amount(const generic_button *button);
 static void button_donate(const generic_button *button);
@@ -60,7 +61,7 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(64, 160, 32, 10);
-    Image::from_id(resource_get_data(RESOURCE_DENARII)->image.icon).draw(80, 176, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(resource_denarii()).panel_icon().draw(80, 176);
     lang_text_draw_centered(52, 16, 112, 176, 448, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     inner_panel_draw(112, 208, 26, 4);

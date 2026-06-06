@@ -314,7 +314,7 @@ static void draw_terrain_background(void)
             random_generate_next();
             int image_offset = random_byte() % NUM_GRASS_TILES;
             int group = (random_byte_alt() & 1) ? GROUP_TERRAIN_GRASS_1 : GROUP_TERRAIN_GRASS_2;
-            Image::from_id(Image::group(group) + image_offset).draw_isometric_footprint(x_offset, y_offset, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(group) + image_offset).draw_isometric_footprint(x_offset, y_offset);
             x_offset += TILE_X_SIZE;
         }
         y_offset += HALF_TYLE_Y_SIZE;
@@ -361,8 +361,8 @@ static void draw_refreshed_info(void)
     int x_offset = (screen_width() - label_width) / 2;
     int y_offset = BLOCK_SIZE * 8;
     label_draw(x_offset, y_offset, label_width / BLOCK_SIZE, 1);
-    Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 15).draw(x_offset + 2, y_offset + 2, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 15).draw(x_offset + label_width - 36, y_offset + 2, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 15).draw(x_offset + 2, y_offset + 2);
+    Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 15).draw(x_offset + label_width - 36, y_offset + 2);
 
     text_draw_centered(text, x_offset, y_offset + 4, label_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 }

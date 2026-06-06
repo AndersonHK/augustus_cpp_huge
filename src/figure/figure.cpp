@@ -5,12 +5,14 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/monument.h"
 #include "core/array.h"
 #include "core/log.h"
 #include "city/emperor.h"
 #include "core/random.h"
 #include "game/resource.h"
+#include "game/resource_id_bridge.h"
 #include "game/save_version.h"
 #include "empire/city.h"
 #include "figure/name.h"

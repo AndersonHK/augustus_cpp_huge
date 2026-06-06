@@ -1,7 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
 #include "scenario/event/data.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef enum {
     SCENARIO_EVENTS_VERSION = 1,
@@ -40,3 +44,7 @@ void scenario_events_assign_parent_event_ids(void);
 void scenario_events_fetch_event_tiles_to_editor(void);
 
 void scenario_events_migrate_to_grid_slices(void);
+
+#ifdef __cplusplus
+}
+#endif

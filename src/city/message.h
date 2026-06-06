@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef enum {
     MESSAGE_CAT_RIOT = 0,
@@ -257,3 +261,7 @@ void city_message_set_scroll_position(int scroll_position);
 void city_message_save_state(buffer *messages, buffer *extra, buffer *counts, buffer *delays, buffer *population);
 
 void city_message_load_state(buffer *messages, buffer *extra, buffer *counts, buffer *delays, buffer *population);
+
+#ifdef __cplusplus
+}
+#endif

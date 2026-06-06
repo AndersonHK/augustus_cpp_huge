@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "figure/figure.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 void figure_create_fishing_points(void);
 
@@ -19,3 +23,7 @@ void figure_hippodrome_horse_action(figure *f);
 void figure_hippodrome_horse_reroute(void);
 
 void figure_animal_try_nudge_at(int building_center_tile_grid_offset, int animal_tile_offset, int building_size);
+
+#ifdef __cplusplus
+}
+#endif

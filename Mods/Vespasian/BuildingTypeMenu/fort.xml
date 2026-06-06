@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="fort">
+    <identity name_key="building.fort.name" />
+    <event_data attr="fort|all_forts" />
+</building>

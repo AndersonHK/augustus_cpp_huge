@@ -2,7 +2,7 @@
 
 #include "building/menu.h"
 #include "building/properties.h"
-#include "building/type.h"
+#include "building/building_type.h"
 #include "core/lang.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"

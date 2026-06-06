@@ -274,7 +274,7 @@ static void refresh_background(void)
     int image_base = Image::group(GROUP_TOP_MENU);
     int s_width = screen_width();
     for (int i = 0; i * block_width < s_width; i++) {
-        Image::from_id(image_base + i % 8).draw(i * block_width, 0, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + i % 8).draw(i * block_width, 0);
     }
 }
 

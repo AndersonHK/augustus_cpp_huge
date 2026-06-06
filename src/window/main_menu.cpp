@@ -75,7 +75,7 @@ static void draw_background(void)
         if (!data.logo_image_id) {
             data.logo_image_id = assets_get_image_id("UI", "Main Menu Banner");
         }
-        Image::from_id(data.logo_image_id).draw(176, 50, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(data.logo_image_id).draw(176, 50);
         graphics_reset_dialog();
         draw_version_string();
     }

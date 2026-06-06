@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 void map_routing_update_all(void);
 void map_routing_update_land(void);
@@ -25,3 +29,7 @@ enum {
     DESTROYABLE_NONE,
 };
 int map_routing_get_destroyable(int grid_offset);
+
+#ifdef __cplusplus
+}
+#endif

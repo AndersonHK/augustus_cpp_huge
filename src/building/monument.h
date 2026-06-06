@@ -1,6 +1,8 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
+#include "city/constants.h"
+#include "core/buffer.h"
 #include "map/road_access.h"
 
 #ifdef __cplusplus
@@ -62,6 +64,8 @@ void building_monument_finish_monuments(void);
 void building_monuments_set_construction_phase(int phase);
 int building_monument_get_venus_gt(void);
 int building_monument_get_neptune_gt(void);
+int building_monument_get_grand_temple_for_god(god_type god);
+int building_monument_working_grand_temple_for_god(god_type god);
 void building_monument_initialize_deliveries(void);
 int building_monument_count_grand_temples(void);
 void building_monument_delivery_save_state(buffer *list);

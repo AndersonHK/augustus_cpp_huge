@@ -30,10 +30,10 @@ void sidebar_common_draw_relief(int x_offset, int y_offset, int image_id, int is
     int y_max = screen_height();
     while (y_offset < y_max) {
         if (y_max - y_offset <= 120) {
-            Image::from_id(image_base + image_offset + is_collapsed).draw(x_offset, y_offset, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_base + image_offset + is_collapsed).draw(x_offset, y_offset);
             y_offset += 120;
         } else {
-            Image::from_id(image_base + image_offset + image_offset + is_collapsed).draw(x_offset, y_offset, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_base + image_offset + image_offset + is_collapsed).draw(x_offset, y_offset);
             y_offset += 285;
         }
     }

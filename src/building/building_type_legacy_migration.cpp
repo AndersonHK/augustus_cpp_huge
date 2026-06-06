@@ -1,3 +1,4 @@
+#include "building/building_record.h"
 #include "building/building_type_legacy_migration.h"
 
 extern "C" {
@@ -14,88 +15,93 @@ namespace {
 std::array<std::string, BUILDING_TYPE_MAX> g_legacy_text_ids;
 bool g_legacy_text_ids_ready = false;
 
+constexpr uint16_t LEGACY_BUILDING_FORT_GROUND = 54;
+constexpr uint16_t LEGACY_BUILDING_DISTRIBUTION_CENTER_UNUSED = 50;
+constexpr uint16_t LEGACY_BUILDING_WAREHOUSE_SPACE = 73;
+constexpr uint16_t LEGACY_BUILDING_BURNING_RUIN = 99;
+
 struct LegacyBuildingTypeTextId {
     uint16_t legacy_type;
     const char *text_id;
 };
 
 constexpr LegacyBuildingTypeTextId XML_OWNED_BUILDING_TYPE_IDS[] = {
-    {BUILDING_ACADEMY, "academy"},
-    {BUILDING_ACTOR_COLONY, "actor_colony"},
-    {BUILDING_AMPHITHEATER, "amphitheater"},
-    {BUILDING_ARCHITECT_GUILD, "architect_guild"},
-    {BUILDING_ARENA, "arena"},
-    {BUILDING_ARMOURY, "armoury"},
-    {BUILDING_BARBER, "barber"},
-    {BUILDING_BATHHOUSE, "bathhouse"},
-    {BUILDING_BRICKWORKS, "brickworks"},
-    {BUILDING_CARAVANSERAI, "caravanserai"},
-    {BUILDING_CHARIOT_MAKER, "chariot_maker"},
-    {BUILDING_CLAY_PIT, "clay_pit"},
-    {BUILDING_COLOSSEUM, "colosseum"},
-    {BUILDING_CONCRETE_MAKER, "concrete_maker"},
-    {BUILDING_DOCTOR, "doctor"},
-    {BUILDING_ENGINEERS_POST, "engineers_post"},
-    {BUILDING_FORUM, "forum"},
-    {BUILDING_FOUNTAIN, "fountain"},
-    {BUILDING_FRUIT_FARM, "fruit_farm"},
-    {BUILDING_FURNITURE_WORKSHOP, "furniture_workshop"},
-    {BUILDING_GLADIATOR_SCHOOL, "gladiator_school"},
-    {BUILDING_GOLD_MINE, "gold_mine"},
-    {BUILDING_GOVERNORS_HOUSE, "governors_house"},
-    {BUILDING_GOVERNORS_PALACE, "governors_palace"},
-    {BUILDING_GOVERNORS_VILLA, "governors_villa"},
-    {BUILDING_GRAND_TEMPLE_CERES, "grand_temple_ceres"},
-    {BUILDING_GRAND_TEMPLE_MARS, "grand_temple_mars"},
-    {BUILDING_GRAND_TEMPLE_MERCURY, "grand_temple_mercury"},
-    {BUILDING_GRAND_TEMPLE_NEPTUNE, "grand_temple_neptune"},
-    {BUILDING_GRAND_TEMPLE_VENUS, "grand_temple_venus"},
-    {BUILDING_HIPPODROME, "hippodrome"},
-    {BUILDING_HOSPITAL, "hospital"},
-    {BUILDING_IRON_MINE, "iron_mine"},
-    {BUILDING_LARARIUM, "lararium"},
-    {BUILDING_LARGE_STATUE, "large_statue"},
-    {BUILDING_LARGE_POND, "large_pond"},
-    {BUILDING_LARGE_TEMPLE_CERES, "large_temple_ceres"},
-    {BUILDING_LARGE_TEMPLE_MARS, "large_temple_mars"},
-    {BUILDING_LARGE_TEMPLE_MERCURY, "large_temple_mercury"},
-    {BUILDING_LARGE_TEMPLE_NEPTUNE, "large_temple_neptune"},
-    {BUILDING_LARGE_TEMPLE_VENUS, "large_temple_venus"},
-    {BUILDING_LATRINES, "latrines"},
-    {BUILDING_LIBRARY, "library"},
-    {BUILDING_LIGHTHOUSE, "lighthouse"},
-    {BUILDING_LION_HOUSE, "lion_house"},
-    {BUILDING_MARKET, "market"},
-    {BUILDING_MARBLE_QUARRY, "marble_quarry"},
-    {BUILDING_OIL_WORKSHOP, "oil_workshop"},
-    {BUILDING_OLIVE_FARM, "olive_farm"},
-    {BUILDING_ORACLE, "oracle"},
-    {BUILDING_PANTHEON, "pantheon"},
-    {BUILDING_PIG_FARM, "pig_farm"},
-    {BUILDING_POTTERY_WORKSHOP, "pottery_workshop"},
-    {BUILDING_PREFECTURE, "prefecture"},
-    {BUILDING_RESERVOIR, "reservoir"},
-    {BUILDING_SAND_PIT, "sand_pit"},
-    {BUILDING_SCHOOL, "school"},
-    {BUILDING_SENATE, "senate"},
-    {BUILDING_SMALL_POND, "small_pond"},
-    {BUILDING_SMALL_TEMPLE_CERES, "small_temple_ceres"},
-    {BUILDING_SMALL_TEMPLE_MARS, "small_temple_mars"},
-    {BUILDING_SMALL_TEMPLE_MERCURY, "small_temple_mercury"},
-    {BUILDING_SMALL_TEMPLE_NEPTUNE, "small_temple_neptune"},
-    {BUILDING_SMALL_TEMPLE_VENUS, "small_temple_venus"},
-    {BUILDING_STONE_QUARRY, "stone_quarry"},
-    {BUILDING_TAVERN, "tavern"},
-    {BUILDING_LEGACY_SLOT_THEATER, BUILDING_TEXT_ID_THEATER},
-    {BUILDING_TIMBER_YARD, "timber_yard"},
-    {BUILDING_VEGETABLE_FARM, "vegetable_farm"},
-    {BUILDING_VINES_FARM, "vines_farm"},
-    {BUILDING_WATCHTOWER, "watchtower"},
-    {BUILDING_WEAPONS_WORKSHOP, "weapons_workshop"},
-    {BUILDING_LEGACY_SLOT_WELL, BUILDING_TEXT_ID_WELL},
-    {BUILDING_WHEAT_FARM, "wheat_farm"},
-    {BUILDING_WINE_WORKSHOP, "wine_workshop"},
-    {BUILDING_WORKCAMP, "workcamp"}
+    {52, "academy"},
+    {36, "actor_colony"},
+    {30, "amphitheater"},
+    {153, "architect_guild"},
+    {160, "arena"},
+    {203, "armoury"},
+    {49, "barber"},
+    {48, "bathhouse"},
+    {190, "brickworks"},
+    {176, "caravanserai"},
+    {37, "chariot_maker"},
+    {109, "clay_pit"},
+    {33, "colosseum"},
+    {189, "concrete_maker"},
+    {46, "doctor"},
+    {81, "engineers_post"},
+    {86, "forum"},
+    {91, "fountain"},
+    {102, "fruit_farm"},
+    {113, "furniture_workshop"},
+    {34, "gladiator_school"},
+    {184, "gold_mine"},
+    {77, "governors_house"},
+    {79, "governors_palace"},
+    {78, "governors_villa"},
+    {117, "grand_temple_ceres"},
+    {120, "grand_temple_mars"},
+    {119, "grand_temple_mercury"},
+    {118, "grand_temple_neptune"},
+    {121, "grand_temple_venus"},
+    {32, "hippodrome"},
+    {47, "hospital"},
+    {107, "iron_mine"},
+    {169, "lararium"},
+    {43, "large_statue"},
+    {127, "large_pond"},
+    {65, "large_temple_ceres"},
+    {68, "large_temple_mars"},
+    {67, "large_temple_mercury"},
+    {66, "large_temple_neptune"},
+    {69, "large_temple_venus"},
+    {205, "latrines"},
+    {53, "library"},
+    {155, "lighthouse"},
+    {35, "lion_house"},
+    {70, "market"},
+    {106, "marble_quarry"},
+    {111, "oil_workshop"},
+    {103, "olive_farm"},
+    {98, "oracle"},
+    {152, "pantheon"},
+    {105, "pig_farm"},
+    {114, "pottery_workshop"},
+    {55, "prefecture"},
+    {90, "reservoir"},
+    {187, "sand_pit"},
+    {51, "school"},
+    {85, "senate"},
+    {126, "small_pond"},
+    {60, "small_temple_ceres"},
+    {63, "small_temple_mars"},
+    {62, "small_temple_mercury"},
+    {61, "small_temple_neptune"},
+    {64, "small_temple_venus"},
+    {188, "stone_quarry"},
+    {158, "tavern"},
+    {31, "theater"},
+    {108, "timber_yard"},
+    {101, "vegetable_farm"},
+    {104, "vines_farm"},
+    {173, "watchtower"},
+    {112, "weapons_workshop"},
+    {92, "well"},
+    {100, "wheat_farm"},
+    {110, "wine_workshop"},
+    {116, "workcamp"}
 };
 
 std::string canonical_text_id_from_attr(const char *attr)
@@ -137,10 +143,10 @@ void build_legacy_text_ids()
     for (const LegacyBuildingTypeTextId &mapping : XML_OWNED_BUILDING_TYPE_IDS) {
         g_legacy_text_ids[mapping.legacy_type] = mapping.text_id;
     }
-    g_legacy_text_ids[BUILDING_FORT_GROUND] = "fort_ground";
-    g_legacy_text_ids[BUILDING_DISTRIBUTION_CENTER_UNUSED] = "distribution_center_unused";
-    g_legacy_text_ids[BUILDING_WAREHOUSE_SPACE] = "warehouse_space";
-    g_legacy_text_ids[BUILDING_BURNING_RUIN] = "burning_ruin";
+    g_legacy_text_ids[LEGACY_BUILDING_FORT_GROUND] = "fort_ground";
+    g_legacy_text_ids[LEGACY_BUILDING_DISTRIBUTION_CENTER_UNUSED] = "distribution_center_unused";
+    g_legacy_text_ids[LEGACY_BUILDING_WAREHOUSE_SPACE] = "warehouse_space";
+    g_legacy_text_ids[LEGACY_BUILDING_BURNING_RUIN] = "burning_ruin";
     g_legacy_text_ids_ready = true;
 }
 

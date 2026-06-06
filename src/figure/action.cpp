@@ -8,7 +8,6 @@ extern "C" {
 #include "figuretype/animal.h"
 #include "figuretype/cartpusher.h"
 #include "figuretype/crime.h"
-#include "figuretype/depot.h"
 #include "figuretype/docker.h"
 #include "figuretype/editor.h"
 #include "figuretype/enemy.h"
@@ -134,7 +133,7 @@ static void (*figure_action_callbacks[])(figure *f) = {
     figure_delivery_boy_action,
     figure_supplier_action,
     figure_fort_supplier_action, // 90
-    figure_depot_cartpusher_action,
+    figure_retired_native_action,
     figure_soldier_action,
     figure_retired_native_action,
     figure_soldier_action,

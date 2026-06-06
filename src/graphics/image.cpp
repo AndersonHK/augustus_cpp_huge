@@ -15,6 +15,7 @@ extern "C" {
 #include <new>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 namespace {
 
@@ -93,26 +94,48 @@ color_t base_color_for_font(font_t font)
     }
 }
 
-void draw_fullscreen_borders()
+color_t color_with_alpha(color_t color, color_t alpha)
 {
-    int width = screen_width();
-    int height = screen_height();
-    int image_base = Image::group(GROUP_EMPIRE_PANELS);
+    return alpha >= 0xff ? color : color & ((alpha << COLOR_BITSHIFT_ALPHA) | COLOR_CHANNEL_RGB);
+}
 
-    for (int x = 0; x < width; x += 86) {
-        Image::from_id(image_base + 1).draw(x, 0, COLOR_MASK_NONE, SCALE_NONE);
-        Image::from_id(image_base + 1).draw(x, height - 16, COLOR_MASK_NONE, SCALE_NONE);
+struct FullscreenImagePlacement {
+    int x = 0;
+    int y = 0;
+    float scale = SCALE_NONE;
+};
+
+FullscreenImagePlacement fullscreen_placement_for(const Image &image, int x_offset = 0, int y_offset = 0)
+{
+    const int width = screen_width();
+    const int height = screen_height();
+    const float scale_w = image.width() / static_cast<float>(width);
+    const float scale_h = image.height() / static_cast<float>(height);
+    const float scale = scale_w < scale_h ? scale_w : scale_h;
+
+    if (scale >= SCALE_NONE) {
+        return { (width - image.width()) / 2 + x_offset, (height - image.height()) / 2 + y_offset, SCALE_NONE };
     }
 
-    for (int y = 16; y < height; y += 86) {
-        Image::from_id(image_base).draw(0, y, COLOR_MASK_NONE, SCALE_NONE);
-        Image::from_id(image_base).draw(width - 16, y, COLOR_MASK_NONE, SCALE_NONE);
+    int x = x_offset;
+    int y = y_offset;
+    if (scale == scale_h) {
+        x = static_cast<int>((x + width - image.width() / scale) / 2 * scale);
     }
+    if (scale == scale_w) {
+        y = static_cast<int>((y + height - image.height() / scale) / 2 * scale);
+    }
+    return { x, y, scale };
+}
 
-    Image::from_id(image_base + 2).draw(0, 0, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_base + 2).draw(0, height - 16, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_base + 2).draw(width - 16, 0, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_base + 2).draw(width - 16, height - 16, COLOR_MASK_NONE, SCALE_NONE);
+void draw_fullscreen_fit(const Image &image, int x_offset, int y_offset, color_t color)
+{
+    const FullscreenImagePlacement placement = fullscreen_placement_for(image, x_offset, y_offset);
+    if (placement.scale == SCALE_NONE) {
+        image.draw(placement.x, placement.y, color);
+        return;
+    }
+    graphics_renderer()->draw_image(&image.legacy(), placement.x, placement.y, color, placement.scale);
 }
 
 } // namespace
@@ -151,7 +174,7 @@ Image &Image::letter(int letter_id)
         return image_manager().from_id(0);
     }
     Image &letter_image = image_manager().from_legacy(*const_cast<image *>(img));
-    letter_image.set_legacy_id(letter_id);
+    letter_image.set_source_image_id(letter_id);
     return letter_image;
 }
 
@@ -163,7 +186,7 @@ Image &Image::enemy(int image_id)
         return image_manager().from_id(0);
     }
     Image &enemy_image = image_manager().from_legacy(*const_cast<image *>(img));
-    enemy_image.set_legacy_id(image_id);
+    enemy_image.set_source_image_id(image_id);
     return enemy_image;
 }
 
@@ -303,10 +326,10 @@ image &Image::mutable_legacy_for_image_subsystem()
 void Image::sync_from_legacy(const image &legacy_image)
 {
     image *old_bound_legacy = bound_legacy_;
-    int old_legacy_id = legacy_id_;
+    int old_source_image_id = source_image_id_;
     legacy_image_ = legacy_image;
     bound_legacy_ = old_bound_legacy;
-    legacy_id_ = old_legacy_id;
+    source_image_id_ = old_source_image_id;
     if (!key_.empty()) {
         legacy_image_.resource_key = const_cast<char *>(key_.c_str());
         legacy_image_.resource_payload = this;
@@ -394,7 +417,7 @@ void Image::draw_letter(font_t font, int x, int y, color_t color, float scale) c
     int metric_scale = def->metric_scale_percentage > 0 ? def->metric_scale_percentage : 100;
     float base_scale = 100.0f / metric_scale;
 
-    if (legacy_id_ >= IMAGE_FONT_MULTIBYTE_OFFSET) {
+    if (source_image_id_ >= IMAGE_FONT_MULTIBYTE_OFFSET) {
         switch (font) {
             case FONT_NORMAL_WHITE:
             {
@@ -451,27 +474,8 @@ void Image::draw_letter(font_t font, int x, int y, color_t color, float scale) c
 void Image::draw_fullscreen_background() const
 {
     graphics_renderer()->clear_screen();
-    int s_width = screen_width();
-    int s_height = screen_height();
-    float scale_w = width() / static_cast<float>(screen_width());
-    float scale_h = height() / static_cast<float>(screen_height());
-    float scale = scale_w < scale_h ? scale_w : scale_h;
-
-    if (scale >= SCALE_NONE) {
-        draw((s_width - width()) / 2, (s_height - height()) / 2, COLOR_MASK_NONE, SCALE_NONE);
-    } else {
-        int x = 0;
-        int y = 0;
-        if (scale == scale_h) {
-            x = static_cast<int>((x + s_width - width() / scale) / 2 * scale);
-        }
-        if (scale == scale_w) {
-            y = static_cast<int>((y + s_height - height() / scale) / 2 * scale);
-        }
-        ensure_ready_to_draw();
-        graphics_renderer()->draw_image(&legacy_image_, x, y, COLOR_MASK_NONE, scale);
-    }
-    draw_fullscreen_borders();
+    ensure_ready_to_draw();
+    draw_fullscreen_fit(*this, 0, 0, COLOR_MASK_NONE);
 }
 
 void Image::draw_blurred_fullscreen(int intensity) const
@@ -481,60 +485,19 @@ void Image::draw_blurred_fullscreen(int intensity) const
     color_t alpha = 0x80;
     color_t alpha_step = 0x60 / intensity;
 
-    auto draw_background = [&](int x, int y, color_t background_alpha) {
-        int s_width = screen_width();
-        int s_height = screen_height();
-        float scale_w = width() / static_cast<float>(screen_width());
-        float scale_h = height() / static_cast<float>(screen_height());
-        float scale = scale_w < scale_h ? scale_w : scale_h;
-        color_t color_mask = COLOR_MASK_NONE;
-        if (background_alpha != ALPHA_OPAQUE) {
-            color_mask &= (background_alpha << COLOR_BITSHIFT_ALPHA) | 0xffffff;
-        }
-        if (scale >= SCALE_NONE) {
-            draw((s_width - width()) / 2, (s_height - height()) / 2, color_mask, SCALE_NONE);
-            return;
-        }
-        if (scale == scale_h) {
-            x = static_cast<int>((x + s_width - width() / scale) / 2 * scale);
-        }
-        if (scale == scale_w) {
-            y = static_cast<int>((y + s_height - height() / scale) / 2 * scale);
-        }
-        ensure_ready_to_draw();
-        graphics_renderer()->draw_image(&legacy_image_, x, y, color_mask, scale);
-    };
-
-    draw_background(0, 0, 0x80);
+    ensure_ready_to_draw();
+    draw_fullscreen_fit(*this, 0, 0, color_with_alpha(COLOR_MASK_NONE, 0x80));
     for (int i = 1; i <= intensity; i++) {
-        draw_background(0, i, alpha);
-        draw_background(i, 0, alpha);
-        draw_background(0, -i, alpha);
-        draw_background(-i, 0, alpha);
-        draw_background(-i, i, alpha / 2);
-        draw_background(i, -i, alpha / 2);
-        draw_background(-i, -i, alpha / 2);
-        draw_background(i, i, alpha / 2);
+        draw_fullscreen_fit(*this, 0, i, color_with_alpha(COLOR_MASK_NONE, alpha));
+        draw_fullscreen_fit(*this, i, 0, color_with_alpha(COLOR_MASK_NONE, alpha));
+        draw_fullscreen_fit(*this, 0, -i, color_with_alpha(COLOR_MASK_NONE, alpha));
+        draw_fullscreen_fit(*this, -i, 0, color_with_alpha(COLOR_MASK_NONE, alpha));
+        draw_fullscreen_fit(*this, -i, i, color_with_alpha(COLOR_MASK_NONE, alpha / 2));
+        draw_fullscreen_fit(*this, i, -i, color_with_alpha(COLOR_MASK_NONE, alpha / 2));
+        draw_fullscreen_fit(*this, -i, -i, color_with_alpha(COLOR_MASK_NONE, alpha / 2));
+        draw_fullscreen_fit(*this, i, i, color_with_alpha(COLOR_MASK_NONE, alpha / 2));
         alpha -= alpha_step;
     }
-}
-
-void Image::draw_border(int x, int y, color_t color) const
-{
-    int base_image_id = legacy_id();
-    const Image &top_border = Image::from_id(base_image_id);
-    const Image &left_border = Image::from_id(base_image_id + 1);
-    const Image &right_border = Image::from_id(base_image_id + 3);
-    int top_y_offset = top_border.height() + top_border.y_offset();
-
-    top_border.draw(x, y, color, SCALE_NONE);
-    left_border.draw(x, y + top_y_offset, color, SCALE_NONE);
-    Image::from_id(base_image_id + 2).draw(x, y + top_y_offset + left_border.height() + left_border.y_offset(), color, SCALE_NONE);
-    right_border.draw(
-        x + top_border.width() + top_border.x_offset() - right_border.width() - right_border.y_offset(),
-        y + top_y_offset,
-        color,
-        SCALE_NONE);
 }
 
 void Image::draw_isometric_footprint(int x, int y, color_t color_mask, float scale) const
@@ -623,22 +586,14 @@ void Image::ensure_ready_to_draw() const
         load_external_data();
         return;
     }
-    if ((legacy_image_.atlas.id >> IMAGE_ATLAS_BIT_OFFSET) == ATLAS_UNPACKED_EXTRA_ASSET && legacy_id_ >= 0) {
-        assets_load_unpacked_asset(legacy_id_);
+    if ((legacy_image_.atlas.id >> IMAGE_ATLAS_BIT_OFFSET) == ATLAS_UNPACKED_EXTRA_ASSET && source_image_id_ >= 0) {
+        assets_load_unpacked_asset(source_image_id_);
     }
 }
 
-int Image::legacy_id() const
+void Image::set_source_image_id(int image_id)
 {
-    if (legacy_id_ < 0) {
-        error_context_report_error("Image method requires an image id", key_c_str());
-    }
-    return legacy_id_;
-}
-
-void Image::set_legacy_id(int image_id)
-{
-    legacy_id_ = image_id;
+    source_image_id_ = image_id;
 }
 
 Image &ImageManager::from_id(int image_id)
@@ -649,7 +604,7 @@ Image &ImageManager::from_id(int image_id)
         return from_id(0);
     }
     Image &stored_image = from_legacy(*const_cast<image *>(img));
-    stored_image.set_legacy_id(image_id);
+    stored_image.set_source_image_id(image_id);
     return stored_image;
 }
 

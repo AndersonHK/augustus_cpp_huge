@@ -2,6 +2,7 @@ extern "C" {
 #include "city.h"
 
 #include "building/construction.h"
+#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/tool_mode.h"
 #include "city/message.h"
@@ -11,7 +12,6 @@ extern "C" {
 #include "core/direction.h"
 #include "core/lang.h"
 #include "game/campaign.h"
-#include "game/orientation.h"
 #include "game/state.h"
 #include "game/undo.h"
 #include "graphics/graphics.h"
@@ -38,11 +38,18 @@ extern "C" {
 #include "window/mission_briefing.h"
 #include "window/overlay_menu.h"
 }
+
+#include "game/orientation.h"
 #include "graphics/image.h"
 
 #define MINIMAP_Y_OFFSET 59
 #define TOOLTIP_CLEAR_BUTTON 21
 #define TOOLTIP_ROAD_BUTTON 22
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
 
 static void button_overlay(int param1, int param2);
 static void button_collapse_expand(int param1, int param2);
@@ -182,18 +189,18 @@ static void draw_buttons_expanded(int x_offset)
 static void draw_collapsed_background(void)
 {
     int x_offset = sidebar_common_get_x_offset_collapsed();
-    Image::from_id(Image::group(GROUP_SIDE_PANEL)).draw(x_offset, 24, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_SIDE_PANEL)).draw(x_offset, 24);
     draw_buttons_collapsed(x_offset);
     draw_sidebar_remainder(x_offset, 1);
 }
 
 static void draw_expanded_background(int x_offset)
 {
-    Image::from_id(Image::group(GROUP_SIDE_PANEL) + 1).draw(x_offset, 24, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_SIDE_PANEL) + 1).draw(x_offset, 24);
     draw_buttons_expanded(x_offset);
     draw_overlay_text(x_offset + 4);
     draw_number_of_messages(x_offset);
-    Image::from_id(window_build_menu_image()).draw(x_offset + 6, 239, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(window_build_menu_image()).draw(x_offset + 6, 239);
     widget_minimap_update(0);
     widget_minimap_draw_decorated(x_offset + 8, MINIMAP_Y_OFFSET, MINIMAP_WIDTH, MINIMAP_HEIGHT);
 
@@ -301,11 +308,12 @@ int widget_sidebar_city_get_tooltip_text(tooltip_context *c)
             return 0;
         }
         if (data.focus_button_for_tooltip == TOOLTIP_CLEAR_BUTTON) {
+            building_type clear_land = runtime_type("clear_land");
             building_type clear_mode = building_tool_mode_resolve(
-                BUILDING_CLEAR_LAND,
-                BUILDING_CLEAR_LAND,
+                clear_land,
+                clear_land,
                 hotkey_get_modifiers());
-            if (building_construction_selection_type() == BUILDING_CLEAR_LAND) {
+            if (building_construction_selection_type() == clear_land) {
                 clear_mode = building_construction_type();
             }
             c->precomposed_text = lang_get_building_type_string(clear_mode);
@@ -313,11 +321,12 @@ int widget_sidebar_city_get_tooltip_text(tooltip_context *c)
             return 0;
         }
         if (data.focus_button_for_tooltip == TOOLTIP_ROAD_BUTTON) {
+            building_type road = runtime_type("road");
             building_type road_mode = building_tool_mode_resolve(
-                BUILDING_ROAD,
-                BUILDING_ROAD,
+                road,
+                road,
                 hotkey_get_modifiers());
-            if (building_construction_selection_type() == BUILDING_ROAD) {
+            if (building_construction_selection_type() == road) {
                 road_mode = building_construction_type();
             }
             c->precomposed_text = lang_get_building_type_string(road_mode);
@@ -356,7 +365,7 @@ static void button_build(int submenu, int param2)
         window_build_menu_hide();
         widget_city_clear_current_tile();
         building_construction_cancel();
-        building_type type = submenu == BUILD_MENU_CLEAR_LAND ? BUILDING_CLEAR_LAND : BUILDING_ROAD;
+        building_type type = submenu == BUILD_MENU_CLEAR_LAND ? runtime_type("clear_land") : runtime_type("road");
         building_construction_set_type(type, 0);
         window_request_refresh();
         return;
@@ -412,16 +421,12 @@ static void button_toggle_grid(int param1, int param2)
 
 static void button_rotate_north(int param1, int param2)
 {
-    game_orientation_rotate_north();
+    game_orientation_apply(GameOrientationRequest::face(DIR_0_TOP));
     window_invalidate();
 }
 
 static void button_rotate(int clockwise, int param2)
 {
-    if (clockwise) {
-        game_orientation_rotate_right();
-    } else {
-        game_orientation_rotate_left();
-    }
+    game_orientation_apply(GameOrientationRequest::turn_quarter_steps(clockwise ? -1 : 1));
     window_invalidate();
 }

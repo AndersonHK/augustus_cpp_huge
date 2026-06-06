@@ -1,6 +1,7 @@
 #pragma once
 
 #include "assets/image_group_entry.h"
+#include "building/building_fwd.h"
 #include "building/building_type.h"
 
 extern "C" {
@@ -13,11 +14,14 @@ extern "C" {
 
 class ImageGroupPayload;
 
+void building_runtime_reset(void);
+void building_runtime_initialize_city_graphics_cache(void);
+
 class building_runtime {
 public:
     building_runtime(::building *building, const building_type_registry_impl::BuildingType *definition)
         : data(*building)
-        , building_(building)
+        , record_(building)
         , definition_(definition)
     {
     }
@@ -38,9 +42,16 @@ public:
     int owns_native_storage() const;
     int owns_native_production() const;
 
-    const ::building *building() const
+    Building building() const;
+
+    ::building *legacy_record()
     {
-        return building_;
+        return record_;
+    }
+
+    const ::building *legacy_record() const
+    {
+        return record_;
     }
 
     const building_type_registry_impl::BuildingType *definition() const
@@ -85,6 +96,7 @@ private:
     void generate_labor_seeker(int x, int y);
     void spawn_labor_seeker(int x, int y, int min_houses);
     void run_labor_phase(const building_type_registry_impl::LaborDefinition &labor, const map_point &road);
+    void run_labor_phase_if_defined(const map_point &road);
     int has_figure_of_type(figure_type type);
     int has_figure_of_any(const std::vector<figure_type> &types);
     unsigned int *figure_slot_storage(building_type_registry_impl::FigureSlot slot);
@@ -109,7 +121,7 @@ private:
     int resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const;
     int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
     int evaluate_condition(building_type_registry_impl::SpawnCondition condition) const;
-    int evaluate_spawn_chance(const building_type_registry_impl::SpawnPolicy &policy) const;
+    int evaluate_spawn_chance(const building_type_registry_impl::SpawnPolicy &policy);
     int should_apply_graphic_for_timing(
         const building_type_registry_impl::SpawnDelayGroup &group,
         building_type_registry_impl::GraphicTiming timing) const;
@@ -123,8 +135,23 @@ private:
         size_t group_index,
         int run_labor);
 
-    ::building *building_;
-    const building_type_registry_impl::BuildingType *definition_;
+    ::building &record()
+    {
+        return *record_;
+    }
+
+    const ::building &record() const
+    {
+        return *record_;
+    }
+
+    const building_type_registry_impl::BuildingType &type() const
+    {
+        return *definition_;
+    }
+
+    ::building *record_ = nullptr;
+    const building_type_registry_impl::BuildingType *definition_ = nullptr;
     std::vector<unsigned char> spawn_delay_counters_;
     CachedGraphicsBindings graphics_cache_;
 };

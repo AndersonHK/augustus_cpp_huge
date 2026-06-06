@@ -1,8 +1,9 @@
+#include "building/building_record.h"
+#include "building/building.h"
 #include "building/building_type_registry_internal.h"
 #include "building/industry.h"
 
 #include "building/production_method.h"
-#include "building/production_runtime_api.h"
 
 extern "C" {
 #include "building/count.h"
@@ -22,6 +23,8 @@ extern "C" {
 #include "scenario/property.h"
 }
 
+#include <cstring>
+
 #define MAX_PROGRESS_VENUS_GT 400
 #define DENARII_MINTED_PER_PRODUCTION 100
 #define DENARII_COST_PER_GOLD 600
@@ -34,7 +37,49 @@ extern "C" {
 
 namespace {
 
-const building_type_registry_impl::ProductionMethod *primary_native_production_method(building_type type)
+building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_impl::runtime_id_from_text(text_id);
+}
+
+int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
+building_type city_mint_type()
+{
+    return runtime_type("city_mint");
+}
+
+int is_city_mint_type(building_type type)
+{
+    return type_matches(type, "city_mint");
+}
+
+int is_wharf_type(building_type type)
+{
+    return type_matches(type, "wharf");
+}
+
+const char *definition_attr(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition ? definition->attr() : nullptr;
+}
+
+int attr_ends_with(const char *attr, const char *suffix)
+{
+    if (!attr || !suffix) {
+        return 0;
+    }
+    const size_t attr_len = strlen(attr);
+    const size_t suffix_len = strlen(suffix);
+    return attr_len >= suffix_len && strcmp(attr + attr_len - suffix_len, suffix) == 0;
+}
+
+building_type_registry_impl::ProductionMethod *primary_native_production_method(building_type type)
 {
     const std::unique_ptr<building_type_registry_impl::BuildingType> &definition =
         building_type_registry_impl::g_building_types[type];
@@ -44,26 +89,96 @@ const building_type_registry_impl::ProductionMethod *primary_native_production_m
     return definition->production_methods().front();
 }
 
+building_type_registry_impl::ProductionMethod *production_method_for_output(building_type type, resource_type output)
+{
+    const std::unique_ptr<building_type_registry_impl::BuildingType> &definition =
+        building_type_registry_impl::g_building_types[type];
+    if (!definition) {
+        return nullptr;
+    }
+    for (building_type_registry_impl::ProductionMethod *method : definition->production_methods()) {
+        if (method && method->output_resource() == output) {
+            return method;
+        }
+    }
+    return primary_native_production_method(type);
+}
+
 int has_native_production_type(building_type type)
 {
+    if (is_city_mint_type(type) || is_wharf_type(type)) {
+        return 0;
+    }
     return primary_native_production_method(type) != nullptr;
 }
 
 int is_valid_resource_slot(resource_type resource)
 {
-    return resource > RESOURCE_NONE && resource < RESOURCE_MAX;
+    return resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT;
 }
 
 } // namespace
 
 int building_is_farm(building_type type)
 {
-    return type >= BUILDING_WHEAT_FARM && type <= BUILDING_PIG_FARM;
+    return attr_ends_with(definition_attr(type), "_farm");
+}
+
+resource_type building_output_resource(building_type type)
+{
+    if (const building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type)) {
+        return method->output_resource();
+    }
+    return RESOURCE_NONE;
+}
+
+building_type building_producer_for_resource(resource_type resource)
+{
+    if (resource <= RESOURCE_NONE || !resource_is_declared(resource)) {
+        return BUILDING_NONE;
+    }
+
+    for (size_t index = 0; index < building_type_registry_impl::g_building_types.size(); index++) {
+        const std::unique_ptr<building_type_registry_impl::BuildingType> &definition =
+            building_type_registry_impl::g_building_types[index];
+        if (!definition) {
+            continue;
+        }
+        for (const building_type_registry_impl::ProductionMethod *method : definition->production_methods()) {
+            if (method && method->output_resource() == resource) {
+                return static_cast<building_type>(index);
+            }
+        }
+    }
+
+    return BUILDING_NONE;
+}
+
+int building_production_per_month(building_type type)
+{
+    const building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type);
+    return method ? method->base_monthly_production() : 0;
+}
+
+int building_default_production_per_month(building_type type)
+{
+    const building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type);
+    return method ? method->default_base_monthly_production() : 0;
+}
+
+int building_set_production_per_month(building_type type, int production)
+{
+    building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type);
+    if (!method) {
+        return 0;
+    }
+    method->override_base_monthly_production(production);
+    return 1;
 }
 
 int building_is_raw_resource_producer(building_type type)
 {
-    return resource_is_raw_material(resource_get_from_industry(type));
+    return resource_is_raw_material(building_output_resource(type));
 }
 
 int building_get_raw_materials_for_workshop(resource_supply_chain *chain, building_type type)
@@ -80,7 +195,7 @@ int building_get_raw_materials_for_workshop(resource_supply_chain *chain, buildi
         return static_cast<int>(inputs.size());
     }
 
-    resource_type good = resource_get_from_industry(type);
+    resource_type good = building_output_resource(type);
     if (good == RESOURCE_NONE) {
         return 0;
     }
@@ -95,7 +210,7 @@ int building_is_workshop(building_type type)
 int building_get_efficiency(const building *b)
 {
     if (has_native_production_type(b->type)) {
-        return production_runtime_get_efficiency(const_cast<building *>(b));
+        return Building(const_cast<building *>(b)).native_production_efficiency();
     }
 
     if (b->state == BUILDING_STATE_MOTHBALLED) {
@@ -105,7 +220,14 @@ int building_get_efficiency(const building *b)
     if (b->data.industry.age_months == 0 || !resource) {
         return -1;
     }
-    int production_for_resource = resource_production_per_month(resource);
+    const building_type_registry_impl::ProductionMethod *method = production_method_for_output(b->type, resource);
+    if (!method) {
+        return -1;
+    }
+    const int production_for_resource = method->effective_monthly_production();
+    if (production_for_resource <= 0) {
+        return -1;
+    }
 
     int percentage = calc_percentage(b->data.industry.average_production_per_month, production_for_resource);
     return calc_bound(percentage, 0, 100);
@@ -114,10 +236,18 @@ int building_get_efficiency(const building *b)
 int building_industry_get_max_progress(const building *b)
 {
     if (has_native_production_type(b->type)) {
-        return production_runtime_get_max_progress(const_cast<building *>(b));
+        return Building(const_cast<building *>(b)).native_production_max_progress();
     }
 
-    int monthly_production = resource_production_per_month(static_cast<resource_type>(b->output_resource_id));
+    const building_type_registry_impl::ProductionMethod *method =
+        production_method_for_output(b->type, static_cast<resource_type>(b->output_resource_id));
+    if (!method) {
+        return 0;
+    }
+    const int monthly_production = method->effective_monthly_production();
+    if (monthly_production <= 0) {
+        return 0;
+    }
     return calc_percentage(GAME_TIME_DAYS_PER_MONTH * 2 * model_get_building(b->type)->laborers, monthly_production);
 }
 
@@ -167,9 +297,9 @@ static int random_industry_strikes(int num_strikes)
 static void force_strike(int num_strikes)
 {
     building_list_large_clear();
-    for (int resource_index = RESOURCE_MIN_NON_FOOD; resource_index < RESOURCE_MAX_NON_FOOD; resource_index++) {
+    for (int resource_index = (RESOURCE_NONE + 1); resource_index < RESOURCE_SLOT_COUNT; resource_index++) {
         resource_type resource = static_cast<resource_type>(resource_index);
-        building_type type = resource_get_data(resource)->industry;
+        building_type type = building_producer_for_resource(resource);
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state == BUILDING_STATE_IN_USE && b->strike_duration_days == 0) {
                 building_list_large_add(b->id);
@@ -177,13 +307,14 @@ static void force_strike(int num_strikes)
         }
     }
     if (random_industry_strikes(num_strikes)) {
-        city_warning_show(WARNING_SECESSION, NEW_WARNING_SLOT);
+        city_warning_show(WARNING_SECESSION, translation_for(TR_CITY_WARNING_SECESSION));
     }
 }
 
 static void update_venus_gt_production(void)
 {
-    building *venus_gt = building_first_of_type(BUILDING_GRAND_TEMPLE_VENUS);
+    int venus_gt_id = building_monument_get_grand_temple_for_god(GOD_VENUS);
+    building *venus_gt = venus_gt_id ? building_get(venus_gt_id) : nullptr;
     if (!venus_gt || !building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
         return;
     }
@@ -191,8 +322,8 @@ static void update_venus_gt_production(void)
     venus_gt->monument.progress += (10 + (city_data.culture.population_with_venus_access /
         MAX_PROGRESS_VENUS_GT / 2));
     if (venus_gt->monument.progress > MAX_PROGRESS_VENUS_GT) {
-        if (venus_gt->resources[RESOURCE_WINE] < MAX_STORAGE) {
-            venus_gt->resources[RESOURCE_WINE] += 1;
+        if (venus_gt->resources[resource_wine()] < MAX_STORAGE) {
+            venus_gt->resources[resource_wine()] += 1;
         }
         venus_gt->monument.progress = venus_gt->monument.progress - MAX_PROGRESS_VENUS_GT;
     }
@@ -200,11 +331,11 @@ static void update_venus_gt_production(void)
 
 static void update_city_mint_production(int new_day)
 {
-    if (building_count_active(BUILDING_SENATE) == 0) {
+    if (building_count_active(runtime_type("senate")) == 0) {
         return;
     }
 
-    building *b = building_first_of_type(BUILDING_CITY_MINT);
+    building *b = building_first_of_type(city_mint_type());
     if (!b || b->state != BUILDING_STATE_IN_USE) {
         return;
     }
@@ -214,8 +345,8 @@ static void update_city_mint_production(int new_day)
         return;
     }
 
-    if (b->resources[RESOURCE_GOLD] < BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN &&
-        b->output_resource_id == RESOURCE_DENARII) {
+    if (b->resources[resource_gold()] < BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN &&
+        b->output_resource_id == resource_denarii()) {
         return;
     }
 
@@ -224,7 +355,7 @@ static void update_city_mint_production(int new_day)
         return;
     }
 
-    if (b->output_resource_id == RESOURCE_GOLD) {
+    if (b->output_resource_id == resource_gold()) {
         if (b->data.industry.progress == 0) {
             if (city_finance_out_of_money()) {
                 return;
@@ -259,8 +390,8 @@ static void update_city_mint_production(int new_day)
         }
         city_data.emperor.personal_savings += minted_personal_funds;
         city_finance_treasury_add_miscellaneous(DENARII_MINTED_PER_PRODUCTION - minted_personal_funds);
-        if (b->resources[RESOURCE_GOLD] >= BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN) {
-            b->resources[RESOURCE_GOLD] -= BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN;
+        if (b->resources[resource_gold()] >= BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN) {
+            b->resources[resource_gold()] -= BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN;
                 b->data.industry.has_raw_materials = 1;
         }
     }
@@ -269,7 +400,7 @@ static void update_city_mint_production(int new_day)
 int building_industry_has_raw_materials_for_production(const building *b)
 {
     if (has_native_production_type(b->type)) {
-        return production_runtime_building_has_raw_materials(const_cast<building *>(b));
+        return Building(const_cast<building *>(b)).native_production_has_raw_materials();
     }
 
     resource_supply_chain chain[RESOURCE_SUPPLY_CHAIN_MAX_SIZE];
@@ -287,9 +418,9 @@ void building_industry_update_production(int new_day)
 {
     int striking_buildings = 0;
 
-    for (int resource_index = RESOURCE_MIN; resource_index < RESOURCE_MAX; resource_index++) {
+    for (int resource_index = (RESOURCE_NONE + 1); resource_index < RESOURCE_SLOT_COUNT; resource_index++) {
         resource_type resource = static_cast<resource_type>(resource_index);
-        building_type type = resource_get_data(resource)->industry;
+        building_type type = building_producer_for_resource(resource);
         int is_storable = resource_is_storable(resource);
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state != BUILDING_STATE_IN_USE) {
@@ -297,7 +428,7 @@ void building_industry_update_production(int new_day)
             }
 
             int native_is_striking = 0;
-            if (production_runtime_update_building(b, new_day, &native_is_striking)) {
+            if (Building(b).update_native_production(new_day, &native_is_striking)) {
                 striking_buildings += native_is_striking;
                 continue;
             }
@@ -378,14 +509,14 @@ int building_stockpiling_enabled(building *b)
 int building_industry_has_produced_resource(building *b)
 {
     if (has_native_production_type(b->type)) {
-        return production_runtime_has_produced_resource(b);
+        return Building(b).native_production_has_produced_resource();
     }
 
-    if (b->type == BUILDING_CITY_MINT) {
-        if (b->output_resource_id != RESOURCE_GOLD) {
+    if (is_city_mint_type(b->type)) {
+        if (b->output_resource_id != resource_gold()) {
             return 0;
         }
-        if (b->resources[RESOURCE_GOLD] >= RESOURCE_ONE_LOAD) {
+        if (b->resources[resource_gold()] >= resource_units_per_load()) {
             return 1;
         }
     }
@@ -395,13 +526,13 @@ int building_industry_has_produced_resource(building *b)
 void building_industry_start_new_production(building *b)
 {
     if (has_native_production_type(b->type)) {
-        production_runtime_start_new_production(b);
+        Building(b).start_native_production();
         return;
     }
 
-    if (b->type == BUILDING_CITY_MINT && b->output_resource_id == RESOURCE_GOLD &&
-        b->resources[RESOURCE_GOLD] >= RESOURCE_ONE_LOAD) {
-        b->resources[RESOURCE_GOLD] -= RESOURCE_ONE_LOAD;
+    if (is_city_mint_type(b->type) && b->output_resource_id == resource_gold() &&
+        b->resources[resource_gold()] >= resource_units_per_load()) {
+        b->resources[resource_gold()] -= resource_units_per_load();
         return;
     }
     if (b->data.industry.progress >= building_industry_get_max_progress(b)) {
@@ -427,7 +558,7 @@ void building_industry_start_new_production(building *b)
 int building_loads_stored(const building *b)
 {
     int amount = 0;
-    for (int resource_index = RESOURCE_MIN; resource_index < RESOURCE_MAX; resource_index++) {
+    for (int resource_index = (RESOURCE_NONE + 1); resource_index < RESOURCE_SLOT_COUNT; resource_index++) {
         amount += b->resources[resource_index];
     }
     return amount;
@@ -435,16 +566,17 @@ int building_loads_stored(const building *b)
 
 void building_bless_farms(void)
 {
-    for (int resource_index = RESOURCE_MIN; resource_index < RESOURCE_MAX; resource_index++) {
+    for (int resource_index = (RESOURCE_NONE + 1); resource_index < RESOURCE_SLOT_COUNT; resource_index++) {
         resource_type resource = static_cast<resource_type>(resource_index);
-        building_type type = resource_get_data(resource)->industry;
+        building_type type = building_producer_for_resource(resource);
         if (!building_is_farm(type)) {
             continue;
         }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state == BUILDING_STATE_IN_USE) {
-                if (production_runtime_has_native_production(b)) {
-                    production_runtime_bless_farm(b);
+                Building building_obj(b);
+                if (building_obj.has_native_production()) {
+                    building_obj.bless_native_farm();
                     continue;
                 }
                 b->data.industry.progress = building_industry_get_max_progress(b);
@@ -458,9 +590,9 @@ void building_bless_farms(void)
 
 void building_bless_industry(void)
 {
-    for (int resource_index = RESOURCE_MIN_NON_FOOD; resource_index <= RESOURCE_DENARII; resource_index++) {
+    for (int resource_index = (RESOURCE_NONE + 1); resource_index <= resource_denarii(); resource_index++) {
         resource_type resource = static_cast<resource_type>(resource_index);
-        building_type type = resource_get_data(resource)->industry;
+        building_type type = building_producer_for_resource(resource);
         resource_supply_chain chain[RESOURCE_SUPPLY_CHAIN_MAX_SIZE];
         int num_resources = resource_get_supply_chain_for_good(chain, resource);
         if (num_resources == 0) {
@@ -470,8 +602,9 @@ void building_bless_industry(void)
             if (b->state != BUILDING_STATE_IN_USE || b->output_resource_id != resource) {
                 continue;
             }
-            if (production_runtime_has_native_production(b)) {
-                production_runtime_bless_industry(b);
+            Building building_obj(b);
+            if (building_obj.has_native_production()) {
+                building_obj.bless_native_industry();
                 continue;
             }
             if (b->num_workers <= 0) {
@@ -495,16 +628,17 @@ void building_bless_industry(void)
 
 void building_curse_farms(int big_curse)
 {
-    for (int resource_index = RESOURCE_MIN; resource_index < RESOURCE_MAX; resource_index++) {
+    for (int resource_index = (RESOURCE_NONE + 1); resource_index < RESOURCE_SLOT_COUNT; resource_index++) {
         resource_type resource = static_cast<resource_type>(resource_index);
-        building_type type = resource_get_data(resource)->industry;
+        building_type type = building_producer_for_resource(resource);
         if (!building_is_farm(type)) {
             continue;
         }
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state == BUILDING_STATE_IN_USE) {
-                if (production_runtime_has_native_production(b)) {
-                    production_runtime_curse_farm(b, big_curse);
+                Building building_obj(b);
+                if (building_obj.has_native_production()) {
+                    building_obj.curse_native_farm(big_curse);
                     continue;
                 }
                 b->data.industry.progress = 0;
@@ -514,7 +648,7 @@ void building_curse_farms(int big_curse)
             }
         }
     }
-    building *city_mint = building_first_of_type(BUILDING_CITY_MINT);
+    building *city_mint = building_first_of_type(city_mint_type());
     if (city_mint && city_mint->state == BUILDING_STATE_IN_USE) {
         city_mint->data.industry.progress = 0;
         city_mint->data.industry.curse_days_left = big_curse ? 48 : 4;
@@ -532,7 +666,7 @@ int building_get_required_raw_amount_for_production(building_type type, int raw_
         return 0;
     }
 
-    resource_type good = resource_get_from_industry(type);
+    resource_type good = building_output_resource(type);
     if (good == RESOURCE_NONE) {
         return 0;
     }
@@ -551,9 +685,9 @@ void building_workshop_add_raw_material(building *b, int resource)
     if (!b->id) {
         return;
     }
-    if (resource > RESOURCE_NONE && resource < RESOURCE_MAX &&
+    if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT &&
         building_get_required_raw_amount_for_production(b->type, resource) > 0) {
-        b->resources[resource] += RESOURCE_ONE_LOAD;
+        b->resources[resource] += resource_units_per_load();
     }
 }
 
@@ -564,14 +698,14 @@ int building_has_workshop_for_raw_material_with_room(int resource, int road_netw
     int num_goods = resource_get_supply_chain_for_raw_material(chain, raw_material);
 
     for (int i = 0; i < num_goods; i++) {
-        building_type type = resource_get_data(chain[i].good)->industry;
+        building_type type = building_producer_for_resource(chain[i].good);
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             const int desired_stock = has_native_production_type(type) ?
-                2 * building_get_required_raw_amount_for_production(type, resource) : 2 * RESOURCE_ONE_LOAD;
+                2 * building_get_required_raw_amount_for_production(type, resource) : 2 * resource_units_per_load();
             if (b->state == BUILDING_STATE_IN_USE && b->has_road_access && b->distance_from_entry > 0 &&
                 b->road_network_id == road_network_id && b->resources[resource] < desired_stock) {
-                if (type == BUILDING_CITY_MINT) {
-                    if (b->monument.phase != MONUMENT_FINISHED || b->output_resource_id == RESOURCE_GOLD) {
+                if (is_city_mint_type(type)) {
+                    if (b->monument.phase != MONUMENT_FINISHED || b->output_resource_id == resource_gold()) {
                         continue;
                     }
                 }
@@ -597,16 +731,16 @@ int building_get_workshop_for_raw_material_with_room(int x, int y, int resource,
     int min_dist = INFINITE;
     building *min_building = 0;
     for (int i = 0; i < num_goods; i++) {
-        building_type type = resource_get_data(chain[i].good)->industry;
+        building_type type = building_producer_for_resource(chain[i].good);
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             const int desired_stock = has_native_production_type(type) ?
-                2 * building_get_required_raw_amount_for_production(type, resource) : 2 * RESOURCE_ONE_LOAD;
+                2 * building_get_required_raw_amount_for_production(type, resource) : 2 * resource_units_per_load();
             if (b->state != BUILDING_STATE_IN_USE || !b->has_road_access || b->distance_from_entry <= 0 ||
                 b->road_network_id != road_network_id || b->resources[resource] >= desired_stock) {
                 continue;
             }
-            if (type == BUILDING_CITY_MINT) {
-                if (b->monument.phase != MONUMENT_FINISHED || b->output_resource_id == RESOURCE_GOLD) {
+            if (is_city_mint_type(type)) {
+                if (b->monument.phase != MONUMENT_FINISHED || b->output_resource_id == resource_gold()) {
                     continue;
                 }
             }
@@ -642,14 +776,14 @@ int building_get_workshop_for_raw_material(int x, int y, int resource, int road_
     int min_dist = INFINITE;
     building *min_building = 0;
     for (int i = 0; i < num_goods; i++) {
-        building_type type = resource_get_data(chain[i].good)->industry;
+        building_type type = building_producer_for_resource(chain[i].good);
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state != BUILDING_STATE_IN_USE ||
                 !b->has_road_access || b->distance_from_entry <= 0 || b->road_network_id != road_network_id) {
                 continue;
             }
-            if (type == BUILDING_CITY_MINT) {
-                if (b->monument.phase != MONUMENT_FINISHED || b->output_resource_id == RESOURCE_GOLD) {
+            if (is_city_mint_type(type)) {
+                if (b->monument.phase != MONUMENT_FINISHED || b->output_resource_id == resource_gold()) {
                     continue;
                 }
             }
@@ -674,15 +808,16 @@ static void update_stats_for_type(building_type type)
         if (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED) {
             continue;
         }
-        if (production_runtime_has_native_production(b)) {
-            production_runtime_advance_stats(b);
+        Building building_obj(b);
+        if (building_obj.has_native_production()) {
+            building_obj.advance_native_production_stats();
             continue;
         }
         if (b->data.industry.age_months < RECORD_PRODUCTION_MONTHS) {
             b->data.industry.age_months++;
         }
         int sum_months = b->data.industry.average_production_per_month * (b->data.industry.age_months - 1);
-        int pending_production_percentage = b->type == BUILDING_WHARF ?
+        int pending_production_percentage = is_wharf_type(b->type) ?
             0 : calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
         pending_production_percentage = calc_bound(pending_production_percentage, 0, 100);
         sum_months += b->data.industry.production_current_month + pending_production_percentage;
@@ -694,10 +829,10 @@ static void update_stats_for_type(building_type type)
 
 void building_industry_advance_stats(void)
 {
-    for (int resource_index = RESOURCE_MIN; resource_index < RESOURCE_MAX; resource_index++) {
-        update_stats_for_type(resource_get_data(static_cast<resource_type>(resource_index))->industry);
+    for (int resource_index = (RESOURCE_NONE + 1); resource_index < RESOURCE_SLOT_COUNT; resource_index++) {
+        update_stats_for_type(building_producer_for_resource(static_cast<resource_type>(resource_index)));
     }
-    update_stats_for_type(BUILDING_CITY_MINT);
+    update_stats_for_type(city_mint_type());
 }
 
 void building_industry_start_strikes(void)
@@ -714,8 +849,8 @@ void building_industry_start_strikes(void)
 
     building_list_large_clear();
 
-    for (int resource_index = RESOURCE_MIN; resource_index < RESOURCE_MAX; resource_index++) {
-        building_type type = resource_get_data(static_cast<resource_type>(resource_index))->industry;
+    for (int resource_index = (RESOURCE_NONE + 1); resource_index < RESOURCE_SLOT_COUNT; resource_index++) {
+        building_type type = building_producer_for_resource(static_cast<resource_type>(resource_index));
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state == BUILDING_STATE_IN_USE && b->strike_duration_days == 0) {
                 building_list_large_add(b->id);
@@ -728,6 +863,6 @@ void building_industry_start_strikes(void)
     city_data.building.num_striking_industries += strikes;
 
     if (strikes) {
-        city_warning_show(WARNING_SECESSION, NEW_WARNING_SLOT);
+        city_warning_show(WARNING_SECESSION, translation_for(TR_CITY_WARNING_SECESSION));
     }
 }

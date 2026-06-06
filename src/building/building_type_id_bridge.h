@@ -1,6 +1,6 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
 #include "core/buffer.h"
 
 #include <stdint.h>

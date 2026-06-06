@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<housing_type type="house_medium_palace">
+<housing_type type="house_medium_palace" level="17">
     <residents class="patrician" />
     <evolution devolve_desirability="70" evolve_desirability="80" />
     <requirements entertainment="60" water="fountain" religion="4" education="3"

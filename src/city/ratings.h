@@ -1,6 +1,10 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef enum {
     SELECTED_RATING_NONE = 0,
@@ -52,3 +56,7 @@ void city_ratings_update_explanations(void);
 void city_ratings_update(int is_yearly_update, int is_monthly_update);
 
 int city_ratings_prosperity_max(void);
+
+#ifdef __cplusplus
+}
+#endif

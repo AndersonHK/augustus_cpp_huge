@@ -1,5 +1,6 @@
 #include "graphics/empire_trade_route_button_widget.h"
 #include "graphics/ui_runtime.h"
+#include "game/resource_graphics.h"
 
 extern "C" {
 #include "empire.h"
@@ -573,7 +574,7 @@ static int measure_trade_row_width(const empire_city *city, int is_sell, const t
     const int ICON_WIDTH = 26;
     int width = 0;
 
-    for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; ++resource) {
+    for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; ++resource) {
         const resource_type r = static_cast<resource_type>(resource);
         if (!resource_is_storable(r)) continue;
         if ((is_sell && !city->sells_resource[r]) || (!is_sell && !city->buys_resource[r])) continue;
@@ -626,50 +627,50 @@ static void draw_paneling(void)
 
     // bottom panel background
     for (int x = data.panel.x_min; x < data.panel.x_max; x += 70) {
-        Image::from_id(image_base + 3).draw(x, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-        Image::from_id(image_base + 3).draw(x, data.y_max - 80, COLOR_MASK_NONE, SCALE_NONE);
-        Image::from_id(image_base + 3).draw(x, data.y_max - 40, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 3).draw(x, data.y_max - BOTTOM_PANEL_HEIGHT);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 80);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 40);
     }
 
     // horizontal bar borders
     for (int x = data.panel.x_min; x < data.panel.x_max; x += 86) {
-        Image::from_id(image_base + 1).draw(x, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-        Image::from_id(image_base + 1).draw(x, data.y_max - WIDTH_BORDER, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_max - BOTTOM_PANEL_HEIGHT);
+        Image::from_id(image_base + 1).draw(x, data.y_max - WIDTH_BORDER);
     }
 
     // extra vertical bar borders
     if (bottom_panel_is_larger) {
         for (int y = vertical_y_limit + WIDTH_BORDER; y < data.y_max; y += 86) {
-            Image::from_id(image_base).draw(data.panel.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
-            Image::from_id(image_base).draw(data.panel.x_max - WIDTH_BORDER, y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_base).draw(data.panel.x_min, y);
+            Image::from_id(image_base).draw(data.panel.x_max - WIDTH_BORDER, y);
         }
     }
 
     graphics_set_clip_rectangle(data.x_min, data.y_min, data.x_max - data.x_min, vertical_y_limit - data.y_min);
 
     for (int x = data.x_min; x < data.x_max; x += 86) {
-        Image::from_id(image_base + 1).draw(x, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_min);
     }
 
     // vertical bar borders
     for (int y = data.y_min + WIDTH_BORDER; y < vertical_y_limit; y += 86) {
-        Image::from_id(image_base).draw(data.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
-        Image::from_id(image_base).draw(data.x_max - WIDTH_BORDER, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base).draw(data.x_min, y);
+        Image::from_id(image_base).draw(data.x_max - WIDTH_BORDER, y);
     }
 
     graphics_reset_clip_rectangle();
 
     // crossbars
-    Image::from_id(image_base + 2).draw(data.x_min, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_base + 2).draw(data.x_min, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - WIDTH_BORDER, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_base + 2).draw(data.x_max - WIDTH_BORDER, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_base + 2).draw(data.x_max - WIDTH_BORDER, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_base + 2).draw(data.panel.x_max - WIDTH_BORDER, data.y_max - WIDTH_BORDER, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_min, data.y_min);
+    Image::from_id(image_base + 2).draw(data.x_min, data.y_max - BOTTOM_PANEL_HEIGHT);
+    Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - WIDTH_BORDER);
+    Image::from_id(image_base + 2).draw(data.x_max - WIDTH_BORDER, data.y_min);
+    Image::from_id(image_base + 2).draw(data.x_max - WIDTH_BORDER, data.y_max - BOTTOM_PANEL_HEIGHT);
+    Image::from_id(image_base + 2).draw(data.panel.x_max - WIDTH_BORDER, data.y_max - WIDTH_BORDER);
 
     if (bottom_panel_is_larger) {
-        Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
-        Image::from_id(image_base + 2).draw(data.panel.x_max - WIDTH_BORDER, data.y_max - BOTTOM_PANEL_HEIGHT, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - BOTTOM_PANEL_HEIGHT);
+        Image::from_id(image_base + 2).draw(data.panel.x_max - WIDTH_BORDER, data.y_max - BOTTOM_PANEL_HEIGHT);
     }
     // Sidebar background 
     graphics_set_clip_rectangle(data.sidebar.x_min - WIDTH_BORDER, data.sidebar.y_min, //clipping - border, to let border be drawn OUTSIDE
@@ -679,12 +680,12 @@ static void draw_paneling(void)
 
     for (int x = data.sidebar.x_min; x <= data.sidebar.x_max; x += 40) {
         for (int y = data.sidebar.y_min; y < data.sidebar.y_max; y += 70) {
-            Image::from_id(asset_id).draw(x, y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(asset_id).draw(x, y);
         }
     }
     // Sidebar border 
     for (int y = data.sidebar.y_min; y < data.sidebar.y_max; y += 86) {
-        Image::from_id(image_base).draw(data.sidebar.x_min - WIDTH_BORDER, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base).draw(data.sidebar.x_min - WIDTH_BORDER, y);
     }
 
     data.sidebar.border_btn.is_collapsed = (data.sidebar.width_percent > 0) ? 0 : 1;
@@ -945,7 +946,7 @@ static void window_empire_draw_trade_route_pulses(const empire_object *route_obj
 static void draw_trade_resource(resource_type r, int trade_max, int x, int y)
 {
     graphics_draw_inset_rect(x - 1, y - 1, 26, 26, COLOR_INSET_DARK, COLOR_INSET_LIGHT);
-    Image::from_id(resource_get_data(r)->image.empire).draw(x, y, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(r).empire_icon().draw(x, y);
     window_empire_draw_resource_shields(trade_max, x, y);
 }
 
@@ -968,7 +969,7 @@ void window_empire_draw_resource_shields(int trade_max, int x_offset, int y_offs
     int bronze_shield = Image::group(GROUP_TRADE_AMOUNT);
     for (int i = 0; i < num_bronze_shields; i++) {
         px_point pt = trade_amount_px_offsets[i];
-        Image::from_id(bronze_shield).draw(top_left_x + pt.x, top_left_y + pt.y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(bronze_shield).draw(top_left_x + pt.x, top_left_y + pt.y);
     }
 
     int num_gold_shields = trade_max / 100;
@@ -979,7 +980,7 @@ void window_empire_draw_resource_shields(int trade_max, int x_offset, int y_offs
     top_left_y = y_offset + 22;
     int gold_shield = assets_lookup_image_id(ASSET_GOLD_SHIELD);
     for (int i = 0; i < num_gold_shields; i++) {
-        Image::from_id(gold_shield).draw(top_left_x + i * 3, top_left_y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(gold_shield).draw(top_left_x + i * 3, top_left_y);
     }
 }
 
@@ -1149,7 +1150,7 @@ static int draw_trade_row(const empire_city *city, int is_sell, int x, int y, co
     }
 
 
-    for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; ++resource) {
+    for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; ++resource) {
         const resource_type r = static_cast<resource_type>(resource);
         if (!resource_is_storable(r)) continue;
         if ((is_sell && !city->sells_resource[r]) || (!is_sell && !city->buys_resource[r])) continue;
@@ -1309,24 +1310,24 @@ static void draw_sidebar_city_item(const grid_box_item *item)
 
     if (badge_and_icon_width <= available_width) {
         // Everything fits
-        Image::from_id(badge_id).draw(x_offset + badge_margin, y_offset + badge_margin, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(badge_id).draw(x_offset + badge_margin, y_offset + badge_margin);
 
         text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         if (city->is_open || draw_icon_on_top) {
             //if city is open, draw trade route icon to remind of type, same if it doesnt fit in the button
             int trade_route_icon_offset = badge_width + BLOCK_SIZE;
             if ((trade_route_icon_offset + badge_margin + 2 + 34) <= item_usable_width) {
-                Image::from_id(image_id).draw(x_offset + trade_route_icon_offset + badge_margin, y_offset + 9 + 2 * city->is_sea_trade, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(image_id).draw(x_offset + trade_route_icon_offset + badge_margin, y_offset + 9 + 2 * city->is_sea_trade);
             }
         }
 
     } else if (badge_width <= available_width) {
         // Only badge fits, check if the icon fits inside it
-        Image::from_id(badge_id).draw(x_offset + badge_margin, y_offset + badge_margin, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(badge_id).draw(x_offset + badge_margin, y_offset + badge_margin);
         int city_name_end = text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         int icon_fits_in_badge = (city_name_end + badge_margin + 2 + 34) <= (x_offset + badge_margin + badge_width);
         if (icon_fits_in_badge) {
-            Image::from_id(image_id).draw(x_offset + badge_margin + city_name_end + BLOCK_SIZE + 2, y_offset + 9 + 2 * city->is_sea_trade, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id).draw(x_offset + badge_margin + city_name_end + BLOCK_SIZE + 2, y_offset + 9 + 2 * city->is_sea_trade);
         }
 
     } else { // Not enough room for badge + icon
@@ -1492,7 +1493,7 @@ static int draw_images_at_interval(int image_id, int x_draw_offset, int y_draw_o
         for (int j = 0; j <= num_dots; j++) {
             int x = calc_adjust_with_percentage(j * interval + offset, x_factor) + start_x;
             int y = calc_adjust_with_percentage(j * interval + offset, y_factor) + start_y;
-            Image::from_id(image_id).draw(x_draw_offset + x, y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id).draw(x_draw_offset + x, y_draw_offset + y);
         }
     }
     return remaining;
@@ -1664,17 +1665,17 @@ static void draw_empire_object(const empire_object *obj)
         }
 
     } else {
-        Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y);
         if (img->animation && img->animation->speed_id) {
             int new_animation = empire_object_update_animation(obj, image_id);
-            Image::from_id(image_id + new_animation).draw(data.x_draw_offset + x + img->animation->sprite_offset_x, data.y_draw_offset + y + img->animation->sprite_offset_y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_id + new_animation).draw(data.x_draw_offset + x + img->animation->sprite_offset_x, data.y_draw_offset + y + img->animation->sprite_offset_y);
         }
     }
 
     // Manually fix the Hagia Sophia
     if (obj->image_id == 8122) {
         image_id = assets_lookup_image_id(ASSET_HAGIA_SOPHIA_FIX);
-        Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y);
     }
 }
 
@@ -1717,7 +1718,7 @@ static void draw_silhouette_scaled_centered(int image_id, int x, int y, color_t 
 
 static void draw_invasion_warning(int x, int y, int image_id)
 {
-    Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y);
 }
 
 void empire_reset_route_drawn_flags(void)
@@ -1745,7 +1746,7 @@ static void draw_map(void)
     data.y_draw_offset = map_clip_y_min;
     empire_adjust_scroll(&data.x_draw_offset, &data.y_draw_offset);
 
-    Image::from_id(empire_get_image_id()).draw(data.x_draw_offset, data.y_draw_offset, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(empire_get_image_id()).draw(data.x_draw_offset, data.y_draw_offset);
     if (data.trade_route_anim_start == 0) {
         data.trade_route_anim_start = time_get_millis();
     }
@@ -1768,11 +1769,11 @@ static void draw_city_name(const empire_city *city)
     int draw_ornaments_outside = data.x_min - data.panel.x_min > 90;
     int base_x_min = draw_ornaments_outside ? data.panel.x_min : data.x_min;
     int base_x_max = draw_ornaments_outside ? data.panel.x_max : data.x_max;
-    Image::from_id(image_base + 6).draw(base_x_min + 2, data.y_max - 199, COLOR_MASK_NONE, SCALE_NONE);//left bird
+    Image::from_id(image_base + 6).draw(base_x_min + 2, data.y_max - 199);//left bird
     if (data.sidebar.border_btn.is_collapsed) {
-        Image::from_id(image_base + 7).draw(base_x_max - 84, data.y_max - 199, COLOR_MASK_NONE, SCALE_NONE);//right bird
+        Image::from_id(image_base + 7).draw(base_x_max - 84, data.y_max - 199);//right bird
     }
-    Image::from_id(image_base + 8).draw((data.x_min + data.x_max - 332) / 2, data.y_max - 181, COLOR_MASK_NONE, SCALE_NONE); //city badge big
+    Image::from_id(image_base + 8).draw((data.x_min + data.x_max - 332) / 2, data.y_max - 181); //city badge big
     if (city) {
         int x_offset = (data.panel.x_min + data.panel.x_max - 332) / 2 + 64;
         int y_offset = data.y_max - 118;
@@ -2352,7 +2353,9 @@ void window_empire_show_checked(void)
     tutorial_availability avail = tutorial_advisor_empire_availability();
     if (avail == AVAILABLE) {
         window_empire_show();
+    } else if (avail == NOT_AVAILABLE) {
+        city_warning_show(WARNING_NOT_AVAILABLE, translation_for(TR_CITY_WARNING_NOT_AVAILABLE));
     } else {
-        city_warning_show(avail == NOT_AVAILABLE ? WARNING_NOT_AVAILABLE : WARNING_NOT_AVAILABLE_YET, NEW_WARNING_SLOT);
+        city_warning_show(WARNING_NOT_AVAILABLE_YET, translation_for(TR_CITY_WARNING_NOT_AVAILABLE_YET));
     }
 }

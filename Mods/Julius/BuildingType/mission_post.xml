@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="mission_post">
+    <identity name_key="building.mission_post.name" />
+    <model size="2" cost="100" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="2" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="administration" order="90" text_key="building.mission_post.name" />
+    <event_data attr="mission_post" />
+    <flags fire_proof="1" />
+    <labor>
+        <employees count="20" />
+    </labor>
+</building>

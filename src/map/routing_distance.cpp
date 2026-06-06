@@ -2,6 +2,7 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
 #include "map/grid.h"
 #include "map/road_network.h"
 #include "map/routing.h"

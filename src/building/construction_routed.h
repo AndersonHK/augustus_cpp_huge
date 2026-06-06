@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "map/routing.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 int building_construction_place_road(int measure_only, int x_start, int y_start, int x_end, int y_end);
 
@@ -10,3 +14,7 @@ int building_construction_place_aqueduct(int x_start, int y_start, int x_end, in
 
 int building_construction_place_aqueduct_for_reservoir(
     int measure_only, int x_start, int y_start, int x_end, int y_end, int *items);
+
+#ifdef __cplusplus
+}
+#endif

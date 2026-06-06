@@ -1,5 +1,6 @@
 #include "parameter_data.h"
 
+#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/properties.h"
 #include "city/constants.h"
@@ -24,6 +25,29 @@
 
 #define UNLIMITED 1000000000 //fits in 32bit signed/unsigned int
 #define NEGATIVE_UNLIMITED -1000000000 //fits in 32bit signed int
+
+#define BUILDING_PARAMETER_MAPPING_CAPACITY (BUILDING_TYPE_MAX + 32)
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
+static int type_matches_any(building_type type, const char *const *text_ids, int count)
+{
+    for (int i = 0; i < count; i++) {
+        if (type_matches(type, text_ids[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 static scenario_condition_data_t scenario_condition_data[CONDITION_TYPE_MAX] = {
     [CONDITION_TYPE_TIME_PASSED] = {.type = CONDITION_TYPE_TIME_PASSED,
@@ -524,14 +548,17 @@ static special_attribute_mapping_t special_attribute_mappings_pop_class[] = {
 
 #define SPECIAL_ATTRIBUTE_MAPPINGS_POP_CLASS_SIZE (sizeof(special_attribute_mappings_pop_class) / sizeof(special_attribute_mapping_t))
 
-static special_attribute_mapping_t special_attribute_mappings_buildings[BUILDING_TYPE_MAX];
+static special_attribute_mapping_t special_attribute_mappings_buildings[BUILDING_PARAMETER_MAPPING_CAPACITY];
 static unsigned int special_attribute_mappings_building_type_size;
 
-static special_attribute_mapping_t special_attribute_mappings_allowed_buildings[BUILDING_TYPE_MAX];
+static special_attribute_mapping_t special_attribute_mappings_allowed_buildings[BUILDING_PARAMETER_MAPPING_CAPACITY];
 static unsigned int special_attribute_mappings_allowed_buildings_size;
 
-static special_attribute_mapping_t special_attribute_mappings_model_buildings[BUILDING_TYPE_MAX];
+static special_attribute_mapping_t special_attribute_mappings_model_buildings[BUILDING_PARAMETER_MAPPING_CAPACITY];
 static unsigned int special_attribute_mappings_model_buildings_size;
+
+static special_attribute_mapping_t special_attribute_mappings_housing[BUILDING_PARAMETER_MAPPING_CAPACITY];
+static unsigned int special_attribute_mappings_housing_size;
 
 static special_attribute_mapping_t special_attribute_mappings_standard_message[] = {
     {.type = PARAMETER_TYPE_STANDARD_MESSAGE,            .text = "none",                      .value = 0,                    .key = TR_PARAMETER_VALUE_NONE },
@@ -716,31 +743,7 @@ static special_attribute_mapping_t special_attribute_mappings_percentage[] = {
 
 #define SPECIAL_ATTRIBUTE_MAPPINGS_PERCENTAGE_SIZE (sizeof(special_attribute_mappings_percentage) / sizeof(special_attribute_mapping_t))
 
-static special_attribute_mapping_t special_attribute_mappings_housing[] = {
-    // Individual housing types
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "small_tent",       .value = BUILDING_HOUSE_SMALL_TENT,     .key = TR_BUILDING_HOUSE_SMALL_TENT },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "large_tent",       .value = BUILDING_HOUSE_LARGE_TENT,     .key = TR_BUILDING_HOUSE_LARGE_TENT },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "small_shack",      .value = BUILDING_HOUSE_SMALL_SHACK,    .key = TR_BUILDING_HOUSE_SMALL_SHACK },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "large_shack",      .value = BUILDING_HOUSE_LARGE_SHACK,    .key = TR_BUILDING_HOUSE_LARGE_SHACK },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "small_hovel",      .value = BUILDING_HOUSE_SMALL_HOVEL,    .key = TR_BUILDING_HOUSE_SMALL_HOVEL },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "large_hovel",      .value = BUILDING_HOUSE_LARGE_HOVEL,    .key = TR_BUILDING_HOUSE_LARGE_HOVEL },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "small_casa",       .value = BUILDING_HOUSE_SMALL_CASA,     .key = TR_BUILDING_HOUSE_SMALL_CASA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "large_casa",       .value = BUILDING_HOUSE_LARGE_CASA,     .key = TR_BUILDING_HOUSE_LARGE_CASA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "small_insula",     .value = BUILDING_HOUSE_SMALL_INSULA,   .key = TR_BUILDING_HOUSE_SMALL_INSULA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "medium_insula",    .value = BUILDING_HOUSE_MEDIUM_INSULA,  .key = TR_BUILDING_HOUSE_MEDIUM_INSULA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "large_insula",     .value = BUILDING_HOUSE_LARGE_INSULA,   .key = TR_BUILDING_HOUSE_LARGE_INSULA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "grand_insula",     .value = BUILDING_HOUSE_GRAND_INSULA,   .key = TR_BUILDING_HOUSE_GRAND_INSULA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "small_villa",      .value = BUILDING_HOUSE_SMALL_VILLA,    .key = TR_BUILDING_HOUSE_SMALL_VILLA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "medium_villa",     .value = BUILDING_HOUSE_MEDIUM_VILLA,   .key = TR_BUILDING_HOUSE_MEDIUM_VILLA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "large_villa",      .value = BUILDING_HOUSE_LARGE_VILLA,    .key = TR_BUILDING_HOUSE_LARGE_VILLA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "grand_villa",      .value = BUILDING_HOUSE_GRAND_VILLA,    .key = TR_BUILDING_HOUSE_GRAND_VILLA },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "small_palace",     .value = BUILDING_HOUSE_SMALL_PALACE,   .key = TR_BUILDING_HOUSE_SMALL_PALACE },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "medium_palace",    .value = BUILDING_HOUSE_MEDIUM_PALACE,  .key = TR_BUILDING_HOUSE_MEDIUM_PALACE },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "large_palace",     .value = BUILDING_HOUSE_LARGE_PALACE,   .key = TR_BUILDING_HOUSE_LARGE_PALACE },
-    {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "luxury_palace",    .value = BUILDING_HOUSE_LUXURY_PALACE,  .key = TR_BUILDING_HOUSE_LUXURY_PALACE },
-
-
-    // Housing groups (using overlay enum values for groups)
+static special_attribute_mapping_t special_attribute_mappings_housing_groups[] = {
     {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "group_tents",      .value = HOUSE_GROUP_TENT,     .key = TR_OVERLAY_HOUSING_TENTS },
     {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "group_shacks",     .value = HOUSE_GROUP_SHACK,    .key = TR_OVERLAY_HOUSING_SHACKS },
     {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "group_hovels",     .value = HOUSE_GROUP_HOVEL,    .key = TR_OVERLAY_HOUSING_HOVELS },
@@ -750,7 +753,7 @@ static special_attribute_mapping_t special_attribute_mappings_housing[] = {
     {.type = PARAMETER_TYPE_HOUSING_TYPE, .text = "group_palaces",    .value = HOUSE_GROUP_PALACE,   .key = TR_OVERLAY_HOUSE_PALACES },
 };
 
-#define SPECIAL_ATTRIBUTE_MAPPINGS_HOUSING_SIZE (sizeof(special_attribute_mappings_housing) / sizeof(special_attribute_mapping_t))
+#define SPECIAL_ATTRIBUTE_MAPPINGS_HOUSING_GROUPS_SIZE (sizeof(special_attribute_mappings_housing_groups) / sizeof(special_attribute_mapping_t))
 
 static special_attribute_mapping_t special_attribute_mappings_age[] = {
     // Decenniums (10-year age groups)
@@ -828,25 +831,27 @@ enum {
 };
 
 static special_attribute_mapping_t special_attribute_mappings_coverage_buildings[] = {
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "theatres",      .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_THEATRE },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "arenas",        .value = BUILDING_ARENA,                .key = TR_CITY_PROPERTY_COVERAGE_ARENA },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "amphitheatres", .value = BUILDING_AMPHITHEATER,         .key = TR_CITY_PROPERTY_COVERAGE_AMPHITHEATRE },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "taverns",       .value = BUILDING_TAVERN,               .key = TR_CITY_PROPERTY_COVERAGE_TAVERN },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "colosseum",     .value = BUILDING_COLOSSEUM,            .key = TR_CITY_PROPERTY_COVERAGE_COLOSSEUM },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "hippodrome",    .value = BUILDING_HIPPODROME,           .key = TR_CITY_PROPERTY_COVERAGE_HIPPODROME },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "doctors",       .value = BUILDING_DOCTOR,               .key = TR_CITY_PROPERTY_COVERAGE_DOCTOR },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "barbers",       .value = BUILDING_BARBER,               .key = TR_CITY_PROPERTY_COVERAGE_BARBER },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "hospitals",     .value = BUILDING_HOSPITAL,             .key = TR_CITY_PROPERTY_COVERAGE_HOSPITAL },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "baths",         .value = BUILDING_BATHHOUSE,            .key = TR_CITY_PROPERTY_COVERAGE_BATHS },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "schools",       .value = BUILDING_SCHOOL,               .key = TR_CITY_PROPERTY_COVERAGE_SCHOOL },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "libraries",     .value = BUILDING_LIBRARY,              .key = TR_CITY_PROPERTY_COVERAGE_LIBRARY },
-    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "academies",     .value = BUILDING_ACADEMY,              .key = TR_CITY_PROPERTY_COVERAGE_ACADEMY },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "theater",       .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_THEATRE },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "arena",         .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_ARENA },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "amphitheater",  .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_AMPHITHEATRE },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "tavern",        .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_TAVERN },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "colosseum",     .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_COLOSSEUM },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "hippodrome",    .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_HIPPODROME },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "doctor",        .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_DOCTOR },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "barber",        .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_BARBER },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "hospital",      .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_HOSPITAL },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "bathhouse",     .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_BATHS },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "school",        .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_SCHOOL },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "library",       .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_LIBRARY },
+    {.type = PARAMETER_TYPE_COVERAGE_BUILDINGS,     .text = "academy",       .value = BUILDING_NONE,                 .key = TR_CITY_PROPERTY_COVERAGE_ACADEMY },
 };
 #define SPECIAL_ATTRIBUTE_MAPPINGS_COVERAGE_BUILDINGS_SIZE (sizeof(special_attribute_mappings_coverage_buildings) / sizeof(special_attribute_mapping_t))
 
 static void refresh_coverage_building_mappings(void)
 {
-    special_attribute_mappings_coverage_buildings[COVERAGE_BUILDINGS_THEATERS_INDEX].value = BUILDING_THEATER;
+    for (int i = 0; i < (int) SPECIAL_ATTRIBUTE_MAPPINGS_COVERAGE_BUILDINGS_SIZE; i++) {
+        special_attribute_mappings_coverage_buildings[i].value = runtime_type(special_attribute_mappings_coverage_buildings[i].text);
+    }
 }
 
 static special_attribute_mapping_t special_attribute_mappings_rank[] = {
@@ -866,25 +871,58 @@ static special_attribute_mapping_t special_attribute_mappings_rank[] = {
 };
 #define SPECIAL_ATTRIBUTE_MAPPINGS_RANK_SIZE (sizeof(special_attribute_mappings_rank) / sizeof(special_attribute_mapping_t))
 
+static special_attribute_mapping_t special_attribute_mappings_counting_specials[] = {
+    {.type = PARAMETER_TYPE_BUILDING, .text = "farms",             .value = SCENARIO_BUILDING_MENU_FARMS,          .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "raw_materials",     .value = SCENARIO_BUILDING_MENU_RAW_MATERIALS,  .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "workshops",         .value = SCENARIO_BUILDING_MENU_WORKSHOPS,      .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "small_temples",     .value = SCENARIO_BUILDING_MENU_SMALL_TEMPLES,  .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "large_temples",     .value = SCENARIO_BUILDING_MENU_LARGE_TEMPLES,  .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "grand_temples",     .value = SCENARIO_BUILDING_MENU_GRAND_TEMPLES,  .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "trees",             .value = SCENARIO_BUILDING_MENU_TREES,          .key = TR_BUILDING_MENU_TREES },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "paths",             .value = SCENARIO_BUILDING_MENU_PATHS,          .key = TR_BUILDING_MENU_PATHS },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "parks",             .value = SCENARIO_BUILDING_MENU_PARKS,          .key = TR_BUILDING_MENU_PARKS },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "any",               .value = SCENARIO_BUILDING_ANY,                 .key = TR_PARAMETER_VALUE_BUILDING_ANY },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "road",              .value = SCENARIO_BUILDING_ROAD,                .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "highway",           .value = SCENARIO_BUILDING_HIGHWAY,             .key = TR_BUILDING_HIGHWAY },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "plaza",             .value = SCENARIO_BUILDING_PLAZA,               .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "gardens",           .value = SCENARIO_BUILDING_GARDENS,             .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "overgrown_gardens", .value = SCENARIO_BUILDING_OVERGROWN_GARDENS,   .key = TR_BUILDING_OVERGROWN_GARDENS },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "rubble",            .value = SCENARIO_BUILDING_RUBBLE,              .key = TR_PARAMETER_TERRAIN_RUBBLE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "low_bridge",        .value = SCENARIO_BUILDING_LOW_BRIDGE,          .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "ship_bridge",       .value = SCENARIO_BUILDING_SHIP_BRIDGE,         .key = TR_PARAMETER_VALUE_DYNAMIC_RESOLVE },
+    {.type = PARAMETER_TYPE_BUILDING, .text = "forts",             .value = SCENARIO_BUILDING_MENU_FORT,           .key = TR_BUILDING_FORT_MENU },
+};
+
+#define SPECIAL_ATTRIBUTE_MAPPINGS_COUNTING_SPECIALS_SIZE \
+    (sizeof(special_attribute_mappings_counting_specials) / sizeof(special_attribute_mapping_t))
+
+static void append_mapping(special_attribute_mapping_t *mappings, unsigned int *size, special_attribute_mapping_t mapping)
+{
+    if (*size >= BUILDING_PARAMETER_MAPPING_CAPACITY) {
+        return;
+    }
+    mappings[*size] = mapping;
+    (*size)++;
+}
+
 static void generate_building_type_mappings(void)
 {
     if (special_attribute_mappings_building_type_size > 0) {
         return;
+    }
+    for (int i = 0; i < (int) SPECIAL_ATTRIBUTE_MAPPINGS_COUNTING_SPECIALS_SIZE; i++) {
+        append_mapping(special_attribute_mappings_buildings, &special_attribute_mappings_building_type_size,
+            special_attribute_mappings_counting_specials[i]);
     }
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type++) {
         const building_properties *props = building_properties_for_type(type);
         if (!props->event_data.attr || props->event_data.cannot_count) {
             continue;
         }
-        special_attribute_mapping_t *mapping = &special_attribute_mappings_buildings[special_attribute_mappings_building_type_size];
-        mapping->type = PARAMETER_TYPE_BUILDING;
-        mapping->text = props->event_data.attr;
-        mapping->value = type;
-        mapping->key = props->event_data.key ? props->event_data.key : TR_PARAMETER_VALUE_DYNAMIC_RESOLVE;
-        special_attribute_mappings_building_type_size++;
+        append_mapping(special_attribute_mappings_buildings, &special_attribute_mappings_building_type_size,
+            (special_attribute_mapping_t){PARAMETER_TYPE_BUILDING, props->event_data.attr, type,
+                props->event_data.key ? props->event_data.key : TR_PARAMETER_VALUE_DYNAMIC_RESOLVE});
     }
-    special_attribute_mappings_buildings[special_attribute_mappings_building_type_size++] =
-        (special_attribute_mapping_t){PARAMETER_TYPE_BUILDING, "rubble", -1, TR_PARAMETER_TERRAIN_RUBBLE};
 }
 
 static void generate_model_mappings(void)
@@ -892,21 +930,53 @@ static void generate_model_mappings(void)
     if (special_attribute_mappings_model_buildings_size > 0) {
         return;
     }
+    static const char *const editor_tools[] = {
+        "clear_land",
+        "repair_land",
+        "clear_trees",
+    };
+    static const char *const excluded_models[] = {
+        "grand_garden",
+        "dolphin_fountain",
+    };
+
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type++) {
         const building_properties *props = building_properties_for_type(type);
-        if (((!props->size || !props->event_data.attr)
-                && type != BUILDING_CLEAR_LAND
-                && type != BUILDING_REPAIR_LAND
-                && type != BUILDING_CLEAR_TREES) ||
-            (type == BUILDING_GRAND_GARDEN || type == BUILDING_DOLPHIN_FOUNTAIN)) {
+        if (((!props->size || !props->event_data.attr) &&
+                !type_matches_any(type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]))) ||
+            type_matches_any(type, excluded_models, sizeof(excluded_models) / sizeof(excluded_models[0]))) {
             continue;
         }
-        special_attribute_mapping_t *mapping = &special_attribute_mappings_model_buildings[special_attribute_mappings_model_buildings_size];
-        mapping->type = PARAMETER_TYPE_MODEL;
-        mapping->text = props->event_data.attr;
-        mapping->value = type;
-        mapping->key = props->event_data.key ? props->event_data.key : TR_PARAMETER_VALUE_DYNAMIC_RESOLVE;
-        special_attribute_mappings_model_buildings_size++;
+        append_mapping(special_attribute_mappings_model_buildings, &special_attribute_mappings_model_buildings_size,
+            (special_attribute_mapping_t){PARAMETER_TYPE_MODEL, props->event_data.attr, type,
+                props->event_data.key ? props->event_data.key : TR_PARAMETER_VALUE_DYNAMIC_RESOLVE});
+    }
+}
+
+static void generate_housing_mappings(void)
+{
+    if (special_attribute_mappings_housing_size > 0) {
+        return;
+    }
+
+    int level_count = building_type_registry_get_housing_level_count();
+    if (level_count <= 0) {
+        return;
+    }
+    for (int i = 0; i < level_count; i++) {
+        int level = building_type_registry_get_housing_level_at(i);
+        building_type type = building_type_registry_get_housing_type_for_level(level, 1);
+        const building_properties *props = type == BUILDING_NONE ? 0 : building_properties_for_type(type);
+        if (!props || !props->event_data.attr) {
+            continue;
+        }
+        append_mapping(special_attribute_mappings_housing, &special_attribute_mappings_housing_size,
+            (special_attribute_mapping_t){PARAMETER_TYPE_HOUSING_TYPE, props->event_data.attr, level,
+                props->event_data.key ? props->event_data.key : TR_PARAMETER_VALUE_DYNAMIC_RESOLVE});
+    }
+    for (int i = 0; i < (int) SPECIAL_ATTRIBUTE_MAPPINGS_HOUSING_GROUPS_SIZE; i++) {
+        append_mapping(special_attribute_mappings_housing, &special_attribute_mappings_housing_size,
+            special_attribute_mappings_housing_groups[i]);
     }
 }
 
@@ -994,6 +1064,7 @@ special_attribute_mapping_t *scenario_events_parameter_data_get_attribute_mappin
             generate_model_mappings();
             return &special_attribute_mappings_model_buildings[index];
         case PARAMETER_TYPE_HOUSING_TYPE:
+            generate_housing_mappings();
             return &special_attribute_mappings_housing[index];
         case PARAMETER_TYPE_AGE_GROUP:
             return &special_attribute_mappings_age[index];
@@ -1059,7 +1130,8 @@ int scenario_events_parameter_data_get_mappings_size(parameter_type type)
             generate_model_mappings();
             return special_attribute_mappings_model_buildings_size;
         case PARAMETER_TYPE_HOUSING_TYPE:
-            return SPECIAL_ATTRIBUTE_MAPPINGS_HOUSING_SIZE;
+            generate_housing_mappings();
+            return special_attribute_mappings_housing_size;
         case PARAMETER_TYPE_AGE_GROUP:
             return SPECIAL_ATTRIBUTE_MAPPINGS_AGE_SIZE;
         case PARAMETER_TYPE_CITY_PROPERTY:
@@ -1129,14 +1201,14 @@ int scenario_events_parameter_data_get_default_value_for_parameter(xml_data_attr
         case PARAMETER_TYPE_ENEMY_TYPE:
             return ENEMY_UNDEFINED;
         case PARAMETER_TYPE_RESOURCE:
-            return RESOURCE_WHEAT;
+            return resource_wheat();
         case PARAMETER_TYPE_POP_CLASS:
             return POP_CLASS_ALL;
         case PARAMETER_TYPE_BUILDING:
         case PARAMETER_TYPE_ALLOWED_BUILDING:
         case PARAMETER_TYPE_BUILDING_COUNTING:
         case PARAMETER_TYPE_MODEL:
-            return BUILDING_WELL;
+            return runtime_type("well");
         case PARAMETER_TYPE_STANDARD_MESSAGE:
             return MESSAGE_CAESAR_WRATH;
         case PARAMETER_TYPE_RATING_TYPE:
@@ -1154,7 +1226,7 @@ int scenario_events_parameter_data_get_default_value_for_parameter(xml_data_attr
         case PARAMETER_TYPE_DATA_TYPE:
             return MODEL_COST;
         case PARAMETER_TYPE_HOUSING_TYPE:
-            return BUILDING_HOUSE_SMALL_TENT;
+            return building_type_registry_get_housing_level_at(0);
         case PARAMETER_TYPE_CITY_PROPERTY:
             return CITY_PROPERTY_DIFFICULTY;
         case PARAMETER_TYPE_ENEMY_CLASS:
@@ -1162,10 +1234,10 @@ int scenario_events_parameter_data_get_default_value_for_parameter(xml_data_attr
         case PARAMETER_TYPE_PLAYER_TROOPS:
             return FIGURE_FORT_STANDARD;
         case PARAMETER_TYPE_COVERAGE_BUILDINGS:
-            return BUILDING_THEATER;
+            return runtime_type("theater");
         case PARAMETER_TYPE_ROUTE_RESOURCE:
-            // Encode default route_id=1 with RESOURCE_ALL_BUYS (RESOURCE_MAX + 1)
-            return window_editor_select_city_trade_route_encode_route_resource(1, RESOURCE_MAX + 1);
+            // Encode default route_id=1 with RESOURCE_ALL_BUYS (RESOURCE_SLOT_COUNT + 1)
+            return window_editor_select_city_trade_route_encode_route_resource(1, RESOURCE_SLOT_COUNT + 1);
         case PARAMETER_TYPE_ROUTE:
             return 1; // there should be at least one route
         default:
@@ -1194,16 +1266,16 @@ parameter_type scenario_events_parameter_data_resolve_flexible_type(const scenar
 
 static const uint8_t *get_allowed_building_name(building_type type)
 {
-    if (type == BUILDING_HOUSE_VACANT_LOT) {
+    if (type == building_type_registry_get_vacant_lot_fill_type()) {
         return lang_get_string(68, 20);
     }
-    if (type == BUILDING_CLEAR_LAND) {
+    if (type_matches(type, "clear_land")) {
         return lang_get_string(CUSTOM_TRANSLATION, TR_BUILDING_LAND_CLEAR);
     }
-    if (type == BUILDING_REPAIR_LAND) {
+    if (type_matches(type, "repair_land")) {
         return lang_get_string(CUSTOM_TRANSLATION, TR_BUILDING_LAND_REPAIR);
     }
-    if (type == BUILDING_CLEAR_TREES) {
+    if (type_matches(type, "clear_trees")) {
         return translation_for(TR_BUILDING_MENU_TREES);
     }
     return lang_get_building_type_string(type);
@@ -1216,7 +1288,17 @@ const uint8_t *scenario_events_parameter_data_get_display_string(special_attribu
         case PARAMETER_TYPE_BUILDING_COUNTING:
         case PARAMETER_TYPE_MODEL:
             if (entry->key == TR_PARAMETER_VALUE_DYNAMIC_RESOLVE) {
+                if (entry->value < 0) {
+                    return string_from_ascii(entry->text);
+                }
                 return lang_get_building_type_string(entry->value);
+            } else {
+                return translation_for(entry->key);
+            }
+            break;
+        case PARAMETER_TYPE_HOUSING_TYPE:
+            if (entry->key == TR_PARAMETER_VALUE_DYNAMIC_RESOLVE) {
+                return string_from_ascii(entry->text);
             } else {
                 return translation_for(entry->key);
             }
@@ -1365,7 +1447,7 @@ void scenario_events_parameter_data_get_display_string_for_value(parameter_type 
         }
         case PARAMETER_TYPE_ROUTE_RESOURCE:
         {
-            if (RESOURCE_MIN < value && value < RESOURCE_MAX) {
+            if ((RESOURCE_NONE + 1) < value && value < RESOURCE_SLOT_COUNT) {
                 result_text = string_copy(translation_for(TR_PARAMETER_VALUE_NONE), result_text, maxlength);
                 return;
             }

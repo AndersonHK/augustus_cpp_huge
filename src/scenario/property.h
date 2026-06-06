@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef enum {
     CLIMATE_CENTRAL = 0,
@@ -71,3 +75,7 @@ int scenario_intro_message(void);
 int scenario_victory_message(void);
 
 void scenario_change_climate(scenario_climate climate);
+
+#ifdef __cplusplus
+}
+#endif

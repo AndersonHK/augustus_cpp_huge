@@ -12,6 +12,7 @@
     <button group="industry" order="50" icon="Monuments\Caravanserai_C_OFF" text_key="TR_BUILDING_CARAVANSERAI" />
     <sound id="caravanserai" />
     <event_data attr="caravanserai" />
+    <distribution path="caravanserai" />
     <flags fire_proof="1" />
     <graphics>
         <default>

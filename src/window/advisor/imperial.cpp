@@ -29,6 +29,7 @@ extern "C" {
 #include "window/resource_settings.h"
 #include "window/set_salary.h"
 }
+#include "game/resource_graphics.h"
 #include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
@@ -74,7 +75,7 @@ static void draw_troop_request(int index, int focused)
 {
     int y_offset = 96 + 42 * index;
     button_border_draw(38, y_offset, 560, 40, focused);
-    Image::from_id(resource_get_data(RESOURCE_WEAPONS)->image.icon).draw(50, y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(resource_weapons()).panel_icon().draw(50, y_offset + 10);
 
     int width = lang_text_draw(52, 72, 80, y_offset + 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     empire_city *city = empire_city_get(city_military_distant_battle_city());
@@ -104,13 +105,13 @@ static void draw_request_row(int index, const scenario_request *request, int foc
     button_border_draw(38, 96 + 42 * index, 560, 40, focused);
     text_draw_number(request->amount.requested, '@', " ", 40, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     const resource_type request_resource = static_cast<resource_type>(request->resource);
-    Image::from_id(resource_get_data(request_resource)->image.icon).draw(110, 100 + 42 * index, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(request_resource).panel_icon().draw(110, 100 + 42 * index);
     text_draw(resource_get_data(request_resource)->text, 150, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
 
     int width = lang_text_draw_amount(8, 4, request->months_to_comply, 310, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     lang_text_draw(12, 2, 310 + width, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
-    if (request->resource == RESOURCE_DENARII) {
+    if (request->resource == resource_denarii()) {
         // request for money
         int treasury = city_finance_treasury();
         width = text_draw_number(treasury, '@', " ", 40, 120 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
@@ -150,7 +151,7 @@ static int draw_background(void)
     city_emperor_calculate_gift_costs();
 
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 2).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 2).draw(10, 10);
 
     text_draw_ellipsized(scenario_player_name(), 60, 12, 564, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
@@ -315,7 +316,7 @@ void button_request_resource(const generic_button *button)
     selected_resource = static_cast<resource_type>(city_get_request_resource(index));
 
     // we can't manage money with the resource settings window
-    if (selected_resource == RESOURCE_DENARII) {
+    if (selected_resource == resource_denarii()) {
         return;
     }
 
@@ -325,7 +326,7 @@ void button_request_resource(const generic_button *button)
 static void write_resource_storage_tooltip(advisor_tooltip_result *r, resource_type resource)
 {
     int amount_warehouse = city_resource_count_warehouses_amount(resource);
-    int amount_granary = city_resource_count_food_on_granaries(resource) / RESOURCE_ONE_LOAD;
+    int amount_granary = city_resource_count_food_on_granaries(resource) / resource_units_per_load();
     uint8_t *text = tooltip_resource_info;
     text += string_from_int(text, amount_warehouse, 0);
     *text = ' ';

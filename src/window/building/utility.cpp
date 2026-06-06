@@ -1,10 +1,12 @@
+#include "building/building.h"
+#include "building/roadblock.h"
+
 extern "C" {
 #include "utility.h"
-
 #include "assets/assets.h"
-#include "building/building.h"
+#include "building/building_type_api.h"
+#include "building/building_record.h"
 #include "building/clone.h"
-#include "building/roadblock.h"
 #include "city/constants.h"
 #include "city/finance.h"
 #include "core/dir.h"
@@ -36,6 +38,16 @@ static struct {
     int building_id;
     int tooltip_id;
 } data = { 0, 0, 0, 0, 0 };
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
 
 static generic_button go_to_orders_button[] = {
     {0, 0, 304, 20, button_go_to_orders},
@@ -167,9 +179,9 @@ static int affect_all_button_state(void)
 static void draw_roadblock_orders_buttons(int x, int y, int focused)
 {
     if (affect_all_button_state() == ACCEPT_ALL) {
-        Image::from_id(assets_lookup_image_id(ASSET_UI_SELECTION_CHECKMARK)).draw(x + 29, y + 4, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_lookup_image_id(ASSET_UI_SELECTION_CHECKMARK)).draw(x + 29, y + 4);
     } else {
-        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x + 29, y + 4, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x + 29, y + 4);
     }
     button_border_draw(x + 25, y, 20, 20, data.orders_focus_button_id == 1);
 }
@@ -215,10 +227,10 @@ void window_building_draw_roadblock_orders_foreground(building_info_context *c)
     draw_roadblock_orders_buttons(c->x_offset + 365, y_offset + 404, data.orders_focus_button_id == 1);
 
     for (unsigned int i = 0; i < size_of_orders_permission_buttons; i++) {
-        Image::from_id(Image::group(ids[i * 2]) + 4).draw(c->x_offset + 32, y_offset + 46 + 32 * i, COLOR_MASK_NONE, SCALE_NONE);
-        Image::from_id(Image::group(ids[i * 2 + 1]) + 4).draw(c->x_offset + 64, y_offset + 46 + 32 * i, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(ids[i * 2]) + 4).draw(c->x_offset + 32, y_offset + 46 + 32 * i);
+        Image::from_id(Image::group(ids[i * 2 + 1]) + 4).draw(c->x_offset + 64, y_offset + 46 + 32 * i);
         button_border_draw(c->x_offset + 180, y_offset + 50 + 32 * i, 210, 22, data.figure_focus_button_id == i + 1);
-        int state = building_roadblock_get_permission(static_cast<roadblock_permission>(i + 1), b);
+        int state = Roadblock(b).has_permission(static_cast<roadblock_permission>(i + 1));
         if (state) {
             lang_text_draw_centered(99, 7, c->x_offset + 180, y_offset + 55 + 32 * i, 210, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
@@ -289,7 +301,7 @@ static void init_repair_building_button(building_info_context *c)
     repair_building_button->height = 20;
     repair_building_button->parameters[0] = c->rubble_building_id;
     building *b = building_get(c->rubble_building_id);
-    if (b->type == BUILDING_WAREHOUSE_SPACE) { // swap the b pointer for the main warehouse building
+    if (type_matches(static_cast<building_type>(b->type), "warehouse_space")) {
         b = building_get(map_building_rubble_building_id(b->data.rubble.og_grid_offset));
     }
     static lang_fragment frag;
@@ -318,7 +330,7 @@ void window_building_draw_rubble(building_info_context *c)
     building *b = building_get(c->rubble_building_id);
     building_type og_type = static_cast<building_type>(b->data.rubble.og_type);
     building_type type = og_type == BUILDING_NONE ? static_cast<building_type>(b->type) : og_type;
-    int is_burning_ruins = (b->type == BUILDING_BURNING_RUIN);
+    int is_burning_ruins = type_matches(static_cast<building_type>(b->type), "burning_ruin");
 
     if (building_can_repair_type(type) || building_can_repair_type(type)) {
         init_repair_building_button(c);
@@ -521,8 +533,9 @@ static void button_toggle_figure_state(const generic_button *button)
 {
     int index = button->parameter1;
     building *b = building_get(data.building_id);
-    if (building_type_is_roadblock(b->type)) {
-        building_roadblock_set_permission(static_cast<roadblock_permission>(index), b);
+    Roadblock roadblock(b);
+    if (roadblock.kind() != ROADBLOCK_NONE) {
+        roadblock.toggle_permission(static_cast<roadblock_permission>(index));
     }
     window_invalidate();
 }
@@ -530,10 +543,11 @@ static void button_toggle_figure_state(const generic_button *button)
 static void button_roadblock_orders(const generic_button *button)
 {
     building *b = building_get(data.building_id);
+    Roadblock roadblock(b);
     if (affect_all_button_state() == REJECT_ALL) {
-        building_roadblock_accept_none(b);
+        roadblock.accept_none();
     } else {
-        building_roadblock_accept_all(b);
+        roadblock.accept_all();
     }
     window_invalidate();
 

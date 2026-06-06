@@ -1,5 +1,6 @@
 #include "condition_handler.h"
 
+#include "core/array.h"
 #include "core/log.h"
 #include "game/resource.h"
 #include "scenario/event/condition_types.h"
@@ -145,21 +146,45 @@ void scenario_condition_load_state(buffer *buf, scenario_condition_group_t *grou
     }
 }
 
-void scenario_condition_group_load_state(buffer *buf, scenario_condition_group_t *group,
+int scenario_condition_group_load_state(buffer *buf, scenario_condition_group_t *group,
     int *link_type, int32_t *link_id)
 {
+    const size_t group_header_size = sizeof(int16_t) + sizeof(uint32_t) + sizeof(uint8_t) + sizeof(uint32_t);
+    if (!buf || !group || !link_type || !link_id || buf->index > buf->size || buf->size - buf->index < group_header_size) {
+        log_error("Malformed scenario condition group header in save.", 0, 0);
+        return 0;
+    }
+
     *link_type = buffer_read_i16(buf);
     *link_id = buffer_read_u32(buf);
     group->type = buffer_read_u8(buf);
     unsigned int total_conditions = buffer_read_u32(buf);
+    if (group->type != FULFILLMENT_TYPE_ALL && group->type != FULFILLMENT_TYPE_ANY) {
+        log_error("Malformed scenario condition group type in save.", 0, group->type);
+        return 0;
+    }
+    if (buf->index > buf->size || total_conditions > (buf->size - buf->index) / CONDITION_STRUCT_SIZE) {
+        log_error("Malformed scenario condition count in save.", 0, total_conditions);
+        return 0;
+    }
     if (!array_init(group->conditions, CONDITION_GROUP_ITEMS_ARRAY_SIZE_STEP, 0, condition_in_use) ||
         !array_expand(group->conditions, total_conditions)) {
-        log_error("Unable to create condition group array. The game will now crash.", 0, 0);
+        log_error("Unable to create scenario condition group array.", 0, 0);
+        return 0;
     }
     for (unsigned int i = 0; i < total_conditions; i++) {
         scenario_condition_t *condition = array_next(group->conditions);
+        if (!condition) {
+            log_error("Unable to load scenario condition.", 0, i);
+            return 0;
+        }
         scenario_condition_load_state(buf, group, condition);
+        if (buf->overflow) {
+            log_error("Malformed scenario condition data in save.", 0, i);
+            return 0;
+        }
     }
+    return 1;
 }
 
 int scenario_condition_uses_custom_variable(const scenario_condition_t *condition, int custom_variable_id)

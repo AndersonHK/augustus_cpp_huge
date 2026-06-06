@@ -1,7 +1,7 @@
 #include "condition_types.h"
 
 #include "building/count.h"
-#include "building/type.h"
+#include "building/building_type.h"
 #include "city/data_private.h"
 #include "city/emperor.h"
 #include "city/finance.h"
@@ -22,10 +22,9 @@
 #include "scenario/event/condition_comparison_helper.h"
 #include "scenario/event/controller.h"
 #include "scenario/event/formula.h"
+#include "scenario/event/parameter_data.h"
 #include "scenario/request.h"
 #include "scenario/scenario.h"
-
-#define BUILDING_RUBBLE -1
 
 static int count_no_condition(int grid_offset)
 {
@@ -37,74 +36,78 @@ static int count_not_overgrown(int grid_offset)
     return !map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset);
 }
 
+static int special_building_count(int type, int active_only, int minx, int miny, int maxx, int maxy, int in_area, int *handled)
+{
+    *handled = 1;
+    switch (type) {
+        case SCENARIO_BUILDING_MENU_FARMS:
+            return in_area ? building_set_area_count_farms(minx, miny, maxx, maxy) : building_set_count_farms(active_only);
+        case SCENARIO_BUILDING_MENU_RAW_MATERIALS:
+            return in_area ? building_set_area_count_raw_materials(minx, miny, maxx, maxy) : building_set_count_raw_materials(active_only);
+        case SCENARIO_BUILDING_MENU_WORKSHOPS:
+            return in_area ? building_set_area_count_workshops(minx, miny, maxx, maxy) : building_set_count_workshops(active_only);
+        case SCENARIO_BUILDING_MENU_SMALL_TEMPLES:
+            return in_area ? building_set_area_count_small_temples(minx, miny, maxx, maxy) : building_set_count_small_temples(active_only);
+        case SCENARIO_BUILDING_MENU_LARGE_TEMPLES:
+            return in_area ? building_set_area_count_large_temples(minx, miny, maxx, maxy) : building_set_count_large_temples(active_only);
+        case SCENARIO_BUILDING_MENU_GRAND_TEMPLES:
+            return in_area ? building_set_area_count_grand_temples(minx, miny, maxx, maxy) :
+                active_only ? building_count_grand_temples_active() : building_count_grand_temples();
+        case SCENARIO_BUILDING_MENU_TREES:
+            return in_area ? building_set_area_count_deco_trees(minx, miny, maxx, maxy) : building_set_count_deco_trees();
+        case SCENARIO_BUILDING_MENU_PATHS:
+            return in_area ? building_set_area_count_deco_paths(minx, miny, maxx, maxy) : building_set_count_deco_paths();
+        case SCENARIO_BUILDING_MENU_PARKS:
+            return in_area ? building_set_area_count_deco_statues(minx, miny, maxx, maxy) : building_set_count_deco_statues();
+        case SCENARIO_BUILDING_ANY:
+            if (!in_area) {
+                return building_count_any_total(active_only);
+            }
+            break;
+        case SCENARIO_BUILDING_ROAD:
+            return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
+                TERRAIN_ROAD, count_no_condition) : building_count_terrain(TERRAIN_ROAD, count_no_condition);
+        case SCENARIO_BUILDING_HIGHWAY:
+            return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
+                TERRAIN_HIGHWAY, count_no_condition) : building_count_terrain(TERRAIN_HIGHWAY, count_no_condition);
+        case SCENARIO_BUILDING_PLAZA:
+            return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
+                TERRAIN_ROAD, map_property_is_plaza_earthquake_or_overgrown_garden) :
+                building_count_terrain(TERRAIN_ROAD, map_property_is_plaza_earthquake_or_overgrown_garden);
+        case SCENARIO_BUILDING_GARDENS:
+            return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
+                TERRAIN_GARDEN, count_not_overgrown) : building_count_terrain(TERRAIN_GARDEN, count_not_overgrown);
+        case SCENARIO_BUILDING_OVERGROWN_GARDENS:
+            return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
+                TERRAIN_GARDEN, map_property_is_plaza_earthquake_or_overgrown_garden) :
+                building_count_terrain(TERRAIN_GARDEN, map_property_is_plaza_earthquake_or_overgrown_garden);
+        case SCENARIO_BUILDING_RUBBLE:
+            return in_area ? building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
+                TERRAIN_RUBBLE, count_no_condition) : building_count_terrain(TERRAIN_RUBBLE, count_no_condition);
+        case SCENARIO_BUILDING_LOW_BRIDGE:
+            return in_area ? building_count_bridges_in_area(minx, miny, maxx + 1, maxy + 1, 0) : building_count_bridges(0);
+        case SCENARIO_BUILDING_SHIP_BRIDGE:
+            return in_area ? building_count_bridges_in_area(minx, miny, maxx + 1, maxy + 1, 1) : building_count_bridges(1);
+        default:
+            break;
+    }
+    *handled = 0;
+    return 0;
+}
+
 int scenario_condition_type_building_count_active_met(const scenario_condition_t *condition)
 {
     int comparison = condition->parameter1;
     int value = scenario_formula_evaluate_formula(condition->parameter2);
     int type = condition->parameter3;
 
-    int total_active_count = 0;
-    switch (type) {
-        case BUILDING_MENU_FARMS:
-            total_active_count = building_set_count_farms(1);
-            break;
-        case BUILDING_MENU_RAW_MATERIALS:
-            total_active_count = building_set_count_raw_materials(1);
-            break;
-        case BUILDING_MENU_WORKSHOPS:
-            total_active_count = building_set_count_workshops(1);
-            break;
-        case BUILDING_MENU_SMALL_TEMPLES:
-            total_active_count = building_set_count_small_temples(1);
-            break;
-        case BUILDING_MENU_LARGE_TEMPLES:
-            total_active_count = building_set_count_large_temples(1);
-            break;
-        case BUILDING_MENU_GRAND_TEMPLES:
-            total_active_count = building_count_grand_temples_active();
-            break;
-        case BUILDING_MENU_TREES:
-            total_active_count = building_set_count_deco_trees();
-            break;
-        case BUILDING_MENU_PATHS:
-            total_active_count = building_set_count_deco_paths();
-            break;
-        case BUILDING_MENU_PARKS:
-            total_active_count = building_set_count_deco_statues();
-            break;
-        case BUILDING_ANY:
-            total_active_count = building_count_any_total(1);
-            break;
-        case BUILDING_ROAD:
-            total_active_count = building_count_terrain(TERRAIN_ROAD, count_no_condition);
-            break;
-        case BUILDING_HIGHWAY:
-            total_active_count = building_count_terrain(TERRAIN_HIGHWAY, count_no_condition);
-            break;
-        case BUILDING_PLAZA:
-            total_active_count = building_count_terrain(TERRAIN_ROAD, map_property_is_plaza_earthquake_or_overgrown_garden);
-            break;
-        case BUILDING_GARDENS:
-            total_active_count = building_count_terrain(TERRAIN_GARDEN, count_not_overgrown);
-            break;
-        case BUILDING_OVERGROWN_GARDENS:
-            total_active_count = building_count_terrain(TERRAIN_GARDEN, map_property_is_plaza_earthquake_or_overgrown_garden);
-            break;
-        case BUILDING_RUBBLE:
-            total_active_count = building_count_terrain(TERRAIN_RUBBLE, count_no_condition);
-            break;
-        case BUILDING_LOW_BRIDGE:
-            total_active_count = building_count_bridges(0);
-            break;
-        case BUILDING_SHIP_BRIDGE:
-            total_active_count = building_count_bridges(1);
-            break;
-        default:
-            total_active_count = building_count_active(type);
-            break;
+    int handled = 0;
+    int total_count = special_building_count(type, 1, 0, 0, 0, 0, 0, &handled);
+    if (!handled) {
+        total_count = building_count_active(type);
     }
 
-    return comparison_helper_compare_values(comparison, total_active_count, value);
+    return comparison_helper_compare_values(comparison, total_count, value);
 }
 
 int scenario_condition_type_building_count_any_met(const scenario_condition_t *condition)
@@ -113,68 +116,13 @@ int scenario_condition_type_building_count_any_met(const scenario_condition_t *c
     int value = scenario_formula_evaluate_formula(condition->parameter2);
     int type = condition->parameter3;
 
-    int total_active_count = 0;
-    switch (type) {
-        case BUILDING_MENU_FARMS:
-            total_active_count = building_set_count_farms(0);
-            break;
-        case BUILDING_MENU_RAW_MATERIALS:
-            total_active_count = building_set_count_raw_materials(0);
-            break;
-        case BUILDING_MENU_WORKSHOPS:
-            total_active_count = building_set_count_workshops(0);
-            break;
-        case BUILDING_MENU_SMALL_TEMPLES:
-            total_active_count = building_set_count_small_temples(0);
-            break;
-        case BUILDING_MENU_LARGE_TEMPLES:
-            total_active_count = building_set_count_large_temples(0);
-            break;
-        case BUILDING_MENU_GRAND_TEMPLES:
-            total_active_count = building_count_grand_temples();
-            break;
-        case BUILDING_MENU_TREES:
-            total_active_count = building_set_count_deco_trees();
-            break;
-        case BUILDING_MENU_PATHS:
-            total_active_count = building_set_count_deco_paths();
-            break;
-        case BUILDING_MENU_PARKS:
-            total_active_count = building_set_count_deco_statues();
-            break;
-        case BUILDING_ANY:
-            total_active_count = building_count_any_total(0);
-            break;
-        case BUILDING_ROAD:
-            total_active_count = building_count_terrain(TERRAIN_ROAD, count_no_condition);
-            break;
-        case BUILDING_HIGHWAY:
-            total_active_count = building_count_terrain(TERRAIN_HIGHWAY, count_no_condition);
-            break;
-        case BUILDING_PLAZA:
-            total_active_count = building_count_terrain(TERRAIN_ROAD, map_property_is_plaza_earthquake_or_overgrown_garden);
-            break;
-        case BUILDING_GARDENS:
-            total_active_count = building_count_terrain(TERRAIN_GARDEN, count_not_overgrown);
-            break;
-        case BUILDING_OVERGROWN_GARDENS:
-            total_active_count = building_count_terrain(TERRAIN_GARDEN, map_property_is_plaza_earthquake_or_overgrown_garden);
-            break;
-        case BUILDING_RUBBLE:
-            total_active_count = building_count_terrain(TERRAIN_RUBBLE, count_no_condition);
-            break;
-        case BUILDING_LOW_BRIDGE:
-            total_active_count = building_count_bridges(0);
-            break;
-        case BUILDING_SHIP_BRIDGE:
-            total_active_count = building_count_bridges(1);
-            break;
-        default:
-            total_active_count = building_count_total(type);
-            break;
+    int handled = 0;
+    int total_count = special_building_count(type, 0, 0, 0, 0, 0, 0, &handled);
+    if (!handled) {
+        total_count = building_count_total(type);
     }
 
-    return comparison_helper_compare_values(comparison, total_active_count, value);
+    return comparison_helper_compare_values(comparison, total_count, value);
 }
 
 int scenario_condition_type_check_formulas(const scenario_condition_t *condition)
@@ -219,68 +167,10 @@ int scenario_condition_type_building_count_area_met(const scenario_condition_t *
     int miny = map_grid_offset_to_y(grid_offset1);
     int maxx = map_grid_offset_to_x(grid_offset2);
     int maxy = map_grid_offset_to_y(grid_offset2);
-    int buildings_in_area = 0;
-    switch (type) {
-        case BUILDING_MENU_FARMS:
-            buildings_in_area = building_set_area_count_farms(minx, miny, maxx, maxy);
-            break;
-        case BUILDING_MENU_RAW_MATERIALS:
-            buildings_in_area = building_set_area_count_raw_materials(minx, miny, maxx, maxy);
-            break;
-        case BUILDING_MENU_WORKSHOPS:
-            buildings_in_area = building_set_area_count_workshops(minx, miny, maxx, maxy);
-            break;
-        case BUILDING_MENU_SMALL_TEMPLES:
-            buildings_in_area = building_set_area_count_small_temples(minx, miny, maxx, maxy);
-            break;
-        case BUILDING_MENU_LARGE_TEMPLES:
-            buildings_in_area = building_set_area_count_large_temples(minx, miny, maxx, maxy);
-            break;
-        case BUILDING_MENU_GRAND_TEMPLES:
-            buildings_in_area = building_set_area_count_grand_temples(minx, miny, maxx, maxy);
-            break;
-        case BUILDING_MENU_TREES:
-            buildings_in_area = building_set_area_count_deco_trees(minx, miny, maxx, maxy);
-            break;
-        case BUILDING_MENU_PATHS:
-            buildings_in_area = building_set_area_count_deco_paths(minx, miny, maxx, maxy);
-            break;
-        case BUILDING_MENU_PARKS:
-            buildings_in_area = building_set_area_count_deco_statues(minx, miny, maxx, maxy);
-            break;
-        case BUILDING_ROAD:
-            buildings_in_area = building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_ROAD, count_no_condition);
-            break;
-        case BUILDING_HIGHWAY:
-            buildings_in_area = building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_HIGHWAY, count_no_condition);
-            break;
-        case BUILDING_PLAZA:
-            buildings_in_area = building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_ROAD, map_property_is_plaza_earthquake_or_overgrown_garden);
-            break;
-        case BUILDING_GARDENS:
-            buildings_in_area = building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_GARDEN, count_not_overgrown);
-            break;
-        case BUILDING_OVERGROWN_GARDENS:
-            buildings_in_area = building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_GARDEN, map_property_is_plaza_earthquake_or_overgrown_garden);
-            break;
-        case BUILDING_RUBBLE:
-            buildings_in_area = building_count_terrain_in_area(minx, miny, maxx + 1, maxy + 1,
-                TERRAIN_RUBBLE, count_no_condition);
-            break;
-        case BUILDING_LOW_BRIDGE:
-            buildings_in_area = building_count_bridges_in_area(minx, miny, maxx + 1, maxy + 1, 0);
-            break;
-        case BUILDING_SHIP_BRIDGE:
-            buildings_in_area = building_count_bridges_in_area(minx, miny, maxx + 1, maxy + 1, 1);
-            break;
-        default:
-            buildings_in_area = building_count_in_area(type, minx, miny, maxx, maxy);
-            break;
+    int handled = 0;
+    int buildings_in_area = special_building_count(type, 0, minx, miny, maxx, maxy, 1, &handled);
+    if (!handled) {
+        buildings_in_area = building_count_in_area(type, minx, miny, maxx, maxy);
     }
 
     return comparison_helper_compare_values(comparison, buildings_in_area, value);
@@ -369,7 +259,7 @@ int scenario_condition_type_resource_storage_available_met(const scenario_condit
     int value = scenario_formula_evaluate_formula(condition->parameter3);
     storage_types storage_type = condition->parameter4;
 
-    if (resource < RESOURCE_MIN || resource > RESOURCE_MAX) {
+    if (resource < (RESOURCE_NONE + 1) || resource > RESOURCE_SLOT_COUNT) {
         return 0;
     }
 
@@ -399,7 +289,7 @@ int scenario_condition_type_resource_stored_count_met(const scenario_condition_t
     int value = scenario_formula_evaluate_formula(condition->parameter3);
     storage_types storage_type = condition->parameter4;
 
-    if (resource < RESOURCE_MIN || resource > RESOURCE_MAX) {
+    if (resource < (RESOURCE_NONE + 1) || resource > RESOURCE_SLOT_COUNT) {
         return 0;
     }
 
@@ -408,12 +298,12 @@ int scenario_condition_type_resource_stored_count_met(const scenario_condition_t
         case STORAGE_TYPE_ALL:
             amount_stored += city_resource_count_warehouses_amount(resource);
             if (resource_is_food(resource)) {
-                amount_stored += city_resource_count_food_on_granaries(resource) / RESOURCE_ONE_LOAD;
+                amount_stored += city_resource_count_food_on_granaries(resource) / resource_units_per_load();
             }
             break;
         case STORAGE_TYPE_GRANARIES:
             if (resource_is_food(resource)) {
-                amount_stored += city_resource_count_food_on_granaries(resource) / RESOURCE_ONE_LOAD;
+                amount_stored += city_resource_count_food_on_granaries(resource) / resource_units_per_load();
             }
             break;
         case STORAGE_TYPE_WAREHOUSES:
@@ -545,7 +435,7 @@ int scenario_condition_type_trade_sell_price_met(const scenario_condition_t *con
     int comparison = condition->parameter2;
     int value = scenario_formula_evaluate_formula(condition->parameter3);
 
-    if (resource < RESOURCE_MIN || resource > RESOURCE_MAX) {
+    if (resource < (RESOURCE_NONE + 1) || resource > RESOURCE_SLOT_COUNT) {
         return 0;
     }
 

@@ -1,3 +1,4 @@
+#include "building/building_record.h"
 #include "building/water_access_type_id_bridge.h"
 
 #include "building/water_access_type.h"
@@ -95,17 +96,17 @@ void load_legacy_save_table()
     ensure_runtime_table();
     clear_save_table();
 
-    for (uint8_t legacy_id = 1; legacy_id <= 5; legacy_id++) {
-        const char *text_id = legacy_text_from_raw_save_id(legacy_id);
+    for (uint8_t save_id = 1; save_id <= 5; save_id++) {
+        const char *text_id = legacy_text_from_raw_save_id(save_id);
         int runtime_id = water_access_type_id_bridge_runtime_from_text(text_id);
-        if (g_bridge.save_to_runtime.size() <= legacy_id) {
-            g_bridge.save_to_runtime.resize(static_cast<size_t>(legacy_id) + 1, kInvalidRuntimeId);
-            g_bridge.save_to_text.resize(static_cast<size_t>(legacy_id) + 1);
+        if (g_bridge.save_to_runtime.size() <= save_id) {
+            g_bridge.save_to_runtime.resize(static_cast<size_t>(save_id) + 1, kInvalidRuntimeId);
+            g_bridge.save_to_text.resize(static_cast<size_t>(save_id) + 1);
         }
-        g_bridge.save_to_runtime[legacy_id] = runtime_id;
-        g_bridge.save_to_text[legacy_id] = text_id ? text_id : "";
+        g_bridge.save_to_runtime[save_id] = runtime_id;
+        g_bridge.save_to_text[save_id] = text_id ? text_id : "";
         if (runtime_id >= 0 && runtime_id < kMaxWaterAccessTypes) {
-            g_bridge.runtime_to_save[static_cast<uint8_t>(runtime_id)] = legacy_id;
+            g_bridge.runtime_to_save[static_cast<uint8_t>(runtime_id)] = save_id;
         }
     }
 

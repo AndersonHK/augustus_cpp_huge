@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef enum {
     AVAILABLE,
@@ -55,3 +59,7 @@ void tutorial_on_month_tick(void);
 void tutorial_save_state(buffer *buf1, buffer *buf2, buffer *buf3);
 
 void tutorial_load_state(buffer *buf1, buffer *buf2, buffer *buf3);
+
+#ifdef __cplusplus
+}
+#endif

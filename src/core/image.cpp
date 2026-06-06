@@ -2,6 +2,8 @@ extern "C" {
 #include "image.h"
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
 #include "building/image.h"
 #include "core/buffer.h"
 #include "core/file.h"
@@ -37,6 +39,17 @@ extern "C" {
 #define ENEMY_INDEX_SIZE ENTRY_SIZE * ENEMY_ENTRIES
 #define EXTERNAL_FONT_INDEX_OFFSET HEADER_SIZE
 #define EXTERNAL_FONT_INDEX_SIZE ENTRY_SIZE * EXTERNAL_FONT_ENTRIES
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static building *first_of_type(const char *text_id)
+{
+    building_type type = runtime_type(text_id);
+    return type > BUILDING_NONE ? building_first_of_type(type) : nullptr;
+}
 
 #define JAPANESE_HALF_WIDTH_CHARS 63
 
@@ -788,12 +801,15 @@ static void update_native_images(int old_climate, int new_climate)
             alt_native_hut_new_image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Central_01");
     }
 
-    for (building *b = building_first_of_type(BUILDING_NATIVE_HUT_ALT); b; b = b->next_of_type) {
+    for (building *b = first_of_type("native_hut_alt"); b; b = b->next_of_type) {
         map_image_set(b->grid_offset, alt_native_hut_new_image_id + map_image_at(b->grid_offset) - alt_native_hut_old_image_id);
     }
-    building_type native_buildings[] = { BUILDING_NATIVE_DECORATION, BUILDING_NATIVE_MONUMENT, BUILDING_NATIVE_WATCHTOWER };
-    for (int i = 0; i < sizeof(native_buildings) / sizeof(native_buildings[0]); i++) {
-        building_type type = native_buildings[i];
+    static const char *native_buildings[] = {"native_decor", "native_monument", "native_watchtower", nullptr};
+    for (int i = 0; native_buildings[i]; i++) {
+        building_type type = runtime_type(native_buildings[i]);
+        if (type <= BUILDING_NONE) {
+            continue;
+        }
         int image_id = building_image_get_for_type(type);
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             map_building_tiles_add(b->id, b->x, b->y, b->size, image_id, TERRAIN_BUILDING);

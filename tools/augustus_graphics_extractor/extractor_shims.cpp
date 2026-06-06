@@ -3,7 +3,7 @@
 #include "core/file.h"
 #include "core/log.h"
 #include "assets/assets.h"
-#include "building/type.h"
+#include "building/building_type.h"
 #include "game/mod_manager.h"
 #include "graphics/font.h"
 #include "graphics/renderer.h"
@@ -348,6 +348,12 @@ extern "C" building *building_first_of_type(building_type type)
 {
     (void) type;
     return nullptr;
+}
+
+extern "C" building_type building_type_registry_runtime_id_from_text(const char *text_id)
+{
+    (void) text_id;
+    return BUILDING_NONE;
 }
 
 extern "C" int building_image_get_for_type(building_type type)

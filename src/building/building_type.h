@@ -1,10 +1,75 @@
 #pragma once
 
+#include <stdint.h>
+
+typedef uint16_t building_type;
+
+enum {
+    BUILDING_NONE = 0,
+    BUILDING_DYNAMIC_TYPE_FIRST = 212,
+    BUILDING_TYPE_MAX = 512
+};
+
+/**
+ * House levels
+ */
+typedef enum {
+    HOUSE_MIN = 0,
+    HOUSE_SMALL_TENT = 0,
+    HOUSE_LARGE_TENT = 1,
+    HOUSE_SMALL_SHACK = 2,
+    HOUSE_LARGE_SHACK = 3,
+    HOUSE_SMALL_HOVEL = 4,
+    HOUSE_LARGE_HOVEL = 5,
+    HOUSE_SMALL_CASA = 6,
+    HOUSE_LARGE_CASA = 7,
+    HOUSE_SMALL_INSULA = 8,
+    HOUSE_MEDIUM_INSULA = 9,
+    HOUSE_LARGE_INSULA = 10,
+    HOUSE_GRAND_INSULA = 11,
+    HOUSE_SMALL_VILLA = 12,
+    HOUSE_MEDIUM_VILLA = 13,
+    HOUSE_LARGE_VILLA = 14,
+    HOUSE_GRAND_VILLA = 15,
+    HOUSE_SMALL_PALACE = 16,
+    HOUSE_MEDIUM_PALACE = 17,
+    HOUSE_LARGE_PALACE = 18,
+    HOUSE_LUXURY_PALACE = 19,
+    HOUSE_MAX = 19,
+} house_level;
+
+typedef enum {
+    HOUSE_GROUP_ALL = 0,
+    HOUSE_GROUP_TENT = 10000,
+    HOUSE_GROUP_SHACK = 20000,
+    HOUSE_GROUP_HOVEL = 30000,
+    HOUSE_GROUP_CASA = 40000,
+    HOUSE_GROUP_INSULA = 50000,
+    HOUSE_GROUP_VILLA = 60000,
+    HOUSE_GROUP_PALACE = 70000
+} house_groups;
+
+enum {
+    BUILDING_STATE_UNUSED = 0,
+    BUILDING_STATE_IN_USE = 1,
+    BUILDING_STATE_UNDO = 2,
+    BUILDING_STATE_CREATED = 3,
+    BUILDING_STATE_RUBBLE = 4,
+    BUILDING_STATE_DELETED_BY_GAME = 5, // used for earthquakes, fires, house mergers
+    BUILDING_STATE_DELETED_BY_PLAYER = 6,
+    BUILDING_STATE_MOTHBALLED = 7
+};
+
+#ifdef __cplusplus
+extern "C++" {
+
+
 #include "building/animations.h"
 #include "building/water_access_type.h"
+#include "graphics/image.h"
 
 extern "C" {
-#include "building/building.h"
+#include "city/constants.h"
 #include "core/direction.h"
 #include "figure/type.h"
 #include "game/resource.h"
@@ -21,6 +86,9 @@ namespace building_type_registry_impl {
 class ProductionMethod;
 class HousingType;
 class StorageType;
+class Distribution;
+class Religion;
+enum class ReligionTier;
 
 enum class WaterAccessNodeKind {
     None,
@@ -61,6 +129,18 @@ enum class SpawnMode {
 enum class RoadAccessMode {
     None,
     Normal
+};
+
+enum class RoadblockKind {
+    None,
+    Standard,
+    Storage,
+    Bridge
+};
+
+enum class TileKind {
+    None,
+    Plaza
 };
 
 enum class LaborSeekerMethod {
@@ -239,6 +319,7 @@ public:
     const char *icon() const;
     int has_icon_image() const;
     const char *icon_image() const;
+    ImageGroupEntryRef icon_ref() const;
     int has_text_key() const;
     const char *text_key() const;
     int has_any() const;
@@ -250,6 +331,42 @@ private:
     std::string icon_;
     std::string icon_image_;
     std::string text_key_;
+};
+
+class RoadblockDefinition {
+public:
+    void set_kind(RoadblockKind kind);
+
+    RoadblockKind kind() const;
+    int has_any() const;
+
+private:
+    RoadblockKind kind_ = RoadblockKind::None;
+};
+
+class TileDefinition {
+public:
+    void set_kind(TileKind kind);
+
+    TileKind kind() const;
+    int has_any() const;
+
+private:
+    TileKind kind_ = TileKind::None;
+};
+
+class TempleDefinition {
+public:
+    void set_religion_reference(std::string path);
+    void set_religion(const Religion *religion);
+
+    const std::string &religion_reference_path() const;
+    const Religion *religion() const;
+    int has_any() const;
+
+private:
+    std::string religion_reference_path_;
+    const Religion *religion_ = nullptr;
 };
 
 class SoundDefinition {
@@ -281,6 +398,20 @@ public:
 
 private:
     std::string attr_;
+};
+
+class MarketDefinition {
+public:
+    void set_max_distance(int value);
+    void set_max_food_stock(int value);
+
+    int max_distance() const;
+    int max_food_stock() const;
+    int has_any() const;
+
+private:
+    int max_distance_ = 0;
+    int max_food_stock_ = 0;
 };
 
 class BuildingFlagsDefinition {
@@ -425,10 +556,15 @@ public:
     void set_button_icon(std::string icon);
     void set_button_icon_image(std::string image);
     void set_button_text_key(std::string key);
+    void set_roadblock_kind(RoadblockKind kind);
+    void set_tile_kind(TileKind kind);
+    void set_temple_religion_reference(std::string path);
     void set_sound_id(int sound);
     void set_sound_mute_on_enemies(int value);
     void set_sound_always_play(int value);
     void set_event_attr(std::string attr);
+    void set_market_max_distance(int value);
+    void set_market_max_food_stock(int value);
     void set_fire_proof(int value);
     void set_draw_desirability_range(int value);
     void set_venus_gt_bonus(int value);
@@ -458,12 +594,15 @@ public:
     SpawnDelayGroup *last_spawn_group();
     void add_storage_reference(std::string path);
     void add_production_method_reference(std::string path);
+    void set_distribution_reference(std::string path);
     void set_housing_reference(std::string path);
     void set_housing_capacity(int capacity);
     void set_housing_transition(HousingTransitionKind kind, std::string text_id);
     void add_storage_type(const StorageType *storage_type);
-    void add_production_method(const ProductionMethod *production_method);
+    void add_production_method(ProductionMethod *production_method);
+    void set_distribution(const Distribution *distribution);
     void set_housing_type(const HousingType *housing_type);
+    void set_temple_religion(const Religion *religion);
     void set_housing_transition_type(HousingTransitionKind kind, building_type type);
 
     building_type type() const;
@@ -472,22 +611,55 @@ public:
     const BuildModelDefinition &model() const;
     const FoundationDefinition &foundation() const;
     const BuildButtonDefinition &button() const;
+    const RoadblockDefinition &roadblock() const;
+    const TileDefinition &tile() const;
+    const TempleDefinition &temple() const;
     const SoundDefinition &sound() const;
     const EventDataDefinition &event_data() const;
+    const MarketDefinition &market() const;
     const BuildingFlagsDefinition &flags() const;
     const WaterAccessDefinition &water_access() const;
     const GraphicsDefinition &graphics() const;
     const ConstructionDefinition &construction() const;
-    const GraphicsTarget *resolve_graphics_target(const ::building &building) const;
+    ImageGroupEntryRef button_icon_ref() const;
+    const char *button_text_key() const;
+    int required_workers() const;
+    int has_data_only_graphics() const;
+    int is_temple() const;
+    int is_temple(god_type god, ReligionTier tier) const;
+    int is_temple_for_god(god_type god) const;
+    int is_temple_tier(ReligionTier tier) const;
+    int is_ceres_temple() const;
+    int is_venus_temple() const;
+    int is_mars_temple() const;
+    int is_mercury_temple() const;
+    int is_neptune_temple() const;
+    int is_pantheon() const;
+    int is_oracle() const;
+    int is_grand_temple_mars() const;
+    int is_grand_temple_venus() const;
+    int is_warehouse() const;
+    int is_granary() const;
+    int is_mess_hall() const;
+    int is_architect_guild() const;
+    int is_caravanserai() const;
+    int is_lighthouse() const;
+    int is_watchtower() const;
+    int is_armoury() const;
+    const GraphicsTarget *resolve_graphics_target(const Building &building) const;
     const GraphicsTarget *resolve_construction_graphics_target(int phase) const;
-    static const GraphicsTarget *resolve_graphics_target_for_image(const BuildingType *definition, const ::building &building);
+    static const GraphicsTarget *resolve_graphics_target_for_image(const BuildingType *definition, const Building &building);
     int has_identity() const;
     int has_model() const;
     int has_foundation() const;
     int foundation_required_terrain() const;
     int has_button() const;
+    int has_roadblock() const;
+    int has_tile() const;
+    int has_temple() const;
     int has_sound() const;
     int has_event_data() const;
+    int has_market() const;
     int has_flags() const;
     int has_water_access_provider() const;
     int has_graphic() const;
@@ -498,17 +670,21 @@ public:
     const std::vector<SpawnDelayGroup> &spawn_groups() const;
     const std::vector<std::string> &storage_reference_paths() const;
     const std::vector<std::string> &production_method_reference_paths() const;
+    const std::string &distribution_reference_path() const;
     const std::string &housing_reference_path() const;
+    const std::string &temple_religion_reference_path() const;
     int housing_capacity() const;
     const std::string &housing_transition_reference(HousingTransitionKind kind) const;
     const std::vector<const StorageType *> &storage_types() const;
-    const std::vector<const ProductionMethod *> &production_methods() const;
+    const std::vector<ProductionMethod *> &production_methods() const;
+    const Distribution *distribution() const;
     const HousingType *housing_type() const;
     building_type housing_transition_type(HousingTransitionKind kind) const;
     int has_native_storage() const;
     int has_native_production() const;
+    int has_distribution() const;
     int has_housing() const;
-    unsigned char upgrade_level_for(const ::building &building) const;
+    unsigned char upgrade_level_for(const Building &building) const;
 
 private:
     building_type type_;
@@ -517,8 +693,12 @@ private:
     BuildModelDefinition model_;
     FoundationDefinition foundation_;
     BuildButtonDefinition button_;
+    RoadblockDefinition roadblock_;
+    TileDefinition tile_;
+    TempleDefinition temple_;
     SoundDefinition sound_;
     EventDataDefinition event_data_;
+    MarketDefinition market_;
     BuildingFlagsDefinition flags_;
     WaterAccessDefinition water_access_;
     GraphicsDefinition graphics_;
@@ -528,6 +708,7 @@ private:
     std::vector<SpawnDelayGroup> spawn_groups_;
     std::vector<std::string> storage_reference_paths_;
     std::vector<std::string> production_method_reference_paths_;
+    std::string distribution_reference_path_;
     std::string housing_reference_path_;
     int housing_capacity_ = 0;
     std::string housing_evolve_to_;
@@ -535,7 +716,8 @@ private:
     std::string housing_merge_to_;
     std::string housing_split_to_;
     std::vector<const StorageType *> storage_types_;
-    std::vector<const ProductionMethod *> production_methods_;
+    std::vector<ProductionMethod *> production_methods_;
+    const Distribution *distribution_ = nullptr;
     const HousingType *housing_type_ = nullptr;
     building_type housing_evolve_to_type_ = BUILDING_NONE;
     building_type housing_devolve_to_type_ = BUILDING_NONE;
@@ -544,3 +726,7 @@ private:
 };
 
 } // namespace building_type_registry_impl
+
+} // extern "C++"
+
+#endif

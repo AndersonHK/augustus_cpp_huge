@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 int city_sentiment(void);
 
@@ -27,3 +31,7 @@ int city_sentiment_get_blessing_festival_boost(void);
 void city_sentiment_decrement_blessing_boost(void);
 
 void city_sentiment_update(void);
+
+#ifdef __cplusplus
+}
+#endif

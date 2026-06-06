@@ -1,6 +1,10 @@
+#include <array>
+
 extern "C" {
 #include "import_xml.h"
 
+#include "building/building_type_api.h"
+#include "core/array.h"
 #include "core/encoding.h"
 #include "core/file.h"
 #include "core/lang.h"
@@ -575,16 +579,19 @@ static int xml_import_special_parse_building_counting(xml_data_attribute_t *attr
         return 0;
     }
 
-    switch (found->value) {
-        case BUILDING_CLEAR_LAND:
-        case BUILDING_REPAIR_LAND:
-        case BUILDING_CLEAR_TREES:
-        case BUILDING_DISTRIBUTION_CENTER_UNUSED:
-        case BUILDING_BURNING_RUIN:
+    static const char *const not_countable[] = {
+        "clear_land",
+        "repair_land",
+        "clear_trees",
+        "distribution_center_unused",
+        "burning_ruin",
+    };
+    for (int i = 0; i < (int) (sizeof(not_countable) / sizeof(not_countable[0])); i++) {
+        building_type type = building_type_registry_runtime_id_from_text(not_countable[i]);
+        if (type != BUILDING_NONE && found->value == type) {
             xml_import_log_error("I cannot count that.");
             return 0;
-        default:
-            break;
+        }
     }
 
     *target = found->value;
@@ -634,7 +641,7 @@ static int xml_import_special_parse_resource(xml_data_attribute_t *attr, int *ta
     }
 
     const char *value = xml_parser_get_attribute_string(attr->name);
-    for (int i = RESOURCE_MIN; i < RESOURCE_MAX; i++) {
+    for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT; i++) {
         resource_type type = static_cast<resource_type>(i);
         const char *resource_name = resource_get_data(type)->xml_attr_name;
         if (xml_parser_compare_multiple(resource_name, value)) {

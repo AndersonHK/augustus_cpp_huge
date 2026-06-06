@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "figure/figure.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 enum {
     MAP_FLAG_EARTHQUAKE = 1,
@@ -22,3 +26,7 @@ enum {
 void figure_create_editor_flags(void);
 
 void figure_editor_flag_action(figure *f);
+
+#ifdef __cplusplus
+}
+#endif

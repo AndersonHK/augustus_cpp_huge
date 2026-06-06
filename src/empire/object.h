@@ -5,6 +5,10 @@
 #include "empire/type.h"
 #include "game/resource.h"
 #include "map/point.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef struct {
     unsigned int id;
@@ -37,8 +41,8 @@ typedef struct {
     uint8_t city_custom_name[50];
     int trade_route_open;
     unsigned int trade_route_cost;
-    int city_sells_resource[RESOURCE_MAX];
-    int city_buys_resource[RESOURCE_MAX];
+    int city_sells_resource[RESOURCE_SLOT_COUNT];
+    int city_buys_resource[RESOURCE_SLOT_COUNT];
     empire_object obj;
     empire_city_icon_type empire_city_icon;
 } full_empire_object;
@@ -161,3 +165,7 @@ int empire_object_is_sea_trade_route(int route_id);
 void empire_object_set_trade_route_coords(const empire_object *our_city);
 
 empire_city_icon_type empire_object_get_random_icon_for_empire_object(full_empire_object *full_obj);
+
+#ifdef __cplusplus
+}
+#endif

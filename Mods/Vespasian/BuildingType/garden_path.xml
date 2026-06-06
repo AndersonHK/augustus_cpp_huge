@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="garden_path">
+    <identity name_key="building.garden_path.name" />
+    <model size="1" cost="12" />
+    <desirability>
+        <value value="3" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="paths" order="90" text_key="building.garden_path.name" />
+    <event_data attr="garden_path" />
+    <flags fire_proof="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\Garden_Path_01" />
+            <image value="Garden Path 01" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

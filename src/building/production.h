@@ -1,26 +1,20 @@
 #pragma once
 
+#include "building/building_fwd.h"
 #include "building/production_method.h"
-
-extern "C" {
-#include "building/building.h"
-}
 
 #include <cstddef>
 
+namespace building_type_registry_impl {
+class BuildingType;
+}
+
 class Production {
 public:
-    Production(::building *building, const building_type_registry_impl::ProductionMethod *method, size_t method_index)
-        : building_(building)
-        , method_(method)
-        , method_index_(method_index)
-    {
-    }
+    Production(const Building &building, const building_type_registry_impl::ProductionMethod *method, size_t method_index);
 
-    ::building *building() const
-    {
-        return building_;
-    }
+    Building building() const;
+    unsigned int building_id() const;
 
     const building_type_registry_impl::ProductionMethod *method() const
     {
@@ -49,7 +43,8 @@ private:
     int pending_production_for_stats() const;
     void refresh_images() const;
 
-    ::building *building_ = nullptr;
+    ::building *record_ = nullptr;
+    const building_type_registry_impl::BuildingType *definition_ = nullptr;
     const building_type_registry_impl::ProductionMethod *method_ = nullptr;
     size_t method_index_ = 0;
 };

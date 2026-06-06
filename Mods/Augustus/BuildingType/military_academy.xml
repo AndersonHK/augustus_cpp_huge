@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="military_academy">
+    <identity name_key="building.military_academy.name" />
+    <model size="3" cost="1000" />
+    <desirability>
+        <value value="-3" />
+        <step value="1" />
+        <step_size value="1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="security" order="60" text_key="building.military_academy.name" />
+    <event_data attr="military_academy" />
+    <flags draw_desirability_range="1" />
+    <labor>
+        <employees count="20" />
+    </labor>
+</building>

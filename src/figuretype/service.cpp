@@ -1,10 +1,13 @@
 #include "service.h"
 
+#include "building/building.h"
+#include "building/market.h"
+
 extern "C" {
 #include "assets/assets.h"
-#include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
 #include "building/house.h"
-#include "building/market.h"
 #include "city/buildings.h"
 #include "city/health.h"
 #include "core/calc.h"
@@ -19,6 +22,33 @@ extern "C" {
 }
 
 static const int DOCTOR_HEALING_OFFSETS[] = { 0, 1, 2, 3, 4, 5, 4, 3, 2, 1};
+
+static building_type runtime_type(const char *text_id)
+{
+    if (!text_id) {
+        return BUILDING_NONE;
+    }
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
+static int first_plague_building_of_type(const char *text_id)
+{
+    building_type type = runtime_type(text_id);
+    if (type <= BUILDING_NONE) {
+        return 0;
+    }
+    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
+        if (b->has_plague) {
+            return b->id;
+        }
+    }
+    return 0;
+}
 
 static void roamer_action(figure *f, int num_ticks)
 {
@@ -185,7 +215,7 @@ void figure_school_child_action(figure *f)
     f->max_roam_length = 192;
 
     building *b = building_get(f->building_id);
-    if (b->state != BUILDING_STATE_IN_USE || b->type != BUILDING_SCHOOL) {
+    if (b->state != BUILDING_STATE_IN_USE || !type_matches(b->type, "school")) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -256,7 +286,7 @@ static int fight_plague(figure *f, int force)
     // Find in houses
     for (int i = 1; i < building_count(); i++) {
         building *house = building_get(i);
-        if (building_house_is_active(house) && house->has_plague) {
+        if (building_house_is_active(Building(house)) && house->has_plague) {
             building_with_plague_id = house->id;
             break;
         }
@@ -264,31 +294,16 @@ static int fight_plague(figure *f, int force)
 
     // If no houses, find in docks
     if (!building_with_plague_id) {
-        for (building *dock = building_first_of_type(BUILDING_DOCK); dock; dock = dock->next_of_type) {
-            if (dock->has_plague) {
-                building_with_plague_id = dock->id;
-                break;
-            }
-        }
+        building_with_plague_id = first_plague_building_of_type("dock");
     }
 
     // If no docks, find in warehouses
     if (!building_with_plague_id) {
-        for (building *warehouse = building_first_of_type(BUILDING_WAREHOUSE); warehouse; warehouse = warehouse->next_of_type) {
-            if (warehouse->has_plague) {
-                building_with_plague_id = warehouse->id;
-                break;
-            }
-        }
+        building_with_plague_id = first_plague_building_of_type("warehouse");
 
         // If no warehouse, find in granaries
         if (!building_with_plague_id) {
-            for (building *granary = building_first_of_type(BUILDING_GRANARY); granary; granary = granary->next_of_type) {
-                if (granary->has_plague) {
-                    building_with_plague_id = granary->id;
-                    break;
-                }
-            }
+            building_with_plague_id = first_plague_building_of_type("granary");
         }
     }
 

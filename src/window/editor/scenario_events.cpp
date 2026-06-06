@@ -1,6 +1,11 @@
+#include <array>
+
+#include "graphics/image.h"
+
 extern "C" {
 #include "scenario_events.h"
 
+#include "core/array.h"
 #include "core/string.h"
 #include "editor/editor.h"
 #include "graphics/ui_runtime_api.h"
@@ -25,7 +30,6 @@ extern "C" {
 #include "window/file_dialog.h"
 #include "window/numeric_input.h"
 }
-#include "graphics/image.h"
 
 #define EVENTS_Y_OFFSET 100
 #define EVENTS_ROW_HEIGHT 31

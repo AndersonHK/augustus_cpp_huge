@@ -28,7 +28,10 @@ extern "C" {
 #include "widget/sidebar/city.h"
 #include "window/city.h"
 }
+#include "building/building_type_registry_internal.h"
+#include <building/industry.h>
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 #include <cstddef>
 #include <vector>
@@ -51,6 +54,16 @@ extern "C" {
 
 static uint8_t tooltip_text[TOOLTIP_TEXT_LENGTH];
 
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
 class BuildMenuButton {
 public:
     void bind(build_menu_group submenu, int item_index, unsigned int display_index, generic_button &button_widget);
@@ -59,7 +72,7 @@ public:
     building_type type() const;
     int shortcut_index() const;
     const uint8_t *display_name() const;
-    int menu_icon() const;
+    const ImageGroupEntryRef &menu_icon() const;
     int cost() const;
     int has_rotation_icon() const;
     int has_monument_icon() const;
@@ -69,19 +82,21 @@ public:
 
 private:
     building_type cost_type() const;
+    const building_type_registry_impl::BuildingType *definition() const;
 
     build_menu_group submenu = SUBMENU_NONE;
     int menu_item_index = -1;
     unsigned int display_index = 0;
     building_type building = BUILDING_NONE;
-    int menu_icon_id = -1;
+    const building_type_registry_impl::BuildingType *type_definition = nullptr;
+    ImageGroupEntryRef menu_icon_ref;
 };
 
 static void button_menu_button_clicked(const generic_button *button);
 static void rebuild_visible_menu_buttons(void);
 static void request_visible_menu_button_rebuild(void);
 static const BuildMenuButton *focused_menu_button(void);
-static int produced_resource_icon(building_type type);
+static ImageGroupEntryRef produced_resource_icon(building_type type);
 
 static std::vector<generic_button> build_menu_button_widgets;
 static std::vector<BuildMenuButton> build_menu_buttons;
@@ -118,9 +133,10 @@ void BuildMenuButton::bind(build_menu_group button_submenu, int item_index, unsi
     menu_item_index = item_index;
     display_index = button_display_index;
     building = building_menu_type(submenu, menu_item_index);
-    menu_icon_id = building_type_registry_get_button_icon_image_id(building);
-    if (!menu_icon_id) {
-        menu_icon_id = produced_resource_icon(building);
+    type_definition = building_type_registry_impl::definition_for_type(cost_type());
+    menu_icon_ref = definition() ? definition()->button_icon_ref() : ImageGroupEntryRef();
+    if (!menu_icon_ref.is_bound()) {
+        menu_icon_ref = produced_resource_icon(building);
     }
 
     button_widget.reset();
@@ -136,7 +152,8 @@ void BuildMenuButton::clear()
     menu_item_index = -1;
     display_index = 0;
     building = BUILDING_NONE;
-    menu_icon_id = -1;
+    type_definition = nullptr;
+    menu_icon_ref = ImageGroupEntryRef();
 }
 
 int BuildMenuButton::is_bound() const
@@ -277,59 +294,44 @@ static int get_sidebar_x_offset(void)
 
 static int is_auto_cycle_button(build_menu_group submenu, building_type type)
 {
-    return (type == BUILDING_MENU_SMALL_TEMPLES && submenu == BUILD_MENU_SMALL_TEMPLES) ||
-        (type == BUILDING_MENU_LARGE_TEMPLES && submenu == BUILD_MENU_LARGE_TEMPLES) ||
-        (type == BUILDING_MENU_SHRINES && submenu == BUILD_MENU_SHRINES) ||
-        (type == BUILDING_MENU_TREES && submenu == BUILD_MENU_TREES) ||
-        (type == BUILDING_MENU_PATHS && submenu == BUILD_MENU_PATHS) ||
-        (type == BUILDING_MENU_GARDENS && submenu == BUILD_MENU_GARDENS);
+    return (type_matches(type, "small_temples") && submenu == BUILD_MENU_SMALL_TEMPLES) ||
+        (type_matches(type, "large_temples") && submenu == BUILD_MENU_LARGE_TEMPLES) ||
+        (type_matches(type, "shrines") && submenu == BUILD_MENU_SHRINES) ||
+        (type_matches(type, "trees") && submenu == BUILD_MENU_TREES) ||
+        (type_matches(type, "paths") && submenu == BUILD_MENU_PATHS) ||
+        (type_matches(type, "all_gardens") && submenu == BUILD_MENU_GARDENS);
 }
 
-static int produced_resource_icon(building_type type)
+static ImageGroupEntryRef produced_resource_icon(building_type type)
 {
-    resource_type r = resource_get_from_industry(type);
+    resource_type r = building_output_resource(type);
     if (r != RESOURCE_NONE) {
-        return resource_get_data(r)->image.icon;
+        return resource_graphics(r).panel_icon();
     }
-    return -1;
+    return ImageGroupEntryRef();
 }
 
-static void draw_resource_icon_scaled(int image_id, int x, int y, int max_size)
+static void draw_resource_icon_scaled(const ImageGroupEntryRef &image, int x, int y, int max_size)
 {
-    const image *img = image_get(image_id);
-    if (!img) {
+    if (!image.is_bound()) {
         return;
     }
-    int scale_percent;
-    if (img->height < 20) {
-        scale_percent = 100;
-    } else {
-        scale_percent = (20 * 100) / img->height;
-    }
-    switch (image_id) {
-        case 1192://meat
-            y = y + 4;
-            break;
-        case 1195://iron
-            y = y + 2;
-            break;
-        case 11658://gold
-            y = y + 3;
-            break;
-        case 1203://fish
-            y = y + 4;
-            break;
-    }
-
-    Image::from_id(image_id).draw_scaled_centered(x, y, COLOR_MASK_NONE, scale_percent);
+    const int image_height = image.height();
+    const int scale_percent = image_height < max_size ? 100 : (max_size * 100) / image_height;
+    image.draw_scaled_centered(x, y, COLOR_MASK_NONE, scale_percent);
 }
 
 building_type BuildMenuButton::cost_type() const
 {
-    if (building == BUILDING_DRAGGABLE_RESERVOIR) {
-        return BUILDING_RESERVOIR;
+    if (type_matches(building, "draggable_reservoir")) {
+        return runtime_type("reservoir");
     }
     return building;
+}
+
+const building_type_registry_impl::BuildingType *BuildMenuButton::definition() const
+{
+    return type_definition;
 }
 
 const uint8_t *BuildMenuButton::display_name() const
@@ -337,7 +339,7 @@ const uint8_t *BuildMenuButton::display_name() const
     if (is_auto_cycle()) {
         return translation_for(TR_AUTO_CYCLE_TEMPLES);
     }
-    const char *text_key = building_type_registry_get_button_text_key(building);
+    const char *text_key = definition() ? definition()->button_text_key() : nullptr;
     if (text_key && *text_key) {
         const uint8_t *display_name = lang_get_string_by_key(text_key);
         if (display_name) {
@@ -347,9 +349,9 @@ const uint8_t *BuildMenuButton::display_name() const
     return lang_get_string(28, building);
 }
 
-int BuildMenuButton::menu_icon() const
+const ImageGroupEntryRef &BuildMenuButton::menu_icon() const
 {
-    return menu_icon_id;
+    return menu_icon_ref;
 }
 
 int BuildMenuButton::cost() const
@@ -399,8 +401,8 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
     }
 
     int text_offset = MENU_TEXT_X_OFFSET;
-    int icon = menu_icon();
-    if (icon >= 0 && config_get(CONFIG_UI_CV_BUILD_MENU_ICONS)) {
+    const ImageGroupEntryRef &icon = menu_icon();
+    if (icon.is_bound() && config_get(CONFIG_UI_CV_BUILD_MENU_ICONS)) {
         draw_resource_icon_scaled(icon, item_x_align + MENU_TEXT_X_OFFSET + 2 +
             (has_monument_icon() + has_rotation_icon()) * MENU_ICON_WIDTH,
             item_y + 2, MENU_RESOURCE_ICON_SIZE);
@@ -423,19 +425,19 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else {
         int image_id = assets_get_image_id("UI", "Expand Menu Icon");
-        Image::from_id(image_id).draw(item_x_align + MENU_ICON_X_OFFSET + 268, item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(item_x_align + MENU_ICON_X_OFFSET + 268, item_y + MENU_ICON_Y_OFFSET);
     }
 
     int icons_drawn = 0;
     if (has_rotation_icon()) {
         int image_id = assets_get_image_id("UI", "Rotate Build Icon");
-        Image::from_id(image_id).draw(item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET);
         icons_drawn++;
     }
 
     if (has_monument_icon()) {
         int image_id = assets_get_image_id("UI", "Monument Build Icon");
-        Image::from_id(image_id).draw(item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET);
     }
 }
 
@@ -573,7 +575,7 @@ static void generate_tooltip_text_for_monument(building_type monument)
 
     int has_listed_resource = 0;
 
-    for (int i = RESOURCE_MIN; i < RESOURCE_MAX; ++i) {
+    for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT; ++i) {
         resource_type r = static_cast<resource_type>(i);
         int amount = 0;
         for (int phase = 1; phase <= phases; phase++) {

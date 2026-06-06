@@ -1,6 +1,6 @@
 #include "hotkey.h"
 
-#include "building/type.h"
+#include "building/building_type_api.h"
 #include "city/constants.h"
 #include "empire/editor.h"
 #include "game/settings.h"
@@ -54,6 +54,17 @@ static struct {
     key_modifier_type modifiers;
     build_menu_hotkeys build_menu_hotkeys;
 } data;
+
+static void set_building_action(hotkey_definition *def, building_type type)
+{
+    def->action = &data.hotkey_state.building;
+    def->value = type;
+}
+
+static void set_building_action_from_text(hotkey_definition *def, const char *text_id)
+{
+    set_building_action(def, building_type_registry_runtime_id_from_text(text_id));
+}
 
 static void set_definition_for_action(hotkey_action action, hotkey_definition *def)
 {
@@ -242,84 +253,64 @@ static void set_definition_for_action(hotkey_action action, hotkey_definition *d
             def->action = &data.global_hotkey_state.save_minimap_screenshot;
             break;
         case HOTKEY_BUILD_VACANT_HOUSE:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_HOUSE_VACANT_LOT;
+            set_building_action(def, building_type_registry_get_vacant_lot_fill_type());
             break;
         case HOTKEY_BUILD_CLEAR_LAND:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_CLEAR_LAND;
+            set_building_action_from_text(def, "clear_land");
             break;
         case HOTKEY_BUILD_REPAIR_LAND:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_REPAIR_LAND;
+            set_building_action_from_text(def, "repair_land");
             break;
         case HOTKEY_BUILD_ROAD:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_ROAD;
+            set_building_action_from_text(def, "road");
             break;
         case HOTKEY_BUILD_ENGINEERS_POST:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_ENGINEERS_POST;
+            set_building_action_from_text(def, "engineers_post");
             break;
         case HOTKEY_BUILD_WALL:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_WALL;
+            set_building_action_from_text(def, "wall");
             break;
         case HOTKEY_BUILD_GATEHOUSE:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_GATEHOUSE;
+            set_building_action_from_text(def, "gatehouse");
             break;
         case HOTKEY_BUILD_PREFECTURE:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_PREFECTURE;
+            set_building_action_from_text(def, "prefecture");
             break;
         case HOTKEY_BUILD_GRANARY:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_GRANARY;
+            set_building_action_from_text(def, "granary");
             break;
         case HOTKEY_BUILD_WAREHOUSE:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_WAREHOUSE;
+            set_building_action_from_text(def, "warehouse");
             break;
         case HOTKEY_BUILD_MARKET:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_MARKET;
+            set_building_action_from_text(def, "market");
             break;
         case HOTKEY_BUILD_PLAZA:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_PLAZA;
+            set_building_action_from_text(def, "plaza");
             break;
         case HOTKEY_BUILD_GARDENS:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_GARDENS;
+            set_building_action_from_text(def, "gardens");
             break;
         case HOTKEY_BUILD_OVERGROWN_GARDENS:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_OVERGROWN_GARDENS;
+            set_building_action_from_text(def, "overgrown_gardens");
             break;
         case HOTKEY_BUILD_RESERVOIR:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_DRAGGABLE_RESERVOIR;
+            set_building_action_from_text(def, "draggable_reservoir");
             break;
         case HOTKEY_BUILD_AQUEDUCT:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_AQUEDUCT;
+            set_building_action_from_text(def, "aqueduct");
             break;
         case HOTKEY_BUILD_FOUNTAIN:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_FOUNTAIN;
+            set_building_action_from_text(def, "fountain");
             break;
         case HOTKEY_BUILD_DOCTOR:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_DOCTOR;
+            set_building_action_from_text(def, "doctor");
             break;
         case HOTKEY_BUILD_BARBER:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_BARBER;
+            set_building_action_from_text(def, "barber");
             break;
         case HOTKEY_BUILD_ROADBLOCK:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_ROADBLOCK;
+            set_building_action_from_text(def, "roadblock");
             break;
         case HOTKEY_BUILD_CLONE:
             def->action = &data.hotkey_state.clone_building;
@@ -431,8 +422,7 @@ static void set_definition_for_action(hotkey_action action, hotkey_definition *d
             def->action = &data.hotkey_state.rotate_map_north;
             break;
         case HOTKEY_BUILD_WHEAT_FARM:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_WHEAT_FARM;
+            set_building_action_from_text(def, "wheat_farm");
             break;
         case HOTKEY_SHOW_EMPIRE_MAP:
             def->action = &data.hotkey_state.show_empire_map;
@@ -445,8 +435,7 @@ static void set_definition_for_action(hotkey_action action, hotkey_definition *d
             def->value = OVERLAY_NATIVE;
             break;
         case HOTKEY_BUILD_HIGHWAY:
-            def->action = &data.hotkey_state.building;
-            def->value = BUILDING_HIGHWAY;
+            set_building_action_from_text(def, "highway");
             break;
         case HOTKEY_SHOW_OVERLAY_ENEMY:
             def->action = &data.hotkey_state.show_overlay;

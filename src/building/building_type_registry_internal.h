@@ -24,8 +24,12 @@ struct ParseState {
     int saw_model = 0;
     int saw_foundation = 0;
     int saw_button = 0;
+    int saw_roadblock = 0;
+    int saw_tile = 0;
+    int saw_temple = 0;
     int saw_sound = 0;
     int saw_event_data = 0;
+    int saw_market = 0;
     int saw_flags = 0;
     int saw_desirability = 0;
     int saw_desirability_value = 0;
@@ -42,10 +46,12 @@ struct ParseState {
     int saw_labor_seeker_amount = 0;
     int saw_storages = 0;
     int saw_production_methods = 0;
+    int saw_distribution = 0;
     int saw_housing = 0;
     int saw_provider_water_access = 0;
     int saw_water_access_rule = 0;
     int saw_current_water_access_requirement_term = 0;
+    int parsing_tile = 0;
     int parsing_provider_water_access = 0;
     int parsing_water_access_requirement = 0;
     int parsing_desirability = 0;
@@ -76,7 +82,6 @@ int directory_exists(const char *path);
 const BuildingType *definition_for_type(building_type type);
 building_type runtime_id_from_text(const char *text_id);
 void refresh_building_type_path();
-void refresh_known_building_type_ids();
 void clear_xml_runtime_property_fields();
 
 }

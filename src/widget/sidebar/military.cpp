@@ -2,6 +2,7 @@ extern "C" {
 #include "military.h"
 
 #include "assets/assets.h"
+#include "building/building_type_api.h"
 #include "building/count.h"
 #include "city/view.h"
 #include "core/calc.h"
@@ -39,6 +40,11 @@ extern "C" {
 #define MILITARY_PANEL_BLOCKS 18
 #define CONTENT_PADDING 10
 #define CONTENT_WIDTH (SIDEBAR_EXPANDED_WIDTH - 2 * CONTENT_PADDING)
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
 
 static const int IMAGE_OFFSETS_TO_FORMATION[7] = {
     FORMATION_COLUMN,
@@ -294,7 +300,7 @@ static void draw_military_info_text(int x_offset, int y_offset)
     const image *formation_image = image_get(formation_image_id);
 
     // Legion name
-    Image::from_id(formation_image_id).draw(x_offset + (CONTENT_WIDTH - formation_image->width - formation_image->x_offset) / 2, y_offset + 12, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_image_id).draw(x_offset + (CONTENT_WIDTH - formation_image->width - formation_image->x_offset) / 2, y_offset + 12);
 
     lang_text_draw_centered(m->legion_name_group, m->legion_name_id, x_offset, y_offset + 40, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
@@ -317,7 +323,7 @@ static void draw_military_info_text(int x_offset, int y_offset)
         if (m->cursed_by_mars) {
             group_id = 89;
             text_id = 1;
-        } else if (building_count_active(BUILDING_BARRACKS)) {
+        } else if (building_count_active(runtime_type("barracks"))) {
             group_id = 138;
             text_id = 10;
         } else {
@@ -354,15 +360,15 @@ static void draw_military_info_buttons(int x_offset, int y_offset)
 
     // Go to legion button
     const generic_button *btn = buttons_bottom;
-    Image::from_id(formation_options_image).draw(x_offset + btn->x + 3, y_offset + 260, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_options_image).draw(x_offset + btn->x + 3, y_offset + 260);
 
     // Return to fort button
     ++btn;
-    Image::from_id(formation_options_image + 1 + m->is_at_fort).draw(x_offset + btn->x + 3, y_offset + 260, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_options_image + 1 + m->is_at_fort).draw(x_offset + btn->x + 3, y_offset + 260);
 
     // Empire service button
     ++btn;
-    Image::from_id(formation_options_image + 4 - m->empire_service).draw(x_offset + btn->x + 3, y_offset + 260, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_options_image + 4 - m->empire_service).draw(x_offset + btn->x + 3, y_offset + 260);
 }
 
 static void draw_military_panel_background(int x_offset)
@@ -398,7 +404,7 @@ static void draw_legion_buttons(int x_offset, int y_offset)
 
 static void draw_background(int x_offset)
 {
-    Image::from_id(Image::group(GROUP_SIDE_PANEL) + 1).draw(x_offset, 24, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_SIDE_PANEL) + 1).draw(x_offset, 24);
     image_buttons_draw(x_offset, 24, buttons_title_close, 2);
     lang_text_draw_centered(61, 5, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     widget_minimap_update(0);

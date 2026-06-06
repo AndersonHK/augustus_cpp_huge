@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="obelisk">
+    <identity name_key="building.obelisk.name" />
+    <model size="2" cost="60" />
+    <desirability>
+        <value value="10" />
+        <step value="1" />
+        <step_size value="-2" />
+        <range value="4" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="statues" order="70" text_key="building.obelisk.name" />
+    <event_data attr="obelisk" />
+    <flags fire_proof="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\obelisk" />
+            <image value="obelisk" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

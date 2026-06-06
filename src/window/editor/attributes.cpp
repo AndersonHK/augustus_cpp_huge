@@ -121,7 +121,7 @@ static void draw_background(void)
 
     button_border_draw(18, 278, 184, 144, 0);
     int group_id = editor_is_active() ? Image::group(GROUP_EDITOR_SCENARIO_IMAGE) : Image::group(GROUP_SCENARIO_IMAGE);
-    Image::from_id(group_id + scenario_image_id()).draw(20, 280, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(group_id + scenario_image_id()).draw(20, 280);
 
     graphics_reset_dialog();
 }

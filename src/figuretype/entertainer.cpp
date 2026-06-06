@@ -2,6 +2,8 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
 #include "building/list.h"
 #include "building/monument.h"
 #include "city/festival.h"
@@ -23,6 +25,19 @@ extern "C" {
 
 #define INFINITE 10000
 #define DEFAULT_SHOW_DURATION_DAYS 32
+
+static building_type runtime_type(const char *text_id)
+{
+    if (!text_id) {
+        return BUILDING_NONE;
+    }
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
 
 extern "C" void figure_spawn_tourist(void)
 {
@@ -55,7 +70,7 @@ static int determine_tourist_destination(int x, int y)
         }
         if (b->is_tourism_venue && !b->tourism_disabled && b->distance_from_entry
             && b->road_network_id == road_network) {
-            if (b->type == BUILDING_HIPPODROME && b->prev_part_building_id) {
+            if (type_matches(b->type, "hippodrome") && b->prev_part_building_id) {
                 continue;
             }
             building_list_large_add(i);
@@ -76,46 +91,52 @@ static int determine_tourist_destination(int x, int y)
 
 static int is_venue(building *b)
 {
-    if (b->type == BUILDING_THEATER) {
+    if (building_type_registry_is_theater(b->type)) {
         return 1;
     }
-    switch (b->type) {
-        case BUILDING_AMPHITHEATER:
-        case BUILDING_ARENA:
-            return 1;
-        case BUILDING_COLOSSEUM:
-        case BUILDING_HIPPODROME:
-            return b->monument.phase == MONUMENT_FINISHED;
-        default:
-            return 0;
+    if (type_matches(b->type, "amphitheater") || type_matches(b->type, "arena")) {
+        return 1;
     }
+    if (type_matches(b->type, "colosseum") || type_matches(b->type, "hippodrome")) {
+        return b->monument.phase == MONUMENT_FINISHED;
+    }
+    return 0;
 }
 
 static building *determine_destination(figure *f)
 {
     int road_network = map_road_network_get(map_grid_offset(f->x, f->y));
 
-    const building_type destinations_per_entertainer_type[4][3] =
-    {
-        { BUILDING_THEATER, BUILDING_AMPHITHEATER },
-        { BUILDING_AMPHITHEATER, BUILDING_COLOSSEUM, BUILDING_ARENA },
-        { BUILDING_COLOSSEUM, BUILDING_ARENA },
-        { BUILDING_HIPPODROME }
+    building_type amphitheater = runtime_type("amphitheater");
+    building_type arena = runtime_type("arena");
+    building_type colosseum = runtime_type("colosseum");
+    building_type hippodrome = runtime_type("hippodrome");
+    const building_type actor_destinations[3] = {
+        building_type_registry_theater_type(), amphitheater, BUILDING_NONE
+    };
+    const building_type gladiator_destinations[3] = {
+        amphitheater, colosseum, arena
+    };
+    const building_type lion_tamer_destinations[3] = {
+        colosseum, arena, BUILDING_NONE
+    };
+    const building_type charioteer_destinations[3] = {
+        hippodrome, BUILDING_NONE, BUILDING_NONE
     };
 
     const building_type *destinations;
     switch (f->type) {
         case FIGURE_ACTOR:
-            destinations = destinations_per_entertainer_type[0];
+            destinations = actor_destinations;
             break;
         case FIGURE_GLADIATOR:
-            destinations = destinations_per_entertainer_type[1];
+            destinations = gladiator_destinations;
             break;
         case FIGURE_LION_TAMER:
-            destinations = destinations_per_entertainer_type[2];
+            destinations = lion_tamer_destinations;
             break;
         case FIGURE_CHARIOTEER:
-            destinations = destinations_per_entertainer_type[3];
+            destinations = charioteer_destinations;
             break;
         default:
             return 0;
@@ -126,19 +147,22 @@ static building *determine_destination(figure *f)
 
     for (int i = 0; i < 3; i++) {
         building_type type = destinations[i];
-        int use_secondary_entertainment = (f->type == FIGURE_ACTOR && type == BUILDING_AMPHITHEATER) ||
-            (f->type == FIGURE_GLADIATOR && (type == BUILDING_ARENA || type == BUILDING_COLOSSEUM));
+        if (type <= BUILDING_NONE) {
+            continue;
+        }
+        int use_secondary_entertainment = (f->type == FIGURE_ACTOR && type == amphitheater) ||
+            (f->type == FIGURE_GLADIATOR && (type == arena || type == colosseum));
         for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
             if (b->state != BUILDING_STATE_IN_USE) {
                 continue;
             }
-            if ((type == BUILDING_HIPPODROME || type == BUILDING_COLOSSEUM) && b->monument.phase != MONUMENT_FINISHED) {
+            if ((type == hippodrome || type == colosseum) && b->monument.phase != MONUMENT_FINISHED) {
                 continue;
             }
             if (!b->distance_from_entry || b->road_network_id != road_network) {
                 continue;
             }
-            if (type == BUILDING_HIPPODROME && b->prev_part_building_id) {
+            if (type == hippodrome && b->prev_part_building_id) {
                 continue;
             }
 
@@ -165,14 +189,14 @@ static void update_shows(figure *f)
             if (b->data.entertainment.play >= 5) {
                 b->data.entertainment.play = 0;
             }
-            if (b->type == BUILDING_THEATER) {
+            if (building_type_registry_is_theater(b->type)) {
                 b->data.entertainment.days1 = DEFAULT_SHOW_DURATION_DAYS;
             } else {
                 b->data.entertainment.days2 = DEFAULT_SHOW_DURATION_DAYS;
             }
             break;
         case FIGURE_GLADIATOR:
-            if (b->type == BUILDING_AMPHITHEATER) {
+            if (type_matches(b->type, "amphitheater")) {
                 b->data.entertainment.days1 = DEFAULT_SHOW_DURATION_DAYS;
             } else {
                 b->data.entertainment.days2 = DEFAULT_SHOW_DURATION_DAYS;

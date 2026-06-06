@@ -1,3 +1,6 @@
+#include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
 #include "destruction.h"
 
 extern "C" {
@@ -25,6 +28,33 @@ extern "C" {
 
 #include <string.h>
 
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
+static building_type burning_ruin_type()
+{
+    return runtime_type("burning_ruin");
+}
+
+static int is_bridge_type(building_type type)
+{
+    return type_matches(type, "low_bridge") || type_matches(type, "ship_bridge");
+}
+
+static int is_waterside_building_type(building_type type)
+{
+    return type_matches(type, "dock") ||
+        type_matches(type, "wharf") ||
+        type_matches(type, "shipyard");
+}
+
 enum {
     DESTROY_COLLAPSE = 0,
     DESTROY_FIRE = 1,
@@ -40,7 +70,7 @@ static void destroy_without_rubble(building *b)
     if (b->house_size && b->house_population) {
         city_population_remove_home_removed(b->house_population);
     }
-    if (b->type == BUILDING_LOW_BRIDGE || b->type == BUILDING_SHIP_BRIDGE) {
+    if (is_bridge_type(b->type)) {
         map_bridge_remove(b->grid_offset, 0);
     }
     building_clear_related_data(b);
@@ -78,7 +108,7 @@ static void destroy_on_fire(building *b, int plagued)
     }
 
     int waterside_building = 0;
-    if (b->type == BUILDING_DOCK || b->type == BUILDING_WHARF || b->type == BUILDING_SHIPYARD) {
+    if (is_waterside_building_type(b->type)) {
         waterside_building = 1;
     }
     int num_tiles;
@@ -91,7 +121,7 @@ static void destroy_on_fire(building *b, int plagued)
     if (map_terrain_is(b->grid_offset, TERRAIN_WATER)) {
         b->state = BUILDING_STATE_RUBBLE;
     } else {
-        building_change_type(b, BUILDING_BURNING_RUIN);
+        building_change_type(b, burning_ruin_type());
     }
     b->figure_id4 = 0;
     b->tax_income_or_storage = 0;
@@ -123,7 +153,7 @@ static void destroy_on_fire(building *b, int plagued)
         if (map_terrain_is(map_grid_offset(x, y), TERRAIN_WATER)) {
             continue;
         }
-        building *ruin = building_create(BUILDING_BURNING_RUIN, x, y);
+        building *ruin = building_create(burning_ruin_type(), x, y);
         map_building_tiles_add(ruin->id, ruin->x, ruin->y, 1, building_image_get(ruin), TERRAIN_BUILDING);
         ruin->fire_duration = (ruin->house_figure_generation_delay & 7) + 1;
         ruin->figure_id4 = 0;
@@ -207,7 +237,7 @@ void building_destroy_by_collapse(building *b)
 {
     building_local_workforce_remove_building(b);
     b->state = BUILDING_STATE_RUBBLE;
-    if (b->type == BUILDING_TOWER) {
+    if (type_matches(b->type, "tower")) {
         figure_kill_tower_sentries_in_building(b);
     }
     set_rubble_grid_info_for_all_parts(b);
@@ -304,7 +334,7 @@ static void set_rubble_grid_info_for_all_parts(building *b)
         building *next_part = building_next(part);
         part->data.rubble.og_type = b->type;
         part->data.rubble.og_grid_offset = b->grid_offset;
-        part->data.rubble.og_size = b->type == BUILDING_WAREHOUSE ? 3 : b->size;
+        part->data.rubble.og_size = type_matches(b->type, "warehouse") ? 3 : b->size;
         part->data.rubble.og_orientation = (unsigned char) b->subtype.orientation;
         part = next_part;
     }

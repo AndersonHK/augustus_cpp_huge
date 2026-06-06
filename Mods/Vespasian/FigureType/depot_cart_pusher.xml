@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="depot_cart_pusher">
+    <profiles default="order_runner">
+        <profile id="order_runner">
+            <native class="depot_cart_pusher" />
+            <owner slot="none" building="cart_depot" state="in_use" />
+            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="800" return_mode="none" />
+            <pathing mode="depot_order_route" />
+        </profile>
+    </profiles>
+    <graphics image_asset="ox" base_image_offset="9" direction_stride="12"
+        max_image_offset="12" corpse_image_asset="ox" corpse_base_image_offset="1"
+        cart_mode="resource_load"
+        cart_offsets_x="24,34,29,7,-15,-20,-13,6"
+        cart_offsets_y="-5,6,17,40,15,7,-3,-6"
+        cart_high_load_threshold="8"
+        cart_high_load_y_adjust="-40"
+        cart_direction_3_y_adjust="-20" />
+</figure>

@@ -2,5 +2,10 @@
 
 #include "building/building.h"
 
-int building_temple_get_storage_destination(building *temple);
-int building_temple_mars_food_to_deliver(building *temple, int mess_hall_id);
+class Temple : public Building {
+public:
+    using Building::Building;
+};
+
+int building_temple_get_storage_destination(Building temple);
+int building_temple_mars_food_to_deliver(Building temple, Building mess_hall);

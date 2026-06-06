@@ -1,6 +1,5 @@
 #include "visited_buildings.h"
 
-#include "building/dock.h"
 #include "city/data_private.h"
 #include "core/array.h"
 #include "core/log.h"

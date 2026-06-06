@@ -1,6 +1,7 @@
 #include "gladiator_revolt.h"
 
 #include "building/count.h"
+#include "building/building_type_api.h"
 #include "city/games.h"
 #include "city/message.h"
 #include "core/random.h"
@@ -14,9 +15,14 @@ static struct {
     int state;
 } data;
 
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
 static int start_revolt(void)
 {
-    if (building_count_active(BUILDING_GLADIATOR_SCHOOL) > 0 && !city_games_executions_active()) {
+    if (building_count_active(runtime_type("gladiator_school")) > 0 && !city_games_executions_active()) {
         data.state = EVENT_IN_PROGRESS;
         city_message_post(1, MESSAGE_GLADIATOR_REVOLT, 0, 0);
     } else {

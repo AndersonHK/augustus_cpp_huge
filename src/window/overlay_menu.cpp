@@ -2,7 +2,8 @@ extern "C" {
 #include "overlay_menu.h"
 
 #include "assets/assets.h"
-#include "building/type.h"
+#include "building/building_type_api.h"
+#include "building/building_type.h"
 #include "city/view.h"
 #include "core/image.h"
 #include "core/image_group.h"
@@ -32,7 +33,7 @@ extern "C" {
 #define LABEL_WIDTH_BLOCKS 10
 #define SIDEBAR_MARGIN_X 10
 #define MAX_BUTTONS 20
-#define OVERLAY_MENU_END { -1, -1, JULIUS, NULL }
+#define OVERLAY_MENU_END { -1, -1, JULIUS, NULL, NULL }
 
 static void button_menu_item(const generic_button *button);
 
@@ -40,7 +41,7 @@ typedef enum
 {
     JULIUS = 0,
     AUGUSTUS = 1,
-    BUILDING_TYPE = 2,
+    XML_BUILDING_NAME = 2,
 } translation_type;
 
 typedef struct overlay_menu_entry {
@@ -48,6 +49,7 @@ typedef struct overlay_menu_entry {
     int translation;
     int translation_type;
     const struct overlay_menu_entry *submenu;
+    const char *building_text_id;
 } overlay_menu_entry;
 
 static const overlay_menu_entry OVERLAY_MENU_SENTINEL = OVERLAY_MENU_END;
@@ -115,26 +117,26 @@ static const overlay_menu_entry submenu_housing_groups[] = {
 
 static const overlay_menu_entry submenu_housing[] = {
     { OVERLAY_HOUSING_GROUPS, TR_OVERLAY_BY_GROUP, AUGUSTUS, submenu_housing_groups},
-    { OVERLAY_HOUSE_SMALL_TENT, BUILDING_HOUSE_SMALL_TENT, BUILDING_TYPE, NULL},
-    { OVERLAY_HOUSE_LARGE_TENT, BUILDING_HOUSE_LARGE_TENT, BUILDING_TYPE, NULL},
-    { OVERLAY_HOUSE_SMALL_SHACK, BUILDING_HOUSE_SMALL_SHACK, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_LARGE_SHACK, BUILDING_HOUSE_LARGE_SHACK, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_SMALL_HOVEL, BUILDING_HOUSE_SMALL_HOVEL, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_LARGE_HOVEL, BUILDING_HOUSE_LARGE_HOVEL, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_SMALL_CASA, BUILDING_HOUSE_SMALL_CASA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_LARGE_CASA, BUILDING_HOUSE_LARGE_CASA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_SMALL_INSULA, BUILDING_HOUSE_SMALL_INSULA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_MEDIUM_INSULA, BUILDING_HOUSE_MEDIUM_INSULA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_LARGE_INSULA, BUILDING_HOUSE_LARGE_INSULA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_GRAND_INSULA, BUILDING_HOUSE_GRAND_INSULA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_SMALL_VILLA, BUILDING_HOUSE_SMALL_VILLA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_MEDIUM_VILLA, BUILDING_HOUSE_MEDIUM_VILLA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_LARGE_VILLA, BUILDING_HOUSE_LARGE_VILLA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_GRAND_VILLA, BUILDING_HOUSE_GRAND_VILLA, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_SMALL_PALACE, BUILDING_HOUSE_SMALL_PALACE, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_MEDIUM_PALACE, BUILDING_HOUSE_MEDIUM_PALACE, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_LARGE_PALACE, BUILDING_HOUSE_LARGE_PALACE, BUILDING_TYPE, NULL },
-    { OVERLAY_HOUSE_LUXURY_PALACE, BUILDING_HOUSE_LUXURY_PALACE, BUILDING_TYPE, NULL },
+    { OVERLAY_HOUSE_SMALL_TENT, 0, XML_BUILDING_NAME, NULL, "house_small_tent"},
+    { OVERLAY_HOUSE_LARGE_TENT, 0, XML_BUILDING_NAME, NULL, "house_large_tent"},
+    { OVERLAY_HOUSE_SMALL_SHACK, 0, XML_BUILDING_NAME, NULL, "house_small_shack" },
+    { OVERLAY_HOUSE_LARGE_SHACK, 0, XML_BUILDING_NAME, NULL, "house_large_shack" },
+    { OVERLAY_HOUSE_SMALL_HOVEL, 0, XML_BUILDING_NAME, NULL, "house_small_hovel" },
+    { OVERLAY_HOUSE_LARGE_HOVEL, 0, XML_BUILDING_NAME, NULL, "house_large_hovel" },
+    { OVERLAY_HOUSE_SMALL_CASA, 0, XML_BUILDING_NAME, NULL, "house_small_casa" },
+    { OVERLAY_HOUSE_LARGE_CASA, 0, XML_BUILDING_NAME, NULL, "house_large_casa" },
+    { OVERLAY_HOUSE_SMALL_INSULA, 0, XML_BUILDING_NAME, NULL, "house_small_insula" },
+    { OVERLAY_HOUSE_MEDIUM_INSULA, 0, XML_BUILDING_NAME, NULL, "house_medium_insula" },
+    { OVERLAY_HOUSE_LARGE_INSULA, 0, XML_BUILDING_NAME, NULL, "house_large_insula" },
+    { OVERLAY_HOUSE_GRAND_INSULA, 0, XML_BUILDING_NAME, NULL, "house_grand_insula" },
+    { OVERLAY_HOUSE_SMALL_VILLA, 0, XML_BUILDING_NAME, NULL, "house_small_villa" },
+    { OVERLAY_HOUSE_MEDIUM_VILLA, 0, XML_BUILDING_NAME, NULL, "house_medium_villa" },
+    { OVERLAY_HOUSE_LARGE_VILLA, 0, XML_BUILDING_NAME, NULL, "house_large_villa" },
+    { OVERLAY_HOUSE_GRAND_VILLA, 0, XML_BUILDING_NAME, NULL, "house_grand_villa" },
+    { OVERLAY_HOUSE_SMALL_PALACE, 0, XML_BUILDING_NAME, NULL, "house_small_palace" },
+    { OVERLAY_HOUSE_MEDIUM_PALACE, 0, XML_BUILDING_NAME, NULL, "house_medium_palace" },
+    { OVERLAY_HOUSE_LARGE_PALACE, 0, XML_BUILDING_NAME, NULL, "house_large_palace" },
+    { OVERLAY_HOUSE_LUXURY_PALACE, 0, XML_BUILDING_NAME, NULL, "house_luxury_palace" },
     OVERLAY_MENU_END
 };
 
@@ -201,8 +203,9 @@ static const uint8_t *get_overlay_text(const overlay_menu_entry *entry)
         return translation_for(static_cast<translation_key>(entry->translation));
     }
 
-    if (entry->translation_type == BUILDING_TYPE) {
-        return lang_get_building_type_string(entry->translation);
+    if (entry->translation_type == XML_BUILDING_NAME) {
+        building_type type = building_type_registry_runtime_id_from_text(entry->building_text_id);
+        return lang_get_building_type_string(type);
     }
 
     return lang_get_string(14, entry->overlay);
@@ -230,7 +233,7 @@ static void draw_menu_item(const overlay_menu_entry *entry, const int i, const i
 
     if (entry->submenu != NULL) {
         const int image_id = assets_get_image_id("UI", "Expand Menu Icon");
-        Image::from_id(image_id).draw(x + MENU_ITEM_WIDTH - 16, y + 3, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(x + MENU_ITEM_WIDTH - 16, y + 3);
     }
 }
 

@@ -4,10 +4,17 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
 #include "building/list.h"
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/terrain.h"
+}
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
 }
 
 extern "C" void map_water_supply_update_buildings(void)
@@ -58,20 +65,20 @@ extern "C" int map_water_supply_is_building_unnecessary(int building_id, int rad
 
 extern "C" int map_water_supply_fountain_radius(void)
 {
-    return water_access_runtime_range_for_building(BUILDING_FOUNTAIN);
+    return water_access_runtime_range_for_building(runtime_type("fountain"));
 }
 
 extern "C" int map_water_supply_reservoir_radius(void)
 {
-    return water_access_runtime_range_for_building(BUILDING_RESERVOIR);
+    return water_access_runtime_range_for_building(runtime_type("reservoir"));
 }
 
 extern "C" int map_water_supply_well_radius(void)
 {
-    return water_access_runtime_range_for_building(BUILDING_WELL);
+    return water_access_runtime_range_for_building(building_type_registry_well_type());
 }
 
 extern "C" int map_water_supply_latrines_radius(void)
 {
-    return water_access_runtime_range_for_building(BUILDING_LATRINES);
+    return water_access_runtime_range_for_building(runtime_type("latrines"));
 }

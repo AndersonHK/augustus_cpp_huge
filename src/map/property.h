@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 enum {
     EDGE_X0Y0 = 0,
@@ -65,3 +69,7 @@ void map_property_restore(void);
 void map_property_save_state(buffer *bitfields, buffer *edge);
 void map_property_load_state(buffer *bitfields, buffer *edge);
 void map_property_load_state_u8(buffer *bitfields, buffer *edge);
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temple_ceres">
     <identity name_key="main_strings.28.65" />
+    <temple religion="large_temple_ceres" />
     <model size="3" cost="150" />
     <desirability>
         <value value="14" />
@@ -12,6 +13,7 @@
     <button group="large_temples" order="10" icon="Health_Culture\Temple_Ceres" text_key="main_strings.28.65" />
     <sound id="temple_ceres" />
     <event_data attr="large_temple_ceres" />
+    <distribution path="ceres_temple" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
     <graphics>
         <default>

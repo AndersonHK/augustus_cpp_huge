@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temple_mars">
     <identity name_key="main_strings.28.68" />
+    <temple religion="large_temple_mars" />
     <model size="3" cost="150" />
     <desirability>
         <value value="14" />

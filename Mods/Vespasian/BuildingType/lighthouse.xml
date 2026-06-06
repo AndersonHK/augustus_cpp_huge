@@ -12,6 +12,7 @@
     <button group="engineering" order="40" icon="Monuments\Lighthouse_OFF" text_key="TR_BUILDING_LIGHTHOUSE" />
     <sound id="lighthouse" />
     <event_data attr="lighthouse" />
+    <distribution path="lighthouse" />
     <flags fire_proof="1" />
     <graphics>
         <default>

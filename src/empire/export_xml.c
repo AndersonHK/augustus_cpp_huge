@@ -114,7 +114,7 @@ static void export_city(const empire_object *obj)
         xml_exporter_add_attribute_text("trade_route_type", route_type);
         
         xml_exporter_new_element("sells");
-        for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
             if (city->city_sells_resource[r]) {
                 xml_exporter_new_element("resource");
                 xml_exporter_add_attribute_text("type", resource_get_data(r)->xml_attr_name);
@@ -125,7 +125,7 @@ static void export_city(const empire_object *obj)
         xml_exporter_close_element();
 
         xml_exporter_new_element("buys");
-        for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
             if (city->city_buys_resource[r]) {
                 xml_exporter_new_element("resource");
                 xml_exporter_add_attribute_text("type", resource_get_data(r)->xml_attr_name);
@@ -154,7 +154,7 @@ static void export_city(const empire_object *obj)
     }
     if (city->city_type == EMPIRE_CITY_OURS) {
         xml_exporter_new_element("sells");
-        for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
             if (city->city_sells_resource[r]) {
                 xml_exporter_new_element("resource");
                 xml_exporter_add_attribute_text("type", resource_get_data(r)->xml_attr_name);

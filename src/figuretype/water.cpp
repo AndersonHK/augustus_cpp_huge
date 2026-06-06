@@ -1,10 +1,13 @@
 #include "water.h"
 
+#include "city/god.h"
+
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "city/gods.h"
 #include "city/message.h"
 #include "core/calc.h"
 #include "core/image.h"
@@ -34,6 +37,14 @@ static const int FLOTSAM_TYPE_3[] = {
     0, 0, 1, 1, 2, 2, 3, 3, 4, 4, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
+
+static building_type runtime_type(const char *text_id)
+{
+    if (!text_id) {
+        return BUILDING_NONE;
+    }
+    return building_type_registry_runtime_id_from_text(text_id);
+}
 
 void figure_create_flotsam(void)
 {
@@ -170,7 +181,7 @@ void figure_shipwreck_action(figure *f)
 
 static int fishing_boat_percentage_speed(void)
 {
-    if (building_monument_working(BUILDING_LIGHTHOUSE)) {
+    if (building_monument_working(runtime_type("lighthouse"))) {
         return 10;
     }
     return 0;

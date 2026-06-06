@@ -27,7 +27,7 @@ extern "C" {
 
 static void draw_title(int y, int text_id)
 {
-    Image::from_id(Image::group(GROUP_BULLET)).draw(32, y + 1, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_BULLET)).draw(32, y + 1);
     lang_text_draw(61, text_id, 52, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 }
 
@@ -36,7 +36,7 @@ static int draw_background(void)
     int width;
 
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 11).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 11).draw(10, 10);
 
     lang_text_draw(61, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     inner_panel_draw(24, 60, 37, 19);
@@ -101,7 +101,7 @@ static int draw_background(void)
     }
 
     // housing capacity
-    Image::from_id(Image::group(GROUP_BULLET)).draw(32, 126 + 1, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_BULLET)).draw(32, 126 + 1);
     text_draw(translation_for(TR_HEADER_HOUSING), 52, 126, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     if (!city_population_open_housing_capacity()) {
@@ -243,7 +243,7 @@ static int draw_background(void)
         lang_text_draw(61, sentiment / 10 + 51, X_OFFSET, 306, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
     // water coverage
-    Image::from_id(Image::group(GROUP_BULLET)).draw(32, 326 + 1, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_BULLET)).draw(32, 326 + 1);
     lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_CHIEF_WATER_COVERAGE, 52, 326, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     int population = city_population();

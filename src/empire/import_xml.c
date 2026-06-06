@@ -154,7 +154,7 @@ static resource_type get_resource_from_attr(const char *key)
     if (!value) {
         return RESOURCE_NONE;
     }
-    for (resource_type i = RESOURCE_MIN; i < RESOURCE_MAX; i++) {
+    for (resource_type i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT; i++) {
         const char *resource_name = resource_get_data(i)->xml_attr_name;
         if (xml_parser_compare_multiple(resource_name, value)) {
             return i;

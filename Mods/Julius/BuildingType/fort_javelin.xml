@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="fort_javelin">
+    <identity name_key="building.fort_javelin.name" />
+    <model size="3" cost="1000" />
+    <desirability>
+        <value value="-20" />
+        <step value="2" />
+        <step_size value="2" />
+        <range value="8" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="security" order="110" text_key="building.fort_javelin.name" />
+    <event_data attr="fort_javelin" />
+    <flags fire_proof="1" draw_desirability_range="1" />
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

@@ -1,3 +1,5 @@
+#include "city/god.h"
+
 extern "C" {
 #include "window/hold_festival.h"
 
@@ -5,7 +7,6 @@ extern "C" {
 #include "city/constants.h"
 #include "city/festival.h"
 #include "city/finance.h"
-#include "city/gods.h"
 #include "core/image_group.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
@@ -19,6 +20,7 @@ extern "C" {
 #include "window/message_dialog.h"
 }
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 static void button_god(const generic_button *button);
 static void button_size(const generic_button *button);
@@ -51,17 +53,17 @@ static void draw_button_labels(void)
 {
     font_t font;
     color_t color;
-    int wine_image_id;
+    int use_disabled_wine_image;
 
     // greying out of buttons
     if (city_finance_out_of_money()) {
         font = FONT_NORMAL_PLAIN;
         color = COLOR_FONT_LIGHT_GRAY;
-        wine_image_id = assets_get_image_id("UI", "Grand Festival Wine Disabled");
+        use_disabled_wine_image = 1;
     } else {
         font = FONT_NORMAL_BLACK;
         color = COLOR_MASK_NONE;
-        wine_image_id = resource_get_data(RESOURCE_WINE)->image.icon;
+        use_disabled_wine_image = 0;
     }
     // small festival
     int width = lang_text_draw_colored(58, 31, 92, 224, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
@@ -74,14 +76,18 @@ static void draw_button_labels(void)
     if (city_festival_out_of_wine() && !city_finance_out_of_money()) {
         font = FONT_NORMAL_PLAIN;
         color = COLOR_FONT_LIGHT_GRAY;
-        wine_image_id = assets_get_image_id("UI", "Grand Festival Wine Disabled");
+        use_disabled_wine_image = 1;
     }
 
     // grand festival
     width = lang_text_draw_colored(58, 33, 92, 284, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     width += lang_text_draw_amount_colored(8, 0, city_festival_grand_cost(), 92 + width, 284, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     width += lang_text_draw_amount_colored(8, 10, city_festival_grand_wine(), 97 + width, 284, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
-    Image::from_id(wine_image_id).draw(97 + width, 279, COLOR_MASK_NONE, SCALE_NONE);
+    if (use_disabled_wine_image) {
+        Image::from_id(assets_get_image_id("UI", "Grand Festival Wine Disabled")).draw(97 + width, 279);
+    } else {
+        resource_graphics(resource_wine()).panel_icon().draw(97 + width, 279);
+    }
 }
 
 static void draw_buttons(void)
@@ -104,12 +110,12 @@ static void draw_background(void)
 
     outer_panel_draw(48, 48, 34, 20);
     lang_text_draw_centered(58, 25 + city_festival_selected_god(), 48, 60, 544, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    for (int god = 0; god < MAX_GODS; god++) {
+    for (int god = 0; god < city_gods_count(); god++) {
         if (god == city_festival_selected_god()) {
             button_border_draw(100 * god + 75, 91, 91, 101, 1);
-            Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + god + 21).draw(100 * god + 80, 96, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + god + 21).draw(100 * god + 80, 96);
         } else {
-            Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + god + 16).draw(100 * god + 80, 96, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + god + 16).draw(100 * god + 80, 96);
         }
     }
     draw_buttons();

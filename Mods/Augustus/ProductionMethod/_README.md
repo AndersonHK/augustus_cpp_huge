@@ -11,7 +11,7 @@ Example:
 Current supported nodes:
 
 - `<kind value="farm|workshop" />`
-- `<output resource="..." />`
+- `<output resource="..." production_per_month="N" />`
 - `<batch_size value="N" />`
 - `<treasury_cost amount="N" />`
 - `<climate_bonuses>` containing `<bonus climate="central|northern|desert" percent="N" />`
@@ -20,7 +20,7 @@ Current supported nodes:
 Rules:
 
 - `<kind>` is required
-- `<output>` is required
+- `<output>` is required and owns the method's base monthly throughput
 - `<batch_size>` is optional and defaults to `1`
 - `<treasury_cost>` is optional and charges the city treasury when a new production cycle starts
 - `<climate_bonuses>` is optional
@@ -32,11 +32,11 @@ Rules:
 
 Native timing uses the legacy throughput formula:
 
-- `max_progress = 100 * GAME_TIME_DAYS_PER_MONTH * 2 * laborers / effective_resource_production_per_month`
+- `max_progress = 100 * GAME_TIME_DAYS_PER_MONTH * 2 * laborers / effective_method_production_per_month`
 - native production then multiplies that max progress by `batch_size`
 - a completed native output cart carries `batch_size` loads
 
-Climate bonuses adjust the base output resource throughput for native production only.
+Climate bonuses adjust the method's base output throughput for native production only.
 
 Production methods own the production-start policy for buildings that reference them. For labor access, a building using
 BuildingType `method="workforce"` reads local workforce access while global labor is disabled; legacy and global-labor
@@ -52,4 +52,4 @@ Current native vertical slice:
 - `farm` drives native farm progress, blessing/curse handling, and crop image refresh
 - `workshop` drives native raw-material checks, optional treasury costs, consumption, and progress tracking
 - Implemented native farms: wheat, vegetables, fruit, olives, vines, and meat
-- Implemented native workshops/producers: pottery, furniture, oil, wine, weapons, bricks, clay, timber, iron, marble, gold, stone, and sand
+- Implemented native workshops/producers: pottery, furniture, oil, wine, weapons, bricks, clay, timber, iron, marble, gold, stone, sand, denarii, and fish metadata

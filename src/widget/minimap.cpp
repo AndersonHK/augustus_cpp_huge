@@ -2,6 +2,7 @@ extern "C" {
 #include "minimap.h"
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/monument.h"
@@ -20,6 +21,7 @@ extern "C" {
 
 #include "graphics/image.h"
 
+#include <initializer_list>
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,6 +56,26 @@ typedef struct {
     tile_color center;
 } building_tile_color;
 static void get_viewport(int *x, int *y, int *width, int *height);
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
+static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (type_matches(type, text_id)) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 static minimap_functions default_functions = {
     scenario_property_climate,
@@ -348,27 +370,30 @@ static int draw_figure(int x_view, int y_view, int grid_offset)
 
 static int building_is_industry(building_type type)
 {
-    return building_is_raw_resource_producer(type) || building_is_workshop(type) || type == BUILDING_WHARF;
+    return building_is_raw_resource_producer(type) || building_is_workshop(type) || type_matches(type, "wharf");
 }
 
 static int building_is_military(building_type type)
 {
-    return building_is_fort(type) || type == BUILDING_FORT_GROUND ||
-        type == BUILDING_BARRACKS || type == BUILDING_MILITARY_ACADEMY || type == BUILDING_MESS_HALL ||
-        type == BUILDING_TOWER || type == BUILDING_WATCHTOWER || type == BUILDING_GATEHOUSE ||
-        type == BUILDING_PALISADE_GATE;
+    return building_is_fort(type) || type_matches_any(type,
+        {"fort_ground", "barracks", "military_academy", "mess_hall", "tower", "watchtower", "gatehouse", "palisade_gate"});
 }
 
 static int building_is_aesthetic(building_type type)
 {
-    return (type >= BUILDING_SMALL_POND && type <= BUILDING_OBELISK) || type == BUILDING_TRIUMPHAL_ARCH ||
-        (type >= BUILDING_HORSE_STATUE && type <= BUILDING_COLONNADE) || type == BUILDING_GARDEN_PATH ||
-        (type >= BUILDING_ROOFED_GARDEN_WALL && type <= BUILDING_HEDGE_GATE_LIGHT) || type == BUILDING_GARDENS;
+    return type_matches_any(type,
+        {"small_pond", "large_pond", "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree",
+            "palm_tree", "date_tree", "pine_path", "fir_path", "oak_path", "elm_path", "fig_path", "plum_path",
+            "palm_path", "date_path", "pavilion_blue", "pavilion_red", "pavilion_orange", "pavilion_yellow",
+            "pavilion_green", "goddess_statue", "senator_statue", "obelisk", "triumphal_arch", "horse_statue",
+            "dolphin_fountain", "hedge_dark", "hedge_light", "looped_garden_wall", "legion_statue",
+            "decorative_column", "colonnade", "garden_path", "roofed_garden_wall", "roofed_garden_wall_gate",
+            "hedge_gate_dark", "hedge_gate_light", "gardens"});
 }
 
 static int building_is_water_structure(building_type type)
 {
-    return type == BUILDING_RESERVOIR || type == BUILDING_FOUNTAIN || type == BUILDING_WELL;
+    return type_matches_any(type, {"reservoir", "fountain"}) || building_type_registry_is_well(type);
 }
 
 static void draw_building(int x_offset, int y_offset, int grid_offset)
@@ -384,7 +409,7 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
         building *b = data.functions->building(data.functions->offset.building_id(grid_offset));
 
         // Palisades are drawn like walls
-        if (b->type == BUILDING_PALISADE) {
+        if (type_matches(b->type, "palisade")) {
             draw_tile(x_offset, y_offset, &minimap_colors.wall);
             return;
         }

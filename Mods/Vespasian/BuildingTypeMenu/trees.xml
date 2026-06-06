@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="trees">
+    <identity name_key="building.trees.name" />
+    <event_data attr="trees|all_trees" />
+</building>

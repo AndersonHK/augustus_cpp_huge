@@ -2,6 +2,7 @@ extern "C" {
 #include "city_overlay_housing.h"
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/house.h"
 #include "building/industry.h"
 #include "building/monument.h"
@@ -45,12 +46,12 @@ static int get_column_height_none(const building *b)
 
 static int show_house_level(const building *b, int level)
 {
-    return building_house_legacy_level(b) == level;
+    return building_house_legacy_level(Building::from_id(b->id)) == level;
 }
 
 static int show_house_level_range(const building *b, int min_level, int max_level)
 {
-    int level = building_house_legacy_level(b);
+    int level = building_house_legacy_level(Building::from_id(b->id));
     return level >= min_level && level <= max_level;
 }
 

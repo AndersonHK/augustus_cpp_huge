@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="repair_land">
+    <identity name_key="building.repair_land.name" />
+    <model cost="3" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
+    <button group="tools" order="20" text_key="building.repair_land.name" />
+    <event_data attr="repair_land" />
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include <stdio.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 enum {
     TYPE_NONE = 0,
@@ -147,3 +151,7 @@ int platform_file_manager_copy_directory(const char *src, const char *dst, int o
  * @return 1 if removing was successful, 0 otherwise
  */
 int platform_file_manager_remove_directory(const char *path);
+
+#ifdef __cplusplus
+}
+#endif

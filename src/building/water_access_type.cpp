@@ -1,3 +1,4 @@
+#include "building/building_record.h"
 #include "building/water_access_type.h"
 
 #include "core/crash_context.h"

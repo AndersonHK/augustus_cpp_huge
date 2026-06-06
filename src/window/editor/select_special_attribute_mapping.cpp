@@ -1,6 +1,7 @@
 extern "C" {
 #include "select_special_attribute_mapping.h"
 
+#include "building/building_type_api.h"
 #include "core/lang.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
@@ -59,6 +60,17 @@ static struct {
     special_attribute_mapping_t *list[MAX_VISIBLE_ROWS];
 } data;
 
+static building_type runtime_type(const char *text_id)
+{
+    return text_id ? building_type_registry_runtime_id_from_text(text_id) : BUILDING_NONE;
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
 static void populate_list(int offset)
 {
     if (data.list_size - offset < MAX_VISIBLE_ROWS) {
@@ -77,13 +89,13 @@ static void populate_list(int offset)
 
 static const uint8_t *get_allowed_building_name(building_type type)
 {
-    if (type == BUILDING_HOUSE_VACANT_LOT) {
+    if (type == building_type_registry_get_vacant_lot_fill_type()) {
         return lang_get_string(68, 20);
     }
-    if (type == BUILDING_CLEAR_LAND) {
+    if (type_matches(type, "clear_land")) {
         return lang_get_string(68, 21);
     }
-    if (type == BUILDING_REPAIR_LAND) {
+    if (type_matches(type, "repair_land")) {
         return lang_get_string(CUSTOM_TRANSLATION, TR_BUILDING_LAND_REPAIR);
     }
     return lang_get_building_type_string(type);

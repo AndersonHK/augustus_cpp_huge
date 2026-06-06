@@ -1,7 +1,9 @@
+#include "building/building.h"
+#include "city/god.h"
+
 extern "C" {
 #include "window/hold_games.h"
 
-#include "assets/assets.h"
 #include "building/count.h"
 #include "building/granary.h"
 #include "city/constants.h"
@@ -9,7 +11,6 @@ extern "C" {
 #include "city/festival.h"
 #include "city/finance.h"
 #include "city/games.h"
-#include "city/gods.h"
 #include "core/image_group.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
@@ -25,7 +26,9 @@ extern "C" {
 #include "window/city.h"
 #include "window/message_dialog.h"
 }
+#include "graphics/image_border.h"
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 static void button_game(const generic_button *button);
 static void button_help(int param1, int param2);
@@ -57,18 +60,15 @@ static struct {
     int game_possible;
 } data;
 
-static int game_icon_image_id(int index)
+static ImageGroupEntryRef game_icon(int index)
 {
-    static const char *const kGameIconNames[MAX_GAMES] = {
-        "Naumachia Icon",
-        "Image_0018",
-        "Image_0019",
+    static const ImageGroupEntryRef icons[MAX_GAMES] = {
+        ImageGroupEntryRef::from_group("UI\\Naumachia_Icon", "Naumachia Icon"),
+        ImageGroupEntryRef::from_group("UI\\Naumachia_Icon", "Image_0018"),
+        ImageGroupEntryRef::from_group("UI\\Naumachia_Icon", "Image_0019"),
     };
 
-    if (index < 0 || index >= MAX_GAMES) {
-        return 0;
-    }
-    return assets_get_image_id("UI", kGameIconNames[index]);
+    return icons[index];
 }
 
 static void draw_background(void)
@@ -86,8 +86,8 @@ static void draw_background(void)
     outer_panel_draw(48, 48, 34, 22);
     text_draw_centered(translation_for(static_cast<translation_key>(game->header_key)),
         48, 60, 544, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    int border_image_id = assets_get_image_id("UI", "Image Border Small");
-    int highlight_image_id = assets_get_image_id("UI", "Highlight");
+    const ImageBorder border = ImageBorder::image_small();
+    const ImageGroupEntryRef highlight = ImageGroupEntryRef::from_group("UI\\Highlight", "Highlight");
     for (int i = 0; i < MAX_GAMES; i++) {
         color_t border_color, highlight_color;
         if (i == game->id - 1) {
@@ -98,9 +98,9 @@ static void draw_background(void)
             border_color = COLOR_BORDER_RED;
             highlight_color = COLOR_BLACK;
         }
-        Image::from_id(border_image_id).draw_border(100 * i + 170, 96, border_color);
-        Image::from_id(game_icon_image_id(i)).draw(100 * i + 175, 101, COLOR_MASK_NONE, SCALE_NONE);
-        Image::from_id(highlight_image_id).draw(100 * i + 175, 101, highlight_color, SCALE_NONE);
+        border.draw(100 * i + 170, 96, border_color);
+        game_icon(i).draw(100 * i + 175, 101);
+        highlight.draw(100 * i + 175, 101, highlight_color);
     }
     text_draw_multiline(translation_for(static_cast<translation_key>(game->description_key)),
         70, 215, 510, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -112,7 +112,7 @@ static void draw_background(void)
     width = 0;
     int has_resources = 1;
     int resource_cost = 0;
-    for (int resource = 0; resource < RESOURCE_MAX; ++resource) {
+    for (int resource = 0; resource < RESOURCE_SLOT_COUNT; ++resource) {
         const resource_type resource_type_id = static_cast<resource_type>(resource);
         resource_cost = city_games_resource_cost(selected_game_id, resource_type_id);
         if (resource_cost) {
@@ -120,13 +120,13 @@ static void draw_background(void)
             if (city_resource_get_amount_including_granaries(resource_type_id, resource_cost, 0, 1) < resource_cost) {
                 has_resources = 0;
             }
-            Image::from_id(resource_get_data(resource_type_id)->image.icon).draw(164 + width, 316, COLOR_MASK_NONE, SCALE_NONE);
+            resource_graphics(resource_type_id).panel_icon().draw(164 + width, 316);
             width += 32;
         }
     }
     data.game_possible = 0;
     const building_type required_building_type = static_cast<building_type>(game->building_id_required);
-    building *game_building = building_first_of_type(required_building_type);
+    Building game_building = Building::first_of_type(required_building_type);
 
     if (!building_count_active(required_building_type)) {
         text_draw(translation_for(TR_WINDOW_GAMES_NO_VENUE), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -134,7 +134,7 @@ static void draw_background(void)
         text_draw(translation_for(TR_WINDOW_GAMES_NOT_ENOUGH_FUNDS), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (!has_resources) {
         text_draw(translation_for(TR_WINDOW_GAMES_NOT_ENOUGH_RESOURCES), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    } else if (game->water_access_required && game_building && !game_building->has_water_access) {
+    } else if (game->water_access_required && game_building.id() && !game_building.has_water_access()) {
         text_draw(translation_for(TR_WINDOW_GAMES_NO_WATER_ACCESS), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         data.game_possible = 1;

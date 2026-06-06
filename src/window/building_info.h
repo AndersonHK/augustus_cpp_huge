@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 void window_building_info_show(int grid_offset);
 
@@ -29,3 +33,7 @@ void window_building_info_depot_toggle_condition_threshold(void);
 void window_building_info_depot_toggle_condition_threshold_reverse(void);
 
 void window_building_info_depot_return_to_main_window(void);
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,8 +1,12 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
 #include "core/buffer.h"
 #include "game/save_version.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /**
  * Returns the building at the given offset
@@ -54,3 +58,7 @@ void map_building_save_state(buffer *buildings, buffer *damage, buffer *rubble);
 void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, savegame_version_t version);
 
 int map_building_is_reservoir(int x, int y);
+
+#ifdef __cplusplus
+}
+#endif

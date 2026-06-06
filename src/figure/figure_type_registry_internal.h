@@ -1,7 +1,8 @@
 #pragma once
 
 extern "C" {
-#include "building/type.h"
+#include "assets/assets.h"
+#include "building/building_type.h"
 #include "figure/type.h"
 }
 
@@ -24,7 +25,13 @@ enum class NativeClassId {
     EntertainmentVenueSeeker,
     MarketSupplier,
     DeliveryFollower,
-    TransientWanderer
+    TransientWanderer,
+    DepotCartPusher
+};
+
+enum class CartGraphicsMode {
+    None,
+    ResourceLoad
 };
 
 enum class FigureSlot {
@@ -54,7 +61,7 @@ enum class EntertainmentShowSlot {
 
 struct OwnerBinding {
     FigureSlot slot = FigureSlot::None;
-    building_type required_building_type = BUILDING_ANY;
+    building_type required_building_type = BUILDING_NONE;
     OwnerStateRequirement required_owner_state = OwnerStateRequirement::InUse;
 };
 
@@ -67,11 +74,20 @@ struct MovementProfile {
 
 struct GraphicsPolicy {
     int image_group = 0;
+    asset_id image_asset = ASSET_MAX_KEY;
     int image_group_offset = 0;
     int max_image_offset = 12;
+    int direction_frame_stride = 8;
     int static_frame_count = 0;
     int corpse_image_group = 0;
+    asset_id corpse_image_asset = ASSET_MAX_KEY;
     int corpse_image_group_offset = 96;
+    CartGraphicsMode cart_mode = CartGraphicsMode::None;
+    std::array<int, 8> cart_offsets_x = {};
+    std::array<int, 8> cart_offsets_y = {};
+    int cart_high_load_threshold = 0;
+    int cart_high_load_y_adjust = 0;
+    int cart_direction_3_y_adjust = 0;
 };
 
 struct PathingPolicy {

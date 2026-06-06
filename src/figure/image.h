@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "figure/figure.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 void figure_image_update(figure *f, int image_base);
 
@@ -17,3 +21,7 @@ int figure_image_direction(figure *f);
 int figure_image_normalize_direction(int direction);
 
 int figure_image_offset_direction(int direction, int offset);
+
+#ifdef __cplusplus
+}
+#endif

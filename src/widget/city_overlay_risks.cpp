@@ -1,3 +1,6 @@
+#include "building/building.h"
+#include "building/building_record.h"
+
 extern "C" {
 #include "city_overlay_risks.h"
 #include "assets/assets.h"
@@ -28,6 +31,26 @@ enum crime_level {
     RAMPANT_CRIME = 6,
 };
 
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
+static int type_matches_any(building_type type, const char *a, const char *b)
+{
+    return type_matches(type, a) || type_matches(type, b);
+}
+
+static int type_matches_any(building_type type, const char *a, const char *b, const char *c, const char *d)
+{
+    return type_matches_any(type, a, b) || type_matches_any(type, c, d);
+}
+
 static int is_problem_cartpusher(int figure_id)
 {
     if (figure_id) {
@@ -55,7 +78,7 @@ void city_overlay_problems_prepare_building(building *b)
         b->show_on_problem_overlay = 1;
     } else if (building_type_registry_has_water_access_requirements(b->type) && !b->has_water_access) {
         b->show_on_problem_overlay = 1;
-    } else if (b->type >= BUILDING_WHEAT_FARM && b->type <= BUILDING_CLAY_PIT) {
+    } else if (building_is_farm(b->type) || building_is_raw_resource_producer(b->type)) {
         if (is_problem_cartpusher(b->figure_id)) {
             b->show_on_problem_overlay = 1;
         }
@@ -65,17 +88,18 @@ void city_overlay_problems_prepare_building(building *b)
         } else if (!building_industry_has_raw_materials_for_production(b)) {
             b->show_on_problem_overlay = 1;
         }
-    } else if ((b->type == BUILDING_THEATER || b->type == BUILDING_AMPHITHEATER || b->type == BUILDING_ARENA ||
-        b->type == BUILDING_COLOSSEUM || b->type == BUILDING_HIPPODROME) && !b->data.entertainment.days1) {
+    } else if ((building_type_registry_is_theater(b->type) ||
+        type_matches_any(b->type, "amphitheater", "arena", "colosseum", "hippodrome")) &&
+        !b->data.entertainment.days1) {
         b->show_on_problem_overlay = 1;
-    } else if ((b->type == BUILDING_ARENA || b->type == BUILDING_COLOSSEUM) && !b->data.entertainment.days2) {
+    } else if (type_matches_any(b->type, "arena", "colosseum") && !b->data.entertainment.days2) {
         b->show_on_problem_overlay = 1;
-    } else if (b->type == BUILDING_DEPOT &&
+    } else if (type_matches(b->type, "depot") &&
         (!b->data.depot.current_order.src_storage_id ||
          !b->data.depot.current_order.dst_storage_id)) {
         b->show_on_problem_overlay = 1;
     } else if (b->has_road_access == 0 &&
-        building_get_laborers(b->type) && b->type != BUILDING_LATRINES && b->type != BUILDING_FOUNTAIN) {
+        building_get_laborers(b->type) && !type_matches_any(b->type, "latrines", "fountain")) {
         b->show_on_problem_overlay = 1;
     }
 
@@ -89,12 +113,12 @@ void city_overlay_problems_prepare_building(building *b)
 
 static int show_building_fire_crime(const building *b)
 {
-    return b->type == BUILDING_PREFECTURE || b->type == BUILDING_BURNING_RUIN;
+    return type_matches_any(b->type, "prefecture", "burning_ruin");
 }
 
 static int show_building_damage(const building *b)
 {
-    return b->type == BUILDING_ENGINEERS_POST || b->type == BUILDING_ARCHITECT_GUILD;
+    return type_matches_any(b->type, "engineers_post", "architect_guild");
 }
 
 static int show_building_problems(const building *b)
@@ -104,10 +128,8 @@ static int show_building_problems(const building *b)
 
 static int show_building_native(const building *b)
 {
-    return b->type == BUILDING_NATIVE_HUT || b->type == BUILDING_NATIVE_HUT_ALT ||
-        b->type == BUILDING_NATIVE_MEETING || b->type == BUILDING_MISSION_POST || b->type == BUILDING_NATIVE_CROPS ||
-        b->type == BUILDING_NATIVE_DECORATION || b->type == BUILDING_NATIVE_MONUMENT ||
-        b->type == BUILDING_NATIVE_WATCHTOWER;
+    return type_matches_any(b->type, "native_hut", "native_hut_alt", "native_meeting", "mission_post") ||
+        type_matches_any(b->type, "native_crops", "native_decor", "native_monument", "native_watchtower");
 }
 
 static int draw_footprint_enemy(int x, int y, float scale, int grid_offset)
@@ -142,11 +164,10 @@ static int draw_top_enemy(int x, int y, float scale, int grid_offset)
 
 static int show_building_enemy(const building *b)
 {
-    return b->type == BUILDING_PREFECTURE
-        || b->type == BUILDING_WATCHTOWER || b->type == BUILDING_TOWER
-        || (building_is_fort(b->type)) || b->type == BUILDING_FORT_GROUND
-        || b->type == BUILDING_BARRACKS || b->type == BUILDING_MILITARY_ACADEMY
-        || b->type == BUILDING_GATEHOUSE || b->type == BUILDING_PALISADE_GATE || b->type == BUILDING_PALISADE;
+    return type_matches_any(b->type, "prefecture", "watchtower", "tower", "fort_ground") ||
+        building_is_fort(b->type) ||
+        type_matches_any(b->type, "barracks", "military_academy", "gatehouse", "palisade_gate") ||
+        type_matches(b->type, "palisade");
 }
 
 static int show_figure_fire(const figure *f)
@@ -329,7 +350,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
         c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_LABOR;
     } else if (building_type_registry_has_water_access_requirements(b->type) && !b->has_water_access) {
         c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_WATER_ACCESS;
-    } else if (b->type >= BUILDING_WHEAT_FARM && b->type <= BUILDING_CLAY_PIT) {
+    } else if (building_is_farm(b->type) || building_is_raw_resource_producer(b->type)) {
         if (is_problem_cartpusher(b->figure_id)) {
             c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_CARTPUSHER;
         }
@@ -339,10 +360,10 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
         } else if (!building_industry_has_raw_materials_for_production(b)) {
             c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_RESOURCES;
         }
-    } else if (b->type == BUILDING_THEATER && !b->data.entertainment.days1) {
+    } else if (building_type_registry_is_theater(b->type) && !b->data.entertainment.days1) {
         c->text_group = 72;
         return 5;
-    } else if (b->type == BUILDING_AMPHITHEATER) {
+    } else if (type_matches(b->type, "amphitheater")) {
         if (!b->data.entertainment.days1) {
             c->text_group = 71;
             return 7;
@@ -350,7 +371,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
             c->text_group = 71;
             return 9;
         }
-    } else if (b->type == BUILDING_ARENA || b->type == BUILDING_COLOSSEUM) {
+    } else if (type_matches_any(b->type, "arena", "colosseum")) {
         if (!b->data.entertainment.days1) {
             c->text_group = 74;
             return 7;
@@ -358,15 +379,15 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
             c->text_group = 74;
             return 9;
         }
-    } else if (b->type == BUILDING_HIPPODROME && !b->data.entertainment.days1) {
+    } else if (type_matches(b->type, "hippodrome") && !b->data.entertainment.days1) {
         c->text_group = 73;
         return 5;
-    } else if (b->type == BUILDING_DEPOT &&
+    } else if (type_matches(b->type, "depot") &&
         (!b->data.depot.current_order.src_storage_id ||
          !b->data.depot.current_order.dst_storage_id)) {
         c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_DEPOT_NO_INSTRUCTIONS;
     } else if (b->has_road_access == 0 &&
-        building_get_laborers(b->type) && b->type != BUILDING_LATRINES && b->type != BUILDING_FOUNTAIN) {
+        building_get_laborers(b->type) && !type_matches_any(b->type, "latrines", "fountain")) {
         c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_ROAD_ACCESS;
     }
     if (c->translation_key) {

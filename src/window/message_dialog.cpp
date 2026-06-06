@@ -36,6 +36,7 @@ extern "C" {
 #include "window/editor/map.h"
 }
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 #define MAX_HISTORY 200
 #define POPUP_PROTECTION_MILIS 400
@@ -351,9 +352,9 @@ static void init(int text_id, int is_custom_message, void (*background_callback)
     init_audio();
 }
 
-static int resource_image(int resource)
+static const ImageGroupEntryRef &resource_icon(int resource)
 {
-    return resource_get_data(static_cast<resource_type>(resource))->image.icon;
+    return resource_graphics(static_cast<resource_type>(resource)).panel_icon();
 }
 
 static int is_event_message(const lang_message *msg)
@@ -451,7 +452,7 @@ static void draw_city_message_text(const lang_message *msg)
 
         case MESSAGE_TYPE_TRADE_CHANGE:
         {
-            Image::from_id(resource_image(player_message.param2)).draw(data.x + 64, data.y_text + 40, COLOR_MASK_NONE, SCALE_NONE);
+            resource_icon(player_message.param2).draw(data.x + 64, data.y_text + 40);
             empire_city *city = empire_city_get(player_message.param1);
             const uint8_t *city_name = empire_city_get_name(city);
             text_draw(city_name, data.x + 100, data.y_text + 44, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
@@ -462,7 +463,7 @@ static void draw_city_message_text(const lang_message *msg)
         }
 
         case MESSAGE_TYPE_PRICE_CHANGE:
-            Image::from_id(resource_image(player_message.param2)).draw(data.x + 64, data.y_text + 40, COLOR_MASK_NONE, SCALE_NONE);
+            resource_icon(player_message.param2).draw(data.x + 64, data.y_text + 40);
             text_draw_money(player_message.param1, data.x + 100, data.y_text + 44, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             rich_text_draw(msg->content.text,
                 data.x_text + 8, data.y_text + 86, BLOCK_SIZE * (data.text_width_blocks),
@@ -499,7 +500,7 @@ static void draw_city_message_text(const lang_message *msg)
                 int y_offset = data.y_text + 86 + lines * 16;
                 int requested_amount = player_message.param2 ? player_message.param2 : request->amount.requested;
                 text_draw_number(requested_amount, '@', " ", data.x_text + 8, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-                Image::from_id(resource_image(request->resource)).draw(data.x_text + 70, y_offset - 5, COLOR_MASK_NONE, SCALE_NONE);
+                resource_icon(request->resource).draw(data.x_text + 70, y_offset - 5);
                 text_draw(resource_get_data(static_cast<resource_type>(request->resource))->text,
                     data.x_text + 100, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
                 if (request->state == REQUEST_STATE_NORMAL || request->state == REQUEST_STATE_OVERDUE) {
@@ -549,7 +550,7 @@ static void draw_title(const lang_message *msg)
     if (img) {
         int image_x = msg->image.x;
         int image_y = msg->image.y;
-        Image::from_id(image_id).draw(data.x + image_x, data.y + image_y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(data.x + image_x, data.y + image_y);
         if (data.y + image_y + img->height + 8 > data.y_text) {
             data.y_text = data.y + image_y + img->height + 8;
         }
@@ -691,7 +692,7 @@ static void draw_background_video(void)
         }
         const scenario_request *request = scenario_request_get(player_message.param1);
         width = text_draw_number(request->amount.requested, '@', " ", data.x + 8, y_text, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-        Image::from_id(resource_get_data(static_cast<resource_type>(request->resource))->image.icon).draw(data.x + 15 + width, y_text - 5, COLOR_MASK_NONE, SCALE_NONE);
+        resource_icon(request->resource).draw(data.x + 15 + width, y_text - 5);
         width += text_draw(resource_get_data(static_cast<resource_type>(request->resource))->text, data.x + 40 + width, y_text, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
         if (request->state == REQUEST_STATE_NORMAL || request->state == REQUEST_STATE_OVERDUE) {
             width += lang_text_draw_amount(8, 4, request->months_to_comply, data.x + 60 + width, y_text, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));

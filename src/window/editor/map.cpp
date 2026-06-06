@@ -46,7 +46,7 @@ static void draw_cancel_construction(void)
     width = screen_pixel_to_ui(width);
     width -= 4 * BLOCK_SIZE;
     inner_panel_draw(width - 4, 40, 3, 2);
-    Image::from_id(Image::group(GROUP_OK_CANCEL_SCROLL_BUTTONS) + 4).draw(width, 44, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_OK_CANCEL_SCROLL_BUTTONS) + 4).draw(width, 44);
 }
 
 static void draw_foreground(void)

@@ -1,8 +1,12 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
 #include "figure/figure.h"
 #include "map/grid.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /**
  * Returns the first figure at the given offset
@@ -82,3 +86,7 @@ void map_figure_clear(void);
 void map_figure_save_state(buffer *buf);
 
 void map_figure_load_state(buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif

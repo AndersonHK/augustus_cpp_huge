@@ -1,7 +1,13 @@
 #include "service.h"
 
+#include "building/building_type_registry_internal.h"
+#include "building/religion.h"
+
+#include <initializer_list>
+
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/distribution.h"
 #include "building/building_type_api.h"
 #include "building/house.h"
@@ -21,6 +27,49 @@ extern "C" {
 
 #define MAX_COVERAGE 96
 #define TOURISM_COOLDOWN 96
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_impl::runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
+static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (type_matches(type, text_id)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static const building_type_registry_impl::BuildingType *definition_for(building_type type)
+{
+    return building_type_registry_impl::definition_for_type(type);
+}
+
+static int temple_is_tier(const building_type_registry_impl::BuildingType *definition,
+    building_type_registry_impl::ReligionTier tier)
+{
+    return definition && definition->is_temple(GOD_ALL, tier);
+}
+
+static int temple_is_basic(const building_type_registry_impl::BuildingType *definition)
+{
+    return temple_is_tier(definition, building_type_registry_impl::ReligionTier::Small) ||
+        temple_is_tier(definition, building_type_registry_impl::ReligionTier::Large);
+}
+
+static int temple_serves_god(const building_type_registry_impl::BuildingType *definition, god_type god)
+{
+    return definition && definition->is_temple_for_god(god);
+}
 
 static resource_type next_resource(resource_type resource)
 {
@@ -217,8 +266,12 @@ static int provide_missionary_coverage(int x, int y)
             int building_id = map_building_at(map_grid_offset(xx, yy));
             if (building_id) {
                 building *b = building_get(building_id);
-                if (b->type == BUILDING_NATIVE_HUT || b->type == BUILDING_NATIVE_HUT_ALT ||
-                    b->type == BUILDING_NATIVE_MEETING || b->type == BUILDING_NATIVE_WATCHTOWER) {
+                if (type_matches_any(b->type, {
+                    "native_hut",
+                    "native_hut_alt",
+                    "native_meeting",
+                    "native_watchtower"
+                })) {
                     b->sentiment.native_anger = 0;
                 }
             }
@@ -252,7 +305,7 @@ static void tourist_spend(building *b, figure *f)
         return;
     }
 
-    if (b->type == BUILDING_HIPPODROME) {
+    if (type_matches(b->type, "hippodrome")) {
         b = building_main(b);
     }
     for (int i = 0; i <= 12; ++i) {
@@ -302,7 +355,7 @@ static int provide_service(int x, int y, int *data, void (*callback)(building *,
 
 static void engineer_coverage(building *b, int *max_damage_seen)
 {
-    if (b->type == BUILDING_HIPPODROME) {
+    if (type_matches(b->type, "hippodrome")) {
         b = building_main(b);
     }
     if (b->damage_risk > *max_damage_seen) {
@@ -313,7 +366,7 @@ static void engineer_coverage(building *b, int *max_damage_seen)
 
 static void prefect_coverage(building *b, int *min_happiness_seen)
 {
-    if (b->type == BUILDING_HIPPODROME) {
+    if (type_matches(b->type, "hippodrome")) {
         b = building_main(b);
     }
     b->fire_risk = 0;
@@ -325,7 +378,7 @@ static void prefect_coverage(building *b, int *min_happiness_seen)
 static void tax_collector_coverage(building *b, int *max_tax_multiplier)
 {
     if (b->house_size && b->house_population > 0) {
-        const model_house *house_model = building_house_get_model(b);
+        const model_house *house_model = building_house_get_model(Building(b));
         int tax_multiplier = house_model ? house_model->tax_multiplier : 0;
         if (tax_multiplier > *max_tax_multiplier) {
             *max_tax_multiplier = tax_multiplier;
@@ -336,7 +389,7 @@ static void tax_collector_coverage(building *b, int *max_tax_multiplier)
 
 static void distribute_good(building *b, building *market, int stock_wanted, resource_type resource)
 {
-    if (!building_distribution_is_good_accepted(market, resource)) {
+    if (!Building(market).accepts_good(resource)) {
         return;
     }
     int amount_wanted = stock_wanted - b->resources[resource];
@@ -355,7 +408,7 @@ static void collect_offerings_from_house(building *house, building *temple)
 {
     // offerings are generated, not removed from house stores
     if (house->days_since_offering >= MARS_OFFERING_FREQUENCY) {
-        for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r = next_resource(r)) {
+        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = next_resource(r)) {
             if (!resource_is_inventory(r)) {
                 continue;
             }
@@ -385,7 +438,7 @@ static const model_house *house_evolution_target_model(const building *house)
         }
     }
 
-    int level = building_house_legacy_level(house);
+    int level = building_house_legacy_level(Building::from_id(house->id));
     if (level < HOUSE_MIN) {
         level = HOUSE_MIN;
     } else if (level < HOUSE_LUXURY_PALACE) {
@@ -398,7 +451,7 @@ static void distribute_market_resources(building *b, building *market)
 {
     int max_food_stocks = 4 * b->house_highest_population;
     int food_types_stored_max = 0;
-    for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r = next_resource(r)) {
+    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = next_resource(r)) {
         if (!resource_is_inventory(r)) {
             continue;
         }
@@ -408,9 +461,9 @@ static void distribute_market_resources(building *b, building *market)
     }
     const model_house *model = house_evolution_target_model(b);
     if (model->food_types) {
-        for (resource_type r = RESOURCE_MIN_FOOD; r < RESOURCE_MAX_FOOD; r = next_resource(r)) {
+        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = next_resource(r)) {
             if (!resource_is_inventory(r) || b->resources[r] >= max_food_stocks ||
-                !building_distribution_is_good_accepted(market, r)) {
+                !Building(market).accepts_good(r)) {
                 continue;
             }
             if (market->resources[r] >= max_food_stocks) {
@@ -428,25 +481,25 @@ static void distribute_market_resources(building *b, building *market)
     int goods_no = 8;
 
     // Venus base stockpile bonus
-    if (building_monument_working(BUILDING_GRAND_TEMPLE_VENUS)) {
+    if (building_monument_working_grand_temple_for_god(GOD_VENUS)) {
         goods_no = 12;
     }
 
-    if (model->pottery && market->accepted_goods[RESOURCE_POTTERY]) {
-        market->accepted_goods[RESOURCE_POTTERY] = 11;
-        distribute_good(b, market, goods_no * model->pottery, RESOURCE_POTTERY);
+    if (model->pottery && market->accepted_goods[resource_pottery()]) {
+        market->accepted_goods[resource_pottery()] = 11;
+        distribute_good(b, market, goods_no * model->pottery, resource_pottery());
     }
-    if (model->furniture && market->accepted_goods[RESOURCE_FURNITURE]) {
-        market->accepted_goods[RESOURCE_FURNITURE] = 11;
-        distribute_good(b, market, goods_no * model->furniture, RESOURCE_FURNITURE);
+    if (model->furniture && market->accepted_goods[resource_furniture()]) {
+        market->accepted_goods[resource_furniture()] = 11;
+        distribute_good(b, market, goods_no * model->furniture, resource_furniture());
     }
-    if (model->oil && market->accepted_goods[RESOURCE_OIL]) {
-        market->accepted_goods[RESOURCE_OIL] = 11;
-        distribute_good(b, market, goods_no * model->oil, RESOURCE_OIL);
+    if (model->oil && market->accepted_goods[resource_oil()]) {
+        market->accepted_goods[resource_oil()] = 11;
+        distribute_good(b, market, goods_no * model->oil, resource_oil());
     }
-    if (model->wine && market->accepted_goods[RESOURCE_WINE]) {
-        market->accepted_goods[RESOURCE_WINE] = 11;
-        distribute_good(b, market, goods_no * model->wine, RESOURCE_WINE);
+    if (model->wine && market->accepted_goods[resource_wine()]) {
+        market->accepted_goods[resource_wine()] = 11;
+        distribute_good(b, market, goods_no * model->wine, resource_wine());
     }
 }
 
@@ -485,15 +538,15 @@ static int provide_venus_wine_to_taverns(int market_building_id, int x, int y)
             int building_id = map_building_at(grid_offset);
             if (building_id) {
                 building *b = building_get(building_id);
-                if (b->type == BUILDING_TAVERN) {
-                    int amount_wanted = 200 - b->resources[RESOURCE_WINE];
-                    if (market->resources[RESOURCE_WINE] > 0 && amount_wanted > 0) {
-                        if (amount_wanted <= market->resources[RESOURCE_WINE]) {
-                            b->resources[RESOURCE_WINE] += amount_wanted;
-                            market->resources[RESOURCE_WINE] -= amount_wanted;
+                if (type_matches(b->type, "tavern")) {
+                    int amount_wanted = 200 - b->resources[resource_wine()];
+                    if (market->resources[resource_wine()] > 0 && amount_wanted > 0) {
+                        if (amount_wanted <= market->resources[resource_wine()]) {
+                            b->resources[resource_wine()] += amount_wanted;
+                            market->resources[resource_wine()] -= amount_wanted;
                         } else {
-                            b->resources[RESOURCE_WINE] += market->resources[RESOURCE_WINE];
-                            market->resources[RESOURCE_WINE] = 0;
+                            b->resources[resource_wine()] += market->resources[resource_wine()];
+                            market->resources[resource_wine()] = 0;
                         }
                     }
                     serviced++;
@@ -534,6 +587,58 @@ static building *get_entertainment_building(const figure *f)
     } else { // going to venue
         return building_get(f->destination_building_id);
     }
+}
+
+static int provide_priest_service(figure *f, int x, int y)
+{
+    building *temple = building_get(f->building_id);
+    const building_type_registry_impl::BuildingType *type = temple ? definition_for(temple->type) : nullptr;
+    if (!type || !type->is_temple()) {
+        return 0;
+    }
+
+    if (type->is_pantheon()) {
+        int houses_serviced = provide_culture(x, y, religion_coverage_ceres);
+        provide_culture(x, y, religion_coverage_neptune);
+        provide_culture(x, y, religion_coverage_mercury);
+        provide_culture(x, y, religion_coverage_mars);
+        provide_culture(x, y, religion_coverage_venus);
+        provide_culture(x, y, religion_coverage_pantheon);
+        return houses_serviced;
+    }
+
+    const int basic_temple = temple_is_basic(type);
+    if (temple_serves_god(type, GOD_CERES)) {
+        int houses_serviced = provide_culture(x, y, religion_coverage_ceres);
+        if (basic_temple) {
+            provide_market_goods(f->building_id, x, y);
+        }
+        return houses_serviced;
+    }
+    if (temple_serves_god(type, GOD_NEPTUNE)) {
+        return provide_culture(x, y, religion_coverage_neptune);
+    }
+    if (temple_serves_god(type, GOD_MERCURY)) {
+        return provide_culture(x, y, religion_coverage_mercury);
+    }
+    if (temple_serves_god(type, GOD_MARS)) {
+        if (basic_temple && building_monument_gt_module_is_active(MARS_MODULE_1_MESS_HALL) &&
+            city_buildings_get_mess_hall()) {
+            collect_offerings(f->building_id, x, y);
+        }
+        return provide_culture(x, y, religion_coverage_mars);
+    }
+    if (temple_serves_god(type, GOD_VENUS)) {
+        int houses_serviced = provide_culture(x, y, religion_coverage_venus);
+        if (basic_temple) {
+            provide_market_goods(f->building_id, x, y);
+            if (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
+                provide_venus_wine_to_taverns(f->building_id, x, y);
+            }
+        }
+        return houses_serviced;
+    }
+    return 0;
 }
 
 int figure_service_provide_coverage(figure *f)
@@ -601,83 +706,33 @@ int figure_service_provide_coverage(figure *f)
             houses_serviced = provide_missionary_coverage(x, y);
             break;
         case FIGURE_PRIEST:
-            switch (building_get(f->building_id)->type) {
-                case BUILDING_SMALL_TEMPLE_CERES:
-                case BUILDING_LARGE_TEMPLE_CERES:
-                    houses_serviced = provide_culture(x, y, religion_coverage_ceres);
-                    provide_market_goods(f->building_id, x, y);
-                    break;
-                case BUILDING_GRAND_TEMPLE_CERES:
-                    houses_serviced = provide_culture(x, y, religion_coverage_ceres);
-                    break;
-                case BUILDING_SMALL_TEMPLE_NEPTUNE:
-                case BUILDING_LARGE_TEMPLE_NEPTUNE:
-                case BUILDING_GRAND_TEMPLE_NEPTUNE:
-                    houses_serviced = provide_culture(x, y, religion_coverage_neptune);
-                    break;
-                case BUILDING_SMALL_TEMPLE_MERCURY:
-                case BUILDING_LARGE_TEMPLE_MERCURY:
-                case BUILDING_GRAND_TEMPLE_MERCURY:
-                    houses_serviced = provide_culture(x, y, religion_coverage_mercury);
-                    break;
-                case BUILDING_SMALL_TEMPLE_MARS:
-                case BUILDING_LARGE_TEMPLE_MARS:
-                    if (building_monument_gt_module_is_active(MARS_MODULE_1_MESS_HALL) && city_buildings_get_mess_hall()) {
-                        collect_offerings(f->building_id, x, y);
-                    }
-                    houses_serviced = provide_culture(x, y, religion_coverage_mars);
-                    break;
-                case BUILDING_GRAND_TEMPLE_MARS:
-                    houses_serviced = provide_culture(x, y, religion_coverage_mars);
-                    break;
-                case BUILDING_SMALL_TEMPLE_VENUS:
-                case BUILDING_LARGE_TEMPLE_VENUS:
-                    houses_serviced = provide_culture(x, y, religion_coverage_venus);
-                    provide_market_goods(f->building_id, x, y);
-                    if (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
-                        provide_venus_wine_to_taverns(f->building_id, x, y);
-                    }
-                    break;
-                case BUILDING_GRAND_TEMPLE_VENUS:
-                    houses_serviced = provide_culture(x, y, religion_coverage_venus);
-                    break;
-                case BUILDING_PANTHEON:
-                    houses_serviced = provide_culture(x, y, religion_coverage_ceres);
-                    provide_culture(x, y, religion_coverage_neptune);
-                    provide_culture(x, y, religion_coverage_mercury);
-                    provide_culture(x, y, religion_coverage_mars);
-                    provide_culture(x, y, religion_coverage_venus);
-                    provide_culture(x, y, religion_coverage_pantheon);
-                    break;
-                default:
-                    break;
-            }
+            houses_serviced = provide_priest_service(f, x, y);
             break;
         case FIGURE_ACTOR:
             b = get_entertainment_building(f);
-            if (b->type == BUILDING_THEATER) {
+            if (building_type_registry_is_theater(b->type)) {
                 houses_serviced = provide_culture(x, y, theater_coverage);
-            } else if (b->type == BUILDING_AMPHITHEATER) {
+            } else if (type_matches(b->type, "amphitheater")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days1 ? 2 : 1, amphitheater_coverage);
             }
             break;
         case FIGURE_GLADIATOR:
             b = get_entertainment_building(f);
-            if (b->type == BUILDING_AMPHITHEATER) {
+            if (type_matches(b->type, "amphitheater")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days2 ? 2 : 1, amphitheater_coverage);
-            } else if (b->type == BUILDING_COLOSSEUM) {
+            } else if (type_matches(b->type, "colosseum")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days1 ? 2 : 1, colosseum_coverage);
-            } else if (b->type == BUILDING_ARENA) {
+            } else if (type_matches(b->type, "arena")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days1 ? 2 : 1, arena_coverage);
             }
             break;
         case FIGURE_LION_TAMER:
             b = get_entertainment_building(f);
-            if (b->type == BUILDING_ARENA) {
+            if (type_matches(b->type, "arena")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days1 ? 2 : 1, arena_coverage);
             } else {
@@ -692,9 +747,9 @@ int figure_service_provide_coverage(figure *f)
         {
             b = building_get(f->building_id);
             int tavern_goods = 0;
-            if (b->resources[RESOURCE_WINE]) {
+            if (b->resources[resource_wine()]) {
                 tavern_goods = 1;
-                if (b->resources[RESOURCE_MEAT] || b->resources[RESOURCE_FISH]) {
+                if (b->resources[resource_meat()] || b->resources[resource_fish()]) {
                     tavern_goods = 2;
                 }
             }

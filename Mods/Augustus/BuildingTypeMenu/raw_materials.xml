@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="raw_materials">
+    <identity name_key="building.raw_materials.name" />
+    <event_data attr="raw_materials|all_raw_materials" />
+</building>

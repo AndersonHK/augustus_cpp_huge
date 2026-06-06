@@ -25,6 +25,7 @@ extern "C" {
 #include "window/mission_list.h"
 #include "window/video.h"
 }
+#include "graphics/image_border.h"
 #include "graphics/image.h"
 
 #define BACKGROUND_WIDTH 1024
@@ -83,7 +84,7 @@ public:
 
         int offset = selected_choice == index_ + 1 ? 2 : 0;
         offset = focused_choice == index_ + 1 ? 1 : offset;
-        Image::from_id(Image::group(GROUP_SELECT_MISSION_BUTTON) + offset).draw(scenario_->x, scenario_->y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_SELECT_MISSION_BUTTON) + offset).draw(scenario_->x, scenario_->y);
 
         // Scenario choices are image-backed buttons; keep the legacy art and add the missing numeric label.
         text_draw_number_centered(
@@ -178,11 +179,10 @@ static void draw_background_images(void)
 
     if (s_width > BACKGROUND_WIDTH || s_height > BACKGROUND_HEIGHT) {
         Image::from_id(Image::group(GROUP_EMPIRE_MAP)).draw_fullscreen_background();
-        Image::from_id(Image::group(GROUP_SELECT_MISSION_BACKGROUND)).draw(image_offset_x, image_offset_y, COLOR_MASK_NONE, SCALE_NONE);
-        int image_border = assets_get_image_id("UI", "Mission Selection Border");
-        Image::from_id(image_border).draw_border(image_offset_x, image_offset_y, COLOR_MASK_NONE);
+        Image::from_id(Image::group(GROUP_SELECT_MISSION_BACKGROUND)).draw(image_offset_x, image_offset_y);
+        ImageBorder::mission_selection().draw(image_offset_x, image_offset_y);
     } else {
-        Image::from_id(Image::group(GROUP_SELECT_MISSION_BACKGROUND)).draw(image_offset_x, image_offset_y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_SELECT_MISSION_BACKGROUND)).draw(image_offset_x, image_offset_y);
     }
 }
 
@@ -192,7 +192,7 @@ static void draw_background(void)
     graphics_in_dialog();
     graphics_set_clip_rectangle(0, 0, 640, 400);
     if (data.mission.background_image_id) {
-        Image::from_id(data.mission.background_image_id).draw(0, 0, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(data.mission.background_image_id).draw(0, 0);
     } else {
         Image::from_id(Image::group(GROUP_EMPIRE_MAP)).draw(0, 0, COLOR_MASK_NONE, 2.5f);
     }

@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "city_overlay.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 const city_overlay *city_overlay_for_entertainment(void);
 
@@ -15,3 +19,7 @@ const city_overlay *city_overlay_for_hippodrome(void);
 const city_overlay* city_overlay_for_tavern(void);
 
 const city_overlay *city_overlay_for_arena(void);
+
+#ifdef __cplusplus
+}
+#endif

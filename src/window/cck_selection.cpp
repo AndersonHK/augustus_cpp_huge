@@ -6,6 +6,7 @@ extern "C" {
 #include "core/encoding.h"
 #include "core/file.h"
 #include "core/image_group.h"
+#include "core/lang.h"
 #include "game/file.h"
 #include "game/file_io.h"
 #include "graphics/generic_button.h"
@@ -103,7 +104,7 @@ static void draw_scenario_info(void)
     const int scenario_info_width = 280;
     const int scenario_criteria_x = 420;
 
-    Image::from_id(Image::group(GROUP_SCENARIO_IMAGE) + data.info.image_id).draw(78, 36, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_SCENARIO_IMAGE) + data.info.image_id).draw(78, 36);
 
     text_ellipsize(data.selected_scenario_display, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), scenario_info_width + 10);
     text_draw_centered(data.selected_scenario_display,
@@ -196,7 +197,7 @@ static void draw_scenario_info(void)
 static void draw_toggle_minimap_button_contents(void)
 {
     if (data.show_minimap) {
-        Image::from_id(Image::group(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)).draw(toggle_minimap_button.x + 3, toggle_minimap_button.y + 3, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS)).draw(toggle_minimap_button.x + 3, toggle_minimap_button.y + 3);
         return;
     }
 
@@ -216,7 +217,7 @@ static void draw_background(void)
     graphics_set_clip_rectangle(0, 0,
         WINDOW_WIDTH, WINDOW_HEIGHT);
     graphics_in_dialog();
-    Image::from_id(Image::group(GROUP_CCK_BACKGROUND)).draw((WINDOW_WIDTH - BACKGROUND_WIDTH) / 2, (WINDOW_HEIGHT - BACKGROUND_HEIGHT) / 2, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_CCK_BACKGROUND)).draw((WINDOW_WIDTH - BACKGROUND_WIDTH) / 2, (WINDOW_HEIGHT - BACKGROUND_HEIGHT) / 2);
     graphics_reset_clip_rectangle();
     list_box_request_refresh(&list_box);
     draw_scenario_info();

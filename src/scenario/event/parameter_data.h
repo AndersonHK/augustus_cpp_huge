@@ -1,6 +1,6 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
 #include "city/message.h"
 #include "game/settings.h"
 #include "scenario/data.h"
@@ -85,6 +85,28 @@ typedef struct {
     int value;
     translation_key key;
 } special_attribute_mapping_t;
+
+typedef enum {
+    SCENARIO_BUILDING_RUBBLE = -1,
+    SCENARIO_BUILDING_MENU_FARMS = -1000,
+    SCENARIO_BUILDING_MENU_RAW_MATERIALS,
+    SCENARIO_BUILDING_MENU_WORKSHOPS,
+    SCENARIO_BUILDING_MENU_SMALL_TEMPLES,
+    SCENARIO_BUILDING_MENU_LARGE_TEMPLES,
+    SCENARIO_BUILDING_MENU_GRAND_TEMPLES,
+    SCENARIO_BUILDING_MENU_TREES,
+    SCENARIO_BUILDING_MENU_PATHS,
+    SCENARIO_BUILDING_MENU_PARKS,
+    SCENARIO_BUILDING_ANY,
+    SCENARIO_BUILDING_ROAD,
+    SCENARIO_BUILDING_HIGHWAY,
+    SCENARIO_BUILDING_PLAZA,
+    SCENARIO_BUILDING_GARDENS,
+    SCENARIO_BUILDING_OVERGROWN_GARDENS,
+    SCENARIO_BUILDING_LOW_BRIDGE,
+    SCENARIO_BUILDING_SHIP_BRIDGE,
+    SCENARIO_BUILDING_MENU_FORT
+} scenario_building_parameter;
 
 #ifdef __cplusplus
 extern "C" {

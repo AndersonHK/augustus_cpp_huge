@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /**
  * @file
@@ -66,3 +70,7 @@ int building_list_burning_item(int index);
 void building_list_save_state(buffer *small, buffer *large, buffer *burning, buffer *burning_totals);
 
 void building_list_load_state(buffer *small, buffer *large, buffer *burning, buffer *burning_totals, int is_new_version);
+
+#ifdef __cplusplus
+}
+#endif

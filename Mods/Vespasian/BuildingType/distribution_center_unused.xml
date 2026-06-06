@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="distribution_center_unused">
+    <identity name_key="building.distribution_center_unused.name" />
+    <model size="3" />
+    <event_data attr="distribution_center_unused" />
+</building>

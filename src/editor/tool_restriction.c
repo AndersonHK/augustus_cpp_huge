@@ -22,61 +22,71 @@ static const int ACCESS_RAMP_TILE_OFFSETS_BY_ORIENTATION[4][6] = {
     {OFFSET(1,0), OFFSET(1,1), OFFSET(2,0), OFFSET(2,1), OFFSET(0,0), OFFSET(0,1)},
 };
 
-static int is_clear_terrain(const map_tile *tile, int *warning)
+static void set_warning(warning_type *warning, translation_key *text_key, warning_type type, translation_key key)
+{
+    if (warning) {
+        *warning = type;
+    }
+    if (text_key) {
+        *text_key = key;
+    }
+}
+
+static int is_clear_terrain(const map_tile *tile, warning_type *warning, translation_key *text_key)
 {
     int result = !map_terrain_is(tile->grid_offset, TERRAIN_NOT_CLEAR ^ TERRAIN_ROAD);
-    if (!result && warning) {
-        *warning = WARNING_EDITOR_CANNOT_PLACE;
+    if (!result) {
+        set_warning(warning, text_key, WARNING_EDITOR_CANNOT_PLACE, TR_CITY_WARNING_EDITOR_CANNOT_PLACE);
     }
     return result;
 }
 
-static int is_edge(const map_tile *tile, int *warning)
+static int is_edge(const map_tile *tile, warning_type *warning, translation_key *text_key)
 {
     int result = tile->x == 0 || tile->y == 0 || tile->x == map_grid_width() - 1 || tile->y == map_grid_height() - 1;
-    if (!result && warning) {
-        *warning = WARNING_EDITOR_NEED_MAP_EDGE;
+    if (!result) {
+        set_warning(warning, text_key, WARNING_EDITOR_NEED_MAP_EDGE, TR_CITY_WARNING_EDITOR_NEED_MAP_EDGE);
     }
     return result;
 }
 
-static int is_water(const map_tile *tile, int *warning)
+static int is_water(const map_tile *tile, warning_type *warning, translation_key *text_key)
 {
     int result = map_terrain_is(tile->grid_offset, TERRAIN_WATER);
-    if (!result && warning) {
-        *warning = WARNING_EDITOR_NEED_OPEN_WATER;
+    if (!result) {
+        set_warning(warning, text_key, WARNING_EDITOR_NEED_OPEN_WATER, TR_CITY_WARNING_EDITOR_NEED_OPEN_WATER);
     }
     return result;
 }
 
-static int is_deep_water(const map_tile *tile, int *warning)
+static int is_deep_water(const map_tile *tile, warning_type *warning, translation_key *text_key)
 {
     int result = map_terrain_is(tile->grid_offset, TERRAIN_WATER) &&
         map_terrain_count_directly_adjacent_with_type(tile->grid_offset, TERRAIN_WATER) == 4;
-    if (!result && warning) {
-        *warning = WARNING_EDITOR_NEED_OPEN_WATER;
+    if (!result) {
+        set_warning(warning, text_key, WARNING_EDITOR_NEED_OPEN_WATER, TR_CITY_WARNING_EDITOR_NEED_OPEN_WATER);
     }
     return result;
 }
 
-int editor_tool_can_place_flag(tool_type type, const map_tile *tile, int *warning)
+int editor_tool_can_place_flag(tool_type type, const map_tile *tile, warning_type *warning, translation_key *text_key)
 {
     switch (type) {
         case TOOL_ENTRY_POINT:
         case TOOL_EXIT_POINT:
         case TOOL_INVASION_POINT:
-            return is_clear_terrain(tile, warning) && is_edge(tile, warning);
+            return is_clear_terrain(tile, warning, text_key) && is_edge(tile, warning, text_key);
 
         case TOOL_EARTHQUAKE_POINT:
         case TOOL_HERD_POINT:
-            return is_clear_terrain(tile, warning);
+            return is_clear_terrain(tile, warning, text_key);
 
         case TOOL_FISHING_POINT:
-            return is_water(tile, warning);
+            return is_water(tile, warning, text_key);
 
         case TOOL_RIVER_ENTRY_POINT:
         case TOOL_RIVER_EXIT_POINT:
-            return is_edge(tile, warning) && is_deep_water(tile, warning);
+            return is_edge(tile, warning, text_key) && is_deep_water(tile, warning, text_key);
 
         default:
             return 0;

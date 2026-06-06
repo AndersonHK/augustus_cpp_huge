@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 typedef enum {
     WEATHER_NONE,
@@ -11,3 +15,7 @@ void weather_reset(void);
 void set_weather(int active, int intensity, weather_type type);
 void update_weather(void);
 void city_weather_update(int month);
+
+#ifdef __cplusplus
+}
+#endif

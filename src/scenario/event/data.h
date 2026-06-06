@@ -1,8 +1,10 @@
-#pragma once
-
-#include "core/array.h"
+﻿#pragma once
 
 #include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define EVENT_NAME_LENGTH 32
 #define CONDITION_GROUP_ITEMS_ARRAY_SIZE_STEP 2
@@ -142,8 +144,18 @@ typedef struct {
 } scenario_condition_t;
 
 typedef struct {
+    scenario_condition_t **items;
+    unsigned int size;
+    unsigned int blocks;
+    unsigned int block_offset;
+    unsigned int bit_offset;
+    void (*constructor)(scenario_condition_t *, unsigned int);
+    int (*in_use)(const scenario_condition_t *);
+} scenario_condition_array_t;
+
+typedef struct {
     fulfillment_type type;
-    array(scenario_condition_t) conditions;
+    scenario_condition_array_t conditions;
 } scenario_condition_group_t;
 
 typedef struct {
@@ -157,6 +169,26 @@ typedef struct {
 } scenario_action_t;
 
 typedef struct {
+    scenario_condition_group_t **items;
+    unsigned int size;
+    unsigned int blocks;
+    unsigned int block_offset;
+    unsigned int bit_offset;
+    void (*constructor)(scenario_condition_group_t *, unsigned int);
+    int (*in_use)(const scenario_condition_group_t *);
+} scenario_condition_group_array_t;
+
+typedef struct {
+    scenario_action_t **items;
+    unsigned int size;
+    unsigned int blocks;
+    unsigned int block_offset;
+    unsigned int bit_offset;
+    void (*constructor)(scenario_action_t *, unsigned int);
+    int (*in_use)(const scenario_action_t *);
+} scenario_action_array_t;
+
+typedef struct {
     unsigned int id;
     event_state state;
     int repeat_days_min; // changed to days from months in scenario version 20, with conversion done in editor
@@ -166,8 +198,8 @@ typedef struct {
     int execution_count;
     int days_until_active;
     uint8_t name[EVENT_NAME_LENGTH];
-    array(scenario_condition_group_t) condition_groups;
-    array(scenario_action_t) actions;
+    scenario_condition_group_array_t condition_groups;
+    scenario_action_array_t actions;
 } scenario_event_t;
 
 typedef struct {
@@ -179,3 +211,7 @@ typedef struct {
     int min_evaluation; //limits are inherited from xml parameters on adding to the array
     int max_evaluation; //they cannot be set afterwards, because they are dictated by the kind of number expected to be returned
 } scenario_formula_t;
+
+#ifdef __cplusplus
+}
+#endif

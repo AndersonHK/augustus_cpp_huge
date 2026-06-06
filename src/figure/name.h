@@ -1,7 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
 #include "figure/type.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /**
  * @file
@@ -32,3 +36,7 @@ void figure_name_save_state(buffer *buf);
  * @param buf Buffer to load from
  */
 void figure_name_load_state(buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif

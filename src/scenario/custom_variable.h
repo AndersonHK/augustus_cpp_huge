@@ -1,7 +1,11 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
 #include "graphics/color.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 #define MAX_ORIGINAL_CUSTOM_VARIABLES 100
 #define CUSTOM_VARIABLE_NAME_LENGTH 64
@@ -37,3 +41,7 @@ void scenario_custom_variable_load_state(buffer *buf, int version);
 void scenario_custom_variable_load_state_old_version(buffer *buf);
 
 void scenario_custom_variable_resolve_name(const uint8_t *input, uint8_t *output, int max_length);
+
+#ifdef __cplusplus
+}
+#endif

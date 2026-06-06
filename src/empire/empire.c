@@ -393,46 +393,6 @@ int empire_can_import_resource_from_city(int city_id, int resource)
 
     int in_stock = city_resource_get_total_amount(resource, 0); // dont respect maintaining, this is full count.
     int max_in_stock = 0;
-    /* NOTE: don't forget to uncomment function get_max_stock_for_population
-
-    int finished_good = RESOURCE_NONE;
-    switch (resource) {
-        // food and finished materials
-        case RESOURCE_WHEAT:
-        case RESOURCE_VEGETABLES:
-        case RESOURCE_FRUIT:
-        case RESOURCE_MEAT:
-        case RESOURCE_POTTERY:
-        case RESOURCE_FURNITURE:
-        case RESOURCE_OIL:
-        case RESOURCE_WINE:
-            max_in_stock = get_max_stock_for_population();
-            break;
-
-        case RESOURCE_MARBLE:
-        case RESOURCE_WEAPONS:
-            max_in_stock = 10;
-            break;
-
-        case RESOURCE_CLAY:
-            finished_good = RESOURCE_POTTERY;
-            break;
-        case RESOURCE_TIMBER:
-            finished_good = RESOURCE_FURNITURE;
-            break;
-        case RESOURCE_OLIVES:
-            finished_good = RESOURCE_OIL;
-            break;
-        case RESOURCE_VINES:
-            finished_good = RESOURCE_WINE;
-            break;
-        case RESOURCE_IRON:
-            finished_good = RESOURCE_WEAPONS;
-            break;
-    }
-    if (finished_good) {
-        max_in_stock = 2 + 2 * building_count_industry_active(finished_good);
-    }*/
     max_in_stock = city_resource_import_over(resource);
     return (max_in_stock == 0 || in_stock < max_in_stock) ? 1 : 0;
 }

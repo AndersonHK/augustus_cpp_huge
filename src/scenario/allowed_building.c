@@ -10,70 +10,95 @@
 
 #define MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT (11 + 1) // 11 buildings + BUILDING_NONE
 
-static building_type CONVERSION_FROM_ORIGINAL[MAX_ORIGINAL_ALLOWED_BUILDINGS][MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT] = {
-    { BUILDING_NONE },
-    { BUILDING_WHEAT_FARM, BUILDING_VEGETABLE_FARM, BUILDING_FRUIT_FARM, BUILDING_OLIVE_FARM, BUILDING_VINES_FARM, BUILDING_PIG_FARM },
-    { BUILDING_CLAY_PIT, BUILDING_MARBLE_QUARRY, BUILDING_IRON_MINE, BUILDING_TIMBER_YARD, BUILDING_GOLD_MINE, BUILDING_STONE_QUARRY, BUILDING_SAND_PIT },
-    { BUILDING_WINE_WORKSHOP, BUILDING_OIL_WORKSHOP, BUILDING_WEAPONS_WORKSHOP, BUILDING_FURNITURE_WORKSHOP, BUILDING_POTTERY_WORKSHOP, BUILDING_BRICKWORKS, BUILDING_CONCRETE_MAKER },
-    { BUILDING_ROAD },
-    { BUILDING_WALL, BUILDING_PALISADE },
-    { BUILDING_DRAGGABLE_RESERVOIR, BUILDING_AQUEDUCT, BUILDING_FOUNTAIN },
-    { BUILDING_HOUSE_VACANT_LOT },
-    { BUILDING_AMPHITHEATER },
-    { BUILDING_NONE },
-    { BUILDING_HIPPODROME },
-    { BUILDING_COLOSSEUM, BUILDING_ARENA },
-    { BUILDING_GLADIATOR_SCHOOL },
-    { BUILDING_LION_HOUSE },
-    { BUILDING_ACTOR_COLONY },
-    { BUILDING_CHARIOT_MAKER },
-    { BUILDING_GARDENS, BUILDING_OVERGROWN_GARDENS, BUILDING_HEDGE_DARK, BUILDING_HEDGE_LIGHT, BUILDING_PAVILION_BLUE, BUILDING_COLONNADE, BUILDING_LOOPED_GARDEN_WALL, BUILDING_ROOFED_GARDEN_WALL, BUILDING_DECORATIVE_COLUMN },
-    { BUILDING_PLAZA },
-    { BUILDING_SMALL_STATUE, BUILDING_GODDESS_STATUE, BUILDING_SENATOR_STATUE, BUILDING_GLADIATOR_STATUE, BUILDING_MEDIUM_STATUE, BUILDING_LEGION_STATUE, BUILDING_LARGE_STATUE, BUILDING_HORSE_STATUE, BUILDING_OBELISK, BUILDING_SMALL_POND, BUILDING_LARGE_POND },
-    { BUILDING_DOCTOR },
-    { BUILDING_HOSPITAL },
-    { BUILDING_BATHHOUSE },
-    { BUILDING_BARBER },
-    { BUILDING_SCHOOL },
-    { BUILDING_ACADEMY },
-    { BUILDING_LIBRARY },
-    { BUILDING_PREFECTURE },
-    { BUILDING_MENU_FORT, BUILDING_MESS_HALL, BUILDING_FORT_LEGIONARIES, BUILDING_FORT_JAVELIN, BUILDING_FORT_MOUNTED, BUILDING_FORT_AUXILIA_INFANTRY, BUILDING_FORT_ARCHERS },
-    { BUILDING_GATEHOUSE, BUILDING_PALISADE_GATE },
-    { BUILDING_TOWER, BUILDING_WATCHTOWER },
-    { BUILDING_SMALL_TEMPLE_CERES, BUILDING_SMALL_TEMPLE_NEPTUNE, BUILDING_SMALL_TEMPLE_MERCURY, BUILDING_SMALL_TEMPLE_MARS, BUILDING_SMALL_TEMPLE_VENUS },
-    { BUILDING_LARGE_TEMPLE_CERES, BUILDING_LARGE_TEMPLE_NEPTUNE, BUILDING_LARGE_TEMPLE_MERCURY, BUILDING_LARGE_TEMPLE_MARS, BUILDING_LARGE_TEMPLE_VENUS, BUILDING_GRAND_TEMPLE_CERES, BUILDING_GRAND_TEMPLE_NEPTUNE, BUILDING_GRAND_TEMPLE_MERCURY, BUILDING_GRAND_TEMPLE_MARS, BUILDING_GRAND_TEMPLE_VENUS },
-    { BUILDING_MARKET },
-    { BUILDING_GRANARY },
-    { BUILDING_WAREHOUSE },
-    { BUILDING_TRIUMPHAL_ARCH },
-    { BUILDING_DOCK },
-    { BUILDING_WHARF, BUILDING_SHIPYARD },
-    { BUILDING_GOVERNORS_HOUSE, BUILDING_GOVERNORS_VILLA, BUILDING_GOVERNORS_PALACE },
-    { BUILDING_ENGINEERS_POST },
-    { BUILDING_SENATE },
-    { BUILDING_FORUM },
-    { BUILDING_NONE },
-    { BUILDING_ORACLE, BUILDING_SMALL_MAUSOLEUM, BUILDING_LARGE_MAUSOLEUM, BUILDING_NYMPHAEUM },
-    { BUILDING_MISSION_POST },
-    { BUILDING_LOW_BRIDGE, BUILDING_SHIP_BRIDGE },
-    { BUILDING_BARRACKS, BUILDING_ARMOURY },
-    { BUILDING_MILITARY_ACADEMY },
-    { BUILDING_GRAND_TEMPLE_CERES, BUILDING_GRAND_TEMPLE_NEPTUNE, BUILDING_GRAND_TEMPLE_MERCURY, BUILDING_GRAND_TEMPLE_MARS, BUILDING_GRAND_TEMPLE_VENUS },
+static const char *const CONVERSION_FROM_ORIGINAL_TEXT[MAX_ORIGINAL_ALLOWED_BUILDINGS][MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT] = {
+    { 0 },
+    { "wheat_farm", "vegetable_farm", "fruit_farm", "olive_farm", "vines_farm", "pig_farm" },
+    { "clay_pit", "marble_quarry", "iron_mine", "timber_yard", "gold_mine", "stone_quarry", "sand_pit" },
+    { "wine_workshop", "oil_workshop", "weapons_workshop", "furniture_workshop", "pottery_workshop", "brickworks", "concrete_maker" },
+    { "road" },
+    { "wall", "palisade" },
+    { "draggable_reservoir", "aqueduct", "fountain" },
+    { 0 },
+    { "amphitheater" },
+    { 0 },
+    { "hippodrome" },
+    { "colosseum", "arena" },
+    { "gladiator_school" },
+    { "lion_house" },
+    { "actor_colony" },
+    { "chariot_maker" },
+    { "gardens", "overgrown_gardens", "hedge_dark", "hedge_light", "pavilion_blue", "colonnade", "looped_garden_wall", "roofed_garden_wall", "decorative_column" },
+    { "plaza" },
+    { "small_statue", "goddess_statue", "senator_statue", "gladiator_statue", "medium_statue", "legion_statue", "large_statue", "horse_statue", "obelisk", "small_pond", "large_pond" },
+    { "doctor" },
+    { "hospital" },
+    { "bathhouse" },
+    { "barber" },
+    { "school" },
+    { "academy" },
+    { "library" },
+    { "prefecture" },
+    { "mess_hall", "fort_legionaries", "fort_javelin", "fort_mounted", "fort_swords", "fort_archers" },
+    { "gatehouse", "palisade_gate" },
+    { "tower", "watchtower" },
+    { "small_temple_ceres", "small_temple_neptune", "small_temple_mercury", "small_temple_mars", "small_temple_venus" },
+    { "large_temple_ceres", "large_temple_neptune", "large_temple_mercury", "large_temple_mars", "large_temple_venus", "grand_temple_ceres", "grand_temple_neptune", "grand_temple_mercury", "grand_temple_mars", "grand_temple_venus" },
+    { "market" },
+    { "granary" },
+    { "warehouse" },
+    { "triumphal_arch" },
+    { "dock" },
+    { "wharf", "shipyard" },
+    { "governors_house", "governors_villa", "governors_palace" },
+    { "engineers_post" },
+    { "senate" },
+    { "forum" },
+    { 0 },
+    { "oracle", "small_mausoleum", "large_mausoleum", "nymphaeum" },
+    { "mission_post" },
+    { "low_bridge", "ship_bridge" },
+    { "barracks", "armoury" },
+    { "military_academy" },
+    { "grand_temple_ceres", "grand_temple_neptune", "grand_temple_mercury", "grand_temple_mars", "grand_temple_venus" },
 };
+
+static building_type conversion_from_original[MAX_ORIGINAL_ALLOWED_BUILDINGS][MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT];
+static int conversion_from_original_initialized;
 
 static uint8_t allowed_buildings[BUILDING_TYPE_MAX];
 
+static building_type runtime_type(const char *text_id)
+{
+    return text_id ? building_type_registry_runtime_id_from_text(text_id) : BUILDING_NONE;
+}
+
 static void refresh_dynamic_original_allowed_slots(void)
 {
-    CONVERSION_FROM_ORIGINAL[9][0] = BUILDING_THEATER;
-    CONVERSION_FROM_ORIGINAL[9][1] = BUILDING_NONE;
-    CONVERSION_FROM_ORIGINAL[42][0] = BUILDING_WELL;
-    CONVERSION_FROM_ORIGINAL[42][1] = BUILDING_NONE;
+    memset(conversion_from_original, 0, sizeof(conversion_from_original));
+    for (unsigned int i = 0; i < MAX_ORIGINAL_ALLOWED_BUILDINGS; i++) {
+        for (unsigned int j = 0; j < MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT - 1; j++) {
+            const char *text_id = CONVERSION_FROM_ORIGINAL_TEXT[i][j];
+            if (!text_id) {
+                break;
+            }
+            conversion_from_original[i][j] = runtime_type(text_id);
+        }
+    }
+
+    conversion_from_original[9][0] = building_type_registry_theater_type();
+    conversion_from_original[9][1] = BUILDING_NONE;
+    conversion_from_original[42][0] = building_type_registry_well_type();
+    conversion_from_original[42][1] = BUILDING_NONE;
+    conversion_from_original[7][0] = building_type_registry_get_vacant_lot_fill_type();
+    conversion_from_original[7][1] = BUILDING_NONE;
+    conversion_from_original_initialized = 1;
 }
 
 int scenario_allowed_building(building_type type)
 {
+    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
+        return 0;
+    }
     return allowed_buildings[type];
 }
 
@@ -118,8 +143,13 @@ void scenario_allowed_building_disable_all(void)
 
 const building_type *scenario_allowed_building_get_buildings_from_original_id(unsigned int original)
 {
-    refresh_dynamic_original_allowed_slots();
-    return CONVERSION_FROM_ORIGINAL[original];
+    if (!conversion_from_original_initialized) {
+        refresh_dynamic_original_allowed_slots();
+    }
+    if (original >= MAX_ORIGINAL_ALLOWED_BUILDINGS) {
+        return conversion_from_original[0];
+    }
+    return conversion_from_original[original];
 }
 
 void scenario_allowed_building_load_state(buffer *buf)
@@ -144,10 +174,11 @@ void scenario_allowed_building_load_state_old_version(buffer *buf)
             continue;
         }
         for (unsigned int j = 0; j < MAX_BUILDINGS_PER_ORIGINAL_ALLOWED_SLOT; j++) {
-            if (CONVERSION_FROM_ORIGINAL[i][j] == BUILDING_NONE) {
+            building_type type = conversion_from_original[i][j];
+            if (type == BUILDING_NONE) {
                 break;
             }
-            allowed_buildings[CONVERSION_FROM_ORIGINAL[i][j]] = 0;
+            allowed_buildings[type] = 0;
         }
     }
 }

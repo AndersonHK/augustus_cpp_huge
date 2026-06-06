@@ -4,6 +4,7 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
 }
 
 namespace {

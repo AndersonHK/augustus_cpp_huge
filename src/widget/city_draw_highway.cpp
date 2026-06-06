@@ -2,6 +2,7 @@ extern "C" {
 #include "city_draw_highway.h"
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_record.h"
 #include "city/view.h"
 #include "map/aqueduct.h"
 #include "map/building.h"
@@ -41,7 +42,7 @@ static int is_highway_access(int grid_offset, int direction_index)
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         const building *b = building_get(map_building_at(grid_offset));
-        if (b->type == BUILDING_GRANARY) {
+        if (Building(const_cast<building *>(b)).type().is_granary()) {
             return grid_offset == b->grid_offset + map_grid_delta(1, 0) ||
                 grid_offset == b->grid_offset + map_grid_delta(0, 1) ||
                 grid_offset == b->grid_offset + map_grid_delta(2, 1) ||

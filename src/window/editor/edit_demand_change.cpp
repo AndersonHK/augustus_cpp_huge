@@ -58,7 +58,7 @@ static struct {
     unsigned int num_routes;
     int is_new_demand_change;
     const uint8_t *errors[MAX_POSSIBLE_ERRORS];
-    resource_type available_resources[RESOURCE_MAX];
+    resource_type available_resources[RESOURCE_SLOT_COUNT];
 } data;
 
 static void create_route_info(int route_id, const uint8_t *city_name)
@@ -216,10 +216,10 @@ static void set_resource(int value)
 
 static void button_resource(const generic_button *button)
 {
-    static const uint8_t *resource_texts[RESOURCE_MAX];
+    static const uint8_t *resource_texts[RESOURCE_SLOT_COUNT];
     static int total_resources = 0;
     if (!total_resources) {
-        for (int resource_id = RESOURCE_NONE; resource_id < RESOURCE_MAX; resource_id++) {
+        for (int resource_id = RESOURCE_NONE; resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
             resource_type resource = static_cast<resource_type>(resource_id);
             if (!resource_is_storable(resource)) {
                 continue;

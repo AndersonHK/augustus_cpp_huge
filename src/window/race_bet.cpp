@@ -15,7 +15,9 @@ extern "C" {
 #include "race_bet.h"
 #include "translation/translation.h"
 }
+#include "graphics/image_border.h"
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 static void arrow_button_bet(int is_down, int param2);
 static void button_horse_selection(const generic_button *button);
@@ -41,6 +43,12 @@ static image_button image_button_close[] = {
         {424, 354, 24, 24, IB_NORMAL, GROUP_CONTEXT_ICONS, 4, button_close, button_none, 0, 0, 1}
 };
 
+static const ImageGroupEntryRef HORSE_TEAM_IMAGES[] = {
+    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Hipp_Team_Blue"),
+    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0020"),
+    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0021"),
+    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0022"),
+};
 
 static struct {
     unsigned int chosen_horse;
@@ -78,7 +86,7 @@ static void draw_background(void)
 
     outer_panel_draw(0, 0, data.width_blocks, data.height_blocks);
 
-    Image::from_id(resource_get_data(RESOURCE_DENARII)->image.icon).draw(20, 20, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(resource_denarii()).panel_icon().draw(20, 20);
 
     text_draw_centered(translation_for(TR_WINDOW_RACE_BET_TITLE), 0, 20, BLOCK_SIZE * data.width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
@@ -108,10 +116,8 @@ static void draw_background(void)
         TR_WINDOW_RACE_BET_BUTTON), 90, 358, 300, button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN)->line_height),
         button_enabled ? 0 : COLOR_FONT_LIGHT_GRAY);
 
-    int image_id = assets_get_image_id("UI", "Hipp_Team_Blue");
-
     for (int i = 0; i < 4; i++) {
-        Image::from_id(image_id + i).draw(39 + i * 110, 150, COLOR_MASK_NONE, SCALE_NONE);
+        HORSE_TEAM_IMAGES[i].draw(39 + i * 110, 150);
     }
 
     graphics_reset_dialog();
@@ -121,12 +127,12 @@ static void draw_foreground(void)
 {
     graphics_in_dialog_with_size(BLOCK_SIZE * data.width_blocks, BLOCK_SIZE * data.height_blocks);
 
-    int border_id = assets_get_image_id("UI", "Image Border Small");
+    const ImageBorder border = ImageBorder::image_small();
 
     for (unsigned int i = 0; i < 4; i++) {
         color_t color = data.focus_button_id == (i + 1) || data.chosen_horse == (i + 1) ?
             COLOR_BORDER_RED : COLOR_BORDER_GREEN;
-        Image::from_id(border_id).draw_border(34 + i * 110, 145, color);
+        border.draw(34 + i * 110, 145, color);
     }
 
     arrow_buttons_draw(0, 0, amount_buttons, 2);

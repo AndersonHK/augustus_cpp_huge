@@ -1,6 +1,7 @@
 extern "C" {
 #include "house.h"
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/house.h"
 #include "building/local_workforce.h"
 #include "city/constants.h"
@@ -20,6 +21,7 @@ extern "C" {
 #include "window/building/figures.h"
 }
 
+#include "game/resource_graphics.h"
 #include "graphics/image.h"
 
 static void draw_vacant_lot(building_info_context *c)
@@ -49,7 +51,7 @@ static void draw_population_info(building_info_context *c, int y_offset)
 {
     building *b = building_get(c->building_id);
     int icon = 13;
-    if (building_house_has_plebeian_residents(b)) {
+    if (building_house_has_plebeian_residents(Building(b))) {
         icon++;
     }
 
@@ -64,7 +66,7 @@ static void draw_population_info(building_info_context *c, int y_offset)
     const int text_y = icon_y + (icon_image.height() - text_block_height) / 2;
     const int workers_text_y = text_y + line_height + line_padding;
 
-    icon_image.draw(icon_x, icon_y, COLOR_MASK_NONE, SCALE_NONE);
+    icon_image.draw(icon_x, icon_y);
     int width = text_draw_number(b->house_population, '@', " ", text_x, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     width += lang_text_draw(127, 20, text_x + width, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
 
@@ -157,7 +159,7 @@ void window_building_draw_house(building_info_context *c)
         return;
     }
     window_building_play_sound(c, "wavs/housing.wav");
-    int level = building_house_legacy_level(b);
+    int level = building_house_legacy_level(Building(b));
     if (level < HOUSE_MIN) {
         level = HOUSE_SMALL_TENT;
     }
@@ -175,7 +177,7 @@ void window_building_draw_house(building_info_context *c)
     int y_amount = 263;
 
     // food inventory
-    const model_house *house_model = building_house_get_model(b);
+    const model_house *house_model = building_house_get_model(Building(b));
     if (house_model && house_model->food_types) {
         const resource_list *list = city_resource_get_available_foods();
         int total_food_types = 0;
@@ -201,12 +203,11 @@ void window_building_draw_house(building_info_context *c)
                 if (!resource_is_inventory(r) || !b->resources[r]) {
                     continue;
                 }
-                int image_id = resource_get_data(r)->image.icon;
-                const Image &img = Image::from_id(image_id);
-                int base_width = (25 - img.original_width()) / 2;
-                int base_height = (25 - img.original_height()) / 2;
-                img.draw(c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height, COLOR_MASK_NONE, SCALE_NONE);
-                x_offset += img.original_width() + 6;
+                const ImageGroupEntryRef &icon = resource_graphics(r).panel_icon();
+                int base_width = (25 - icon.width()) / 2;
+                int base_height = (25 - icon.height()) / 2;
+                icon.draw(c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height);
+                x_offset += icon.width() + 6;
             }
             text_draw(string_from_ascii(")"), c->x_offset + x_offset, c->y_offset + y_content + 2,
                 FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
@@ -216,11 +217,10 @@ void window_building_draw_house(building_info_context *c)
                 if (!resource_is_inventory(r) || (list->size > 4 && !b->resources[r])) {
                     continue;
                 }
-                int image_id = resource_get_data(r)->image.icon;
-                const Image &img = Image::from_id(image_id);
-                int base_width = (25 - img.original_width()) / 2;
-                int base_height = (25 - img.original_height()) / 2;
-                img.draw(c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height, COLOR_MASK_NONE, SCALE_NONE);
+                const ImageGroupEntryRef &icon = resource_graphics(r).panel_icon();
+                int base_width = (25 - icon.width()) / 2;
+                int base_height = (25 - icon.height()) / 2;
+                icon.draw(c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height);
                 text_draw_number(b->resources[r], '@', " ",
                     c->x_offset + x_offset + 25, c->y_offset + y_amount + 2, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
                 x_offset += 85;
@@ -236,16 +236,15 @@ void window_building_draw_house(building_info_context *c)
     y_content += 35;
     y_amount += 35;
 
-    for (int resource = RESOURCE_MIN_NON_FOOD; resource < RESOURCE_MAX_NON_FOOD; resource++) {
+    for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
         const resource_type r = static_cast<resource_type>(resource);
         if (!resource_is_inventory(r)) {
             continue;
         }
-        int image_id = resource_get_data(r)->image.icon;
-        const Image &img = Image::from_id(image_id);
-        int base_width = (25 - img.original_width()) / 2;
-        int base_height = (25 - img.original_height()) / 2;
-        img.draw(c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height, COLOR_MASK_NONE, SCALE_NONE);
+        const ImageGroupEntryRef &icon = resource_graphics(r).panel_icon();
+        int base_width = (25 - icon.width()) / 2;
+        int base_height = (25 - icon.height()) / 2;
+        icon.draw(c->x_offset + x_offset + base_width, c->y_offset + y_content + base_height);
         text_draw_number(b->resources[r], '@', " ",
             c->x_offset + x_offset + 25, c->y_offset + y_amount + 2, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
         x_offset += 85;
@@ -285,7 +284,7 @@ const uint8_t *window_building_house_get_tooltip(const building_info_context *c)
 
     building *b = building_get(c->building_id);
 
-    const model_house *house_model = building_house_get_model(b);
+    const model_house *house_model = building_house_get_model(Building(b));
     if (!house_model || !house_model->food_types) {
         return 0;
     }

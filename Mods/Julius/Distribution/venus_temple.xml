@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<distribution>
+    <takes storage="wine_output_wine_workshop" baseline_stock="50" />
+</distribution>

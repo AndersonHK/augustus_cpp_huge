@@ -1,9 +1,14 @@
+#include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
+#include "building/caravanserai.h"
+#include "building/distribution.h"
+#include "building/market.h"
+
 extern "C" {
 #include "window/building/culture.h"
 
 #include "assets/assets.h"
-#include "building/caravanserai.h"
-#include "building/market.h"
 #include "building/monument.h"
 #include "city/buildings.h"
 #include "city/constants.h"
@@ -25,6 +30,8 @@ extern "C" {
 #include "window/option_popup.h"
 #include "window/race_bet.h"
 }
+#include "game/resource_graphics.h"
+#include "graphics/image_border.h"
 #include "graphics/image.h"
 
 #define GOD_PANTHEON 5
@@ -36,6 +43,26 @@ static void button_race_bet(const generic_button *button);
 
 
 static void draw_temple(building_info_context *c, const char *sound_file, int group_id);
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int building_is_xml_type(const building *b, const char *text_id)
+{
+    return b && b->type == runtime_type(text_id);
+}
+
+static int building_accepts_resource(building *b, resource_type resource)
+{
+    return Building(b).accepts_good(resource);
+}
+
+static const building_type_registry_impl::Distribution *distribution_for(building *b)
+{
+    return Building(b).type().distribution();
+}
 
 static generic_button add_module_button[] = {
     { 0, 0, 304, 20, button_add_module_prompt}
@@ -49,6 +76,13 @@ static generic_button hold_games_button[] = {
     { 0, 0, 300, 20, button_hold_games}
 };
 
+static const ImageGroupEntryRef HORSE_TEAM_IMAGES[] = {
+    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Hipp_Team_Blue"),
+    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0020"),
+    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0021"),
+    ImageGroupEntryRef::from_group("UI\\Hipp_Team_Blue", "Image_0022"),
+};
+
 static struct {
     unsigned int focus_button_id;
     int building_id;
@@ -58,70 +92,109 @@ static struct {
 
 static struct {
     option_menu_item option;
-    const building_type required_building;
-    const char image_id[32];
+    int requires_any_fort;
+    const char *required_building_text_id;
+    const char *image_id;
 } temple_module_options[12] = {
     {
         { TR_BUILDING_GRAND_TEMPLE_CERES_DESC_MODULE_1, TR_BUILDING_GRAND_TEMPLE_CERES_MODULE_1_DESC },
-        BUILDING_NONE,
+        0,
+        nullptr,
         "Ceres M Icon"
     },
     {
         { TR_BUILDING_GRAND_TEMPLE_CERES_DESC_MODULE_2, TR_BUILDING_GRAND_TEMPLE_CERES_MODULE_2_DESC },
-        BUILDING_NONE,
+        0,
+        nullptr,
         "Ceres M2 Icon"
     },
     {
         { TR_BUILDING_GRAND_TEMPLE_NEPTUNE_DESC_MODULE_1, TR_BUILDING_GRAND_TEMPLE_NEPTUNE_MODULE_1_DESC },
-        BUILDING_HIPPODROME,
+        0,
+        "hippodrome",
         "Nept M2 Icon"
     },
     {
         { TR_BUILDING_GRAND_TEMPLE_NEPTUNE_DESC_MODULE_2, TR_BUILDING_GRAND_TEMPLE_NEPTUNE_MODULE_2_DESC },
-        BUILDING_NONE,
+        0,
+        nullptr,
         "Nept M Icon"
     },
     {
         { TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC_MODULE_1, TR_BUILDING_GRAND_TEMPLE_MERCURY_MODULE_1_DESC },
-        BUILDING_FORT_GROUND, // every fort has a ground part, this can be used to check for existance of any fort
+        1,
+        nullptr,
         "Merc M Icon"
     },
     {
         { TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC_MODULE_2, TR_BUILDING_GRAND_TEMPLE_MERCURY_MODULE_2_DESC },
-        BUILDING_NONE,
+        0,
+        nullptr,
         "Merc M2 Icon"
     },
     {
         { TR_BUILDING_GRAND_TEMPLE_MARS_DESC_MODULE_1, TR_BUILDING_GRAND_TEMPLE_MARS_MODULE_1_DESC },
-        BUILDING_FORT_GROUND, // every fort has a ground part, this can be used to check for existance of any fort
+        1,
+        nullptr,
         "Mars M2 Icon"
     },
     {
         { TR_BUILDING_GRAND_TEMPLE_MARS_DESC_MODULE_2, TR_BUILDING_GRAND_TEMPLE_MARS_MODULE_2_DESC },
-        BUILDING_NONE,
+        0,
+        nullptr,
         "Mars M Icon"
     },
     {
         { TR_BUILDING_GRAND_TEMPLE_VENUS_DESC_MODULE_1, TR_BUILDING_GRAND_TEMPLE_VENUS_MODULE_1_DESC },
-        BUILDING_NONE,
+        0,
+        nullptr,
         "Venus M Icon"
     },
     {
         { TR_BUILDING_GRAND_TEMPLE_VENUS_DESC_MODULE_2, TR_BUILDING_GRAND_TEMPLE_VENUS_MODULE_2_DESC },
-        BUILDING_NONE,
+        0,
+        nullptr,
         "Venus M2 Icon"
     },
     {
         { TR_BUILDING_PANTHEON_DESC_MODULE_1, TR_BUILDING_PANTHEON_MODULE_1_DESC },
-        BUILDING_NONE,
+        0,
+        nullptr,
         "Panth M Icon"
     },
     {
         { TR_BUILDING_PANTHEON_DESC_MODULE_2, TR_BUILDING_PANTHEON_MODULE_2_DESC },
-        BUILDING_NONE,
+        0,
+        nullptr,
         "Panth M2 Icon"
     }
 };
+
+static int scenario_allows_any_fort(void)
+{
+    for (int type = BUILDING_NONE + 1; type < BUILDING_TYPE_MAX; type++) {
+        building_type building_type_id = static_cast<building_type>(type);
+        if (building_is_fort(building_type_id) && scenario_allowed_building(building_type_id)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int temple_module_option_is_allowed(int index)
+{
+    if (temple_module_options[index].requires_any_fort) {
+        return scenario_allows_any_fort();
+    }
+
+    const char *required_building_text_id = temple_module_options[index].required_building_text_id;
+    if (!required_building_text_id) {
+        return 1;
+    }
+
+    building_type required_building = runtime_type(required_building_text_id);
+    return required_building != BUILDING_NONE && scenario_allowed_building(required_building);
+}
 
 static void draw_culture_info(building_info_context *c, int help_id, const char *sound_file, int group_id)
 {
@@ -265,29 +338,29 @@ static void draw_temple_info(building_info_context *c, int image_offset)
     building *b = building_get(c->building_id);
     if (building_is_ceres_temple(b->type) && building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD)) {
         resource_type food = city_resource_ceres_temple_food();
-        font_t font = building_distribution_is_good_accepted(b, food) ?
+        font_t font = building_accepts_resource(b, food) ?
             FONT_NORMAL_BLACK : FONT_NORMAL_RED;
-        Image::from_id(resource_get_data(food)->image.icon).draw(c->x_offset + 112, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
+        resource_graphics(food).panel_icon().draw(c->x_offset + 112, c->y_offset + 60);
         text_draw_number(b->resources[food], '@', " ",
             c->x_offset + 132, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-        Image::from_id(resource_get_data(RESOURCE_OIL)->image.icon).draw(c->x_offset + 202, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
-        font = building_distribution_is_good_accepted(b, RESOURCE_OIL) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
-        text_draw_number(b->resources[RESOURCE_OIL], '@', " ",
+        resource_graphics(resource_oil()).panel_icon().draw(c->x_offset + 202, c->y_offset + 60);
+        font = building_accepts_resource(b, resource_oil()) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
+        text_draw_number(b->resources[resource_oil()], '@', " ",
             c->x_offset + 222, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         text_draw_multiline(translation_for(TR_BUILDING_CERES_TEMPLE_MODULE_DESC),
             c->x_offset + 112, c->y_offset + 90, BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 16, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 16, c->y_offset + 45);
         return;
     }
 
     if (building_is_venus_temple(b->type) && building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
-        font_t font = building_distribution_is_good_accepted(b, RESOURCE_WINE) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
-        Image::from_id(resource_get_data(RESOURCE_WINE)->image.icon).draw(c->x_offset + 112, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
-        text_draw_number(b->resources[RESOURCE_WINE], '@', " ",
+        font_t font = building_accepts_resource(b, resource_wine()) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
+        resource_graphics(resource_wine()).panel_icon().draw(c->x_offset + 112, c->y_offset + 60);
+        text_draw_number(b->resources[resource_wine()], '@', " ",
             c->x_offset + 132, c->y_offset + 60, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         text_draw_multiline(translation_for(TR_BUILDING_VENUS_TEMPLE_MODULE_DESC),
             c->x_offset + 112, c->y_offset + 90, BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + BLOCK_SIZE, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + BLOCK_SIZE, c->y_offset + 45);
 
         return;
     }
@@ -300,7 +373,7 @@ static void draw_temple_info(building_info_context *c, int image_offset)
             if (!resource_is_inventory(r) || (list->size > 4 && !b->resources[r])) {
                 continue;
             }
-            Image::from_id(resource_get_data(r)->image.icon).draw(c->x_offset + x_offset, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
+            resource_graphics(r).panel_icon().draw(c->x_offset + x_offset, c->y_offset + 60);
             text_draw_number(b->resources[r], '@', " ",
                 c->x_offset + x_offset + 20, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
@@ -317,12 +390,12 @@ static void draw_temple_info(building_info_context *c, int image_offset)
                 BLOCK_SIZE * c->width_blocks - 132, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
 
-        Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 16, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 16, c->y_offset + 45);
 
         return;
     }
 
-    Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_offset + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45);
 }
 
 void window_building_draw_temple_ceres(building_info_context *c)
@@ -564,12 +637,12 @@ static void draw_grand_temple_venus_wine(building_info_context *c)
 {
     int y = 50;
     data.building_id = c->building_id;
-    Image::from_id(resource_get_data(RESOURCE_WINE)->image.icon).draw(c->x_offset + 24, c->y_offset + y - 5, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(resource_wine()).panel_icon().draw(c->x_offset + 24, c->y_offset + y - 5);
     building *b = building_get(c->building_id);
-    if (b->resources[RESOURCE_WINE] < 1) {
+    if (b->resources[resource_wine()] < 1) {
         lang_text_draw_amount(8, 10, 0, c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_amount(8, 10, b->resources[RESOURCE_WINE], c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_amount(8, 10, b->resources[resource_wine()], c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
 }
@@ -578,12 +651,12 @@ static void draw_grand_temple_mars_military(building_info_context *c)
 {
     int y = 60;
     data.building_id = c->building_id;
-    Image::from_id(resource_get_data(RESOURCE_WEAPONS)->image.icon).draw(c->x_offset + 25, c->y_offset + y - 5, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(resource_weapons()).panel_icon().draw(c->x_offset + 25, c->y_offset + y - 5);
     building *b = building_get(c->building_id);
-    if (b->resources[RESOURCE_WEAPONS] < 1) {
+    if (b->resources[resource_weapons()] < 1) {
         lang_text_draw_amount(8, 10, 0, c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_amount(8, 10, b->resources[RESOURCE_WEAPONS], c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_amount(8, 10, b->resources[resource_weapons()], c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_BARRACKS_PRIORITY, c->x_offset + 25, c->y_offset + 88, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)); // "Priority"
@@ -659,7 +732,7 @@ void window_building_draw_shrine_ceres(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 92, 1);
-    Image::from_id(21 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(21 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45);
 }
 
 void window_building_draw_shrine_neptune(building_info_context *c)
@@ -673,7 +746,7 @@ void window_building_draw_shrine_neptune(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 93, 1);
-    Image::from_id(22 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(22 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45);
 }
 
 void window_building_draw_shrine_mercury(building_info_context *c)
@@ -687,7 +760,7 @@ void window_building_draw_shrine_mercury(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 94, 1);
-    Image::from_id(23 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(23 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45);
 }
 
 void window_building_draw_shrine_mars(building_info_context *c)
@@ -701,7 +774,7 @@ void window_building_draw_shrine_mars(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 95, 1);
-    Image::from_id(24 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(24 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45);
 }
 
 void window_building_draw_shrine_venus(building_info_context *c)
@@ -715,7 +788,7 @@ void window_building_draw_shrine_venus(building_info_context *c)
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 154);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 116, 96, 1);
-    Image::from_id(25 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(25 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45);
 }
 
 static void draw_grand_temple(building_info_context *c, const char *sound_file,
@@ -757,9 +830,9 @@ static void draw_grand_temple(building_info_context *c, const char *sound_file,
                     0, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             }
         }
-        if (b->type == BUILDING_GRAND_TEMPLE_MARS) {
+        if (Building(b).type().is_grand_temple_mars()) {
             draw_grand_temple_mars_military(c);
-        } else if (b->type == BUILDING_GRAND_TEMPLE_VENUS &&
+        } else if (Building(b).type().is_grand_temple_venus() &&
             (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE))) {
             draw_grand_temple_venus_wine(c);
         }
@@ -768,8 +841,8 @@ static void draw_grand_temple(building_info_context *c, const char *sound_file,
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76,
             c->y_offset + 94 + height + extra_y);
         if (c->height_blocks > 26) {
-            Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + 166 + height + extra_y, COLOR_MASK_NONE);
-            Image::from_id(banner_id).draw(c->x_offset + 37, c->y_offset + 171 + height + extra_y, COLOR_MASK_NONE, SCALE_NONE);
+            ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 166 + height + extra_y);
+            Image::from_id(banner_id).draw(c->x_offset + 37, c->y_offset + 171 + height + extra_y);
             text_draw_multiline(translation_for(quote),
                 c->x_offset + 10, c->y_offset + 386 + height + extra_y, BLOCK_SIZE * c->width_blocks - 16,
                 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -790,7 +863,7 @@ void window_building_draw_grand_temple_foreground(building_info_context *c)
             c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 33,
             16 * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
-    if (b->type == BUILDING_GRAND_TEMPLE_MARS) {
+    if (Building(b).type().is_grand_temple_mars()) {
         window_building_draw_priority_buttons(c->x_offset + 50, c->y_offset + 135, b->id);
         window_building_draw_delivery_buttons(c->x_offset + 392, c->y_offset + 40, b->id);
     }
@@ -897,6 +970,7 @@ void window_building_draw_tavern(building_info_context *c)
 {
     c->advisor_button = ADVISOR_ENTERTAINMENT;
     building *b = building_get(c->building_id);
+    const building_type_registry_impl::Distribution *distribution = distribution_for(b);
 
     window_building_play_sound(c, "wavs/market3.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
@@ -905,23 +979,27 @@ void window_building_draw_tavern(building_info_context *c)
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     int x_offset = 32;
-    Image::from_id(resource_get_data(RESOURCE_WINE)->image.icon).draw(c->x_offset + x_offset, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
-    font_t font = building_distribution_is_good_accepted(b, RESOURCE_WINE) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
+    int has_primary_resource = 0;
+    int has_secondary_resource = 0;
+    int saw_primary_resource = 0;
+    if (distribution) {
+        for (const building_type_registry_impl::DistributionResourceRule &rule : distribution->resources()) {
+            resource_type resource = rule.resource;
+            if (!resource_is_inventory(resource)) {
+                continue;
+            }
+            resource_graphics(resource).panel_icon().draw(c->x_offset + x_offset, c->y_offset + 60);
+            font_t font = building_accepts_resource(b, resource) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
+            text_draw_number(b->resources[resource], '@', " ", c->x_offset + x_offset + 25, c->y_offset + 66, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
 
-    text_draw_number(b->resources[RESOURCE_WINE], '@', " ", c->x_offset + x_offset + 25, c->y_offset + 66, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-
-    if (building_distribution_resource_is_handled(RESOURCE_MEAT, BUILDING_TAVERN)) {
-        x_offset += 85;
-        Image::from_id(resource_get_data(RESOURCE_MEAT)->image.icon).draw(c->x_offset + x_offset, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
-        font = building_distribution_is_good_accepted(b, RESOURCE_MEAT) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
-        text_draw_number(b->resources[RESOURCE_MEAT], '@', " ", c->x_offset + x_offset + 25, c->y_offset + 66, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-    }
-
-    if (building_distribution_resource_is_handled(RESOURCE_FISH, BUILDING_TAVERN)) {
-        x_offset += 85;
-        Image::from_id(resource_get_data(RESOURCE_FISH)->image.icon).draw(c->x_offset + x_offset, c->y_offset + 60, COLOR_MASK_NONE, SCALE_NONE);
-        font = building_distribution_is_good_accepted(b, RESOURCE_FISH) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;
-        text_draw_number(b->resources[RESOURCE_FISH], '@', " ", c->x_offset + x_offset + 25, c->y_offset + 66, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
+            if (!saw_primary_resource) {
+                has_primary_resource = b->resources[resource] > 0;
+                saw_primary_resource = 1;
+            } else if (b->resources[resource] > 0) {
+                has_secondary_resource = 1;
+            }
+            x_offset += 85;
+        }
     }
 
     if (!c->has_road_access) {
@@ -929,10 +1007,10 @@ void window_building_draw_tavern(building_info_context *c)
     } else if (b->num_workers <= 0) {
         text_draw_multiline(translation_for(TR_BUILDING_TAVERN_DESC_1),
             c->x_offset + 32, c->y_offset + 96, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    } else if (!b->resources[RESOURCE_WINE]) {
+    } else if (!has_primary_resource) {
         text_draw_multiline(translation_for(TR_BUILDING_TAVERN_DESC_2),
             c->x_offset + 32, c->y_offset + 96, BLOCK_SIZE * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    } else if (!b->resources[RESOURCE_MEAT] && !b->resources[RESOURCE_FISH]) {
+    } else if (!has_secondary_resource) {
         translation_key string_key = TR_BUILDING_TAVERN_DESC_3;
         if (b->upgrade_level) {
             string_key = TR_BUILDING_TAVERN_DESC_UPGRADED_WINE_NO_FOOD;
@@ -985,8 +1063,10 @@ void window_building_draw_colosseum_background(building_info_context *c)
     c->help_id = 73;
     building *b = building_get(c->building_id);
     int active_games = city_festival_games_active();
+    int is_arena = building_is_xml_type(b, "arena");
+    int is_colosseum = building_is_xml_type(b, "colosseum");
 
-    if (b->type == BUILDING_ARENA || b->monument.phase == MONUMENT_FINISHED) {
+    if (is_arena || b->monument.phase == MONUMENT_FINISHED) {
         window_building_play_sound(c, "wavs/colloseum.wav");
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
         inner_panel_draw(c->x_offset + 16, c->y_offset + 130, c->width_blocks - 2, 7);
@@ -1007,7 +1087,7 @@ void window_building_draw_colosseum_background(building_info_context *c)
             lang_text_draw(74, 9, c->x_offset + 32, c->y_offset + 203, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         }
 
-        if (b->type == BUILDING_ARENA) {
+        if (is_arena) {
             text_draw_centered(translation_for(TR_BUILDING_ARENA),
                 c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         } else {
@@ -1015,11 +1095,11 @@ void window_building_draw_colosseum_background(building_info_context *c)
         }
 
         // todo: better link of venue to game
-        if (b->type == BUILDING_COLOSSEUM && building_monument_has_labour_problems(b)) {
+        if (is_colosseum && building_monument_has_labour_problems(b)) {
             text_draw_multiline(translation_for(TR_BUILDING_COLOSSEUM_NEEDS_WORKERS),
                 c->x_offset + 22, c->y_offset + 56, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
-            if (active_games && active_games <= 3 && b->type == BUILDING_COLOSSEUM) {
+            if (active_games && active_games <= 3 && is_colosseum) {
                 window_building_draw_description(c, CUSTOM_TRANSLATION, TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_NG +
                     ((active_games - 1) * 2));
                 int width = text_draw(translation_for(TR_WINDOW_BUILDING_GAMES_REMAINING_DURATION),
@@ -1043,13 +1123,13 @@ void window_building_draw_colosseum_background(building_info_context *c)
                 }
             }
         }
-        if (b->type == BUILDING_COLOSSEUM) {
+        if (is_colosseum) {
             c->advisor_button = ADVISOR_ENTERTAINMENT;
             int extra_y_offset = 56;
             if (c->height_blocks > 27) {
                 extra_y_offset += 200;
-                Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + extra_y_offset, COLOR_MASK_NONE);
-                Image::from_id(assets_get_image_id("UI", "Colosseum Banner")).draw(c->x_offset + 37, c->y_offset + extra_y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
+                ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + extra_y_offset);
+                Image::from_id(assets_get_image_id("UI", "Colosseum Banner")).draw(c->x_offset + 37, c->y_offset + extra_y_offset + 5);
             }
             draw_games_info(c, extra_y_offset);
         }
@@ -1127,7 +1207,7 @@ void window_building_draw_arena(building_info_context *c)
     } else if (b->data.entertainment.days2) {
         window_building_draw_description(c, CUSTOM_TRANSLATION, TR_WINDOW_BUILDING_ARENA_NEEDS_LIONS);
     }
-    if (b->type == BUILDING_ARENA) {
+    if (building_is_xml_type(b, "arena")) {
         window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 80, 74, 1);
     }
 }
@@ -1201,19 +1281,15 @@ void window_building_draw_hippodrome_background(building_info_context *c)
         if (c->height_blocks > 27) {
             y_offset += 223;
             int banner_id = assets_get_image_id("UI", "Circus Banner");
-            Image::from_id(assets_get_image_id("UI", "Large_Banner_Border")).draw_border(c->x_offset + 32, c->y_offset + y_offset, COLOR_MASK_NONE);
-            Image::from_id(banner_id).draw(c->x_offset + 37, c->y_offset + y_offset + 5, COLOR_MASK_NONE, SCALE_NONE);
+            ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + y_offset);
+            Image::from_id(banner_id).draw(c->x_offset + 37, c->y_offset + y_offset + 5);
         }
 
         if (city_data.games.chosen_horse) {
             text_draw_with_money(translation_for(TR_WINDOW_RACE_YOUR_BET), city_data.games.bet_amount, " - ", "",
                 c->x_offset + 32, c->y_offset + y_offset + 215, 438, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-            int image_id = assets_get_image_id("UI", "Hipp_Team_Blue");
-            int border = assets_get_image_id("UI", "Image Border Small");
-
-            Image::from_id(image_id + (city_data.games.chosen_horse - 1)).draw(c->x_offset + 37, c->y_offset + y_offset + 245, COLOR_MASK_NONE, SCALE_NONE);
-
-            Image::from_id(border).draw_border(c->x_offset + 32, c->y_offset + y_offset + 240, COLOR_BORDER_RED);
+            HORSE_TEAM_IMAGES[city_data.games.chosen_horse - 1].draw(c->x_offset + 37, c->y_offset + y_offset + 245);
+            ImageBorder::image_small().draw(c->x_offset + 32, c->y_offset + y_offset + 240, COLOR_BORDER_RED);
 
             text_draw_multiline(translation_for(static_cast<translation_key>(
                 TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION + city_data.games.chosen_horse - 1)),
@@ -1339,12 +1415,12 @@ static void button_add_module_prompt(const generic_button *button)
 
     static option_menu_item options[2];
 
-    if (scenario_allowed_building(temple_module_options[option_id].required_building)) {
+    if (temple_module_option_is_allowed(option_id)) {
         generate_module_image_id(option_id);
         data.module_choices[num_options] = 1;
         options[num_options++] = temple_module_options[option_id].option;
     }
-    if (scenario_allowed_building(temple_module_options[option_id + 1].required_building)) {
+    if (temple_module_option_is_allowed(option_id + 1)) {
         generate_module_image_id(option_id + 1);
         data.module_choices[num_options] = 2;
         options[num_options++] = temple_module_options[option_id + 1].option;

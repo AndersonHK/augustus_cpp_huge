@@ -1,4 +1,8 @@
-#pragma once
+﻿#pragma once
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 int city_entertainment_theater_shows(void);
 int city_entertainment_amphitheater_shows(void);
@@ -16,3 +20,7 @@ void city_entertainment_calculate_shows(void);
 int city_entertainment_show_message_colosseum(void);
 
 int city_entertainment_show_message_hippodrome(void);
+
+#ifdef __cplusplus
+}
+#endif

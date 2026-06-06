@@ -1,0 +1,394 @@
+#include "event.h"
+
+#include "core/array.h"
+#include "core/encoding.h"
+#include "core/log.h"
+#include "core/random.h"
+#include "game/save_version.h"
+#include "scenario/event/action_handler.h"
+#include "scenario/event/condition_handler.h"
+#include "scenario/event/controller.h"
+
+#include <string.h>
+
+#define SCENARIO_ACTIONS_ARRAY_SIZE_STEP 20
+#define SCENARIO_CONDITIONS_ARRAY_SIZE_STEP 20
+#define SCENARIO_CONDITION_GROUPS_ARRAY_SIZE_STEP 2
+
+namespace {
+
+int valid_condition_group_type(int type)
+{
+    return type == FULFILLMENT_TYPE_ALL || type == FULFILLMENT_TYPE_ANY;
+}
+
+void release_condition_group_handle(scenario_condition_group_t *group)
+{
+    if (group) {
+        memset(&group->conditions, 0, sizeof(group->conditions));
+    }
+}
+
+void discard_condition_group(scenario_condition_group_t *group)
+{
+    if (group) {
+        array_clear(group->conditions);
+    }
+}
+
+int valid_action_type(int type)
+{
+    return type >= ACTION_TYPE_UNDEFINED && type < ACTION_TYPE_MAX;
+}
+
+static int link_condition_group_to_event(scenario_event_t *event, scenario_condition_group_t *group);
+static int link_action_to_event(scenario_event_t *event, scenario_action_t *action);
+
+class ScenarioEventLinker {
+public:
+    static int link_condition_group(int event_id, scenario_condition_group_t *group)
+    {
+        scenario_event_t *event = scenario_event_get(event_id);
+        if (!event) {
+            log_error("Ignoring scenario condition group linked to invalid event.", 0, event_id);
+            discard_condition_group(group);
+            return 0;
+        }
+        if (!link_condition_group_to_event(event, group)) {
+            discard_condition_group(group);
+            return 0;
+        }
+        return 1;
+    }
+
+    static int link_action(int event_id, scenario_action_t *action)
+    {
+        scenario_event_t *event = scenario_event_get(event_id);
+        if (!event) {
+            log_error("Ignoring scenario action linked to invalid event.", 0, event_id);
+            return 0;
+        }
+        return link_action_to_event(event, action);
+    }
+};
+
+} // namespace
+
+static int action_in_use(const scenario_action_t *action)
+{
+    return action->type != ACTION_TYPE_UNDEFINED;
+}
+
+void scenario_event_new(scenario_event_t *event, unsigned int position)
+{
+    event->id = position;
+    if (!array_init(event->actions, SCENARIO_ACTIONS_ARRAY_SIZE_STEP, 0, action_in_use) ||
+        !array_init(event->condition_groups, SCENARIO_CONDITION_GROUPS_ARRAY_SIZE_STEP,
+            scenario_condition_group_new, scenario_condition_group_in_use)) {
+        log_error("Unable to allocate enough memory for the scenario event. The game will now crash.", 0, 0);
+    }
+}
+
+int scenario_event_is_active(const scenario_event_t *event)
+{
+    return event->state != EVENT_STATE_UNDEFINED;
+}
+
+void scenario_event_init(scenario_event_t *event)
+{
+    event->state = EVENT_STATE_ACTIVE;
+    unsigned int event_id = event->id;
+    scenario_condition_group_t *group;
+    scenario_condition_t *condition;
+    for (unsigned int i = 0; i < event->condition_groups.size; i++) {
+        group = array_item(event->condition_groups, i);
+        for (unsigned int j = 0; j < group->conditions.size; j++) {
+            condition = array_item(group->conditions, j);
+            scenario_condition_type_init(condition);
+            condition->parent_event_id = event_id;
+        }
+    }
+}
+
+void scenario_event_save_state(buffer *buf, scenario_event_t *event)
+{
+    if (event->state == EVENT_STATE_UNDEFINED) {
+        event->state = EVENT_STATE_DELETED; // We need a different state than undefined to avoid array overrides on load which breaks the linking by id.
+    }
+
+    buffer_write_i32(buf, event->id);
+    buffer_write_i16(buf, event->state);
+    buffer_write_i32(buf, event->repeat_days_min);
+    buffer_write_i32(buf, event->repeat_days_max);
+    buffer_write_u8(buf, event->repeat_interval);
+    buffer_write_i32(buf, event->days_until_active);
+    buffer_write_i32(buf, event->max_number_of_repeats);
+    buffer_write_i32(buf, event->execution_count);
+    buffer_write_u16(buf, event->actions.size);
+    buffer_write_u16(buf, event->condition_groups.size);
+    char name_utf8[EVENT_NAME_LENGTH * 2] = { 0 };
+    encoding_to_utf8(event->name, name_utf8, EVENT_NAME_LENGTH * 2, 0);
+    buffer_write_raw(buf, name_utf8, EVENT_NAME_LENGTH * 2);
+}
+
+void scenario_event_load_state(buffer *buf, scenario_event_t *event, int scenario_version)
+{
+    int saved_id = buffer_read_i32(buf);
+    event->state = static_cast<event_state>(buffer_read_i16(buf));
+    event->repeat_days_min = buffer_read_i32(buf);
+    event->repeat_days_max = buffer_read_i32(buf);
+    if (scenario_version <= SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
+        event->repeat_interval = 2; // months
+        event->repeat_days_min *= 16;
+        event->repeat_days_max *= 16;
+    } else {
+        event->repeat_interval = buffer_read_u8(buf);
+    }
+    event->days_until_active = buffer_read_i32(buf);
+    event->max_number_of_repeats = buffer_read_i32(buf);
+    event->execution_count = buffer_read_i32(buf);
+    if (!(scenario_version > SCENARIO_LAST_STATIC_ORIGINAL_DATA)) {
+        buffer_skip(buf, 2);
+    }
+    unsigned int actions_count = buffer_read_u16(buf);
+    unsigned int condition_groups_count = 0;
+    if (scenario_version > SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
+        condition_groups_count = buffer_read_u16(buf);
+        char name_utf8[EVENT_NAME_LENGTH * 2];
+        buffer_read_raw(buf, name_utf8, EVENT_NAME_LENGTH * 2);
+        encoding_from_utf8(name_utf8, event->name, EVENT_NAME_LENGTH);
+    }
+
+    if (!array_init(event->actions, SCENARIO_ACTIONS_ARRAY_SIZE_STEP, 0, action_in_use) ||
+        !array_expand(event->actions, actions_count)) {
+        log_error("Unable to create actions array. The game will now crash.", 0, 0);
+    }
+    if (!array_init(event->condition_groups, SCENARIO_CONDITION_GROUPS_ARRAY_SIZE_STEP,
+        scenario_condition_group_new, scenario_condition_group_in_use) ||
+        !array_expand(event->condition_groups, condition_groups_count)) {
+        log_error("Unable to create condition groups array. The game will now crash.", 0, 0);
+    }
+    // Add the condition group
+    if (condition_groups_count == 0) {
+        array_advance(event->condition_groups);
+    }
+    if (event->id != (unsigned int) saved_id) {
+        log_error("Loaded event id does not match what it was saved with. The game will likely crash. event->id: ",
+            0, event->id);
+    }
+}
+
+scenario_condition_t *scenario_event_condition_create(scenario_condition_group_t *group, int type)
+{
+    scenario_condition_t *condition;
+    array_new_item(group->conditions, condition);
+    if (!condition) {
+        return 0;
+    }
+    condition->type = static_cast<condition_types>(type);
+
+    return condition;
+}
+
+namespace {
+
+static int link_condition_group_to_event(scenario_event_t *event, scenario_condition_group_t *group)
+{
+    if (!event || !group) {
+        log_error("Unable to link scenario condition group to missing event.", 0, 0);
+        return 0;
+    }
+    if (!valid_condition_group_type(group->type)) {
+        log_error("Unable to link scenario condition group with invalid fulfillment type.", 0, group->type);
+        return 0;
+    }
+    scenario_condition_group_t *new_group = 0;
+    array_new_item(event->condition_groups, new_group);
+    if (!new_group) {
+        log_error("Unable to create scenario condition group link.", 0, 0);
+        return 0;
+    }
+    array_clear(new_group->conditions);
+    new_group->type = group->type;
+    new_group->conditions = group->conditions;
+    release_condition_group_handle(group);
+    scenario_condition_t *condition;
+    array_foreach(new_group->conditions, condition)
+    {
+        condition->parent_event_id = event->id;
+    }
+    return 1;
+}
+
+} // namespace
+
+int scenario_event_link_condition_group_by_id(int event_id, scenario_condition_group_t *group)
+{
+    return ScenarioEventLinker::link_condition_group(event_id, group);
+}
+
+scenario_action_t *scenario_event_action_create(scenario_event_t *event, int type)
+{
+    scenario_action_t *action = 0;
+    array_new_item(event->actions, action);
+    if (!action) {
+        return 0;
+    }
+    action->type = static_cast<action_types>(type);
+
+    return action;
+}
+
+namespace {
+
+static int link_action_to_event(scenario_event_t *event, scenario_action_t *action)
+{
+    if (!event || !action) {
+        log_error("Unable to link scenario action to missing event.", 0, 0);
+        return 0;
+    }
+    if (!valid_action_type(action->type)) {
+        log_error("Unable to link scenario action with invalid type.", 0, action->type);
+        return 0;
+    }
+    scenario_action_t *new_action = 0;
+    array_new_item(event->actions, new_action);
+    if (!new_action) {
+        log_error("Unable to create scenario action link.", 0, 0);
+        return 0;
+    }
+
+    new_action->type = action->type;
+    new_action->parameter1 = action->parameter1;
+    new_action->parameter2 = action->parameter2;
+    new_action->parameter3 = action->parameter3;
+    new_action->parameter4 = action->parameter4;
+    new_action->parameter5 = action->parameter5;
+    new_action->parent_event_id = event->id;
+    return 1;
+}
+
+} // namespace
+
+int scenario_event_link_action_by_id(int event_id, scenario_action_t *action)
+{
+    return ScenarioEventLinker::link_action(event_id, action);
+}
+
+int scenario_event_can_repeat(scenario_event_t *event)
+{
+    return (event->repeat_days_min > 0) && (event->repeat_days_max >= event->repeat_days_min) &&
+        ((event->execution_count < event->max_number_of_repeats) || (event->max_number_of_repeats <= 0));
+}
+
+static int conditions_fulfilled(scenario_event_t *event)
+{
+    if (event->state != EVENT_STATE_ACTIVE) {
+        return 0;
+    }
+    if (event->actions.size == 0) {
+        return 0;
+    }
+
+    scenario_condition_group_t *group;
+    array_foreach(event->condition_groups, group) {
+        int group_fulfilled = 0;
+        for (unsigned int i = 0; i < group->conditions.size; i++) {
+            scenario_condition_t *condition = array_item(group->conditions, i);
+            if (group->type == FULFILLMENT_TYPE_ALL && !scenario_condition_type_is_met(condition)) {
+                return 0;
+            }
+            if (group->type == FULFILLMENT_TYPE_ANY && scenario_condition_type_is_met(condition)) {
+                group_fulfilled = 1;
+                break;
+            }
+        }
+        if (group->type == FULFILLMENT_TYPE_ANY && group->conditions.size > 0 && !group_fulfilled) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+int scenario_event_decrease_pause_time(scenario_event_t *event, int days_passed)
+{
+    if (event->state != EVENT_STATE_PAUSED) {
+        return 0;
+    }
+
+    if (event->days_until_active > 0) {
+        event->days_until_active -= days_passed;
+    }
+    if (event->days_until_active < 0) {
+        event->days_until_active = 0;
+    }
+    if (event->days_until_active == 0) {
+        event->state = EVENT_STATE_ACTIVE;
+    }
+    return 1;
+}
+
+int scenario_event_count_conditions(const scenario_event_t *event)
+{
+    int total_conditions = 0;
+    const scenario_condition_group_t *group;
+    array_foreach(event->condition_groups, group) {
+        total_conditions += group->conditions.size;
+    }
+    return total_conditions;
+}
+
+int scenario_event_conditional_execute(scenario_event_t *event)
+{
+    if (conditions_fulfilled(event)) {
+        int result = scenario_event_execute(event);
+        event->execution_count++;
+        if (scenario_event_can_repeat(event)) {
+            scenario_event_init(event);
+            event->state = EVENT_STATE_PAUSED;
+            event->days_until_active = random_between_from_stdlib(event->repeat_days_min, event->repeat_days_max);
+        } else {
+            event->state = EVENT_STATE_DISABLED;
+        }
+        return result;
+    }
+    return 0;
+}
+
+int scenario_event_execute(scenario_event_t *event)
+{
+    int actioned = 1;
+
+    scenario_action_t *current;
+    array_foreach(event->actions, current) {
+        int action_result = scenario_action_type_execute(current);
+        actioned &= action_result;
+    }
+
+    return actioned;
+}
+
+int scenario_event_uses_custom_variable(const scenario_event_t *event, int custom_variable_id)
+{
+    scenario_condition_group_t *group;
+    scenario_condition_t *condition;
+    for (unsigned int i = 0; i < event->condition_groups.size; i++) {
+        group = array_item(event->condition_groups, i);
+        for (unsigned int j = 0; j < group->conditions.size; j++) {
+            condition = array_item(group->conditions, j);
+            if (scenario_condition_uses_custom_variable(condition, custom_variable_id)) {
+                return 1;
+            }
+        }
+    }
+
+    scenario_action_t *action;
+    array_foreach(event->actions, action) {
+        if (scenario_action_uses_custom_variable(action, custom_variable_id)) {
+            return 1;
+        }
+    }
+
+    return 0;
+}

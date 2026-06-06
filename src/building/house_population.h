@@ -1,10 +1,15 @@
-#pragma once
+﻿#pragma once
 
+#include "building/building_fwd.h"
 #ifdef __cplusplus
+extern "C++" {
+class Building;
+}
 extern "C" {
 #endif
 
-#include "building/building.h"
+
+class Building;
 
 /**
  * Add people to the houses in the city, use for births
@@ -49,7 +54,7 @@ int house_population_create_immigrants(int num_people);
  */
 int house_population_create_emigrants(int num_people);
 
-int house_population_get_capacity(building *house);
+int house_population_get_capacity(Building house);
 
 #ifdef __cplusplus
 }

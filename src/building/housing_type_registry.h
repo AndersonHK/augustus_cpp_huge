@@ -5,8 +5,10 @@
 namespace building_type_registry_impl {
 
 const HousingType *find_housing_type_definition(const char *path);
-int housing_type_legacy_level_for_text_id(const char *text_id, int *out_level);
-const char *housing_type_text_id_for_legacy_level(int level);
+const HousingType *find_housing_type_definition_for_building_path(const char *path);
+const HousingType *find_housing_type_definition_for_level(int level);
+int housing_type_level_count();
+int housing_type_level_at(int index);
 
 }
 
@@ -16,7 +18,6 @@ extern "C" {
 
 const char *housing_type_registry_get_housing_type_path(void);
 int housing_type_registry_load(void);
-int housing_type_registry_text_id_has_legacy_house_level(const char *text_id);
 
 #ifdef __cplusplus
 }

@@ -12,6 +12,7 @@
     <button group="entertainment" order="70" icon="Health_Culture\Tavern_OFF" text_key="TR_BUILDING_TAVERN" />
     <sound id="tavern" />
     <event_data attr="tavern" />
+    <distribution path="tavern" />
     <graphics>
         <default>
             <path value="Health_Culture\Tavern_OFF" />

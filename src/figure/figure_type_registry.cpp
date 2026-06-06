@@ -315,7 +315,7 @@ static figure_type parse_figure_type_name(const char *name)
         figure_type type;
     };
 
-    static constexpr std::array<NamedFigure, 18> kFigureNames = { {
+    static constexpr std::array<NamedFigure, 19> kFigureNames = { {
         { "labor_seeker", FIGURE_LABOR_SEEKER },
         { "engineer", FIGURE_ENGINEER },
         { "prefect", FIGURE_PREFECT },
@@ -333,7 +333,8 @@ static figure_type parse_figure_type_name(const char *name)
         { "librarian", FIGURE_LIBRARIAN },
         { "barber", FIGURE_BARBER },
         { "bathhouse_worker", FIGURE_BATHHOUSE_WORKER },
-        { "school_child", FIGURE_SCHOOL_CHILD }
+        { "school_child", FIGURE_SCHOOL_CHILD },
+        { "depot_cart_pusher", FIGURE_DEPOT_CART_PUSHER }
     } };
 
     for (const NamedFigure &entry : kFigureNames) {
@@ -347,20 +348,9 @@ static figure_type parse_figure_type_name(const char *name)
 static building_type parse_building_type_name(const char *attr)
 {
     if (!attr || xml_value::equals(attr, "any")) {
-        return BUILDING_ANY;
+        return BUILDING_NONE;
     }
-
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX;
-        type = static_cast<building_type>(static_cast<int>(type) + 1)) {
-        const building_properties *properties = building_properties_for_type(type);
-        if (!properties || !properties->event_data.attr) {
-            continue;
-        }
-        if (xml_parser_compare_multiple(properties->event_data.attr, attr)) {
-            return type;
-        }
-    }
-    return BUILDING_NONE;
+    return building_type_registry_impl::runtime_id_from_text(attr);
 }
 
 static NativeClassId parse_native_class_name(const char *name)
@@ -388,6 +378,9 @@ static NativeClassId parse_native_class_name(const char *name)
     }
     if (xml_value::equals(name, "transient_wanderer")) {
         return NativeClassId::TransientWanderer;
+    }
+    if (xml_value::equals(name, "depot_cart_pusher")) {
+        return NativeClassId::DepotCartPusher;
     }
     return NativeClassId::None;
 }
@@ -512,6 +505,78 @@ static int parse_image_group_name(const char *name)
         }
     }
     return 0;
+}
+
+static asset_id parse_image_asset_name(const char *name)
+{
+    if (xml_value::equals(name, "ox")) {
+        return ASSET_OX;
+    }
+    return ASSET_MAX_KEY;
+}
+
+static CartGraphicsMode parse_cart_graphics_mode_name(const char *name)
+{
+    if (!name || xml_value::equals(name, "none")) {
+        return CartGraphicsMode::None;
+    }
+    if (xml_value::equals(name, "resource_load")) {
+        return CartGraphicsMode::ResourceLoad;
+    }
+    return CartGraphicsMode::None;
+}
+
+static bool is_known_cart_graphics_mode_name(const char *name)
+{
+    return !name ||
+        xml_value::equals(name, "none") ||
+        xml_value::equals(name, "resource_load");
+}
+
+static int parse_int_array_8(const char *text, std::array<int, 8> &out_values)
+{
+    std::string remaining = text ? text : "";
+    for (int index = 0; index < 8; index++) {
+        const size_t comma = remaining.find(',');
+        std::string token = comma == std::string::npos ?
+            remaining :
+            remaining.substr(0, comma);
+        std::string trimmed = xml_value::trim_copy(token);
+        int value = 0;
+        if (!xml_value::parse_int_strict(std::string_view(trimmed), &value)) {
+            return 0;
+        }
+        out_values[index] = value;
+
+        if (index == 7) {
+            return comma == std::string::npos;
+        }
+        if (comma == std::string::npos) {
+            return 0;
+        }
+        remaining = remaining.substr(comma + 1);
+    }
+    return 0;
+}
+
+static int validate_depot_cart_graphics(
+    const FigureTypeDefinition *definition,
+    bool *parse_error,
+    const GraphicsPolicy &graphics_policy)
+{
+    if (!definition || definition->type() != FIGURE_DEPOT_CART_PUSHER) {
+        return 1;
+    }
+
+    if (graphics_policy.image_asset == ASSET_MAX_KEY ||
+        graphics_policy.corpse_image_asset == ASSET_MAX_KEY ||
+        graphics_policy.cart_mode != CartGraphicsMode::ResourceLoad) {
+        *parse_error = true;
+        log_error("Depot cart pusher graphics requires image_asset, corpse_image_asset, and cart_mode resource_load",
+            definition->attr(), 0);
+        return 0;
+    }
+    return 1;
 }
 
 static road_service_effect parse_service_effect_name(const char *name)
@@ -752,6 +817,18 @@ static void finish_profile_node()
         g_parse_state.error = true;
         log_error("FigureType venue seeker profile is missing venue targets", g_parse_state.current_profile->id(), 0);
     }
+    if (g_parse_state.current_profile->native_class() == NativeClassId::DepotCartPusher) {
+        const OwnerBinding &owner = g_parse_state.current_profile->owner_binding();
+        const building_type cart_depot_type = building_type_registry_impl::runtime_id_from_text("cart_depot");
+        if (owner.slot != FigureSlot::None ||
+            owner.required_building_type != cart_depot_type ||
+            owner.required_owner_state != OwnerStateRequirement::InUse ||
+            g_parse_state.current_profile->pathing_policy().mode != &DepotOrderRoute) {
+            g_parse_state.error = true;
+            log_error("Depot cart pusher profile must be owned by an in-use cart_depot with depot_order_route pathing",
+                g_parse_state.current_profile->id(), 0);
+        }
+    }
     g_parse_state.current_profile = nullptr;
 }
 
@@ -897,18 +974,34 @@ static int parse_graphics_node()
         log_error("FigureType xml contains duplicate graphics nodes", g_parse_state.definition->attr(), 0);
         return 0;
     }
-    if (!xml_parser_has_attribute("image_group")) {
+    const bool has_image_group = xml_parser_has_attribute("image_group");
+    const bool has_image_asset = xml_parser_has_attribute("image_asset");
+    if (!has_image_group && !has_image_asset) {
         g_parse_state.error = true;
-        log_error("FigureType graphics node is missing required attribute 'image_group'", 0, 0);
+        log_error("FigureType graphics node is missing required image_group or image_asset", 0, 0);
+        return 0;
+    }
+    if (has_image_group && has_image_asset) {
+        g_parse_state.error = true;
+        log_error("FigureType graphics node must choose image_group or image_asset, not both", 0, 0);
         return 0;
     }
 
     GraphicsPolicy graphics_policy;
-    graphics_policy.image_group = parse_image_group_name(xml_parser_get_attribute_string("image_group"));
-    if (!graphics_policy.image_group) {
-        g_parse_state.error = true;
-        log_error("FigureType graphics node has an unknown image_group", xml_parser_get_attribute_string("image_group"), 0);
-        return 0;
+    if (has_image_group) {
+        graphics_policy.image_group = parse_image_group_name(xml_parser_get_attribute_string("image_group"));
+        if (!graphics_policy.image_group) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node has an unknown image_group", xml_parser_get_attribute_string("image_group"), 0);
+            return 0;
+        }
+    } else {
+        graphics_policy.image_asset = parse_image_asset_name(xml_parser_get_attribute_string("image_asset"));
+        if (graphics_policy.image_asset == ASSET_MAX_KEY) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node has an unknown image_asset", xml_parser_get_attribute_string("image_asset"), 0);
+            return 0;
+        }
     }
     if (xml_parser_has_attribute("max_image_offset")) {
         graphics_policy.max_image_offset = xml_parser_get_attribute_int("max_image_offset");
@@ -926,6 +1019,14 @@ static int parse_graphics_node()
             return 0;
         }
     }
+    if (xml_parser_has_attribute("direction_stride")) {
+        graphics_policy.direction_frame_stride = xml_parser_get_attribute_int("direction_stride");
+        if (graphics_policy.direction_frame_stride <= 0) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node requires a positive direction_stride", 0, 0);
+            return 0;
+        }
+    }
     if (xml_parser_has_attribute("static_frame_count")) {
         graphics_policy.static_frame_count = xml_parser_get_attribute_int("static_frame_count");
         if (graphics_policy.static_frame_count <= 0) {
@@ -934,13 +1035,30 @@ static int parse_graphics_node()
             return 0;
         }
     }
-    if (xml_parser_has_attribute("corpse_image_group")) {
+    const bool has_corpse_image_group = xml_parser_has_attribute("corpse_image_group");
+    const bool has_corpse_image_asset = xml_parser_has_attribute("corpse_image_asset");
+    if (has_corpse_image_group && has_corpse_image_asset) {
+        g_parse_state.error = true;
+        log_error("FigureType graphics node must choose corpse_image_group or corpse_image_asset, not both", 0, 0);
+        return 0;
+    }
+    if (has_corpse_image_group) {
         graphics_policy.corpse_image_group =
             parse_image_group_name(xml_parser_get_attribute_string("corpse_image_group"));
         if (!graphics_policy.corpse_image_group) {
             g_parse_state.error = true;
             log_error("FigureType graphics node has an unknown corpse_image_group",
                 xml_parser_get_attribute_string("corpse_image_group"), 0);
+            return 0;
+        }
+    }
+    if (has_corpse_image_asset) {
+        graphics_policy.corpse_image_asset =
+            parse_image_asset_name(xml_parser_get_attribute_string("corpse_image_asset"));
+        if (graphics_policy.corpse_image_asset == ASSET_MAX_KEY) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node has an unknown corpse_image_asset",
+                xml_parser_get_attribute_string("corpse_image_asset"), 0);
             return 0;
         }
     }
@@ -951,6 +1069,47 @@ static int parse_graphics_node()
             log_error("FigureType graphics node requires a non-negative corpse_base_image_offset", 0, 0);
             return 0;
         }
+    }
+    if (xml_parser_has_attribute("cart_mode")) {
+        const char *cart_mode = xml_parser_get_attribute_string("cart_mode");
+        if (!is_known_cart_graphics_mode_name(cart_mode)) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node has an unknown cart_mode", cart_mode, 0);
+            return 0;
+        }
+        graphics_policy.cart_mode = parse_cart_graphics_mode_name(cart_mode);
+    }
+    if (graphics_policy.cart_mode == CartGraphicsMode::ResourceLoad) {
+        if (!xml_parser_has_attribute("cart_offsets_x") ||
+            !xml_parser_has_attribute("cart_offsets_y") ||
+            !xml_parser_has_attribute("cart_high_load_threshold") ||
+            !xml_parser_has_attribute("cart_high_load_y_adjust") ||
+            !xml_parser_has_attribute("cart_direction_3_y_adjust")) {
+            g_parse_state.error = true;
+            log_error("FigureType resource_load cart graphics is missing required cart attributes", 0, 0);
+            return 0;
+        }
+        if (!parse_int_array_8(xml_parser_get_attribute_string("cart_offsets_x"), graphics_policy.cart_offsets_x)) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node has invalid cart_offsets_x", 0, 0);
+            return 0;
+        }
+        if (!parse_int_array_8(xml_parser_get_attribute_string("cart_offsets_y"), graphics_policy.cart_offsets_y)) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node has invalid cart_offsets_y", 0, 0);
+            return 0;
+        }
+        graphics_policy.cart_high_load_threshold = xml_parser_get_attribute_int("cart_high_load_threshold");
+        if (graphics_policy.cart_high_load_threshold < 0) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics node requires a non-negative cart_high_load_threshold", 0, 0);
+            return 0;
+        }
+        graphics_policy.cart_high_load_y_adjust = xml_parser_get_attribute_int("cart_high_load_y_adjust");
+        graphics_policy.cart_direction_3_y_adjust = xml_parser_get_attribute_int("cart_direction_3_y_adjust");
+    }
+    if (!validate_depot_cart_graphics(g_parse_state.definition.get(), &g_parse_state.error, graphics_policy)) {
+        return 0;
     }
 
     g_parse_state.definition->set_graphics_policy(graphics_policy);

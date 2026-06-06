@@ -1,241 +1,8 @@
 #include "translation/localization_internal.h"
 
-extern "C" {
-#include "building/type.h"
-}
-
 namespace localization::detail {
 
 namespace {
-
-struct legacy_project_key_mapping {
-    int is_editor;
-    int group;
-    int index;
-    translation_key key;
-};
-
-constexpr legacy_project_key_mapping k_legacy_project_key_mappings[] = {
-    {0, 28, BUILDING_HOUSE_SMALL_TENT, TR_BUILDING_HOUSE_SMALL_TENT},
-    {0, 28, BUILDING_HOUSE_LARGE_TENT, TR_BUILDING_HOUSE_LARGE_TENT},
-    {0, 28, BUILDING_HOUSE_SMALL_SHACK, TR_BUILDING_HOUSE_SMALL_SHACK},
-    {0, 28, BUILDING_HOUSE_LARGE_SHACK, TR_BUILDING_HOUSE_LARGE_SHACK},
-    {0, 28, BUILDING_HOUSE_SMALL_HOVEL, TR_BUILDING_HOUSE_SMALL_HOVEL},
-    {0, 28, BUILDING_HOUSE_LARGE_HOVEL, TR_BUILDING_HOUSE_LARGE_HOVEL},
-    {0, 28, BUILDING_HOUSE_SMALL_CASA, TR_BUILDING_HOUSE_SMALL_CASA},
-    {0, 28, BUILDING_HOUSE_LARGE_CASA, TR_BUILDING_HOUSE_LARGE_CASA},
-    {0, 28, BUILDING_HOUSE_SMALL_INSULA, TR_BUILDING_HOUSE_SMALL_INSULA},
-    {0, 28, BUILDING_HOUSE_MEDIUM_INSULA, TR_BUILDING_HOUSE_MEDIUM_INSULA},
-    {0, 28, BUILDING_HOUSE_LARGE_INSULA, TR_BUILDING_HOUSE_LARGE_INSULA},
-    {0, 28, BUILDING_HOUSE_GRAND_INSULA, TR_BUILDING_HOUSE_GRAND_INSULA},
-    {0, 28, BUILDING_HOUSE_SMALL_VILLA, TR_BUILDING_HOUSE_SMALL_VILLA},
-    {0, 28, BUILDING_HOUSE_MEDIUM_VILLA, TR_BUILDING_HOUSE_MEDIUM_VILLA},
-    {0, 28, BUILDING_HOUSE_LARGE_VILLA, TR_BUILDING_HOUSE_LARGE_VILLA},
-    {0, 28, BUILDING_HOUSE_GRAND_VILLA, TR_BUILDING_HOUSE_GRAND_VILLA},
-    {0, 28, BUILDING_HOUSE_SMALL_PALACE, TR_BUILDING_HOUSE_SMALL_PALACE},
-    {0, 28, BUILDING_HOUSE_MEDIUM_PALACE, TR_BUILDING_HOUSE_MEDIUM_PALACE},
-    {0, 28, BUILDING_HOUSE_LARGE_PALACE, TR_BUILDING_HOUSE_LARGE_PALACE},
-    {0, 28, BUILDING_HOUSE_LUXURY_PALACE, TR_BUILDING_HOUSE_LUXURY_PALACE},
-    {0, 41, BUILDING_HOUSE_SMALL_TENT, TR_BUILDING_HOUSE_SMALL_TENT},
-    {0, 41, BUILDING_HOUSE_LARGE_TENT, TR_BUILDING_HOUSE_LARGE_TENT},
-    {0, 41, BUILDING_HOUSE_SMALL_SHACK, TR_BUILDING_HOUSE_SMALL_SHACK},
-    {0, 41, BUILDING_HOUSE_LARGE_SHACK, TR_BUILDING_HOUSE_LARGE_SHACK},
-    {0, 41, BUILDING_HOUSE_SMALL_HOVEL, TR_BUILDING_HOUSE_SMALL_HOVEL},
-    {0, 41, BUILDING_HOUSE_LARGE_HOVEL, TR_BUILDING_HOUSE_LARGE_HOVEL},
-    {0, 41, BUILDING_HOUSE_SMALL_CASA, TR_BUILDING_HOUSE_SMALL_CASA},
-    {0, 41, BUILDING_HOUSE_LARGE_CASA, TR_BUILDING_HOUSE_LARGE_CASA},
-    {0, 41, BUILDING_HOUSE_SMALL_INSULA, TR_BUILDING_HOUSE_SMALL_INSULA},
-    {0, 41, BUILDING_HOUSE_MEDIUM_INSULA, TR_BUILDING_HOUSE_MEDIUM_INSULA},
-    {0, 41, BUILDING_HOUSE_LARGE_INSULA, TR_BUILDING_HOUSE_LARGE_INSULA},
-    {0, 41, BUILDING_HOUSE_GRAND_INSULA, TR_BUILDING_HOUSE_GRAND_INSULA},
-    {0, 41, BUILDING_HOUSE_SMALL_VILLA, TR_BUILDING_HOUSE_SMALL_VILLA},
-    {0, 41, BUILDING_HOUSE_MEDIUM_VILLA, TR_BUILDING_HOUSE_MEDIUM_VILLA},
-    {0, 41, BUILDING_HOUSE_LARGE_VILLA, TR_BUILDING_HOUSE_LARGE_VILLA},
-    {0, 41, BUILDING_HOUSE_GRAND_VILLA, TR_BUILDING_HOUSE_GRAND_VILLA},
-    {0, 41, BUILDING_HOUSE_SMALL_PALACE, TR_BUILDING_HOUSE_SMALL_PALACE},
-    {0, 41, BUILDING_HOUSE_MEDIUM_PALACE, TR_BUILDING_HOUSE_MEDIUM_PALACE},
-    {0, 41, BUILDING_HOUSE_LARGE_PALACE, TR_BUILDING_HOUSE_LARGE_PALACE},
-    {0, 41, BUILDING_HOUSE_LUXURY_PALACE, TR_BUILDING_HOUSE_LUXURY_PALACE},
-    {0, 28, BUILDING_ROADBLOCK, TR_BUILDING_ROADBLOCK},
-    {0, 41, BUILDING_ROADBLOCK, TR_BUILDING_ROADBLOCK},
-    {0, 28, BUILDING_MENU_GRAND_TEMPLES, TR_BUILDING_GRAND_TEMPLE_MENU},
-    {0, 41, BUILDING_MENU_GRAND_TEMPLES, TR_BUILDING_GRAND_TEMPLE_MENU},
-    {0, 28, BUILDING_MESS_HALL, TR_BUILDING_MESS_HALL},
-    {0, 41, BUILDING_MESS_HALL, TR_BUILDING_MESS_HALL},
-    {0, 28, BUILDING_MENU_TREES, TR_BUILDING_MENU_TREES},
-    {0, 41, BUILDING_MENU_TREES, TR_BUILDING_MENU_TREES},
-    {0, 28, BUILDING_MENU_PATHS, TR_BUILDING_MENU_PATHS},
-    {0, 41, BUILDING_MENU_PATHS, TR_BUILDING_MENU_PATHS},
-    {0, 28, BUILDING_MENU_PARKS, TR_BUILDING_MENU_PARKS},
-    {0, 41, BUILDING_MENU_PARKS, TR_BUILDING_MENU_PARKS},
-    {0, 28, BUILDING_PINE_TREE, TR_BUILDING_PINE_TREE},
-    {0, 41, BUILDING_PINE_TREE, TR_BUILDING_PINE_TREE},
-    {0, 28, BUILDING_FIR_TREE, TR_BUILDING_FIR_TREE},
-    {0, 41, BUILDING_FIR_TREE, TR_BUILDING_FIR_TREE},
-    {0, 28, BUILDING_OAK_TREE, TR_BUILDING_OAK_TREE},
-    {0, 41, BUILDING_OAK_TREE, TR_BUILDING_OAK_TREE},
-    {0, 28, BUILDING_ELM_TREE, TR_BUILDING_ELM_TREE},
-    {0, 41, BUILDING_ELM_TREE, TR_BUILDING_ELM_TREE},
-    {0, 28, BUILDING_FIG_TREE, TR_BUILDING_FIG_TREE},
-    {0, 41, BUILDING_FIG_TREE, TR_BUILDING_FIG_TREE},
-    {0, 28, BUILDING_PLUM_TREE, TR_BUILDING_PLUM_TREE},
-    {0, 41, BUILDING_PLUM_TREE, TR_BUILDING_PLUM_TREE},
-    {0, 28, BUILDING_PALM_TREE, TR_BUILDING_PALM_TREE},
-    {0, 41, BUILDING_PALM_TREE, TR_BUILDING_PALM_TREE},
-    {0, 28, BUILDING_DATE_TREE, TR_BUILDING_DATE_TREE},
-    {0, 41, BUILDING_DATE_TREE, TR_BUILDING_DATE_TREE},
-    {0, 28, BUILDING_PINE_PATH, TR_BUILDING_PINE_PATH},
-    {0, 41, BUILDING_PINE_PATH, TR_BUILDING_PINE_PATH},
-    {0, 28, BUILDING_FIR_PATH, TR_BUILDING_FIR_PATH},
-    {0, 41, BUILDING_FIR_PATH, TR_BUILDING_FIR_PATH},
-    {0, 28, BUILDING_OAK_PATH, TR_BUILDING_OAK_PATH},
-    {0, 41, BUILDING_OAK_PATH, TR_BUILDING_OAK_PATH},
-    {0, 28, BUILDING_ELM_PATH, TR_BUILDING_ELM_PATH},
-    {0, 41, BUILDING_ELM_PATH, TR_BUILDING_ELM_PATH},
-    {0, 28, BUILDING_FIG_PATH, TR_BUILDING_FIG_PATH},
-    {0, 41, BUILDING_FIG_PATH, TR_BUILDING_FIG_PATH},
-    {0, 28, BUILDING_PLUM_PATH, TR_BUILDING_PLUM_PATH},
-    {0, 41, BUILDING_PLUM_PATH, TR_BUILDING_PLUM_PATH},
-    {0, 28, BUILDING_PALM_PATH, TR_BUILDING_PALM_PATH},
-    {0, 41, BUILDING_PALM_PATH, TR_BUILDING_PALM_PATH},
-    {0, 28, BUILDING_DATE_PATH, TR_BUILDING_DATE_PATH},
-    {0, 41, BUILDING_DATE_PATH, TR_BUILDING_DATE_PATH},
-    {0, 28, BUILDING_PAVILION_BLUE, TR_BUILDING_BLUE_PAVILION},
-    {0, 41, BUILDING_PAVILION_BLUE, TR_BUILDING_BLUE_PAVILION},
-    {0, 28, BUILDING_PAVILION_RED, TR_BUILDING_RED_PAVILION},
-    {0, 41, BUILDING_PAVILION_RED, TR_BUILDING_RED_PAVILION},
-    {0, 28, BUILDING_PAVILION_ORANGE, TR_BUILDING_ORANGE_PAVILION},
-    {0, 41, BUILDING_PAVILION_ORANGE, TR_BUILDING_ORANGE_PAVILION},
-    {0, 28, BUILDING_PAVILION_YELLOW, TR_BUILDING_YELLOW_PAVILION},
-    {0, 41, BUILDING_PAVILION_YELLOW, TR_BUILDING_YELLOW_PAVILION},
-    {0, 28, BUILDING_PAVILION_GREEN, TR_BUILDING_GREEN_PAVILION},
-    {0, 41, BUILDING_PAVILION_GREEN, TR_BUILDING_GREEN_PAVILION},
-    {0, 28, BUILDING_GODDESS_STATUE, TR_BUILDING_SMALL_STATUE_ALT},
-    {0, 41, BUILDING_GODDESS_STATUE, TR_BUILDING_SMALL_STATUE_ALT},
-    {0, 28, BUILDING_SENATOR_STATUE, TR_BUILDING_SMALL_STATUE_ALT_B},
-    {0, 41, BUILDING_SENATOR_STATUE, TR_BUILDING_SMALL_STATUE_ALT_B},
-    {0, 28, BUILDING_OBELISK, TR_BUILDING_OBELISK},
-    {0, 41, BUILDING_OBELISK, TR_BUILDING_OBELISK},
-    {0, 28, BUILDING_MENU_GOV_RES, TR_BUILDING_MENU_GOV_RES},
-    {0, 41, BUILDING_MENU_GOV_RES, TR_BUILDING_MENU_GOV_RES},
-    {0, 28, BUILDING_MENU_STATUES, TR_BUILDING_MENU_STATUES},
-    {0, 41, BUILDING_MENU_STATUES, TR_BUILDING_MENU_STATUES},
-    {0, 28, BUILDING_GRAND_GARDEN, TR_BUILDING_GRAND_GARDEN},
-    {0, 41, BUILDING_GRAND_GARDEN, TR_BUILDING_GRAND_GARDEN},
-    {0, 28, BUILDING_HORSE_STATUE, TR_BUILDING_HORSE_STATUE},
-    {0, 41, BUILDING_HORSE_STATUE, TR_BUILDING_HORSE_STATUE},
-    {0, 28, BUILDING_DOLPHIN_FOUNTAIN, TR_BUILDING_DOLPHIN_FOUNTAIN},
-    {0, 41, BUILDING_DOLPHIN_FOUNTAIN, TR_BUILDING_DOLPHIN_FOUNTAIN},
-    {0, 28, BUILDING_HEDGE_DARK, TR_BUILDING_HEDGE_DARK},
-    {0, 41, BUILDING_HEDGE_DARK, TR_BUILDING_HEDGE_DARK},
-    {0, 28, BUILDING_HEDGE_LIGHT, TR_BUILDING_HEDGE_LIGHT},
-    {0, 41, BUILDING_HEDGE_LIGHT, TR_BUILDING_HEDGE_LIGHT},
-    {0, 28, BUILDING_LOOPED_GARDEN_WALL, TR_BUILDING_GARDEN_WALL},
-    {0, 41, BUILDING_LOOPED_GARDEN_WALL, TR_BUILDING_GARDEN_WALL},
-    {0, 28, BUILDING_LEGION_STATUE, TR_BUILDING_LEGION_STATUE},
-    {0, 41, BUILDING_LEGION_STATUE, TR_BUILDING_LEGION_STATUE},
-    {0, 28, BUILDING_DECORATIVE_COLUMN, TR_BUILDING_DECORATIVE_COLUMN},
-    {0, 41, BUILDING_DECORATIVE_COLUMN, TR_BUILDING_DECORATIVE_COLUMN},
-    {0, 28, BUILDING_COLONNADE, TR_BUILDING_COLONNADE},
-    {0, 41, BUILDING_COLONNADE, TR_BUILDING_COLONNADE},
-    {0, 28, BUILDING_GARDEN_PATH, TR_BUILDING_GARDEN_PATH},
-    {0, 41, BUILDING_GARDEN_PATH, TR_BUILDING_GARDEN_PATH},
-    {0, 28, BUILDING_LARARIUM, TR_BUILDING_LARARIUM},
-    {0, 41, BUILDING_LARARIUM, TR_BUILDING_LARARIUM},
-    {0, 28, BUILDING_NYMPHAEUM, TR_BUILDING_NYMPHAEUM},
-    {0, 41, BUILDING_NYMPHAEUM, TR_BUILDING_NYMPHAEUM},
-    {0, 28, BUILDING_SMALL_MAUSOLEUM, TR_BUILDING_SMALL_MAUSOLEUM},
-    {0, 41, BUILDING_SMALL_MAUSOLEUM, TR_BUILDING_SMALL_MAUSOLEUM},
-    {0, 28, BUILDING_LARGE_MAUSOLEUM, TR_BUILDING_LARGE_MAUSOLEUM},
-    {0, 41, BUILDING_LARGE_MAUSOLEUM, TR_BUILDING_LARGE_MAUSOLEUM},
-    {0, 28, BUILDING_CARAVANSERAI, TR_BUILDING_CARAVANSERAI},
-    {0, 41, BUILDING_CARAVANSERAI, TR_BUILDING_CARAVANSERAI},
-    {0, 28, BUILDING_ROOFED_GARDEN_WALL, TR_BUILDING_ROOFED_GARDEN_WALL},
-    {0, 41, BUILDING_ROOFED_GARDEN_WALL, TR_BUILDING_ROOFED_GARDEN_WALL},
-    {0, 28, BUILDING_ROOFED_GARDEN_WALL_GATE, TR_BUILDING_GARDEN_WALL_GATE},
-    {0, 41, BUILDING_ROOFED_GARDEN_WALL_GATE, TR_BUILDING_GARDEN_WALL_GATE},
-    {0, 28, BUILDING_PALISADE, TR_BUILDING_PALISADE},
-    {0, 41, BUILDING_PALISADE, TR_BUILDING_PALISADE},
-    {0, 28, BUILDING_GLADIATOR_STATUE, TR_BUILDING_GLADIATOR_STATUE},
-    {0, 41, BUILDING_GLADIATOR_STATUE, TR_BUILDING_GLADIATOR_STATUE},
-    {0, 28, BUILDING_HIGHWAY, TR_BUILDING_HIGHWAY},
-    {0, 41, BUILDING_HIGHWAY, TR_BUILDING_HIGHWAY},
-    {0, 28, BUILDING_CITY_MINT, TR_BUILDING_CITY_MINT},
-    {0, 41, BUILDING_CITY_MINT, TR_BUILDING_CITY_MINT},
-    {0, 28, BUILDING_DEPOT, TR_BUILDING_DEPOT},
-    {0, 41, BUILDING_DEPOT, TR_BUILDING_DEPOT},
-    {0, 28, BUILDING_LOOPED_GARDEN_GATE, TR_BUILDING_LOOPED_GARDEN_WALL_GATE},
-    {0, 41, BUILDING_LOOPED_GARDEN_GATE, TR_BUILDING_LOOPED_GARDEN_WALL_GATE},
-    {0, 28, BUILDING_PANELLED_GARDEN_WALL, TR_BUILDING_PANELLED_GARDEN_WALL},
-    {0, 41, BUILDING_PANELLED_GARDEN_WALL, TR_BUILDING_PANELLED_GARDEN_WALL},
-    {0, 28, BUILDING_PANELLED_GARDEN_GATE, TR_BUILDING_PANELLED_GARDEN_WALL_GATE},
-    {0, 41, BUILDING_PANELLED_GARDEN_GATE, TR_BUILDING_PANELLED_GARDEN_WALL_GATE},
-    {0, 28, BUILDING_SHRINE_CERES, TR_BUILDING_SHRINE_CERES},
-    {0, 41, BUILDING_SHRINE_CERES, TR_BUILDING_SHRINE_CERES},
-    {0, 28, BUILDING_SHRINE_MARS, TR_BUILDING_SHRINE_MARS},
-    {0, 41, BUILDING_SHRINE_MARS, TR_BUILDING_SHRINE_MARS},
-    {0, 28, BUILDING_SHRINE_MERCURY, TR_BUILDING_SHRINE_MERCURY},
-    {0, 41, BUILDING_SHRINE_MERCURY, TR_BUILDING_SHRINE_MERCURY},
-    {0, 28, BUILDING_SHRINE_NEPTUNE, TR_BUILDING_SHRINE_NEPTUNE},
-    {0, 41, BUILDING_SHRINE_NEPTUNE, TR_BUILDING_SHRINE_NEPTUNE},
-    {0, 28, BUILDING_SHRINE_VENUS, TR_BUILDING_SHRINE_VENUS},
-    {0, 41, BUILDING_SHRINE_VENUS, TR_BUILDING_SHRINE_VENUS},
-    {0, 28, BUILDING_MENU_SHRINES, TR_BUILDING_MENU_SHRINES},
-    {0, 41, BUILDING_MENU_SHRINES, TR_BUILDING_MENU_SHRINES},
-    {0, 28, BUILDING_MENU_GARDENS, TR_BUILDING_FORMAL_GARDENS},
-    {0, 28, BUILDING_GARDENS, TR_BUILDING_FORMAL_GARDENS},
-    {0, 28, BUILDING_OVERGROWN_GARDENS, TR_BUILDING_OVERGROWN_GARDENS},
-    {0, 41, BUILDING_OVERGROWN_GARDENS, TR_BUILDING_OVERGROWN_GARDENS},
-    {0, 28, BUILDING_FORT_AUXILIA_INFANTRY, TR_BUILDING_FORT_AUXILIA_INFANTRY},
-    {0, 41, BUILDING_FORT_AUXILIA_INFANTRY, TR_BUILDING_FORT_AUXILIA_INFANTRY},
-    {0, 28, BUILDING_MENU_FORT, TR_BUILDING_FORT_MENU},
-    {0, 41, BUILDING_MENU_FORT, TR_BUILDING_FORT_MENU},
-    {0, 28, BUILDING_FORT_ARCHERS, TR_BUILDING_FORT_ARCHERS},
-    {0, 41, BUILDING_FORT_ARCHERS, TR_BUILDING_FORT_ARCHERS},
-    {0, 28, BUILDING_FORT_LEGIONARIES, TR_BUILDING_FORT_LEGIONARIES},
-    {0, 41, BUILDING_FORT_LEGIONARIES, TR_BUILDING_FORT_LEGIONARIES},
-    {0, 28, BUILDING_FORT_MOUNTED, TR_BUILDING_FORT_MOUNTED},
-    {0, 41, BUILDING_FORT_MOUNTED, TR_BUILDING_FORT_MOUNTED},
-    {0, 28, BUILDING_FORT_JAVELIN, TR_BUILDING_FORT_JAVELIN},
-    {0, 41, BUILDING_FORT_JAVELIN, TR_BUILDING_FORT_JAVELIN},
-    {0, 28, BUILDING_HEDGE_GATE_DARK, TR_BUILDING_HEDGE_DARK},
-    {0, 41, BUILDING_HEDGE_GATE_DARK, TR_BUILDING_HEDGE_DARK},
-    {0, 28, BUILDING_HEDGE_GATE_LIGHT, TR_BUILDING_HEDGE_LIGHT},
-    {0, 41, BUILDING_HEDGE_GATE_LIGHT, TR_BUILDING_HEDGE_LIGHT},
-    {0, 28, BUILDING_PALISADE_GATE, TR_BUILDING_PALISADE_GATE},
-    {0, 41, BUILDING_PALISADE_GATE, TR_BUILDING_PALISADE_GATE},
-    {0, 28, BUILDING_LATRINES, TR_BUILDING_LATRINES},
-    {0, 41, BUILDING_LATRINES, TR_BUILDING_LATRINES},
-    {0, 28, BUILDING_NATIVE_HUT_ALT, TR_BUILDING_NATIVE_HUT_ALT},
-    {0, 41, BUILDING_NATIVE_HUT_ALT, TR_BUILDING_NATIVE_HUT_ALT},
-    {0, 28, BUILDING_NATIVE_DECORATION, TR_BUILDING_NATIVE_DECORATION},
-    {0, 41, BUILDING_NATIVE_DECORATION, TR_BUILDING_NATIVE_DECORATION},
-    {0, 28, BUILDING_NATIVE_MONUMENT, TR_BUILDING_NATIVE_MONUMENT},
-    {0, 41, BUILDING_NATIVE_MONUMENT, TR_BUILDING_NATIVE_MONUMENT},
-    {0, 28, BUILDING_NATIVE_WATCHTOWER, TR_BUILDING_NATIVE_WATCHTOWER},
-    {0, 41, BUILDING_NATIVE_WATCHTOWER, TR_BUILDING_NATIVE_WATCHTOWER},
-    {0, 28, BUILDING_REPAIR_LAND, TR_BUILDING_LAND_REPAIR},
-    {0, 41, BUILDING_REPAIR_LAND, TR_BUILDING_LAND_REPAIR},
-    {0, 28, BUILDING_CLEAR_TREES, TR_BUILDING_MENU_TREES},
-    {0, 41, BUILDING_CLEAR_TREES, TR_BUILDING_MENU_TREES},
-    {0, 28, BUILDING_CLEAR_LAND, TR_BUILDING_LAND_CLEAR},
-    {0, 41, BUILDING_CLEAR_LAND, TR_BUILDING_LAND_CLEAR},
-    {0, 92, 0, TR_BUILDING_SMALL_TEMPLE_CERES_NAME},
-    {0, 93, 0, TR_BUILDING_SMALL_TEMPLE_NEPTUNE_NAME},
-    {0, 94, 0, TR_BUILDING_SMALL_TEMPLE_MERCURY_NAME},
-    {0, 95, 0, TR_BUILDING_SMALL_TEMPLE_MARS_NAME},
-    {0, 96, 0, TR_BUILDING_SMALL_TEMPLE_VENUS_NAME},
-    {0, 130, 641, TR_PHRASE_FIGURE_MISSIONARY_EXACT_4},
-    {0, 67, 48, TR_EDITOR_ALLOWED_BUILDINGS_MONUMENTS},
-    {1, 48, TR_EDITOR_SCENARIO_BUILDING_NATIVE_HUT_ALT, TR_EDITOR_SCENARIO_BUILDING_NATIVE_HUT_ALT},
-    {1, 48, TR_EDITOR_SCENARIO_BUILDING_NATIVE_DECORATION, TR_EDITOR_SCENARIO_BUILDING_NATIVE_DECORATION},
-    {1, 48, TR_EDITOR_SCENARIO_BUILDING_NATIVE_MONUMENT, TR_EDITOR_SCENARIO_BUILDING_NATIVE_MONUMENT},
-    {1, 48, TR_EDITOR_SCENARIO_BUILDING_NATIVE_WATCHTOWER, TR_EDITOR_SCENARIO_BUILDING_NATIVE_WATCHTOWER},
-    {1, 48, TR_EDITOR_TOOL_EARTHQUAKE_POINT, TR_EDITOR_TOOL_EARTHQUAKE_POINT},
-    {1, 48, TR_EDITOR_TOOL_EARTHQUAKE_CUSTOM, TR_EDITOR_TOOL_EARTHQUAKE_CUSTOM},
-    {1, 48, TR_EDITOR_TOOL_EARTHQUAKE_REMOVE, TR_EDITOR_TOOL_EARTHQUAKE_REMOVE},
-    {1, 48, TR_EDITOR_RUBBLE, TR_EDITOR_RUBBLE},
-};
 
 void set_legacy_string_slot(locale_catalog &catalog, int is_editor, int group, int index, const std::string &value)
 {
@@ -287,38 +54,36 @@ bool parse_legacy_project_key_name(const std::string &key, int &is_editor, int &
     return true;
 }
 
-void merge_project_key_legacy_string_slots(translation_key key, const std::string &value, locale_catalog &catalog)
-{
-    for (const legacy_project_key_mapping &mapping : k_legacy_project_key_mappings) {
-        if (mapping.key == key) {
-            set_legacy_string_slot(catalog, mapping.is_editor, mapping.group, mapping.index, value);
-        }
-    }
-}
+} // namespace
 
-void detect_project_key_legacy_string_slots(translation_key key, bool &has_main_strings, bool &has_editor_strings)
+static void detect_project_key_sections(const json_value *project_keys, bool &has_main_strings, bool &has_editor_strings)
 {
-    for (const legacy_project_key_mapping &mapping : k_legacy_project_key_mappings) {
-        if (mapping.key == key) {
-            if (mapping.is_editor) {
+    if (!project_keys || project_keys->type != json_type::object) {
+        return;
+    }
+    for (const auto &entry : project_keys->object_value) {
+        if (entry.second.type != json_type::string) {
+            continue;
+        }
+        translation_key key;
+        if (translation_key_from_name(entry.first.c_str(), &key) && key >= 0 && key < TRANSLATION_MAX_KEY) {
+            has_main_strings = true;
+            if (entry.first.rfind("TR_EDITOR_", 0) == 0) {
+                has_editor_strings = true;
+            }
+            continue;
+        }
+        int is_editor = 0;
+        int group = 0;
+        int index = 0;
+        if (parse_legacy_project_key_name(entry.first, is_editor, group, index)) {
+            if (is_editor) {
                 has_editor_strings = true;
             } else {
                 has_main_strings = true;
             }
         }
     }
-}
-
-} // namespace
-
-const char *legacy_project_key_name_for_slot(int is_editor, int group, int index)
-{
-    for (const legacy_project_key_mapping &mapping : k_legacy_project_key_mappings) {
-        if (mapping.is_editor == is_editor && mapping.group == group && mapping.index == index) {
-            return translation_key_to_name(mapping.key);
-        }
-    }
-    return nullptr;
 }
 
 json_value json_value::make_object()
@@ -783,12 +548,12 @@ bool merge_locale_json(const std::string &path, locale_catalog &catalog, std::st
 
     if (const json_value *project_keys = json_find(root, "project_keys")) {
         if (project_keys->type == json_type::object) {
+            detect_project_key_sections(project_keys, catalog.has_main_strings, catalog.has_editor_strings);
             for (const auto &entry : project_keys->object_value) {
                 if (entry.second.type != json_type::string) continue;
                 translation_key key;
                 if (translation_key_from_name(entry.first.c_str(), &key) && key >= 0 && key < TRANSLATION_MAX_KEY) {
                     catalog.project_keys[key].utf8 = entry.second.string_value;
-                    merge_project_key_legacy_string_slots(key, entry.second.string_value, catalog);
                 } else {
                     int is_editor = 0;
                     int group = 0;
@@ -803,33 +568,6 @@ bool merge_locale_json(const std::string &path, locale_catalog &catalog, std::st
         }
     }
     return true;
-}
-
-static void detect_project_key_legacy_sections(const json_value *project_keys, bool &has_main_strings, bool &has_editor_strings)
-{
-    if (!project_keys || project_keys->type != json_type::object) {
-        return;
-    }
-    for (const auto &entry : project_keys->object_value) {
-        if (entry.second.type != json_type::string) {
-            continue;
-        }
-        translation_key key;
-        if (translation_key_from_name(entry.first.c_str(), &key) && key >= 0 && key < TRANSLATION_MAX_KEY) {
-            detect_project_key_legacy_string_slots(key, has_main_strings, has_editor_strings);
-            continue;
-        }
-        int is_editor = 0;
-        int group = 0;
-        int index = 0;
-        if (parse_legacy_project_key_name(entry.first, is_editor, group, index)) {
-            if (is_editor) {
-                has_editor_strings = true;
-            } else {
-                has_main_strings = true;
-            }
-        }
-    }
 }
 
 int enumerate_available_locales_internal(std::vector<locale_info> &out_locales)
@@ -855,7 +593,7 @@ int enumerate_available_locales_internal(std::vector<locale_info> &out_locales)
             info.english_name = json_string_or_empty(json_find(*metadata, "english_name"));
             info.has_main_strings = json_object_has_entries(json_find(root_value, "main_strings"));
             info.has_editor_strings = json_object_has_entries(json_find(root_value, "editor_strings"));
-            detect_project_key_legacy_sections(json_find(root_value, "project_keys"),
+            detect_project_key_sections(json_find(root_value, "project_keys"),
                 info.has_main_strings, info.has_editor_strings);
             if (const json_value *messages = json_find(root_value, "messages")) {
                 info.has_main_messages = json_object_has_entries(json_find(*messages, "main"));

@@ -18,6 +18,7 @@
 #include "SDL.h"
 
 #include <stdlib.h>
+#include <string>
 
 static struct {
     SDL_Window *window;
@@ -362,7 +363,45 @@ void platform_screen_recreate_texture(void)
 
 void platform_screen_show_error_message_box(const char *title, const char *message)
 {
-    SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, title, message, SDL.window);
+    enum {
+        BUTTON_OK = 0,
+        BUTTON_COPY = 1
+    };
+
+    const char *safe_title = title ? title : "Vespasian Error";
+    const char *safe_message = message ? message : "";
+    const std::string clipboard_text = std::string(safe_title) + "\n\n" + safe_message;
+    std::string displayed_message = safe_message;
+
+    const SDL_MessageBoxButtonData buttons[] = {
+        { SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, BUTTON_OK, "OK" },
+        { 0, BUTTON_COPY, "\xE2\xA7\x89 Copy error" }
+    };
+
+    for (;;) {
+        SDL_MessageBoxData message_box = {};
+        message_box.flags = SDL_MESSAGEBOX_ERROR;
+        message_box.window = SDL.window;
+        message_box.title = safe_title;
+        message_box.message = displayed_message.c_str();
+        message_box.numbuttons = SDL_arraysize(buttons);
+        message_box.buttons = buttons;
+
+        int button_id = BUTTON_OK;
+        if (SDL_ShowMessageBox(&message_box, &button_id) < 0) {
+            SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, safe_title, displayed_message.c_str(), SDL.window);
+            return;
+        }
+
+        if (button_id != BUTTON_COPY) {
+            return;
+        }
+
+        displayed_message = safe_message;
+        displayed_message += SDL_SetClipboardText(clipboard_text.c_str()) == 0 ?
+            "\n\nCopied to clipboard." :
+            "\n\nUnable to copy to clipboard.";
+    }
 }
 
 void system_set_mouse_position(int *x, int *y)

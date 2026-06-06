@@ -4,6 +4,7 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
 #include "city/labor.h"
 #include "city/ratings.h"
 #include "city/view.h"

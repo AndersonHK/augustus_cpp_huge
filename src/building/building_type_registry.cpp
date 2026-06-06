@@ -11,6 +11,7 @@
 extern "C" {
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/properties.h"
 #include "game/resource.h"
 #include "platform/file_manager.h"
@@ -18,11 +19,6 @@ extern "C" {
 
 #include <cstdio>
 #include <string_view>
-
-extern "C" {
-constinit building_type BUILDING_THEATER = BUILDING_NONE;
-constinit building_type BUILDING_WELL = BUILDING_NONE;
-}
 
 namespace building_type_registry_impl {
 
@@ -68,12 +64,6 @@ building_type runtime_id_from_text(const char *text_id)
         }
     }
     return BUILDING_NONE;
-}
-
-void refresh_known_building_type_ids()
-{
-    BUILDING_THEATER = runtime_id_from_text(BUILDING_TEXT_ID_THEATER);
-    BUILDING_WELL = runtime_id_from_text(BUILDING_TEXT_ID_WELL);
 }
 
 void clear_xml_runtime_property_fields()
@@ -181,6 +171,88 @@ extern "C" building_type building_type_registry_runtime_id_from_text(const char 
     return building_type_registry_impl::runtime_id_from_text(text_id);
 }
 
+extern "C" building_type building_type_registry_theater_type(void)
+{
+    return building_type_registry_impl::runtime_id_from_text("theater");
+}
+
+extern "C" building_type building_type_registry_well_type(void)
+{
+    return building_type_registry_impl::runtime_id_from_text("well");
+}
+
+extern "C" int building_type_registry_is_theater(building_type type)
+{
+    const building_type theater = building_type_registry_theater_type();
+    return theater != BUILDING_NONE && type == theater;
+}
+
+extern "C" int building_type_registry_is_well(building_type type)
+{
+    const building_type well = building_type_registry_well_type();
+    return well != BUILDING_NONE && type == well;
+}
+
+extern "C" int building_type_registry_is_temple(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_temple() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_is_warehouse(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_warehouse() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_is_granary(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_granary() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_is_mess_hall(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_mess_hall() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_is_architect_guild(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_architect_guild() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_is_caravanserai(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_caravanserai() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_is_lighthouse(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_lighthouse() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_is_armoury(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_armoury() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_has_native_storage(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_native_storage() ? 1 : 0;
+}
+
+extern "C" int building_type_registry_has_distribution(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_distribution() ? 1 : 0;
+}
+
 extern "C" int building_type_registry_has_definition(building_type type)
 {
     return building_type_registry_impl::definition_for_type(type) ? 1 : 0;
@@ -283,6 +355,30 @@ extern "C" int building_type_registry_has_labor_seeker(building_type type)
     return definition->labor().seeker_policy().method != building_type_registry_impl::LaborSeekerMethod::None;
 }
 
+extern "C" figure_type building_type_registry_get_preview_figure(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (!definition) {
+        return FIGURE_NONE;
+    }
+    if (!definition->has_housing()) {
+        for (const building_type_registry_impl::SpawnDelayGroup &group : definition->spawn_groups()) {
+            for (const building_type_registry_impl::SpawnPolicy &policy : group.policies) {
+                if (policy.spawn_figure != FIGURE_NONE) {
+                    return policy.spawn_figure;
+                }
+            }
+        }
+    }
+    if (definition->has_temple()) {
+        return FIGURE_PRIEST;
+    }
+    if (building_type_registry_has_labor_seeker(type)) {
+        return FIGURE_LABOR_SEEKER;
+    }
+    return FIGURE_NONE;
+}
+
 extern "C" int building_type_registry_get_sound_id(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
@@ -331,8 +427,9 @@ extern "C" int building_type_registry_get_graphics_image_id(const building *b)
         return 0;
     }
 
+    Building building(const_cast<::building *>(b), definition);
     const building_type_registry_impl::GraphicsTarget *target =
-        building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition, *b);
+        building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition, building);
     if (!target) {
         return 0;
     }
@@ -376,7 +473,7 @@ extern "C" int building_type_registry_get_instant_construction_requirement(build
 {
     const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
     if (!definition || definition->construction().mode() != building_type_registry_impl::ConstructionMode::Instant ||
-        resource <= RESOURCE_NONE || resource >= RESOURCE_MAX) {
+        resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
         return 0;
     }
     return definition->construction().instant_requirement_amount(static_cast<resource_type>(resource));
@@ -386,7 +483,7 @@ extern "C" int building_type_registry_get_construction_requirement(building_type
 {
     const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
     if (!definition || !definition->has_phased_construction() ||
-        resource < RESOURCE_NONE || resource >= RESOURCE_MAX || phase < 1) {
+        resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT || phase < 1) {
         return 0;
     }
     return definition->construction().requirement_amount(static_cast<resource_type>(resource), phase);
@@ -430,17 +527,10 @@ extern "C" int building_type_registry_housing_has_resident_class(building_type t
     return actual_class != BUILDING_TYPE_HOUSING_RESIDENT_NONE && actual_class == resident_class ? 1 : 0;
 }
 
-extern "C" int building_type_registry_get_housing_legacy_level(building_type type)
+extern "C" int building_type_registry_get_housing_level(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
-    int level = 0;
-    if (definition && building_type_registry_impl::housing_type_legacy_level_for_text_id(definition->attr(), &level)) {
-        return level;
-    }
-    if (type >= BUILDING_HOUSE_VACANT_LOT && type <= BUILDING_HOUSE_LUXURY_PALACE) {
-        return type - BUILDING_HOUSE_VACANT_LOT;
-    }
-    return -1;
+    return definition && definition->has_housing() && definition->housing_type() ? definition->housing_type()->level() : -1;
 }
 
 extern "C" int building_type_registry_get_housing_capacity(building_type type)
@@ -449,23 +539,39 @@ extern "C" int building_type_registry_get_housing_capacity(building_type type)
     return definition && definition->has_housing() ? definition->housing_capacity() : 0;
 }
 
-extern "C" building_type building_type_registry_get_housing_type_for_legacy_level(int legacy_level, int footprint_size)
+extern "C" int building_type_registry_get_housing_level_count(void)
 {
-    const char *base_text_id = building_type_registry_impl::housing_type_text_id_for_legacy_level(legacy_level);
-    if (!base_text_id || !*base_text_id) {
+    return building_type_registry_impl::housing_type_level_count();
+}
+
+extern "C" int building_type_registry_get_housing_level_at(int index)
+{
+    return building_type_registry_impl::housing_type_level_at(index);
+}
+
+extern "C" building_type building_type_registry_get_housing_type_for_level(int level, int footprint_size)
+{
+    const building_type_registry_impl::HousingType *housing_type =
+        building_type_registry_impl::find_housing_type_definition_for_level(level);
+    if (!housing_type) {
         return BUILDING_NONE;
     }
 
-    if (footprint_size > 1) {
-        char expanded_text_id[128];
-        snprintf(expanded_text_id, sizeof(expanded_text_id), "%s_2x2", base_text_id);
-        building_type expanded_type = building_type_registry_impl::runtime_id_from_text(expanded_text_id);
-        if (expanded_type != BUILDING_NONE) {
-            return expanded_type;
+    building_type fallback = BUILDING_NONE;
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (!definition || !definition->has_housing() || definition->housing_type() != housing_type) {
+            continue;
+        }
+        const int size = definition->has_model() && definition->model().has_size() ? definition->model().size() : 1;
+        if (size == footprint_size) {
+            return definition->type();
+        }
+        if (fallback == BUILDING_NONE || size == 1) {
+            fallback = definition->type();
         }
     }
-
-    return building_type_registry_impl::runtime_id_from_text(base_text_id);
+    return fallback;
 }
 
 extern "C" building_type building_type_registry_get_housing_transition(building_type type, int transition)
@@ -492,6 +598,6 @@ extern "C" building_type building_type_registry_get_housing_transition(building_
 
 extern "C" building_type building_type_registry_get_vacant_lot_fill_type(void)
 {
-    building_type type = building_type_registry_impl::runtime_id_from_text("house_small_tent");
-    return type == BUILDING_NONE ? BUILDING_HOUSE_VACANT_LOT : type;
+    const int first_level = building_type_registry_impl::housing_type_level_at(0);
+    return first_level < 0 ? BUILDING_NONE : building_type_registry_get_housing_type_for_level(first_level, 1);
 }

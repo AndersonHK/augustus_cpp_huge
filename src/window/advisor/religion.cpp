@@ -1,3 +1,4 @@
+#include "city/god.h"
 #include "graphics/advisor_text_button_widget.h"
 #include "graphics/ui_runtime.h"
 
@@ -5,9 +6,9 @@ extern "C" {
 #include "religion.h"
 
 #include "assets/assets.h"
+#include "building/building_type_api.h"
 #include "building/count.h"
 #include "city/festival.h"
-#include "city/gods.h"
 #include "city/houses.h"
 #include "game/settings.h"
 #include "graphics/ui_runtime_api.h"
@@ -26,6 +27,11 @@ static generic_button hold_festival_button[] = {
 };
 
 static unsigned int focus_button_id;
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
 
 static int get_religion_advice(void)
 {
@@ -65,23 +71,25 @@ static void draw_god_row(god_type god, int y_offset, building_type altar, buildi
     int width = lang_text_draw(59, 32 + city_god_happiness(god) / 10, 450, y_offset + 2, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     int bolts = city_god_wrath_bolts(god);
     for (int i = 0; i < bolts / 10; i++) {
-        Image::from_id(Image::group(GROUP_GOD_BOLT)).draw(10 * i + width + 450, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_GOD_BOLT)).draw(10 * i + width + 450, y_offset - 2);
     }
     int happy_bolts = city_god_happy_bolts(god);
     for (int i = 0; i < happy_bolts; i++) {
-        Image::from_id(assets_get_image_id("UI", "Happy God Icon")).draw(10 * i + width + 450, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Happy God Icon")).draw(10 * i + width + 450, y_offset - 2);
     }
 }
 
 static void draw_oracle_row(void)
 {
-    int oracle_count = building_count_active(BUILDING_ORACLE) + building_count_active(BUILDING_SMALL_MAUSOLEUM);
-    int large_oracle_count = building_count_active(BUILDING_NYMPHAEUM) +
-        building_count_active(BUILDING_PANTHEON) + building_count_active(BUILDING_LARGE_MAUSOLEUM);
+    building_type pantheon = runtime_type("pantheon");
+    int oracle_count = building_count_active(runtime_type("oracle")) +
+        building_count_active(runtime_type("small_mausoleum"));
+    int large_oracle_count = building_count_active(runtime_type("nymphaeum")) +
+        building_count_active(pantheon) + building_count_active(runtime_type("large_mausoleum"));
     lang_text_draw(59, 8, 24, 168, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    text_draw_number_centered(building_count_total(BUILDING_LARARIUM), 190, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    text_draw_number_centered(building_count_total(runtime_type("lararium")), 190, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(oracle_count, 250, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    if (building_count_active(BUILDING_PANTHEON)) {
+    if (building_count_active(pantheon)) {
         text_draw_number_centered(large_oracle_count, 310, 168, 50, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else {
         text_draw_number_centered(large_oracle_count, 310, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
@@ -111,7 +119,7 @@ static int get_festival_advice(void)
 static void draw_festival_info(void)
 {
     inner_panel_draw(48, 302, 34, 6);
-    Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 15).draw(460, 305, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 15).draw(460, 305);
     lang_text_draw(58, 17, 52, 274, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     int width = lang_text_draw_amount(8, 4, city_festival_months_since_last(), 112, 315, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
@@ -128,7 +136,7 @@ static int draw_background(void)
     height_blocks = 27;
     outer_panel_draw(0, 0, 40, height_blocks);
 
-    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 9).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 9).draw(10, 10);
 
     lang_text_draw(59, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); // Religion
 
@@ -144,16 +152,16 @@ static int draw_background(void)
     inner_panel_draw(16, 60, 38, 8);
 
     // god rows
-    draw_god_row(GOD_CERES, 66, BUILDING_SHRINE_CERES, BUILDING_SMALL_TEMPLE_CERES,
-        BUILDING_LARGE_TEMPLE_CERES, BUILDING_GRAND_TEMPLE_CERES);
-    draw_god_row(GOD_NEPTUNE, 86, BUILDING_SHRINE_NEPTUNE, BUILDING_SMALL_TEMPLE_NEPTUNE,
-        BUILDING_LARGE_TEMPLE_NEPTUNE, BUILDING_GRAND_TEMPLE_NEPTUNE);
-    draw_god_row(GOD_MERCURY, 106, BUILDING_SHRINE_MERCURY, BUILDING_SMALL_TEMPLE_MERCURY,
-        BUILDING_LARGE_TEMPLE_MERCURY, BUILDING_GRAND_TEMPLE_MERCURY);
-    draw_god_row(GOD_MARS, 126, BUILDING_SHRINE_MARS, BUILDING_SMALL_TEMPLE_MARS,
-        BUILDING_LARGE_TEMPLE_MARS, BUILDING_GRAND_TEMPLE_MARS);
-    draw_god_row(GOD_VENUS, 146, BUILDING_SHRINE_VENUS, BUILDING_SMALL_TEMPLE_VENUS,
-        BUILDING_LARGE_TEMPLE_VENUS, BUILDING_GRAND_TEMPLE_VENUS);
+    draw_god_row(GOD_CERES, 66, runtime_type("shrine_ceres"), runtime_type("small_temple_ceres"),
+        runtime_type("large_temple_ceres"), runtime_type("grand_temple_ceres"));
+    draw_god_row(GOD_NEPTUNE, 86, runtime_type("shrine_neptune"), runtime_type("small_temple_neptune"),
+        runtime_type("large_temple_neptune"), runtime_type("grand_temple_neptune"));
+    draw_god_row(GOD_MERCURY, 106, runtime_type("shrine_mercury"), runtime_type("small_temple_mercury"),
+        runtime_type("large_temple_mercury"), runtime_type("grand_temple_mercury"));
+    draw_god_row(GOD_MARS, 126, runtime_type("shrine_mars"), runtime_type("small_temple_mars"),
+        runtime_type("large_temple_mars"), runtime_type("grand_temple_mars"));
+    draw_god_row(GOD_VENUS, 146, runtime_type("shrine_venus"), runtime_type("small_temple_venus"),
+        runtime_type("large_temple_venus"), runtime_type("grand_temple_venus"));
 
     // oracles
     draw_oracle_row();

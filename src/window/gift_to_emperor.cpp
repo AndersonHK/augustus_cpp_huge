@@ -13,6 +13,7 @@ extern "C" {
 #include "window/advisors.h"
 }
 #include "graphics/image.h"
+#include "game/resource_graphics.h"
 
 static void button_set_gift(const generic_button *button);
 static void button_send_gift(const generic_button *button);
@@ -40,7 +41,7 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(96, 144, 30, 15);
-    Image::from_id(resource_get_data(RESOURCE_DENARII)->image.icon).draw(112, 160, COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(resource_denarii()).panel_icon().draw(112, 160);
     lang_text_draw_centered(52, 69, 144, 160, 416, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     int width = lang_text_draw(52, 50, 144, 304, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));

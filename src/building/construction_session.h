@@ -1,7 +1,7 @@
 #pragma once
 
 extern "C" {
-#include "building/type.h"
+#include "building/building_type.h"
 #include "input/keys.h"
 #include "map/point.h"
 }
@@ -19,7 +19,8 @@ public:
     void clear();
     void select_requested_type(building_type requested_type, key_modifier_type modifiers);
     building_type resolve_type(key_modifier_type modifiers) const;
-    int sync_type(key_modifier_type modifiers);
+    building_type resolve_type(key_modifier_type modifiers, int construction_in_progress) const;
+    int sync_type(key_modifier_type modifiers, int construction_in_progress);
     void sync_drag_points(key_modifier_type modifiers);
     int selection_is_drag_tool() const;
     void set_raw_start(int x, int y, int grid_offset);

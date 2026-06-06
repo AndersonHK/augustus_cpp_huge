@@ -28,7 +28,7 @@ int city_request_get_status(int index)
     }
     const scenario_request *request = scenario_request_get_visible(index - num_requests);
     if (request) {
-        if (request->resource == RESOURCE_DENARII) {
+        if (request->resource == resource_denarii()) {
             if (city_finance_treasury() <= (int) request->amount.requested) {
                 //needs to be casted to int to avoid comparison between signed and unsigned
                 return CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES;

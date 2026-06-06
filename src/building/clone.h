@@ -1,6 +1,10 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 /**
  * Get the building type for cloning at the specified offset
@@ -13,3 +17,7 @@ building_type building_clone_type_from_grid_offset(int grid_offset);
 */
 building_type building_clone_type_from_building_type(building_type type);
 int building_clone_rotation_from_grid_offset(int grid_offset);
+
+#ifdef __cplusplus
+}
+#endif

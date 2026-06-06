@@ -1,3 +1,4 @@
+#include "building/building_record.h"
 #include "building/storage_type_registry.h"
 
 #include "core/crash_context.h"
@@ -160,7 +161,7 @@ resource_type parse_resource_type_name(const char *name)
         return RESOURCE_NONE;
     }
 
-    for (resource_type type = RESOURCE_MIN; type < RESOURCE_MAX; type = static_cast<resource_type>(type + 1)) {
+    for (resource_type type = (RESOURCE_NONE + 1); type < RESOURCE_SLOT_COUNT; type = static_cast<resource_type>(type + 1)) {
         resource_data *data = resource_get_data(type);
         if (!data || !data->xml_attr_name) {
             continue;

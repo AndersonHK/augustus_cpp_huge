@@ -1,3 +1,4 @@
+#include "game/resource_id_bridge.h"
 #include "file_dialog.h"
 
 extern "C" {
@@ -495,7 +496,7 @@ static void draw_foreground(void)
                 // Image is smaller than box, just center it without scaling
                 int centered_x = 352 + (266 - img->width) / 2;
                 int centered_y = 80 + (352 - img->height) / 2;
-                Image::from_id(data.preview_image_id).draw(centered_x, centered_y, COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(data.preview_image_id).draw(centered_x, centered_y);
             } else {
                 // Image is larger than box, scale it down to fit
                 Image::from_id(data.preview_image_id).draw((int) (352 * scale), (int) (80 * scale), COLOR_MASK_NONE, scale);
@@ -664,7 +665,7 @@ static void confirm_small_image(int accepted, int checked)
         return;
     }
     scenario.empire.id = SCENARIO_CUSTOM_EMPIRE;
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     empire_clear();
     empire_object_clear();
     empire_object_init_cities(SCENARIO_CUSTOM_EMPIRE);

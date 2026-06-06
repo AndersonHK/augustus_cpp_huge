@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 void map_desirability_clear(void);
 
@@ -13,3 +17,7 @@ int map_desirability_get_max(int x, int y, int size);
 void map_desirability_save_state(buffer *buf);
 
 void map_desirability_load_state(buffer *buf);
+
+#ifdef __cplusplus
+}
+#endif

@@ -885,9 +885,9 @@ static int draw_text(const uint8_t *text, int x_offset, int y_offset,
                     int image_offset_x = x_offset + (box_width - img->original.width) / 2 - 4;
                     if (line < height_lines + scrollbar.scroll_position) {
                         if (line >= scrollbar.scroll_position) {
-                            Image::from_id(image_id).draw(image_offset_x, y + 8, COLOR_MASK_NONE, SCALE_NONE);
+                            Image::from_id(image_id).draw(image_offset_x, y + 8);
                         } else {
-                            Image::from_id(image_id).draw(image_offset_x, y + 8 - data.line_height * (scrollbar.scroll_position - line), COLOR_MASK_NONE, SCALE_NONE);
+                            Image::from_id(image_id).draw(image_offset_x, y + 8 - data.line_height * (scrollbar.scroll_position - line));
                         }
                     }
                     image_id = 0;

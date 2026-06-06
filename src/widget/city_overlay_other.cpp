@@ -3,6 +3,7 @@ extern "C" {
 
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/house.h"
 #include "building/industry.h"
@@ -37,6 +38,7 @@ extern "C" {
 #include "graphics/image.h"
 
 #include "building/animations.h"
+#include <initializer_list>
 #include <stdio.h>
 
 #define TOOLTIP_WITH_PREFIX_MAX_LENGTH 128
@@ -44,10 +46,34 @@ extern "C" {
 
 static void draw_storage_ids(int x, int y, float scale, int grid_offset);
 
-static int legacy_animation_offset(building *b, int image_id, int grid_offset)
+static building_type runtime_type(const char *text_id)
 {
-    building_type_registry_impl::BuildingAnimation animation(*b);
-    return animation.legacy_offset(image_id, grid_offset);
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
+
+static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (type_matches(type, text_id)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static Building building_from_record(const building *b)
+{
+    return Building(const_cast<building *>(b));
+}
+
+static int animation_offset(Building &building, int image_id, int grid_offset)
+{
+    return building.animate().offset_for(Image::from_id(image_id), grid_offset);
 }
 
 static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *message)
@@ -62,37 +88,28 @@ static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *mes
 
 static int show_building_religion(const building *b)
 {
-    return
-        b->type == BUILDING_ORACLE || b->type == BUILDING_LARARIUM || b->type == BUILDING_SMALL_TEMPLE_CERES ||
-        b->type == BUILDING_SMALL_TEMPLE_NEPTUNE || b->type == BUILDING_SMALL_TEMPLE_MERCURY ||
-        b->type == BUILDING_SMALL_TEMPLE_MARS || b->type == BUILDING_SMALL_TEMPLE_VENUS ||
-        b->type == BUILDING_LARGE_TEMPLE_CERES || b->type == BUILDING_LARGE_TEMPLE_NEPTUNE ||
-        b->type == BUILDING_LARGE_TEMPLE_MERCURY || b->type == BUILDING_LARGE_TEMPLE_MARS ||
-        b->type == BUILDING_SMALL_MAUSOLEUM || b->type == BUILDING_LARGE_MAUSOLEUM ||
-        b->type == BUILDING_LARGE_TEMPLE_VENUS || b->type == BUILDING_GRAND_TEMPLE_CERES ||
-        b->type == BUILDING_GRAND_TEMPLE_NEPTUNE || b->type == BUILDING_GRAND_TEMPLE_MERCURY ||
-        b->type == BUILDING_GRAND_TEMPLE_MARS || b->type == BUILDING_GRAND_TEMPLE_VENUS ||
-        b->type == BUILDING_PANTHEON || b->type == BUILDING_NYMPHAEUM ||
-        b->type == BUILDING_SHRINE_CERES || b->type == BUILDING_SHRINE_MARS ||
-        b->type == BUILDING_SHRINE_MERCURY || b->type == BUILDING_SHRINE_VENUS ||
-        b->type == BUILDING_SHRINE_NEPTUNE;
+    return building_from_record(b).type().is_temple() ||
+        type_matches_any(b->type, {"oracle", "lararium", "small_mausoleum", "large_mausoleum", "nymphaeum"});
 }
 
 static int show_building_food_stocks(const building *b)
 {
-    return b->type == BUILDING_MARKET || b->type == BUILDING_WHARF || b->type == BUILDING_GRANARY ||
-        b->type == BUILDING_CARAVANSERAI || b->type == BUILDING_MESS_HALL;
+    const Building building = building_from_record(b);
+    const auto &type = building.type();
+    return type_matches_any(b->type, {"market", "wharf"}) || type.is_granary() ||
+        type.is_caravanserai() || type.is_mess_hall();
 }
 
 static int show_building_tax_income(const building *b)
 {
-    return b->type == BUILDING_FORUM || b->type == BUILDING_SENATE;
+    return type_matches_any(b->type, {"forum", "senate"});
 }
 
 static int show_building_water(const building *b)
 {
-    return b->type == BUILDING_WELL || b->type == BUILDING_FOUNTAIN || b->type == BUILDING_RESERVOIR ||
-        (b->type == BUILDING_GRAND_TEMPLE_NEPTUNE && building_monument_gt_module_is_active(NEPTUNE_MODULE_2_CAPACITY_AND_WATER));
+    return building_type_registry_is_well(b->type) || type_matches_any(b->type, {"fountain", "reservoir"}) ||
+        (type_matches(b->type, "grand_temple_neptune") &&
+            building_monument_gt_module_is_active(NEPTUNE_MODULE_2_CAPACITY_AND_WATER));
 }
 
 static int show_building_sentiment(const building *b)
@@ -102,7 +119,7 @@ static int show_building_sentiment(const building *b)
 
 static int show_building_roads(const building *b)
 {
-    return building_type_is_roadblock(b->type);
+    return Roadblock(const_cast<building *>(b)).kind() != ROADBLOCK_NONE;
 }
 
 static int draw_top_roads(int x, int y, float scale, int grid_offset)
@@ -113,20 +130,20 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         return 0;
     }
-    building *b = building_get(map_building_at(grid_offset));
-    if (b->type != BUILDING_TRIUMPHAL_ARCH) {
+    Building building = Building::from_id(map_building_at(grid_offset));
+    if (!type_matches(building.type_id(), "triumphal_arch")) {
         return 0;
     }
     int image_id = map_image_at(grid_offset);
     Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, COLOR_MASK_NONE, scale);
     const image *img = image_get(image_id);
-    int animation_offset = legacy_animation_offset(b, image_id, grid_offset);
-    if (animation_offset > 0) {
+    int frame_offset = animation_offset(building, image_id, grid_offset);
+    if (frame_offset > 0) {
         int y_offset = img->top ? img->top->original.height - FOOTPRINT_HALF_HEIGHT : 0;
-        if (animation_offset > img->animation->num_sprites) {
-            animation_offset = img->animation->num_sprites;
+        if (frame_offset > img->animation->num_sprites) {
+            frame_offset = img->animation->num_sprites;
         }
-        Image::from_id(image_id + img->animation->start_offset + animation_offset).draw(x + img->animation->sprite_offset_x, y + img->animation->sprite_offset_y - y_offset, COLOR_MASK_NONE, scale);
+        Image::from_id(image_id + img->animation->start_offset + frame_offset).draw(x + img->animation->sprite_offset_x, y + img->animation->sprite_offset_y - y_offset, COLOR_MASK_NONE, scale);
     }
     return 1;
 }
@@ -138,17 +155,18 @@ static int show_building_mothball(const building *b)
 
 static int show_building_logistics(const building *b)
 {
-    return b->type == BUILDING_WAREHOUSE || b->type == BUILDING_WAREHOUSE_SPACE ||
-        b->type == BUILDING_GRANARY || b->type == BUILDING_DOCK ||
-        b->type == BUILDING_DEPOT || b->type == BUILDING_LIGHTHOUSE ||
-        b->type == BUILDING_ARMOURY;
+    const Building building = building_from_record(b);
+    const auto &type = building.type();
+    return type.is_warehouse() || type_matches(b->type, "warehouse_space") ||
+        type.is_granary() || type_matches_any(b->type, {"dock", "depot"}) ||
+        type.is_lighthouse() || type.is_armoury();
 }
 
 static int show_building_storages(const building *b)
 {
     b = building_main(b);
     return (b->storage_id > 0 && building_storage_get(b->storage_id))
-        || b->type == BUILDING_DEPOT || b->type == BUILDING_DOCK;
+        || type_matches_any(b->type, {"depot", "dock"});
 }
 
 static int show_building_none(const building *b)
@@ -187,7 +205,7 @@ static int show_figure_food_stocks(const figure *f)
         case FIGURE_WAREHOUSEMAN:
         {
             building *b = building_get(f->building_id);
-            return b->type == BUILDING_GRANARY;
+            return building_from_record(b).type().is_granary();
         }
         default:
             return 0;
@@ -244,11 +262,11 @@ static int get_column_height_efficiency(const building *b)
 
 static int get_column_height_food_stocks(const building *b)
 {
-    const model_house *house_model = building_house_get_model(b);
+    const model_house *house_model = building_house_get_model(Building::from_id(b->id));
     if (b->house_size && house_model && house_model->food_types) {
         int pop = b->house_population;
         int stocks = 0;
-        for (int resource = RESOURCE_MIN_FOOD; resource < RESOURCE_MAX_FOOD; resource++) {
+        for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             const resource_type r = static_cast<resource_type>(resource);
             if (resource_is_inventory(r)) {
                 stocks += b->resources[r];
@@ -380,12 +398,12 @@ static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
     if (b->house_population <= 0) {
         return 0;
     }
-    const model_house *house_model = building_house_get_model(b);
+    const model_house *house_model = building_house_get_model(Building::from_id(b->id));
     if (!house_model || !house_model->food_types) {
         return 104;
     } else {
         int stocks_present = 0;
-        for (int resource = RESOURCE_MIN_FOOD; resource < RESOURCE_MAX_FOOD; resource++) {
+        for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             const resource_type r = static_cast<resource_type>(resource);
             if (resource_is_inventory(r)) {
                 stocks_present += b->resources[r];
@@ -498,7 +516,7 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
 {
     int building_id = map_building_at(grid_offset);
     building *b = building_get(building_id);
-    if (b->type == BUILDING_DEPOT) {
+    if (type_matches(b->type, "depot")) {
         static uint8_t result[256];
         order depot_order = b->data.depot.current_order;
         int condition_type = TR_ORDER_CONDITION_NEVER + depot_order.condition.condition_type;
@@ -1020,10 +1038,12 @@ static void draw_storage_ids(int x, int y, float scale, int grid_offset)
     int text_width = text_get_width(number, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     int box_width = text_width + 10;
     int box_height = 22;
-    if (b->type == BUILDING_GRANARY) {
+    const Building building = building_from_record(b);
+    const auto &type = building.type();
+    if (type.is_granary()) {
         x += 90;
         y += 15;
-    } else if (b->type == BUILDING_WAREHOUSE) {
+    } else if (type.is_warehouse()) {
         switch (building_rotation_get_building_orientation(b->subtype.orientation)) {
             case 6:
                 x -= 30;

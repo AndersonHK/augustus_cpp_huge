@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="small_mausoleum">
+    <identity name_key="building.small_mausoleum.name" />
+    <model size="2" cost="250" />
+    <desirability>
+        <value value="-8" />
+        <step value="1" />
+        <step_size value="3" />
+        <range value="5" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="parks" order="200" text_key="building.small_mausoleum.name" />
+    <sound id="oracle" />
+    <event_data attr="small_mausoleum" />
+    <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Monuments\Mausoleum_S" />
+            <image value="Mausoleum S" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

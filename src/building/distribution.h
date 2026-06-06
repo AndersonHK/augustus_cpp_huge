@@ -1,34 +1,85 @@
 #pragma once
 
-#include "building/building.h"
-#include "figure/figure.h"
+#include "building/building_type.h"
+#include "building/storage.h"
 #include "game/resource.h"
-
-typedef struct {
-    int needed;
-    unsigned int building_id;
-    int min_distance;
-} resource_storage_info;
 
 #define BASELINE_STOCK 50
 
-int building_distribution_is_good_accepted(const building *b, resource_type resource);
-int building_distribution_check_if_accepts_nothing(const building *b);
-void building_distribution_toggle_good_accepted(building *b, resource_type resource);
-void building_distribution_unaccept_all_goods(building *b);
-void building_distribution_accept_all_goods(building *b);
+#ifdef __cplusplus
+#include <string>
+#include <vector>
 
-int building_type_is_distributor(building_type type);
+extern "C++" {
+class Building;
 
-void building_distribution_update_demands(building *b);
+namespace building_type_registry_impl {
+class StorageType;
 
-int building_distribution_resource_is_handled(resource_type resource, building_type type);
-int building_distribution_get_handled_resources_for_building(const building *b,
-    resource_storage_info info[RESOURCE_MAX]);
+struct DistributionResourceRule {
+    resource_type resource = RESOURCE_NONE;
+    int priority = 0;
+    int baseline_stock = 0;
+    int max_stock = 0;
+};
 
-resource_type building_distribution_fetch(const building *b, const resource_storage_info info[RESOURCE_MAX],
-    int min_stock, int pick_first);
-int building_distribution_get_resource_storages_for_building(resource_storage_info info[RESOURCE_MAX],
-    building *start, int max_distance);
-int building_distribution_get_resource_storages_for_figure(resource_storage_info info[RESOURCE_MAX],
-    building_type type, int road_network, figure *start, int max_distance);
+class Distribution {
+public:
+    explicit Distribution(std::string path);
+
+    const char *path() const;
+    void add_resource(DistributionResourceRule rule);
+    void add_storage_type(const StorageType *storage_type, int priority, int baseline_stock, int max_stock);
+    const std::vector<DistributionResourceRule> &resources() const;
+    const DistributionResourceRule *rule_for(resource_type resource) const;
+    int handles_resource(resource_type resource) const;
+    int priority_for(resource_type resource) const;
+    int stock_target_for(resource_type resource, int fallback_stock) const;
+    int needed_resources_for(const Building &building, resource_storage_info info[RESOURCE_SLOT_COUNT]) const;
+    void set_acceptance(Building &building, int value) const;
+    int accepts_nothing(const Building &building) const;
+    void update_demands(Building &building) const;
+    int find_sources_for_building(
+        resource_storage_info info[RESOURCE_SLOT_COUNT],
+        const Building &start,
+        int max_distance) const;
+    int find_sources_for_figure(
+        resource_storage_info info[RESOURCE_SLOT_COUNT],
+        building_type type,
+        int road_network,
+        figure *start,
+        int max_distance) const;
+    resource_type fetch_resource(
+        const Building &building,
+        const resource_storage_info info[RESOURCE_SLOT_COUNT],
+        int default_stock,
+        int priority_only,
+        int pick_first) const;
+
+private:
+    std::string path_;
+    std::vector<DistributionResourceRule> resources_;
+};
+
+const Distribution *find_distribution_definition(const char *path);
+int find_distribution_sources_for_building(
+    resource_storage_info info[RESOURCE_SLOT_COUNT],
+    const Building &start,
+    int max_distance);
+int find_distribution_sources_for_figure(
+    resource_storage_info info[RESOURCE_SLOT_COUNT],
+    building_type type,
+    int road_network,
+    figure *start,
+    int max_distance);
+}
+}
+extern "C" {
+#endif
+
+const char *distribution_registry_get_distribution_path(void);
+int distribution_registry_load(void);
+
+#ifdef __cplusplus
+}
+#endif

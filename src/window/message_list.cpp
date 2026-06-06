@@ -220,9 +220,9 @@ static void draw_messages(unsigned int total_messages)
             }
         }
         if (msg->is_read) {
-            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 15 + image_offset).draw(data.x_text + 12, data.y_text + 6 + 20 * i, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 15 + image_offset).draw(data.x_text + 12, data.y_text + 6 + 20 * i);
         } else {
-            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 14 + image_offset).draw(data.x_text + 12, data.y_text + 6 + 20 * i, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 14 + image_offset).draw(data.x_text + 12, data.y_text + 6 + 20 * i);
         }
         font_t font = FONT_NORMAL_WHITE;
         if (data.focus_button_id == i + 1) {

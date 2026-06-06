@@ -1,6 +1,6 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 
 #ifdef __cplusplus
 extern "C" {

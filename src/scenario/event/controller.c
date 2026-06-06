@@ -21,12 +21,51 @@
 
 #define SCENARIO_EVENTS_SIZE_STEP 50
 #define SCENARIO_FORMULAS_SIZE_STEP 500
+#define SCENARIO_ACTION_STRUCT_SIZE ((2 * sizeof(int16_t)) + (6 * sizeof(int32_t)))
+#define SCENARIO_FORMULA_STRUCT_SIZE (sizeof(uint32_t) + MAX_FORMULA_LENGTH + sizeof(int32_t) + (sizeof(uint8_t) * 2) + (sizeof(int32_t) * 2))
 
 static array(scenario_event_t) scenario_events;
 static array(scenario_formula_t) scenario_formulas;
 
 static void formulas_save_state(buffer *buf);
 static void formulas_load_state(buffer *buf);
+
+static int load_dynamic_array_header(buffer *buf, const char *label, size_t *array_size, size_t *element_size)
+{
+    if (!buf || !buf->data || buf->size < 16 || !array_size || !element_size) {
+        log_error("Malformed dynamic scenario array in save.", label, 0);
+        return 0;
+    }
+
+    buffer_set(buf, 0);
+    uint32_t stored_size = buffer_read_u32(buf);
+    buffer_skip(buf, 4);
+    *array_size = buffer_read_u32(buf);
+    *element_size = buffer_read_u32(buf);
+
+    if (buf->overflow || stored_size < 16 || stored_size > buf->size || !*element_size ||
+        *array_size > (stored_size - 16) / *element_size) {
+        log_error("Malformed dynamic scenario array header in save.", label, (int) *array_size);
+        return 0;
+    }
+    return 1;
+}
+
+static int load_dynamic_payload_header(buffer *buf, const char *label)
+{
+    if (!buf || !buf->data || buf->size < sizeof(uint32_t)) {
+        log_error("Malformed dynamic scenario payload in save.", label, 0);
+        return 0;
+    }
+
+    buffer_set(buf, 0);
+    uint32_t stored_size = buffer_read_u32(buf);
+    if (buf->overflow || stored_size < sizeof(uint32_t) || stored_size > buf->size) {
+        log_error("Malformed dynamic scenario payload header in save.", label, (int) stored_size);
+        return 0;
+    }
+    return 1;
+}
 
 void scenario_events_init(void)
 {
@@ -132,6 +171,9 @@ void scenario_events_clear(void)
 
 scenario_event_t *scenario_event_get(int event_id)
 {
+    if (event_id < 0 || (unsigned int) event_id >= scenario_events.size) {
+        return 0;
+    }
     return array_item(scenario_events, event_id);
 }
 
@@ -264,26 +306,55 @@ void scenario_events_save_state(buffer *buf_events, buffer *buf_conditions, buff
 
 static void info_load_state(buffer *buf, int scenario_version)
 {
-    size_t array_size = buffer_load_dynamic_array(buf);
+    size_t array_size = 0;
+    size_t element_size = 0;
+    if (!load_dynamic_array_header(buf, "scenario_events", &array_size, &element_size)) {
+        return;
+    }
 
     for (size_t i = 0; i < array_size; i++) {
         scenario_event_t *event = scenario_event_create(0, 0, 0);
+        if (!event) {
+            log_error("Unable to create scenario event during load.", 0, (int) i);
+            return;
+        }
         scenario_event_load_state(buf, event, scenario_version);
+        if (buf->overflow) {
+            log_error("Malformed scenario event data in save.", 0, (int) i);
+            return;
+        }
     }
 }
 
 static void conditions_load_state_old_version(buffer *buf)
 {
-    size_t total_conditions = buffer_load_dynamic_array(buf);
+    size_t total_conditions = 0;
+    size_t element_size = 0;
+    if (!load_dynamic_array_header(buf, "scenario_conditions", &total_conditions, &element_size)) {
+        return;
+    }
 
     for (size_t i = 0; i < total_conditions; i++) {
         buffer_skip(buf, 2); // Skip the link type
         int event_id = buffer_read_i32(buf);
         scenario_event_t *event = scenario_event_get(event_id);
+        if (!event || !event->condition_groups.size) {
+            log_error("Ignoring scenario condition linked to invalid event.", 0, event_id);
+            buffer_skip(buf, CONDITION_STRUCT_SIZE);
+            continue;
+        }
         scenario_condition_group_t *group = array_item(event->condition_groups, 0);
         scenario_condition_t *condition;
         array_new_item(group->conditions, condition);
+        if (!condition) {
+            log_error("Unable to create legacy scenario condition during load.", 0, (int) i);
+            return;
+        }
         scenario_condition_load_state(buf, group, condition);
+        if (buf->overflow) {
+            log_error("Malformed legacy scenario condition data in save.", 0, (int) i);
+            return;
+        }
     }
 }
 
@@ -291,20 +362,20 @@ static void load_link_condition_group(scenario_condition_group_t *condition_grou
 {
     switch (link_type) {
         case LINK_TYPE_SCENARIO_EVENT:
-        {
-            scenario_event_t *event = scenario_event_get(link_id);
-            scenario_event_link_condition_group(event, condition_group);
-        }
-        break;
+            scenario_event_link_condition_group_by_id(link_id, condition_group);
+            break;
         default:
-            log_error("Unhandled condition link type. The game will probably crash.", 0, 0);
+            log_error("Ignoring scenario condition group with invalid link type.", 0, link_type);
+            array_clear(condition_group->conditions);
             break;
     }
 }
 
 static void conditions_load_state(buffer *buf)
 {
-    buffer_load_dynamic(buf);
+    if (!load_dynamic_payload_header(buf, "scenario_conditions")) {
+        return;
+    }
 
     int link_type = 0;
     int32_t link_id = 0;
@@ -314,7 +385,10 @@ static void conditions_load_state(buffer *buf)
     // this should work. Regardless, this is not a good practice.
     while (!buffer_at_end(buf)) {
         scenario_condition_group_t condition_group = { 0 };
-        scenario_condition_group_load_state(buf, &condition_group, &link_type, &link_id);
+        if (!scenario_condition_group_load_state(buf, &condition_group, &link_type, &link_id)) {
+            array_clear(condition_group.conditions);
+            return;
+        }
         load_link_condition_group(&condition_group, link_type, link_id);
     }
 }
@@ -323,26 +397,41 @@ static void load_link_action(scenario_action_t *action, int link_type, int32_t l
 {
     switch (link_type) {
         case LINK_TYPE_SCENARIO_EVENT:
-        {
-            scenario_event_t *event = scenario_event_get(link_id);
-            scenario_event_link_action(event, action);
-        }
-        break;
+            scenario_event_link_action_by_id(link_id, action);
+            break;
         default:
-            log_error("Unhandled action link type. The game will probably crash.", 0, 0);
+            log_error("Ignoring scenario action with invalid link type.", 0, link_type);
             break;
     }
 }
 
 static void actions_load_state(buffer *buf, int is_new_version)
 {
-    size_t array_size = buffer_load_dynamic_array(buf);
+    size_t array_size = 0;
+    size_t element_size = 0;
+    if (!load_dynamic_array_header(buf, "scenario_actions", &array_size, &element_size)) {
+        return;
+    }
+    if (element_size < SCENARIO_ACTION_STRUCT_SIZE) {
+        log_error("Malformed scenario action element size in save.", 0, (int) element_size);
+        return;
+    }
 
     int link_type = 0;
     int32_t link_id = 0;
     for (unsigned int i = 0; i < array_size; i++) {
+        size_t record_start = buf->index;
+        size_t record_end = record_start + element_size;
+        if (record_end > buf->size) {
+            log_error("Malformed scenario action record bounds in save.", 0, (int) i);
+            return;
+        }
         scenario_action_t action = { 0 };
         int original_id = scenario_action_type_load_state(buf, &action, &link_type, &link_id, is_new_version);
+        if (buf->overflow) {
+            log_error("Malformed scenario action data in save.", 0, (int) i);
+            return;
+        }
         load_link_action(&action, link_type, link_id);
         if (original_id) {
             unsigned int index = 1;
@@ -350,6 +439,9 @@ static void actions_load_state(buffer *buf, int is_new_version)
                 index = scenario_action_type_load_allowed_building(&action, original_id, index);
                 load_link_action(&action, link_type, link_id);
             }
+        }
+        if (buf->index < record_end) {
+            buffer_set(buf, record_end);
         }
     }
 }
@@ -382,7 +474,15 @@ static void formulas_save_state(buffer *buf)
 
 static void formulas_load_state(buffer *buf)
 {
-    size_t array_size = buffer_load_dynamic_array(buf);
+    size_t array_size = 0;
+    size_t element_size = 0;
+    if (!load_dynamic_array_header(buf, "scenario_formulas", &array_size, &element_size)) {
+        return;
+    }
+    if (element_size < SCENARIO_FORMULA_STRUCT_SIZE) {
+        log_error("Malformed scenario formula element size in save.", 0, (int) element_size);
+        return;
+    }
     if (array_size > UINT_MAX) {
         log_error("Scenario formula array is too large to load.", 0, 0);
         return;
@@ -396,6 +496,12 @@ static void formulas_load_state(buffer *buf)
     array_advance(scenario_formulas); // Advance once to skip index 0, which is reserved for invalid formulas
 
     for (size_t i = 0; i < array_size; ++i) {
+        size_t record_start = buf->index;
+        size_t record_end = record_start + element_size;
+        if (record_end > buf->size) {
+            log_error("Malformed scenario formula record bounds in save.", 0, (int) i);
+            return;
+        }
 
         scenario_formula_t *formula = array_advance(scenario_formulas);
         
@@ -412,6 +518,9 @@ static void formulas_load_state(buffer *buf)
         formula->is_error = buffer_read_u8(buf);
         formula->min_evaluation = buffer_read_i32(buf);
         formula->max_evaluation = buffer_read_i32(buf);
+        if (buf->index < record_end) {
+            buffer_set(buf, record_end);
+        }
     }
 }
 

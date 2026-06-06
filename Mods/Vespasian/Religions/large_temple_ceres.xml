@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<religion>
+    <god path="ceres" />
+    <tier value="large" />
+    <capacity amount="3000" />
+</religion>

@@ -6,6 +6,7 @@
 
 extern "C" {
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/count.h"
 #include "building/properties.h"

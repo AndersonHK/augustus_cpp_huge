@@ -3,6 +3,8 @@ extern "C" {
 
 #include "assets/assets.h"
 #include "building/building.h"
+#include "building/building_type_api.h"
+#include "building/building_record.h"
 #include "building/count.h"
 #include "building/data_transfer.h"
 #include "building/storage.h"
@@ -25,7 +27,18 @@ extern "C" {
 #include "widget/dropdown_button.h"
 #include "window/building_info.h"
 }
+#include "game/resource_graphics.h"
 #include "graphics/image.h"
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == runtime_type(text_id);
+}
 
 static void order_set_source(const generic_button *button);
 static void order_set_destination(const generic_button *button);
@@ -156,10 +169,11 @@ static void setup_buttons_for_selected_depot(void)
         const data_storage *storage = building_storage_get_array_entry(i);
         building *store_building = building_get(storage->building_id);
         if (!storage->in_use || !storage->building_id || store_building->state == BUILDING_STATE_MOTHBALLED ||
-             (!resource_is_food(data.target_resource_id) && store_building->type == BUILDING_GRANARY)) {
+        (!resource_is_food(data.target_resource_id) &&
+            building_type_registry_is_granary(static_cast<building_type>(store_building->type)))) {
             continue;
         }
-        int max_storable = building_storage_resource_max_storable(store_building, data.target_resource_id);
+        int max_storable = building_storage_resource_max_storable(Building(store_building), data.target_resource_id);
         if (storage->in_use && max_storable > 0) {
             row_count++;
             if (row_count <= scrollbar.scroll_position || drawn_rows >= MAX_VISIBLE_ROWS) {
@@ -191,11 +205,12 @@ static void setup_buttons_for_selected_depot(void)
         const data_storage *storage = building_storage_get_array_entry(i);
         building *store_building = building_get(storage->building_id);
         if (!storage->building_id ||
-             (!resource_is_food(data.target_resource_id) && store_building->type == BUILDING_GRANARY)) {
+        (!resource_is_food(data.target_resource_id) &&
+            building_type_registry_is_granary(static_cast<building_type>(store_building->type)))) {
             continue;
         }
         // Only include inactive storages that have a valid storage_id and weren't already counted in first pass
-        int max_storable = building_storage_resource_max_storable(store_building, data.target_resource_id);
+        int max_storable = building_storage_resource_max_storable(Building(store_building), data.target_resource_id);
         if ((max_storable == 0 || !storage->in_use || store_building->state == BUILDING_STATE_MOTHBALLED) &&
             store_building->storage_id > 0) {
             row_count++;
@@ -225,7 +240,7 @@ static void calculate_available_storages(int building_id)
 
     building *b = building_get(data.depot_building_id);
     if (!b->data.depot.current_order.resource_type) {
-        b->data.depot.current_order.resource_type = RESOURCE_MIN_FOOD;
+        b->data.depot.current_order.resource_type = (RESOURCE_NONE + 1);
     }
     data.target_resource_id = b->data.depot.current_order.resource_type;
 
@@ -238,12 +253,14 @@ static void calculate_available_storages(int building_id)
 
         const data_storage *storage = building_storage_get_array_entry(i);
         building *store = building_get(storage->building_id);
-        int max_storable = building_storage_resource_max_storable(store, data.target_resource_id);
+        int max_storable = building_storage_resource_max_storable(Building(store), data.target_resource_id);
         int active = storage->in_use;
         if (store->state == BUILDING_STATE_RUBBLE) {
             continue; // skip rubble buildings
         }
-        if (!store || !building_id || (!resource_is_food(data.target_resource_id) && store->type == BUILDING_GRANARY)) {
+        if (!store || !building_id ||
+            (!resource_is_food(data.target_resource_id) &&
+                building_type_registry_is_granary(static_cast<building_type>(store->type)))) {
             continue;
         }
         if (active && max_storable > 0) {
@@ -255,12 +272,12 @@ static void calculate_available_storages(int building_id)
         }
         if ((unsigned) b->data.depot.current_order.src_storage_id == store->id) {
             building_storage_state src_state = building_storage_get_state(
-                building_get(b->data.depot.current_order.src_storage_id), b->data.depot.current_order.resource_type, 0);
+                Building::from_id(b->data.depot.current_order.src_storage_id), b->data.depot.current_order.resource_type, 0);
             has_valid_src = src_state != BUILDING_STORAGE_STATE_NOT_ACCEPTING ? 1 : 0;
         }
         if ((unsigned) b->data.depot.current_order.dst_storage_id == store->id) {
             building_storage_state dst_state = building_storage_get_state(
-                building_get(b->data.depot.current_order.dst_storage_id), b->data.depot.current_order.resource_type, 0);
+                Building::from_id(b->data.depot.current_order.dst_storage_id), b->data.depot.current_order.resource_type, 0);
             has_valid_dst = dst_state != BUILDING_STORAGE_STATE_NOT_ACCEPTING ? 1 : 0;
         }
     }
@@ -359,11 +376,10 @@ static void depot_draw_cart_status(const building *b, building_info_context *c)
         if (f && f->state != FIGURE_STATE_DEAD) {
             resource_type resource = static_cast<resource_type>(f->resource_id ? f->resource_id : f->collecting_item_id);
             if (resource != RESOURCE_NONE) {
-                const resource_data *rdata = resource_get_data(resource);
-                const image *img = image_get(rdata->image.icon);
-                int draw_x = x_icon - (img->original.width / 2);
-                int draw_y = y_pos - (img->original.height / 2);
-                Image::from_id(rdata->image.icon).draw(draw_x, draw_y + 5, COLOR_MASK_NONE, SCALE_NONE);
+                const ImageGroupEntryRef &icon = resource_graphics(resource).panel_icon();
+                int draw_x = x_icon - (icon.width() / 2);
+                int draw_y = y_pos - (icon.height() / 2);
+                icon.draw(draw_x, draw_y + 5);
             }
 
             if (f->loads_sold_or_carrying > 0) {
@@ -374,7 +390,7 @@ static void depot_draw_cart_status(const building *b, building_info_context *c)
                 case FIGURE_ACTION_239_DEPOT_CART_PUSHER_HEADING_TO_SOURCE:
                 {
                     building *src = building_get(f->destination_building_id);
-                    text_draw(translation_for((src && src->type == BUILDING_GRANARY)
+    text_draw(translation_for((src && building_type_registry_is_granary(static_cast<building_type>(src->type)))
                             ? TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_FOOD
                             : TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_GOODS),
                         x_action, y_pos, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
@@ -459,15 +475,16 @@ void window_building_draw_depot_foreground(building_info_context *c)
 
     text_draw(translation_for(TR_FIGURE_INFO_DEPOT_DELIVER), x_offset, y_offset + 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     depot_order_buttons[0].x = 100;
-    int image_id = resource_get_data(resource)->image.icon;
-    const image *img = image_get(image_id);
+    const ImageGroupEntryRef &resource_icon = resource_graphics(resource).panel_icon();
+    int icon_x_offset = (26 - resource_icon.width()) / 2;
+    int icon_y_offset = (26 - resource_icon.height()) / 2;
     button_border_draw(x_offset + depot_order_buttons[0].x, y_offset + depot_order_buttons[0].y,
         depot_order_buttons[0].width, depot_order_buttons[0].height, data.focus_button_id == 1);
-    Image::from_id(image_id).draw(x_offset + depot_order_buttons[0].x + (26 - img->original.width) / 2, y_offset + depot_order_buttons[0].y + (26 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
+    resource_icon.draw(x_offset + depot_order_buttons[0].x + icon_x_offset, y_offset + depot_order_buttons[0].y + icon_y_offset);
     text_draw_centered(resource_get_data(resource)->text,
         x_offset + depot_order_buttons[0].x, y_offset + depot_order_buttons[0].y + 8, depot_order_buttons[0].width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    Image::from_id(image_id).draw(x_offset + depot_order_buttons[0].x + depot_order_buttons[0].width - 26 + (26 - img->original.width) / 2, y_offset + depot_order_buttons[0].y + (26 - img->original.height) / 2, COLOR_MASK_NONE, SCALE_NONE);
+    resource_icon.draw(x_offset + depot_order_buttons[0].x + depot_order_buttons[0].width - 26 + icon_x_offset, y_offset + depot_order_buttons[0].y + icon_y_offset);
 
     order_condition_type condition_type = b->data.depot.current_order.condition.condition_type;
     text_draw(translation_for(TR_BUILDING_INFO_DEPOT_CONDITION), x_offset, y_offset + depot_order_buttons[3].y + 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -547,11 +564,11 @@ void window_building_draw_depot_foreground(building_info_context *c)
 
         button_border_draw(x_offset + depot_order_buttons[10].x, y_offset + depot_order_buttons[10].y,
             depot_order_buttons[10].width, depot_order_buttons[10].height, data.focus_button_id == 11);
-        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x_offset + depot_order_buttons[10].x + 5, y_offset + depot_order_buttons[10].y + 5, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x_offset + depot_order_buttons[10].x + 5, y_offset + depot_order_buttons[10].y + 5);
 
         button_border_draw(x_offset + depot_order_buttons[11].x, y_offset + depot_order_buttons[11].y,
             depot_order_buttons[11].width, depot_order_buttons[11].height, data.focus_button_id == 12);
-        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x_offset + depot_order_buttons[11].x + 5, y_offset + depot_order_buttons[11].y + 5, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x_offset + depot_order_buttons[11].x + 5, y_offset + depot_order_buttons[11].y + 5);
     }
 }
 
@@ -642,11 +659,12 @@ void window_building_draw_depot_select_source_destination(building_info_context 
         building *store_building = building_get(storage->building_id);
         if (!storage->in_use || !storage->building_id || store_building->state == BUILDING_STATE_MOTHBALLED ||
             store_building->state == BUILDING_STATE_RUBBLE ||
-            (!resource_is_food(data.target_resource_id) && store_building->type == BUILDING_GRANARY)) {
+        (!resource_is_food(data.target_resource_id) &&
+            building_type_registry_is_granary(static_cast<building_type>(store_building->type)))) {
             continue;
         }
 
-        int max_storable = building_storage_resource_max_storable(store_building, data.target_resource_id);
+        int max_storable = building_storage_resource_max_storable(Building(store_building), data.target_resource_id);
         if (storage->in_use && max_storable > 0) {
             row_count++;
             if (row_count <= scrollbar.scroll_position) {
@@ -658,7 +676,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             button_border_draw(c->x_offset + 18, y_offset + 46 + ROW_HEIGHT * drawn_rows, BLOCK_SIZE * 2, 22,
                 data.storage_building_goto_orders_focus_button_id == drawn_rows + 1);
             Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows);
 
             // Middle button - select storage
             button_border_draw(c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows, base_width,
@@ -671,7 +689,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             button_border_draw(c->x_offset + 18 + base_width + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
                 BLOCK_SIZE * 2, 22, data.storage_building_view_focus_button_id == drawn_rows + 1);
             Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 22 + base_width + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows);
 
             drawn_rows++;
         }
@@ -705,12 +723,13 @@ void window_building_draw_depot_select_source_destination(building_info_context 
         const data_storage *storage = building_storage_get_array_entry(i);
         building *store_building = building_get(storage->building_id);
         if (!storage->in_use || !storage->building_id ||
-            (!resource_is_food(data.target_resource_id) && store_building->type == BUILDING_GRANARY)) {
+        (!resource_is_food(data.target_resource_id) &&
+            building_type_registry_is_granary(static_cast<building_type>(store_building->type)))) {
             continue;
         }
 
         // Only include inactive storages that have a valid storage_id and weren't already counted in first pass
-        int max_storable = building_storage_resource_max_storable(store_building, data.target_resource_id);
+        int max_storable = building_storage_resource_max_storable(Building(store_building), data.target_resource_id);
         if ((max_storable == 0 || store_building->state == BUILDING_STATE_MOTHBALLED)
             && store_building->storage_id > 0 && store_building->state != BUILDING_STATE_RUBBLE) {
             row_count++;
@@ -723,7 +742,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             button_border_draw(c->x_offset + 18, y_offset + 46 + ROW_HEIGHT * drawn_rows, BLOCK_SIZE * 2, 22,
                 data.storage_building_goto_orders_focus_button_id == drawn_rows + 1);
             Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows);
 
             // Middle button - select storage (disabled for inactive storages)
             button_border_draw(c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
@@ -736,7 +755,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             button_border_draw(c->x_offset + 18 + base_width + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
                 BLOCK_SIZE * 2, 22, data.storage_building_view_focus_button_id == drawn_rows + 1);
             Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 22 + base_width + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows);
 
             drawn_rows++;
         }
@@ -883,14 +902,14 @@ int window_building_handle_mouse_depot_select_destination(const mouse *m, buildi
 static void order_set_resource(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || b->type != BUILDING_DEPOT) {
+    if (!b || !type_matches(static_cast<building_type>(b->type), "depot")) {
         return;
     }
     for (int i = 0; i < 3; i++) {
         if (b->data.distribution.cartpusher_ids[i]) {
             figure *f = figure_get(b->data.distribution.cartpusher_ids[i]);
             if (f && f->state != FIGURE_STATE_DEAD) {
-                city_warning_show(WARNING_DEPOT_RESOURCE_CHANGE, NEW_WARNING_SLOT);
+                city_warning_show(WARNING_DEPOT_RESOURCE_CHANGE, translation_for(TR_WARNING_DEPOT_RESOURCE_CHANGE));
                 return;
             }
         }
@@ -934,7 +953,7 @@ void window_building_depot_get_tooltip_main(int *translation)
 static void depot_recall_all_cart_pushers(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || b->type != BUILDING_DEPOT) {
+    if (!b || !type_matches(static_cast<building_type>(b->type), "depot")) {
         return;
     }
     int recalled_count = 0;
@@ -948,7 +967,7 @@ static void depot_recall_all_cart_pushers(const generic_button *button)
         }
     }
     if (recalled_count > 0) {
-        city_warning_show(WARNING_DEPOT_CART_PUSHER_RECALL_ALL, NEW_WARNING_SLOT);
+        city_warning_show(WARNING_DEPOT_CART_PUSHER_RECALL_ALL, translation_for(TR_WARNING_DEPOT_RECALL_ALL));
     }
     window_request_refresh();
 }
@@ -956,7 +975,7 @@ static void depot_recall_all_cart_pushers(const generic_button *button)
 static void order_clear_source(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || b->type != BUILDING_DEPOT) {
+    if (!b || !type_matches(static_cast<building_type>(b->type), "depot")) {
         return;
     }
     b->data.depot.current_order.src_storage_id = 0;
@@ -966,7 +985,7 @@ static void order_clear_source(const generic_button *button)
 static void order_clear_destination(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || b->type != BUILDING_DEPOT) {
+    if (!b || !type_matches(static_cast<building_type>(b->type), "depot")) {
         return;
     }
     b->data.depot.current_order.dst_storage_id = 0;
@@ -995,7 +1014,7 @@ const uint8_t *window_building_depot_get_tooltip_source_destination(int *transla
             static char tooltip_buffer[1024];
             storage_summary_style tooltip_style =
                 static_cast<storage_summary_style>(config_get(CONFIG_UI_CART_DEPOT_TOOLTIP_STYLE));
-            if (building_storage_summary_tooltip(storage_building, tooltip_buffer, sizeof(tooltip_buffer), tooltip_style)) {
+            if (building_storage_summary_tooltip(Building(storage_building), tooltip_buffer, sizeof(tooltip_buffer), tooltip_style)) {
                 return (const uint8_t *) tooltip_buffer;
             }
         }
@@ -1007,7 +1026,7 @@ static void set_order_resource(const generic_button *button)
 {
     int depot_building_id = button->parameter1;
     resource_type resource_id = static_cast<resource_type>(button->parameter2);
-    if (resource_id >= RESOURCE_MIN && resource_id < RESOURCE_MAX && resource_is_storable(resource_id)) {
+    if (resource_id >= (RESOURCE_NONE + 1) && resource_id < RESOURCE_SLOT_COUNT && resource_is_storable(resource_id)) {
         building *b = building_get(depot_building_id);
         b->data.depot.current_order.resource_type = resource_id;
         calculate_available_storages(depot_building_id);
@@ -1046,14 +1065,13 @@ void window_building_draw_depot_select_resource_foreground(building_info_context
 
     for (unsigned int i = 0; i < MAX_RESOURCE_ROWS && list_index < list->size; i++, list_index++) {
         resource_type resource_id = list->items[list_index];
-        int image_id = resource_get_data(resource_id)->image.icon;
         const uint8_t *str = resource_get_data(resource_id)->text;
         depot_select_resource_buttons[i].parameter2 = resource_id;
         button_border_draw(c->x_offset + depot_select_resource_buttons[i].x,
             y_offset + 46 + depot_select_resource_buttons[i].y,
             depot_select_resource_buttons[i].width, depot_select_resource_buttons[i].height,
             data.depot_resource_focus_button_id == i + 1);
-        Image::from_id(image_id).draw(c->x_offset + depot_select_resource_buttons[i].x + 3, y_offset + 46 + depot_select_resource_buttons[i].y + 3, COLOR_MASK_NONE, SCALE_NONE);
+        resource_graphics(resource_id).panel_icon().draw(c->x_offset + depot_select_resource_buttons[i].x + 3, y_offset + 46 + depot_select_resource_buttons[i].y + 3);
         text_draw(str, c->x_offset + depot_select_resource_buttons[i].x + 33,
             y_offset + 46 + depot_select_resource_buttons[i].y + 8, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     }

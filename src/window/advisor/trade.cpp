@@ -4,7 +4,7 @@ extern "C" {
 #include "trade.h"
 
 #include "assets/assets.h"
-#include "building/caravanserai.h"
+#include "building/building_type_api.h"
 #include "building/monument.h"
 #include "city/buildings.h"
 #include "city/finance.h"
@@ -28,6 +28,7 @@ extern "C" {
 #include "window/resource_settings.h"
 #include "window/trade_prices.h"
 }
+#include "game/resource_graphics.h"
 #include "graphics/image.h"
 
 #include <string.h>
@@ -104,6 +105,18 @@ static struct {
     trade_policy_type policy_type;
 } data;
 
+static building_type runtime_type(const char *text_id)
+{
+    building_type type = building_type_registry_runtime_id_from_text(text_id);
+    return type > BUILDING_NONE ? type : BUILDING_NONE;
+}
+
+static int monument_working(const char *text_id)
+{
+    building_type type = runtime_type(text_id);
+    return type > BUILDING_NONE && building_monument_working(type);
+}
+
 static void init(void)
 {
     city_resource_determine_available(0);
@@ -116,7 +129,7 @@ static void init(void)
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 4).draw(10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 4).draw(10, 10);
 
     lang_text_draw(54, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     int width = lang_text_get_width(54, 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -215,12 +228,11 @@ static void draw_resource_status_text(resource_type resource, int x, int y, int 
 static void draw_resource_info(const grid_box_item *item)
 {
     resource_type resource = data.list.items[item->index];
-    int image_id = resource_get_data(resource)->image.icon;
-    const image *img = image_get(image_id);
-    int image_x = (40 - img->original.width) / 2;
-    int image_y = (item->height - img->original.height) / 2;
-    Image::from_id(image_id).draw(item->x + image_x, item->y + image_y, COLOR_MASK_NONE, SCALE_NONE);
-    Image::from_id(image_id).draw(item->x + item->width - 40 + image_x, item->y + image_y, COLOR_MASK_NONE, SCALE_NONE);
+    const ImageGroupEntryRef &icon = resource_graphics(resource).panel_icon();
+    int image_x = (40 - icon.width()) / 2;
+    int image_y = (item->height - icon.height()) / 2;
+    icon.draw(item->x + image_x, item->y + image_y);
+    icon.draw(item->x + item->width - 40 + image_x, item->y + image_y);
 
     if (item->is_focused) {
         button_border_draw(item->x + 40, item->y - 2, item->width - 80, item->height, 1);
@@ -252,8 +264,8 @@ static void draw_foreground(void)
 
     draw_footer_button_widgets();
 
-    int land_policy_available = building_monument_working(BUILDING_CARAVANSERAI);
-    int sea_policy_available = building_monument_working(BUILDING_LIGHTHOUSE);
+    int land_policy_available = monument_working("caravanserai");
+    int sea_policy_available = monument_working("lighthouse");
     draw_policy_button(
         45,
         390,
@@ -348,8 +360,8 @@ static void button_empire(const generic_button *button)
 static void button_policy(const generic_button *button)
 {
     const trade_policy_type policy_type = static_cast<trade_policy_type>(button->parameter1);
-    if ((policy_type == LAND_TRADE_POLICY && !building_monument_working(BUILDING_CARAVANSERAI)) ||
-        (policy_type == SEA_TRADE_POLICY && !building_monument_working(BUILDING_LIGHTHOUSE))) {
+    if ((policy_type == LAND_TRADE_POLICY && !monument_working("caravanserai")) ||
+        (policy_type == SEA_TRADE_POLICY && !monument_working("lighthouse"))) {
         return;
     }
     show_policy(policy_type);
@@ -364,7 +376,7 @@ static void write_resource_storage_tooltip(tooltip_context *c, resource_type res
 {
     static uint8_t tooltip_resource_info[200];
     int amount_warehouse = city_resource_count_warehouses_amount(resource);
-    int amount_granary = city_resource_count_food_on_granaries(resource) / RESOURCE_ONE_LOAD;
+    int amount_granary = city_resource_count_food_on_granaries(resource) / resource_units_per_load();
     uint8_t *text = tooltip_resource_info;
     text += string_from_int(text, amount_warehouse, 0);
     *text = ' ';
@@ -396,13 +408,13 @@ static void get_tooltip_text(advisor_tooltip_result *r)
     } else if (data.focus_button_id == 2) {
         r->text_id = 41;
     } else if (data.focus_button_id == 3) {
-        if (building_monument_working(BUILDING_CARAVANSERAI)) {
+        if (monument_working("caravanserai")) {
             r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY;
         } else {
             r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY_REQUIRED;
         }
     } else if (data.focus_button_id == 4) {
-        if (building_monument_working(BUILDING_LIGHTHOUSE)) {
+        if (monument_working("lighthouse")) {
             r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY;
         } else {
             r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY_REQUIRED;

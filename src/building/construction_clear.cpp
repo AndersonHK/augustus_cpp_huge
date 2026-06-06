@@ -2,6 +2,7 @@ extern "C" {
 #include "construction_clear.h"
 
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/connectable.h"
 #include "building/construction.h"
 #include "building/monument.h"
@@ -26,6 +27,7 @@ extern "C" {
 #include "window/popup_dialog.h"
 }
 
+#include "building/building_type_api.h"
 #include "building/local_workforce.h"
 
 #include <string.h>
@@ -47,6 +49,28 @@ static struct {
 
 static int repair_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end, int *buildings_count);
 static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end);
+
+static building_type xml_type(const char *text_id)
+{
+    return building_type_registry_runtime_id_from_text(text_id);
+}
+
+static int is_xml_type(building_type type, const char *text_id)
+{
+    building_type resolved = xml_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
+static int is_xml_type_any(building_type type, const char *const *text_ids, int count)
+{
+    for (int i = 0; i < count; i++) {
+        if (is_xml_type(type, text_ids[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static building *get_deletable_building(int grid_offset)
 {
     int building_id = map_building_at(grid_offset);
@@ -54,10 +78,17 @@ static building *get_deletable_building(int grid_offset)
         return 0;
     }
     building *b = building_main(building_get(building_id));
-    if (b->type == BUILDING_BURNING_RUIN || b->type == BUILDING_NATIVE_CROPS ||
-        b->type == BUILDING_NATIVE_HUT || b->type == BUILDING_NATIVE_HUT_ALT ||
-        b->type == BUILDING_NATIVE_MEETING || b->type == BUILDING_NATIVE_MONUMENT ||
-        b->type == BUILDING_NATIVE_DECORATION || b->type == BUILDING_NATIVE_WATCHTOWER) {
+    static const char *const protected_types[] = {
+        "burning_ruin",
+        "native_crops",
+        "native_hut",
+        "native_hut_alt",
+        "native_meeting",
+        "native_monument",
+        "native_decor",
+        "native_watchtower",
+    };
+    if (is_xml_type_any(b->type, protected_types, sizeof(protected_types) / sizeof(protected_types[0]))) {
         return 0;
     }
     if (b->state == BUILDING_STATE_DELETED_BY_PLAYER || b->is_deleted) {
@@ -114,7 +145,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                 if (!b) {
                     continue;
                 }
-                if (b->type == BUILDING_FORT_GROUND || building_is_fort(b->type)) {
+                if (is_xml_type(b->type, "fort_ground") || building_is_fort(b->type)) {
                     if (!measure_only && confirm.fort_confirmed != 1) {
                         continue;
                     }
@@ -136,7 +167,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     b->figure_id = homeless->id;
                 }
                 if (b->state != BUILDING_STATE_DELETED_BY_PLAYER) {
-                    if (b->type == BUILDING_SHIPYARD && b->figure_id) {
+                    if (is_xml_type(b->type, "shipyard") && b->figure_id) {
                         figure *f = figure_get(b->figure_id);
                         f->state = FIGURE_STATE_DEAD;
                     }
@@ -172,7 +203,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                 map_aqueduct_remove(grid_offset);
             } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) { //only bridges fall here
                 if (!measure_only && (map_bridge_has_figures(grid_offset) && !config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES))) {
-                    city_warning_show(WARNING_PEOPLE_ON_BRIDGE, NEW_WARNING_SLOT);
+                    city_warning_show(WARNING_PEOPLE_ON_BRIDGE, translation_for(TR_CITY_WARNING_PEOPLE_ON_BRIDGE));
                 } else if (confirm.bridge_confirmed == 1) {
                     map_bridge_remove(grid_offset, measure_only);
                     items_placed++;
@@ -197,7 +228,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                             map_building_set_rubble_grid_building_id(grid_offset, 0, 1); // remove rubble marker
 
                             if (rubble_building->state == BUILDING_STATE_RUBBLE ||
-                                    rubble_building->type == BUILDING_BURNING_RUIN) {
+                                    is_xml_type(rubble_building->type, "burning_ruin")) {
                                 int ruins_left = map_building_ruins_left(rubble_id);
                                 if (!ruins_left) { //dont remove buildings until their last rubble is gone
                                     rubble_building->state = BUILDING_STATE_DELETED_BY_GAME;
@@ -244,7 +275,10 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
         building_update_state(); // the update of b state is needed to determine the right images for walls/palisades
         map_tiles_update_area_walls(x_min, y_min, radius + 1);
         building_connectable_update_connections();
-        figure_roamer_preview_reset(BUILDING_CLEAR_LAND);
+        building_type clear_land = xml_type("clear_land");
+        if (clear_land != BUILDING_NONE) {
+            figure_roamer_preview_reset(clear_land);
+        }
         window_invalidate();
     }
     return items_placed;
@@ -314,7 +348,7 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
             int building_id = map_building_at(grid_offset);
             if (building_id) {
                 building *b = building_get(building_id);
-                if (building_is_fort(b->type) || b->type == BUILDING_FORT_GROUND) {
+                if (building_is_fort(b->type) || is_xml_type(b->type, "fort_ground")) {
                     ask_confirm_fort = 1;
                 }
                 if (building_monument_is_monument(b)) {
@@ -351,11 +385,12 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
 
 color_t building_construction_clear_color(void)
 {
-    if (building_construction_type() == BUILDING_CLEAR_LAND) {
+    building_type construction_type = building_construction_type();
+    if (is_xml_type(construction_type, "clear_land")) {
         return COLOR_MASK_RED;
-    } else if (building_construction_type() == BUILDING_CLEAR_TREES) {
+    } else if (is_xml_type(construction_type, "clear_trees")) {
         return COLOR_MASK_YELLOW_RANGE;
-    } else if (building_construction_type() == BUILDING_REPAIR_LAND) {
+    } else if (is_xml_type(construction_type, "repair_land")) {
         return COLOR_MASK_GREEN;
     }
     return COLOR_MASK_NONE;
@@ -390,7 +425,10 @@ static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int
         map_tiles_update_region_empty_land(x_min, y_min, x_max, y_max);
         map_tiles_update_region_meadow(x_min, y_min, x_max, y_max);
         map_routing_update_land();
-        figure_roamer_preview_reset(BUILDING_CLEAR_TREES);
+        building_type clear_trees = xml_type("clear_trees");
+        if (clear_trees != BUILDING_NONE) {
+            figure_roamer_preview_reset(clear_trees);
+        }
         window_invalidate();
     }
 
@@ -427,7 +465,7 @@ static int repair_land_confirmed(int measure_only, int x_start, int y_start, int
         if (building_id) {
             building *b = building_get(building_id);
             if (building_can_repair(b)) {
-                if (b->type == BUILDING_WAREHOUSE_SPACE) { // swap the b pointer for the main warehouse building
+                if (is_xml_type(b->type, "warehouse_space")) { // swap the b pointer for the main warehouse building
                     b = building_get(map_building_rubble_building_id(b->data.rubble.og_grid_offset));
                 }
                 if (!was_building_counted(b->id, repairable_buildings)) {
@@ -441,11 +479,11 @@ static int repair_land_confirmed(int measure_only, int x_start, int y_start, int
                 }
             } else {
                 if (building_monument_is_limited(b->type)) {
-                    city_warning_show(WARNING_REPAIR_MONUMENT, NEW_WARNING_SLOT);
-                } else if (b->type == BUILDING_AQUEDUCT) {
-                    city_warning_show(WARNING_REPAIR_AQUEDUCT, NEW_WARNING_SLOT);
+                    city_warning_show(WARNING_REPAIR_MONUMENT, translation_for(TR_WARNING_CANT_REPAIR_MONUMENTS));
+                } else if (is_xml_type(b->type, "aqueduct")) {
+                    city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for(TR_WARNING_CANT_REPAIR_AQUEDUCTS));
                 } else {
-                    city_warning_show(WARNING_REPAIR_IMPOSSIBLE, NEW_WARNING_SLOT);
+                    city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for(TR_WARNING_REPAIR_IMPOSSIBLE));
                 }
             }
         }

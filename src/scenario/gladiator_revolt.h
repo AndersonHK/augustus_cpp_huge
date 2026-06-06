@@ -1,6 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 
 void scenario_gladiator_revolt_init(void);
 
@@ -15,3 +19,7 @@ void scenario_gladiator_revolt_save_state(buffer *buf);
 void scenario_gladiator_revolt_load_state(buffer *buf);
 
 void scenario_gladiator_revolt_start_new(void);
+
+#ifdef __cplusplus
+}
+#endif
