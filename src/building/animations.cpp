@@ -496,7 +496,7 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
     if (definition_ && definition_->is_warehouse() && building.num_workers < model_get_building(building.type)->laborers) {
         return 1;
     }
-    if (definition_is(definition_, "dock") && building.data.dock.num_ships <= 0) {
+    if (definition_ && std::strcmp(definition_->attr(), "dock") == 0 && building.data.dock.num_ships <= 0) {
         map_sprite_animation_set(animation_cursor, 1);
         *offset = 1;
         return 1;

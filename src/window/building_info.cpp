@@ -55,6 +55,7 @@
 #include "building/building_record.h"
 #include "graphics/image.h"
 
+#include <cstring>
 #include <initializer_list>
 
 enum {
@@ -181,6 +182,9 @@ static int get_height_id(void)
     } else if (context.type == BUILDING_INFO_BUILDING) {
         const building *b = building_get(context.building_id);
         building_type type = static_cast<building_type>(b->type);
+        const Building current_building(const_cast<building *>(b));
+        const auto *definition = current_building.type_definition();
+        const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
         if (building_type_registry_is_well(b->type)) {
             return HEIGHT_4_14_BLOCKS;
         }
@@ -232,7 +236,7 @@ static int get_height_id(void)
         })) {
             return HEIGHT_5_24_BLOCKS;
         }
-        if (type_matches_any(type, {"dock", "lighthouse", "caravanserai"})) {
+        if (is_dock || type_matches_any(type, {"lighthouse", "caravanserai"})) {
             return HEIGHT_6_38_BLOCKS;
         }
         if (type_matches_any(type, {
@@ -528,7 +532,11 @@ static void draw_background(void)
     } else if (context.type == BUILDING_INFO_TERRAIN) {
         window_building_draw_terrain(&context);
     } else if (context.type == BUILDING_INFO_BUILDING) {
-        building_type btype = building_get(context.building_id)->type;
+        building *b = building_get(context.building_id);
+        building_type btype = b->type;
+        const Building current_building(b);
+        const auto *definition = current_building.type_definition();
+        const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
         if (building_is_house(btype)) {
             window_building_draw_house(&context);
         } else if (type_matches(btype, "wheat_farm")) {
@@ -698,7 +706,7 @@ static void draw_background(void)
             window_building_draw_engineers_post(&context);
         } else if (type_matches(btype, "shipyard")) {
             window_building_draw_shipyard(&context);
-        } else if (type_matches(btype, "dock")) {
+        } else if (is_dock) {
             if (context.show_special_orders) {
                 window_building_draw_distributor_orders(&context, translation_for_key("TR_DOCK_SPECIAL_ORDERS_HEADER"));
             } else {
@@ -810,6 +818,9 @@ static void draw_foreground(void)
     init_context_buttons(&context);
     if (context.type == BUILDING_INFO_BUILDING) {
         building_type btype = static_cast<building_type>(building_get(context.building_id)->type);
+        const Building current_building(b);
+        const auto *definition = current_building.type_definition();
+        const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
 
         if (building_is_primary_product_producer(btype)) {
             window_building_draw_primary_product_stockpiling(&context);
@@ -874,7 +885,7 @@ static void draw_foreground(void)
             } else {
                 window_building_draw_roadblock_button(&context);
             }
-        } else if (type_matches(btype, "dock")) {
+        } else if (is_dock) {
             if (context.show_special_orders) {
                 window_building_draw_distributor_orders_foreground(&context);
             } else {
@@ -957,7 +968,11 @@ static int handle_specific_building_info_mouse(const mouse *m)
     } else if (context.figure.drawn) {
         return window_building_handle_mouse_figure_list(m, &context);
     } else if (context.type == BUILDING_INFO_BUILDING) {
-        building_type btype = static_cast<building_type>(building_get(context.building_id)->type);
+        building *b = building_get(context.building_id);
+        building_type btype = static_cast<building_type>(b->type);
+        const Building current_building(b);
+        const auto *definition = current_building.type_definition();
+        const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
 
         if (building_has_supplier_inventory(btype)) {
             if (context.show_special_orders) {
@@ -976,7 +991,7 @@ static int handle_specific_building_info_mouse(const mouse *m)
             } else {
                 return window_building_handle_mouse_roadblock_button(m, &context);
             }
-        } else if (type_matches(btype, "dock")) {
+        } else if (is_dock) {
             if (context.show_special_orders) {
                 return window_building_handle_mouse_distributor_orders(m, &context);
             } else {
@@ -1077,6 +1092,9 @@ static void get_tooltip(tooltip_context *c)
     const uint8_t *precomposed_text = 0;
     building *b = building_get(context.building_id);
     building_type btype = static_cast<building_type>(b->type);
+    const Building current_building(b);
+    const auto *definition = current_building.type_definition();
+    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
     if (focus_image_button_id) {
         if (focus_image_button_id == 3) {
             int advisor = image_buttons_help_advisor_close[2].parameter1;
@@ -1117,7 +1135,7 @@ static void get_tooltip(tooltip_context *c)
         precomposed_text = window_building_house_get_tooltip(&context);
     } else if (type_is_storage(btype)) {
         window_building_storage_get_tooltip_distribution_permissions(&translation);
-    } else if (type_matches(btype, "dock")) {
+    } else if (is_dock) {
         precomposed_text = window_building_dock_get_tooltip(&context);
     } else if (context.type == BUILDING_INFO_BUILDING && type_matches(btype, "depot")) {
         if (context.depot_selection == 2 || context.depot_selection == 3) {

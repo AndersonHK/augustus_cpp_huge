@@ -53,7 +53,11 @@ void log_building_scope_state(void *userdata)
     }
 
     const building_type_registry_impl::GraphicsTarget *target =
-        definition && runtime ? definition->resolve_graphics_target(runtime->building()) : nullptr;
+        definition && runtime ?
+            building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(
+                definition,
+                runtime->building()) :
+            nullptr;
 
     char details[256];
     snprintf(
@@ -190,7 +194,7 @@ const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_gra
     if (!uses_new_graphics()) {
         return nullptr;
     }
-    return type().resolve_graphics_target(building());
+    return building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(&type(), building());
 }
 
 void building_runtime::assign_graphic_variant(int force_reseed)

@@ -7,6 +7,7 @@
 #include "service.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/market.h"
 
 extern "C" {
@@ -21,6 +22,8 @@ extern "C" {
 #include "figure/route.h"
 #include "game/time.h"
 }
+
+#include <cstring>
 
 static const int DOCTOR_HEALING_OFFSETS[] = { 0, 1, 2, 3, 4, 5, 4, 3, 2, 1};
 
@@ -295,7 +298,15 @@ static int fight_plague(figure *f, int force)
 
     // If no houses, find in docks
     if (!building_with_plague_id) {
-        building_with_plague_id = first_plague_building_of_type("dock");
+        for (int i = 1; i < building_count(); i++) {
+            building *b = building_get(i);
+            const building_type_registry_impl::BuildingType *definition =
+                building_type_registry_impl::definition_for_type(b->type);
+            if (definition && std::strcmp(definition->attr(), "dock") == 0 && b->has_plague) {
+                building_with_plague_id = b->id;
+                break;
+            }
+        }
     }
 
     // If no docks, find in warehouses

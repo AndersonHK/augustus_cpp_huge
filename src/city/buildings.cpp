@@ -2,12 +2,14 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_type.h"
 #include "building/building_type_api.h"
+#include "building/dock.h"
 #include "building/house.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 
-static const char *PLAGUE_BUILDINGS[] = {"dock", "warehouse", "granary", nullptr};
+#include <cstring>
 
 static const building DUMMY_BUILDING = { 0 };
 
@@ -116,12 +118,15 @@ void city_buildings_earn_triumphal_arch(void)
 
 int city_buildings_has_working_dock(void)
 {
-    building_type dock_type = runtime_type("dock");
-    if (dock_type <= BUILDING_NONE) {
-        return 0;
-    }
-    for (const building *dock = building_first_of_type(dock_type); dock; dock = dock->next_of_type) {
-        if (building_is_active(dock)) {
+    for (int i = 1; i < building_count(); i++) {
+        building *dock = building_get(i);
+        if (!dock || dock->state == BUILDING_STATE_UNUSED) {
+            continue;
+        }
+        Building building_object(dock);
+        const auto *definition = building_object.type_definition();
+        if (definition && std::strcmp(definition->attr(), "dock") == 0 &&
+            building_dock_is_working(dock->id)) {
             return 1;
         }
     }
@@ -159,23 +164,27 @@ int city_buildings_get_closest_plague(int x, int y, int *distance)
     }
 
     // Find closest in buildings (docks, granaries or warehouses)
-    for (int i = 0; PLAGUE_BUILDINGS[i]; i++) {
-        building_type type = runtime_type(PLAGUE_BUILDINGS[i]);
-        if (type <= BUILDING_NONE) {
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (!b || b->state == BUILDING_STATE_UNUSED) {
             continue;
         }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state == BUILDING_STATE_IN_USE && b->has_plague && b->distance_from_entry) {
-                int dist = calc_maximum_distance(x, y, b->x, b->y);
-                if (b->figure_id4) {
-                    if (dist < min_occupied_dist) {
-                        min_occupied_dist = dist;
-                        min_occupied_building_id = b->id;
-                    }
-                } else if (dist < *distance) {
-                    *distance = dist;
-                    min_free_building_id = b->id;
+        Building building_object(b);
+        const auto *definition = building_object.type_definition();
+        const int is_plague_building = definition &&
+            (std::strcmp(definition->attr(), "dock") == 0 ||
+                definition->is_warehouse() ||
+                definition->is_granary());
+        if (is_plague_building && b->state == BUILDING_STATE_IN_USE && b->has_plague && b->distance_from_entry) {
+            int dist = calc_maximum_distance(x, y, b->x, b->y);
+            if (b->figure_id4) {
+                if (dist < min_occupied_dist) {
+                    min_occupied_dist = dist;
+                    min_occupied_building_id = b->id;
                 }
+            } else if (dist < *distance) {
+                *distance = dist;
+                min_free_building_id = b->id;
             }
         }
     }
@@ -218,12 +227,15 @@ void city_buildings_update_plague(void)
         }
     }
 
-    for (int i = 0; PLAGUE_BUILDINGS[i]; i++) {
-        building_type type = runtime_type(PLAGUE_BUILDINGS[i]);
-        if (type <= BUILDING_NONE) {
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (!b || b->state == BUILDING_STATE_UNUSED) {
             continue;
         }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
+        Building building_object(b);
+        const auto *definition = building_object.type_definition();
+        if (definition && (std::strcmp(definition->attr(), "dock") == 0 ||
+            definition->is_warehouse() || definition->is_granary())) {
             update_sickness_duration(b->id);
         }
     }

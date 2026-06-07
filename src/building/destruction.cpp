@@ -11,6 +11,7 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "destruction.h"
 
 extern "C" {
@@ -28,6 +29,7 @@ extern "C" {
 }
 
 #include <string.h>
+#include <cstring>
 
 static building_type runtime_type(const char *text_id)
 {
@@ -51,7 +53,9 @@ static int is_bridge_type(building_type type)
 
 static int is_waterside_building_type(building_type type)
 {
-    return type_matches(type, "dock") ||
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return (definition && std::strcmp(definition->attr(), "dock") == 0) ||
         type_matches(type, "wharf") ||
         type_matches(type, "shipyard");
 }

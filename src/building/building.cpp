@@ -33,6 +33,7 @@
 #include "figure/formation_legion.h"
 
 #include <cstdio>
+#include <cstring>
 #include <exception>
 #include <initializer_list>
 #include <source_location>
@@ -1711,7 +1712,7 @@ int building_is_active(const building *b)
     if (building_matches(b, "wharf")) {
         return b->num_workers > 0 && b->data.industry.fishing_boat_id;
     }
-    if (building_matches(b, "dock")) {
+    if (definition && std::strcmp(definition->attr(), "dock") == 0) {
         return b->num_workers > 0 && b->has_water_access;
     }
     return b->num_workers > 0;

@@ -9,6 +9,7 @@
 #include <stdio.h>
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/dock.h"
 #include "building/lighthouse.h"
@@ -47,6 +48,8 @@ extern "C" {
 #include "scenario/map.h"
 #include "scenario/property.h"
 }
+
+#include <cstring>
 
 #define INFINITE 10000
 #define TRADER_INITIAL_WAIT GAME_TIME_TICKS_PER_DAY
@@ -783,7 +786,10 @@ void figure_native_trader_action(figure *f)
 int figure_trade_ship_is_trading(figure *ship)
 {
     building *b = building_get(ship->destination_building_id);
-    if (b->state != BUILDING_STATE_IN_USE || !building_matches(b, "dock")) {
+    Building dock(b);
+    const auto *definition = dock.type_definition();
+    if (b->state != BUILDING_STATE_IN_USE || !definition ||
+        std::strcmp(definition->attr(), "dock") != 0) {
         return TRADE_SHIP_BUYING;
     }
     for (int i = 0; i < 3; i++) {
@@ -810,7 +816,11 @@ int figure_trade_ship_is_trading(figure *ship)
 static int trade_dock_ignoring_ship(figure *f)
 {
     building *b = building_get(f->destination_building_id);
-    if (b->state == BUILDING_STATE_IN_USE && building_matches(b, "dock") && b->num_workers > 0 &&
+    Building dock(b);
+    const auto *definition = dock.type_definition();
+    if (b->state == BUILDING_STATE_IN_USE &&
+        definition && std::strcmp(definition->attr(), "dock") == 0 &&
+        b->num_workers > 0 &&
         (unsigned int) b->data.dock.trade_ship_id == f->id) {
         for (int i = 0; i < 3; i++) {
             if (b->data.distribution.cartpusher_ids[i]) {

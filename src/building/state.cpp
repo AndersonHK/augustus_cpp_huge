@@ -86,11 +86,6 @@ int type_is_granary(building_type type)
     return type_is(type, "granary");
 }
 
-int type_is_dock(building_type type)
-{
-    return type_is(type, "dock");
-}
-
 int type_is_depot(building_type type)
 {
     return type_is(type, "depot");
@@ -428,6 +423,8 @@ static void write_type_data(buffer *buf, const building *b)
     // If you don't write 26 bytes, the function will pad them at the end.
     // If you need more than 26 bytes, don't use the type data.
     size_t buffer_index = buf->index;
+    const auto *definition = type_definition(b->type);
+    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
 
     if (building_is_house(b->type)) {
         buffer_write_u8(buf, b->data.house.theater);
@@ -470,7 +467,7 @@ static void write_type_data(buffer *buf, const building *b)
         for (int i = 0; i < 3; i++) {
             buffer_write_i16(buf, b->data.distribution.cartpusher_ids[i]);
         }
-    } else if (type_is_dock(b->type)) {
+    } else if (is_dock) {
         buffer_write_i16(buf, b->data.dock.queued_docker_id);
         buffer_write_u8(buf, b->data.dock.has_accepted_route_ids);
         buffer_write_i32(buf, b->data.dock.accepted_route_ids);
@@ -649,6 +646,8 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
         type_data_bytes = TYPE_DATA_CURRENT_BUFFER_SIZE;
     }
     size_t buffer_index = buf->index;
+    const auto *definition = type_definition(b->type);
+    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
 
     if (building_is_house(b->type)) {
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
@@ -778,7 +777,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
         for (int i = 0; i < 3; i++) {
             b->data.distribution.cartpusher_ids[i] = buffer_read_i16(buf);
         }
-    } else if (type_is_dock(b->type)) {
+    } else if (is_dock) {
         b->data.dock.queued_docker_id = buffer_read_i16(buf);
         b->data.dock.has_accepted_route_ids = buffer_read_u8(buf);
         b->data.dock.accepted_route_ids = buffer_read_i32(buf);
@@ -853,10 +852,12 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
 
 static void migrate_accepted_goods(building *b, int permissions)
 {
-    int max = type_is_dock(b->type) ? resource_id_bridge_legacy_resource_count() : resource_id_bridge_legacy_inventory_count();
+    const auto *definition = type_definition(b->type);
+    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
+    int max = is_dock ? resource_id_bridge_legacy_resource_count() : resource_id_bridge_legacy_inventory_count();
     for (int i = 0; i < max; i++) {
         int goods_bit = 1 << i;
-        int id = type_is_dock(b->type) ? resource_remap(i) : resource_map_legacy_inventory(i);
+        int id = is_dock ? resource_remap(i) : resource_map_legacy_inventory(i);
         b->accepted_goods[id] = !(permissions & goods_bit);
     }
 }
@@ -876,10 +877,12 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     uint16_t saved_building_type = buffer_read_u16(buf);
     int missing_building_type = building_type_id_bridge_save_id_is_missing(saved_building_type);
     b->type = building_type_id_bridge_runtime_from_save_id(saved_building_type);
+    const auto *definition = type_definition(b->type);
+    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
     if (type_is_warehouse_space(b->type)) {
         b->subtype.warehouse_resource_id = resource_remap(buffer_read_i16(buf));
     } else if (save_version <= SAVE_GAME_LAST_STATIC_RESOURCES &&
-        (type_is_dock(b->type) || type_has_distribution(b->type))) {
+        (is_dock || type_has_distribution(b->type))) {
         migrate_accepted_goods(b, buffer_read_i16(buf));
     } else if (saved_building_type == LEGACY_SAVE_TYPE_MENU_FORT) { // Forts used to use a generic type for the main building
         b->subtype.fort_figure_type = buffer_read_i16(buf);// union field, written as fort_figure_type for clarity

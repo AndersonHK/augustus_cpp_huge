@@ -2,12 +2,14 @@
 #include "data_transfer.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/roadblock.h"
 #include "building/storage.h"
 #include "city/warning.h"
 
+#include <cstring>
 #include <string.h>
 
 typedef struct {
@@ -241,7 +243,9 @@ building_data_type building_data_transfer_data_type_from_building_type(building_
         return DATA_TYPE_RAW_RESOURCE_PRODUCER;
     }
 
-    if (type_is(type, "dock")) {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (definition && std::strcmp(definition->attr(), "dock") == 0) {
         return DATA_TYPE_DOCK;
     }
     if (type_is(type, "granary")) {

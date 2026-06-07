@@ -3,6 +3,7 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/destruction.h"
 #include "building/granary.h"
@@ -17,10 +18,9 @@
 #include "game/tutorial.h"
 #include "scenario/property.h"
 
-#define SICKNESS_SPREAD_DIVISION_FACTOR 4
+#include <cstring>
 
-#define NUM_PLAGUE_BUILDINGS (sizeof(PLAGUE_BUILDINGS) / sizeof(const char *))
-static const char *PLAGUE_BUILDINGS[] = { "dock", "warehouse", "granary" };
+#define SICKNESS_SPREAD_DIVISION_FACTOR 4
 
 static building_type runtime_type(const char *text_id)
 {
@@ -65,12 +65,12 @@ void city_health_set(int new_value)
 
 static int is_plague_building(building_type type)
 {
-    for (size_t i = 0; i < NUM_PLAGUE_BUILDINGS; i++) {
-        if (type_matches(type, PLAGUE_BUILDINGS[i])) {
-            return 1;
-        }
-    }
-    return 0;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition &&
+        (std::strcmp(definition->attr(), "dock") == 0 ||
+            definition->is_warehouse() ||
+            definition->is_granary());
 }
 
 static int occupied_house_at_level(Building house, int level)
@@ -196,11 +196,10 @@ static int cause_disease(void)
         city_message_post_with_popup_delay(MESSAGE_CAT_ILLNESS, MESSAGE_SICKNESS, sick_building_type, grid_offset);
     }
 
-    for (size_t i = 0; i < NUM_PLAGUE_BUILDINGS; i++) {
-        for (building *b = first_building_of_type(PLAGUE_BUILDINGS[i]); b; b = b->next_of_type) {
-            if (b->sickness_level >= MAX_SICKNESS_LEVEL) {
-                cause_disease_in_building(b->id);
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (is_plague_building(b->type) && b->sickness_level >= MAX_SICKNESS_LEVEL) {
+            cause_disease_in_building(b->id);
         }
     }
 
@@ -295,18 +294,17 @@ static void cause_plague(int total_people)
 
 static void adjust_sickness_level_in_plague_buildings(int hospital_coverage_bonus)
 {
-    for (size_t i = 0; i < NUM_PLAGUE_BUILDINGS; i++) {
-        for (building *b = first_building_of_type(PLAGUE_BUILDINGS[i]); b; b = b->next_of_type) {
-            if (b->has_plague || !b->sickness_level) {
-                continue;
-            }
-            int decrease_percentage = city_health();
-            decrease_percentage += calc_adjust_with_percentage(decrease_percentage, hospital_coverage_bonus);
-            if (decrease_percentage > 100) {
-                decrease_percentage = 100;
-            }
-            b->sickness_level -= calc_adjust_with_percentage(b->sickness_level, decrease_percentage);
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (!is_plague_building(b->type) || b->has_plague || !b->sickness_level) {
+            continue;
         }
+        int decrease_percentage = city_health();
+        decrease_percentage += calc_adjust_with_percentage(decrease_percentage, hospital_coverage_bonus);
+        if (decrease_percentage > 100) {
+            decrease_percentage = 100;
+        }
+        b->sickness_level -= calc_adjust_with_percentage(b->sickness_level, decrease_percentage);
     }
 }
 
@@ -468,13 +466,15 @@ int city_health_get_global_sickness_level(void)
         }
     }
 
-    for (size_t i = 0; i < NUM_PLAGUE_BUILDINGS; i++) {
-        for (building *b = first_building_of_type(PLAGUE_BUILDINGS[i]); b; b = b->next_of_type) {
-            building_number++;
-            building_sickness_level += calc_bound(b->sickness_level, 0, MAX_SICKNESS_LEVEL);
-            if (b->sickness_level > max_sickness_level) {
-                max_sickness_level = b->sickness_level;
-            }
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (!is_plague_building(b->type)) {
+            continue;
+        }
+        building_number++;
+        building_sickness_level += calc_bound(b->sickness_level, 0, MAX_SICKNESS_LEVEL);
+        if (b->sickness_level > max_sickness_level) {
+            max_sickness_level = b->sickness_level;
         }
     }
 

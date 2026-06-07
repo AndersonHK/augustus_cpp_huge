@@ -61,6 +61,7 @@ extern "C" {
 #include "map/terrain.h"
 }
 
+#include <cstring>
 #include <stdlib.h>
 
 // Note: If we ever end up creating larger buildings than 7 * 7, we should update this
@@ -232,7 +233,9 @@ static int is_grand_temple_neptune_type(building_type type)
 
 static int is_dock_type(building_type type)
 {
-    return type_matches(type, "dock");
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::strcmp(definition->attr(), "dock") == 0;
 }
 
 static int is_bridge_type(building_type type)
@@ -247,7 +250,10 @@ static int is_ship_bridge_type(building_type type)
 
 static int is_waterside_type(building_type type)
 {
-    static const char *const text_ids[] = { "dock", "shipyard", "wharf" };
+    if (is_dock_type(type)) {
+        return 1;
+    }
+    static const char *const text_ids[] = { "shipyard", "wharf" };
     return type_matches_any(type, text_ids, sizeof(text_ids) / sizeof(text_ids[0]));
 }
 

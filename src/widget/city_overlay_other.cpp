@@ -40,6 +40,7 @@ extern "C" {
 }
 
 #include <initializer_list>
+#include <cstring>
 #include <stdio.h>
 
 #define TOOLTIP_WITH_PREFIX_MAX_LENGTH 128
@@ -199,16 +200,21 @@ static int show_building_logistics(const building *b)
 {
     const Building building = building_from_record(b);
     const auto &type = building.type();
+    const auto *definition = building.type_definition();
+    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
     return type.is_warehouse() || type_matches(b->type, "warehouse_space") ||
-        type.is_granary() || type_matches_any(b->type, {"dock", "depot"}) ||
+        type.is_granary() || is_dock || type_matches(b->type, "depot") ||
         type.is_lighthouse() || type.is_armoury();
 }
 
 static int show_building_storages(const building *b)
 {
     b = building_main(b);
+    const Building building = building_from_record(b);
+    const auto *definition = building.type_definition();
     return (b->storage_id > 0 && building_storage_get(b->storage_id))
-        || type_matches_any(b->type, {"depot", "dock"});
+        || type_matches(b->type, "depot")
+        || (definition && std::strcmp(definition->attr(), "dock") == 0);
 }
 
 static int show_building_none(const building *b)

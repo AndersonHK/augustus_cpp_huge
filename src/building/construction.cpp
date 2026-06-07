@@ -1,4 +1,5 @@
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/connectable.h"
 #include "building/construction_building.h"
 #include "building/construction_clear.h"
@@ -24,6 +25,8 @@
 
 #include "building/construction_session.h"
 #include "translation/translation.h"
+
+#include <cstring>
 
 extern "C" {
 
@@ -151,7 +154,10 @@ static int is_hedge_rotation_type(building_type type)
 
 static int is_waterside_type(building_type type)
 {
-    return type_matches_any(type, {"shipyard", "wharf", "dock"});
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return (definition && std::strcmp(definition->attr(), "dock") == 0) ||
+        type_matches_any(type, {"shipyard", "wharf"});
 }
 
 static int is_bridge_type(building_type type)

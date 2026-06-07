@@ -57,6 +57,8 @@ extern "C" {
 #include "sound/city.h"
 }
 
+#include <cstring>
+
 #define OFFSET(x,y) (x + GRID_SIZE * y)
 
 #define SELECTED_BUILDING_COLOR_MASK COLOR_MASK_SKY_BLUE
@@ -584,7 +586,7 @@ static void draw_plague(Building &building, int x, int y, color_t color_mask)
             x_pos += x;
             y_pos += y;
         }
-    } else if (building_matches(building, "dock")) {
+    } else if (std::strcmp(building.type().attr(), "dock") == 0) {
         if (is_fumigating) {
             x_pos = x + 68;
             y_pos = y - 38;
@@ -788,7 +790,7 @@ static void draw_animation(int x, int y, int grid_offset)
         }
     } else if (building_id && img->animation) {
         if (map_property_is_draw_tile(grid_offset)) {
-            if (building_matches(building, "dock")) {
+            if (std::strcmp(building.type().attr(), "dock") == 0) {
                 draw_dock_workers(building, x, y, color_mask);
             } else if (building.type().is_warehouse()) {
                 draw_warehouse_ornaments(x, y, color_mask);

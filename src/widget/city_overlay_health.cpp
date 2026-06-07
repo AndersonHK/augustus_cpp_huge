@@ -7,6 +7,8 @@
 #include "city/health.h"
 #include "game/state.h"
 
+#include <cstring>
+
 static int type_matches(building_type type, const char *text_id)
 {
     return type == building_type_registry_runtime_id_from_text(text_id);
@@ -224,7 +226,9 @@ static int get_tooltip_sickness(tooltip_context *c, const building *b)
 {
     const Building current_building(const_cast<building *>(b));
     if (building_is_house(b->type) ||
-        type_matches(b->type, "dock") || current_building.type().is_warehouse() || current_building.type().is_granary()) {
+        std::strcmp(current_building.type().attr(), "dock") == 0 ||
+        current_building.type().is_warehouse() ||
+        current_building.type().is_granary()) {
         if (b->sickness_level < 1) {
             c->translation_key = "TR_TOOLTIP_OVERLAY_SICKNESS_NONE";
         } else if (b->sickness_level < LOW_SICKNESS_LEVEL) {

@@ -17,7 +17,6 @@ bool g_legacy_text_ids_ready = false;
 
 constexpr uint16_t LEGACY_BUILDING_FORT_GROUND = 54;
 constexpr uint16_t LEGACY_BUILDING_DISTRIBUTION_CENTER_UNUSED = 50;
-constexpr uint16_t LEGACY_BUILDING_WAREHOUSE_SPACE = 73;
 constexpr uint16_t LEGACY_BUILDING_BURNING_RUIN = 99;
 
 struct LegacyBuildingTypeTextId {
@@ -102,7 +101,12 @@ constexpr LegacyBuildingTypeTextId XML_OWNED_BUILDING_TYPE_IDS[] = {
     {92, "well"},
     {100, "wheat_farm"},
     {110, "wine_workshop"},
-    {116, "workcamp"}
+    {116, "workcamp"},
+    {72, "warehouse"},
+    {73, "warehouse_space"},
+    {75, "dock"},
+    {82, "low_bridge"},
+    {83, "ship_bridge"}
 };
 
 std::string canonical_text_id_from_attr(const char *attr)
@@ -146,7 +150,6 @@ void build_legacy_text_ids()
     }
     g_legacy_text_ids[LEGACY_BUILDING_FORT_GROUND] = "fort_ground";
     g_legacy_text_ids[LEGACY_BUILDING_DISTRIBUTION_CENTER_UNUSED] = "distribution_center_unused";
-    g_legacy_text_ids[LEGACY_BUILDING_WAREHOUSE_SPACE] = "warehouse_space";
     g_legacy_text_ids[LEGACY_BUILDING_BURNING_RUIN] = "burning_ruin";
     g_legacy_text_ids_ready = true;
 }

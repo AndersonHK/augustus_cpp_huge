@@ -23,6 +23,7 @@
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 
+#include <cstring>
 #include <initializer_list>
 
 extern "C" {
@@ -1357,7 +1358,7 @@ void building_figure_generate(void)
             spawn_figure_market(b);
         } else if (building_matches(b, "mission_post")) {
             spawn_figure_mission_post(b);
-        } else if (building_matches(b, "dock")) {
+        } else if (std::strcmp(building_object.type().attr(), "dock") == 0) {
             spawn_figure_dock(b);
         } else if (building_matches(b, "wharf")) {
             spawn_figure_wharf(b);

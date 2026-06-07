@@ -8,6 +8,7 @@
 #include "docker.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/market.h"
 
 extern "C" {
@@ -30,6 +31,7 @@ extern "C" {
 #include "game/time.h"
 }
 
+#include <cstring>
 
 #define INFINITE 10000
 
@@ -371,7 +373,9 @@ void figure_docker_action(figure *f)
     if (b->state != BUILDING_STATE_IN_USE) {
         f->state = FIGURE_STATE_DEAD;
     }
-    if (!building_matches(b, "dock")) {
+    Building dock(b);
+    const auto *definition = dock.type_definition();
+    if (!definition || std::strcmp(definition->attr(), "dock") != 0) {
         f->state = FIGURE_STATE_DEAD;
     }
     if (b->data.dock.num_ships) {

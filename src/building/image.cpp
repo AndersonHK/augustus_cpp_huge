@@ -6,6 +6,9 @@
 
 #include "building/building_record.h"
 #include "building/building.h"
+#include "building/building_type.h"
+
+#include <cstring>
 
 extern "C" {
 #include "image.h"
@@ -582,8 +585,14 @@ static int image_overgrown_gardens(const building *b)
 
 static int type_handler_image(const building *b, int *image_id)
 {
+    Building building_object(const_cast<building *>(b));
+    const auto *definition = building_object.type_definition();
+    if (definition && std::strcmp(definition->attr(), "dock") == 0) {
+        *image_id = image_dock(b);
+        return 1;
+    }
+
     static const type_image_handler handlers[] = {
-        {"roadblock", image_building_variant_with_rotation},
         {"small_statue", image_small_statue},
         {"medium_statue", image_medium_statue},
         {"pavilion_blue", image_building_variant_with_rotation},
@@ -601,7 +610,6 @@ static int type_handler_image(const building *b, int *image_id)
         {"ship_bridge", image_no_fallback},
         {"shipyard", image_shipyard},
         {"wharf", image_wharf},
-        {"dock", image_dock},
         {"tower", image_tower},
         {"gatehouse", image_gatehouse},
         {"triumphal_arch", image_triumphal_arch},

@@ -20,6 +20,7 @@
 #include "construction_building.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/dock.h"
 #include "building/religion.h"
 #include "figure/formation_legion.h"
@@ -50,6 +51,7 @@ extern "C" {
 }
 
 #include <initializer_list>
+#include <cstring>
 #include <string>
 #include <string_view>
 
@@ -128,7 +130,10 @@ static int is_roadblock_placement_type(building_type type)
 
 static int is_waterside_type(building_type type)
 {
-    return type_matches_any(type, {"shipyard", "wharf", "dock"});
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return (definition && std::strcmp(definition->attr(), "dock") == 0) ||
+        type_matches_any(type, {"shipyard", "wharf"});
 }
 
 static int is_statue_with_orientation_type(building_type type)
@@ -495,7 +500,7 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
     } else if (type_matches_any(type, {"shipyard", "wharf"})) {
         b->data.industry.orientation = waterside_orientation_abs;
         map_water_add_building(b->id, b->x, b->y, 2);
-    } else if (type_matches(type, "dock")) {
+    } else if (std::strcmp(building_obj.type().attr(), "dock") == 0) {
         b->data.dock.orientation = waterside_orientation_abs;
         map_water_add_building(b->id, b->x, b->y, size);
     } else if (type_matches(type, "tower")) {
@@ -841,7 +846,10 @@ static int building_construction_place_building_internal(building_type type, int
             shore_needed_warning().show_when(emit_warnings);
             return 0;
         }
-        if (type_matches(type, "dock") && !building_dock_is_connected_to_open_water(x, y)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && std::strcmp(definition->attr(), "dock") == 0 &&
+            !building_dock_is_connected_to_open_water(x, y)) {
             dock_open_water_needed_warning().show_when(emit_warnings);
             return 0;
         }

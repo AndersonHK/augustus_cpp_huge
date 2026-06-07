@@ -374,23 +374,16 @@ static void set_plaza_image(int x, int y, int grid_offset)
         map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) &&
         !map_image_at(grid_offset)) {
         if (is_two_tile_square_plaza(grid_offset)) {
-            int image_offset = 6;
-            int image_id = image_group(GROUP_TERRAIN_PLAZA);
-            if (map_random_get(grid_offset) & 1) {
-                image_offset = 7;
-            }
-            image_id += image_offset;
+            int option_count = tile_runtime_plaza_large_option_count();
+            int option_index = option_count > 0 ? map_random_get(grid_offset) % option_count : 0;
+            int image_id = tile_runtime_plaza_large_asset_image_id(option_index);
             map_building_tiles_add(0, x, y, 2, image_id, TERRAIN_ROAD);
-            tile_runtime_set_plaza_image_id(grid_offset, tile_runtime_plaza_large_image_id(image_offset - 6));
+            tile_runtime_set_plaza_image_id(grid_offset, tile_runtime_plaza_large_image_id(option_index));
         } else {
-            // single tile plaza
-            static int image_id;
-            if (!image_id) {
-                image_id = assets_get_image_id("Aesthetics", "Plazas");
-            }
-            int image_offset = (x + y) % 9;
-            map_image_set(grid_offset, image_id + image_offset);
-            tile_runtime_set_plaza_image_id(grid_offset, tile_runtime_plaza_single_image_id(image_offset));
+            int option_count = tile_runtime_plaza_single_option_count();
+            int option_index = option_count > 0 ? (x + y) % option_count : 0;
+            map_image_set(grid_offset, tile_runtime_plaza_single_asset_image_id(option_index));
+            tile_runtime_set_plaza_image_id(grid_offset, tile_runtime_plaza_single_image_id(option_index));
         }
     }
 }

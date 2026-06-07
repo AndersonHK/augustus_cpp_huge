@@ -33,7 +33,6 @@ static building_variant variants[] = {
     {4, "watchtower", {21,0,73,52}, 1},
     {4, "watchtower", {0,21,52,73}, 2},
     {4, "watchtower", {21,0,73,52}, 3},
-    {11, "roadblock", {0,1,2,3,4,5,6,7,8,9,10}, CITY_DIRECTION_ANY},
     {2, "city_mint", {0,6}, CITY_DIRECTION_ANY},
 };
 

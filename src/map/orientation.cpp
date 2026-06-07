@@ -30,6 +30,7 @@ extern "C" {
 #include "map/terrain.h"
 }
 
+#include <cstring>
 #include <math.h>
 #include <stdlib.h>
 
@@ -314,7 +315,6 @@ void map_orientation_update_buildings(void)
             static const char *const water_buildings[] = {
                 "shipyard",
                 "wharf",
-                "dock",
             };
             static const char *const decorative_buildings[] = {
                 "small_statue",
@@ -330,7 +330,9 @@ void map_orientation_update_buildings(void)
                 "decorative_column",
             };
             Building current(b);
-            if (type_matches_any(type, water_buildings, sizeof(water_buildings) / sizeof(water_buildings[0]))) {
+            const auto *definition = current.type_definition();
+            if ((definition && std::strcmp(definition->attr(), "dock") == 0) ||
+                type_matches_any(type, water_buildings, sizeof(water_buildings) / sizeof(water_buildings[0]))) {
                 map_water_add_building(i, b->x, b->y, b->size);
             } else if (type_matches_any(type, decorative_buildings,
                     sizeof(decorative_buildings) / sizeof(decorative_buildings[0])) ||

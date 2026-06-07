@@ -35,6 +35,7 @@
 #include "window/advisors.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
 
 extern "C" {
 
@@ -64,6 +65,7 @@ extern "C" {
 }
 
 
+#include <cstring>
 #include <initializer_list>
 
 #define TOPLEFT_MESSAGES_X 5
@@ -482,6 +484,9 @@ static void show_overlay_from_grid_offset(int grid_offset)
 {
     int overlay = OVERLAY_NONE;
     building_type clone_type = get_building_type_from_grid_offset(grid_offset);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(clone_type);
+    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
     if (building_type_registry_is_well(clone_type)) {
         overlay = OVERLAY_WATER;
     } else if (building_type_registry_is_theater(clone_type)) {
@@ -552,7 +557,8 @@ static void show_overlay_from_grid_offset(int grid_offset)
     } else if (building_type_registry_is_warehouse(clone_type) ||
         building_type_registry_is_lighthouse(clone_type) ||
         building_type_registry_is_armoury(clone_type) ||
-        type_matches_any(clone_type, {"warehouse_space", "depot", "dock"})) {
+        is_dock ||
+        type_matches_any(clone_type, {"warehouse_space", "depot"})) {
         overlay = OVERLAY_LOGISTICS;
     } else if (type_matches(clone_type, "latrines")) {
         overlay = OVERLAY_HEALTH;
@@ -566,10 +572,14 @@ static void show_overlay_from_grid_offset(int grid_offset)
 
 static int has_storage_orders(building_type type)
 {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
     return building_type_registry_has_native_storage(type) ||
         building_type_registry_has_distribution(type) ||
+        is_dock ||
         type_matches_any(type, {
-            "warehouse_space", "market", "dock", "tavern", "roadblock",
+            "warehouse_space", "market", "tavern", "roadblock",
             "roofed_garden_wall_gate", "looped_garden_gate", "panelled_garden_gate",
             "hedge_gate_dark", "hedge_gate_light", "palisade_gate"
         }) ||

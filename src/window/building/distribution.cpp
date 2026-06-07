@@ -47,6 +47,7 @@ extern "C" {
 
 }
 
+#include <cstring>
 #include <math.h>
 
 static building_type runtime_type(const char *text_id)
@@ -791,8 +792,9 @@ static void set_distributed_resources(const Building &building)
 
 void window_building_draw_distributor_orders(building_info_context *c, const uint8_t *title)
 {
-    building_type type = building_get(c->building_id)->type;
-    c->help_id = type_matches(type, "dock") ? 83 : 3;
+    Building building(building_get(c->building_id));
+    const auto *definition = building.type_definition();
+    c->help_id = definition && std::strcmp(definition->attr(), "dock") == 0 ? 83 : 3;
     int y_offset = window_building_get_vertical_offset(c, 28);
     outer_panel_draw(c->x_offset, y_offset, 29, 28);
     text_draw_centered(title, c->x_offset, y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
@@ -1067,7 +1069,9 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
     int x_offset = c->x_offset + 16;
     int y_offset = c->y_offset + 240;
     const building *dock = building_get(c->building_id);
-    if (!type_matches(static_cast<building_type>(dock->type), "dock")) {
+    Building dock_object(const_cast<building *>(dock));
+    const auto *definition = dock_object.type_definition();
+    if (!definition || std::strcmp(definition->attr(), "dock") != 0) {
         return 0;
     }
     int width = dock_distribution_permissions_buttons_count > data.dock_max_cities_visible ? 140 : 170;
@@ -1567,9 +1571,11 @@ static void toggle_resource_state(const generic_button *button, int reverse_orde
     building *b = building_get(data.building_id);
     index += scrollbar.scroll_position - 1;
     resource_type resource;
-    if (building_has_supplier_inventory(b->type) || type_matches(static_cast<building_type>(b->type), "dock")) {
+    Building market_building(b);
+    const auto *definition = market_building.type_definition();
+    if (building_has_supplier_inventory(b->type) ||
+        (definition && std::strcmp(definition->attr(), "dock") == 0)) {
         resource = data.stored_resources.items[index];
-        Building market_building(b);
         market_building.toggle_accepted_good(resource);
     } else {
         if (building_type_registry_is_warehouse(static_cast<building_type>(b->type))) {
