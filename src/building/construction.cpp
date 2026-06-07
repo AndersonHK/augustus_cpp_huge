@@ -961,6 +961,8 @@ static int should_mark_for_construction(building_type type)
         return 0;
     } else if (type_matches(type, "aqueduct")) {
         return 0;
+    } else if (type_matches(type, "roadblock")) {
+        return 0;
     }
     return 1;
 }
@@ -1389,6 +1391,7 @@ void building_construction_place(void)
             building_construction_force_place_building(type, x_end, y_end, 0, &force_place_clear_cost) :
             building_construction_place_building(type, x_end, y_end, 0);
         if (!placed) {
+            map_property_clear_constructing_and_deleted();
             return;
         }
         placement_cost += force_place_clear_cost;
