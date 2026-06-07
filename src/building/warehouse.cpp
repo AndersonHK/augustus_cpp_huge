@@ -1,7 +1,6 @@
 #include "building/count.h"
 #include "building/industry.h"
 #include "building/storage.h"
-#include "game/resource_graphics.h"
 #include "map/image.h"
 
 #include "warehouse.h"
@@ -357,14 +356,8 @@ void building_warehouse_remove_resource_curse(Building &warehouse, int amount)
 
 static void building_warehouse_space_set_image(Building &space, resource_type resource)
 {   //keep this function static - external files should not set warehouse images directly
-    int stored_loads = 0;
-    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        stored_loads += space.resource_amount(r);
-    }
-    const int loads = stored_loads > 0 ? space.resource_amount(resource) : 0;
-    const resource_type graphic_resource = loads > 0 ? static_cast<resource_type>(resource) : RESOURCE_NONE;
-    int image_id = resource_graphics(graphic_resource).storage_image(loads).image_id();
-    map_image_set(space.grid_offset(), image_id);
+    (void) resource;
+    map_image_set(space.grid_offset(), image_group(GROUP_BUILDING_WAREHOUSE_STORAGE_EMPTY));
 }
 
 int building_warehouse_add_import(Building &warehouse, resource_type resource, int amount, int trader_type)

@@ -10,12 +10,12 @@
 #include "assets/image_group_payload.h"
 #include "building/animations.h"
 #include "building/building_runtime_graphics.h"
+#include "building/variant.h"
 #include "core/crash_context.h"
 
 extern "C" {
 #include "core/image_group.h"
 #include "game/resource.h"
-#include "map/random.h"
 #include "map/terrain.h"
 #include "core/log.h"
 }
@@ -204,22 +204,12 @@ void building_runtime::assign_graphic_variant(int force_reseed)
     }
 
     refresh_runtime_state();
-    const building_type_registry_impl::GraphicsTarget *target = resolve_graphic_target();
-    if (!target || !target->has_options()) {
+    int graphics_option = building_variant_get_graphics_option(building(), force_reseed);
+    if (graphics_option < 0) {
         return;
     }
 
-    unsigned char variant = record().variant;
-    const int option_count = target->option_count();
-    if (option_count <= 1) {
-        variant = 0;
-    } else if (force_reseed) {
-        // Native graphics variants are stable per tile, not per frame. Old saves
-        // and brand-new buildings enter here when the saved byte has no useful meaning.
-        variant = static_cast<unsigned char>(map_random_get(record().grid_offset) % option_count);
-    } else {
-        variant = static_cast<unsigned char>(record().variant % option_count);
-    }
+    unsigned char variant = static_cast<unsigned char>(graphics_option);
     if (record().variant == variant) {
         return;
     }

@@ -351,8 +351,9 @@ static int fetch_export_resource(figure *f, building *dock, int add_to_bought)
 
 static void set_cart_graphic(figure *f)
 {
-    f->cart_image_id = resource_graphics(static_cast<resource_type>(f->resource_id)).
-        cart_image(1).image_id();
+    f->cart_image_id = f->resource_id != RESOURCE_NONE ?
+        resource_graphics_cart_marker_for_direction(0) :
+        image_group(GROUP_FIGURE_CARTPUSHER_CART);
 }
 
 static void set_docker_as_idle(figure *f)
@@ -591,7 +592,11 @@ void figure_docker_action(figure *f)
         f->image_id = image_group(GROUP_FIGURE_CARTPUSHER) + dir + 8 * f->image_offset;
     }
     if (f->cart_image_id) {
-        f->cart_image_id += dir;
+        if (resource_graphics_cart_marker_is(f->cart_image_id)) {
+            f->cart_image_id = resource_graphics_cart_marker_for_direction(dir);
+        } else {
+            f->cart_image_id += dir;
+        }
         figure_image_set_cart_offset(f, dir);
     } else {
         f->image_id = 0;

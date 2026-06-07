@@ -86,7 +86,9 @@ static void set_cart_graphic(figure *f, int always_carries_resource)
     const resource_type resource = static_cast<resource_type>(f->resource_id);
     const int carried = resource == RESOURCE_NONE ? 0 :
         (f->loads_sold_or_carrying == 0 ? always_carries_resource : f->loads_sold_or_carrying);
-    f->cart_image_id = resource_graphics(resource).cart_image(carried, cartpusher_carries_food(f)).image_id();
+    f->cart_image_id = carried > 0 ?
+        resource_graphics_cart_marker_for_direction(0) :
+        image_group(GROUP_FIGURE_CARTPUSHER_CART);
 }
 
 static void cartpusher_return_to_source(figure *f)
@@ -353,7 +355,11 @@ static void update_image(figure *f)
         }
     }
     if (f->cart_image_id) {
-        f->cart_image_id += dir;
+        if (resource_graphics_cart_marker_is(f->cart_image_id)) {
+            f->cart_image_id = resource_graphics_cart_marker_for_direction(dir);
+        } else {
+            f->cart_image_id += dir;
+        }
         figure_image_set_cart_offset(f, dir);
         if (f->loads_sold_or_carrying >= 8 && cartpusher_carries_food(f)) {
             f->y_offset_cart -= 40;

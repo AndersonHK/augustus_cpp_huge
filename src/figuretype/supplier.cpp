@@ -351,7 +351,9 @@ void figure_supplier_action(figure *f)
         const resource_type carried_resource = f->action_state == FIGURE_ACTION_146_SUPPLIER_RETURNING ?
             static_cast<resource_type>(f->collecting_item_id) :
             RESOURCE_NONE;
-        f->cart_image_id = resource_graphics(carried_resource).cart_image(carried_resource == RESOURCE_NONE ? 0 : 1).image_id();
+        f->cart_image_id = carried_resource == RESOURCE_NONE ?
+            image_group(GROUP_FIGURE_CARTPUSHER_CART) :
+            resource_graphics_cart_marker_for_direction(0);
         int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
         if (f->action_state == FIGURE_ACTION_149_CORPSE) {
             f->image_id = image_group(GROUP_FIGURE_CARTPUSHER) + figure_image_corpse_offset(f) + 96;
@@ -360,7 +362,11 @@ void figure_supplier_action(figure *f)
             f->image_id = image_group(GROUP_FIGURE_CARTPUSHER) + dir + 8 * f->image_offset;
         }
         if (f->cart_image_id) {
-            f->cart_image_id += dir;
+            if (resource_graphics_cart_marker_is(f->cart_image_id)) {
+                f->cart_image_id = resource_graphics_cart_marker_for_direction(dir);
+            } else {
+                f->cart_image_id += dir;
+            }
             figure_image_set_cart_offset(f, dir);
         }
     } else if (f->type == FIGURE_CARAVANSERAI_SUPPLIER) {

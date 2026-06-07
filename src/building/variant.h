@@ -18,4 +18,8 @@ int building_variant_get_number_of_variants(building_type type);
 
 #ifdef __cplusplus
 }
+
+class Building;
+
+int building_variant_get_graphics_option(const Building &building, int force_reseed);
 #endif

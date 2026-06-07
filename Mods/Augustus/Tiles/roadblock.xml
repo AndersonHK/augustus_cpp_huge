@@ -11,10 +11,11 @@
     <foundation policy="land" />
     <event_data attr="roadblock" />
     <roadblock kind="standard" />
+    <tile kind="roadblock" />
     <graphics>
         <default>
             <path value="Admin_Logistics\roadblock" />
-            <options selection="stable_variant">
+            <options selection="build_rotation">
                 <option image="roadblock" />
                 <option image="roadblock_blue" />
                 <option image="roadblock_purple" />

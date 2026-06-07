@@ -7,6 +7,8 @@
 
 extern "C" {
 #include "assets/assets.h"
+#include "core/image.h"
+#include "core/image_group.h"
 #include "core/log.h"
 #include "map/grid.h"
 #include "map/tile_runtime_api.h"
@@ -117,9 +119,20 @@ static int target_asset_image_id_at(const building_type_registry_impl::GraphicsT
     if (!resolved.has_path()) {
         return 0;
     }
-    return assets_get_image_id_from_path_or_name(
+    int image_id = assets_get_image_id_from_path_or_name(
         resolved.path(),
         resolved.has_image() ? resolved.image() : nullptr);
+    if (image_id) {
+        return image_id;
+    }
+
+    if (resolved.has_image() && image_group_payload_load(resolved.path())) {
+        const ImageGroupPayload *payload = image_group_payload_get(resolved.path());
+        if (payload && payload->entry_for(resolved.image())) {
+            return image_group(GROUP_TERRAIN_FLAT_TILE);
+        }
+    }
+    return 0;
 }
 
 static int target_option_count(const building_type_registry_impl::GraphicsTarget &target)

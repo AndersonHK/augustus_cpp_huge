@@ -467,7 +467,9 @@ public:
     {
         const resource_type resource = static_cast<resource_type>(f.resource_id);
         const int carried = resource == RESOURCE_NONE ? 0 : f.loads_sold_or_carrying;
-        f.cart_image_id = resource_graphics(resource).cart_image(carried, resource_is_food(resource)).image_id();
+        f.cart_image_id = carried > 0 ?
+            resource_graphics_cart_marker_for_direction(0) :
+            image_group(GROUP_FIGURE_CARTPUSHER_CART);
     }
 
     void update(figure &f) const
@@ -485,7 +487,11 @@ public:
         f.image_id = image_base_for_definition(&definition_) + dir * graphics.direction_frame_stride + f.image_offset;
         if (f.cart_image_id) {
             dir = (dir + 4) % 8;
-            f.cart_image_id += dir;
+            if (resource_graphics_cart_marker_is(f.cart_image_id)) {
+                f.cart_image_id = resource_graphics_cart_marker_for_direction(dir);
+            } else {
+                f.cart_image_id += dir;
+            }
             set_cart_offset(f, dir);
         }
     }

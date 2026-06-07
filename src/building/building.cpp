@@ -13,6 +13,7 @@
 #include "building/storage.h"
 #include "building/variant.h"
 #include "city/warning.h"
+#include "game/resource_graphics.h"
 #include "game/undo.h"
 #include "map/bridge.h"
 #include "map/building.h"
@@ -455,11 +456,31 @@ building_type_registry_impl::BuildingAnimation Building::animate()
 
 int Building::draw_footprint(const BuildingDrawContext &ctx)
 {
+    if (record_ && building_matches(record_, "warehouse_space")) {
+        const resource_type resource = warehouse_resource_id();
+        const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? resource_amount(resource) : 0;
+        const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
+        if (ctx.force_draw_tile || map_property_is_draw_tile(ctx.grid_offset)) {
+            resource_graphics(graphic_resource).storage_image(loads).draw(
+                ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+        }
+        return 1;
+    }
     return building_record_requires_type_definition(record_) ? type().graphics().draw_footprint(*this, ctx) : 0;
 }
 
 int Building::draw_top(const BuildingDrawContext &ctx)
 {
+    if (record_ && building_matches(record_, "warehouse_space")) {
+        const resource_type resource = warehouse_resource_id();
+        const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? resource_amount(resource) : 0;
+        const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
+        if (ctx.force_draw_tile || map_property_is_draw_tile(ctx.grid_offset)) {
+            resource_graphics(graphic_resource).storage_image(loads).draw_top(
+                ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+        }
+        return 1;
+    }
     return building_record_requires_type_definition(record_) ? type().graphics().draw_top(*this, ctx) : 0;
 }
 

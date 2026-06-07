@@ -19,6 +19,10 @@ public:
 
     const ImageGroupEntryRef &storage_image(int loads) const;
     const ImageGroupEntryRef &cart_image(int carried_loads, int use_food_eight_load_variant = 0) const;
+    ImageGroupEntryRef cart_image_for_direction(
+        int carried_loads,
+        int use_food_eight_load_variant,
+        int direction) const;
     const ImageGroupEntryRef &panel_icon() const;
     const ImageGroupEntryRef &empire_icon() const;
     const ImageGroupEntryRef &editor_icon() const;
@@ -41,3 +45,7 @@ private:
 const ResourceGraphics &resource_graphics(resource_type resource);
 ResourceGraphics &mutable_resource_graphics(resource_type resource);
 void resource_graphics_reset();
+
+int resource_graphics_cart_marker_for_direction(int direction);
+int resource_graphics_cart_marker_is(unsigned int image_id);
+int resource_graphics_cart_marker_direction(unsigned int image_id);

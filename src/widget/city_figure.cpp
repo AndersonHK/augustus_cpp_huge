@@ -2,6 +2,8 @@
 
 #include "city_figure.h"
 
+#include "game/resource_graphics.h"
+
 extern "C" {
 #include "city/view.h"
 #include "figure/formation.h"
@@ -25,13 +27,41 @@ static color_t get_highlight_mask(int highlight_mask)
     }
 }
 
+static resource_type cart_resource_for_figure(const figure *f)
+{
+    if (f->type == FIGURE_LIGHTHOUSE_SUPPLIER && f->action_state == FIGURE_ACTION_146_SUPPLIER_RETURNING) {
+        return static_cast<resource_type>(f->collecting_item_id);
+    }
+    return static_cast<resource_type>(f->resource_id);
+}
+
+static void draw_cart_image(const figure *f, int x, int y, color_t color_mask, float scale)
+{
+    if (!resource_graphics_cart_marker_is(f->cart_image_id)) {
+        Image::from_id(f->cart_image_id).draw(x, y, color_mask, scale);
+        return;
+    }
+
+    resource_type resource = cart_resource_for_figure(f);
+    int loads = f->loads_sold_or_carrying > 0 ? f->loads_sold_or_carrying : 1;
+    if (resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        resource = RESOURCE_NONE;
+        loads = 0;
+    }
+    const ImageGroupEntryRef ref = resource_graphics(resource).cart_image_for_direction(
+        loads,
+        resource_is_food(resource),
+        resource_graphics_cart_marker_direction(f->cart_image_id));
+    ref.draw(x, y, color_mask, scale);
+}
+
 static void draw_figure_with_cart(const figure *f, int x, int y, color_t color_mask, float scale)
 {
     if (f->y_offset_cart >= 0) {
         Image::from_id(f->image_id).draw(x, y, color_mask, scale);
-        Image::from_id(f->cart_image_id).draw(x + f->x_offset_cart, y + f->y_offset_cart, color_mask, scale);
+        draw_cart_image(f, x + f->x_offset_cart, y + f->y_offset_cart, color_mask, scale);
     } else {
-        Image::from_id(f->cart_image_id).draw(x + f->x_offset_cart, y + f->y_offset_cart, color_mask, scale);
+        draw_cart_image(f, x + f->x_offset_cart, y + f->y_offset_cart, color_mask, scale);
         Image::from_id(f->image_id).draw(x, y, color_mask, scale);
     }
 }

@@ -9,7 +9,6 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="water" order="10" icon="Admin_Logistics\Reservoir" text_key="main_strings.28.90" />
     <sound id="reservoir" />
     <event_data attr="reservoir" />
     <flags fire_proof="1" />

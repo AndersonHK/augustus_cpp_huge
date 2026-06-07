@@ -25,10 +25,12 @@ public:
     int image_id() const;
     const Image &image() const;
     RuntimeDrawSlice runtime_slice() const;
+    RuntimeDrawSlice top_runtime_slice() const;
     int width() const;
     int height() const;
 
     void draw(int x, int y, color_t color = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
+    void draw_top(int x, int y, color_t color = COLOR_MASK_NONE, float scale = SCALE_NONE) const;
     void draw_scaled_centered(int x, int y, color_t color, int draw_scale_percent) const;
 
 private:

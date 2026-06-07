@@ -1038,6 +1038,9 @@ static TileKind parse_tile_kind(const char *text)
     if (compare_text(text, "plaza") == 0) {
         return TileKind::Plaza;
     }
+    if (compare_text(text, "roadblock") == 0) {
+        return TileKind::Roadblock;
+    }
     return TileKind::None;
 }
 
@@ -1644,10 +1647,13 @@ static int parse_graphics_options()
         return 0;
     }
 
-    // Keep the selector explicit so future policies can be rejected cleanly
-    // instead of silently being treated as stable building.variant selection.
     const char *selection = xml_parser_has_attribute("selection") ? xml_parser_get_attribute_string("selection") : "stable_variant";
-    if (!selection || compare_text(selection, "stable_variant") != 0) {
+    GraphicsOptionSelection option_selection = GraphicsOptionSelection::StableVariant;
+    if (!selection || compare_text(selection, "stable_variant") == 0) {
+        option_selection = GraphicsOptionSelection::StableVariant;
+    } else if (compare_text(selection, "build_rotation") == 0) {
+        option_selection = GraphicsOptionSelection::BuildRotation;
+    } else {
         log_error("Unsupported BuildingType graphics options selection", selection, 0);
         g_parse_state.error = 1;
         return 0;
@@ -1660,6 +1666,7 @@ static int parse_graphics_options()
         return 0;
     }
 
+    target->set_option_selection(option_selection);
     g_parse_state.parsing_graphics_options = 1;
     return 1;
 }

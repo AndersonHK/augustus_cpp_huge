@@ -1,11 +1,14 @@
 #include "building/building_record.h"
+#include "building/building.h"
 #include "variant.h"
 
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/properties.h"
 #include "building/rotation.h"
 #include "city/view.h"
 #include "core/image.h"
+#include "map/random.h"
 
 #include <cstddef>
 
@@ -43,6 +46,22 @@ static int variant_matches_type(const building_variant &variant, building_type t
     return type == building_type_registry_runtime_id_from_text(variant.type_text_id);
 }
 
+static const building_type_registry_impl::GraphicsTarget *rotation_graphics_target(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_graphic()) {
+        return nullptr;
+    }
+
+    const building_type_registry_impl::GraphicsTarget &target = definition->graphics().default_target();
+    if (!target.has_options() ||
+        target.option_selection() != building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
+        return nullptr;
+    }
+    return &target;
+}
+
 int building_variant_has_variants(building_type type)
 {
     for (size_t i = 0; i < BUILDINGS_WITH_VARIANTS; i++) {
@@ -50,7 +69,7 @@ int building_variant_has_variants(building_type type)
             return 1;
         }
     }
-    return 0;
+    return rotation_graphics_target(type) ? 1 : 0;
 }
 
 int building_variant_get_image_id(building_type type)
@@ -109,8 +128,39 @@ int building_variant_get_number_of_variants(building_type type)
 {
     building_variant *variant = get_variant_data(type);
 
-    if (!variant) {
+    if (variant) {
+        return variant->number_of_variants;
+    }
+
+    if (const building_type_registry_impl::GraphicsTarget *target = rotation_graphics_target(type)) {
+        return target->option_count();
+    }
+    return 0;
+}
+
+int building_variant_get_graphics_option(const Building &building_obj, int force_reseed)
+{
+    const building *record = building_obj.legacy_record();
+    const building_type_registry_impl::BuildingType *definition = building_obj.type_definition();
+    if (!record || !definition || !definition->has_graphic()) {
+        return -1;
+    }
+
+    const building_type_registry_impl::GraphicsTarget *target =
+        building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition, building_obj);
+    if (!target || !target->has_options()) {
+        return -1;
+    }
+
+    const int option_count = target->option_count();
+    if (option_count <= 1) {
         return 0;
     }
-    return variant->number_of_variants;
+    if (target->option_selection() == building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
+        return record->variant % option_count;
+    }
+    if (force_reseed) {
+        return map_random_get(record->grid_offset) % option_count;
+    }
+    return record->variant % option_count;
 }

@@ -1,7 +1,6 @@
 #include "building/connectable.h"
 #include "building/rotation.h"
 #include "building/variant.h"
-#include "game/resource_graphics.h"
 #include "map/building.h"
 
 #include "building/building_record.h"
@@ -232,16 +231,8 @@ static int image_warehouse(const building *b)
 
 static int image_warehouse_space(const building *b)
 {
-    int resource_id = b->subtype.warehouse_resource_id;
-    int loads = 0;
-    resource_type resource = RESOURCE_NONE;
-    if (resource_id > RESOURCE_NONE && resource_id < RESOURCE_SLOT_COUNT) {
-        loads = b->resources[resource_id];
-        if (loads > 0) {
-            resource = static_cast<resource_type>(resource_id);
-        }
-    }
-    return resource_graphics(resource).storage_image(loads).image_id();
+    (void) b;
+    return image_group_only(GROUP_BUILDING_WAREHOUSE_STORAGE_EMPTY);
 }
 
 static int image_hippodrome(const building *b)

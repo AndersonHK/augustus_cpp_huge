@@ -140,7 +140,8 @@ enum class RoadblockKind {
 
 enum class TileKind {
     None,
-    Plaza
+    Plaza,
+    Roadblock
 };
 
 enum class LaborSeekerMethod {

@@ -153,6 +153,11 @@ void GraphicsTarget::set_image(std::string image)
     image_ = std::move(image);
 }
 
+void GraphicsTarget::set_option_selection(GraphicsOptionSelection selection)
+{
+    option_selection_ = selection;
+}
+
 GraphicsTarget &GraphicsTarget::add_option()
 {
     options_.emplace_back();
@@ -177,6 +182,11 @@ int GraphicsTarget::has_image() const
 const char *GraphicsTarget::image() const
 {
     return image_.c_str();
+}
+
+GraphicsOptionSelection GraphicsTarget::option_selection() const
+{
+    return option_selection_;
 }
 
 int GraphicsTarget::has_options() const

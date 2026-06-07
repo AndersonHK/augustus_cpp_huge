@@ -76,6 +76,19 @@ RuntimeDrawSlice ImageGroupEntryRef::runtime_slice() const
     return image().runtime_slice();
 }
 
+RuntimeDrawSlice ImageGroupEntryRef::top_runtime_slice() const
+{
+    if (const ImageGroupEntry *resolved_entry = entry()) {
+        if (const RuntimeDrawSlice *slice = resolved_entry->top()) {
+            return *slice;
+        }
+    }
+    if (const Image *top = image().top()) {
+        return top->runtime_slice();
+    }
+    return RuntimeDrawSlice();
+}
+
 int ImageGroupEntryRef::width() const
 {
     return runtime_slice().width;
@@ -89,6 +102,14 @@ int ImageGroupEntryRef::height() const
 void ImageGroupEntryRef::draw(int x, int y, color_t color, float scale) const
 {
     const RuntimeDrawSlice slice = runtime_slice();
+    if (slice.is_valid()) {
+        runtime_texture_draw(slice, x, y, color, scale);
+    }
+}
+
+void ImageGroupEntryRef::draw_top(int x, int y, color_t color, float scale) const
+{
+    const RuntimeDrawSlice slice = top_runtime_slice();
     if (slice.is_valid()) {
         runtime_texture_draw(slice, x, y, color, scale);
     }

@@ -50,6 +50,7 @@ extern "C" {
 #define MENU_ICON_X_OFFSET 3
 #define MENU_ICON_Y_OFFSET 3
 #define MENU_ITEM_MONEY_OFFSET 88
+#define MENU_EXPANDER_TEXT_WIDTH 260
 
 #define TOOLTIP_TEXT_LENGTH 1000
 
@@ -424,17 +425,19 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
         text_offset += MENU_RESOURCE_ICON_SIZE + 4;
     }
 
+    int build_cost = cost();
+    int text_width = (build_cost ? MENU_ITEM_WIDTH : MENU_EXPANDER_TEXT_WIDTH) -
+        (text_offset - MENU_TEXT_X_OFFSET);
     if (menu_index > 0) {
         text_draw_build_menu_with_index(display_name(), menu_index % 10,
-            item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
-            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+            item_x_align + text_offset, item_y + 4,
+            text_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else {
         text_draw_centered(display_name(), item_x_align + text_offset, item_y + 4,
-            MENU_ITEM_WIDTH - (text_offset - MENU_TEXT_X_OFFSET), FONT_NORMAL_GREEN,
+            text_width, FONT_NORMAL_GREEN,
             screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
 
-    int build_cost = cost();
     if (build_cost) {
         text_draw_money(build_cost, x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
