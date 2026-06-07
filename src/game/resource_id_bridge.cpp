@@ -333,6 +333,12 @@ extern "C" void resource_id_bridge_reset_for_runtime(void)
     }
 }
 
+extern "C" void resource_id_bridge_clear_save_table(void)
+{
+    clear_save_table();
+    g_bridge.save_table_ready = false;
+}
+
 extern "C" void resource_id_bridge_save_table_save_state(buffer *buf)
 {
     if (!buf) {

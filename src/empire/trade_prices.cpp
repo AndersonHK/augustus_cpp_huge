@@ -125,9 +125,18 @@ static int trade_factor_buy(int land_trader)
 
 extern "C" void trade_prices_reset(void)
 {
-    for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
-        prices[resource].buy = resource_get_data(resource)->default_trade_price.buy;
-        prices[resource].sell = resource_get_data(resource)->default_trade_price.sell;
+    for (resource_type resource = RESOURCE_NONE; resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
+        prices[resource].buy = 0;
+        prices[resource].sell = 0;
+    }
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource_type resource = resource_get_loaded(i);
+        resource_data *data = resource_get_data(resource);
+        if (!data) {
+            continue;
+        }
+        prices[resource].buy = data->default_trade_price.buy;
+        prices[resource].sell = data->default_trade_price.sell;
     }
 }
 
@@ -204,7 +213,13 @@ extern "C" int trade_price_set_sell(resource_type resource, int new_price)
 
 extern "C" void trade_prices_save_state(buffer *buf)
 {
-    for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
+    for (int i = 0; i < resource_total_mapped(); i++) {
+        resource_type resource = resource_remap(i);
+        if (resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT || !resource_is_declared(resource)) {
+            buffer_write_i32(buf, 0);
+            buffer_write_i32(buf, 0);
+            continue;
+        }
         buffer_write_i32(buf, prices[resource].buy);
         buffer_write_i32(buf, prices[resource].sell);
     }
@@ -214,7 +229,13 @@ extern "C" void trade_prices_load_state(buffer *buf)
 {
     trade_prices_reset();
     for (int i = 0; i < resource_total_mapped(); i++) {
-        prices[resource_remap(i)].buy = buffer_read_i32(buf);
-        prices[resource_remap(i)].sell = buffer_read_i32(buf);
+        int buy = buffer_read_i32(buf);
+        int sell = buffer_read_i32(buf);
+        resource_type resource = resource_remap(i);
+        if (resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT || !resource_is_declared(resource)) {
+            continue;
+        }
+        prices[resource].buy = buy;
+        prices[resource].sell = sell;
     }
 }

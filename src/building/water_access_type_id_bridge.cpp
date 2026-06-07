@@ -126,7 +126,14 @@ extern "C" void water_access_type_id_bridge_reset_for_runtime(void)
 {
     g_bridge.runtime_ready = false;
     g_bridge.save_table_ready = false;
+    clear_save_table();
     ensure_runtime_table();
+}
+
+extern "C" void water_access_type_id_bridge_clear_save_table(void)
+{
+    clear_save_table();
+    g_bridge.save_table_ready = false;
 }
 
 extern "C" const char *water_access_type_id_bridge_text_from_runtime(int runtime_id)

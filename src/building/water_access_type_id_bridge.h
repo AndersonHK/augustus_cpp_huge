@@ -9,6 +9,7 @@ extern "C" {
 #endif
 
 void water_access_type_id_bridge_reset_for_runtime(void);
+void water_access_type_id_bridge_clear_save_table(void);
 const char *water_access_type_id_bridge_text_from_runtime(int runtime_id);
 int water_access_type_id_bridge_runtime_from_text(const char *text_id);
 

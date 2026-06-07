@@ -396,6 +396,14 @@ static void clear_savegame_pieces(void)
         savegame_data.pieces[i].buf.data = 0;
     }
     savegame_data.num_pieces = 0;
+    building_type_id_bridge_clear_save_table();
+    water_access_type_id_bridge_clear_save_table();
+}
+
+static void clear_savegame_context(void)
+{
+    clear_savegame_pieces();
+    resource_id_bridge_clear_save_table();
 }
 
 static void clear_scenario_pieces(void)
@@ -1828,6 +1836,7 @@ static int get_savegame_versions(FILE *fp, savegame_version_t *save_version, res
 int game_file_io_read_save_game_from_buffer(buffer *buf)
 {
     clear_loaded_save_mod_metadata();
+    clear_savegame_context();
     int result = 0;
     savegame_version_t save_version;
     resource_version_t resource_version;
@@ -1842,18 +1851,20 @@ int game_file_io_read_save_game_from_buffer(buffer *buf)
         result = savegame_read_from_buffer(buf, save_version);
     }
     if (!result) {
+        clear_savegame_context();
         log_error("Unable to load game, incompatible savefile.", 0, 0);
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
     update_loaded_save_mod_metadata(&savegame_data.state, save_version);
     savegame_load_from_state(&savegame_data.state, save_version);
-    clear_savegame_pieces();
+    clear_savegame_context();
     return FILE_LOAD_SUCCESS;
 }
 
 int game_file_io_read_saved_game(const char *filename, int offset)
 {
     clear_loaded_save_mod_metadata();
+    clear_savegame_context();
     log_info("Loading saved game", filename, 0);
     FILE *fp = file_open(filename, "rb");
     if (!fp) {
@@ -1879,12 +1890,13 @@ int game_file_io_read_saved_game(const char *filename, int offset)
     }
     file_close(fp);
     if (!result) {
+        clear_savegame_context();
         log_error("Unable to load game, incompatible savefile.", 0, 0);
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
     update_loaded_save_mod_metadata(&savegame_data.state, save_version);
     savegame_load_from_state(&savegame_data.state, save_version);
-    clear_savegame_pieces();
+    clear_savegame_context();
     return 1;
 }
 
@@ -1998,6 +2010,14 @@ static savegame_load_status savegame_read_file_info(saved_game_info *info, saveg
     int grid_start;
     int grid_border_size;
 
+    // Minimap callbacks decode building records, so install this save's id bridges first.
+    building_type_id_bridge_save_table_load_state(
+        state->building_type_table,
+        version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE);
+    water_access_type_id_bridge_save_table_load_state(
+        state->water_access_type_table,
+        version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE);
+
     minimap_data.version = version;
     scenario_map_data_from_buffer(state->scenario, &minimap_data.city_width, &minimap_data.city_height,
         &grid_start, &grid_border_size, scenario_version);
@@ -2019,7 +2039,7 @@ static savegame_load_status savegame_read_file_info(saved_game_info *info, saveg
     widget_minimap_update(&minimap_data.functions);
     city_view_restore_lookup();
 
-    clear_savegame_pieces();
+    clear_savegame_context();
 
     return SAVEGAME_STATUS_OK;
 }
@@ -2029,6 +2049,7 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
     if (!info) {
         return SAVEGAME_STATUS_INVALID;
     }
+    clear_savegame_context();
     memset(info, 0, sizeof(saved_game_info));
     FILE *fp = file_open(filename, "rb");
     if (!fp) {
@@ -2053,6 +2074,7 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
     result = static_cast<savegame_load_status>(savegame_read_from_file(fp, save_version));
     file_close(fp);
     if (result != SAVEGAME_STATUS_OK) {
+        clear_savegame_context();
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
     return savegame_read_file_info(info, save_version);
@@ -2060,11 +2082,11 @@ int game_file_io_read_saved_game_info(const char *filename, int offset, saved_ga
 
 int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *info)
 {
-    memset(info, 0, sizeof(saved_game_info));
-
     if (!info) {
         return SAVEGAME_STATUS_INVALID;
     }
+    clear_savegame_context();
+    memset(info, 0, sizeof(saved_game_info));
 
     int result = 0;
     savegame_version_t save_version;
@@ -2080,6 +2102,7 @@ int game_file_io_read_saved_game_info_from_buffer(buffer *buf, saved_game_info *
         result = savegame_read_from_buffer(buf, save_version);
     }
     if (!result) {
+        clear_savegame_context();
         log_error("Unable to load game, incompatible savefile.", 0, 0);
         return FILE_LOAD_WRONG_FILE_FORMAT;
     }
@@ -2096,6 +2119,7 @@ int game_file_io_write_saved_game(const char *filename)
 
     FILE *fp = file_open(filename, "wb");
     if (!fp) {
+        clear_savegame_context();
         log_error("Unable to save game", 0, 0);
         return 0;
     }
@@ -2103,7 +2127,7 @@ int game_file_io_write_saved_game(const char *filename)
     core_memory_block_init(&compress_buffer, COMPRESS_BUFFER_INITIAL_SIZE);
     savegame_write_to_file(fp, &compress_buffer);
     core_memory_block_free(&compress_buffer);
-    clear_savegame_pieces();
+    clear_savegame_context();
     file_close(fp);
     return 1;
 }

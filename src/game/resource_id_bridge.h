@@ -12,6 +12,7 @@ extern "C" {
 #endif
 
 void resource_id_bridge_reset_for_runtime(void);
+void resource_id_bridge_clear_save_table(void);
 
 void resource_id_bridge_save_table_save_state(buffer *buf);
 void resource_id_bridge_save_table_load_state(buffer *buf, int has_save_table);
