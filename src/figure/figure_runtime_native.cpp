@@ -1085,30 +1085,43 @@ public:
     }
 
 private:
-    static int take_food_from_granary(figure *f, int market_id, int granary_id)
+    static int take_food_from_storage(figure *f, int market_id, int storage_id)
     {
         const resource_type resource = static_cast<resource_type>(f->collecting_item_id);
         if (!resource_is_food(resource)) {
             return 0;
         }
 
-        building *granary = building_get(granary_id);
+        building *storage = building_get(storage_id);
         building *market = building_get(market_id);
-        if (!granary || !market) {
+        if (!storage || !market) {
             return 0;
         }
-        Building granary_obj(granary);
+        Building storage_obj(storage);
 
         const int market_units = market->resources[resource];
         const int max_units = MAX_FOOD_STOCKED_MARKET - market_units;
-        const int granary_loads_stored = building_granary_count_available_resource(granary_obj, resource, 1);
-        const int granary_loads_take = granary_loads_stored > (max_units / resource_units_per_load()) ?
-            (max_units / resource_units_per_load()) : granary_loads_stored;
-        if (!granary_loads_take) {
+        const int max_loads = max_units / resource_units_per_load();
+        if (max_loads <= 0) {
             return 0;
         }
 
-        const int amount_taken = building_granary_try_remove_resource(granary_obj, resource, granary_loads_take);
+        int amount_taken = 0;
+        if (storage_obj.type().is_warehouse()) {
+            const int warehouse_loads_stored = building_warehouse_get_available_amount(storage_obj, resource);
+            const int warehouse_loads_take = warehouse_loads_stored > max_loads ? max_loads : warehouse_loads_stored;
+            amount_taken = building_warehouse_try_remove_resource(storage_obj, resource, warehouse_loads_take);
+        } else if (storage_obj.type().is_granary()) {
+            const int granary_loads_stored = building_granary_count_available_resource(storage_obj, resource, 1);
+            const int granary_loads_take = granary_loads_stored > max_loads ? max_loads : granary_loads_stored;
+            amount_taken = building_granary_try_remove_resource(storage_obj, resource, granary_loads_take);
+        } else {
+            return 0;
+        }
+        if (!amount_taken) {
+            return 0;
+        }
+
         int previous_boy = f->id;
         for (int i = 0; i < amount_taken; i++) {
             previous_boy = figure_supplier_create_delivery_boy(previous_boy, f->id, FIGURE_DELIVERY_BOY);
@@ -1255,7 +1268,7 @@ private:
                 if (!take_resource_from_warehouse(f, f->destination_building_id)) {
                     f->state = FIGURE_STATE_DEAD;
                 }
-            } else if (!take_food_from_granary(f, f->building_id, f->destination_building_id)) {
+            } else if (!take_food_from_storage(f, f->building_id, f->destination_building_id)) {
                 f->state = FIGURE_STATE_DEAD;
             }
 

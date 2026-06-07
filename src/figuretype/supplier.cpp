@@ -70,21 +70,22 @@ int figure_supplier_create_delivery_boy(int leader_id, int first_figure_id, int 
     return boy->id;
 }
 
-static int take_food_from_granary(figure *f, int market_id, int granary_id)
+static int take_food_from_storage(figure *f, int market_id, int storage_id)
 {
     resource_type resource = static_cast<resource_type>(f->collecting_item_id);
 
     if (!resource_is_food(resource)) {
         return 0;
     }
-    building *granary = building_get(granary_id);
-    Building granary_obj(granary);
+    building *storage = building_get(storage_id);
     building *market = building_get(market_id);
+    if (!storage || !market) {
+        return 0;
+    }
+    Building storage_obj(storage);
 
     int market_units = market->resources[resource];
     int max_units = 0;
-    int granary_loads_stored = building_granary_count_available_resource(granary_obj, resource, 1);
-    int granary_loads_take = 0;
 
     if (building_matches(market, "mess_hall")) {
         max_units = figure_supplier_max_stocked_mess_hall_adjusted() - market_units;
@@ -93,15 +94,26 @@ static int take_food_from_granary(figure *f, int market_id, int granary_id)
     } else {
         max_units = MAX_FOOD_STOCKED_MARKET - market_units;
     }
-    if (granary_loads_stored > (max_units / resource_units_per_load())) {
-        granary_loads_take = (max_units / resource_units_per_load());
-    } else {
-        granary_loads_take = granary_loads_stored;
-    }
-    if (!granary_loads_take) {
+    int max_loads = max_units / resource_units_per_load();
+    if (max_loads <= 0) {
         return 0;
     }
-    int amount_taken = building_granary_try_remove_resource(granary_obj, resource, granary_loads_take);
+
+    int amount_taken = 0;
+    if (building_matches(storage, "warehouse")) {
+        int warehouse_loads_stored = building_warehouse_get_available_amount(storage_obj, resource);
+        int warehouse_loads_take = warehouse_loads_stored > max_loads ? max_loads : warehouse_loads_stored;
+        amount_taken = building_warehouse_try_remove_resource(storage_obj, resource, warehouse_loads_take);
+    } else if (building_matches(storage, "granary")) {
+        int granary_loads_stored = building_granary_count_available_resource(storage_obj, resource, 1);
+        int granary_loads_take = granary_loads_stored > max_loads ? max_loads : granary_loads_stored;
+        amount_taken = building_granary_try_remove_resource(storage_obj, resource, granary_loads_take);
+    } else {
+        return 0;
+    }
+    if (!amount_taken) {
+        return 0;
+    }
 
     // create delivery boys
     int type = FIGURE_DELIVERY_BOY;
@@ -281,7 +293,7 @@ void figure_supplier_action(figure *f)
                         f->state = FIGURE_STATE_DEAD;
                     }
                 } else {
-                    if (!take_food_from_granary(f, f->building_id, f->destination_building_id)) {
+                    if (!take_food_from_storage(f, f->building_id, f->destination_building_id)) {
                         f->state = FIGURE_STATE_DEAD;
                     }
                 }
