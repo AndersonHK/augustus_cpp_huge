@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gardens">
-    <identity name_key="building.gardens.name" />
+    <identity name_key="main_strings.28.39" />
     <model size="1" cost="12" />
     <desirability>
         <value value="3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="20" text_key="building.gardens.name" />
+    <button group="parks" order="20" text_key="main_strings.28.39" />
     <event_data attr="gardens" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <labor>

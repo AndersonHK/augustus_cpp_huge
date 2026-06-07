@@ -3,6 +3,7 @@
 #include "building/building_record.h"
 #include "building/building_type_id_bridge.h"
 
+#include "building/building_type_api.h"
 #include "building/building_type_legacy_migration.h"
 #include "building/building_type_registry_internal.h"
 
@@ -180,6 +181,17 @@ int is_legacy_house_text_id(const char *text_id)
     return 0;
 }
 
+int is_vacant_lot_alias(const char *text_id)
+{
+    return text_id && (std::string_view(text_id) == "vacant_lot" ||
+        std::string_view(text_id) == "house_vacant_lot");
+}
+
+building_type vacant_lot_alias_runtime()
+{
+    return building_type_registry_get_vacant_lot_fill_type();
+}
+
 void ensure_runtime_table()
 {
     if (g_bridge.runtime_ready) {
@@ -317,6 +329,9 @@ extern "C" building_type building_type_id_bridge_runtime_from_text(const char *t
     ensure_runtime_table();
     if (!text_id || !*text_id) {
         return BUILDING_NONE;
+    }
+    if (is_vacant_lot_alias(text_id)) {
+        return vacant_lot_alias_runtime();
     }
 
     auto found = g_bridge.text_to_runtime.find(text_id);

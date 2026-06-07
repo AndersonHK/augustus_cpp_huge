@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="looped_garden_gate">
-    <identity name_key="building.looped_garden_gate.name" />
+    <identity name_key="TR_BUILDING_LOOPED_GARDEN_WALL_GATE" />
     <model size="1" cost="12" />
     <desirability>
         <value value="0" />
@@ -9,7 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="280" text_key="building.looped_garden_gate.name" />
+    <button group="parks" order="280" text_key="TR_BUILDING_LOOPED_GARDEN_WALL_GATE" />
     <event_data attr="looped_garden_gate" />
     <roadblock kind="standard" />
     <flags fire_proof="1" />

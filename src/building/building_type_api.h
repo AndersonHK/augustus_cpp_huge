@@ -79,6 +79,7 @@ int building_type_registry_get_construction_road_update_radius(building_type typ
 int building_type_registry_get_instant_construction_requirement(building_type type, int resource);
 int building_type_registry_get_construction_requirement(building_type type, int resource, int phase);
 int building_type_registry_has_housing(building_type type);
+int building_type_registry_is_vacant_lot(building_type type);
 const model_house *building_type_registry_get_housing_model(building_type type);
 int building_type_registry_get_housing_resident_class(building_type type);
 int building_type_registry_housing_has_resident_class(building_type type, int resident_class);
@@ -89,6 +90,7 @@ int building_type_registry_get_housing_level_at(int index);
 building_type building_type_registry_get_housing_type_for_level(int level, int footprint_size);
 building_type building_type_registry_get_housing_transition(building_type type, int transition);
 building_type building_type_registry_get_vacant_lot_fill_type(void);
+building_type building_type_registry_get_vacant_lot_occupancy_type(void);
 
 #ifdef __cplusplus
 }

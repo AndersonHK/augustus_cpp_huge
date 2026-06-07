@@ -244,7 +244,7 @@ static const char *optional_project_key(const char *key)
 }
 
 #define set_augustus_message_parameters(message_type, title, text, urgent, message_kind) \
-    set_augustus_message_parameters_by_key(message_type, optional_project_key(#title), optional_project_key(#text), urgent, message_kind)
+    set_augustus_message_parameters_by_key(message_type, optional_project_key(title), optional_project_key(text), urgent, message_kind)
 
 void load_augustus_messages(void)
 {
@@ -428,12 +428,16 @@ const uint8_t *lang_get_building_type_string(int type)
     building_type building_type_id = static_cast<building_type>(type);
     if (building_type_registry_has_definition(building_type_id)) {
         const char *display_key = building_type_registry_get_button_text_key(building_type_id);
-        if (display_key && *display_key && building_type_display_key_is_localized(display_key)) {
-            return building_type_display_key_text(display_key);
+        if (display_key && *display_key) {
+            if (building_type_display_key_is_localized(display_key)) {
+                return building_type_display_key_text(display_key);
+            }
         }
         display_key = building_type_registry_get_name_key(building_type_id);
-        if (display_key && *display_key && building_type_display_key_is_localized(display_key)) {
-            return building_type_display_key_text(display_key);
+        if (display_key && *display_key) {
+            if (building_type_display_key_is_localized(display_key)) {
+                return building_type_display_key_text(display_key);
+            }
         }
     }
 

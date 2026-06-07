@@ -564,8 +564,8 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
         building *b_src = building_get(depot_order.src_storage_id);
         building *b_dst = building_get(depot_order.dst_storage_id);
 
-        const uint8_t *src_type = lang_get_string(current_string_key(28, b_src->type));
-        const uint8_t *dst_type = lang_get_string(current_string_key(28, b_dst->type));
+        const uint8_t *src_type = lang_get_building_type_string(b_src->type);
+        const uint8_t *dst_type = lang_get_building_type_string(b_dst->type);
         char src_info[64];
         char dst_info[64];
         snprintf(src_info, sizeof(src_info), "%s %d", (const char *) src_type, b_src->storage_id);

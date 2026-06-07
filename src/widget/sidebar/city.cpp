@@ -39,6 +39,7 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "input/hotkey.h"
+#include "scenario/allowed_building.h"
 #include "scenario/property.h"
 }
 
@@ -187,6 +188,38 @@ static void draw_buttons_expanded(int x_offset)
     image_buttons_draw(x_offset, 24, buttons_top_expanded, 6);
 }
 
+static building_type direct_tool_type_for_submenu(int submenu)
+{
+    switch (submenu) {
+        case BUILD_MENU_VACANT_HOUSE:
+            return building_type_registry_get_vacant_lot_fill_type();
+        case BUILD_MENU_CLEAR_LAND:
+            return runtime_type("clear_land");
+        case BUILD_MENU_ROAD:
+            return runtime_type("road");
+        default:
+            return BUILDING_NONE;
+    }
+}
+
+static int direct_tool_button_enabled(int submenu)
+{
+    building_type type = direct_tool_type_for_submenu(submenu);
+    if (type == BUILDING_NONE) {
+        return -1;
+    }
+    return scenario_allowed_building(type);
+}
+
+static int build_button_enabled(int submenu)
+{
+    int direct_tool_enabled = direct_tool_button_enabled(submenu);
+    if (direct_tool_enabled >= 0) {
+        return direct_tool_enabled;
+    }
+    return building_menu_count_items(submenu) > 0;
+}
+
 static void draw_collapsed_background(void)
 {
     int x_offset = sidebar_common_get_x_offset_collapsed();
@@ -220,15 +253,8 @@ void widget_sidebar_city_draw_background(void)
 static void enable_building_buttons(void)
 {
     for (int i = 0; i < 12; i++) {
-        buttons_build_expanded[i].enabled = 1;
-        if (building_menu_count_items(buttons_build_expanded[i].parameter1) <= 0) {
-            buttons_build_expanded[i].enabled = 0;
-        }
-
-        buttons_build_collapsed[i].enabled = 1;
-        if (building_menu_count_items(buttons_build_collapsed[i].parameter1) <= 0) {
-            buttons_build_collapsed[i].enabled = 0;
-        }
+        buttons_build_expanded[i].enabled = build_button_enabled(buttons_build_expanded[i].parameter1);
+        buttons_build_collapsed[i].enabled = build_button_enabled(buttons_build_collapsed[i].parameter1);
     }
 }
 
@@ -362,12 +388,12 @@ static void button_collapse_expand(int param1, int param2)
 
 static void button_build(int submenu, int param2)
 {
-    if (submenu == BUILD_MENU_CLEAR_LAND || submenu == BUILD_MENU_ROAD) {
+    building_type direct_tool_type = direct_tool_type_for_submenu(submenu);
+    if (direct_tool_type != BUILDING_NONE) {
         window_build_menu_hide();
         widget_city_clear_current_tile();
         building_construction_cancel();
-        building_type type = submenu == BUILD_MENU_CLEAR_LAND ? runtime_type("clear_land") : runtime_type("road");
-        building_construction_set_type(type, 0);
+        building_construction_set_type(direct_tool_type, 0);
         window_request_refresh();
         return;
     }

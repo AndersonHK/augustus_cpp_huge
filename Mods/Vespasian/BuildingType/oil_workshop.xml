@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="oil_workshop">
-    <identity name_key="building.oil_workshop.name" />
+    <identity name_key="main_strings.28.111" />
     <model size="2" cost="50" />
     <desirability>
         <value value="-4" />
@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="workshops" order="20" icon="Industry\Oil_Workshop" text_key="building.oil_workshop.name" />
+    <button group="workshops" order="20" icon="Industry\Oil_Workshop" text_key="main_strings.28.111" />
     <sound id="oil_workshop" />
     <event_data attr="oil_workshop" />
     <graphics>

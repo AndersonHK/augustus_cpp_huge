@@ -15,7 +15,7 @@
     "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_MATERIALS": "<building-type> needs more materials",
     "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_BUILDING": "<building-type> needs a working <required-building>",
     "TR_CITY_WARNING_TEMPLATE_ONE_BUILDING_OF_TYPE": "Only one <building-type> can be built",
-    "building.wharf.name": "Wharf",
-    "building.gardens.name": "Gardens"
+    "TR_BUILDING_CLEAR_TREES": "Clear trees",
+    "TR_BUILDING_VACANT_LOT": "Vacant lot"
   }
 }

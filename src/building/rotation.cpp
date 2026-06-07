@@ -1,4 +1,4 @@
-﻿#include "rotation.h"
+#include "rotation.h"
 #include "translation/translation.h"
 
 #include "building/connectable.h"
@@ -93,7 +93,7 @@ static void update_rotation_message(void)
     cursor = string_copy(string_from_ascii("/"), cursor, 100 - (int) (cursor - data.rotation_text));
     cursor += string_from_int(cursor, get_num_rotations(type), 0);
     cursor = string_copy(string_from_ascii(" "), cursor, 100 - (int) (cursor - data.rotation_text));
-    string_copy(lang_get_string(current_string_key(28, type)), cursor, 100 - (int) (cursor - data.rotation_text));
+    string_copy(lang_get_building_type_string(type), cursor, 100 - (int) (cursor - data.rotation_text));
 
     city_warning_show(WARNING_BUILDING_ROTATION, data.rotation_text);
 }

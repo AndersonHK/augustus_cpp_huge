@@ -1143,7 +1143,7 @@ void window_building_draw_storage(building_info_context *c)
     int y = c->y_offset + 25;
     // height adjustment shouldn't be handled at this level, so was moved to building_info.c
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_label_and_number_centered(lang_get_string(current_string_key(28, b->type)), b->storage_id, "",
+    text_draw_label_and_number_centered(lang_get_building_type_string(b->type), b->storage_id, "",
         c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     const char *sound = b->has_plague ? "wavs/clinic.wav"

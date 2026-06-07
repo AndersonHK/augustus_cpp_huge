@@ -957,6 +957,11 @@ void BuildingType::set_housing_transition(HousingTransitionKind kind, std::strin
     }
 }
 
+void BuildingType::set_vacant_lot_fill_reference(std::string text_id)
+{
+    vacant_lot_fill_to_ = std::move(text_id);
+}
+
 void BuildingType::add_storage_type(const StorageType *storage_type)
 {
     storage_types_.push_back(storage_type);
@@ -998,6 +1003,11 @@ void BuildingType::set_housing_transition_type(HousingTransitionKind kind, build
             housing_split_to_type_ = type;
             break;
     }
+}
+
+void BuildingType::set_vacant_lot_fill_type(building_type type)
+{
+    vacant_lot_fill_type_ = type;
 }
 
 SpawnDelayGroup *BuildingType::last_spawn_group()
@@ -1374,6 +1384,11 @@ const std::string &BuildingType::housing_reference_path() const
     return housing_reference_path_;
 }
 
+const std::string &BuildingType::vacant_lot_fill_reference() const
+{
+    return vacant_lot_fill_to_;
+}
+
 const std::string &BuildingType::temple_religion_reference_path() const
 {
     return temple_.religion_reference_path();
@@ -1434,6 +1449,11 @@ building_type BuildingType::housing_transition_type(HousingTransitionKind kind) 
     return BUILDING_NONE;
 }
 
+building_type BuildingType::vacant_lot_fill_type() const
+{
+    return vacant_lot_fill_type_;
+}
+
 int BuildingType::has_native_storage() const
 {
     return !storage_types_.empty();
@@ -1452,6 +1472,11 @@ int BuildingType::has_distribution() const
 int BuildingType::has_housing() const
 {
     return housing_type_ ? 1 : 0;
+}
+
+int BuildingType::is_vacant_lot() const
+{
+    return !vacant_lot_fill_to_.empty();
 }
 
 unsigned char BuildingType::upgrade_level_for(const Building &building) const

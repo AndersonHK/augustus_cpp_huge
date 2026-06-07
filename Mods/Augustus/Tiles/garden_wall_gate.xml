@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="garden_wall_gate">
-    <identity name_key="building.garden_wall_gate.name" />
+    <identity name_key="TR_BUILDING_GARDEN_WALL_GATE" />
     <model size="1" cost="12" />
     <desirability>
         <value value="0" />
@@ -9,7 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="230" text_key="building.garden_wall_gate.name" />
+    <button group="parks" order="230" text_key="TR_BUILDING_GARDEN_WALL_GATE" />
     <event_data attr="garden_wall_gate" />
     <roadblock kind="standard" />
     <flags fire_proof="1" />

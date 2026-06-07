@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="mess_hall">
-    <identity name_key="building.mess_hall.name" />
+    <identity name_key="TR_BUILDING_MESS_HALL" />
     <model size="3" cost="100" />
     <desirability>
         <value value="-8" />
@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="70" text_key="building.mess_hall.name" />
+    <button group="security" order="70" text_key="TR_BUILDING_MESS_HALL" />
     <event_data attr="mess_hall" />
     <distribution path="mess_hall" />
     <flags draw_desirability_range="1" />

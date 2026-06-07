@@ -182,7 +182,7 @@ void figure_immigrant_action(figure *f)
                 b->house_population_room = capacity - b->house_population;
                 city_population_add(f->migrant_num_people);
                 if (is_empty) {
-                    building_house_change_to(Building(b), building_type_registry_get_vacant_lot_fill_type());
+                    building_house_change_to(Building(b), building_type_registry_get_vacant_lot_occupancy_type());
                 }
                 b->immigrant_figure_id = 0;
             }
@@ -333,7 +333,7 @@ void figure_homeless_action(figure *f)
                     b->house_population_room = capacity - b->house_population;
                     city_population_add_homeless(f->migrant_num_people);
                     if (is_empty) {
-                        building_house_change_to(Building(b), building_type_registry_get_vacant_lot_fill_type());
+                        building_house_change_to(Building(b), building_type_registry_get_vacant_lot_occupancy_type());
                     }
                     b->immigrant_figure_id = 0;
                     game_undo_disable();

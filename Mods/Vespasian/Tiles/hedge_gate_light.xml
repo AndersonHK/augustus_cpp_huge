@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="hedge_gate_light">
-    <identity name_key="building.hedge_gate_light.name" />
+    <identity name_key="TR_BUILDING_HEDGE_GATE_LIGHT" />
     <model size="1" cost="12" />
     <desirability>
         <value value="0" />
@@ -9,7 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="250" text_key="building.hedge_gate_light.name" />
+    <button group="parks" order="250" text_key="TR_BUILDING_HEDGE_GATE_LIGHT" />
     <event_data attr="hedge_gate_light" />
     <roadblock kind="standard" />
     <flags fire_proof="1" />

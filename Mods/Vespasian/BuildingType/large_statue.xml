@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_statue">
-    <identity name_key="building.large_statue.name" />
+    <identity name_key="main_strings.28.43" />
     <model size="3" cost="150" />
     <desirability>
         <value value="14" />
@@ -9,7 +9,7 @@
         <range value="5" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="30" icon="Aesthetics\Statue" text_key="building.large_statue.name" />
+    <button group="statues" order="30" icon="Aesthetics\Statue" text_key="main_strings.28.43" />
     <sound id="aqueduct" />
     <event_data attr="large_statue" />
     <flags fire_proof="1" venus_gt_bonus="1" />

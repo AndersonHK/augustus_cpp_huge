@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="nymphaeum">
-    <identity name_key="building.nymphaeum.name" />
+    <identity name_key="TR_BUILDING_NYMPHAEUM" />
     <model size="3" cost="400" />
     <desirability>
         <value value="12" />
@@ -9,7 +9,7 @@
         <range value="6" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="190" text_key="building.nymphaeum.name" />
+    <button group="parks" order="190" text_key="TR_BUILDING_NYMPHAEUM" />
     <sound id="oracle" />
     <event_data attr="nymphaeum" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />

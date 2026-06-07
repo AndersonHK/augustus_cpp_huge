@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="road">
-    <identity name_key="building.road.name" />
+    <identity name_key="main_strings.28.5" />
     <model size="1" cost="4" />
     <desirability>
         <value value="0" />
@@ -9,7 +9,6 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="engineering" order="10" text_key="building.road.name" />
     <event_data attr="road" />
     <labor>
         <employees count="0" />

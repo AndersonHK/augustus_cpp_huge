@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="bathhouse">
-    <identity name_key="building.bathhouse.name" />
+    <identity name_key="main_strings.28.48" />
     <model size="2" cost="50" />
     <desirability>
         <value value="4" />
@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="health" order="30" icon="Health_Culture\Bathhouse_No_Water" text_key="building.bathhouse.name" />
+    <button group="health" order="30" icon="Health_Culture\Bathhouse_No_Water" text_key="main_strings.28.48" />
     <sound id="bathhouse" mute_on_enemies="true" />
     <event_data attr="bathhouse" />
     <water_access>

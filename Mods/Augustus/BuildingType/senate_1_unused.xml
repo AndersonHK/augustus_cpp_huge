@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="senate_1_unused">
-    <identity name_key="building.senate_1_unused.name" />
+    <identity name_key="main_strings.28.84" />
     <event_data attr="senate_1_unused" />
 </building>

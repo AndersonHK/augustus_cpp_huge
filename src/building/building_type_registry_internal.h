@@ -48,6 +48,7 @@ struct ParseState {
     int saw_production_methods = 0;
     int saw_distribution = 0;
     int saw_housing = 0;
+    int saw_vacant_lot = 0;
     int saw_provider_water_access = 0;
     int saw_water_access_rule = 0;
     int saw_current_water_access_requirement_term = 0;

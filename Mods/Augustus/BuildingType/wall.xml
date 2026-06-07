@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="wall">
-    <identity name_key="building.wall.name" />
+    <identity name_key="main_strings.28.6" />
     <model size="1" cost="12" />
     <desirability>
         <value value="0" />
@@ -9,7 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="20" text_key="building.wall.name" />
+    <button group="security" order="20" text_key="main_strings.28.6" />
     <event_data attr="wall" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <labor>

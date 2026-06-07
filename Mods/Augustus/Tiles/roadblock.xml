@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="roadblock">
-    <identity name_key="building.roadblock.name" />
+    <identity name_key="TR_BUILDING_ROADBLOCK" />
     <model size="1" cost="12" />
     <desirability>
         <value value="0" />
@@ -9,8 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="15" text_key="building.roadblock.name" />
-    <event_data attr="roadblock" />
+    <event_data attr="roadblock" />
     <roadblock kind="standard" />
     <flags fire_proof="1" />
     <labor>

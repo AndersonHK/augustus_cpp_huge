@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="ship_bridge">
-    <identity name_key="building.ship_bridge.name" />
+    <identity name_key="main_strings.28.83" />
     <model size="1" cost="100" />
     <desirability>
         <value value="0" />

@@ -524,7 +524,7 @@ void window_building_draw_depot_foreground(building_info_context *c)
     button_border_draw(x_offset + depot_order_buttons[1].x, y_offset + depot_order_buttons[1].y,
         depot_order_buttons[1].width, depot_order_buttons[1].height, focus_border);
     if (src->storage_id) {
-        text_draw_label_and_number_centered(lang_get_string(current_string_key(28, src->type)),
+        text_draw_label_and_number_centered(lang_get_building_type_string(src->type),
             src->storage_id, "", x_offset + depot_order_buttons[1].x, y_offset + depot_order_buttons[1].y + 6,
             depot_order_buttons[1].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         button_border_draw(x_offset + depot_order_buttons[5].x, y_offset + depot_order_buttons[5].y,
@@ -549,7 +549,7 @@ void window_building_draw_depot_foreground(building_info_context *c)
         depot_order_buttons[2].width, depot_order_buttons[2].height,
         data.focus_button_id == 3 && total_storages() > 1);
     if (dst->storage_id) {
-        text_draw_label_and_number_centered(lang_get_string(current_string_key(28, dst->type)),
+        text_draw_label_and_number_centered(lang_get_building_type_string(dst->type),
             dst->storage_id, "", x_offset + depot_order_buttons[2].x, y_offset + depot_order_buttons[2].y + 6,
             depot_order_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         button_border_draw(x_offset + depot_order_buttons[6].x, y_offset + depot_order_buttons[6].y,
@@ -702,7 +702,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             button_border_draw(c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows, base_width,
                 22, data.storage_building_focus_button_id == drawn_rows + 1);
             text_draw_label_and_number_centered(
-                lang_get_string(current_string_key(28, bld->type)), bld->storage_id, "", c->x_offset + 18 + BLOCK_SIZE * 2,
+                lang_get_building_type_string(bld->type), bld->storage_id, "", c->x_offset + 18 + BLOCK_SIZE * 2,
                 y_offset + 52 + ROW_HEIGHT * drawn_rows, base_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
             // Right button - view storage
@@ -767,7 +767,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             // Middle button - select storage (disabled for inactive storages)
             button_border_draw(c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
                 base_width, 22, 0);
-            text_draw_label_and_number_centered(lang_get_string(current_string_key(28, bld->type)), bld->storage_id, "",
+            text_draw_label_and_number_centered(lang_get_building_type_string(bld->type), bld->storage_id, "",
                 c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 52 + ROW_HEIGHT * drawn_rows, base_width,
                 FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_FONT_LIGHT_GRAY);
 

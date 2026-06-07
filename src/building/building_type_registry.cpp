@@ -498,6 +498,12 @@ extern "C" int building_type_registry_has_housing(building_type type)
     return definition && definition->has_housing() ? 1 : 0;
 }
 
+extern "C" int building_type_registry_is_vacant_lot(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_vacant_lot() ? 1 : 0;
+}
+
 extern "C" const model_house *building_type_registry_get_housing_model(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
@@ -566,6 +572,9 @@ extern "C" building_type building_type_registry_get_housing_type_for_level(int l
         if (!definition || !definition->has_housing() || definition->housing_type() != housing_type) {
             continue;
         }
+        if (definition->is_vacant_lot()) {
+            continue;
+        }
         const int size = definition->has_model() && definition->model().has_size() ? definition->model().size() : 1;
         if (size == footprint_size) {
             return definition->type();
@@ -601,6 +610,23 @@ extern "C" building_type building_type_registry_get_housing_transition(building_
 
 extern "C" building_type building_type_registry_get_vacant_lot_fill_type(void)
 {
+    building_type vacant_lot = building_type_registry_impl::runtime_id_from_text("vacant_lot");
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(vacant_lot);
+    if (definition && definition->is_vacant_lot()) {
+        return vacant_lot;
+    }
+    return building_type_registry_get_vacant_lot_occupancy_type();
+}
+
+extern "C" building_type building_type_registry_get_vacant_lot_occupancy_type(void)
+{
+    building_type vacant_lot = building_type_registry_impl::runtime_id_from_text("vacant_lot");
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(vacant_lot);
+    if (definition && definition->is_vacant_lot() && definition->vacant_lot_fill_type() != BUILDING_NONE) {
+        return definition->vacant_lot_fill_type();
+    }
     const int first_level = building_type_registry_impl::housing_type_level_at(0);
     return first_level < 0 ? BUILDING_NONE : building_type_registry_get_housing_type_for_level(first_level, 1);
 }

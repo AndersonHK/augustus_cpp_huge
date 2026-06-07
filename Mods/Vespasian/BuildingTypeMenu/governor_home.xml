@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="governor_home">
-    <identity name_key="building.governor_home.name" />
+    <identity name_key="TR_BUILDING_MENU_GOV_RES" />
     <button group="administration" order="500" text_key="TR_BUILDING_MENU_GOV_RES" />
     <event_data attr="governor_home|all_governors_houses" />
 </building>

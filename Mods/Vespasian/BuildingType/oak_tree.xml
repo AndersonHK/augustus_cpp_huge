@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="oak_tree">
-    <identity name_key="building.oak_tree.name" />
+    <identity name_key="TR_BUILDING_OAK_TREE" />
     <model size="1" cost="12" />
     <desirability>
         <value value="3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="trees" order="30" text_key="building.oak_tree.name" />
+    <button group="trees" order="30" text_key="TR_BUILDING_OAK_TREE" />
     <event_data attr="oak_tree" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

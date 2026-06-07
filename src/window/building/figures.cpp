@@ -491,25 +491,25 @@ static void draw_cartpusher(building_info_context *c, figure *f)
         } else {
             if (is_returning) {
                 width = lang_text_draw("main_strings.129.16", x_base, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height)); //returning to
-                width += lang_text_draw(current_string_key(41, source_building->type), x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height)); //type
+                width += text_draw(lang_get_building_type_string(source_building->type), x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0); //type
                 if (source_building->storage_id) {
                     width += text_draw_number(source_building->storage_id, 0, "", x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), COLOR_MASK_NONE); //from number
                 }
                 width += lang_text_draw("main_strings.129.14", x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
                 if (last_destination_building) {
-                    width += lang_text_draw(current_string_key(41, last_destination_building->type), x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+                    width += text_draw(lang_get_building_type_string(last_destination_building->type), x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
                     if (last_destination_building->storage_id) {
                         width += text_draw_number(last_destination_building->storage_id, 0, "", x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), COLOR_MASK_NONE); //from number
                     }
                 }
             } else {
                 width = lang_text_draw("main_strings.129.15", x_base, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height)); //going to
-                width += lang_text_draw(current_string_key(41, target_building->type), x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+                width += text_draw(lang_get_building_type_string(target_building->type), x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
                 if (target_building->storage_id) {
                     width += text_draw_number(target_building->storage_id, 0, "", x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), COLOR_MASK_NONE); //from number
                 }
                 width += lang_text_draw("main_strings.129.14", x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height)); //from
-                width += lang_text_draw(current_string_key(41, source_building->type), x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+                width += text_draw(lang_get_building_type_string(source_building->type), x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
                 if (source_building->storage_id) {
                     width += text_draw_number(source_building->storage_id, 0, "", x_base + width, y_base, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), COLOR_MASK_NONE); //from number
                 }
@@ -559,7 +559,7 @@ static void draw_depot_cartpusher(building_info_context *c, figure *f)
         y_offset = 16;
         width = text_draw(translation_for_key("TR_FIGURE_INFO_DEPOT_FROM"), c->x_offset + 40, c->y_offset + 200 + y_offset,
             FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
-        width += text_draw_label_and_number(lang_get_string(current_string_key(28, source->type)),
+        width += text_draw_label_and_number(lang_get_building_type_string(source->type),
             source->storage_id, "",
             c->x_offset + 40 + width, c->y_offset + 200 + y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     } else {
@@ -567,7 +567,7 @@ static void draw_depot_cartpusher(building_info_context *c, figure *f)
     }
     width += text_draw(translation_for_key("TR_FIGURE_INFO_DEPOT_TO"),
         c->x_offset + 40 + width, c->y_offset + 200 + y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
-    text_draw_label_and_number(lang_get_string(current_string_key(28, destination->type)),
+    text_draw_label_and_number(lang_get_building_type_string(destination->type),
         destination->storage_id, "",
         c->x_offset + 40 + width, c->y_offset + 200 + y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
 }

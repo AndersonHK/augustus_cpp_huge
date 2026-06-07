@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="parks">
-    <identity name_key="building.parks.name" />
+    <identity name_key="TR_BUILDING_MENU_PARKS" />
     <button group="administration" order="300" text_key="TR_BUILDING_MENU_PARKS" />
     <event_data attr="parks|all_parks" />
 </building>

@@ -2643,6 +2643,35 @@ static int parse_housing()
     return 1;
 }
 
+static int parse_vacant_lot()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered vacant_lot definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_vacant_lot) {
+        log_error("BuildingType xml contains duplicate vacant_lot nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("fill_to")) {
+        log_error("BuildingType vacant_lot is missing required attribute 'fill_to'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    std::string fill_to = xml_value::trim_copy(xml_parser_get_attribute_string("fill_to"));
+    if (fill_to.empty()) {
+        log_error("Unsupported BuildingType vacant_lot fill_to", xml_parser_get_attribute_string("fill_to"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.definition->set_vacant_lot_fill_reference(std::move(fill_to));
+    g_parse_state.saw_vacant_lot = 1;
+    return 1;
+}
+
 static int parse_spawn_group()
 {
     if (!g_parse_state.definition) {
@@ -2977,6 +3006,7 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "production_method", parse_production_method_reference, nullptr, "production_methods", nullptr },
     { "distribution", parse_distribution, nullptr, "building", nullptr },
     { "housing", parse_housing, nullptr, "building", nullptr },
+    { "vacant_lot", parse_vacant_lot, nullptr, "building", nullptr },
     { "spawn_group", parse_spawn_group, nullptr, "building", nullptr },
     { "spawn", parse_spawn, nullptr, "spawn_group", nullptr }
 };
@@ -3368,7 +3398,8 @@ static int parse_definition_buffer(const char *filename, std::vector<char> &buff
         g_parse_state.saw_market || g_parse_state.saw_flags || g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
         g_parse_state.saw_construction || g_parse_state.saw_spawn ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods || g_parse_state.saw_distribution ||
-        g_parse_state.saw_housing || g_parse_state.saw_labor || g_parse_state.saw_provider_water_access;
+        g_parse_state.saw_housing || g_parse_state.saw_vacant_lot ||
+        g_parse_state.saw_labor || g_parse_state.saw_provider_water_access;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
         !has_supported_node) {
         if (!has_supported_node) {
@@ -3416,6 +3447,35 @@ static int resolve_housing_transition(BuildingType &definition, HousingTransitio
     return 1;
 }
 
+static int resolve_vacant_lot_fill_type(BuildingType &definition)
+{
+    const std::string &text_id = definition.vacant_lot_fill_reference();
+    if (text_id.empty()) {
+        return 1;
+    }
+
+    building_type target = runtime_id_from_text(text_id.c_str());
+    if (target == BUILDING_NONE) {
+        target = find_building_type_by_attr(text_id.c_str());
+        if (target == BUILDING_NONE) {
+            target = find_legacy_building_type_by_event_attr(text_id.c_str());
+        }
+    }
+
+    const BuildingType *target_definition = definition_for_type(target);
+    if (target == BUILDING_NONE || !target_definition || !target_definition->has_housing() ||
+        target_definition->model().size() != 1) {
+        char detail[512];
+        snprintf(detail, sizeof(detail), "building=%s fill_to=%s",
+            definition.attr(), text_id.c_str());
+        error_context_report_error("BuildingType vacant_lot fill target does not exist.", detail);
+        return 0;
+    }
+
+    definition.set_vacant_lot_fill_type(target);
+    return 1;
+}
+
 static int resolve_housing_transitions()
 {
     ErrorContextScope error_scope("building_type_registry.resolve_housing_transitions");
@@ -3432,9 +3492,24 @@ static int resolve_housing_transitions()
         }
     }
 
-    const int first_housing_level = housing_type_level_at(0);
-    building_type vacant_lot_target =
-        first_housing_level < 0 ? BUILDING_NONE : building_type_registry_get_housing_type_for_level(first_housing_level, 1);
+    int saw_vacant_lot = 0;
+    for (std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition || !definition->is_vacant_lot()) {
+            continue;
+        }
+        if (saw_vacant_lot) {
+            error_context_report_error(
+                "BuildingType contains more than one vacant_lot definition.",
+                definition->attr());
+            return 0;
+        }
+        saw_vacant_lot = 1;
+        if (!resolve_vacant_lot_fill_type(*definition)) {
+            return 0;
+        }
+    }
+
+    building_type vacant_lot_target = building_type_registry_get_vacant_lot_occupancy_type();
     const BuildingType *target_definition = definition_for_type(vacant_lot_target);
     if (vacant_lot_target == BUILDING_NONE || !target_definition || !target_definition->has_housing() ||
         target_definition->model().size() != 1) {

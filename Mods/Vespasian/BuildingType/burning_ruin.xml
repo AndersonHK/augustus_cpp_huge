@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="burning_ruin">
-    <identity name_key="building.burning_ruin.name" />
+    <identity name_key="main_strings.28.99" />
     <model size="1" cost="0" />
     <desirability>
         <value value="-1" />

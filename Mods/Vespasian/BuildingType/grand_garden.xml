@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="grand_garden">
-    <identity name_key="building.grand_garden.name" />
+    <identity name_key="TR_BUILDING_GRAND_GARDEN" />
     <model size="2" cost="400" />
     <desirability>
         <value value="0" />
@@ -9,7 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="90" text_key="building.grand_garden.name" />
+    <button group="parks" order="90" text_key="TR_BUILDING_GRAND_GARDEN" />
     <event_data attr="grand_garden" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <labor>

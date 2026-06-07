@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="granary">
-    <identity name_key="building.granary.name" />
+    <identity name_key="main_strings.28.71" />
     <model size="3" cost="100" />
     <desirability>
         <value value="-4" />
@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="industry" order="20" text_key="building.granary.name" />
+    <button group="industry" order="20" text_key="main_strings.28.71" />
     <event_data attr="granary" />
     <roadblock kind="storage" />
     <labor>

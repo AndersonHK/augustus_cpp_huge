@@ -599,12 +599,14 @@ public:
     void set_housing_reference(std::string path);
     void set_housing_capacity(int capacity);
     void set_housing_transition(HousingTransitionKind kind, std::string text_id);
+    void set_vacant_lot_fill_reference(std::string text_id);
     void add_storage_type(const StorageType *storage_type);
     void add_production_method(ProductionMethod *production_method);
     void set_distribution(const Distribution *distribution);
     void set_housing_type(const HousingType *housing_type);
     void set_temple_religion(const Religion *religion);
     void set_housing_transition_type(HousingTransitionKind kind, building_type type);
+    void set_vacant_lot_fill_type(building_type type);
 
     building_type type() const;
     const char *attr() const;
@@ -674,6 +676,7 @@ public:
     const std::vector<std::string> &production_method_reference_paths() const;
     const std::string &distribution_reference_path() const;
     const std::string &housing_reference_path() const;
+    const std::string &vacant_lot_fill_reference() const;
     const std::string &temple_religion_reference_path() const;
     int housing_capacity() const;
     const std::string &housing_transition_reference(HousingTransitionKind kind) const;
@@ -682,10 +685,12 @@ public:
     const Distribution *distribution() const;
     const HousingType *housing_type() const;
     building_type housing_transition_type(HousingTransitionKind kind) const;
+    building_type vacant_lot_fill_type() const;
     int has_native_storage() const;
     int has_native_production() const;
     int has_distribution() const;
     int has_housing() const;
+    int is_vacant_lot() const;
     unsigned char upgrade_level_for(const Building &building) const;
 
 private:
@@ -717,6 +722,7 @@ private:
     std::string housing_devolve_to_;
     std::string housing_merge_to_;
     std::string housing_split_to_;
+    std::string vacant_lot_fill_to_;
     std::vector<const StorageType *> storage_types_;
     std::vector<ProductionMethod *> production_methods_;
     const Distribution *distribution_ = nullptr;
@@ -725,6 +731,7 @@ private:
     building_type housing_devolve_to_type_ = BUILDING_NONE;
     building_type housing_merge_to_type_ = BUILDING_NONE;
     building_type housing_split_to_type_ = BUILDING_NONE;
+    building_type vacant_lot_fill_type_ = BUILDING_NONE;
 };
 
 } // namespace building_type_registry_impl

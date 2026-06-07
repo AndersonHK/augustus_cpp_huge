@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="barracks">
-    <identity name_key="building.barracks.name" />
+    <identity name_key="main_strings.28.95" />
     <model size="3" cost="150" />
     <desirability>
         <value value="-6" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="50" text_key="building.barracks.name" />
+    <button group="security" order="50" text_key="main_strings.28.95" />
     <event_data attr="barracks" />
     <flags draw_desirability_range="1" />
     <labor>

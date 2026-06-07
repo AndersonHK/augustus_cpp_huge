@@ -59,6 +59,7 @@ Current supported nodes:
 - `<storages> ... </storages>`
 - `<production_methods> ... </production_methods>`
 - `<housing ... />`
+- `<vacant_lot ... />`
 - `<spawn_group ...>`
 - `<spawn ... />`
 
@@ -93,7 +94,7 @@ Small building example:
 
 ```xml
 <building type="barber">
-    <identity name_key="building.barber.name" />
+    <identity name_key="main_strings.28.49" />
     <model size="1" cost="25" />
     <desirability>
         <value value="2" />
@@ -102,7 +103,7 @@ Small building example:
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="health" order="40" icon="barber" text_key="building.barber.name" />
+    <button group="health" order="40" icon="barber" text_key="main_strings.28.49" />
     <sound id="barber" />
     <event_data attr="barber" />
     <labor>
@@ -138,6 +139,8 @@ Current supported `<button>` attributes:
 - `text_key="..."` optionally overrides the button text key; otherwise generated UI can use `<identity name_key="...">`
 
 `<menu>` is accepted as a temporary alias for `<button>` only during this migration slice. Prefer `<button>` in new XML.
+
+Roads, highways, roadblocks, and bridges are smart-tool special cases. They must not declare `<button>` nodes because the tool-mode sidebar owns those buttons directly.
 
 Current supported `<roadblock>` attributes:
 
@@ -397,12 +400,18 @@ Current supported `<housing>` attributes:
 - `capacity="N"` is required and stores the complete building's residential capacity
 - `evolve_to="..."`, `devolve_to="..."`, `merge_to="..."`, and `split_to="..."` are optional BuildingType text-id transitions
 
+Current supported `<vacant_lot>` attributes:
+
+- `fill_to="..."` references the BuildingType that an empty vacant lot becomes when residents first enter
+
 Housing rules:
 
 - Footprint remains on BuildingType via `<model size="N" />`
 - Residential capacity is a whole-building BuildingType value; do not derive it from tile count
 - Residential requirements, tax multiplier, prosperity, and resident class live in the referenced HousingType
 - Any non-empty transition target must resolve to an existing BuildingType during load
+- Vacant lots are declared as their own BuildingType with normal level-0 `<housing ... />` data and a `<vacant_lot fill_to="house_small_tent" />` node; do not assign the vacant-house tool directly to `house_small_tent`
+- Vacant lots are direct-tool special cases and should not declare generated buttons
 - Native housing BuildingTypes use their string ids directly; the compatibility layer maps those ids to legacy `house_level` values only where old runtime fields still need a level
 - Vespasian, Augustus, and Julius native house chains include every legacy level through `house_luxury_palace`; 1x1 levels define explicit `_2x2` merged BuildingTypes so save/load and evolution can choose by string id plus footprint.
 

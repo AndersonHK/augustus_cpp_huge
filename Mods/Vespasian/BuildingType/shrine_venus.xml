@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="shrine_venus">
-    <identity name_key="building.shrine_venus.name" />
+    <identity name_key="TR_BUILDING_SHRINE_VENUS" />
     <temple religion="shrine_venus" />
     <model size="1" cost="45" />
     <desirability>
@@ -10,7 +10,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="shrines" order="50" text_key="building.shrine_venus.name" />
+    <button group="shrines" order="50" text_key="TR_BUILDING_SHRINE_VENUS" />
     <event_data attr="shrine_venus" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />
     <graphics>

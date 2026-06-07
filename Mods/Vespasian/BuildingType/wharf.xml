@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="wharf">
-    <identity name_key="building.wharf.name" />
+    <identity name_key="main_strings.28.76" />
     <model size="2" cost="60" />
     <desirability>
         <value value="-8" />
@@ -11,7 +11,7 @@
     <foundation policy="custom">
         <terrain value="water" />
     </foundation>
-    <button group="water_crossings" order="40" icon="Industry\Wharf" text_key="building.wharf.name" />
+    <button group="water_crossings" order="40" icon="Industry\Wharf" text_key="main_strings.28.76" />
     <sound id="wharf" />
     <event_data attr="wharf" />
     <graphics>

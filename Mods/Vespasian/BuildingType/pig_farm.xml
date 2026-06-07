@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="pig_farm">
-    <identity name_key="building.pig_farm.name" />
+    <identity name_key="main_strings.28.105" />
     <model size="3" cost="40" />
     <desirability>
         <value value="-2" />
@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="farms" order="60" icon="Industry\Farm_House" text_key="building.pig_farm.name" />
+    <button group="farms" order="60" icon="Industry\Farm_House" text_key="main_strings.28.105" />
     <sound id="pig_farm" />
     <event_data attr="pig_farm" />
     <graphics>

@@ -26,6 +26,7 @@ struct LegacyBuildingTypeTextId {
 };
 
 constexpr LegacyBuildingTypeTextId XML_OWNED_BUILDING_TYPE_IDS[] = {
+    {10, "vacant_lot"},
     {52, "academy"},
     {36, "actor_colony"},
     {30, "amphitheater"},

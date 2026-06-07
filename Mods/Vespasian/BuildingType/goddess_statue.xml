@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="goddess_statue">
-    <identity name_key="building.goddess_statue.name" />
+    <identity name_key="TR_BUILDING_SMALL_STATUE_ALT" />
     <model size="1" cost="12" />
     <desirability>
         <value value="3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="50" text_key="building.goddess_statue.name" />
+    <button group="statues" order="50" text_key="TR_BUILDING_SMALL_STATUE_ALT" />
     <event_data attr="goddess_statue|small_statue_alt" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="reservoir">
-    <identity name_key="building.reservoir.name" />
+    <identity name_key="main_strings.28.90" />
     <model size="3" cost="80" />
     <desirability>
         <value value="-6" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="water" order="10" icon="Admin_Logistics\Reservoir" text_key="building.reservoir.name" />
+    <button group="water" order="10" icon="Admin_Logistics\Reservoir" text_key="main_strings.28.90" />
     <sound id="reservoir" />
     <event_data attr="reservoir" />
     <flags fire_proof="1" />

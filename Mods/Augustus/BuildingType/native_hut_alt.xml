@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="native_hut_alt">
-    <identity name_key="building.native_hut_alt.name" />
+    <identity name_key="TR_BUILDING_NATIVE_HUT_ALT" />
     <model size="1" cost="50" />
     <desirability>
         <value value="0" />

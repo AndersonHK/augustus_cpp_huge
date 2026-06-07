@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="palisade">
-    <identity name_key="building.palisade.name" />
+    <identity name_key="TR_BUILDING_PALISADE" />
     <model size="1" cost="6" />
     <desirability>
         <value value="0" />
@@ -9,7 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="150" text_key="building.palisade.name" />
+    <button group="security" order="150" text_key="TR_BUILDING_PALISADE" />
     <event_data attr="palisade" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <graphics>

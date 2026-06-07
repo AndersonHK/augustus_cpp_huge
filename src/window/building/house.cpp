@@ -270,7 +270,7 @@ void window_building_draw_house(building_info_context *c)
             c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else if (b->data.house.evolve_text_id == 62) {
         int width = lang_text_draw(current_string_key(127, 40 + b->data.house.evolve_text_id), c->x_offset + 32, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        width += lang_text_draw_colored(current_string_key(41, c->worst_desirability_building_type), c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_FONT_RED);
+        width += text_draw(lang_get_building_type_string(c->worst_desirability_building_type), c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_FONT_RED);
         text_draw((uint8_t *) ")", c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         lang_text_draw_multiline(current_string_key(127, 41 + b->data.house.evolve_text_id), c->x_offset + 32, c->y_offset + 72, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else if (b->data.house.evolve_text_id == 67) { // latrine devolve

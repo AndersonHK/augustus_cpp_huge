@@ -278,7 +278,7 @@ void window_building_draw_burning_ruin(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.111.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw(current_string_key(41, building_get(c->rubble_building_id)->type), c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw(lang_get_building_type_string(building_get(c->rubble_building_id)->type), c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     lang_text_draw_multiline("main_strings.111.1", c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 143, BLOCK_SIZE * (c->width_blocks - 4), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
@@ -341,9 +341,9 @@ void window_building_draw_rubble(building_info_context *c)
         init_repair_building_button(c);
         complex_button_draw(repair_building_button);
     }
-    int cursor = lang_text_draw(current_string_key(41, type), c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int cursor = text_draw(lang_get_building_type_string(type), c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     if (is_burning_ruins && type) { // show original building type if it's burning ruins
-        cursor += lang_text_draw(current_string_key(41, type), c->x_offset + 32 + cursor, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+        cursor += text_draw(lang_get_building_type_string(type), c->x_offset + 32 + cursor, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height), 0);
     }
     lang_text_draw_multiline("main_strings.140.1", c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 143, BLOCK_SIZE * (c->width_blocks - 4), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }

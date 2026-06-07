@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="horse_statue">
-    <identity name_key="building.horse_statue.name" />
+    <identity name_key="TR_BUILDING_HORSE_STATUE" />
     <model size="3" cost="150" />
     <desirability>
         <value value="14" />
@@ -9,7 +9,7 @@
         <range value="5" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="80" text_key="building.horse_statue.name" />
+    <button group="statues" order="80" text_key="TR_BUILDING_HORSE_STATUE" />
     <event_data attr="horse_statue" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

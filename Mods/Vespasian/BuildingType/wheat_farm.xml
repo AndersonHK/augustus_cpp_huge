@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="wheat_farm">
-    <identity name_key="building.wheat_farm.name" />
+    <identity name_key="main_strings.28.100" />
     <model size="3" cost="40" />
     <desirability>
         <value value="-2" />
@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="farms" order="10" icon="Industry\Farm_House" text_key="building.wheat_farm.name" />
+    <button group="farms" order="10" icon="Industry\Farm_House" text_key="main_strings.28.100" />
     <sound id="wheat_farm" />
     <event_data attr="wheat_farm" />
     <graphics>

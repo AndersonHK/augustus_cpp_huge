@@ -360,7 +360,7 @@ static void draw_city_message_text(const lang_message *msg)
                 lang_text_draw_amount(current_string_amount_key(8, 0, player_message.param1), player_message.param1, data.x + 240, data.y_text + 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             } else {
                 // param1 = building type
-                lang_text_draw(current_string_key(41, player_message.param1), data.x + 240, data.y_text + 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+                text_draw(lang_get_building_type_string(player_message.param1), data.x + 240, data.y_text + 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
             }
         } else {
             width += lang_text_draw("main_strings.63.5", data.x_text + width + 60, data.y_text + 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));

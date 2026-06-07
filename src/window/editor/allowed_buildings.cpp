@@ -180,7 +180,7 @@ static void draw_allowed_building(const grid_box_item *item)
     } else if (current_menu->type == ITEM_TYPE_MENU) {
         if (building_menu_is_submenu(current_menu->menu)) {
             int width = text_draw(string_from_ascii(" -"), item->x + 4, item->y + 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-            width += lang_text_draw(current_string_key(28, current_menu->building), item->x + 4 + width, item->y + 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            width += text_draw(lang_get_building_type_string(current_menu->building), item->x + 4 + width, item->y + 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             text_draw(string_from_ascii(":"), item->x + 4 + width - 6, item->y + 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
             if (current_menu->building == BUILDING_NONE) {

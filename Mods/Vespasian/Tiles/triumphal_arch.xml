@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="triumphal_arch">
-    <identity name_key="building.triumphal_arch.name" />
+    <identity name_key="main_strings.28.56" />
     <model size="3" cost="0" />
     <desirability>
         <value value="18" />
@@ -9,7 +9,7 @@
         <range value="5" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="40" text_key="building.triumphal_arch.name" />
+    <button group="statues" order="40" text_key="main_strings.28.56" />
     <event_data attr="triumphal_arch" />
     <roadblock kind="standard" />
     <flags fire_proof="1" />

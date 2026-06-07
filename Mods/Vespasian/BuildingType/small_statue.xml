@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="small_statue">
-    <identity name_key="building.small_statue.name" />
+    <identity name_key="main_strings.28.41" />
     <model size="1" cost="12" />
     <desirability>
         <value value="3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="10" text_key="building.small_statue.name" />
+    <button group="statues" order="10" text_key="main_strings.28.41" />
     <event_data attr="small_statue" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <labor>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="pavilion_yellow">
-    <identity name_key="building.pavilion_yellow.name" />
+    <identity name_key="TR_BUILDING_YELLOW_PAVILION" />
     <model size="1" cost="12" />
     <desirability>
         <value value="3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="130" text_key="building.pavilion_yellow.name" />
+    <button group="parks" order="130" text_key="TR_BUILDING_YELLOW_PAVILION" />
     <event_data attr="pavilion_yellow" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

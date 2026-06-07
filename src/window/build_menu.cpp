@@ -363,7 +363,7 @@ const uint8_t *BuildMenuButton::display_name() const
             return display_name;
         }
     }
-    return lang_get_string(current_string_key(28, building));
+    return lang_get_building_type_string(building);
 }
 
 const ImageGroupEntryRef &BuildMenuButton::menu_icon() const

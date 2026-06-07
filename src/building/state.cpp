@@ -386,11 +386,16 @@ static void normalize_native_housing_after_load(building *b)
     if (housing_level < 0) {
         return;
     }
-    if (housing_level == HOUSE_SMALL_TENT && b->house_population <= 0 &&
-        !building_type_registry_has_housing(b->type)) {
+    if (housing_level == HOUSE_SMALL_TENT && b->house_population <= 0) {
+        building_type vacant_lot_type = building_type_registry_get_vacant_lot_fill_type();
+        if (vacant_lot_type != BUILDING_NONE) {
+            b->type = vacant_lot_type;
+            b->subtype.house_level = housing_level;
+            b->size = b->house_size = 1;
+            b->house_is_merged = 0;
+        }
         return;
     }
-
     int footprint_size = b->house_size > 0 ? b->house_size : b->size;
     if (b->house_is_merged && footprint_size < 2) {
         footprint_size = 2;

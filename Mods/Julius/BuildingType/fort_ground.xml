@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="fort_ground">
-    <identity name_key="building.fort_ground.name" />
+    <identity name_key="main_strings.28.54" />
     <model size="4" />
     <foundation policy="land" />
     <event_data attr="fort_ground" />

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="military_academy">
-    <identity name_key="building.military_academy.name" />
+    <identity name_key="main_strings.28.94" />
     <model size="3" cost="1000" />
     <desirability>
         <value value="-3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="60" text_key="building.military_academy.name" />
+    <button group="security" order="60" text_key="main_strings.28.94" />
     <event_data attr="military_academy" />
     <flags draw_desirability_range="1" />
     <labor>

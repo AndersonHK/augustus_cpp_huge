@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="warehouse">
-    <identity name_key="building.warehouse.name" />
+    <identity name_key="main_strings.28.72" />
     <model size="1" cost="70" />
     <desirability>
         <value value="-5" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="industry" order="30" text_key="building.warehouse.name" />
+    <button group="industry" order="30" text_key="main_strings.28.72" />
     <event_data attr="warehouse" />
     <roadblock kind="storage" />
     <flags fire_proof="1" />
