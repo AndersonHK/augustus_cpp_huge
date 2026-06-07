@@ -316,7 +316,7 @@ static int get_column_height_food_stocks(const building *b)
         int stocks = 0;
         for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             const resource_type r = static_cast<resource_type>(resource);
-            if (resource_is_inventory(r)) {
+            if (resource_is_food(r)) {
                 stocks += b->resources[r];
             }
         }
@@ -439,7 +439,7 @@ static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
         int stocks_present = 0;
         for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             const resource_type r = static_cast<resource_type>(resource);
-            if (resource_is_inventory(r)) {
+            if (resource_is_food(r)) {
                 stocks_present += b->resources[r];
             }
         }

@@ -368,7 +368,7 @@ static void draw_temple_info(building_info_context *c, int image_offset)
         const resource_list *list = city_resource_get_potential_foods();
         for (unsigned int i = 0; i < list->size; i++) {
             resource_type r = list->items[i];
-            if (!resource_is_inventory(r) || (list->size > 4 && !b->resources[r])) {
+            if (!resource_is_food(r) || (list->size > 4 && !b->resources[r])) {
                 continue;
             }
             resource_graphics(r).panel_icon().draw(c->x_offset + x_offset, c->y_offset + 60);

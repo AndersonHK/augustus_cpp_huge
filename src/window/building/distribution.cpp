@@ -668,7 +668,7 @@ static int count_food_types_in_stock(building *b)
 
     for (unsigned int i = 0; i < list->size; i++) {
         resource_type r = list->items[i];
-        if (resource_is_inventory(r) && b->resources[r] > 0) {
+        if (resource_is_food(r) && b->resources[r] > 0) {
             count++;
         }
     }
@@ -695,7 +695,7 @@ static void draw_food_stocks(building_info_context *c, building *b, int y_offset
 
     for (unsigned int i = 0; i < list->size; i++) {
         resource_type r = list->items[i];
-        if (!resource_is_inventory(r) || b->resources[r] <= 0) {
+        if (!resource_is_food(r) || b->resources[r] <= 0) {
             continue;
         }
         if (food_type_index > 0 && (food_type_index % 5) == 0) {
@@ -716,7 +716,7 @@ static void draw_good_stocks(building_info_context *c, building *b, int y_offset
     int x_offset = 32;
     for (int resource_id = (RESOURCE_NONE + 1); resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
         resource_type r = resource_from_int(resource_id);
-        if (!resource_is_inventory(r)) {
+        if (!resource_is_inventory_good(r)) {
             continue;
         }
         font_t font = Building(b).accepts_good(r) ? FONT_NORMAL_BLACK : FONT_NORMAL_RED;

@@ -58,6 +58,7 @@ void resource_init(void);
 int resource_is_food(resource_type resource);
 int resource_is_raw_material(resource_type resource);
 int resource_is_inventory(resource_type resource);
+int resource_is_inventory_good(resource_type resource);
 int resource_is_storable(resource_type resource);
 int resource_is_special(resource_type resource);
 int resource_is_declared(resource_type resource);

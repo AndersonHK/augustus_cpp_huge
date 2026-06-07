@@ -201,7 +201,7 @@ void window_building_draw_house(building_info_context *c)
         if (list->size > 4) {
             for (unsigned int i = 0; i < list->size; i++) {
                 resource_type r = list->items[i];
-                if (resource_is_inventory(r) && b->resources[r]) {
+                if (resource_is_food(r) && b->resources[r]) {
                     total_food_types++;
                     total_food_amount += b->resources[r];
                 }
@@ -216,7 +216,7 @@ void window_building_draw_house(building_info_context *c)
                 FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             for (unsigned int i = 0; i < list->size; i++) {
                 resource_type r = list->items[i];
-                if (!resource_is_inventory(r) || !b->resources[r]) {
+                if (!resource_is_food(r) || !b->resources[r]) {
                     continue;
                 }
                 const ImageGroupEntryRef &icon = resource_graphics(r).panel_icon();
@@ -230,7 +230,7 @@ void window_building_draw_house(building_info_context *c)
         } else {
             for (unsigned int i = 0; i < list->size; i++) {
                 resource_type r = list->items[i];
-                if (!resource_is_inventory(r) || (list->size > 4 && !b->resources[r])) {
+                if (!resource_is_food(r) || (list->size > 4 && !b->resources[r])) {
                     continue;
                 }
                 const ImageGroupEntryRef &icon = resource_graphics(r).panel_icon();
@@ -253,7 +253,7 @@ void window_building_draw_house(building_info_context *c)
 
     for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
         const resource_type r = static_cast<resource_type>(resource);
-        if (!resource_is_inventory(r)) {
+        if (!resource_is_inventory_good(r)) {
             continue;
         }
         const ImageGroupEntryRef &icon = resource_graphics(r).panel_icon();
@@ -308,7 +308,7 @@ const uint8_t *window_building_house_get_tooltip(const building_info_context *c)
     if (list->size > 4) {
         for (unsigned int i = 0; i < list->size; i++) {
             resource_type r = list->items[i];
-            if (resource_is_inventory(r) && b->resources[r]) {
+            if (resource_is_food(r) && b->resources[r]) {
                 total_food_types++;
             }
         }
@@ -320,7 +320,7 @@ const uint8_t *window_building_house_get_tooltip(const building_info_context *c)
     uint8_t *cursor = text;
     for (unsigned int i = 0; i < list->size; i++) {
         resource_type r = list->items[i];
-        if (resource_is_inventory(r) && b->resources[r]) {
+        if (resource_is_food(r) && b->resources[r]) {
             if (cursor != text) {
                 cursor = string_copy(string_from_ascii("\n"), cursor, 400 - (cursor - text));
             }

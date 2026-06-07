@@ -453,7 +453,7 @@ static void distribute_market_resources(building *b, building *market)
     int max_food_stocks = 4 * b->house_highest_population;
     int food_types_stored_max = 0;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = next_resource(r)) {
-        if (!resource_is_inventory(r)) {
+        if (!resource_is_food(r)) {
             continue;
         }
         if (b->resources[r] >= max_food_stocks) {
@@ -463,7 +463,7 @@ static void distribute_market_resources(building *b, building *market)
     const model_house *model = house_evolution_target_model(b);
     if (model->food_types) {
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = next_resource(r)) {
-            if (!resource_is_inventory(r) || b->resources[r] >= max_food_stocks ||
+            if (!resource_is_food(r) || b->resources[r] >= max_food_stocks ||
                 !Building(market).accepts_good(r)) {
                 continue;
             }

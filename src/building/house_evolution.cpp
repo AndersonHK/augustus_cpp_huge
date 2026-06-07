@@ -199,7 +199,7 @@ static int has_required_goods_and_services(building *house, int for_upgrade, int
     int foodtypes_required = model->food_types;
     int foodtypes_available = 0;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (house->resources[r] && resource_is_inventory(r)) {
+        if (house->resources[r] && resource_is_food(r)) {
             foodtypes_available++;
         }
     }
@@ -341,7 +341,7 @@ static void consume_resources(building *b)
 
     const model_house *model = model_for_house(Building(b));
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (!resource_is_inventory(r)) {
+        if (!resource_is_inventory_good(r)) {
             continue;
         }
         if (!consumption_reduction[r] ||
@@ -461,7 +461,7 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
     int foodtypes_required = model->food_types;
     int foodtypes_available = 0;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (house->resources[r] && resource_is_inventory(r)) {
+        if (house->resources[r] && resource_is_food(r)) {
             foodtypes_available++;
         }
     }

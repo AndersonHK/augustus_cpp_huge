@@ -40,7 +40,7 @@ static void draw_housing_table(void)
     resource_list list = { 0 };
     for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
         resource_type r = static_cast<resource_type>(resource);
-        if (resource_is_inventory(r)) {
+        if (resource_is_inventory_good(r)) {
             list.items[list.size++] = r;
         }
     }

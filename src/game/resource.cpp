@@ -464,6 +464,11 @@ int resource_is_inventory(resource_type resource)
     return data && (data->flags & RESOURCE_FLAG_INVENTORY) == RESOURCE_FLAG_INVENTORY;
 }
 
+int resource_is_inventory_good(resource_type resource)
+{
+    return resource_is_inventory(resource) && !resource_is_food(resource);
+}
+
 int resource_is_storable(resource_type resource)
 {
     resource_data *data = resource_get_data(resource);
