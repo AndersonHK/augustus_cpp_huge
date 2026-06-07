@@ -41,9 +41,12 @@ extern "C" {
 #define MENU_X_OFFSET 298
 #define MENU_Y_OFFSET 110
 #define MENU_ITEM_HEIGHT 24
+#define MENU_LABEL_BLOCKS 18
 #define MENU_ITEM_WIDTH 290
 #define MENU_CLICK_MARGIN 20
 #define MENU_TEXT_X_OFFSET 8
+// Center build labels on the visible button rectangle; the retained hit box is wider than the label art.
+#define MENU_TEXT_CENTER_X_OFFSET -5
 
 #define MENU_RESOURCE_ICON_SIZE 16
 
@@ -412,16 +415,16 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
     int item_y = data.y_offset + MENU_Y_OFFSET + static_cast<int>(MENU_ITEM_HEIGHT * display_index);
     int menu_index = shortcut_index();
 
-    label_draw(item_x_align, item_y, 18, focused ? 1 : 2);
+    label_draw(item_x_align, item_y, MENU_LABEL_BLOCKS, focused ? 1 : 2);
 
     if (is_auto_cycle()) {
         if (menu_index > 0) {
             text_draw_build_menu_with_index(display_name(), menu_index % 10,
-                item_x_align, item_y + 4,
+                item_x_align + MENU_TEXT_CENTER_X_OFFSET, item_y + 4,
                 MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         } else {
             text_draw_centered(display_name(),
-                item_x_align, item_y + 4,
+                item_x_align + MENU_TEXT_CENTER_X_OFFSET, item_y + 4,
                 MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         }
         lang_text_draw_centered(current_string_key(18, 5 - building_construction_is_auto_cycling()), x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4, MENU_ITEM_MONEY_OFFSET, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
@@ -438,10 +441,10 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
     int build_cost = cost();
     if (menu_index > 0) {
         text_draw_build_menu_with_index(display_name(), menu_index % 10,
-            item_x_align, item_y + 4,
+            item_x_align + MENU_TEXT_CENTER_X_OFFSET, item_y + 4,
             MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else {
-        text_draw_centered(display_name(), item_x_align, item_y + 4,
+        text_draw_centered(display_name(), item_x_align + MENU_TEXT_CENTER_X_OFFSET, item_y + 4,
             MENU_ITEM_WIDTH, FONT_NORMAL_GREEN,
             screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
