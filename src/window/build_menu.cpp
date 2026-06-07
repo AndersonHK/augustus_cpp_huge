@@ -23,6 +23,7 @@ extern "C" {
 #include "city/view.h"
 #include "core/config.h"
 #include "core/image.h"
+#include "core/locale.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
@@ -40,7 +41,7 @@ extern "C" {
 #define MENU_X_OFFSET 298
 #define MENU_Y_OFFSET 110
 #define MENU_ITEM_HEIGHT 24
-#define MENU_ITEM_WIDTH 208
+#define MENU_ITEM_WIDTH 290
 #define MENU_CLICK_MARGIN 20
 #define MENU_TEXT_X_OFFSET 8
 
@@ -50,7 +51,6 @@ extern "C" {
 #define MENU_ICON_X_OFFSET 3
 #define MENU_ICON_Y_OFFSET 3
 #define MENU_ITEM_MONEY_OFFSET 88
-#define MENU_EXPANDER_TEXT_WIDTH 260
 
 #define TOOLTIP_TEXT_LENGTH 1000
 
@@ -142,7 +142,7 @@ void BuildMenuButton::bind(build_menu_group button_submenu, int item_index, unsi
     }
 
     button_widget.reset();
-    button_widget.set_bounds(0, static_cast<short>(MENU_ITEM_HEIGHT * display_index), 290, 20);
+    button_widget.set_bounds(0, static_cast<short>(MENU_ITEM_HEIGHT * display_index), MENU_ITEM_WIDTH, 20);
     button_widget.set_handlers(button_menu_button_clicked, 0);
     button_widget.set_context(this);
     button_widget.debug_name = "city-build-menu-button";
@@ -304,6 +304,18 @@ static int is_auto_cycle_button(build_menu_group submenu, building_type type)
         (type_matches(type, "all_gardens") && submenu == BUILD_MENU_GARDENS);
 }
 
+// Costs share the right-side status column with auto-cycle text, so center the composed money string there.
+static void draw_menu_money_centered(int value, int x, int y, int box_width, font_t font, int pixel_size)
+{
+    const uint8_t *postfix = locale_translate_money_dn() ? lang_get_string("main_strings.6.0") : string_from_ascii("Dn");
+    int width = text_get_number_width(value, '@', "", font, pixel_size) + text_get_width(postfix, font, pixel_size);
+    int offset = (box_width - width) / 2;
+    if (offset < 0) {
+        offset = 0;
+    }
+    text_draw_money(value, x + offset, y, font, pixel_size);
+}
+
 static ImageGroupEntryRef produced_resource_icon(building_type type)
 {
     resource_type r = building_output_resource(type);
@@ -405,41 +417,37 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
     if (is_auto_cycle()) {
         if (menu_index > 0) {
             text_draw_build_menu_with_index(display_name(), menu_index % 10,
-                item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
+                item_x_align, item_y + 4,
                 MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         } else {
             text_draw_centered(display_name(),
-                item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
+                item_x_align, item_y + 4,
                 MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         }
         lang_text_draw_centered(current_string_key(18, 5 - building_construction_is_auto_cycling()), x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4, MENU_ITEM_MONEY_OFFSET, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         return;
     }
 
-    int text_offset = MENU_TEXT_X_OFFSET;
     const ImageGroupEntryRef &icon = menu_icon();
     if (icon.is_bound() && config_get(CONFIG_UI_CV_BUILD_MENU_ICONS)) {
         draw_resource_icon_scaled(icon, item_x_align + MENU_TEXT_X_OFFSET + 2 +
             (has_monument_icon() + has_rotation_icon()) * MENU_ICON_WIDTH,
             item_y + 2, MENU_RESOURCE_ICON_SIZE);
-        text_offset += MENU_RESOURCE_ICON_SIZE + 4;
     }
 
     int build_cost = cost();
-    int text_width = (build_cost ? MENU_ITEM_WIDTH : MENU_EXPANDER_TEXT_WIDTH) -
-        (text_offset - MENU_TEXT_X_OFFSET);
     if (menu_index > 0) {
         text_draw_build_menu_with_index(display_name(), menu_index % 10,
-            item_x_align + text_offset, item_y + 4,
-            text_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+            item_x_align, item_y + 4,
+            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else {
-        text_draw_centered(display_name(), item_x_align + text_offset, item_y + 4,
-            text_width, FONT_NORMAL_GREEN,
+        text_draw_centered(display_name(), item_x_align, item_y + 4,
+            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN,
             screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
 
     if (build_cost) {
-        text_draw_money(build_cost, x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4,
+        draw_menu_money_centered(build_cost, x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4, MENU_ITEM_MONEY_OFFSET,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else {
         int image_id = assets_get_image_id("UI", "Expand Menu Icon");
