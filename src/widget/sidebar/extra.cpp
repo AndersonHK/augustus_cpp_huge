@@ -1,4 +1,5 @@
 #include "city/labor.h"
+#include "translation/translation.h"
 #include "game/resource_graphics.h"
 #include "game/state.h"
 #include "graphics/arrow_button.h"
@@ -12,7 +13,6 @@
 
 #include "extra.h"
 
-#include "translation/translation.h"
 #include "window/popup_dialog.h"
 #include "city/god.h"
 
@@ -28,7 +28,6 @@ extern "C" {
 #include "city/resource.h"
 #include "core/config.h"
 #include "core/image_group.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "figure/formation_legion.h"
 #include "game/resource.h"
@@ -416,9 +415,9 @@ static int get_text_offset_for_force_size(int force_size)
 static translation_key request_force_key(int force_size)
 {
     static constexpr translation_key keys[] = {
-        TR_SIDEBAR_EXTRA_REQUESTS_SMALL_FORCE,
-        TR_SIDEBAR_EXTRA_REQUESTS_AVERAGE_FORCE,
-        TR_SIDEBAR_EXTRA_REQUESTS_LARGE_FORCE,
+        "TR_SIDEBAR_EXTRA_REQUESTS_SMALL_FORCE",
+        "TR_SIDEBAR_EXTRA_REQUESTS_AVERAGE_FORCE",
+        "TR_SIDEBAR_EXTRA_REQUESTS_LARGE_FORCE",
     };
     return keys[get_text_offset_for_force_size(force_size)];
 }
@@ -426,11 +425,11 @@ static translation_key request_force_key(int force_size)
 static translation_key invasion_status_key(int next_invasion)
 {
     static constexpr translation_key keys[] = {
-        TR_SIDEBAR_EXTRA_INVASION_UNDERWAY,
-        TR_SIDEBAR_EXTRA_NO_INVASIONS,
-        TR_SIDEBAR_EXTRA_INVASION_IMMINENT,
-        TR_SIDEBAR_EXTRA_ENEMIES_CLOSING,
-        TR_SIDEBAR_EXTRA_ENEMIES_DISTANT,
+        "TR_SIDEBAR_EXTRA_INVASION_UNDERWAY",
+        "TR_SIDEBAR_EXTRA_NO_INVASIONS",
+        "TR_SIDEBAR_EXTRA_INVASION_IMMINENT",
+        "TR_SIDEBAR_EXTRA_ENEMIES_CLOSING",
+        "TR_SIDEBAR_EXTRA_ENEMIES_DISTANT",
     };
     if (next_invasion < 0) {
         next_invasion = 0;
@@ -461,7 +460,7 @@ static void draw_request_action_label(unsigned int slot, int button_y_offset)
             color = status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES ? FONT_NORMAL_RED : FONT_NORMAL_GREEN;
         } else if (status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES) {
             label = translation_for(city_resource_is_stockpiled(static_cast<resource_type>(r->resource)) ?
-                TR_SIDEBAR_EXTRA_REQUESTS_UNSTOCK : TR_SIDEBAR_EXTRA_REQUESTS_STOCK);
+                "TR_SIDEBAR_EXTRA_REQUESTS_UNSTOCK" : "TR_SIDEBAR_EXTRA_REQUESTS_STOCK");
         }
     }
 

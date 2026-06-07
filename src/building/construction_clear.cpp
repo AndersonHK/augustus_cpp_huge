@@ -1,4 +1,5 @@
 #include "building/building.h"
+#include "translation/translation.h"
 #include "building/connectable.h"
 #include "building/construction.h"
 #include "building/local_workforce.h"
@@ -13,7 +14,6 @@
 #include "map/building_tiles.h"
 #include "map/tiles.h"
 
-#include "translation/translation.h"
 #include "window/popup_dialog.h"
 extern "C" {
 

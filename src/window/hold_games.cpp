@@ -221,10 +221,10 @@ static void get_tooltip(tooltip_context *c)
         switch (data.focus_image_button_id) {
             case 1: c->text_id = 1; break;
             case 2: c->text_id = 2; break;
-            case 3: c->translation_key = TR_TOOLTIP_NO_GAME; break;
+            case 3: c->translation_key = "TR_TOOLTIP_NO_GAME"; break;
         }
     } else if (data.focus_game_button_id && data.game_possible) {
-        c->translation_key = TR_TOOLTIP_HOLD_GAME;
+        c->translation_key = "TR_TOOLTIP_HOLD_GAME";
     } else if (data.focus_button_id) {
         games_type *game = city_games_get_game_type(data.focus_button_id);
         if (game) {

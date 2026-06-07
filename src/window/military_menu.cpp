@@ -1,5 +1,6 @@
 #include "graphics/generic_button.h"
 #include "graphics/lang_text.h"
+#include "graphics/text.h"
 #include "input/input.h"
 #include "widget/sidebar/military.h"
 #include "window/city.h"
@@ -58,7 +59,9 @@ static void draw_foreground(void)
     for (unsigned int i = 0; i < num_legions; i++) {
         const formation *m = formation_get(formation_for_legion(i + 1));
         label_draw(x_offset - 170, 74 + 24 * i, 10, data.focus_button_id == i + 1 ? 1 : 2);
-        lang_text_draw_centered(m->legion_name_group, m->legion_name_id, x_offset - 170, 77 + 24 * i, 160, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        text_draw_centered(widget_sidebar_military_get_legion_name_text(m->legion_name_group, m->legion_name_id),
+            x_offset - 170, 77 + 24 * i, 160, FONT_NORMAL_GREEN,
+            screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
     data.active_buttons = num_legions;
 }

@@ -1,4 +1,5 @@
 #include "building/construction.h"
+#include "translation/translation.h"
 #include "building/tool_mode.h"
 #include "city/warning.h"
 #include "game/orientation.h"
@@ -23,7 +24,6 @@
 #include "widget/sidebar/slide.h"
 #include "window/message_list.h"
 #include "window/overlay_menu.h"
-#include "translation/translation.h"
 #include "window/advisors.h"
 extern "C" {
 
@@ -33,7 +33,6 @@ extern "C" {
 #include "city/view.h"
 #include "core/config.h"
 #include "core/direction.h"
-#include "core/lang.h"
 #include "game/campaign.h"
 #include "graphics/image_button.h"
 #include "graphics/screen.h"
@@ -306,7 +305,7 @@ int widget_sidebar_city_get_tooltip_text(tooltip_context *c)
 {
     if (data.focus_button_for_tooltip) {
         if (data.focus_button_for_tooltip == 42) {
-            c->translation_key = TR_TOGGLE_GRID;
+            c->translation_key = "TR_TOGGLE_GRID";
             return 0;
         }
         if (data.focus_button_for_tooltip == TOOLTIP_CLEAR_BUTTON) {

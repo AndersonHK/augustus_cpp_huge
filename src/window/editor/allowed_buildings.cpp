@@ -1,11 +1,11 @@
 #include "window/editor/map.h"
+#include "translation/translation.h"
 #include "graphics/grid_box.h"
 #include "allowed_buildings.h"
 
 #include "building/menu.h"
 #include "building/properties.h"
 #include "building/building_type.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/color.h"
@@ -157,10 +157,11 @@ static void draw_button(const uint8_t *name, building_type type, int x, int y, i
     color_t color = allowed || data.select_callback ? 0 : COLOR_FONT_RED;
     text_draw(name, x + 8, y + 8, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     if (!data.select_callback) {
-        const uint8_t *text = lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_ALLOWED_BUILDINGS_NOT_ALLOWED - allowed);
+        const uint8_t *text = lang_get_string(
+            allowed ? "TR_EDITOR_ALLOWED_BUILDINGS_ALLOWED" : "TR_EDITOR_ALLOWED_BUILDINGS_NOT_ALLOWED");
         text_draw_right_aligned(text, x, y + 8, width - 8, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     } else if (type == data.selected_building) {
-        lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_SELECTED, x, y + 8, width - 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_right_aligned("TR_SELECTED", x, y + 8, width - 8, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 }
 

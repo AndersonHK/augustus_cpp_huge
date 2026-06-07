@@ -103,18 +103,18 @@ static void draw_happiness_info(building_info_context *c, int y_offset)
 {
     int happiness = building_get(c->building_id)->sentiment.house_happiness;
     static const translation_key sentiment_keys[] = {
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_3,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_4,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_5,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_6,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_7,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_8,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_9,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_10,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_11,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_12
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_3",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_4",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_5",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_6",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_7",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_8",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_9",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_10",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_11",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_12"
     };
     int sentiment_index = 0;
     if (happiness > 0) {
@@ -208,7 +208,7 @@ void window_building_draw_house(building_info_context *c)
             }
         }
         if (total_food_types > 5) {
-            x_offset += lang_text_draw(CUSTOM_TRANSLATION, TR_BUILDING_INFO_TOTAL_FOOD,
+            x_offset += lang_text_draw("TR_BUILDING_INFO_TOTAL_FOOD",
                 c->x_offset + x_offset, c->y_offset + y_content, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             x_offset += text_draw_number(total_food_amount, '@', " ", c->x_offset + x_offset, c->y_offset + y_content,
                 FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
@@ -267,7 +267,7 @@ void window_building_draw_house(building_info_context *c)
     }
 
     if (b->has_plague) {
-        lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_BUILDING_HOUSE_DISEASE_DESC,
+        lang_text_draw_multiline("TR_BUILDING_HOUSE_DISEASE_DESC",
             c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else if (b->data.house.evolve_text_id == 62) {
         int width = lang_text_draw(127, 40 + b->data.house.evolve_text_id,
@@ -278,10 +278,10 @@ void window_building_draw_house(building_info_context *c)
         lang_text_draw_multiline(127, 41 + b->data.house.evolve_text_id,
             c->x_offset + 32, c->y_offset + 72, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else if (b->data.house.evolve_text_id == 67) { // latrine devolve
-        lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_BUILDING_LATRINES_MISSING_DEVOLVE,
+        lang_text_draw_multiline("TR_BUILDING_LATRINES_MISSING_DEVOLVE",
             c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else if (b->data.house.evolve_text_id == 68) { // latrine evolve
-        lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_BUILDING_LATRINES_MISSING_EVOLVE,
+        lang_text_draw_multiline("TR_BUILDING_LATRINES_MISSING_EVOLVE",
             c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
         lang_text_draw_multiline(127, 40 + b->data.house.evolve_text_id,

@@ -1,7 +1,8 @@
 #pragma once
 
 #include "core/buffer.h"
-#include "core/lang.h"
+
+#include <stdint.h>
 
 /**
  * @file

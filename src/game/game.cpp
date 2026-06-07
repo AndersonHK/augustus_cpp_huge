@@ -1,4 +1,5 @@
-#include "game/file.h"
+﻿#include "game/file.h"
+#include "translation/translation.h"
 #include "game/file_editor.h"
 #include "game/state.h"
 #include "game/tick.h"
@@ -11,7 +12,6 @@
 #include "core/hotkey_config.h"
 #include "editor/editor.h"
 #include "window/editor/map.h"
-#include "translation/translation.h"
 #include "game.h"
 
 #include "building/building_type_registry.h"
@@ -27,7 +27,6 @@ extern "C" {
 #include "city/view.h"
 #include "core/config.h"
 #include "core/image.h"
-#include "core/lang.h"
 #include "core/locale.h"
 #include "core/log.h"
 #include "core/random.h"

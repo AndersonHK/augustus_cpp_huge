@@ -2,7 +2,6 @@
 #include "game/campaign.h"
 
 #include "core/file.h"
-#include "core/lang.h"
 #include "core/log.h"
 #include "game/campaign/file.h"
 #include "game/campaign/mission.h"
@@ -28,9 +27,9 @@ static void get_original_campaign_data(void)
     data.campaign.starting_rank = 0;
     data.campaign.number_of_missions = 11;
     data.campaign.current_mission = 11;
-    data.campaign.name = lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ORIGINAL_CAMPAIGN_NAME);
+    data.campaign.name = lang_get_string("TR_WINDOW_ORIGINAL_CAMPAIGN_NAME");
     data.campaign.author = 0;
-    data.campaign.description = lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ORIGINAL_CAMPAIGN_DESC);
+    data.campaign.description = lang_get_string("TR_WINDOW_ORIGINAL_CAMPAIGN_DESC");
 
     if (!campaign_original_setup()) {
         log_error("Error setting up original campaign data", 0, 0);

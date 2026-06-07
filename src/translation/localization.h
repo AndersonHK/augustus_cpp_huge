@@ -1,6 +1,5 @@
-#pragma once
+﻿#pragma once
 
-#include "core/lang.h"
 #include "core/locale.h"
 #include "translation/translation.h"
 

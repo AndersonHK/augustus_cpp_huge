@@ -81,7 +81,7 @@ static void draw_background(void)
     lang_text_draw_centered_colored(44, 105, 16, 244, 250, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
         data.is_new_price_change ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_CANCEL, 379, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("TR_BUTTON_CANCEL", 379, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     lang_text_draw_centered(18, 3, 492, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
@@ -212,7 +212,7 @@ static void button_save(const generic_button *button)
 {
     unsigned int num_errors = validate();
     if (num_errors) {
-        window_plain_message_dialog_show_text_list(TR_EDITOR_FORM_ERRORS_FOUND, TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS,
+        window_plain_message_dialog_show_text_list("TR_EDITOR_FORM_ERRORS_FOUND", "TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS",
             data.errors, num_errors);
         return;
     }

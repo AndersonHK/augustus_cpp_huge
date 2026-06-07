@@ -2,12 +2,12 @@
 #include "graphics/image.h"
 
 #include "intermezzo.h"
+#include "game/campaign.h"
+#include "graphics/window.h"
 
 extern "C" {
 #include "core/time.h"
-#include "game/campaign.h"
 #include "graphics/screen.h"
-#include "graphics/window.h"
 #include "scenario/property.h"
 #include "sound/music.h"
 #include "sound/speech.h"

@@ -6,6 +6,7 @@
 #include "graphics/image.h"
 #include "graphics/image_border.h"
 #include "graphics/lang_text.h"
+#include "widget/sidebar/military.h"
 #include "window/building/culture.h"
 #include "window/city.h"
 
@@ -212,7 +213,7 @@ void window_building_draw_barracks(building_info_context *c)
         }
     }
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_BARRACKS_PRIORITY,
+    lang_text_draw("TR_WINDOW_BARRACKS_PRIORITY",
         c->x_offset + 32, c->y_offset + 160, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)); // "Priority"
 
     inner_panel_draw(c->x_offset + 16, c->y_offset + 270, c->width_blocks - 2, 4);
@@ -224,9 +225,9 @@ void window_building_draw_barracks(building_info_context *c)
 void window_building_draw_barracks_foreground(building_info_context *c)
 {
     inner_panel_draw(c->x_offset + 16, c->y_offset + 178, c->width_blocks - 2, 5);
-    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_BARRACKS_FORTS,
+    lang_text_draw("TR_WINDOW_BARRACKS_FORTS",
         c->x_offset + 42, c->y_offset + 190, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height)); // "Forts"
-    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_BARRACKS_TOWERS,
+    lang_text_draw("TR_WINDOW_BARRACKS_TOWERS",
         c->x_offset + 324, c->y_offset + 190, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height)); // "Towers"
 
     draw_priority_buttons(c->x_offset + 42, c->y_offset + 208, 7, data.building_id);
@@ -341,8 +342,9 @@ void window_building_draw_legion_info(building_info_context *c)
     const formation *m = formation_get(c->formation_id);
     c->help_id = 87;
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(m->legion_name_group, m->legion_name_id, c->x_offset, c->y_offset + 10,
-        BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); //name of the legion
+    text_draw_centered(widget_sidebar_military_get_legion_name_text(m->legion_name_group, m->legion_name_id),
+        c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK,
+        screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0); //name of the legion
 
     // standard icon at the top
     int icon_image_id = m->legion_flag_id;
@@ -427,15 +429,15 @@ void window_building_draw_legion_info(building_info_context *c)
     text_draw(translation_for_key("TR_BUILDING_LEGION_FOOD_STATUS"),
         c->x_offset + 100, c->y_offset + 140, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     if (food_stress < 3) {
-        hunger_text = TR_BUILDING_MESS_HALL_TROOP_HUNGER_1;
+        hunger_text = "TR_BUILDING_MESS_HALL_TROOP_HUNGER_1";
     } else if (food_stress > 80) {
-        hunger_text = TR_BUILDING_MESS_HALL_TROOP_HUNGER_5;
+        hunger_text = "TR_BUILDING_MESS_HALL_TROOP_HUNGER_5";
     } else if (food_stress > 60) {
-        hunger_text = TR_BUILDING_MESS_HALL_TROOP_HUNGER_4;
+        hunger_text = "TR_BUILDING_MESS_HALL_TROOP_HUNGER_4";
     } else if (food_stress > 40) {
-        hunger_text = TR_BUILDING_MESS_HALL_TROOP_HUNGER_3;
+        hunger_text = "TR_BUILDING_MESS_HALL_TROOP_HUNGER_3";
     } else {
-        hunger_text = TR_BUILDING_MESS_HALL_TROOP_HUNGER_2;
+        hunger_text = "TR_BUILDING_MESS_HALL_TROOP_HUNGER_2";
     }
 
     text_draw(translation_for(hunger_text),
@@ -612,7 +614,7 @@ void window_building_draw_legion_info_foreground(building_info_context *c)
 
         // Second button
         button_border_draw(button_x + 189, button_y, 185, 32, data.return_button_id == 2);
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_INFO_RETURN_ALL_LEGIONS,
+        lang_text_draw_centered("TR_BUTTON_INFO_RETURN_ALL_LEGIONS",
             button_x + 189, button_y + 10, 185, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 }
@@ -653,28 +655,28 @@ void window_building_barracks_get_tooltip_priority(translation_key *translation)
 {
     switch (data.focus_priority_button_id) {
         case 1:
-            *translation = TR_TOOLTIP_BARRACKS_PRIORITY_FORT;
+            *translation = "TR_TOOLTIP_BARRACKS_PRIORITY_FORT";
             break;
         case 2:
-            *translation = TR_TOOLTIP_BARRACKS_PRIORITY_JAVELIN;
+            *translation = "TR_TOOLTIP_BARRACKS_PRIORITY_JAVELIN";
             break;
         case 3:
-            *translation = TR_TOOLTIP_BARRACKS_PRIORITY_MOUNTED;
+            *translation = "TR_TOOLTIP_BARRACKS_PRIORITY_MOUNTED";
             break;
         case 4:
-            *translation = TR_TOOLTIP_BARRACKS_PRIORITY_AUXINF;
+            *translation = "TR_TOOLTIP_BARRACKS_PRIORITY_AUXINF";
             break;
         case 5:
-            *translation = TR_TOOLTIP_BARRACKS_PRIORITY_AUXARCH;
+            *translation = "TR_TOOLTIP_BARRACKS_PRIORITY_AUXARCH";
             break;
         case 6:
-            *translation = TR_TOOLTIP_BARRACKS_PRIORITY_TOWER;
+            *translation = "TR_TOOLTIP_BARRACKS_PRIORITY_TOWER";
             break;
         case 7:
-            *translation = TR_TOOLTIP_BARRACKS_PRIORITY_WATCHTOWER;
+            *translation = "TR_TOOLTIP_BARRACKS_PRIORITY_WATCHTOWER";
             break;
         case 8:
-            *translation = TR_TOOLTIP_BARRACKS_PRIORITY_FORT;
+            *translation = "TR_TOOLTIP_BARRACKS_PRIORITY_FORT";
             break;
         default:
             break;
@@ -683,9 +685,9 @@ void window_building_barracks_get_tooltip_priority(translation_key *translation)
     if (data.focus_delivery_button_id) {
         building *barracks = building_get(data.building_id);
         if (barracks->accepted_goods[resource_weapons()]) {
-            *translation = TR_TOOLTIP_BUTTON_REJECT_DELIVERY;
+            *translation = "TR_TOOLTIP_BUTTON_REJECT_DELIVERY";
         } else {
-            *translation = TR_TOOLTIP_BUTTON_ACCEPT_DELIVERY;
+            *translation = "TR_TOOLTIP_BUTTON_ACCEPT_DELIVERY";
         }
     }
 }
@@ -792,8 +794,7 @@ void window_building_draw_palisade(building_info_context *c)
     window_building_play_sound(c, "wavs/wall.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     text_draw_centered(translation_for_key("TR_BUILDING_PALISADE"), c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 158, CUSTOM_TRANSLATION,
-        TR_BUILDING_PALISADE_DESC);
+    window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 158, "TR_BUILDING_PALISADE_DESC");
 }
 
 void window_building_draw_armoury(building_info_context *c)
@@ -810,13 +811,13 @@ void window_building_draw_armoury(building_info_context *c)
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else if (b->num_workers <= 0) {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_ARMOURY_NO_EMPLOYEES);
+        window_building_draw_description(c, "TR_BUILDING_ARMOURY_NO_EMPLOYEES");
     } else if (c->worker_percentage <= 50) {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_ARMOURY_SOME_EMPLOYEES);
+        window_building_draw_description(c, "TR_BUILDING_ARMOURY_SOME_EMPLOYEES");
     } else if (c->worker_percentage < 100) {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_ARMOURY_MANY_EMPLOYEES);
+        window_building_draw_description(c, "TR_BUILDING_ARMOURY_MANY_EMPLOYEES");
     } else {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_ARMOURY_DESC);
+        window_building_draw_description(c, "TR_BUILDING_ARMOURY_DESC");
     }
     inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
     window_building_draw_employment(c, 140);

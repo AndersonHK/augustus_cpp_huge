@@ -1,4 +1,5 @@
 #include "building/building_type.h"
+#include "translation/translation.h"
 #include "building/industry.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
@@ -11,14 +12,12 @@
 
 #include "window/editor/map.h"
 #include "graphics/grid_box.h"
-#include "translation/translation.h"
 #include "building/building_type_registry.h"
 
 extern "C" {
 
 #include "building/building_type_api.h"
 #include "building/properties.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/font.h"
@@ -306,17 +305,17 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(16, 32, 42, 27);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_CHANGE_MODEL_DATA, 26, 42, 38 * BLOCK_SIZE, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_CHANGE_MODEL_DATA", 26, 42, 38 * BLOCK_SIZE, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     lang_text_draw_centered(13, 3, 16, 27 * BLOCK_SIZE + 8, 42 * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_PARAMETER_MODEL, 80, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_PARAMETER_COST, 235, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_DATA_DES_VALUE, 295, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_DATA_DES_STEP, 350, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_DATA_DES_STEP_SIZE, 405, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_DATA_DES_RANGE, 460, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_PARAMETER_LABORERS, 505, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_PRODUCTION, 570, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_PARAMETER_MODEL", 80, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_PARAMETER_COST", 235, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_DATA_DES_VALUE", 295, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_DATA_DES_STEP", 350, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_DATA_DES_STEP_SIZE", 405, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_DATA_DES_RANGE", 460, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_PARAMETER_LABORERS", 505, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_PRODUCTION", 570, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
     graphics_reset_dialog();
 
@@ -334,16 +333,16 @@ static void draw_foreground(void)
         switch (i) {
             default:
             case 0:
-                key = TR_EDITOR_SCENARIO_EVENTS_EXPORT;
+                key = "TR_EDITOR_SCENARIO_EVENTS_EXPORT";
                 break;
             case 1:
-                key = TR_BUTTON_RESET_DEFAULTS;
+                key = "TR_BUTTON_RESET_DEFAULTS";
                 break;
             case 2:
-                key = TR_EDITOR_SCENARIO_EVENTS_IMPORT;
+                key = "TR_EDITOR_SCENARIO_EVENTS_IMPORT";
                 break;
         }
-        lang_text_draw_centered(CUSTOM_TRANSLATION, key,
+        lang_text_draw_centered(key,
             static_buttons[i].x, static_buttons[i].y + 6, static_buttons[i].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
@@ -387,16 +386,16 @@ static void handle_input(const mouse *m, const hotkeys *h)
 static int desirability_tooltip(tooltip_context *c)
 {
     static const translation_key desirability_data_keys[] = {
-        TR_EDITOR_MODEL_DATA_DES_VALUE,
-        TR_EDITOR_MODEL_DATA_DES_STEP,
-        TR_EDITOR_MODEL_DATA_DES_STEP_SIZE,
-        TR_EDITOR_MODEL_DATA_DES_RANGE
+        "TR_EDITOR_MODEL_DATA_DES_VALUE",
+        "TR_EDITOR_MODEL_DATA_DES_STEP",
+        "TR_EDITOR_MODEL_DATA_DES_STEP_SIZE",
+        "TR_EDITOR_MODEL_DATA_DES_RANGE"
     };
     static const translation_key desirability_tooltip_keys[] = {
-        TR_EDITOR_DESIRABILITY_VALUE,
-        TR_EDITOR_DESIRABILITY_STEP,
-        TR_EDITOR_DESIRABILITY_STEP_SIZE,
-        TR_EDITOR_DESIRABILITY_RANGE
+        "TR_EDITOR_DESIRABILITY_VALUE",
+        "TR_EDITOR_DESIRABILITY_STEP",
+        "TR_EDITOR_DESIRABILITY_STEP_SIZE",
+        "TR_EDITOR_DESIRABILITY_RANGE"
     };
     const mouse *m_global = mouse_get();
     const mouse *m = mouse_in_dialog(m_global);

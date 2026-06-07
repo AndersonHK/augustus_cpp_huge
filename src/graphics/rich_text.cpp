@@ -4,6 +4,8 @@
 #include "rich_text.h"
 #include "font_vector_runtime.h"
 #include "text_runtime_internal.h"
+#include "game/campaign.h"
+#include "graphics/window.h"
 
 extern "C" {
 #include "assets/assets.h"
@@ -14,11 +16,9 @@ extern "C" {
 #include "core/image_group.h"
 #include "core/locale.h"
 #include "core/string.h"
-#include "game/campaign.h"
 #include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/scrollbar.h"
-#include "graphics/window.h"
 #include "graphics/screen.h"
 }
 

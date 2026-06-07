@@ -1081,7 +1081,7 @@ static void get_tooltip(tooltip_context *c)
         if (focus_image_button_id == 3) {
             int advisor = image_buttons_help_advisor_close[2].parameter1;
             if (advisor == ADVISOR_HOUSING) {
-                translation = TR_TOOLTIP_ADVISOR_POPULATION_HOUSING_BUTTON;
+                translation = "TR_TOOLTIP_ADVISOR_POPULATION_HOUSING_BUTTON";
             } else {
                 text_id = 69 + advisor - (advisor >= ADVISOR_HOUSING ? 1 : 0);
             }
@@ -1091,9 +1091,9 @@ static void get_tooltip(tooltip_context *c)
     } else if (focus_mothball_image_button_id && has_mothball_button()) {
         if (!building_monument_is_unfinished_monument(b)) {
             if (building_get(context.building_id)->state == BUILDING_STATE_MOTHBALLED) {
-                translation = TR_TOOLTIP_BUTTON_MOTHBALL_OFF;
+                translation = "TR_TOOLTIP_BUTTON_MOTHBALL_OFF";
             } else {
-                translation = TR_TOOLTIP_BUTTON_MOTHBALL_ON;
+                translation = "TR_TOOLTIP_BUTTON_MOTHBALL_ON";
             }
         }
     } else if (building_is_primary_product_producer(btype)) {
@@ -1133,7 +1133,7 @@ static void get_tooltip(tooltip_context *c)
             window_building_industry_get_tooltip(&context, &translation);
         }
         if (!translation) {
-            window_building_get_risks_tooltip(&context, &group_id, &text_id);
+            window_building_get_risks_tooltip(&context, &group_id, &text_id, &translation);
         }
     }
     if (text_id || group_id || translation || precomposed_text) {

@@ -1,4 +1,5 @@
 #include "building/construction.h"
+#include "translation/translation.h"
 #include "game/file.h"
 #include "game/state.h"
 #include "game/undo.h"
@@ -13,7 +14,6 @@
 #include "window/mission_selection.h"
 #include "window/plain_message_dialog.h"
 
-#include "translation/translation.h"
 #include "window/popup_dialog.h"
 #include "city_pause_menu.h"
 
@@ -21,7 +21,6 @@
 
 extern "C" {
 #include "building/properties.h"
-#include "core/lang.h"
 #include "game/campaign.h"
 #include "game/settings.h"
 #include "game/system.h"
@@ -101,8 +100,8 @@ static void replay_map_confirmed(int confirmed, int checked)
     }
     if (!game_campaign_is_active()) {
         if (!game_file_start_scenario_by_name(scenario_name())) {
-            window_plain_message_dialog_show_with_extra(TR_REPLAY_MAP_NOT_FOUND_TITLE,
-                TR_REPLAY_MAP_NOT_FOUND_MESSAGE, 0, scenario_name());
+            window_plain_message_dialog_show_with_extra("TR_REPLAY_MAP_NOT_FOUND_TITLE",
+                "TR_REPLAY_MAP_NOT_FOUND_MESSAGE", 0, scenario_name());
         } else {
             window_city_show();
         }

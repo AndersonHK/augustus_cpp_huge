@@ -1,4 +1,5 @@
 #include "building/building_record.h"
+#include "translation/translation.h"
 #include "storage.h"
 
 #include "building/building.h"
@@ -413,7 +414,7 @@ static const uint8_t *storage_state_text(building_storage_state state, const Bui
         case BUILDING_STORAGE_STATE_ACCEPTING:   return lang_get_string(99, 7);
         case BUILDING_STORAGE_STATE_NOT_ACCEPTING: return lang_get_string(99, 8);
         case BUILDING_STORAGE_STATE_GETTING:     return lang_get_string(99, 9 + storage_building_is_granary(building_object));
-        case BUILDING_STORAGE_STATE_MAINTAINING: return lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING);
+        case BUILDING_STORAGE_STATE_MAINTAINING: return lang_get_string("TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING");
         default: return (const uint8_t *) "";
     }
 }
@@ -425,7 +426,7 @@ int building_storage_summary_tooltip(const Building &building_object, char *tool
         tooltip_text[0] = '\0';
         return 0;
     } else if (building_object.is_mothballed()) {
-        const uint8_t *mothballed_text = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_OVERLAY_PROBLEMS_MOTHBALLED);
+        const uint8_t *mothballed_text = lang_get_string("TR_TOOLTIP_OVERLAY_PROBLEMS_MOTHBALLED");
         string_copy(mothballed_text, (uint8_t *) tooltip_text, max_length);
         return 1;
     }

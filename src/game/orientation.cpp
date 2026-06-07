@@ -56,15 +56,15 @@ static translation_key orientation_warning_key(void)
 {
     switch (normalized_orientation(static_cast<direction_type>(city_view_orientation()))) {
         case DIR_0_TOP:
-            return TR_CITY_WARNING_ORIENTATION_NORTH;
+            return "TR_CITY_WARNING_ORIENTATION_NORTH";
         case DIR_2_RIGHT:
-            return TR_CITY_WARNING_ORIENTATION_EAST;
+            return "TR_CITY_WARNING_ORIENTATION_EAST";
         case DIR_4_BOTTOM:
-            return TR_CITY_WARNING_ORIENTATION_SOUTH;
+            return "TR_CITY_WARNING_ORIENTATION_SOUTH";
         case DIR_6_LEFT:
-            return TR_CITY_WARNING_ORIENTATION_WEST;
+            return "TR_CITY_WARNING_ORIENTATION_WEST";
         default:
-            return TR_CITY_WARNING_ORIENTATION_NORTH;
+            return "TR_CITY_WARNING_ORIENTATION_NORTH";
     }
 }
 

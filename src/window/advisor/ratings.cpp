@@ -1,4 +1,5 @@
 #include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
 
@@ -12,7 +13,6 @@ extern "C" {
 #include "city/ratings.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/image_button.h"
 #include "graphics/text.h"
@@ -113,7 +113,7 @@ static int draw_background(void)
             if (config_get(CONFIG_UI_SHOW_MAX_PROSPERITY)) {
                 int max = calc_bound(city_ratings_prosperity_max(), 0, 100);
                 if (prosperity < max) {
-                    width = lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_MAX_ATTAINABLE_PROSPERITY_IS, 72, 374 + line_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+                    width = lang_text_draw("TR_ADVISOR_MAX_ATTAINABLE_PROSPERITY_IS", 72, 374 + line_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
                     text_draw_number(max, 0, ".", 72 + width, 374 + line_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
                 }
             }

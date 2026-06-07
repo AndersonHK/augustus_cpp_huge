@@ -1,4 +1,5 @@
 #include "building/animations.h"
+#include "translation/translation.h"
 #include "building/building.h"
 #include "building/house.h"
 #include "building/industry.h"
@@ -17,7 +18,6 @@
 
 #include "city_overlay_other.h"
 
-#include "translation/translation.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -29,7 +29,6 @@ extern "C" {
 #include "city/finance.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/text.h"
@@ -91,18 +90,18 @@ static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *mes
 static translation_key house_sentiment_key_for_happiness(int happiness)
 {
     static constexpr translation_key keys[] = {
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_3,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_4,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_5,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_6,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_7,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_8,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_9,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_10,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_11,
-        TR_BUILDING_WINDOW_HOUSE_SENTIMENT_12,
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_3",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_4",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_5",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_6",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_7",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_8",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_9",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_10",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_11",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_12",
     };
     int index = happiness > 0 ? happiness / 10 + 1 : 0;
     if (index < 0) {
@@ -116,17 +115,17 @@ static translation_key house_sentiment_key_for_happiness(int happiness)
 static translation_key efficiency_key_for_value(int efficiency)
 {
     if (efficiency == 0) {
-        return TR_TOOLTIP_OVERLAY_EFFICIENCY_0;
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_0";
     } else if (efficiency < 25) {
-        return TR_TOOLTIP_OVERLAY_EFFICIENCY_1;
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_1";
     } else if (efficiency < 50) {
-        return TR_TOOLTIP_OVERLAY_EFFICIENCY_2;
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_2";
     } else if (efficiency < 80) {
-        return TR_TOOLTIP_OVERLAY_EFFICIENCY_3;
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_3";
     } else if (efficiency < 95) {
-        return TR_TOOLTIP_OVERLAY_EFFICIENCY_4;
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_4";
     }
-    return TR_TOOLTIP_OVERLAY_EFFICIENCY_5;
+    return "TR_TOOLTIP_OVERLAY_EFFICIENCY_5";
 }
 
 static int show_building_religion(const building *b)
@@ -374,7 +373,7 @@ static void add_god(tooltip_context *c, int god_id)
 static int get_tooltip_religion(tooltip_context *c, const building *b)
 {
     if (b->house_pantheon_access) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_PANTHEON_ACCESS;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_PANTHEON_ACCESS";
         return 0;
     }
 
@@ -475,21 +474,21 @@ static int get_tooltip_employment(tooltip_context *c, const building *b)
 
     if (full >= 1) {
         if (missing == 0) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_EMPLOYMENT_FULL;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_EMPLOYMENT_FULL";
         } else if (missing <= 1) {
             c->has_numeric_prefix = 1;
             c->numeric_prefix = missing;
-            c->translation_key = TR_TOOLTIP_OVERLAY_EMPLOYMENT_MISSING_1;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_EMPLOYMENT_MISSING_1";
             return 1;
         } else if (missing >= 2 && b->state == BUILDING_STATE_MOTHBALLED) {
             c->has_numeric_prefix = 1;
             c->numeric_prefix = missing;
-            c->translation_key = TR_TOOLTIP_OVERLAY_EMPLOYMENT_MOTHBALL;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_EMPLOYMENT_MOTHBALL";
             return 1;
         } else {
             c->has_numeric_prefix = 1;
             c->numeric_prefix = missing;
-            c->translation_key = TR_TOOLTIP_OVERLAY_EMPLOYMENT_MISSING_2;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_EMPLOYMENT_MISSING_2";
             return 1;
         }
     }
@@ -548,12 +547,18 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
     if (type_matches(b->type, "depot")) {
         static uint8_t result[256];
         order depot_order = b->data.depot.current_order;
-        int condition_type = TR_ORDER_CONDITION_NEVER + depot_order.condition.condition_type;
-        const uint8_t *order_string = lang_get_string(CUSTOM_TRANSLATION, condition_type);
-        const uint8_t *moving_resource = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_DEPOT_MOVED);
+        static constexpr translation_key condition_texts[] = {
+            "TR_ORDER_CONDITION_NEVER",
+            "TR_ORDER_CONDITION_ALWAYS",
+            "TR_ORDER_CONDITION_SOURCE_HAS_MORE_THAN",
+            "TR_ORDER_CONDITION_DESTINATION_HAS_LESS_THAN",
+        };
+        int condition_type = depot_order.condition.condition_type;
+        const uint8_t *order_string = lang_get_string(condition_texts[condition_type]);
+        const uint8_t *moving_resource = lang_get_string("TR_TOOLTIP_DEPOT_MOVED");
         const uint8_t *resource_name = resource_get_data(depot_order.resource_type)->text;
         char threshold_str[16] = "\n";
-        if (condition_type > TR_ORDER_CONDITION_ALWAYS) {
+        if (condition_type > 1) {
             snprintf(threshold_str, sizeof(threshold_str), " %d", depot_order.condition.threshold);
         }
         building *b_src = building_get(depot_order.src_storage_id);
@@ -565,7 +570,7 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
         char dst_info[64];
         snprintf(src_info, sizeof(src_info), "%s %d", (const char *) src_type, b_src->storage_id);
         snprintf(dst_info, sizeof(dst_info), "%s %d", (const char *) dst_type, b_dst->storage_id);
-        const uint8_t *direction_arrow = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_DEPOT_ORDER_TO);
+        const uint8_t *direction_arrow = lang_get_string("TR_TOOLTIP_DEPOT_ORDER_TO");
 
         snprintf((char *) result, sizeof(result),
             "%s %s\n"
@@ -589,7 +594,7 @@ static int get_tooltip_levy(tooltip_context *c, const building *b)
     if (levy > 0) {
         c->has_numeric_prefix = 1;
         c->numeric_prefix = levy;
-        c->translation_key = TR_TOOLTIP_OVERLAY_LEVY;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_LEVY";
         return 1;
     }
     return 0;
@@ -603,7 +608,7 @@ static int get_offset_tooltip_levy(tooltip_context *c, int grid_offset)
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
         c->has_numeric_prefix = 1;
         c->numeric_prefix = 1;
-        c->translation_key = TR_TOOLTIP_OVERLAY_LEVY_PER_TILE;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_LEVY_PER_TILE";
         return 1;
     }
     return 0;

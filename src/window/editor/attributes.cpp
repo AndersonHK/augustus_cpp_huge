@@ -147,7 +147,7 @@ static void draw_foreground(void)
     if (requests == 0) {
         lang_text_draw_centered(44, 19, 212, 165, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_amount_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST, requests, 212, 165, 250,
+        lang_text_draw_amount_centered(requests == 1 ? "TR_EDITOR_REQUEST" : "TR_EDITOR_REQUESTS", requests, 212, 165, 250,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
@@ -162,7 +162,7 @@ static void draw_foreground(void)
     if (invasions == 0) {
         lang_text_draw_centered(44, 20, 212, 245, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_amount_centered(CUSTOM_TRANSLATION, TR_EDITOR_INVASION, invasions, 212, 245, 250,
+        lang_text_draw_amount_centered(invasions == 1 ? "TR_EDITOR_INVASION" : "TR_EDITOR_INVASIONS", invasions, 212, 245, 250,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
@@ -180,7 +180,8 @@ static void draw_foreground(void)
     if (price_changes == 0) {
         lang_text_draw_centered(44, 95, 212, 405, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_amount_centered(CUSTOM_TRANSLATION, TR_EDITOR_PRICE_CHANGE, price_changes, 212, 405, 250,
+        lang_text_draw_amount_centered(
+            price_changes == 1 ? "TR_EDITOR_PRICE_CHANGE" : "TR_EDITOR_PRICE_CHANGES", price_changes, 212, 405, 250,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
@@ -189,40 +190,41 @@ static void draw_foreground(void)
     if (demand_changes == 0) {
         lang_text_draw_centered(44, 94, 212, 445, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_amount_centered(CUSTOM_TRANSLATION, TR_EDITOR_DEMAND_CHANGE, demand_changes, 212, 445, 250,
+        lang_text_draw_amount_centered(
+            demand_changes == 1 ? "TR_EDITOR_DEMAND_CHANGE" : "TR_EDITOR_DEMAND_CHANGES", demand_changes, 212, 445, 250,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     button_border_draw(470, 76, 250, 30, data.focus_button_id == 11);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_TITLE, 470, 85, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_EVENTS_TITLE", 470, 85, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     button_border_draw(470, 116, 250, 30, data.focus_button_id == 12);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_MESSAGES_TITLE, 470, 125, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("TR_EDITOR_CUSTOM_MESSAGES_TITLE", 470, 125, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     button_border_draw(470, 156, 250, 30, data.focus_button_id == 13);
     if (!scenario_editor_get_custom_message_introduction()) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_SELECT_INTRO, 470, 165, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered("TR_EDITOR_SCENARIO_SELECT_INTRO", 470, 165, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
         text_draw_number(scenario_editor_get_custom_message_introduction(), '@',
             " ", 470, 165, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_DESELECT_INTRO, 490, 165, 230, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered("TR_EDITOR_SCENARIO_DESELECT_INTRO", 490, 165, 230, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     button_border_draw(470, 196, 250, 30, data.focus_button_id == 14);
     if (!scenario_editor_get_custom_victory_message()) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_SELECT_VICTORY, 470, 205, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered("TR_EDITOR_SCENARIO_SELECT_VICTORY", 470, 205, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
         text_draw_number(scenario_editor_get_custom_victory_message(), '@',
             " ", 470, 205, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_DESELECT_VICTORY, 490, 205, 230, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered("TR_EDITOR_SCENARIO_DESELECT_VICTORY", 490, 205, 230, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
     
     button_border_draw(470, 236, 250, 30, data.focus_button_id == 15);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_CHANGE_MODEL_DATA, 470, 245, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_CHANGE_MODEL_DATA", 470, 245, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     if (!editor_is_active()) {
         button_border_draw(470, 436, 250, 30, data.focus_button_id == 16);
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_RETURN_TO_CITY, 470, 445, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered("TR_EDITOR_RETURN_TO_CITY", 470, 445, 250, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     arrow_buttons_draw(0, 0, image_arrows, 2);

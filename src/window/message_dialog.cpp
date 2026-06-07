@@ -1,4 +1,5 @@
 #include "city/sentiment.h"
+#include "translation/translation.h"
 #include "game/resource_graphics.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
@@ -12,7 +13,6 @@
 #include "editor/editor.h"
 #include "graphics/complex_button.h"
 #include "window/editor/map.h"
-#include "translation/translation.h"
 #include "window/advisors.h"
 extern "C" {
 
@@ -21,7 +21,6 @@ extern "C" {
 #include "city/resource.h"
 #include "city/view.h"
 #include "core/image_group.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "figure/formation.h"
@@ -97,8 +96,7 @@ static image_button image_button_chief = {
 static lang_fragment seq = []() {
     lang_fragment value = {};
     value.type = LANG_FRAG_LABEL;
-    value.text_id = TR_SIDEBAR_EXTRA_REQUESTS_SEND;
-    value.text_group = CUSTOM_TRANSLATION;
+    value.text_key = "TR_SIDEBAR_EXTRA_REQUESTS_SEND";
     return value;
 }();
 static complex_button complex_button_dispatch_request = []() {
@@ -411,7 +409,7 @@ static void draw_city_message_text(const lang_message *msg)
                     data.x + 64, data.y_text + 44, max_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             } else if (cause == LOW_MOOD_CAUSE_SQUALOR) {
                 int max_width = BLOCK_SIZE * (data.text_width_blocks - 1) - 64;
-                lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_CITY_MESSAGE_SQUALOR,
+                lang_text_draw_multiline("TR_CITY_MESSAGE_SQUALOR",
                     data.x + 64, data.y_text + 44, max_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             }
             rich_text_draw(msg->content.text,
@@ -427,8 +425,7 @@ static void draw_city_message_text(const lang_message *msg)
             static lang_fragment rank_frag[3];
             rank_frag[0] = {};
             rank_frag[0].type = LANG_FRAG_LABEL;
-            rank_frag[0].text_group = CUSTOM_TRANSLATION;
-            rank_frag[0].text_id = TR_MESSAGE_PROMOTE_RANK_PREFIX;
+            rank_frag[0].text_key = "TR_MESSAGE_PROMOTE_RANK_PREFIX";
             rank_frag[1] = {};
             rank_frag[1].type = LANG_FRAG_LABEL;
             rank_frag[1].text_group = 32;
@@ -436,11 +433,10 @@ static void draw_city_message_text(const lang_message *msg)
             rank_frag[1].space_width = 0;
             rank_frag[2] = {};
             rank_frag[2].type = LANG_FRAG_LABEL;
-            rank_frag[2].text_group = CUSTOM_TRANSLATION;
-            rank_frag[2].text_id = TR_MESSAGE_PROMOTE_RANK_SUFFIX;
+            rank_frag[2].text_key = "TR_MESSAGE_PROMOTE_RANK_SUFFIX";
             if (new_rank < old_rank) {
-                rank_frag[0].text_id = TR_MESSAGE_DEMOTE_RANK_PREFIX;
-                rank_frag[2].text_id = TR_MESSAGE_DEMOTE_RANK_SUFFIX;
+                rank_frag[0].text_key = "TR_MESSAGE_DEMOTE_RANK_PREFIX";
+                rank_frag[2].text_key = "TR_MESSAGE_DEMOTE_RANK_SUFFIX";
             }
             lang_text_draw_sequence_multiline(rank_frag, 3, data.x + 30, data.y_text + 44,
                 BLOCK_SIZE * (data.text_width_blocks) - 20, 0, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);

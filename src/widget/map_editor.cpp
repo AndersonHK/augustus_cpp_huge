@@ -1,4 +1,5 @@
 #include "city/warning.h"
+#include "translation/translation.h"
 #include "editor/tool.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
@@ -12,7 +13,6 @@
 
 #include "editor/editor.h"
 #include "graphics/complex_button.h"
-#include "translation/translation.h"
 #include <array>
 
 #include "widget/map_editor.h"
@@ -25,7 +25,6 @@
 extern "C" {
 #include "assets/assets.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "graphics/color.h"
 #include "graphics/renderer.h"
@@ -190,10 +189,10 @@ static void display_zoom_warning(int zoom)
     zoom = city_view_scale_to_display_percentage(zoom);
     static uint8_t zoom_string[100];
     if (!*zoom_string) {
-        uint8_t *cursor = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM), zoom_string, 100);
+        uint8_t *cursor = string_copy(lang_get_string("TR_ZOOM"), zoom_string, 100);
         string_copy(string_from_ascii(" "), cursor, (int) (cursor - zoom_string));
     }
-    int position = string_length(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM)) + 1;
+    int position = string_length(lang_get_string("TR_ZOOM")) + 1;
     position += string_from_int(zoom_string + position, zoom, 0);
     string_copy(string_from_ascii("%"), zoom_string + position, 100 - position);
     city_warning_show(WARNING_ZOOM, zoom_string);

@@ -84,6 +84,7 @@ static int draw_background(void)
     } else {
         int text_group = 61;
         int text_id;
+        translation_key text_key;
         switch (city_migration_no_immigration_cause()) {
             case NO_IMMIGRATION_LOW_WAGES: text_id = 19; break;
             case NO_IMMIGRATION_NO_JOBS: text_id = 20; break;
@@ -92,12 +93,14 @@ static int draw_background(void)
             case NO_IMMIGRATION_MANY_TENTS: text_id = 70; break;
             case NO_IMMIGRATION_LOW_MOOD: text_id = 71; break;
             case NO_IMMIGRATION_SQUALOR:
-                text_group = CUSTOM_TRANSLATION;
-                text_id = TR_ADVISOR_CHIEF_NO_IMMIGRATION_SQUALOR;
+                text_key = "TR_ADVISOR_CHIEF_NO_IMMIGRATION_SQUALOR";
+                text_id = 0;
                 break;
             default: text_id = 0; break;
         }
-        if (text_id) {
+        if (text_key) {
+            lang_text_draw(text_key, X_OFFSET, 106, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+        } else if (text_id) {
             lang_text_draw(text_group, text_id, X_OFFSET, 106, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         }
     }
@@ -154,9 +157,9 @@ static int draw_background(void)
     int food_stress = city_data.mess_hall.food_stress_cumulative;
 
     if (food_stress > 60) {
-        food_text = TR_ADVISOR_LEGION_FOOD_CRITICAL;
+        food_text = "TR_ADVISOR_LEGION_FOOD_CRITICAL";
     } else if (food_stress > 40) {
-        food_text = TR_ADVISOR_LEGION_FOOD_NEEDED;
+        food_text = "TR_ADVISOR_LEGION_FOOD_NEEDED";
     }
     if (food_text && city_figures_soldiers() > 0) {
         text_draw(translation_for(food_text), X_OFFSET, 186, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height), 0);
@@ -246,19 +249,19 @@ static int draw_background(void)
     }
     // water coverage
     Image::from_id(Image::group(GROUP_BULLET)).draw(32, 326 + 1);
-    lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_CHIEF_WATER_COVERAGE, 52, 326, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw("TR_ADVISOR_CHIEF_WATER_COVERAGE", 52, 326, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     int population = city_population();
     int box_width = 37 * BLOCK_SIZE - X_OFFSET;
     if (calc_percentage(city_health_get_population_with_water_access(), population) > 50) {
-        lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_ADVISOR_CHIEF_CLEAN_WATER, X_OFFSET, 326, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_multiline("TR_ADVISOR_CHIEF_CLEAN_WATER", X_OFFSET, 326, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else if (calc_percentage(city_health_get_population_with_latrines_access(), population) > 50 &&
         calc_percentage(city_health_get_population_with_well_access(), population) > 50) {
-        lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_ADVISOR_CHIEF_LATRINE_AND_WELL, X_OFFSET, 326, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_multiline("TR_ADVISOR_CHIEF_LATRINE_AND_WELL", X_OFFSET, 326, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else if (calc_percentage(city_health_get_population_with_well_access(), population) > 50) {
-        lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_ADVISOR_CHIEF_WELL_WATER, X_OFFSET, 326, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_multiline("TR_ADVISOR_CHIEF_WELL_WATER", X_OFFSET, 326, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else {
-        lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_ADVISOR_CHIEF_NO_WATER, X_OFFSET, 326, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+        lang_text_draw_multiline("TR_ADVISOR_CHIEF_NO_WATER", X_OFFSET, 326, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
     }
     
     return ADVISOR_HEIGHT;

@@ -113,14 +113,14 @@ static void draw_background(void)
     outer_panel_draw(0, 0, 40, 30);
     lang_text_draw(44, 14, 20, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_DATE, 15, 50, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Request date:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_RESOURCE, 150, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Resource:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_AMOUNT, 235, 50, 80, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Amount:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_DEADLINE, 310, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Deadline:
+    lang_text_draw_centered("TR_EDITOR_REQUEST_DATE", 15, 50, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Request date:
+    lang_text_draw_centered("TR_EDITOR_REQUEST_RESOURCE", 150, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Resource:
+    lang_text_draw_centered("TR_EDITOR_REQUEST_AMOUNT", 235, 50, 80, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Amount:
+    lang_text_draw_centered("TR_EDITOR_REQUEST_DEADLINE", 310, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Deadline:
     lang_text_draw_centered(53, 4, 390, 50, 90, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Favor
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY2, 465, 30, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Repeat frequency
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES2, 480, 50, 45, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Times:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY_YEARS2, 525, 50, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Years:
+    lang_text_draw_centered("TR_EDITOR_REPEAT_FREQUENCY2", 465, 30, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Repeat frequency
+    lang_text_draw_centered("TR_EDITOR_REPEAT_TIMES2", 480, 50, 45, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Times:
+    lang_text_draw_centered("TR_EDITOR_REPEAT_FREQUENCY_YEARS2", 525, 50, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Years:
 
     if (!data.requests_in_use) {
         lang_text_draw_centered(44, 19, 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
@@ -129,7 +129,7 @@ static void draw_background(void)
     if (!data.on_select) {
         lang_text_draw_centered(13, 3, 0, 456, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         lang_text_draw_multiline(152, 1, 20, 380, 600, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NEW_REQUEST, new_request_button.x + 8,
+        lang_text_draw_centered("TR_EDITOR_NEW_REQUEST", new_request_button.x + 8,
             new_request_button.y + 8, new_request_button.width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 

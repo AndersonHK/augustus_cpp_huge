@@ -93,16 +93,16 @@ static void draw_housing_table(void)
 
     auto goods_label = [](resource_type resource) -> translation_key {
         if (resource == resource_pottery()) {
-            return TR_ADVISOR_RESIDENCES_USING_POTTERY;
+            return "TR_ADVISOR_RESIDENCES_USING_POTTERY";
         }
         if (resource == resource_furniture()) {
-            return TR_ADVISOR_RESIDENCES_USING_FURNITURE;
+            return "TR_ADVISOR_RESIDENCES_USING_FURNITURE";
         }
         if (resource == resource_oil()) {
-            return TR_ADVISOR_RESIDENCES_USING_OIL;
+            return "TR_ADVISOR_RESIDENCES_USING_OIL";
         }
         if (resource == resource_wine()) {
-            return TR_ADVISOR_RESIDENCES_USING_WINE;
+            return "TR_ADVISOR_RESIDENCES_USING_WINE";
         }
         return {};
     };
@@ -141,7 +141,7 @@ static int draw_background(void)
     Image::from_id(housing_advisor_image).draw(10, 10);
 
     int x_offset = text_get_number_width(city_population(), 0, "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    x_offset += lang_text_get_width(CUSTOM_TRANSLATION, TR_ADVISOR_TOTAL_POPULATION, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    x_offset += lang_text_get_width("TR_ADVISOR_TOTAL_POPULATION", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset = 620 - x_offset;
 
     int width = text_draw_number(city_population(), 0, "", x_offset, 25, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);

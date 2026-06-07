@@ -53,17 +53,17 @@ static const ImageGroupEntryRef HORSE_TEAM_IMAGES[] = {
 };
 
 static const translation_key HORSE_DESCRIPTION_KEYS[] = {
-    TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION,
-    TR_WINDOW_RACE_RED_HORSE_DESCRIPTION,
-    TR_WINDOW_RACE_WHITE_HORSE_DESCRIPTION,
-    TR_WINDOW_RACE_GREEN_HORSE_DESCRIPTION
+    "TR_WINDOW_RACE_BLUE_HORSE_DESCRIPTION",
+    "TR_WINDOW_RACE_RED_HORSE_DESCRIPTION",
+    "TR_WINDOW_RACE_WHITE_HORSE_DESCRIPTION",
+    "TR_WINDOW_RACE_GREEN_HORSE_DESCRIPTION"
 };
 
 static const translation_key HORSE_TOOLTIP_KEYS[] = {
-    TR_WINDOW_RACE_BET_BLUE_HORSE,
-    TR_WINDOW_RACE_BET_RED_HORSE,
-    TR_WINDOW_RACE_BET_WHITE_HORSE,
-    TR_WINDOW_RACE_BET_GREEN_HORSE
+    "TR_WINDOW_RACE_BET_BLUE_HORSE",
+    "TR_WINDOW_RACE_BET_RED_HORSE",
+    "TR_WINDOW_RACE_BET_WHITE_HORSE",
+    "TR_WINDOW_RACE_BET_GREEN_HORSE"
 };
 
 static struct {
@@ -126,8 +126,8 @@ static void draw_background(void)
 
     int button_enabled = data.bet_amount > 0 && data.chosen_horse != 0 && !data.in_progress_bet;
 
-    text_draw_centered(translation_for(data.in_progress_bet ? TR_WINDOW_IN_PROGRESS_BET_BUTTON :
-        TR_WINDOW_RACE_BET_BUTTON), 90, 358, 300, button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN)->line_height),
+    text_draw_centered(translation_for(data.in_progress_bet ? "TR_WINDOW_IN_PROGRESS_BET_BUTTON" :
+        "TR_WINDOW_RACE_BET_BUTTON"), 90, 358, 300, button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(button_enabled ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN)->line_height),
         button_enabled ? 0 : COLOR_FONT_LIGHT_GRAY);
 
     for (int i = 0; i < 4; i++) {

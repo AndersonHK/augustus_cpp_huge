@@ -203,71 +203,71 @@ static PlaceWarningMessage warning_from_template(warning_type type, translation_
 
 static PlaceWarningMessage clear_land_needed_warning()
 {
-    return warning_text(WARNING_CLEAR_LAND_NEEDED, TR_CITY_WARNING_CLEAR_LAND_NEEDED);
+    return warning_text(WARNING_CLEAR_LAND_NEEDED, "TR_CITY_WARNING_CLEAR_LAND_NEEDED");
 }
 
 static PlaceWarningMessage dock_open_water_needed_warning()
 {
-    return warning_text(WARNING_DOCK_OPEN_WATER_NEEDED, TR_CITY_WARNING_DOCK_OPEN_WATER_NEEDED);
+    return warning_text(WARNING_DOCK_OPEN_WATER_NEEDED, "TR_CITY_WARNING_DOCK_OPEN_WATER_NEEDED");
 }
 
 static PlaceWarningMessage max_grand_temples_warning()
 {
-    return warning_text(WARNING_MAX_GRAND_TEMPLES, TR_WARNING_MAX_GRAND_TEMPLES);
+    return warning_text(WARNING_MAX_GRAND_TEMPLES, "TR_WARNING_MAX_GRAND_TEMPLES");
 }
 
 static PlaceWarningMessage max_legions_reached_warning()
 {
-    return warning_text(WARNING_MAX_LEGIONS_REACHED, TR_CITY_WARNING_MAX_LEGIONS_REACHED);
+    return warning_text(WARNING_MAX_LEGIONS_REACHED, "TR_CITY_WARNING_MAX_LEGIONS_REACHED");
 }
 
 static PlaceWarningMessage shore_needed_warning()
 {
-    return warning_text(WARNING_SHORE_NEEDED, TR_CITY_WARNING_SHORE_NEEDED);
+    return warning_text(WARNING_SHORE_NEEDED, "TR_CITY_WARNING_SHORE_NEEDED");
 }
 
 static PlaceWarningMessage wall_needed_warning()
 {
-    return warning_text(WARNING_WALL_NEEDED, TR_CITY_WARNING_WALL_NEEDED);
+    return warning_text(WARNING_WALL_NEEDED, "TR_CITY_WARNING_WALL_NEEDED");
 }
 
 static PlaceWarningMessage warehouse_tower_road_access_warning()
 {
-    return warning_text(WARNING_WAREHOUSE_TOWER, TR_WARNING_NO_WAREHOUSE_TOWER_ROAD_ACCESS);
+    return warning_text(WARNING_WAREHOUSE_TOWER, "TR_WARNING_NO_WAREHOUSE_TOWER_ROAD_ACCESS");
 }
 
 static PlaceWarningMessage building_needs_materials_warning(building_type building)
 {
-    return warning_from_template(WARNING_RESOURCES_NOT_AVAILABLE, TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_MATERIALS,
+    return warning_from_template(WARNING_RESOURCES_NOT_AVAILABLE, "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_MATERIALS",
         building);
 }
 
 static PlaceWarningMessage building_needs_resource_warning(building_type building, resource_type resource)
 {
-    return warning_from_template(WARNING_MISSING_RESOURCE, TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_RESOURCE, building,
+    return warning_from_template(WARNING_MISSING_RESOURCE, "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_RESOURCE", building,
         resource);
 }
 
 static PlaceWarningMessage no_mess_hall_warning()
 {
-    return warning_from_template(WARNING_NO_MESS_HALL, TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER,
+    return warning_from_template(WARNING_NO_MESS_HALL, "TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER",
         runtime_type("mess_hall"));
 }
 
 static PlaceWarningMessage one_building_of_type_warning(building_type building)
 {
-    return warning_from_template(WARNING_ONE_BUILDING_OF_TYPE, TR_CITY_WARNING_TEMPLATE_ONE_BUILDING_OF_TYPE, building);
+    return warning_from_template(WARNING_ONE_BUILDING_OF_TYPE, "TR_CITY_WARNING_TEMPLATE_ONE_BUILDING_OF_TYPE", building);
 }
 
 static PlaceWarningMessage city_mint_needs_senate_warning()
 {
-    return warning_from_template(WARNING_SENATE_NEEDED, TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_BUILDING,
+    return warning_from_template(WARNING_SENATE_NEEDED, "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_BUILDING",
         runtime_type("city_mint"), runtime_type("senate"));
 }
 
 static PlaceWarningMessage build_senate_warning()
 {
-    return warning_from_template(WARNING_BUILD_SENATE, TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER,
+    return warning_from_template(WARNING_BUILD_SENATE, "TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER",
         runtime_type("senate"));
 }
 
@@ -634,7 +634,7 @@ static int instant_building_has_required_resources(building_type type, int emit_
 static int terrain_requirement_allows_placement(int x, int y, PlaceWarningMessage *warning)
 {
     warning_type type = WARNING_NONE;
-    translation_key text_key = TR_CITY_WARNING_CLEAR_LAND_NEEDED;
+    translation_key text_key = "TR_CITY_WARNING_CLEAR_LAND_NEEDED";
     if (building_construction_can_place_on_terrain(x, y, &type, &text_key)) {
         return 1;
     }

@@ -133,36 +133,36 @@ static int get_tooltip_health(tooltip_context *c, const building *b)
 
         if (house_health < 40) {
             if (b->house_population < 1 && house_health < 1) {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_NONE;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_NONE";
             } else if (b->house_population >= 1 && house_health < 10) {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_0;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_0";
             } else if (house_health < 20) {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_1;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_1";
             } else if (house_health < 30) {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_2;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_2";
             } else {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_3;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_3";
             }
         } else if (house_health < 60) {
             if (house_health < 50) {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_4;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_4";
             } else {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_5;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_5";
             }
         } else if (house_health < 80) {
             if (house_health < 70) {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_6;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_6";
             } else {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_7;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_7";
             }
         } else if (house_health < 100) {
             if (house_health < 90) {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_8;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_8";
             } else {
-                c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_9;
+                c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_9";
             }
         } else {
-            c->translation_key = TR_TOOLTIP_OVERLAY_HEALTH_10;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_HEALTH_10";
         }
     }
     return 0;
@@ -226,15 +226,15 @@ static int get_tooltip_sickness(tooltip_context *c, const building *b)
     if (building_is_house(b->type) ||
         type_matches(b->type, "dock") || current_building.type().is_warehouse() || current_building.type().is_granary()) {
         if (b->sickness_level < 1) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_SICKNESS_NONE;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_SICKNESS_NONE";
         } else if (b->sickness_level < LOW_SICKNESS_LEVEL) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_SICKNESS_LOW;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_SICKNESS_LOW";
         } else if (b->sickness_level < MEDIUM_SICKNESS_LEVEL) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_SICKNESS_MEDIUM;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_SICKNESS_MEDIUM";
         } else if (b->sickness_level < HIGH_SICKNESS_LEVEL) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_SICKNESS_HIGH;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_SICKNESS_HIGH";
         } else {
-            c->translation_key = TR_TOOLTIP_OVERLAY_SICKNESS_PLAGUE;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_SICKNESS_PLAGUE";
         }        
     }
     return 0;

@@ -128,7 +128,7 @@ static void draw_status(void)
     if (scenario_editor_earthquake_severity() > 0) {
         map_point earthquake = scenario_editor_earthquake_point();
         if (scenario_editor_earthquake_severity() == EARTHQUAKE_CUSTOM) {
-            lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_EARTHQUAKE_CUSTOM_SET, text_offset, 269, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            lang_text_draw("TR_EDITOR_EARTHQUAKE_CUSTOM_SET", text_offset, 269, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         } else if (earthquake.x == -1 || earthquake.y == -1) {
             lang_text_draw(44, 57, text_offset, 269, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         } else{

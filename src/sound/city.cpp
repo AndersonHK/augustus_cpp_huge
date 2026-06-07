@@ -1,6 +1,7 @@
 #include "city.h"
 
 #include "building/building_type_api.h"
+#include "graphics/window.h"
 
 extern "C" {
 #include "building/properties.h"
@@ -10,7 +11,6 @@ extern "C" {
 #include "core/random.h"
 #include "core/time.h"
 #include "game/settings.h"
-#include "graphics/window.h"
 #include "sound/device.h"
 }
 

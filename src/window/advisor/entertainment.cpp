@@ -53,9 +53,9 @@ struct games_text {
     translation_key ongoing_text;
 } text_data[] = {
     {{}, {}}, // 0 element unused
-    {TR_WINDOW_ADVISOR_ENTERTAINMENT_PREPARING_NG, TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_NG},
-    {TR_WINDOW_ADVISOR_ENTERTAINMENT_PREPARING_IG, TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_IG},
-    {TR_WINDOW_ADVISOR_ENTERTAINMENT_PREPARING_AG, TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_AG},
+    {"TR_WINDOW_ADVISOR_ENTERTAINMENT_PREPARING_NG", "TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_NG"},
+    {"TR_WINDOW_ADVISOR_ENTERTAINMENT_PREPARING_IG", "TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_IG"},
+    {"TR_WINDOW_ADVISOR_ENTERTAINMENT_PREPARING_AG", "TR_WINDOW_ADVISOR_ENTERTAINMENT_UNDERWAY_AG"},
 };
 
 
@@ -129,8 +129,9 @@ static int draw_background(void)
 
     // taverns
     building_type tavern = runtime_type("tavern");
-    lang_text_draw_amount(CUSTOM_TRANSLATION, TR_WINDOW_ADVISOR_ENTERTAINMENT_TAVERN_COVERAGE,
-        building_count_total(tavern), 40, 67, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    int tavern_count = building_count_total(tavern);
+    lang_text_draw_amount(tavern_count == 1 ? "TR_WINDOW_ADVISOR_ENTERTAINMENT_TAVERN_COVERAGE" : "TR_WINDOW_ADVISOR_ENTERTAINMENT_TAVERN_COVERAGE_PLURAL",
+        tavern_count, 40, 67, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(tavern), 150, 67, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     lang_text_draw_centered(56, 2, 230, 67, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     int width = text_draw_number(city_culture_get_tavern_person_coverage(), '_', " ",
@@ -182,8 +183,9 @@ static int draw_background(void)
 
     // arenas
     building_type arena = runtime_type("arena");
-    lang_text_draw_amount(CUSTOM_TRANSLATION, TR_WINDOW_ADVISOR_ENTERTAINMENT_ARENA_COVERAGE,
-        building_count_total(arena), 40, 127, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    int arena_count = building_count_total(arena);
+    lang_text_draw_amount(arena_count == 1 ? "TR_WINDOW_ADVISOR_ENTERTAINMENT_ARENA_COVERAGE" : "TR_WINDOW_ADVISOR_ENTERTAINMENT_ARENA_COVERAGE_PLURAL",
+        arena_count, 40, 127, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(arena), 150, 127, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     width = text_draw_number(city_culture_get_arena_person_coverage(), '_', " ", PEOPLE_OFFSET, 127, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     lang_text_draw(58, 5, PEOPLE_OFFSET + width, 127, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
@@ -199,12 +201,12 @@ static int draw_background(void)
 
     // colosseums
     int has_colosseum = building_count_active(runtime_type("colosseum")) ? 1 : 0;
-    lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_NO_ACTIVE_COLOSSEUM + has_colosseum, 45, 148, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw(has_colosseum ? "TR_ADVISOR_ACTIVE_COLOSSEUM" : "TR_ADVISOR_NO_ACTIVE_COLOSSEUM", 45, 148, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     lang_text_draw_centered(57, has_colosseum ? 21 : 10, COVERAGE_OFFSET, 148, COVERAGE_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // hippodromes
     int has_hippodrome = building_count_active(runtime_type("hippodrome")) ? 1 : 0;
-    lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_NO_ACTIVE_HIPPODROME + has_hippodrome, 45, 168, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw(has_hippodrome ? "TR_ADVISOR_ACTIVE_HIPPODROME" : "TR_ADVISOR_NO_ACTIVE_HIPPODROME", 45, 168, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     lang_text_draw_centered(57, has_hippodrome ? 21 : 10, COVERAGE_OFFSET, 168, COVERAGE_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     lang_text_draw_multiline(58, 7 + get_entertainment_advice(), 52, 208, 540, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -306,7 +308,7 @@ static void draw_games_banner_widget_assets(void)
 static void get_tooltip_text(advisor_tooltip_result *r)
 {
     if (focus_button_id) {
-        r->translation_key = TR_TOOLTIP_ADVISOR_ENTERTAINMENT_GAMES_BUTTON;
+        r->translation_key = "TR_TOOLTIP_ADVISOR_ENTERTAINMENT_GAMES_BUTTON";
     }
 }
 

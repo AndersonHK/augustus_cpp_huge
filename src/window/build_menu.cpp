@@ -1,4 +1,5 @@
 #include "building/construction.h"
+#include "translation/translation.h"
 #include "building/rotation.h"
 #include "city/warning.h"
 #include "game/resource_graphics.h"
@@ -12,7 +13,6 @@
 
 #include "build_menu.h"
 
-#include "translation/translation.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -23,7 +23,6 @@ extern "C" {
 #include "city/view.h"
 #include "core/config.h"
 #include "core/image.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
@@ -586,9 +585,9 @@ static void generate_tooltip_text_for_monument(building_type monument)
     int phases = building_monument_phases(monument) - 1;
     uint8_t *index = tooltip_text;
     index += string_from_int(index, phases, 0);
-    index = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_MONUMENT_PHASE + (phases != 1 ? 1 : 0)),
+    index = string_copy(lang_get_string(phases == 1 ? "TR_TOOLTIP_MONUMENT_PHASE" : "TR_TOOLTIP_MONUMENT_PHASES"),
         index, remanining_length(index));
-    index = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_MONUMENT_RESOURCE_REQUIREMENTS),
+    index = string_copy(lang_get_string("TR_TOOLTIP_MONUMENT_RESOURCE_REQUIREMENTS"),
         index, remanining_length(index));
 
     int has_listed_resource = 0;

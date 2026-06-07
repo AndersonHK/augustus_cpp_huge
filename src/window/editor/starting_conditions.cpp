@@ -66,7 +66,7 @@ static void draw_foreground(void)
     button_border_draw(262, 48, 200, 30, data.focus_button_id == 1);
     lang_text_draw_centered(32, scenario_property_player_rank(), 262, 57, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_CAESAR_SALARY, 32, 97, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("TR_EDITOR_CAESAR_SALARY", 32, 97, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 88, 200, 30, data.focus_button_id == 2);
     text_draw_number_centered(scenario_property_caesar_salary(), 262, 97, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 

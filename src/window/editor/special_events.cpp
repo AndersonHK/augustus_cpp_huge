@@ -59,10 +59,10 @@ static generic_button buttons[] = {
 static dropdown_button earthquake_pattern_dropdown;
 
 static lang_fragment dd_fragments[] = {
-    {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_EARTHQUAKE_PATTERN},
-    {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_EARTHQUAKE_RIGHT_TO_LEFT},
-    {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_EARTHQUAKE_RANDOM},
-    {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_EARTHQUAKE_RANDOM_RIGHT_TO_LEFT}
+    {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_EARTHQUAKE_PATTERN"},
+    {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_EARTHQUAKE_RIGHT_TO_LEFT"},
+    {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_EARTHQUAKE_RANDOM"},
+    {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_EARTHQUAKE_RANDOM_RIGHT_TO_LEFT"}
 };
 
 static unsigned int focus_button_id;
@@ -150,7 +150,7 @@ static void draw_foreground(void)
     button_border_draw(216, 256, 100, 24, focus_button_id == 9);
     lang_text_draw_centered(18, scenario_editor_raise_wages_enabled(), 216, 262, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     int width2 = lang_text_draw(38, 13, 330, 264, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_MAX_WAGES, 340 + width2, 264, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw("TR_EDITOR_MAX_WAGES", 340 + width2, 264, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     button_border_draw(465, 256, 50, 24, focus_button_id == 10);
     text_draw_number_centered(scenario_editor_get_max_wages(), 465, 262, 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
@@ -158,7 +158,7 @@ static void draw_foreground(void)
     button_border_draw(216, 286, 100, 24, focus_button_id == 11);
     lang_text_draw_centered(18, scenario_editor_lower_wages_enabled(), 216, 292, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw(38, 13, 330, 294, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_MIN_WAGES, 340 + width2, 294, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw("TR_EDITOR_MIN_WAGES", 340 + width2, 294, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     button_border_draw(465, 286, 50, 24, focus_button_id == 12);
     text_draw_number_centered(scenario_editor_get_min_wages(), 465, 292, 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 

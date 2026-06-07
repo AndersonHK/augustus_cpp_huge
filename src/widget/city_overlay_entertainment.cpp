@@ -207,15 +207,15 @@ static int get_tooltip_amphitheater(tooltip_context *c, const building *b)
 static int get_tooltip_colosseum(tooltip_context *c, const building *b)
 {
     if (b->data.house.colosseum_gladiator && b->data.house.colosseum_lion) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_ARENA_COL_5;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_5";
     } else if (b->data.house.colosseum_gladiator) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_ARENA_COL_4;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_4";
     } else if (b->house_arena_gladiator && b->house_arena_lion) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_ARENA_COL_3;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_3";
     } else if (b->house_arena_gladiator) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_ARENA_COL_2;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_2";
     } else {
-        c->translation_key = TR_TOOLTIP_OVERLAY_ARENA_COL_1;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_ARENA_COL_1";
     }
     return 0;
 }
@@ -236,20 +236,20 @@ static int get_tooltip_hippodrome(tooltip_context *c, const building *b)
 static int get_tooltip_tavern(tooltip_context *c, const building *b)
 {
     if (b->house_tavern_wine_access <= 0) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_TAVERN_1;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_1";
     } else if (b->house_tavern_wine_access <= 20) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_TAVERN_2;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_2";
     } else if (b->data.house.hippodrome <= 80) {
         if (!b->house_tavern_food_access) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_TAVERN_3;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_3";
         } else {
-            c->translation_key = TR_TOOLTIP_OVERLAY_TAVERN_4;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_4";
         }
     } else {
         if (!b->house_tavern_food_access) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_TAVERN_5;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_5";
         } else {
-            c->translation_key = TR_TOOLTIP_OVERLAY_TAVERN_6;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_TAVERN_6";
         }
     }
 

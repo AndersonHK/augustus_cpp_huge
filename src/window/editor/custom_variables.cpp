@@ -1,4 +1,5 @@
 #include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
@@ -19,7 +20,6 @@
 extern "C" {
 
 #include "assets/assets.h"
-#include "core/lang.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
@@ -128,10 +128,25 @@ static grid_box_type variable_buttons = {
 
 static void init_color_dropdown(void)
 {
+    static constexpr translation_key color_keys[] = {
+        "TR_EDITOR_COLOR_LABEL",
+        "TR_EDITOR_COLOR_NONE",
+        "TR_EDITOR_COLOR_GREEN",
+        "TR_EDITOR_COLOR_PURPLE",
+        "TR_EDITOR_COLOR_ORANGE",
+        "TR_EDITOR_COLOR_OLIVE",
+        "TR_EDITOR_COLOR_TURQUOISE",
+        "TR_EDITOR_COLOR_CORAL",
+        "TR_EDITOR_COLOR_GRAY",
+        "TR_EDITOR_COLOR_BLUE",
+        "TR_EDITOR_COLOR_DARK_BLUE",
+        "TR_EDITOR_COLOR_BLACK",
+    };
+
     for (int editor_colors = 0; editor_colors < COLOR_BUTTONS_COUNT; editor_colors++) {
+        color_fragments[editor_colors] = {};
         color_fragments[editor_colors].type = LANG_FRAG_LABEL;
-        color_fragments[editor_colors].text_group = CUSTOM_TRANSLATION;
-        color_fragments[editor_colors].text_id = TR_EDITOR_COLOR_LABEL + editor_colors;
+        color_fragments[editor_colors].text_key = color_keys[editor_colors];
     }
 
     for (int dd_anchors = 0; dd_anchors < MAX_VISIBLE_GRID_ITEMS; dd_anchors++) {
@@ -261,9 +276,9 @@ static void draw_background(void)
 
     int base_x_offset = variable_buttons.x + variable_buttons.item_margin.horizontal / 2;
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_ID,
+    lang_text_draw_centered("TR_EDITOR_CUSTOM_VARIABLES_ID",
         variable_buttons.x + (data.callback ? 0 : CHECKBOX_ROW_WIDTH), 60, 40, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_NAME, base_x_offset + item_buttons[1].x, 60,
+    lang_text_draw_centered("TR_EDITOR_CUSTOM_VARIABLES_NAME", base_x_offset + item_buttons[1].x, 60,
         data.callback ? NAME_ROW_WIDTH_CALLBACK : NAME_ROW_WIDTH, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
     grid_box_request_refresh(&variable_buttons);
@@ -284,22 +299,22 @@ static void draw_background(void)
         Image::from_id(checkmark_id).draw(select_all_none_button->x + (20 - img->original.width) / 2, select_all_none_button->y + (20 - img->original.height) / 2);
     }
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_VALUE, base_x_offset + item_buttons[2].x, 60,
+    lang_text_draw("TR_EDITOR_CUSTOM_VARIABLES_VALUE", base_x_offset + item_buttons[2].x, 60,
         FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_TEXT_DISPLAY,
+    lang_text_draw_centered("TR_EDITOR_CUSTOM_VARIABLES_TEXT_DISPLAY",
         base_x_offset + item_buttons[3].x, 60, item_buttons[3].width, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_IS_VISIBLE,
+    lang_text_draw_centered("TR_EDITOR_CUSTOM_VARIABLES_IS_VISIBLE",
         base_x_offset + item_buttons[4].x - 15, 60, 20, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_COLOR_LABEL,
+    lang_text_draw_centered("TR_EDITOR_COLOR_LABEL",
         color_dropdowns->buttons[0].x, 60, COLOR_DROPDOWN_WIDTH, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     // Bottom buttons
     const generic_button *delete_selected_button = &constant_buttons[1];
     color_t color = data.selection_type == CHECKBOX_NO_SELECTION ? COLOR_FONT_LIGHT_GRAY : COLOR_RED;
-    lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED,
+    lang_text_draw_centered_colored("TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED",
         delete_selected_button->x, delete_selected_button->y + 9, delete_selected_button->width,
         FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
     const generic_button *new_variable_button = &constant_buttons[2];
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_NEW,
+    lang_text_draw_centered("TR_EDITOR_CUSTOM_VARIABLES_NEW",
         new_variable_button->x, new_variable_button->y + 9, new_variable_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_centered(18, 3, constant_buttons[3].x, constant_buttons[3].y + 9, constant_buttons[3].width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -500,8 +515,8 @@ static int check_valid_name(const uint8_t *name)
 static void set_variable_name(const uint8_t *name)
 {
     if (!check_valid_name(name)) {
-        window_plain_message_dialog_show(TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_SET_NAME_TITLE,
-            TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_SET_NAME_TEXT, 1);
+        window_plain_message_dialog_show("TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_SET_NAME_TITLE",
+            "TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_SET_NAME_TEXT", 1);
         return;
     }
     // New variable
@@ -526,7 +541,7 @@ static void show_name_edit_popup(void)
         title = text_input_title;
         name = scenario_custom_variable_get_name(id);
     } else {
-        title = lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_NEW);
+        title = lang_get_string("TR_EDITOR_CUSTOM_VARIABLES_NEW");
     }
 
     window_text_input_show(title, 0, name, CUSTOM_VARIABLE_NAME_LENGTH, set_variable_name);
@@ -577,7 +592,7 @@ static void button_edit_display_text(const generic_button *button)
     }
     unsigned int id = data.custom_variable_ids[data.target_index];
     const uint8_t *current_text = scenario_custom_variable_get_text_display(id);
-    const uint8_t *title = lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_TEXT_DISPLAY);
+    const uint8_t *title = lang_get_string("TR_EDITOR_CUSTOM_VARIABLES_TEXT_DISPLAY");
     window_text_input_show(title, 0, current_text,
         CUSTOM_VARIABLE_TEXT_DISPLAY_LENGTH, set_display_text);
 }
@@ -614,8 +629,8 @@ static void show_used_event_sigle_variable_popup_dialog(const scenario_event_t *
     uint8_t *cursor = string_copy(translation_for_key("TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_EVENT_ID"),
         event_id_text, 50);
     string_from_int(cursor, event->id, 0);
-    window_plain_message_dialog_show_with_extra(TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_TITLE,
-        TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_TEXT, 0, event_id_text);
+    window_plain_message_dialog_show_with_extra("TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_TITLE",
+        "TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_TEXT", 0, event_id_text);
 }
 
 static void show_multiple_variables_in_use_popup_dialog(unsigned int *variables_in_use, unsigned int total)
@@ -632,8 +647,8 @@ static void show_multiple_variables_in_use_popup_dialog(unsigned int *variables_
         }
         cursor += string_from_int(cursor, variables_in_use[i], 0);
     }
-    window_plain_message_dialog_show_with_extra(TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_TITLE,
-        TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_TEXT, 0, event_id_text);
+    window_plain_message_dialog_show_with_extra("TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_TITLE",
+        "TR_EDITOR_CUSTOM_VARIABLE_UNABLE_TO_CHANGE_TEXT", 0, event_id_text);
 }
 
 static void delete_selected(int is_ok, int checked)
@@ -702,9 +717,9 @@ static void button_delete_selected(const generic_button *button)
 
     // Step 2: Request confirmation
     if (!data.do_not_ask_again_for_delete) {
-        const uint8_t *title = lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED_CONFIRM_TITLE);
-        const uint8_t *text = lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED_CONFIRM_TEXT);
-        const uint8_t *check_text = lang_get_string(CUSTOM_TRANSLATION, TR_SAVE_DIALOG_OVERWRITE_FILE_DO_NOT_ASK_AGAIN);
+        const uint8_t *title = lang_get_string("TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED_CONFIRM_TITLE");
+        const uint8_t *text = lang_get_string("TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED_CONFIRM_TEXT");
+        const uint8_t *check_text = lang_get_string("TR_SAVE_DIALOG_OVERWRITE_FILE_DO_NOT_ASK_AGAIN");
         window_popup_dialog_show_confirmation(title, text, check_text, delete_selected);
     } else {
         delete_selected(1, 1);
@@ -780,8 +795,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
 static void get_tooltip(tooltip_context *c)
 {
     if (data.selected && data.custom_variables_in_use && data.constant_button_focus_id == 1) {
-        c->precomposed_text = lang_get_string(CUSTOM_TRANSLATION,
-            data.selection_type == CHECKBOX_ALL_SELECTED ? TR_SELECT_NONE : TR_SELECT_ALL);
+        c->precomposed_text = lang_get_string(
+            data.selection_type == CHECKBOX_ALL_SELECTED ? "TR_SELECT_NONE" : "TR_SELECT_ALL");
         c->type = TOOLTIP_BUTTON;
         return;
     }

@@ -125,7 +125,7 @@ static void draw_background(void)
     if (!city_finance_out_of_money()) {
         lang_text_draw_centered(58, 30 + city_festival_selected_size(), 28, 322, 544, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_OUT_OF_MONEY, 28, 322, 544, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered("TR_OUT_OF_MONEY", 28, 322, 544, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     graphics_reset_dialog();

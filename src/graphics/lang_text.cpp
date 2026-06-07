@@ -1,8 +1,8 @@
-#include "lang_text.h"
+﻿#include "lang_text.h"
+#include "translation/translation.h"
 #include "text_runtime_internal.h"
 
 extern "C" {
-#include "core/lang.h"
 #include "core/locale.h"
 #include "core/string.h"
 #include "graphics/text.h"
@@ -14,9 +14,21 @@ int lang_text_get_width(int group, int number, font_t font, int pixel_size)
     return text_get_width(str, font, pixel_size) + font_definition_for(font)->space_width;
 }
 
+int lang_text_get_width(translation_key key, font_t font, int pixel_size)
+{
+    const uint8_t *str = lang_get_string(key);
+    return text_get_width(str, font, pixel_size) + font_definition_for(font)->space_width;
+}
+
 int lang_text_draw(int group, int number, int x_offset, int y_offset, font_t font, int pixel_size)
 {
     const uint8_t *str = lang_get_string(group, number);
+    return text_draw(str, x_offset, y_offset, font, pixel_size, 0);
+}
+
+int lang_text_draw(translation_key key, int x_offset, int y_offset, font_t font, int pixel_size)
+{
+    const uint8_t *str = lang_get_string(key);
     return text_draw(str, x_offset, y_offset, font, pixel_size, 0);
 }
 
@@ -26,15 +38,35 @@ int lang_text_draw_colored(int group, int number, int x_offset, int y_offset, fo
     return text_draw(str, x_offset, y_offset, font, pixel_size, color);
 }
 
+int lang_text_draw_colored(translation_key key, int x_offset, int y_offset, font_t font, int pixel_size, color_t color)
+{
+    const uint8_t *str = lang_get_string(key);
+    return text_draw(str, x_offset, y_offset, font, pixel_size, color);
+}
+
 void lang_text_draw_centered(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
 {
     const uint8_t *str = lang_get_string(group, number);
     text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
+void lang_text_draw_centered(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
+{
+    const uint8_t *str = lang_get_string(key);
+    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, 0);
+}
+
 void lang_text_draw_right_aligned(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
 {
     const uint8_t *str = lang_get_string(group, number);
+    text_draw_right_aligned(str, x_offset, y_offset, box_width, font, pixel_size, 0);
+}
+
+void lang_text_draw_right_aligned(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
+{
+    const uint8_t *str = lang_get_string(key);
     text_draw_right_aligned(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
@@ -45,15 +77,40 @@ void lang_text_draw_centered_colored(
     text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, color);
 }
 
+void lang_text_draw_centered_colored(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color)
+{
+    const uint8_t *str = lang_get_string(key);
+    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, color);
+}
+
 void lang_text_draw_ellipsized(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
 {
     const uint8_t *str = lang_get_string(group, number);
     text_draw_ellipsized(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
+void lang_text_draw_ellipsized(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
+{
+    const uint8_t *str = lang_get_string(key);
+    text_draw_ellipsized(str, x_offset, y_offset, box_width, font, pixel_size, 0);
+}
+
 int lang_text_draw_amount(int group, int number, int amount, int x_offset, int y_offset, font_t font, int pixel_size)
 {
     return lang_text_draw_amount_colored(group, number, amount, x_offset, y_offset, font, pixel_size, COLOR_MASK_NONE);
+}
+
+int lang_text_draw_amount(translation_key key, int amount, int x_offset, int y_offset, font_t font, int pixel_size)
+{
+    int desc_offset_x;
+    if (amount >= 0) {
+        desc_offset_x = text_draw_number(amount, ' ', " ", x_offset, y_offset, font, pixel_size, COLOR_MASK_NONE);
+    } else {
+        desc_offset_x = text_draw_number(-amount, '-', " ", x_offset, y_offset, font, pixel_size, COLOR_MASK_NONE);
+    }
+    return desc_offset_x + lang_text_draw(key, x_offset + desc_offset_x, y_offset, font, pixel_size);
 }
 
 int lang_text_get_amount_width(int group, int number, int amount, font_t font, int pixel_size)
@@ -82,6 +139,19 @@ int lang_text_draw_amount_centered(int group, int number, int amount, int x_offs
     width += lang_text_get_width(group, number + text_offset, font, pixel_size);
     return lang_text_draw_amount_colored(group, number, amount, x_offset + (box_width - width) / 2, y_offset,
         font, pixel_size, COLOR_MASK_NONE);
+}
+
+int lang_text_draw_amount_centered(
+    translation_key key, int amount, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
+{
+    int width;
+    if (amount >= 0) {
+        width = text_get_number_width(amount, ' ', " ", font, pixel_size);
+    } else {
+        width = text_get_number_width(-amount, '-', " ", font, pixel_size);
+    }
+    width += lang_text_get_width(key, font, pixel_size);
+    return lang_text_draw_amount(key, amount, x_offset + (box_width - width) / 2, y_offset, font, pixel_size);
 }
 
 int lang_text_draw_amount_colored(int group, int number, int amount, int x_offset, int y_offset,
@@ -169,6 +239,32 @@ int lang_text_draw_multiline(int group, int number, int x_offset, int y_offset, 
     return text_draw_multiline(str, x_offset, y_offset, box_width, 0, font, pixel_size, 0);
 }
 
+int lang_text_draw_multiline(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
+{
+    const uint8_t *str = lang_get_string(key);
+    return text_draw_multiline(str, x_offset, y_offset, box_width, 0, font, pixel_size, 0);
+}
+
+static const uint8_t *fragment_label_text(const lang_fragment *fragment)
+{
+    return fragment->text_key ? lang_get_string(fragment->text_key) :
+        lang_get_string(fragment->text_group, fragment->text_id);
+}
+
+static int fragment_label_width(const lang_fragment *fragment, font_t font, int pixel_size)
+{
+    return fragment->text_key ? lang_text_get_width(fragment->text_key, font, pixel_size) :
+        lang_text_get_width(fragment->text_group, fragment->text_id, font, pixel_size);
+}
+
+static int fragment_label_draw(
+    const lang_fragment *fragment, int x, int y, font_t font, int pixel_size, color_t color)
+{
+    return fragment->text_key ? lang_text_draw_colored(fragment->text_key, x, y, font, pixel_size, color) :
+        lang_text_draw_colored(fragment->text_group, fragment->text_id, x, y, font, pixel_size, color);
+}
+
 int lang_text_get_sequence_width(const lang_fragment *seq, int count, font_t font, int pixel_size)
 {
     int width = 0;
@@ -176,7 +272,7 @@ int lang_text_get_sequence_width(const lang_fragment *seq, int count, font_t fon
         const lang_fragment *f = &seq[i];
         switch (f->type) {
             case LANG_FRAG_LABEL:
-                width += lang_text_get_width(f->text_group, f->text_id, font, pixel_size);
+                width += fragment_label_width(f, font, pixel_size);
                 width -= font_definition_for(font)->space_width;
                 break;
             case LANG_FRAG_AMOUNT:
@@ -204,7 +300,7 @@ int lang_text_draw_sequence(const lang_fragment *seq, int count, int x, int y, f
         const lang_fragment *f = &seq[i];
         switch (f->type) {
             case LANG_FRAG_LABEL:
-                width += lang_text_draw_colored(f->text_group, f->text_id, x + width, y, font, pixel_size, color);
+                width += fragment_label_draw(f, x + width, y, font, pixel_size, color);
                 break;
             case LANG_FRAG_AMOUNT:
                 width += lang_text_draw_amount_colored(f->text_group, f->text_id, f->number, x + width, y, font, pixel_size, color);
@@ -238,7 +334,7 @@ int lang_text_draw_sequence_multiline(const lang_fragment *seq, int count, int x
         // Calculate the width of this fragment
         switch (f->type) {
             case LANG_FRAG_LABEL:
-                fragment_width = lang_text_get_width(f->text_group, f->text_id, font, pixel_size);
+                fragment_width = fragment_label_width(f, font, pixel_size);
                 break;
             case LANG_FRAG_AMOUNT:
                 fragment_width = lang_text_get_amount_width(f->text_group, f->text_id, f->number, font, pixel_size);
@@ -270,7 +366,7 @@ int lang_text_draw_sequence_multiline(const lang_fragment *seq, int count, int x
             int height_drawn = 0;
             switch (f->type) {
                 case LANG_FRAG_LABEL:
-                    str = lang_get_string(f->text_group, f->text_id);
+                    str = fragment_label_text(f);
                     height_drawn = text_draw_multiline(str, current_x, current_y, remaining_width, 0, font, pixel_size, color);
                     current_x = x;
                     current_y += height_drawn;
@@ -303,7 +399,7 @@ int lang_text_draw_sequence_multiline(const lang_fragment *seq, int count, int x
             // Fragment fits, draw normally
             switch (f->type) {
                 case LANG_FRAG_LABEL:
-                    current_x += lang_text_draw_colored(f->text_group, f->text_id, current_x, current_y, font, pixel_size, color);
+                    current_x += fragment_label_draw(f, current_x, current_y, font, pixel_size, color);
                     break;
                 case LANG_FRAG_AMOUNT:
                     current_x += lang_text_draw_amount_colored(f->text_group, f->text_id, f->number,
@@ -351,7 +447,7 @@ static int lang_text_draw_sequence_ellipsized_internal(const lang_fragment *seq,
         // Calculate the width of this fragment
         switch (f->type) {
             case LANG_FRAG_LABEL:
-                fragment_width = lang_text_get_width(f->text_group, f->text_id, font, pixel_size);
+                fragment_width = fragment_label_width(f, font, pixel_size);
                 fragment_width -= font_definition_for(font)->space_width;
                 break;
             case LANG_FRAG_AMOUNT:
@@ -374,7 +470,7 @@ static int lang_text_draw_sequence_ellipsized_internal(const lang_fragment *seq,
             // Fragment fits, draw it normally
             switch (f->type) {
                 case LANG_FRAG_LABEL:
-                    width += lang_text_draw_colored(f->text_group, f->text_id, x + width, y, font, pixel_size, color);
+                    width += fragment_label_draw(f, x + width, y, font, pixel_size, color);
                     break;
                 case LANG_FRAG_AMOUNT:
                     width += lang_text_draw_amount_colored(f->text_group, f->text_id, f->number,
@@ -400,7 +496,7 @@ static int lang_text_draw_sequence_ellipsized_internal(const lang_fragment *seq,
             const uint8_t *str = 0;
             switch (f->type) {
                 case LANG_FRAG_LABEL:
-                    str = lang_get_string(f->text_group, f->text_id);
+                    str = fragment_label_text(f);
                     text_draw_ellipsized(str, x + width, y, remaining_width, font, pixel_size, color);
                     break;
                 case LANG_FRAG_TEXT:
@@ -465,7 +561,7 @@ int lang_text_concatenate_sequence(const lang_fragment *seq, int count, uint8_t 
 
         switch (f->type) {
             case LANG_FRAG_LABEL:
-                str = lang_get_string(f->text_group, f->text_id);
+                str = fragment_label_text(f);
                 len = string_length(str);
                 if (len > remaining) len = remaining;
                 string_copy(str, cursor, len + 1);

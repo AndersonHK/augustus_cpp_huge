@@ -1,4 +1,5 @@
-#include "graphics/graphics.h"
+﻿#include "graphics/graphics.h"
+#include "translation/translation.h"
 #include "graphics/image.h"
 
 #include "text.h"
@@ -8,7 +9,6 @@
 extern "C" {
 #include "core/encoding.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/locale.h"
 #include "core/string.h"
 #include "core/time.h"

@@ -92,7 +92,7 @@ static void draw_foreground(void)
             data.focus_button_id == i + 1 ? 1 : 0);
     }
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_MAIN_MENU_SELECT_CAMPAIGN, 192, 137, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("TR_MAIN_MENU_SELECT_CAMPAIGN", 192, 137, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     lang_text_draw_centered(30, 2, 192, 177, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     lang_text_draw_centered(30, 3, 192, 217, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     lang_text_draw_centered(9, 8, 192, 257, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
@@ -141,7 +141,7 @@ static void button_click(const generic_button *button)
     } else if (type == 4) {
         if (!editor_is_present() || !game_init_editor()) {
             window_plain_message_dialog_show(
-                TR_NO_EDITOR_TITLE, TR_NO_EDITOR_MESSAGE, 1);
+                "TR_NO_EDITOR_TITLE", "TR_NO_EDITOR_MESSAGE", 1);
         } else {
             if (config_get(CONFIG_UI_SHOW_INTRO_VIDEO)) window_video_show("map_intro.smk", window_editor_map_show);
             sound_music_play_editor();

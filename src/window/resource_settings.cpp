@@ -133,9 +133,7 @@ static void draw_foreground(void)
             storage_seq[seq_len++] = { LANG_FRAG_SPACE, 0, 0, 0, remove_space, nullptr };
             storage_seq[seq_len++] = { LANG_FRAG_TEXT, 0, 0, 0, 0, reinterpret_cast<const uint8_t *>(", ") };
             storage_seq[seq_len++] = { LANG_FRAG_NUMBER, 0, 0, in_granaries, 0, nullptr };
-            storage_seq[seq_len++] = {
-                LANG_FRAG_LABEL, CUSTOM_TRANSLATION, TR_RESOURCE_SETTINGS_IN_GRANARIES, 0, 0, nullptr
-            };
+            storage_seq[seq_len++] = { .type = LANG_FRAG_LABEL, .text_key = "TR_RESOURCE_SETTINGS_IN_GRANARIES" };
         }
         lang_text_draw_sequence(storage_seq, seq_len, 66, 192, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
         int width = 0;
@@ -193,7 +191,7 @@ static void draw_foreground(void)
             }
         }
     } else {
-        lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_TRADE_RESOURCE_NOT_STORABLE_OR_TRADABLE, 66, 192, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw("TR_ADVISOR_TRADE_RESOURCE_NOT_STORABLE_OR_TRADABLE", 66, 192, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     if (total_buildings > 0) {

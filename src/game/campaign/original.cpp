@@ -4,7 +4,6 @@
 #include "core/io.h"
 #include "core/image.h"
 #include "core/image_group.h"
-#include "core/lang.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "game/campaign.h"
@@ -61,7 +60,11 @@ static campaign_scenario *new_scenario(int rank)
 
     uint8_t *name;
     if (rank < FIRST_RANK_WITH_MULTIPLE_SCENARIOS) {
-        name = copy_new_string(lang_get_string(CUSTOM_TRANSLATION, TR_ORIGINAL_CAMPAIGN_FIRST_MISSION + rank));
+        static constexpr translation_key first_mission_names[] = {
+            "TR_ORIGINAL_CAMPAIGN_FIRST_MISSION",
+            "TR_ORIGINAL_CAMPAIGN_SECOND_MISSION",
+        };
+        name = copy_new_string(lang_get_string(first_mission_names[rank]));
     } else {
         name = copy_new_string(lang_get_string(144, 2 + 3 * rank + (camp_scenario->id % SCENARIOS_PER_RANK)));
     }

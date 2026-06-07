@@ -2247,12 +2247,10 @@ static void get_tooltip(tooltip_context *c)
         }
     } else if (data.sidebar.border_btn.is_hovered) {
         c->type = TOOLTIP_BUTTON;
-        c->text_group = CUSTOM_TRANSLATION;
-        c->text_id = TR_TOOLTIP_CHANGE_SIDEBAR_WIDTH;
+        c->translation_key = "TR_TOOLTIP_CHANGE_SIDEBAR_WIDTH";
     } else if (window_empire_sidebar_sort_get_sorting_arrow_focused()) {
         c->type = TOOLTIP_BUTTON;
-        c->text_group = CUSTOM_TRANSLATION;
-        c->text_id = window_empire_sidebar_sort_get_sorting_arrow_is_down() ? TR_TOOLTIP_DESCENDING_ORDER : TR_TOOLTIP_ASCENDING_ORDER;
+        c->translation_key = window_empire_sidebar_sort_get_sorting_arrow_is_down() ? "TR_TOOLTIP_DESCENDING_ORDER" : "TR_TOOLTIP_ASCENDING_ORDER";
     } else {
         get_tooltip_trade_route_type(c);
     }

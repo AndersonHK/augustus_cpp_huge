@@ -202,7 +202,7 @@ static void check_road_access(building_type type, int x, int y, int size)
     }
 
     if (!has_road) {
-        show(WARNING_ROAD_ACCESS_NEEDED, TR_CITY_WARNING_ROAD_ACCESS_NEEDED);
+        show(WARNING_ROAD_ACCESS_NEEDED, "TR_CITY_WARNING_ROAD_ACCESS_NEEDED");
     }
 }
 
@@ -214,7 +214,7 @@ static void check_water(building_type type, int x, int y, int size)
     }
 
     if (!water_access_runtime_building_type_has_required_access_at(type, x, y, size)) {
-        show(WARNING_WATER_PIPE_ACCESS_NEEDED, TR_CITY_WARNING_WATER_PIPE_ACCESS_NEEDED);
+        show(WARNING_WATER_PIPE_ACCESS_NEEDED, "TR_CITY_WARNING_WATER_PIPE_ACCESS_NEEDED");
     }
 }
 
@@ -222,7 +222,7 @@ static void check_workers(building_type type)
 {
     if (!has_warning && !type_matches(type, "well") && !building_is_fort(type)) {
         if (model_get_building(type)->laborers > 0 && city_labor_workers_needed() >= 10) {
-            show(WARNING_WORKERS_NEEDED, TR_CITY_WARNING_WORKERS_NEEDED);
+            show(WARNING_WORKERS_NEEDED, "TR_CITY_WARNING_WORKERS_NEEDED");
         }
     }
 }
@@ -231,7 +231,7 @@ static void check_market(building_type type)
 {
     if (!has_warning && type_matches(type, "granary")) {
         if (active_count("market") <= 0) {
-            show(WARNING_BUILD_MARKET, TR_CITY_WARNING_BUILD_MARKET);
+            show(WARNING_BUILD_MARKET, "TR_CITY_WARNING_BUILD_MARKET");
         }
     }
 }
@@ -241,7 +241,7 @@ static void check_barracks(building_type type)
     if (!has_warning) {
         if (building_is_fort(type) && active_count("barracks") <= 0 &&
             !building_monument_working_grand_temple_for_god(GOD_MARS)) {
-            show(WARNING_BUILD_BARRACKS, TR_CITY_WARNING_BUILD_BARRACKS);
+            show(WARNING_BUILD_BARRACKS, "TR_CITY_WARNING_BUILD_BARRACKS");
         }
     }
 }
@@ -250,7 +250,7 @@ static void check_armoury(building_type type)
 {
     if (type_matches(type, "barracks")) {
         if (active_count("armoury") <= 0) {
-            show(WARNING_NO_ARMOURY, TR_WARNING_NO_ARMOURY);
+            show(WARNING_NO_ARMOURY, "TR_WARNING_NO_ARMOURY");
         }
     }
 }
@@ -259,7 +259,7 @@ static void check_weapons_access(building_type type)
 {
     if (type_matches(type, "barracks")) {
         if (city_resource_count_warehouses_amount(resource_weapons()) <= 0) {
-            show(WARNING_WEAPONS_NEEDED, TR_CITY_WARNING_WEAPONS_NEEDED);
+            show(WARNING_WEAPONS_NEEDED, "TR_CITY_WARNING_WEAPONS_NEEDED");
         }
     }
 }
@@ -268,7 +268,7 @@ static void check_wall(building_type type, int x, int y, int size)
 {
     if (!has_warning && type_matches(type, "tower")) {
         if (!map_terrain_is_adjacent_to_wall(x, y, size)) {
-            show(WARNING_SENTRIES_NEED_WALL, TR_CITY_WARNING_SENTRIES_NEED_WALL);
+            show(WARNING_SENTRIES_NEED_WALL, "TR_CITY_WARNING_SENTRIES_NEED_WALL");
         }
     }
 }
@@ -277,7 +277,7 @@ static void check_actor_access(building_type type)
 {
     if (!has_warning && type_matches(type, "theater")) {
         if (active_count("actor_colony") <= 0) {
-            show(WARNING_BUILD_ACTOR_COLONY, TR_CITY_WARNING_BUILD_ACTOR_COLONY);
+            show(WARNING_BUILD_ACTOR_COLONY, "TR_CITY_WARNING_BUILD_ACTOR_COLONY");
         }
     }
 }
@@ -287,7 +287,7 @@ static void check_gladiator_access(building_type type)
     if (!has_warning && (type_matches(type, "amphitheater") || type_matches(type, "colosseum") ||
         type_matches(type, "arena"))) {
         if (active_count("gladiator_school") <= 0) {
-            show(WARNING_BUILD_GLADIATOR_SCHOOL, TR_CITY_WARNING_BUILD_GLADIATOR_SCHOOL);
+            show(WARNING_BUILD_GLADIATOR_SCHOOL, "TR_CITY_WARNING_BUILD_GLADIATOR_SCHOOL");
         }
     }
 }
@@ -296,7 +296,7 @@ static void check_lion_access(building_type type)
 {
     if (!has_warning && (type_matches(type, "colosseum") || type_matches(type, "arena"))) {
         if (active_count("lion_house") <= 0) {
-            show(WARNING_BUILD_LION_HOUSE, TR_CITY_WARNING_BUILD_LION_HOUSE);
+            show(WARNING_BUILD_LION_HOUSE, "TR_CITY_WARNING_BUILD_LION_HOUSE");
         }
     }
 }
@@ -305,7 +305,7 @@ static void check_charioteer_access(building_type type)
 {
     if (!has_warning && type_matches(type, "hippodrome")) {
         if (active_count("chariot_maker") <= 0) {
-            show(WARNING_BUILD_CHARIOT_MAKER, TR_CITY_WARNING_BUILD_CHARIOT_MAKER);
+            show(WARNING_BUILD_CHARIOT_MAKER, "TR_CITY_WARNING_BUILD_CHARIOT_MAKER");
         }
     }
 }
@@ -326,9 +326,9 @@ static void check_raw_material_access(building_type type)
                 if (empire_can_produce_resource(chain[i].raw_material)) {
                     show_missing_producer(producer);
                 } else if (!empire_can_import_resource(chain[i].raw_material)) {
-                    show(WARNING_OPEN_TRADE_TO_IMPORT, TR_CITY_WARNING_OPEN_TRADE_TO_IMPORT);
+                    show(WARNING_OPEN_TRADE_TO_IMPORT, "TR_CITY_WARNING_OPEN_TRADE_TO_IMPORT");
                 } else if (!(city_resource_trade_status(chain[i].raw_material) & TRADE_STATUS_IMPORT)) {
-                    show(WARNING_TRADE_IMPORT_RESOURCE, TR_CITY_WARNING_TRADE_IMPORT_RESOURCE);
+                    show(WARNING_TRADE_IMPORT_RESOURCE, "TR_CITY_WARNING_TRADE_IMPORT_RESOURCE");
                 }
             }
         }
@@ -362,7 +362,7 @@ void building_construction_warning_check_food_stocks(building_type type)
     if (!has_warning && is_vacant_lot_fill_type(type)) {
         if (city_population() >= 200 && !scenario_property_rome_supplies_wheat()) {
             if (city_resource_food_percentage_produced() <= 95) {
-                show(WARNING_MORE_FOOD_NEEDED, TR_CITY_WARNING_MORE_FOOD_NEEDED);
+                show(WARNING_MORE_FOOD_NEEDED, "TR_CITY_WARNING_MORE_FOOD_NEEDED");
             }
         }
     }
@@ -372,9 +372,9 @@ void building_construction_warning_check_reservoir(building_type type)
 {
     if (!has_warning && type_matches(type, "reservoir")) {
         if (building_count_active(type)) {
-            show(WARNING_CONNECT_TO_RESERVOIR, TR_CITY_WARNING_CONNECT_TO_RESERVOIR);
+            show(WARNING_CONNECT_TO_RESERVOIR, "TR_CITY_WARNING_CONNECT_TO_RESERVOIR");
         } else {
-            show(WARNING_PLACE_RESERVOIR_NEXT_TO_WATER, TR_CITY_WARNING_PLACE_RESERVOIR_NEXT_TO_WATER);
+            show(WARNING_PLACE_RESERVOIR_NEXT_TO_WATER, "TR_CITY_WARNING_PLACE_RESERVOIR_NEXT_TO_WATER");
         }
     }
 }

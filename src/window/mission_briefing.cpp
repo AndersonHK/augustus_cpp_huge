@@ -1,4 +1,5 @@
 #include "game/file.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
@@ -13,7 +14,6 @@
 #include "window/mission_briefing.h"
 
 #include "window/video.h"
-#include "translation/translation.h"
 #include "graphics/declarative_window.h"
 #include "graphics/ui_runtime.h"
 
@@ -27,7 +27,6 @@ extern "C" {
 #include "core/config.h"
 #include "core/encoding.h"
 #include "core/image_group.h"
-#include "core/lang.h"
 #include "game/campaign.h"
 #include "game/mission.h"
 #include "game/settings.h"
@@ -600,8 +599,8 @@ static void draw_background(void)
             setting_clear_personal_savings();
             scenario_settings_init();
             scenario_set_campaign_rank(2);
-            window_plain_message_dialog_show(TR_WINDOW_CAMPAIGN_MISSION_FAILED_TO_LOAD_TITLE,
-                TR_WINDOW_CAMPAIGN_MISSION_FAILED_TO_LOAD_TEXT, 0);
+            window_plain_message_dialog_show("TR_WINDOW_CAMPAIGN_MISSION_FAILED_TO_LOAD_TITLE",
+                "TR_WINDOW_CAMPAIGN_MISSION_FAILED_TO_LOAD_TEXT", 0);
             return;
         }
         data.file_loaded = 1;

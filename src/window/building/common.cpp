@@ -190,9 +190,21 @@ void window_building_draw_description(building_info_context *c, int text_group, 
        BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
+void window_building_draw_description(building_info_context *c, translation_key key)
+{
+    lang_text_draw_multiline(key, c->x_offset + 32, c->y_offset + 56,
+       BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+}
+
 int window_building_draw_description_at(building_info_context *c, int y_offset, int text_group, int text_id)
 {
     return lang_text_draw_multiline(text_group, text_id, c->x_offset + 32, c->y_offset + y_offset,
+        BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+}
+
+int window_building_draw_description_at(building_info_context *c, int y_offset, translation_key key)
+{
+    return lang_text_draw_multiline(key, c->x_offset + 32, c->y_offset + y_offset,
         BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
@@ -244,81 +256,81 @@ static translation_key phase_key_from(const translation_key *keys, int count, in
 
 static translation_key monument_phase_name_key(translation_key first_phase, int phase)
 {
-    static const translation_key large_temple[] = { TR_BUILDING_LARGE_TEMPLE_PHASE_1, TR_BUILDING_LARGE_TEMPLE_PHASE_2 };
-    static const translation_key oracle[] = { TR_BUILDING_ORACLE_PHASE_1, TR_BUILDING_ORACLE_PHASE_2 };
-    static const translation_key nymphaeum[] = { TR_BUILDING_NYMPHAEUM_PHASE_1, TR_BUILDING_NYMPHAEUM_PHASE_2 };
-    static const translation_key small_mausoleum[] = { TR_BUILDING_SMALL_MAUSOLEUM_PHASE_1, TR_BUILDING_SMALL_MAUSOLEUM_PHASE_2 };
-    static const translation_key large_mausoleum[] = { TR_BUILDING_LARGE_MAUSOLEUM_PHASE_1, TR_BUILDING_LARGE_MAUSOLEUM_PHASE_2 };
+    static const translation_key large_temple[] = { "TR_BUILDING_LARGE_TEMPLE_PHASE_1", "TR_BUILDING_LARGE_TEMPLE_PHASE_2" };
+    static const translation_key oracle[] = { "TR_BUILDING_ORACLE_PHASE_1", "TR_BUILDING_ORACLE_PHASE_2" };
+    static const translation_key nymphaeum[] = { "TR_BUILDING_NYMPHAEUM_PHASE_1", "TR_BUILDING_NYMPHAEUM_PHASE_2" };
+    static const translation_key small_mausoleum[] = { "TR_BUILDING_SMALL_MAUSOLEUM_PHASE_1", "TR_BUILDING_SMALL_MAUSOLEUM_PHASE_2" };
+    static const translation_key large_mausoleum[] = { "TR_BUILDING_LARGE_MAUSOLEUM_PHASE_1", "TR_BUILDING_LARGE_MAUSOLEUM_PHASE_2" };
     static const translation_key grand_temple[] = {
-        TR_BUILDING_GRAND_TEMPLE_PHASE_1, TR_BUILDING_GRAND_TEMPLE_PHASE_2, TR_BUILDING_GRAND_TEMPLE_PHASE_3,
-        TR_BUILDING_GRAND_TEMPLE_PHASE_4, TR_BUILDING_GRAND_TEMPLE_PHASE_5
+        "TR_BUILDING_GRAND_TEMPLE_PHASE_1", "TR_BUILDING_GRAND_TEMPLE_PHASE_2", "TR_BUILDING_GRAND_TEMPLE_PHASE_3",
+        "TR_BUILDING_GRAND_TEMPLE_PHASE_4", "TR_BUILDING_GRAND_TEMPLE_PHASE_5"
     };
     static const translation_key colosseum[] = {
-        TR_BUILDING_COLOSSEUM_PHASE_1, TR_BUILDING_COLOSSEUM_PHASE_2, TR_BUILDING_COLOSSEUM_PHASE_3,
-        TR_BUILDING_COLOSSEUM_PHASE_4
+        "TR_BUILDING_COLOSSEUM_PHASE_1", "TR_BUILDING_COLOSSEUM_PHASE_2", "TR_BUILDING_COLOSSEUM_PHASE_3",
+        "TR_BUILDING_COLOSSEUM_PHASE_4"
     };
     static const translation_key hippodrome[] = {
-        TR_BUILDING_HIPPODROME_PHASE_1, TR_BUILDING_HIPPODROME_PHASE_2, TR_BUILDING_HIPPODROME_PHASE_3,
-        TR_BUILDING_HIPPODROME_PHASE_4
+        "TR_BUILDING_HIPPODROME_PHASE_1", "TR_BUILDING_HIPPODROME_PHASE_2", "TR_BUILDING_HIPPODROME_PHASE_3",
+        "TR_BUILDING_HIPPODROME_PHASE_4"
     };
-    static const translation_key caravanserai[] = { TR_BUILDING_CARAVANSERAI_PHASE_1, TR_BUILDING_CARAVANSERAI_PHASE_2 };
+    static const translation_key caravanserai[] = { "TR_BUILDING_CARAVANSERAI_PHASE_1", "TR_BUILDING_CARAVANSERAI_PHASE_2" };
     static const translation_key lighthouse[] = {
-        TR_BUILDING_LIGHTHOUSE_PHASE_1, TR_BUILDING_LIGHTHOUSE_PHASE_2, TR_BUILDING_LIGHTHOUSE_PHASE_3,
-        TR_BUILDING_LIGHTHOUSE_PHASE_4
+        "TR_BUILDING_LIGHTHOUSE_PHASE_1", "TR_BUILDING_LIGHTHOUSE_PHASE_2", "TR_BUILDING_LIGHTHOUSE_PHASE_3",
+        "TR_BUILDING_LIGHTHOUSE_PHASE_4"
     };
-    static const translation_key city_mint[] = { TR_BUILDING_CITY_MINT_PHASE_1, TR_BUILDING_CITY_MINT_PHASE_2 };
+    static const translation_key city_mint[] = { "TR_BUILDING_CITY_MINT_PHASE_1", "TR_BUILDING_CITY_MINT_PHASE_2" };
 
-    if (first_phase == TR_BUILDING_LARGE_TEMPLE_PHASE_1) return phase_key_from(large_temple, 2, phase);
-    if (first_phase == TR_BUILDING_ORACLE_PHASE_1) return phase_key_from(oracle, 2, phase);
-    if (first_phase == TR_BUILDING_NYMPHAEUM_PHASE_1) return phase_key_from(nymphaeum, 2, phase);
-    if (first_phase == TR_BUILDING_SMALL_MAUSOLEUM_PHASE_1) return phase_key_from(small_mausoleum, 2, phase);
-    if (first_phase == TR_BUILDING_LARGE_MAUSOLEUM_PHASE_1) return phase_key_from(large_mausoleum, 2, phase);
-    if (first_phase == TR_BUILDING_GRAND_TEMPLE_PHASE_1) return phase_key_from(grand_temple, 5, phase);
-    if (first_phase == TR_BUILDING_COLOSSEUM_PHASE_1) return phase_key_from(colosseum, 4, phase);
-    if (first_phase == TR_BUILDING_HIPPODROME_PHASE_1) return phase_key_from(hippodrome, 4, phase);
-    if (first_phase == TR_BUILDING_CARAVANSERAI_PHASE_1) return phase_key_from(caravanserai, 2, phase);
-    if (first_phase == TR_BUILDING_LIGHTHOUSE_PHASE_1) return phase_key_from(lighthouse, 4, phase);
-    if (first_phase == TR_BUILDING_CITY_MINT_PHASE_1) return phase_key_from(city_mint, 2, phase);
+    if (first_phase == "TR_BUILDING_LARGE_TEMPLE_PHASE_1") return phase_key_from(large_temple, 2, phase);
+    if (first_phase == "TR_BUILDING_ORACLE_PHASE_1") return phase_key_from(oracle, 2, phase);
+    if (first_phase == "TR_BUILDING_NYMPHAEUM_PHASE_1") return phase_key_from(nymphaeum, 2, phase);
+    if (first_phase == "TR_BUILDING_SMALL_MAUSOLEUM_PHASE_1") return phase_key_from(small_mausoleum, 2, phase);
+    if (first_phase == "TR_BUILDING_LARGE_MAUSOLEUM_PHASE_1") return phase_key_from(large_mausoleum, 2, phase);
+    if (first_phase == "TR_BUILDING_GRAND_TEMPLE_PHASE_1") return phase_key_from(grand_temple, 5, phase);
+    if (first_phase == "TR_BUILDING_COLOSSEUM_PHASE_1") return phase_key_from(colosseum, 4, phase);
+    if (first_phase == "TR_BUILDING_HIPPODROME_PHASE_1") return phase_key_from(hippodrome, 4, phase);
+    if (first_phase == "TR_BUILDING_CARAVANSERAI_PHASE_1") return phase_key_from(caravanserai, 2, phase);
+    if (first_phase == "TR_BUILDING_LIGHTHOUSE_PHASE_1") return phase_key_from(lighthouse, 4, phase);
+    if (first_phase == "TR_BUILDING_CITY_MINT_PHASE_1") return phase_key_from(city_mint, 2, phase);
     return first_phase;
 }
 
 static translation_key monument_phase_text_key(translation_key first_phase_text, int phase)
 {
-    static const translation_key large_temple[] = { TR_BUILDING_LARGE_TEMPLE_PHASE_1_TEXT, TR_BUILDING_LARGE_TEMPLE_PHASE_2_TEXT };
-    static const translation_key oracle[] = { TR_BUILDING_ORACLE_PHASE_1_TEXT, TR_BUILDING_ORACLE_PHASE_2_TEXT };
-    static const translation_key nymphaeum[] = { TR_BUILDING_NYMPHAEUM_PHASE_1_TEXT, TR_BUILDING_NYMPHAEUM_PHASE_2_TEXT };
-    static const translation_key small_mausoleum[] = { TR_BUILDING_SMALL_MAUSOLEUM_PHASE_1_TEXT, TR_BUILDING_SMALL_MAUSOLEUM_PHASE_2_TEXT };
-    static const translation_key large_mausoleum[] = { TR_BUILDING_LARGE_MAUSOLEUM_PHASE_1_TEXT, TR_BUILDING_LARGE_MAUSOLEUM_PHASE_2_TEXT };
+    static const translation_key large_temple[] = { "TR_BUILDING_LARGE_TEMPLE_PHASE_1_TEXT", "TR_BUILDING_LARGE_TEMPLE_PHASE_2_TEXT" };
+    static const translation_key oracle[] = { "TR_BUILDING_ORACLE_PHASE_1_TEXT", "TR_BUILDING_ORACLE_PHASE_2_TEXT" };
+    static const translation_key nymphaeum[] = { "TR_BUILDING_NYMPHAEUM_PHASE_1_TEXT", "TR_BUILDING_NYMPHAEUM_PHASE_2_TEXT" };
+    static const translation_key small_mausoleum[] = { "TR_BUILDING_SMALL_MAUSOLEUM_PHASE_1_TEXT", "TR_BUILDING_SMALL_MAUSOLEUM_PHASE_2_TEXT" };
+    static const translation_key large_mausoleum[] = { "TR_BUILDING_LARGE_MAUSOLEUM_PHASE_1_TEXT", "TR_BUILDING_LARGE_MAUSOLEUM_PHASE_2_TEXT" };
     static const translation_key grand_temple[] = {
-        TR_BUILDING_GRAND_TEMPLE_PHASE_1_TEXT, TR_BUILDING_GRAND_TEMPLE_PHASE_2_TEXT, TR_BUILDING_GRAND_TEMPLE_PHASE_3_TEXT,
-        TR_BUILDING_GRAND_TEMPLE_PHASE_4_TEXT, TR_BUILDING_GRAND_TEMPLE_PHASE_5_TEXT
+        "TR_BUILDING_GRAND_TEMPLE_PHASE_1_TEXT", "TR_BUILDING_GRAND_TEMPLE_PHASE_2_TEXT", "TR_BUILDING_GRAND_TEMPLE_PHASE_3_TEXT",
+        "TR_BUILDING_GRAND_TEMPLE_PHASE_4_TEXT", "TR_BUILDING_GRAND_TEMPLE_PHASE_5_TEXT"
     };
     static const translation_key colosseum[] = {
-        TR_BUILDING_COLOSSEUM_PHASE_1_TEXT, TR_BUILDING_COLOSSEUM_PHASE_2_TEXT, TR_BUILDING_COLOSSEUM_PHASE_3_TEXT,
-        TR_BUILDING_COLOSSEUM_PHASE_4_TEXT
+        "TR_BUILDING_COLOSSEUM_PHASE_1_TEXT", "TR_BUILDING_COLOSSEUM_PHASE_2_TEXT", "TR_BUILDING_COLOSSEUM_PHASE_3_TEXT",
+        "TR_BUILDING_COLOSSEUM_PHASE_4_TEXT"
     };
     static const translation_key hippodrome[] = {
-        TR_BUILDING_HIPPODROME_PHASE_1_TEXT, TR_BUILDING_HIPPODROME_PHASE_2_TEXT, TR_BUILDING_HIPPODROME_PHASE_3_TEXT,
-        TR_BUILDING_HIPPODROME_PHASE_4_TEXT
+        "TR_BUILDING_HIPPODROME_PHASE_1_TEXT", "TR_BUILDING_HIPPODROME_PHASE_2_TEXT", "TR_BUILDING_HIPPODROME_PHASE_3_TEXT",
+        "TR_BUILDING_HIPPODROME_PHASE_4_TEXT"
     };
-    static const translation_key caravanserai[] = { TR_BUILDING_CARAVANSERAI_PHASE_1_TEXT, TR_BUILDING_CARAVANSERAI_PHASE_2_TEXT };
+    static const translation_key caravanserai[] = { "TR_BUILDING_CARAVANSERAI_PHASE_1_TEXT", "TR_BUILDING_CARAVANSERAI_PHASE_2_TEXT" };
     static const translation_key lighthouse[] = {
-        TR_BUILDING_LIGHTHOUSE_PHASE_1_TEXT, TR_BUILDING_LIGHTHOUSE_PHASE_2_TEXT, TR_BUILDING_LIGHTHOUSE_PHASE_3_TEXT,
-        TR_BUILDING_LIGHTHOUSE_PHASE_4_TEXT
+        "TR_BUILDING_LIGHTHOUSE_PHASE_1_TEXT", "TR_BUILDING_LIGHTHOUSE_PHASE_2_TEXT", "TR_BUILDING_LIGHTHOUSE_PHASE_3_TEXT",
+        "TR_BUILDING_LIGHTHOUSE_PHASE_4_TEXT"
     };
-    static const translation_key city_mint[] = { TR_BUILDING_CITY_MINT_PHASE_1_TEXT, TR_BUILDING_CITY_MINT_PHASE_2_TEXT };
+    static const translation_key city_mint[] = { "TR_BUILDING_CITY_MINT_PHASE_1_TEXT", "TR_BUILDING_CITY_MINT_PHASE_2_TEXT" };
 
-    if (first_phase_text == TR_BUILDING_LARGE_TEMPLE_PHASE_1_TEXT) return phase_key_from(large_temple, 2, phase);
-    if (first_phase_text == TR_BUILDING_ORACLE_PHASE_1_TEXT) return phase_key_from(oracle, 2, phase);
-    if (first_phase_text == TR_BUILDING_NYMPHAEUM_PHASE_1_TEXT) return phase_key_from(nymphaeum, 2, phase);
-    if (first_phase_text == TR_BUILDING_SMALL_MAUSOLEUM_PHASE_1_TEXT) return phase_key_from(small_mausoleum, 2, phase);
-    if (first_phase_text == TR_BUILDING_LARGE_MAUSOLEUM_PHASE_1_TEXT) return phase_key_from(large_mausoleum, 2, phase);
-    if (first_phase_text == TR_BUILDING_GRAND_TEMPLE_PHASE_1_TEXT) return phase_key_from(grand_temple, 5, phase);
-    if (first_phase_text == TR_BUILDING_COLOSSEUM_PHASE_1_TEXT) return phase_key_from(colosseum, 4, phase);
-    if (first_phase_text == TR_BUILDING_HIPPODROME_PHASE_1_TEXT) return phase_key_from(hippodrome, 4, phase);
-    if (first_phase_text == TR_BUILDING_CARAVANSERAI_PHASE_1_TEXT) return phase_key_from(caravanserai, 2, phase);
-    if (first_phase_text == TR_BUILDING_LIGHTHOUSE_PHASE_1_TEXT) return phase_key_from(lighthouse, 4, phase);
-    if (first_phase_text == TR_BUILDING_CITY_MINT_PHASE_1_TEXT) return phase_key_from(city_mint, 2, phase);
+    if (first_phase_text == "TR_BUILDING_LARGE_TEMPLE_PHASE_1_TEXT") return phase_key_from(large_temple, 2, phase);
+    if (first_phase_text == "TR_BUILDING_ORACLE_PHASE_1_TEXT") return phase_key_from(oracle, 2, phase);
+    if (first_phase_text == "TR_BUILDING_NYMPHAEUM_PHASE_1_TEXT") return phase_key_from(nymphaeum, 2, phase);
+    if (first_phase_text == "TR_BUILDING_SMALL_MAUSOLEUM_PHASE_1_TEXT") return phase_key_from(small_mausoleum, 2, phase);
+    if (first_phase_text == "TR_BUILDING_LARGE_MAUSOLEUM_PHASE_1_TEXT") return phase_key_from(large_mausoleum, 2, phase);
+    if (first_phase_text == "TR_BUILDING_GRAND_TEMPLE_PHASE_1_TEXT") return phase_key_from(grand_temple, 5, phase);
+    if (first_phase_text == "TR_BUILDING_COLOSSEUM_PHASE_1_TEXT") return phase_key_from(colosseum, 4, phase);
+    if (first_phase_text == "TR_BUILDING_HIPPODROME_PHASE_1_TEXT") return phase_key_from(hippodrome, 4, phase);
+    if (first_phase_text == "TR_BUILDING_CARAVANSERAI_PHASE_1_TEXT") return phase_key_from(caravanserai, 2, phase);
+    if (first_phase_text == "TR_BUILDING_LIGHTHOUSE_PHASE_1_TEXT") return phase_key_from(lighthouse, 4, phase);
+    if (first_phase_text == "TR_BUILDING_CITY_MINT_PHASE_1_TEXT") return phase_key_from(city_mint, 2, phase);
     return first_phase_text;
 }
 
@@ -329,8 +341,7 @@ void window_building_draw_monument_construction_process(building_info_context *c
 
     if (b->monument.phase != MONUMENT_FINISHED) {
         if (!c->has_road_access) {
-            window_building_draw_description(c, CUSTOM_TRANSLATION,
-                TR_WINDOW_BUILDING_INFO_WARNING_NO_MONUMENT_ROAD_ACCESS);
+            window_building_draw_description(c, "TR_WINDOW_BUILDING_INFO_WARNING_NO_MONUMENT_ROAD_ACCESS");
             text_draw_multiline(translation_for(tr_construction_desc),
                 c->x_offset + 32, c->y_offset + 180, 16 * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             return;
@@ -408,7 +419,8 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     }
 }
 
-void window_building_get_risks_tooltip(const building_info_context *c, int *group_id, int *text_id)
+void window_building_get_risks_tooltip(
+    const building_info_context *c, int *group_id, int *text_id, translation_key *translation)
 {
     if (!c->risk_icons.active) {
         return;
@@ -421,9 +433,14 @@ void window_building_get_risks_tooltip(const building_info_context *c, int *grou
     if (b->house_size && b->house_population) {
         if (m->x >= c->risk_icons.x_offset - 28 && m->x < c->risk_icons.x_offset - 4 &&
             m->y >= c->risk_icons.y_offset && m->y < c->risk_icons.y_offset + 24) {
-            *group_id = CUSTOM_TRANSLATION;
-            *text_id = b->sickness_level <= 0 ? TR_TOOLTIP_OVERLAY_SICKNESS_NONE :
-                TR_TOOLTIP_OVERLAY_SICKNESS_LOW + calc_bound(b->sickness_level, 0, 100) / 30;
+            static constexpr translation_key sickness_tooltips[] = {
+                "TR_TOOLTIP_OVERLAY_SICKNESS_LOW",
+                "TR_TOOLTIP_OVERLAY_SICKNESS_MEDIUM",
+                "TR_TOOLTIP_OVERLAY_SICKNESS_HIGH",
+                "TR_TOOLTIP_OVERLAY_SICKNESS_PLAGUE",
+            };
+            *translation = b->sickness_level <= 0 ? "TR_TOOLTIP_OVERLAY_SICKNESS_NONE" :
+                sickness_tooltips[calc_bound(b->sickness_level, 0, 100) / 30];
             return;
         }
     }

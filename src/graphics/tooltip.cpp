@@ -1,11 +1,11 @@
-#include "building/building.h"
+﻿#include "building/building.h"
+#include "translation/translation.h"
 #include "city/labor.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
 #include "map/building.h"
 #include "map/image.h"
 
-#include "translation/translation.h"
 #include "window/advisors.h"
 #include "tooltip.h"
 
@@ -17,7 +17,6 @@ extern "C" {
 #include "city/view.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "core/time.h"
 #include "game/cheats.h"

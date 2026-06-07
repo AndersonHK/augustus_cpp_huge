@@ -1,4 +1,5 @@
-#include "graphics/graphics.h"
+﻿#include "graphics/graphics.h"
+#include "translation/translation.h"
 #include "graphics/image.h"
 #include "graphics/image_border.h"
 #include "graphics/lang_text.h"
@@ -15,7 +16,6 @@ extern "C" {
 
 #include "assets/assets.h"
 #include "core/image_group.h"
-#include "core/lang.h"
 #include "core/log.h"
 #include "game/campaign.h"
 #include "game/mission.h"

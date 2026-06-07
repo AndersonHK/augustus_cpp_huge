@@ -63,14 +63,14 @@ static menu_item menu_file[] = {
     {7, 1, menu_file_new_map, 0},
     {7, 2, menu_file_load_map, 0},
     {7, 3, menu_file_save_map, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_BACK_TO_MAIN_MENU, menu_file_exit_to_menu, 0},
+    {"TR_BUTTON_BACK_TO_MAIN_MENU", menu_file_exit_to_menu, 0},
     {1, 5, menu_file_exit_game, 0}
 };
 
 static menu_item menu_options[] = {
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_GENERAL, menu_options_general, 0},
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_UI_CHANGES, menu_options_user_interface, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_CONFIGURE_HOTKEYS, menu_options_hotkeys, 0}
+    {"TR_CONFIG_HEADER_GENERAL", menu_options_general, 0},
+    {"TR_CONFIG_HEADER_UI_CHANGES", menu_options_user_interface, 0},
+    {"TR_BUTTON_CONFIGURE_HOTKEYS", menu_options_hotkeys, 0}
 };
 
 static menu_item menu_help[] = {
@@ -86,9 +86,9 @@ static menu_item menu_resets[] = {
 
 static menu_item menu_empire[] = {
     {149, 1, menu_empire_choose, 0},
-    {CUSTOM_TRANSLATION, TR_EDITOR_CHOOSE_CUSTOM_EMPIRE, menu_empire_custom, 0},
-    {CUSTOM_TRANSLATION, TR_EDITOR_VIEW_CURRENT_EMPIRE, menu_empire_view, 0},
-    {CUSTOM_TRANSLATION, TR_EDITOR_CREATE_NEW_EMPIRE, menu_empire_create, 0}
+    {"TR_EDITOR_CHOOSE_CUSTOM_EMPIRE", menu_empire_custom, 0},
+    {"TR_EDITOR_VIEW_CURRENT_EMPIRE", menu_empire_view, 0},
+    {"TR_EDITOR_CREATE_NEW_EMPIRE", menu_empire_create, 0}
 };
 
 static menu_bar_item menu[] = {

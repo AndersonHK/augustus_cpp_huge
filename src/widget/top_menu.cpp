@@ -1,4 +1,5 @@
 #include "building/construction.h"
+#include "translation/translation.h"
 #include "city/health.h"
 #include "game/file.h"
 #include "game/state.h"
@@ -35,7 +36,6 @@ extern "C" {
 #include "city/ratings.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "game/campaign.h"
 #include "game/settings.h"
 #include "game/system.h"
@@ -99,18 +99,18 @@ static menu_item menu_file[] = {
     {1, 3, menu_file_load_game, 0},
     {1, 4, menu_file_save_game, 0},
     {1, 6, menu_file_delete_game, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_BACK_TO_MAIN_MENU, menu_file_exit_to_main_menu, 0},
+    {"TR_BUTTON_BACK_TO_MAIN_MENU", menu_file_exit_to_main_menu, 0},
     {1, 5, menu_file_exit_game, 0},
 };
 
 static menu_item menu_options[] = {
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_GENERAL, menu_options_general, 0},
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_UI_CHANGES, menu_options_user_interface, 0},
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_GAMEPLAY_CHANGES, menu_options_gameplay, 0},
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_CITY_MANAGEMENT_CHANGES, menu_options_city_management, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_CONFIGURE_HOTKEYS, menu_options_hotkeys, 0},
+    {"TR_CONFIG_HEADER_GENERAL", menu_options_general, 0},
+    {"TR_CONFIG_HEADER_UI_CHANGES", menu_options_user_interface, 0},
+    {"TR_CONFIG_HEADER_GAMEPLAY_CHANGES", menu_options_gameplay, 0},
+    {"TR_CONFIG_HEADER_CITY_MANAGEMENT_CHANGES", menu_options_city_management, 0},
+    {"TR_BUTTON_CONFIGURE_HOTKEYS", menu_options_hotkeys, 0},
     {19, 51, menu_options_monthly_autosave, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_YEARLY_AUTOSAVE_OFF, menu_options_yearly_autosave, 0},
+    {"TR_BUTTON_YEARLY_AUTOSAVE_OFF", menu_options_yearly_autosave, 0},
 };
 
 static menu_item menu_help[] = {
@@ -127,7 +127,7 @@ static menu_item menu_advisors[] = {
     {4, 4, menu_advisors_go_to, ADVISOR_RATINGS},
     {4, 5, menu_advisors_go_to, ADVISOR_TRADE},
     {4, 6, menu_advisors_go_to, ADVISOR_POPULATION},
-    {CUSTOM_TRANSLATION, TR_HEADER_HOUSING, menu_advisors_go_to, ADVISOR_HOUSING},
+    {"TR_HEADER_HOUSING", menu_advisors_go_to, ADVISOR_HOUSING},
     {4, 7, menu_advisors_go_to, ADVISOR_HEALTH},
     {4, 8, menu_advisors_go_to, ADVISOR_EDUCATION},
     {4, 9, menu_advisors_go_to, ADVISOR_ENTERTAINMENT},
@@ -204,7 +204,7 @@ static void set_text_for_monthly_autosave(void)
 static void set_text_for_yearly_autosave(void)
 {
     menu_update_text(&menu[INDEX_OPTIONS], 6,
-        config_get(CONFIG_GP_CH_YEARLY_AUTOSAVE) ? TR_BUTTON_YEARLY_AUTOSAVE_ON : TR_BUTTON_YEARLY_AUTOSAVE_OFF);
+        config_get(CONFIG_GP_CH_YEARLY_AUTOSAVE) ? "TR_BUTTON_YEARLY_AUTOSAVE_ON" : "TR_BUTTON_YEARLY_AUTOSAVE_OFF");
 }
 
 static void set_text_for_tooltips(void)
@@ -805,7 +805,7 @@ extern "C" int widget_top_menu_get_tooltip_text(tooltip_context *c)
         if (button_id == INFO_POPULATION) {
             if (scenario_criteria_population_enabled()) {
                 const uint8_t *original_tooltip = lang_get_string(68, 59 + INFO_POPULATION);
-                const uint8_t *precomposed_text = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_POPULATION_GOAL);
+                const uint8_t *precomposed_text = lang_get_string("TR_TOOLTIP_POPULATION_GOAL");
                 int value = scenario_criteria_population();
                 static char formatted_text[128];
                 snprintf(formatted_text, sizeof(formatted_text), "%s\n%s %d", original_tooltip, precomposed_text, value);
@@ -838,7 +838,7 @@ extern "C" int widget_top_menu_get_tooltip_text(tooltip_context *c)
                     const uint8_t *original_text = lang_get_string(53, (city_rating_favor() <= 90)
                         ? 27 + city_rating_explanation_for(SELECTED_RATING_FAVOR) : 53);
                     if (button_id == INFO_PERSONAL) {
-                        original_text = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_PERSONAL_SAVINGS);
+                        original_text = lang_get_string("TR_TOOLTIP_PERSONAL_SAVINGS");
                     }
                     const uint8_t *gift_text = lang_get_string(52, 50);
                     int value = city_emperor_months_since_gift();
@@ -849,10 +849,10 @@ extern "C" int widget_top_menu_get_tooltip_text(tooltip_context *c)
                     return 1;
                 }
                 case INFO_HEALTH:
-                    c->text_group = CUSTOM_TRANSLATION;
+                    c->translation_key = "TR_CONDITION_TYPE_STATS_CITY_HEALTH";
                     c->extra_text_groups[0] = 56;
                     c->extra_text_ids[0] = window_advisor_health_get_rating_text_id();
-                    return TR_CONDITION_TYPE_STATS_CITY_HEALTH;
+                    return 1;
                 default:
                     return 0;
             }
@@ -871,8 +871,8 @@ static void replay_map_confirmed(int confirmed, int checked)
     if (!game_campaign_is_active()) {
         window_city_show();
         if (!game_file_start_scenario_by_name(scenario_name())) {
-            window_plain_message_dialog_show_with_extra(TR_REPLAY_MAP_NOT_FOUND_TITLE,
-                TR_REPLAY_MAP_NOT_FOUND_MESSAGE, 0, scenario_name());
+            window_plain_message_dialog_show_with_extra("TR_REPLAY_MAP_NOT_FOUND_TITLE",
+                "TR_REPLAY_MAP_NOT_FOUND_MESSAGE", 0, scenario_name());
         }
     } else {
         int mission_id = game_campaign_is_original() ? scenario_campaign_mission() : 0;

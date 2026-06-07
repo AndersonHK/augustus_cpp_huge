@@ -1,4 +1,5 @@
 #include "empire/editor.h"
+#include "translation/translation.h"
 #include "empire/empire.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
@@ -16,7 +17,6 @@
 #include "core/hotkey_config.h"
 #include "editor/editor.h"
 #include "window/hotkey_config.h"
-#include "translation/translation.h"
 #include "game/resource_id_bridge.h"
 
 extern "C" {
@@ -42,30 +42,30 @@ static struct {
 } data;
 
 static const translation_key EMPIRE_ORNAMENT_KEYS[] = {
-    TR_EMPIRE_ORNAMENT_STONEHENGE,
-    TR_EMPIRE_ORNAMENT_GALLIC_WHEAT,
-    TR_EMPIRE_ORNAMENT_THE_PYRENEES,
-    TR_EMPIRE_ORNAMENT_IBERIAN_AQUEDUCT,
-    TR_EMPIRE_ORNAMENT_TRIUMPHAL_ARCH,
-    TR_EMPIRE_ORNAMENT_WEST_DESERT_WHEAT,
-    TR_EMPIRE_ORNAMENT_LIGHTHOUSE_ALEXANDRIA,
-    TR_EMPIRE_ORNAMENT_WEST_DESERT_PALMS,
-    TR_EMPIRE_ORNAMENT_TRADE_SHIP,
-    TR_EMPIRE_ORNAMENT_WATERSIDE_PALMS,
-    TR_EMPIRE_ORNAMENT_THE_COLOSSEUM,
-    TR_EMPIRE_ORNAMENT_THE_ALPS,
-    TR_EMPIRE_ORNAMENT_ROMAN_TREE,
-    TR_EMPIRE_ORNAMENT_GREEK_MOUNTAINS,
-    TR_EMPIRE_ORNAMENT_THE_PARTHENON,
-    TR_EMPIRE_ORNAMENT_THE_PYRAMIDS,
-    TR_EMPIRE_ORNAMENT_HAGIA_SOPHIA,
-    TR_EMPIRE_ORNAMENT_EAST_DESERT_PALMS,
-    TR_EMPIRE_ORNAMENT_EAST_DESERT_WHEAT,
-    TR_EMPIRE_ORNAMENT_TRADE_CAMEL,
-    TR_EMPIRE_ORNAMENT_MOUNT_ETNA,
-    TR_EMPIRE_ORNAMENT_COLOSSUS_RHODES,
-    TR_EMPIRE_ORNAMENT_THE_TEMPLE,
-    TR_EMPIRE_ORNAMENT_IRELAND
+    "TR_EMPIRE_ORNAMENT_STONEHENGE",
+    "TR_EMPIRE_ORNAMENT_GALLIC_WHEAT",
+    "TR_EMPIRE_ORNAMENT_THE_PYRENEES",
+    "TR_EMPIRE_ORNAMENT_IBERIAN_AQUEDUCT",
+    "TR_EMPIRE_ORNAMENT_TRIUMPHAL_ARCH",
+    "TR_EMPIRE_ORNAMENT_WEST_DESERT_WHEAT",
+    "TR_EMPIRE_ORNAMENT_LIGHTHOUSE_ALEXANDRIA",
+    "TR_EMPIRE_ORNAMENT_WEST_DESERT_PALMS",
+    "TR_EMPIRE_ORNAMENT_TRADE_SHIP",
+    "TR_EMPIRE_ORNAMENT_WATERSIDE_PALMS",
+    "TR_EMPIRE_ORNAMENT_THE_COLOSSEUM",
+    "TR_EMPIRE_ORNAMENT_THE_ALPS",
+    "TR_EMPIRE_ORNAMENT_ROMAN_TREE",
+    "TR_EMPIRE_ORNAMENT_GREEK_MOUNTAINS",
+    "TR_EMPIRE_ORNAMENT_THE_PARTHENON",
+    "TR_EMPIRE_ORNAMENT_THE_PYRAMIDS",
+    "TR_EMPIRE_ORNAMENT_HAGIA_SOPHIA",
+    "TR_EMPIRE_ORNAMENT_EAST_DESERT_PALMS",
+    "TR_EMPIRE_ORNAMENT_EAST_DESERT_WHEAT",
+    "TR_EMPIRE_ORNAMENT_TRADE_CAMEL",
+    "TR_EMPIRE_ORNAMENT_MOUNT_ETNA",
+    "TR_EMPIRE_ORNAMENT_COLOSSUS_RHODES",
+    "TR_EMPIRE_ORNAMENT_THE_TEMPLE",
+    "TR_EMPIRE_ORNAMENT_IRELAND"
 };
 
 static translation_key empire_ornament_key(int ornament_id)
@@ -225,12 +225,24 @@ static void draw_background(void)
 static void draw_foreground(void)
 {
     graphics_in_dialog();
+    static constexpr translation_key button_texts[] = {
+        "TR_EDITOR_EMPIRE_PROPERTIES_SELECT_IAMGE",
+        "TR_EDITOR_EMPIRE_PROPERTIES_DEFAULT_IAMGE",
+        "TR_EDITOR_EMPIRE_PROPERTIES_BORDER_DENSITY",
+        "TR_EDITOR_EMPIRE_PROPERTIES_NEW_PATH",
+        "TR_EDITOR_EMPIRE_PROPERTIES_ADD_ORNAMENT",
+        "TR_EDITOR_EMPIRE_PROPERTIES_ALL_ORNAMENTS",
+        "TR_EDITOR_EMPIRE_PROPERTIES_IRELAND",
+        "TR_EDITOR_EMPIRE_PROPERTIES_ALL_CITIES",
+        "TR_EDITOR_EMPIRE_PROPERTIES_SETTINGS",
+        "TR_EDITOR_EMPIRE_PROPERTIES_HOTKEYS",
+    };
     
     for (int i = 0; i < NUM_GENERIC_BUTTONS; i++) {
         font_t font = !(EMPIRE_IS_DEFAULT_IMAGE) && i >= 4 && i <= 7 ? FONT_NORMAL_RED : FONT_NORMAL_BLACK;
         button_border_draw(generic_buttons[i].x, generic_buttons[i].y, generic_buttons[i].width,
             generic_buttons[i].height, data.focus_button_id == i + 1 && (i >= 4 && i <= 7 ? EMPIRE_IS_DEFAULT_IMAGE : 1));
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_EMPIRE_PROPERTIES_SELECT_IAMGE + i, generic_buttons[i].x,
+        lang_text_draw_centered(button_texts[i], generic_buttons[i].x,
             generic_buttons[i].y + 8, generic_buttons[i].width, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     }
     if (EMPIRE_IS_DEFAULT_IMAGE) {
@@ -367,7 +379,7 @@ static void button_empire_settings(const generic_button *button)
 
 static void button_hotkeys(const generic_button *button)
 {
-    window_hotkey_config_show(get_position_for_widget(TR_HOTKEY_HEADER_EDITOR));
+    window_hotkey_config_show(get_position_for_widget("TR_HOTKEY_HEADER_EDITOR"));
 }
 
 void window_empire_properties_show(void)

@@ -42,13 +42,13 @@ static translation_key order_condition_key(order_condition_type condition_type)
 {
     switch (condition_type) {
         case ORDER_CONDITION_NEVER:
-            return TR_ORDER_CONDITION_NEVER;
+            return "TR_ORDER_CONDITION_NEVER";
         case ORDER_CONDITION_ALWAYS:
-            return TR_ORDER_CONDITION_ALWAYS;
+            return "TR_ORDER_CONDITION_ALWAYS";
         case ORDER_CONDITION_SOURCE_HAS_MORE_THAN:
-            return TR_ORDER_CONDITION_SOURCE_HAS_MORE_THAN;
+            return "TR_ORDER_CONDITION_SOURCE_HAS_MORE_THAN";
         case ORDER_CONDITION_DESTINATION_HAS_LESS_THAN:
-            return TR_ORDER_CONDITION_DESTINATION_HAS_LESS_THAN;
+            return "TR_ORDER_CONDITION_DESTINATION_HAS_LESS_THAN";
         default:
             return {};
     }
@@ -338,13 +338,19 @@ static void tooltip_style_changed(dropdown_button *button)
 static void window_building_depot_init_tooltip_style_dropdown(building_info_context *c)
 {
     static lang_fragment frags[4]; // fragments array - keep static to ensure it remains valid
+    static constexpr translation_key style_keys[] = {
+        "TR_BUILDING_INFO_CART_DEPOT_TOOLTIP_STYLE",
+        "TR_TOOLTIP_NONE",
+        "TR_TOOLTIP_MINIMAL",
+        "TR_TOOLTIP_FULL",
+    };
 
     for (int i = 0; i < 4; i++) {
+        frags[i] = {};
         frags[i].type = LANG_FRAG_LABEL;
-        frags[i].text_group = CUSTOM_TRANSLATION;
-        frags[i].text_id = TR_BUILDING_INFO_CART_DEPOT_TOOLTIP_STYLE + i;
+        frags[i].text_key = style_keys[i];
     }
-    frags[0].text_id = config_get(CONFIG_UI_CART_DEPOT_TOOLTIP_STYLE) + TR_BUILDING_INFO_CART_DEPOT_TOOLTIP_STYLE + 1;
+    frags[0].text_key = style_keys[config_get(CONFIG_UI_CART_DEPOT_TOOLTIP_STYLE) + 1];
 
     int btn_width = 150;
     // actual c->height_blocks should be 28, but it's passed as 22. This should be fixed globally at some point.
@@ -405,15 +411,15 @@ static void depot_draw_cart_status(const building *b, building_info_context *c)
                 {
                     building *src = building_get(f->destination_building_id);
     text_draw(translation_for((src && building_type_registry_is_granary(static_cast<building_type>(src->type)))
-                            ? TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_FOOD
-                            : TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_GOODS),
+                            ? "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_FOOD"
+                            : "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_GOODS"),
                         x_action, y_pos, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
                     break;
                 }
                 case FIGURE_ACTION_240_DEPOT_CART_PUSHER_AT_SOURCE:
                     text_draw(translation_for(f->loads_sold_or_carrying
-                            ? TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_UNLOAD
-                            : TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_LOAD),
+                            ? "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_UNLOAD"
+                            : "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_WAIT_LOAD"),
                         x_action, y_pos, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
                     break;
                 case FIGURE_ACTION_241_DEPOT_CART_PUSHER_HEADING_TO_DESTINATION:
@@ -450,7 +456,7 @@ void window_building_draw_depot(building_info_context *c)
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 143);
     const building *b = building_get(data.depot_building_id);
     translation_key depot_name_key = b->num_workers <= 0 && c->has_road_access ?
-        TR_BUILDING_CAT_DEPOT : TR_BUILDING_DEPOT;
+        "TR_BUILDING_CAT_DEPOT" : "TR_BUILDING_DEPOT";
     text_draw_centered(translation_for(depot_name_key),
         c->x_offset, c->y_offset + 12, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     data.window_area.x = c->x_offset;
@@ -470,17 +476,17 @@ void window_building_draw_depot_foreground(building_info_context *c)
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else if (b->num_workers <= 0) {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_DEPOT_NO_EMPLOYEES);
+        window_building_draw_description(c, "TR_BUILDING_DEPOT_NO_EMPLOYEES");
     } else if (c->worker_percentage < 25) {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_DEPOT_FEW_EMPLOYEES);
+        window_building_draw_description(c, "TR_BUILDING_DEPOT_FEW_EMPLOYEES");
     } else if (c->worker_percentage < 50) {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_DEPOT_SOME_EMPLOYEES);
+        window_building_draw_description(c, "TR_BUILDING_DEPOT_SOME_EMPLOYEES");
     } else if (c->worker_percentage < 75) {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_DEPOT_HALF_EMPLOYEES);
+        window_building_draw_description(c, "TR_BUILDING_DEPOT_HALF_EMPLOYEES");
     } else if (c->worker_percentage < 100) {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_DEPOT_MANY_EMPLOYEES);
+        window_building_draw_description(c, "TR_BUILDING_DEPOT_MANY_EMPLOYEES");
     } else {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_DEPOT_DESC);
+        window_building_draw_description(c, "TR_BUILDING_DEPOT_DESC");
     }
 
     resource_type resource = data.target_resource_id;
@@ -526,14 +532,14 @@ void window_building_draw_depot_foreground(building_info_context *c)
         Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(x_offset + depot_order_buttons[5].x + 3, y_offset + depot_order_buttons[5].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
         depot_order_buttons[5].parameter1 = src->id;
     } else if (total_storages() > 1) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_INFO_DEPOT_SELECT_SOURCE,
+        lang_text_draw_centered("TR_BUILDING_INFO_DEPOT_SELECT_SOURCE",
             x_offset + depot_order_buttons[1].x, y_offset + depot_order_buttons[1].y + 6,
             depot_order_buttons[1].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
         translation_key translation;
         translation = total_storages() == 1 ?
-            TR_BUILDING_INFO_DEPOT_ONE_BUILDING_FOR_RESOURCE : TR_BUILDING_INFO_DEPOT_NO_SOURCE_AVAILABLE;
-        text_draw_centered(lang_get_string(CUSTOM_TRANSLATION, translation),
+            "TR_BUILDING_INFO_DEPOT_ONE_BUILDING_FOR_RESOURCE" : "TR_BUILDING_INFO_DEPOT_NO_SOURCE_AVAILABLE";
+        text_draw_centered(lang_get_string(translation),
             x_offset + depot_order_buttons[1].x, y_offset + depot_order_buttons[1].y + 6,
             depot_order_buttons[1].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_FONT_GRAY);
     }
@@ -551,13 +557,13 @@ void window_building_draw_depot_foreground(building_info_context *c)
         Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(x_offset + depot_order_buttons[6].x + 3, y_offset + depot_order_buttons[6].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
         depot_order_buttons[6].parameter1 = dst->id;
     } else if (total_storages() > 1) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_INFO_DEPOT_SELECT_DESTINATION,
+        lang_text_draw_centered("TR_BUILDING_INFO_DEPOT_SELECT_DESTINATION",
             x_offset + depot_order_buttons[2].x, y_offset + depot_order_buttons[2].y + 6,
             depot_order_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        translation_key translation = total_storages() == 1 ? TR_BUILDING_INFO_DEPOT_ONE_BUILDING_FOR_RESOURCE :
-            TR_BUILDING_INFO_DEPOT_NO_DESTINATION_AVAILABLE;
-        text_draw_centered(lang_get_string(CUSTOM_TRANSLATION, translation),
+        translation_key translation = total_storages() == 1 ? "TR_BUILDING_INFO_DEPOT_ONE_BUILDING_FOR_RESOURCE" :
+            "TR_BUILDING_INFO_DEPOT_NO_DESTINATION_AVAILABLE";
+        text_draw_centered(lang_get_string(translation),
             x_offset + depot_order_buttons[2].x, y_offset + depot_order_buttons[2].y + 6,
             depot_order_buttons[1].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_FONT_GRAY);
     }
@@ -572,7 +578,7 @@ void window_building_draw_depot_foreground(building_info_context *c)
 
         button_border_draw(x_offset + depot_order_buttons[9].x, y_offset + depot_order_buttons[9].y,
             depot_order_buttons[9].width, depot_order_buttons[9].height, data.focus_button_id == 10);
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_FIGURE_INFO_DEPOT_RECALL,
+        lang_text_draw_centered("TR_FIGURE_INFO_DEPOT_RECALL",
             x_offset + depot_order_buttons[9].x, y_offset + depot_order_buttons[9].y + 6,
             depot_order_buttons[9].width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
 
@@ -661,7 +667,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
     if (data.available_storages > 0 && drawn_rows < MAX_VISIBLE_ROWS && data.advanced_mode) {
         row_count++;// skip 1 row for active storage header
         if (row_count > scrollbar.scroll_position) {
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_INFO_ACTIVE_STORAGE_BUILDINGS,
+            lang_text_draw_centered("TR_BUILDING_INFO_ACTIVE_STORAGE_BUILDINGS",
                 c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, base_width,
                 FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             drawn_rows++;
@@ -711,7 +717,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
     if (!data.advanced_mode) {
         int label_x = c->x_offset + 45;
         int label_y = c->y_offset + c->height_blocks * BLOCK_SIZE - 13 - SMALL_ICON_SIDE;
-        lang_text_draw_ellipsized(CUSTOM_TRANSLATION, TR_BUILDING_INFO_CART_DEPOT_TOOLTIP_STYLE,
+        lang_text_draw_ellipsized("TR_BUILDING_INFO_CART_DEPOT_TOOLTIP_STYLE",
             label_x, label_y, tooltip_style_dropdown_button.buttons[0].x - label_x, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         dropdown_button_draw(&tooltip_style_dropdown_button);
         return;
@@ -724,7 +730,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             if (row_count <= scrollbar.scroll_position || drawn_rows >= MAX_VISIBLE_ROWS)
                 continue;
             if (i == 1) {// second row -> draw label
-                lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_INFO_OTHER_STORAGE_BUILDINGS,
+                lang_text_draw_centered("TR_BUILDING_INFO_OTHER_STORAGE_BUILDINGS",
                     c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, base_width, FONT_NORMAL_RED
                 , screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
             }
@@ -777,7 +783,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
 
     int label_x = c->x_offset + 45;
     int label_y = window_building_get_vertical_offset(c, 28) + 28 * BLOCK_SIZE - 13 - SMALL_ICON_SIDE;
-    lang_text_draw_ellipsized(CUSTOM_TRANSLATION, TR_BUILDING_INFO_CART_DEPOT_TOOLTIP_STYLE,
+    lang_text_draw_ellipsized("TR_BUILDING_INFO_CART_DEPOT_TOOLTIP_STYLE",
         label_x, label_y, tooltip_style_dropdown_button.buttons[0].x - label_x, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     dropdown_button_draw(&tooltip_style_dropdown_button);
 }
@@ -938,7 +944,7 @@ void window_building_depot_get_tooltip_main(translation_key *translation)
         return;
     }
     if (data.focus_button_id == 5) {
-        *translation = TR_TOOLTIP_RIGHT_CLICK_TO_DECREASE;
+        *translation = "TR_TOOLTIP_RIGHT_CLICK_TO_DECREASE";
     }
     const building *depot = building_get(data.depot_building_id);
     if (!depot) {
@@ -946,20 +952,20 @@ void window_building_depot_get_tooltip_main(translation_key *translation)
     }
     if ((data.focus_button_id == 6 && depot->data.depot.current_order.src_storage_id) ||
         (data.focus_button_id == 7 && depot->data.depot.current_order.dst_storage_id)) {
-        *translation = TR_TOOLTIP_BUTTON_CENTER_CAMERA;
+        *translation = "TR_TOOLTIP_BUTTON_CENTER_CAMERA";
     }
     if (data.advanced_mode) {
         if (data.focus_button_id == 8) {
-            *translation = TR_HOTKEY_COPY_SETTINGS;
+            *translation = "TR_HOTKEY_COPY_SETTINGS";
         }
         if (data.focus_button_id == 9) {
-            *translation = TR_HOTKEY_PASTE_SETTINGS;
+            *translation = "TR_HOTKEY_PASTE_SETTINGS";
         }
         if (data.focus_button_id == 11) {
-            *translation = TR_TOOLTIP_DEPOT_CLEAR_SRC;
+            *translation = "TR_TOOLTIP_DEPOT_CLEAR_SRC";
         }
         if (data.focus_button_id == 12) {
-            *translation = TR_TOOLTIP_DEPOT_CLEAR_DST;
+            *translation = "TR_TOOLTIP_DEPOT_CLEAR_DST";
         }
     }
 }
@@ -1010,14 +1016,12 @@ const uint8_t *window_building_depot_get_tooltip_source_destination(translation_
 {
     if (data.storage_building_view_focus_button_id &&
         depot_select_storage_buttons[data.storage_building_view_focus_button_id - 1].parameter2) {
-        *translation = TR_TOOLTIP_BUTTON_CENTER_CAMERA;
-        *group_id = CUSTOM_TRANSLATION;
+        *translation = "TR_TOOLTIP_BUTTON_CENTER_CAMERA";
         return 0;
     }
     if (data.storage_building_goto_orders_focus_button_id &&
         depot_goto_storage_orders_buttons[data.storage_building_goto_orders_focus_button_id - 1].parameter1) {
-        *translation = TR_TOOLTIP_GOTO_STORAGE_INSTRUCTIONS;
-        *group_id = CUSTOM_TRANSLATION;
+        *translation = "TR_TOOLTIP_GOTO_STORAGE_INSTRUCTIONS";
     }
     // For storage selection buttons, show storage summary tooltip
     if (data.storage_building_focus_button_id &&

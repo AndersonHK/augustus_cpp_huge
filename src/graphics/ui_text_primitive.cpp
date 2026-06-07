@@ -3,6 +3,7 @@
 #include "core/crash_context.h"
 #include "graphics/lang_text.h"
 #include "graphics/text.h"
+#include "translation/translation.h"
 
 #include <stdio.h>
 
@@ -36,6 +37,7 @@ bool UiTextPrimitive::has_renderable_payload() const
 {
     switch (spec_.content_type) {
         case UiTextContentType::Language:
+        case UiTextContentType::TranslationKey:
             return true;
         case UiTextContentType::Raw:
             return spec_.raw_text != nullptr && spec_.raw_text[0] != '\0';
@@ -53,6 +55,8 @@ int UiTextPrimitive::measure_width() const
     switch (spec_.content_type) {
         case UiTextContentType::Language:
             return lang_text_get_width(spec_.text_group, spec_.text_id, spec_.font, pixel_size);
+        case UiTextContentType::TranslationKey:
+            return text_get_width(translation_for(spec_.text_key), spec_.font, pixel_size);
         case UiTextContentType::Raw:
             return spec_.raw_text ? text_get_width(spec_.raw_text, spec_.font, pixel_size) : 0;
         case UiTextContentType::Number:
@@ -96,6 +100,19 @@ void UiTextPrimitive::draw() const
                     spec_.text_group, spec_.text_id, spec_.x, spec_.y, spec_.font, pixel_size, spec_.color);
             }
             return;
+
+        case UiTextContentType::TranslationKey:
+        {
+            const uint8_t *text = translation_for(spec_.text_key);
+            if (spec_.alignment == UiTextAlignment::Center) {
+                text_draw_centered(text, spec_.x, spec_.y, box_width, spec_.font, pixel_size, spec_.color);
+            } else if (spec_.alignment == UiTextAlignment::Right) {
+                text_draw(text, draw_x, spec_.y, spec_.font, pixel_size, spec_.color);
+            } else {
+                text_draw(text, spec_.x, spec_.y, spec_.font, pixel_size, spec_.color);
+            }
+            return;
+        }
 
         case UiTextContentType::Raw:
             if (spec_.alignment == UiTextAlignment::Center) {

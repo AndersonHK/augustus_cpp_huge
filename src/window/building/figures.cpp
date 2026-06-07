@@ -1,4 +1,5 @@
 #include "figure/phrase.h"
+#include "translation/translation.h"
 #include "figuretype/depot.h"
 #include "game/resource_graphics.h"
 #include "graphics/generic_button.h"
@@ -9,7 +10,6 @@
 #include "widget/city.h"
 #include "window/city.h"
 
-#include "translation/translation.h"
 #include "figures.h"
 #include "building/building.h"
 #include "building/caravanserai.h"
@@ -62,13 +62,13 @@ static const int FIGURE_TYPE_TO_BIG_FIGURE_IMAGE[] = {
 };
 // Starting with FIGURE_WORK_CAMP_WORKER = 73,
 static const translation_key NEW_FIGURE_TYPES[] = {
-    TR_FIGURE_TYPE_WORK_CAMP_WORKER, TR_FIGURE_TYPE_WORK_CAMP_SLAVE, TR_FIGURE_TYPE_WORK_CAMP_ARCHITECT,
-    TR_FIGURE_TYPE_MESS_HALL_SUPPLIER, TR_FIGURE_TYPE_MESS_HALL_COLLECTOR, TR_FIGURE_TYPE_PRIEST_SUPPLIER,
-    TR_FIGURE_TYPE_BARKEEP, TR_FIGURE_TYPE_BARKEEP_SUPPLIER, TR_FIGURE_TYPE_TOURIST,
-    TR_FIGURE_TYPE_WATCHMAN, {}, {}, TR_FIGURE_TYPE_CARAVANSERAI_SUPPLIER, TR_FIGURE_TYPE_ROBBER,
-    TR_FIGURE_TYPE_LOOTER, TR_FIGURE_TYPE_CARAVANSERAI_COLLECTOR, TR_FIGURE_TYPE_LIGHTHOUSE_SUPPLIER,
-    TR_FIGURE_TYPE_MESS_HALL_COLLECTOR, {}, TR_BUILDING_FORT_AUXILIA_INFANTRY, TR_FIGURE_TYPE_BEGGAR,
-    TR_BUILDING_FORT_ARCHERS, {}, {}
+    "TR_FIGURE_TYPE_WORK_CAMP_WORKER", "TR_FIGURE_TYPE_WORK_CAMP_SLAVE", "TR_FIGURE_TYPE_WORK_CAMP_ARCHITECT",
+    "TR_FIGURE_TYPE_MESS_HALL_SUPPLIER", "TR_FIGURE_TYPE_MESS_HALL_COLLECTOR", "TR_FIGURE_TYPE_PRIEST_SUPPLIER",
+    "TR_FIGURE_TYPE_BARKEEP", "TR_FIGURE_TYPE_BARKEEP_SUPPLIER", "TR_FIGURE_TYPE_TOURIST",
+    "TR_FIGURE_TYPE_WATCHMAN", {}, {}, "TR_FIGURE_TYPE_CARAVANSERAI_SUPPLIER", "TR_FIGURE_TYPE_ROBBER",
+    "TR_FIGURE_TYPE_LOOTER", "TR_FIGURE_TYPE_CARAVANSERAI_COLLECTOR", "TR_FIGURE_TYPE_LIGHTHOUSE_SUPPLIER",
+    "TR_FIGURE_TYPE_MESS_HALL_COLLECTOR", {}, "TR_BUILDING_FORT_AUXILIA_INFANTRY", "TR_FIGURE_TYPE_BEGGAR",
+    "TR_BUILDING_FORT_ARCHERS", {}, {}
 };
 
 static generic_button figure_buttons[] = {
@@ -543,7 +543,7 @@ static void draw_depot_cartpusher(building_info_context *c, figure *f)
     button_border_draw(c->x_offset + 90, c->y_offset + 160, 100, 22, data.depot_focus_button_id == 1 ||
         is_depot_cartpusher_recalled(f));
     translation_key button_text = is_depot_cartpusher_recalled(f) ?
-        TR_FIGURE_INFO_DEPOT_RETURNING : TR_FIGURE_INFO_DEPOT_RECALL;
+        "TR_FIGURE_INFO_DEPOT_RETURNING" : "TR_FIGURE_INFO_DEPOT_RECALL";
     text_draw_centered(translation_for(button_text), c->x_offset + 90, c->y_offset + 166,
         100, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
 

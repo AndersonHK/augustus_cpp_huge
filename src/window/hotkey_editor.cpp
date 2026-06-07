@@ -25,8 +25,8 @@ static generic_button bottom_buttons[] = {
 };
 
 static translation_key bottom_button_texts[] = {
-    TR_BUTTON_CANCEL,
-    TR_BUTTON_OK
+    "TR_BUTTON_CANCEL",
+    "TR_BUTTON_OK"
 };
 
 static struct {

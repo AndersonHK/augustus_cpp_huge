@@ -32,7 +32,7 @@ static void log_exporting_error(const char *msg)
     log_error("Error while exporting scenario events to XML. ", data.error_message, 0);
 
     window_plain_message_dialog_show_with_extra(
-        TR_EDITOR_UNABLE_TO_SAVE_EVENTS_TITLE, TR_EDITOR_CHECK_LOG_MESSAGE,
+        "TR_EDITOR_UNABLE_TO_SAVE_EVENTS_TITLE", "TR_EDITOR_CHECK_LOG_MESSAGE",
         string_from_ascii(data.error_message),
         0);
 }

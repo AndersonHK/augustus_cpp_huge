@@ -1,10 +1,10 @@
-#include "building/building_type.h"
+﻿#include "building/building_type.h"
 #include "building/industry.h"
+#include "translation/translation.h"
 #include "core/xml_value.h"
 #include "game/mod_manager.h"
 #include "game/resource_graphics.h"
 
-#include "translation/translation.h"
 #include "resource.h"
 
 #include "building/production_method_registry.h"

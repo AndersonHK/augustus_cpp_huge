@@ -15,7 +15,6 @@
 #include "city/victory.h"
 #include "city/warning.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "figure/figure.h"
@@ -212,7 +211,7 @@ static void game_cheat_add_money(uint8_t *args)
     parse_integer(args, &money);
     city_finance_process_console(money);
     window_invalidate();
-    show_warning(TR_CHEAT_ADDED_MONEY);
+    show_warning("TR_CHEAT_ADDED_MONEY");
 }
 
 static void game_cheat_start_invasion(uint8_t *args)
@@ -224,13 +223,13 @@ static void game_cheat_start_invasion(uint8_t *args)
     index += parse_integer(args + index, &size);
     index += parse_integer(args + index, &invasion_point);
     scenario_invasion_start_from_console(static_cast<invasion_type_enum>(invasion_type), size, invasion_point);
-    show_warning(TR_CHEAT_STARTED_INVASION);
+    show_warning("TR_CHEAT_STARTED_INVASION");
 }
 
 static void game_cheat_advance_year(uint8_t *args)
 {
     game_tick_cheat_year();
-    show_warning(TR_CHEAT_YEAR_ADVANCED);
+    show_warning("TR_CHEAT_YEAR_ADVANCED");
 }
 
 static void game_cheat_cast_blessing(uint8_t *args)
@@ -239,7 +238,7 @@ static void game_cheat_cast_blessing(uint8_t *args)
     int god_id = 0;
     parse_integer(args, &god_id);
     city_god_blessing(god_id);
-    show_warning(TR_CHEAT_CASTED_BLESSING);
+    show_warning("TR_CHEAT_CASTED_BLESSING");
 }
 
 static void game_cheat_cast_curse(uint8_t *args)
@@ -250,13 +249,13 @@ static void game_cheat_cast_curse(uint8_t *args)
     int index = parse_integer(args, &god_id);
     parse_integer(args + index, &is_major);
     city_god_curse(god_id, is_major);
-    show_warning(TR_CHEAT_CASTED_CURSE);
+    show_warning("TR_CHEAT_CASTED_CURSE");
 }
 
 static void game_cheat_make_buildings_invincible(uint8_t *args)
 {
     building_make_immune_cheat();
-    show_warning(TR_CHEAT_BUILDINGS_INVINCIBLE);
+    show_warning("TR_CHEAT_BUILDINGS_INVINCIBLE");
 }
 
 static void game_cheat_change_climate(uint8_t *args)
@@ -265,26 +264,26 @@ static void game_cheat_change_climate(uint8_t *args)
     int climate = 0;
     parse_integer(args, &climate);
     scenario_change_climate(static_cast<scenario_climate>(climate));
-    show_warning(TR_CHEAT_CLIMATE_CHANGE);
+    show_warning("TR_CHEAT_CLIMATE_CHANGE");
 }
 
 static void game_cheat_show_tooltip(uint8_t *args)
 {
     // correct syntax = showtooltip <type/disabled>
     parse_integer(args, &data.tooltip_enabled);
-    show_warning(TR_CHEAT_TOGGLE_TOOLTIPS);
+    show_warning("TR_CHEAT_TOGGLE_TOOLTIPS");
 }
 
 static void game_cheat_kill_all(uint8_t *args)
 {
     figure_kill_all();
-    show_warning(TR_CHEAT_KILLED_ALL_WALKERS);
+    show_warning("TR_CHEAT_KILLED_ALL_WALKERS");
 }
 
 static void game_cheat_finish_monuments(uint8_t *args)
 {
     building_monument_finish_monuments();
-    show_warning(TR_CHEAT_FINISHED_MONUMENTS);
+    show_warning("TR_CHEAT_FINISHED_MONUMENTS");
 }
 
 static void game_cheat_set_monument_phase(uint8_t *args)
@@ -293,7 +292,7 @@ static void game_cheat_set_monument_phase(uint8_t *args)
     int phase = 0;
     parse_integer(args, &phase);
     building_monuments_set_construction_phase(phase);
-    show_warning(TR_CHEAT_UPDATED_MONUMENTS);
+    show_warning("TR_CHEAT_UPDATED_MONUMENTS");
 }
 
 static void game_cheat_unlock_all_buildings(uint8_t *args)
@@ -301,26 +300,26 @@ static void game_cheat_unlock_all_buildings(uint8_t *args)
     building_menu_enable_all();
     empire_unlock_all_resources();
     scenario_unlock_all_buildings();
-    show_warning(TR_CHEAT_UNLOCKED_ALL_BUILDINGS);
+    show_warning("TR_CHEAT_UNLOCKED_ALL_BUILDINGS");
 }
 
 static void game_cheat_unlock_legions(uint8_t *args)
 {
     data.extra_legions_unlocked = 1;
-    show_warning(TR_CHEAT_UNLOCK_LEGIONS);
+    show_warning("TR_CHEAT_UNLOCK_LEGIONS");
 }
 
 static void game_cheat_disable_legions_consumption(uint8_t *args)
 {
     data.disabled_legions_consumption = 1;
-    show_warning(TR_CHEAT_DISABLE_LEGIONS_CONSUMPTION);
+    show_warning("TR_CHEAT_DISABLE_LEGIONS_CONSUMPTION");
 }
 
 static void game_cheat_disable_invasions(uint8_t *args)
 {
     data.disabled_invasions = 1;
     scenario_invasion_clear();
-    show_warning(TR_CHEAT_DISABLE_INVASIONS);
+    show_warning("TR_CHEAT_DISABLE_INVASIONS");
 }
 
 static void game_cheat_incite_riot(uint8_t *args)
@@ -328,7 +327,7 @@ static void game_cheat_incite_riot(uint8_t *args)
     city_data.sentiment.value = 0;
     city_sentiment_change_happiness(-100);
     figure_generate_criminals();
-    show_warning(TR_CHEAT_INCITED_RIOT);
+    show_warning("TR_CHEAT_INCITED_RIOT");
     city_data.sentiment.value = 50;
     city_sentiment_change_happiness(50);
 }
@@ -345,7 +344,7 @@ void game_cheat_show_editor(uint8_t *args)
     if (data.is_cheating) {
         window_editor_attributes_show();
         if (!map_editor_warning_shown) {
-            window_plain_message_dialog_show(TR_CHEAT_EDITOR_WARNING_TITLE, TR_CHEAT_EDITOR_WARNING_TEXT, 1);
+            window_plain_message_dialog_show("TR_CHEAT_EDITOR_WARNING_TITLE", "TR_CHEAT_EDITOR_WARNING_TEXT", 1);
             map_editor_warning_shown = 1;
         }
     }
@@ -362,7 +361,7 @@ static void game_cheat_change_weather(uint8_t *args)
         weather = WEATHER_NONE;
     }
     set_weather(1, intensity, static_cast<weather_type>(weather));
-    show_warning(TR_CHEAT_CHANGE_WEATHER);
+    show_warning("TR_CHEAT_CHANGE_WEATHER");
 }
 
 static void game_cheat_destroy_building(uint8_t *args)
@@ -388,7 +387,7 @@ static void game_cheat_destroy_building(uint8_t *args)
         default:
             break;
     }
-    show_warning(TR_CHEAT_DESTROYED_BUILDING);
+    show_warning("TR_CHEAT_DESTROYED_BUILDING");
 }
 
 void game_cheat_parse_command(uint8_t *command)

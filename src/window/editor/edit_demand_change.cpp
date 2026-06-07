@@ -1,4 +1,5 @@
 #include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
 #include "input/input.h"
@@ -11,7 +12,6 @@
 #include "window/editor/map.h"
 extern "C" {
 
-#include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/trade_route.h"
@@ -110,7 +110,7 @@ static void init(int id)
             const uint8_t *city_name = empire_city_get_name(city);
             create_route_info(i, city_name);
         } else {
-            create_route_info(i, lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_UNKNOWN_ROUTE));
+            create_route_info(i, lang_get_string("TR_EDITOR_UNKNOWN_ROUTE"));
         }
     }
 }
@@ -118,18 +118,18 @@ static void init(int id)
 static const uint8_t *get_text_for_route_id(int route_id)
 {
     if (!data.num_routes) {
-        return lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_NO_ROUTES);
+        return lang_get_string("TR_EDITOR_NO_ROUTES");
     }
     // No route selected yet
     if (route_id == 0) {
-        return lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_SET_A_ROUTE);
+        return lang_get_string("TR_EDITOR_SET_A_ROUTE");
     }
     for (unsigned int i = 0; i < data.num_routes; i++) {
         if (data.route_ids[i] == route_id) {
             return data.route_names[i];
         }
     }
-    return lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_UNKNOWN_ROUTE);
+    return lang_get_string("TR_EDITOR_UNKNOWN_ROUTE");
 }
 
 static void draw_background(void)
@@ -154,13 +154,13 @@ static void draw_background(void)
     lang_text_draw(44, 100, 60, 198, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number_centered(data.demand_change.amount, 350, 198, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     
-    translation_key key = data.demand_change.buys ? TR_EDITOR_DEMAND_CHANGE_BUYS : TR_EDITOR_DEMAND_CHANGE_SELLS;
-    lang_text_draw_centered(CUSTOM_TRANSLATION, key, 480, 198, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    translation_key key = data.demand_change.buys ? "TR_EDITOR_DEMAND_CHANGE_BUYS" : "TR_EDITOR_DEMAND_CHANGE_SELLS";
+    lang_text_draw_centered(key, 480, 198, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     lang_text_draw_centered_colored(44, 101, 16, 244, 250, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
         data.is_new_demand_change ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_CANCEL, 409, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("TR_BUTTON_CANCEL", 409, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     lang_text_draw_centered(18, 3, 524, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
@@ -318,7 +318,7 @@ static void button_save(const generic_button *button)
 {
     unsigned int num_errors = validate();
     if(num_errors) {
-        window_plain_message_dialog_show_text_list(TR_EDITOR_FORM_ERRORS_FOUND, TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS,
+        window_plain_message_dialog_show_text_list("TR_EDITOR_FORM_ERRORS_FOUND", "TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS",
             data.errors, num_errors);
         return;
     }

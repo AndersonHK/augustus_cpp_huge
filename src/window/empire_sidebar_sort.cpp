@@ -301,8 +301,27 @@ int window_empire_sidebar_sort_city_matches_current_filter(const empire_city *ci
     }
 }
 
-void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int height, int is_focused, int group1, int number1,
-     int group2, int number2, int button_type, int image_id)
+static constexpr translation_key sorting_keys[] = {
+    "TR_EMPIRE_SIDE_BAR_SORT_BY_NAME",
+    "TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_EXPORT",
+    "TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_IMPORT",
+    "TR_EMPIRE_SIDE_BAR_SORT_BY_ROUTE_COST",
+    "TR_EMPIRE_SIDE_BAR_SORT_BY_PROFIT",
+};
+
+static constexpr translation_key filter_keys[] = {
+    "TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE",
+    "TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_SELL",
+    "TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_BUY",
+    "TR_EMPIRE_SIDE_BAR_FILTER_BY_OPEN",
+    "TR_EMPIRE_SIDE_BAR_FILTER_BY_CLOSED",
+    "TR_EMPIRE_SIDE_BAR_FILTER_BY_LAND",
+    "TR_EMPIRE_SIDE_BAR_FILTER_BY_SEA",
+    "TR_EMPIRE_SIDE_BAR_FILTER_BY_NONE",
+};
+
+void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int height, int is_focused, translation_key key1,
+     translation_key key2, int button_type, int image_id)
 {
     graphics_set_clip_rectangle(x, y, width, height);
     int height_blocks = height / BLOCK_SIZE;
@@ -313,9 +332,8 @@ void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int 
     int font_height = font_definition_for(FONT_NORMAL_BLACK)->line_height;
     int y_text_offset = y + (height / 2) - (font_height / 2);
     int cursor_x = 0, text_x = 0, available_width = 0, image_width = 0, content_width = 0;
-    if (number2 == TR_EMPIRE_SIDE_BAR_FILTER_BY_NONE) { // dont draw second text if it's "None"
-        group2 = -1;
-        number2 = -1;
+    if (key2 == "TR_EMPIRE_SIDE_BAR_FILTER_BY_NONE") { // dont draw second text if it's "None"
+        key2 = {};
     }
     const Image *button_image = image_id > 0 ? &Image::from_id(image_id) : nullptr;
     if (image_id > 0) {
@@ -333,15 +351,18 @@ void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int 
         cursor_x = text_x + text_draw(resource_name, text_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
     } else {
         // Calculate total text width for centering and account for image width if present
-        int text1_width = lang_text_get_width(group1, number1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        int text2_width = (number2 >= 0) ? lang_text_get_width(group2, number2, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) : 0;
+        int text1_width = key1 ? lang_text_get_width(key1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) : 0;
+        int text2_width = key2 ? lang_text_get_width(key2, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) : 0;
         int total_text_width = text1_width + text2_width;
         available_width = width - 2 * margin;
         content_width = total_text_width + image_width;
         text_x = x + margin + (available_width - content_width) / 2; // Center horizontally
-        cursor_x = text_x + lang_text_draw(group1, number1, text_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        if (number2 >= 0) {
-            cursor_x += lang_text_draw(group2, number2, cursor_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        cursor_x = text_x;
+        if (key1) {
+            cursor_x += lang_text_draw(key1, cursor_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        }
+        if (key2) {
+            cursor_x += lang_text_draw(key2, cursor_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     }
     if (image_id > 0) {
@@ -390,13 +411,12 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
     // Sort main button with current selection displayed
     window_empire_sidebar_sort_draw_simple_button(x_sort, base_y, button_width, button_height,
         window_empire_sidebar_sort_get_hovered_sorting_button() == BUTTON_INDEX_SORT_MAIN && !sorting_arrow_focused,
-        CUSTOM_TRANSLATION, TR_EMPIRE_SIDE_BAR_SORT, // Base text: "Sort by:"
-        CUSTOM_TRANSLATION, TR_EMPIRE_SIDE_BAR_SORT_BY_NAME + window_empire_sidebar_sort_get_current_sorting(), 0, 0);
+        "TR_EMPIRE_SIDE_BAR_SORT", // Base text: "Sort by:"
+        sorting_keys[window_empire_sidebar_sort_get_current_sorting()], 0, 0);
     window_empire_sidebar_sort_draw_sorting_arrow_button(x_sort, base_y, button_width, button_height);
     int x_filter = base_x + button_width + button_h_spacing;    // Filter main button
     // Filter main button with current selection displayed
-    int filter_group2 = CUSTOM_TRANSLATION;
-    int filter_number2 = TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE + window_empire_sidebar_sort_get_current_filtering();
+    translation_key filter_key = filter_keys[window_empire_sidebar_sort_get_current_filtering()];
     int filter_image_id = 0;
     switch (window_empire_sidebar_sort_get_current_filtering()) {
         case FILTER_BY_RESOURCE:
@@ -417,7 +437,7 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
 
     window_empire_sidebar_sort_draw_simple_button(x_filter, base_y, button_width, button_height,
         window_empire_sidebar_sort_get_hovered_sorting_button() == BUTTON_INDEX_FILTER_MAIN, //hovered state
-        CUSTOM_TRANSLATION, TR_EMPIRE_SIDE_BAR_FILTER, filter_group2, filter_number2, 1, filter_image_id);
+        "TR_EMPIRE_SIDE_BAR_FILTER", filter_key, 1, filter_image_id);
 
     if (window_empire_sidebar_sort_get_expanded_main() == 0) {
         for (int i = 0; i < MAX_SORTING_KEY; ++i) {
@@ -425,7 +445,7 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
             int y = base_y + v_margin + button_height + i * button_v_spacing;
             window_empire_sidebar_sort_draw_simple_button(x_sort, y, button_width, button_height,
                 window_empire_sidebar_sort_get_hovered_sorting_button() == button_type, //hovered state
-                CUSTOM_TRANSLATION, TR_EMPIRE_SIDE_BAR_SORT_BY_NAME + i, -1, -1, button_type, 0);
+                sorting_keys[i], {}, button_type, 0);
         }
     } else if (window_empire_sidebar_sort_get_expanded_main() == 1) {
         if (window_empire_sidebar_sort_get_resource_selection_active()) {
@@ -440,7 +460,7 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
                     int is_focused = (window_empire_sidebar_sort_get_hovered_sorting_button() == button_type);
                     int resource_icon_id = resource_graphics(r).panel_icon().image_id();
                     window_empire_sidebar_sort_draw_simple_button(x_filter, y, button_width, button_height, is_focused,
-                        -1, -1, -1, -1, button_type, resource_icon_id);
+                        {}, {}, button_type, resource_icon_id);
                     // text doesn't matter, resource name will decided basing on button_type
                     resource_count++;
                 }
@@ -450,12 +470,11 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
             for (int i = 0; i < MAX_FILTER_KEY; ++i) {
                 int button_type = BUTTON_INDEX_FIRST_FILTER_METHOD + i;
                 int y = base_y + v_margin + button_height + i * button_v_spacing;
-                int translation_key = TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE + i;
                 int is_focused = (window_empire_sidebar_sort_get_hovered_sorting_button() == button_type);
                 int image_id = (i == FILTER_BY_LAND) ? Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 :
                     (i == FILTER_BY_SEA) ? Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) : 0; //default 0
                 window_empire_sidebar_sort_draw_simple_button(x_filter, y, button_width, button_height, is_focused,
-                    CUSTOM_TRANSLATION, translation_key, -1, -1, button_type, image_id);
+                    filter_keys[i], {}, button_type, image_id);
             }
         }
     }

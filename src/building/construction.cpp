@@ -1413,32 +1413,32 @@ int building_construction_can_place_on_terrain(int x, int y, warning_type *warni
 {
     if (data.required_terrain.meadow) {
         if (!map_terrain_exists_tile_in_radius_with_type(x, y, 3, 1, TERRAIN_MEADOW)) {
-            set_warning(warning, text_key, WARNING_MEADOW_NEEDED, TR_CITY_WARNING_MEADOW_NEEDED);
+            set_warning(warning, text_key, WARNING_MEADOW_NEEDED, "TR_CITY_WARNING_MEADOW_NEEDED");
             return 0;
         }
     } else if (data.required_terrain.rock) {
         if (!map_terrain_exists_rock_in_radius(x, y, 2, 1)) {
-            set_warning(warning, text_key, WARNING_ROCK_NEEDED, TR_CITY_WARNING_ROCK_NEEDED);
+            set_warning(warning, text_key, WARNING_ROCK_NEEDED, "TR_CITY_WARNING_ROCK_NEEDED");
             return 0;
         }
     } else if (data.required_terrain.tree) {
         if (!map_terrain_exists_tile_in_radius_with_type(x, y, 2, 1, TERRAIN_SHRUB | TERRAIN_TREE)) {
-            set_warning(warning, text_key, WARNING_TREE_NEEDED, TR_CITY_WARNING_TREE_NEEDED);
+            set_warning(warning, text_key, WARNING_TREE_NEEDED, "TR_CITY_WARNING_TREE_NEEDED");
             return 0;
         }
     } else if (data.required_terrain.water) {
         if (!map_terrain_exists_tile_in_radius_with_type(x, y, 2, 3, TERRAIN_WATER)) {
-            set_warning(warning, text_key, WARNING_WATER_NEEDED, TR_CITY_WARNING_WATER_NEEDED);
+            set_warning(warning, text_key, WARNING_WATER_NEEDED, "TR_CITY_WARNING_WATER_NEEDED");
             return 0;
         }
     } else if (data.required_terrain.wall) {
         if (!map_terrain_all_tiles_in_radius_are(x, y, 2, 0, TERRAIN_WALL)) {
-            set_warning(warning, text_key, WARNING_WALL_NEEDED, TR_CITY_WARNING_WALL_NEEDED);
+            set_warning(warning, text_key, WARNING_WALL_NEEDED, "TR_CITY_WARNING_WALL_NEEDED");
             return 0;
         }
     } else if (data.required_terrain.distant_water) {
         if (!map_terrain_exists_tile_in_radius_with_type(x, y, 3, 9, TERRAIN_WATER)) {
-            set_warning(warning, text_key, WARNING_WATER_NEEDED_FOR_BUILDING, TR_WARNING_WATER_NEEDED_FOR_BUILDING);
+            set_warning(warning, text_key, WARNING_WATER_NEEDED_FOR_BUILDING, "TR_WARNING_WATER_NEEDED_FOR_BUILDING");
             return 0;
         }
     }

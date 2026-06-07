@@ -24,6 +24,7 @@ typedef struct {
     int number;
     int space_width;
     const uint8_t *text;
+    translation_key text_key;
 } lang_fragment;
 
 int lang_text_get_width(int group, int number, font_t font, int pixel_size);
@@ -63,4 +64,24 @@ int lang_text_concatenate_sequence(const lang_fragment *seq, int count, uint8_t 
 
 #ifdef __cplusplus
 }
+
+int lang_text_get_width(translation_key key, font_t font, int pixel_size);
+
+int lang_text_draw(translation_key key, int x_offset, int y_offset, font_t font, int pixel_size);
+int lang_text_draw_colored(translation_key key, int x_offset, int y_offset, font_t font, int pixel_size, color_t color);
+
+void lang_text_draw_centered(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+void lang_text_draw_right_aligned(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+void lang_text_draw_centered_colored(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
+
+void lang_text_draw_ellipsized(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+int lang_text_draw_amount(translation_key key, int amount, int x_offset, int y_offset, font_t font, int pixel_size);
+int lang_text_draw_amount_centered(
+    translation_key key, int amount, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+int lang_text_draw_multiline(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
 #endif

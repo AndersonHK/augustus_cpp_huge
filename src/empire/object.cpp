@@ -1,10 +1,11 @@
-#include "game/resource_id_bridge.h"
+﻿#include "game/resource_id_bridge.h"
 #include "object.h"
 
 #include "assets/assets.h"
 #include "core/array.h"
 #include "core/calc.h"
 #include "core/image.h"
+#include "translation/translation.h"
 #include "core/log.h"
 #include "core/random.h"
 #include "core/string.h"
@@ -135,7 +136,7 @@ void empire_object_load(buffer *buf, int version)
     for (int i = 0; i < objects_to_load; i++) {
         full_empire_object *full = array_next(objects);
         empire_object *obj = &full->obj;
-        obj->type = buffer_read_u8(buf);
+        obj->type = static_cast<empire_object_type>(buffer_read_u8(buf));
         full->in_use = buffer_read_u8(buf);
 
         if (full->in_use) {
@@ -165,7 +166,7 @@ void empire_object_load(buffer *buf, int version)
         }
         obj->expanded.x = buffer_read_i16(buf);
         obj->expanded.y = buffer_read_i16(buf);
-        full->city_type = buffer_read_u8(buf);
+        full->city_type = static_cast<empire_city_type>(buffer_read_u8(buf));
         full->city_name_id = buffer_read_u8(buf);
         obj->trade_route_id = buffer_read_u8(buf);
         full->trade_route_open = buffer_read_u8(buf);
@@ -247,22 +248,22 @@ void empire_object_load(buffer *buf, int version)
             buffer_read_raw(buf, full->city_custom_name, sizeof(full->city_custom_name));
         }
         if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-            obj->empire_city_icon = buffer_read_u8(buf);
-            full->empire_city_icon = buffer_read_u8(buf);
+            obj->empire_city_icon = static_cast<empire_city_icon_type>(buffer_read_u8(buf));
+            full->empire_city_icon = static_cast<empire_city_icon_type>(buffer_read_u8(buf));
             if (version <= SCENARIO_LAST_NO_EMPIRE_EDITOR && obj->empire_city_icon > EMPIRE_CITY_ICON_RESOURCE_GOODS) {
-                obj->empire_city_icon++;
-                full->empire_city_icon++;
+                obj->empire_city_icon = static_cast<empire_city_icon_type>(obj->empire_city_icon + 1);
+                full->empire_city_icon = static_cast<empire_city_icon_type>(full->empire_city_icon + 1);
             }
         } else {
             obj->empire_city_icon = empire_object_get_random_icon_for_empire_object(full);
             full->empire_city_icon = empire_object_get_random_icon_for_empire_object(full);
         }
         if (version > SCENARIO_LAST_NO_EMPIRE_EDITOR) {
-            obj->future_trade_after_icon = buffer_read_u8(buf);
+            obj->future_trade_after_icon = static_cast<empire_city_icon_type>(buffer_read_u8(buf));
             obj->order_index = buffer_read_i16(buf);
             obj->parent_object_id = buffer_read_i16(buf);
             if (version <= SCENARIO_LAST_NO_EMPIRE_EDITOR && obj->future_trade_after_icon > EMPIRE_CITY_ICON_RESOURCE_GOODS) {
-                obj->future_trade_after_icon++;
+                obj->future_trade_after_icon = static_cast<empire_city_icon_type>(obj->future_trade_after_icon + 1);
             }
         } else {
             obj->future_trade_after_icon = EMPIRE_CITY_ICON_DEFAULT;
@@ -278,7 +279,7 @@ void empire_object_save(buffer *buf)
 {
     char *buf_data;
     if (scenario.empire.id != SCENARIO_CUSTOM_EMPIRE) {
-        buf_data = malloc(sizeof(int32_t));
+        buf_data = static_cast<char *>(malloc(sizeof(int32_t)));
         buffer_init(buf, buf_data, sizeof(int32_t));
         buffer_write_i32(buf, 0);
         return;
@@ -298,7 +299,7 @@ void empire_object_save(buffer *buf)
             // `type` and `in_use` are always written even for unused slots.
         }
     }
-    buf_data = malloc(total_size + sizeof(uint32_t));
+    buf_data = static_cast<char *>(malloc(total_size + sizeof(uint32_t)));
     buffer_init(buf, buf_data, total_size + sizeof(uint32_t));
     buffer_write_i32(buf, objects.size);
 
@@ -909,7 +910,7 @@ int empire_object_add_ornament(int ornament_id)
 void empire_object_set_expanded(int object_id, int new_city_type)
 {
     full_empire_object *obj = array_item(objects, object_id);
-    obj->city_type = new_city_type;
+    obj->city_type = static_cast<empire_city_type>(new_city_type);
     if (new_city_type == EMPIRE_CITY_TRADE) {
         obj->obj.expanded.image_id = image_group(GROUP_EMPIRE_CITY_TRADE);
     } else if (new_city_type == EMPIRE_CITY_DISTANT_ROMAN) {
@@ -972,7 +973,7 @@ void empire_object_set_trade_route_coords(const empire_object *our_city)
         empire_object *trade_route = empire_object_get(i + 1);
 
         if (!section_distances) {
-            section_distances = malloc(sizeof(int) * (empire_object_count() - 1));
+            section_distances = static_cast<int *>(malloc(sizeof(int) * (empire_object_count() - 1)));
         }
         int sections = 0;
         int distance = 0;
@@ -1102,7 +1103,7 @@ static int is_name_rome(const uint8_t *name)
 {
     if (strcmp((const char *) name, "Rome") == 0 || strcmp((const char *) name, "Roma") == 0 ||
         strcmp((const char *) name, "Rom") == 0 || strcmp((const char *) name, "Rzym") == 0 ||
-        strcmp((const char *) name, "Рим") == 0) {
+        strcmp((const char *) name, "Ð Ð¸Ð¼") == 0) {
         return 1;
     }
     return 0;

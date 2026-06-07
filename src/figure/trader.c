@@ -2,6 +2,7 @@
 
 #include "empire/trade_prices.h"
 #include "figuretype/trader.h"
+#include "game/resource_id_bridge.h"
 #include "trader.h"
 #include <string.h>
 

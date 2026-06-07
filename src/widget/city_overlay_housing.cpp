@@ -1,4 +1,5 @@
-#include "building/building.h"
+﻿#include "building/building.h"
+#include "translation/translation.h"
 #include "building/house.h"
 #include "building/industry.h"
 #include "building/roadblock.h"
@@ -13,7 +14,6 @@
 
 #include "city_overlay_housing.h"
 
-#include "translation/translation.h"
 extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
@@ -22,7 +22,6 @@ extern "C" {
 #include "city/finance.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/text.h"

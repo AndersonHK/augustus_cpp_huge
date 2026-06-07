@@ -4,7 +4,6 @@
 #include "city/message.h"
 #include "core/calc.h"
 #include "core/image_group.h"
-#include "core/lang.h"
 #include "game/campaign.h"
 #include "game/time.h"
 #include "graphics/ui_runtime_api.h"
@@ -109,9 +108,9 @@ static struct {
 static void draw_message_type_button(int x, int y, int focused)
 {
     static const translation_key message_type_keys[] = {
-        TR_WINDOW_MESSAGE_LIST_SELECTED_ALL,
-        TR_WINDOW_MESSAGE_LIST_SELECTED_COMMON,
-        TR_WINDOW_MESSAGE_LIST_SELECTED_CUSTOM
+        "TR_WINDOW_MESSAGE_LIST_SELECTED_ALL",
+        "TR_WINDOW_MESSAGE_LIST_SELECTED_COMMON",
+        "TR_WINDOW_MESSAGE_LIST_SELECTED_CUSTOM"
     };
 
     button_border_draw(x, y, generic_button_messages_type->width, generic_button_messages_type->height, focused ? 1 : 0);
@@ -441,12 +440,12 @@ static void get_tooltip(tooltip_context *c)
     } else if (data.focus_button_id == 12) {
         c->text_id = 2;
     } else if (data.focus_button_id == 14) {
-        c->translation_key = TR_TOOLTIP_BUTTON_DELETE_READ_MESSAGES;
+        c->translation_key = "TR_TOOLTIP_BUTTON_DELETE_READ_MESSAGES";
     } else if (data.focus_button_id == 15) {
         c->text_group = 68;
         c->text_id = 42;
     } else if (data.focus_button_id == 16) {
-        c->translation_key = TR_TOOLTIP_BUTTON_DELETE_COMMON_MESSAGES;
+        c->translation_key = "TR_TOOLTIP_BUTTON_DELETE_COMMON_MESSAGES";
     } else {
         return;
     }

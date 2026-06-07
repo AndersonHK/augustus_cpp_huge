@@ -34,11 +34,11 @@ static struct {
 } data;
 
 static const translation_key invasion_type_strings[] = {
-    TR_SELECT_NONE,
-    TR_PARAMETER_VALUE_INVASION_TYPE_NATIVES,
-    TR_PARAMETER_VALUE_INVASION_TYPE_ENEMY_ARMY,
-    TR_PARAMETER_VALUE_INVASION_TYPE_CAESAR,
-    TR_PARAMETER_VALUE_MESSAGE_DISTANT_BATTLE,
+    "TR_SELECT_NONE",
+    "TR_PARAMETER_VALUE_INVASION_TYPE_NATIVES",
+    "TR_PARAMETER_VALUE_INVASION_TYPE_ENEMY_ARMY",
+    "TR_PARAMETER_VALUE_INVASION_TYPE_CAESAR",
+    "TR_PARAMETER_VALUE_MESSAGE_DISTANT_BATTLE",
 };
 
 static generic_button new_invasion_button = {
@@ -116,14 +116,14 @@ static void draw_background(void)
     outer_panel_draw(0, 0, 40, 30);
     lang_text_draw(44, 15, 20, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_INVASION_DATE, 20, 50, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Invasion date:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_INVASION_SIZE, 130, 50, 105, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Invasion size:
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_INVASION_ENEMY_TYPE, 240, 50, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Enemy type:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_INVASION_FROM, 330, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // From:
+    lang_text_draw("TR_EDITOR_INVASION_DATE", 20, 50, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Invasion date:
+    lang_text_draw_centered("TR_EDITOR_INVASION_SIZE", 130, 50, 105, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Invasion size:
+    lang_text_draw("TR_EDITOR_INVASION_ENEMY_TYPE", 240, 50, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Enemy type:
+    lang_text_draw_centered("TR_EDITOR_INVASION_FROM", 330, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // From:
     lang_text_draw_centered(50, 21, 380, 50, 85, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Priority
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY2, 460, 30, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Repeat frequency
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES2, 460, 50, 45, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Times:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY_YEARS2, 520, 50, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Years:
+    lang_text_draw_centered("TR_EDITOR_REPEAT_FREQUENCY2", 460, 30, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Repeat frequency
+    lang_text_draw_centered("TR_EDITOR_REPEAT_TIMES2", 460, 50, 45, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Times:
+    lang_text_draw_centered("TR_EDITOR_REPEAT_FREQUENCY_YEARS2", 520, 50, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Years:
 
     lang_text_draw_centered(13, 3, 0, 456, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_multiline(152, 2, 20, 380, 600, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -132,7 +132,7 @@ static void draw_background(void)
         lang_text_draw_centered(44, 20, 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     }
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NEW_INVASION, new_invasion_button.x + 8,
+    lang_text_draw_centered("TR_EDITOR_NEW_INVASION", new_invasion_button.x + 8,
         new_invasion_button.y + 8, new_invasion_button.width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
@@ -156,7 +156,7 @@ static void draw_invasion_button(const grid_box_item *item)
         text_draw_number(invasion->amount.max, '@', " ", 185, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
-    lang_text_draw(CUSTOM_TRANSLATION, invasion_type_strings[invasion->type], 230, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw(invasion_type_strings[invasion->type], 230, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     if (invasion->type != INVASION_TYPE_DISTANT_BATTLE && invasion->type != INVASION_TYPE_CAESAR) {
         if (invasion->from + 1 == 9) {

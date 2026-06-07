@@ -3,6 +3,7 @@
 #include "core/array.h"
 #include "core/log.h"
 #include "empire/city.h"
+#include "game/resource_id_bridge.h"
 #include "game/save_version.h"
 
 #include <string.h>

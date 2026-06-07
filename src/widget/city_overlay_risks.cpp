@@ -342,25 +342,25 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
         b = main_building;
     }
     if (b->has_plague) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_PLAGUE;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_PLAGUE";
     }
     if (b->strike_duration_days > 0) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_STRIKE;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_STRIKE";
     } else if (b->state == BUILDING_STATE_MOTHBALLED) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_MOTHBALLED;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_MOTHBALLED";
     } else if (!b->num_workers && building_get_laborers(b->type)) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_LABOR;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_LABOR";
     } else if (building_type_registry_has_water_access_requirements(b->type) && !b->has_water_access) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_WATER_ACCESS;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_WATER_ACCESS";
     } else if (building_is_farm(b->type) || building_is_raw_resource_producer(b->type)) {
         if (is_problem_cartpusher(b->figure_id)) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_CARTPUSHER;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_CARTPUSHER";
         }
     } else if (building_is_workshop(b->type)) {
         if (is_problem_cartpusher(b->figure_id)) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_CARTPUSHER;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_CARTPUSHER";
         } else if (!building_industry_has_raw_materials_for_production(b)) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_RESOURCES;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_RESOURCES";
         }
     } else if (building_type_registry_is_theater(b->type) && !b->data.entertainment.days1) {
         c->text_group = 72;
@@ -387,10 +387,10 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
     } else if (type_matches(b->type, "depot") &&
         (!b->data.depot.current_order.src_storage_id ||
          !b->data.depot.current_order.dst_storage_id)) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_DEPOT_NO_INSTRUCTIONS;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_DEPOT_NO_INSTRUCTIONS";
     } else if (b->has_road_access == 0 &&
         building_get_laborers(b->type) && !type_matches_any(b->type, "latrines", "fountain")) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_PROBLEMS_NO_ROAD_ACCESS;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_ROAD_ACCESS";
     }
     if (c->translation_key) {
         return 1;

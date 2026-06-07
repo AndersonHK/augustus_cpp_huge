@@ -1,14 +1,13 @@
 #include "city/warning.h"
+#include "translation/translation.h"
 #include "message.h"
 #include "window/message_dialog.h"
 
-#include "translation/translation.h"
 extern "C" {
 
 #include "core/config.h"
 #include "core/encoding.h"
 #include "core/file.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "core/time.h"
 #include "figure/formation.h"

@@ -1,4 +1,5 @@
 #include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
 #include "input/input.h"
@@ -11,7 +12,6 @@
 extern "C" {
 
 #include "building/building_type_api.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
@@ -98,7 +98,7 @@ static const uint8_t *get_allowed_building_name(building_type type)
         return lang_get_string(68, 21);
     }
     if (type_matches(type, "repair_land")) {
-        return lang_get_string(CUSTOM_TRANSLATION, TR_BUILDING_LAND_REPAIR);
+        return lang_get_string("TR_BUILDING_LAND_REPAIR");
     }
     return lang_get_building_type_string(type);
 }
@@ -109,14 +109,14 @@ static const uint8_t *get_display_string(special_attribute_mapping_t *entry)
         case PARAMETER_TYPE_BUILDING:
         case PARAMETER_TYPE_BUILDING_COUNTING:
         case PARAMETER_TYPE_MODEL:
-            if (entry->key == TR_PARAMETER_VALUE_DYNAMIC_RESOLVE) {
+            if (entry->key == "TR_PARAMETER_VALUE_DYNAMIC_RESOLVE") {
                 return lang_get_building_type_string(static_cast<building_type>(entry->value));
             } else {
                 return translation_for(entry->key);
             }
             break;
         case PARAMETER_TYPE_ALLOWED_BUILDING:
-            if (entry->key == TR_PARAMETER_VALUE_DYNAMIC_RESOLVE) {
+            if (entry->key == "TR_PARAMETER_VALUE_DYNAMIC_RESOLVE") {
                 return get_allowed_building_name(static_cast<building_type>(entry->value));
             } else {
                 return translation_for(entry->key);

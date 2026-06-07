@@ -1,4 +1,5 @@
 #include "building/construction.h"
+#include "translation/translation.h"
 #include "building/rotation.h"
 #include "city/warning.h"
 #include "figure/roamer_preview.h"
@@ -17,7 +18,6 @@
 
 #include "city.h"
 
-#include "translation/translation.h"
 #include "city/view.h"
 #include "building/building.h"
 #include "input/zoom.h"
@@ -31,7 +31,6 @@ extern "C" {
 #include "core/config.h"
 #include "core/direction.h"
 #include "core/image_group.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "figure/formation_legion.h"
 #include "game/cheats.h"
@@ -86,10 +85,10 @@ static void display_zoom_warning(int zoom)
     zoom = city_view_scale_to_display_percentage(zoom);
     static uint8_t zoom_string[100];
     if (!*zoom_string) {
-        uint8_t *cursor = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM), zoom_string, 100);
+        uint8_t *cursor = string_copy(lang_get_string("TR_ZOOM"), zoom_string, 100);
         string_copy(string_from_ascii(" "), cursor, (int) (cursor - zoom_string));
     }
-    int position = string_length(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM)) + 1;
+    int position = string_length(lang_get_string("TR_ZOOM")) + 1;
     position += string_from_int(zoom_string + position, zoom, 0);
     string_copy(string_from_ascii("%"), zoom_string + position, 100 - position);
     city_warning_show(WARNING_ZOOM, zoom_string);

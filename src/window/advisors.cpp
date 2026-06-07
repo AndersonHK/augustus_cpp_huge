@@ -296,7 +296,7 @@ static void get_tooltip(tooltip_context *c)
         if (focus_button_id == -1) {
             c->text_id = 1; // help button
         } else if (focus_button_id == ADVISOR_HOUSING) {
-            c->translation_key = TR_TOOLTIP_ADVISOR_POPULATION_HOUSING_BUTTON;
+            c->translation_key = "TR_TOOLTIP_ADVISOR_POPULATION_HOUSING_BUTTON";
         } else {
             c->text_id = 69 + focus_button_id - (focus_button_id >= ADVISOR_HOUSING ? 1 : 0);
         }

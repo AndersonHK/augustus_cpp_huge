@@ -1,6 +1,6 @@
-#include "editor.h"
+﻿#include "editor.h"
 
-#include "core/lang.h"
+#include "translation/translation.h"
 #include "core/string.h"
 #include "map/grid.h"
 #include "scenario/allowed_building.h"

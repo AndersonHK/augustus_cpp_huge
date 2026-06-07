@@ -79,7 +79,7 @@ static void draw_foreground(void)
     lang_text_draw(44, 107, 35, 101, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(316, 92, 80, 30, focus_button_id == 15);
     if (is_open_play) {
-        lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_EDITOR_RESET_FAVOR_MONTHLY, 416, 96, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_multiline("TR_EDITOR_RESET_FAVOR_MONTHLY", 416, 96, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         button_border_draw(516, 98, 24, 24, focus_button_id == 16); //checkbox
         if (reset_favor) {
             text_draw(string_from_ascii("x"), 525, 105, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);

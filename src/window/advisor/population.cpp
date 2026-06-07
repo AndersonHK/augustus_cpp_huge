@@ -1,4 +1,5 @@
 #include "building/count.h"
+#include "translation/translation.h"
 #include "city/migration.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
@@ -16,7 +17,6 @@
 extern "C" {
 
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/locale.h"
 #include "core/string.h"
 #include "city/finance.h"
@@ -400,7 +400,7 @@ static int draw_background(void)
     Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 14).draw(62, 60);
 
     int x_offset = text_get_number_width(city_population(), 0, "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    x_offset += lang_text_get_width(CUSTOM_TRANSLATION, TR_ADVISOR_TOTAL_POPULATION, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    x_offset += lang_text_get_width("TR_ADVISOR_TOTAL_POPULATION", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     int target_width = lang_text_get_width(53, 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     target_width += text_get_number_width(scenario_criteria_population(), '@', " )", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset = 620 - x_offset;
@@ -672,7 +672,7 @@ static uint8_t *get_graph_tooltip(int x, int y)
             offset = string_copy(string_from_ascii(": "), offset, 300 - (int) (offset - tooltip_text));
             offset += string_from_int(offset, pop, 0);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-            offset = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ADVISOR_POPULATION_RESIDENTS), offset, 300 - (int) (offset - tooltip_text));
+            offset = string_copy(lang_get_string("TR_ADVISOR_POPULATION_RESIDENTS"), offset, 300 - (int) (offset - tooltip_text));
             return tooltip_text;
         }
     } else if (graph_type == 1) {
@@ -694,13 +694,13 @@ static uint8_t *get_graph_tooltip(int x, int y)
             val = pop >> y_shift;
         }
         if (val && y >= 200 - val) {
-            uint8_t *offset = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ADVISOR_POPULATION_AGE), tooltip_text, 300);
+            uint8_t *offset = string_copy(lang_get_string("TR_ADVISOR_POPULATION_AGE"), tooltip_text, 300);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
             offset += string_from_int(offset, m, 0);
             offset = string_copy(string_from_ascii(": "), offset, 300 - (int) (offset - tooltip_text));
             offset += string_from_int(offset, pop, 0);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-            offset = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ADVISOR_POPULATION_RESIDENTS), offset, 300 - (int) (offset - tooltip_text));
+            offset = string_copy(lang_get_string("TR_ADVISOR_POPULATION_RESIDENTS"), offset, 300 - (int) (offset - tooltip_text));
             return tooltip_text;
         }
     } else if (graph_type == 2) {
@@ -724,7 +724,7 @@ static uint8_t *get_graph_tooltip(int x, int y)
         if (val && y >= 200 - val) {
             uint8_t *offset = string_copy(lang_get_string(29, m), tooltip_text, 300);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-            offset = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ADVISOR_POPULATION_DWELLERS), offset, 300 - (int) (offset - tooltip_text));
+            offset = string_copy(lang_get_string("TR_ADVISOR_POPULATION_DWELLERS"), offset, 300 - (int) (offset - tooltip_text));
             offset = string_copy(string_from_ascii(": "), offset, 300 - (int) (offset - tooltip_text));
             offset += string_from_int(offset, pop, 0);
             return tooltip_text;

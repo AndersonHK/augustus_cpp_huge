@@ -1,4 +1,5 @@
-#include "rotation.h"
+﻿#include "rotation.h"
+#include "translation/translation.h"
 
 #include "building/connectable.h"
 #include "building/construction.h"
@@ -10,7 +11,6 @@
 #include "city/warning.h"
 #include "core/config.h"
 #include "core/direction.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "core/time.h"
 #include "map/grid.h"

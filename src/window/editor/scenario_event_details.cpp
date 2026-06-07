@@ -1,4 +1,5 @@
 #include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
 #include "input/input.h"
@@ -13,7 +14,6 @@
 #include "widget/input_box.h"
 #include "window/editor/map.h"
 #include "graphics/grid_box.h"
-#include "translation/translation.h"
 #include "widget/dropdown_button.h"
 #include "window/popup_dialog.h"
 #include <array>
@@ -23,7 +23,6 @@
 
 extern "C" {
 #include "assets/assets.h"
-#include "core/lang.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "game/time.h"
@@ -396,10 +395,10 @@ static void dropdown_init(void)
     int dd_x = top_buttons[5].x + top_buttons[5].width + 10;
     int dd_y = top_buttons[5].y + 6;
     static lang_fragment repeat_interval_frags[] = {
-        {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_REPEAT_INTERVAL_TYPE},
-        {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_PARAMETER_DISPLAY_DAYS },
-        {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_PARAMETER_DISPLAY_MONTHS },
-        {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_REPEAT_FREQUENCY_YEARS }
+        {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_REPEAT_INTERVAL_TYPE"},
+        {.type = LANG_FRAG_LABEL, .text_key = "TR_PARAMETER_DISPLAY_DAYS" },
+        {.type = LANG_FRAG_LABEL, .text_key = "TR_PARAMETER_DISPLAY_MONTHS" },
+        {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_REPEAT_FREQUENCY_YEARS" }
     };
     repeat_interval_dropdown.width = 70; // set width before init, otherwise it will be auto'd
     repeat_interval_dropdown.padding = 0;
@@ -438,10 +437,10 @@ static int color_from_state(event_state state)
 static void draw_background(void)
 {
     static const translation_key event_state_keys[] = {
-        TR_EDITOR_SCENARIO_EVENT_STATE_UNDEFINED,
-        TR_EDITOR_SCENARIO_EVENT_STATE_DISABLED,
-        TR_EDITOR_SCENARIO_EVENT_STATE_ACTIVE,
-        TR_EDITOR_SCENARIO_EVENT_STATE_PAUSED
+        "TR_EDITOR_SCENARIO_EVENT_STATE_UNDEFINED",
+        "TR_EDITOR_SCENARIO_EVENT_STATE_DISABLED",
+        "TR_EDITOR_SCENARIO_EVENT_STATE_ACTIVE",
+        "TR_EDITOR_SCENARIO_EVENT_STATE_PAUSED"
     };
 
     update_visible_conditions_and_actions();
@@ -472,7 +471,7 @@ static void draw_background(void)
         data.event->id, "", 16, 13, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
 
     // "Name" string
-    lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENT_NAME, 0, event_name_input.y + 8,
+    lang_text_draw_right_aligned("TR_EDITOR_SCENARIO_EVENT_NAME", 0, event_name_input.y + 8,
         event_name_input.x - 10, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Top buttons
@@ -482,12 +481,12 @@ static void draw_background(void)
 
     btn = &top_buttons[0];
     // Repeat type - Never
-    lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT, 0, btn->y + 3, btn->x - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_DO_NOT_REPEAT, btn->x + 30, btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_right_aligned("TR_EDITOR_REPEAT", 0, btn->y + 3, btn->x - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("TR_EDITOR_DO_NOT_REPEAT", btn->x + 30, btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat forever
     btn = &top_buttons[1];
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FOREVER, btn->x + 30, btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("TR_EDITOR_REPEAT_FOREVER", btn->x + 30, btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat N times
     btn = &top_buttons[3];
@@ -496,11 +495,11 @@ static void draw_background(void)
         repeat_times = 1;
     }
     if (repeat_times > 2) {
-        text_draw_label_and_number_centered(lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TEXT), repeat_times,
-            (const char *) lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES),
+        text_draw_label_and_number_centered(lang_get_string("TR_EDITOR_REPEAT_TEXT"), repeat_times,
+            (const char *) lang_get_string("TR_EDITOR_REPEAT_TIMES"),
             btn->x, btn->y + 6, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_ONCE + repeat_times - 1, btn->x, btn->y + 6,
+        lang_text_draw_centered(repeat_times == 1 ? "TR_EDITOR_REPEAT_ONCE" : "TR_EDITOR_REPEAT_TWICE", btn->x, btn->y + 6,
             btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
@@ -509,15 +508,15 @@ static void draw_background(void)
     color_t enabled_color = data.repeat_type == EVENT_REPEAT_NEVER ? COLOR_FONT_LIGHT_GRAY : COLOR_MASK_NONE;
 
     btn = &top_buttons[4];
-    lang_text_draw_right_aligned(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY, 0, btn->y - 20, top_buttons[0].x + 450,
+    lang_text_draw_right_aligned("TR_EDITOR_REPEAT_FREQUENCY", 0, btn->y - 20, top_buttons[0].x + 450,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, top_buttons[0].x + 240, btn->y + 6,
+    lang_text_draw_colored("TR_EDITOR_BETWEEN", top_buttons[0].x + 240, btn->y + 6,
         enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     int repeat_min = convert_days_to_display(data.event->repeat_days_min);
     int repeat_max = convert_days_to_display(data.event->repeat_days_max);
     text_draw_number_centered_colored(repeat_min, btn->x, btn->y + 6,
         btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
-    lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_AND, btn->x + btn->width,
+    lang_text_draw_centered_colored("TR_EDITOR_AND", btn->x + btn->width,
         btn->y + 6, btn[1].x - (btn->x + btn->width), enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     btn = &top_buttons[5];
     text_draw_number_centered_colored(repeat_max, btn->x, btn->y + 6,
@@ -535,11 +534,11 @@ static void draw_background(void)
 
     // "Set selected to group..." option label
     color_t color = data.conditions.selection_type == CHECKBOX_NO_SELECTION ? COLOR_FONT_LIGHT_GRAY : 0;
-    lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_SET_TO_GROUP,
+    lang_text_draw_centered_colored("TR_EDITOR_SCENARIO_EVENTS_SET_TO_GROUP",
         top_buttons[6].x, top_buttons[6].y + 5, top_buttons[6].width, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), color);
 
     // Condition grid box label
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_CONDITION,
+    lang_text_draw("TR_EDITOR_SCENARIO_CONDITION",
         select_all_none_buttons[0].x + select_all_none_buttons[0].width + 6, conditions_grid_box.y - 20,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
@@ -552,39 +551,39 @@ static void draw_background(void)
     }
 
     // Action grid box label
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_ACTION,
+    lang_text_draw("TR_EDITOR_SCENARIO_ACTION",
         select_all_none_buttons[1].x + select_all_none_buttons[1].width + 6, actions_grid_box.y - 20,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // No conditions
     int y_offset = conditions_grid_box.y + conditions_grid_box.height / 2 - 10;
     if (data.conditions.active == 0) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_NO_CONDITIONS, conditions_grid_box.x,
+        lang_text_draw_centered("TR_EDITOR_SCENARIO_NO_CONDITIONS", conditions_grid_box.x,
             y_offset, conditions_grid_box.width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // No actions
     if (data.actions.active == 0) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_NO_ACTIONS, actions_grid_box.x,
+        lang_text_draw_centered("TR_EDITOR_SCENARIO_NO_ACTIONS", actions_grid_box.x,
             y_offset, actions_grid_box.width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // New condition button label
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_CONDITION_ADD,
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_CONDITION_ADD",
         bottom_buttons[0].x, bottom_buttons[0].y + 6, bottom_buttons[0].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Delete selected button label
     color = data.conditions.selection_type == CHECKBOX_NO_SELECTION &&
         data.actions.selection_type == CHECKBOX_NO_SELECTION ? COLOR_FONT_LIGHT_GRAY : COLOR_RED;
-    lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED,
+    lang_text_draw_centered_colored("TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED",
         bottom_buttons[1].x, bottom_buttons[1].y + 6, bottom_buttons[1].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
 
     // Add action button label
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_ACTION_ADD,
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_ACTION_ADD",
         bottom_buttons[2].x, bottom_buttons[2].y + 6, bottom_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Bottom buttons
-    lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_DELETE, bottom_buttons[3].x, bottom_buttons[3].y + 6,
+    lang_text_draw_centered_colored("TR_EDITOR_DELETE", bottom_buttons[3].x, bottom_buttons[3].y + 6,
         bottom_buttons[3].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_RED);
     lang_text_draw_centered(18, 3, bottom_buttons[4].x, bottom_buttons[4].y + 6, bottom_buttons[4].width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -981,9 +980,9 @@ static void button_delete_selected(const generic_button *button)
         return;
     }
     if (!data.do_not_ask_again_for_delete) {
-        const uint8_t *title = lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED_CONFIRM_TITLE);
-        const uint8_t *text = lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED_CONFIRM_TEXT);
-        const uint8_t *check_text = lang_get_string(CUSTOM_TRANSLATION, TR_SAVE_DIALOG_OVERWRITE_FILE_DO_NOT_ASK_AGAIN);
+        const uint8_t *title = lang_get_string("TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED_CONFIRM_TITLE");
+        const uint8_t *text = lang_get_string("TR_EDITOR_SCENARIO_EVENTS_DELETE_SELECTED_CONFIRM_TEXT");
+        const uint8_t *check_text = lang_get_string("TR_SAVE_DIALOG_OVERWRITE_FILE_DO_NOT_ASK_AGAIN");
         stop_input();
         window_popup_dialog_show_confirmation(title, text, check_text, delete_selected);
     } else {
@@ -1129,14 +1128,14 @@ static void handle_check_all_none_tooltip(tooltip_context *c)
 {
     if (data.focus_button.select_all_none == 1) {
         if (data.conditions.active > 0) {
-            c->precomposed_text = lang_get_string(CUSTOM_TRANSLATION,
-                data.conditions.selection_type == CHECKBOX_ALL_SELECTED ? TR_SELECT_NONE : TR_SELECT_ALL);
+            c->precomposed_text = lang_get_string(
+                data.conditions.selection_type == CHECKBOX_ALL_SELECTED ? "TR_SELECT_NONE" : "TR_SELECT_ALL");
             c->type = TOOLTIP_BUTTON;
         }
     } else if (data.focus_button.select_all_none == 2) {
         if (data.actions.active > 0) {
-            c->precomposed_text = lang_get_string(CUSTOM_TRANSLATION,
-                data.actions.selection_type == CHECKBOX_ALL_SELECTED ? TR_SELECT_NONE : TR_SELECT_ALL);
+            c->precomposed_text = lang_get_string(
+                data.actions.selection_type == CHECKBOX_ALL_SELECTED ? "TR_SELECT_NONE" : "TR_SELECT_ALL");
             c->type = TOOLTIP_BUTTON;
         }
     }
@@ -1147,8 +1146,7 @@ static void get_tooltip(tooltip_context *c)
     handle_check_all_none_tooltip(c);
     if (c->type == TOOLTIP_NONE) {
         if (data.focus_button.top == 7) {
-            c->text_group = CUSTOM_TRANSLATION;
-            c->text_id = TR_EDITOR_SCENARIO_EVENTS_GROUPS_EXPLANATION_TOOLTIP;
+            c->translation_key = "TR_EDITOR_SCENARIO_EVENTS_GROUPS_EXPLANATION_TOOLTIP";
             c->type = TOOLTIP_BUTTON;
         } else {
             grid_box_handle_tooltip(data.focused_grid_box, c);

@@ -1,4 +1,5 @@
-#include "graphics/generic_button.h"
+﻿#include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
 #include "input/input.h"
@@ -9,7 +10,6 @@
 #include "window/editor/map.h"
 extern "C" {
 
-#include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/type.h"

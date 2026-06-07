@@ -153,7 +153,6 @@
     <ClCompile Include="src\core\legacy_image_extractor.cpp" />
     <ClCompile Include="src\core\image_packer.c" />
     <ClCompile Include="src\core\io.c" />
-    <ClCompile Include="src\core\lang.cpp" />
     <ClCompile Include="src\core\locale.cpp" />
     <ClCompile Include="src\core\memory_block.c" />
     <ClCompile Include="src\core\png_read.c" />
@@ -176,7 +175,7 @@
     <ClCompile Include="src\empire\empire.cpp" />
     <ClCompile Include="src\empire\export_xml.cpp" />
     <ClCompile Include="src\empire\import_xml.cpp" />
-    <ClCompile Include="src\empire\object.c" />
+    <ClCompile Include="src\empire\object.cpp" />
     <ClCompile Include="src\empire\trade_prices.cpp" />
     <ClCompile Include="src\empire\trade_route.c" />
     <ClCompile Include="src\figuretype\animal.cpp" />
@@ -373,7 +372,7 @@
     <ClCompile Include="src\scenario\demand_change.c" />
     <ClCompile Include="src\scenario\distant_battle.c" />
     <ClCompile Include="src\scenario\earthquake.cpp" />
-    <ClCompile Include="src\scenario\editor.c" />
+    <ClCompile Include="src\scenario\editor.cpp" />
     <ClCompile Include="src\scenario\editor_events.c" />
     <ClCompile Include="src\scenario\editor_map.c" />
     <ClCompile Include="src\scenario\emperor_change.c" />
@@ -683,7 +682,6 @@
     <ClInclude Include="src\core\legacy_image_extractor.h" />
     <ClInclude Include="src\core\image_packer.h" />
     <ClInclude Include="src\core\io.h" />
-    <ClInclude Include="src\core\lang.h" />
     <ClInclude Include="src\core\locale.h" />
     <ClInclude Include="src\core\log.h" />
     <ClInclude Include="src\core\memory_block.h" />

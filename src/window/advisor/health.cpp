@@ -1,4 +1,5 @@
 #include "building/count.h"
+#include "translation/translation.h"
 #include "city/culture.h"
 #include "city/health.h"
 #include "city/houses.h"
@@ -16,7 +17,6 @@ extern "C" {
 #include "building/building_type_api.h"
 #include "city/population.h"
 #include "core/calc.h"
-#include "core/lang.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
@@ -123,7 +123,7 @@ static int draw_background(void)
 
     lang_text_draw(56, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); // City health
 
-    int x_offset = lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_HEALTH_RATING, 60, 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int x_offset = lang_text_draw("TR_ADVISOR_HEALTH_RATING", 60, 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number(city_health(), 0, "", 60 + x_offset, 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     if (city_population() >= 200) {
@@ -167,13 +167,13 @@ static int draw_background(void)
     }
     int text_height = lang_text_draw_multiline(56, 7 + get_health_advice(), 45, 226, 560, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_ADVISOR_HEALTH_SURVEILLANCE, 45, 246 + text_height, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("TR_ADVISOR_HEALTH_SURVEILLANCE", 45, 246 + text_height, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_height += 16;
     static const translation_key sickness_level_keys[] = {
-        TR_ADVISOR_SICKNESS_LEVEL_LOW,
-        TR_ADVISOR_SICKNESS_LEVEL_MEDIUM,
-        TR_ADVISOR_SICKNESS_LEVEL_HIGH,
-        TR_ADVISOR_SICKNESS_LEVEL_PLAGUE
+        "TR_ADVISOR_SICKNESS_LEVEL_LOW",
+        "TR_ADVISOR_SICKNESS_LEVEL_MEDIUM",
+        "TR_ADVISOR_SICKNESS_LEVEL_HIGH",
+        "TR_ADVISOR_SICKNESS_LEVEL_PLAGUE"
     };
     sickness_level = calc_bound(sickness_level, 0, static_cast<int>(sizeof(sickness_level_keys) / sizeof(sickness_level_keys[0])) - 1);
     text_draw_multiline(translation_for(sickness_level_keys[sickness_level]),
@@ -208,10 +208,9 @@ static void draw_coverage_toggle_widgets(void)
     UiPrimitives &primitives = shared_ui_runtime().primitives();
 
     UiTextSpec health_text = {};
-    health_text.content_type = UiTextContentType::Language;
+    health_text.content_type = UiTextContentType::TranslationKey;
     health_text.alignment = UiTextAlignment::Center;
-    health_text.text_group = CUSTOM_TRANSLATION;
-    health_text.text_id = TR_ADVISOR_HEALTH_HEALTH_COVERAGE;
+    health_text.text_key = "TR_ADVISOR_HEALTH_HEALTH_COVERAGE";
     health_text.x = generic_buttons[0].x;
     health_text.y = generic_buttons[0].y + 5;
     health_text.box_width = generic_buttons[0].width;
@@ -229,10 +228,9 @@ static void draw_coverage_toggle_widgets(void)
         .draw();
 
     UiTextSpec water_text = {};
-    water_text.content_type = UiTextContentType::Language;
+    water_text.content_type = UiTextContentType::TranslationKey;
     water_text.alignment = UiTextAlignment::Center;
-    water_text.text_group = CUSTOM_TRANSLATION;
-    water_text.text_id = TR_ADVISOR_HEALTH_WATER_COVERAGE;
+    water_text.text_key = "TR_ADVISOR_HEALTH_WATER_COVERAGE";
     water_text.x = generic_buttons[1].x;
     water_text.y = generic_buttons[1].y + 5;
     water_text.box_width = generic_buttons[1].width;

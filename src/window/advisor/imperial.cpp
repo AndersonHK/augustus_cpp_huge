@@ -1,4 +1,5 @@
 #include "game/resource_graphics.h"
+#include "translation/translation.h"
 #include "graphics/generic_button.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
@@ -10,7 +11,6 @@
 
 #include "imperial.h"
 
-#include "translation/translation.h"
 #include "window/popup_dialog.h"
 #include "graphics/ui_runtime.h"
 
@@ -23,7 +23,6 @@ extern "C" {
 #include "city/request.h"
 #include "city/resource.h"
 #include "core/calc.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "figure/formation_legion.h"

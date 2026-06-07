@@ -1,4 +1,5 @@
 #include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
@@ -16,7 +17,6 @@ extern "C" {
 #include "core/dir.h"
 #include "core/direction.h"
 #include "core/encoding.h"
-#include "core/lang.h"
 #include "core/log.h"
 #include "core/file.h"
 #include "core/random.h"
@@ -262,12 +262,12 @@ static int update_asset_groups_list(void)
 
 static void create_selection_lists(void)
 {
-    data.terrain_texts[TERRAIN_NONE] = lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_TERRAIN_NONE);
+    data.terrain_texts[TERRAIN_NONE] = lang_get_string("TR_WINDOW_ASSET_PREVIEWER_TERRAIN_NONE");
     data.terrain_texts[TERRAIN_CENTRAL] =
-        lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_TERRAIN_CENTRAL);
+        lang_get_string("TR_WINDOW_ASSET_PREVIEWER_TERRAIN_CENTRAL");
     data.terrain_texts[TERRAIN_NORTHERN] =
-        lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_TERRAIN_NORTHERN);
-    data.terrain_texts[TERRAIN_DESERT] = lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_TERRAIN_DESERT);
+        lang_get_string("TR_WINDOW_ASSET_PREVIEWER_TERRAIN_NORTHERN");
+    data.terrain_texts[TERRAIN_DESERT] = lang_get_string("TR_WINDOW_ASSET_PREVIEWER_TERRAIN_DESERT");
 
     for (size_t i = 0; i < TOTAL_ZOOM_VALUES; i++) {
         if (data.zoom_texts[i]) {
@@ -357,7 +357,7 @@ static void draw_asset(void)
 
 static void draw_refreshed_info(void)
 {
-    const uint8_t *text = lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_ASSETS_REFRESHED);
+    const uint8_t *text = lang_get_string("TR_WINDOW_ASSET_PREVIEWER_ASSETS_REFRESHED");
     int label_width = text_get_width(text, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height)) + 100;
     label_width -= label_width % BLOCK_SIZE;
     int x_offset = (screen_width() - label_width) / 2;
@@ -384,22 +384,22 @@ static void draw_background(void)
     data.x_offset_top = (screen_width() - 39 * BLOCK_SIZE) / 2;
 
     outer_panel_draw(data.x_offset_top, 8, 40, 7);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_TITLE,
+    lang_text_draw_centered("TR_WINDOW_ASSET_PREVIEWER_TITLE",
         data.x_offset_top + 16, 24, 530, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_GROUP, data.x_offset_top + 16, 69, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("TR_WINDOW_ASSET_PREVIEWER_GROUP", data.x_offset_top + 16, 69, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     if (data.xml_files->num_files > 0) {
         text_draw_centered(data.xml_file_names[data.active_group_index], data.x_offset_top + 16, 89, 180,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
     } else {
-        const uint8_t *no_groups_text = lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_NO_GROUPS);
+        const uint8_t *no_groups_text = lang_get_string("TR_WINDOW_ASSET_PREVIEWER_NO_GROUPS");
         text_draw_centered(no_groups_text, data.x_offset_top + 16, 89, 180, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_FONT_GRAY);
     }
-    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_TERRAIN,
+    lang_text_draw("TR_WINDOW_ASSET_PREVIEWER_TERRAIN",
         data.x_offset_top + 216, 69, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_centered(data.terrain_texts[data.terrain], data.x_offset_top + 216, 89, 140,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
-    int width = lang_text_draw(CUSTOM_TRANSLATION, TR_ZOOM,
+    int width = lang_text_draw("TR_ZOOM",
         data.x_offset_top + 376, 69, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     int inverted_scale = calc_percentage(100, data.scale);
     text_draw_number_centered_postfix(inverted_scale, "%",
@@ -407,11 +407,11 @@ static void draw_background(void)
     if (data.animation.enabled) {
         text_draw(string_from_ascii("x"), data.x_offset_top + 382, 88, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
     }
-    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_PLAY_ANIMATIONS,
+    lang_text_draw("TR_WINDOW_ASSET_PREVIEWER_PLAY_ANIMATIONS",
         data.x_offset_top + 404, 89, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_REFRESH,
+    lang_text_draw_centered("TR_WINDOW_ASSET_PREVIEWER_REFRESH",
         data.x_offset_top + 546, 34, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_QUIT,
+    lang_text_draw_centered("TR_WINDOW_ASSET_PREVIEWER_QUIT",
         data.x_offset_top + 546, 79, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     if (data.showing_refresh_info) {
@@ -421,7 +421,7 @@ static void draw_background(void)
     int outer_height_blocks = (screen_height() - 11 * BLOCK_SIZE) / BLOCK_SIZE;
 
     outer_panel_draw(8, 10 * BLOCK_SIZE, list_box.width_blocks + 3, outer_height_blocks);
-    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_ASSET,
+    lang_text_draw("TR_WINDOW_ASSET_PREVIEWER_ASSET",
         32, 11 * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     list_box.height_blocks = outer_height_blocks - 4;
     list_box.x = 24;
@@ -434,7 +434,7 @@ static void draw_background(void)
         text_draw(string_from_ascii("x"), toggle_animation_button.x + 6, toggle_animation_button.y + 3,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
     }
-    lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_SHOW_ANIMATION_FRAMES,
+    lang_text_draw("TR_WINDOW_ASSET_PREVIEWER_SHOW_ANIMATION_FRAMES",
         toggle_animation_button.x + 28, toggle_animation_button.y + 4, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
@@ -465,11 +465,11 @@ static void draw_asset_entry(const list_box_item *item)
         if (data.encoded_asset_id) {
             asset_name = data.encoded_asset_id;
         } else {
-            asset_name = lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_UNNAMED_ASSET);
+            asset_name = lang_get_string("TR_WINDOW_ASSET_PREVIEWER_UNNAMED_ASSET");
         }
     } else {
-        asset_name = lang_get_string(CUSTOM_TRANSLATION, data.entries[item->index].is_animation_frame ?
-            TR_WINDOW_ASSET_PREVIEWER_ANIMATION_FRAME : TR_WINDOW_ASSET_PREVIEWER_UNNAMED_ASSET);
+        asset_name = lang_get_string(data.entries[item->index].is_animation_frame ?
+            "TR_WINDOW_ASSET_PREVIEWER_ANIMATION_FRAME" : "TR_WINDOW_ASSET_PREVIEWER_UNNAMED_ASSET");
     }
     width += text_draw(string_from_ascii("-"), item->x + width, item->y, font, screen_ui_to_pixel(font_definition_for(font)->line_height), COLOR_MASK_NONE);
     text_draw_ellipsized(asset_name, item->x + width, item->y, item->width - width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), COLOR_MASK_NONE);
@@ -482,7 +482,7 @@ static void draw_asset_list(void)
 {
     list_box_draw(&list_box);
     if (!data.active_group || !list_box_get_total_items(&list_box)) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_ASSET_PREVIEWER_NO_ASSETS, list_box.x, list_box.y +
+        lang_text_draw_centered("TR_WINDOW_ASSET_PREVIEWER_NO_ASSETS", list_box.x, list_box.y +
             (list_box.height_blocks * BLOCK_SIZE - 20) / 2, list_box.width_blocks * BLOCK_SIZE, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
     button_border_draw(toggle_animation_button.x, toggle_animation_button.y,
@@ -530,7 +530,7 @@ static void draw_foreground(void)
                 width = 20;
                 break;
             case BUTTON_CHANGE_ZOOM:
-                width = lang_text_get_width(CUSTOM_TRANSLATION, TR_ZOOM, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                width = lang_text_get_width("TR_ZOOM", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
                 x_offset += width;
                 width = btn->width - width;
                 break;

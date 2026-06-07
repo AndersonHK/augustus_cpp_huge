@@ -1,4 +1,5 @@
 #include "empire/editor.h"
+#include "translation/translation.h"
 #include "empire/empire.h"
 #include "empire/export_xml.h"
 #include "empire/import_xml.h"
@@ -19,7 +20,6 @@
 
 #include "window/editor/map.h"
 #include "window/text_input.h"
-#include "translation/translation.h"
 #include "game/resource_id_bridge.h"
 
 extern "C" {
@@ -57,67 +57,67 @@ extern "C" {
 #define RESOURCE_ICON_HEIGHT 26
 
 static const translation_key EMPIRE_TOOL_KEYS[] = {
-    TR_EMPIRE_TOOL_OUR_CITY,
-    TR_EMPIRE_TOOL_TRADE_CITY,
-    TR_EMPIRE_TOOL_ROMAN_CITY,
-    TR_EMPIRE_TOOL_VULNERABLE_CITY,
-    TR_EMPIRE_TOOL_FUTURE_TRADE_CITY,
-    TR_EMPIRE_TOOL_DISTANT_CITY,
-    TR_EMPIRE_TOOL_BORDER,
-    TR_EMPIRE_TOOL_BATTLE,
-    TR_EMPIRE_TOOL_DISTANT_BABARIAN,
-    TR_EMPIRE_TOOL_DISTANT_LEGION,
-    TR_EMPIRE_TOOL_LAND_ROUTE,
-    TR_EMPIRE_TOOL_SEA_ROUTE
+    "TR_EMPIRE_TOOL_OUR_CITY",
+    "TR_EMPIRE_TOOL_TRADE_CITY",
+    "TR_EMPIRE_TOOL_ROMAN_CITY",
+    "TR_EMPIRE_TOOL_VULNERABLE_CITY",
+    "TR_EMPIRE_TOOL_FUTURE_TRADE_CITY",
+    "TR_EMPIRE_TOOL_DISTANT_CITY",
+    "TR_EMPIRE_TOOL_BORDER",
+    "TR_EMPIRE_TOOL_BATTLE",
+    "TR_EMPIRE_TOOL_DISTANT_BABARIAN",
+    "TR_EMPIRE_TOOL_DISTANT_LEGION",
+    "TR_EMPIRE_TOOL_LAND_ROUTE",
+    "TR_EMPIRE_TOOL_SEA_ROUTE"
 };
 
 static const translation_key EMPIRE_CITY_ICON_KEYS[] = {
-    TR_EMPIRE_CITY_ICON_DEFAULT,
-    TR_EMPIRE_CITY_ICON_CONSTRUCTION,
-    TR_EMPIRE_CITY_ICON_DISTANT_TOWN,
-    TR_EMPIRE_CITY_ICON_DISTANT_VILLAGE,
-    TR_EMPIRE_CITY_ICON_RESOURCE_FOOD,
-    TR_EMPIRE_CITY_ICON_RESOURCE_GOODS,
-    TR_EMPIRE_CITY_ICON_RESOURCE_SEA,
-    TR_EMPIRE_CITY_ICON_TRADE_TOWN,
-    TR_EMPIRE_CITY_ICON_ROMAN_TOWN,
-    TR_EMPIRE_CITY_ICON_TRADE_VILLAGE,
-    TR_EMPIRE_CITY_ICON_ROMAN_VILLAGE,
-    TR_EMPIRE_CITY_ICON_ROMAN_CAPITAL,
-    TR_EMPIRE_CITY_ICON_TRADE_SEA,
-    TR_EMPIRE_CITY_ICON_TRADE_LAND,
-    TR_EMPIRE_CITY_ICON_OUR_CITY,
-    TR_EMPIRE_CITY_ICON_TRADE_CITY,
-    TR_EMPIRE_CITY_ICON_ROMAN_CITY,
-    TR_EMPIRE_CITY_ICON_DISTANT_CITY,
-    TR_EMPIRE_CITY_ICON_TOWER
+    "TR_EMPIRE_CITY_ICON_DEFAULT",
+    "TR_EMPIRE_CITY_ICON_CONSTRUCTION",
+    "TR_EMPIRE_CITY_ICON_DISTANT_TOWN",
+    "TR_EMPIRE_CITY_ICON_DISTANT_VILLAGE",
+    "TR_EMPIRE_CITY_ICON_RESOURCE_FOOD",
+    "TR_EMPIRE_CITY_ICON_RESOURCE_GOODS",
+    "TR_EMPIRE_CITY_ICON_RESOURCE_SEA",
+    "TR_EMPIRE_CITY_ICON_TRADE_TOWN",
+    "TR_EMPIRE_CITY_ICON_ROMAN_TOWN",
+    "TR_EMPIRE_CITY_ICON_TRADE_VILLAGE",
+    "TR_EMPIRE_CITY_ICON_ROMAN_VILLAGE",
+    "TR_EMPIRE_CITY_ICON_ROMAN_CAPITAL",
+    "TR_EMPIRE_CITY_ICON_TRADE_SEA",
+    "TR_EMPIRE_CITY_ICON_TRADE_LAND",
+    "TR_EMPIRE_CITY_ICON_OUR_CITY",
+    "TR_EMPIRE_CITY_ICON_TRADE_CITY",
+    "TR_EMPIRE_CITY_ICON_ROMAN_CITY",
+    "TR_EMPIRE_CITY_ICON_DISTANT_CITY",
+    "TR_EMPIRE_CITY_ICON_TOWER"
 };
 
 static const translation_key EMPIRE_ORNAMENT_KEYS[] = {
-    TR_EMPIRE_ORNAMENT_STONEHENGE,
-    TR_EMPIRE_ORNAMENT_GALLIC_WHEAT,
-    TR_EMPIRE_ORNAMENT_THE_PYRENEES,
-    TR_EMPIRE_ORNAMENT_IBERIAN_AQUEDUCT,
-    TR_EMPIRE_ORNAMENT_TRIUMPHAL_ARCH,
-    TR_EMPIRE_ORNAMENT_WEST_DESERT_WHEAT,
-    TR_EMPIRE_ORNAMENT_LIGHTHOUSE_ALEXANDRIA,
-    TR_EMPIRE_ORNAMENT_WEST_DESERT_PALMS,
-    TR_EMPIRE_ORNAMENT_TRADE_SHIP,
-    TR_EMPIRE_ORNAMENT_WATERSIDE_PALMS,
-    TR_EMPIRE_ORNAMENT_THE_COLOSSEUM,
-    TR_EMPIRE_ORNAMENT_THE_ALPS,
-    TR_EMPIRE_ORNAMENT_ROMAN_TREE,
-    TR_EMPIRE_ORNAMENT_GREEK_MOUNTAINS,
-    TR_EMPIRE_ORNAMENT_THE_PARTHENON,
-    TR_EMPIRE_ORNAMENT_THE_PYRAMIDS,
-    TR_EMPIRE_ORNAMENT_HAGIA_SOPHIA,
-    TR_EMPIRE_ORNAMENT_EAST_DESERT_PALMS,
-    TR_EMPIRE_ORNAMENT_EAST_DESERT_WHEAT,
-    TR_EMPIRE_ORNAMENT_TRADE_CAMEL,
-    TR_EMPIRE_ORNAMENT_MOUNT_ETNA,
-    TR_EMPIRE_ORNAMENT_COLOSSUS_RHODES,
-    TR_EMPIRE_ORNAMENT_THE_TEMPLE,
-    TR_EMPIRE_ORNAMENT_IRELAND
+    "TR_EMPIRE_ORNAMENT_STONEHENGE",
+    "TR_EMPIRE_ORNAMENT_GALLIC_WHEAT",
+    "TR_EMPIRE_ORNAMENT_THE_PYRENEES",
+    "TR_EMPIRE_ORNAMENT_IBERIAN_AQUEDUCT",
+    "TR_EMPIRE_ORNAMENT_TRIUMPHAL_ARCH",
+    "TR_EMPIRE_ORNAMENT_WEST_DESERT_WHEAT",
+    "TR_EMPIRE_ORNAMENT_LIGHTHOUSE_ALEXANDRIA",
+    "TR_EMPIRE_ORNAMENT_WEST_DESERT_PALMS",
+    "TR_EMPIRE_ORNAMENT_TRADE_SHIP",
+    "TR_EMPIRE_ORNAMENT_WATERSIDE_PALMS",
+    "TR_EMPIRE_ORNAMENT_THE_COLOSSEUM",
+    "TR_EMPIRE_ORNAMENT_THE_ALPS",
+    "TR_EMPIRE_ORNAMENT_ROMAN_TREE",
+    "TR_EMPIRE_ORNAMENT_GREEK_MOUNTAINS",
+    "TR_EMPIRE_ORNAMENT_THE_PARTHENON",
+    "TR_EMPIRE_ORNAMENT_THE_PYRAMIDS",
+    "TR_EMPIRE_ORNAMENT_HAGIA_SOPHIA",
+    "TR_EMPIRE_ORNAMENT_EAST_DESERT_PALMS",
+    "TR_EMPIRE_ORNAMENT_EAST_DESERT_WHEAT",
+    "TR_EMPIRE_ORNAMENT_TRADE_CAMEL",
+    "TR_EMPIRE_ORNAMENT_MOUNT_ETNA",
+    "TR_EMPIRE_ORNAMENT_COLOSSUS_RHODES",
+    "TR_EMPIRE_ORNAMENT_THE_TEMPLE",
+    "TR_EMPIRE_ORNAMENT_IRELAND"
 };
 
 static translation_key empire_tool_key(int tool)
@@ -262,8 +262,8 @@ static void image_buttons_init(void)
 
 static void update_button(int button, int x)
 {
-    int width = lang_text_get_width(CUSTOM_TRANSLATION, data.button_is_preview ?
-        TR_EDITOR_EMPIRE_TOOL : TR_EDITOR_CURRENT_ICON, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    int width = lang_text_get_width(data.button_is_preview ? "TR_EDITOR_EMPIRE_TOOL" : "TR_EDITOR_CURRENT_ICON",
+        FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     generic_buttons[button].parameter1 = !(data.panel.x_min + x + 150 + width + 96 < data.panel.x_max);
 }
 
@@ -643,7 +643,7 @@ static void draw_coordinates(void)
     empire_restore_coordinates(&x_coord, &y_coord);
 
     show_coords(data.x_min + 20, data.y_min + 20,
-        lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_CURRENT_COORDS), x_coord, y_coord);
+        lang_get_string("TR_EDITOR_CURRENT_COORDS"), x_coord, y_coord);
     if (!(m->left.is_down && !is_outside_map(m->x, m->y))) {
         draw_preview_image(m->x, m->y, 0, ALPHA_FONT_SEMI_TRANSPARENT, 0, 0);
     }
@@ -653,7 +653,7 @@ static void draw_coordinates(void)
         y_coord = data.coordinates.y + data.y_draw_offset;
         empire_transform_coordinates(&x_coord, &y_coord);
         show_coords(data.x_min + 20, data.y_min + 50,
-            lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_SELECTED_COORDS),
+            lang_get_string("TR_EDITOR_SELECTED_COORDS"),
                 data.coordinates.x, data.coordinates.y);
         if (!draw_preview_image(x_coord, y_coord, 0, ALPHA_FONT_SEMI_TRANSPARENT, 1, 0)) {
             graphics_draw_rect(x_coord - 3, y_coord - 3, 7, 7, COLOR_BLACK);
@@ -706,7 +706,7 @@ static int draw_resource(resource_type resource, int trade_max, int x_offset, in
         time_millis elapsed = time_get_millis() - data.resource_pulse_start;
         float time_seconds = elapsed / 1000.0f; // Convert to seconds
         float pulse = sinf(time_seconds * 1.0f * 3.14f); // 1 full cycle per second
-        int alpha = 96 + (int) (pulse * 64); // Range: 32Ã¢â‚¬â€œ160
+        int alpha = 96 + (int) (pulse * 64); // Range: 32ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“160
         graphics_tint_rect(x_offset, y_offset, RESOURCE_ICON_WIDTH - 1, RESOURCE_ICON_HEIGHT - 1,
             COLOR_MASK_DARK_PINK, alpha);
     }
@@ -848,7 +848,7 @@ static void draw_city_info(const empire_city *city)
             if (!top_buttons[2].parameter1) {
                 // only if the redraw route button should be drawn (not hidden due to lack of space) draw it 
                 button_border_draw(data.panel.x_max - 500, data.y_max - 133, 120, 24, data.focus_top_button_id == 3);
-                lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EMPIRE_DRAW_TRADE_ROUTE,
+                lang_text_draw_centered("TR_EMPIRE_DRAW_TRADE_ROUTE",
                     data.panel.x_max - 500, data.y_max - 126, 120, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             }
             
@@ -909,8 +909,8 @@ static void draw_object_info(void)
         if (!data.show_battle_objects) {
             return;
         }
-        int width = lang_text_draw(CUSTOM_TRANSLATION, is_battle_icon ? TR_EMPIRE_TOOL_BATTLE :
-            TR_EMPIRE_TOOL_DISTANT_BABARIAN, data.panel.x_min + 28, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        int width = lang_text_draw(is_battle_icon ? "TR_EMPIRE_TOOL_BATTLE" : "TR_EMPIRE_TOOL_DISTANT_BABARIAN",
+            data.panel.x_min + 28, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         width += text_draw_number(is_battle_icon ? obj->invasion_years : obj->distant_battle_travel_months, '\0', NULL,
             data.panel.x_min + 28 + width, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
         if (is_battle_icon) {
@@ -922,7 +922,7 @@ static void draw_object_info(void)
             arrow_buttons_draw(data.panel.x_min, data.y_max - 160, order_buttons, 2);
             width += 2 * 24 + 4;
         }
-        width += lang_text_draw(CUSTOM_TRANSLATION, is_battle_icon ? TR_EMPIRE_BATTLE_PARENT : TR_EMPIRE_ROUTE_PARENT,
+        width += lang_text_draw(is_battle_icon ? "TR_EMPIRE_BATTLE_PARENT" : "TR_EMPIRE_ROUTE_PARENT",
             data.panel.x_min + 28 + width, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         text_draw_number(is_battle_icon ? obj->invasion_path_id : empire_object_get_latest_distant_battle(
             obj->type == EMPIRE_OBJECT_ENEMY_ARMY), '\0', NULL, data.panel.x_min + 28 + width, data.y_max - 125,
@@ -935,13 +935,13 @@ static void draw_object_info(void)
         text_draw(coords_string, data.panel.x_min + 28, data.y_max - 85, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
     image_buttons_draw(0, 0, all_empire_tools_button, 1);
     button_border_draw(data.panel.x_max - 220, data.y_max - 133, 120, 24, data.focus_top_button_id == 1);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EMPIRE_DELETE_OBJECT,
+    lang_text_draw_centered("TR_EMPIRE_DELETE_OBJECT",
         data.panel.x_max - 220, data.y_max - 126, 120, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     button_border_draw(data.panel.x_max - 360, data.y_max - 133, 120, 24, data.focus_top_button_id == 2);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EMPIRE_MOVE_OBJECT,
+    lang_text_draw_centered("TR_EMPIRE_MOVE_OBJECT",
         data.panel.x_max - 360, data.y_max - 126, 120, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     if (obj->type == EMPIRE_OBJECT_BORDER_EDGE) {
-        int width = lang_text_draw(CUSTOM_TRANSLATION, TR_EMPIRE_EDGE_INDEX, data.panel.x_min + 28,
+        int width = lang_text_draw("TR_EMPIRE_EDGE_INDEX", data.panel.x_min + 28,
             data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         width += text_draw_number(obj->order_index, '\0', NULL, data.panel.x_min + 28 + width, data.y_max - 125,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
@@ -953,7 +953,7 @@ static void draw_object_info(void)
         arrow_buttons_draw(data.panel.x_min, data.y_max - 160, order_buttons, 2);
     }
     if (obj->type == EMPIRE_OBJECT_TRADE_WAYPOINT) {
-        int width = lang_text_draw(CUSTOM_TRANSLATION, TR_EMPIRE_WAYPOINT_INDEX, data.panel.x_min + 28,
+        int width = lang_text_draw("TR_EMPIRE_WAYPOINT_INDEX", data.panel.x_min + 28,
             data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         width += text_draw_number(obj->order_index, '\0', NULL, data.panel.x_min + 28 + width, data.y_max - 125,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
@@ -964,7 +964,7 @@ static void draw_object_info(void)
         order_buttons[1].parameter2 = 1;
         arrow_buttons_draw(data.panel.x_min, data.y_max - 160, order_buttons, 2);
         width += 2 * 24 + 4;
-        width += lang_text_draw(CUSTOM_TRANSLATION, TR_EMPIRE_ROUTE_PARENT, data.panel.x_min + 28 + width,
+        width += lang_text_draw("TR_EMPIRE_ROUTE_PARENT", data.panel.x_min + 28 + width,
             data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         empire_city *route_city = empire_city_get(empire_city_get_for_object(obj->parent_object_id - 1));
         text_draw(empire_city_get_name(route_city), data.panel.x_min + 28 + width, data.y_max - 125,
@@ -1016,34 +1016,34 @@ static void draw_panel_buttons(const empire_city *city)
 
     if (scenario.empire.id == SCENARIO_CUSTOM_EMPIRE) {
         button_border_draw(data.panel.x_min + 144, data.y_max - 52, 150, 24, data.focus_button_id == 2);
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_TOGGLE_INVASIONS,
+        lang_text_draw_centered("TR_EDITOR_TOGGLE_INVASIONS",
             data.panel.x_min + 144, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
         button_border_draw(data.panel.x_min + 314, data.y_max - 52, 150, 24, data.focus_button_id == 3);
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EMPIRE_TOGGLE_EDGES,
+        lang_text_draw_centered("TR_EMPIRE_TOGGLE_EDGES",
             data.panel.x_min + 314, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
-        int width = lang_text_get_width(CUSTOM_TRANSLATION, data.button_is_preview ?
-            TR_EDITOR_EMPIRE_TOOL : TR_EDITOR_CURRENT_ICON, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        int width = lang_text_get_width(data.button_is_preview ? "TR_EDITOR_EMPIRE_TOOL" : "TR_EDITOR_CURRENT_ICON",
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         if (!generic_buttons[3].parameter1) {
             button_border_draw(data.panel.x_min + 484, data.y_max - 52, 150, 24, data.focus_button_id == 4);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REFRESH_EMPIRE,
+            lang_text_draw_centered("TR_EDITOR_REFRESH_EMPIRE",
                 data.panel.x_min + 484, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
 
         if (!generic_buttons[4].parameter1) {
             button_border_draw(data.panel.x_min + 654, data.y_max - 52, 150, 24, data.focus_button_id == 5);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_EMPIRE_EXPORT,
+            lang_text_draw_centered("TR_EDITOR_EMPIRE_EXPORT",
                 data.panel.x_min + 654, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
         if (!generic_buttons[5].parameter1) {
             button_border_draw(data.panel.x_min + 824, data.y_max - 52, 150, 24, data.focus_button_id == 6);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_EMPIRE_IMPORT,
+            lang_text_draw_centered("TR_EDITOR_EMPIRE_IMPORT",
                 data.panel.x_min + 824, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
         if (!generic_buttons[6].parameter1) {
             button_border_draw(data.panel.x_min + 994, data.y_max - 52, 150, 24, data.focus_button_id == 7);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_EMPIRE_PROPERTIES,
+            lang_text_draw_centered("TR_EDITOR_EMPIRE_PROPERTIES",
                 data.panel.x_min + 994, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
 
@@ -1051,7 +1051,7 @@ static void draw_panel_buttons(const empire_city *city)
             generic_buttons[7].x = data.panel.x_max - 96 - width - 12 - 20;
             generic_buttons[7].width = width + 8;
             button_border_draw(generic_buttons[7].x + 20, data.y_max - 92, width + 8, 24, data.focus_button_id == 8);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, data.button_is_preview ? TR_EDITOR_EMPIRE_TOOL : TR_EDITOR_CURRENT_ICON,
+            lang_text_draw_centered(data.button_is_preview ? "TR_EDITOR_EMPIRE_TOOL" : "TR_EDITOR_CURRENT_ICON",
                 generic_buttons[7].x + 20, data.y_max - 85, width + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             empire_city_icon_type icon = empire_selected_object() ?
                 static_cast<empire_city_icon_type>(empire_object_get(empire_selected_object() - 1)->empire_city_icon) :
@@ -1634,10 +1634,9 @@ static int image_button_tooltips(tooltip_context *c)
         }
         if (btn->x_offset <= m->x && btn->x_offset + btn->width > m->x &&
             btn->y_offset <= m->y && btn->y_offset + btn->height > m->y) {
-            c->text_group = CUSTOM_TRANSLATION;
-            c->text_id = !i ? TR_EMPIRE_TOOLTIP_EDIT_NAME : TR_EMPIRE_TOOLTIP_ADD_RESOURCE;
+            c->translation_key = !i ? "TR_EMPIRE_TOOLTIP_EDIT_NAME" : "TR_EMPIRE_TOOLTIP_ADD_RESOURCE";
             if (i == 3) {
-                c->text_id = TR_EMPIRE_TOOLTIP_SHOW_TOOLS;
+                c->translation_key = "TR_EMPIRE_TOOLTIP_SHOW_TOOLS";
             }
             c->type = TOOLTIP_BUTTON;
             return 1;
@@ -1659,12 +1658,10 @@ static int generic_button_tooltips(tooltip_context *c)
             btn->y + data.y_max - 93 <= m->y && btn->y + data.y_max - 93 + btn->height > m->y) {
             switch (i) {
                 case 0:
-                    c->text_group = CUSTOM_TRANSLATION;
-                    c->text_id = TR_EMPIRE_TOOLTIP_ROUTE_TYPE;
+                    c->translation_key = "TR_EMPIRE_TOOLTIP_ROUTE_TYPE";
                     break;
                 case 1:
-                    c->text_group = CUSTOM_TRANSLATION;
-                    c->text_id = TR_EMPIRE_TOOLTIP_ROUTE_COST;
+                    c->translation_key = "TR_EMPIRE_TOOLTIP_ROUTE_COST";
                     break;
                 case 2:
                 {

@@ -88,8 +88,10 @@ void window_building_draw_employment(building_info_context *c, int y_offset);
 void window_building_draw_employment_without_house_cover(building_info_context *c, int y_offset);
 
 void window_building_draw_description(building_info_context *c, int text_group, int text_id);
+void window_building_draw_description(building_info_context *c, translation_key key);
 
 int window_building_draw_description_at(building_info_context *c, int y_offset, int text_group, int text_id);
+int window_building_draw_description_at(building_info_context *c, int y_offset, translation_key key);
 
 void window_building_play_sound(building_info_context *c, const char *sound_file);
 
@@ -98,4 +100,5 @@ void window_building_draw_monument_construction_process(building_info_context *c
 
 void window_building_draw_risks(building_info_context *c, int x_offset, int y_offset);
 
-void window_building_get_risks_tooltip(const building_info_context *c, int *group_id, int *text_id);
+void window_building_get_risks_tooltip(
+    const building_info_context *c, int *group_id, int *text_id, translation_key *translation);

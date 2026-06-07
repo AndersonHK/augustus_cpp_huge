@@ -408,9 +408,9 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.param_types[0] = PARAMETER_TYPE_RESOURCE;
             info.param_types[1] = PARAMETER_TYPE_STORAGE_TYPE;
             info.param_types[2] = PARAMETER_TYPE_BOOLEAN; // respect settings
-            info.param_keys[0] = TR_PARAMETER_TYPE_RESOURCE;
-            info.param_keys[1] = TR_PARAMETER_TYPE_STORAGE_TYPE;
-            info.param_keys[2] = TR_PARAMETER_RESPECT_SETTINGS;
+            info.param_keys[0] = "TR_PARAMETER_TYPE_RESOURCE";
+            info.param_keys[1] = "TR_PARAMETER_TYPE_STORAGE_TYPE";
+            info.param_keys[2] = "TR_PARAMETER_RESPECT_SETTINGS";
             info.param_names[0] = "resource";
             info.param_names[1] = "storage_type";
             info.param_names[2] = "respect_settings";
@@ -419,14 +419,14 @@ city_property_info_t city_property_get_param_info(city_property_t type)
         case CITY_PROPERTY_SERVICE_COVERAGE:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_COVERAGE_BUILDINGS;
-            info.param_keys[0] = TR_CITY_PROPERTY_SERVICE_COVERAGE;
+            info.param_keys[0] = "TR_CITY_PROPERTY_SERVICE_COVERAGE";
             info.param_names[0] = "coverage";
             break;
 
         case CITY_PROPERTY_POPS_UNEMPLOYMENT:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_PERCENTAGE;
-            info.param_keys[0] = TR_PARAMETER_PERCENTAGE;
+            info.param_keys[0] = "TR_PARAMETER_PERCENTAGE";
             info.param_names[0] = "percentage_type";
             break;
 
@@ -434,8 +434,8 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.count = 2;
             info.param_types[0] = PARAMETER_TYPE_HOUSING_TYPE;
             info.param_types[1] = PARAMETER_TYPE_PERCENTAGE;
-            info.param_keys[0] = TR_CITY_PROPERTY_POPS_HOUSING_TYPE;
-            info.param_keys[1] = TR_PARAMETER_PERCENTAGE;
+            info.param_keys[0] = "TR_CITY_PROPERTY_POPS_HOUSING_TYPE";
+            info.param_keys[1] = "TR_PARAMETER_PERCENTAGE";
             info.param_names[0] = "housing_type";
             info.param_names[1] = "percentage_type";
             break;
@@ -444,8 +444,8 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.count = 2;
             info.param_types[0] = PARAMETER_TYPE_AGE_GROUP;
             info.param_types[1] = PARAMETER_TYPE_PERCENTAGE;
-            info.param_keys[0] = TR_CITY_PROPERTY_POPS_BY_AGE;
-            info.param_keys[1] = TR_PARAMETER_PERCENTAGE;
+            info.param_keys[0] = "TR_CITY_PROPERTY_POPS_BY_AGE";
+            info.param_keys[1] = "TR_PARAMETER_PERCENTAGE";
             info.param_names[0] = "age_group";
             info.param_names[1] = "percentage_type";
             break;
@@ -454,8 +454,8 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.count = 2;
             info.param_types[0] = PARAMETER_TYPE_BUILDING;
             info.param_types[1] = PARAMETER_TYPE_BOOLEAN; // active only or all
-            info.param_keys[0] = TR_PARAMETER_TYPE_ALLOWED_BUILDING;
-            info.param_keys[1] = TR_CITY_PROPERTY_ACTIVE_ONLY;
+            info.param_keys[0] = "TR_PARAMETER_TYPE_ALLOWED_BUILDING";
+            info.param_keys[1] = "TR_CITY_PROPERTY_ACTIVE_ONLY";
             info.param_names[0] = "building";
             info.param_names[1] = "active_only";
             break;
@@ -463,21 +463,21 @@ city_property_info_t city_property_get_param_info(city_property_t type)
         case CITY_PROPERTY_TROOPS_COUNT_PLAYER:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_PLAYER_TROOPS;
-            info.param_keys[0] = TR_CITY_PROPERTY_TROOPS_COUNT_PLAYER;
+            info.param_keys[0] = "TR_CITY_PROPERTY_TROOPS_COUNT_PLAYER";
             info.param_names[0] = "troop_type";
             break;
 
         case CITY_PROPERTY_TROOPS_COUNT_ENEMY:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_ENEMY_CLASS;
-            info.param_keys[0] = TR_CITY_PROPERTY_TROOPS_COUNT_ENEMY;
+            info.param_keys[0] = "TR_CITY_PROPERTY_TROOPS_COUNT_ENEMY";
             info.param_names[0] = "enemy_class";
             break;
 
         case CITY_PROPERTY_TERRAIN_COUNT_TILES:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_TERRAIN;
-            info.param_keys[0] = TR_PARAMETER_TERRAIN;
+            info.param_keys[0] = "TR_PARAMETER_TERRAIN";
             info.param_names[0] = "terrain_type";
             break;
         case CITY_PROPERTY_QUOTA_FILL:
@@ -485,9 +485,9 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.param_types[0] = PARAMETER_TYPE_ROUTE;
             info.param_types[1] = PARAMETER_TYPE_ROUTE_RESOURCE;
             info.param_types[2] = PARAMETER_TYPE_PERCENTAGE;
-            info.param_keys[0] = TR_PARAMETER_TYPE_ROUTE;
-            info.param_keys[1] = TR_PARAMETER_TYPE_RESOURCE;
-            info.param_keys[2] = TR_PARAMETER_PERCENTAGE;
+            info.param_keys[0] = "TR_PARAMETER_TYPE_ROUTE";
+            info.param_keys[1] = "TR_PARAMETER_TYPE_RESOURCE";
+            info.param_keys[2] = "TR_PARAMETER_PERCENTAGE";
             info.param_names[0] = "route";
             info.param_names[1] = "resource";
             info.param_names[2] = "percentage_type";

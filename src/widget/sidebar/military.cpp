@@ -261,8 +261,28 @@ int widget_sidebar_military_get_legion_name_id(int legion_id)
     if (legion_id <= 10) {
         return legion_id - 1; // old index was 0-based, now 1-based
     } else {
-        return TR_BUILDING_FORT_STANDARD_ELEPHANTS + legion_id - 11;
+        return legion_id - 11;
     }
+}
+
+const uint8_t *widget_sidebar_military_get_legion_name_text(int group, int id)
+{
+    static constexpr translation_key extra_legion_names[] = {
+        "TR_BUILDING_FORT_STANDARD_ELEPHANTS",
+        "TR_BUILDING_FORT_STANDARD_THUNDER_BOLTS",
+        "TR_BUILDING_FORT_STANDARD_BULLS",
+        "TR_BUILDING_FORT_STANDARD_CENTAURS",
+        "TR_BUILDING_FORT_STANDARD_OCTOPI",
+        "TR_BUILDING_FORT_STANDARD_BEARS",
+        "TR_BUILDING_FORT_STANDARD_SCORPIONS",
+        "TR_BUILDING_FORT_STANDARD_CAMELS",
+        "TR_BUILDING_FORT_STANDARD_DOLPHINS",
+        "TR_BUILDING_FORT_STANDARD_SEA_GOATS",
+    };
+    if (group == 10000 && id >= 0 && id < static_cast<int>(sizeof(extra_legion_names) / sizeof(extra_legion_names[0]))) {
+        return translation_for(extra_legion_names[id]);
+    }
+    return lang_get_string(group, id);
 }
 
 static void clear_focus_buttons(void)
@@ -304,7 +324,8 @@ static void draw_military_info_text(int x_offset, int y_offset)
     // Legion name
     Image::from_id(formation_image_id).draw(x_offset + (CONTENT_WIDTH - formation_image->width - formation_image->x_offset) / 2, y_offset + 12);
 
-    lang_text_draw_centered(m->legion_name_group, m->legion_name_id, x_offset, y_offset + 40, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    text_draw_centered(widget_sidebar_military_get_legion_name_text(m->legion_name_group, m->legion_name_id),
+        x_offset, y_offset + 40, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     // Number of soldiers
     int width = text_draw_number(m->num_figures, '@', " ", x_offset, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);

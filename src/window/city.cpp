@@ -1,4 +1,5 @@
 #include "building/building_type.h"
+#include "translation/translation.h"
 #include "building/clone.h"
 #include "building/construction.h"
 #include "building/data_transfer.h"
@@ -261,17 +262,17 @@ static void draw_time_left(void)
         const font_t font = FONT_NORMAL_WHITE;
 
         // Precompose the prefix text (translated): "Time left until defeat/victory: "
-        const int label_id = scenario_criteria_time_limit_enabled()
-            ? TR_CONDITION_TEXT_TIME_LEFT_UNTIL_DEFEAT
-            : TR_CONDITION_TEXT_TIME_LEFT_UNTIL_VICTORY;
-        const uint8_t *label_str = lang_get_string(CUSTOM_TRANSLATION, label_id);
+        const translation_key label_id = scenario_criteria_time_limit_enabled()
+            ? "TR_CONDITION_TEXT_TIME_LEFT_UNTIL_DEFEAT"
+            : "TR_CONDITION_TEXT_TIME_LEFT_UNTIL_VICTORY";
+        const uint8_t *label_str = lang_get_string(label_id);
 
         lang_fragment frags[5] = {
             {.type = LANG_FRAG_TEXT, .text = label_str },
-            {.type = LANG_FRAG_NUMBER, .text_group = CUSTOM_TRANSLATION, .number = years_left },
-            {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_REPEAT_FREQUENCY_YEARS},
-            {.type = LANG_FRAG_NUMBER, .text_group = CUSTOM_TRANSLATION, .number = months_left},
-            {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_REPEAT_FREQUENCY_MONTHS}
+            {.type = LANG_FRAG_NUMBER, .number = years_left },
+            {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_REPEAT_FREQUENCY_YEARS"},
+            {.type = LANG_FRAG_NUMBER, .number = months_left},
+            {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_REPEAT_FREQUENCY_MONTHS"}
         };
         draw_topleft_label_with_fragments(fps_offset + TOPLEFT_MESSAGES_X, 25, frags, 5, font, COLOR_MASK_NONE);
     }
@@ -582,7 +583,7 @@ static int tooltip_has_widget_payload(const tooltip_context *c)
 {
     return c->type != TOOLTIP_NONE
         || c->text_id != 0
-        || c->translation_key != 0
+        || static_cast<bool>(c->translation_key)
         || c->precomposed_text != 0
         || c->has_numeric_prefix
         || c->num_extra_values > 0

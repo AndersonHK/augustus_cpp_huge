@@ -27,17 +27,17 @@ static void init(int actions)
 static int process_pending_actions(void)
 {
     if (pending_actions & ACTION_SHOW_MESSAGE_MISSING_PATCH) {
-        window_plain_message_dialog_show(TR_NO_PATCH_TITLE, TR_NO_PATCH_MESSAGE, 0);
+        window_plain_message_dialog_show("TR_NO_PATCH_TITLE", "TR_NO_PATCH_MESSAGE", 0);
         pending_actions ^= ACTION_SHOW_MESSAGE_MISSING_PATCH;
         return 1;
     }
     if (pending_actions & ACTION_SHOW_MESSAGE_MISSING_FONTS) {
-        window_plain_message_dialog_show(TR_MISSING_FONTS_TITLE, TR_MISSING_FONTS_MESSAGE, 0);
+        window_plain_message_dialog_show("TR_MISSING_FONTS_TITLE", "TR_MISSING_FONTS_MESSAGE", 0);
         pending_actions ^= ACTION_SHOW_MESSAGE_MISSING_FONTS;
         return 1;
     }
     if (pending_actions & ACTION_SHOW_MESSAGE_MISSING_EXTRA_ASSETS) {
-        window_plain_message_dialog_show(TR_NO_EXTRA_ASSETS_TITLE, TR_NO_EXTRA_ASSETS_MESSAGE, 0);
+        window_plain_message_dialog_show("TR_NO_EXTRA_ASSETS_TITLE", "TR_NO_EXTRA_ASSETS_MESSAGE", 0);
         pending_actions ^= ACTION_SHOW_MESSAGE_MISSING_EXTRA_ASSETS;
         return 1;
     }
@@ -47,8 +47,8 @@ static int process_pending_actions(void)
         return 1;
     }
     if (pending_actions & ACTION_SHOW_MESSAGE_USER_DIR_NOT_WRITABLE) {
-        window_plain_message_dialog_show(TR_USER_DIRECTORIES_NOT_WRITEABLE_TITLE,
-            TR_USER_DIRECTORIES_NOT_WRITEABLE_TEXT_DETAILED, 0);
+        window_plain_message_dialog_show("TR_USER_DIRECTORIES_NOT_WRITEABLE_TITLE",
+            "TR_USER_DIRECTORIES_NOT_WRITEABLE_TEXT_DETAILED", 0);
         pending_actions ^= ACTION_SHOW_MESSAGE_USER_DIR_NOT_WRITABLE;
         return 1;
     }

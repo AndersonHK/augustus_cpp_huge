@@ -113,9 +113,9 @@ static void draw_background(void)
     lang_text_draw(44, 95, 20, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     if (!data.price_changes_in_use) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NO_PRICE_CHANGES, 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw_centered("TR_EDITOR_NO_PRICE_CHANGES", 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     }
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NEW_PRICE_CHANGE, new_price_change_button.x + 8,
+    lang_text_draw_centered("TR_EDITOR_NEW_PRICE_CHANGE", new_price_change_button.x + 8,
         new_price_change_button.y + 8, new_price_change_button.width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     lang_text_draw_centered(13, 3, 0, 456, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));

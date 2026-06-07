@@ -1,4 +1,5 @@
 #include "game/resource_graphics.h"
+#include "translation/translation.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
@@ -10,7 +11,6 @@
 #include "trade.h"
 
 #include "graphics/grid_box.h"
-#include "translation/translation.h"
 #include "window/option_popup.h"
 #include "graphics/ui_runtime.h"
 
@@ -23,7 +23,6 @@ extern "C" {
 #include "city/finance.h"
 #include "city/resource.h"
 #include "city/trade_policy.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "game/resource.h"
@@ -78,24 +77,24 @@ static struct {
     const char *wav_file;
 } policy_options[] = {
     {
-        TR_BUILDING_CARAVANSERAI_POLICY_TITLE,
-        TR_BUILDING_CARAVANSERAI_POLICY_TEXT,
+        "TR_BUILDING_CARAVANSERAI_POLICY_TITLE",
+        "TR_BUILDING_CARAVANSERAI_POLICY_TEXT",
         "Trade Policy",
         {
-            { TR_BUILDING_CARAVANSERAI_POLICY_1_TITLE, TR_BUILDING_CARAVANSERAI_POLICY_1 },
-            { TR_BUILDING_CARAVANSERAI_POLICY_2_TITLE, TR_BUILDING_CARAVANSERAI_POLICY_2 },
-            { TR_BUILDING_CARAVANSERAI_POLICY_3_TITLE, TR_BUILDING_CARAVANSERAI_POLICY_3 }
+            { "TR_BUILDING_CARAVANSERAI_POLICY_1_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_1" },
+            { "TR_BUILDING_CARAVANSERAI_POLICY_2_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_2" },
+            { "TR_BUILDING_CARAVANSERAI_POLICY_3_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_3" }
         },
         "wavs/market4.wav"
     },
     {
-        TR_BUILDING_LIGHTHOUSE_POLICY_TITLE,
-        TR_BUILDING_LIGHTHOUSE_POLICY_TEXT,
+        "TR_BUILDING_LIGHTHOUSE_POLICY_TITLE",
+        "TR_BUILDING_LIGHTHOUSE_POLICY_TEXT",
         "Sea Trade Policy",
         {
-            { TR_BUILDING_LIGHTHOUSE_POLICY_1_TITLE, TR_BUILDING_LIGHTHOUSE_POLICY_1 },
-            { TR_BUILDING_LIGHTHOUSE_POLICY_2_TITLE, TR_BUILDING_LIGHTHOUSE_POLICY_2 },
-            { TR_BUILDING_LIGHTHOUSE_POLICY_3_TITLE, TR_BUILDING_LIGHTHOUSE_POLICY_3 }
+            { "TR_BUILDING_LIGHTHOUSE_POLICY_1_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_1" },
+            { "TR_BUILDING_LIGHTHOUSE_POLICY_2_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_2" },
+            { "TR_BUILDING_LIGHTHOUSE_POLICY_3_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_3" }
         },
         "wavs/dock1.wav"
     }
@@ -160,7 +159,7 @@ static void draw_policy_button(int x, int y, int is_available, int has_focus, in
 static void draw_resource_status_text(resource_type resource, int x, int y, int box_width)
 {
     if (!resource_is_storable(resource)) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_ADVISOR_TRADE_RESOURCE_NOT_STORABLE,
+        lang_text_draw_centered("TR_ADVISOR_TRADE_RESOURCE_NOT_STORABLE",
             x, y + 10, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         return;
     }
@@ -411,15 +410,15 @@ static void get_tooltip_text(advisor_tooltip_result *r)
         r->text_id = 41;
     } else if (data.focus_button_id == 3) {
         if (monument_working("caravanserai")) {
-            r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY;
+            r->translation_key = "TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY";
         } else {
-            r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY_REQUIRED;
+            r->translation_key = "TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY_REQUIRED";
         }
     } else if (data.focus_button_id == 4) {
         if (monument_working("lighthouse")) {
-            r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY;
+            r->translation_key = "TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY";
         } else {
-            r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY_REQUIRED;
+            r->translation_key = "TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY_REQUIRED";
         }
     } else {
         tooltip_context c = { 0 };

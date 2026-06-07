@@ -1,4 +1,5 @@
 #include "building/count.h"
+#include "translation/translation.h"
 #include "city/culture.h"
 #include "city/houses.h"
 #include "graphics/image.h"
@@ -9,7 +10,6 @@
 extern "C" {
 #include "building/building_type_api.h"
 #include "city/population.h"
-#include "core/lang.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 }

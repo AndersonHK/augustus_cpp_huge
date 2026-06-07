@@ -1,4 +1,5 @@
 #include "file.h"
+#include "translation/translation.h"
 
 #include "building/building.h"
 #include "building/building_type_api.h"
@@ -22,7 +23,6 @@
 #include "core/file.h"
 #include "core/image.h"
 #include "core/io.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/empire.h"
@@ -115,8 +115,8 @@ void game_file_show_loaded_save_mod_mismatch_warning(void)
     snprintf(save_mod_name, sizeof(save_mod_name), "Save mod: %s", game_file_io_last_loaded_save_mod_name());
     snprintf(active_mod_name, sizeof(active_mod_name), "Active mod: %s", game_file_io_last_loaded_active_mod_name());
 
-    window_plain_message_dialog_show_with_extra(TR_SAVEGAME_MOD_MISMATCH_TITLE,
-        TR_SAVEGAME_MOD_MISMATCH_MESSAGE, (const uint8_t *) save_mod_name, (const uint8_t *) active_mod_name);
+    window_plain_message_dialog_show_with_extra("TR_SAVEGAME_MOD_MISMATCH_TITLE",
+        "TR_SAVEGAME_MOD_MISMATCH_MESSAGE", (const uint8_t *) save_mod_name, (const uint8_t *) active_mod_name);
 }
 
 static void clear_scenario_data(void)

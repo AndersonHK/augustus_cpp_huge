@@ -72,15 +72,15 @@ static games_type *all_games()
     static int initialized = 0;
     if (!initialized) {
         games[0] = make_game(
-            1, TR_WINDOW_GAMES_OPTION_1, TR_WINDOW_GAMES_OPTION_1_DESC, MESSAGE_NG_GAMES_PLANNED, 1500, 100, 1, 32, 12,
+            1, "TR_WINDOW_GAMES_OPTION_1", "TR_WINDOW_GAMES_OPTION_1_DESC", MESSAGE_NG_GAMES_PLANNED, 1500, 100, 1, 32, 12,
             "colosseum", 1, resource_wine(), 1, resource_timber(), 1, naval_battle_start
         );
         games[1] = make_game(
-            2, TR_WINDOW_GAMES_OPTION_5, TR_WINDOW_GAMES_OPTION_5_DESC, MESSAGE_IG_GAMES_PLANNED, 800, 150, 1, 32, 12,
+            2, "TR_WINDOW_GAMES_OPTION_5", "TR_WINDOW_GAMES_OPTION_5_DESC", MESSAGE_IG_GAMES_PLANNED, 800, 150, 1, 32, 12,
             "colosseum", 0, resource_wheat(), 2, resource_oil(), 1, imperial_games_start
         );
         games[2] = make_game(
-            3, TR_WINDOW_GAMES_OPTION_2, TR_WINDOW_GAMES_OPTION_2_DESC, MESSAGE_AN_GAMES_PLANNED, 800, 150, 1, 32, 12,
+            3, "TR_WINDOW_GAMES_OPTION_2", "TR_WINDOW_GAMES_OPTION_2_DESC", MESSAGE_AN_GAMES_PLANNED, 800, 150, 1, 32, 12,
             "colosseum", 0, resource_meat(), 2, RESOURCE_NONE, 0, executions_start
         );
         initialized = 1;

@@ -1,4 +1,5 @@
 #include "import_xml.h"
+#include "translation/translation.h"
 #include "scenario/event/event.h"
 #include "scenario/event/parameter_city.h"
 #include "scenario/event/parameter_data.h"
@@ -12,7 +13,6 @@ extern "C" {
 #include "building/building_type_api.h"
 #include "core/encoding.h"
 #include "core/file.h"
-#include "core/lang.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "core/xml_parser.h"
@@ -458,7 +458,7 @@ static void xml_import_log_error(const char *msg)
     string_copy(number_as_text, data.error_line_number_text + length, 50);
 
     window_plain_message_dialog_show_with_extra(
-        TR_EDITOR_UNABLE_TO_LOAD_EVENTS_TITLE, TR_EDITOR_CHECK_LOG_MESSAGE,
+        "TR_EDITOR_UNABLE_TO_LOAD_EVENTS_TITLE", "TR_EDITOR_CHECK_LOG_MESSAGE",
         string_from_ascii(data.error_message),
         data.error_line_number_text);
 }

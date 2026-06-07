@@ -1,6 +1,7 @@
 #include "graphics/generic_button.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
+#include "widget/sidebar/military.h"
 #include "window/city.h"
 
 #include "military.h"
@@ -147,11 +148,11 @@ static int draw_background(void)
     int food_stress = city_data.mess_hall.food_stress_cumulative;
 
     if (food_stress > 50 && !city_mess_hall_months_food_stored()) {
-        food_text = TR_ADVISOR_LEGION_FOOD_CRITICAL;
+        food_text = "TR_ADVISOR_LEGION_FOOD_CRITICAL";
     } else if (food_stress > 20 && !city_mess_hall_months_food_stored()) {
-        food_text = TR_ADVISOR_LEGION_FOOD_NEEDED;
+        food_text = "TR_ADVISOR_LEGION_FOOD_NEEDED";
     } else {
-        food_text = TR_ADVISOR_LEGION_MONTHS_FOOD_STORED;
+        food_text = "TR_ADVISOR_LEGION_MONTHS_FOOD_STORED";
     }
 
     if (num_legions <= 0) {
@@ -175,7 +176,7 @@ static int draw_background(void)
 
         Image::from_id(Image::group(GROUP_BULLET)).draw(bullet_x, 409);
         width = text_draw(translation_for(food_text), text_x, 409, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        if (food_text == TR_ADVISOR_LEGION_MONTHS_FOOD_STORED) {
+        if (food_text == "TR_ADVISOR_LEGION_MONTHS_FOOD_STORED") {
             text_draw_number(city_mess_hall_months_food_stored(), '@', " ", text_x + width, 409, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
     }
@@ -190,7 +191,8 @@ static int draw_background(void)
         button_border_draw(22, 77 + 44 * i, 560, 40, 0);
         Image::from_id(m->legion_flag_id).draw(32, 82 + 44 * i);
 
-        lang_text_draw(m->legion_name_group, m->legion_name_id, 84, 83 + 44 * i, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        text_draw(widget_sidebar_military_get_legion_name_text(m->legion_name_group, m->legion_name_id),
+            84, 83 + 44 * i, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         int width = text_draw_number(formation_legion_count_alive_soldiers(m->id), '@', " ", 84, 100 + 44 * i, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         switch (m->figure_type) {
             case FIGURE_FORT_LEGIONARY:
@@ -333,7 +335,7 @@ static void on_scroll(void)
 static void get_tooltip_text(advisor_tooltip_result *r)
 {
     if (focus_additional_button_id) {
-        r->translation_key = TR_RETURN_ALL_TO_FORT;
+        r->translation_key = "TR_RETURN_ALL_TO_FORT";
     }
 }
 

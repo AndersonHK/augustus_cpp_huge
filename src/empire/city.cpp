@@ -1,4 +1,5 @@
-#include "editor/editor.h"
+﻿#include "editor/editor.h"
+#include "translation/translation.h"
 #include "city.h"
 
 #include "assets/assets.h"
@@ -6,7 +7,6 @@
 #include "building/monument.h"
 #include "core/array.h"
 #include "core/calc.h"
-#include "core/lang.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "city/buildings.h"
