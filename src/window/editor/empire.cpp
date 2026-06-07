@@ -706,7 +706,7 @@ static int draw_resource(resource_type resource, int trade_max, int x_offset, in
         time_millis elapsed = time_get_millis() - data.resource_pulse_start;
         float time_seconds = elapsed / 1000.0f; // Convert to seconds
         float pulse = sinf(time_seconds * 1.0f * 3.14f); // 1 full cycle per second
-        int alpha = 96 + (int) (pulse * 64); // Range: 32ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“160
+        int alpha = 96 + (int) (pulse * 64); // Range: 32ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ160
         graphics_tint_rect(x_offset, y_offset, RESOURCE_ICON_WIDTH - 1, RESOURCE_ICON_HEIGHT - 1,
             COLOR_MASK_DARK_PINK, alpha);
     }
@@ -737,17 +737,17 @@ static void draw_city_info(const empire_city *city)
     switch (city->type) {
         case EMPIRE_CITY_DISTANT_ROMAN:
         case EMPIRE_CITY_VULNERABLE_ROMAN:
-            lang_text_draw(47, 12, x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            lang_text_draw("main_strings.47.12", x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             break;
         case EMPIRE_CITY_DISTANT_FOREIGN:
         case EMPIRE_CITY_FUTURE_ROMAN:
-            lang_text_draw(47, 0, x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            lang_text_draw("main_strings.47.0", x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             break;
         case EMPIRE_CITY_OURS:
         {
             add_resource_buttons[0].dont_draw = 0;
             add_resource_buttons[1].dont_draw = 1;
-            width += lang_text_draw(47, 1, x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            width += lang_text_draw("main_strings.47.1", x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             int resource_x_offset = x_offset + 30 + width;
             for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
                 resource_type resource = static_cast<resource_type>(r);
@@ -780,7 +780,7 @@ static void draw_city_info(const empire_city *city)
             trade_city_buttons[2].parameter1 = city->type != EMPIRE_CITY_FUTURE_TRADE;
             trade_city_buttons[1].parameter1 = 0;
             trade_city_buttons[1].x = 44 * (city->type != EMPIRE_CITY_FUTURE_TRADE);
-            int text_width = lang_text_draw(47, 5, x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            int text_width = lang_text_draw("main_strings.47.5", x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             width += text_width;
             int resource_x_offset = x_offset + 30 + width;
             if (resource_x_offset + etc_width + 32 + 8 + 39 >= data.panel.x_max - 500) {
@@ -812,7 +812,7 @@ static void draw_city_info(const empire_city *city)
             if (data.object_coords_x >= resource_x_offset) {
                 coords_bonus = data.object_coords_x - resource_x_offset;
             }
-            text_width = lang_text_draw(47, 4, resource_x_offset + coords_bonus, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            text_width = lang_text_draw("main_strings.47.4", resource_x_offset + coords_bonus, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             width = width_after_name + text_width + coords_bonus;
             resource_x_offset = x_offset + 30 + width;
             if (resource_x_offset + etc_width + 32 + 8 + 39 >= data.panel.x_max - 360) {
@@ -880,7 +880,7 @@ static void draw_city_info(const empire_city *city)
                 button_border_draw(data.panel.x_max - 500 + trade_city_buttons[1].x, data.y_max - 93,
                     120, 24, data.focus_city_button_id == 2);
                 const uint8_t cost_text[32] = "";
-                snprintf((char *)cost_text, 32, "%i %s", city->cost_to_open, lang_get_string(6, 0));
+                snprintf((char *)cost_text, 32, "%i %s", city->cost_to_open, lang_get_string("main_strings.6.0"));
                 text_draw_centered(cost_text, data.panel.x_max - 500 + trade_city_buttons[1].x, data.y_max - 85,
                     120, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
             }
@@ -1002,17 +1002,16 @@ static void draw_panel_buttons(const empire_city *city)
     if (city) {
         draw_city_info(city);
     } else {
-        lang_text_draw_centered(150, scenario_empire_id(),
-            data.panel.x_min, data.y_max - 85, data.x_max - data.x_min, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_centered(current_string_key(150, scenario_empire_id()), data.panel.x_min, data.y_max - 85, data.x_max - data.x_min, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
-    lang_text_draw(151, scenario_empire_id(), data.panel.x_min + 220, data.y_max - 45, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw(current_string_key(151, scenario_empire_id()), data.panel.x_min + 220, data.y_max - 45, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     
     if (empire_selected_object() && scenario.empire.id == SCENARIO_CUSTOM_EMPIRE) {
         draw_object_info();
     }
 
     button_border_draw(data.panel.x_min + x_offset, data.y_max - 52, 100, 24, data.focus_button_id == 1);
-    lang_text_draw_centered(44, 7, data.panel.x_min + x_offset, data.y_max - 45, 100, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.44.7", data.panel.x_min + x_offset, data.y_max - 45, 100, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     if (scenario.empire.id == SCENARIO_CUSTOM_EMPIRE) {
         button_border_draw(data.panel.x_min + 144, data.y_max - 52, 150, 24, data.focus_button_id == 2);

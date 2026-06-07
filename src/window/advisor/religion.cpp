@@ -59,8 +59,8 @@ static int get_religion_advice(void)
 static void draw_god_row(god_type god, int y_offset, building_type altar, building_type small_temple,
     building_type large_temple, building_type grand_temple)
 {
-    lang_text_draw(59, 11 + god, 24, y_offset + 2, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw(59, 16 + god, 104, y_offset + 3, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw(current_string_key(59, 11 + god), 24, y_offset + 2, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw(current_string_key(59, 16 + god), 104, y_offset + 3, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     text_draw_number_centered(building_count_total(altar), 190, y_offset + 2, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(small_temple), 250, y_offset + 2, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     if (building_count_active(grand_temple)) {
@@ -70,7 +70,7 @@ static void draw_god_row(god_type god, int y_offset, building_type altar, buildi
         text_draw_number_centered(building_count_active(large_temple), 310, y_offset + 2, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
     text_draw_number_centered(city_god_months_since_festival(god), 375, y_offset + 2, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    int width = lang_text_draw(59, 32 + city_god_happiness(god) / 10, 450, y_offset + 2, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    int width = lang_text_draw(current_string_key(59, 32 + city_god_happiness(god) / 10), 450, y_offset + 2, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     int bolts = city_god_wrath_bolts(god);
     for (int i = 0; i < bolts / 10; i++) {
         Image::from_id(Image::group(GROUP_GOD_BOLT)).draw(10 * i + width + 450, y_offset - 2);
@@ -88,7 +88,7 @@ static void draw_oracle_row(void)
         building_count_active(runtime_type("small_mausoleum"));
     int large_oracle_count = building_count_active(runtime_type("nymphaeum")) +
         building_count_active(pantheon) + building_count_active(runtime_type("large_mausoleum"));
-    lang_text_draw(59, 8, 24, 168, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw("main_strings.59.8", 24, 168, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_total(runtime_type("lararium")), 190, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(oracle_count, 250, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     if (building_count_active(pantheon)) {
@@ -122,14 +122,14 @@ static void draw_festival_info(void)
 {
     inner_panel_draw(48, 302, 34, 6);
     Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 15).draw(460, 305);
-    lang_text_draw(58, 17, 52, 274, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw("main_strings.58.17", 52, 274, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    int width = lang_text_draw_amount(8, 4, city_festival_months_since_last(), 112, 315, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw(58, 15, 112 + width, 315, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    int width = lang_text_draw_amount(current_string_amount_key(8, 4, city_festival_months_since_last()), city_festival_months_since_last(), 112, 315, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw("main_strings.58.15", 112 + width, 315, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     if (city_festival_is_planned()) {
-        lang_text_draw_centered(58, 34, 102, 339, 300, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_centered("main_strings.58.34", 102, 339, 300, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
-    lang_text_draw_multiline(58, 18 + get_festival_advice(), 56, 360, 400, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw_multiline(current_string_key(58, 18 + get_festival_advice()), 56, 360, 400, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 }
 
 static int draw_background(void)
@@ -140,16 +140,16 @@ static int draw_background(void)
 
     Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 9).draw(10, 10);
 
-    lang_text_draw(59, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); // Religion
+    lang_text_draw("main_strings.59.0", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height)); // Religion
 
     text_draw_centered(translation_for_key("TR_WINDOW_ADVISOR_RELIGION_ALTARS_HEADER"), 165, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0); // Altars
-    lang_text_draw_centered(59, 5, 256, 32, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Temples
-    lang_text_draw_centered(59, 1, 226, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Small
-    lang_text_draw_centered(59, 2, 285, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // large
-    lang_text_draw_centered(59, 6, 350, 18, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Months
-    lang_text_draw_centered(59, 9, 350, 32, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // since
-    lang_text_draw_centered(59, 7, 350, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Festival
-    lang_text_draw_centered(59, 3, 449, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // The gods are
+    lang_text_draw_centered("main_strings.59.5", 256, 32, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Temples
+    lang_text_draw_centered("main_strings.59.1", 226, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Small
+    lang_text_draw_centered("main_strings.59.2", 285, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // large
+    lang_text_draw_centered("main_strings.59.6", 350, 18, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Months
+    lang_text_draw_centered("main_strings.59.9", 350, 32, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // since
+    lang_text_draw_centered("main_strings.59.7", 350, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Festival
+    lang_text_draw_centered("main_strings.59.3", 449, 46, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // The gods are
 
     inner_panel_draw(16, 60, 38, 8);
 
@@ -170,7 +170,7 @@ static int draw_background(void)
 
     city_gods_calculate_least_happy();
 
-    lang_text_draw_multiline(59, 21 + get_religion_advice(), 52, 208, 540, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_multiline(current_string_key(59, 21 + get_religion_advice()), 52, 208, 540, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     draw_festival_info();
 

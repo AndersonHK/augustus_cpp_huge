@@ -124,10 +124,10 @@ static void draw_history_graph(int full_size, int x, int y)
         int start_month, start_year, end_month, end_year;
         get_min_max_month_year(max_months, &start_month, &start_year, &end_month, &end_year);
 
-        int width = lang_text_draw(25, start_month, x - 20, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        int width = lang_text_draw(current_string_key(25, start_month), x - 20, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         lang_text_draw_year(start_year, x + width - 20, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
-        width = lang_text_draw(25, end_month, x + 380, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        width = lang_text_draw(current_string_key(25, end_month), x + 380, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         lang_text_draw_year(end_year, x + width + 380, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
         graphics_set_clip_rectangle(0, 0, 640, y + 200);
@@ -238,8 +238,8 @@ static void draw_society_graph(int full_size, int x, int y)
         text_draw_number_centered(y_max / 2, x - 66, y + 96, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         text_draw_number_centered(0, x - 66, y + 196, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         // x axis
-        lang_text_draw_centered(55, 9, x - 80, y + 210, 200, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-        lang_text_draw_centered(55, 10, x + 280, y + 210, 200, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        lang_text_draw_centered("main_strings.55.9", x - 80, y + 210, 200, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        lang_text_draw_centered("main_strings.55.10", x + 280, y + 210, 200, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
         graphics_set_clip_rectangle(0, 0, 640, y + 200);
         for (int i = 0; i < 20; i++) {
@@ -326,36 +326,36 @@ static void print_history_info(void)
 
     // food stores
     if (scenario_property_rome_supplies_wheat()) {
-        lang_text_draw(55, 11, 75, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.11", 75, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else {
-        width = lang_text_draw_amount(8, 6, city_resource_operating_granaries(), 70, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        width = lang_text_draw_amount(current_string_amount_key(8, 6, city_resource_operating_granaries()), city_resource_operating_granaries(), 70, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         if (city_resource_food_supply_months() > 0) {
-            width += lang_text_draw(55, 12, 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-            lang_text_draw_amount(8, 4, city_resource_food_supply_months(), 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            width += lang_text_draw("main_strings.55.12", 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw_amount(current_string_amount_key(8, 4, city_resource_food_supply_months()), city_resource_food_supply_months(), 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else if (city_resource_food_stored() > city_resource_food_needed() / 2) {
-            lang_text_draw(55, 13, 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.13", 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else if (city_resource_food_stored() > 0) {
-            lang_text_draw(55, 15, 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.15", 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
-            lang_text_draw(55, 14, 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.14", 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
     }
 
     // food types eaten
-    width = lang_text_draw(55, 16, 75, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    width = lang_text_draw("main_strings.55.16", 75, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number(city_resource_food_types_eaten(), '@', " ", 75 + width, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     // immigration
     int newcomers = city_migration_newcomers();
     if (newcomers >= 5) {
-        lang_text_draw(55, 24, 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.24", 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         width = text_draw_number(newcomers, '@', " ", 70, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-        lang_text_draw(55, 17, 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.17", 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else if (city_migration_no_room_for_immigrants()) {
-        lang_text_draw(55, 24, 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-        lang_text_draw(55, 19, 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.24", 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.19", 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else if (city_migration_percentage() < 80) {
-        lang_text_draw(55, 25, 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.25", 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         int text_id;
         switch (city_migration_no_immigration_cause()) {
             case NO_IMMIGRATION_LOW_WAGES: text_id = 20; break;
@@ -367,15 +367,15 @@ static void print_history_info(void)
             default: text_id = 0; break;
         }
         if (text_id) {
-            lang_text_draw(55, text_id, 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw(current_string_key(55, text_id), 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
     } else {
-        lang_text_draw(55, 24, 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.24", 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         width = text_draw_number(newcomers, '@', " ", 70, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         if (newcomers == 1) {
-            lang_text_draw(55, 18, 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.18", 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
-            lang_text_draw(55, 17, 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.17", 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
     }
 }
@@ -390,18 +390,18 @@ static int draw_background(void)
     int graph_order = city_population_graph_order();
     // Title: depends on big graph shown
     if (graph_order < 2) {
-        lang_text_draw(55, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw("main_strings.55.0", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     } else if (graph_order < 4) {
-        lang_text_draw(55, 1, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw("main_strings.55.1", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     } else {
-        lang_text_draw(55, 2, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw("main_strings.55.2", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     }
 
     Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 14).draw(62, 60);
 
     int x_offset = text_get_number_width(city_population(), 0, "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset += lang_text_get_width("TR_ADVISOR_TOTAL_POPULATION", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    int target_width = lang_text_get_width(53, 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int target_width = lang_text_get_width("main_strings.53.6", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     target_width += text_get_number_width(scenario_criteria_population(), '@', " )", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset = 620 - x_offset;
     int target_offset = 620 - target_width - 12; // 12 pixels for length of @), to align with other text
@@ -409,7 +409,7 @@ static int draw_background(void)
     width = text_draw_number(city_population(), 0, "", x_offset, 25, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     text_draw(translation_for_key("TR_ADVISOR_TOTAL_POPULATION"), x_offset + width, 25, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     // (target population)
-    width = lang_text_draw(53, 6, target_offset, 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    width = lang_text_draw("main_strings.53.6", target_offset, 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number(scenario_criteria_population(), '@', " )", target_offset + width, 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     int big_text, top_text, bot_text;
     void (*big_graph)(int, int, int);
@@ -475,7 +475,7 @@ static int draw_background(void)
             break;
     }
 
-    lang_text_draw_centered(55, big_text, 60, 295, 400, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(55, big_text), 60, 295, 400, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     big_graph(1, 70, 64);
     top_graph(0, 511, 63);
@@ -650,23 +650,23 @@ static uint8_t *get_graph_tooltip(int x, int y)
         if (val && y >= 200 - val) {
             int current_month, current_year;
             get_current_month_year_from_months(m, max_months, &current_month, &current_year);
-            uint8_t *offset = string_copy(lang_get_string(25, current_month), tooltip_text, 300);
+            uint8_t *offset = string_copy(lang_get_string(current_string_key(25, current_month)), tooltip_text, 300);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
             if (current_year >= 0) {
                 int use_year_ad = locale_year_before_ad();
                 if (use_year_ad) {
                     offset += string_from_int(offset, current_year, 0);
                     offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-                    offset = string_copy(lang_get_string(20, 1), offset, (int) (offset - tooltip_text));
+                    offset = string_copy(lang_get_string("main_strings.20.1"), offset, (int) (offset - tooltip_text));
                 } else {
-                    offset = string_copy(lang_get_string(20, 1), offset, (int) (offset - tooltip_text));
+                    offset = string_copy(lang_get_string("main_strings.20.1"), offset, (int) (offset - tooltip_text));
                     offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
                     offset += string_from_int(offset, current_year, 0);
                 }
             } else {
                 offset += string_from_int(offset, -current_year, 0);
                 offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-                offset = string_copy(lang_get_string(20, 0), offset, (int) (offset - tooltip_text));
+                offset = string_copy(lang_get_string("main_strings.20.0"), offset, (int) (offset - tooltip_text));
             }
 
             offset = string_copy(string_from_ascii(": "), offset, 300 - (int) (offset - tooltip_text));
@@ -722,7 +722,7 @@ static uint8_t *get_graph_tooltip(int x, int y)
             val = pop >> y_shift;
         }
         if (val && y >= 200 - val) {
-            uint8_t *offset = string_copy(lang_get_string(29, m), tooltip_text, 300);
+            uint8_t *offset = string_copy(lang_get_string(current_string_key(29, m)), tooltip_text, 300);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
             offset = string_copy(lang_get_string("TR_ADVISOR_POPULATION_DWELLERS"), offset, 300 - (int) (offset - tooltip_text));
             offset = string_copy(string_from_ascii(": "), offset, 300 - (int) (offset - tooltip_text));

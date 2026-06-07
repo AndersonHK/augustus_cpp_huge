@@ -65,7 +65,7 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 100, 38, 11);
-    lang_text_draw(44, 95, 20, 114, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw("main_strings.44.95", 20, 114, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     text_draw_number_centered_prefix(data.price_change.year, '+', 30, 158, 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_year(scenario_property_start_year() + data.price_change.year, 100, 158, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -74,16 +74,15 @@ static void draw_background(void)
         240, 158, 120, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height),
         COLOR_MASK_NONE);
 
-    lang_text_draw_centered(44, data.price_change.is_rise ? 104 : 103, 100, 198, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(44, data.price_change.is_rise ? 104 : 103), 100, 198, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     text_draw_number_centered(data.price_change.amount, 350, 198, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered_colored(44, 105, 16, 244, 250, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
-        data.is_new_price_change ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
+    lang_text_draw_centered_colored("main_strings.44.105", 16, 244, 250, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_price_change ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
 
     lang_text_draw_centered("TR_BUTTON_CANCEL", 379, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered(18, 3, 492, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.18.3", 492, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

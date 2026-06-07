@@ -585,8 +585,7 @@ static void draw_background(void)
     // Bottom buttons
     lang_text_draw_centered_colored("TR_EDITOR_DELETE", bottom_buttons[3].x, bottom_buttons[3].y + 6,
         bottom_buttons[3].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_RED);
-    lang_text_draw_centered(18, 3, bottom_buttons[4].x, bottom_buttons[4].y + 6, bottom_buttons[4].width,
-        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.18.3", bottom_buttons[4].x, bottom_buttons[4].y + 6, bottom_buttons[4].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

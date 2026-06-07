@@ -48,7 +48,7 @@ struct overlay_menu_entry {
     const struct overlay_menu_entry *submenu;
     const char *building_text_id;
 
-    constexpr overlay_menu_entry(
+    overlay_menu_entry(
         int overlay_id,
         translation_key key,
         translation_type type,
@@ -62,7 +62,7 @@ struct overlay_menu_entry {
     {
     }
 
-    constexpr overlay_menu_entry(
+    overlay_menu_entry(
         int overlay_id,
         int,
         translation_type type,
@@ -233,7 +233,7 @@ static const uint8_t *get_overlay_text(const overlay_menu_entry *entry)
         return lang_get_building_type_string(type);
     }
 
-    return lang_get_string(14, entry->overlay);
+    return lang_get_string(current_string_key(14, entry->overlay));
 }
 
 static void draw_menu_item(const overlay_menu_entry *entry, const int i, const int x_offset, const int button_index)

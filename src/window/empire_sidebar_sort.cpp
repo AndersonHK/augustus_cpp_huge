@@ -301,7 +301,7 @@ int window_empire_sidebar_sort_city_matches_current_filter(const empire_city *ci
     }
 }
 
-static constexpr translation_key sorting_keys[] = {
+static const translation_key sorting_keys[] = {
     "TR_EMPIRE_SIDE_BAR_SORT_BY_NAME",
     "TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_EXPORT",
     "TR_EMPIRE_SIDE_BAR_SORT_BY_QUOTA_FILL_IMPORT",
@@ -309,7 +309,7 @@ static constexpr translation_key sorting_keys[] = {
     "TR_EMPIRE_SIDE_BAR_SORT_BY_PROFIT",
 };
 
-static constexpr translation_key filter_keys[] = {
+static const translation_key filter_keys[] = {
     "TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE",
     "TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_SELL",
     "TR_EMPIRE_SIDE_BAR_FILTER_BY_RESOURCE_BUY",

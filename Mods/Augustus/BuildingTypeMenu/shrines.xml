@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="shrines">
     <identity name_key="building.shrines.name" />
+    <button group="temples" order="300" text_key="TR_BUILDING_MENU_SHRINES" />
+    <button group="shrines" order="0" text_key="TR_BUILDING_MENU_SHRINES" />
     <event_data attr="shrines|all_shrines" />
 </building>

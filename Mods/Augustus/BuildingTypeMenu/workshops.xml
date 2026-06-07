@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="workshops">
     <identity name_key="building.workshops.name" />
+    <button group="industry" order="200" text_key="TR_PARAMETER_VALUE_BUILDING_MENU_WORKSHOPS" />
     <event_data attr="workshops|all_workshops" />
 </building>

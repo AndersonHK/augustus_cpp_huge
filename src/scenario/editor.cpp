@@ -60,8 +60,8 @@ void scenario_editor_create(int map_size)
     scenario.map.grid_border_size = GRID_SIZE - scenario.map.width;
     scenario.map.grid_start = (GRID_SIZE - scenario.map.height) / 2 * GRID_SIZE + (GRID_SIZE - scenario.map.width) / 2;
 
-    string_copy(lang_get_string(44, 37), scenario.brief_description, MAX_BRIEF_DESCRIPTION);
-    string_copy(lang_get_string(44, 38), scenario.briefing, MAX_BRIEFING);
+    string_copy(lang_get_string("main_strings.44.37"), scenario.brief_description, MAX_BRIEF_DESCRIPTION);
+    string_copy(lang_get_string("main_strings.44.38"), scenario.briefing, MAX_BRIEFING);
 
     scenario.caesar_salary = 100;
     scenario.initial_funds = 1000;

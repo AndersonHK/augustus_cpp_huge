@@ -87,38 +87,38 @@ static void draw_foreground(void)
     if (empire_can_produce_resource(data.resource)) {
         int active_buildings = building_count_active(producer);
         if (total_buildings <= 0) {
-            lang_text_draw(54, 7, 66, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw("main_strings.54.7", 66, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else if (city_resource_is_mothballed(data.resource)) {
             int width = text_draw_number(total_buildings, '@', " ", 66, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             if (total_buildings == 1) {
-                lang_text_draw(54, 10, 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.54.10", 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             } else {
-                lang_text_draw(54, 11, 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.54.11", 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
         } else if (total_buildings == active_buildings) {
             // not mothballed, all working
             int width = text_draw_number(total_buildings, '@', " ", 66, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             if (total_buildings == 1) {
-                lang_text_draw(54, 8, 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.54.8", 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             } else {
-                lang_text_draw(54, 9, 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.54.9", 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
         } else {
             // not mothballed, some working
             int idle_buildings = total_buildings - active_buildings;
             int width = text_draw_number(active_buildings, '@', " ", 66, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-            width += lang_text_draw(54, 12, 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            width += lang_text_draw("main_strings.54.12", 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             width += text_draw_number(idle_buildings, '@', " ",
                 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             if (idle_buildings == 1) {
-                lang_text_draw(54, 14, 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.54.14", 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             } else {
-                lang_text_draw(54, 13, 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.54.13", 66 + width, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
         }
     } else {
         // we cannot produce this good
-        lang_text_draw(54, 25, 66, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw("main_strings.54.25", 66, 172, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     if (resource_is_storable(data.resource)) {
@@ -151,8 +151,8 @@ static void draw_foreground(void)
         if (trade_flags & TRADE_STATUS_IMPORT) {
             button_border_draw(30, 212, 286, 30, data.focus_button_id == 2);
             if (trade_status & TRADE_STATUS_IMPORT) {
-                int x_offset = 32 + (215 - lang_text_get_width(54, 5, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height))) / 2;
-                width = lang_text_draw(54, 5, x_offset, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                int x_offset = 32 + (215 - lang_text_get_width("main_strings.54.5", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height))) / 2;
+                width = lang_text_draw("main_strings.54.5", x_offset, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
                 int trade_quantity = city_resource_import_over(data.resource);
                 if (trade_quantity == 0) {
                     text_draw(translation_for_key("TR_ADVISOR_TRADE_NO_LIMIT"), x_offset + width, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -174,8 +174,8 @@ static void draw_foreground(void)
         if (trade_flags & TRADE_STATUS_EXPORT) {
             button_border_draw(322, 212, 286, 30, data.focus_button_id == 3);
             if (trade_status & TRADE_STATUS_EXPORT) {
-                int x_offset = 324 + (220 - lang_text_get_width(54, 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height))) / 2;
-                width = lang_text_draw(54, 6, x_offset, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                int x_offset = 324 + (220 - lang_text_get_width("main_strings.54.6", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height))) / 2;
+                width = lang_text_draw("main_strings.54.6", x_offset, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
                 int trade_quantity = city_resource_export_over(data.resource);
                 text_draw_number(trade_quantity, 0, " ", x_offset + width, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
                 arrow_buttons_draw(0, 0, export_amount_arrow_buttons, 2);
@@ -197,20 +197,20 @@ static void draw_foreground(void)
     if (total_buildings > 0) {
         button_border_draw(66, 250, 496, 30, data.focus_button_id == 1);
         if (city_resource_is_mothballed(data.resource)) {
-            lang_text_draw_centered(54, 17, 82, 259, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_centered("main_strings.54.17", 82, 259, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
-            lang_text_draw_centered(54, 16, 82, 259, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_centered("main_strings.54.16", 82, 259, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     }
 
     if (resource_is_storable(data.resource)) {
         button_border_draw(66, 288, 496, 50, data.focus_button_id == 4);
         if (city_resource_is_stockpiled(data.resource)) {
-            lang_text_draw_centered(54, 26, 82, 296, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-            lang_text_draw_centered(54, 27, 82, 316, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_centered("main_strings.54.26", 82, 296, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_centered("main_strings.54.27", 82, 316, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
-            lang_text_draw_centered(54, 28, 82, 296, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-            lang_text_draw_centered(54, 29, 82, 316, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_centered("main_strings.54.28", 82, 296, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_centered("main_strings.54.29", 82, 316, 464, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     }
 

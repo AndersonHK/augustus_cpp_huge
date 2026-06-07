@@ -77,13 +77,13 @@ static industry_text named_industry_text(const translation_key *keys)
 static int industry_text_draw(const industry_text &text, int offset, int x, int y, font_t font, int pixel_size)
 {
     return text.keys ? lang_text_draw(text.keys[offset], x, y, font, pixel_size) :
-        lang_text_draw(text.legacy_group, text.legacy_offset + offset, x, y, font, pixel_size);
+        lang_text_draw(current_string_key(text.legacy_group, text.legacy_offset + offset), x, y, font, pixel_size);
 }
 
 static int industry_text_get_width(const industry_text &text, int offset, font_t font, int pixel_size)
 {
     return text.keys ? lang_text_get_width(text.keys[offset], font, pixel_size) :
-        lang_text_get_width(text.legacy_group, text.legacy_offset + offset, font, pixel_size);
+        lang_text_get_width(current_string_key(text.legacy_group, text.legacy_offset + offset), font, pixel_size);
 }
 
 static void industry_text_draw_centered(
@@ -92,7 +92,7 @@ static void industry_text_draw_centered(
     if (text.keys) {
         lang_text_draw_centered(text.keys[offset], x, y, width, font, pixel_size);
     } else {
-        lang_text_draw_centered(text.legacy_group, text.legacy_offset + offset, x, y, width, font, pixel_size);
+        lang_text_draw_centered(current_string_key(text.legacy_group, text.legacy_offset + offset), x, y, width, font, pixel_size);
     }
 }
 
@@ -119,14 +119,13 @@ static void draw_farm(building_info_context *c, int help_id, const char *sound_f
 
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     resource_graphics(resource).panel_icon().draw(c->x_offset + 10, c->y_offset + 10);
-    lang_text_draw_centered(group_id, 0, c->x_offset, c->y_offset + 10,
-        BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(group_id, 0), c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     building *b = building_get(c->building_id);
     int pct_grown = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
-    int width = lang_text_draw(group_id, 2, c->x_offset + 32, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int width = lang_text_draw(current_string_key(group_id, 2), c->x_offset + 32, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     width += text_draw_percentage(pct_grown, c->x_offset + 32 + width, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw(group_id, 3, c->x_offset + 32 + width, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw(current_string_key(group_id, 3), c->x_offset + 32 + width, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     int efficiency = building_get_efficiency(b);
     if (efficiency < 0) {
@@ -264,7 +263,7 @@ void window_building_draw_iron_mine(building_info_context *c)
 
 void window_building_draw_gold_mine(building_info_context *c)
 {
-    static constexpr translation_key gold_mine_text[] = {
+    static const translation_key gold_mine_text[] = {
         "TR_BUILDING_GOLD_MINE",
         "TR_BUILDING_GOLD_MINE_DESC",
         "TR_BUILDING_GOLD_MINE_PRODUCTION",
@@ -282,7 +281,7 @@ void window_building_draw_gold_mine(building_info_context *c)
 
 void window_building_draw_stone_quarry(building_info_context *c)
 {
-    static constexpr translation_key stone_quarry_text[] = {
+    static const translation_key stone_quarry_text[] = {
         "TR_BUILDING_STONE_QUARRY",
         "TR_BUILDING_STONE_QUARRY_DESC",
         "TR_BUILDING_STONE_QUARRY_PRODUCTION",
@@ -300,7 +299,7 @@ void window_building_draw_stone_quarry(building_info_context *c)
 
 void window_building_draw_sand_pit(building_info_context *c)
 {
-    static constexpr translation_key sand_pit_text[] = {
+    static const translation_key sand_pit_text[] = {
         "TR_BUILDING_SAND_PIT",
         "TR_BUILDING_SAND_PIT_DESC",
         "TR_BUILDING_SAND_PIT_PRODUCTION",
@@ -370,8 +369,7 @@ static void draw_workshop(
                 resource_graphics(chain[i].raw_material).panel_icon().draw(c->x_offset + 32, c->y_offset + 56 + resources_y_offset);
                 industry_text_draw(text, 12 + i,
                     c->x_offset + 60, c->y_offset + 60 + resources_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-                int extra_width = lang_text_draw_amount(8, 10, b->resources[chain[i].raw_material],
-                    c->x_offset + 60 + width, c->y_offset + 60 + resources_y_offset, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+                int extra_width = lang_text_draw_amount(current_string_amount_key(8, 10, b->resources[chain[i].raw_material]), b->resources[chain[i].raw_material], c->x_offset + 60 + width, c->y_offset + 60 + resources_y_offset, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
                 text_draw_number(chain[i].raw_amount, '(',
                     reinterpret_cast<const char *>(translation_for_key("TR_BUILDING_WINDOW_INDUSTRY_NEEDED")),
                     c->x_offset + 60 + width + extra_width, c->y_offset + 60 + resources_y_offset,
@@ -457,7 +455,7 @@ void window_building_draw_pottery_workshop(building_info_context *c)
 
 void window_building_draw_brickworks(building_info_context *c)
 {
-    static constexpr translation_key brickworks_text[] = {
+    static const translation_key brickworks_text[] = {
         "TR_BUILDING_BRICKWORKS",
         "TR_BUILDING_BRICKWORKS_DESC",
         "TR_BUILDING_BRICKWORKS_PRODUCTION",
@@ -479,7 +477,7 @@ void window_building_draw_brickworks(building_info_context *c)
 
 void window_building_draw_concrete_maker(building_info_context *c)
 {
-    static constexpr translation_key concrete_maker_text[] = {
+    static const translation_key concrete_maker_text[] = {
         "TR_BUILDING_CONCRETE_MAKER",
         "TR_BUILDING_CONCRETE_MAKER_DESC",
         "TR_BUILDING_CONCRETE_MAKER_PRODUCTION",
@@ -527,8 +525,7 @@ void window_building_draw_city_mint(building_info_context *c)
         resource_graphics(resource_gold()).panel_icon().draw(c->x_offset + 32, c->y_offset + 56);
         width = lang_text_draw("TR_BUILDING_CITY_MINT_STORED_GOLD",
             c->x_offset + 60, c->y_offset + 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        lang_text_draw_amount(8, 10, b->resources[resource_gold()],
-            c->x_offset + 60 + width, c->y_offset + 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_amount(current_string_amount_key(8, 10, b->resources[resource_gold()]), b->resources[resource_gold()], c->x_offset + 60 + width, c->y_offset + 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         int efficiency = building_get_efficiency(b);
         if (efficiency < 0) {
@@ -618,7 +615,7 @@ void window_building_draw_shipyard(building_info_context *c)
     c->help_id = 82;
     window_building_play_sound(c, "wavs/shipyard.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(100, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.100.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     building *b = building_get(c->building_id);
 
@@ -626,15 +623,13 @@ void window_building_draw_shipyard(building_info_context *c)
         window_building_draw_description(c, 69, 25);
     } else {
         int pct_done = calc_percentage(b->data.industry.progress, 160);
-        int width = lang_text_draw(100, 2, c->x_offset + 32, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        int width = lang_text_draw("main_strings.100.2", c->x_offset + 32, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         width += text_draw_percentage(pct_done, c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        lang_text_draw(100, 3, c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw("main_strings.100.3", c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (shipyard_boats_needed()) {
-            lang_text_draw_multiline(100, 5, c->x_offset + 32, c->y_offset + 80,
-                BLOCK_SIZE * (c->width_blocks - 6), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_multiline("main_strings.100.5", c->x_offset + 32, c->y_offset + 80, BLOCK_SIZE * (c->width_blocks - 6), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
-            lang_text_draw_multiline(100, 4, c->x_offset + 32, c->y_offset + 80,
-                BLOCK_SIZE * (c->width_blocks - 6), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_multiline("main_strings.100.4", c->x_offset + 32, c->y_offset + 80, BLOCK_SIZE * (c->width_blocks - 6), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     }
 
@@ -650,7 +645,7 @@ void window_building_draw_wharf(building_info_context *c)
     c->advisor_button = ADVISOR_TRADE;
     window_building_play_sound(c, "wavs/wharf.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(102, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.102.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     resource_graphics(resource_fish()).panel_icon().draw(c->x_offset + 10, c->y_offset + 10);
 
     building *b = building_get(c->building_id);

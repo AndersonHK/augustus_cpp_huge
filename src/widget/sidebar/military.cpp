@@ -267,7 +267,7 @@ int widget_sidebar_military_get_legion_name_id(int legion_id)
 
 const uint8_t *widget_sidebar_military_get_legion_name_text(int group, int id)
 {
-    static constexpr translation_key extra_legion_names[] = {
+    static const translation_key extra_legion_names[] = {
         "TR_BUILDING_FORT_STANDARD_ELEPHANTS",
         "TR_BUILDING_FORT_STANDARD_THUNDER_BOLTS",
         "TR_BUILDING_FORT_STANDARD_BULLS",
@@ -282,7 +282,7 @@ const uint8_t *widget_sidebar_military_get_legion_name_text(int group, int id)
     if (group == 10000 && id >= 0 && id < static_cast<int>(sizeof(extra_legion_names) / sizeof(extra_legion_names[0]))) {
         return translation_for(extra_legion_names[id]);
     }
-    return lang_get_string(group, id);
+    return lang_get_string(current_string_key(group, id));
 }
 
 static void clear_focus_buttons(void)
@@ -353,20 +353,20 @@ static void draw_military_info_text(int x_offset, int y_offset)
             group_id = 138;
             text_id = 11;
         }
-        lang_text_draw_multiline(group_id, text_id, x_offset, y_offset + 80, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_multiline(current_string_key(group_id, text_id), x_offset, y_offset + 80, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         clear_legion_info(legion);
         return;
     }
 
     int ellipsized_width = CONTENT_WIDTH + CONTENT_PADDING / 2;
     // Morale
-    lang_text_draw_ellipsized(138, 36, x_offset, y_offset + 80, ellipsized_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw_ellipsized(138, 37 + m->morale / 5, x_offset + 4, y_offset + 98,
+    lang_text_draw_ellipsized("main_strings.138.36", x_offset, y_offset + 80, ellipsized_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw_ellipsized(current_string_key(138, 37 + m->morale / 5), x_offset + 4, y_offset + 98,
         ellipsized_width, m->morale < 13 ? FONT_NORMAL_RED : FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(m->morale < 13 ? FONT_NORMAL_RED : FONT_NORMAL_GREEN)->line_height));
 
     // Health
-    lang_text_draw_ellipsized(138, 24, x_offset, y_offset + 120, ellipsized_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw_ellipsized(138, get_health_text_id(legion->health), x_offset + 4, y_offset + 138,
+    lang_text_draw_ellipsized("main_strings.138.24", x_offset, y_offset + 120, ellipsized_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw_ellipsized(current_string_key(138, get_health_text_id(legion->health)), x_offset + 4, y_offset + 138,
         ellipsized_width, legion->health < 55 ? FONT_NORMAL_GREEN : FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(legion->health < 55 ? FONT_NORMAL_GREEN : FONT_NORMAL_RED)->line_height));
 }
 
@@ -429,7 +429,7 @@ static void draw_background(int x_offset)
 {
     Image::from_id(Image::group(GROUP_SIDE_PANEL) + 1).draw(x_offset, 24);
     image_buttons_draw(x_offset, 24, buttons_title_close, 2);
-    lang_text_draw_centered(61, 5, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.61.5", x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     widget_minimap_update(0);
     widget_minimap_draw_decorated(x_offset + 8, 59, MINIMAP_WIDTH, MINIMAP_HEIGHT);
     draw_military_panel_background(x_offset);
@@ -470,7 +470,7 @@ static void draw_foreground(int x_offset)
 {
     widget_minimap_draw_decorated(x_offset + 8, 59, MINIMAP_WIDTH, MINIMAP_HEIGHT);
     image_buttons_draw(x_offset, 24, buttons_title_close, 2);
-    lang_text_draw_centered(61, 5, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.61.5", x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     draw_military_panel_foreground(x_offset);
     sidebar_extra_draw_foreground();
 }

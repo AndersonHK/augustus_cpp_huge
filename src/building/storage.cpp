@@ -411,9 +411,9 @@ int building_storage_check_if_accepts_nothing(int storage_id)
 static const uint8_t *storage_state_text(building_storage_state state, const Building &building_object)
 {
     switch (state) {
-        case BUILDING_STORAGE_STATE_ACCEPTING:   return lang_get_string(99, 7);
-        case BUILDING_STORAGE_STATE_NOT_ACCEPTING: return lang_get_string(99, 8);
-        case BUILDING_STORAGE_STATE_GETTING:     return lang_get_string(99, 9 + storage_building_is_granary(building_object));
+        case BUILDING_STORAGE_STATE_ACCEPTING:   return lang_get_string("main_strings.99.7");
+        case BUILDING_STORAGE_STATE_NOT_ACCEPTING: return lang_get_string("main_strings.99.8");
+        case BUILDING_STORAGE_STATE_GETTING:     return lang_get_string(current_string_key(99, 9 + storage_building_is_granary(building_object)));
         case BUILDING_STORAGE_STATE_MAINTAINING: return lang_get_string("TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING");
         default: return (const uint8_t *) "";
     }

@@ -142,27 +142,24 @@ static void draw_employment_details(building_info_context *c, building *b, int y
     int laborers_needed = building_get_laborers(b->type);
     if (laborers_needed) {
         if (b->state == BUILDING_STATE_MOTHBALLED) {
-            int width = lang_text_draw_amount(8, 12, b->num_workers,
-                c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            int width = lang_text_draw_amount(current_string_amount_key(8, 12, b->num_workers), b->num_workers, c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             width += text_draw_number(laborers_needed, '(', "",
                 c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
-            lang_text_draw(69, 0, c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            lang_text_draw("main_strings.69.0", c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             text_draw(translation_for_key("TR_BUILDING_INFO_MOTHBALL_WARNING"),
                 c->x_offset + 70, y_offset + 26, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
         } else if (text_id) {
-            int width = lang_text_draw_amount(8, 12, b->num_workers,
-                c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            int width = lang_text_draw_amount(current_string_amount_key(8, 12, b->num_workers), b->num_workers, c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             width += text_draw_number(laborers_needed, '(', "",
                 c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
-            lang_text_draw(69, 0, c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
-            lang_text_draw(69, text_id, c->x_offset + 70, y_offset + 26, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            lang_text_draw("main_strings.69.0", c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            lang_text_draw(current_string_key(69, text_id), c->x_offset + 70, y_offset + 26, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             y_offset += 6;
         } else {
-            int width = lang_text_draw_amount(8, 12, b->num_workers,
-                c->x_offset + 60, y_offset + 16, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            int width = lang_text_draw_amount(current_string_amount_key(8, 12, b->num_workers), b->num_workers, c->x_offset + 60, y_offset + 16, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             width += text_draw_number(laborers_needed, '(', "",
                 c->x_offset + 70 + width, y_offset + 16, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
-            lang_text_draw(69, 0, c->x_offset + 70 + width, y_offset + 16, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            lang_text_draw("main_strings.69.0", c->x_offset + 70 + width, y_offset + 16, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
         }
     }
     if (levy) {
@@ -186,8 +183,7 @@ void window_building_draw_employment_without_house_cover(building_info_context *
 
 void window_building_draw_description(building_info_context *c, int text_group, int text_id)
 {
-    lang_text_draw_multiline(text_group, text_id, c->x_offset + 32, c->y_offset + 56,
-       BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_multiline(current_string_key(text_group, text_id), c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 void window_building_draw_description(building_info_context *c, translation_key key)
@@ -198,8 +194,7 @@ void window_building_draw_description(building_info_context *c, translation_key 
 
 int window_building_draw_description_at(building_info_context *c, int y_offset, int text_group, int text_id)
 {
-    return lang_text_draw_multiline(text_group, text_id, c->x_offset + 32, c->y_offset + y_offset,
-        BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    return lang_text_draw_multiline(current_string_key(text_group, text_id), c->x_offset + 32, c->y_offset + y_offset, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 int window_building_draw_description_at(building_info_context *c, int y_offset, translation_key key)
@@ -433,7 +428,7 @@ void window_building_get_risks_tooltip(
     if (b->house_size && b->house_population) {
         if (m->x >= c->risk_icons.x_offset - 28 && m->x < c->risk_icons.x_offset - 4 &&
             m->y >= c->risk_icons.y_offset && m->y < c->risk_icons.y_offset + 24) {
-            static constexpr translation_key sickness_tooltips[] = {
+            static const translation_key sickness_tooltips[] = {
                 "TR_TOOLTIP_OVERLAY_SICKNESS_LOW",
                 "TR_TOOLTIP_OVERLAY_SICKNESS_MEDIUM",
                 "TR_TOOLTIP_OVERLAY_SICKNESS_HIGH",

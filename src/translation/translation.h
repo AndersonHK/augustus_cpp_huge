@@ -3,6 +3,8 @@
 #include "core/locale.h"
 
 #include <stdint.h>
+#include <string>
+#include <utility>
 
 enum lang_type {
     TYPE_MANUAL = 0,
@@ -54,12 +56,37 @@ struct lang_message {
 };
 
 struct translation_key {
+    std::string storage;
     const char *id = nullptr;
 
-    constexpr translation_key() = default;
-    constexpr translation_key(const char *key) : id(key) {}
-    constexpr operator bool() const { return id && *id; }
-    static constexpr bool same_id(const char *left, const char *right)
+    translation_key() = default;
+    translation_key(const char *key) : id(key) {}
+    translation_key(std::string key) : storage(std::move(key)), id(storage.c_str()) {}
+    translation_key(const translation_key &other) : storage(other.storage), id(storage.empty() ? other.id : storage.c_str()) {}
+    translation_key(translation_key &&other) noexcept : storage(std::move(other.storage)), id(storage.empty() ? other.id : storage.c_str()) {}
+    translation_key &operator=(const translation_key &other)
+    {
+        if (this != &other) {
+            storage = other.storage;
+            id = storage.empty() ? other.id : storage.c_str();
+        }
+        return *this;
+    }
+    translation_key &operator=(translation_key &&other) noexcept
+    {
+        if (this != &other) {
+            storage = std::move(other.storage);
+            id = storage.empty() ? other.id : storage.c_str();
+        }
+        return *this;
+    }
+    const char *c_str() const { return storage.empty() ? id : storage.c_str(); }
+    operator bool() const
+    {
+        const char *key = c_str();
+        return key && *key;
+    }
+    static bool same_id(const char *left, const char *right)
     {
         if (left == right) {
             return true;
@@ -74,8 +101,8 @@ struct translation_key {
         }
         return *left == *right;
     }
-    constexpr bool operator==(translation_key other) const { return same_id(id, other.id); }
-    constexpr bool operator!=(translation_key other) const { return !(*this == other); }
+    bool operator==(translation_key other) const { return same_id(c_str(), other.c_str()); }
+    bool operator!=(translation_key other) const { return !(*this == other); }
 };
 
 
@@ -86,8 +113,15 @@ typedef struct {
 
 void translation_load(language_type language);
 
+translation_key main_string_key(int group, int index);
+translation_key editor_string_key(int group, int index);
+translation_key localized_string_key(int is_editor, int group, int index);
+translation_key current_string_key(int group, int index);
+translation_key main_string_amount_key(int group, int first_index, int amount);
+translation_key current_string_amount_key(int group, int first_index, int amount);
+
 const uint8_t *translation_for_key(const char *key);
-inline const uint8_t *translation_for(translation_key key) { return translation_for_key(key.id); }
+inline const uint8_t *translation_for(translation_key key) { return translation_for_key(key.c_str()); }
 
 int lang_dir_is_valid(const char *dir);
 int lang_load(int is_editor);
@@ -98,5 +132,4 @@ const uint8_t *lang_get_string_by_key(const char *key);
 const uint8_t *lang_get_building_type_string(int type);
 const lang_message *lang_get_message(int id);
 
-const uint8_t *lang_get_string(int group, int index);
 const uint8_t *lang_get_string(translation_key key);

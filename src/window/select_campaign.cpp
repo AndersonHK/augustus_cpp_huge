@@ -50,7 +50,7 @@ static generic_button bottom_buttons[] = {
     {234, 436, 200, 30, button_mission_list }
 };
 
-static constexpr translation_key bottom_button_text_keys[] = {
+static const translation_key bottom_button_text_keys[] = {
     "TR_BUTTON_CANCEL",
     "TR_WINDOW_CAMPAIGN_BUTTON_BEGIN_CAMPAIGN",
     "TR_WINDOW_CAMPAIGN_BUTTON_MISSION_LIST"
@@ -85,7 +85,7 @@ static input_box player_name_input = { 304, 52, 20, 2, FONT_NORMAL_WHITE, 1, dat
 
 static void calculate_input_box_width(void)
 {
-    int text_width = lang_text_get_width(31, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int text_width = lang_text_get_width("main_strings.31.0", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     player_name_input.x = ((text_width + 31) / BLOCK_SIZE) * BLOCK_SIZE;
     player_name_input.width_blocks = (624 - player_name_input.x) / BLOCK_SIZE;
 }
@@ -97,7 +97,7 @@ static void init(void)
     scenario_settings_init();
     const uint8_t *default_player_name = setting_player_name();
     if (!string_length(default_player_name)) {
-        default_player_name = lang_get_string(9, 5);
+        default_player_name = lang_get_string("main_strings.9.5");
     }
     player_name_input.placeholder = default_player_name;
     if (string_equals(player_name_input.placeholder, data.player_name)) {
@@ -118,7 +118,7 @@ static void draw_background(void)
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);
     lang_text_draw_centered("TR_WINDOW_SELECT_CAMPAIGN", 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    lang_text_draw(31, 0, 16, 61, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.31.0", 16, 61, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     const campaign_info *info = game_campaign_get_info();
     if (!info) {
         lang_text_draw_centered("TR_SAVE_DIALOG_INVALID_FILE", 362, 241, 246, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));

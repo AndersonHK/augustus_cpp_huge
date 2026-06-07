@@ -175,14 +175,14 @@ static void default_cities_list_box_draw_item(const list_box_item *item)
     font_t font = item->is_selected ? FONT_NORMAL_WHITE : FONT_NORMAL_GREEN;
     const uint8_t display_text[256] = "Roma";
     const default_city *city = &default_cities[item->index];
-    color_t color = empire_city_get_at(city->x, city->y, lang_get_string(21, city->name_id)) ? COLOR_FONT_GRAY : COLOR_MASK_NONE;
-    snprintf((char *)display_text, 256, "%s: %i, %i", (char *)lang_get_string(21, city->name_id), city->x, city->y);
+    color_t color = empire_city_get_at(city->x, city->y, lang_get_string(current_string_key(21, city->name_id))) ? COLOR_FONT_GRAY : COLOR_MASK_NONE;
+    snprintf((char *)display_text, 256, "%s: %i, %i", (char *)lang_get_string(current_string_key(21, city->name_id)), city->x, city->y);
     text_draw_ellipsized(display_text, item->x + 5, item->y + 4, item->width - 10, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
 }
 
 static void add_city(const default_city *city)
 {
-    if (empire_city_get_at(city->x, city->y, lang_get_string(21, city->name_id))) {
+    if (empire_city_get_at(city->x, city->y, lang_get_string(current_string_key(21, city->name_id)))) {
         return;
     }
     full_empire_object *full = empire_object_get_new();
@@ -225,7 +225,7 @@ static void draw_background(void)
 static void draw_foreground(void)
 {
     graphics_in_dialog();
-    static constexpr translation_key button_texts[] = {
+    static const translation_key button_texts[] = {
         "TR_EDITOR_EMPIRE_PROPERTIES_SELECT_IAMGE",
         "TR_EDITOR_EMPIRE_PROPERTIES_DEFAULT_IAMGE",
         "TR_EDITOR_EMPIRE_PROPERTIES_BORDER_DENSITY",

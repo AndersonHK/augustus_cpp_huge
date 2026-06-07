@@ -20,7 +20,7 @@ struct menu_item {
     {
     }
 
-    constexpr menu_item(translation_key key, void (*handler)(int), int param)
+    menu_item(translation_key key, void (*handler)(int), int param)
         : text_key(key)
         , left_click_handler(handler)
         , parameter(param)
@@ -45,7 +45,7 @@ struct menu_bar_item {
     {
     }
 
-    constexpr menu_bar_item(translation_key key, menu_item *menu_items, int item_count)
+    menu_bar_item(translation_key key, menu_item *menu_items, int item_count)
         : text_key(key)
         , items(menu_items)
         , num_items(item_count)

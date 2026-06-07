@@ -54,7 +54,7 @@ int UiTextPrimitive::measure_width() const
     const int pixel_size = screen_ui_to_pixel(font_definition_for(spec_.font)->line_height);
     switch (spec_.content_type) {
         case UiTextContentType::Language:
-            return lang_text_get_width(spec_.text_group, spec_.text_id, spec_.font, pixel_size);
+            return lang_text_get_width(current_string_key(spec_.text_group, spec_.text_id), spec_.font, pixel_size);
         case UiTextContentType::TranslationKey:
             return text_get_width(translation_for(spec_.text_key), spec_.font, pixel_size);
         case UiTextContentType::Raw:
@@ -63,7 +63,7 @@ int UiTextPrimitive::measure_width() const
             return text_get_number_width(
                 spec_.value, spec_.prefix, spec_.postfix ? spec_.postfix : "", spec_.font, pixel_size);
         case UiTextContentType::Amount:
-            return lang_text_get_amount_width(spec_.text_group, spec_.text_id, spec_.value, spec_.font, pixel_size);
+            return lang_text_get_amount_width(current_string_amount_key(spec_.text_group, spec_.text_id, spec_.value), spec_.value, spec_.font, pixel_size);
         default:
             return 0;
     }
@@ -83,21 +83,11 @@ void UiTextPrimitive::draw() const
     switch (spec_.content_type) {
         case UiTextContentType::Language:
             if (spec_.alignment == UiTextAlignment::Center) {
-                lang_text_draw_centered_colored(
-                    spec_.text_group,
-                    spec_.text_id,
-                    spec_.x,
-                    spec_.y,
-                    box_width,
-                    spec_.font,
-                    pixel_size,
-                    spec_.color);
+                lang_text_draw_centered_colored(current_string_key(spec_.text_group, spec_.text_id), spec_.x, spec_.y, box_width, spec_.font, pixel_size, spec_.color);
             } else if (spec_.alignment == UiTextAlignment::Right) {
-                lang_text_draw_colored(
-                    spec_.text_group, spec_.text_id, draw_x, spec_.y, spec_.font, pixel_size, spec_.color);
+                lang_text_draw_colored(current_string_key(spec_.text_group, spec_.text_id), draw_x, spec_.y, spec_.font, pixel_size, spec_.color);
             } else {
-                lang_text_draw_colored(
-                    spec_.text_group, spec_.text_id, spec_.x, spec_.y, spec_.font, pixel_size, spec_.color);
+                lang_text_draw_colored(current_string_key(spec_.text_group, spec_.text_id), spec_.x, spec_.y, spec_.font, pixel_size, spec_.color);
             }
             return;
 
@@ -143,25 +133,9 @@ void UiTextPrimitive::draw() const
 
         case UiTextContentType::Amount:
             if (spec_.alignment == UiTextAlignment::Center) {
-                lang_text_draw_amount_centered(
-                    spec_.text_group,
-                    spec_.text_id,
-                    spec_.value,
-                    spec_.x,
-                    spec_.y,
-                    box_width,
-                    spec_.font,
-                    pixel_size);
+                lang_text_draw_amount_centered(current_string_amount_key(spec_.text_group, spec_.text_id, spec_.value), spec_.value, spec_.x, spec_.y, box_width, spec_.font, pixel_size);
             } else {
-                lang_text_draw_amount_colored(
-                    spec_.text_group,
-                    spec_.text_id,
-                    spec_.value,
-                    spec_.alignment == UiTextAlignment::Right ? draw_x : spec_.x,
-                    spec_.y,
-                    spec_.font,
-                    pixel_size,
-                    spec_.color);
+                lang_text_draw_amount_colored(current_string_amount_key(spec_.text_group, spec_.text_id, spec_.value), spec_.value, spec_.alignment == UiTextAlignment::Right ? draw_x : spec_.x, spec_.y, spec_.font, pixel_size, spec_.color);
             }
             return;
 

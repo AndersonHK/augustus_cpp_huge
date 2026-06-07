@@ -78,7 +78,7 @@ static void draw_troop_request(int index, int focused)
     button_border_draw(38, y_offset, 560, 40, focused);
     resource_graphics(resource_weapons()).panel_icon().draw(50, y_offset + 10);
 
-    int width = lang_text_draw(52, 72, 80, y_offset + 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    int width = lang_text_draw("main_strings.52.72", 80, y_offset + 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     empire_city *city = empire_city_get(city_military_distant_battle_city());
     const uint8_t *city_name = empire_city_get_name(city);
     text_draw(city_name, 80 + width, y_offset + 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
@@ -92,9 +92,8 @@ static void draw_troop_request(int index, int focused)
     } else {
         strength_text_id = 75;
     }
-    width = lang_text_draw(52, strength_text_id, 80, y_offset + 24, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw_amount(8, 4, city_military_months_until_distant_battle(), 80 + width, y_offset + 24,
-        FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    width = lang_text_draw(current_string_key(52, strength_text_id), 80, y_offset + 24, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw_amount(current_string_amount_key(8, 4, city_military_months_until_distant_battle()), city_military_months_until_distant_battle(), 80 + width, y_offset + 24, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 }
 
 static void draw_request_row(int index, const scenario_request *request, int focused)
@@ -109,18 +108,18 @@ static void draw_request_row(int index, const scenario_request *request, int foc
     resource_graphics(request_resource).panel_icon().draw(110, 100 + 42 * index);
     text_draw(resource_get_data(request_resource)->text, 150, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), COLOR_MASK_NONE);
 
-    int width = lang_text_draw_amount(8, 4, request->months_to_comply, 310, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw(12, 2, 310 + width, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    int width = lang_text_draw_amount(current_string_amount_key(8, 4, request->months_to_comply), request->months_to_comply, 310, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw("main_strings.12.2", 310 + width, 102 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     if (request->resource == resource_denarii()) {
         // request for money
         int treasury = city_finance_treasury();
         width = text_draw_number(treasury, '@', " ", 40, 120 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-        width += lang_text_draw(52, 44, 40 + width, 120 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        width += lang_text_draw("main_strings.52.44", 40 + width, 120 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         if (treasury < (int) request->amount.requested) {
-            lang_text_draw(52, 48, 80 + width, 120 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.52.48", 80 + width, 120 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
-            lang_text_draw(52, 47, 80 + width, 120 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.52.47", 80 + width, 120 + 42 * index, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
     } else {
         // normal goods request
@@ -132,12 +131,12 @@ static void draw_request_row(int index, const scenario_request *request, int foc
         if (using_granaries) {
             width += text_draw(translation_for_key("TR_ADVISOR_IN_STORAGE"), 40 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         } else {
-            width += lang_text_draw(52, 43, 40 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            width += lang_text_draw("main_strings.52.43", 40 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
         if (amount_stored < (int) request->amount.requested) {
-            lang_text_draw(52, 48, 80 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.52.48", 80 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
-            lang_text_draw(52, 47, 80 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.52.47", 80 + width, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
     }
 }
@@ -156,10 +155,10 @@ static int draw_background(void)
 
     text_draw_ellipsized(scenario_player_name(), 60, 12, 564, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
-    int width = lang_text_draw(52, 0, 60, 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int width = lang_text_draw("main_strings.52.0", 60, 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number(city_rating_favor(), '@', " ", 60 + width, 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    lang_text_draw_multiline(52, city_rating_favor() / 5 + 22, 60, 60, 544, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_multiline(current_string_key(52, city_rating_favor() / 5 + 22), 60, 60, 544, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     inner_panel_draw(32, 90, 36, 14);
 
@@ -171,7 +170,7 @@ static int draw_background(void)
     }
     num_requests = scenario_request_foreach_visible(num_requests, draw_request);
     if (!num_requests) {
-        lang_text_draw_multiline(52, 21, 64, 160, 512, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_multiline("main_strings.52.21", 64, 160, 512, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
 
     return ADVISOR_HEIGHT;
@@ -181,17 +180,17 @@ static void draw_foreground(void)
 {
     inner_panel_draw(64, 324, 32, 6);
 
-    lang_text_draw(32, city_emperor_rank(), 72, 338, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
+    lang_text_draw(current_string_key(32, city_emperor_rank()), 72, 338, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
 
-    int width = lang_text_draw(52, 1, 72, 372, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    int width = lang_text_draw("main_strings.52.1", 72, 372, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_money(city_emperor_personal_savings(), 80 + width, 372, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     draw_footer_text_button(&imperial_buttons[0], 2, focus_button_id == 1);
 
     button_border_draw(70, 393, 500, 20, focus_button_id == 2);
-    width = lang_text_draw(52, city_emperor_salary_rank() + 4, 120, 398, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    width = lang_text_draw(current_string_key(52, city_emperor_salary_rank() + 4), 120, 398, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     width += text_draw_number(city_emperor_salary_amount(), '@', " ", 120 + width, 398, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-    lang_text_draw(52, 3, 120 + width, 398, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw("main_strings.52.3", 120 + width, 398, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     draw_footer_text_button(&imperial_buttons[2], 49, focus_button_id == 3);
 
@@ -292,8 +291,8 @@ void button_request(const generic_button *button)
                     confirm_send_goods);
             } else {
                 window_popup_dialog_show_confirmation(
-                    lang_get_string(5, POPUP_DIALOG_SEND_GOODS),
-                    lang_get_string(5, POPUP_DIALOG_SEND_GOODS + 1),
+                    lang_get_string(current_string_key(5, POPUP_DIALOG_SEND_GOODS)),
+                    lang_get_string(current_string_key(5, POPUP_DIALOG_SEND_GOODS + 1)),
                     city_resource_is_stockpiled(selected_resource) ? translation_for_key("TR_ADVISOR_KEEP_STOCKPILING") : 0,
                     confirm_send_goods);
             }
@@ -332,7 +331,7 @@ static void write_resource_storage_tooltip(advisor_tooltip_result *r, resource_t
     text += string_from_int(text, amount_warehouse, 0);
     *text = ' ';
     text++;
-    text = string_copy(lang_get_string(52, 43), text, RESOURCE_INFO_MAX_TEXT - (int) (text - tooltip_resource_info));
+    text = string_copy(lang_get_string("main_strings.52.43"), text, RESOURCE_INFO_MAX_TEXT - (int) (text - tooltip_resource_info));
     *text = '\n';
     text++;
     text += string_from_int(text, amount_granary, 0);

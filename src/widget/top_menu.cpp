@@ -295,7 +295,7 @@ static int get_black_panel_actual_width(int desired_width)
 
 static int get_black_panel_total_width_for_text_id(int group, int id, int number, font_t font)
 {
-    int label_width = lang_text_get_width(group, id, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+    int label_width = lang_text_get_width(current_string_key(group, id), font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int number_width = text_get_number_width(number, '@', " ", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int text_width = label_width + number_width; // add padding
     int total_width = get_black_panel_actual_width(text_width);
@@ -447,7 +447,7 @@ static widget_layout_case_t widget_top_menu_measure_layout(int available_width, 
 static int draw_panel_with_text_and_number(int offset, int lang_section, int lang_index,
     int number, int margin, int fixed_width, font_t font, color_t label_color, color_t num_color)
 {
-    int label_width = lang_text_get_width(lang_section, lang_index, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+    int label_width = lang_text_get_width(current_string_key(lang_section, lang_index), font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int number_width = text_get_number_width(number, '@', " ", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int text_width = label_width + number_width + 2 * margin;
 
@@ -459,7 +459,7 @@ static int draw_panel_with_text_and_number(int offset, int lang_section, int lan
     int usable_width = end_of_panel - offset - 2 * BLACK_PANEL_BLOCK_WIDTH;
     int draw_x = offset + BLACK_PANEL_BLOCK_WIDTH + (usable_width / 2) - text_width / 2;
     // Draw label
-    lang_text_draw_colored(lang_section, lang_index, draw_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), label_color);
+    lang_text_draw_colored(current_string_key(lang_section, lang_index), draw_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), label_color);
     // Draw number right after label
     text_draw_number(number, '@', "\0", draw_x + label_width, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), num_color);
 
@@ -583,13 +583,13 @@ extern "C" void widget_top_menu_draw(int force)
     if (layout == WIDGET_LAYOUT_NONE) {
         int current_x = data.menu_end;
         data.funds.start = current_x;
-        current_x += lang_text_draw_colored(6, 0, current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), treasury_color);
+        current_x += lang_text_draw_colored("main_strings.6.0", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), treasury_color);
         // Draw number right after label
         current_x += text_draw_number(treasury, '@', "\0", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), treasury_color);
         data.funds.end = current_x;
         current_x += PANEL_MARGIN;
         data.population.start = current_x;
-        current_x += lang_text_draw_colored(6, 1, current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), pop_color);
+        current_x += lang_text_draw_colored("main_strings.6.1", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), pop_color);
         current_x += text_draw_number(city_population(), '@', "\0", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), pop_color);
         data.population.end = current_x;
         current_x += PANEL_MARGIN;
@@ -804,7 +804,7 @@ extern "C" int widget_top_menu_get_tooltip_text(tooltip_context *c)
     if (button_id) {
         if (button_id == INFO_POPULATION) {
             if (scenario_criteria_population_enabled()) {
-                const uint8_t *original_tooltip = lang_get_string(68, 59 + INFO_POPULATION);
+                const uint8_t *original_tooltip = lang_get_string(current_string_key(68, 59 + INFO_POPULATION));
                 const uint8_t *precomposed_text = lang_get_string("TR_TOOLTIP_POPULATION_GOAL");
                 int value = scenario_criteria_population();
                 static char formatted_text[128];
@@ -835,14 +835,14 @@ extern "C" int widget_top_menu_get_tooltip_text(tooltip_context *c)
                 case INFO_PERSONAL:
                 case INFO_FAVOR:
                 {
-                    const uint8_t *original_text = lang_get_string(53, (city_rating_favor() <= 90)
-                        ? 27 + city_rating_explanation_for(SELECTED_RATING_FAVOR) : 53);
+                    const uint8_t *original_text = lang_get_string(current_string_key(53, (city_rating_favor() <= 90)
+                        ? 27 + city_rating_explanation_for(SELECTED_RATING_FAVOR) : 53));
                     if (button_id == INFO_PERSONAL) {
                         original_text = lang_get_string("TR_TOOLTIP_PERSONAL_SAVINGS");
                     }
-                    const uint8_t *gift_text = lang_get_string(52, 50);
+                    const uint8_t *gift_text = lang_get_string("main_strings.52.50");
                     int value = city_emperor_months_since_gift();
-                    const uint8_t *months_text = lang_get_string(8, 4 + (value != 1));
+                    const uint8_t *months_text = lang_get_string(current_string_key(8, 4 + (value != 1)));
                     static char formatted_text[128];
                     snprintf(formatted_text, sizeof(formatted_text), "%s\n%s: %d %s", original_text, gift_text, value, months_text);
                     c->precomposed_text = (const uint8_t *) formatted_text;
@@ -889,7 +889,7 @@ static void menu_file_replay_map(int param)
 {
     clear_state();
     building_construction_clear_type();
-    window_popup_dialog_show_confirmation(lang_get_string(1, 2), 0, 0, replay_map_confirmed);
+    window_popup_dialog_show_confirmation(lang_get_string("main_strings.1.2"), 0, 0, replay_map_confirmed);
 }
 
 static void menu_file_load_game(int param)

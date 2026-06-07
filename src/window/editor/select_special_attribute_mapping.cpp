@@ -92,10 +92,10 @@ static void populate_list(int offset)
 static const uint8_t *get_allowed_building_name(building_type type)
 {
     if (type == building_type_registry_get_vacant_lot_fill_type()) {
-        return lang_get_string(68, 20);
+        return lang_get_string("main_strings.68.20");
     }
     if (type_matches(type, "clear_land")) {
-        return lang_get_string(68, 21);
+        return lang_get_string("main_strings.68.21");
     }
     if (type_matches(type, "repair_land")) {
         return lang_get_string("TR_BUILDING_LAND_REPAIR");
@@ -187,7 +187,7 @@ static void draw_foreground(void)
         y_offset += DETAILS_ROW_HEIGHT;
     }
 
-    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();

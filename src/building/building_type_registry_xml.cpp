@@ -915,12 +915,7 @@ static int parse_button()
         g_parse_state.error = 1;
         return 0;
     }
-    if (g_parse_state.saw_button) {
-        log_error("BuildingType xml contains duplicate button/menu nodes", g_parse_state.definition->attr(), 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-
+    BuildButtonDefinition button;
     int any_value = 0;
     if (xml_parser_has_attribute("group")) {
         std::string group = xml_value::trim_copy(xml_parser_get_attribute_string("group"));
@@ -929,7 +924,7 @@ static int parse_button()
             g_parse_state.error = 1;
             return 0;
         }
-        g_parse_state.definition->set_button_group(std::move(group));
+        button.set_group(std::move(group));
         any_value = 1;
     }
 
@@ -940,7 +935,7 @@ static int parse_button()
         return 0;
     }
     if (has_order) {
-        g_parse_state.definition->set_button_order(order);
+        button.set_order(order);
         any_value = 1;
     }
 
@@ -951,7 +946,7 @@ static int parse_button()
             g_parse_state.error = 1;
             return 0;
         }
-        g_parse_state.definition->set_button_icon(std::move(icon));
+        button.set_icon(std::move(icon));
         any_value = 1;
     }
 
@@ -967,7 +962,7 @@ static int parse_button()
             g_parse_state.error = 1;
             return 0;
         }
-        g_parse_state.definition->set_button_icon_image(std::move(icon_image));
+        button.set_icon_image(std::move(icon_image));
         any_value = 1;
     }
 
@@ -978,7 +973,7 @@ static int parse_button()
             g_parse_state.error = 1;
             return 0;
         }
-        g_parse_state.definition->set_button_text_key(std::move(text_key));
+        button.set_text_key(std::move(text_key));
         any_value = 1;
     }
 
@@ -988,6 +983,7 @@ static int parse_button()
         return 0;
     }
 
+    g_parse_state.definition->add_button(std::move(button));
     g_parse_state.saw_button = 1;
     return 1;
 }

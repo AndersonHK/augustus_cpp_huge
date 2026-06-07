@@ -542,7 +542,7 @@ void game_file_write_mission_saved_game(void)
         }
         filename = MISSION_SAVED_GAMES[rank];
         if (locale_translate_rank_autosaves()) {
-            encoding_to_utf8(lang_get_string(32, rank), localized_filename, FILE_NAME_MAX,
+            encoding_to_utf8(lang_get_string(current_string_key(32, rank)), localized_filename, FILE_NAME_MAX,
                 encoding_system_uses_decomposed());
             strncat_s(localized_filename, FILE_NAME_MAX, ".svv", _TRUNCATE);
             filename = localized_filename;

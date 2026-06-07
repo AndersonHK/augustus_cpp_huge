@@ -128,7 +128,7 @@ static grid_box_type variable_buttons = {
 
 static void init_color_dropdown(void)
 {
-    static constexpr translation_key color_keys[] = {
+    static const translation_key color_keys[] = {
         "TR_EDITOR_COLOR_LABEL",
         "TR_EDITOR_COLOR_NONE",
         "TR_EDITOR_COLOR_GREEN",
@@ -316,8 +316,7 @@ static void draw_background(void)
     const generic_button *new_variable_button = &constant_buttons[2];
     lang_text_draw_centered("TR_EDITOR_CUSTOM_VARIABLES_NEW",
         new_variable_button->x, new_variable_button->y + 9, new_variable_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(18, 3, constant_buttons[3].x, constant_buttons[3].y + 9, constant_buttons[3].width,
-        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.18.3", constant_buttons[3].x, constant_buttons[3].y + 9, constant_buttons[3].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

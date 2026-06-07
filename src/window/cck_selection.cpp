@@ -117,8 +117,7 @@ static void draw_scenario_info(void)
     if (data.show_minimap) {
         widget_minimap_draw(332, 119, 286, 300);
     } else {
-        lang_text_draw_centered(44, 77 + data.info.climate,
-            scenario_info_x, 150, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered(current_string_key(44, 77 + data.info.climate), scenario_info_x, 150, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         // map size
         int text_id;
@@ -130,7 +129,7 @@ static void draw_scenario_info(void)
             case 120: text_id = 125; break;
             default: text_id = 126; break;
         }
-        lang_text_draw_centered(44, text_id, scenario_info_x, 170, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered(current_string_key(44, text_id), scenario_info_x, 170, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         // military
         if (data.info.total_invasions <= 0) {
@@ -144,56 +143,54 @@ static void draw_scenario_info(void)
         } else {
             text_id = 116;
         }
-        lang_text_draw_centered(44, text_id, scenario_info_x, 190, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered(current_string_key(44, text_id), scenario_info_x, 190, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-        lang_text_draw_centered(32, 11 + data.info.player_rank,
-            scenario_info_x, 210, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered(current_string_key(32, 11 + data.info.player_rank), scenario_info_x, 210, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (data.info.is_open_play) {
             if (data.info.open_play_id < 12) {
-                lang_text_draw_multiline(145, data.info.open_play_id,
-                    scenario_info_x + 10, 270, scenario_info_width - 10, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw_multiline(current_string_key(145, data.info.open_play_id), scenario_info_x + 10, 270, scenario_info_width - 10, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
         } else {
-            lang_text_draw_centered(44, 127, scenario_info_x, 262, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_centered("main_strings.44.127", scenario_info_x, 262, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             int width;
             if (data.info.win_criteria.culture.enabled) {
                 width = text_draw_number(data.info.win_criteria.culture.goal, '@', " ",
                     scenario_criteria_x, 290, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-                lang_text_draw(44, 129, scenario_criteria_x + width, 290, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.44.129", scenario_criteria_x + width, 290, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.prosperity.enabled) {
                 width = text_draw_number(data.info.win_criteria.prosperity.goal, '@', " ",
                     scenario_criteria_x, 306, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-                lang_text_draw(44, 130, scenario_criteria_x + width, 306, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.44.130", scenario_criteria_x + width, 306, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.peace.enabled) {
                 width = text_draw_number(data.info.win_criteria.peace.goal, '@', " ",
                     scenario_criteria_x, 322, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-                lang_text_draw(44, 131, scenario_criteria_x + width, 322, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.44.131", scenario_criteria_x + width, 322, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.favor.enabled) {
                 width = text_draw_number(data.info.win_criteria.favor.goal, '@', " ",
                     scenario_criteria_x, 338, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-                lang_text_draw(44, 132, scenario_criteria_x + width, 338, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.44.132", scenario_criteria_x + width, 338, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.population.enabled) {
                 width = text_draw_number(data.info.win_criteria.population.goal, '@', " ",
                     scenario_criteria_x, 354, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-                lang_text_draw(44, 133, scenario_criteria_x + width, 354, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.44.133", scenario_criteria_x + width, 354, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.time_limit.enabled) {
                 width = text_draw_number(data.info.win_criteria.time_limit.years, '@', " ",
                     scenario_criteria_x, 370, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-                lang_text_draw(44, 134, scenario_criteria_x + width, 370, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.44.134", scenario_criteria_x + width, 370, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
             if (data.info.win_criteria.survival_time.enabled) {
                 width = text_draw_number(data.info.win_criteria.survival_time.years, '@', " ",
                     scenario_criteria_x, 386, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-                lang_text_draw(44, 135, scenario_criteria_x + width, 386, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+                lang_text_draw("main_strings.44.135", scenario_criteria_x + width, 386, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             }
         }
     }
-    lang_text_draw_centered(44, 136, scenario_info_x, 446, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.44.136", scenario_info_x, 446, scenario_info_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void draw_toggle_minimap_button_contents(void)
@@ -308,7 +305,7 @@ static void button_start_scenario(int param1, int param2)
     encoding_from_utf8(data.selected_scenario_filename, data.selected_scenario_display, FILE_NAME_MAX);
     scenario_set_name(data.selected_scenario_display);
     scenario_set_custom(2);
-    scenario_set_player_name(lang_get_string(9, 5));
+    scenario_set_player_name(lang_get_string("main_strings.9.5"));
     window_mission_briefing_show();
 }
 

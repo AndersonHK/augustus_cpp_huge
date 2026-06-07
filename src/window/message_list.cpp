@@ -186,7 +186,7 @@ static void draw_background(void)
     data.text_height_blocks = data.height_blocks - 9;
 
     outer_panel_draw(0, 32, data.width_blocks, data.height_blocks);
-    lang_text_draw_centered(63, 0, 0, 48, BLOCK_SIZE * data.width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.63.0", 0, 48, BLOCK_SIZE * data.width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     inner_panel_draw(data.x_text, data.y_text, data.text_width_blocks, data.text_height_blocks);
 
     if (review_briefing_button_should_be_active()) {
@@ -194,15 +194,11 @@ static void draw_background(void)
     }
 
     if (city_message_count() > 0) {
-        lang_text_draw(63, 2, data.x_text + 42, data.y_text - 12, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-        lang_text_draw(63, 3, data.x_text + 180, data.y_text - 12, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-        lang_text_draw_multiline(63, 4,
-            data.x_text + 55, data.y_text + 12 + BLOCK_SIZE * data.text_height_blocks,
-            BLOCK_SIZE * data.text_width_blocks - 64, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw("main_strings.63.2", data.x_text + 42, data.y_text - 12, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        lang_text_draw("main_strings.63.3", data.x_text + 180, data.y_text - 12, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        lang_text_draw_multiline("main_strings.63.4", data.x_text + 55, data.y_text + 12 + BLOCK_SIZE * data.text_height_blocks, BLOCK_SIZE * data.text_width_blocks - 64, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
-        lang_text_draw_multiline(63, 1,
-            data.x_text + 16, data.y_text + 80,
-            BLOCK_SIZE * data.text_width_blocks - 48, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_multiline("main_strings.63.1", data.x_text + 16, data.y_text + 80, BLOCK_SIZE * data.text_width_blocks - 48, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
     graphics_reset_dialog();
 }
@@ -214,12 +210,9 @@ static void draw_messages(unsigned int total_messages)
     for (unsigned int i = 0; i < max; i++, index++) {
         const city_message *msg = city_message_get(data.filtered_message_list[index]);
         int image_offset = 0;
-        const lang_message *lang_msg = 0;
-        if (msg->message_type != MESSAGE_CUSTOM_MESSAGE) {
-            lang_msg = lang_get_message(city_message_get_text_id(static_cast<city_message_type>(msg->message_type)));
-            if (lang_msg->message_type == MESSAGE_TYPE_DISASTER) {
-                image_offset = 2;
-            }
+        const lang_message *lang_msg = city_message_get_lang_message(msg);
+        if (lang_msg && lang_msg->message_type == MESSAGE_TYPE_DISASTER) {
+            image_offset = 2;
         }
         if (msg->is_read) {
             Image::from_id(Image::group(GROUP_MESSAGE_ICON) + 15 + image_offset).draw(data.x_text + 12, data.y_text + 6 + 20 * i);
@@ -230,21 +223,17 @@ static void draw_messages(unsigned int total_messages)
         if (data.focus_button_id == i + 1) {
             font = FONT_NORMAL_RED;
         }
-        int width = lang_text_draw(25, msg->month, data.x_text + 42, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+        int width = lang_text_draw(current_string_key(25, msg->month), data.x_text + 42, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         lang_text_draw_year(msg->year,
             data.x_text + 42 + width, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
-        if (msg->message_type != MESSAGE_CUSTOM_MESSAGE && lang_msg) {
-            text_draw(
+        if (lang_msg && lang_msg->title.text) {
+            text_draw_ellipsized(
                 lang_msg->title.text,
-                data.x_text + 180, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
+                data.x_text + 180, data.y_text + 8 + 20 * i,
+                data.text_width_blocks * BLOCK_SIZE - 180, font,
+                screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         } else {
-            custom_message_t *custom_msg = custom_messages_get(msg->param1);
-            if (custom_msg->title) {
-                text_draw_ellipsized(custom_msg->title->text, data.x_text + 180, data.y_text + 8 + 20 * i,
-                    data.text_width_blocks * BLOCK_SIZE - 180, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-            } else {
-                text_draw(translation_for_key("TR_ACTION_TYPE_A_MESSAGE"), data.x_text + 180, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
-            }
+            text_draw(translation_for_key("TR_ACTION_TYPE_A_MESSAGE"), data.x_text + 180, data.y_text + 8 + 20 * i, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
         }
     }
     scrollbar_draw(&scrollbar);
@@ -375,15 +364,12 @@ static void button_message(const generic_button *button)
     if (id < city_message_count()) {
         const city_message *msg = city_message_get(id);
         city_message_mark_read(id);
-        if (msg->message_type != MESSAGE_CUSTOM_MESSAGE) {
-            window_message_dialog_show_city_message(
-                city_message_get_text_id(static_cast<city_message_type>(msg->message_type)),
-                msg->year, msg->month, msg->param1, msg->param2,
-                city_message_get_advisor(static_cast<city_message_type>(msg->message_type)),
-                0);
-        } else {
-            window_message_dialog_show_custom_message(msg->param1, msg->year, msg->month);
-        }
+        window_message_dialog_show_city_message(
+            msg->message_type,
+            msg->year, msg->month, msg->param1, msg->param2,
+            msg->message_type == MESSAGE_CUSTOM_MESSAGE ?
+                MESSAGE_ADVISOR_NONE : city_message_get_advisor(static_cast<city_message_type>(msg->message_type)),
+            0);
     }
 }
 

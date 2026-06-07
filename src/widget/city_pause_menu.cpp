@@ -59,14 +59,14 @@ static void draw_foreground(void)
     }
 
     text_draw_centered(translation_for_key("TR_LABEL_PAUSE_MENU"), 192, 58, 192, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    lang_text_draw_centered(13, 5, 192, 108, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(1, 2, 192, 148, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(1, 3, 192, 188, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(1, 4, 192, 228, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(1, 6, 192, 268, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(2, 0, 192, 308, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.13.5", 192, 108, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.1.2", 192, 148, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.1.3", 192, 188, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.1.4", 192, 228, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.1.6", 192, 268, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.2.0", 192, 308, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     text_draw_centered(translation_for_key("TR_BUTTON_BACK_TO_MAIN_MENU"), 192, 348, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-    lang_text_draw_centered(1, 5, 192, 388, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.1.5", 192, 388, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     
     graphics_reset_dialog();
 }
@@ -139,7 +139,7 @@ static void button_click(const generic_button *button)
     if (type == 1) {
         window_go_back();
     } else if (type == 2) {
-        window_popup_dialog_show_confirmation(lang_get_string(1, 2), 0, 0, replay_map_confirmed);
+        window_popup_dialog_show_confirmation(lang_get_string("main_strings.1.2"), 0, 0, replay_map_confirmed);
     } else if (type == 3) {
         window_file_dialog_show(FILE_TYPE_SAVED_GAME, FILE_DIALOG_LOAD);
     } else if (type == 4) {

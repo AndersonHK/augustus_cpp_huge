@@ -34,10 +34,8 @@ enum {
 
 void window_message_dialog_show(int text_id, void (*background_callback)(void));
 
-void window_message_dialog_show_city_message(int text_id, int year, int month,
+void window_message_dialog_show_city_message(int message_type, int year, int month,
                                              int param1, int param2, int advisor, int use_popup);
-
-void window_message_dialog_show_custom_message(int custom_message_id, int year, int month);
 
 #ifdef __cplusplus
 }

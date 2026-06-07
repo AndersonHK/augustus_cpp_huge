@@ -886,7 +886,7 @@ static int config_change_string_language(int key)
         return 0;
     }
     char title[100];
-    encoding_to_utf8(lang_get_string(9, 0), title, 100, 0);
+    encoding_to_utf8(lang_get_string("main_strings.9.0"), title, 100, 0);
     system_change_window_title(title);
     memcpy(data.config_string_values[key].original_value, data.config_string_values[key].new_value,
            CONFIG_STRING_VALUE_MAX);
@@ -975,7 +975,7 @@ static const uint8_t *display_text_resolution(void)
 }
 static const uint8_t *display_text_difficulty(void)
 {
-    return lang_get_string(153, data.config_values[CONFIG_ORIGINAL_DIFFICULTY].new_value + 1);
+    return lang_get_string(current_string_key(153, data.config_values[CONFIG_ORIGINAL_DIFFICULTY].new_value + 1));
 }
 static const uint8_t *display_text_max_grand_temples(void)
 {
@@ -1198,7 +1198,7 @@ static void fetch_original_config_values(void)
     //  player name
 
     const uint8_t *player_name = setting_player_name();
-    if (!string_length(player_name)) player_name = lang_get_string(9, 5);
+    if (!string_length(player_name)) player_name = lang_get_string("main_strings.9.5");
     string_copy(player_name, data.player_name, PLAYER_NAME_LENGTH);
     encoding_to_utf8(data.player_name, data.config_string_values[CONFIG_STRING_ORIGINAL_PLAYER_NAME].original_value,
                      PLAYER_NAME_LENGTH, 0);
@@ -1327,7 +1327,7 @@ static void button_language_select(const generic_button *button)
 static void set_player_name(const uint8_t *name)
 {
     if (!string_length(name)) {
-        name = lang_get_string(9, 5);
+        name = lang_get_string("main_strings.9.5");
     }
     string_copy(name, data.player_name, PLAYER_NAME_LENGTH);
     encoding_to_utf8(name, data.config_string_values[CONFIG_STRING_ORIGINAL_PLAYER_NAME].new_value, PLAYER_NAME_LENGTH, 0);
@@ -1338,7 +1338,7 @@ static void button_edit_player_name(const generic_button *button)
 {
     uint8_t player_name[PLAYER_NAME_LENGTH];
     encoding_from_utf8(data.config_string_values[CONFIG_STRING_ORIGINAL_PLAYER_NAME].new_value, player_name, PLAYER_NAME_LENGTH);
-    window_text_input_show(lang_get_string(31, 0), lang_get_string(9, 5), player_name, PLAYER_NAME_LENGTH, set_player_name);
+    window_text_input_show(lang_get_string("main_strings.31.0"), lang_get_string("main_strings.9.5"), player_name, PLAYER_NAME_LENGTH, set_player_name);
 }
 static void button_change_user_directory(const generic_button *button)
 {

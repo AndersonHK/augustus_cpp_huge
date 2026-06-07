@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="statues">
     <identity name_key="building.statues.name" />
+    <button group="administration" order="400" text_key="TR_BUILDING_MENU_STATUES" />
     <event_data attr="statues|all_statues" />
 </building>

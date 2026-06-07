@@ -69,7 +69,7 @@ static void draw_background(void)
 
     graphics_in_dialog();
     Image::from_id(Image::group(GROUP_LOGO)).draw(0, 0);
-    lang_text_draw_centered_colored(13, 7, 160, 462, 320, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_WHITE);
+    lang_text_draw_centered_colored("main_strings.13.7", 160, 462, 320, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_WHITE);
     graphics_reset_dialog();
 }
 

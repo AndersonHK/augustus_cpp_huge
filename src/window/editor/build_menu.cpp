@@ -54,11 +54,11 @@ struct editor_build_menu_item {
     int legacy_text_id = -1;
     translation_key text_key;
 
-    constexpr editor_build_menu_item() = default;
-    constexpr editor_build_menu_item(int text_id) : legacy_text_id(text_id) {}
-    constexpr editor_build_menu_item(const char *key) : text_key(key) {}
-    constexpr editor_build_menu_item(translation_key key) : text_key(key) {}
-    constexpr bool is_sentinel() const { return legacy_text_id < 0 && !text_key; }
+    editor_build_menu_item() = default;
+    editor_build_menu_item(int text_id) : legacy_text_id(text_id) {}
+    editor_build_menu_item(const char *key) : text_key(key) {}
+    editor_build_menu_item(translation_key key) : text_key(key) {}
+    bool is_sentinel() const { return legacy_text_id < 0 && !text_key; }
 };
 
 static const editor_build_menu_item MENU_TYPES[MENU_NUM_ITEMS][MAX_ITEMS_PER_MENU] = {
@@ -121,9 +121,7 @@ static void draw_menu_buttons(void)
                 data.y_offset + MENU_Y_OFFSET + 3 + MENU_ITEM_HEIGHT * i,
                 MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         } else {
-            lang_text_draw_centered(48, item.legacy_text_id, x_offset - MENU_X_OFFSET,
-                data.y_offset + MENU_Y_OFFSET + 3 + MENU_ITEM_HEIGHT * i,
-                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            lang_text_draw_centered(current_string_key(48, item.legacy_text_id), x_offset - MENU_X_OFFSET, data.y_offset + MENU_Y_OFFSET + 3 + MENU_ITEM_HEIGHT * i, MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
     }
 }

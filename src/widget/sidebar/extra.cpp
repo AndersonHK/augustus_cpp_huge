@@ -384,7 +384,7 @@ static int draw_extra_info_objective(
         // Exception for Chinese: the string for "population" includes the hotkey " (6)"
         // To fix that: cut the string off at the '('
         uint8_t tmp[100];
-        string_copy(lang_get_string(text_group, text_id), tmp, 100);
+        string_copy(lang_get_string(current_string_key(text_group, text_id)), tmp, 100);
         for (int i = 0; i < 100 && tmp[i]; i++) {
             if (tmp[i] == '(') {
                 tmp[i] = 0;
@@ -393,7 +393,7 @@ static int draw_extra_info_objective(
         }
         text_draw(tmp, x_offset + 11, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else {
-        lang_text_draw(text_group, text_id, x_offset + 11, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw(current_string_key(text_group, text_id), x_offset + 11, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
     font_t font = obj->value >= obj->target ? FONT_NORMAL_GREEN : FONT_NORMAL_RED;
     int width = text_draw_number(obj->value, '@', "", x_offset + 11, y_offset + EXTRA_INFO_LINE_SPACE, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
@@ -414,7 +414,7 @@ static int get_text_offset_for_force_size(int force_size)
 
 static translation_key request_force_key(int force_size)
 {
-    static constexpr translation_key keys[] = {
+    static const translation_key keys[] = {
         "TR_SIDEBAR_EXTRA_REQUESTS_SMALL_FORCE",
         "TR_SIDEBAR_EXTRA_REQUESTS_AVERAGE_FORCE",
         "TR_SIDEBAR_EXTRA_REQUESTS_LARGE_FORCE",
@@ -424,7 +424,7 @@ static translation_key request_force_key(int force_size)
 
 static translation_key invasion_status_key(int next_invasion)
 {
-    static constexpr translation_key keys[] = {
+    static const translation_key keys[] = {
         "TR_SIDEBAR_EXTRA_INVASION_UNDERWAY",
         "TR_SIDEBAR_EXTRA_NO_INVASIONS",
         "TR_SIDEBAR_EXTRA_INVASION_IMMINENT",
@@ -499,7 +499,7 @@ static int draw_request_buttons(int y_offset)
             text_draw_ellipsized(translation_for(request_force_key(r->amount)),
                 data.x_offset + 32, y_offset - 7, data.width - 34, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
 
-            lang_text_draw_amount(8, 4, r->time, data.x_offset + 26, y_offset + 6,
+            lang_text_draw_amount(current_string_amount_key(8, 4, r->time), r->time, data.x_offset + 26, y_offset + 6,
                 r->time <= REQUEST_MONTHS_LEFT_FOR_RED_WARNING ? FONT_NORMAL_RED : FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(r->time <= REQUEST_MONTHS_LEFT_FOR_RED_WARNING ? FONT_NORMAL_RED : FONT_NORMAL_GREEN)->line_height));
 
             draw_request_action_label(i, y_offset + 20);
@@ -549,8 +549,7 @@ static int draw_request_buttons(int y_offset)
             // request time left
             width += text_draw(string_from_ascii(","), width, y_offset + 2, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             width += text_draw_number(r->time, 0, "", width, y_offset + 2, font_color, screen_ui_to_pixel(font_definition_for(font_color)->line_height), 0);
-            lang_text_draw_ellipsized(8, 4 + (r->time != 1), width, y_offset + 2,
-                data.width - (width - data.x_offset) - 4, font_color, screen_ui_to_pixel(font_definition_for(font_color)->line_height));
+            lang_text_draw_ellipsized(current_string_key(8, 4 + (r->time != 1)), width, y_offset + 2, data.width - (width - data.x_offset) - 4, font_color, screen_ui_to_pixel(font_definition_for(font_color)->line_height));
         }
         y_offset += EXTRA_INFO_HEIGHT_REQUESTS_PANEL;
     }
@@ -570,7 +569,7 @@ static void draw_extra_info_panel(void)
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_GAME_SPEED) {
         y_offset += EXTRA_INFO_VERTICAL_PADDING;
 
-        lang_text_draw(45, 2, data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.45.2", data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         y_offset += EXTRA_INFO_LINE_SPACE + EXTRA_INFO_VERTICAL_PADDING;
 
         text_draw_percentage(data.game_speed, data.x_offset + 60, y_offset - 2, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
@@ -581,7 +580,7 @@ static void draw_extra_info_panel(void)
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_UNEMPLOYMENT) {
         y_offset += EXTRA_INFO_VERTICAL_PADDING;
 
-        lang_text_draw(68, 148, data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.68.148", data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         y_offset += EXTRA_INFO_LINE_SPACE;
 
         int text_width = text_draw_percentage(data.unemployment.percentage,
@@ -641,13 +640,12 @@ static void draw_extra_info_panel(void)
 
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) {
         y_offset += EXTRA_INFO_VERTICAL_PADDING + 4;
-        lang_text_draw(44, 40, data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.44.40", data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         y_offset += EXTRA_INFO_VERTICAL_PADDING * 3 - 4;
         data.request_buttons_y_offset = y_offset;
 
         if (data.active_requests == 0) {
-            lang_text_draw_centered(44, 19, data.x_offset, y_offset + EXTRA_INFO_VERTICAL_PADDING + 4,
-                data.width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            lang_text_draw_centered("main_strings.44.19", data.x_offset, y_offset + EXTRA_INFO_VERTICAL_PADDING + 4, data.width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             y_offset += EXTRA_INFO_HEIGHT_REQUESTS_PANEL;
         } else {
             y_offset += draw_request_buttons(y_offset);
@@ -854,8 +852,8 @@ static void button_handle_request(const generic_button *button)
                         confirm_send_goods);
                 } else {
                     window_popup_dialog_show_confirmation(
-                        lang_get_string(5, POPUP_DIALOG_SEND_GOODS),
-                        lang_get_string(5, POPUP_DIALOG_SEND_GOODS + 1),
+                        lang_get_string(current_string_key(5, POPUP_DIALOG_SEND_GOODS)),
+                        lang_get_string(current_string_key(5, POPUP_DIALOG_SEND_GOODS + 1)),
                         city_resource_is_stockpiled(static_cast<resource_type>(r->resource)) ?
                             translation_for_key("TR_ADVISOR_KEEP_STOCKPILING") : 0,
                         confirm_send_goods);

@@ -166,7 +166,7 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, BASE_Y_OFFSET, 40, 30);
-    lang_text_draw_centered(44, 21, 14, BASE_Y_OFFSET + 14, 580, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.44.21", 14, BASE_Y_OFFSET + 14, 580, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     int y_offset = BASE_Y_OFFSET + 52;
 
@@ -209,8 +209,7 @@ static void draw_background(void)
 
     // Deadline
     btn = &request_buttons[4];
-    lang_text_draw_amount_centered(8, 8, data.request.deadline_years, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
-        btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_amount_centered(current_string_amount_key(8, 8, data.request.deadline_years), data.request.deadline_years, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Extension months
     btn = &request_buttons[5];
@@ -277,12 +276,10 @@ static void draw_background(void)
 
 
     // Bottom button labels
-    lang_text_draw_centered_colored(44, 25, bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 7,
-        bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_request ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
+    lang_text_draw_centered_colored("main_strings.44.25", bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 7, bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_request ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
     lang_text_draw_centered("TR_BUTTON_CANCEL", bottom_buttons[1].x,
         BASE_Y_OFFSET + bottom_buttons[1].y + 7, bottom_buttons[1].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(18, 3, bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 7,
-        bottom_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.18.3", bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 7, bottom_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

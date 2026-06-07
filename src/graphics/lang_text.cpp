@@ -8,22 +8,10 @@ extern "C" {
 #include "graphics/text.h"
 }
 
-int lang_text_get_width(int group, int number, font_t font, int pixel_size)
-{
-    const uint8_t *str = lang_get_string(group, number);
-    return text_get_width(str, font, pixel_size) + font_definition_for(font)->space_width;
-}
-
 int lang_text_get_width(translation_key key, font_t font, int pixel_size)
 {
     const uint8_t *str = lang_get_string(key);
     return text_get_width(str, font, pixel_size) + font_definition_for(font)->space_width;
-}
-
-int lang_text_draw(int group, int number, int x_offset, int y_offset, font_t font, int pixel_size)
-{
-    const uint8_t *str = lang_get_string(group, number);
-    return text_draw(str, x_offset, y_offset, font, pixel_size, 0);
 }
 
 int lang_text_draw(translation_key key, int x_offset, int y_offset, font_t font, int pixel_size)
@@ -32,22 +20,10 @@ int lang_text_draw(translation_key key, int x_offset, int y_offset, font_t font,
     return text_draw(str, x_offset, y_offset, font, pixel_size, 0);
 }
 
-int lang_text_draw_colored(int group, int number, int x_offset, int y_offset, font_t font, int pixel_size, color_t color)
-{
-    const uint8_t *str = lang_get_string(group, number);
-    return text_draw(str, x_offset, y_offset, font, pixel_size, color);
-}
-
 int lang_text_draw_colored(translation_key key, int x_offset, int y_offset, font_t font, int pixel_size, color_t color)
 {
     const uint8_t *str = lang_get_string(key);
     return text_draw(str, x_offset, y_offset, font, pixel_size, color);
-}
-
-void lang_text_draw_centered(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
-{
-    const uint8_t *str = lang_get_string(group, number);
-    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
 void lang_text_draw_centered(
@@ -55,12 +31,6 @@ void lang_text_draw_centered(
 {
     const uint8_t *str = lang_get_string(key);
     text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, 0);
-}
-
-void lang_text_draw_right_aligned(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
-{
-    const uint8_t *str = lang_get_string(group, number);
-    text_draw_right_aligned(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
 void lang_text_draw_right_aligned(
@@ -71,23 +41,10 @@ void lang_text_draw_right_aligned(
 }
 
 void lang_text_draw_centered_colored(
-    int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color)
-{
-    const uint8_t *str = lang_get_string(group, number);
-    text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, color);
-}
-
-void lang_text_draw_centered_colored(
     translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color)
 {
     const uint8_t *str = lang_get_string(key);
     text_draw_centered(str, x_offset, y_offset, box_width, font, pixel_size, color);
-}
-
-void lang_text_draw_ellipsized(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
-{
-    const uint8_t *str = lang_get_string(group, number);
-    text_draw_ellipsized(str, x_offset, y_offset, box_width, font, pixel_size, 0);
 }
 
 void lang_text_draw_ellipsized(
@@ -95,11 +52,6 @@ void lang_text_draw_ellipsized(
 {
     const uint8_t *str = lang_get_string(key);
     text_draw_ellipsized(str, x_offset, y_offset, box_width, font, pixel_size, 0);
-}
-
-int lang_text_draw_amount(int group, int number, int amount, int x_offset, int y_offset, font_t font, int pixel_size)
-{
-    return lang_text_draw_amount_colored(group, number, amount, x_offset, y_offset, font, pixel_size, COLOR_MASK_NONE);
 }
 
 int lang_text_draw_amount(translation_key key, int amount, int x_offset, int y_offset, font_t font, int pixel_size)
@@ -113,36 +65,7 @@ int lang_text_draw_amount(translation_key key, int amount, int x_offset, int y_o
     return desc_offset_x + lang_text_draw(key, x_offset + desc_offset_x, y_offset, font, pixel_size);
 }
 
-int lang_text_get_amount_width(int group, int number, int amount, font_t font, int pixel_size)
-{
-    int amount_offset = (amount == 1 || amount == -1) ? 0 : 1;
-    int width;
-    if (amount >= 0) {
-        width = text_get_number_width(amount, ' ', " ", font, pixel_size);
-    } else {
-        width = text_get_number_width(-amount, '-', " ", font, pixel_size);
-    }
-    width += lang_text_get_width(group, number + amount_offset, font, pixel_size);
-    return width;
-}
-
-int lang_text_draw_amount_centered(int group, int number, int amount, int x_offset, int y_offset, int box_width,
-    font_t font, int pixel_size)
-{
-    int width;
-    if (amount >= 0) {
-        width = text_get_number_width(amount, ' ', " ", font, pixel_size);
-    } else {
-        width = text_get_number_width(-amount, '-', " ", font, pixel_size);
-    }
-    int text_offset = (amount == 1 || amount == -1) ? 0 : 1;
-    width += lang_text_get_width(group, number + text_offset, font, pixel_size);
-    return lang_text_draw_amount_colored(group, number, amount, x_offset + (box_width - width) / 2, y_offset,
-        font, pixel_size, COLOR_MASK_NONE);
-}
-
-int lang_text_draw_amount_centered(
-    translation_key key, int amount, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
+int lang_text_get_amount_width(translation_key key, int amount, font_t font, int pixel_size)
 {
     int width;
     if (amount >= 0) {
@@ -151,16 +74,19 @@ int lang_text_draw_amount_centered(
         width = text_get_number_width(-amount, '-', " ", font, pixel_size);
     }
     width += lang_text_get_width(key, font, pixel_size);
+    return width;
+}
+
+int lang_text_draw_amount_centered(
+    translation_key key, int amount, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
+{
+    int width = lang_text_get_amount_width(key, amount, font, pixel_size);
     return lang_text_draw_amount(key, amount, x_offset + (box_width - width) / 2, y_offset, font, pixel_size);
 }
 
-int lang_text_draw_amount_colored(int group, int number, int amount, int x_offset, int y_offset,
-    font_t font, int pixel_size, color_t color)
+int lang_text_draw_amount_colored(
+    translation_key key, int amount, int x_offset, int y_offset, font_t font, int pixel_size, color_t color)
 {
-    int amount_offset = 1;
-    if (amount == 1 || amount == -1) {
-        amount_offset = 0;
-    }
     int desc_offset_x;
     if (amount >= 0) {
         desc_offset_x = text_draw_number(amount, ' ', " ",
@@ -169,8 +95,7 @@ int lang_text_draw_amount_colored(int group, int number, int amount, int x_offse
         desc_offset_x = text_draw_number(-amount, '-', " ",
             x_offset, y_offset, font, pixel_size, color);
     }
-    return desc_offset_x + lang_text_draw_colored(group, number + amount_offset,
-        x_offset + desc_offset_x, y_offset, font, pixel_size, color);
+    return desc_offset_x + lang_text_draw_colored(key, x_offset + desc_offset_x, y_offset, font, pixel_size, color);
 }
 
 int lang_text_draw_year(int year, int x_offset, int y_offset, font_t font, int pixel_size)
@@ -180,14 +105,14 @@ int lang_text_draw_year(int year, int x_offset, int y_offset, font_t font, int p
         int use_year_ad = locale_year_before_ad();
         if (use_year_ad) {
             width += text_draw_number(year, ' ', "", x_offset + width, y_offset, font, pixel_size, 0);
-            width += lang_text_draw(20, 1, x_offset + width, y_offset, font, pixel_size);
+            width += lang_text_draw("main_strings.20.1", x_offset + width, y_offset, font, pixel_size);
         } else {
-            width += lang_text_draw(20, 1, x_offset + width, y_offset, font, pixel_size);
+            width += lang_text_draw("main_strings.20.1", x_offset + width, y_offset, font, pixel_size);
             width += text_draw_number(year, ' ', "", x_offset + width, y_offset, font, pixel_size, 0);
         }
     } else {
         width += text_draw_number(-year, ' ', "", x_offset + width, y_offset, font, pixel_size, 0);
-        width += lang_text_draw(20, 0, x_offset + width, y_offset, font, pixel_size);
+        width += lang_text_draw("main_strings.20.0", x_offset + width, y_offset, font, pixel_size);
     }
     return width;
 }
@@ -195,8 +120,8 @@ int lang_text_draw_year(int year, int x_offset, int y_offset, font_t font, int p
 void lang_text_draw_month_year_max_width(
     int month, int year, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color)
 {
-    int month_width = lang_text_get_width(25, month, font, pixel_size);
-    int ad_bc_width = lang_text_get_width(20, year >= 0 ? 1 : 0, font, pixel_size);
+    int month_width = lang_text_get_width(current_string_key(25, month), font, pixel_size);
+    int ad_bc_width = lang_text_get_width(current_string_key(20, year >= 0 ? 1 : 0), font, pixel_size);
     int space_width = font_definition_for(font)->space_width;
 
     int negative_padding = 0;
@@ -210,33 +135,23 @@ void lang_text_draw_month_year_max_width(
         }
     }
 
-    int width = negative_padding + lang_text_draw_colored(25, month, x_offset, y_offset, font, pixel_size, color);
+    int width = negative_padding + lang_text_draw_colored(current_string_key(25, month), x_offset, y_offset, font, pixel_size, color);
     if (year >= 0) {
         int use_year_ad = locale_year_before_ad();
         if (use_year_ad) {
             width += negative_padding +
                 text_draw_number(year, ' ', " ", x_offset + width, y_offset, font, pixel_size, color);
-            lang_text_draw_colored(20, 1, x_offset + width, y_offset, font, pixel_size, color);
+            lang_text_draw_colored("main_strings.20.1", x_offset + width, y_offset, font, pixel_size, color);
         } else {
             width += space_width;
-            width += negative_padding + lang_text_draw_colored(20, 1, x_offset + width, y_offset,
+            width += negative_padding + lang_text_draw_colored("main_strings.20.1", x_offset + width, y_offset,
                 font, pixel_size, color);
             text_draw_number(year, ' ', " ", x_offset + width, y_offset, font, pixel_size, color);
         }
     } else {
         width += negative_padding + text_draw_number(-year, ' ', " ", x_offset + width, y_offset, font, pixel_size, color);
-        lang_text_draw_colored(20, 0, x_offset + width, y_offset, font, pixel_size, color);
+        lang_text_draw_colored("main_strings.20.0", x_offset + width, y_offset, font, pixel_size, color);
     }
-}
-
-int lang_text_draw_multiline(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size)
-{
-    if (font_uses_vector_runtime()) {
-        const uint8_t *legacy = lang_get_string(group, number);
-        return text_draw_multiline(legacy, x_offset, y_offset, box_width, 0, font, pixel_size, 0);
-    }
-    const uint8_t *str = lang_get_string(group, number);
-    return text_draw_multiline(str, x_offset, y_offset, box_width, 0, font, pixel_size, 0);
 }
 
 int lang_text_draw_multiline(
@@ -249,20 +164,20 @@ int lang_text_draw_multiline(
 static const uint8_t *fragment_label_text(const lang_fragment *fragment)
 {
     return fragment->text_key ? lang_get_string(fragment->text_key) :
-        lang_get_string(fragment->text_group, fragment->text_id);
+        lang_get_string(current_string_key(fragment->text_group, fragment->text_id));
 }
 
 static int fragment_label_width(const lang_fragment *fragment, font_t font, int pixel_size)
 {
     return fragment->text_key ? lang_text_get_width(fragment->text_key, font, pixel_size) :
-        lang_text_get_width(fragment->text_group, fragment->text_id, font, pixel_size);
+        lang_text_get_width(current_string_key(fragment->text_group, fragment->text_id), font, pixel_size);
 }
 
 static int fragment_label_draw(
     const lang_fragment *fragment, int x, int y, font_t font, int pixel_size, color_t color)
 {
     return fragment->text_key ? lang_text_draw_colored(fragment->text_key, x, y, font, pixel_size, color) :
-        lang_text_draw_colored(fragment->text_group, fragment->text_id, x, y, font, pixel_size, color);
+        lang_text_draw_colored(current_string_key(fragment->text_group, fragment->text_id), x, y, font, pixel_size, color);
 }
 
 int lang_text_get_sequence_width(const lang_fragment *seq, int count, font_t font, int pixel_size)
@@ -276,7 +191,8 @@ int lang_text_get_sequence_width(const lang_fragment *seq, int count, font_t fon
                 width -= font_definition_for(font)->space_width;
                 break;
             case LANG_FRAG_AMOUNT:
-                width += lang_text_get_amount_width(f->text_group, f->text_id, f->number, font, pixel_size);
+                width += lang_text_get_amount_width(current_string_amount_key(f->text_group, f->text_id, f->number),
+                    f->number, font, pixel_size);
                 width -= font_definition_for(font)->space_width;
                 break;
             case LANG_FRAG_NUMBER:
@@ -303,7 +219,8 @@ int lang_text_draw_sequence(const lang_fragment *seq, int count, int x, int y, f
                 width += fragment_label_draw(f, x + width, y, font, pixel_size, color);
                 break;
             case LANG_FRAG_AMOUNT:
-                width += lang_text_draw_amount_colored(f->text_group, f->text_id, f->number, x + width, y, font, pixel_size, color);
+                width += lang_text_draw_amount_colored(current_string_amount_key(f->text_group, f->text_id, f->number),
+                    f->number, x + width, y, font, pixel_size, color);
                 break;
             case LANG_FRAG_NUMBER:
                 width += text_draw_number(f->number, '\0', "\0", x + width, y, font, pixel_size, color);
@@ -337,7 +254,8 @@ int lang_text_draw_sequence_multiline(const lang_fragment *seq, int count, int x
                 fragment_width = fragment_label_width(f, font, pixel_size);
                 break;
             case LANG_FRAG_AMOUNT:
-                fragment_width = lang_text_get_amount_width(f->text_group, f->text_id, f->number, font, pixel_size);
+                fragment_width = lang_text_get_amount_width(current_string_amount_key(f->text_group, f->text_id, f->number),
+                    f->number, font, pixel_size);
                 break;
             case LANG_FRAG_NUMBER:
                 fragment_width = text_get_number_width(f->number, '\0', "\0", font, pixel_size);
@@ -381,8 +299,9 @@ int lang_text_draw_sequence_multiline(const lang_fragment *seq, int count, int x
                     // (they'll overflow but at least they'll be visible)
                     switch (f->type) {
                         case LANG_FRAG_AMOUNT:
-                            current_x += lang_text_draw_amount_colored(f->text_group, f->text_id, f->number,
-                                current_x, current_y, font, pixel_size, color);
+                            current_x += lang_text_draw_amount_colored(
+                                current_string_amount_key(f->text_group, f->text_id, f->number),
+                                f->number, current_x, current_y, font, pixel_size, color);
                             break;
                         case LANG_FRAG_NUMBER:
                             current_x += text_draw_number(f->number, '\0', "\0", current_x, current_y, font, pixel_size, color);
@@ -402,8 +321,9 @@ int lang_text_draw_sequence_multiline(const lang_fragment *seq, int count, int x
                     current_x += fragment_label_draw(f, current_x, current_y, font, pixel_size, color);
                     break;
                 case LANG_FRAG_AMOUNT:
-                    current_x += lang_text_draw_amount_colored(f->text_group, f->text_id, f->number,
-                        current_x, current_y, font, pixel_size, color);
+                    current_x += lang_text_draw_amount_colored(
+                        current_string_amount_key(f->text_group, f->text_id, f->number),
+                        f->number, current_x, current_y, font, pixel_size, color);
                     break;
                 case LANG_FRAG_NUMBER:
                     current_x += text_draw_number(f->number, '\0', "\0", current_x, current_y, font, pixel_size, color);
@@ -451,7 +371,8 @@ static int lang_text_draw_sequence_ellipsized_internal(const lang_fragment *seq,
                 fragment_width -= font_definition_for(font)->space_width;
                 break;
             case LANG_FRAG_AMOUNT:
-                fragment_width = lang_text_get_amount_width(f->text_group, f->text_id, f->number, font, pixel_size);
+                fragment_width = lang_text_get_amount_width(current_string_amount_key(f->text_group, f->text_id, f->number),
+                    f->number, font, pixel_size);
                 fragment_width -= font_definition_for(font)->space_width;
                 break;
             case LANG_FRAG_NUMBER:
@@ -473,8 +394,9 @@ static int lang_text_draw_sequence_ellipsized_internal(const lang_fragment *seq,
                     width += fragment_label_draw(f, x + width, y, font, pixel_size, color);
                     break;
                 case LANG_FRAG_AMOUNT:
-                    width += lang_text_draw_amount_colored(f->text_group, f->text_id, f->number,
-                        x + width, y, font, pixel_size, color);
+                    width += lang_text_draw_amount_colored(
+                        current_string_amount_key(f->text_group, f->text_id, f->number),
+                        f->number, x + width, y, font, pixel_size, color);
                     break;
                 case LANG_FRAG_NUMBER:
                     width += text_draw_number(f->number, '\0', "\0", x + width, y, font, pixel_size, color);
@@ -596,7 +518,7 @@ int lang_text_concatenate_sequence(const lang_fragment *seq, int count, uint8_t 
 
                 // Add the text
                 if (remaining > 0) {
-                    str = lang_get_string(f->text_group, f->text_id + amount_offset);
+                    str = lang_get_string(current_string_key(f->text_group, f->text_id + amount_offset));
                     len = string_length(str);
                     if (len > remaining) len = remaining;
                     string_copy(str, cursor, len + 1);

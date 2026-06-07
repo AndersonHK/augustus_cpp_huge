@@ -98,7 +98,7 @@ static generic_button bottom_buttons[] = {
     {444, 436, 180, 30, button_start_scenario },
 };
 
-static constexpr translation_key bottom_button_text_keys[] = {
+static const translation_key bottom_button_text_keys[] = {
     "TR_BUTTON_CANCEL",
     "TR_WINDOW_MISSION_LIST_BUTTON_BEGIN_SCENARIO",
 };
@@ -327,13 +327,13 @@ static void draw_scenario_map(void)
 
 static void draw_rank(int y_offset)
 {
-    int x_offset = lang_text_get_width(44, 117, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
+    int x_offset = lang_text_get_width("main_strings.44.117", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
     x_offset += text_get_width(string_from_ascii(":"), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    x_offset += lang_text_get_width(32, data.selected_item->rank, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    x_offset += lang_text_get_width(current_string_key(32, data.selected_item->rank), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset = SELECTED_ITEM_INFO_X_OFFSET + (SELECTED_ITEM_INFO_WIDTH - x_offset) / 2;
-    x_offset += lang_text_draw(44, 117, x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
+    x_offset += lang_text_draw("main_strings.44.117", x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
     x_offset += text_draw(string_from_ascii(":"), x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    lang_text_draw(32, data.selected_item->rank, x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw(current_string_key(32, data.selected_item->rank), x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void draw_background(void)

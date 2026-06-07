@@ -363,7 +363,7 @@ const uint8_t *BuildMenuButton::display_name() const
             return display_name;
         }
     }
-    return lang_get_string(28, building);
+    return lang_get_string(current_string_key(28, building));
 }
 
 const ImageGroupEntryRef &BuildMenuButton::menu_icon() const
@@ -411,9 +411,7 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
                 item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
                 MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         }
-        lang_text_draw_centered(18, 5 - building_construction_is_auto_cycling(), x_offset - MENU_ITEM_MONEY_OFFSET,
-            item_y + 4, MENU_ITEM_MONEY_OFFSET,
-            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_centered(current_string_key(18, 5 - building_construction_is_auto_cycling()), x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4, MENU_ITEM_MONEY_OFFSET, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         return;
     }
 

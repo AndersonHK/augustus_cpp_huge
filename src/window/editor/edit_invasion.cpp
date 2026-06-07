@@ -174,7 +174,7 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(16, BASE_Y_OFFSET, 38, 26);
-    lang_text_draw_centered(44, 22, 16, BASE_Y_OFFSET + 14, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.44.22", 16, BASE_Y_OFFSET + 14, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     int y_offset = BASE_Y_OFFSET + 58;
 
@@ -222,13 +222,11 @@ static void draw_background(void)
 
     // Invasion from text
     btn = &edit_buttons[4];
-    lang_text_draw_centered_colored(35, data.invasion.from, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width,
-        enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
+    lang_text_draw_centered_colored(current_string_key(35, data.invasion.from), x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
     // Invasion priority text
     btn = &edit_buttons[5];
-    lang_text_draw_centered_colored(36, data.invasion.attack_type, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6,
-        btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
+    lang_text_draw_centered_colored(current_string_key(36, data.invasion.attack_type), x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
     // Repeat type selected checkbox
     btn = &edit_buttons[6 + data.repeat_type];
@@ -274,12 +272,10 @@ static void draw_background(void)
         BASE_Y_OFFSET + btn->y + 6, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
     // Bottom button labels
-    lang_text_draw_centered_colored(44, 26, bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 6,
-        bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_invasion ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
+    lang_text_draw_centered_colored("main_strings.44.26", bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 6, bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_invasion ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
     lang_text_draw_centered("TR_BUTTON_CANCEL", bottom_buttons[1].x, BASE_Y_OFFSET + bottom_buttons[1].y + 6, bottom_buttons[1].width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(18, 3, bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 6, bottom_buttons[2].width,
-        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.18.3", bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 6, bottom_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

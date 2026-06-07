@@ -2,6 +2,7 @@
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
+#include "city/message.h"
 #include "input/input.h"
 #include "scenario/custom_messages_import_xml.h"
 #include "window/city.h"
@@ -142,7 +143,7 @@ static void draw_foreground(void)
     lang_text_draw_centered("TR_EDITOR_CUSTOM_MESSAGES_CLEAR", 48, y_offset + 8, BUTTON_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     //y_offset += MESSAGES_ROW_HEIGHT;
-    lang_text_draw_centered(13, 3, 48, 600, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)); // Right-click to Continue
+    lang_text_draw_centered("main_strings.13.3", 48, 600, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)); // Right-click to Continue
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();
@@ -154,7 +155,7 @@ static void button_event(const generic_button *button)
     if (!data.list[index]) {
         return;
     };
-    window_message_dialog_show_custom_message(data.list[index]->id, 0, 0);
+    window_message_dialog_show_city_message(MESSAGE_CUSTOM_MESSAGE, 0, 0, data.list[index]->id, 0, MESSAGE_ADVISOR_NONE, 1);
 }
 
 static void on_scroll(void)

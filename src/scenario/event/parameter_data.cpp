@@ -1297,7 +1297,7 @@ parameter_type scenario_events_parameter_data_resolve_flexible_type(const scenar
 static const uint8_t *get_allowed_building_name(building_type type)
 {
     if (type == building_type_registry_get_vacant_lot_fill_type()) {
-        return lang_get_string(68, 20);
+        return lang_get_string("main_strings.68.20");
     }
     if (type_matches(type, "clear_land")) {
         return translation_for("TR_BUILDING_LAND_CLEAR");
@@ -1360,9 +1360,9 @@ static uint8_t *string_from_year(uint8_t *dst, int year, int *maxlength)
             cursor += string_from_int(cursor, year, 0);
             *cursor = ' ';
             cursor++;
-            cursor = string_copy(lang_get_string(20, 1), cursor, *maxlength - 10);
+            cursor = string_copy(lang_get_string("main_strings.20.1"), cursor, *maxlength - 10);
         } else {
-            cursor = string_copy(lang_get_string(20, 1), cursor, *maxlength - 10);
+            cursor = string_copy(lang_get_string("main_strings.20.1"), cursor, *maxlength - 10);
             *cursor = ' ';
             cursor++;
             cursor += string_from_int(cursor, year, 0);
@@ -1371,7 +1371,7 @@ static uint8_t *string_from_year(uint8_t *dst, int year, int *maxlength)
         cursor += string_from_int(cursor, -year, 0);
         *cursor = ' ';
         cursor++;
-        cursor = string_copy(lang_get_string(20, 0), cursor, *maxlength - 10);
+        cursor = string_copy(lang_get_string("main_strings.20.0"), cursor, *maxlength - 10);
     }
     int total_chars = (int) (cursor - dst);
     *maxlength -= total_chars;

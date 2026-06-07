@@ -689,27 +689,47 @@ void BuildingType::add_foundation_required_terrain(int flags)
 
 void BuildingType::set_button_group(std::string group)
 {
-    button_.set_group(std::move(group));
+    if (buttons_.empty()) {
+        buttons_.emplace_back();
+    }
+    buttons_.front().set_group(std::move(group));
 }
 
 void BuildingType::set_button_order(int order)
 {
-    button_.set_order(order);
+    if (buttons_.empty()) {
+        buttons_.emplace_back();
+    }
+    buttons_.front().set_order(order);
 }
 
 void BuildingType::set_button_icon(std::string icon)
 {
-    button_.set_icon(std::move(icon));
+    if (buttons_.empty()) {
+        buttons_.emplace_back();
+    }
+    buttons_.front().set_icon(std::move(icon));
 }
 
 void BuildingType::set_button_icon_image(std::string image)
 {
-    button_.set_icon_image(std::move(image));
+    if (buttons_.empty()) {
+        buttons_.emplace_back();
+    }
+    buttons_.front().set_icon_image(std::move(image));
 }
 
 void BuildingType::set_button_text_key(std::string key)
 {
-    button_.set_text_key(std::move(key));
+    if (buttons_.empty()) {
+        buttons_.emplace_back();
+    }
+    buttons_.front().set_text_key(std::move(key));
+}
+
+void BuildingType::add_button(BuildButtonDefinition button)
+{
+    buttons_.push_back(std::move(button));
 }
 
 void BuildingType::set_roadblock_kind(RoadblockKind kind)
@@ -1012,7 +1032,13 @@ const FoundationDefinition &BuildingType::foundation() const
 
 const BuildButtonDefinition &BuildingType::button() const
 {
-    return button_;
+    static const BuildButtonDefinition empty_button;
+    return buttons_.empty() ? empty_button : buttons_.front();
+}
+
+const std::vector<BuildButtonDefinition> &BuildingType::buttons() const
+{
+    return buttons_;
 }
 
 const RoadblockDefinition &BuildingType::roadblock() const
@@ -1067,12 +1093,13 @@ const ConstructionDefinition &BuildingType::construction() const
 
 ImageGroupEntryRef BuildingType::button_icon_ref() const
 {
-    return has_button() ? button_.icon_ref() : ImageGroupEntryRef();
+    return has_button() ? button().icon_ref() : ImageGroupEntryRef();
 }
 
 const char *BuildingType::button_text_key() const
 {
-    return has_button() && button_.has_text_key() ? button_.text_key() : nullptr;
+    const BuildButtonDefinition &primary_button = button();
+    return has_button() && primary_button.has_text_key() ? primary_button.text_key() : nullptr;
 }
 
 int BuildingType::required_workers() const
@@ -1249,7 +1276,12 @@ int BuildingType::foundation_required_terrain() const
 
 int BuildingType::has_button() const
 {
-    return button_.has_any();
+    for (const BuildButtonDefinition &button : buttons_) {
+        if (button.has_any()) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int BuildingType::has_roadblock() const

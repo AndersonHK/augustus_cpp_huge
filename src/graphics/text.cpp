@@ -892,7 +892,7 @@ int text_draw_money(int value, int x_offset, int y_offset, font_t font, int pixe
 {
     const uint8_t *postfix;
     if (locale_translate_money_dn()) {
-        postfix = lang_get_string(6, 0);
+        postfix = lang_get_string("main_strings.6.0");
     } else {
         postfix = string_from_ascii("Dn");
     }
@@ -912,7 +912,7 @@ void text_draw_with_money(const uint8_t *text, int value, const char *prefix, co
     offset += number_to_string(offset, value, 0, " ");
     const uint8_t *money_postfix;
     if (locale_translate_money_dn()) {
-        money_postfix = lang_get_string(6, 0);
+        money_postfix = lang_get_string("main_strings.6.0");
     } else {
         money_postfix = string_from_ascii("Dn");
     }

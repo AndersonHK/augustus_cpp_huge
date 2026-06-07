@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temples">
     <identity name_key="building.large_temples.name" />
+    <button group="temples" order="100" text_key="TR_PARAMETER_VALUE_BUILDING_MENU_LARGE_TEMPLES" />
+    <button group="large_temples" order="0" text_key="TR_PARAMETER_VALUE_BUILDING_MENU_LARGE_TEMPLES" />
     <event_data attr="large_temples|all_large_temples" />
 </building>

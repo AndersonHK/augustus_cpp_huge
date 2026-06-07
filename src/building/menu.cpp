@@ -67,35 +67,6 @@ static const submenu_expander_mapping SUBMENU_EXPANDERS[] = {
     {BUILD_MENU_GARDENS, "all_gardens"},
 };
 
-struct menu_shell_entry {
-    build_menu_group submenu;
-    const char *text_id;
-    int order;
-};
-
-static const menu_shell_entry MENU_SHELL_ENTRIES[] = {
-    {BUILD_MENU_TEMPLES, "small_temples", 0},
-    {BUILD_MENU_TEMPLES, "large_temples", 100},
-    {BUILD_MENU_TEMPLES, "grand_temples", 200},
-    {BUILD_MENU_TEMPLES, "shrines", 300},
-    {BUILD_MENU_ADMINISTRATION, "all_gardens", 0},
-    {BUILD_MENU_ADMINISTRATION, "trees", 100},
-    {BUILD_MENU_ADMINISTRATION, "paths", 200},
-    {BUILD_MENU_ADMINISTRATION, "parks", 300},
-    {BUILD_MENU_ADMINISTRATION, "statues", 400},
-    {BUILD_MENU_ADMINISTRATION, "governor_home", 500},
-    {BUILD_MENU_SECURITY, "fort", 400},
-    {BUILD_MENU_INDUSTRY, "farms", 0},
-    {BUILD_MENU_INDUSTRY, "raw_materials", 100},
-    {BUILD_MENU_INDUSTRY, "workshops", 200},
-    {BUILD_MENU_SMALL_TEMPLES, "small_temples", 0},
-    {BUILD_MENU_LARGE_TEMPLES, "large_temples", 0},
-    {BUILD_MENU_TREES, "trees", 0},
-    {BUILD_MENU_PATHS, "paths", 0},
-    {BUILD_MENU_SHRINES, "shrines", 0},
-    {BUILD_MENU_GARDENS, "all_gardens", 0},
-};
-
 static building_type submenu_expander_type(int submenu)
 {
     for (const submenu_expander_mapping &mapping : SUBMENU_EXPANDERS) {
@@ -182,18 +153,19 @@ static void rebuild_menu_catalog(void)
         entries.clear();
     }
 
-    for (const menu_shell_entry &entry : MENU_SHELL_ENTRIES) {
-        add_menu_entry(entry.submenu, xml_type(entry.text_id), entry.order);
-    }
-
     using namespace building_type_registry_impl;
     for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
-        if (!definition || !definition->has_button() || !definition->button().has_group()) {
+        if (!definition) {
             continue;
         }
-        build_menu_group submenu = button_group_from_string(definition->button().group());
-        int order = definition->button().has_order() ? definition->button().order() : 10000;
-        add_menu_entry(submenu, menu_tool_type_for_definition(definition->type()), order);
+        for (const BuildButtonDefinition &button : definition->buttons()) {
+            if (!button.has_group()) {
+                continue;
+            }
+            build_menu_group submenu = button_group_from_string(button.group());
+            int order = button.has_order() ? button.order() : 10000;
+            add_menu_entry(submenu, menu_tool_type_for_definition(definition->type()), order);
+        }
     }
 
     for (std::vector<menu_entry> &entries : menu_entries) {

@@ -40,16 +40,27 @@ bool load_active_locale(int is_editor)
 
     detail::locale_catalog catalog;
     std::string error;
-    for (int i = 0; i < mod_manager_get_mod_count(); ++i) {
-        const std::string locale_path = detail::append_path_component(
-            detail::append_path_component(mod_manager_get_mod_path_at(i), "Localization"),
-            locale_code + ".json");
+    const auto merge_locale_file = [&](const std::string &locale_path) -> bool {
         if (!file_exists(locale_path.c_str(), NOT_LOCALIZED)) {
-            continue;
+            return true;
         }
         CrashContextScope crash_scope("localization.merge_locale_json", locale_path.c_str());
         if (!detail::merge_locale_json(locale_path, catalog, error)) {
             error_context_report_error("Localization load failed.", error.c_str());
+            return false;
+        }
+        return true;
+    };
+    for (int i = 0; i < mod_manager_get_mod_count(); ++i) {
+        const std::string localization_path = detail::append_path_component(mod_manager_get_mod_path_at(i), "Localization");
+        if (locale_code != "en") {
+            const std::string fallback_path = detail::append_path_component(localization_path, "en.json");
+            if (!merge_locale_file(fallback_path)) {
+                return false;
+            }
+        }
+        const std::string locale_path = detail::append_path_component(localization_path, locale_code + ".json");
+        if (!merge_locale_file(locale_path)) {
             return false;
         }
     }

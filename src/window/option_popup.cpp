@@ -200,8 +200,7 @@ static void draw_foreground(void)
         data.focus_button_id == 2 && data.selected_option != data.original_option);
 
     draw_popup_text();
-    lang_text_draw_centered(13, 4, 40, buttons[0].y + 4,
-        180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.4", 40, buttons[0].y + 4, 180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     draw_apply_button(260, buttons[1].y + 4, 180);
 
     if (data.num_options > data.visible_options) {

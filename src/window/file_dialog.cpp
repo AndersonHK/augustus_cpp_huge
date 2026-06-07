@@ -251,7 +251,7 @@ static void init(file_type type, file_dialog_type dialog_type)
         }
     } else if (dialog_type == FILE_DIALOG_SAVE) {
         // Suggest default filename
-        string_copy(lang_get_string(9, type == FILE_TYPE_SCENARIO ? 7 : 6), data.typed_name, FILE_NAME_MAX);
+        string_copy(lang_get_string(current_string_key(9, type == FILE_TYPE_SCENARIO ? 7 : 6)), data.typed_name, FILE_NAME_MAX);
         encoding_to_utf8(data.typed_name, data.selected_file, FILE_NAME_MAX, encoding_system_uses_decomposed());
         file_append_extension(data.selected_file, data.file_data->extension, FILE_NAME_MAX);
     } else {
@@ -331,7 +331,7 @@ static void draw_mission_info(int x_offset, int y_offset, int box_size)
             cursor = string_copy(string_from_ascii(" "), cursor, FILE_NAME_MAX - (int) (cursor - text));
             cursor += string_from_int(cursor, (data.info.origin.mission + 4) / 2, 0);
             cursor = string_copy(string_from_ascii(" - "), cursor, FILE_NAME_MAX - (int) (cursor - text));
-            string_copy(lang_get_string(21, MISSION_ID_TO_CITY_ID[data.info.origin.mission]), cursor,
+            string_copy(lang_get_string(current_string_key(21, MISSION_ID_TO_CITY_ID[data.info.origin.mission])), cursor,
                 FILE_NAME_MAX - (int) (cursor - text));
         }
     } else {
@@ -356,7 +356,7 @@ static void draw_sort_button(void)
         data.sort_by_button_focused
     );
 
-    static constexpr translation_key sort_keys[] = {
+    static const translation_key sort_keys[] = {
         "TR_SAVE_DIALOG_SORTING_BY_NAME",
         "TR_SAVE_DIALOG_SORTING_BY_DATE",
     };
@@ -413,7 +413,7 @@ static void draw_foreground(void)
 
         // title
         if (data.dialog_type == FILE_DIALOG_DELETE) {
-            lang_text_draw_centered(43, 6, 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+            lang_text_draw_centered("main_strings.43.6", 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
         } else if (data.type == FILE_TYPE_EMPIRE) {
             translation_key message_id = "TR_EDITOR_CUSTOM_EMPIRE_TITLE";
             if (data.dialog_type == FILE_DIALOG_SAVE) {
@@ -442,10 +442,10 @@ static void draw_foreground(void)
             lang_text_draw_centered("TR_EDITOR_IMAGE_IMPORT", 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
         } else {
             int text_id = data.dialog_type + (data.type == FILE_TYPE_SCENARIO ? 3 : 0);
-            lang_text_draw_centered(43, text_id, 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+            lang_text_draw_centered(current_string_key(43, text_id), 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
         }
         // Proceed? text
-        lang_text_draw_right_aligned(43, 5, 362, 447, 164, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_right_aligned("main_strings.43.5", 362, 447, 164, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         // Saved game info
         if (*data.selected_file && data.type != FILE_TYPE_EMPIRE && data.type != FILE_TYPE_SCENARIO_EVENTS &&

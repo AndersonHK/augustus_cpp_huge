@@ -292,7 +292,7 @@ private:
         const int y = label->resolved_y(dialog_height(), definition().base_height());
         const int pixel_size =
             screen_ui_to_pixel(font_definition_for(label->font)->line_height + label->font_size_delta);
-        text_draw(lang_get_string(group, text_id), x, y, label->font, pixel_size, label->color);
+        text_draw(lang_get_string(current_string_key(group, text_id)), x, y, label->font, pixel_size, label->color);
     }
 
     void draw_objective(const char *id, const MissionObjective &objective) const
@@ -310,7 +310,7 @@ private:
         const int pixel_size =
             screen_ui_to_pixel(font_definition_for(box->font)->line_height + box->font_size_delta);
         const int width = text_draw(
-            lang_get_string(62, objective.label_text_id), text_x, text_y, box->font, pixel_size, box->color);
+            lang_get_string(current_string_key(62, objective.label_text_id)), text_x, text_y, box->font, pixel_size, box->color);
         text_draw_number(objective.value, '@', " ", text_x + width, text_y, box->font, pixel_size, box->color);
     }
 
@@ -326,7 +326,7 @@ private:
         const int pixel_size =
             screen_ui_to_pixel(font_definition_for(box->font)->line_height + box->font_size_delta);
         text_draw(
-            lang_get_string(62, text_id), x + box->padding_x, y + box->padding_y, box->font, pixel_size, box->color);
+            lang_get_string(current_string_key(62, text_id)), x + box->padding_x, y + box->padding_y, box->font, pixel_size, box->color);
     }
 
     void draw_objective_box(const DeclarativeWidgetDefinition &box, int x, int y) const

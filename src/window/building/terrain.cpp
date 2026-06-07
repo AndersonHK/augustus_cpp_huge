@@ -13,7 +13,7 @@
 void window_building_draw_no_people(building_info_context *c)
 {
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(70, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.70.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 }
 
 void window_building_draw_terrain(building_info_context *c)
@@ -60,16 +60,13 @@ void window_building_draw_terrain(building_info_context *c)
         outer_panel_draw(c->x_offset, c->y_offset,
             c->width_blocks, c->height_blocks);
         if (!c->figure.count) {
-            lang_text_draw_centered(70, c->terrain_type + 10,
-                c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+            lang_text_draw_centered(current_string_key(70, c->terrain_type + 10), c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
         }
         if (c->figure.count == 0 &&
             c->terrain_type != TERRAIN_INFO_ROAD &&
             c->terrain_type != TERRAIN_INFO_PLAZA &&
             c->terrain_type != TERRAIN_INFO_HIGHWAY) {
-            lang_text_draw_multiline(70, c->terrain_type + 25,
-                c->x_offset + 40, c->y_offset + BLOCK_SIZE * c->height_blocks - 125,
-                BLOCK_SIZE * (c->width_blocks - 4), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_multiline(current_string_key(70, c->terrain_type + 25), c->x_offset + 40, c->y_offset + BLOCK_SIZE * c->height_blocks - 125, BLOCK_SIZE * (c->width_blocks - 4), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
         window_building_draw_figure_list(c);
         // add roadblock buttons and roadblock functionality 

@@ -14,6 +14,7 @@ extern "C" {
 
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 
 void translation_load(language_type language)
 {
@@ -24,9 +25,33 @@ void translation_load(language_type language)
     lang_refresh_message_cache();
 }
 
+translation_key localized_string_key(int is_editor, int group, int index)
+{
+    char key[64];
+    snprintf(key, sizeof(key), "%s.%d.%d", is_editor ? "editor_strings" : "main_strings", group, index);
+    return translation_key(std::string(key));
+}
+
+translation_key main_string_key(int group, int index)
+{
+    return localized_string_key(0, group, index);
+}
+
+translation_key editor_string_key(int group, int index)
+{
+    return localized_string_key(1, group, index);
+}
+
+translation_key main_string_amount_key(int group, int first_index, int amount)
+{
+    return main_string_key(group, first_index + (amount == 1 || amount == -1 ? 0 : 1));
+}
+
+static const uint8_t *localized_key_text(const char *display_key);
+
 const uint8_t *translation_for_key(const char *key)
 {
-    const uint8_t *text = localization::legacy_named_project_string(key);
+    const uint8_t *text = localized_key_text(key);
     if (text && text[0]) {
         return text;
     }
@@ -42,6 +67,16 @@ static struct {
     int editor_mode;
 } data;
 
+translation_key current_string_key(int group, int index)
+{
+    return localized_string_key(data.editor_mode, group, index);
+}
+
+translation_key current_string_amount_key(int group, int first_index, int amount)
+{
+    return current_string_key(group, first_index + (amount == 1 || amount == -1 ? 0 : 1));
+}
+
 static building_type runtime_type(const char *text_id)
 {
     return building_type_registry_runtime_id_from_text(text_id);
@@ -50,17 +85,6 @@ static building_type runtime_type(const char *text_id)
 static int type_matches(building_type type, const char *text_id)
 {
     return type == runtime_type(text_id);
-}
-
-static int native_building_uses_editor_name_group(building_type type)
-{
-    static const char *native_buildings[] = {"native_meeting", "native_hut", "native_hut_alt", "native_crops", nullptr};
-    for (int i = 0; native_buildings[i]; i++) {
-        if (type_matches(type, native_buildings[i])) {
-            return 1;
-        }
-    }
-    return 0;
 }
 
 int lang_dir_is_valid(const char *dir)
@@ -162,6 +186,12 @@ static const uint8_t *building_type_legacy_string_key_text(const char *display_k
 
 static const uint8_t *building_type_display_key_text(const char *display_key)
 {
+    const uint8_t *text = localized_key_text(display_key);
+    return text && text[0] ? text : reinterpret_cast<const uint8_t *>(display_key);
+}
+
+static const uint8_t *localized_key_text(const char *display_key)
+{
     const uint8_t *legacy_text = building_type_legacy_string_key_text(display_key);
     if (legacy_text && legacy_text[0]) {
         return legacy_text;
@@ -172,7 +202,7 @@ static const uint8_t *building_type_display_key_text(const char *display_key)
         return named_translation;
     }
 
-    return reinterpret_cast<const uint8_t *>(display_key);
+    return 0;
 }
 
 static int building_type_display_key_is_localized(const char *display_key)
@@ -388,29 +418,6 @@ void lang_refresh_message_cache(void)
     localization::copy_legacy_messages(data.editor_mode, data.message_entries, MAX_MESSAGE_ENTRIES);
 }
 
-const uint8_t *lang_get_string(int group, int index)
-{
-    //locale-dependent fixes
-    language_type l_type = locale_last_determined_language();
-    if (l_type == LANGUAGE_KOREAN && group == 28 && index == 46) {
-        const uint8_t *try_translation = translation_for_key("TR_FIX_KOREAN_BUILDING_DOCTORS_CLINIC");
-        if (try_translation) {
-            return try_translation;
-        }
-    }
-    // XML overrides of original strings
-    if ((group == 28 || group == 41) && index > BUILDING_NONE && index < BUILDING_TYPE_MAX &&
-        building_type_registry_has_definition(static_cast<building_type>(index))) {
-        building_type type = static_cast<building_type>(index);
-        const char *display_key = building_type_registry_get_name_key(type);
-        if (display_key && *display_key && building_type_display_key_is_localized(display_key)) {
-            return building_type_display_key_text(display_key);
-        }
-    }
-
-    return localization::legacy_legacy_string(data.editor_mode, group, index);
-}
-
 const uint8_t *lang_get_string(translation_key key)
 {
     return translation_for(key);
@@ -419,11 +426,19 @@ const uint8_t *lang_get_string(translation_key key)
 const uint8_t *lang_get_building_type_string(int type)
 {
     building_type building_type_id = static_cast<building_type>(type);
-    if (building_is_house(building_type_id) || native_building_uses_editor_name_group(building_type_id)) {
-        return lang_get_string(41, type);
-    } else {
-        return lang_get_string(28, type);
+    if (building_type_registry_has_definition(building_type_id)) {
+        const char *display_key = building_type_registry_get_button_text_key(building_type_id);
+        if (display_key && *display_key && building_type_display_key_is_localized(display_key)) {
+            return building_type_display_key_text(display_key);
+        }
+        display_key = building_type_registry_get_name_key(building_type_id);
+        if (display_key && *display_key && building_type_display_key_is_localized(display_key)) {
+            return building_type_display_key_text(display_key);
+        }
     }
+
+    // Original names still live in the localized JSON as generated keys while the old binary tables are being retired.
+    return lang_get_string(current_string_key(building_is_house(building_type_id) ? 41 : 28, type));
 }
 
 const lang_message *lang_get_message(int id)

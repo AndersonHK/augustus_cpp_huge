@@ -89,7 +89,7 @@ static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *mes
 
 static translation_key house_sentiment_key_for_happiness(int happiness)
 {
-    static constexpr translation_key keys[] = {
+    static const translation_key keys[] = {
         "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1",
         "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2",
         "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_3",
@@ -525,11 +525,11 @@ static int get_tooltip_desirability(tooltip_context *c, int grid_offset)
     }
     const uint8_t *text;
     if (desirability < 0) {
-        text = lang_get_string(66, 91);
+        text = lang_get_string("main_strings.66.91");
     } else if (desirability == 0) {
-        text = lang_get_string(66, 92);
+        text = lang_get_string("main_strings.66.92");
     } else {
-        text = lang_get_string(66, 93);
+        text = lang_get_string("main_strings.66.93");
     }
     c->precomposed_text = prefix_value_to_tooltip_text(desirability, text);
     return 1;
@@ -547,7 +547,7 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
     if (type_matches(b->type, "depot")) {
         static uint8_t result[256];
         order depot_order = b->data.depot.current_order;
-        static constexpr translation_key condition_texts[] = {
+        static const translation_key condition_texts[] = {
             "TR_ORDER_CONDITION_NEVER",
             "TR_ORDER_CONDITION_ALWAYS",
             "TR_ORDER_CONDITION_SOURCE_HAS_MORE_THAN",
@@ -564,8 +564,8 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
         building *b_src = building_get(depot_order.src_storage_id);
         building *b_dst = building_get(depot_order.dst_storage_id);
 
-        const uint8_t *src_type = lang_get_string(28, b_src->type);
-        const uint8_t *dst_type = lang_get_string(28, b_dst->type);
+        const uint8_t *src_type = lang_get_string(current_string_key(28, b_src->type));
+        const uint8_t *dst_type = lang_get_string(current_string_key(28, b_dst->type));
         char src_info[64];
         char dst_info[64];
         snprintf(src_info, sizeof(src_info), "%s %d", (const char *) src_type, b_src->storage_id);

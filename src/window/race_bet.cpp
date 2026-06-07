@@ -111,7 +111,7 @@ static void draw_background(void)
     inner_panel_draw(18, 300, 28, 2);
     text_draw_centered(translation_for_key("TR_WINDOW_RACE_BET_AMOUNT"), 18, 310, 80, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     int width = text_draw_number(data.bet_amount, '@', " ", 165, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-    width += lang_text_draw(50, 15, 165 + width, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    width += lang_text_draw("main_strings.50.15", 165 + width, 310, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_with_money(translation_for_key("TR_PERSONAL_SAVINGS"), city_emperor_personal_savings(), " ", "", 284, 310, 175,  FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     translation_key horse_description;

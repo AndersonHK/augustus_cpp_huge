@@ -132,9 +132,9 @@ static int draw_background(void)
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
     Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 4).draw(10, 10);
 
-    lang_text_draw(54, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    int width = lang_text_get_width(54, 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw(54, 1, 575 - width, 38, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.54.0", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    int width = lang_text_get_width("main_strings.54.1", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.54.1", 575 - width, 38, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     grid_box_request_refresh(&resource_grid);
 
@@ -173,7 +173,7 @@ static void draw_resource_status_text(resource_type resource, int x, int y, int 
 
     if (trade_flags_potential == TRADE_STATUS_NONE) {
         if (city_resource_is_stockpiled(resource)) {
-            lang_text_draw_centered(54, 3, x, y + 10, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+            lang_text_draw_centered("main_strings.54.3", x, y + 10, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         }
         return;
     }
@@ -195,8 +195,8 @@ static void draw_resource_status_text(resource_type resource, int x, int y, int 
     }
 
     if (trade_status & TRADE_STATUS_IMPORT) {
-        int width = (box_width - 20 - lang_text_get_width(54, 5, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height))) / 2;
-        width += lang_text_draw(54, 5, x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        int width = (box_width - 20 - lang_text_get_width("main_strings.54.5", FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height))) / 2;
+        width += lang_text_draw("main_strings.54.5", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         int import_limit = city_resource_import_over(resource);
         if (import_limit > 0) {
             text_draw_number(import_limit, 0, " ", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
@@ -214,10 +214,10 @@ static void draw_resource_status_text(resource_type resource, int x, int y, int 
     }
 
     if (city_resource_is_stockpiled(resource)) {
-        lang_text_draw_centered(54, 3, x, y, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+        lang_text_draw_centered("main_strings.54.3", x, y, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
     } else if (trade_status & TRADE_STATUS_EXPORT) {
-        int width = (box_width - 15 - lang_text_get_width(54, 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height))) / 2;
-        width += lang_text_draw(54, 6, x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        int width = (box_width - 15 - lang_text_get_width("main_strings.54.6", FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height))) / 2;
+        width += lang_text_draw("main_strings.54.6", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         text_draw_number(city_resource_export_over(resource), 0, " ", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (trade_flags & TRADE_STATUS_EXPORT) {
         text_draw_centered(translation_for_key("TR_ADVISOR_TRADE_EXPORTABLE"), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
@@ -246,10 +246,10 @@ static void draw_resource_info(const grid_box_item *item)
         }
         text_draw_number_centered(amount, item->x + 130, item->y + 15, 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else {
-        lang_text_draw_centered(56, 2, item->x + 130, item->y + 15, 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_centered("main_strings.56.2", item->x + 130, item->y + 15, 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
     if (city_resource_is_mothballed(resource)) {
-        lang_text_draw_centered(18, 5, item->x + 160, item->y + 15, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_centered("main_strings.18.5", item->x + 160, item->y + 15, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
     draw_resource_status_text(resource, item->x + 176, item->y + 5, item->width - 206);
 
@@ -382,7 +382,7 @@ static void write_resource_storage_tooltip(tooltip_context *c, resource_type res
     text += string_from_int(text, amount_warehouse, 0);
     *text = ' ';
     text++;
-    text = string_copy(lang_get_string(52, 43), text, 200 - (int) (text - tooltip_resource_info));
+    text = string_copy(lang_get_string("main_strings.52.43"), text, 200 - (int) (text - tooltip_resource_info));
     *text = '\n';
     text++;
     text += string_from_int(text, amount_granary, 0);

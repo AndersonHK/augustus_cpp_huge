@@ -110,7 +110,7 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 0, 40, 30);
-    lang_text_draw(44, 95, 20, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw("main_strings.44.95", 20, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     if (!data.price_changes_in_use) {
         lang_text_draw_centered("TR_EDITOR_NO_PRICE_CHANGES", 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
@@ -118,8 +118,8 @@ static void draw_background(void)
     lang_text_draw_centered("TR_EDITOR_NEW_PRICE_CHANGE", new_price_change_button.x + 8,
         new_price_change_button.y + 8, new_price_change_button.width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered(13, 3, 0, 456, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_multiline(152, 3, 20, 376, 605, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 0, 456, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_multiline("main_strings.152.3", 20, 376, 605, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 
@@ -136,13 +136,12 @@ static void draw_price_change_button(const grid_box_item *item)
     const ImageGroupEntryRef &icon = resource_graphics(static_cast<resource_type>(price_change->resource)).editor_icon();
     int base_height = (item->height - icon.height()) / 2;
     icon.draw(item->x + 45 + width, item->y + base_height);
-    //width += lang_text_draw(44, price_change->is_rise ? 104 : 103, item->x + 75 + width, item->y + 7, FONT_NORMAL_BLACK);
     if (price_change->is_rise) {
-        width += lang_text_draw_colored(44, 104, item->x + 75 + width, item->y + 7, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_DARK_GREEN);
+        width += lang_text_draw_colored("main_strings.44.104", item->x + 75 + width, item->y + 7, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_DARK_GREEN);
         width += text_draw_number(price_change->amount, '+', " ", item->x + 75 + width, item->y + 7,
             FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_DARK_GREEN);
     } else {
-        width += lang_text_draw_colored(44, 103, item->x + 75 + width, item->y + 7, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_PURPLE);
+        width += lang_text_draw_colored("main_strings.44.103", item->x + 75 + width, item->y + 7, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_PURPLE);
         width += text_draw_number(price_change->amount, '-', " ", item->x + 75 + width, item->y + 7,
             FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_MASK_PURPLE);
     }

@@ -293,8 +293,7 @@ static void draw_background(void)
                 text_draw(lang_get_building_type_string(type),
                     32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else {
-                lang_text_draw(widget->name_text_group, widget->name_text_id,
-                    32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+                lang_text_draw(current_string_key(widget->name_text_group, widget->name_text_id), 32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             }
 
             const hotkey_mapping *mapping1 = &data.mappings[widget->action][0];
@@ -386,7 +385,7 @@ static const uint8_t *hotkey_action_name_for(hotkey_action action)
             if (widget->name_translation) {
                 name = translation_for(widget->name_translation);
             } else {
-                name = lang_get_string(widget->name_text_group, widget->name_text_id);
+                name = lang_get_string(current_string_key(widget->name_text_group, widget->name_text_id));
             }
             break;
         }

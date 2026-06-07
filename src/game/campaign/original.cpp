@@ -60,13 +60,13 @@ static campaign_scenario *new_scenario(int rank)
 
     uint8_t *name;
     if (rank < FIRST_RANK_WITH_MULTIPLE_SCENARIOS) {
-        static constexpr translation_key first_mission_names[] = {
+        static const translation_key first_mission_names[] = {
             "TR_ORIGINAL_CAMPAIGN_FIRST_MISSION",
             "TR_ORIGINAL_CAMPAIGN_SECOND_MISSION",
         };
         name = copy_new_string(lang_get_string(first_mission_names[rank]));
     } else {
-        name = copy_new_string(lang_get_string(144, 2 + 3 * rank + (camp_scenario->id % SCENARIOS_PER_RANK)));
+        name = copy_new_string(lang_get_string(current_string_key(144, 2 + 3 * rank + (camp_scenario->id % SCENARIOS_PER_RANK))));
     }
     if (!name) {
         log_error("Problem generating original campaign data - memory full", 0, 0);
@@ -110,7 +110,7 @@ int campaign_original_setup(void)
             log_error("Problem generating original campaign data - memory full", 0, 0);
             return 0;
         }
-        mission->title = lang_get_string(144, 1 + 3 * rank);
+        mission->title = lang_get_string(current_string_key(144, 1 + 3 * rank));
         mission->next_rank = rank + 1;
         mission->max_personal_savings = INT_MAX;
 

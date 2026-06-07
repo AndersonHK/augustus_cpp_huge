@@ -103,10 +103,10 @@ int game_pre_init(void)
 
 static int is_unpatched(void)
 {
-    const uint8_t *delete_game = lang_get_string(1, 6);
-    const uint8_t *option_menu = lang_get_string(2, 0);
-    const uint8_t *difficulty_option = lang_get_string(2, 6);
-    const uint8_t *help_menu = lang_get_string(3, 0);
+    const uint8_t *delete_game = lang_get_string("main_strings.1.6");
+    const uint8_t *option_menu = lang_get_string("main_strings.2.0");
+    const uint8_t *difficulty_option = lang_get_string("main_strings.2.6");
+    const uint8_t *help_menu = lang_get_string("main_strings.3.0");
     // Without patch, the difficulty option string does not exist and
     // getting it "falls through" to the next text group, or, for some
     // languages (pt_BR): delete game falls through to option menu

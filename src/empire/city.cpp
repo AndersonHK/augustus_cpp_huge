@@ -573,7 +573,7 @@ const uint8_t *empire_city_get_name(const empire_city *city)
     if (string_length(full->city_custom_name)) {
         return full->city_custom_name;
     }
-    return lang_get_string(21, city->name_id);
+    return lang_get_string(current_string_key(21, city->name_id));
 }
 
 void empire_city_save_state(buffer *buf)

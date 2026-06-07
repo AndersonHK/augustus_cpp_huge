@@ -526,7 +526,7 @@ int building_construction_repair_land(int measure_only, int x_start, int y_start
         offset += string_from_int(&big_buffer[offset], repair_cost, 0);
         big_buffer[offset++] = ' ';
 
-        const uint8_t *currency = lang_get_string(6, 0);
+        const uint8_t *currency = lang_get_string("main_strings.6.0");
         string_copy(currency, &big_buffer[offset], sizeof(big_buffer) - offset);
         offset += string_length(currency);
 

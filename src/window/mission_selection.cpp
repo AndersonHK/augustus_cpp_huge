@@ -211,7 +211,7 @@ static void draw_background(void)
             text_draw_multiline(camp_scenario->description, 20, 456, 560, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
     } else {
-        lang_text_draw_multiline(144, 0, 20, 440, 560, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_multiline("main_strings.144.0", 20, 440, 560, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
     graphics_reset_dialog();
 }

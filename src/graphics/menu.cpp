@@ -12,19 +12,19 @@
 static int menu_bar_item_width(const menu_bar_item &item, font_t font, int pixel_size)
 {
     return item.text_key ? lang_text_get_width(item.text_key, font, pixel_size) :
-        lang_text_get_width(item.text_group, 0, font, pixel_size);
+        lang_text_get_width(current_string_key(item.text_group, 0), font, pixel_size);
 }
 
 static int menu_bar_item_draw(const menu_bar_item &item, int x, int y, font_t font, int pixel_size)
 {
     return item.text_key ? lang_text_draw(item.text_key, x, y, font, pixel_size) :
-        lang_text_draw(item.text_group, 0, x, y, font, pixel_size);
+        lang_text_draw(current_string_key(item.text_group, 0), x, y, font, pixel_size);
 }
 
 static int menu_item_width(const menu_item &item, font_t font, int pixel_size)
 {
     return item.text_key ? lang_text_get_width(item.text_key, font, pixel_size) :
-        lang_text_get_width(item.text_group, item.text_number, font, pixel_size);
+        lang_text_get_width(current_string_key(item.text_group, item.text_number), font, pixel_size);
 }
 
 static int menu_item_draw(const menu_item &item, int x, int y, font_t font, int pixel_size, color_t color)
@@ -35,8 +35,8 @@ static int menu_item_draw(const menu_item &item, int x, int y, font_t font, int 
             lang_text_draw_colored(item.text_key, x, y, font, pixel_size, color);
     }
     return color == COLOR_MASK_NONE ?
-        lang_text_draw(item.text_group, item.text_number, x, y, font, pixel_size) :
-        lang_text_draw_colored(item.text_group, item.text_number, x, y, font, pixel_size, color);
+        lang_text_draw(current_string_key(item.text_group, item.text_number), x, y, font, pixel_size) :
+        lang_text_draw_colored(current_string_key(item.text_group, item.text_number), x, y, font, pixel_size, color);
 }
 
 int menu_bar_draw(menu_bar_item *items, int num_items, int max_width)

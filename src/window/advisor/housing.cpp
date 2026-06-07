@@ -72,7 +72,7 @@ static void draw_housing_table(void)
             }
         }
 
-        lang_text_draw(29, level_id, x, y_offset + (20 * rows), FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw(current_string_key(29, level_id), x, y_offset + (20 * rows), FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         text_draw_number(residences_at_level, '@', " ", x + 180, y_offset + (20 * rows), FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         if (rows == 11) {
             x += 280;

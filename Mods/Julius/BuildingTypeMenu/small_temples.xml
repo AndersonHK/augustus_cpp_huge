@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="small_temples">
     <identity name_key="building.small_temples.name" />
+    <button group="temples" order="0" text_key="TR_PARAMETER_VALUE_BUILDING_MENU_SMALL_TEMPLES" />
+    <button group="small_temples" order="0" text_key="TR_PARAMETER_VALUE_BUILDING_MENU_SMALL_TEMPLES" />
     <event_data attr="small_temples|all_small_temples" />
 </building>

@@ -169,7 +169,7 @@ static int is_same_mapping(const hotkey_mapping *current, const hotkey_mapping *
 
 static const uint8_t *get_paused_text(void)
 {
-    const uint8_t *pause_string = lang_get_string(13, 2);
+    const uint8_t *pause_string = lang_get_string("main_strings.13.2");
     static uint8_t proper_hotkey_pause_string[300];
     static hotkey_mapping pause_key_mapping;
     const hotkey_mapping *new_mapping = hotkey_for_action(HOTKEY_TOGGLE_PAUSE, 0);
@@ -316,7 +316,7 @@ static void draw_speedrun_info(void)
     if (config_get(CONFIG_UI_SHOW_SPEEDRUN_INFO)) {
         int s_height = screen_height();
         large_label_draw(0, s_height - 25, 10, 0);
-        lang_text_draw_centered(153, setting_difficulty() + 1, 4, s_height - 18, 150, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_centered(current_string_key(153, setting_difficulty() + 1), 4, s_height - 18, 150, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
 }
 

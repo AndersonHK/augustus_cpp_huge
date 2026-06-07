@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="raw_materials">
     <identity name_key="building.raw_materials.name" />
+    <button group="industry" order="100" text_key="TR_PARAMETER_VALUE_BUILDING_MENU_RAW_MATERIALS" />
     <event_data attr="raw_materials|all_raw_materials" />
 </building>

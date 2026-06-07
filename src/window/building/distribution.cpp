@@ -540,11 +540,9 @@ static void draw_dock_permission_buttons(int x_offset, int y_offset, int dock_id
             data.permission_focus_button_id == i + 1 ? 1 : 0);
         int state = building_dock_can_trade_with_route(dock_distribution_permissions_buttons[i].parameter1, dock_id);
         if (state) {
-            lang_text_draw_centered(99, 7, x_offset + button->x, y_offset + button->y + 5, button->width,
-                FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw_centered("main_strings.99.7", x_offset + button->x, y_offset + button->y + 5, button->width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
-            lang_text_draw_centered(99, 8, x_offset + button->x, y_offset + button->y + 5, button->width,
-                FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+            lang_text_draw_centered("main_strings.99.8", x_offset + button->x, y_offset + button->y + 5, button->width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         }
         empire_city *city = empire_city_get(button->parameter2);
         const uint8_t *city_name = empire_city_get_name(city);
@@ -560,7 +558,7 @@ void window_building_draw_dock(building_info_context *c)
     c->help_id = 83;
 
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(101, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.101.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     building *b = building_get(c->building_id);
 
@@ -634,8 +632,7 @@ void window_building_draw_dock_foreground(building_info_context *c)
 {
     button_border_draw(c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
         BLOCK_SIZE * (c->width_blocks - 10), 20, data.focus_button_id == 1 ? 1 : 0);
-    lang_text_draw_centered(98, 5, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30,
-        BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.98.5", c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30, BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     draw_dock_permission_buttons(c->x_offset + 16, c->y_offset + 245, c->building_id);
     scrollbar_draw(&scrollbar);
 }
@@ -747,7 +744,7 @@ void window_building_draw_market(building_info_context *c)
 
     window_building_play_sound(c, "wavs/market.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(97, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.97.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
@@ -771,8 +768,7 @@ void window_building_distributor_draw_foreground(building_info_context *c)
 {
     button_border_draw(c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
         BLOCK_SIZE * (c->width_blocks - 10), 20, data.focus_button_id == 1 ? 1 : 0);
-    lang_text_draw_centered(98, 5, c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30,
-        BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.98.5", c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30, BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void set_distributed_resources(const Building &building)
@@ -875,9 +871,7 @@ void window_building_draw_distributor_orders_foreground(building_info_context *c
                     c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_WHITE,
                     screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             } else {
-                lang_text_draw_centered(lang_group, lang_active_id,
-                    c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_WHITE,
-                    screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+                lang_text_draw_centered(current_string_key(lang_group, lang_active_id), c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             }
         } else {
             if (inactive_key) {
@@ -885,9 +879,7 @@ void window_building_draw_distributor_orders_foreground(building_info_context *c
                     c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_RED,
                     screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
             } else {
-                lang_text_draw_centered(lang_group, lang_inactive_id,
-                    c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_RED,
-                    screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+                lang_text_draw_centered(current_string_key(lang_group, lang_inactive_id), c->x_offset + 180, y_offset + 51 + 22 * i, 210, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
             }
         }
     }
@@ -967,15 +959,15 @@ static void draw_button_from_state(resource_storage_entry entry, int x, int y, b
         {
             image_width = image_get(Image::group(GROUP_CONTEXT_ICONS) + 12)->width + 10;
             int group_number = resource_is_food(resource) ? 10 : 9;  // 10 = "getting food", 9 = "getting goods"
-            text_width = lang_text_get_width(99, group_number, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            text_width = lang_text_get_width(current_string_key(99, group_number), FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             start_x = x + (210 - image_width - text_width) / 2;
             Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 12).draw(start_x, y - 2);
-            lang_text_draw(99, group_number, start_x + image_width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw(current_string_key(99, group_number), start_x + image_width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             snprintf(text, sizeof(text), "%d", entry.quantity);
             break;
         }
         case BUILDING_STORAGE_STATE_NOT_ACCEPTING:
-            lang_text_draw_centered(99, 8, x, y, 210, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height)); // lang ID 8 = "Not accepting"
+            lang_text_draw_centered("main_strings.99.8", x, y, 210, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height)); // lang ID 8 = "Not accepting"
             break;
         case BUILDING_STORAGE_STATE_MAINTAINING:
         {
@@ -992,7 +984,7 @@ static void draw_button_from_state(resource_storage_entry entry, int x, int y, b
             break;
         }
         default: // ACCEPTING
-            lang_text_draw_centered(99, 7, x, y, 210, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height)); // lang ID 7 = "Accepting"
+            lang_text_draw_centered("main_strings.99.7", x, y, 210, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height)); // lang ID 7 = "Accepting"
             snprintf(text, sizeof(text), "%d", entry.quantity);
             break;
     }
@@ -1096,7 +1088,7 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
         }
         static uint8_t text[400];
         uint8_t *cursor = text;
-        cursor = string_copy(lang_get_string(47, 5), cursor, 400 - (int) (cursor - text));
+        cursor = string_copy(lang_get_string("main_strings.47.5"), cursor, 400 - (int) (cursor - text));
         cursor = string_copy(string_from_ascii(": "), cursor, 400 - (int) (cursor - text));
         int traded = 0;
         for (int resource_id = (RESOURCE_NONE + 1); resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
@@ -1111,10 +1103,10 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
             cursor = string_copy(resource_get_data(resource)->text, cursor, 400 - (int) (cursor - text));
         }
         if (traded == 0) {
-            cursor = string_copy(lang_get_string(23, 0), cursor, 400 - (int) (cursor - text));
+            cursor = string_copy(lang_get_string("main_strings.23.0"), cursor, 400 - (int) (cursor - text));
         }
         cursor = string_copy(string_from_ascii("\n"), cursor, 400 - (int) (cursor - text));
-        cursor = string_copy(lang_get_string(47, 4), cursor, 400 - (int) (cursor - text));
+        cursor = string_copy(lang_get_string("main_strings.47.4"), cursor, 400 - (int) (cursor - text));
         cursor = string_copy(string_from_ascii(": "), cursor, 400 - (int) (cursor - text));
         traded = 0;
         for (int resource_id = (RESOURCE_NONE + 1); resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
@@ -1129,7 +1121,7 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
             cursor = string_copy(resource_get_data(resource)->text, cursor, 400 - (int) (cursor - text));
         }
         if (traded == 0) {
-            cursor = string_copy(lang_get_string(23, 0), cursor, 400 - (int) (cursor - text));
+            cursor = string_copy(lang_get_string("main_strings.23.0"), cursor, 400 - (int) (cursor - text));
         }
         return text;
     }
@@ -1151,7 +1143,7 @@ void window_building_draw_storage(building_info_context *c)
     int y = c->y_offset + 25;
     // height adjustment shouldn't be handled at this level, so was moved to building_info.c
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_label_and_number_centered(lang_get_string(28, b->type), b->storage_id, "",
+    text_draw_label_and_number_centered(lang_get_string(current_string_key(28, b->type)), b->storage_id, "",
         c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     const char *sound = b->has_plague ? "wavs/clinic.wav"
@@ -1201,11 +1193,11 @@ void window_building_draw_storage(building_info_context *c)
                 text_draw(resource_get_data(r)->text, x + 32 + width, y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
             }
 
-            int width = lang_text_draw(98, 2, c->x_offset + 16, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            int width = lang_text_draw("main_strings.98.2", c->x_offset + 16, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             lang_text_draw_amount(total_stored == 1 ? "TR_BUILDING_INFO_CARTLOAD" : "TR_BUILDING_INFO_CARTLOADS", total_stored,
                 c->x_offset + 16 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-            width = lang_text_draw(98, 3, c->x_offset + 220, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            width = lang_text_draw("main_strings.98.3", c->x_offset + 220, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             int max = is_granary(c) ? b->resources[RESOURCE_NONE] : 32 - total_stored;
             lang_text_draw_amount(max == 1 ? "TR_BUILDING_INFO_CARTLOAD" : "TR_BUILDING_INFO_CARTLOADS", max,
                 c->x_offset + 220 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -1218,8 +1210,7 @@ void window_building_draw_storage(building_info_context *c)
     data.y_permission_buttons = c->y_offset + y_offset + 8 + 6 * BLOCK_SIZE + 10;
     window_building_draw_employment(c, y_offset + 12);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 16 + y_offset);
-    lang_text_draw_multiline(is_granary(c) ? 98 : 99, 1, c->x_offset + 32, c->y_offset + y_offset + 180,
-        BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_multiline(current_string_key(is_granary(c) ? 98 : 99, 1), c->x_offset + 32, c->y_offset + y_offset + 180, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // cartpusher state
     figure *f = figure_get(b->figure_id);
@@ -1229,15 +1220,13 @@ void window_building_draw_storage(building_info_context *c)
 
         if (resource != RESOURCE_NONE) {
             if (f->action_state == FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE) {
-                lang_text_draw_multiline(is_granary(c) ? 98 : 99, is_granary(c) ? 9 : 16,
-                    c->x_offset + 64, c->y_offset + y_offset + 63, BLOCK_SIZE * (c->width_blocks - 5), FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+                lang_text_draw_multiline(current_string_key(is_granary(c) ? 98 : 99, is_granary(c) ? 9 : 16), c->x_offset + 64, c->y_offset + y_offset + 63, BLOCK_SIZE * (c->width_blocks - 5), FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             } else if (f->loads_sold_or_carrying) {
                 text_draw_multiline(translation_for_key("TR_WINDOW_BUILDING_DISTRIBUTION_CART_PUSHER_RETURNING_WITH"),
                     c->x_offset + 64, c->y_offset + y_offset + 63,
                     BLOCK_SIZE * (c->width_blocks - 5), 0, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             } else {
-                lang_text_draw_multiline(99, 17, c->x_offset + 64, c->y_offset + y_offset + 63,
-                    BLOCK_SIZE * (c->width_blocks - 5), FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+                lang_text_draw_multiline("main_strings.99.17", c->x_offset + 64, c->y_offset + y_offset + 63, BLOCK_SIZE * (c->width_blocks - 5), FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             }
         } else {
             text_draw_multiline(
@@ -1248,8 +1237,7 @@ void window_building_draw_storage(building_info_context *c)
                 BLOCK_SIZE * (c->width_blocks - 5), 0, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
         }
     } else if (b->num_workers) {
-        lang_text_draw_multiline(99, 15, c->x_offset + 32, c->y_offset + y_offset + 63,
-            BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+        lang_text_draw_multiline("main_strings.99.15", c->x_offset + 32, c->y_offset + y_offset + 63, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     }
 }
 
@@ -1302,7 +1290,7 @@ void window_building_draw_storage_foreground(building_info_context *c)
     // Special orders button
     generic_button *button = go_to_storage_orders_button;
     button_border_draw(button->x, button->y, button->width, button->height, data.focus_button_id == 1 ? 1 : 0);
-    lang_text_draw_centered(99, 2, button->x, button->y + 5, button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.99.2", button->x, button->y + 5, button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     int rejects_all = get_permissions_all_none_button_state(c);
     storage_image_buttons[2 + rejects_all].dont_draw = 1; // hide the irrelevant button
 
@@ -1377,21 +1365,17 @@ void window_building_draw_storage_orders_foreground(building_info_context *c)
         storage_empty_all_button->height, data.orders_focus_button_id == 1 ? 1 : 0);
 
     if (storage->empty_all) {
-        lang_text_draw_centered(label_id, is_granary(c) ? 8 : 5, //button text
-            storage_empty_all_button->x, storage_empty_all_button->y + 5,
-            storage_empty_all_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered(current_string_key(label_id, is_granary(c) ? 8 : 5), //button text
+            storage_empty_all_button->x, storage_empty_all_button->y + 5, storage_empty_all_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         if (is_granary(c)) {
-            lang_text_draw_centered(98, 9, c->x_offset, storage_empty_all_button->y - 28,  // 'trying to send elsewhere'
+            lang_text_draw_centered("main_strings.98.9", c->x_offset, storage_empty_all_button->y - 28, // 'trying to send elsewhere'
                 BLOCK_SIZE * c->width_blocks, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
-            lang_text_draw_centered(99, 6, c->x_offset, storage_empty_all_button->y - 28,
-                BLOCK_SIZE * c->width_blocks, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+            lang_text_draw_centered("main_strings.99.6", c->x_offset, storage_empty_all_button->y - 28, BLOCK_SIZE * c->width_blocks, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         }
     } else {
-        lang_text_draw_centered(label_id, is_granary(c) ? 7 : 4,
-            storage_empty_all_button->x, storage_empty_all_button->y + 5,
-            storage_empty_all_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered(current_string_key(label_id, is_granary(c) ? 7 : 4), storage_empty_all_button->x, storage_empty_all_button->y + 5, storage_empty_all_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // Accept-none button
@@ -1932,11 +1916,11 @@ void window_building_draw_lighthouse(building_info_context *c)
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
 
         resource_graphics(resource_timber()).panel_icon().draw(c->x_offset + 32, c->y_offset + 46);
-        int width = lang_text_draw(125, 12, c->x_offset + 60, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        int width = lang_text_draw("main_strings.125.12", c->x_offset + 60, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (b->resources[resource_timber()] < 1) {
-            lang_text_draw_amount(8, 10, 0, c->x_offset + 60 + width, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_amount(current_string_amount_key(8, 10, 0), 0, c->x_offset + 60 + width, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
-            lang_text_draw_amount(8, 10, b->resources[resource_timber()], c->x_offset + 60 + width, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_amount(current_string_amount_key(8, 10, b->resources[resource_timber()]), b->resources[resource_timber()], c->x_offset + 60 + width, c->y_offset + 50, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
 
         if (!c->has_road_access) {

@@ -556,6 +556,7 @@ public:
     void set_button_icon(std::string icon);
     void set_button_icon_image(std::string image);
     void set_button_text_key(std::string key);
+    void add_button(BuildButtonDefinition button);
     void set_roadblock_kind(RoadblockKind kind);
     void set_tile_kind(TileKind kind);
     void set_temple_religion_reference(std::string path);
@@ -611,6 +612,7 @@ public:
     const BuildModelDefinition &model() const;
     const FoundationDefinition &foundation() const;
     const BuildButtonDefinition &button() const;
+    const std::vector<BuildButtonDefinition> &buttons() const;
     const RoadblockDefinition &roadblock() const;
     const TileDefinition &tile() const;
     const TempleDefinition &temple() const;
@@ -692,7 +694,7 @@ private:
     IdentityDefinition identity_;
     BuildModelDefinition model_;
     FoundationDefinition foundation_;
-    BuildButtonDefinition button_;
+    std::vector<BuildButtonDefinition> buttons_;
     RoadblockDefinition roadblock_;
     TileDefinition tile_;
     TempleDefinition temple_;
