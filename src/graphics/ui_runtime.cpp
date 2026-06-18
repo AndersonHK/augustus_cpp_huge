@@ -28,7 +28,7 @@ void SharedUiRuntime::draw_button_border(
     int has_focus,
     color_t color)
 {
-    BorderedButtonWidget(primitives_, x, y, width_pixels, height_pixels, has_focus, color).draw();
+    BorderedButtonWidget(primitives_, x, y, width_pixels, height_pixels, has_focus, color, BorderedButtonFillStyle::Transparent).draw();
 }
 
 void SharedUiRuntime::draw_one_row_button_border(

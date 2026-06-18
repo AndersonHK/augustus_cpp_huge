@@ -89,13 +89,13 @@ ImageBorder ImageBorder::mission_selection()
 
 void ImageBorder::draw(int x, int y, color_t color) const
 {
-    const Image &top = top_.image();
-    const Image &left = left_.image();
-    const Image &right = right_.image();
+    const RuntimeDrawSlice top = top_.runtime_slice();
+    const RuntimeDrawSlice left = left_.runtime_slice();
+    const RuntimeDrawSlice right = right_.runtime_slice();
 
-    int content_y = y + top.height() + top.y_offset();
+    int content_y = y + top.height + top.draw_offset_y;
     top_.draw(x, y, color);
     left_.draw(x, content_y, color);
-    bottom_.draw(x, content_y + left.height() + left.y_offset(), color);
-    right_.draw(x + top.width() + top.x_offset() - right.width() - right.x_offset(), content_y, color);
+    bottom_.draw(x, content_y + left.height + left.draw_offset_y, color);
+    right_.draw(x + top.width + top.draw_offset_x - right.width - right.draw_offset_x, content_y, color);
 }

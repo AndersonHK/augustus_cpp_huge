@@ -363,9 +363,9 @@ void window_building_draw_monument_construction_process(building_info_context *c
         }
         if (c->height_blocks > 28) {
             int phase_offset = b->monument.phase % 2;
+            const char *banner_entry = phase_offset ? "Construction_Banner_02" : "Construction_Banner_01";
             ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 216 + height);
-            Image::from_id(assets_get_image_id("UI", "Construction_Banner_01") +
-                phase_offset).draw(c->x_offset + 37, c->y_offset + 221 + height);
+            ImageGroupEntryRef::from_group(phase_offset ? "UI\\Construction_Banner_02" : "UI\\Construction_Banner_01", banner_entry).draw(c->x_offset + 37, c->y_offset + 221 + height);
         }
     }
 }

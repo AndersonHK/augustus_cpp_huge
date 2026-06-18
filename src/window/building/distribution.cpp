@@ -1877,7 +1877,7 @@ void window_building_draw_caravanserai(building_info_context *c)
 
         if (c->height_blocks >= 38) {
             ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 350 + y_offset);
-            Image::from_id(assets_get_image_id("UI", "Caravanserai Banner")).draw(c->x_offset + 37, c->y_offset + 355 + y_offset);
+            ImageGroupEntryRef::from_group("UI\\Caravanserai_Banner", "Caravanserai Banner").draw(c->x_offset + 37, c->y_offset + 355 + y_offset);
         }
     } else {
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
@@ -1984,7 +1984,7 @@ void window_building_draw_lighthouse(building_info_context *c)
 
         if (c->height_blocks >= 38) {
             ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 350);
-            Image::from_id(assets_get_image_id("UI", "Lighthouse Banner")).draw(c->x_offset + 37, c->y_offset + 355);
+            ImageGroupEntryRef::from_group("UI\\Lighthouse_Banner", "Lighthouse Banner").draw(c->x_offset + 37, c->y_offset + 355);
         }
 
     } else {

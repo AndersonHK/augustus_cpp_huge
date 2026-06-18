@@ -145,7 +145,7 @@ void window_building_draw_triumphal_arch(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.80.2", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 328, 80, 3);
-    Image::from_id(assets_get_image_id("UI", "Triumphal_Arch_Banner")).draw(c->x_offset + 37, c->y_offset + 125);
+    ImageGroupEntryRef::from_group("UI\\Triumphal_Arch_Banner", "Triumphal_Arch_Banner").draw(c->x_offset + 37, c->y_offset + 125);
     ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 120);
 }
 

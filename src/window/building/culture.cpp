@@ -788,7 +788,7 @@ void window_building_draw_shrine_venus(building_info_context *c)
 }
 
 static void draw_grand_temple(building_info_context *c, const char *sound_file,
-    translation_key name, translation_key bonus_desc, int banner_id, translation_key quote,
+    translation_key name, translation_key bonus_desc, const char *banner_group, const char *banner_entry, translation_key quote,
     int temple_god_id, int extra_y)
 {
     building *b = building_get(c->building_id);
@@ -836,7 +836,7 @@ static void draw_grand_temple(building_info_context *c, const char *sound_file,
             c->y_offset + 94 + height + extra_y);
         if (c->height_blocks > 26) {
             ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 166 + height + extra_y);
-            Image::from_id(banner_id).draw(c->x_offset + 37, c->y_offset + 171 + height + extra_y);
+            ImageGroupEntryRef::from_group(banner_group, banner_entry).draw(c->x_offset + 37, c->y_offset + 171 + height + extra_y);
             text_draw_multiline(translation_for(quote),
                 c->x_offset + 10, c->y_offset + 386 + height + extra_y, BLOCK_SIZE * c->width_blocks - 16,
                 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -885,7 +885,7 @@ void window_building_draw_grand_temple_ceres(building_info_context *c)
 {
     draw_grand_temple(c, "wavs/temple_farm.wav", "TR_BUILDING_GRAND_TEMPLE_CERES_DESC",
         "TR_BUILDING_GRAND_TEMPLE_CERES_BONUS_DESC",
-        assets_get_image_id("UI", "Ceres L Banner"),
+        "UI\\Ceres_L_Banner", "Ceres L Banner",
         "TR_BUILDING_CERES_TEMPLE_QUOTE", GOD_CERES, 0);
 }
 
@@ -893,7 +893,7 @@ void window_building_draw_grand_temple_neptune(building_info_context *c)
 {
     draw_grand_temple(c, "wavs/temple_ship.wav", "TR_BUILDING_GRAND_TEMPLE_NEPTUNE_DESC",
         "TR_BUILDING_GRAND_TEMPLE_NEPTUNE_BONUS_DESC",
-        assets_get_image_id("UI", "Nept L Banner"),
+        "UI\\Nept_L_Banner", "Nept L Banner",
         "TR_BUILDING_NEPTUNE_TEMPLE_QUOTE", GOD_NEPTUNE, 0);
 }
 
@@ -901,7 +901,7 @@ void window_building_draw_grand_temple_mercury(building_info_context *c)
 {
     draw_grand_temple(c, "wavs/temple_comm.wav", "TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC",
         "TR_BUILDING_GRAND_TEMPLE_MERCURY_BONUS_DESC",
-        assets_get_image_id("UI", "Merc L Banner"),
+        "UI\\Merc_L_Banner", "Merc L Banner",
         "TR_BUILDING_MERCURY_TEMPLE_QUOTE", GOD_MERCURY, 0);
 }
 
@@ -909,7 +909,7 @@ void window_building_draw_grand_temple_mars(building_info_context *c)
 {
     draw_grand_temple(c, "wavs/temple_war.wav", "TR_BUILDING_GRAND_TEMPLE_MARS_DESC",
         "TR_BUILDING_GRAND_TEMPLE_MARS_BONUS_DESC",
-        assets_get_image_id("UI", "Mars L Banner"),
+        "UI\\Mars_L_Banner", "Mars L Banner",
         "TR_BUILDING_MARS_TEMPLE_QUOTE", GOD_MARS, 150);
 }
 
@@ -917,14 +917,14 @@ void window_building_draw_grand_temple_venus(building_info_context *c)
 {
     draw_grand_temple(c, "wavs/temple_love.wav", "TR_BUILDING_GRAND_TEMPLE_VENUS_DESC",
         "TR_BUILDING_GRAND_TEMPLE_VENUS_BONUS_DESC",
-        assets_get_image_id("UI", "Venus L Banner"),
+        "UI\\Venus_L_Banner", "Venus L Banner",
         "TR_BUILDING_VENUS_TEMPLE_QUOTE", GOD_VENUS, 20);
 }
 
 void window_building_draw_pantheon(building_info_context *c)
 {
     draw_grand_temple(c, "wavs/oracle.wav", "TR_BUILDING_PANTHEON_DESC", "TR_BUILDING_PANTHEON_BONUS_DESC",
-        assets_get_image_id("UI", "Panth L Banner"),
+        "UI\\Panth_L_Banner", "Panth L Banner",
         "TR_BUILDING_PANTHEON_QUOTE", GOD_PANTHEON, 0);
 }
 
@@ -1124,7 +1124,7 @@ void window_building_draw_colosseum_background(building_info_context *c)
             if (c->height_blocks > 27) {
                 extra_y_offset += 200;
                 ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + extra_y_offset);
-                Image::from_id(assets_get_image_id("UI", "Colosseum Banner")).draw(c->x_offset + 37, c->y_offset + extra_y_offset + 5);
+                ImageGroupEntryRef::from_group("UI\\Colosseum_Banner", "Colosseum Banner").draw(c->x_offset + 37, c->y_offset + extra_y_offset + 5);
             }
             draw_games_info(c, extra_y_offset);
         }
@@ -1272,9 +1272,8 @@ void window_building_draw_hippodrome_background(building_info_context *c)
         int y_offset = 33;
         if (c->height_blocks > 27) {
             y_offset += 223;
-            int banner_id = assets_get_image_id("UI", "Circus Banner");
             ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + y_offset);
-            Image::from_id(banner_id).draw(c->x_offset + 37, c->y_offset + y_offset + 5);
+            ImageGroupEntryRef::from_group("UI\\Circus_Banner", "Circus Banner").draw(c->x_offset + 37, c->y_offset + y_offset + 5);
         }
 
         if (city_data.games.chosen_horse) {

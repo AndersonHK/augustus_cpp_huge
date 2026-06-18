@@ -286,7 +286,7 @@ int finalize_surface_to_resolved_entry(
         return 0;
     }
 
-    const int tile_span = split_surface.width > 0 ? (split_surface.width + 2) / (FOOTPRINT_WIDTH + 2) : 0;
+    const int tile_span = entry.is_isometric && split_surface.width > 0 ? (split_surface.width + 2) / (FOOTPRINT_WIDTH + 2) : 0;
     out_entry.tile_span = tile_span;
     if (tile_span > 0) {
         out_entry.footprint.slice.draw_offset_y += -FOOTPRINT_HALF_HEIGHT * (tile_span - 1);

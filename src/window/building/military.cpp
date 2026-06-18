@@ -327,7 +327,7 @@ void window_building_draw_fort(building_info_context *c)
     if (building_get_levy(b)) {
         window_building_draw_levy(building_get_levy(b), c->x_offset + 56, c->y_offset + 130);
     }
-    Image::from_id(assets_get_image_id("UI", "Fort_Banner_01")).draw(c->x_offset + 37, c->y_offset + 195);
+    ImageGroupEntryRef::from_group("UI\\Fort_Banner_01", "Fort_Banner_01").draw(c->x_offset + 37, c->y_offset + 195);
     ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 190);
 }
 
