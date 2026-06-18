@@ -4,6 +4,7 @@
 #include "building/building.h"
 #include "building/building_type.h"
 
+#include "building/connectable.h"
 #include "building/housing_type.h"
 #include "building/industry.h"
 #include "building/production_method.h"
@@ -1219,7 +1220,7 @@ int BuildingType::required_workers() const
 
 int BuildingType::has_data_only_graphics() const
 {
-    return building_is_farm(type_);
+    return building_is_farm(type_) || building_is_connectable(type_);
 }
 
 int BuildingType::is_temple() const

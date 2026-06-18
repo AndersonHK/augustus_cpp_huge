@@ -1633,7 +1633,7 @@ void building_update_state(void)
             if (Roadblock(b).kind() != ROADBLOCK_NONE && b->size == 1 && !building_type_is_bridge(b->type)) {
                 // Leave the road behind the deleted roadblock
                 // except for bridges - they are coded as size 1 too
-                map_terrain_add(b->grid_offset, TERRAIN_ROAD);
+                map_tiles_set_road(b->x, b->y);
                 road_recalc = 1;
             }
             land_recalc = 1;
