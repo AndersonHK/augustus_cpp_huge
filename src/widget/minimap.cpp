@@ -406,28 +406,33 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
     int size = data.functions->offset.tile_size(grid_offset);
 
     if (data.functions->building) {
-        building *b = data.functions->building(data.functions->offset.building_id(grid_offset));
+        const int building_id = data.functions->offset.building_id(grid_offset);
+        building *b = building_id ? data.functions->building(building_id) : nullptr;
 
         // Palisades are drawn like walls
-        if (building_type_attr_is(b->type, "palisade")) {
+        if (b && building_type_attr_is(b->type, "palisade")) {
             draw_tile(x_offset, y_offset, &minimap_colors.wall);
             return;
         }
 
-        const Building building(b);
-        if (b->house_size) {
+        const building_type_registry_impl::BuildingType *type_definition = nullptr;
+        if (b) {
+            const Building building(b);
+            type_definition = building.type_definition();
+        }
+        if (b && b->house_size) {
             colors = &minimap_colors.house;
-        } else if (building_is_water_structure(building.type())) {
+        } else if (type_definition && building_is_water_structure(*type_definition)) {
             colors = &minimap_colors.water_structure;
-        } else if (building_monument_is_monument(b)) {
+        } else if (b && building_monument_is_monument(b)) {
             colors = &minimap_colors.monument;
-        } else if (building_is_farm(b->type)) {
+        } else if (b && building_is_farm(b->type)) {
             colors = &minimap_colors.farm;
-        } else if (building_is_industry(b->type)) {
+        } else if (b && building_is_industry(b->type)) {
             colors = &minimap_colors.industry;
-        } else if (building_is_military(b->type)) {
+        } else if (b && building_is_military(b->type)) {
             colors = &minimap_colors.military;
-        } else if (building_is_aesthetic(b->type)) {
+        } else if (b && building_is_aesthetic(b->type)) {
             colors = &minimap_colors.aesthetics;
         }
     }

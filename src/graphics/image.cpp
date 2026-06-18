@@ -520,7 +520,6 @@ void Image::draw_isometric_top(int x, int y, color_t color_mask, float scale) co
 {
     const Image *top_image = top();
     if (!top_image) {
-        error_context_report_error("Image is missing isometric top", key_c_str());
         return;
     }
     ensure_ready_to_draw();
@@ -534,7 +533,6 @@ void Image::draw_isometric_top_from_draw_tile(int x, int y, color_t color_mask, 
 {
     const Image *top_image = top();
     if (!top_image) {
-        error_context_report_error("Image is missing isometric top", key_c_str());
         return;
     }
     ensure_ready_to_draw();
@@ -546,7 +544,6 @@ void Image::draw_set_isometric_top_from_draw_tile(int x, int y, color_t color_ma
 {
     const Image *top_image = top();
     if (!top_image) {
-        error_context_report_error("Image is missing isometric top", key_c_str());
         return;
     }
     ensure_ready_to_draw();

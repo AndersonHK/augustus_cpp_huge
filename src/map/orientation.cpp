@@ -335,7 +335,8 @@ void map_orientation_update_buildings(void)
                     sizeof(decorative_buildings) / sizeof(decorative_buildings[0])) ||
                 (current.has_type_definition() && current.type().is_watchtower())) {
                 map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
-            } else if (current.has_type_definition() && current.type().has_roadblock()) {
+            } else if (definition && definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
+                    definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::Bridge) {
                 map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
                 map_terrain_add_roadblock_road(b->x, b->y);
             } else if (is_vacant_lot_starting_house(b)) {

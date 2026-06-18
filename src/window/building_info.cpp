@@ -1098,12 +1098,6 @@ static void get_tooltip(tooltip_context *c)
     int text_id = 0, group_id = 0;
     translation_key translation;
     const uint8_t *precomposed_text = 0;
-    building *b = building_get(context.building_id);
-    building_type btype = static_cast<building_type>(b->type);
-    const Building current_building(b);
-    const BuildingType &type_definition = current_building.type();
-    const auto *definition = current_building.type_definition();
-    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
     if (focus_image_button_id) {
         if (focus_image_button_id == 3) {
             int advisor = image_buttons_help_advisor_close[2].parameter1;
@@ -1115,7 +1109,14 @@ static void get_tooltip(tooltip_context *c)
         } else {
             text_id = focus_image_button_id;
         }
-    } else if (focus_mothball_image_button_id && has_mothball_button()) {
+    } else if (context.type == BUILDING_INFO_LEGION) {
+        text_id = window_building_get_legion_info_tooltip_text(&context);
+    }
+
+    building *b = context.building_id ? building_get(context.building_id) : nullptr;
+    if (!text_id && !group_id && !translation && !precomposed_text &&
+        context.type == BUILDING_INFO_BUILDING && b &&
+        focus_mothball_image_button_id && has_mothball_button()) {
         if (!building_monument_is_unfinished_monument(b)) {
             if (building_get(context.building_id)->state == BUILDING_STATE_MOTHBALLED) {
                 translation = "TR_TOOLTIP_BUTTON_MOTHBALL_OFF";
@@ -1123,39 +1124,49 @@ static void get_tooltip(tooltip_context *c)
                 translation = "TR_TOOLTIP_BUTTON_MOTHBALL_ON";
             }
         }
-    } else if (building_is_primary_product_producer(btype)) {
-        window_building_primary_product_producer_stockpiling_tooltip(&translation);
-    } else if (context.type == BUILDING_INFO_LEGION) {
-        text_id = window_building_get_legion_info_tooltip_text(&context);
-    } else if ((context.type == BUILDING_INFO_BUILDING && context.show_special_orders) || building_type_is_bridge(btype)) {
-        //bridges are technically terrain, but they have special orders
-        if (type_is_storage(type_definition)) {
-            if (context.show_special_orders == SPECIAL_ORDERS_ROADBLOCK) {
-                window_building_roadblock_get_tooltip_walker_permissions(&translation);
-            } else {
-                window_building_get_tooltip_storage_orders(&group_id, &text_id, &translation);
-            }
-        } else if (Roadblock(b).kind() != ROADBLOCK_NONE) {
-            window_building_roadblock_get_tooltip_walker_permissions(&translation);
-        } else if (type_definition.has_distribution()) {
-            window_building_get_tooltip_distribution_orders(&group_id, &text_id, &translation);
-        }
-    } else if (building_is_house(btype)) {
-        precomposed_text = window_building_house_get_tooltip(&context);
-    } else if (type_is_storage(type_definition)) {
-        window_building_storage_get_tooltip_distribution_permissions(&translation);
-    } else if (is_dock) {
-        precomposed_text = window_building_dock_get_tooltip(&context);
-    } else if (context.type == BUILDING_INFO_BUILDING && building_type_attr_is(btype, "depot")) {
-        if (context.depot_selection == 2 || context.depot_selection == 3) {
-            precomposed_text = window_building_depot_get_tooltip_source_destination(&translation, &group_id);
-        } else if (context.depot_selection == 0) {
-            window_building_depot_get_tooltip_main(&translation);
-        }
-    } else if (building_type_attr_is(btype, "barracks") || building_type_attr_is(btype, "grand_temple_mars")) {
-        window_building_barracks_get_tooltip_priority(&translation);
     }
-    if (!text_id && !group_id && !translation && !precomposed_text) {
+
+    const int has_building_tooltip_context =
+        context.type == BUILDING_INFO_BUILDING || (context.terrain_type == TERRAIN_INFO_BRIDGE && b);
+    building_type btype = (has_building_tooltip_context && b) ? static_cast<building_type>(b->type) : BUILDING_NONE;
+    const Building current_building(has_building_tooltip_context ? b : nullptr);
+    const BuildingType *type_definition = has_building_tooltip_context ? current_building.type_definition() : nullptr;
+    const int is_dock = type_definition && std::strcmp(type_definition->attr(), "dock") == 0;
+
+    if (!text_id && !group_id && !translation && !precomposed_text && type_definition) {
+        if (building_is_primary_product_producer(btype)) {
+            window_building_primary_product_producer_stockpiling_tooltip(&translation);
+        } else if ((context.type == BUILDING_INFO_BUILDING && context.show_special_orders) || building_type_is_bridge(btype)) {
+            //bridges are technically terrain, but they have special orders
+            if (type_is_storage(*type_definition)) {
+                if (context.show_special_orders == SPECIAL_ORDERS_ROADBLOCK) {
+                    window_building_roadblock_get_tooltip_walker_permissions(&translation);
+                } else {
+                    window_building_get_tooltip_storage_orders(&group_id, &text_id, &translation);
+                }
+            } else if (Roadblock(b).kind() != ROADBLOCK_NONE) {
+                window_building_roadblock_get_tooltip_walker_permissions(&translation);
+            } else if (type_definition->has_distribution()) {
+                window_building_get_tooltip_distribution_orders(&group_id, &text_id, &translation);
+            }
+        } else if (building_is_house(btype)) {
+            precomposed_text = window_building_house_get_tooltip(&context);
+        } else if (type_is_storage(*type_definition)) {
+            window_building_storage_get_tooltip_distribution_permissions(&translation);
+        } else if (is_dock) {
+            precomposed_text = window_building_dock_get_tooltip(&context);
+        } else if (context.type == BUILDING_INFO_BUILDING && building_type_attr_is(btype, "depot")) {
+            if (context.depot_selection == 2 || context.depot_selection == 3) {
+                precomposed_text = window_building_depot_get_tooltip_source_destination(&translation, &group_id);
+            } else if (context.depot_selection == 0) {
+                window_building_depot_get_tooltip_main(&translation);
+            }
+        } else if (building_type_attr_is(btype, "barracks") || building_type_attr_is(btype, "grand_temple_mars")) {
+            window_building_barracks_get_tooltip_priority(&translation);
+        }
+    }
+
+    if (!text_id && !group_id && !translation && !precomposed_text && has_building_tooltip_context) {
         if (building_is_farm(btype) || building_is_raw_resource_producer(btype) || building_is_workshop(btype)) {
             window_building_industry_get_tooltip(&context, &translation);
         }
