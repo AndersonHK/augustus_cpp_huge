@@ -156,7 +156,7 @@ static void check_labor_problem(building *b)
         }
         return;
     }
-    if (b->houses_covered <= 0) {
+    if (building_local_workforce_access_score(b) <= 0) {
         b->show_on_problem_overlay = 2;
     }
 }
@@ -215,7 +215,7 @@ static void spawn_labor_seeker(building *b, int x, int y, int min_houses)
         } else {
             b->houses_covered = 0;
         }
-    } else if (b->houses_covered <= min_houses) {
+    } else if (building_local_workforce_access_score(b) <= min_houses) {
         generate_labor_seeker(b, x, y);
     }
 }
@@ -379,7 +379,7 @@ static void spawn_figure_hippodrome(building *b)
     }
     map_point road;
     if (map_has_road_access_hippodrome_rotation(b->x, b->y, &road, b->subtype.orientation)) {
-        if (b->houses_covered <= 50) {
+        if (building_local_workforce_access_score(b) <= 50) {
             generate_labor_seeker(b, road.x, road.y);
         }
         int pct_workers = worker_percentage(b);
@@ -444,7 +444,7 @@ static void spawn_figure_colosseum(building *b)
     }
     map_point road;
     if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        if (b->houses_covered <= 50) {
+        if (building_local_workforce_access_score(b) <= 50) {
             generate_labor_seeker(b, road.x, road.y);
         }
         int pct_workers = worker_percentage(b);
@@ -736,7 +736,7 @@ static void spawn_figure_tavern(building *b)
     check_labor_problem(b);
     map_point road;
     if (map_has_road_access(b->x, b->y, b->size, &road)) {
-        if (b->houses_covered <= 50) {
+        if (building_local_workforce_access_score(b) <= 50) {
             generate_labor_seeker(b, road.x, road.y);
         }
         int spawn_delay = default_spawn_delay(b) * 2;

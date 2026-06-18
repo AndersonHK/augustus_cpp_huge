@@ -63,23 +63,6 @@ int is_wharf_type(building_type type)
     return type_matches(type, "wharf");
 }
 
-const char *definition_attr(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition ? definition->attr() : nullptr;
-}
-
-int attr_ends_with(const char *attr, const char *suffix)
-{
-    if (!attr || !suffix) {
-        return 0;
-    }
-    const size_t attr_len = strlen(attr);
-    const size_t suffix_len = strlen(suffix);
-    return attr_len >= suffix_len && strcmp(attr + attr_len - suffix_len, suffix) == 0;
-}
-
 building_type_registry_impl::ProductionMethod *primary_native_production_method(building_type type)
 {
     const std::unique_ptr<building_type_registry_impl::BuildingType> &definition =
@@ -122,7 +105,8 @@ int is_valid_resource_slot(resource_type resource)
 
 int building_is_farm(building_type type)
 {
-    return attr_ends_with(definition_attr(type), "_farm");
+    const building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type);
+    return method && method->is_farm();
 }
 
 resource_type building_output_resource(building_type type)
@@ -179,7 +163,9 @@ int building_set_production_per_month(building_type type, int production)
 
 int building_is_raw_resource_producer(building_type type)
 {
-    return resource_is_raw_material(building_output_resource(type));
+    const building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type);
+    return method && method->is_workshop() && method->inputs().empty() &&
+        resource_is_raw_material(method->output_resource());
 }
 
 int building_get_raw_materials_for_workshop(resource_supply_chain *chain, building_type type)
@@ -205,7 +191,8 @@ int building_get_raw_materials_for_workshop(resource_supply_chain *chain, buildi
 
 int building_is_workshop(building_type type)
 {
-    return building_get_raw_materials_for_workshop(0, type) > 0;
+    const building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type);
+    return method && method->is_workshop() && !method->inputs().empty();
 }
 
 int building_get_efficiency(const building *b)

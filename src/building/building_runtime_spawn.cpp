@@ -75,7 +75,7 @@ void building_runtime::check_labor_problem()
         }
         return;
     }
-    if (record().houses_covered <= 0) {
+    if (building().labor_access_score() <= 0) {
         record().show_on_problem_overlay = 2;
     }
 }
@@ -116,7 +116,7 @@ void building_runtime::spawn_labor_seeker(int x, int y, int min_houses)
         } else {
             record().houses_covered = 0;
         }
-    } else if (record().houses_covered <= min_houses) {
+    } else if (building().labor_access_score() <= min_houses) {
         generate_labor_seeker(x, y);
     }
 }
@@ -131,7 +131,7 @@ void building_runtime::run_labor_phase(const building_type_registry_impl::LaborD
     if (labor_policy.method == building_type_registry_impl::LaborSeekerMethod::Workforce &&
         !config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
         const int trigger_workers = labor_policy.amount;
-        const int workforce_access = building_local_workforce_access_score(building().legacy_record());
+        const float workforce_access = building().labor_access_score();
         if (workforce_access < trigger_workers) {
             if (!building_local_workforce_spawn_acquisition(building().legacy_record(), &road) && workforce_access > 0) {
                 building_local_workforce_spawn_validation(building().legacy_record(), &road);
@@ -148,7 +148,7 @@ void building_runtime::run_labor_phase(const building_type_registry_impl::LaborD
             spawn_labor_seeker(road.x, road.y, labor_policy.amount);
             break;
         case building_type_registry_impl::LaborSeekerMethod::HousesGenerateIfBelow:
-            if (record().houses_covered <= labor_policy.amount) {
+            if (building().labor_access_score() <= labor_policy.amount) {
                 generate_labor_seeker(road.x, road.y);
             }
             break;
