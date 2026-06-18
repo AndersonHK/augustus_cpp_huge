@@ -200,11 +200,21 @@ void empire_object_load(buffer *buf, int version)
                 full->city_buys_resource[resource_remap(r)] = buffer_read_i32(buf);
             }
         } else if (obj->type == EMPIRE_OBJECT_CITY) {
-            for (int r = (RESOURCE_NONE + 1); r < resource_total_mapped(); r++) {
-                full->city_sells_resource[resource_remap(r)] = buffer_read_i16(buf);
+            int resources_to_load = version > SCENARIO_LAST_NO_KEYED_ALLOWED_BUILDINGS ?
+                RESOURCE_SLOT_COUNT : resource_total_mapped();
+            for (int r = (RESOURCE_NONE + 1); r < resources_to_load; r++) {
+                resource_type resource = resource_remap(r);
+                int sells = buffer_read_i16(buf);
+                if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
+                    full->city_sells_resource[resource] = sells;
+                }
             }
-            for (int r = (RESOURCE_NONE + 1); r < resource_total_mapped(); r++) {
-                full->city_buys_resource[resource_remap(r)] = buffer_read_i16(buf);
+            for (int r = (RESOURCE_NONE + 1); r < resources_to_load; r++) {
+                resource_type resource = resource_remap(r);
+                int buys = buffer_read_i16(buf);
+                if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
+                    full->city_buys_resource[resource] = buys;
+                }
             }
         }
         obj->invasion_path_id = buffer_read_u8(buf);

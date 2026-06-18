@@ -714,10 +714,16 @@ void empire_city_update_trading_data(int empire_id)
 void empire_city_load_state(buffer *buf, int version)
 {
     int cities_to_load;
+    int record_size = 0;
     if (version <= SAVE_GAME_LAST_STATIC_SCENARIO_OBJECTS) {
         cities_to_load = LEGACY_MAX_CITIES;
     } else {
-        cities_to_load = (int) (buf->size - sizeof(int32_t)) / buffer_read_i32(buf);
+        record_size = buffer_read_i32(buf);
+        cities_to_load = (int) (buf->size - sizeof(int32_t)) / record_size;
+    }
+    int resources_to_load = resource_total_mapped();
+    if (version > SAVE_GAME_LAST_STATIC_SCENARIO_OBJECTS) {
+        resources_to_load = (record_size - (version > SAVE_GAME_LAST_LIMITED_ROUTE_COST ? 20 : 18)) / 2;
     }
 
     if (!array_init(cities, CITIES_ARRAY_SIZE_STEP, 0, city_in_use) ||
@@ -744,11 +750,19 @@ void empire_city_load_state(buffer *buf, int version)
         city->name_id = buffer_read_u8(buf);
         city->route_id = buffer_read_u8(buf);
         city->is_open = buffer_read_u8(buf);
-        for (int r = 0; r < resource_total_mapped(); r++) {
-            city->buys_resource[resource_remap(r)] = buffer_read_u8(buf);
+        for (int r = 0; r < resources_to_load; r++) {
+            resource_type resource = resource_remap(r);
+            int buys = buffer_read_u8(buf);
+            if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
+                city->buys_resource[resource] = buys;
+            }
         }
-        for (int r = 0; r < resource_total_mapped(); r++) {
-            city->sells_resource[resource_remap(r)] = buffer_read_u8(buf);
+        for (int r = 0; r < resources_to_load; r++) {
+            resource_type resource = resource_remap(r);
+            int sells = buffer_read_u8(buf);
+            if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
+                city->sells_resource[resource] = sells;
+            }
         }
         if (version > SAVE_GAME_LAST_LIMITED_ROUTE_COST) {
             city->cost_to_open = buffer_read_u32(buf);
