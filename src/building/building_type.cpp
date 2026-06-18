@@ -653,7 +653,7 @@ static bool attr_is_any(const std::string &attr, std::initializer_list<const cha
     return false;
 }
 
-static LaborCategory determine_labor_category(building_type type, const std::string &attr)
+static LaborCategory determine_labor_category(const std::string &attr)
 {
     if (attr_is(attr, "theater") || attr_is_any(attr, {
         "amphitheater", "hippodrome", "colosseum", "gladiator_school", "lion_house",
@@ -702,17 +702,13 @@ static LaborCategory determine_labor_category(building_type type, const std::str
         return LaborCategory::HealthEducation;
     }
 
-    resource_type output = building_output_resource(type);
-    if (output != RESOURCE_NONE) {
-        return resource_is_food(output) ? LaborCategory::FoodProduction : LaborCategory::IndustryCommerce;
-    }
     return LaborCategory::None;
 }
 
 BuildingType::BuildingType(building_type type, std::string attr)
     : type_(type)
     , attr_(std::move(attr))
-    , labor_category_(determine_labor_category(type_, attr_))
+    , labor_category_(determine_labor_category(attr_))
 {
 }
 
@@ -1064,6 +1060,10 @@ void BuildingType::add_storage_type(const StorageType *storage_type)
 void BuildingType::add_production_method(ProductionMethod *production_method)
 {
     production_methods_.push_back(production_method);
+    const resource_type output = production_method ? production_method->output_resource() : RESOURCE_NONE;
+    if (labor_category_ == LaborCategory::None && output != RESOURCE_NONE) {
+        labor_category_ = resource_is_food(output) ? LaborCategory::FoodProduction : LaborCategory::IndustryCommerce;
+    }
 }
 
 void BuildingType::set_distribution(const Distribution *distribution)
