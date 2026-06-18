@@ -25,6 +25,7 @@
 #include "window/message_list.h"
 #include "window/overlay_menu.h"
 #include "window/advisors.h"
+#include "game/campaign.h"
 extern "C" {
 
 #include "building/building_type_api.h"
@@ -33,7 +34,6 @@ extern "C" {
 #include "city/view.h"
 #include "core/config.h"
 #include "core/direction.h"
-#include "game/campaign.h"
 #include "graphics/image_button.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"

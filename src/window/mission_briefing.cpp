@@ -21,15 +21,16 @@
 #include <cstdio>
 #include <memory>
 
+#include "game/settings.h"
+#include "game/campaign.h"
+#include "scenario/scenario.h"
 extern "C" {
 
 #include "city/mission.h"
 #include "core/config.h"
 #include "core/encoding.h"
 #include "core/image_group.h"
-#include "game/campaign.h"
 #include "game/mission.h"
-#include "game/settings.h"
 #include "game/tutorial.h"
 #include "graphics/image_button.h"
 #include "graphics/screen.h"
@@ -40,7 +41,6 @@ extern "C" {
 #include "scenario/criteria.h"
 #include "scenario/event/controller.h"
 #include "scenario/property.h"
-#include "scenario/scenario.h"
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"

@@ -8,6 +8,7 @@
 #include "building/local_workforce.h"
 #include "city/god.h"
 
+#include "scenario/data.h"
 extern "C" {
 #include "building/building_record.h"
 #include "building/monument.h"
@@ -20,7 +21,6 @@ extern "C" {
 #include "core/random.h"
 #include "game/resource.h"
 #include "game/time.h"
-#include "scenario/data.h"
 #include "scenario/property.h"
 }
 

@@ -1,8 +1,8 @@
 #include "file.h"
 
+#include "core/file.h"
 extern "C" {
 
-#include "core/file.h"
 }
 
 #include "miniz/miniz.h"

@@ -9,6 +9,7 @@
 
 #include "window/editor/map.h"
 #include "widget/dropdown_button.h"
+#include "scenario/data.h"
 extern "C" {
 
 #include "graphics/ui_runtime_api.h"
@@ -18,7 +19,6 @@ extern "C" {
 #include "scenario/editor_events.h"
 #include "scenario/property.h"
 #include "scenario/types.h"
-#include "scenario/data.h"
 }
 
 static void button_earthquake_severity(const generic_button *button);

@@ -17,7 +17,8 @@
 #include "scenario/price_change.h"
 #include "scenario/request.h"
 
-#include <string.h>
+#include <string>
+#include <string_view>
 
 struct scenario_t scenario;
 
@@ -55,139 +56,162 @@ static struct {
     size_t end;
 
     // Cache info
-    savegame_version_t version;
+    int version;
 } buffer_offsets;
+
+namespace {
+
+template <size_t N>
+void write_point_axis(buffer *buf, const map_point (&points)[N], int map_point::*member)
+{
+    for (const auto &point : points) {
+        buffer_write_i16(buf, point.*member);
+    }
+}
+
+template <size_t N>
+void read_point_axis(buffer *buf, map_point (&points)[N], int map_point::*member)
+{
+    for (auto &point : points) {
+        point.*member = buffer_read_i16(buf);
+    }
+}
+
+static int scenario_version_for_savegame(int savegame_version)
+{
+    if (savegame_version <= SAVE_GAME_LAST_NO_EXTENDED_REQUESTS) {
+        return SCENARIO_LAST_NO_EXTENDED_REQUESTS;
+    }
+    if (savegame_version <= SAVE_GAME_LAST_NO_CUSTOM_MESSAGES) {
+        return SCENARIO_LAST_NO_CUSTOM_MESSAGES;
+    }
+    if (savegame_version <= SAVE_GAME_LAST_NO_CUSTOM_VARIABLES) {
+        return SCENARIO_LAST_NO_CUSTOM_VARIABLES;
+    }
+    if (savegame_version <= SAVE_GAME_LAST_WRONG_SCENARIO_END_OFFSET) {
+        return SCENARIO_LAST_WRONG_END_OFFSET;
+    }
+    if (savegame_version <= SAVE_GAME_LAST_STATIC_SCENARIO_ORIGINAL_DATA) {
+        return SCENARIO_LAST_STATIC_ORIGINAL_DATA;
+    }
+    if (savegame_version <= SAVE_GAME_LAST_NO_ALT_NATIVE_HUTS) {
+        return SCENARIO_LAST_NO_ALT_NATIVE_HUTS;
+    }
+    if (savegame_version <= SAVE_GAME_LAST_NO_EXTRA_NATIVE_BUILDINGS) {
+        return SCENARIO_LAST_NO_EXTRA_NATIVE_BUILDINGS;
+    }
+    if (savegame_version <= SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
+        return SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA;
+    }
+    return SCENARIO_CURRENT_VERSION;
+}
+
+} // namespace
 
 static void calculate_buffer_offsets(int scenario_version)
 {
     if (buffer_offsets.version && buffer_offsets.version == scenario_version) {
         return;
     }
-    memset(&buffer_offsets, 0, sizeof(buffer_offsets));
+    buffer_offsets = {};
     size_t next_start_offset = 0;
+    auto next = [&next_start_offset](size_t bytes) {
+        const size_t start = next_start_offset;
+        next_start_offset += bytes;
+        return start;
+    };
 
     if (scenario_version > SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.size = next_start_offset;
-        next_start_offset = buffer_offsets.size + sizeof(int32_t);
+        buffer_offsets.size = next(sizeof(int32_t));
     }
 
-    buffer_offsets.start_info = next_start_offset;
-    next_start_offset = buffer_offsets.start_info + 14;
+    buffer_offsets.start_info = next(14);
 
     if (scenario_version <= SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.original_requests_part1 = next_start_offset;
-        next_start_offset = buffer_offsets.original_requests_part1 + MAX_ORIGINAL_REQUESTS * 8;
+        buffer_offsets.original_requests_part1 = next(MAX_ORIGINAL_REQUESTS * 8);
     }
 
     if (scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.original_invasions_part1 = next_start_offset;
-        next_start_offset = buffer_offsets.original_invasions_part1 + MAX_ORIGINAL_INVASIONS * 10;
+        buffer_offsets.original_invasions_part1 = next(MAX_ORIGINAL_INVASIONS * 10);
     }
 
-    buffer_offsets.start_funds_and_enemy_id = next_start_offset;
-    next_start_offset = buffer_offsets.start_funds_and_enemy_id + 14;
+    buffer_offsets.start_funds_and_enemy_id = next(14);
 
-    buffer_offsets.map_size = next_start_offset;
-    next_start_offset = buffer_offsets.map_size + 16;
+    buffer_offsets.map_size = next(16);
 
-    buffer_offsets.briefing = next_start_offset;
-    next_start_offset = buffer_offsets.briefing + MAX_BRIEF_DESCRIPTION + MAX_BRIEFING;
+    buffer_offsets.briefing = next(MAX_BRIEF_DESCRIPTION + MAX_BRIEFING);
 
     if (scenario_version <= SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.original_requests_part2 = next_start_offset;
-        next_start_offset = buffer_offsets.original_requests_part2 + MAX_ORIGINAL_REQUESTS;
+        buffer_offsets.original_requests_part2 = next(MAX_ORIGINAL_REQUESTS);
     }
 
-    buffer_offsets.image = next_start_offset;
-    next_start_offset = buffer_offsets.image + 6;
+    buffer_offsets.image = next(6);
     if (scenario_version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        next_start_offset += 2;// favour reset monthly pattern is +2 bytes
+        next(2); // favour reset monthly pattern is +2 bytes
     }
-    buffer_offsets.herds = next_start_offset;
-    next_start_offset = buffer_offsets.herds + MAX_HERD_POINTS * 4;
+    buffer_offsets.herds = next(MAX_HERD_POINTS * 4);
 
     if (scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.original_demand_changes = next_start_offset;
-        next_start_offset = buffer_offsets.original_demand_changes + MAX_ORIGINAL_DEMAND_CHANGES * 9;
+        buffer_offsets.original_demand_changes = next(MAX_ORIGINAL_DEMAND_CHANGES * 9);
 
-        buffer_offsets.original_price_changes = next_start_offset;
-        next_start_offset = buffer_offsets.original_price_changes + MAX_ORIGINAL_PRICE_CHANGES * 6;
+        buffer_offsets.original_price_changes = next(MAX_ORIGINAL_PRICE_CHANGES * 6);
     }
 
-    buffer_offsets.gladiator_revolt = next_start_offset;
-    next_start_offset = buffer_offsets.gladiator_revolt + 8;
+    buffer_offsets.gladiator_revolt = next(8);
 
-    buffer_offsets.emperor_change = next_start_offset;
-    next_start_offset = buffer_offsets.emperor_change + 8;
+    buffer_offsets.emperor_change = next(8);
 
-    buffer_offsets.random_events = next_start_offset;
-    next_start_offset = buffer_offsets.random_events + 36;
+    buffer_offsets.random_events = next(36);
 
-    buffer_offsets.fishing = next_start_offset;
-    next_start_offset = buffer_offsets.fishing + MAX_FISH_POINTS * 4;
+    buffer_offsets.fishing = next(MAX_FISH_POINTS * 4);
 
     if (scenario_version <= SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.original_requests_part3 = next_start_offset;
-        next_start_offset = buffer_offsets.original_requests_part3 + MAX_ORIGINAL_REQUESTS;
+        buffer_offsets.original_requests_part3 = next(MAX_ORIGINAL_REQUESTS);
     }
 
     if (scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.original_invasions_part2 = next_start_offset;
-        next_start_offset = buffer_offsets.original_invasions_part2 + MAX_ORIGINAL_INVASIONS * 1;
+        buffer_offsets.original_invasions_part2 = next(MAX_ORIGINAL_INVASIONS * 1);
     }
 
     if (scenario_version <= SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
-        buffer_offsets.original_requests_part4 = next_start_offset;
-        next_start_offset = buffer_offsets.original_requests_part4 + MAX_ORIGINAL_REQUESTS * 4;
+        buffer_offsets.original_requests_part4 = next(MAX_ORIGINAL_REQUESTS * 4);
     }
 
-    buffer_offsets.rome_wheat = next_start_offset;
-    next_start_offset = buffer_offsets.rome_wheat + 4;
+    buffer_offsets.rome_wheat = next(4);
 
     if (scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.allowed_buildings = next_start_offset;
-        next_start_offset = buffer_offsets.allowed_buildings + MAX_ORIGINAL_ALLOWED_BUILDINGS * 2;
+        buffer_offsets.allowed_buildings = next(MAX_ORIGINAL_ALLOWED_BUILDINGS * 2);
     }
 
-    buffer_offsets.win_criteria = next_start_offset;
-    next_start_offset = buffer_offsets.win_criteria + 52;
+    buffer_offsets.win_criteria = next(52);
     if (scenario_version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        next_start_offset += 1;// earthkek pattern is +1 byte
+        next(1); // earthkek pattern is +1 byte
     }
-    buffer_offsets.map_points = next_start_offset;
-    next_start_offset = buffer_offsets.map_points + 12;
+    buffer_offsets.map_points = next(12);
 
-    buffer_offsets.invasion_points = next_start_offset;
-    next_start_offset = buffer_offsets.invasion_points + MAX_INVASION_POINTS * 4;
+    buffer_offsets.invasion_points = next(MAX_INVASION_POINTS * 4);
 
-    buffer_offsets.misc = next_start_offset;
-    next_start_offset = buffer_offsets.misc + 51;
+    buffer_offsets.misc = next(51);
 
     if (scenario_version > SCENARIO_LAST_NO_ALT_NATIVE_HUTS) {
-        buffer_offsets.alt_huts = next_start_offset;
-        next_start_offset = buffer_offsets.alt_huts + 4;
+        buffer_offsets.alt_huts = next(4);
     }
 
     if (scenario_version > SCENARIO_LAST_NO_EXTRA_NATIVE_BUILDINGS) {
-        buffer_offsets.native_buildings = next_start_offset;
-        next_start_offset = buffer_offsets.native_buildings + 12;
+        buffer_offsets.native_buildings = next(12);
     }
 
     if (scenario_version > SCENARIO_LAST_NO_CUSTOM_MESSAGES) {
-        buffer_offsets.introduction = next_start_offset;
-        next_start_offset = buffer_offsets.introduction + 4;
+        buffer_offsets.introduction = next(4);
     }
 
     if (scenario_version > SCENARIO_LAST_NO_CUSTOM_VARIABLES && scenario_version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
-        buffer_offsets.custom_variables = next_start_offset;
-        next_start_offset = buffer_offsets.custom_variables + MAX_ORIGINAL_CUSTOM_VARIABLES * 9;
+        buffer_offsets.custom_variables = next(MAX_ORIGINAL_CUSTOM_VARIABLES * 9);
     }
 
-    buffer_offsets.custom_name = next_start_offset;
-    next_start_offset = buffer_offsets.custom_name +
-        (scenario_version > SCENARIO_LAST_WRONG_END_OFFSET ? sizeof(scenario.empire.custom_name) : 50);
-
-    buffer_offsets.end = next_start_offset + 1;
+    buffer_offsets.custom_name = next(0);
+    buffer_offsets.end = buffer_offsets.custom_name +
+        (scenario_version > SCENARIO_LAST_WRONG_END_OFFSET ? sizeof(scenario.empire.custom_name) : 50) + 1;
 
     buffer_offsets.version = scenario_version;
 }
@@ -196,25 +220,8 @@ int scenario_get_state_buffer_size_by_savegame_version(int savegame_version)
 {
     if (savegame_version <= SAVE_GAME_LAST_UNVERSIONED_SCENARIOS) {
         return 1720;
-    } else if (savegame_version <= SAVE_GAME_LAST_NO_EXTENDED_REQUESTS) {
-        calculate_buffer_offsets(SCENARIO_LAST_NO_EXTENDED_REQUESTS);
-    } else if (savegame_version <= SAVE_GAME_LAST_NO_CUSTOM_MESSAGES) {
-        calculate_buffer_offsets(SCENARIO_LAST_NO_CUSTOM_MESSAGES);
-    } else if (savegame_version <= SAVE_GAME_LAST_NO_CUSTOM_VARIABLES) {
-        calculate_buffer_offsets(SCENARIO_LAST_NO_CUSTOM_VARIABLES);
-    } else if (savegame_version <= SAVE_GAME_LAST_WRONG_SCENARIO_END_OFFSET) {
-        calculate_buffer_offsets(SCENARIO_LAST_WRONG_END_OFFSET);
-    } else if (savegame_version <= SAVE_GAME_LAST_STATIC_SCENARIO_ORIGINAL_DATA) {
-        calculate_buffer_offsets(SCENARIO_LAST_STATIC_ORIGINAL_DATA);
-    } else if (savegame_version <= SAVE_GAME_LAST_NO_ALT_NATIVE_HUTS) {
-        calculate_buffer_offsets(SCENARIO_LAST_NO_ALT_NATIVE_HUTS);
-    } else if (savegame_version <= SAVE_GAME_LAST_NO_EXTRA_NATIVE_BUILDINGS) {
-        calculate_buffer_offsets(SCENARIO_LAST_NO_EXTRA_NATIVE_BUILDINGS);
-    } else if (savegame_version <= SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
-        calculate_buffer_offsets(SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA);
-    } else {
-        calculate_buffer_offsets(SCENARIO_CURRENT_VERSION);
     }
+    calculate_buffer_offsets(scenario_version_for_savegame(savegame_version));
     return (int) buffer_offsets.end;
 }
 
@@ -233,7 +240,7 @@ int scenario_get_state_buffer_size_by_scenario_version(int scenario_version)
 void scenario_save_state(buffer *buf)
 {
     int buf_size = scenario_get_state_buffer_size_by_scenario_version(SCENARIO_CURRENT_VERSION);
-    uint8_t *buf_data = malloc(buf_size);
+    uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     buffer_init(buf, buf_data, buf_size);
 
     // size
@@ -262,12 +269,8 @@ void scenario_save_state(buffer *buf)
     buffer_write_i16(buf, scenario.reset_favour_monthly);
     buffer_write_i16(buf, scenario.player_rank);
 
-    for (int i = 0; i < MAX_HERD_POINTS; i++) {
-        buffer_write_i16(buf, scenario.herd_points[i].x);
-    }
-    for (int i = 0; i < MAX_HERD_POINTS; i++) {
-        buffer_write_i16(buf, scenario.herd_points[i].y);
-    }
+    write_point_axis(buf, scenario.herd_points, &map_point::x);
+    write_point_axis(buf, scenario.herd_points, &map_point::y);
 
     buffer_write_i32(buf, scenario.gladiator_revolt.enabled);
     buffer_write_i32(buf, scenario.gladiator_revolt.year);
@@ -284,19 +287,10 @@ void scenario_save_state(buffer *buf)
     buffer_write_i32(buf, scenario.random_events.iron_mine_collapse);
     buffer_write_i32(buf, scenario.random_events.clay_pit_flooded);
 
-    for (int i = 0; i < MAX_FISH_POINTS; i++) {
-        buffer_write_i16(buf, scenario.fishing_points[i].x);
-    }
-    for (int i = 0; i < MAX_FISH_POINTS; i++) {
-        buffer_write_i16(buf, scenario.fishing_points[i].y);
-    }
+    write_point_axis(buf, scenario.fishing_points, &map_point::x);
+    write_point_axis(buf, scenario.fishing_points, &map_point::y);
 
     buffer_write_i32(buf, scenario.rome_supplies_wheat);
-    /***
-        for (int i = 0; i < MAX_ALLOWED_BUILDINGS; i++) {
-            buffer_write_i16(buf, scenario.allowed_buildings[i]);
-        }
-    ***/
     buffer_write_i32(buf, scenario.win_criteria.culture.goal);
     buffer_write_i32(buf, scenario.win_criteria.prosperity.goal);
     buffer_write_i32(buf, scenario.win_criteria.peace.goal);
@@ -324,12 +318,8 @@ void scenario_save_state(buffer *buf)
     buffer_write_i16(buf, scenario.exit_point.x);
     buffer_write_i16(buf, scenario.exit_point.y);
 
-    for (int i = 0; i < MAX_INVASION_POINTS; i++) {
-        buffer_write_i16(buf, scenario.invasion_points[i].x);
-    }
-    for (int i = 0; i < MAX_INVASION_POINTS; i++) {
-        buffer_write_i16(buf, scenario.invasion_points[i].y);
-    }
+    write_point_axis(buf, scenario.invasion_points, &map_point::x);
+    write_point_axis(buf, scenario.invasion_points, &map_point::y);
 
     buffer_write_i16(buf, scenario.river_entry_point.x);
     buffer_write_i16(buf, scenario.river_entry_point.y);
@@ -415,12 +405,8 @@ void scenario_load_state(buffer *buf, int version)
     }
     scenario.player_rank = buffer_read_i16(buf);
 
-    for (int i = 0; i < MAX_HERD_POINTS; i++) {
-        scenario.herd_points[i].x = buffer_read_i16(buf);
-    }
-    for (int i = 0; i < MAX_HERD_POINTS; i++) {
-        scenario.herd_points[i].y = buffer_read_i16(buf);
-    }
+    read_point_axis(buf, scenario.herd_points, &map_point::x);
+    read_point_axis(buf, scenario.herd_points, &map_point::y);
 
     if (version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
         scenario_demand_change_load_state_old_version(buf, version <= SCENARIO_LAST_UNVERSIONED);
@@ -452,12 +438,8 @@ void scenario_load_state(buffer *buf, int version)
     scenario.random_events.iron_mine_collapse = buffer_read_i32(buf);
     scenario.random_events.clay_pit_flooded = buffer_read_i32(buf);
 
-    for (int i = 0; i < MAX_FISH_POINTS; i++) {
-        scenario.fishing_points[i].x = buffer_read_i16(buf);
-    }
-    for (int i = 0; i < MAX_FISH_POINTS; i++) {
-        scenario.fishing_points[i].y = buffer_read_i16(buf);
-    }
+    read_point_axis(buf, scenario.fishing_points, &map_point::x);
+    read_point_axis(buf, scenario.fishing_points, &map_point::y);
 
     if (version <= SCENARIO_LAST_STATIC_ORIGINAL_DATA) {
         if (version <= SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
@@ -505,12 +487,8 @@ void scenario_load_state(buffer *buf, int version)
     scenario.exit_point.x = buffer_read_i16(buf);
     scenario.exit_point.y = buffer_read_i16(buf);
 
-    for (int i = 0; i < MAX_INVASION_POINTS; i++) {
-        scenario.invasion_points[i].x = buffer_read_i16(buf);
-    }
-    for (int i = 0; i < MAX_INVASION_POINTS; i++) {
-        scenario.invasion_points[i].y = buffer_read_i16(buf);
-    }
+    read_point_axis(buf, scenario.invasion_points, &map_point::x);
+    read_point_axis(buf, scenario.invasion_points, &map_point::y);
 
     scenario.river_entry_point.x = buffer_read_i16(buf);
     scenario.river_entry_point.y = buffer_read_i16(buf);
@@ -526,7 +504,7 @@ void scenario_load_state(buffer *buf, int version)
     scenario.native_images.meeting = buffer_read_i32(buf);
     scenario.native_images.crops = buffer_read_i32(buf);
 
-    scenario.climate = buffer_read_u8(buf);
+    scenario.climate = static_cast<scenario_climate>(buffer_read_u8(buf));
     scenario.flotsam_enabled = buffer_read_u8(buf);
 
     buffer_skip(buf, 2);
@@ -724,19 +702,17 @@ void scenario_settings_save_state(buffer *part1, buffer *part2, buffer *part3,
 
     buffer_write_i32(part3, scenario.settings.is_custom);
 
-    for (int i = 0; i < MAX_PLAYER_NAME; i++) {
-        buffer_write_u8(player_name, 0);
-    }
     buffer_write_raw(player_name, scenario.settings.player_name, MAX_PLAYER_NAME);
     buffer_write_raw(scenario_name, scenario.scenario_name, MAX_SCENARIO_NAME);
 
-    int campaign_name_length = (int) strlen(game_campaign_get_name()) + 1;
+    std::string_view campaign_name_view = game_campaign_get_name();
+    int campaign_name_length = (int) campaign_name_view.size() + 1;
     int buf_size = (int) sizeof(int32_t) + campaign_name_length;
-    uint8_t *buf_data = malloc(buf_size);
+    uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
 
     buffer_init(campaign_name, buf_data, buf_size);
     buffer_write_i32(campaign_name, campaign_name_length);
-    buffer_write_raw(campaign_name, game_campaign_get_name(), campaign_name_length);
+    buffer_write_raw(campaign_name, campaign_name_view.data(), campaign_name_length);
 }
 
 void scenario_settings_load_state(
@@ -757,9 +733,9 @@ void scenario_settings_load_state(
     if (!game_campaign_is_active()) {
         if (campaign_name) {
             int campaign_name_length = buffer_read_i32(campaign_name);
-            char name[FILE_NAME_MAX];
-            buffer_read_raw(campaign_name, name, campaign_name_length);
-            game_campaign_load(name);
+            std::string name(campaign_name_length, '\0');
+            buffer_read_raw(campaign_name, name.data(), campaign_name_length);
+            game_campaign_load(name.c_str());
         } else if (!scenario_is_custom()) {
             game_campaign_load(CAMPAIGN_ORIGINAL_NAME);
         }

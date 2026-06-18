@@ -15,6 +15,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - The active local build workflow is the root Visual Studio/MSBuild project.
 - The Visual Studio solution/project at repo root is the build path that matters.
 - `res/augustus.rc` is part of the project and provides the executable icon/resource wiring.
+- Runtime performance tracker contract: `docs/performance_tracker_runtime.md`; `debug_performance_tracker` enables the `vespasian-performance.log` sidecar next to `augustus-log.txt`.
 
 ## Upstream lineage and source references
 - Julius is the base project repository: https://github.com/bvschaik/julius

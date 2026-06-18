@@ -17,16 +17,16 @@
 #include "window/popup_dialog.h"
 #include "top_menu_editor.h"
 
+#include "scenario/data.h"
+#include "scenario/scenario.h"
 extern "C" {
 #include "core/string.h"
 #include "empire/object.h"
 #include "game/resource.h"
 #include "game/resource_id_bridge.h"
-#include "scenario/data.h"
 #include "scenario/editor.h"
 #include "scenario/editor_map.h"
 #include "scenario/empire.h"
-#include "scenario/scenario.h"
 }
 
 

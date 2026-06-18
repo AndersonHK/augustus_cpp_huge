@@ -37,6 +37,7 @@
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
 
+#include "game/settings.h"
 extern "C" {
 
 #include "building/building_type_api.h"
@@ -49,7 +50,6 @@ extern "C" {
 #include "core/string.h"
 #include "figure/formation.h"
 #include "figure/formation_legion.h"
-#include "game/settings.h"
 #include "game/time.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"

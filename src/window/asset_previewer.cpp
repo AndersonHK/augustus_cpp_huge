@@ -10,6 +10,8 @@
 #include "asset_previewer.h"
 
 #include "window/popup_dialog.h"
+#include "core/file.h"
+#include "game/settings.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -18,12 +20,10 @@ extern "C" {
 #include "core/direction.h"
 #include "core/encoding.h"
 #include "core/log.h"
-#include "core/file.h"
 #include "core/random.h"
 #include "core/string.h"
 #include "core/time.h"
 #include "game/animation.h"
-#include "game/settings.h"
 #include "game/system.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/renderer.h"

@@ -1,4 +1,4 @@
-﻿#include "game/file.h"
+#include "game/file.h"
 #include "translation/translation.h"
 #include "game/file_editor.h"
 #include "game/state.h"
@@ -18,8 +18,15 @@
 #include "building/building_runtime.h"
 #include "figure/figure_type_registry.h"
 #include "game/defines.h"
+#include "game/performance_tracker.h"
 #include "graphics/declarative_window.h"
 
+#include "game/settings.h"
+#include "game/campaign.h"
+#include "scenario/scenario.h"
+#include "platform/prefs.h"
+#include "platform/user_path.h"
+#include "sound/system.h"
 extern "C" {
 #include "assets/assets.h"
 #include "assets/image_group_payload_api.h"
@@ -33,8 +40,6 @@ extern "C" {
 #include "core/string.h"
 #include "figure/type.h"
 #include "game/animation.h"
-#include "game/campaign.h"
-#include "game/settings.h"
 #include "game/speed.h"
 #include "graphics/font.h"
 #include "graphics/text.h"
@@ -42,12 +47,8 @@ extern "C" {
 #include "graphics/window.h"
 #include "map/tile_runtime_api.h"
 #include "platform/file_manager.h"
-#include "platform/prefs.h"
-#include "platform/user_path.h"
 #include "scenario/property.h"
-#include "scenario/scenario.h"
 #include "sound/city.h"
-#include "sound/system.h"
 }
 
 #include <stdio.h>
@@ -87,6 +88,7 @@ int game_pre_init(void)
 {
     settings_load();
     config_load();
+    performance_tracker_init(config_get(CONFIG_DEBUG_PERFORMANCE_TRACKER));
     hotkey_config_load();
     scenario_settings_init();
     game_campaign_clear();
@@ -278,14 +280,20 @@ void game_run(void)
 {
     game_animation_update();
     int num_ticks = game_speed_get_elapsed_ticks();
+    int processed_ticks = 0;
     for (int i = 0; i < num_ticks; i++) {
-        game_tick_run();
-        game_file_write_mission_saved_game();
+        {
+            PerformanceTrackerScope tick_scope(PERFORMANCE_TRACKER_BUCKET_TICK);
+            game_tick_run();
+            game_file_write_mission_saved_game();
+        }
+        processed_ticks++;
 
         if (window_is_invalid()) {
             break;
         }
     }
+    performance_tracker_record_ticks_processed(processed_ticks);
 }
 
 void game_draw(void)
@@ -319,5 +327,6 @@ void game_exit(void)
     video_shutdown();
     settings_save();
     config_save();
+    performance_tracker_shutdown();
     sound_system_shutdown();
 }

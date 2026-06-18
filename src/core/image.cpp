@@ -6,13 +6,13 @@
 #include "map/building_tiles.h"
 #include "map/image.h"
 
+#include "core/file.h"
 extern "C" {
 #include "image.h"
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "core/buffer.h"
-#include "core/file.h"
 #include "core/image_packer.h"
 #include "core/io.h"
 #include "core/log.h"

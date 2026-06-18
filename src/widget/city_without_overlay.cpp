@@ -10,6 +10,7 @@
 #include "city/festival.h"
 #include "city/labor.h"
 #include "figure/roamer_preview.h"
+#include "game/performance_tracker.h"
 #include "game/state.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
@@ -29,6 +30,7 @@
 #include "building/dock.h"
 #include "widget/city_draw.h"
 
+#include "graphics/clouds.h"
 extern "C" {
 #include "assets/assets.h"
 #include "building/building_type_api.h"
@@ -44,7 +46,6 @@ extern "C" {
 #include "core/time.h"
 #include "figure/formation_legion.h"
 #include "game/resource.h"
-#include "graphics/clouds.h"
 #include "graphics/renderer.h"
 #include "graphics/window.h"
 #include "input/scroll.h"
@@ -1104,6 +1105,7 @@ static void update_clouds(void)
 
 void city_without_overlay_draw(int selected_figure_id, pixel_coordinate *figure_coord, const map_tile *tile, unsigned int roamer_preview_building_id)
 {
+    PerformanceTrackerScope city_draw_scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW);
     int highlighted_formation_id = get_highlighted_formation_id(tile);
     draw_context.cursor_tile = (map_tile *) tile;//store the tile under the cursor
     init_draw_context(selected_figure_id, figure_coord, highlighted_formation_id);
@@ -1115,29 +1117,46 @@ void city_without_overlay_draw(int selected_figure_id, pixel_coordinate *figure_
     city_view_get_viewport(&x, &y, &width, &height);
     graphics_fill_rect(x, y, width, height, COLOR_BLACK);
     int should_mark_deleting = city_building_ghost_mark_deleting(tile);
-    city_view_foreach_valid_map_tile(draw_footprint);
+    {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_FOOTPRINT);
+        city_view_foreach_valid_map_tile(draw_footprint);
+    }
     if (!should_mark_deleting) {
-        city_view_foreach_valid_map_tile_row(
-            draw_top,
-            draw_figures,
-            draw_animation
-        );
+        {
+            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ROW);
+            city_view_foreach_valid_map_tile_row(
+                draw_top,
+                draw_figures,
+                draw_animation
+            );
+        }
         if (!selected_figure_id) {
+            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST);
             if (building_is_connectable(building_construction_type())) {
                 city_view_foreach_valid_map_tile(draw_connectable_construction_ghost);
             }
             city_building_ghost_draw(tile);
         }
-        city_view_foreach_valid_map_tile_row(
-            draw_elevated_figures,
-            draw_hippodrome_ornaments,
-            0
-        );
+        {
+            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED);
+            city_view_foreach_valid_map_tile_row(
+                draw_elevated_figures,
+                draw_hippodrome_ornaments,
+                0
+            );
+        }
     } else {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION);
         city_view_foreach_valid_map_tile(deletion_draw_terrain_top);
         city_view_foreach_valid_map_tile(deletion_draw_figures_animations);
         city_view_foreach_valid_map_tile(deletion_draw_remaining);
     }
-    update_clouds();
-    update_weather();
+    {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_CLOUDS);
+        update_clouds();
+    }
+    {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_WEATHER);
+        update_weather();
+    }
 }

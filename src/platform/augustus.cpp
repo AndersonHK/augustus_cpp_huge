@@ -1,19 +1,24 @@
-﻿#include "building/building_type_registry.h"
+#include "building/building_type_registry.h"
 #include "translation/translation.h"
 #include "game/game.h"
 #include "game/mod_manager.h"
+#include "game/performance_tracker.h"
 #include "platform/cursor.h"
 #include "platform/joystick.h"
 #include "window/asset_previewer.h"
 
+#include "core/file.h"
+#include "game/settings.h"
+#include "platform/platform.h"
+#include "platform/file_manager_cache.h"
+#include "platform/prefs.h"
+#include "platform/user_path.h"
 extern "C" {
 #include "assets/assets.h"
 #include "core/config.h"
 #include "core/encoding.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/time.h"
-#include "game/settings.h"
 #include "game/system.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
@@ -23,16 +28,12 @@ extern "C" {
 #include "platform/arguments.h"
 #include "platform/emscripten/emscripten.h"
 #include "platform/file_manager.h"
-#include "platform/file_manager_cache.h"
 #include "platform/ios/ios.h"
 #include "platform/keyboard_input.h"
-#include "platform/platform.h"
-#include "platform/prefs.h"
 #include "platform/renderer.h"
 #include "platform/screen.h"
 #include "platform/switch/switch.h"
 #include "platform/touch.h"
-#include "platform/user_path.h"
 #include "platform/vita/vita.h"
 }
 
@@ -483,25 +484,36 @@ static void platform_per_frame_callback(void)
 
 static void run_and_draw(void)
 {
+    performance_tracker_begin_frame();
+
     time_millis time_before_run = system_get_ticks();
     time_set_millis(time_before_run);
 
-    game_run();
-    game_draw();
-    uint64_t time_after_draw = system_get_ticks();
-
-    data.fps.frame_count++;
-    if (time_after_draw - data.fps.last_update_time > 1000) {
-        data.fps.last_fps = data.fps.frame_count;
-        data.fps.last_update_time = time_after_draw;
-        data.fps.frame_count = 0;
+    {
+        PerformanceTrackerScope run_scope(PERFORMANCE_TRACKER_BUCKET_RUN);
+        game_run();
     }
 
-    if (config_get(CONFIG_UI_DISPLAY_FPS)) {
-        game_display_fps(data.fps.last_fps);
+    uint64_t time_after_draw = 0;
+    {
+        PerformanceTrackerScope draw_scope(PERFORMANCE_TRACKER_BUCKET_DRAW);
+        game_draw();
+        time_after_draw = system_get_ticks();
+
+        data.fps.frame_count++;
+        if (time_after_draw - data.fps.last_update_time > 1000) {
+            data.fps.last_fps = data.fps.frame_count;
+            data.fps.last_update_time = time_after_draw;
+            data.fps.frame_count = 0;
+        }
+
+        if (config_get(CONFIG_UI_DISPLAY_FPS)) {
+            game_display_fps(data.fps.last_fps);
+        }
     }
 
     platform_renderer_render();
+    performance_tracker_end_frame();
 }
 
 static void handle_mouse_button(SDL_MouseButtonEvent *event, int is_down)

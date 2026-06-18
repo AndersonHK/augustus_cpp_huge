@@ -33,7 +33,7 @@ static FILE *open_pref_file(const char *filename, const char *mode)
         prefs.location_printed = 1;
     }
     size_t file_len = strlen(filename) + strlen(pref_dir) + 1;
-    char *pref_file = malloc(file_len * sizeof(char));
+    char *pref_file = static_cast<char *>(malloc(file_len * sizeof(char)));
     if (!pref_file) {
         SDL_free(pref_dir);
         return NULL;

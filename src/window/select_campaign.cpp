@@ -16,6 +16,9 @@
 #include "widget/input_box.h"
 #include "graphics/ui_runtime.h"
 
+#include "game/settings.h"
+#include "game/campaign.h"
+#include "scenario/scenario.h"
 extern "C" {
 
 #include "core/dir.h"
@@ -23,14 +26,11 @@ extern "C" {
 #include "core/image_group.h"
 #include "core/log.h"
 #include "core/string.h"
-#include "game/campaign.h"
-#include "game/settings.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
-#include "scenario/scenario.h"
 }
 
 #define PLAYER_NAME_LENGTH 32

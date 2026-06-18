@@ -2,10 +2,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 typedef enum {
     TOOLTIPS_NONE = 0,
     TOOLTIPS_SOME = 1,
@@ -80,5 +76,77 @@ void setting_set_personal_savings_for_mission(int mission_id, int savings);
 void setting_clear_personal_savings(void);
 
 #ifdef __cplusplus
+#include <cstdint>
+#include <string>
+#include <string_view>
+
+namespace settings {
+
+enum class Tooltips : std::uint8_t { None = TOOLTIPS_NONE, Some = TOOLTIPS_SOME, Full = TOOLTIPS_FULL };
+enum class Difficulty : std::uint8_t {
+    VeryEasy = DIFFICULTY_VERY_EASY,
+    Easy = DIFFICULTY_EASY,
+    Normal = DIFFICULTY_NORMAL,
+    Hard = DIFFICULTY_HARD,
+    VeryHard = DIFFICULTY_VERY_HARD
+};
+
+struct Sound {
+    bool enabled;
+    int volume;
+};
+
+struct WindowSize {
+    int width;
+    int height;
+};
+
+inline Tooltips tooltips()
+{
+    return static_cast<Tooltips>(setting_tooltips());
 }
+
+inline Difficulty difficulty()
+{
+    return static_cast<Difficulty>(setting_difficulty());
+}
+
+inline Sound sound(int type)
+{
+    if (const set_sound *data = setting_sound(type)) {
+        return {data->enabled != 0, data->volume};
+    }
+    return {false, 0};
+}
+
+inline bool is_fullscreen()
+{
+    return setting_fullscreen() != 0;
+}
+
+inline WindowSize window()
+{
+    WindowSize result{};
+    setting_window(&result.width, &result.height);
+    return result;
+}
+
+inline std::string_view player_name_view()
+{
+    const auto *const value = setting_player_name();
+    return value ? std::string_view(reinterpret_cast<const char *>(value)) : std::string_view{};
+}
+
+inline std::string player_name()
+{
+    return std::string(player_name_view());
+}
+
+inline void set_player_name(std::string_view value)
+{
+    const std::string copy(value);
+    setting_set_player_name(reinterpret_cast<const uint8_t *>(copy.c_str()));
+}
+
+} // namespace settings
 #endif

@@ -11,6 +11,7 @@
 
 #include "window/editor/map.h"
 #include "graphics/grid_box.h"
+#include "scenario/data.h"
 extern "C" {
 
 #include "core/image_group_editor.h"
@@ -19,7 +20,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "scenario/data.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
 #include "scenario/request.h"

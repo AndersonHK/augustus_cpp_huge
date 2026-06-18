@@ -15,8 +15,8 @@
 #include <utility>
 #include <vector>
 
-extern "C" {
 #include "core/file.h"
+extern "C" {
 #include "core/xml_parser.h"
 #include "game/mod_manager.h"
 }

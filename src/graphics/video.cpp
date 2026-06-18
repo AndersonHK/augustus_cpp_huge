@@ -16,7 +16,10 @@
 #include "easyav1.h"
 #include "pl_mpeg/pl_mpeg.h"
 
-#include <string.h>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <string_view>
 
 #define MAX_FRAME_TIME_ADVANCE_MS (1.0 / 30.0)
 
@@ -26,6 +29,32 @@ typedef enum {
     VIDEO_TYPE_MPG = 2,
     VIDEO_TYPE_AV1 = 3
 } video_type;
+
+using FilePtr = std::unique_ptr<FILE, decltype(&file_close)>;
+
+static std::string rewrite_video_filename(std::string_view filename, std::string_view replacement_root, bool keep_directory,
+    std::string_view extension)
+{
+    std::string rewritten = std::string{filename};
+    if (filename.starts_with("smk/") || filename.starts_with("smk\\")) {
+        std::string converted = std::string{replacement_root};
+        converted.push_back(filename[3]);
+        converted += keep_directory ? filename.substr(4) : std::filesystem::path{filename}.filename().string();
+        rewritten.swap(converted);
+    }
+    std::filesystem::path rewritten_path{rewritten};
+    rewritten_path.replace_extension(std::string{extension});
+    return rewritten_path.string();
+}
+
+static const char *resolve_videos_path(const std::string &candidate, std::string_view fallback)
+{
+    const char *community_location = platform_file_manager_get_directory_for_location(PATH_LOCATION_COMMUNITY, 0);
+    if (community_location && candidate.starts_with(community_location)) {
+        return fallback.data();
+    }
+    return dir_get_file(candidate.c_str(), MAY_BE_LOCALIZED);
+}
 
 static struct {
     int is_playing;
@@ -91,53 +120,24 @@ static void update_mpg_audio(plm_t *mpeg, plm_samples_t *samples, void *user)
     sound_device_write_custom_music_data(samples->interleaved, sizeof(float) * samples->count * 2);
 }
 
-static int load_av1(const char *filename)
+static int load_av1(std::string_view filename)
 {
     if (data.type == VIDEO_TYPE_SMK || data.type == VIDEO_TYPE_MPG) {
         return 0;
     }
-    char av1_filename[FILE_NAME_MAX];
-    int position = 0;
-
-    // Copy filename and change "smk/" to "av1/"
-    if (strncmp(filename, "smk/", 4) == 0) {
-        position = snprintf(av1_filename, FILE_NAME_MAX, "av1/%s", file_remove_path(filename));
-    } else if (strncmp(filename, "smk\\", 4) == 0) {
-        position = snprintf(av1_filename, FILE_NAME_MAX, "av1\\%s", file_remove_path(filename));
-    } else {
-        position = snprintf(av1_filename, FILE_NAME_MAX, "%s", filename);
-    }
-
-    if (position + 5 >= FILE_NAME_MAX) {
-        return 0; // Not enough space for the new extension
-    }
-
-    // We cannot use file_change_extension here because it can only replace 3 characters
-    filename = strrchr(av1_filename, '.');
-    if (filename) {
-        position = (int) (filename - av1_filename); // Get the position of the last dot
-    }
-
-    snprintf(av1_filename + position, FILE_NAME_MAX - position, ".webm");
-
+    std::string av1_filename = rewrite_video_filename(filename, "av1", false, "webm");
     data.easyav1 = 0;
     size_t length;
-    uint8_t *video_buffer = game_campaign_load_file(av1_filename, &length);
+    uint8_t *video_buffer = game_campaign_load_file(av1_filename.c_str(), &length);
     if (video_buffer) {
         data.easyav1 = easyav1_init_from_memory(video_buffer, length, 0);
     }
     if (!data.easyav1) {
-        const char *path;
-        const char *community_location = platform_file_manager_get_directory_for_location(PATH_LOCATION_COMMUNITY, 0);
-        if (strncmp(community_location, av1_filename, strlen(community_location)) == 0) {
-            path = filename;
-        } else {
-            path = dir_get_file(av1_filename, MAY_BE_LOCALIZED);
-        }
+        const char *path = resolve_videos_path(av1_filename, filename);
         if (!path) {
             return 0;
         }
-        FILE *av1 = file_open(path, "rb");
+        FilePtr av1(file_open(path, "rb"), &file_close);
         if (!av1) {
             return 0;
         }
@@ -147,12 +147,13 @@ static int load_av1(const char *filename)
         if (!config_get(CONFIG_GENERAL_ENABLE_VIDEO_SOUND)) {
             settings.enable_audio = EASYAV1_FALSE;
         }
-        data.easyav1 = easyav1_init_from_file(av1, &settings);
+        data.easyav1 = easyav1_init_from_file(av1.get(), &settings);
+        if (!data.easyav1) {
+            return 0;
+        }
+        av1.release();
     }
 
-    if (!data.easyav1) {
-        return 0;
-    }
     data.video.width = easyav1_get_video_width(data.easyav1);
     data.video.height = easyav1_get_video_height(data.easyav1);
     data.video.y_scale = SMACKER_Y_SCALE_NONE;
@@ -173,43 +174,34 @@ static int load_av1(const char *filename)
     return 1;
 }
 
-static int load_mpg(const char *filename)
+static int load_mpg(std::string_view filename)
 {
     if (data.type == VIDEO_TYPE_SMK || data.type == VIDEO_TYPE_AV1) {
         return 0;
     }
-    char mpg_filename[FILE_NAME_MAX];
-    snprintf(mpg_filename, FILE_NAME_MAX, "%s", filename);
-    file_change_extension(mpg_filename, "mpg");
-    if (strncmp(mpg_filename, "smk/", 4) == 0 || strncmp(mpg_filename, "smk\\", 4) == 0) {
-        mpg_filename[0] = 'm';
-        mpg_filename[1] = 'p';
-        mpg_filename[2] = 'g';
-    }
+    std::string mpg_filename = rewrite_video_filename(filename, "mpg", true, "mpg");
     data.plm = 0;
     size_t length;
-    uint8_t *video_buffer = game_campaign_load_file(mpg_filename, &length);
+    uint8_t *video_buffer = game_campaign_load_file(mpg_filename.c_str(), &length);
     if (video_buffer) {
         data.plm = plm_create_with_memory(video_buffer, length, 1);
     }
     if (!data.plm) {
-        const char *path;
-        const char *community_location = platform_file_manager_get_directory_for_location(PATH_LOCATION_COMMUNITY, 0);
-        if (strncmp(community_location, mpg_filename, strlen(community_location)) == 0) {
-            path = filename;
-        } else {
-            path = dir_get_file(mpg_filename, MAY_BE_LOCALIZED);
-        }
+        const char *path = resolve_videos_path(mpg_filename, filename);
         if (!path) {
             return 0;
         }
-        FILE *mpg = file_open(path, "rb");
-        data.plm = plm_create_with_file(mpg, 1);
+        FilePtr mpg(file_open(path, "rb"), &file_close);
+        if (!mpg) {
+            return 0;
+        }
+        data.plm = plm_create_with_file(mpg.get(), 1);
+        if (!data.plm) {
+            return 0;
+        }
+        mpg.release();
     }
 
-    if (!data.plm) {
-        return 0;
-    }
     data.video.width = plm_get_width(data.plm);
     data.video.height = plm_get_height(data.plm);
     data.video.y_scale = SMACKER_Y_SCALE_NONE;
@@ -472,8 +464,10 @@ static void update_video_frame(void)
         if (!frame || !graphics_renderer()->supports_yuv_image_format()) {
             return;
         }
-        graphics_renderer()->update_custom_image_yuv(CUSTOM_IMAGE_VIDEO, frame->data[0], (int) frame->stride[0],
-            frame->data[1], (int) frame->stride[1], frame->data[2], (int) frame->stride[2]);
+        graphics_renderer()->update_custom_image_yuv(CUSTOM_IMAGE_VIDEO,
+            static_cast<const uint8_t *>(frame->data[0]), (int) frame->stride[0],
+            static_cast<const uint8_t *>(frame->data[1]), (int) frame->stride[1],
+            static_cast<const uint8_t *>(frame->data[2]), (int) frame->stride[2]);
         return;
     }
     graphics_renderer()->update_custom_image(CUSTOM_IMAGE_VIDEO);

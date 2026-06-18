@@ -7,7 +7,8 @@
 #include <stdlib.h>
 
 #ifdef __cplusplus
-extern "C" {
+#include <string>
+#include <string_view>
 #endif
 
 /**
@@ -97,5 +98,75 @@ int file_exists(const char *filename, int localizable);
 int file_remove(const char *filename);
 
 #ifdef __cplusplus
+inline FILE *file_open(std::string_view filename, std::string_view mode)
+{
+    const std::string filename_s(filename);
+    const std::string mode_s(mode);
+    return file_open(filename_s.c_str(), mode_s.c_str());
+}
+
+inline FILE *file_open_asset(std::string_view asset, std::string_view mode)
+{
+    const std::string asset_s(asset);
+    const std::string mode_s(mode);
+    return file_open_asset(asset_s.c_str(), mode_s.c_str());
+}
+
+inline bool file_has_extension(std::string_view filename, std::string_view extension)
+{
+    const std::string filename_s(filename);
+    const std::string extension_s(extension);
+    return file_has_extension(filename_s.c_str(), extension_s.c_str()) != 0;
+}
+
+inline void file_change_extension(std::string &filename, std::string_view new_extension)
+{
+    if (new_extension.empty()) {
+        return;
+    }
+    const auto current_ext = filename.find_last_of('.');
+    if (current_ext == std::string::npos) {
+        return;
+    }
+    filename.resize(current_ext + 1);
+    filename.append(new_extension);
+}
+
+inline void file_append_extension(std::string &filename, std::string_view extension)
+{
+    if (extension.empty()) {
+        return;
+    }
+    filename.push_back('.');
+    filename.append(extension);
+}
+
+inline void file_remove_extension(std::string &filename)
+{
+    const auto pos = filename.find_last_of('.');
+    if (pos != std::string::npos) {
+        filename.resize(pos);
+    }
+}
+
+inline std::string_view file_remove_path(std::string_view filename)
+{
+    const auto slash = filename.find_last_of("/\\");
+    if (slash == std::string_view::npos) {
+        return filename;
+    }
+    return filename.substr(slash + 1);
+}
+
+inline bool file_exists(std::string_view filename, bool localizable = false)
+{
+    const std::string filename_s(filename);
+    return file_exists(filename_s.c_str(), localizable ? 1 : 0) != 0;
+}
+
+inline bool file_remove(std::string_view filename)
+{
+    const std::string filename_s(filename);
+    return file_remove(filename_s.c_str()) != 0;
 }
 #endif

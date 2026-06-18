@@ -467,8 +467,8 @@ static int set_scroll_speed_from_input(const mouse* m, scroll_type type)
         if (type == SCROLL_TYPE_CITY) {
             pixel_offset camera_offset;
             city_view_get_pixel_offset(&camera_offset.x, &camera_offset.y);
-            align_x = get_alignment_delta(dir_x, TILE_X_PIXELS, camera_offset.x);
-            align_y = get_alignment_delta(dir_y, TILE_Y_PIXELS, camera_offset.y);
+            align_x = get_alignment_delta(static_cast<speed_direction>(dir_x), TILE_X_PIXELS, camera_offset.x);
+            align_y = get_alignment_delta(static_cast<speed_direction>(dir_y), TILE_Y_PIXELS, camera_offset.y);
         }
         speed_set_target(&data.speed.x, (step + align_x) * dir_x * do_scroll, SPEED_CHANGE_IMMEDIATE, 0);
         speed_set_target(&data.speed.y, ((step / y_fraction) + align_y) * dir_y * do_scroll,

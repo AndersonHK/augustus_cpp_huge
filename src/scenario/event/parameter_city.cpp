@@ -8,6 +8,7 @@
 #include "window/advisors.h"
 #include "scenario/event/parameter_city.h"
 
+#include "game/settings.h"
 extern "C" {
 #include "building/building_type_api.h"
 #include "building/granary.h"
@@ -26,7 +27,6 @@ extern "C" {
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/terrain.h"
-#include "game/settings.h"
 }
 
 #define RESOURCE_ALL_BUYS RESOURCE_SLOT_COUNT + 1 // max +1 indicates all resources that this trade route buys

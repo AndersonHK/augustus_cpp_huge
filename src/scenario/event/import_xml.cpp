@@ -8,11 +8,11 @@
 #include "window/editor/select_city_trade_route.h"
 #include <array>
 
+#include "core/file.h"
 extern "C" {
 
 #include "building/building_type_api.h"
 #include "core/encoding.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "core/xml_parser.h"

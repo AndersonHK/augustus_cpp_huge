@@ -19,12 +19,12 @@
 
 #include "translation/localization.h"
 
+#include "game/settings.h"
 extern "C" {
 #include "core/calc.h"
 #include "core/image_group.h"
 #include "core/log.h"
 #include "core/string.h"
-#include "game/settings.h"
 #include "game/system.h"
 #include "game/speed.h"
 #include "graphics/ui_runtime_api.h"

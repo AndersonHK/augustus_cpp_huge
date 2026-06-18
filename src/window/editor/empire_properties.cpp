@@ -19,6 +19,7 @@
 #include "window/hotkey_config.h"
 #include "game/resource_id_bridge.h"
 
+#include "scenario/data.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -33,7 +34,6 @@ extern "C" {
 #include "input/hotkey.h"
 #include "input/mouse.h"
 #include "scenario/empire.h"
-#include "scenario/data.h"
 }
 
 static struct {

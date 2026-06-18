@@ -19,6 +19,7 @@
 #include "window/editor/map.h"
 #include "translation/translation.h"
 #include "window/popup_dialog.h"
+#include "scenario/scenario.h"
 extern "C" {
 
 #include "graphics/text.h"
@@ -26,7 +27,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-#include "scenario/scenario.h"
 }
 
 

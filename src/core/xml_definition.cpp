@@ -2,8 +2,8 @@
 
 #include "core/xml_value.h"
 
-extern "C" {
 #include "core/file.h"
+extern "C" {
 #include "core/log.h"
 }
 

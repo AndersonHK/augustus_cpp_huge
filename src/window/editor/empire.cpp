@@ -22,6 +22,7 @@
 #include "window/text_input.h"
 #include "game/resource_id_bridge.h"
 
+#include "scenario/data.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -38,7 +39,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "input/mouse.h"
 #include "input/scroll.h"
-#include "scenario/data.h"
 #include "scenario/editor.h"
 #include "scenario/empire.h"
 }

@@ -25,6 +25,8 @@
 #include "window/popup_dialog.h"
 #include "building/building_type_registry.h"
 
+#include "game/settings.h"
+#include "game/campaign.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -36,8 +38,6 @@ extern "C" {
 #include "city/ratings.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "game/campaign.h"
-#include "game/settings.h"
 #include "game/system.h"
 #include "game/time.h"
 #include "graphics/ui_runtime_api.h"

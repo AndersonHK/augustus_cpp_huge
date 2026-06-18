@@ -26,6 +26,7 @@
 #include <cstring>
 #include <initializer_list>
 
+#include "scenario/scenario.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -48,7 +49,6 @@ extern "C" {
 #include "map/desirability.h"
 #include "map/random.h"
 #include "map/terrain.h"
-#include "scenario/scenario.h"
 }
 
 static building_type runtime_type(const char *text_id)

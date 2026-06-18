@@ -129,7 +129,8 @@ static const char *ini_keys[] = {
     "gameplay_change_granary_do_not_allow_walkers",
     "gameplay_change_warehouse_do_not_allow_walkers",
     "ui_scale_filter",
-    "debug"
+    "debug",
+    "debug_performance_tracker"
 };
 
 static const char *ini_string_keys[] = {
@@ -255,6 +256,7 @@ static int default_values[CONFIG_MAX_ENTRIES] = {
     0,
     0,
     static_cast<int>(CONFIG_UI_SCALE_FILTER_AUTO),
+    0,
     0
 };
 

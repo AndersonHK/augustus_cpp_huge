@@ -3,17 +3,17 @@
 #include "message.h"
 #include "window/message_dialog.h"
 
+#include "core/file.h"
+#include "game/settings.h"
 extern "C" {
 
 #include "core/config.h"
 #include "core/encoding.h"
-#include "core/file.h"
 #include "core/string.h"
 #include "core/time.h"
 #include "figure/formation.h"
 #include "game/resource.h"
 #include "game/resource_id_bridge.h"
-#include "game/settings.h"
 #include "game/time.h"
 #include "graphics/window.h"
 #include "scenario/request.h"

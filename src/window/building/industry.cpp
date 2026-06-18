@@ -11,6 +11,7 @@
 
 #include "translation/translation.h"
 #include "window/popup_dialog.h"
+#include "core/file.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -20,7 +21,6 @@ extern "C" {
 #include "city/buildings.h"
 #include "city/resource.h"
 #include "core/calc.h"
-#include "core/file.h"
 #include "core/string.h"
 #include "figure/figure.h"
 #include "game/resource.h"

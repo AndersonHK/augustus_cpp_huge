@@ -19,10 +19,10 @@
 
 #include "building/building_type_registry.h"
 
+#include "game/settings.h"
+#include "game/campaign.h"
 extern "C" {
 #include "building/properties.h"
-#include "game/campaign.h"
-#include "game/settings.h"
 #include "game/system.h"
 #include "graphics/text.h"
 #include "graphics/ui_runtime_api.h"

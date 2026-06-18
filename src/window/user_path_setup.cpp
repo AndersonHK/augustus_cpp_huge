@@ -7,10 +7,12 @@
 #include "user_path_setup.h"
 
 #include "window/popup_dialog.h"
+#include "core/file.h"
+#include "platform/prefs.h"
+#include "platform/user_path.h"
 extern "C" {
 
 #include "core/encoding.h"
-#include "core/file.h"
 #include "core/image_group.h"
 #include "core/string.h"
 #include "game/system.h"
@@ -20,8 +22,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "platform/file_manager.h"
-#include "platform/prefs.h"
-#include "platform/user_path.h"
 }
 
 #include <string.h>

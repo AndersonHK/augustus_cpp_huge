@@ -13,6 +13,7 @@
 #include "figuretype/workcamp.h"
 
 #include "figure/action.h"
+#include "game/performance_tracker.h"
 #include "figuretype/soldier.h"
 
 extern "C" {
@@ -144,6 +145,7 @@ static void (*figure_action_callbacks[])(figure *f) = {
 
 void figure_action_handle(void)
 {
+    PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FIGURE);
     city_figures_reset();
     city_entertainment_set_hippodrome_has_race(0);
     for (unsigned int i = 1; i < figure_count(); i++) {

@@ -3,8 +3,8 @@
 #include "core/crash_context.h"
 #include "graphics/image.h"
 
-extern "C" {
 #include "core/file.h"
+extern "C" {
 #include "core/png_read.h"
 }
 

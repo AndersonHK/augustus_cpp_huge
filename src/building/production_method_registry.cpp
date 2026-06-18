@@ -5,9 +5,9 @@
 
 #include "core/crash_context.h"
 
+#include "core/file.h"
 extern "C" {
 #include "core/dir.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 }

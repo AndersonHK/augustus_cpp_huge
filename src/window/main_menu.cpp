@@ -16,13 +16,13 @@
 #include "window/editor/map.h"
 #include "window/video.h"
 #include "window/popup_dialog.h"
+#include "game/campaign.h"
 extern "C" {
 
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/string.h"
-#include "game/campaign.h"
 #include "game/system.h"
 #include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"

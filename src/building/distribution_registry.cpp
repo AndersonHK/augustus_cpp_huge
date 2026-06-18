@@ -7,9 +7,9 @@
 #include "core/xml_definition.h"
 #include "core/xml_value.h"
 
+#include "core/file.h"
 extern "C" {
 #include "core/dir.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 }

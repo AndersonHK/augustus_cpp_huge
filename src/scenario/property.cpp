@@ -1,11 +1,11 @@
 #include "graphics/image.h"
 
+#include "game/campaign.h"
+#include "scenario/data.h"
 extern "C" {
 #include "property.h"
 #include "core/calc.h"
 #include "core/string.h"
-#include "game/campaign.h"
-#include "scenario/data.h"
 }
 
 

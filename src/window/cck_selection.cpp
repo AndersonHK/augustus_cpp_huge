@@ -1,4 +1,4 @@
-﻿#include "game/file.h"
+#include "game/file.h"
 #include "translation/translation.h"
 #include "game/file_io.h"
 #include "graphics/generic_button.h"
@@ -12,12 +12,12 @@
 
 #include "window/cck_selection.h"
 
+#include "core/file.h"
 extern "C" {
 
 #include "assets/assets.h"
 #include "core/dir.h"
 #include "core/encoding.h"
-#include "core/file.h"
 #include "core/image_group.h"
 #include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"

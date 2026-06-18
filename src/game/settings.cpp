@@ -6,84 +6,100 @@
 #include "core/config.h"
 #include "core/dir.h"
 #include "core/file.h"
-#include "core/string.h"
 #include "game/speed.h"
 #include "sound/device.h"
 
-#define INF_SIZE 560
-#define MAX_PERSONAL_SAVINGS 100
-#define MAX_PLAYER_NAME 32
+#include <algorithm>
+#include <array>
+#include <cstdint>
+#include <string_view>
 
-static struct {
-    // display settings
-    int fullscreen;
-    int window_width;
-    int window_height;
-    // sound settings
-    set_sound sound_settings[SOUND_TYPE_MAX];
-    // speed settings
-    int game_speed;
-    int scroll_speed;
-    // misc settings
-    set_difficulty difficulty;
-    set_tooltips tooltips;
-    int monthly_autosave;
-    int warnings;
-    int gods_enabled;
-    int victory_video;
-    // persistent game state
-    int last_advisor;
-    uint8_t player_name[MAX_PLAYER_NAME];
-    // personal savings
-    int personal_savings[MAX_PERSONAL_SAVINGS];
-    // file data
-    uint8_t inf_file[INF_SIZE];
-} data;
+namespace {
+
+constexpr std::size_t kInfSize = 560;
+constexpr std::size_t kMaxPersonalSavings = 100;
+constexpr std::size_t kMaxPlayerName = 32;
+constexpr std::size_t kMaxPlayerNameLength = kMaxPlayerName - 1;
+
+static constexpr std::array<set_sound, SOUND_TYPE_MAX> k_default_sound_settings = {{
+    {1, 100}, // Speech
+    {1, 100}, // Effects
+    {1, 100}, // City
+    {1, 80},  // Music
+}};
+static constexpr std::array<int, 3> kEarlySoundTypes = {SOUND_TYPE_EFFECTS, SOUND_TYPE_MUSIC, SOUND_TYPE_SPEECH};
+static constexpr std::array<int, 4> kAllSoundTypes = {SOUND_TYPE_EFFECTS, SOUND_TYPE_MUSIC, SOUND_TYPE_SPEECH, SOUND_TYPE_CITY};
+
+class SettingsData {
+public:
+    int fullscreen{1};
+    int window_width{800};
+    int window_height{600};
+    std::array<set_sound, SOUND_TYPE_MAX> sound_settings{k_default_sound_settings};
+    int game_speed{90};
+    int scroll_speed{70};
+    set_difficulty difficulty{DIFFICULTY_NORMAL};
+    set_tooltips tooltips{TOOLTIPS_FULL};
+    int monthly_autosave{0};
+    int warnings{1};
+    int gods_enabled{1};
+    int victory_video{0};
+    int last_advisor{ADVISOR_LABOR};
+    std::array<std::uint8_t, kMaxPlayerName> player_name{};
+    std::array<int, kMaxPersonalSavings> personal_savings{};
+    std::array<std::uint8_t, kInfSize> inf_file{};
+
+    void set_player_name(std::string_view name)
+    {
+        const auto copy_len = std::min(name.size(), kMaxPlayerNameLength);
+        player_name.fill(0);
+        std::copy_n(name.data(), copy_len, player_name.data());
+    }
+
+    void sanitize_player_name()
+    {
+        const auto player_name_end = std::find(player_name.begin(), player_name.end(), std::uint8_t{0});
+        const auto safe_len = std::min<std::size_t>(static_cast<std::size_t>(player_name_end - player_name.begin()), kMaxPlayerNameLength);
+        player_name[safe_len] = 0;
+        if (safe_len + 1 < player_name.size()) {
+            std::fill(player_name.begin() + safe_len + 1, player_name.end(), 0);
+        }
+    }
+};
+
+static SettingsData data;
+
+template <typename Fn, std::size_t N>
+static void for_sound_types(const std::array<int, N> &types, Fn &&action){ for (const int type : types) { action(type); } }
+
+static bool valid_sound_type(int type){ return type >= 0 && type < SOUND_TYPE_MAX; }
+static set_sound *sound_by_type(int type){ return valid_sound_type(type) ? &data.sound_settings[static_cast<size_t>(type)] : nullptr; }
+
+static void set_player_name(std::string_view player_name)
+{ data.set_player_name(player_name); }
+
+static std::string_view bounded_string_view(const std::uint8_t *text, std::size_t max_size)
+{ if (!text) { return {}; } const auto end = std::find(text, text + max_size, std::uint8_t{0}); return {reinterpret_cast<const char *>(text), static_cast<std::size_t>(end - text)}; }
 
 static void load_default_settings(void)
-{
-    data.fullscreen = 1;
-    data.window_width = 800;
-    data.window_height = 600;
-
-    data.sound_settings[SOUND_TYPE_EFFECTS].enabled = 1;
-    data.sound_settings[SOUND_TYPE_EFFECTS].volume = 100;
-    data.sound_settings[SOUND_TYPE_MUSIC].enabled = 1;
-    data.sound_settings[SOUND_TYPE_MUSIC].volume = 80;
-    data.sound_settings[SOUND_TYPE_SPEECH].enabled = 1;
-    data.sound_settings[SOUND_TYPE_SPEECH].volume = 100;
-    data.sound_settings[SOUND_TYPE_CITY].enabled = 1;
-    data.sound_settings[SOUND_TYPE_CITY].volume = 100;
-
-    data.game_speed = 90;
-    data.scroll_speed = 70;
-
-    data.difficulty = DIFFICULTY_NORMAL;
-    data.tooltips = TOOLTIPS_FULL;
-    data.warnings = 1;
-    data.gods_enabled = 1;
-    data.victory_video = 0;
-    data.last_advisor = ADVISOR_LABOR;
-
-    setting_clear_personal_savings();
-}
+{ data = SettingsData{}; }
 
 static void load_settings(buffer *buf)
 {
     buffer_skip(buf, 4);
     data.fullscreen = buffer_read_i32(buf);
     buffer_skip(buf, 3);
-    data.sound_settings[SOUND_TYPE_EFFECTS].enabled = buffer_read_u8(buf);
-    data.sound_settings[SOUND_TYPE_MUSIC].enabled = buffer_read_u8(buf);
-    data.sound_settings[SOUND_TYPE_SPEECH].enabled = buffer_read_u8(buf);
+    for_sound_types(kEarlySoundTypes,
+                    [buf](const int type) { data.sound_settings[type].enabled = buffer_read_u8(buf); });
     buffer_skip(buf, 6);
     data.game_speed = buffer_read_i32(buf);
     data.scroll_speed = buffer_read_i32(buf);
-    buffer_read_raw(buf, data.player_name, MAX_PLAYER_NAME);
+    buffer_read_raw(buf, data.player_name.data(), kMaxPlayerName);
+    data.sanitize_player_name();
     buffer_skip(buf, 16);
     data.last_advisor = buffer_read_i32(buf);
     buffer_skip(buf, 4); //int save_game_mission_id;
-    data.tooltips = buffer_read_i32(buf);
+    data.tooltips = static_cast<set_tooltips>(buffer_read_i32(buf));
     buffer_skip(buf, 4); //int starting_favor;
     buffer_skip(buf, 4); //int personal_savings_last_mission;
     buffer_skip(buf, 4); //int current_mission_id;
@@ -92,16 +108,14 @@ static void load_settings(buffer *buf)
     data.warnings = buffer_read_u8(buf);
     data.monthly_autosave = buffer_read_u8(buf);
     buffer_skip(buf, 1); //unsigned char autoclear_enabled;
-    data.sound_settings[SOUND_TYPE_EFFECTS].volume = buffer_read_i32(buf);
-    data.sound_settings[SOUND_TYPE_MUSIC].volume = buffer_read_i32(buf);
-    data.sound_settings[SOUND_TYPE_SPEECH].volume = buffer_read_i32(buf);
-    data.sound_settings[SOUND_TYPE_CITY].volume = buffer_read_i32(buf);
+    for_sound_types(kAllSoundTypes,
+                    [buf](const int type) { data.sound_settings[type].volume = buffer_read_i32(buf); });
     buffer_skip(buf, 8); // ram
     data.window_width = buffer_read_i32(buf);
     data.window_height = buffer_read_i32(buf);
     buffer_skip(buf, 8); //int max_confirmed_resolution;
-    for (int i = 0; i < MAX_PERSONAL_SAVINGS; i++) {
-        data.personal_savings[i] = buffer_read_i32(buf);
+    for (auto &savings : data.personal_savings) {
+        savings = buffer_read_i32(buf);
     }
     data.victory_video = buffer_read_i32(buf);
 
@@ -110,10 +124,12 @@ static void load_settings(buffer *buf)
         data.difficulty = DIFFICULTY_HARD;
         data.gods_enabled = 1;
     } else {
-        data.difficulty = buffer_read_i32(buf);
+        data.difficulty = static_cast<set_difficulty>(buffer_read_i32(buf));
         data.gods_enabled = buffer_read_i32(buf);
     }
 }
+
+} // namespace
 
 void settings_load(void)
 {
@@ -127,20 +143,14 @@ void settings_load(void)
     if (!fp) {
         return;
     }
-    fseek(fp, 0, SEEK_END);
-    long size = ftell(fp);
-    if (size > INF_SIZE) {
-        size = INF_SIZE;
-    }
-    fseek(fp, 0, SEEK_SET);
-    size_t bytes_read = fread(data.inf_file, 1, INF_SIZE, fp);
+    const size_t bytes_read = fread(data.inf_file.data(), 1, kInfSize, fp);
     file_close(fp);
     if (!bytes_read) {
         return;
     }
 
     buffer buf;
-    buffer_init(&buf, data.inf_file, size);
+    buffer_init(&buf, data.inf_file.data(), bytes_read);
     load_settings(&buf);
 
     if (data.window_width + data.window_height < 500) {
@@ -155,24 +165,24 @@ void settings_load(void)
 
 void settings_save(void)
 {
+    data.sanitize_player_name();
+
     buffer b;
     buffer *buf = &b;
-    buffer_init(buf, data.inf_file, INF_SIZE);
+    buffer_init(buf, data.inf_file.data(), kInfSize);
 
     buffer_skip(buf, 4);
     buffer_write_i32(buf, data.fullscreen);
     buffer_skip(buf, 3);
-    buffer_write_u8(buf, data.sound_settings[SOUND_TYPE_EFFECTS].enabled);
-    buffer_write_u8(buf, data.sound_settings[SOUND_TYPE_MUSIC].enabled);
-    buffer_write_u8(buf, data.sound_settings[SOUND_TYPE_SPEECH].enabled);
+    for_sound_types(kEarlySoundTypes, [buf](const int type) { buffer_write_u8(buf, data.sound_settings[type].enabled); });
     buffer_skip(buf, 6);
     buffer_write_i32(buf, data.game_speed);
     buffer_write_i32(buf, data.scroll_speed);
-    buffer_write_raw(buf, data.player_name, MAX_PLAYER_NAME);
+    buffer_write_raw(buf, data.player_name.data(), kMaxPlayerName);
     buffer_skip(buf, 16);
     buffer_write_i32(buf, data.last_advisor);
     buffer_skip(buf, 4); //int save_game_mission_id;
-    buffer_write_i32(buf, data.tooltips);
+    buffer_write_i32(buf, static_cast<int>(data.tooltips));
     buffer_skip(buf, 4); //int starting_favor;
     buffer_skip(buf, 4); //int personal_savings_last_mission;
     buffer_skip(buf, 4); //int current_mission_id;
@@ -181,19 +191,16 @@ void settings_save(void)
     buffer_write_u8(buf, data.warnings);
     buffer_write_u8(buf, data.monthly_autosave);
     buffer_skip(buf, 1); //unsigned char autoclear_enabled;
-    buffer_write_i32(buf, data.sound_settings[SOUND_TYPE_EFFECTS].volume);
-    buffer_write_i32(buf, data.sound_settings[SOUND_TYPE_MUSIC].volume);
-    buffer_write_i32(buf, data.sound_settings[SOUND_TYPE_SPEECH].volume);
-    buffer_write_i32(buf, data.sound_settings[SOUND_TYPE_CITY].volume);
+    for_sound_types(kAllSoundTypes, [buf](const int type) { buffer_write_i32(buf, data.sound_settings[type].volume); });
     buffer_skip(buf, 8); // ram
     buffer_write_i32(buf, data.window_width);
     buffer_write_i32(buf, data.window_height);
     buffer_skip(buf, 8); //int max_confirmed_resolution;
-    for (int i = 0; i < MAX_PERSONAL_SAVINGS; i++) {
-        buffer_write_i32(buf, data.personal_savings[i]);
+    for (const auto savings : data.personal_savings) {
+        buffer_write_i32(buf, savings);
     }
     buffer_write_i32(buf, data.victory_video);
-    buffer_write_i32(buf, data.difficulty);
+    buffer_write_i32(buf, static_cast<int>(data.difficulty));
     buffer_write_i32(buf, data.gods_enabled);
 
     // Find existing file to overwrite
@@ -202,7 +209,7 @@ void settings_save(void)
     if (!fp) {
         return;
     }
-    fwrite(data.inf_file, 1, INF_SIZE, fp);
+    fwrite(data.inf_file.data(), 1, kInfSize, fp);
     file_close(fp);
 }
 
@@ -228,37 +235,41 @@ void setting_set_display(int fullscreen, int width, int height)
 
 const set_sound *setting_sound(int type)
 {
-    return type >= 0 && type < SOUND_TYPE_MAX ? &data.sound_settings[type] : 0;
+    return sound_by_type(type);
 }
 
 int setting_sound_is_enabled(int type)
 {
-    return type >= 0 && type < SOUND_TYPE_MAX ? data.sound_settings[type].enabled : 0;
+    const set_sound *sound = sound_by_type(type);
+    return sound ? sound->enabled : 0;
 }
 
 void setting_toggle_sound_enabled(int type)
 {
-    if (type < 0 || type >= SOUND_TYPE_MAX) {
+    set_sound *sound = sound_by_type(type);
+    if (!sound) {
         return;
     }
-    data.sound_settings[type].enabled = data.sound_settings[type].enabled ? 0 : 1;
+    sound->enabled = sound->enabled ? 0 : 1;
 }
 
 void setting_set_sound_volume(int type, int volume)
 {
-    if (type < 0 || type >= SOUND_TYPE_MAX) {
+    set_sound *sound = sound_by_type(type);
+    if (!sound) {
         return;
     }
-    data.sound_settings[type].volume = calc_bound(volume, 0, 100);
+    sound->volume = calc_bound(volume, 0, 100);
 }
 
 void setting_reset_sound(int type, int enabled, int volume)
 {
-    if (type < 0 || type >= SOUND_TYPE_MAX) {
+    set_sound *sound = sound_by_type(type);
+    if (!sound) {
         return;
     }
-    data.sound_settings[type].enabled = enabled;
-    data.sound_settings[type].volume = calc_bound(volume, 0, 100);
+    sound->enabled = enabled;
+    sound->volume = calc_bound(volume, 0, 100);
 }
 
 int setting_game_speed(void)
@@ -277,7 +288,7 @@ void setting_decrease_game_speed(void)
 {
     int index = game_speed_get_index(data.game_speed);
     if (index > 0) {
-        index--;
+        --index;
     }
     data.game_speed = game_speed_get_speed(index);
 }
@@ -286,7 +297,7 @@ void setting_increase_game_speed(void)
 {
     int index = game_speed_get_index(data.game_speed);
     if (index < TOTAL_GAME_SPEEDS - 1) {
-        index++;
+        ++index;
     }
     data.game_speed = game_speed_get_speed(index);
 }
@@ -371,7 +382,7 @@ void setting_increase_difficulty(void)
     if (data.difficulty >= DIFFICULTY_VERY_HARD) {
         data.difficulty = DIFFICULTY_VERY_HARD;
     } else {
-        data.difficulty++;
+        data.difficulty = static_cast<set_difficulty>(static_cast<int>(data.difficulty) + 1);
     }
 }
 
@@ -380,7 +391,7 @@ void setting_decrease_difficulty(void)
     if (data.difficulty <= DIFFICULTY_VERY_EASY) {
         data.difficulty = DIFFICULTY_VERY_EASY;
     } else {
-        data.difficulty--;
+        data.difficulty = static_cast<set_difficulty>(static_cast<int>(data.difficulty) - 1);
     }
 }
 
@@ -402,12 +413,13 @@ void setting_set_last_advisor(int advisor)
 
 const uint8_t *setting_player_name(void)
 {
-    return data.player_name;
+    data.sanitize_player_name();
+    return data.player_name.data();
 }
 
 void setting_set_player_name(const uint8_t *player_name)
 {
-    string_copy(player_name, data.player_name, MAX_PLAYER_NAME);
+    set_player_name(bounded_string_view(player_name, kMaxPlayerName));
 }
 
 int setting_personal_savings_for_mission(int mission_id)
@@ -422,7 +434,5 @@ void setting_set_personal_savings_for_mission(int mission_id, int savings)
 
 void setting_clear_personal_savings(void)
 {
-    for (int i = 0; i < MAX_PERSONAL_SAVINGS; i++) {
-        data.personal_savings[i] = 0;
-    }
+    data.personal_savings.fill(0);
 }

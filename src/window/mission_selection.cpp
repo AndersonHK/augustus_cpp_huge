@@ -1,4 +1,4 @@
-﻿#include "graphics/graphics.h"
+#include "graphics/graphics.h"
 #include "translation/translation.h"
 #include "graphics/image.h"
 #include "graphics/image_border.h"
@@ -12,14 +12,14 @@
 #include "window/video.h"
 #include <cstdlib>
 
+#include "game/settings.h"
+#include "game/campaign.h"
 extern "C" {
 
 #include "assets/assets.h"
 #include "core/image_group.h"
 #include "core/log.h"
-#include "game/campaign.h"
 #include "game/mission.h"
-#include "game/settings.h"
 #include "graphics/image_button.h"
 #include "graphics/text.h"
 #include "graphics/screen.h"

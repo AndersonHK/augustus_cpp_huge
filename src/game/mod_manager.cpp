@@ -1,10 +1,10 @@
 #include "game/mod_manager.h"
 #include "core/crash_context.h"
 
+#include "core/file.h"
 extern "C" {
 #include "assets/assets.h"
 #include "core/dir.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 #include "platform/file_manager.h"

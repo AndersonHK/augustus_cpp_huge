@@ -23,6 +23,8 @@
 #include "building/building_record.h"
 #include "building/building_type_registry.h"
 
+#include "core/file.h"
+#include "scenario/scenario.h"
 extern "C" {
 #include "building/building_type_id_bridge.h"
 #include "building/granary.h"
@@ -31,7 +33,6 @@ extern "C" {
 #include "city/message.h"
 #include "city/view.h"
 #include "core/dir.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/memory_block.h"
 #include "core/random.h"
@@ -77,7 +78,6 @@ extern "C" {
 #include "scenario/message_media_text_blob.h"
 #include "scenario/price_change.h"
 #include "scenario/request.h"
-#include "scenario/scenario.h"
 #include "sound/city.h"
 }
 

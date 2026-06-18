@@ -5,10 +5,39 @@
 
 #include "SDL.h"
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
+#include <string>
 
 static SDL_version version;
+
+namespace {
+char *platform_alloc_path(char *raw_path)
+{
+    if (!raw_path) {
+        return nullptr;
+    }
+    const std::string path = raw_path;
+    SDL_free(raw_path);
+
+    char *buffer = static_cast<char *>(SDL_malloc(path.size() + 1));
+    if (!buffer) {
+        return nullptr;
+    }
+    std::memcpy(buffer, path.c_str(), path.size() + 1);
+    return buffer;
+}
+
+std::string copy_sdl_path(char *path)
+{
+    if (!path) {
+        return {};
+    }
+    std::string result(path);
+    SDL_free(path);
+    return result;
+}
+}
 
 const char *system_architecture(void)
 {
@@ -23,21 +52,13 @@ const char *system_architecture(void)
 #elif defined(__ARM_ARCH_4T__) || defined(__TARGET_ARM_4T)
     return "ARM4T";
 #elif defined(__ARM_ARCH_5_) || defined(__ARM_ARCH_5E_)
-    return "ARM5"
-#elif defined(__ARM_ARCH_6T2_) || defined(__ARM_ARCH_6T2_)
+    return "ARM5";
+#elif defined(__ARM_ARCH_6T2_)
     return "ARM6T2";
 #elif defined(__ARM_ARCH_6__) || defined(__ARM_ARCH_6J__) || defined(__ARM_ARCH_6K__) || defined(__ARM_ARCH_6Z__) || defined(__ARM_ARCH_6ZK__)
     return "ARM6";
 #elif defined(__ARM_ARCH_7__) || defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7S__)
     return "ARM7";
-#elif defined(__ARM_ARCH_7A__) || defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7S__)
-    return "ARM7A";
-#elif defined(__ARM_ARCH_7R__) || defined(__ARM_ARCH_7M__) || defined(__ARM_ARCH_7S__)
-    return "ARM7R";
-#elif defined(__ARM_ARCH_7M__)
-    return "ARM7M";
-#elif defined(__ARM_ARCH_7S__)
-    return "ARM7S";
 #elif defined(__aarch64__) || defined(_M_ARM64)
     return "ARM64";
 #elif defined(mips) || defined(__mips__) || defined(__mips)
@@ -67,46 +88,44 @@ const char *system_architecture(void)
 const char *system_OS(void)
 {
 #if defined(_WIN32) || defined(_WIN64)
-    static char full_version[300];
-    if (*full_version == '\0') {
+    static const std::string full_version = []() {
         HMODULE nt_dll = LoadLibrary(TEXT("Ntdll.dll"));
         if (nt_dll) {
-            typedef long long (CALLBACK *RTLGETVERSION) (PRTL_OSVERSIONINFOW lpVersionInformation);
-            RTLGETVERSION get_current_windows_version;
-            get_current_windows_version = (RTLGETVERSION) GetProcAddress(nt_dll, "RtlGetVersion");
+            using RtlGetVersionFn = LONG (CALLBACK *)(PRTL_OSVERSIONINFOW lpVersionInformation);
+            auto get_current_windows_version = reinterpret_cast<RtlGetVersionFn>(GetProcAddress(nt_dll, "RtlGetVersion"));
             if (get_current_windows_version) {
-                RTL_OSVERSIONINFOW ovi = { 0 };
+                RTL_OSVERSIONINFOW ovi = {};
                 ovi.dwOSVersionInfoSize = sizeof(ovi);
                 if (get_current_windows_version(&ovi) == 0) {
                     unsigned long major = ovi.dwMajorVersion;
                     if (ovi.dwBuildNumber >= 22000) {
                         major = 11;
                     }
-                    snprintf(full_version, 300, "Windows %lu.%lu build %lu",
-                        major, ovi.dwMinorVersion, ovi.dwBuildNumber);
-                    return full_version;
+                    return std::string("Windows ") + std::to_string(major) + "." + std::to_string(ovi.dwMinorVersion) +
+                        " build " + std::to_string(ovi.dwBuildNumber);
                 }
             }
         }
-        snprintf(full_version, 300, "Windows (unknown version)");
-    }
-    return full_version;
+        return std::string("Windows (unknown version)");
+    }();
+    return full_version.c_str();
 #elif defined(__APPLE__) || defined(__MACH__)
     #include <TargetConditionals.h>
     #if TARGET_OS_MAC
         return "Mac OS X";
     #endif
 #elif defined(__GNUC__) && !defined(__SWITCH__)
-    struct utsname uts;
-    if (uname(&uts) == 0) {
-        static char full_version[300];
-        snprintf(full_version, 300, "%s %s", uts.sysname, uts.release);
-        return full_version;
-    }
+    static const std::string full_version = []() {
+        struct utsname uts;
+        if (uname(&uts) == 0) {
+            return std::string(uts.sysname) + " " + uts.release;
+        }
 #ifdef __linux__
-    return "Linux";
+        return std::string("Linux");
 #endif
-    return "Unix";
+        return std::string("Unix");
+    }();
+    return full_version.c_str();
 #elif defined(__HAIKU__)
     return "Haiku";
 #elif defined(__FreeBSD__)
@@ -149,10 +168,43 @@ char *platform_get_pref_path(void)
 {
 #if SDL_VERSION_ATLEAST(2, 0, 1)
     if (platform_sdl_version_at_least(2, 0, 1)) {
-        return SDL_GetPrefPath("augustus", "augustus");
+        return platform_alloc_path(SDL_GetPrefPath("augustus", "augustus"));
     }
 #endif
     return 0;
+}
+
+namespace platform {
+
+std::string logging_path()
+{
+#if defined(__ANDROID__)
+    return {};
+#else
+    return pref_path();
+#endif
+}
+
+std::string pref_path()
+{
+#if SDL_VERSION_ATLEAST(2, 0, 1)
+    if (platform_sdl_version_at_least(2, 0, 1)) {
+        return copy_sdl_path(SDL_GetPrefPath("augustus", "augustus"));
+    }
+#endif
+    return {};
+}
+
+std::filesystem::path logging_path_filesystem()
+{
+    return logging_path();
+}
+
+std::filesystem::path pref_path_filesystem()
+{
+    return pref_path();
+}
+
 }
 
 void exit_with_status(int status)

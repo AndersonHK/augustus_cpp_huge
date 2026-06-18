@@ -5,9 +5,9 @@
 
 #include "assets.h"
 
+#include "core/file.h"
 extern "C" {
 #include "core/dir.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/png_read.h"
 #include "graphics/renderer.h"

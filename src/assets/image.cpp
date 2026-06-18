@@ -4,13 +4,13 @@
 #include "assets/group.h"
 #include "image.h"
 
+#include "game/campaign.h"
 extern "C" {
 #include "core/array.h"
 #include "core/image.h"
 #include "core/image_packer.h"
 #include "core/log.h"
 #include "core/png_read.h"
-#include "game/campaign.h"
 #include "graphics/color.h"
 #include "graphics/renderer.h"
 }

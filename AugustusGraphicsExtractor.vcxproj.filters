@@ -42,13 +42,13 @@
     <ClCompile Include="src\core\image_packer.c">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\io.c">
+    <ClCompile Include="src\core\io.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\legacy_image_extractor.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\png_read.c">
+    <ClCompile Include="src\core\png_read.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\xml_parser.c">

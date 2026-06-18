@@ -5,8 +5,8 @@
 #include "core/crash_context.h"
 #include "game/mod_manager.h"
 
-extern "C" {
 #include "core/file.h"
+extern "C" {
 #include "core/log.h"
 #include "core/xml_parser.h"
 }

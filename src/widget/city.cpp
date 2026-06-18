@@ -22,6 +22,7 @@
 #include "building/building.h"
 #include "input/zoom.h"
 
+#include "game/settings.h"
 extern "C" {
 
 #include "building/building_type_api.h"
@@ -34,7 +35,6 @@ extern "C" {
 #include "core/string.h"
 #include "figure/formation_legion.h"
 #include "game/cheats.h"
-#include "game/settings.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"

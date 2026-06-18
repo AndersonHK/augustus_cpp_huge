@@ -32,13 +32,13 @@
 #include "game/resource_id_bridge.h"
 #include "file_dialog.h"
 
+#include "core/file.h"
 extern "C" {
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/dir.h"
 #include "core/encoding.h"
-#include "core/file.h"
 #include "core/image.h"
 #include "core/image_group.h"
 #include "core/image_group_editor.h"

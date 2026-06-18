@@ -3,6 +3,7 @@
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/time.h"
+#include "game/performance_tracker.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 #include "input/mouse.h"
@@ -1837,7 +1838,10 @@ void platform_renderer_render(void)
     if (platform_cursor_is_software()) {
         draw_software_mouse_cursor();
     }
-    SDL_RenderPresent(data.renderer);
+    {
+        PerformanceTrackerScope present_scope(PERFORMANCE_TRACKER_BUCKET_PRESENT);
+        SDL_RenderPresent(data.renderer);
+    }
     SDL_SetRenderTarget(data.renderer, data.render_texture);
     set_render_domain(previous_domain);
 }

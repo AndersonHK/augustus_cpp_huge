@@ -14,6 +14,7 @@
 #include "graphics/complex_button.h"
 #include "window/editor/map.h"
 #include "window/advisors.h"
+#include "game/settings.h"
 extern "C" {
 
 #include "city/emperor.h"
@@ -24,7 +25,6 @@ extern "C" {
 #include "core/string.h"
 #include "empire/city.h"
 #include "figure/formation.h"
-#include "game/settings.h"
 #include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"

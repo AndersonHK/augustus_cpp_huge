@@ -1,8 +1,8 @@
 #include "core/crash_context.h"
 
+#include "platform/platform.h"
 extern "C" {
 #include "core/log.h"
-#include "platform/platform.h"
 #include "platform/screen.h"
 }
 

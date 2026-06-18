@@ -4,11 +4,11 @@
 
 #include "xml.h"
 
+#include "core/file.h"
 extern "C" {
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/dir.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/png_read.h"
 #include "core/string.h"

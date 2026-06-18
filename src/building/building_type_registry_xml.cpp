@@ -19,12 +19,12 @@
 #include "core/xml_definition.h"
 #include "core/xml_value.h"
 
+#include "core/file.h"
 extern "C" {
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "core/dir.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 #include "game/resource.h"

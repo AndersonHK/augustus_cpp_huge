@@ -140,7 +140,7 @@ static int load_image(void)
         return 0;
     }
     int total_pixels = data.cache.width * data.cache.height;
-    data.cache.pixels = malloc(image_size);
+    data.cache.pixels = static_cast<color_t *>(malloc(image_size));
     if (!data.cache.pixels) {
         log_error("Unable to load png file. Out of memory", 0, 0);
         png_unload();

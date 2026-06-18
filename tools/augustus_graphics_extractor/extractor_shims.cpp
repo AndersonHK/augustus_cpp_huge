@@ -413,7 +413,7 @@ extern "C" void log_repeated_messages(void)
 {
 }
 
-extern "C" FILE *file_open(const char *filename, const char *mode)
+FILE *file_open(const char *filename, const char *mode)
 {
     if (!filename) {
         return nullptr;
@@ -422,23 +422,23 @@ extern "C" FILE *file_open(const char *filename, const char *mode)
     return std::fopen(path.string().c_str(), mode);
 }
 
-extern "C" FILE *file_open_asset(const char *asset, const char *mode)
+FILE *file_open_asset(const char *asset, const char *mode)
 {
     const std::filesystem::path path = std::filesystem::path(asset_root()) / (asset ? asset : "");
     return std::fopen(path.string().c_str(), mode);
 }
 
-extern "C" int file_close(FILE *stream)
+int file_close(FILE *stream)
 {
     return std::fclose(stream) == 0;
 }
 
-extern "C" int file_has_extension(const char *filename, const char *extension)
+int file_has_extension(const char *filename, const char *extension)
 {
     return has_extension(std::filesystem::path(filename ? filename : ""), extension) ? 1 : 0;
 }
 
-extern "C" void file_change_extension(char *filename, const char *new_extension)
+void file_change_extension(char *filename, const char *new_extension)
 {
     if (!filename || !new_extension || !*new_extension) {
         return;
@@ -449,7 +449,7 @@ extern "C" void file_change_extension(char *filename, const char *new_extension)
     }
 }
 
-extern "C" void file_append_extension(char *filename, const char *extension, size_t length)
+void file_append_extension(char *filename, const char *extension, size_t length)
 {
     if (!filename || !extension || !*extension) {
         return;
@@ -461,7 +461,7 @@ extern "C" void file_append_extension(char *filename, const char *extension, siz
     std::snprintf(filename + current_length, length - current_length, ".%s", extension);
 }
 
-extern "C" void file_remove_extension(char *filename)
+void file_remove_extension(char *filename)
 {
     if (!filename) {
         return;
@@ -472,7 +472,7 @@ extern "C" void file_remove_extension(char *filename)
     }
 }
 
-extern "C" const char *file_remove_path(const char *filename)
+const char *file_remove_path(const char *filename)
 {
     if (!filename) {
         return "";
@@ -483,13 +483,13 @@ extern "C" const char *file_remove_path(const char *filename)
     return separator == filename ? filename : separator + 1;
 }
 
-extern "C" int file_exists(const char *filename, int localizable)
+int file_exists(const char *filename, int localizable)
 {
     (void) localizable;
     return std::filesystem::exists(resolve_asset_marker_path(filename)) ? 1 : 0;
 }
 
-extern "C" int file_remove(const char *filename)
+int file_remove(const char *filename)
 {
     std::error_code error;
     return std::filesystem::remove(resolve_asset_marker_path(filename), error) ? 1 : 0;

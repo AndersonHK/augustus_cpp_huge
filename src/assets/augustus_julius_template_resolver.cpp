@@ -3,9 +3,9 @@
 #include "assets/graphics_extractor_common.h"
 #include "core/legacy_image_extractor.h"
 
+#include "core/file.h"
 extern "C" {
 #include "core/dir.h"
-#include "core/file.h"
 }
 
 #include <algorithm>

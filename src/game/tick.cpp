@@ -29,6 +29,7 @@
 #include "widget/minimap.h"
 
 #include "editor/editor.h"
+#include "game/performance_tracker.h"
 #include "game/tick.h"
 
 #include "building/building.h"
@@ -36,6 +37,7 @@
 #include "building/lighthouse.h"
 #include "city/god.h"
 
+#include "game/settings.h"
 extern "C" {
 #include "building/granary.h"
 #include "building/warehouse.h"
@@ -51,7 +53,6 @@ extern "C" {
 #include "core/random.h"
 #include "empire/city.h"
 #include "figure/formation.h"
-#include "game/settings.h"
 #include "game/time.h"
 #include "game/tutorial.h"
 #include "map/desirability.h"
@@ -148,48 +149,128 @@ static void advance_day(void)
 
 static void advance_tick(void)
 {
+    PerformanceTrackerScope advance_scope(PERFORMANCE_TRACKER_BUCKET_ADVANCE);
     const int current_tick = game_time_tick();
     if (current_tick == game_time_scale_legacy_day_tick_index(1)) { city_gods_calculate_moods(1); }
     if (current_tick == game_time_scale_legacy_day_tick_index(2)) { sound_music_update(0); }
     if (current_tick == game_time_scale_legacy_day_tick_index(3)) { widget_minimap_invalidate(); }
     if (current_tick == game_time_scale_legacy_day_tick_index(4)) { city_emperor_update(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(5)) { formation_update_all(0); }
+    if (current_tick == game_time_scale_legacy_day_tick_index(5)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FORMATION);
+        formation_update_all(0);
+    }
     if (current_tick == game_time_scale_legacy_day_tick_index(6)) { map_natives_check_land(1); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(7)) { map_road_network_update(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(8)) { building_granaries_calculate_stocks(); }
+    if (current_tick == game_time_scale_legacy_day_tick_index(7)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_ROAD_NETWORK);
+        map_road_network_update();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(8)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_RESOURCE);
+        building_granaries_calculate_stocks();
+    }
     if (current_tick == game_time_scale_legacy_day_tick_index(9)) { city_buildings_update_plague(); }
     if (current_tick == game_time_scale_legacy_day_tick_index(12)) { house_service_decay_houses_covered(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(16)) { city_resource_calculate_warehouse_stocks(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(17)) { city_resource_calculate_food_stocks_and_supply_wheat(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(19)) { building_dock_update_open_water_access(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(20)) { building_industry_update_production(1); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(21)) { building_maintenance_check_rome_access(); }
+    if (current_tick == game_time_scale_legacy_day_tick_index(16)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_RESOURCE);
+        city_resource_calculate_warehouse_stocks();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(17)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_RESOURCE);
+        city_resource_calculate_food_stocks_and_supply_wheat();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(19)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_WATER);
+        building_dock_update_open_water_access();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(20)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_PRODUCTION);
+        building_industry_update_production(1);
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(21)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_MAINTENANCE);
+        building_maintenance_check_rome_access();
+    }
     if (current_tick == game_time_scale_legacy_day_tick_index(22)) { house_population_update_room(); }
     if (current_tick == game_time_scale_legacy_day_tick_index(23)) { house_population_update_migration(); }
     if (current_tick == game_time_scale_legacy_day_tick_index(24)) { house_population_evict_overcrowded(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(25)) { city_labor_update(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(27)) { map_water_supply_update_reservoir_fountain(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(28)) { map_water_supply_update_buildings(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(29)) { formation_update_all(1); }
+    if (current_tick == game_time_scale_legacy_day_tick_index(25)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_LABOR);
+        city_labor_update();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(27)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_WATER);
+        map_water_supply_update_reservoir_fountain();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(28)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_WATER);
+        map_water_supply_update_buildings();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(29)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FORMATION);
+        formation_update_all(1);
+    }
     if (current_tick == game_time_scale_legacy_day_tick_index(30)) { widget_minimap_invalidate(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(31)) { building_figure_generate(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(32)) { city_trade_update(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(33)) { building_entertainment_run_shows(); city_culture_update_coverage(); }
+    if (current_tick == game_time_scale_legacy_day_tick_index(31)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FIGURE_GENERATION);
+        building_figure_generate();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(32)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_TRADE);
+        city_trade_update();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(33)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CULTURE);
+        building_entertainment_run_shows();
+        city_culture_update_coverage();
+    }
     if (current_tick == game_time_scale_legacy_day_tick_index(34)) { building_government_distribute_treasury(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(35)) { house_service_decay_culture(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(36)) { house_service_calculate_culture_aggregates(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(37)) { map_desirability_update(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(38)) { building_update_desirability(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(39)) { building_house_process_evolve_and_consume_goods(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(40)) { building_update_state(); }
+    if (current_tick == game_time_scale_legacy_day_tick_index(35)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CULTURE);
+        house_service_decay_culture();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(36)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CULTURE);
+        house_service_calculate_culture_aggregates();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(37)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_DESIRABILITY);
+        map_desirability_update();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(38)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_DESIRABILITY);
+        building_update_desirability();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(39)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_HOUSE_EVOLUTION);
+        building_house_process_evolve_and_consume_goods();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(40)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_BUILDING_STATE);
+        building_update_state();
+    }
     if (current_tick == game_time_scale_legacy_day_tick_index(42)) { city_finance_spawn_tourist(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(43)) { building_maintenance_update_burning_ruins(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(44)) { building_maintenance_check_fire_collapse(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(45)) { figure_generate_criminals(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(46)) { building_industry_update_production(0); }
+    if (current_tick == game_time_scale_legacy_day_tick_index(43)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_MAINTENANCE);
+        building_maintenance_update_burning_ruins();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(44)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_MAINTENANCE);
+        building_maintenance_check_fire_collapse();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(45)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FIGURE_GENERATION);
+        figure_generate_criminals();
+    }
+    if (current_tick == game_time_scale_legacy_day_tick_index(46)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_PRODUCTION);
+        building_industry_update_production(0);
+    }
     if (current_tick == game_time_scale_legacy_day_tick_index(47)) { city_games_decrement_duration(); }
     if (current_tick == game_time_scale_legacy_day_tick_index(48)) { house_service_decay_tax_collector(); }
-    if (current_tick == game_time_scale_legacy_day_tick_index(49)) { city_culture_calculate(); }
+    if (current_tick == game_time_scale_legacy_day_tick_index(49)) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CULTURE);
+        city_culture_calculate();
+    }
     if (game_time_advance_tick()) {
         advance_day();
     }

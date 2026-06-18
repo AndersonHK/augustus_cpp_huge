@@ -7,9 +7,9 @@
 
 #include "victory_dialog.h"
 
+#include "game/campaign.h"
 extern "C" {
 #include "assets/assets.h"
-#include "game/campaign.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"

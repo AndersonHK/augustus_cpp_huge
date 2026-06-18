@@ -1,4 +1,4 @@
-﻿#include "building/building_type.h"
+#include "building/building_type.h"
 #include "building/industry.h"
 #include "translation/translation.h"
 #include "core/xml_value.h"
@@ -10,12 +10,12 @@
 #include "building/production_method_registry.h"
 
 #ifdef __cplusplus
+#include "core/file.h"
 extern "C" {
 #endif
 
 #include "core/crash_context.h"
 #include "core/dir.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 #include "game/save_version.h"

@@ -16,6 +16,7 @@
 #include "window/popup_dialog.h"
 #include "city/god.h"
 
+#include "game/settings.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -31,7 +32,6 @@ extern "C" {
 #include "core/string.h"
 #include "figure/formation_legion.h"
 #include "game/resource.h"
-#include "game/settings.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/image_button.h"
 #include "graphics/text.h"

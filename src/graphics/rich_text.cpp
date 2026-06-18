@@ -7,11 +7,11 @@
 #include "game/campaign.h"
 #include "graphics/window.h"
 
+#include "core/file.h"
 extern "C" {
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/encoding.h"
-#include "core/file.h"
 #include "core/image.h"
 #include "core/image_group.h"
 #include "core/locale.h"

@@ -30,9 +30,9 @@
       <CompileAs>CompileAsCpp</CompileAs>
     </ClCompile>
     <ClCompile Include="src\core\image_packer.c" />
-    <ClCompile Include="src\core\io.c" />
+    <ClCompile Include="src\core\io.cpp" />
     <ClCompile Include="src\core\legacy_image_extractor.cpp" />
-    <ClCompile Include="src\core\png_read.c" />
+    <ClCompile Include="src\core\png_read.cpp" />
     <ClCompile Include="src\core\xml_parser.c" />
     <ClCompile Include="src\graphics\image.cpp" />
     <ClCompile Include="src\graphics\renderer.c" />

@@ -1,4 +1,4 @@
-﻿#include "building/building.h"
+#include "building/building.h"
 #include "translation/translation.h"
 #include "city/labor.h"
 #include "graphics/graphics.h"
@@ -11,6 +11,7 @@
 
 #include "core/crash_context.h"
 
+#include "game/settings.h"
 extern "C" {
 #include "building/building_record.h"
 #include "city/ratings.h"
@@ -20,7 +21,6 @@ extern "C" {
 #include "core/string.h"
 #include "core/time.h"
 #include "game/cheats.h"
-#include "game/settings.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"

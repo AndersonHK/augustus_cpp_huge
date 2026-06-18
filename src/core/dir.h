@@ -41,7 +41,7 @@ enum {
  * File information
  */
 typedef struct {
-    char *name; /**< Filenames in UTF-8 encoding */
+    const char *name; /**< Filenames in UTF-8 encoding */
     unsigned int modified_time; /**< Timestamp */
 } dir_entry;
 

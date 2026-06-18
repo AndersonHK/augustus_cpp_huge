@@ -4,6 +4,7 @@
 #include "building/industry.h"
 #include "building/storage.h"
 #include "figure/roamer_preview.h"
+#include "game/performance_tracker.h"
 #include "game/state.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
@@ -886,32 +887,58 @@ void city_with_overlay_draw(const map_tile *tile, unsigned int roamer_preview_bu
         return;
     }
 
+    PerformanceTrackerScope city_draw_scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW);
     scale = city_view_get_scale() / 100.0f;
     city_roamer_preview_selected_building_id = roamer_preview_building_id;
     int x, y, width, height;
     city_view_get_viewport(&x, &y, &width, &height);
     graphics_fill_rect(x, y, width, height, COLOR_BLACK);
     int should_mark_deleting = city_building_ghost_mark_deleting(tile);
-    city_view_foreach_valid_map_tile(draw_footprint);
+    {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_FOOTPRINT);
+        city_view_foreach_valid_map_tile(draw_footprint);
+    }
     if (!should_mark_deleting) {
-        city_view_foreach_valid_map_tile_row(
-            draw_figures,
-            draw_top,
-            draw_animation
-        );
-        city_building_ghost_draw(tile);
-        city_view_foreach_valid_map_tile(draw_elevated_figures);
+        {
+            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ROW);
+            city_view_foreach_valid_map_tile_row(
+                draw_figures,
+                draw_top,
+                draw_animation
+            );
+        }
+        {
+            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST);
+            city_building_ghost_draw(tile);
+        }
+        {
+            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED);
+            city_view_foreach_valid_map_tile(draw_elevated_figures);
+        }
     } else {
-        city_view_foreach_valid_map_tile(draw_figures);
-        city_view_foreach_valid_map_tile(deletion_draw_terrain_top);
-        city_view_foreach_valid_map_tile(deletion_draw_animations);
-        city_building_ghost_draw(tile);
-        city_view_foreach_valid_map_tile(draw_elevated_figures);
+        {
+            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION);
+            city_view_foreach_valid_map_tile(draw_figures);
+            city_view_foreach_valid_map_tile(deletion_draw_terrain_top);
+            city_view_foreach_valid_map_tile(deletion_draw_animations);
+        }
+        {
+            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST);
+            city_building_ghost_draw(tile);
+        }
+        {
+            PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED);
+            city_view_foreach_valid_map_tile(draw_elevated_figures);
+        }
     }
     if (overlay->draw_custom_layer) {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_OVERLAY);
         city_view_foreach_valid_map_tile(draw_custom_layer);
     }
-    update_weather();
+    {
+        PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_WEATHER);
+        update_weather();
+    }
 }
 
 int city_with_overlay_get_tooltip_text(tooltip_context *c, int grid_offset)

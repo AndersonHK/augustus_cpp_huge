@@ -12,11 +12,11 @@
 #include "graphics/advisor_text_button_widget.h"
 #include "graphics/ui_runtime.h"
 
+#include "game/settings.h"
 extern "C" {
 
 #include "assets/assets.h"
 #include "building/building_type_api.h"
-#include "game/settings.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 }
