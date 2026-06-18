@@ -10,14 +10,14 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
+#include "city/ratings.h"
+#include "city/culture.h"
 #include "destruction.h"
 
 extern "C" {
 #include "city/message.h"
 #include "city/population.h"
-#include "city/ratings.h"
 #include "core/image.h"
 #include "figuretype/missile.h"
 #include "map/grid.h"
@@ -31,33 +31,50 @@ extern "C" {
 #include <string.h>
 #include <cstring>
 
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
-}
-
 static building_type burning_ruin_type()
 {
-    return runtime_type("burning_ruin");
+    static building_type burning_ruin = BUILDING_NONE;
+    if (burning_ruin != BUILDING_NONE) {
+        return burning_ruin;
+    }
+    for (building_type type = 1; type < BUILDING_TYPE_MAX; ++type) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && std::strcmp(definition->attr(), "burning_ruin") == 0) {
+            burning_ruin = type;
+            return burning_ruin;
+        }
+    }
+    return BUILDING_NONE;
 }
 
-static int is_bridge_type(building_type type)
-{
-    return type_matches(type, "low_bridge") || type_matches(type, "ship_bridge");
-}
-
-static int is_waterside_building_type(building_type type)
+static int is_bridge_type(const building *b)
 {
     const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return (definition && std::strcmp(definition->attr(), "dock") == 0) ||
-        type_matches(type, "wharf") ||
-        type_matches(type, "shipyard");
+        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
+    if (!definition) {
+        return 0;
+    }
+    const char *attr = definition->attr();
+    return std::strcmp(attr, "low_bridge") == 0 || std::strcmp(attr, "ship_bridge") == 0;
+}
+
+static int is_waterside_building_type(const building *b)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
+    if (!definition) {
+        return 0;
+    }
+    const char *attr = definition->attr();
+    return std::strcmp(attr, "dock") == 0 || std::strcmp(attr, "wharf") == 0 || std::strcmp(attr, "shipyard") == 0;
+}
+
+static int building_type_attr_is(const building *b, const char *attr)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
+    return definition && std::strcmp(definition->attr(), attr) == 0;
 }
 
 enum {
@@ -71,11 +88,12 @@ static void set_rubble_grid_info_for_all_parts(building *b);
 static void destroy_without_rubble(building *b)
 {
     game_undo_disable();
+    city_culture_remove_building_module_capacity(b);
     building_local_workforce_remove_building(b);
     if (b->house_size && b->house_population) {
         city_population_remove_home_removed(b->house_population);
     }
-    if (is_bridge_type(b->type)) {
+    if (is_bridge_type(b)) {
         map_bridge_remove(b->grid_offset, 0);
     }
     building_clear_related_data(b);
@@ -87,6 +105,7 @@ static void destroy_without_rubble(building *b)
 static void destroy_on_fire(building *b, int plagued)
 {
     game_undo_disable();
+    city_culture_remove_building_module_capacity(b);
     building_local_workforce_remove_building(b);
     b->fire_risk = 0;
     b->damage_risk = 0;
@@ -113,7 +132,7 @@ static void destroy_on_fire(building *b, int plagued)
     }
 
     int waterside_building = 0;
-    if (is_waterside_building_type(b->type)) {
+    if (is_waterside_building_type(b)) {
         waterside_building = 1;
     }
     int num_tiles;
@@ -122,11 +141,14 @@ static void destroy_on_fire(building *b, int plagued)
     } else {
         num_tiles = 0;
     }
+    const building_type burning_ruin = burning_ruin_type();
     map_building_tiles_remove(b->id, b->x, b->y);
     if (map_terrain_is(b->grid_offset, TERRAIN_WATER)) {
         b->state = BUILDING_STATE_RUBBLE;
+    } else if (burning_ruin != BUILDING_NONE) {
+        building_change_type(b, burning_ruin);
     } else {
-        building_change_type(b, burning_ruin_type());
+        b->state = BUILDING_STATE_RUBBLE;
     }
     b->figure_id4 = 0;
     b->tax_income_or_storage = 0;
@@ -158,7 +180,10 @@ static void destroy_on_fire(building *b, int plagued)
         if (map_terrain_is(map_grid_offset(x, y), TERRAIN_WATER)) {
             continue;
         }
-        building *ruin = building_create(burning_ruin_type(), x, y);
+        if (burning_ruin == BUILDING_NONE) {
+            continue;
+        }
+        building *ruin = building_create(burning_ruin, x, y);
         map_building_tiles_add(ruin->id, ruin->x, ruin->y, 1, building_image_get(ruin), TERRAIN_BUILDING);
         ruin->fire_duration = (ruin->house_figure_generation_delay & 7) + 1;
         ruin->figure_id4 = 0;
@@ -194,7 +219,10 @@ static void destroy_linked_parts(building *b, int destruction_method, int plague
                 part->state = BUILDING_STATE_DELETED_BY_GAME;
                 break;
             default:
-                map_building_tiles_set_rubble(part_id, part->x, part->y, part->size);
+                {
+                    Building part_building(*part);
+                    map_building_tiles_set_rubble(&part_building, part->x, part->y, part->size);
+                }
                 part->state = BUILDING_STATE_RUBBLE;
                 break;
         }
@@ -218,7 +246,10 @@ static void destroy_linked_parts(building *b, int destruction_method, int plague
                 part->state = BUILDING_STATE_DELETED_BY_GAME;
                 break;
             default:
-                map_building_tiles_set_rubble(part_id, part->x, part->y, part->size);
+                {
+                    Building part_building(*part);
+                    map_building_tiles_set_rubble(&part_building, part->x, part->y, part->size);
+                }
                 part->state = BUILDING_STATE_RUBBLE;
         }
     }
@@ -240,13 +271,15 @@ static void destroy_linked_parts(building *b, int destruction_method, int plague
 
 void building_destroy_by_collapse(building *b)
 {
+    city_culture_remove_building_module_capacity(b);
     building_local_workforce_remove_building(b);
     b->state = BUILDING_STATE_RUBBLE;
-    if (type_matches(b->type, "tower")) {
+    if (building_type_attr_is(b, "tower")) {
         figure_kill_tower_sentries_in_building(b);
     }
     set_rubble_grid_info_for_all_parts(b);
-    map_building_tiles_set_rubble(b->id, b->x, b->y, b->size);
+    Building building(*b);
+    map_building_tiles_set_rubble(&building, b->x, b->y, b->size);
     figure_create_explosion_cloud(b->x, b->y, b->size, 0);
     destroy_linked_parts(b, DESTROY_COLLAPSE, 0);
 
@@ -260,11 +293,13 @@ void building_destroy_by_fire(building *b)
 
 void building_destroy_by_earthquake(building *b)
 {
+    city_culture_remove_building_module_capacity(b);
     building_local_workforce_remove_building(b);
     int grid_offset = b->grid_offset; // save before destroying building
     int size = b->size;
     b->state = BUILDING_STATE_DELETED_BY_GAME;
-    map_building_tiles_set_rubble(b->id, b->x, b->y, b->size);
+    Building building(*b);
+    map_building_tiles_set_rubble(&building, b->x, b->y, b->size);
     destroy_linked_parts(b, DESTROY_EARTHQUAKE, 0);
     map_building_set_rubble_grid_building_id(grid_offset, 0, size);
 }
@@ -334,12 +369,13 @@ void building_destroy_increase_enemy_damage(int grid_offset, int max_damage)
 static void set_rubble_grid_info_for_all_parts(building *b)
 {
     b = building_main(b); //get main warehouse building to copy data from
+    const building_type_registry_impl::BuildingType &main_type = Building(b).type();
     building *part = b; //initialize part iterator - start with main building
     for (int i = 0; i < 9 && part->id > 0; i++) {
         building *next_part = building_next(part);
         part->data.rubble.og_type = b->type;
         part->data.rubble.og_grid_offset = b->grid_offset;
-        part->data.rubble.og_size = type_matches(b->type, "warehouse") ? 3 : b->size;
+        part->data.rubble.og_size = main_type.is_warehouse() ? 3 : b->size;
         part->data.rubble.og_orientation = (unsigned char) b->subtype.orientation;
         part = next_part;
     }
@@ -351,7 +387,8 @@ void building_destroy_by_enemy(int x, int y, int grid_offset)
     if (building_id > 0) {
         building *b = building_get(building_id);
         if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED) {
-            city_ratings_peace_building_destroyed(b->type);
+            Building destroyed_building(b);
+            city_ratings_peace_building_destroyed(destroyed_building);
             building_destroy_by_collapse(b);
         }
     } else {
@@ -364,7 +401,7 @@ void building_destroy_by_enemy(int x, int y, int grid_offset)
             map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
             map_tiles_update_all_gardens();
         } else {
-            map_building_tiles_set_rubble(0, x, y, 1);
+            map_building_tiles_set_rubble(nullptr, x, y, 1);
         }
     }
     figure_tower_sentry_reroute();

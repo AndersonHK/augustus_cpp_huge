@@ -32,6 +32,7 @@
 #include "scenario/property.h"
 
 #include <math.h>
+#include <cstring>
 
 static struct {
     resource_list resources;
@@ -43,15 +44,32 @@ static struct {
     resource_list foods;
 } potential;
 
-static building_type runtime_type(const char *text_id)
+static int building_matches(const Building &building, const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    return type && text_id && std::strcmp(type->attr(), text_id) == 0;
 }
 
 static building *first_of_type(const char *text_id)
 {
-    building_type type = runtime_type(text_id);
-    return type > BUILDING_NONE ? building_first_of_type(type) : nullptr;
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        if (building_matches(Building(b), text_id)) {
+            return b;
+        }
+    }
+    return nullptr;
+}
+
+static building *first_working_monument(const char *text_id)
+{
+    for (building *b = first_of_type(text_id); b; b = b->next_of_type) {
+        if (b->monument.phase == MONUMENT_FINISHED && b->state == BUILDING_STATE_IN_USE &&
+            !building_monument_has_labour_problems(b)) {
+            return b;
+        }
+    }
+    return nullptr;
 }
 
 int city_resource_count_food_on_granaries(resource_type food)
@@ -573,12 +591,14 @@ static int house_consume_food(void)
 static int mess_hall_consume_food(void)
 {
     int total_consumed = 0;
-    building_type mess_hall_type = runtime_type("mess_hall");
-    if (mess_hall_type <= BUILDING_NONE) {
-        return 0;
+    building *b = nullptr;
+    for (building *candidate = first_of_type("mess_hall"); candidate; candidate = candidate->next_of_type) {
+        if (candidate->state == BUILDING_STATE_IN_USE || candidate->state == BUILDING_STATE_MOTHBALLED) {
+            b = candidate;
+            break;
+        }
     }
-    building *b = building_get(building_find_with_mothballed(mess_hall_type));
-    if (!b || (b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_MOTHBALLED)) {
+    if (!b) {
         return 0;
     }
     if (game_cheat_disabled_legions_consumption()) {
@@ -638,10 +658,11 @@ static int mess_hall_consume_food(void)
 
 static int caravanserai_consume_food(void)
 {
-    building_type caravanserai_type = runtime_type("caravanserai");
-    if (!building_monument_working(caravanserai_type)) {
+    building *b = first_working_monument("caravanserai");
+    if (!b) {
         return 0;
     }
+
     int food_required = building_caravanserai_food_required_monthly();
 
     trade_policy policy = city_trade_policy_get(LAND_TRADE_POLICY);
@@ -651,11 +672,6 @@ static int caravanserai_consume_food(void)
     }
 
     int total_consumed = 0;
-    building *b = building_first_of_type(caravanserai_type);
-    if (!b) {
-        return 0;
-    }
-
     int total_food_in_caravanserai = 0;
     int proportionate_amount = 0;
     int amount_for_type = 0;

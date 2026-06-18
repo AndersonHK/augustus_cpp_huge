@@ -10,6 +10,7 @@
 #include "crime.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 
 extern "C" {
 #include "building/building_record.h"
@@ -38,6 +39,8 @@ extern "C" {
 #include "scenario/property.h"
 }
 
+#include <cstring>
+
 #define MAX_LOOTING_DISTANCE 120
 
 static const int CRIMINAL_OFFSETS[] = {
@@ -49,23 +52,17 @@ typedef struct {
     resource_type resource;
 } looter_destination;
 
-static building_type runtime_type(const char *text_id)
+static int building_type_attr_is(building_type type, const char *attr)
 {
-    if (!text_id) {
-        return BUILDING_NONE;
-    }
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
-static int type_matches(building_type type, const char *text_id)
+static int type_matches_any(building_type type, const char * const *attrs)
 {
-    return type == runtime_type(text_id);
-}
-
-static int type_matches_any(building_type type, const char * const *text_ids)
-{
-    for (int i = 0; text_ids[i]; i++) {
-        if (type_matches(type, text_ids[i])) {
+    for (int i = 0; attrs[i]; i++) {
+        if (building_type_attr_is(type, attrs[i])) {
             return 1;
         }
     }
@@ -557,7 +554,7 @@ int figure_rioter_collapse_building(figure *f)
             continue;
         }
         building *b = building_get(map_building_at(grid_offset));
-        if (building_type_registry_is_well(b->type)) {
+        if (Building(b).type().is_well()) {
             continue;
         }
         if (type_matches_any(b->type, non_collapsible_types)) {

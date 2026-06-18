@@ -11,6 +11,7 @@
 #include "utility.h"
 #include "window/building/figures.h"
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/roadblock.h"
 
 extern "C" {
@@ -40,14 +41,14 @@ static struct {
     int tooltip_id;
 } data = { 0, 0, 0, 0, 0 };
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static int type_matches(building_type type, const char *text_id)
 {
-    return type == runtime_type(text_id);
+    return type == type_from_attr(text_id);
 }
 
 static generic_button go_to_orders_button[] = {

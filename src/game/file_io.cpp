@@ -22,6 +22,7 @@
 #include "building/barracks.h"
 #include "building/building_record.h"
 #include "building/building_type_registry.h"
+#include "building/building_type_startup_bridge.h"
 
 #include "core/file.h"
 #include "scenario/scenario.h"
@@ -429,7 +430,7 @@ static void savegame_mod_metadata_save_state(buffer *buf)
     if (!buf) {
         return;
     }
-    const char *mod_name = mod_manager_get_mod_name();
+    const char *mod_name = mod_manager::mod_name().c_str();
     size_t mod_name_length = mod_name ? strlen(mod_name) + 1 : 1;
     buffer_init_dynamic(buf, sizeof(int32_t) + mod_name_length);
     buffer_write_i32(buf, SAVEGAME_MOD_METADATA_VERSION);
@@ -466,7 +467,7 @@ static void update_loaded_save_mod_metadata(const savegame_state *state, savegam
 
     loaded_save_mod_metadata.has_mod_name = 1;
     snprintf(loaded_save_mod_metadata.active_mod_name, sizeof(loaded_save_mod_metadata.active_mod_name), "%s",
-        mod_manager_get_mod_name());
+        mod_manager::mod_name().c_str());
     loaded_save_mod_metadata.has_mismatch =
         strcmp(loaded_save_mod_metadata.save_mod_name, loaded_save_mod_metadata.active_mod_name) != 0;
 }
@@ -918,7 +919,7 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
         empire_load_custom_map(file->empire_map);
     }
     model_reset();
-    building_type_registry_apply_model_overrides();
+    building_type_startup_bridge_apply_model_overrides();
     if (version > SCENARIO_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         model_load_model_data(file->model_data);
     } else {
@@ -1074,7 +1075,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {
         model_load_model_data(state->building_model_data);
     }
-    building_type_registry_apply_model_overrides();
+    building_type_startup_bridge_apply_model_overrides();
 
     resource_init();
     if (version > SAVE_GAME_LAST_NO_FORMULAS_AND_MODEL_DATA) {

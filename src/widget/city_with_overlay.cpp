@@ -31,6 +31,7 @@
 #include "building/animations.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
 #include "widget/city_draw.h"
 
 extern "C" {
@@ -52,6 +53,8 @@ extern "C" {
 #include "widget/city_overlay.h"
 }
 
+#include <cstring>
+
 static const city_overlay *overlay = 0;
 static float scale = SCALE_NONE;
 static unsigned int city_roamer_preview_selected_building_id = ((unsigned int) -1); //NO_POSITION default
@@ -59,14 +62,10 @@ static unsigned int city_roamer_preview_selected_building_id = ((unsigned int) -
 #define SELECTED_BUILDING_COLOR_MASK COLOR_MASK_SKY_BLUE
 #define OFFSET(x,y) (x + GRID_SIZE * y)
 
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
 static int building_matches(const Building &building, const char *text_id)
 {
-    return building.is_type(runtime_type(text_id));
+    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    return definition && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static const int ADJACENT_OFFSETS[2][4][7] = {
@@ -625,7 +624,7 @@ static int depot_cart_image_id(resource_type resource)
 
 static void draw_depot_resource(const Building &building, int x, int y)
 {
-    const int image_id = building.has_workers() ?
+    const int image_id = building.worker_count() ?
         depot_cart_image_id(building.depot_order().resource_type) :
         assets_get_image_id("Admin_Logistics", "Cart_Depot_Cat");
     Image::from_id(image_id).draw(x + 11, y, COLOR_MASK_NONE, scale);

@@ -3,6 +3,7 @@
 
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/house.h"
 #include "building/list.h"
@@ -33,19 +34,18 @@
 #include "scenario/property.h"
 #include "sound/effect.h"
 
+#include <cstring>
+
 static struct {
     int fire_spread_direction;
     int obstruction_message_displayed;
 } data;
 
-static building_type runtime_type(const char *text_id)
+static int type_matches(building_type type, const char *attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
 static int is_storage_road_access_type(building_type type)
@@ -78,7 +78,8 @@ void building_maintenance_update_burning_ruins(void)
         if (b->fire_duration > 32) {
             game_undo_disable();
             b->state = BUILDING_STATE_RUBBLE;
-            map_building_tiles_set_rubble(i, b->x, b->y, b->size);
+            Building building(*b);
+            map_building_tiles_set_rubble(&building, b->x, b->y, b->size);
             recalculate_terrain = 1;
             continue;
         }

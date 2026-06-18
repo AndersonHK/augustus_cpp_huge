@@ -3,6 +3,7 @@
 
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "city/view.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -20,6 +21,8 @@
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "sound/effect.h"
+
+#include <cstring>
 
 #define BALLISTA_RANGE 15
 #define WATCHTOWER_RANGE 12
@@ -46,17 +49,11 @@ static const int TOWER_SENTRY_FIRING_OFFSETS[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-static building_type runtime_type(const char *text_id)
+static int building_matches(const building *b, const char *attr)
 {
-    if (!text_id) {
-        return BUILDING_NONE;
-    }
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
 void figure_ballista_action(figure *f)
@@ -195,7 +192,7 @@ static int tower_sentry_init_patrol(building *b, int *x_tile, int *y_tile)
 
 static void figure_watchtower_archer_spawn(building *b)
 {
-    if (b->figure_id4 || !type_matches(b->type, "watchtower")) {
+    if (b->figure_id4 || !Building(b).type().is_watchtower()) {
         return;
     }
     figure *f = figure_create(FIGURE_WATCHTOWER_ARCHER, b->x, b->y, DIR_0_TOP);
@@ -255,7 +252,7 @@ void figure_tower_sentry_action(figure *f)
             break;
         case FIGURE_ACTION_170_TOWER_SENTRY_AT_REST:
 
-            if (!type_matches(b->type, "tower")) {
+            if (!building_matches(b, "tower")) {
                 f->state = FIGURE_STATE_DEAD;
             }
 
@@ -321,7 +318,7 @@ void figure_tower_sentry_action(figure *f)
             f->is_ghost = 0;
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
-                if (type_matches(b->type, "watchtower")) {
+                if (Building(b).type().is_watchtower()) {
                     figure_watchtower_archer_spawn(b);
                     figure_route_remove(f);
                     f->state = FIGURE_STATE_DEAD;

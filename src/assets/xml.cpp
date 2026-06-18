@@ -16,6 +16,7 @@ extern "C" {
 #include "graphics/renderer.h"
 }
 
+#include <string>
 #include <string.h>
 
 #define XML_BUFFER_SIZE 1024
@@ -58,17 +59,17 @@ static int append_root_graphics_path(char *full_path, const char *relative_path)
 
 static int append_mod_graphics_path(char *full_path, const char *relative_path)
 {
-    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager_get_graphics_path(), relative_path) < FILE_NAME_MAX;
+    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager::graphics_path().c_str(), relative_path) < FILE_NAME_MAX;
 }
 
 static int append_augustus_graphics_path(char *full_path, const char *relative_path)
 {
-    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager_get_augustus_graphics_path(), relative_path) < FILE_NAME_MAX;
+    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager::augustus_graphics_path().c_str(), relative_path) < FILE_NAME_MAX;
 }
 
 static int append_julius_graphics_path(char *full_path, const char *relative_path)
 {
-    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager_get_julius_graphics_path(), relative_path) < FILE_NAME_MAX;
+    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager::julius_graphics_path().c_str(), relative_path) < FILE_NAME_MAX;
 }
 
 static int append_graphics_path_for_source(char *full_path, const char *relative_path, xml_asset_source source)
@@ -124,11 +125,11 @@ static xml_asset_source source_for_mod_index(int index, int top_index)
     if (index == top_index) {
         return XML_ASSET_SOURCE_MOD;
     }
-    const char *name = mod_manager_get_mod_name_at(index);
-    if (ascii_equals_ignore_case(name, "Augustus")) {
+    const std::string &name = mod_manager::mod_names().at(index);
+    if (ascii_equals_ignore_case(name.c_str(), "Augustus")) {
         return XML_ASSET_SOURCE_AUGUSTUS;
     }
-    if (ascii_equals_ignore_case(name, "Julius")) {
+    if (ascii_equals_ignore_case(name.c_str(), "Julius")) {
         return XML_ASSET_SOURCE_JULIUS;
     }
     return XML_ASSET_SOURCE_AUTO;
@@ -137,7 +138,7 @@ static xml_asset_source source_for_mod_index(int index, int top_index)
 static int collect_graphics_source_priority(xml_asset_source *sources, int max_sources)
 {
     int count = 0;
-    const int mod_count = mod_manager_get_mod_count();
+    const int mod_count = static_cast<int>(mod_manager::graphics_paths().size());
     const int top_index = mod_count - 1;
     for (int i = top_index; i >= 0 && count < max_sources; i--) {
         const xml_asset_source source = source_for_mod_index(i, top_index);

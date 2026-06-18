@@ -150,7 +150,8 @@ const dir_listing *dir_find_files_with_extension(const char *dir, const char *ex
 
 const dir_listing *dir_find_files_with_extension_at_location(int location, const char *extension)
 {
-    return dir_find_files_with_extension(platform_file_manager_get_directory_for_location(location, 0), extension);
+    const std::string directory = platform_file_manager_get_directory_for_location(location);
+    return dir_find_files_with_extension(directory.c_str(), extension);
 }
 
 const dir_listing *dir_find_all_subdirectories(const char *dir)
@@ -163,7 +164,8 @@ const dir_listing *dir_find_all_subdirectories(const char *dir)
 
 const dir_listing *dir_find_all_subdirectories_at_location(int location)
 {
-    return dir_find_all_subdirectories(platform_file_manager_get_directory_for_location(location, 0));
+    const std::string directory = platform_file_manager_get_directory_for_location(location);
+    return dir_find_all_subdirectories(directory.c_str());
 }
 
 const dir_listing *dir_append_files_with_extension(const char *extension)
@@ -197,12 +199,13 @@ const char *dir_get_file(const char *filepath, int localizable)
 
 const char *dir_get_file_at_location(const char *filename, int location)
 {
-    return get_case_corrected_file(platform_file_manager_get_directory_for_location(location, 0), filename);
+    const std::string directory = platform_file_manager_get_directory_for_location(location);
+    return get_case_corrected_file(directory.c_str(), filename);
 }
 
 const char *dir_append_location(const char *filename, int location)
 {
-    data.appended_path = platform_file_manager_get_directory_for_location(location, 0);
+    data.appended_path = platform_file_manager_get_directory_for_location(location);
     data.appended_path += filename;
     return data.appended_path.c_str();
 }

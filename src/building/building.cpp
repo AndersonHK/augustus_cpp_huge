@@ -12,6 +12,7 @@
 #include "building/state.h"
 #include "building/storage.h"
 #include "building/variant.h"
+#include "city/culture.h"
 #include "city/warning.h"
 #include "game/resource_graphics.h"
 #include "game/undo.h"
@@ -538,14 +539,14 @@ int Building::has_type_definition() const
     return type_definition() ? 1 : 0;
 }
 
-int Building::has_workers() const
-{
-    return record_ && record_->num_workers > 0;
-}
-
 int Building::worker_count() const
 {
     return record_ ? record_->num_workers : 0;
+}
+
+float Building::labor_access_score() const
+{
+    return record_ ? record_->labor_access_score : 0.0f;
 }
 
 int Building::has_required_workers() const
@@ -553,8 +554,7 @@ int Building::has_required_workers() const
     if (!record_) {
         return 0;
     }
-    model_building *model = model_get_building(record_->type);
-    return model && record_->num_workers >= model->laborers;
+    return record_->num_workers >= type().required_workers();
 }
 
 int Building::has_road_access(map_point *road) const
@@ -569,7 +569,7 @@ int Building::has_water_access() const
 
 int Building::is_working() const
 {
-    return has_workers() && has_water_access();
+    return worker_count() && has_water_access();
 }
 
 int Building::has_primary_figure() const
@@ -1154,6 +1154,7 @@ building *building_create(building_type type, int x, int y)
     b->sentiment.house_happiness = 100;
 
     fill_adjacent_types(b);
+    city_culture_add_building_module_capacity(b);
 
     // house size
     if (building_type_registry_has_housing(type)) {
@@ -1242,13 +1243,16 @@ void building_change_type(building *b, building_type type)
     if (b->type == type) {
         return;
     }
+    city_culture_remove_building_module_capacity(b);
     remove_adjacent_types(b);
     b->type = type;
     fill_adjacent_types(b);
+    city_culture_add_building_module_capacity(b);
 }
 
 static void building_delete(building *b)
 {
+    city_culture_remove_building_module_capacity(b);
     building_clear_related_data(b);
     remove_adjacent_types(b);
     int id = b->id;
@@ -1286,6 +1290,7 @@ building *building_restore_from_undo(building *to_restore)
         data.buildings.size = b->id + 1;
     }
     fill_adjacent_types(b);
+    city_culture_add_building_module_capacity(b);
     if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED) {
         Building(b).refresh_graphic();
     }
@@ -1477,6 +1482,7 @@ static int warehouse_repair(building *b)
     figure_create_explosion_cloud(
         map_grid_offset_to_x(standard_grid_offset), map_grid_offset_to_y(standard_grid_offset), 3, 1);
 
+    city_culture_remove_building_module_capacity(b);
     b->state = BUILDING_STATE_DELETED_BY_GAME; // mark old building as deleted
     game_undo_disable(); // not accounting for undoing repairs
     return full_cost;
@@ -1586,6 +1592,7 @@ int building_repair(building *b)
     if (wall) {
         map_tiles_update_all_walls(); // towers affect wall connections
     }
+    city_culture_remove_building_module_capacity(b);
     b->state = BUILDING_STATE_DELETED_BY_GAME; // mark old building as deleted
     game_undo_disable(); // not accounting for undoing repairs
     return full_cost;
@@ -1605,6 +1612,7 @@ void building_update_state(void)
             map_water_supply_refresh_building(b);
             // When a created building becomes live, rebuild its cached native image-group bindings immediately.
             Building(b).refresh_graphic();
+            city_culture_refresh_building_module_capacity(b);
         }
         if (b->state == BUILDING_STATE_IN_USE && b->house_size) {
             continue;
@@ -1839,10 +1847,14 @@ int building_is_fort(building_type type)
 int building_mothball_toggle(building *b)
 {
     if (b->state == BUILDING_STATE_IN_USE) {
+        city_culture_remove_building_module_capacity(b);
         b->state = BUILDING_STATE_MOTHBALLED;
         b->num_workers = 0;
+        city_culture_add_building_module_capacity(b);
     } else if (b->state == BUILDING_STATE_MOTHBALLED) {
+        city_culture_remove_building_module_capacity(b);
         b->state = BUILDING_STATE_IN_USE;
+        city_culture_add_building_module_capacity(b);
     }
     return b->state;
 }
@@ -1851,11 +1863,15 @@ int building_mothball_set(building *b, int mothball)
 {
     if (mothball) {
         if (b->state == BUILDING_STATE_IN_USE) {
+            city_culture_remove_building_module_capacity(b);
             b->state = BUILDING_STATE_MOTHBALLED;
             b->num_workers = 0;
+            city_culture_add_building_module_capacity(b);
         }
     } else if (b->state == BUILDING_STATE_MOTHBALLED) {
+        city_culture_remove_building_module_capacity(b);
         b->state = BUILDING_STATE_IN_USE;
+        city_culture_add_building_module_capacity(b);
     }
     return b->state;
 
@@ -1944,6 +1960,7 @@ static int building_in_use(const building *b)
 
 void building_clear_all(void)
 {
+    city_culture_clear_module_capacity_cache();
     memset(data.first_of_type, 0, sizeof(data.first_of_type));
     memset(data.last_of_type, 0, sizeof(data.last_of_type));
 
@@ -2269,4 +2286,5 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
 
     extra.incorrect_houses = buffer_read_i32(corrupt_houses);
     extra.unfixable_houses = buffer_read_i32(corrupt_houses);
+    city_culture_rebuild_module_capacity_cache();
 }

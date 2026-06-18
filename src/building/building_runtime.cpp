@@ -22,6 +22,7 @@
 #include "building/production_runtime.h"
 #include "building/storage_runtime.h"
 #include "building/temple.h"
+#include "city/culture.h"
 #include "core/crash_context.h"
 
 extern "C" {
@@ -118,7 +119,9 @@ void building_runtime::refresh_runtime_state()
     }
 
     if (type().has_graphic()) {
+        city_culture_remove_building_module_capacity(legacy_record());
         record().upgrade_level = type().upgrade_level_for(building());
+        city_culture_add_building_module_capacity(legacy_record());
     }
 }
 

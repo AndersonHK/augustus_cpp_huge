@@ -8,6 +8,7 @@
 #include "window/editor/select_city_trade_route.h"
 #include <array>
 
+#include "building/building_type_startup_bridge.h"
 #include "core/file.h"
 extern "C" {
 
@@ -587,7 +588,7 @@ static int xml_import_special_parse_building_counting(xml_data_attribute_t *attr
         "burning_ruin",
     };
     for (int i = 0; i < (int) (sizeof(not_countable) / sizeof(not_countable[0])); i++) {
-        building_type type = building_type_registry_runtime_id_from_text(not_countable[i]);
+        building_type type = building_type_startup_bridge_runtime_id_from_text(not_countable[i]);
         if (type != BUILDING_NONE && found->value == type) {
             xml_import_log_error("I cannot count that.");
             return 0;

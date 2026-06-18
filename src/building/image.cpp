@@ -5,7 +5,9 @@
 
 #include "building/building_record.h"
 #include "building/building.h"
+#include "building/building_runtime_graphics.h"
 #include "building/building_type.h"
+#include "building/building_type_registry_internal.h"
 
 #include <cstring>
 
@@ -39,15 +41,11 @@ struct typed_asset {
     const char *image;
 };
 
-static building_type xml_type(const char *text_id)
+static int type_matches(building_type type, const char *attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = xml_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
 static int type_index(building_type type, const char *const *text_ids, int count)
@@ -720,7 +718,8 @@ int building_image_get(const building *b)
         return 0;
     }
 
-    int xml_image_id = building_type_registry_get_graphics_image_id(b);
+    Building building_object(const_cast<building *>(b));
+    int xml_image_id = building_runtime_graphics_image_id(building_object);
     if (xml_image_id) {
         return xml_image_id;
     }

@@ -1,7 +1,9 @@
 #include "festival.h"
 
 #include "building/building.h"
+#include "building/building_record.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/warehouse.h"
 #include "building/monument.h"
 #include "core/calc.h"
@@ -14,6 +16,8 @@
 #include "core/config.h"
 #include "game/time.h"
 
+#include <cstring>
+
 auto_festival autofestivals[5] = {
     {0, 3}, // ceres, april
     {1, 6}, // neptune, july
@@ -22,9 +26,45 @@ auto_festival autofestivals[5] = {
     {4, 3}, // venus, april
 };
 
-static building_type runtime_type(const char *text_id)
+static building_type first_type_matching(int (*matches)(const building_type_registry_impl::BuildingType &))
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && matches(*definition)) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
+}
+
+static int is_colosseum(const building_type_registry_impl::BuildingType &type)
+{
+    return std::strcmp(type.attr(), "colosseum") == 0;
+}
+
+static int is_hippodrome(const building_type_registry_impl::BuildingType &type)
+{
+    return type.is_hippodrome();
+}
+
+static int is_pantheon(const building_type_registry_impl::BuildingType &type)
+{
+    return type.is_pantheon();
+}
+
+static int working_monument_matching(int (*matches)(const building_type_registry_impl::BuildingType &))
+{
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        Building building_object(b);
+        const building_type_registry_impl::BuildingType *definition = building_object.type_definition();
+        if (definition && matches(*definition) && b->monument.phase == MONUMENT_FINISHED &&
+            b->state == BUILDING_STATE_IN_USE && !building_monument_has_labour_problems(b)) {
+            return b->id;
+        }
+    }
+    return 0;
 }
 
 int city_festival_is_planned(void)
@@ -93,7 +133,8 @@ int city_festival_games_active(void)
 int city_festival_games_active_venue_type(void)
 {
     if (city_data.games.games_is_active) {
-        return city_data.games.selected_games_id <= 3 ? runtime_type("colosseum") : runtime_type("hippodrome");
+        return city_data.games.selected_games_id <= 3 ?
+            first_type_matching(is_colosseum) : first_type_matching(is_hippodrome);
     }
     return 0;
 }
@@ -228,7 +269,7 @@ void city_festival_update(void)
         }
     }
 
-    if (building_monument_working(runtime_type("pantheon"))) {
+    if (working_monument_matching(is_pantheon)) {
         for (int god = 0; god <= 4; ++god) {
             if (game_time_total_years() % 5 == god && game_time_month() == autofestivals[god].month) {
                 throw_auto_festival(god);

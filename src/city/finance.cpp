@@ -4,10 +4,10 @@
 #include "building/building.h"
 #include "building/building_type_api.h"
 #include "building/count.h"
+#include "building/culture_module.h"
 #include "building/house.h"
 #include "building/monument.h"
 #include "city/data_private.h"
-#include "city/culture.h"
 #include "city/festival.h"
 #include "core/calc.h"
 #include "core/random.h"
@@ -17,15 +17,29 @@
 #include "map/data.h"
 #include "map/terrain.h"
 
+#include <cstring>
+
 static int house_tax_multiplier(const building *b)
 {
     const model_house *model = building_house_get_model(b ? Building::from_id(b->id) : Building(nullptr));
     return model ? difficulty_adjust_money(model->tax_multiplier) : 0;
 }
 
-static building_type runtime_type(const char *text_id)
+static int building_matches(const Building &building, const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    return type && text_id && std::strcmp(type->attr(), text_id) == 0;
+}
+
+static building *first_of_type(const char *text_id)
+{
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        if (building_matches(Building(b), text_id)) {
+            return b;
+        }
+    }
+    return nullptr;
 }
 
 typedef struct {
@@ -36,8 +50,7 @@ typedef struct {
 typedef struct {
     const char *type_id;
     int income_modifier;
-    int coverage;
-    int count;
+    building_type_registry_impl::CultureModuleType culture_module_type;
 } tourism_spec;
 
 static const building_levy_spec building_levies[] = {
@@ -75,20 +88,40 @@ static const building_levy_spec building_levies[] = {
 };
 
 static tourism_spec tourism_modifiers[] = {
-    {"tavern", 2, TAVERN_COVERAGE, 0},
-    {"theater", 1, THEATER_COVERAGE, 0},
-    {"amphitheater", 1, AMPHITHEATER_COVERAGE, 0},
-    {"arena", 2, ARENA_COVERAGE, 0},
-    {"colosseum", 4, 0, 0},
-    {"hippodrome", 5, 0, 0},
-    {"grand_temple_ceres", 3, 0, 0},
-    {"grand_temple_neptune", 3, 0, 0},
-    {"grand_temple_mercury", 3, 0, 0},
-    {"grand_temple_mars", 3, 0, 0},
-    {"grand_temple_venus", 3, 0, 0},
-    {"pantheon", 3, 0, 0},
-    {nullptr, 0, 0, 0}
+    {"tavern", 2, building_type_registry_impl::CultureModuleType::Tavern},
+    {"theater", 1, building_type_registry_impl::CultureModuleType::Theater},
+    {"amphitheater", 1, building_type_registry_impl::CultureModuleType::Amphitheater},
+    {"arena", 2, building_type_registry_impl::CultureModuleType::Arena},
+    {"colosseum", 4, building_type_registry_impl::CultureModuleType::None},
+    {"hippodrome", 5, building_type_registry_impl::CultureModuleType::None},
+    {"grand_temple_ceres", 3, building_type_registry_impl::CultureModuleType::None},
+    {"grand_temple_neptune", 3, building_type_registry_impl::CultureModuleType::None},
+    {"grand_temple_mercury", 3, building_type_registry_impl::CultureModuleType::None},
+    {"grand_temple_mars", 3, building_type_registry_impl::CultureModuleType::None},
+    {"grand_temple_venus", 3, building_type_registry_impl::CultureModuleType::None},
+    {"pantheon", 3, building_type_registry_impl::CultureModuleType::None},
+    {nullptr, 0, building_type_registry_impl::CultureModuleType::None}
 };
+
+static int tourism_capacity(const tourism_spec &spec, const Building &building)
+{
+    if (spec.culture_module_type == building_type_registry_impl::CultureModuleType::None) {
+        return 0;
+    }
+
+    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    if (!definition) {
+        return 0;
+    }
+
+    int capacity = 0;
+    for (const building_type_registry_impl::BuildingCultureModule &module : definition->culture_modules()) {
+        if (module.module && module.module->type() == spec.culture_module_type) {
+            capacity += module.capacity;
+        }
+    }
+    return capacity;
+}
 
 int city_finance_treasury(void)
 {
@@ -377,11 +410,7 @@ static void pay_monthly_building_levies(void)
 {
     int levies = 0;
     for (int i = 0; building_levies[i].type_id; i++) {
-        building_type type = runtime_type(building_levies[i].type_id);
-        if (type <= BUILDING_NONE) {
-            continue;
-        }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
+        for (building *b = first_of_type(building_levies[i].type_id); b; b = b->next_of_type) {
             b->monthly_levy = building_levies[i].amount;
             int levy = building_get_levy(b);
             levies += levy;
@@ -407,26 +436,25 @@ static void pay_monthly_building_levies(void)
 static void activate_monthly_tourism(void)
 {
     for (int i = 0; tourism_modifiers[i].type_id; i++) {
-        building_type type = runtime_type(tourism_modifiers[i].type_id);
-        if (type <= BUILDING_NONE) {
-            continue;
-        }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
+        int covered_population = 0;
+        for (building *b = first_of_type(tourism_modifiers[i].type_id); b; b = b->next_of_type) {
             if (b->state != BUILDING_STATE_IN_USE || !b->num_workers) {
                 continue;
             }
+            Building venue(b);
             b->is_tourism_venue = 1;
             if (game_time_month() == 0) {
                 b->tourism_income_this_year = 0;
             }
-            tourism_modifiers[i].count++;
+            const int coverage = tourism_capacity(tourism_modifiers[i], venue);
             // disable redundant venues for tourism
-            if ((tourism_modifiers[i].count * tourism_modifiers[i].coverage) > city_data.population.population) {
+            if (coverage > 0 && covered_population + coverage > city_data.population.population) {
                 b->tourism_disabled = 1;
                 b->tourism_income = 0;
             } else {
                 b->tourism_disabled = 0;
                 b->tourism_income = tourism_modifiers[i].income_modifier;
+                covered_population += coverage;
             }
         }
     }

@@ -2,32 +2,37 @@
 #include "entertainment.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/monument.h"
 
-static const char *ENTERTAINMENT_BUILDINGS[] = {
-    "amphitheater",
-    "arena",
-    "colosseum",
-    "hippodrome"
-};
+#include <string_view>
 
-#define NUM_ENTERTAINMENT_BUILDINGS (sizeof(ENTERTAINMENT_BUILDINGS) / sizeof(const char *))
-
-static building_type runtime_type(const char *text_id)
+static int is_show_venue(const Building &building)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    if (!type) {
+        return 0;
+    }
+    const std::string_view attr(type->attr());
+    return attr == "theater" || attr == "amphitheater" || attr == "arena" ||
+        attr == "colosseum" || attr == "hippodrome";
 }
 
-static void run_shows_for_type(building_type type)
+void building_entertainment_run_shows(void)
 {
-    if (type <= BUILDING_NONE) {
-        return;
-    }
-    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-        if (building_monument_is_monument(b) && b->monument.phase != MONUMENT_FINISHED) {
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (!b || b->state != BUILDING_STATE_IN_USE) {
             continue;
         }
+        Building venue(b);
+        if (!is_show_venue(venue)) {
+            continue;
+        }
+        if (building_monument_is_monument(b) && b->monument.phase != MONUMENT_FINISHED) {
+            b->data.entertainment.num_shows = 0;
+            continue;
+        }
+
         int shows = 0;
         if (b->data.entertainment.days1 > 0) {
             --b->data.entertainment.days1;
@@ -38,13 +43,5 @@ static void run_shows_for_type(building_type type)
             ++shows;
         }
         b->data.entertainment.num_shows = shows;
-    }
-}
-
-void building_entertainment_run_shows(void)
-{
-    run_shows_for_type(building_type_registry_theater_type());
-    for (size_t i = 0; i < NUM_ENTERTAINMENT_BUILDINGS; i++) {
-        run_shows_for_type(runtime_type(ENTERTAINMENT_BUILDINGS[i]));
     }
 }

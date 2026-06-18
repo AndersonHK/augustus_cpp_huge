@@ -3,7 +3,7 @@
 #include "city.h"
 
 #include "assets/assets.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/monument.h"
 #include "core/array.h"
 #include "core/calc.h"
@@ -158,10 +158,17 @@ static int can_produce_resource_naturally(resource_type resource)
 
 static building_type runtime_type(const char *text_id)
 {
-    if (!text_id) {
+    if (!text_id || !*text_id) {
         return BUILDING_NONE;
     }
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && definition->attr() && strcmp(definition->attr(), text_id) == 0) {
+            return type;
+        }
+    }
+    return BUILDING_NONE;
 }
 
 int empire_can_produce_resource_locally(int resource)

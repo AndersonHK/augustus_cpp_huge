@@ -15,6 +15,7 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/distribution.h"
 #include "building/market.h"
@@ -34,6 +35,8 @@ extern "C" {
 #include "sound/speech.h"
 }
 
+#include <string_view>
+
 #define GOD_PANTHEON 5
 #define MODULE_COST 1000
 
@@ -44,14 +47,14 @@ static void button_race_bet(const generic_button *button);
 
 static void draw_temple(building_info_context *c, const char *sound_file, int group_id);
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
-static int building_is_xml_type(const building *b, const char *text_id)
+static int building_is_xml_type(building *b, const char *text_id)
 {
-    return b && b->type == runtime_type(text_id);
+    return b && std::string_view(Building(b).type().attr()) == text_id;
 }
 
 static int building_accepts_resource(building *b, resource_type resource)
@@ -192,7 +195,7 @@ static int temple_module_option_is_allowed(int index)
         return 1;
     }
 
-    building_type required_building = runtime_type(required_building_text_id);
+    building_type required_building = type_from_attr(required_building_text_id);
     return required_building != BUILDING_NONE && scenario_allowed_building(required_building);
 }
 

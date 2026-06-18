@@ -8,6 +8,7 @@
 
 #include "select_special_attribute_mapping.h"
 
+#include "building/building_type_startup_bridge.h"
 #include "window/editor/map.h"
 extern "C" {
 
@@ -64,7 +65,7 @@ static struct {
 
 static building_type runtime_type(const char *text_id)
 {
-    return text_id ? building_type_registry_runtime_id_from_text(text_id) : BUILDING_NONE;
+    return text_id ? building_type_startup_bridge_runtime_id_from_text(text_id) : BUILDING_NONE;
 }
 
 static int type_matches(building_type type, const char *text_id)

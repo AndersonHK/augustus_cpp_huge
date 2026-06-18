@@ -2,32 +2,38 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
 #include "building/building_type_api.h"
 #include "game/state.h"
 
-static int type_matches(building_type type, const char *text_id)
+#include <cstring>
+
+static int building_type_attr_is(building_type type, const char *text_id)
 {
-    return type == building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static int show_building_education(const building *b)
 {
-    return type_matches(b->type, "school") || type_matches(b->type, "library") || type_matches(b->type, "academy");
+    return building_type_attr_is(b->type, "school") || building_type_attr_is(b->type, "library") ||
+        building_type_attr_is(b->type, "academy");
 }
 
 static int show_building_school(const building *b)
 {
-    return type_matches(b->type, "school");
+    return building_type_attr_is(b->type, "school");
 }
 
 static int show_building_library(const building *b)
 {
-    return type_matches(b->type, "library");
+    return building_type_attr_is(b->type, "library");
 }
 
 static int show_building_academy(const building *b)
 {
-    return type_matches(b->type, "academy");
+    return building_type_attr_is(b->type, "academy");
 }
 
 static int show_figure_education(const figure *f)

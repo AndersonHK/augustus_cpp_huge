@@ -4,6 +4,7 @@
 #include "building/building.h"
 #include "building/building_type_api.h"
 #include "building/building_type.h"
+#include "building/building_type_registry_internal.h"
 #include "city/view.h"
 #include "core/config.h"
 #include "core/direction.h"
@@ -19,6 +20,8 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
+
+#include <cstring>
 
 #define MAX_DISTANCE_BETWEEN_PILLARS 12
 #define MINIMUM_DISTANCE_FOR_PILLARS 9
@@ -38,9 +41,25 @@ int map_bridge_building_length(void)
 int building_type_is_bridge(building_type type)
 //technically should be elsewhere, but this is the best place for now, to centralise bridge logic since it's an exemption.
 {
-    building_type low_bridge = building_type_registry_runtime_id_from_text("low_bridge");
-    building_type ship_bridge = building_type_registry_runtime_id_from_text("ship_bridge");
-    return type != BUILDING_NONE && (type == low_bridge || type == ship_bridge);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->attr()) {
+        return 0;
+    }
+    return std::strcmp(definition->attr(), "low_bridge") == 0 ||
+        std::strcmp(definition->attr(), "ship_bridge") == 0;
+}
+
+static building_type building_type_from_definition_attr(const char *text_id)
+{
+    for (int type = 1; type < BUILDING_TYPE_MAX; type++) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
+        if (definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0) {
+            return static_cast<building_type>(type);
+        }
+    }
+    return BUILDING_NONE;
 }
 
 void map_bridge_reset_building_length(void)
@@ -256,7 +275,7 @@ int map_bridge_add(int x, int y, int is_ship_bridge)
     }
 
     int grid_offset = map_grid_offset(x, y);
-    building_type bridge_type = building_type_registry_runtime_id_from_text(is_ship_bridge ? "ship_bridge" : "low_bridge");
+    building_type bridge_type = building_type_from_definition_attr(is_ship_bridge ? "ship_bridge" : "low_bridge");
     if (bridge_type == BUILDING_NONE) {
         bridge.length = 0;
         return bridge.length;

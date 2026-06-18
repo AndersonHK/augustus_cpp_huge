@@ -6,6 +6,7 @@
 #include "parameter_data.h"
 
 #include "building/building_type_api.h"
+#include "building/building_type_startup_bridge.h"
 #include "building/menu.h"
 #include "building/properties.h"
 #include "city/constants.h"
@@ -32,7 +33,7 @@
 
 static building_type runtime_type(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_startup_bridge_runtime_id_from_text(text_id);
 }
 
 static int type_matches(building_type type, const char *text_id)

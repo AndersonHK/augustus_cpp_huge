@@ -4,7 +4,7 @@
 #include "building/monument.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "city/message.h"
 #include "core/calc.h"
@@ -20,6 +20,8 @@
 #include "map/tiles.h"
 #include "scenario/data.h"
 #include "sound/effect.h"
+
+#include <string.h>
 
 static struct {
     int game_year;
@@ -41,15 +43,14 @@ struct field{
     int y;
 };
 
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = building_type_registry_runtime_id_from_text(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
 static int building_matches(const building *b, const char *text_id)
 {
-    return b && type_matches(b->type, text_id);
+    if (!b || !text_id) {
+        return 0;
+    }
+    Building current(const_cast<building *>(b));
+    const building_type_registry_impl::BuildingType *definition = current.type_definition();
+    return definition && definition->attr() && strcmp(definition->attr(), text_id) == 0;
 }
 
 void scenario_earthquake_init(void)

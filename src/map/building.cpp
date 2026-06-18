@@ -3,6 +3,7 @@
 
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "core/config.h"
 #include "core/log.h"
 #include "game/save_version.h"
@@ -10,6 +11,8 @@
 #include "map/grid.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
+
+#include <cstring>
 
 static grid_u32 buildings_grid;
 static grid_u8 damage_grid;
@@ -19,15 +22,11 @@ static grid_u32 buildings_grid_backup;
 static grid_u8 damage_grid_backup;
 static grid_u32 rubble_info_grid_backup;
 
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
 static int type_matches(building_type type, const char *text_id)
 {
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 

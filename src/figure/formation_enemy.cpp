@@ -3,6 +3,7 @@
 
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/properties.h"
 #include "city/buildings.h"
 #include "city/figures.h"
@@ -22,6 +23,8 @@
 #include "map/routing_path.h"
 #include "map/soldier_strength.h"
 #include "map/terrain.h"
+
+#include <cstring>
 
 #define INFINITE 10000
 
@@ -172,34 +175,32 @@ static const int LAYOUT_ORIENTATION_OFFSETS[13][4][NUM_LAYOUT_FORMATIONS] = {
     }
 };
 
-static building_type runtime_type(const char *text_id)
+static const building_type_registry_impl::BuildingType *definition_for_building(const building *b)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
 }
 
-static int type_matches(building_type type, const char *text_id)
+static int building_matches(const building *b, const char *attr)
 {
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition = definition_for_building(b);
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
-static int type_matches_any(building_type type, const char *const *text_ids, int count)
+static int building_matches_any(const building *b, const char *const *attrs, int count)
 {
     for (int i = 0; i < count; i++) {
-        if (type_matches(type, text_ids[i])) {
+        if (building_matches(b, attrs[i])) {
             return 1;
         }
     }
     return 0;
 }
 
-static building *first_active_building_of_type(building_type type)
+static building *first_active_building_matching(const char *attr)
 {
-    if (type <= BUILDING_NONE) {
-        return nullptr;
-    }
-    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-        if (b->state == BUILDING_STATE_IN_USE) {
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (b->state == BUILDING_STATE_IN_USE && building_matches(b, attr)) {
             return b;
         }
     }
@@ -218,14 +219,12 @@ static building *first_active_housing_at_level(int level)
     return nullptr;
 }
 
-static building *closest_active_building_of_type(building_type type, int x, int y, int *min_distance)
+static building *closest_active_building_matching(const char *attr, int x, int y, int *min_distance)
 {
     building *best_building = nullptr;
-    if (type <= BUILDING_NONE) {
-        return nullptr;
-    }
-    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-        if (b->state != BUILDING_STATE_IN_USE) {
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (b->state != BUILDING_STATE_IN_USE || !building_matches(b, attr)) {
             continue;
         }
         int distance = calc_maximum_distance(x, y, b->x, b->y);
@@ -296,7 +295,7 @@ static building *get_best_building(const TargetSpec *priority_order)
             if (building *b = get_best_housing_descending(spec.level)) {
                 return b;
             }
-        } else if (building *b = first_active_building_of_type(runtime_type(spec.text_id))) {
+        } else if (building *b = first_active_building_matching(spec.text_id)) {
             return b;
         }
     }
@@ -317,7 +316,7 @@ static building *get_best_and_closest_building(int x, int y, const TargetSpec *p
             }
         } else {
             int min_distance = INFINITE;
-            if (building *b = closest_active_building_of_type(runtime_type(spec.text_id), x, y, &min_distance)) {
+            if (building *b = closest_active_building_matching(spec.text_id, x, y, &min_distance)) {
                 return b;
             }
         }
@@ -343,12 +342,9 @@ int formation_rioter_get_target_building_for_robbery(int x, int y, int *x_tile, 
 
     static const char *const building_targets[] = { "senate", "forum" };
     for (int i = 0; i < 2; i++) {
-        building_type type = runtime_type(building_targets[i]);
-        if (type == BUILDING_NONE) {
-            continue;
-        }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE) {
+        for (int building_id = 1; building_id < building_count(); building_id++) {
+            building *b = building_get(building_id);
+            if (b->state != BUILDING_STATE_IN_USE || !building_matches(b, building_targets[i])) {
                 continue;
             }
             int distance = calc_maximum_distance(x, y, b->x, b->y);
@@ -384,7 +380,7 @@ static int set_enemy_target_building(formation *m)
         best_building = get_best_and_closest_building(m->x_home, m->y_home, RIOTER_ATTACK_PRIORITY);
     }
     if (best_building) {
-        if (type_matches(best_building->type, "warehouse")) {
+        if (building_matches(best_building, "warehouse")) {
             formation_set_destination_building(m, best_building->x + 1, best_building->y, best_building->id + 1);
         } else {
             formation_set_destination_building(m, best_building->x, best_building->y, best_building->id);
@@ -413,19 +409,16 @@ static int get_structures_on_native_land(int *dst_x, int *dst_y)
     int min_distance = INFINITE;
 
     for (int i = 0; i < sizeof(native_buildings) / sizeof(native_buildings[0]) && min_distance == INFINITE; i++) {
-        building_type type = runtime_type(native_buildings[i]);
-        if (type == BUILDING_NONE) {
-            continue;
-        }
-        int size = building_type_registry_get_model_size(type);
-        if (size <= 0) {
-            size = building_properties_for_type(type)->size;
-        }
-        int radius = size * 3;
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (!native_target_can_anchor_search(b)) {
+        for (int building_id = 1; building_id < building_count(); building_id++) {
+            building *b = building_get(building_id);
+            if (!building_matches(b, native_buildings[i]) || !native_target_can_anchor_search(b)) {
                 continue;
             }
+            int size = building_type_registry_get_model_size(b->type);
+            if (size <= 0) {
+                size = building_properties_for_type(b->type)->size;
+            }
+            int radius = size * 3;
             int x_min, y_min, x_max, y_max;
             map_grid_get_area(b->x, b->y, size, radius, &x_min, &y_min, &x_max, &y_max);
             for (int yy = y_min; yy <= y_max; yy++) {
@@ -478,8 +471,8 @@ static void set_native_target_building(formation *m)
     };
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (b->state != BUILDING_STATE_IN_USE || type_matches(b->type, "gardens") ||
-            type_matches_any(b->type, excluded_types, sizeof(excluded_types) / sizeof(excluded_types[0]))) {
+        if (b->state != BUILDING_STATE_IN_USE || building_matches(b, "gardens") ||
+            building_matches_any(b, excluded_types, sizeof(excluded_types) / sizeof(excluded_types[0]))) {
             continue;
         }
         int distance = calc_maximum_distance(meeting_x, meeting_y, b->x, b->y);

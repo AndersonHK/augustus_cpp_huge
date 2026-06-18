@@ -2,7 +2,7 @@
 #include "road_aqueduct.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -13,15 +13,16 @@
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = building_type_registry_runtime_id_from_text(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
+#include <cstring>
 
-static int building_matches(const building *b, const char *text_id)
+static int building_matches(building *b, const char *text_id)
 {
-    return b && type_matches(b->type, text_id);
+    if (!b) {
+        return 0;
+    }
+    Building current(b);
+    const building_type_registry_impl::BuildingType *definition = current.type_definition();
+    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static int building_at_matches(int grid_offset, const char *text_id)

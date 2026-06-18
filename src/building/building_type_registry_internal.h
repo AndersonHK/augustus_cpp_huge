@@ -6,6 +6,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <string_view>
 
 namespace building_type_registry_impl {
 
@@ -44,6 +45,7 @@ struct ParseState {
     int saw_labor_seeker = 0;
     int saw_labor_seeker_method = 0;
     int saw_labor_seeker_amount = 0;
+    int saw_culture_modules = 0;
     int saw_storages = 0;
     int saw_production_methods = 0;
     int saw_distribution = 0;
@@ -62,6 +64,7 @@ struct ParseState {
     int parsing_construction_phase = 0;
     int parsing_labor = 0;
     int parsing_labor_seeker = 0;
+    int parsing_culture_modules = 0;
     int parsing_storages = 0;
     int parsing_production_methods = 0;
     int parsing_housing = 0;
@@ -81,6 +84,7 @@ extern ParseState g_parse_state;
 
 int directory_exists(const char *path);
 const BuildingType *definition_for_type(building_type type);
+building_type type_from_attr(std::string_view attr);
 building_type runtime_id_from_text(const char *text_id);
 void refresh_building_type_path();
 void clear_xml_runtime_property_fields();

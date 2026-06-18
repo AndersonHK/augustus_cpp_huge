@@ -24,6 +24,7 @@
 #include "window/advisors.h"
 #include "window/popup_dialog.h"
 #include "building/building_type_registry.h"
+#include "building/building_type_startup_bridge.h"
 
 #include "game/settings.h"
 #include "game/campaign.h"
@@ -881,7 +882,7 @@ static void replay_map_confirmed(int confirmed, int checked)
         window_mission_selection_show_again();
     }
     model_reset();
-    building_type_registry_apply_model_overrides();
+    building_type_startup_bridge_apply_model_overrides();
     scenario_events_process_all();
 }
 

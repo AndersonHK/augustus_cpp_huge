@@ -51,8 +51,8 @@ bool load_active_locale(int is_editor)
         }
         return true;
     };
-    for (int i = 0; i < mod_manager_get_mod_count(); ++i) {
-        const std::string localization_path = detail::append_path_component(mod_manager_get_mod_path_at(i), "Localization");
+    for (const std::string &mod_path : mod_manager::mod_paths()) {
+        const std::string localization_path = detail::append_path_component(mod_path, "Localization");
         if (locale_code != "en") {
             const std::string fallback_path = detail::append_path_component(localization_path, "en.json");
             if (!merge_locale_file(fallback_path)) {

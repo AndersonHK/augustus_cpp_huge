@@ -31,11 +31,6 @@
 
 static array(data_storage) storages;
 
-static building_type runtime_type_id(const char *text_id)
-{
-    return building_type_registry_impl::runtime_id_from_text(text_id);
-}
-
 static int storage_building_is_granary(const Building &b)
 {
     const building_type_registry_impl::BuildingType *definition = b.type_definition();
@@ -90,12 +85,11 @@ void building_storage_reset_building_ids(void)
         storage->building_id = 0;
     }
 
-    static const char *storage_type_ids[] = { "granary", "warehouse" };
-    for (const char *text_id : storage_type_ids) {
-        building_type type = runtime_type_id(text_id);
-        if (type == BUILDING_NONE) {
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (!definition || (!definition->is_granary() && !definition->is_warehouse())) {
             continue;
         }
+        building_type type = definition->type();
         for (Building b = Building::first_of_type(type); b.id(); b = b.next_of_type()) {
             if (b.state_id() == BUILDING_STATE_UNUSED) {
                 continue;
@@ -736,15 +730,19 @@ void building_storage_load_state(buffer *buf, int version)
     }
 
     // fix granary storage
-    building_type granary_type = runtime_type_id("granary");
-    for (Building b = Building::first_of_type(granary_type); granary_type != BUILDING_NONE && b.id(); b = b.next_of_type()) {
-        int granary_free_space = BUILDING_STORAGE_QUANTITY_MAX;
-        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-            int amount = b.resource_amount(r) / 100;
-            b.set_resource_amount(r, amount);
-            granary_free_space -= amount;
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (!definition || !definition->is_granary()) {
+            continue;
         }
-        b.set_resource_amount(RESOURCE_NONE, granary_free_space);
+        for (Building b = Building::first_of_type(definition->type()); b.id(); b = b.next_of_type()) {
+            int granary_free_space = BUILDING_STORAGE_QUANTITY_MAX;
+            for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+                int amount = b.resource_amount(r) / 100;
+                b.set_resource_amount(r, amount);
+                granary_free_space -= amount;
+            }
+            b.set_resource_amount(RESOURCE_NONE, granary_free_space);
+        }
     }
 
     storages.size = highest_id_in_use + 1;

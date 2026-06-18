@@ -2,7 +2,7 @@
 
 #include "assets/assets.h"
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/image.h"
 #include "building/construction_routed.h"
 #include "core/image.h"
@@ -132,10 +132,17 @@ int editor_tool_is_in_use(void)
 
 static building_type runtime_type(const char *text_id)
 {
-    if (!text_id) {
+    if (!text_id || !*text_id) {
         return BUILDING_NONE;
     }
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && definition->attr() && strcmp(definition->attr(), text_id) == 0) {
+            return type;
+        }
+    }
+    return BUILDING_NONE;
 }
 
 void editor_tool_start_use(const map_tile *tile)

@@ -1,6 +1,6 @@
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type.h"
+#include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/lighthouse.h"
 #include "building/monument.h"
@@ -13,6 +13,8 @@
 
 #define MIN_PRICE 1
 
+#include <string_view>
+
 struct trade_price {
     int32_t buy;
     int32_t sell;
@@ -20,21 +22,21 @@ struct trade_price {
 
 static struct trade_price prices[RESOURCE_SLOT_COUNT];
 
-static building_type runtime_type(const char *text_id)
+static int building_type_attr_is(const Building &building, std::string_view attr)
 {
-    if (!text_id) {
-        return BUILDING_NONE;
-    }
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    return type && std::string_view(type->attr()) == attr;
 }
 
 static Building first_building(const char *text_id)
 {
-    building_type type = runtime_type(text_id);
-    if (type <= BUILDING_NONE) {
-        return Building::from_id(0);
+    for (int id = 1; id < Building::count(); id++) {
+        Building building = Building::from_id(id);
+        if (building_type_attr_is(building, text_id)) {
+            return building;
+        }
     }
-    return Building::from_id(building_find(type));
+    return Building(nullptr);
 }
 
 static int has_building(const char *text_id)

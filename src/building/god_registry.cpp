@@ -6,13 +6,13 @@
 #include "core/xml_definition.h"
 #include "core/xml_value.h"
 #include "city/god.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
 extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
 }
 
 #include <cstdio>
@@ -216,7 +216,7 @@ int god_definition_count(void)
 
 extern "C" const char *god_registry_get_god_path(void)
 {
-    building_type_registry_impl::g_god_path = std::string(mod_manager_get_mod_path()) + "Gods/";
+    building_type_registry_impl::g_god_path = mod_manager::mod_path() + "Gods/";
     return building_type_registry_impl::g_god_path.c_str();
 }
 

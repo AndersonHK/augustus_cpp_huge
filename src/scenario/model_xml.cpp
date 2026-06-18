@@ -4,6 +4,7 @@
 #include "window/plain_message_dialog.h"
 
 #include "building/building_type_registry.h"
+#include "building/building_type_startup_bridge.h"
 
 extern "C" {
 
@@ -33,7 +34,7 @@ static struct {
 
 static building_type runtime_type(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_startup_bridge_runtime_id_from_text(text_id);
 }
 
 static int type_matches(building_type type, const char *text_id)
@@ -224,7 +225,7 @@ static int parse_xml(char *buf, int buffer_length)
 {
     model_reset();
     resource_init();
-    building_type_registry_apply_model_overrides();
+    building_type_startup_bridge_apply_model_overrides();
     data.success = 1;
     if (!xml_parser_init(xml_elements, MAX_XML_ELEMENTS, 1)) {
         data.success = 0;
@@ -234,7 +235,7 @@ static int parse_xml(char *buf, int buffer_length)
             data.success = 0;
             model_reset();
             resource_init();
-            building_type_registry_apply_model_overrides();
+            building_type_startup_bridge_apply_model_overrides();
         }
     }
     xml_parser_free();
@@ -290,7 +291,7 @@ int scenario_model_xml_parse_file(const char *filename)
     if (!success) {
         log_error("Error parsing file", filename, 0);
         model_reset();
-        building_type_registry_apply_model_overrides();
+        building_type_startup_bridge_apply_model_overrides();
     }
     return success;
 }

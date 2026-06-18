@@ -25,7 +25,14 @@ int city_rating_explanation_for(selected_rating rating);
 
 void city_ratings_reduce_prosperity_after_bailout(void);
 
-void city_ratings_peace_building_destroyed(building_type type);
+#ifdef __cplusplus
+}
+
+class Building;
+void city_ratings_peace_building_destroyed(const Building &building);
+
+extern "C" {
+#endif
 
 void city_ratings_peace_record_criminal(void);
 

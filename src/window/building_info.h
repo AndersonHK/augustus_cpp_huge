@@ -8,6 +8,15 @@ void window_building_info_show(int grid_offset);
 
 int window_building_info_get_building_type(void);
 
+#ifdef __cplusplus
+}
+
+class Building;
+Building window_building_info_current_building();
+
+extern "C" {
+#endif
+
 void window_building_info_show_storage_orders(void);
 
 void window_building_info_show_roadblock_orders(void);

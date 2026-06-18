@@ -13,6 +13,7 @@
 #include "window/editor/map.h"
 #include "graphics/grid_box.h"
 #include "building/building_type_registry.h"
+#include "building/building_type_startup_bridge.h"
 
 extern "C" {
 
@@ -88,7 +89,7 @@ static grid_box_type model_buttons = {
 
 static building_type runtime_type(const char *text_id)
 {
-    return text_id ? building_type_registry_runtime_id_from_text(text_id) : BUILDING_NONE;
+    return text_id ? building_type_startup_bridge_runtime_id_from_text(text_id) : BUILDING_NONE;
 }
 
 static int type_matches(building_type type, const char *text_id)
@@ -147,7 +148,7 @@ static void button_static_click(const generic_button *button)
         case 1:
             model_reset();
             resource_init();
-            building_type_registry_apply_model_overrides();
+            building_type_startup_bridge_apply_model_overrides();
             window_request_refresh();
             break;
         case 2:

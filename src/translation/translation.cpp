@@ -77,16 +77,6 @@ translation_key current_string_amount_key(int group, int first_index, int amount
     return current_string_key(group, first_index + (amount == 1 || amount == -1 ? 0 : 1));
 }
 
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
-}
-
 int lang_dir_is_valid(const char *dir)
 {
     auto has_files = [](const char *base, const char *strings, const char *messages) -> bool {

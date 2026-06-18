@@ -2,6 +2,7 @@
 
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/industry.h"
 #include "building/properties.h"
 #include "building/rotation.h"
@@ -27,12 +28,6 @@ static struct {
 static figure_type building_type_to_figure_type(building_type type)
 {
     return building_type_registry_get_preview_figure(type);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = building_type_registry_runtime_id_from_text(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
 }
 
 static int roam_length_for_figure_type(figure_type type)
@@ -96,14 +91,16 @@ static void init_roaming(figure *f, int roam_dir, int x, int y)
 
 static int determine_road_access(int x, int y, int size, building_type type, map_point *road)
 {
-    if (type_matches(type, "warehouse")) {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (definition && definition->is_warehouse()) {
         return map_has_road_access_warehouse(x, y, road);
     }
-    if (type_matches(type, "hippodrome")) {
+    if (definition && definition->is_hippodrome()) {
         int building_orientation = building_rotation_get_building_orientation(building_rotation_get_rotation());
         return map_has_road_access_hippodrome_rotation(x, y, road, building_orientation);
     }
-    if (type_matches(type, "granary")) {
+    if (definition && definition->is_granary()) {
         return map_has_road_access_granary(x, y, road);
     }
     return map_has_road_access(x, y, size, road);

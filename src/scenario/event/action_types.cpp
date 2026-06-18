@@ -1,9 +1,9 @@
 #include <array>
+#include <string_view>
 
 #include "action_types.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/destruction.h"
 #include "building/dock.h"
 #include "building/granary.h"
@@ -49,17 +49,6 @@
 #include "scenario/scenario.h"
 
 #include <stdlib.h>
-
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
 
 static int collapse_type_is_terrain(int type)
 {
@@ -417,7 +406,7 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
             continue;
         }
         Building b = Building::from_id(building_id).main();
-        if (type_matches(b.type_id(), "burning_ruin")) {
+        if (std::string_view(b.type().attr()) == "burning_ruin") {
             continue;
         }
         if ((b.state_id() != BUILDING_STATE_IN_USE && b.state_id() != BUILDING_STATE_MOTHBALLED) || b.is_deleted()) {

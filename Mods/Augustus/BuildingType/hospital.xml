@@ -12,6 +12,9 @@
     <button group="health" order="20" icon="Health_Culture\Hospital" icon_image="Image_0000" text_key="main_strings.28.47" />
     <sound id="hospital" />
     <event_data attr="hospital" />
+    <culture_modules>
+        <culture_module path="hospital" capacity="1500" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Hospital" />

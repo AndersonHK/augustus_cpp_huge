@@ -3,6 +3,7 @@
 
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/house.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -13,16 +14,25 @@
 #include "map/ring.h"
 #include "map/terrain.h"
 
+#include <cstring>
+
 static grid_i8 desirability_grid;
 
-static building_type runtime_type(const char *text_id)
+static building_type building_type_from_definition_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (int type = 1; type < BUILDING_TYPE_MAX; type++) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
+        if (definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0) {
+            return static_cast<building_type>(type);
+        }
+    }
+    return BUILDING_NONE;
 }
 
 static const model_building *model_for_type_text(const char *text_id)
 {
-    building_type type = runtime_type(text_id);
+    building_type type = building_type_from_definition_attr(text_id);
     return type != BUILDING_NONE ? model_get_building(type) : nullptr;
 }
 
@@ -176,7 +186,7 @@ static void update_terrain(void)
             if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
                 building_type type = BUILDING_NONE;
                 if (terrain & TERRAIN_ROAD) {
-                    type = runtime_type("plaza");
+                    type = building_type_from_definition_attr("plaza");
                 } else if (terrain & TERRAIN_ROCK) {
                     // earthquake fault line: slight negative
                     type = building_type_registry_get_vacant_lot_fill_type();

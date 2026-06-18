@@ -1064,17 +1064,18 @@ std::vector<std::pair<std::string, std::string>> candidate_pack_paths()
         paths.emplace_back(pack_path, base_dir);
     };
 
-    append_candidate(mod_manager_get_mod_path());
-    for (int i = 0; i < mod_manager_get_mod_count(); ++i) {
-        const char *name = mod_manager_get_mod_name_at(i);
-        if (name && string_equals_case_insensitive(name, "Augustus")) {
-            append_candidate(mod_manager_get_mod_path_at(i));
+    append_candidate(mod_manager::mod_path().c_str());
+
+    const auto &mod_names = mod_manager::mod_names();
+    const auto &mod_paths = mod_manager::mod_paths();
+    for (size_t i = 0; i < mod_names.size() && i < mod_paths.size(); ++i) {
+        if (string_equals_case_insensitive(mod_names[i].c_str(), "Augustus")) {
+            append_candidate(mod_paths[i].c_str());
         }
     }
-    for (int i = 0; i < mod_manager_get_mod_count(); ++i) {
-        const char *name = mod_manager_get_mod_name_at(i);
-        if (name && string_equals_case_insensitive(name, "Julius")) {
-            append_candidate(mod_manager_get_mod_path_at(i));
+    for (size_t i = 0; i < mod_names.size() && i < mod_paths.size(); ++i) {
+        if (string_equals_case_insensitive(mod_names[i].c_str(), "Julius")) {
+            append_candidate(mod_paths[i].c_str());
         }
     }
     return paths;

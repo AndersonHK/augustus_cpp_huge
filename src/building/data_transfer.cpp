@@ -3,7 +3,6 @@
 
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
-#include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/roadblock.h"
 #include "building/storage.h"
@@ -11,6 +10,7 @@
 
 #include <cstring>
 #include <string.h>
+#include <string_view>
 
 typedef struct {
     building_data_type data_type;
@@ -26,20 +26,17 @@ typedef struct {
 static transfer_data data;
 static transfer_data backup_data;
 
-static building_type type_from_text(const char *text_id)
+static int type_attr_is(building_type type, std::string_view attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_is(building_type type, const char *text_id)
-{
-    return type == type_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::string_view(definition->attr()) == attr;
 }
 
 static int type_is_any(building_type type, const char *const *text_ids, size_t count)
 {
     for (size_t i = 0; i < count; i++) {
-        if (type_is(type, text_ids[i])) {
+        if (type_attr_is(type, text_ids[i])) {
             return 1;
         }
     }
@@ -133,7 +130,7 @@ int building_data_transfer_copy(building *b, int supress_warnings)
 {
     Building source(b);
     building_type copy_type = source.type_id();
-    if (source.is_type(type_from_text("burning_ruin"))) {
+    if (type_attr_is(source.type_id(), "burning_ruin")) {
         copy_type = source.rubble_original_type_id();
     }
     building_data_type data_type = building_data_transfer_data_type_from_building_type(copy_type);
@@ -245,22 +242,22 @@ building_data_type building_data_transfer_data_type_from_building_type(building_
 
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
-    if (definition && std::strcmp(definition->attr(), "dock") == 0) {
+    if (definition && std::string_view(definition->attr()) == "dock") {
         return DATA_TYPE_DOCK;
     }
-    if (type_is(type, "granary")) {
+    if (type_attr_is(type, "granary")) {
         return DATA_TYPE_GRANARY;
     }
-    if (type_is(type, "warehouse") || type_is(type, "warehouse_space")) {
+    if (type_attr_is(type, "warehouse") || type_attr_is(type, "warehouse_space")) {
         return DATA_TYPE_WAREHOUSE;
     }
-    if (type_is(type, "market")) {
+    if (type_attr_is(type, "market")) {
         return DATA_TYPE_MARKET;
     }
-    if (type_is(type, "tavern")) {
+    if (type_attr_is(type, "tavern")) {
         return DATA_TYPE_TAVERN;
     }
-    if (type_is(type, "depot")) {
+    if (type_attr_is(type, "depot")) {
         return DATA_TYPE_DEPOT;
     }
     return DATA_TYPE_NOT_SUPPORTED;

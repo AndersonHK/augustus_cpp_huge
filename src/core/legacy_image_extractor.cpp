@@ -3,13 +3,11 @@
 #include "core/legacy_image_extractor.h"
 
 #include "assets/graphics_extractor_common.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/log.h"
-#include "game/mod_manager.h"
 #include "platform/file_manager.h"
-}
 
 #include "spng/spng.h"
 
@@ -306,7 +304,7 @@ static std::string make_group_folder_name(int group_id)
 
 static std::string make_family_root_directory(const LegacyFamily &family)
 {
-    return std::string(mod_manager_get_julius_graphics_path()) + family.folder_name;
+    return mod_manager::julius_graphics_path() + family.folder_name;
 }
 
 static std::string make_group_directory(const LegacyFamily &family, int group_id)
@@ -326,12 +324,12 @@ static std::string make_group_xml_path(const LegacyFamily &family, int group_id)
 
 static std::string make_stamp_path(void)
 {
-    return without_trailing_separator(mod_manager_get_julius_graphics_path()) + ".legacy_extract.stamp";
+    return without_trailing_separator(mod_manager::julius_graphics_path().c_str()) + ".legacy_extract.stamp";
 }
 
 static std::string make_manifest_path(void)
 {
-    return without_trailing_separator(mod_manager_get_julius_graphics_path()) + ".legacy_extract.manifest";
+    return without_trailing_separator(mod_manager::julius_graphics_path().c_str()) + ".legacy_extract.manifest";
 }
 
 static void hash_stamp_bytes(uint64_t &hash, const void *data, size_t size)
@@ -1429,7 +1427,7 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
         }
     }
 
-    ensure_directory(mod_manager_get_julius_graphics_path());
+    ensure_directory(mod_manager::julius_graphics_path().c_str());
     if (!write_manifest_entries(manifest_entries)) {
         log_error("Failed to write Julius extraction manifest", make_manifest_path().c_str(), 0);
         return JuliusExtractionReport();

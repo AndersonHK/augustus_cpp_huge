@@ -1,25 +1,27 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <string>
+#include <string_view>
+#include <vector>
 
-void mod_manager_set_mod_name(const char *mod_name);
-int mod_manager_load_mod_list(void);
-const char *mod_manager_get_failure_reason(void);
-const char *mod_manager_get_mod_name(void);
-const char *mod_manager_get_mod_path(void);
-const char *mod_manager_get_graphics_path(void);
-const char *mod_manager_get_augustus_graphics_path(void);
-const char *mod_manager_get_julius_graphics_path(void);
-int mod_manager_get_mod_count(void);
-const char *mod_manager_get_mod_name_at(int index);
-const char *mod_manager_get_mod_path_at(int index);
-const char *mod_manager_get_graphics_path_at(int index);
-int mod_manager_validate_mod_path(void);
-int mod_manager_validate_graphics_path(void);
+namespace mod_manager {
 
-#ifdef __cplusplus
+void set_mod_name(std::string_view mod_name);
+bool load_mod_list();
+
+const std::string &failure_reason();
+const std::string &mod_name();
+const std::string &mod_path();
+const std::string &graphics_path();
+const std::string &augustus_graphics_path();
+const std::string &julius_graphics_path();
+
+const std::vector<std::string> &mod_names();
+const std::vector<std::string> &mod_paths();
+const std::vector<std::string> &graphics_paths();
+
+bool validate_mod_path();
+bool validate_graphics_path();
+
 }
-#endif
 

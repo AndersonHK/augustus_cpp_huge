@@ -1,6 +1,6 @@
 #include "games.h"
 
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/granary.h"
 #include "building/warehouse.h"
 #include "core/calc.h"
@@ -12,6 +12,8 @@
 #include "city/sentiment.h"
 #include "core/config.h"
 #include "game/time.h"
+
+#include <cstring>
 
 #define POPULATION_SCALING_FACTOR 1200
 #define BASE_RESOURCE_REQUIREMENT 3
@@ -26,6 +28,23 @@ static void naval_battle_start(void);
 static void executions_start(void);
 static void imperial_games_start(void);
 
+static building_type first_type_matching(int (*matches)(const building_type_registry_impl::BuildingType &))
+{
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && matches(*definition)) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
+}
+
+static int is_colosseum(const building_type_registry_impl::BuildingType &type)
+{
+    return std::strcmp(type.attr(), "colosseum") == 0;
+}
+
 static games_type make_game(
     int id,
     translation_key header_key,
@@ -36,7 +55,7 @@ static games_type make_game(
     int delay_months,
     int duration_days,
     int bonus_duration,
-    const char *building_text_id_required,
+    building_type (*building_required_type)(void),
     int water_access_required,
     resource_type resource_1,
     int cost_1,
@@ -54,7 +73,7 @@ static games_type make_game(
     game.delay_months = delay_months;
     game.duration_days = duration_days;
     game.bonus_duration = bonus_duration;
-    game.building_id_required = building_type_registry_runtime_id_from_text(building_text_id_required);
+    game.building_id_required = building_required_type ? building_required_type() : BUILDING_NONE;
     game.water_access_required = water_access_required;
     if (resource_1 != RESOURCE_NONE) {
         game.resource_cost[resource_1] = cost_1;
@@ -66,6 +85,11 @@ static games_type make_game(
     return game;
 }
 
+static building_type colosseum_type(void)
+{
+    return first_type_matching(is_colosseum);
+}
+
 static games_type *all_games()
 {
     static games_type games[MAX_GAMES];
@@ -73,15 +97,15 @@ static games_type *all_games()
     if (!initialized) {
         games[0] = make_game(
             1, "TR_WINDOW_GAMES_OPTION_1", "TR_WINDOW_GAMES_OPTION_1_DESC", MESSAGE_NG_GAMES_PLANNED, 1500, 100, 1, 32, 12,
-            "colosseum", 1, resource_wine(), 1, resource_timber(), 1, naval_battle_start
+            colosseum_type, 1, resource_wine(), 1, resource_timber(), 1, naval_battle_start
         );
         games[1] = make_game(
             2, "TR_WINDOW_GAMES_OPTION_5", "TR_WINDOW_GAMES_OPTION_5_DESC", MESSAGE_IG_GAMES_PLANNED, 800, 150, 1, 32, 12,
-            "colosseum", 0, resource_wheat(), 2, resource_oil(), 1, imperial_games_start
+            colosseum_type, 0, resource_wheat(), 2, resource_oil(), 1, imperial_games_start
         );
         games[2] = make_game(
             3, "TR_WINDOW_GAMES_OPTION_2", "TR_WINDOW_GAMES_OPTION_2_DESC", MESSAGE_AN_GAMES_PLANNED, 800, 150, 1, 32, 12,
-            "colosseum", 0, resource_meat(), 2, RESOURCE_NONE, 0, executions_start
+            colosseum_type, 0, resource_meat(), 2, RESOURCE_NONE, 0, executions_start
         );
         initialized = 1;
     }

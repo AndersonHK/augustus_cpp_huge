@@ -2,7 +2,7 @@
 #include "routing.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type.h"
 #include "building/connectable.h"
 #include "core/time.h"
 #include "map/building.h"
@@ -14,6 +14,7 @@
 #include "map/tiles.h"
 
 #include <stdlib.h>
+#include <cstring>
 
 #define MAX_QUEUE GRID_SIZE * GRID_SIZE
 #define GUARD 50000
@@ -65,10 +66,14 @@ static struct {
     int dest_building_id;
 } state;
 
-static int type_matches(building_type type, const char *text_id)
+static int building_matches(building *b, const char *text_id)
 {
-    building_type resolved = building_type_registry_runtime_id_from_text(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    if (!b) {
+        return 0;
+    }
+    Building current(b);
+    const building_type_registry_impl::BuildingType *definition = current.type_definition();
+    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static void reset_fighting_status(void)
@@ -439,7 +444,7 @@ static int can_place_initial_road_or_aqueduct(int grid_offset, int is_aqueduct)
             return 1;
         }
         if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-            if (type_matches(building_get(map_building_at(grid_offset))->type, "reservoir")) {
+            if (building_matches(building_get(map_building_at(grid_offset)), "reservoir")) {
                 return 1;
             }
         }

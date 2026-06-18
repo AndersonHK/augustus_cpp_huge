@@ -6,6 +6,7 @@
 #include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/local_workforce.h"
+#include "city/culture.h"
 #include "city/god.h"
 
 #include "scenario/data.h"
@@ -38,130 +39,9 @@ typedef enum {
     LABOR_CATEGORY_MAX
 } labor_category;
 
-static building_type runtime_type(const char *text_id)
+static int category_for_building_type(const building_type_registry_impl::BuildingType &type_definition)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
-}
-
-static int type_matches_any(building_type type, const char *const *text_ids)
-{
-    for (int i = 0; text_ids[i]; i++) {
-        if (type_matches(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int category_for_building_type(building_type type)
-{
-    static const char *INDUSTRY_COMMERCE[] = {
-        "market",
-        "warehouse",
-        "dock",
-        "city_mint",
-        "concrete_maker",
-        "brickworks",
-        "depot",
-        "distribution_center_unused",
-        nullptr
-    };
-    static const char *FOOD_PRODUCTION[] = {"granary", "shipyard", "wharf", nullptr};
-    static const char *ENGINEERING[] = {"engineers_post", "workcamp", "architect_guild", nullptr};
-    static const char *WATER[] = {"fountain", nullptr};
-    static const char *PREFECTURES[] = {"prefecture", nullptr};
-    static const char *MILITARY[] = {
-        "gatehouse",
-        "tower",
-        "military_academy",
-        "barracks",
-        "mess_hall",
-        "watchtower",
-        "armoury",
-        nullptr
-    };
-    static const char *ENTERTAINMENT[] = {
-        "amphitheater",
-        "hippodrome",
-        "colosseum",
-        "gladiator_school",
-        "lion_house",
-        "actor_colony",
-        "chariot_maker",
-        "tavern",
-        "arena",
-        nullptr
-    };
-    static const char *HEALTH_EDUCATION[] = {
-        "doctor",
-        "hospital",
-        "bathhouse",
-        "barber",
-        "school",
-        "academy",
-        "library",
-        "mission_post",
-        "latrines",
-        nullptr
-    };
-    static const char *GOVERNANCE_RELIGION[] = {
-        "pantheon",
-        "senate",
-        "forum",
-        "oracle",
-        "lighthouse",
-        "caravanserai",
-        nullptr
-    };
-
-    if (building_type_registry_is_theater(type)) {
-        return LABOR_CATEGORY_ENTERTAINMENT;
-    }
-    if (building_is_fort(type)) {
-        return LABOR_CATEGORY_MILITARY;
-    }
-    if (building_is_ceres_temple(type) || building_is_neptune_temple(type) || building_is_mercury_temple(type) ||
-        building_is_mars_temple(type) || building_is_venus_temple(type)) {
-        return LABOR_CATEGORY_GOVERNANCE_RELIGION;
-    }
-    if (type_matches_any(type, INDUSTRY_COMMERCE)) {
-        return LABOR_CATEGORY_INDUSTRY_COMMERCE;
-    }
-    if (type_matches_any(type, FOOD_PRODUCTION)) {
-        return LABOR_CATEGORY_FOOD_PRODUCTION;
-    }
-    if (type_matches_any(type, ENGINEERING)) {
-        return LABOR_CATEGORY_ENGINEERING;
-    }
-    if (type_matches_any(type, WATER)) {
-        return LABOR_CATEGORY_WATER;
-    }
-    if (type_matches_any(type, PREFECTURES)) {
-        return LABOR_CATEGORY_PREFECTURES;
-    }
-    if (type_matches_any(type, MILITARY)) {
-        return LABOR_CATEGORY_MILITARY;
-    }
-    if (type_matches_any(type, ENTERTAINMENT)) {
-        return LABOR_CATEGORY_ENTERTAINMENT;
-    }
-    if (type_matches_any(type, HEALTH_EDUCATION)) {
-        return LABOR_CATEGORY_HEALTH_EDUCATION;
-    }
-    if (type_matches_any(type, GOVERNANCE_RELIGION)) {
-        return LABOR_CATEGORY_GOVERNANCE_RELIGION;
-    }
-
-    resource_type output = building_output_resource(type);
-    if (output != RESOURCE_NONE) {
-        return resource_is_food(output) ? LABOR_CATEGORY_FOOD_PRODUCTION : LABOR_CATEGORY_INDUSTRY_COMMERCE;
-    }
-    return LABOR_CATEGORY_NONE;
+    return static_cast<int>(type_definition.labor_category());
 }
 static struct {
     labor_category category;
@@ -269,50 +149,42 @@ void city_labor_calculate_workers(int num_plebs, int num_patricians)
     }
 }
 
-static int is_industry_disabled(building *b)
+static int should_have_workers(const Building &building, int category, int check_access)
 {
-    if (!b->output_resource_id || b->output_resource_id == resource_denarii()) {
+    const ::building *record = building.legacy_record();
+    if (!record || !static_cast<bool>(building.type().required_workers()) || category == LABOR_CATEGORY_NONE) {
         return 0;
     }
-    int resource = b->output_resource_id;
-    if (city_data.resource.mothballed[resource]) {
-        return 1;
-    }
-    return 0;
-}
-
-static int should_have_workers(building *b, int category, int check_access)
-{
-    if (category == LABOR_CATEGORY_NONE) {
-        return 0;
-    }
-
-    if (type_matches(b->type, "latrines")) {
-        return 1;
-    }
-
     if (category == LABOR_CATEGORY_ENTERTAINMENT) {
-        if (type_matches(b->type, "hippodrome") && b->prev_part_building_id) {
+        if (building.type().is_hippodrome() && record->prev_part_building_id) {
             return 0;
         }
     } else if (category == LABOR_CATEGORY_FOOD_PRODUCTION || category == LABOR_CATEGORY_INDUSTRY_COMMERCE) {
-        if (is_industry_disabled(b)) {
+        if (!building.type().production_is_enabled()) {
             return 0;
         }
     }
-    if (check_access && building_local_workforce_is_workforce_building(b)) {
-        return building_local_workforce_access_score(b) > 0 ? 1 : 0;
-    }
-
     // engineering and water are always covered
     if (category == LABOR_CATEGORY_ENGINEERING || category == LABOR_CATEGORY_WATER) {
         return 1;
     }
 
     if (check_access) {
-        return b->houses_covered > 0 ? 1 : 0;
+        return building.labor_access_score() > 0.0f ? 1 : 0;
     }
     return 1;
+}
+
+static void set_building_workers(building *b, int workers)
+{
+    city_culture_remove_building_module_capacity(b);
+    b->num_workers = workers;
+    city_culture_add_building_module_capacity(b);
+}
+
+static void add_building_workers(building *b, int workers)
+{
+    set_building_workers(b, b->num_workers + workers);
 }
 
 static void calculate_workers_needed_per_category(void)
@@ -325,21 +197,20 @@ static void calculate_workers_needed_per_category(void)
     }
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (b->state != BUILDING_STATE_IN_USE) {
+        if (!b || b->state != BUILDING_STATE_IN_USE) {
             continue;
         }
-        int category = category_for_building_type(b->type);
+        Building bldg(b);
+        int category = category_for_building_type(bldg.type());
         b->labor_category = category - 1;
-        if (!should_have_workers(b, category, 1)) {
+        if (!should_have_workers(bldg, category, 1)) {
             continue;
         }
 
-        city_data.labor.categories[category - 1].workers_needed += building_get_laborers(b->type);
+        city_data.labor.categories[category - 1].workers_needed += bldg.type().required_workers();
 
         city_data.labor.categories[category - 1].total_houses_covered +=
-            building_local_workforce_is_workforce_building(b) ?
-                building_local_workforce_access_score(b) :
-                b->houses_covered;
+            static_cast<int>(b->labor_access_score);
         city_data.labor.categories[category - 1].buildings++;
     }
 }
@@ -448,28 +319,26 @@ static void check_employment(void)
 static void set_building_worker_weight(void)
 {
     int water_per_10k_per_building = calc_percentage(100, city_data.labor.categories[LABOR_CATEGORY_WATER - 1].buildings);
-    for (building_type type = static_cast<building_type>(0); type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        int cat = category_for_building_type(type);
+    for (int building_id = 1; building_id < building_count(); building_id++) {
+        building *b = building_get(building_id);
+        if (!b || b->state != BUILDING_STATE_IN_USE) {
+            continue;
+        }
+        Building bldg(b);
+        int cat = category_for_building_type(bldg.type());
         if (cat == LABOR_CATEGORY_NONE) {
             continue;
         }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE) {
-                continue;
-            }
-            if (cat == LABOR_CATEGORY_WATER && !building_local_workforce_is_workforce_building(b)) {
-                b->percentage_houses_covered = water_per_10k_per_building;
-            } else {
-                b->percentage_houses_covered = 0;
+        if (cat == LABOR_CATEGORY_WATER && !building_local_workforce_is_workforce_building(b)) {
+            b->percentage_houses_covered = water_per_10k_per_building;
+        } else {
+            b->percentage_houses_covered = 0;
 
-                const int labor_access = building_local_workforce_is_workforce_building(b) ?
-                    building_local_workforce_access_score(b) :
-                    b->houses_covered;
-                if (labor_access) {
-                    b->percentage_houses_covered =
-                        calc_percentage(100 * labor_access,
-                        city_data.labor.categories[cat - 1].total_houses_covered);
-                }
+            const int labor_access = static_cast<int>(b->labor_access_score);
+            if (labor_access) {
+                b->percentage_houses_covered =
+                    calc_percentage(100 * labor_access,
+                    city_data.labor.categories[cat - 1].total_houses_covered);
             }
         }
     }
@@ -497,22 +366,26 @@ static void allocate_workers_to_water(void)
             building_id = 1;
         }
         building *b = building_get(building_id);
-        if (b->state != BUILDING_STATE_IN_USE || category_for_building_type(b->type) != LABOR_CATEGORY_WATER) {
+        if (!b || b->state != BUILDING_STATE_IN_USE) {
             continue;
         }
-        b->num_workers = 0;
+        Building bldg(b);
+        if (category_for_building_type(bldg.type()) != LABOR_CATEGORY_WATER) {
+            continue;
+        }
+        set_building_workers(b, 0);
         if (b->percentage_houses_covered > 0) {
             if (percentage_not_filled > 0) {
                 if (buildings_to_skip) {
                     --buildings_to_skip;
                 } else if (start_building_id) {
-                    b->num_workers = workers_per_building;
+                    set_building_workers(b, workers_per_building);
                 } else {
                     start_building_id = building_id;
-                    b->num_workers = workers_per_building;
+                    set_building_workers(b, workers_per_building);
                 }
             } else {
-                b->num_workers = building_get_laborers(b->type);
+                set_building_workers(b, bldg.type().required_workers());
             }
         }
     }
@@ -532,35 +405,35 @@ static void allocate_workers_to_non_water_buildings(void)
             city_data.labor.categories[i].workers_allocated < city_data.labor.categories[i].workers_needed
             ? 1 : 0;
     }
-    for (building_type type = static_cast<building_type>(0); type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        int cat = category_for_building_type(type);
+    for (int building_id = 1; building_id < building_count(); building_id++) {
+        building *b = building_get(building_id);
+        if (!b || b->state != BUILDING_STATE_IN_USE) {
+            continue;
+        }
+        Building bldg(b);
+        int cat = category_for_building_type(bldg.type());
         if (cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_NONE) {
             // water is handled by allocate_workers_to_water(void)
             continue;
         }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE) {
-                continue;
-            }
-            b->num_workers = 0;
-            if (!type_matches(b->type, "latrines") &&
-                (!should_have_workers(b, cat, 0) || b->percentage_houses_covered <= 0)) {
-                continue;
-            }
+        set_building_workers(b, 0);
+        if (!bldg.type().is_latrines() &&
+            (!should_have_workers(bldg, cat, 0) || b->percentage_houses_covered <= 0)) {
+            continue;
+        }
 
-            int required_workers = model_get_building(b->type)->laborers;
-            if (category_workers_needed[cat - 1]) {
-                int num_workers = calc_adjust_with_percentage(
-                    city_data.labor.categories[cat - 1].workers_allocated,
-                    b->percentage_houses_covered) / 100;
-                if (num_workers > required_workers) {
-                    num_workers = required_workers;
-                }
-                b->num_workers = num_workers;
-                category_workers_allocated[cat - 1] += num_workers;
-            } else {
-                b->num_workers = required_workers;
+        int required_workers = bldg.type().required_workers();
+        if (category_workers_needed[cat - 1]) {
+            int num_workers = calc_adjust_with_percentage(
+                city_data.labor.categories[cat - 1].workers_allocated,
+                b->percentage_houses_covered) / 100;
+            if (num_workers > required_workers) {
+                num_workers = required_workers;
             }
+            set_building_workers(b, num_workers);
+            category_workers_allocated[cat - 1] += num_workers;
+        } else {
+            set_building_workers(b, required_workers);
         }
     }
     for (int i = 0; i < LABOR_CATEGORY_MAX; i++) {
@@ -575,29 +448,29 @@ static void allocate_workers_to_non_water_buildings(void)
             }
         }
     }
-    for (building_type type = static_cast<building_type>(0); type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        int cat = category_for_building_type(type);
+    for (int building_id = 1; building_id < building_count(); building_id++) {
+        building *b = building_get(building_id);
+        if (!b || b->state != BUILDING_STATE_IN_USE) {
+            continue;
+        }
+        Building bldg(b);
+        int cat = category_for_building_type(bldg.type());
         if (cat == LABOR_CATEGORY_NONE || cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_MILITARY) {
             continue;
         }
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE) {
-                continue;
-            }
-            if (!should_have_workers(b, cat, 0)) {
-                continue;
-            }
-            if (b->percentage_houses_covered > 0 && category_workers_needed[cat - 1]) {
-                int required_workers = model_get_building(b->type)->laborers;
-                if (b->num_workers < required_workers) {
-                    int needed = required_workers - b->num_workers;
-                    if (needed > category_workers_needed[cat - 1]) {
-                        b->num_workers += category_workers_needed[cat - 1];
-                        category_workers_needed[cat - 1] = 0;
-                    } else {
-                        b->num_workers += needed;
-                        category_workers_needed[cat - 1] -= needed;
-                    }
+        if (!should_have_workers(bldg, cat, 0)) {
+            continue;
+        }
+        if (b->percentage_houses_covered > 0 && category_workers_needed[cat - 1]) {
+            int required_workers = bldg.type().required_workers();
+            if (b->num_workers < required_workers) {
+                int needed = required_workers - b->num_workers;
+                if (needed > category_workers_needed[cat - 1]) {
+                    add_building_workers(b, category_workers_needed[cat - 1]);
+                    category_workers_needed[cat - 1] = 0;
+                } else {
+                    add_building_workers(b, needed);
+                    category_workers_needed[cat - 1] -= needed;
                 }
             }
         }

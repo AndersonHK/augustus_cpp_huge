@@ -5,6 +5,7 @@
 #include "core/string.h"
 #include "platform/file_manager.h"
 
+#include <ctype.h>
 #include <dirent.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,6 +20,20 @@ enum {
 
 static dir_info *base_dir_info;
 static int stat_status;
+
+static int compare_filename_case_insensitive(const char *a, const char *b)
+{
+    while (*a && *b) {
+        int lhs = tolower((unsigned char) *a);
+        int rhs = tolower((unsigned char) *b);
+        if (lhs != rhs) {
+            return lhs - rhs;
+        }
+        a++;
+        b++;
+    }
+    return tolower((unsigned char) *a) - tolower((unsigned char) *b);
+}
 
 const dir_info *platform_file_manager_cache_get_dir_info(const char *dir)
 {
@@ -174,7 +189,7 @@ int platform_file_manager_cache_file_has_extension(const file_info *f, const cha
     if (!(f->type & TYPE_FILE) || !extension || !*extension) {
         return 1;
     }
-    return platform_file_manager_compare_filename(f->extension, extension) == 0;
+    return compare_filename_case_insensitive(f->extension, extension) == 0;
 }
 
 void platform_file_manager_cache_invalidate(void)

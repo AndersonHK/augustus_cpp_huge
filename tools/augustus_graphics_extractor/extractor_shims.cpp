@@ -8,10 +8,7 @@
 #include "graphics/font.h"
 #include "graphics/renderer.h"
 #include "graphics/runtime_overlay_images.h"
-
-extern "C" {
 #include "platform/file_manager.h"
-}
 
 #include <algorithm>
 #include <cctype>
@@ -389,14 +386,14 @@ extern "C" void log_info(const char *msg, const char *param_str, int param_int)
     log_line("Info", msg, param_str, param_int);
 }
 
-extern "C" void log_set_debug_enabled(int enabled)
+void log_set_debug_enabled(bool enabled)
 {
     g_debug_enabled = enabled ? 1 : 0;
 }
 
-extern "C" int log_is_debug_enabled(void)
+bool log_is_debug_enabled()
 {
-    return g_debug_enabled;
+    return g_debug_enabled != 0;
 }
 
 extern "C" void log_warning(const char *msg, const char *param_str, int param_int)
@@ -409,7 +406,7 @@ extern "C" void log_error(const char *msg, const char *param_str, int param_int)
     log_line("Error", msg, param_str, param_int);
 }
 
-extern "C" void log_repeated_messages(void)
+void log_repeated_messages()
 {
 }
 
@@ -539,7 +536,8 @@ extern "C" const dir_listing *dir_find_files_with_extension(const char *dir, con
 
 extern "C" const dir_listing *dir_find_files_with_extension_at_location(int location, const char *extension)
 {
-    return dir_find_files_with_extension(platform_file_manager_get_directory_for_location(location, nullptr), extension);
+    const std::string directory = platform_file_manager_get_directory_for_location(location);
+    return dir_find_files_with_extension(directory.c_str(), extension);
 }
 
 extern "C" const dir_listing *dir_append_files_with_extension(const char *extension)
@@ -554,7 +552,8 @@ extern "C" const dir_listing *dir_find_all_subdirectories(const char *dir)
 
 extern "C" const dir_listing *dir_find_all_subdirectories_at_location(int location)
 {
-    return dir_find_all_subdirectories(platform_file_manager_get_directory_for_location(location, nullptr));
+    const std::string directory = platform_file_manager_get_directory_for_location(location);
+    return dir_find_all_subdirectories(directory.c_str());
 }
 
 extern "C" const char *dir_get_file(const char *filepath, int localizable)
@@ -572,7 +571,7 @@ extern "C" const char *dir_get_file(const char *filepath, int localizable)
 extern "C" const char *dir_get_file_at_location(const char *filepath, int location)
 {
     static std::string resolved;
-    resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location, nullptr)) /
+    resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location)) /
         (filepath ? filepath : "")).string();
     return std::filesystem::exists(resolved) ? resolved.c_str() : nullptr;
 }
@@ -580,12 +579,12 @@ extern "C" const char *dir_get_file_at_location(const char *filepath, int locati
 extern "C" const char *dir_append_location(const char *filename, int location)
 {
     static std::string resolved;
-    resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location, nullptr)) /
+    resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location)) /
         (filename ? filename : "")).string();
     return resolved.c_str();
 }
 
-extern "C" int platform_file_manager_set_base_path(const char *path)
+int platform_file_manager_set_base_path(const char *path)
 {
     if (!path || !*path) {
         return 0;
@@ -595,19 +594,16 @@ extern "C" int platform_file_manager_set_base_path(const char *path)
     return error ? 0 : 1;
 }
 
-extern "C" const char *platform_file_manager_get_directory_for_location(int location, const char *user_directory)
+std::string platform_file_manager_get_directory_for_location(int location, const char *user_directory)
 {
     (void) user_directory;
-    static std::string path;
     if (location == PATH_LOCATION_ASSET) {
-        path = asset_root();
-    } else {
-        path = std::filesystem::current_path().string();
+        return asset_root();
     }
-    return path.c_str();
+    return std::filesystem::current_path().string();
 }
 
-extern "C" int platform_file_manager_is_directory_writeable(const char *directory)
+int platform_file_manager_is_directory_writeable(const char *directory)
 {
     std::error_code error;
     const std::filesystem::path path = directory && *directory ? directory : ".";
@@ -615,7 +611,7 @@ extern "C" int platform_file_manager_is_directory_writeable(const char *director
     return error ? 0 : 1;
 }
 
-extern "C" int platform_file_manager_list_directory_contents(
+int platform_file_manager_list_directory_contents(
     const char *dir,
     int type,
     const char *extension,
@@ -648,12 +644,12 @@ extern "C" int platform_file_manager_list_directory_contents(
     return match;
 }
 
-extern "C" int platform_file_manager_should_case_correct_file(void)
+int platform_file_manager_should_case_correct_file(void)
 {
     return 0;
 }
 
-extern "C" int platform_file_manager_filename_contains(const char *filename, const char *expression)
+int platform_file_manager_filename_contains(const char *filename, const char *expression)
 {
     if (!filename || !expression) {
         return 0;
@@ -661,7 +657,7 @@ extern "C" int platform_file_manager_filename_contains(const char *filename, con
     return std::string(filename).find(expression) != std::string::npos ? 1 : 0;
 }
 
-extern "C" int platform_file_manager_compare_filename(const char *a, const char *b)
+int platform_file_manager_compare_filename(const char *a, const char *b)
 {
     std::string left = a ? a : "";
     std::string right = b ? b : "";
@@ -674,7 +670,7 @@ extern "C" int platform_file_manager_compare_filename(const char *a, const char 
     return left < right ? -1 : (left > right ? 1 : 0);
 }
 
-extern "C" int platform_file_manager_compare_filename_prefix(const char *filename, const char *prefix, int prefix_len)
+int platform_file_manager_compare_filename_prefix(const char *filename, const char *prefix, int prefix_len)
 {
     std::string left = filename ? filename : "";
     std::string right = prefix ? prefix : "";
@@ -687,27 +683,27 @@ extern "C" int platform_file_manager_compare_filename_prefix(const char *filenam
     return platform_file_manager_compare_filename(left.c_str(), right.c_str());
 }
 
-extern "C" FILE *platform_file_manager_open_file(const char *filename, const char *mode)
+FILE *platform_file_manager_open_file(const char *filename, const char *mode)
 {
     return std::fopen(resolve_asset_marker_path(filename).string().c_str(), mode);
 }
 
-extern "C" FILE *platform_file_manager_open_asset(const char *asset, const char *mode)
+FILE *platform_file_manager_open_asset(const char *asset, const char *mode)
 {
     return file_open_asset(asset, mode);
 }
 
-extern "C" int platform_file_manager_close_file(FILE *stream)
+int platform_file_manager_close_file(FILE *stream)
 {
     return std::fclose(stream) == 0;
 }
 
-extern "C" int platform_file_manager_remove_file(const char *filename)
+int platform_file_manager_remove_file(const char *filename)
 {
     return file_remove(filename);
 }
 
-extern "C" int platform_file_manager_create_directory(const char *name, const char *location, int overwrite)
+int platform_file_manager_create_directory(const char *name, const char *location, int overwrite)
 {
     (void) overwrite;
     std::error_code error;
@@ -719,7 +715,7 @@ extern "C" int platform_file_manager_create_directory(const char *name, const ch
     return error ? 0 : 1;
 }
 
-extern "C" int platform_file_manager_copy_file(const char *src, const char *dst)
+int platform_file_manager_copy_file(const char *src, const char *dst)
 {
     std::error_code error;
     std::filesystem::copy_file(resolve_asset_marker_path(src), resolve_asset_marker_path(dst),
@@ -727,7 +723,7 @@ extern "C" int platform_file_manager_copy_file(const char *src, const char *dst)
     return error ? 0 : 1;
 }
 
-extern "C" int platform_file_manager_copy_directory(const char *src, const char *dst, int overwrite_files)
+int platform_file_manager_copy_directory(const char *src, const char *dst, int overwrite_files)
 {
     std::error_code error;
     const auto options = overwrite_files ? std::filesystem::copy_options::overwrite_existing :
@@ -737,86 +733,87 @@ extern "C" int platform_file_manager_copy_directory(const char *src, const char 
     return error ? 0 : 1;
 }
 
-extern "C" int platform_file_manager_remove_directory(const char *path)
+int platform_file_manager_remove_directory(const char *path)
 {
     std::error_code error;
     std::filesystem::remove_all(resolve_asset_marker_path(path), error);
     return error ? 0 : 1;
 }
 
-extern "C" void mod_manager_set_mod_name(const char *mod_name)
+namespace mod_manager {
+
+void set_mod_name(std::string_view mod_name)
 {
     (void) mod_name;
 }
 
-extern "C" int mod_manager_load_mod_list(void)
+bool load_mod_list()
 {
-    return 1;
+    return true;
 }
 
-extern "C" const char *mod_manager_get_failure_reason(void)
+const std::string &failure_reason()
 {
-    return "";
+    static const std::string value;
+    return value;
 }
 
-extern "C" const char *mod_manager_get_mod_name(void)
+const std::string &mod_name()
 {
-    return "Augustus";
+    static const std::string value = "Augustus";
+    return value;
 }
 
-extern "C" const char *mod_manager_get_mod_path(void)
+const std::string &mod_path()
 {
-    return "Mods/Augustus/";
+    static const std::string value = "Mods/Augustus/";
+    return value;
 }
 
-extern "C" const char *mod_manager_get_graphics_path(void)
+const std::string &graphics_path()
 {
-    return "Mods/Augustus/Graphics/";
+    return g_augustus_graphics_path;
 }
 
-extern "C" const char *mod_manager_get_augustus_graphics_path(void)
+const std::string &augustus_graphics_path()
 {
-    return g_augustus_graphics_path.c_str();
+    return g_augustus_graphics_path;
 }
 
-extern "C" const char *mod_manager_get_julius_graphics_path(void)
+const std::string &julius_graphics_path()
 {
-    return g_julius_graphics_path.c_str();
+    return g_julius_graphics_path;
 }
 
-extern "C" int mod_manager_get_mod_count(void)
+const std::vector<std::string> &mod_names()
 {
-    return 2;
+    static const std::vector<std::string> values = { "Julius", "Augustus" };
+    return values;
 }
 
-extern "C" const char *mod_manager_get_mod_name_at(int index)
+const std::vector<std::string> &mod_paths()
 {
-    static const char *names[] = { "Julius", "Augustus" };
-    return index >= 0 && index < 2 ? names[index] : nullptr;
+    static const std::vector<std::string> values = { "Mods/Julius/", "Mods/Augustus/" };
+    return values;
 }
 
-extern "C" const char *mod_manager_get_mod_path_at(int index)
+const std::vector<std::string> &graphics_paths()
 {
-    static const char *paths[] = { "Mods/Julius/", "Mods/Augustus/" };
-    return index >= 0 && index < 2 ? paths[index] : nullptr;
+    static std::vector<std::string> values;
+    values = { g_julius_graphics_path, g_augustus_graphics_path };
+    return values;
 }
 
-extern "C" const char *mod_manager_get_graphics_path_at(int index)
+bool validate_mod_path()
 {
-    static std::string paths[2];
-    paths[0] = g_julius_graphics_path;
-    paths[1] = g_augustus_graphics_path;
-    return index >= 0 && index < 2 ? paths[index].c_str() : nullptr;
+    return true;
 }
 
-extern "C" int mod_manager_validate_mod_path(void)
+bool validate_graphics_path()
 {
-    return 1;
+    return true;
 }
 
-extern "C" int mod_manager_validate_graphics_path(void)
-{
-    return 1;
 }
 
 CrashContextScope::CrashContextScope(

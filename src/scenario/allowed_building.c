@@ -3,6 +3,7 @@
 #include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
+#include "building/building_type_startup_bridge.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -73,7 +74,7 @@ static uint8_t allowed_buildings[BUILDING_TYPE_MAX];
 
 static building_type runtime_type(const char *text_id)
 {
-    return text_id ? building_type_registry_runtime_id_from_text(text_id) : BUILDING_NONE;
+    return text_id ? building_type_startup_bridge_runtime_id_from_text(text_id) : BUILDING_NONE;
 }
 
 static building_type runtime_type_for_legacy_allowed_slot(unsigned int save_id)
@@ -101,9 +102,9 @@ static void refresh_dynamic_original_allowed_slots(void)
         }
     }
 
-    conversion_from_original[9][0] = building_type_registry_theater_type();
+    conversion_from_original[9][0] = runtime_type("theater");
     conversion_from_original[9][1] = BUILDING_NONE;
-    conversion_from_original[42][0] = building_type_registry_well_type();
+    conversion_from_original[42][0] = runtime_type("well");
     conversion_from_original[42][1] = BUILDING_NONE;
     conversion_from_original[7][0] = building_type_registry_get_vacant_lot_fill_type();
     conversion_from_original[7][1] = BUILDING_NONE;

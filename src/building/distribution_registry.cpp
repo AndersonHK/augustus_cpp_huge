@@ -6,6 +6,7 @@
 #include "core/crash_context.h"
 #include "core/xml_definition.h"
 #include "core/xml_value.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
 extern "C" {
@@ -165,7 +166,7 @@ const Distribution *find_distribution_definition(const char *path)
 
 extern "C" const char *distribution_registry_get_distribution_path(void)
 {
-    building_type_registry_impl::g_distribution_path = std::string(mod_manager_get_mod_path()) + "Distribution/";
+    building_type_registry_impl::g_distribution_path = mod_manager::mod_path() + "Distribution/";
     return building_type_registry_impl::g_distribution_path.c_str();
 }
 

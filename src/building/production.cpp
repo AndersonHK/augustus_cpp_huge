@@ -306,7 +306,7 @@ void Production::bless_industry()
     if (!building().is_in_use() || legacy->output_resource_id != method_->output_resource()) {
         return;
     }
-    if (!building().has_workers()) {
+    if (!building().worker_count()) {
         return;
     }
 

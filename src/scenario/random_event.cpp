@@ -1,7 +1,7 @@
 #include "random_event.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/monument.h"
 #include "city/data_private.h"
@@ -18,6 +18,8 @@
 #include "scenario/data.h"
 #include "scenario/property.h"
 
+#include <string.h>
+
 enum {
     EVENT_ROME_RAISES_WAGES = 1,
     EVENT_ROME_LOWERS_WAGES = 2,
@@ -32,7 +34,17 @@ enum {
 
 static building_type runtime_type(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    if (!text_id || !*text_id) {
+        return BUILDING_NONE;
+    }
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && definition->attr() && strcmp(definition->attr(), text_id) == 0) {
+            return type;
+        }
+    }
+    return BUILDING_NONE;
 }
 
 static const int RANDOM_EVENT_PROBABILITY[128] = {

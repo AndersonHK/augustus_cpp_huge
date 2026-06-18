@@ -1,4 +1,6 @@
 #include "building/building_type_registry.h"
+#include "building/building_type_startup_bridge.h"
+#include "core/log.h"
 #include "translation/translation.h"
 #include "game/game.h"
 #include "game/mod_manager.h"
@@ -17,7 +19,6 @@ extern "C" {
 #include "assets/assets.h"
 #include "core/config.h"
 #include "core/encoding.h"
-#include "core/log.h"
 #include "core/time.h"
 #include "game/system.h"
 #include "graphics/screen.h"
@@ -298,8 +299,8 @@ static int build_graphics_bootstrap_stamp(char *buffer, size_t buffer_size)
     }
 
     char graphics_source_path[FILE_NAME_MAX];
-    const char *asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET, 0);
-    if (!append_path_component(graphics_source_path, sizeof(graphics_source_path), asset_root, ASSETS_IMAGE_PATH)) {
+    const std::string asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET);
+    if (!append_path_component(graphics_source_path, sizeof(graphics_source_path), asset_root.c_str(), ASSETS_IMAGE_PATH)) {
         return 0;
     }
 
@@ -323,7 +324,7 @@ static int bootstrap_augustus_graphics_directory(void)
 {
     ensure_graphics_directory("Mods");
     ensure_graphics_directory("Mods/Augustus");
-    ensure_graphics_directory(mod_manager_get_augustus_graphics_path());
+    ensure_graphics_directory(mod_manager::augustus_graphics_path().c_str());
     return 1;
 }
 
@@ -331,7 +332,7 @@ static int bootstrap_julius_graphics_directory(void)
 {
     ensure_graphics_directory("Mods");
     ensure_graphics_directory("Mods/Julius");
-    ensure_graphics_directory(mod_manager_get_julius_graphics_path());
+    ensure_graphics_directory(mod_manager::julius_graphics_path().c_str());
     return 1;
 }
 
@@ -954,11 +955,11 @@ static void setup(const augustus_args *args)
         exit_with_status(1);
     }
 
-    mod_manager_set_mod_name(args->mod_name);
+    mod_manager::set_mod_name(args->mod_name);
     if (!config_must_configure_user_directory() && platform_file_manager_is_directory_writeable(pref_user_dir())) {
         platform_user_path_create_subdirectories();
-        if (!mod_manager_load_mod_list()) {
-            const char *failure_reason = mod_manager_get_failure_reason();
+        if (!mod_manager::load_mod_list()) {
+            const char *failure_reason = mod_manager::failure_reason().c_str();
             SDL_ShowSimpleMessageBox(
                 SDL_MESSAGEBOX_ERROR,
                 "Startup error",
@@ -968,13 +969,13 @@ static void setup(const augustus_args *args)
             exit_with_status(3);
         }
     }
-    if (!building_type_registry_validate_mod()) {
+    if (!building_type_startup_bridge_validate_mod()) {
         char message[512];
         snprintf(message, sizeof(message),
             "Unable to find the selected mod data.\n\nExpected folder:\n%s",
-            building_type_registry_get_building_type_path());
+            building_type_startup_bridge_get_building_type_path());
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Missing mod", message, NULL);
-        SDL_Log("Missing mod directory: %s", building_type_registry_get_building_type_path());
+        SDL_Log("Missing mod directory: %s", building_type_startup_bridge_get_building_type_path());
         exit_with_status(4);
     }
 

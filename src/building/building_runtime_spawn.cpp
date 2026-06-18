@@ -70,7 +70,7 @@ int building_runtime::default_spawn_delay() const
 void building_runtime::check_labor_problem()
 {
     if (building_local_workforce_is_workforce_building(building().legacy_record())) {
-        if (!building().has_workers()) {
+        if (!building().worker_count()) {
             record().show_on_problem_overlay = 2;
         }
         return;

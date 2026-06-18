@@ -2,6 +2,7 @@
 #include "tool_mode.h"
 
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
 #include "building/building_type_api.h"
 extern "C" {
 #include "city/view.h"
@@ -10,6 +11,7 @@ extern "C" {
 }
 
 #include <array>
+#include <cstring>
 
 namespace {
 
@@ -25,15 +27,21 @@ struct ToolModeDefinition {
     ToolTargetBehavior target_behavior;
 };
 
-static building_type xml_type(const char *text_id)
+static building_type type_from_attr(const char *attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
 }
 
-static bool type_matches(building_type type, const char *text_id)
+static bool type_matches(building_type type, const char *attr)
 {
-    building_type resolved = xml_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
 class ModeSwitchTool {
@@ -72,7 +80,7 @@ public:
 
     building_type selection_type() const
     {
-        return xml_type(selection_type_text_id_);
+        return type_from_attr(selection_type_text_id_);
     }
 
     bool is_drag_tool() const
@@ -82,7 +90,7 @@ public:
 
     building_type resolve(building_type compatibility_alias_type, key_modifier_type modifiers) const
     {
-        return xml_type(resolve_definition(compatibility_alias_type, modifiers).type_text_id);
+        return type_from_attr(resolve_definition(compatibility_alias_type, modifiers).type_text_id);
     }
 
     building_type resolve_for_tile(
@@ -178,7 +186,7 @@ private:
         grid_slice blocking_tiles = {};
         map_bridge_calculate_length_direction(x, y, &length, &direction, &blocking_tiles);
 
-        return xml_type((modifiers & KEY_MOD_SHIFT) ? "ship_bridge" : "low_bridge");
+        return type_from_attr((modifiers & KEY_MOD_SHIFT) ? "ship_bridge" : "low_bridge");
     }
 
     static void apply_footprint_offset(int *x, int *y, int footprint_size)

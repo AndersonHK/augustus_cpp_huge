@@ -2,26 +2,22 @@
 #include "entertainment.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "city/data_private.h"
 
-static building_type runtime_type(const char *text_id)
+#include <string_view>
+
+static int building_type_attr_is(const Building &building, std::string_view attr)
 {
-    if (!text_id) {
-        return BUILDING_NONE;
-    }
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    return type && std::string_view(type->attr()) == attr;
 }
 
-static void accumulate_venue_shows(const char *text_id, int no_show_weight, int has_second_show,
+static void accumulate_venue_shows(std::string_view attr, int no_show_weight, int has_second_show,
     int *shows, int *no_shows_weighted)
 {
-    building_type type = runtime_type(text_id);
-    if (type == BUILDING_NONE) {
-        return;
-    }
-    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-        if (b->state != BUILDING_STATE_IN_USE) {
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        if (!b || b->state != BUILDING_STATE_IN_USE || !building_type_attr_is(Building(b), attr)) {
             continue;
         }
         if (b->data.entertainment.days1) {
@@ -94,19 +90,9 @@ void city_entertainment_calculate_shows(void)
     city_data.entertainment.hippodrome_no_shows_weighted = 0;
     city_data.entertainment.venue_needing_shows = 0;
 
-    building_type theater = building_type_registry_theater_type();
-    if (theater != BUILDING_NONE) {
-        for (building *b = building_first_of_type(theater); b; b = b->next_of_type) {
-            if (b->state != BUILDING_STATE_IN_USE) {
-                continue;
-            }
-            if (b->data.entertainment.days1) {
-                city_data.entertainment.theater_shows++;
-            } else {
-                city_data.entertainment.theater_no_shows_weighted++;
-            }
-        }
-    }
+    accumulate_venue_shows("theater", 1, 0,
+        &city_data.entertainment.theater_shows,
+        &city_data.entertainment.theater_no_shows_weighted);
     accumulate_venue_shows("amphitheater", 2, 1,
         &city_data.entertainment.amphitheater_shows,
         &city_data.entertainment.amphitheater_no_shows_weighted);

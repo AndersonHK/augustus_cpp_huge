@@ -1,4 +1,5 @@
 #include "building/count.h"
+#include "building/building_type_registry_internal.h"
 #include "city/festival.h"
 #include "city/houses.h"
 #include "graphics/generic_button.h"
@@ -30,9 +31,9 @@ static generic_button hold_festival_button[] = {
 
 static unsigned int focus_button_id;
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static int get_religion_advice(void)
@@ -83,13 +84,13 @@ static void draw_god_row(god_type god, int y_offset, building_type altar, buildi
 
 static void draw_oracle_row(void)
 {
-    building_type pantheon = runtime_type("pantheon");
-    int oracle_count = building_count_active(runtime_type("oracle")) +
-        building_count_active(runtime_type("small_mausoleum"));
-    int large_oracle_count = building_count_active(runtime_type("nymphaeum")) +
-        building_count_active(pantheon) + building_count_active(runtime_type("large_mausoleum"));
+    building_type pantheon = type_from_attr("pantheon");
+    int oracle_count = building_count_active(type_from_attr("oracle")) +
+        building_count_active(type_from_attr("small_mausoleum"));
+    int large_oracle_count = building_count_active(type_from_attr("nymphaeum")) +
+        building_count_active(pantheon) + building_count_active(type_from_attr("large_mausoleum"));
     lang_text_draw("main_strings.59.8", 24, 168, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    text_draw_number_centered(building_count_total(runtime_type("lararium")), 190, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    text_draw_number_centered(building_count_total(type_from_attr("lararium")), 190, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(oracle_count, 250, 168, 50, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     if (building_count_active(pantheon)) {
         text_draw_number_centered(large_oracle_count, 310, 168, 50, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
@@ -154,16 +155,16 @@ static int draw_background(void)
     inner_panel_draw(16, 60, 38, 8);
 
     // god rows
-    draw_god_row(GOD_CERES, 66, runtime_type("shrine_ceres"), runtime_type("small_temple_ceres"),
-        runtime_type("large_temple_ceres"), runtime_type("grand_temple_ceres"));
-    draw_god_row(GOD_NEPTUNE, 86, runtime_type("shrine_neptune"), runtime_type("small_temple_neptune"),
-        runtime_type("large_temple_neptune"), runtime_type("grand_temple_neptune"));
-    draw_god_row(GOD_MERCURY, 106, runtime_type("shrine_mercury"), runtime_type("small_temple_mercury"),
-        runtime_type("large_temple_mercury"), runtime_type("grand_temple_mercury"));
-    draw_god_row(GOD_MARS, 126, runtime_type("shrine_mars"), runtime_type("small_temple_mars"),
-        runtime_type("large_temple_mars"), runtime_type("grand_temple_mars"));
-    draw_god_row(GOD_VENUS, 146, runtime_type("shrine_venus"), runtime_type("small_temple_venus"),
-        runtime_type("large_temple_venus"), runtime_type("grand_temple_venus"));
+    draw_god_row(GOD_CERES, 66, type_from_attr("shrine_ceres"), type_from_attr("small_temple_ceres"),
+        type_from_attr("large_temple_ceres"), type_from_attr("grand_temple_ceres"));
+    draw_god_row(GOD_NEPTUNE, 86, type_from_attr("shrine_neptune"), type_from_attr("small_temple_neptune"),
+        type_from_attr("large_temple_neptune"), type_from_attr("grand_temple_neptune"));
+    draw_god_row(GOD_MERCURY, 106, type_from_attr("shrine_mercury"), type_from_attr("small_temple_mercury"),
+        type_from_attr("large_temple_mercury"), type_from_attr("grand_temple_mercury"));
+    draw_god_row(GOD_MARS, 126, type_from_attr("shrine_mars"), type_from_attr("small_temple_mars"),
+        type_from_attr("large_temple_mars"), type_from_attr("grand_temple_mars"));
+    draw_god_row(GOD_VENUS, 146, type_from_attr("shrine_venus"), type_from_attr("small_temple_venus"),
+        type_from_attr("large_temple_venus"), type_from_attr("grand_temple_venus"));
 
     // oracles
     draw_oracle_row();

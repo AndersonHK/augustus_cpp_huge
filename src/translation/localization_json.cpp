@@ -567,8 +567,8 @@ bool merge_locale_json(const std::string &path, locale_catalog &catalog, std::st
 int enumerate_available_locales_internal(std::vector<locale_info> &out_locales)
 {
     std::map<std::string, locale_info> merged;
-    for (int i = 0; i < mod_manager_get_mod_count(); ++i) {
-        const std::string root = append_path_component(mod_manager_get_mod_path_at(i), "Localization");
+    for (const std::string &mod_path : mod_manager::mod_paths()) {
+        const std::string root = append_path_component(mod_path, "Localization");
         std::vector<std::string> files;
         list_directory_contents(root, TYPE_FILE, "json", files);
         for (const std::string &file_name : files) {

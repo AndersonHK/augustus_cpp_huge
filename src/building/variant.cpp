@@ -11,6 +11,7 @@
 #include "map/random.h"
 
 #include <cstddef>
+#include <cstring>
 
 #define CITY_DIRECTION_ANY -1
 #define MAX_VARIANTS_PER_BUILDING 12
@@ -43,7 +44,9 @@ static building_variant variants[] = {
 
 static int variant_matches_type(const building_variant &variant, building_type type)
 {
-    return type == building_type_registry_runtime_id_from_text(variant.type_text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && std::strcmp(definition->attr(), variant.type_text_id) == 0;
 }
 
 static const building_type_registry_impl::GraphicsTarget *rotation_graphics_target(building_type type)

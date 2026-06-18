@@ -1,4 +1,5 @@
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/industry.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
@@ -59,20 +60,17 @@ typedef struct {
 } building_tile_color;
 static void get_viewport(int *x, int *y, int *width, int *height);
 
-static building_type runtime_type(const char *text_id)
+static int building_type_attr_is(building_type type, const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && strcmp(definition->attr(), text_id) == 0;
 }
 
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
-}
-
-static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+static int building_type_attr_is_any(building_type type, std::initializer_list<const char *> text_ids)
 {
     for (const char *text_id : text_ids) {
-        if (type_matches(type, text_id)) {
+        if (building_type_attr_is(type, text_id)) {
             return 1;
         }
     }
@@ -372,18 +370,18 @@ static int draw_figure(int x_view, int y_view, int grid_offset)
 
 static int building_is_industry(building_type type)
 {
-    return building_is_raw_resource_producer(type) || building_is_workshop(type) || type_matches(type, "wharf");
+    return building_is_raw_resource_producer(type) || building_is_workshop(type) || building_type_attr_is(type, "wharf");
 }
 
 static int building_is_military(building_type type)
 {
-    return building_is_fort(type) || type_matches_any(type,
+    return building_is_fort(type) || building_type_attr_is_any(type,
         {"fort_ground", "barracks", "military_academy", "mess_hall", "tower", "watchtower", "gatehouse", "palisade_gate"});
 }
 
 static int building_is_aesthetic(building_type type)
 {
-    return type_matches_any(type,
+    return building_type_attr_is_any(type,
         {"small_pond", "large_pond", "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree",
             "palm_tree", "date_tree", "pine_path", "fir_path", "oak_path", "elm_path", "fig_path", "plum_path",
             "palm_path", "date_path", "pavilion_blue", "pavilion_red", "pavilion_orange", "pavilion_yellow",
@@ -393,9 +391,9 @@ static int building_is_aesthetic(building_type type)
             "hedge_gate_dark", "hedge_gate_light", "gardens"});
 }
 
-static int building_is_water_structure(building_type type)
+static int building_is_water_structure(const building_type_registry_impl::BuildingType &type)
 {
-    return type_matches_any(type, {"reservoir", "fountain"}) || building_type_registry_is_well(type);
+    return type.is_well() || type.is_fountain() || building_type_attr_is(type.type(), "reservoir");
 }
 
 static void draw_building(int x_offset, int y_offset, int grid_offset)
@@ -411,14 +409,15 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
         building *b = data.functions->building(data.functions->offset.building_id(grid_offset));
 
         // Palisades are drawn like walls
-        if (type_matches(b->type, "palisade")) {
+        if (building_type_attr_is(b->type, "palisade")) {
             draw_tile(x_offset, y_offset, &minimap_colors.wall);
             return;
         }
 
+        const Building building(b);
         if (b->house_size) {
             colors = &minimap_colors.house;
-        } else if (building_is_water_structure(b->type)) {
+        } else if (building_is_water_structure(building.type())) {
             colors = &minimap_colors.water_structure;
         } else if (building_monument_is_monument(b)) {
             colors = &minimap_colors.monument;

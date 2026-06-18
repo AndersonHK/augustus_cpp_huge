@@ -1,4 +1,5 @@
 #include "building/construction.h"
+#include "building/building_type_registry_internal.h"
 #include "translation/translation.h"
 #include "building/tool_mode.h"
 #include "city/warning.h"
@@ -26,6 +27,9 @@
 #include "window/overlay_menu.h"
 #include "window/advisors.h"
 #include "game/campaign.h"
+
+#include <string_view>
+
 extern "C" {
 
 #include "building/building_type_api.h"
@@ -48,9 +52,24 @@ extern "C" {
 #define TOOLTIP_CLEAR_BUTTON 21
 #define TOOLTIP_ROAD_BUTTON 22
 
-static building_type runtime_type(const char *text_id)
+static building_type cached_type_from_loaded_attr(std::string_view attr, building_type &cache)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    if (cache == BUILDING_NONE) {
+        cache = building_type_registry_impl::type_from_attr(attr);
+    }
+    return cache;
+}
+
+static building_type clear_land_type()
+{
+    static building_type type = BUILDING_NONE;
+    return cached_type_from_loaded_attr("clear_land", type);
+}
+
+static building_type road_type()
+{
+    static building_type type = BUILDING_NONE;
+    return cached_type_from_loaded_attr("road", type);
 }
 
 static void button_overlay(int param1, int param2);
@@ -194,9 +213,9 @@ static building_type direct_tool_type_for_submenu(int submenu)
         case BUILD_MENU_VACANT_HOUSE:
             return building_type_registry_get_vacant_lot_fill_type();
         case BUILD_MENU_CLEAR_LAND:
-            return runtime_type("clear_land");
+            return clear_land_type();
         case BUILD_MENU_ROAD:
-            return runtime_type("road");
+            return road_type();
         default:
             return BUILDING_NONE;
     }
@@ -335,7 +354,7 @@ int widget_sidebar_city_get_tooltip_text(tooltip_context *c)
             return 0;
         }
         if (data.focus_button_for_tooltip == TOOLTIP_CLEAR_BUTTON) {
-            building_type clear_land = runtime_type("clear_land");
+            building_type clear_land = clear_land_type();
             building_type clear_mode = building_tool_mode_resolve(
                 clear_land,
                 clear_land,
@@ -348,7 +367,7 @@ int widget_sidebar_city_get_tooltip_text(tooltip_context *c)
             return 0;
         }
         if (data.focus_button_for_tooltip == TOOLTIP_ROAD_BUTTON) {
-            building_type road = runtime_type("road");
+            building_type road = road_type();
             building_type road_mode = building_tool_mode_resolve(
                 road,
                 road,

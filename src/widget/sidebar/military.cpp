@@ -1,4 +1,5 @@
 #include "building/count.h"
+#include "city/buildings.h"
 #include "graphics/arrow_button.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
@@ -42,11 +43,6 @@ extern "C" {
 #define MILITARY_PANEL_BLOCKS 18
 #define CONTENT_PADDING 10
 #define CONTENT_WIDTH (SIDEBAR_EXPANDED_WIDTH - 2 * CONTENT_PADDING)
-
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
 
 static const int IMAGE_OFFSETS_TO_FORMATION[7] = {
     FORMATION_COLUMN,
@@ -346,7 +342,7 @@ static void draw_military_info_text(int x_offset, int y_offset)
         if (m->cursed_by_mars) {
             group_id = 89;
             text_id = 1;
-        } else if (building_count_active(runtime_type("barracks"))) {
+        } else if (city_buildings_has_barracks()) {
             group_id = 138;
             text_id = 10;
         } else {

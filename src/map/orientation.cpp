@@ -16,6 +16,7 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 
 extern "C" {
 #include "assets/assets.h"
@@ -34,15 +35,11 @@ extern "C" {
 #include <math.h>
 #include <stdlib.h>
 
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
 static int type_matches(building_type type, const char *text_id)
 {
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static int type_matches_any(building_type type, const char *const *text_ids, int count)

@@ -76,7 +76,7 @@ static int get_employment_info_text(const building *b, int consider_house_coveri
 {
     int text_id;
     int local_workforce = building_local_workforce_is_workforce_building(b);
-    int labor_access = local_workforce ? building_local_workforce_access_score(b) : b->houses_covered;
+    int labor_access = building_local_workforce_access_score(b);
     int required_workers = building_get_laborers(b->type);
 
     if (b->num_workers >= required_workers) {

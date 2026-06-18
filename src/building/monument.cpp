@@ -8,6 +8,7 @@
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
+#include "city/culture.h"
 extern "C" {
 
 #include "assets/assets.h"
@@ -122,15 +123,21 @@ static const monument_type city_mint = {
 
 #undef RESOURCE_ROW
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
 }
 
-static int type_matches(building_type type, const char *text_id)
+static int type_matches(building_type type, const char *attr)
 {
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
 static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
@@ -326,8 +333,8 @@ int building_monument_text_id_is_monument(const char *text_id)
         }
     }
 
-    building_type runtime_type = building_type_id_bridge_runtime_from_text(text_id);
-    return monument_type_for(runtime_type) != nullptr;
+    building_type type = type_from_attr(text_id);
+    return monument_type_for(type) != nullptr;
 }
 
 int building_monument_deliver_resource(building *b, int resource)
@@ -512,6 +519,7 @@ void building_monument_set_phase(building *b, int phase)
     if (phase == b->monument.phase) {
         return;
     }
+    city_culture_remove_building_module_capacity(b);
     b->monument.phase = phase;
     if (building_type_registry_has_phased_construction(b->type)) {
         Building(b).refresh_graphic();
@@ -521,9 +529,10 @@ void building_monument_set_phase(building *b, int phase)
     if (b->monument.phase != MONUMENT_FINISHED) {
         for (int resource = 0; resource < RESOURCE_SLOT_COUNT; resource++) {
             b->resources[resource] =
-                building_monument_resources_needed_for_monument_type(b->type, resource, b->monument.phase);
+              building_monument_resources_needed_for_monument_type(b->type, resource, b->monument.phase);
         }
     }
+    city_culture_add_building_module_capacity(b);
 }
 
 int building_monument_is_monument(const building *b)
@@ -898,14 +907,14 @@ int building_monument_gt_module_is_active(int module)
     if (temple_index < 0 || temple_index >= static_cast<int>(sizeof(GRAND_TEMPLE_TEXT_IDS) / sizeof(GRAND_TEMPLE_TEXT_IDS[0]))) {
         return 0;
     }
-    building_type temple_type = runtime_type(GRAND_TEMPLE_TEXT_IDS[temple_index]);
+    building_type temple_type = type_from_attr(GRAND_TEMPLE_TEXT_IDS[temple_index]);
 
     return building_monument_module_type(temple_type) == module_num;
 }
 
 int building_monument_pantheon_module_is_active(int module)
 {
-    return building_monument_module_type(runtime_type("pantheon")) == (module - (PANTHEON_MODULE_1_DESTINATION_PRIESTS - 1));
+    return building_monument_module_type(type_from_attr("pantheon")) == (module - (PANTHEON_MODULE_1_DESTINATION_PRIESTS - 1));
 }
 
 static void delivery_save(buffer *buf, monument_delivery *delivery)
@@ -970,11 +979,14 @@ int building_monument_is_construction_halted(building *b)
 
 int building_monument_toggle_construction_halted(building *b)
 {
+    city_culture_remove_building_module_capacity(b);
     if (b->state == BUILDING_STATE_MOTHBALLED) {
         b->state = BUILDING_STATE_IN_USE;
+        city_culture_add_building_module_capacity(b);
         return 0;
     } else {
         b->state = BUILDING_STATE_MOTHBALLED;
+        city_culture_add_building_module_capacity(b);
         return 1;
     }
 }

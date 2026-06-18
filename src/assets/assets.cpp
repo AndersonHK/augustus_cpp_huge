@@ -16,6 +16,7 @@ extern "C" {
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <string>
 
 static struct {
     int roadblock_image_id;
@@ -70,11 +71,11 @@ static xml_asset_source source_for_mod_index(int index, int top_index)
     if (index == top_index) {
         return XML_ASSET_SOURCE_MOD;
     }
-    const char *name = mod_manager_get_mod_name_at(index);
-    if (ascii_equals_ignore_case(name, "Augustus")) {
+    const std::string &name = mod_manager::mod_names().at(index);
+    if (ascii_equals_ignore_case(name.c_str(), "Augustus")) {
         return XML_ASSET_SOURCE_AUGUSTUS;
     }
-    if (ascii_equals_ignore_case(name, "Julius")) {
+    if (ascii_equals_ignore_case(name.c_str(), "Julius")) {
         return XML_ASSET_SOURCE_JULIUS;
     }
     return XML_ASSET_SOURCE_AUTO;
@@ -83,15 +84,16 @@ static xml_asset_source source_for_mod_index(int index, int top_index)
 static int collect_graphics_sources(const char **paths, xml_asset_source *sources, int max_sources)
 {
     int count = 0;
-    const int mod_count = mod_manager_get_mod_count();
+    const auto &graphics_paths = mod_manager::graphics_paths();
+    const int mod_count = static_cast<int>(graphics_paths.size());
     const int top_index = mod_count - 1;
     for (int i = top_index; i >= 0 && count < max_sources; i--) {
         const xml_asset_source source = source_for_mod_index(i, top_index);
-        const char *path = mod_manager_get_graphics_path_at(i);
-        if (source == XML_ASSET_SOURCE_AUTO || !path || !*path || source_already_listed(sources, count, source)) {
+        const std::string &path = graphics_paths.at(i);
+        if (source == XML_ASSET_SOURCE_AUTO || path.empty() || source_already_listed(sources, count, source)) {
             continue;
         }
-        paths[count] = path;
+        paths[count] = path.c_str();
         sources[count] = source;
         count++;
     }

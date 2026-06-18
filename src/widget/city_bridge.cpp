@@ -1,4 +1,5 @@
 #include "building/construction.h"
+#include "building/building_type_registry_internal.h"
 #include "graphics/image.h"
 #include "map/bridge.h"
 
@@ -11,10 +12,13 @@ extern "C" {
 #include "map/terrain.h"
 }
 
+#include <cstring>
 
-static building_type runtime_type(const char *text_id)
+static int building_type_attr_is(building_type type, const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 void city_draw_bridge(int x, int y, float scale, int grid_offset)
@@ -27,7 +31,7 @@ void city_draw_bridge(int x, int y, float scale, int grid_offset)
         return;
     }
     color_t color_mask = 0;
-    if (map_property_is_deleted(grid_offset) && building_construction_type() != runtime_type("clear_trees")) {
+    if (map_property_is_deleted(grid_offset) && !building_type_attr_is(building_construction_type(), "clear_trees")) {
         color_mask = COLOR_MASK_RED;
     }
     city_draw_bridge_tile(x, y, scale, map_sprite_bridge_at(grid_offset), color_mask);

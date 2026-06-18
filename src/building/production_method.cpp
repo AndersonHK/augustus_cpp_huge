@@ -11,6 +11,7 @@ extern "C" {
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/finance.h"
+#include "city/resource.h"
 #include "core/calc.h"
 #include "game/time.h"
 #include "scenario/property.h"
@@ -163,6 +164,19 @@ int ProductionMethod::uses_blessing_multiplier() const
     return is_farm();
 }
 
+int ProductionMethod::is_enabled() const
+{
+    if (output_resource_ <= RESOURCE_NONE || output_resource_ == resource_denarii()) {
+        return 1;
+    }
+    return !city_resource_is_mothballed(output_resource_);
+}
+
+int ProductionMethod::is_disabled() const
+{
+    return !is_enabled();
+}
+
 int ProductionMethod::effective_monthly_production() const
 {
     if (output_resource_ == RESOURCE_NONE || base_monthly_production_ <= 0) {
@@ -211,15 +225,7 @@ int ProductionMethod::scaled_input_amount(const ProductionResourceAmount &input)
 
 int ProductionMethod::labor_access_for(const Building &building) const
 {
-    const ::building *record = building.legacy_record();
-    if (!record) {
-        return 0;
-    }
-    // Native production follows the building's declared labor model instead of legacy coverage unconditionally.
-    if (building_local_workforce_is_workforce_building(record)) {
-        return building_local_workforce_access_score(record);
-    }
-    return record->houses_covered > 0 ? record->houses_covered : 0;
+    return static_cast<int>(building.labor_access_score());
 }
 
 int ProductionMethod::can_start_cycle(const Building &building) const
@@ -229,7 +235,7 @@ int ProductionMethod::can_start_cycle(const Building &building) const
         return 0;
     }
     // This is the shared production eligibility contract; live Production only mutates progress once it passes.
-    if (labor_access_for(building) <= 0 || !building.has_workers() || record->strike_duration_days > 0) {
+    if (is_disabled() || labor_access_for(building) <= 0 || !building.worker_count() || record->strike_duration_days > 0) {
         return 0;
     }
     if (max_progress_for(building) <= 0) {

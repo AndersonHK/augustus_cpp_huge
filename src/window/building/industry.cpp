@@ -48,14 +48,14 @@ static struct {
     unsigned int focus_button_id;
 } data;
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static int type_matches(building_type type, const char *text_id)
 {
-    return type == runtime_type(text_id);
+    return type == type_from_attr(text_id);
 }
 
 struct industry_text {
@@ -499,9 +499,9 @@ void window_building_draw_concrete_maker(building_info_context *c)
 
 static int governor_palace_is_allowed(void)
 {
-    return scenario_allowed_building(runtime_type("governors_house")) ||
-        scenario_allowed_building(runtime_type("governors_villa")) ||
-        scenario_allowed_building(runtime_type("governors_palace"));
+    return scenario_allowed_building(type_from_attr("governors_house")) ||
+        scenario_allowed_building(type_from_attr("governors_villa")) ||
+        scenario_allowed_building(type_from_attr("governors_palace"));
 }
 
 void window_building_draw_city_mint(building_info_context *c)
@@ -539,7 +539,7 @@ void window_building_draw_city_mint(building_info_context *c)
 
         if (!c->has_road_access) {
             window_building_draw_description_at(c, 116, 69, 25);
-        } else if (building_count_active(runtime_type("senate")) == 0) {
+    } else if (building_count_active(type_from_attr("senate")) == 0) {
             window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_NO_SENATE");
         } else if (b->num_workers <= 0) {
             window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_NO_EMPLOYEES");
@@ -602,7 +602,7 @@ void window_building_draw_city_mint_foreground(building_info_context *c)
 
 static int shipyard_boats_needed(void)
 {
-    for (const building *wharf = building_first_of_type(runtime_type("wharf")); wharf; wharf = wharf->next_of_type) {
+    for (const building *wharf = building_first_of_type(type_from_attr("wharf")); wharf; wharf = wharf->next_of_type) {
         if (wharf->num_workers > 0 && !wharf->data.industry.fishing_boat_id) {
             return 1;
         }

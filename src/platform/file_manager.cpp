@@ -591,33 +591,32 @@ int platform_file_manager_set_base_path(const char *path)
 #endif
 }
 
-const char *platform_file_manager_get_directory_for_location(int location, const char *user_directory)
+std::string platform_file_manager_get_directory_for_location(int location, const char *user_directory)
 {
-    static std::string full_path;
     if (!user_directory) {
         user_directory = pref_user_dir();
     }
 
     if (location < 0 || location >= PATH_LOCATION_MAX) {
-        full_path.clear();
-        return full_path.c_str();
+        return {};
     }
 
+    std::string full_path;
     if (location == PATH_LOCATION_ASSET) {
         set_assets_directory();
         full_path = assets_directory;
     } else {
-        if (k_path_descriptors[location].requires_user_directory && (!user_directory || !*user_directory)) {
-            full_path.clear();
+        if (k_path_descriptors[location].requires_user_directory && !*user_directory) {
+            return {};
         } else {
-            full_path = join_paths(user_directory ? user_directory : "", k_path_descriptors[location].subpath);
+            full_path = join_paths(user_directory, k_path_descriptors[location].subpath);
         }
     }
 
     if (full_path.size() >= FILE_NAME_MAX) {
         log_error("Path ID too long for location: ", 0, location);
     }
-    return full_path.c_str();
+    return full_path;
 }
 
 int platform_file_manager_is_directory_writeable(const char *directory)

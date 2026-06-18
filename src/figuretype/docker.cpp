@@ -35,29 +35,51 @@ extern "C" {
 
 #define INFINITE 10000
 
-static building_type runtime_type(const char *text_id)
+static const building_type_registry_impl::BuildingType *definition_for_building(building *b)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return b ? Building(b).type_definition() : nullptr;
 }
 
-static int building_matches(building *b, const char *text_id)
+static int building_is_warehouse(building *b)
 {
-    building_type type = runtime_type(text_id);
-    return b && type != BUILDING_NONE && b->type == type;
+    const building_type_registry_impl::BuildingType *definition = definition_for_building(b);
+    return definition && definition->is_warehouse();
 }
 
-static building *first_building(const char *text_id)
+static int building_is_granary(building *b)
 {
-    building_type type = runtime_type(text_id);
-    return type == BUILDING_NONE ? nullptr : building_first_of_type(type);
+    const building_type_registry_impl::BuildingType *definition = definition_for_building(b);
+    return definition && definition->is_granary();
+}
+
+static building *first_warehouse(void)
+{
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_is_warehouse(b)) {
+            return b;
+        }
+    }
+    return nullptr;
+}
+
+static building *first_granary(void)
+{
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_is_granary(b)) {
+            return b;
+        }
+    }
+    return nullptr;
 }
 
 static int try_import_resource(int building_id, resource_type resource, int city_id, int quantity)
 {
     building *b = building_get(building_id);
     Building storage(b);
-    if (!building_matches(b, "warehouse") &&
-        !(resource_is_food(resource) && building_matches(b, "granary"))) {
+    if (!building_is_warehouse(b) &&
+        !(resource_is_food(resource) && building_is_granary(b))) {
         return 0;
     }
 
@@ -71,12 +93,12 @@ static int try_import_resource(int building_id, resource_type resource, int city
 
     int route_id = empire_city_get_route_id(city_id);
     int result = 0;
-    if (building_matches(b, "granary")) {
+    if (building_is_granary(b)) {
         result = building_granary_add_import(storage, resource, 1, 0);
         if (result) {
             trade_route_increase_traded(route_id, resource, 0);
         }
-    } else if (building_matches(b, "warehouse")) {
+    } else if (building_is_warehouse(b)) {
         result = building_warehouse_add_import(storage, resource, quantity, 0);
         if (result) {
             trade_route_increase_traded(route_id, resource, 0);
@@ -89,7 +111,7 @@ static int try_export_resource(int building_id, resource_type resource, int city
 {
     building *b = building_get(building_id);
     Building storage(b);
-    if (!building_matches(b, "warehouse") && !building_matches(b, "granary")) {
+    if (!building_is_warehouse(b) && !building_is_granary(b)) {
         return 0;
     }
 
@@ -97,12 +119,12 @@ static int try_export_resource(int building_id, resource_type resource, int city
         return 0;
     }
     int result = 0;
-    if (building_matches(b, "granary")) {
+    if (building_is_granary(b)) {
         result = building_granary_remove_export(storage, resource, 1, 0);
         if (result) {
             trade_route_increase_traded(empire_city_get_route_id(city_id), resource, 1);
         }
-    } else if (building_matches(b, "warehouse")) {
+    } else if (building_is_warehouse(b)) {
         result = building_warehouse_remove_export(storage, resource, 1, 0);
         if (result) {
             trade_route_increase_traded(empire_city_get_route_id(city_id), resource, 1);
@@ -117,7 +139,7 @@ static int store_destination_map_point(int building_id, map_point *dst)
         return 0;
     }
     building *b = building_get(building_id);
-    if (building_matches(b, "granary")) {
+    if (building_is_granary(b)) {
         // go to center of granary
         map_point_store_result(b->x + 1, b->y + 1, dst);
     } else if (b->has_road_access == 1) {
@@ -179,7 +201,7 @@ static unsigned int get_closest_building_for_import(int x, int y, int city_id, b
     }
     int min_distance = INFINITE;
     int min_building_id = 0;
-    for (building *b = first_building("warehouse"); b; b = b->next_of_type) {
+    for (building *b = first_warehouse(); b; b = b->next_of_type) {
         Building storage(b);
 
         if (is_invalid_destination(b, dock) ||
@@ -199,7 +221,7 @@ static unsigned int get_closest_building_for_import(int x, int y, int city_id, b
         }
     }
     if (resource_is_food(resource)) {
-        for (building *b = first_building("granary"); b; b = b->next_of_type) {
+        for (building *b = first_granary(); b; b = b->next_of_type) {
             Building storage(b);
             if (is_invalid_destination(b, dock) ||
                 !building_granary_maximum_receptible_amount(storage, resource)) {
@@ -243,7 +265,7 @@ static int get_closest_building_for_export(int x, int y, int city_id, building *
     }
     int min_distance = INFINITE;
     int min_building_id = 0;
-    for (building *b = first_building("warehouse"); b; b = b->next_of_type) {
+    for (building *b = first_warehouse(); b; b = b->next_of_type) {
         if (is_invalid_destination(b, dock)) {
             continue;
         }
@@ -260,7 +282,7 @@ static int get_closest_building_for_export(int x, int y, int city_id, building *
         }
     }
     if (resource_is_food(resource) && config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES)) {
-        for (building *b = first_building("granary"); b; b = b->next_of_type) {
+        for (building *b = first_granary(); b; b = b->next_of_type) {
             Building storage(b);
             if (is_invalid_destination(b, dock) ||
                 !building_granary_get_amount(storage, resource)) {

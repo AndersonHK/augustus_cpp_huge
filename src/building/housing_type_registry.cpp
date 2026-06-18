@@ -6,6 +6,7 @@
 #include "core/crash_context.h"
 #include "core/xml_value.h"
 #include "building/water_access_type.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
 extern "C" {
@@ -464,7 +465,7 @@ int housing_type_level_at(int index)
 
 extern "C" const char *housing_type_registry_get_housing_type_path(void)
 {
-    building_type_registry_impl::g_housing_type_path = std::string(mod_manager_get_mod_path()) + "HousingType/";
+    building_type_registry_impl::g_housing_type_path = mod_manager::mod_path() + "HousingType/";
     return building_type_registry_impl::g_housing_type_path.c_str();
 }
 

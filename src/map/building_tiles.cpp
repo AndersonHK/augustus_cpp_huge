@@ -2,7 +2,6 @@
 #include "building_tiles.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/industry.h"
 #include "city/view.h"
 #include "core/direction.h"
@@ -19,16 +18,7 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = building_type_registry_runtime_id_from_text(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
-static int building_matches(const building *b, const char *text_id)
-{
-    return b && type_matches(b->type, text_id);
-}
+#include <string_view>
 
 void map_building_tiles_add_remove(unsigned int building_id, int x, int y, int size, int image_id, int terrain_to_add, int terrain_to_remove)
 {
@@ -213,21 +203,23 @@ void map_building_tiles_remove(unsigned int building_id, int x, int y)
 }
 
 
-void map_building_tiles_set_rubble(unsigned int building_id, int x, int y, int size)
+void map_building_tiles_set_rubble(const Building *building, int x, int y, int size)
 {
     if (!map_grid_is_inside(x, y, size)) {
         return;
     }
     // building id passed here is the original building that got destroyed, but can be 0 for walls and aqueducts
-    building *b = building_get(building_id);
+    const unsigned int building_id = building ? building->id() : 0;
+    const ::building *record = building ? building->legacy_record() : nullptr;
+    const bool is_burning_ruin = building && std::string_view(building->type().attr()) == "burning_ruin";
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);
             if (map_building_at(grid_offset) != building_id) {
                 continue;
             }
-            if (building_id && !building_matches(building_get(map_building_at(grid_offset)), "burning_ruin")) {
-                map_building_set_rubble_grid_building_id(grid_offset, b->id, 1);
+            if (building_id && !is_burning_ruin && record) {
+                map_building_set_rubble_grid_building_id(grid_offset, record->id, 1);
                 // set rubble building id for the original. Collapsing into burning ruin sets this in destruction.c
             }
             map_property_clear_constructing(grid_offset);

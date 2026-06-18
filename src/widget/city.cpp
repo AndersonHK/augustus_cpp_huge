@@ -20,6 +20,7 @@
 
 #include "city/view.h"
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "input/zoom.h"
 
 #include "game/settings.h"
@@ -49,16 +50,15 @@ extern "C" {
 #include "sound/effect.h"
 }
 
+#include <cstring>
+
 #define NO_POSITION ((unsigned int)-1)
 
-static building_type runtime_type(const char *text_id)
+static int building_type_attr_is(building_type type, const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static struct {
@@ -603,7 +603,7 @@ static void handle_first_touch(map_tile *tile)
     }
 
     int size = building_properties_for_type(type)->size;
-    if (type_matches(type, "warehouse")) {
+    if (building_type_attr_is(type, "warehouse")) {
         size = 3;
     }
 
@@ -833,7 +833,7 @@ void widget_city_get_tooltip(tooltip_context *c)
     }
     // regular tooltips
     if (overlay == static_cast<int>(OVERLAY_NONE) && building_id &&
-        Building::from_id(building_id).is_type(runtime_type("senate"))) {
+        building_type_attr_is(Building::from_id(building_id).type_id(), "senate")) {
         c->type = static_cast<tooltip_type>(TOOLTIP_SENATE);
         c->high_priority = 1;
         return;

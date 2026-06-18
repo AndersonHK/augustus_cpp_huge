@@ -12,6 +12,9 @@
     <button group="education" order="30" icon="Health_Culture\Library" text_key="main_strings.28.53" />
     <sound id="library" />
     <event_data attr="library" />
+    <culture_modules>
+        <culture_module path="library" capacity="800" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Library" />

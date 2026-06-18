@@ -19,12 +19,12 @@
 #include "figure/formation_legion.h"
 
 #include "building/local_workforce.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 
 #include <cstring>
 #include <initializer_list>
+#include <string_view>
 
 #include "scenario/scenario.h"
 extern "C" {
@@ -51,21 +51,17 @@ extern "C" {
 #include "map/terrain.h"
 }
 
-static building_type runtime_type(const char *text_id)
+static int type_attr_is(building_type type, std::string_view attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::string_view(definition->attr()) == attr;
 }
 
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
-static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+static int type_attr_is_any(building_type type, std::initializer_list<const char *> text_ids)
 {
     for (const char *text_id : text_ids) {
-        if (type_matches(type, text_id)) {
+        if (type_attr_is(type, text_id)) {
             return 1;
         }
     }
@@ -74,12 +70,24 @@ static int type_matches_any(building_type type, std::initializer_list<const char
 
 static int building_matches(const building *b, const char *text_id)
 {
-    return b && type_matches(b->type, text_id);
+    return b && type_attr_is(b->type, text_id);
 }
 
 static int building_matches_any(const building *b, std::initializer_list<const char *> text_ids)
 {
-    return b && type_matches_any(b->type, text_ids);
+    return b && type_attr_is_any(b->type, text_ids);
+}
+
+static int working_pantheon_id()
+{
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && definition->is_pantheon()) {
+            return building_monument_working(type);
+        }
+    }
+    return 0;
 }
 
 static int type_is_basic_temple(building_type type)
@@ -93,7 +101,7 @@ static int type_is_basic_temple(building_type type)
 
 static int type_uses_native_spawn(building_type type)
 {
-    return type_matches_any(type, {
+    return type_attr_is_any(type, {
         "engineers_post",
         "prefecture",
         "actor_colony",
@@ -126,7 +134,7 @@ static int type_uses_native_spawn(building_type type)
 
 static int type_is_fort(building_type type)
 {
-    return type_matches_any(type, {
+    return type_attr_is_any(type, {
         "fort_legionaries",
         "fort_javelin",
         "fort_archers",
@@ -714,7 +722,7 @@ static void spawn_figure_grand_temple_mars(building *b)
         // Pantheon Module 1 Bonus
         if (!b->figure_id4 && building_monument_pantheon_module_is_active(PANTHEON_MODULE_1_DESTINATION_PRIESTS)) {
             figure *f = figure_create(FIGURE_PRIEST, road.x, road.y, DIR_4_BOTTOM);
-            int pantheon_id = building_monument_working(runtime_type("pantheon"));
+            int pantheon_id = working_pantheon_id();
             b->figure_id4 = f->id;
             f->destination_building_id = pantheon_id;
             f->building_id = b->id;
@@ -826,7 +834,7 @@ static void spawn_figure_temple(building *b)
         // Pantheon Module 1 Bonus
         if (!building_matches(b, "pantheon") && !b->figure_id4 && building_monument_pantheon_module_is_active(PANTHEON_MODULE_1_DESTINATION_PRIESTS)) {
             figure *f = figure_create(FIGURE_PRIEST, road.x, road.y, DIR_4_BOTTOM);
-            int pantheon_id = building_monument_working(runtime_type("pantheon"));
+            int pantheon_id = working_pantheon_id();
             b->figure_id4 = f->id;
             f->destination_building_id = pantheon_id;
             f->building_id = b->id;
@@ -1311,7 +1319,7 @@ static int building_uses_runtime_spawn(const building *b)
     if (type_is_basic_temple(b->type)) {
         return b->monument.phase <= 0;
     }
-    if (building_type_registry_is_theater(b->type)) {
+    if (definition && definition->is_theater()) {
         return 1;
     }
 

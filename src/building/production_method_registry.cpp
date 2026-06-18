@@ -4,6 +4,7 @@
 #include "building/production_method_registry.h"
 
 #include "core/crash_context.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
 extern "C" {
@@ -583,7 +584,7 @@ void reset_production_overrides()
 
 extern "C" const char *production_method_registry_get_production_method_path(void)
 {
-    building_type_registry_impl::g_production_method_path = std::string(mod_manager_get_mod_path()) + "ProductionMethod/";
+    building_type_registry_impl::g_production_method_path = mod_manager::mod_path() + "ProductionMethod/";
     return building_type_registry_impl::g_production_method_path.c_str();
 }
 

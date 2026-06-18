@@ -1,6 +1,9 @@
 #include "assets/augustus_asset_extractor.h"
 #include "building/building.h"
 #include "building/image.h"
+#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
+#include "building/building_type_registry_internal.h"
+#endif
 #include "graphics/image.h"
 #include "graphics/runtime_overlay_images.h"
 #include "map/building_tiles.h"
@@ -11,7 +14,6 @@ extern "C" {
 #include "image.h"
 #include "assets/assets.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "core/buffer.h"
 #include "core/image_packer.h"
 #include "core/io.h"
@@ -25,6 +27,7 @@ extern "C" {
 
 #include <stdlib.h>
 #include <string.h>
+#include <string_view>
 
 #define HEADER_SIZE 20680
 #define ENTRY_SIZE 64
@@ -40,17 +43,6 @@ extern "C" {
 #define ENEMY_INDEX_SIZE ENTRY_SIZE * ENEMY_ENTRIES
 #define EXTERNAL_FONT_INDEX_OFFSET HEADER_SIZE
 #define EXTERNAL_FONT_INDEX_SIZE ENTRY_SIZE * EXTERNAL_FONT_ENTRIES
-
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static building *first_of_type(const char *text_id)
-{
-    building_type type = runtime_type(text_id);
-    return type > BUILDING_NONE ? building_first_of_type(type) : nullptr;
-}
 
 #define JAPANESE_HALF_WIDTH_CHARS 63
 
@@ -773,8 +765,22 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     return service.bootstrapAfterClimateLoad(climate, ExtractorOptions(false, true)).succeeded() ? 1 : 0;
 }
 
+#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
+static int building_type_attr_is(building_type type, std::string_view attr)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::string_view(definition->attr()) == attr;
+}
+#endif
+
 static void update_native_images(int old_climate, int new_climate)
 {
+#ifdef AUGUSTUS_GRAPHICS_EXTRACTOR
+    (void) old_climate;
+    (void) new_climate;
+    return;
+#else
     if (old_climate == new_climate) {
         return;
     }
@@ -802,20 +808,24 @@ static void update_native_images(int old_climate, int new_climate)
             alt_native_hut_new_image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Central_01");
     }
 
-    for (building *b = first_of_type("native_hut_alt"); b; b = b->next_of_type) {
-        map_image_set(b->grid_offset, alt_native_hut_new_image_id + map_image_at(b->grid_offset) - alt_native_hut_old_image_id);
-    }
     static const char *native_buildings[] = {"native_decor", "native_monument", "native_watchtower", nullptr};
-    for (int i = 0; native_buildings[i]; i++) {
-        building_type type = runtime_type(native_buildings[i]);
-        if (type <= BUILDING_NONE) {
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        if (!b || b->state == BUILDING_STATE_UNUSED) {
             continue;
         }
-        int image_id = building_image_get_for_type(type);
-        for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-            map_building_tiles_add(b->id, b->x, b->y, b->size, image_id, TERRAIN_BUILDING);
+        if (building_type_attr_is(b->type, "native_hut_alt")) {
+            map_image_set(b->grid_offset, alt_native_hut_new_image_id + map_image_at(b->grid_offset) - alt_native_hut_old_image_id);
+            continue;
+        }
+        for (int i = 0; native_buildings[i]; i++) {
+            if (building_type_attr_is(b->type, native_buildings[i])) {
+                map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get_for_type(b->type), TERRAIN_BUILDING);
+                break;
+            }
         }
     }
+#endif
 }
 
 static void fix_animation_offsets(void)

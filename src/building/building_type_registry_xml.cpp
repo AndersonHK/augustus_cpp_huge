@@ -4,8 +4,10 @@
 #include "building/building_runtime.h"
 #include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
+#include "building/building_type_startup_bridge.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
+#include "building/culture_module_registry.h"
 #include "building/distribution.h"
 #include "building/god_registry.h"
 #include "building/housing_type_registry.h"
@@ -18,6 +20,7 @@
 #include "core/crash_context.h"
 #include "core/xml_definition.h"
 #include "core/xml_value.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
 extern "C" {
@@ -2472,6 +2475,106 @@ static int parse_labor_seeker_amount_node()
     return 1;
 }
 
+static int parse_culture_modules()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered culture_modules definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_culture_modules) {
+        log_error("BuildingType xml contains duplicate culture_modules nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.saw_culture_modules = 1;
+    g_parse_state.parsing_culture_modules = 1;
+    return 1;
+}
+
+static void finish_culture_modules()
+{
+    g_parse_state.parsing_culture_modules = 0;
+}
+
+static int parse_culture_module_count_mode(const char *value, CultureModuleCountMode *out_count_mode)
+{
+    if (!out_count_mode) {
+        return 0;
+    }
+
+    std::string text = xml_value::trim_copy(value ? value : "");
+    if (text.empty() || compare_text(text.c_str(), "total") == 0) {
+        *out_count_mode = CultureModuleCountMode::Total;
+        return 1;
+    }
+    if (compare_text(text.c_str(), "active") == 0) {
+        *out_count_mode = CultureModuleCountMode::Active;
+        return 1;
+    }
+    if (compare_text(text.c_str(), "working") == 0) {
+        *out_count_mode = CultureModuleCountMode::Working;
+        return 1;
+    }
+    return 0;
+}
+
+static int parse_culture_module_reference()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_culture_modules) {
+        log_error("Encountered culture_module reference outside culture_modules node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("path")) {
+        log_error("BuildingType culture_module reference is missing required attribute 'path'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("capacity")) {
+        log_error("BuildingType culture_module reference is missing required attribute 'capacity'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    std::string normalized_path = xml_definition::normalize_path(xml_parser_get_attribute_string("path"));
+    if (normalized_path.empty()) {
+        log_error("Unsupported BuildingType culture_module reference path", xml_parser_get_attribute_string("path"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int capacity = 0;
+    const char *capacity_text = xml_parser_get_attribute_string("capacity");
+    if (!capacity_text || !xml_value::parse_int_strict(capacity_text, &capacity) || capacity < 0) {
+        log_error("Unsupported BuildingType culture_module capacity", capacity_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int upgrade_bonus = 0;
+    if (xml_parser_has_attribute("upgrade_bonus")) {
+        const char *upgrade_bonus_text = xml_parser_get_attribute_string("upgrade_bonus");
+        if (!upgrade_bonus_text || !xml_value::parse_int_strict(upgrade_bonus_text, &upgrade_bonus) ||
+            upgrade_bonus < 0) {
+            log_error("Unsupported BuildingType culture_module upgrade_bonus", upgrade_bonus_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
+    CultureModuleCountMode count_mode = CultureModuleCountMode::Total;
+    if (xml_parser_has_attribute("count") &&
+        !parse_culture_module_count_mode(xml_parser_get_attribute_string("count"), &count_mode)) {
+        log_error("Unsupported BuildingType culture_module count mode", xml_parser_get_attribute_string("count"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->add_culture_module_reference(std::move(normalized_path), capacity, upgrade_bonus, count_mode);
+    return 1;
+}
+
 static int parse_storages()
 {
     if (!g_parse_state.definition) {
@@ -3007,6 +3110,8 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "labor_seeker", parse_labor_seeker, finish_labor_seeker, "labor", nullptr },
     { "method", parse_labor_seeker_method_node, nullptr, "labor_seeker", nullptr },
     { "amount", parse_labor_seeker_amount_node, nullptr, "labor_seeker", nullptr },
+    { "culture_modules", parse_culture_modules, finish_culture_modules, "building", nullptr },
+    { "culture_module", parse_culture_module_reference, nullptr, "culture_modules", nullptr },
     { "storages", parse_storages, finish_storages, "building", nullptr },
     { "storage", parse_storage_reference, nullptr, "storages", nullptr },
     { "production_methods", parse_production_methods, finish_production_methods, "building", nullptr },
@@ -3276,6 +3381,25 @@ static int validate_runtime_graphics_or_clear(BuildingType &definition)
 
 static int resolve_runtime_references(BuildingType &definition, const char *filename)
 {
+    for (const BuildingCultureModule &culture_module_reference : definition.culture_modules()) {
+        const std::string &culture_module_path = culture_module_reference.reference_path;
+        const CultureModule *culture_module = find_culture_module_definition(culture_module_path.c_str());
+        if (!culture_module) {
+            char detail[512];
+            snprintf(
+                detail,
+                sizeof(detail),
+                "building=%s culture_module_path=%s file=%s",
+                definition.attr(),
+                culture_module_path.c_str(),
+                filename ? filename : "");
+            error_context_report_error("Unable to resolve BuildingType culture_module reference.", detail);
+            log_error("Unable to resolve BuildingType culture_module reference", detail, 0);
+            return 0;
+        }
+        definition.resolve_culture_module(culture_module_path, culture_module);
+    }
+
     for (const std::string &storage_path : definition.storage_reference_paths()) {
         const StorageType *storage_type = find_storage_type_definition(storage_path.c_str());
         if (!storage_type) {
@@ -3404,6 +3528,7 @@ static int parse_definition_buffer(const char *filename, std::vector<char> &buff
         g_parse_state.saw_temple || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
         g_parse_state.saw_market || g_parse_state.saw_flags || g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
         g_parse_state.saw_construction || g_parse_state.saw_spawn ||
+        g_parse_state.saw_culture_modules ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods || g_parse_state.saw_distribution ||
         g_parse_state.saw_housing || g_parse_state.saw_vacant_lot ||
         g_parse_state.saw_labor || g_parse_state.saw_provider_water_access;
@@ -3531,7 +3656,7 @@ static int resolve_housing_transitions()
 
 static std::string building_type_category_path(const char *folder)
 {
-    return std::string(mod_manager_get_mod_path()) + folder + "/";
+    return mod_manager::mod_path() + folder + "/";
 }
 
 static int load_building_type_definitions_from_path(
@@ -3608,6 +3733,10 @@ extern "C" int building_type_registry_load(void)
         log_error("Unable to load Religion xml definitions", 0, 0);
         return 0;
     }
+    if (!culture_module_registry_load()) {
+        log_error("Unable to load CultureModule xml definitions", 0, 0);
+        return 0;
+    }
     if (!storage_type_registry_load()) {
         log_error("Unable to load StorageType xml definitions", 0, 0);
         return 0;
@@ -3646,7 +3775,7 @@ extern "C" int building_type_registry_load(void)
         log_error("Unable to resolve BuildingType housing transitions", 0, 0);
         return 0;
     }
-    building_type_registry_apply_model_overrides();
+    building_type_startup_bridge_apply_model_overrides();
     building_type_id_bridge_reset_for_runtime();
     water_access_type_id_bridge_reset_for_runtime();
     building_monument_reset_runtime_bridge();

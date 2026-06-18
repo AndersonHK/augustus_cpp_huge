@@ -146,20 +146,34 @@ static struct {
     .scale = SCALE_NONE
 };
 
-static building_type runtime_type(const char *text_id)
+static const building_type_registry_impl::BuildingType *building_type_definition_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
+            return definition.get();
+        }
+    }
+    return nullptr;
 }
 
-static int type_matches(building_type type, const char *text_id)
+static building_type building_type_from_attr(const char *text_id)
 {
-    return type == runtime_type(text_id);
+    const building_type_registry_impl::BuildingType *definition = building_type_definition_from_attr(text_id);
+    return definition ? definition->type() : BUILDING_NONE;
 }
 
-static int type_matches_any(building_type type, const char *const *text_ids, int text_id_count)
+static int building_type_attr_is(building_type type, const char *text_id)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::strcmp(definition->attr(), text_id) == 0;
+}
+
+static int building_type_attr_is_any(building_type type, const char *const *text_ids, int text_id_count)
 {
     for (int i = 0; i < text_id_count; ++i) {
-        if (type_matches(type, text_ids[i])) {
+        if (building_type_attr_is(type, text_ids[i])) {
             return 1;
         }
     }
@@ -168,12 +182,12 @@ static int type_matches_any(building_type type, const char *const *text_ids, int
 
 static int is_warehouse_type(building_type type)
 {
-    return type_matches(type, "warehouse");
+    return building_type_attr_is(type, "warehouse");
 }
 
 static int is_granary_type(building_type type)
 {
-    return type_matches(type, "granary");
+    return building_type_attr_is(type, "granary");
 }
 
 static int is_vacant_lot_fill_type(building_type type)
@@ -183,52 +197,52 @@ static int is_vacant_lot_fill_type(building_type type)
 
 static int is_plaza_type(building_type type)
 {
-    return type_matches(type, "plaza");
+    return building_type_attr_is(type, "plaza");
 }
 
 static int is_roadblock_type(building_type type)
 {
-    return type_matches(type, "roadblock");
+    return building_type_attr_is(type, "roadblock");
 }
 
 static int is_gatehouse_type(building_type type)
 {
-    return type_matches(type, "gatehouse");
+    return building_type_attr_is(type, "gatehouse");
 }
 
 static int is_triumphal_arch_type(building_type type)
 {
-    return type_matches(type, "triumphal_arch");
+    return building_type_attr_is(type, "triumphal_arch");
 }
 
 static int is_draggable_reservoir_type(building_type type)
 {
-    return type_matches(type, "draggable_reservoir");
+    return building_type_attr_is(type, "draggable_reservoir");
 }
 
 static int is_aqueduct_type(building_type type)
 {
-    return type_matches(type, "aqueduct");
+    return building_type_attr_is(type, "aqueduct");
 }
 
 static int is_hippodrome_type(building_type type)
 {
-    return type_matches(type, "hippodrome");
+    return building_type_attr_is(type, "hippodrome");
 }
 
 static int is_road_type(building_type type)
 {
-    return type_matches(type, "road");
+    return building_type_attr_is(type, "road");
 }
 
 static int is_highway_type(building_type type)
 {
-    return type_matches(type, "highway");
+    return building_type_attr_is(type, "highway");
 }
 
 static int is_grand_temple_neptune_type(building_type type)
 {
-    return type_matches(type, "grand_temple_neptune");
+    return building_type_attr_is(type, "grand_temple_neptune");
 }
 
 static int is_dock_type(building_type type)
@@ -240,12 +254,12 @@ static int is_dock_type(building_type type)
 
 static int is_bridge_type(building_type type)
 {
-    return type_matches(type, "low_bridge") || type_matches(type, "ship_bridge");
+    return building_type_attr_is(type, "low_bridge") || building_type_attr_is(type, "ship_bridge");
 }
 
 static int is_ship_bridge_type(building_type type)
 {
-    return type_matches(type, "ship_bridge");
+    return building_type_attr_is(type, "ship_bridge");
 }
 
 static int is_waterside_type(building_type type)
@@ -254,7 +268,7 @@ static int is_waterside_type(building_type type)
         return 1;
     }
     static const char *const text_ids[] = { "shipyard", "wharf" };
-    return type_matches_any(type, text_ids, sizeof(text_ids) / sizeof(text_ids[0]));
+    return building_type_attr_is_any(type, text_ids, sizeof(text_ids) / sizeof(text_ids[0]));
 }
 
 static int is_road_surface_type(building_type type)
@@ -271,7 +285,7 @@ static int is_road_surface_type(building_type type)
         "gatehouse",
         "triumphal_arch"
     };
-    return type_matches_any(type, text_ids, sizeof(text_ids) / sizeof(text_ids[0])) ||
+    return building_type_attr_is_any(type, text_ids, sizeof(text_ids) / sizeof(text_ids[0])) ||
         is_bridge_type(type);
 }
 
@@ -737,20 +751,20 @@ static int is_fully_blocked(int map_x, int map_y, building_type type, int buildi
     if (!building_construction_can_place_on_terrain(x, y, 0, 0)) {
         return 1;
     }
-    if (type_matches(type, "senate") && city_buildings_has_senate()) {
+    if (building_type_attr_is(type, "senate") && city_buildings_has_senate()) {
         return 1;
     }
-    if (type_matches(type, "city_mint") && (!city_buildings_has_senate() || city_buildings_has_city_mint())) {
+    if (building_type_attr_is(type, "city_mint") && (!city_buildings_has_senate() || city_buildings_has_city_mint())) {
         return 1;
     }
-    if (type_matches(type, "caravanserai") && city_buildings_has_caravanserai()) {
+    if (building_type_attr_is(type, "caravanserai") && city_buildings_has_caravanserai()) {
         return 1;
     }
-    if (type_matches(type, "barracks") && city_buildings_has_barracks() &&
+    if (building_type_attr_is(type, "barracks") && city_buildings_has_barracks() &&
         !config_get(CONFIG_GP_CH_MULTIPLE_BARRACKS)) {
         return 1;
     }
-    if (type_matches(type, "mess_hall") && city_buildings_has_mess_hall()) {
+    if (building_type_attr_is(type, "mess_hall") && city_buildings_has_mess_hall()) {
         return 1;
     }
     if (is_plaza_type(type) && !map_terrain_is(grid_offset, TERRAIN_ROAD)) {
@@ -939,7 +953,7 @@ static void draw_default(const map_tile *tile, int x_view, int y_view, building_
                     discouraged_terrain &= ~TERRAIN_BUILDING;
                 }
             }
-            if (type_matches(type, "tower")) {
+            if (building_type_attr_is(type, "tower")) {
                 forbidden_terrain &= ~TERRAIN_WALL & ~TERRAIN_BUILDING;
                 discouraged_terrain &= ~TERRAIN_WALL & ~TERRAIN_BUILDING;
             }
@@ -1265,7 +1279,7 @@ static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
 static void draw_fort(const map_tile *tile, int x, int y, building_type type)
 {
     int blocked = 0;
-    building_type fort_ground_type = runtime_type("fort_ground");
+    building_type fort_ground_type = building_type_from_attr("fort_ground");
 
     int building_size_fort = building_properties_for_type(type)->size;
     int num_tiles_fort = building_size_fort * building_size_fort;

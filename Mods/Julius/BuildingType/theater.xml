@@ -12,6 +12,9 @@
     <button group="entertainment" order="10" icon="Health_Culture\Theater" text_key="main_strings.28.31" />
     <sound id="theater" mute_on_enemies="true" />
     <event_data attr="theater" />
+    <culture_modules>
+        <culture_module path="theater" capacity="500" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Theater" />

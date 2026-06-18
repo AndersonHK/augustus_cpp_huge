@@ -1,8 +1,9 @@
 ﻿#pragma once
 
 #include <stdio.h>
+
 #ifdef __cplusplus
-extern "C" {
+#include <string>
 #endif
 
 
@@ -20,6 +21,10 @@ enum {
     LIST_MATCH = 2
 };
 
+#ifdef __cplusplus
+extern "C++" {
+#endif
+
 /**
  * Sets the base path for Julius
  * @param path The path to be set as the base
@@ -30,12 +35,12 @@ int platform_file_manager_set_base_path(const char *path);
 /**
  * Gets a directory location for the specified type
  * @param location The location to get
- * @param user_directory The user directory to use, or 0 to use the one from the preferences
+ * @param user_directory The user directory to use, or nullptr to use the one from the preferences
  * @return The path for the provided location, or an empty string if the location is the base path.
  *         If there is an actual path, it is guaranteeed to end with "/".
- *         The return value is a pointer to a static buffer, so it should be copied if needed.
  */
-const char *platform_file_manager_get_directory_for_location(int location, const char *user_directory);
+std::string platform_file_manager_get_directory_for_location(
+    int location, const char *user_directory = nullptr);
 
 /**
  * Checks if a directory is writeable

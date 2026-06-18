@@ -27,6 +27,7 @@
 #include "building/animations.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
 #include "building/dock.h"
 #include "widget/city_draw.h"
 
@@ -79,19 +80,21 @@ static const int ADJACENT_OFFSETS[2][4][7] = {
     }
 };
 
-static building_type runtime_type(const char *text_id)
+static const building_type_registry_impl::BuildingType *building_type_definition_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
+            return definition.get();
+        }
+    }
+    return nullptr;
 }
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    return building.is_type(runtime_type(text_id));
+    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    return definition && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static struct {
@@ -260,7 +263,8 @@ static void draw_footprint(int x, int y, int grid_offset)
         }
     }
     if (map_terrain_is(grid_offset, TERRAIN_GARDEN)) {
-        sound_city_mark_building_view(runtime_type("gardens"), 0, SOUND_DIRECTION_CENTER, 0);
+        const building_type_registry_impl::BuildingType *gardens = building_type_definition_from_attr("gardens");
+        sound_city_mark_building_view(gardens ? gardens->type() : BUILDING_NONE, 0, SOUND_DIRECTION_CENTER, 0);
     }
 
     // Apply hover effect to non-building tiles if cursor is on them, config enabled, and not scrolling
@@ -669,7 +673,7 @@ static int depot_cart_image_id(resource_type resource)
 
 static void draw_depot_resource(const Building &building, int x, int y)
 {
-    const int image_id = building.has_workers() ?
+    const int image_id = building.worker_count() ?
         depot_cart_image_id(building.depot_order().resource_type) :
         assets_get_image_id("Admin_Logistics", "Cart_Depot_Cat");
     Image::from_id(image_id).draw(x + 11, y, COLOR_MASK_NONE, draw_context.scale);

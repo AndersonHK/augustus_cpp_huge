@@ -73,7 +73,6 @@ extern "C" {
 #include "core/direction.h"
 #include "figure/type.h"
 #include "game/resource.h"
-#include "game/mod_manager.h"
 #include "map/point.h"
 }
 
@@ -84,10 +83,12 @@ extern "C" {
 namespace building_type_registry_impl {
 
 class ProductionMethod;
+class CultureModule;
 class HousingType;
 class StorageType;
 class Distribution;
 class Religion;
+enum class CultureModuleCountMode;
 enum class ReligionTier;
 
 enum class WaterAccessNodeKind {
@@ -170,6 +171,20 @@ enum class GuardTiming {
     AfterLaborSeeker
 };
 
+enum class LaborCategory {
+    None = 0,
+    IndustryCommerce,
+    FoodProduction,
+    Engineering,
+    Water,
+    Prefectures,
+    Military,
+    Entertainment,
+    HealthEducation,
+    GovernanceReligion,
+    Max
+};
+
 enum class SpawnCondition {
     Always,
     Days1Positive,
@@ -206,6 +221,14 @@ enum FoundationTerrainRequirement {
 struct LaborSeekerPolicy {
     LaborSeekerMethod method = LaborSeekerMethod::None;
     int amount = 0;
+};
+
+struct BuildingCultureModule {
+    std::string reference_path;
+    const CultureModule *module = nullptr;
+    int capacity = 0;
+    int upgrade_bonus_capacity = 0;
+    CultureModuleCountMode count_mode;
 };
 
 struct DelayBand {
@@ -594,6 +617,7 @@ public:
     void set_labor_seeker_policy(LaborSeekerPolicy policy);
     void add_spawn_group(SpawnDelayGroup group);
     SpawnDelayGroup *last_spawn_group();
+    void add_culture_module_reference(std::string path, int capacity, int upgrade_bonus_capacity, CultureModuleCountMode count_mode);
     void add_storage_reference(std::string path);
     void add_production_method_reference(std::string path);
     void set_distribution_reference(std::string path);
@@ -601,6 +625,7 @@ public:
     void set_housing_capacity(int capacity);
     void set_housing_transition(HousingTransitionKind kind, std::string text_id);
     void set_vacant_lot_fill_reference(std::string text_id);
+    void resolve_culture_module(const std::string &path, const CultureModule *culture_module);
     void add_storage_type(const StorageType *storage_type);
     void add_production_method(ProductionMethod *production_method);
     void set_distribution(const Distribution *distribution);
@@ -617,6 +642,7 @@ public:
     const BuildButtonDefinition &button() const;
     const std::vector<BuildButtonDefinition> &buttons() const;
     const RoadblockDefinition &roadblock() const;
+    LaborCategory labor_category() const;
     const TileDefinition &tile() const;
     const TempleDefinition &temple() const;
     const SoundDefinition &sound() const;
@@ -643,6 +669,11 @@ public:
     int is_oracle() const;
     int is_grand_temple_mars() const;
     int is_grand_temple_venus() const;
+    int is_theater() const;
+    int is_hippodrome() const;
+    int is_well() const;
+    int is_fountain() const;
+    int is_latrines() const;
     int is_warehouse() const;
     int is_granary() const;
     int is_mess_hall() const;
@@ -651,6 +682,7 @@ public:
     int is_lighthouse() const;
     int is_watchtower() const;
     int is_armoury() const;
+    int production_is_enabled() const;
     const GraphicsTarget *resolve_graphics_target(const Building &building) const;
     const GraphicsTarget *resolve_construction_graphics_target(int phase) const;
     static const GraphicsTarget *resolve_graphics_target_for_image(const BuildingType *definition, const Building &building);
@@ -673,6 +705,7 @@ public:
     int has_labor() const;
     const LaborDefinition &labor() const;
     const std::vector<SpawnDelayGroup> &spawn_groups() const;
+    const std::vector<BuildingCultureModule> &culture_modules() const;
     const std::vector<std::string> &storage_reference_paths() const;
     const std::vector<std::string> &production_method_reference_paths() const;
     const std::string &distribution_reference_path() const;
@@ -689,6 +722,7 @@ public:
     building_type vacant_lot_fill_type() const;
     int has_native_storage() const;
     int has_native_production() const;
+    int has_culture_modules() const;
     int has_distribution() const;
     int has_housing() const;
     int is_vacant_lot() const;
@@ -702,6 +736,7 @@ private:
     FoundationDefinition foundation_;
     std::vector<BuildButtonDefinition> buttons_;
     RoadblockDefinition roadblock_;
+    LaborCategory labor_category_ = LaborCategory::None;
     TileDefinition tile_;
     TempleDefinition temple_;
     SoundDefinition sound_;
@@ -714,6 +749,7 @@ private:
     bool has_construction_ = false;
     LaborDefinition labor_;
     std::vector<SpawnDelayGroup> spawn_groups_;
+    std::vector<BuildingCultureModule> culture_modules_;
     std::vector<std::string> storage_reference_paths_;
     std::vector<std::string> production_method_reference_paths_;
     std::string distribution_reference_path_;

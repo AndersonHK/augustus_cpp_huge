@@ -12,6 +12,9 @@
     <button group="entertainment" order="20" icon="Health_Culture\Amphitheater" text_key="main_strings.28.30" />
     <sound id="amphitheater" mute_on_enemies="true" />
     <event_data attr="amphitheater" />
+    <culture_modules>
+        <culture_module path="amphitheater" capacity="800" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Amphitheater" />

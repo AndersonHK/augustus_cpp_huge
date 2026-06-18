@@ -49,8 +49,8 @@ static std::string rewrite_video_filename(std::string_view filename, std::string
 
 static const char *resolve_videos_path(const std::string &candidate, std::string_view fallback)
 {
-    const char *community_location = platform_file_manager_get_directory_for_location(PATH_LOCATION_COMMUNITY, 0);
-    if (community_location && candidate.starts_with(community_location)) {
+    const std::string community_location = platform_file_manager_get_directory_for_location(PATH_LOCATION_COMMUNITY);
+    if (!community_location.empty() && candidate.starts_with(community_location)) {
         return fallback.data();
     }
     return dir_get_file(candidate.c_str(), MAY_BE_LOCALIZED);

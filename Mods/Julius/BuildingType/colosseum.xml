@@ -12,6 +12,9 @@
     <button group="entertainment" order="30" icon="Health_Culture\Colosseum" text_key="main_strings.28.33" />
     <sound id="colosseum" mute_on_enemies="true" />
     <event_data attr="colosseum" />
+    <culture_modules>
+        <culture_module path="colosseum" capacity="1500" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Colosseum" />

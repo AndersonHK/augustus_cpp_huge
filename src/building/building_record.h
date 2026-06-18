@@ -35,6 +35,7 @@ typedef struct building {
     unsigned char road_network_id;
     unsigned short created_sequence;
     short houses_covered;
+    float labor_access_score;
     short percentage_houses_covered;
     short house_population;
     short local_workforce_assigned;

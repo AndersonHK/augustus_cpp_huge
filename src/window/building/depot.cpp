@@ -6,6 +6,7 @@
 #include "assets/assets.h"
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/building_record.h"
 #include "building/count.h"
 #include "building/data_transfer.h"
@@ -28,14 +29,14 @@
 #include "game/resource_graphics.h"
 #include "graphics/image.h"
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static int type_matches(building_type type, const char *text_id)
 {
-    return type == runtime_type(text_id);
+    return type == type_from_attr(text_id);
 }
 
 static translation_key order_condition_key(order_condition_type condition_type)
@@ -184,7 +185,7 @@ static void setup_buttons_for_selected_depot(void)
         building *store_building = building_get(storage->building_id);
         if (!storage->in_use || !storage->building_id || store_building->state == BUILDING_STATE_MOTHBALLED ||
         (!resource_is_food(data.target_resource_id) &&
-            building_type_registry_is_granary(static_cast<building_type>(store_building->type)))) {
+            Building(store_building).type().is_granary())) {
             continue;
         }
         int max_storable = building_storage_resource_max_storable(Building(store_building), data.target_resource_id);
@@ -220,7 +221,7 @@ static void setup_buttons_for_selected_depot(void)
         building *store_building = building_get(storage->building_id);
         if (!storage->building_id ||
         (!resource_is_food(data.target_resource_id) &&
-            building_type_registry_is_granary(static_cast<building_type>(store_building->type)))) {
+            Building(store_building).type().is_granary())) {
             continue;
         }
         // Only include inactive storages that have a valid storage_id and weren't already counted in first pass
@@ -273,8 +274,8 @@ static void calculate_available_storages(int building_id)
             continue; // skip rubble buildings
         }
         if (!store || !building_id ||
-            (!resource_is_food(data.target_resource_id) &&
-                building_type_registry_is_granary(static_cast<building_type>(store->type)))) {
+        (!resource_is_food(data.target_resource_id) &&
+            Building(store).type().is_granary())) {
             continue;
         }
         if (active && max_storable > 0) {
@@ -410,7 +411,7 @@ static void depot_draw_cart_status(const building *b, building_info_context *c)
                 case FIGURE_ACTION_239_DEPOT_CART_PUSHER_HEADING_TO_SOURCE:
                 {
                     building *src = building_get(f->destination_building_id);
-    text_draw(translation_for((src && building_type_registry_is_granary(static_cast<building_type>(src->type)))
+        text_draw(translation_for((src && Building(src).type().is_granary())
                             ? "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_FOOD"
                             : "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_GOODS"),
                         x_action, y_pos, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
@@ -680,7 +681,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
         if (!storage->in_use || !storage->building_id || store_building->state == BUILDING_STATE_MOTHBALLED ||
             store_building->state == BUILDING_STATE_RUBBLE ||
         (!resource_is_food(data.target_resource_id) &&
-            building_type_registry_is_granary(static_cast<building_type>(store_building->type)))) {
+            Building(store_building).type().is_granary())) {
             continue;
         }
 
@@ -744,7 +745,7 @@ void window_building_draw_depot_select_source_destination(building_info_context 
         building *store_building = building_get(storage->building_id);
         if (!storage->in_use || !storage->building_id ||
         (!resource_is_food(data.target_resource_id) &&
-            building_type_registry_is_granary(static_cast<building_type>(store_building->type)))) {
+            Building(store_building).type().is_granary())) {
             continue;
         }
 

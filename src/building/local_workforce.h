@@ -18,6 +18,8 @@ void building_local_workforce_save_state(buffer *buf);
 void building_local_workforce_load_state(buffer *buf, int has_saved_state);
 
 int building_local_workforce_is_workforce_building(const building *b);
+void building_local_workforce_refresh_access_score(building *b);
+void building_local_workforce_refresh_access_scores(void);
 int building_local_workforce_access_score(const building *b);
 int building_local_workforce_house_available_workers(building *house);
 int building_local_workforce_labor_seeker_is_workforce(const figure *f);

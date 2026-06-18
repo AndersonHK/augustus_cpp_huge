@@ -3,43 +3,46 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
 #include "building/building_type_api.h"
 #include "city/health.h"
 #include "game/state.h"
 
 #include <cstring>
 
-static int type_matches(building_type type, const char *text_id)
+static int building_type_attr_is(building_type type, const char *text_id)
 {
-    return type == building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static int show_building_health(const building *b)
 {
-    return type_matches(b->type, "hospital") || type_matches(b->type, "doctor") ||
-           type_matches(b->type, "barber") || type_matches(b->type, "bathhouse") ||
-           type_matches(b->type, "small_mausoleum") || type_matches(b->type, "large_mausoleum") ||
-           type_matches(b->type, "latrines");
+    return building_type_attr_is(b->type, "hospital") || building_type_attr_is(b->type, "doctor") ||
+           building_type_attr_is(b->type, "barber") || building_type_attr_is(b->type, "bathhouse") ||
+           building_type_attr_is(b->type, "small_mausoleum") || building_type_attr_is(b->type, "large_mausoleum") ||
+           building_type_attr_is(b->type, "latrines");
 }
 
 static int show_building_barber(const building *b)
 {
-    return type_matches(b->type, "barber");
+    return building_type_attr_is(b->type, "barber");
 }
 
 static int show_building_bathhouse(const building *b)
 {
-    return type_matches(b->type, "bathhouse");
+    return building_type_attr_is(b->type, "bathhouse");
 }
 
 static int show_building_clinic(const building *b)
 {
-    return type_matches(b->type, "doctor");
+    return building_type_attr_is(b->type, "doctor");
 }
 
 static int show_building_hospital(const building *b)
 {
-    return type_matches(b->type, "hospital");
+    return building_type_attr_is(b->type, "hospital");
 }
 
 static int show_building_sickness(const building *b)

@@ -119,9 +119,11 @@ std::string format_hash_stamp(const char *prefix, uint64_t hash)
 
 std::string make_julius_localization_root()
 {
-    for (int i = 0; i < mod_manager_get_mod_count(); ++i) {
-        if (strcmp(mod_manager_get_mod_name_at(i), "Julius") == 0) {
-            return append_path_component(mod_manager_get_mod_path_at(i), "Localization");
+    const auto &mod_names = mod_manager::mod_names();
+    const auto &mod_paths = mod_manager::mod_paths();
+    for (size_t i = 0; i < mod_names.size() && i < mod_paths.size(); ++i) {
+        if (mod_names[i] == "Julius") {
+            return append_path_component(mod_paths[i], "Localization");
         }
     }
     return append_path_component("Mods/Julius", "Localization");

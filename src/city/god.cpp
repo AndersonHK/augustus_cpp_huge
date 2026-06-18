@@ -24,6 +24,8 @@
 #include "scenario/property.h"
 #include "scenario/invasion.h"
 
+#include <cstring>
+
 #define TIE 10
 
 #define FLAT_CHANCE_FOR_BLESSING 1
@@ -52,14 +54,21 @@ static int blessing_months_for_god(god_type god, GodBlessingType blessing)
     return definition ? definition->blessing_months(blessing) : 0;
 }
 
-static building_type runtime_type(const char *text_id)
+static building_type type_with_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && text_id && std::strcmp(definition->attr(), text_id) == 0) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
 }
 
 static int count_active(const char *text_id)
 {
-    building_type type = runtime_type(text_id);
+    building_type type = type_with_attr(text_id);
     return type > BUILDING_NONE ? building_count_active(type) : 0;
 }
 

@@ -1,28 +1,26 @@
 #
 
 #include "building/building_record.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/construction_session.h"
 #include "building/tool_mode.h"
+
+#include <string_view>
 
 extern "C" {
 #include "map/grid.h"
 }
 
-static building_type runtime_type(const char *text_id)
+static int type_attr_is(building_type type, std::string_view attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::string_view(definition->attr()) == attr;
 }
 
 static int is_bridge_type(building_type type)
 {
-    return type_matches(type, "low_bridge") || type_matches(type, "ship_bridge");
+    return type_attr_is(type, "low_bridge") || type_attr_is(type, "ship_bridge");
 }
 
 void ConstructionToolSession::clear()

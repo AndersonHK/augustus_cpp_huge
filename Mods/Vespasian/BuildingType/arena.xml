@@ -12,6 +12,9 @@
     <button group="entertainment" order="60" icon="Health_Culture\Arena_OFF" text_key="TR_BUILDING_ARENA" />
     <sound id="arena" mute_on_enemies="true" />
     <event_data attr="arena" />
+    <culture_modules>
+        <culture_module path="arena" capacity="2500" upgrade_bonus="500" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Arena_OFF" />

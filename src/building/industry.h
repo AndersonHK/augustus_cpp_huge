@@ -1,12 +1,12 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "building/building_fwd.h"
 #include "game/resource.h"
 #include "map/point.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN 20
 

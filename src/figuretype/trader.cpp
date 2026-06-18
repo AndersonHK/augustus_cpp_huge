@@ -89,38 +89,41 @@ static struct {
 
 static resource_type get_least_filled_quota_resource(Building &building, int city_id, signed char trader_buying);
 
-static building_type runtime_type(const char *text_id)
+static const building_type_registry_impl::BuildingType *definition_for_building(const building *b)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
 }
 
-static int type_matches(building_type type, const char *text_id)
+static int definition_attr_is(const building_type_registry_impl::BuildingType *definition, const char *attr)
 {
-    building_type runtime_id = runtime_type(text_id);
-    return runtime_id != BUILDING_NONE && type == runtime_id;
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
-static int building_matches(const building *b, const char *text_id)
+static int building_matches(const building *b, const char *attr)
 {
-    return b && type_matches(b->type, text_id);
+    return definition_attr_is(definition_for_building(b), attr);
 }
 
-static int building_matches(Building &building, const char *text_id)
+static int building_matches(Building &building, const char *attr)
 {
-    building_type runtime_id = runtime_type(text_id);
-    return runtime_id != BUILDING_NONE && building.is_type(runtime_id);
+    return definition_attr_is(building.type_definition(), attr);
 }
 
-static building *first_building(const char *text_id)
+static building *first_building(const char *attr)
 {
-    building_type runtime_id = runtime_type(text_id);
-    return runtime_id == BUILDING_NONE ? nullptr : building_first_of_type(runtime_id);
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_matches(b, attr)) {
+            return b;
+        }
+    }
+    return nullptr;
 }
 
-static int find_building_id(const char *text_id)
+static int find_building_id(const char *attr)
 {
-    building_type runtime_id = runtime_type(text_id);
-    return runtime_id == BUILDING_NONE ? 0 : building_find(runtime_id);
+    building *b = first_building(attr);
+    return b ? b->id : 0;
 }
 
 static int random_initial_wait_ticks(void)

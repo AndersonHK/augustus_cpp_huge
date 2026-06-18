@@ -1,4 +1,5 @@
 #include "building/count.h"
+#include "building/building_type_registry_internal.h"
 #include "city/culture.h"
 #include "city/entertainment.h"
 #include "city/festival.h"
@@ -35,9 +36,9 @@ extern "C" {
 
 static unsigned int focus_button_id;
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static void button_hold_games(const generic_button *button);
@@ -128,13 +129,13 @@ static int draw_background(void)
     inner_panel_draw(32, 60, 36, 8);
 
     // taverns
-    building_type tavern = runtime_type("tavern");
+    building_type tavern = type_from_attr("tavern");
     int tavern_count = building_count_total(tavern);
     lang_text_draw_amount(tavern_count == 1 ? "TR_WINDOW_ADVISOR_ENTERTAINMENT_TAVERN_COVERAGE" : "TR_WINDOW_ADVISOR_ENTERTAINMENT_TAVERN_COVERAGE_PLURAL",
         tavern_count, 40, 67, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(tavern), 150, 67, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     lang_text_draw_centered("main_strings.56.2", 230, 67, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    int width = text_draw_number(city_culture_get_tavern_person_coverage(), '_', " ",
+    int width = text_draw_number(city_culture_module_capacity(building_type_registry_impl::CultureModuleType::Tavern), '_', " ",
         PEOPLE_OFFSET, 67, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     lang_text_draw("main_strings.58.5", PEOPLE_OFFSET + width, 67, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     int pct_tavern = city_culture_coverage_tavern();
@@ -147,11 +148,11 @@ static int draw_background(void)
     }
 
     // theaters
-    building_type theater = building_type_registry_theater_type();
+    building_type theater = type_from_attr("theater");
     lang_text_draw_amount(current_string_amount_key(8, 34, building_count_total(theater)), building_count_total(theater), 40, 87, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(theater), 150, 87, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(city_entertainment_theater_shows(), 230, 87, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    width = text_draw_number(city_culture_get_theatre_person_coverage(), '_', " ",
+    width = text_draw_number(city_culture_module_capacity(building_type_registry_impl::CultureModuleType::Theater), '_', " ",
         PEOPLE_OFFSET, 87, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     lang_text_draw("main_strings.58.5", PEOPLE_OFFSET + width, 87, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     int pct_theater = city_culture_coverage_theater();
@@ -164,11 +165,11 @@ static int draw_background(void)
     }
 
     // amphitheaters
-    building_type amphitheater = runtime_type("amphitheater");
+    building_type amphitheater = type_from_attr("amphitheater");
     lang_text_draw_amount(current_string_amount_key(8, 36, building_count_total(amphitheater)), building_count_total(amphitheater), 40, 107, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(amphitheater), 150, 107, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(city_entertainment_amphitheater_shows(), 230, 107, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    width = text_draw_number(city_culture_get_ampitheatre_person_coverage(), '@', " ",
+    width = text_draw_number(city_culture_module_capacity(building_type_registry_impl::CultureModuleType::Amphitheater), '@', " ",
         PEOPLE_OFFSET, 107, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     lang_text_draw("main_strings.58.5", PEOPLE_OFFSET + width, 107, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     int pct_amphitheater = city_culture_coverage_amphitheater();
@@ -181,12 +182,12 @@ static int draw_background(void)
     }
 
     // arenas
-    building_type arena = runtime_type("arena");
+    building_type arena = type_from_attr("arena");
     int arena_count = building_count_total(arena);
     lang_text_draw_amount(arena_count == 1 ? "TR_WINDOW_ADVISOR_ENTERTAINMENT_ARENA_COVERAGE" : "TR_WINDOW_ADVISOR_ENTERTAINMENT_ARENA_COVERAGE_PLURAL",
         arena_count, 40, 127, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(arena), 150, 127, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    width = text_draw_number(city_culture_get_arena_person_coverage(), '_', " ", PEOPLE_OFFSET, 127, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw_number(city_culture_module_capacity(building_type_registry_impl::CultureModuleType::Arena), '_', " ", PEOPLE_OFFSET, 127, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     lang_text_draw("main_strings.58.5", PEOPLE_OFFSET + width, 127, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(city_entertainment_arena_shows(), 230, 127, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     int pct = city_culture_coverage_arena();
@@ -199,12 +200,12 @@ static int draw_background(void)
     }
 
     // colosseums
-    int has_colosseum = building_count_active(runtime_type("colosseum")) ? 1 : 0;
+    int has_colosseum = building_count_active(type_from_attr("colosseum")) ? 1 : 0;
     lang_text_draw(has_colosseum ? "TR_ADVISOR_ACTIVE_COLOSSEUM" : "TR_ADVISOR_NO_ACTIVE_COLOSSEUM", 45, 148, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     lang_text_draw_centered(current_string_key(57, has_colosseum ? 21 : 10), COVERAGE_OFFSET, 148, COVERAGE_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // hippodromes
-    int has_hippodrome = building_count_active(runtime_type("hippodrome")) ? 1 : 0;
+    int has_hippodrome = building_count_active(type_from_attr("hippodrome")) ? 1 : 0;
     lang_text_draw(has_hippodrome ? "TR_ADVISOR_ACTIVE_HIPPODROME" : "TR_ADVISOR_NO_ACTIVE_HIPPODROME", 45, 168, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     lang_text_draw_centered(current_string_key(57, has_hippodrome ? 21 : 10), COVERAGE_OFFSET, 168, COVERAGE_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 

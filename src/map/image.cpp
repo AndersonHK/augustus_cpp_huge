@@ -1,10 +1,10 @@
 #include "image.h"
 
 #include "building/building.h"
+#include "building/building_type.h"
 #include "building/building_record.h"
 #include "building/image.h"
 #include "building/industry.h"
-#include "building/building_type_api.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "core/image_group.h"
@@ -13,13 +13,15 @@
 #include "map/orientation.h"
 #include "map/tiles.h"
 
+#include <cstring>
+
 static grid_u32 images;
 static grid_u32 images_backup;
 
-static int type_matches(building_type type, const char *text_id)
+static int building_matches(const Building &building, const char *text_id)
 {
-    building_type resolved = building_type_registry_runtime_id_from_text(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 unsigned int map_image_at(int grid_offset)
@@ -82,7 +84,7 @@ void map_image_update_all(void)
                 calc_percentage(record->data.industry.progress, building_industry_get_max_progress(record)));
             continue;
         }
-        if (b.is_bridge() || type_matches(b.type_id(), "wall")) {
+        if (b.is_bridge() || building_matches(b, "wall")) {
             continue; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
         }
         if (b.refresh_graphic_if_native()) {

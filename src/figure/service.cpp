@@ -711,7 +711,7 @@ int figure_service_provide_coverage(figure *f)
             break;
         case FIGURE_ACTOR:
             b = get_entertainment_building(f);
-            if (building_type_registry_is_theater(b->type)) {
+            if (Building(b).type().is_theater()) {
                 houses_serviced = provide_culture(x, y, theater_coverage);
             } else if (type_matches(b->type, "amphitheater")) {
                 houses_serviced = provide_entertainment(x, y,

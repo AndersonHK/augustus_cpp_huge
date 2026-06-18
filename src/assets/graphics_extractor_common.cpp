@@ -1,9 +1,7 @@
 #include "assets/graphics_extractor_common.h"
 
 #include "core/file.h"
-extern "C" {
 #include "platform/file_manager.h"
-}
 
 #include <cstdio>
 #include <cstdlib>

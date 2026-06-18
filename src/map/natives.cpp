@@ -4,6 +4,7 @@
 #include "assets/assets.h"
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/image.h"
 #include "building/list.h"
 #include "building/properties.h"
@@ -24,15 +25,25 @@
 #include "scenario/data.h" // TODO remove this dependency
 #include "scenario/property.h"
 
+#include <cstring>
+
 static building_type xml_type(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (int type = 1; type < BUILDING_TYPE_MAX; type++) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
+        if (definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0) {
+            return static_cast<building_type>(type);
+        }
+    }
+    return BUILDING_NONE;
 }
 
 static int type_matches(building_type type, const char *text_id)
 {
-    building_type resolved = xml_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static int type_matches_any(building_type type, const char *const *text_ids, int count)

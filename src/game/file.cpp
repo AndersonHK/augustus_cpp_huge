@@ -2,6 +2,7 @@
 #include "translation/translation.h"
 
 #include "building/building.h"
+#include "building/building_type_startup_bridge.h"
 #include "building/building_type_api.h"
 #include "building/building_runtime.h"
 #include "building/construction.h"
@@ -86,6 +87,7 @@
 #include "sound/music.h"
 #include "window/plain_message_dialog.h"
 
+#include <string>
 #include <string.h>
 
 static const char MISSION_SAVED_GAMES[][32] = {
@@ -284,7 +286,7 @@ static void check_hippodrome_compatibility(Building b)
 
 static void check_backward_compatibility(void)
 {
-    const building_type hippodrome = building_type_registry_runtime_id_from_text("hippodrome");
+    const building_type hippodrome = building_type_startup_bridge_runtime_id_from_text("hippodrome");
     if (hippodrome == BUILDING_NONE) {
         return;
     }
@@ -504,11 +506,12 @@ int game_file_make_yearly_autosave(void)
 
     char current_save_name[FILE_NAME_MAX];
     char backup_save_name[FILE_NAME_MAX];
+    const std::string savegame_directory = platform_file_manager_get_directory_for_location(PATH_LOCATION_SAVEGAME);
 
     snprintf(current_save_name, FILE_NAME_MAX, "%s%s",
-        platform_file_manager_get_directory_for_location(PATH_LOCATION_SAVEGAME, 0), "autosave-year.svv");
+        savegame_directory.c_str(), "autosave-year.svv");
     snprintf(backup_save_name, FILE_NAME_MAX, "%s%s%d%s",
-        platform_file_manager_get_directory_for_location(PATH_LOCATION_SAVEGAME, 0), "autosave-year-bak-",
+        savegame_directory.c_str(), "autosave-year-bak-",
         next_autosave_slot, ".svv");
 
     platform_file_manager_copy_file(current_save_name, backup_save_name);

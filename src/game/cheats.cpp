@@ -147,12 +147,8 @@ static int parse_integer(uint8_t *string, int *value)
 void game_cheat_activate(void)
 {
     if (window_is(WINDOW_BUILDING_INFO)) {
-        building_type b_type = static_cast<building_type>(window_building_info_get_building_type());
-        if (building_type_registry_is_well(b_type)) {
-            data.is_cheating = 1;
-            return;
-        }
-        data.is_cheating = b_type == building_type_registry_runtime_id_from_text("fountain") ? 1 : 0;
+        Building building = window_building_info_current_building();
+        data.is_cheating = building.id() && (building.type().is_well() || building.type().is_fountain()) ? 1 : 0;
     } else if (data.is_cheating && window_is(WINDOW_MESSAGE_DIALOG)) {
         data.is_cheating = 2;
         scenario_invasion_start_from_cheat();

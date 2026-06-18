@@ -535,16 +535,14 @@ static int load_and_merge_defines()
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
     std::unordered_map<std::string, BirthDefinition> birth_tables;
 
-    const int mod_count = mod_manager_get_mod_count();
-    for (int i = 0; i < mod_count; i++) {
-        const char *mod_path = mod_manager_get_mod_path_at(i);
-        if (!mod_path || !*mod_path) {
+    for (const std::string &mod_path : mod_manager::mod_paths()) {
+        if (mod_path.empty()) {
             continue;
         }
 
         char full_path[FILE_NAME_MAX] = { 0 };
-        if (snprintf(full_path, FILE_NAME_MAX, "%sdefines.xml", mod_path) >= FILE_NAME_MAX) {
-            set_failure_reason("Defines path is too long.", mod_path);
+        if (snprintf(full_path, FILE_NAME_MAX, "%sdefines.xml", mod_path.c_str()) >= FILE_NAME_MAX) {
+            set_failure_reason("Defines path is too long.", mod_path.c_str());
             return 0;
         }
 

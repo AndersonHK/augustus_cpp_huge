@@ -27,27 +27,18 @@ extern "C" {
 
 static const int DOCTOR_HEALING_OFFSETS[] = { 0, 1, 2, 3, 4, 5, 4, 3, 2, 1};
 
-static building_type runtime_type(const char *text_id)
+static int building_matches(const building *b, const char *attr)
 {
-    if (!text_id) {
-        return BUILDING_NONE;
-    }
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
-static int type_matches(building_type type, const char *text_id)
+static int first_plague_building_matching(const char *attr)
 {
-    return type == runtime_type(text_id);
-}
-
-static int first_plague_building_of_type(const char *text_id)
-{
-    building_type type = runtime_type(text_id);
-    if (type <= BUILDING_NONE) {
-        return 0;
-    }
-    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
-        if (b->has_plague) {
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        if (building_matches(b, attr) && b->has_plague) {
             return b->id;
         }
     }
@@ -219,7 +210,7 @@ void figure_school_child_action(figure *f)
     f->max_roam_length = 192;
 
     building *b = building_get(f->building_id);
-    if (b->state != BUILDING_STATE_IN_USE || !type_matches(b->type, "school")) {
+    if (b->state != BUILDING_STATE_IN_USE || !building_matches(b, "school")) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -311,11 +302,11 @@ static int fight_plague(figure *f, int force)
 
     // If no docks, find in warehouses
     if (!building_with_plague_id) {
-        building_with_plague_id = first_plague_building_of_type("warehouse");
+        building_with_plague_id = first_plague_building_matching("warehouse");
 
         // If no warehouse, find in granaries
         if (!building_with_plague_id) {
-            building_with_plague_id = first_plague_building_of_type("granary");
+            building_with_plague_id = first_plague_building_matching("granary");
         }
     }
 

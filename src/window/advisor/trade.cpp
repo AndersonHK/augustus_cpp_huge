@@ -1,4 +1,5 @@
 #include "game/resource_graphics.h"
+#include "building/building_type_registry_internal.h"
 #include "translation/translation.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
@@ -106,15 +107,15 @@ static struct {
     trade_policy_type policy_type;
 } data;
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *text_id)
 {
-    building_type type = building_type_registry_runtime_id_from_text(text_id);
+    building_type type = building_type_registry_impl::type_from_attr(text_id);
     return type > BUILDING_NONE ? type : BUILDING_NONE;
 }
 
 static int monument_working(const char *text_id)
 {
-    building_type type = runtime_type(text_id);
+    building_type type = type_from_attr(text_id);
     return type > BUILDING_NONE && building_monument_working(type);
 }
 

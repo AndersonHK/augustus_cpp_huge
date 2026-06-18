@@ -8,6 +8,7 @@
 #include "building/barracks.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 
 extern "C" {
@@ -32,6 +33,7 @@ extern "C" {
 #include "map/terrain.h"
 }
 
+#include <cstring>
 
 #define NON_STORABLE_RESOURCE_CARTPUSHER_MAX_WAIT_TICKS 300
 #define VALID_MONUMENT_RECHECK_TICKS 60
@@ -40,15 +42,11 @@ extern "C" {
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-static building_type runtime_type(const char *text_id)
+static int building_matches(const building *b, const char *attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int building_matches(const building *b, const char *text_id)
-{
-    building_type type = runtime_type(text_id);
-    return b && type != BUILDING_NONE && b->type == type;
+    const building_type_registry_impl::BuildingType *definition =
+        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
 static int is_warehouse_storage(const building *b)

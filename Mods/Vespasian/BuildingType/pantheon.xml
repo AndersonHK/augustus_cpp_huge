@@ -14,6 +14,9 @@
     <sound id="oracle" />
     <event_data attr="pantheon" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="temple_active" capacity="1500" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Monuments\Pantheon_Off" />

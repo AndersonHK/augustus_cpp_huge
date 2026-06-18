@@ -16,23 +16,21 @@
 #include "scenario/criteria.h"
 #include "scenario/property.h"
 
+#include <cstring>
+
 #define MONUMENT_CULTURE_BONUS 6
 #define GAMES_MONTHLY_FAVOUR_BONUS 2
 
-static building_type runtime_type(const char *text_id)
+static int building_matches(const Building &building, const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    return type && text_id && std::strcmp(type->attr(), text_id) == 0;
 }
 
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
-}
-
-static int type_matches_any(building_type type, const char *const *text_ids)
+static int building_matches_any(const Building &building, const char *const *text_ids)
 {
     for (int i = 0; text_ids[i]; i++) {
-        if (type_matches(type, text_ids[i])) {
+        if (building_matches(building, text_ids[i])) {
             return 1;
         }
     }
@@ -41,8 +39,14 @@ static int type_matches_any(building_type type, const char *const *text_ids)
 
 static int count_active(const char *text_id)
 {
-    building_type type = runtime_type(text_id);
-    return type > BUILDING_NONE ? building_count_active(type) : 0;
+    int active = 0;
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        if (building_is_active(b) && b == building_main(b) && building_matches(Building(b), text_id)) {
+            active++;
+        }
+    }
+    return active;
 }
 
 int city_rating_culture(void)
@@ -100,8 +104,9 @@ void city_ratings_reduce_prosperity_after_bailout(void)
     city_data.ratings.prosperity_explanation = 8;
 }
 
-void city_ratings_peace_building_destroyed(building_type type)
+void city_ratings_peace_building_destroyed(const Building &building)
 {
+    const building_type type = building.type_id();
     static const char *PEACE_EXEMPT_SECURITY_BUILDINGS[] = {
         "prefecture",
         "engineers_post",
@@ -114,14 +119,15 @@ void city_ratings_peace_building_destroyed(building_type type)
         nullptr
     };
 
-    if (building_type_registry_is_well(type)) {
+    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    if (definition && definition->is_well()) {
         return;
     }
     int legacy_house_level = building_type_registry_get_housing_level(type);
     if (legacy_house_level == HOUSE_SMALL_TENT || legacy_house_level == HOUSE_LARGE_TENT) {
         return;
     }
-    if (building_is_fort(type) || type_matches_any(type, PEACE_EXEMPT_SECURITY_BUILDINGS)) {
+    if (building_is_fort(type) || building_matches_any(building, PEACE_EXEMPT_SECURITY_BUILDINGS)) {
         return;
     }
     city_data.ratings.peace_destroyed_buildings++;

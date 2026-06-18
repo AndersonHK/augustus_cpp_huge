@@ -6,6 +6,7 @@
 
 #include "building/housing_type.h"
 #include "building/industry.h"
+#include "building/production_method.h"
 #include "building/religion.h"
 
 extern "C" {
@@ -14,6 +15,7 @@ extern "C" {
 #include "city/constants.h"
 }
 
+#include <initializer_list>
 #include <utility>
 
 namespace building_type_registry_impl {
@@ -636,9 +638,81 @@ const std::vector<ConstructionPhase> &ConstructionDefinition::phases() const
     return phases_;
 }
 
+static bool attr_is(const std::string &attr, const char *text_id)
+{
+    return attr == text_id;
+}
+
+static bool attr_is_any(const std::string &attr, std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (attr_is(attr, text_id)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static LaborCategory determine_labor_category(building_type type, const std::string &attr)
+{
+    if (attr_is(attr, "theater") || attr_is_any(attr, {
+        "amphitheater", "hippodrome", "colosseum", "gladiator_school", "lion_house",
+        "actor_colony", "chariot_maker", "tavern", "arena"
+    })) {
+        return LaborCategory::Entertainment;
+    }
+    if (attr_is_any(attr, {
+        "gatehouse", "tower", "military_academy", "barracks", "mess_hall",
+        "watchtower", "armoury"
+    })) {
+        return LaborCategory::Military;
+    }
+    if (attr_is_any(attr, {
+        "small_temple_ceres", "large_temple_ceres", "grand_temple_ceres",
+        "small_temple_neptune", "large_temple_neptune", "grand_temple_neptune",
+        "small_temple_mercury", "large_temple_mercury", "grand_temple_mercury",
+        "small_temple_mars", "large_temple_mars", "grand_temple_mars",
+        "small_temple_venus", "large_temple_venus", "grand_temple_venus",
+        "pantheon", "senate", "forum", "oracle", "lighthouse", "caravanserai"
+    })) {
+        return LaborCategory::GovernanceReligion;
+    }
+    if (attr_is_any(attr, {
+        "market", "warehouse", "dock", "city_mint", "concrete_maker",
+        "brickworks", "depot", "distribution_center_unused"
+    })) {
+        return LaborCategory::IndustryCommerce;
+    }
+    if (attr_is_any(attr, {"granary", "shipyard", "wharf"})) {
+        return LaborCategory::FoodProduction;
+    }
+    if (attr_is_any(attr, {"engineers_post", "workcamp", "architect_guild"})) {
+        return LaborCategory::Engineering;
+    }
+    if (attr_is(attr, "fountain")) {
+        return LaborCategory::Water;
+    }
+    if (attr_is(attr, "prefecture")) {
+        return LaborCategory::Prefectures;
+    }
+    if (attr_is_any(attr, {
+        "doctor", "hospital", "bathhouse", "barber", "school", "academy",
+        "library", "mission_post", "latrines"
+    })) {
+        return LaborCategory::HealthEducation;
+    }
+
+    resource_type output = building_output_resource(type);
+    if (output != RESOURCE_NONE) {
+        return resource_is_food(output) ? LaborCategory::FoodProduction : LaborCategory::IndustryCommerce;
+    }
+    return LaborCategory::None;
+}
+
 BuildingType::BuildingType(building_type type, std::string attr)
     : type_(type)
     , attr_(std::move(attr))
+    , labor_category_(determine_labor_category(type_, attr_))
 {
 }
 
@@ -914,6 +988,16 @@ void BuildingType::add_spawn_group(SpawnDelayGroup group)
     spawn_groups_.push_back(std::move(group));
 }
 
+void BuildingType::add_culture_module_reference(std::string path, int capacity, int upgrade_bonus_capacity, CultureModuleCountMode count_mode)
+{
+    BuildingCultureModule module;
+    module.reference_path = std::move(path);
+    module.capacity = capacity;
+    module.upgrade_bonus_capacity = upgrade_bonus_capacity;
+    module.count_mode = count_mode;
+    culture_modules_.push_back(std::move(module));
+}
+
 void BuildingType::add_storage_reference(std::string path)
 {
     storage_reference_paths_.push_back(std::move(path));
@@ -960,6 +1044,16 @@ void BuildingType::set_housing_transition(HousingTransitionKind kind, std::strin
 void BuildingType::set_vacant_lot_fill_reference(std::string text_id)
 {
     vacant_lot_fill_to_ = std::move(text_id);
+}
+
+void BuildingType::resolve_culture_module(const std::string &path, const CultureModule *culture_module)
+{
+    for (BuildingCultureModule &module : culture_modules_) {
+        if (module.reference_path == path) {
+            module.module = culture_module;
+            return;
+        }
+    }
 }
 
 void BuildingType::add_storage_type(const StorageType *storage_type)
@@ -1054,6 +1148,11 @@ const std::vector<BuildButtonDefinition> &BuildingType::buttons() const
 const RoadblockDefinition &BuildingType::roadblock() const
 {
     return roadblock_;
+}
+
+LaborCategory BuildingType::labor_category() const
+{
+    return labor_category_;
 }
 
 const TileDefinition &BuildingType::tile() const
@@ -1195,6 +1294,31 @@ int BuildingType::is_grand_temple_venus() const
     return is_temple(GOD_VENUS, ReligionTier::Grand);
 }
 
+int BuildingType::is_theater() const
+{
+    return attr_ == "theater";
+}
+
+int BuildingType::is_hippodrome() const
+{
+    return attr_ == "hippodrome";
+}
+
+int BuildingType::is_well() const
+{
+    return attr_ == "well";
+}
+
+int BuildingType::is_fountain() const
+{
+    return attr_ == "fountain";
+}
+
+int BuildingType::is_latrines() const
+{
+    return attr_ == "latrines";
+}
+
 int BuildingType::is_warehouse() const
 {
     return attr_ == "warehouse";
@@ -1233,6 +1357,19 @@ int BuildingType::is_watchtower() const
 int BuildingType::is_armoury() const
 {
     return attr_ == "armoury";
+}
+
+int BuildingType::production_is_enabled() const
+{
+    if (production_methods_.empty()) {
+        return 1;
+    }
+    for (const ProductionMethod *method : production_methods_) {
+        if (method && method->is_enabled()) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 const GraphicsTarget *BuildingType::resolve_graphics_target(const Building &building) const
@@ -1414,6 +1551,11 @@ const std::string &BuildingType::housing_transition_reference(HousingTransitionK
     return housing_evolve_to_;
 }
 
+const std::vector<BuildingCultureModule> &BuildingType::culture_modules() const
+{
+    return culture_modules_;
+}
+
 const std::vector<const StorageType *> &BuildingType::storage_types() const
 {
     return storage_types_;
@@ -1462,6 +1604,16 @@ int BuildingType::has_native_storage() const
 int BuildingType::has_native_production() const
 {
     return !production_methods_.empty();
+}
+
+int BuildingType::has_culture_modules() const
+{
+    for (const BuildingCultureModule &module : culture_modules_) {
+        if (module.module) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int BuildingType::has_distribution() const

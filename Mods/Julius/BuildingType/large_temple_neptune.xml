@@ -14,6 +14,9 @@
     <sound id="temple_neptune" />
     <event_data attr="large_temple_neptune" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="temple_active" capacity="1500" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Temple_Neptune" />

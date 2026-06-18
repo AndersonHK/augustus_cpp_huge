@@ -419,7 +419,7 @@ static int load_resource_definitions()
     loaded_resources.clear();
     production_resources.clear();
 
-    const std::string resource_path = std::string(mod_manager_get_mod_path()) + "Resources/";
+    const std::string resource_path = mod_manager::mod_path() + "Resources/";
     const dir_listing *files = dir_find_files_with_extension(resource_path.c_str(), "xml");
     if (!files || files->num_files <= 0) {
         log_error("No Resource xml files found in", resource_path.c_str(), 0);

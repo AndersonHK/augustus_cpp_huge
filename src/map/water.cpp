@@ -2,7 +2,7 @@
 #include "water.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type.h"
 #include "building/image.h"
 #include "city/view.h"
 #include "map/building.h"
@@ -12,6 +12,8 @@
 #include "map/point.h"
 #include "map/property.h"
 #include "map/terrain.h"
+
+#include <cstring>
 
 #define OFFSET(x,y) ((x) + GRID_SIZE * (y))
 
@@ -259,12 +261,14 @@ int map_water_has_water_in_front(int x, int y, int adjust_xy, const waterside_ti
 int map_water_get_wharf_for_new_fishing_boat(figure *boat, map_point *tile)
 {
     building *wharf = 0;
-    building_type wharf_type = building_type_registry_runtime_id_from_text("wharf");
-    if (wharf_type == BUILDING_NONE) {
-        return 0;
-    }
-    for (building *b = building_first_of_type(wharf_type); b; b = b->next_of_type) {
-        if (b->state == BUILDING_STATE_IN_USE) {
+    for (int i = 1; i < Building::count(); i++) {
+        Building candidate = Building::from_id(i);
+        if (candidate.state_id() != BUILDING_STATE_IN_USE) {
+            continue;
+        }
+        const building_type_registry_impl::BuildingType *definition = candidate.type_definition();
+        if (definition && definition->attr() && std::strcmp(definition->attr(), "wharf") == 0) {
+            building *b = candidate.legacy_record();
             int wharf_boat_id = b->data.industry.fishing_boat_id;
             if (!wharf_boat_id || wharf_boat_id == (int) boat->id) {
                 wharf = b;

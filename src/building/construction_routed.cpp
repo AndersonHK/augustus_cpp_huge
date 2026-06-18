@@ -3,7 +3,6 @@
 #include "core/calc.h"
 #include "core/config.h"
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/connectable.h"
 #include "building/construction.h"
 #include "building/properties.h"
@@ -20,11 +19,6 @@
 #include "graphics/window.h"
 
 #include <stdlib.h>
-
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
 
 static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
     routed_building_type type, int *items, int measure_only)
@@ -167,11 +161,16 @@ int building_construction_place_highway(int measure_only, int x_start, int y_sta
     return items_placed;
 }
 
-int building_construction_place_aqueduct(int x_start, int y_start, int x_end, int y_end, int *cost)
+int building_construction_place_aqueduct(
+    building_type aqueduct_type, int x_start, int y_start, int x_end, int y_end, int *cost)
 {
     game_undo_restore_map(0);
 
-    int item_cost = model_get_building(runtime_type("aqueduct"))->cost;
+    const model_building *model = model_get_building(aqueduct_type);
+    if (!model) {
+        return 0;
+    }
+    int item_cost = model->cost;
     *cost = 0;
     int blocked = 0;
     int grid_offset = map_grid_offset(x_start, y_start);

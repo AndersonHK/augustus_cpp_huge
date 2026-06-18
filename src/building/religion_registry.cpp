@@ -7,13 +7,13 @@
 #include "core/crash_context.h"
 #include "core/xml_definition.h"
 #include "core/xml_value.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
 extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
 }
 
 #include <cstdio>
@@ -233,7 +233,7 @@ const Religion *find_religion_definition(const char *path)
 
 extern "C" const char *religion_registry_get_religion_path(void)
 {
-    building_type_registry_impl::g_religion_path = std::string(mod_manager_get_mod_path()) + "Religions/";
+    building_type_registry_impl::g_religion_path = mod_manager::mod_path() + "Religions/";
     return building_type_registry_impl::g_religion_path.c_str();
 }
 

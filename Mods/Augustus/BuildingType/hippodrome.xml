@@ -13,6 +13,9 @@
     <flags fire_proof="1" />
     <sound id="hippodrome" mute_on_enemies="true" />
     <event_data attr="hippodrome" />
+    <culture_modules>
+        <culture_module path="hippodrome" capacity="1" count="working" />
+    </culture_modules>
     <labor>
         <employees count="150" />
         <labor_seeker>

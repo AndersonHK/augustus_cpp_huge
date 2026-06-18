@@ -2,10 +2,12 @@
 #include "culture.h"
 
 #include "building/building.h"
+#include "building/culture_module.h"
+#include "building/building_type_registry_internal.h"
 #include "building/building_type_api.h"
-#include "building/count.h"
 #include "building/house.h"
 #include "building/monument.h"
+#include "building/religion.h"
 #include "city/constants.h"
 #include "city/data_private.h"
 #include "city/entertainment.h"
@@ -13,98 +15,8 @@
 #include "city/population.h"
 #include "core/calc.h"
 
-#define LARARIUM_COVERAGE 10
-#define SHRINE_COVERAGE 50
-#define SMALL_TEMPLE_COVERAGE 750
-#define LARGE_TEMPLE_COVERAGE 3000
-#define ORACLE_COVERAGE 500
-#define LARGE_ORACLE_COVERAGE 750
-#define PANTHEON_COVERAGE 1500
-#define GRAND_TEMPLE_COVERAGE 5000
-
-struct religion_building_texts {
-    const char *shrine;
-    const char *small_temple;
-    const char *large_temple;
-    const char *grand_temple;
-};
-
-static building_type runtime_type(const char *text_id)
-{
-    if (!text_id) {
-        return BUILDING_NONE;
-    }
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int active_count(const char *text_id)
-{
-    building_type type = runtime_type(text_id);
-    return type == BUILDING_NONE ? 0 : building_count_active(type);
-}
-
-static int total_count(const char *text_id)
-{
-    building_type type = runtime_type(text_id);
-    return type == BUILDING_NONE ? 0 : building_count_total(type);
-}
-
-static int upgraded_count(const char *text_id)
-{
-    building_type type = runtime_type(text_id);
-    return type == BUILDING_NONE ? 0 : building_count_upgraded(type);
-}
-
-static int working_count(const char *text_id)
-{
-    building_type type = runtime_type(text_id);
-    return type == BUILDING_NONE ? 0 : building_monument_working(type);
-}
-
-static religion_building_texts religion_buildings_for_god(god_type god)
-{
-    switch (god) {
-        case GOD_CERES:
-            return { "shrine_ceres", "small_temple_ceres", "large_temple_ceres", "grand_temple_ceres" };
-        case GOD_NEPTUNE:
-            return { "shrine_neptune", "small_temple_neptune", "large_temple_neptune", "grand_temple_neptune" };
-        case GOD_MERCURY:
-            return { "shrine_mercury", "small_temple_mercury", "large_temple_mercury", "grand_temple_mercury" };
-        case GOD_MARS:
-            return { "shrine_mars", "small_temple_mars", "large_temple_mars", "grand_temple_mars" };
-        case GOD_VENUS:
-            return { "shrine_venus", "small_temple_venus", "large_temple_venus", "grand_temple_venus" };
-        default:
-            return {};
-    }
-}
-
-static int religion_person_coverage(god_type god, int larariums, int oracles, int nymphaeums,
-    int small_mausoleums, int large_mausoleums)
-{
-    religion_building_texts buildings = religion_buildings_for_god(god);
-    return
-        LARARIUM_COVERAGE * larariums +
-        ORACLE_COVERAGE * (oracles + small_mausoleums) +
-        LARGE_ORACLE_COVERAGE * (nymphaeums + large_mausoleums) +
-        SHRINE_COVERAGE * total_count(buildings.shrine) +
-        SMALL_TEMPLE_COVERAGE * active_count(buildings.small_temple) +
-        LARGE_TEMPLE_COVERAGE * active_count(buildings.large_temple) +
-        PANTHEON_COVERAGE * active_count("pantheon") +
-        GRAND_TEMPLE_COVERAGE * active_count(buildings.grand_temple);
-}
-
-static int theater_active_count(void)
-{
-    building_type theater = building_type_registry_theater_type();
-    return theater == BUILDING_NONE ? 0 : building_count_active(theater);
-}
-
-static int theater_upgraded_count(void)
-{
-    building_type theater = building_type_registry_theater_type();
-    return theater == BUILDING_NONE ? 0 : building_count_upgraded(theater);
-}
+#include <cstring>
+#include <vector>
 
 static struct {
     int theater;
@@ -120,6 +32,190 @@ static struct {
     int tavern;
     int arena;
 } coverage;
+
+struct culture_module_capacity {
+    int theater;
+    int amphitheater;
+    int colosseum;
+    int colosseum_presence;
+    int hippodrome;
+    int hospital;
+    int school;
+    int academy;
+    int library;
+    int religion[5];
+    int oracle;
+    int tavern;
+    int arena;
+};
+
+static culture_module_capacity module_capacity;
+static std::vector<culture_module_capacity> module_capacity_by_building;
+
+static void clear_capacity(culture_module_capacity &capacity)
+{
+    std::memset(&capacity, 0, sizeof(capacity));
+}
+
+static void add_capacity(culture_module_capacity &target, const culture_module_capacity &source, int sign)
+{
+    target.theater += sign * source.theater;
+    target.amphitheater += sign * source.amphitheater;
+    target.colosseum += sign * source.colosseum;
+    target.colosseum_presence += sign * source.colosseum_presence;
+    target.hippodrome += sign * source.hippodrome;
+    target.hospital += sign * source.hospital;
+    target.school += sign * source.school;
+    target.academy += sign * source.academy;
+    target.library += sign * source.library;
+    target.oracle += sign * source.oracle;
+    target.tavern += sign * source.tavern;
+    target.arena += sign * source.arena;
+    for (int god = GOD_CERES; god <= GOD_VENUS; god++) {
+        target.religion[god] += sign * source.religion[god];
+    }
+}
+
+static int is_main_building(const building *b)
+{
+    return b && building_main(b) == b;
+}
+
+static int is_total_counted(const building *b)
+{
+    return b && is_main_building(b) &&
+        (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED ||
+            b->state == BUILDING_STATE_MOTHBALLED);
+}
+
+static int is_upgrade_bonus_counted(const building *b)
+{
+    return b && is_main_building(b) &&
+        (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED) &&
+        b->upgrade_level > 0;
+}
+
+static int is_working_counted(const building *b)
+{
+    if (!b || !is_main_building(b) || b->state != BUILDING_STATE_IN_USE) {
+        return 0;
+    }
+    if (building_monument_get_id(b->type)) {
+        return building_monument_working(b->type) ? 1 : 0;
+    }
+    return building_is_active(b);
+}
+
+static int module_counted_for_building(const building *b, building_type_registry_impl::CultureModuleCountMode count_mode)
+{
+    switch (count_mode) {
+        case building_type_registry_impl::CultureModuleCountMode::Total:
+            return is_total_counted(b);
+        case building_type_registry_impl::CultureModuleCountMode::Working:
+            return is_working_counted(b);
+        case building_type_registry_impl::CultureModuleCountMode::Active:
+        default:
+            return b && is_main_building(b) && building_is_active(b);
+    }
+}
+
+static void add_religion_capacity(culture_module_capacity &capacity,
+    const building_type_registry_impl::BuildingType &definition,
+    int amount)
+{
+    const building_type_registry_impl::Religion *religion = definition.temple().religion();
+    if (!religion) {
+        for (int god = GOD_CERES; god <= GOD_VENUS; god++) {
+            capacity.religion[god] += amount;
+        }
+        return;
+    }
+    for (int god = GOD_CERES; god <= GOD_VENUS; god++) {
+        if (religion->has_god(static_cast<god_type>(god))) {
+            capacity.religion[god] += amount;
+        }
+    }
+}
+
+static void add_module_capacity_by_type(culture_module_capacity &capacity,
+    const building_type_registry_impl::BuildingType &definition,
+    building_type_registry_impl::CultureModuleType type,
+    int amount)
+{
+    switch (type) {
+        case building_type_registry_impl::CultureModuleType::Theater:
+            capacity.theater += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::Amphitheater:
+            capacity.amphitheater += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::Arena:
+            capacity.arena += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::Colosseum:
+            capacity.colosseum += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::ColosseumPresence:
+            capacity.colosseum_presence += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::Hippodrome:
+            capacity.hippodrome += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::Tavern:
+            capacity.tavern += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::School:
+            capacity.school += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::Library:
+            capacity.library += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::Academy:
+            capacity.academy += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::Hospital:
+            capacity.hospital += amount;
+            break;
+        case building_type_registry_impl::CultureModuleType::Oracle:
+            capacity.oracle += amount;
+            for (int god = GOD_CERES; god <= GOD_VENUS; god++) {
+                capacity.religion[god] += amount;
+            }
+            break;
+        case building_type_registry_impl::CultureModuleType::Temple:
+            add_religion_capacity(capacity, definition, amount);
+            break;
+        case building_type_registry_impl::CultureModuleType::None:
+        default:
+            break;
+    }
+}
+
+static culture_module_capacity calculate_building_module_capacity(const building *b)
+{
+    culture_module_capacity capacity = {};
+    if (!b || !is_main_building(b)) {
+        return capacity;
+    }
+
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b->type);
+    if (!definition || !definition->has_culture_modules()) {
+        return capacity;
+    }
+
+    for (const building_type_registry_impl::BuildingCultureModule &module : definition->culture_modules()) {
+        if (!module.module || !module_counted_for_building(b, module.count_mode)) {
+            continue;
+        }
+        add_module_capacity_by_type(capacity, *definition, module.module->type(), module.capacity);
+        if (module.upgrade_bonus_capacity > 0 && is_upgrade_bonus_counted(b)) {
+            add_module_capacity_by_type(capacity, *definition, module.module->type(), module.upgrade_bonus_capacity);
+        }
+    }
+
+    return capacity;
+}
 
 int city_culture_coverage_tavern(void)
 {
@@ -181,6 +277,84 @@ int city_culture_coverage_hospital(void)
     return coverage.hospital;
 }
 
+int city_culture_module_capacity(building_type_registry_impl::CultureModuleType type)
+{
+    switch (type) {
+        case building_type_registry_impl::CultureModuleType::Theater:
+            return module_capacity.theater;
+        case building_type_registry_impl::CultureModuleType::Amphitheater:
+            return module_capacity.amphitheater;
+        case building_type_registry_impl::CultureModuleType::Arena:
+            return module_capacity.arena;
+        case building_type_registry_impl::CultureModuleType::Colosseum:
+            return module_capacity.colosseum;
+        case building_type_registry_impl::CultureModuleType::ColosseumPresence:
+            return module_capacity.colosseum_presence;
+        case building_type_registry_impl::CultureModuleType::Hippodrome:
+            return module_capacity.hippodrome;
+        case building_type_registry_impl::CultureModuleType::Tavern:
+            return module_capacity.tavern;
+        case building_type_registry_impl::CultureModuleType::School:
+            return module_capacity.school;
+        case building_type_registry_impl::CultureModuleType::Library:
+            return module_capacity.library;
+        case building_type_registry_impl::CultureModuleType::Academy:
+            return module_capacity.academy;
+        case building_type_registry_impl::CultureModuleType::Hospital:
+            return module_capacity.hospital;
+        case building_type_registry_impl::CultureModuleType::Oracle:
+            return module_capacity.oracle;
+        case building_type_registry_impl::CultureModuleType::Temple:
+        case building_type_registry_impl::CultureModuleType::None:
+        default:
+            return 0;
+    }
+}
+
+void city_culture_clear_module_capacity_cache(void)
+{
+    clear_capacity(module_capacity);
+    module_capacity_by_building.clear();
+}
+
+void city_culture_remove_building_module_capacity(const building *b)
+{
+    if (!b || b->id <= 0 || b->id >= static_cast<int>(module_capacity_by_building.size())) {
+        return;
+    }
+
+    add_capacity(module_capacity, module_capacity_by_building[b->id], -1);
+    clear_capacity(module_capacity_by_building[b->id]);
+}
+
+void city_culture_add_building_module_capacity(const building *b)
+{
+    if (!b || b->id <= 0) {
+        return;
+    }
+
+    if (b->id >= static_cast<int>(module_capacity_by_building.size())) {
+        module_capacity_by_building.resize(b->id + 1);
+    }
+
+    city_culture_remove_building_module_capacity(b);
+    module_capacity_by_building[b->id] = calculate_building_module_capacity(b);
+    add_capacity(module_capacity, module_capacity_by_building[b->id], 1);
+}
+
+void city_culture_refresh_building_module_capacity(const building *b)
+{
+    city_culture_add_building_module_capacity(b);
+}
+
+void city_culture_rebuild_module_capacity_cache(void)
+{
+    city_culture_clear_module_capacity_cache();
+    for (int id = 1; id < building_count(); id++) {
+        city_culture_add_building_module_capacity(building_get(id));
+    }
+}
+
 int city_culture_average_education(void)
 {
     return city_data.culture.average_education;
@@ -206,36 +380,30 @@ void city_culture_update_coverage(void)
     int population = city_data.population.population;
 
     // entertainment
-    coverage.tavern = top(calc_percentage(city_culture_get_tavern_person_coverage(), population));
-    coverage.theater = top(calc_percentage(city_culture_get_theatre_person_coverage(), population));
-    coverage.amphitheater = top(calc_percentage(city_culture_get_ampitheatre_person_coverage(), population));
-    coverage.arena = top(calc_percentage(city_culture_get_arena_person_coverage(), population));
+    coverage.tavern = top(calc_percentage(module_capacity.tavern, population));
+    coverage.theater = top(calc_percentage(module_capacity.theater, population));
+    coverage.amphitheater = top(calc_percentage(module_capacity.amphitheater, population));
+    coverage.arena = top(calc_percentage(module_capacity.arena, population));
 
-    if (working_count("hippodrome") <= 0) {
+    if (module_capacity.hippodrome <= 0) {
         coverage.hippodrome = 0;
     } else {
         coverage.hippodrome = 100;
     }
 
-    if (working_count("colosseum") <= 0) {
+    if (module_capacity.colosseum_presence > 0) {
+        coverage.colosseum = 100;
+    } else if (module_capacity.colosseum <= 0) {
         coverage.colosseum = 0;
     } else {
-        coverage.colosseum = 100;
+        coverage.colosseum = top(calc_percentage(module_capacity.colosseum, population));
     }
 
     // religion
-    int oracles = active_count("oracle");
-    int larariums = total_count("lararium");
-    int nymphaeums = active_count("nymphaeum");
-    int small_mausoleums = active_count("small_mausoleum");
-    int large_mausoleums = active_count("large_mausoleum");
     for (int god = GOD_CERES; god <= GOD_VENUS; god++) {
-        coverage.religion[god] = top(calc_percentage(
-            religion_person_coverage(static_cast<god_type>(god), larariums, oracles, nymphaeums,
-                small_mausoleums, large_mausoleums),
-            population));
+        coverage.religion[god] = top(calc_percentage(module_capacity.religion[god], population));
     }
-    coverage.oracle = top(calc_percentage(ORACLE_COVERAGE * oracles, population));
+    coverage.oracle = top(calc_percentage(module_capacity.oracle, population));
 
     city_data.culture.religion_coverage =
         coverage.religion[GOD_CERES] +
@@ -249,15 +417,14 @@ void city_culture_update_coverage(void)
     city_population_calculate_educational_age();
 
     coverage.school = top(calc_percentage(
-        city_culture_get_school_person_coverage(), city_population_school_age()));
+        module_capacity.school, city_population_school_age()));
     coverage.library = top(calc_percentage(
-        city_culture_get_library_person_coverage(), population));
+        module_capacity.library, population));
     coverage.academy = top(calc_percentage(
-        city_culture_get_academy_person_coverage(), city_population_academy_age()));
+        module_capacity.academy, city_population_academy_age()));
 
     // health
-    coverage.hospital = top(calc_percentage(
-        HOSPITAL_COVERAGE * active_count("hospital"), population));
+    coverage.hospital = top(calc_percentage(module_capacity.hospital, population));
 }
 
 void city_culture_calculate(void)
@@ -295,42 +462,6 @@ void city_culture_calculate(void)
     city_entertainment_calculate_shows();
     city_festival_calculate_costs();
 }
-
-int city_culture_get_theatre_person_coverage(void)
-{
-    return THEATER_COVERAGE * theater_active_count() + THEATER_UPGRADE_BONUS_COVERAGE * theater_upgraded_count();
-}
-
-int city_culture_get_school_person_coverage(void)
-{
-    return SCHOOL_COVERAGE * active_count("school") + SCHOOL_UPGRADE_BONUS_COVERAGE * upgraded_count("school");
-}
-
-int city_culture_get_library_person_coverage(void)
-{
-    return LIBRARY_COVERAGE * active_count("library") + LIBRARY_UPGRADE_BONUS_COVERAGE * upgraded_count("library");
-}
-
-int city_culture_get_academy_person_coverage(void)
-{
-    return ACADEMY_COVERAGE * active_count("academy") + ACADEMY_UPGRADE_BONUS_COVERAGE * upgraded_count("academy");
-}
-
-int city_culture_get_tavern_person_coverage(void)
-{
-    return TAVERN_COVERAGE * active_count("tavern") + TAVERN_UPGRADE_BONUS_COVERAGE * upgraded_count("tavern");
-}
-
-int city_culture_get_ampitheatre_person_coverage(void)
-{
-    return AMPHITHEATER_COVERAGE * active_count("amphitheater") + AMPHITHEATER_UPGRADE_BONUS_COVERAGE * upgraded_count("amphitheater");
-}
-
-int city_culture_get_arena_person_coverage(void)
-{
-    return ARENA_COVERAGE * active_count("arena") + ARENA_UPGRADE_BONUS_COVERAGE * upgraded_count("arena");
-}
-
 
 void city_culture_save_state(buffer *buf)
 {

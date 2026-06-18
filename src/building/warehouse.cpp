@@ -43,7 +43,12 @@ static building_type warehouse_type_id()
 {
     static building_type type = BUILDING_NONE;
     if (type == BUILDING_NONE) {
-        type = building_type_registry_impl::runtime_id_from_text("warehouse");
+        for (const auto &definition : building_type_registry_impl::g_building_types) {
+            if (definition && definition->is_warehouse()) {
+                type = definition->type();
+                break;
+            }
+        }
     }
     return type;
 }

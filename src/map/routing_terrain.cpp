@@ -2,7 +2,7 @@
 #include "routing_terrain.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -15,17 +15,15 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 
-static void map_routing_update_land_noncitizen(void);
+#include <cstring>
 
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
+static void map_routing_update_land_noncitizen(void);
 
 static int type_matches(building_type type, const char *text_id)
 {
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static int type_matches_any(building_type type, const char *const *text_ids, int count)

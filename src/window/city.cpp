@@ -73,24 +73,36 @@ extern "C" {
 
 static int time_left_label_shown;
 
-static building_type runtime_type(const char *text_id)
+static building_type building_type_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
-}
-
-static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
-{
-    for (const char *text_id : text_ids) {
-        if (type_matches(type, text_id)) {
-            return 1;
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
+            return definition->type();
         }
     }
-    return 0;
+    return BUILDING_NONE;
+}
+
+static void create_roamer_preview_for_building_attr(const char *text_id)
+{
+    figure_roamer_preview_create_all_for_building_type(building_type_from_attr(text_id));
+}
+
+static bool building_type_attr_is(const building_type_registry_impl::BuildingType &type, const char *text_id)
+{
+    return type.attr() && std::strcmp(type.attr(), text_id) == 0;
+}
+
+static bool building_type_attr_is_any(const building_type_registry_impl::BuildingType &type,
+    std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (building_type_attr_is(type, text_id)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 
@@ -372,66 +384,60 @@ static void show_roamers_for_overlay(int overlay)
     switch (overlay) {
         case OVERLAY_FIRE:
         case OVERLAY_CRIME:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("prefecture"));
+            create_roamer_preview_for_building_attr("prefecture");
             break;
         case OVERLAY_DAMAGE:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("engineers_post"));
+            create_roamer_preview_for_building_attr("engineers_post");
             break;
         case OVERLAY_TAVERN:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("tavern"));
+            create_roamer_preview_for_building_attr("tavern");
             break;
         case OVERLAY_THEATER:
-            {
-                building_type theater = building_type_registry_theater_type();
-                if (theater == BUILDING_NONE) {
-                    break;
-                }
-                figure_roamer_preview_create_all_for_building_type(theater);
-            }
+            create_roamer_preview_for_building_attr("theater");
             break;
         case OVERLAY_AMPHITHEATER:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("amphitheater"));
+            create_roamer_preview_for_building_attr("amphitheater");
             break;
         case OVERLAY_ARENA:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("arena"));
+            create_roamer_preview_for_building_attr("arena");
             break;
         case OVERLAY_COLOSSEUM:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("colosseum"));
+            create_roamer_preview_for_building_attr("colosseum");
             break;
         case OVERLAY_HIPPODROME:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("hippodrome"));
+            create_roamer_preview_for_building_attr("hippodrome");
             break;
         case OVERLAY_SCHOOL:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("school"));
+            create_roamer_preview_for_building_attr("school");
             break;
         case OVERLAY_LIBRARY:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("library"));
+            create_roamer_preview_for_building_attr("library");
             break;
         case OVERLAY_ACADEMY:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("academy"));
+            create_roamer_preview_for_building_attr("academy");
             break;
         case OVERLAY_BARBER:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("barber"));
+            create_roamer_preview_for_building_attr("barber");
             break;
         case OVERLAY_BATHHOUSE:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("bathhouse"));
+            create_roamer_preview_for_building_attr("bathhouse");
             break;
         case OVERLAY_CLINIC:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("doctor"));
+            create_roamer_preview_for_building_attr("doctor");
             break;
         case OVERLAY_HOSPITAL:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("hospital"));
+            create_roamer_preview_for_building_attr("hospital");
             break;
         case OVERLAY_TAX_INCOME:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("forum"));
-            figure_roamer_preview_create_all_for_building_type(runtime_type("senate"));
+            create_roamer_preview_for_building_attr("forum");
+            create_roamer_preview_for_building_attr("senate");
             break;
         case OVERLAY_FOOD_STOCKS:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("market"));
+            create_roamer_preview_for_building_attr("market");
             break;
         case OVERLAY_SICKNESS:
-            figure_roamer_preview_create_all_for_building_type(runtime_type("doctor"));
-            figure_roamer_preview_create_all_for_building_type(runtime_type("hospital"));
+            create_roamer_preview_for_building_attr("doctor");
+            create_roamer_preview_for_building_attr("hospital");
             break;
         case OVERLAY_NONE:
         default:
@@ -452,97 +458,65 @@ static void show_overlay(int overlay)
     window_invalidate();
 }
 
-static building_type get_building_type_from_grid_offset(int grid_offset)
+static int get_overlay_for_building_type(const building_type_registry_impl::BuildingType &type)
 {
-    int terrain = map_terrain_get(grid_offset);
-
-    if (terrain & TERRAIN_BUILDING) {
-        int building_id = map_building_at(grid_offset);
-        if (building_id) {
-            return building_main(building_get(building_id))->type;
-        }
-    } else if (terrain & TERRAIN_AQUEDUCT) {
-        return runtime_type("aqueduct");
-    } else if (terrain & TERRAIN_GARDEN) {
-        if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-            return runtime_type("overgrown_gardens");
-        }
-        return runtime_type("gardens");
-    } else if (terrain & TERRAIN_ROAD) {
-        if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-            return runtime_type("plaza");
-        }
-        return runtime_type("road");
-    } else if (terrain & TERRAIN_HIGHWAY) {
-        return runtime_type("highway");
-    }
-
-    return BUILDING_NONE;
-}
-
-static void show_overlay_from_grid_offset(int grid_offset)
-{
+    const int is_dock = building_type_attr_is(type, "dock");
     int overlay = OVERLAY_NONE;
-    building_type clone_type = get_building_type_from_grid_offset(grid_offset);
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(clone_type);
-    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
-    if (building_type_registry_is_well(clone_type)) {
+
+    if (type.is_well()) {
         overlay = OVERLAY_WATER;
-    } else if (building_type_registry_is_theater(clone_type)) {
+    } else if (type.is_theater()) {
         overlay = OVERLAY_THEATER;
-    } else if (type_matches_any(clone_type, {
+    } else if (building_type_attr_is_any(type, {
         "plaza", "road", "roadblock", "roofed_garden_wall_gate", "looped_garden_gate",
         "panelled_garden_gate", "highway"
     })) {
         overlay = OVERLAY_ROADS;
-    } else if (type_matches_any(clone_type, {"aqueduct", "reservoir", "fountain"})) {
+    } else if (building_type_attr_is_any(type, {"aqueduct", "reservoir", "fountain"})) {
         overlay = OVERLAY_WATER;
-    } else if (building_type_registry_is_temple(clone_type) ||
-        type_matches_any(clone_type, {"lararium", "nymphaeum", "small_mausoleum", "large_mausoleum"})) {
+    } else if (type.is_temple() ||
+        building_type_attr_is_any(type, {"lararium", "nymphaeum", "small_mausoleum", "large_mausoleum"})) {
         overlay = OVERLAY_RELIGION;
-    } else if (type_matches_any(clone_type, {"prefecture", "burning_ruin"})) {
+    } else if (building_type_attr_is_any(type, {"prefecture", "burning_ruin"})) {
         overlay = OVERLAY_FIRE;
-    } else if (building_type_registry_is_architect_guild(clone_type) || type_matches(clone_type, "engineers_post")) {
+    } else if (type.is_architect_guild() || building_type_attr_is(type, "engineers_post")) {
         overlay = OVERLAY_DAMAGE;
-    } else if (type_matches(clone_type, "actor_colony")) {
+    } else if (building_type_attr_is(type, "actor_colony")) {
         overlay = OVERLAY_THEATER;
-    } else if (type_matches_any(clone_type, {"amphitheater", "gladiator_school"})) {
+    } else if (building_type_attr_is_any(type, {"amphitheater", "gladiator_school"})) {
         overlay = OVERLAY_AMPHITHEATER;
-    } else if (type_matches(clone_type, "tavern")) {
+    } else if (building_type_attr_is(type, "tavern")) {
         overlay = OVERLAY_TAVERN;
-    } else if (type_matches(clone_type, "arena")) {
+    } else if (building_type_attr_is(type, "arena")) {
         overlay = OVERLAY_ARENA;
-    } else if (type_matches_any(clone_type, {"colosseum", "lion_house"})) {
+    } else if (building_type_attr_is_any(type, {"colosseum", "lion_house"})) {
         overlay = OVERLAY_COLOSSEUM;
-    } else if (type_matches_any(clone_type, {"hippodrome", "chariot_maker"})) {
+    } else if (building_type_attr_is_any(type, {"hippodrome", "chariot_maker"})) {
         overlay = OVERLAY_HIPPODROME;
-    } else if (type_matches(clone_type, "school")) {
+    } else if (building_type_attr_is(type, "school")) {
         overlay = OVERLAY_SCHOOL;
-    } else if (type_matches(clone_type, "library")) {
+    } else if (building_type_attr_is(type, "library")) {
         overlay = OVERLAY_LIBRARY;
-    } else if (type_matches(clone_type, "academy")) {
+    } else if (building_type_attr_is(type, "academy")) {
         overlay = OVERLAY_ACADEMY;
-    } else if (type_matches(clone_type, "barber")) {
+    } else if (building_type_attr_is(type, "barber")) {
         overlay = OVERLAY_BARBER;
-    } else if (type_matches(clone_type, "bathhouse")) {
+    } else if (building_type_attr_is(type, "bathhouse")) {
         overlay = OVERLAY_BATHHOUSE;
-    } else if (type_matches(clone_type, "doctor")) {
+    } else if (building_type_attr_is(type, "doctor")) {
         overlay = OVERLAY_CLINIC;
-    } else if (type_matches(clone_type, "hospital")) {
+    } else if (building_type_attr_is(type, "hospital")) {
         overlay = OVERLAY_HOSPITAL;
-    } else if (type_matches_any(clone_type, {"forum", "senate"})) {
+    } else if (building_type_attr_is_any(type, {"forum", "senate"})) {
         overlay = OVERLAY_TAX_INCOME;
-    } else if (building_type_registry_is_granary(clone_type) ||
-        building_type_registry_is_mess_hall(clone_type) ||
-        building_type_registry_is_caravanserai(clone_type) ||
-        type_matches_any(clone_type, {
+    } else if (type.is_granary() || type.is_mess_hall() || type.is_caravanserai() ||
+        building_type_attr_is_any(type, {
             "wheat_farm", "vegetable_farm", "fruit_farm", "olive_farm", "vines_farm", "pig_farm",
             "market", "oil_workshop", "wine_workshop", "wharf"
         })) {
         overlay = OVERLAY_FOOD_STOCKS;
-    } else if (building_is_house(clone_type) ||
-        type_matches_any(clone_type, {
+    } else if (type.has_housing() ||
+        building_type_attr_is_any(type, {
             "gardens", "overgrown_gardens", "governors_house", "governors_villa", "governors_palace",
             "small_statue", "medium_statue", "large_statue", "triumphal_arch", "small_pond", "large_pond",
             "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree", "palm_tree", "date_tree",
@@ -552,41 +526,107 @@ static void show_overlay_from_grid_offset(int grid_offset)
             "panelled_garden_wall"
         })) {
         overlay = OVERLAY_DESIRABILITY;
-    } else if (type_matches_any(clone_type, {"mission_post", "native_hut", "native_hut_alt", "native_meeting"})) {
+    } else if (building_type_attr_is_any(type, {"mission_post", "native_hut", "native_hut_alt", "native_meeting"})) {
         overlay = OVERLAY_NATIVE;
-    } else if (building_type_registry_is_warehouse(clone_type) ||
-        building_type_registry_is_lighthouse(clone_type) ||
-        building_type_registry_is_armoury(clone_type) ||
-        is_dock ||
-        type_matches_any(clone_type, {"warehouse_space", "depot"})) {
+    } else if (type.is_warehouse() || type.is_lighthouse() || type.is_armoury() ||
+        is_dock || building_type_attr_is_any(type, {"warehouse_space", "depot"})) {
         overlay = OVERLAY_LOGISTICS;
-    } else if (type_matches(clone_type, "latrines")) {
+    } else if (building_type_attr_is(type, "latrines")) {
         overlay = OVERLAY_HEALTH;
-    } else if (clone_type == BUILDING_NONE && (map_terrain_get(grid_offset) & TERRAIN_RUBBLE)) {
-        overlay = OVERLAY_DAMAGE;
+    }
+    return overlay;
+}
+
+static Building building_main_at_grid_offset(int grid_offset)
+{
+    return Building::from_id(map_building_at(grid_offset)).main();
+}
+
+static int get_overlay_for_terrain(int terrain)
+{
+    if (terrain & TERRAIN_RUBBLE) {
+        return OVERLAY_DAMAGE;
+    }
+    if (terrain & TERRAIN_AQUEDUCT) {
+        return OVERLAY_WATER;
+    }
+    if (terrain & TERRAIN_GARDEN) {
+        return OVERLAY_DESIRABILITY;
+    }
+    if (terrain & TERRAIN_ROAD) {
+        return OVERLAY_ROADS;
+    }
+    if (terrain & TERRAIN_HIGHWAY) {
+        return OVERLAY_ROADS;
+    }
+    return OVERLAY_NONE;
+}
+
+static void show_overlay_from_grid_offset(int grid_offset)
+{
+    int overlay = OVERLAY_NONE;
+    const int terrain = map_terrain_get(grid_offset);
+    const Building building = building_main_at_grid_offset(grid_offset);
+    if (building.id()) {
+        overlay = get_overlay_for_building_type(building.type());
+    } else {
+        overlay = get_overlay_for_terrain(terrain);
     }
     if (!(game_state_overlay() == OVERLAY_NONE && overlay == OVERLAY_NONE)) {
         show_overlay(overlay);
     }
 }
 
-static int has_storage_orders(building_type type)
+static int has_storage_orders(const building_type_registry_impl::BuildingType &type)
 {
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
-    return building_type_registry_has_native_storage(type) ||
-        building_type_registry_has_distribution(type) ||
+    const int is_dock = building_type_attr_is(type, "dock");
+    return type.has_native_storage() ||
+        type.has_distribution() ||
         is_dock ||
-        type_matches_any(type, {
+        building_type_attr_is_any(type, {
             "warehouse_space", "market", "tavern", "roadblock",
             "roofed_garden_wall_gate", "looped_garden_gate", "panelled_garden_gate",
             "hedge_gate_dark", "hedge_gate_light", "palisade_gate"
         }) ||
-        ((type_matches(type, "small_temple_ceres") || type_matches(type, "large_temple_ceres")) &&
+        ((building_type_attr_is(type, "small_temple_ceres") || building_type_attr_is(type, "large_temple_ceres")) &&
             building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD)) ||
-        ((type_matches(type, "small_temple_venus") || type_matches(type, "large_temple_venus")) &&
+        ((building_type_attr_is(type, "small_temple_venus") || building_type_attr_is(type, "large_temple_venus")) &&
             building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE));
+}
+
+static void toggle_mothball_building(Building &building)
+{
+    if (!building.id()) {
+        return;
+    }
+
+    const model_building *model = model_get_building(building.type_id());
+    if (!model || !model->laborers) {
+        return;
+    }
+
+    building_mothball_toggle(building.legacy_record());
+    if (building.is_in_use()) {
+        city_warning_show(WARNING_DATA_MOTHBALL_OFF, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_OFF"));
+    } else if (building.is_mothballed()) {
+        city_warning_show(WARNING_DATA_MOTHBALL_ON, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_ON"));
+    }
+}
+
+static void copy_building_settings(Building &building)
+{
+    if (!building.id()) {
+        return;
+    }
+    building_data_transfer_copy(building.legacy_record(), 0);
+}
+
+static void paste_building_settings(Building &building)
+{
+    if (!building.id()) {
+        return;
+    }
+    building_data_transfer_paste(building.legacy_record(), 0);
 }
 
 static int tooltip_has_widget_payload(const tooltip_context *c)
@@ -718,23 +758,14 @@ static void handle_hotkeys(const hotkeys *h)
         window_invalidate();
     }
     if (h->mothball_toggle) {
-        int building_id = map_building_at(widget_city_current_grid_offset());
-        building *b = building_main(building_get(building_id));
-        if (building_id && model_get_building(b->type)->laborers) {
-            building_mothball_toggle(b);
-            if (b->state == BUILDING_STATE_IN_USE) {
-                city_warning_show(WARNING_DATA_MOTHBALL_OFF, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_OFF"));
-            } else if (b->state == BUILDING_STATE_MOTHBALLED) {
-                city_warning_show(WARNING_DATA_MOTHBALL_ON, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_ON"));
-            }
-        }
+        Building building = building_main_at_grid_offset(widget_city_current_grid_offset());
+        toggle_mothball_building(building);
     }
     if (h->storage_order) {
         int grid_offset = widget_city_current_grid_offset();
-        int building_id = map_building_at(grid_offset);
-        if (building_id) {
-            building *b = building_main(building_get(building_id));
-            if (has_storage_orders(b->type)) {
+        const Building building = building_main_at_grid_offset(grid_offset);
+        if (building.id()) {
+            if (has_storage_orders(building.type())) {
                 window_building_info_show(grid_offset);
                 window_building_info_show_storage_orders();
             }
@@ -749,18 +780,12 @@ static void handle_hotkeys(const hotkeys *h)
 
     }
     if (h->copy_building_settings) {
-        int building_id = map_building_at(widget_city_current_grid_offset());
-        if (building_id) {
-            building *b = building_main(building_get(building_id));
-            building_data_transfer_copy(b, 0);
-        }
+        Building building = building_main_at_grid_offset(widget_city_current_grid_offset());
+        copy_building_settings(building);
     }
     if (h->paste_building_settings) {
-        int building_id = map_building_at(widget_city_current_grid_offset());
-        if (building_id) {
-            building *b = building_main(building_get(building_id));
-            building_data_transfer_paste(b, 0);
-        }
+        Building building = building_main_at_grid_offset(widget_city_current_grid_offset());
+        paste_building_settings(building);
     }
     if (h->show_empire_map) {
         if (!window_is(WINDOW_EMPIRE)) {

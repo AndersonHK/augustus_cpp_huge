@@ -232,7 +232,7 @@ int GraphicsVariant::matches(const Building &building) const
         int matches = 0;
         switch (condition.type) {
             case GraphicsConditionType::HasWorkers:
-                matches = building.has_workers();
+                matches = building.worker_count();
                 break;
             case GraphicsConditionType::Working:
                 matches = building.is_working();
@@ -521,7 +521,7 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
             *offset = 1;
             return 1;
         }
-    } else if ((building_type_registry_is_theater(building.type) ||
+    } else if (((definition_ && definition_->is_theater()) ||
         definition_is(definition_, "chariot_maker")) &&
         !definition_is(definition_, "hippodrome") && building.num_workers <= 0) {
         return 1;

@@ -65,6 +65,8 @@ public:
     int is_workshop() const;
     int refreshes_farm_image() const;
     int uses_blessing_multiplier() const;
+    int is_enabled() const;
+    int is_disabled() const;
     int effective_monthly_production() const;
     int max_progress_for(const Building &building) const;
     int has_required_inputs(const Building &building) const;

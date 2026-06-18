@@ -2,7 +2,7 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -18,11 +18,14 @@
 #include "map/grid.h"
 #include "map/road_access.h"
 
+#include <string_view>
+
 #define INFINITE 10000
 
-static building_type runtime_type(const char *text_id)
+static int building_type_attr_is(const Building &building, std::string_view attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    return type && std::string_view(type->attr()) == attr;
 }
 
 static int is_valid_destination(const Building &b, int road_network_id)
@@ -43,7 +46,11 @@ Building Barracks::for_weapon(int x, int y, resource_type resource, int road_net
     }
     int min_dist = INFINITE;
     Building min_building(nullptr);
-    for (Building b = Building::first_of_type(runtime_type("barracks")); b.id(); b = b.next_of_type()) {
+    for (int id = 1; id < Building::count(); id++) {
+        Building b = Building::from_id(id);
+        if (!building_type_attr_is(b, "barracks")) {
+            continue;
+        }
         if (!is_valid_destination(b, road_network_id)) {
             continue;
         }
@@ -156,7 +163,11 @@ static int get_closest_military_academy(const Building &fort)
 {
     int min_building_id = 0;
     int min_distance = INFINITE;
-    for (Building b = Building::first_of_type(runtime_type("military_academy")); b.id(); b = b.next_of_type()) {
+    for (int id = 1; id < Building::count(); id++) {
+        Building b = Building::from_id(id);
+        if (!building_type_attr_is(b, "military_academy")) {
+            continue;
+        }
         if (b.is_in_use() && b.has_required_workers()) {
             int dist = fort.max_distance_to(b);
             if (dist < min_distance) {
@@ -216,10 +227,14 @@ int Barracks::create_soldier(int x, int y)
     return formation_id ? 1 : 0;
 }
 
-static Building get_unmanned_tower_of_type(building_type type, const Building &barracks, map_point *road)
+static Building get_unmanned_tower_of_type(std::string_view attr, const Building &barracks, map_point *road)
 {
-    for (Building b = Building::first_of_type(type); b.id(); b = b.next_of_type()) {
-        if (b.is_in_use() && b.has_workers() &&
+    for (int id = 1; id < Building::count(); id++) {
+        Building b = Building::from_id(id);
+        if (!building_type_attr_is(b, attr)) {
+            continue;
+        }
+        if (b.is_in_use() && b.worker_count() &&
             !b.has_primary_figure() && !b.has_quaternary_figure() &&
             (b.road_network_id() == barracks.road_network_id() || config_get(CONFIG_GP_CH_TOWER_SENTRIES_GO_OFFROAD))) {
             if (b.has_road_access(road)) {
@@ -232,13 +247,13 @@ static Building get_unmanned_tower_of_type(building_type type, const Building &b
 
 Building Barracks::unmanned_tower(map_point *road) const
 {
-    building_type first_priority = runtime_type("tower");
-    building_type second_priority = runtime_type("watchtower");
+    std::string_view first_priority = "tower";
+    std::string_view second_priority = "watchtower";
 
     // invert priority
     if (priority() == PRIORITY_WATCHTOWER) {
-        first_priority = runtime_type("watchtower");
-        second_priority = runtime_type("tower");
+        first_priority = "watchtower";
+        second_priority = "tower";
     }
 
     Building tower = get_unmanned_tower_of_type(first_priority, *this, road);

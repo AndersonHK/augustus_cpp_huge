@@ -6,6 +6,7 @@
 #include "house_evolution.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/house.h"
 #include "city/houses.h"
 
@@ -24,6 +25,8 @@ extern "C" {
 #include "map/terrain.h"
 }
 
+#include <cstring>
+
 #define DEVOLVE_DELAY 2
 #define DEVOLVE_DELAY_WITH_VENUS 20
 
@@ -40,9 +43,14 @@ static const model_house *model_for_house(Building house)
     return building_house_get_model(house);
 }
 
-static building_type runtime_building_type(const char *text_id)
+static building_type type_from_attr(const char *attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
 }
 
 static const model_house *model_for_house_requirements(building *house, int for_upgrade, int with_bonus, int *out_level)
@@ -739,9 +747,9 @@ static building_type get_building_type_at_tile(Building house_object, int x, int
     unsigned int building_id = (unsigned int) map_building_at(grid_offset);
     if (building_id <= 0) {
         if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
-            return runtime_building_type("highway");
+            return type_from_attr("highway");
         } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
-            return runtime_building_type("draggable_reservoir");
+            return type_from_attr("draggable_reservoir");
         } else {
             return BUILDING_NONE;
         }

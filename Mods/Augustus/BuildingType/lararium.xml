@@ -12,6 +12,9 @@
     <button group="temples" order="400" icon="Health_Culture\Lararium_01" text_key="TR_BUILDING_LARARIUM" />
     <event_data attr="lararium" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="temple_total" capacity="10" count="total" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Lararium_01" />

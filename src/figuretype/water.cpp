@@ -39,12 +39,16 @@ static const int FLOTSAM_TYPE_3[] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
 
-static building_type runtime_type(const char *text_id)
+static int lighthouse_monument_working(void)
 {
-    if (!text_id) {
-        return BUILDING_NONE;
+    for (int i = 1; i < building_count(); i++) {
+        building *b = building_get(i);
+        const building_type_registry_impl::BuildingType *definition = b ? Building(b).type_definition() : nullptr;
+        if (definition && definition->is_lighthouse()) {
+            return building_monument_working(b->type);
+        }
     }
-    return building_type_registry_runtime_id_from_text(text_id);
+    return 0;
 }
 
 void figure_create_flotsam(void)
@@ -182,7 +186,7 @@ void figure_shipwreck_action(figure *f)
 
 static int fishing_boat_percentage_speed(void)
 {
-    if (building_monument_working(runtime_type("lighthouse"))) {
+    if (lighthouse_monument_working()) {
         return 10;
     }
     return 0;

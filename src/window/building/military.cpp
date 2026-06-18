@@ -1,5 +1,6 @@
 #include "building/barracks.h"
 #include "building/building.h"
+#include "city/buildings.h"
 #include "building/count.h"
 #include "game/resource_graphics.h"
 #include "graphics/generic_button.h"
@@ -38,10 +39,6 @@ static void button_all_legions_return_to_fort(const generic_button *button);
 static void button_layout(const generic_button *button);
 static void button_priority(const generic_button *button);
 
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
 static void button_delivery(const generic_button *button);
 
 static generic_button layout_buttons[] = {
@@ -483,7 +480,7 @@ void window_building_draw_legion_info(building_info_context *c)
         if (m->cursed_by_mars) {
             group_id = 89;
             text_id = 1;
-        } else if (building_count_active(runtime_type("barracks"))) {
+    } else if (city_buildings_has_barracks()) {
             group_id = 138;
             text_id = 10;
         } else {

@@ -17,6 +17,9 @@
     <sound id="oracle" />
     <event_data attr="oracle" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="oracle" capacity="500" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Oracle" />

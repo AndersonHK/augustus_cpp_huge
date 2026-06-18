@@ -6,6 +6,7 @@
 #include "building/roadblock.h"
 #include "building/rotation.h"
 #include "building/storage.h"
+#include "building/building_type_registry_internal.h"
 #include "building/water_access_runtime.h"
 #include "game/state.h"
 #include "graphics/graphics.h"
@@ -48,20 +49,17 @@ extern "C" {
 
 static void draw_storage_ids(int x, int y, float scale, int grid_offset);
 
-static building_type runtime_type(const char *text_id)
+static int building_type_attr_is(building_type type, const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::strcmp(definition->attr(), text_id) == 0;
 }
 
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
-}
-
-static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+static int building_type_attr_is_any(building_type type, std::initializer_list<const char *> text_ids)
 {
     for (const char *text_id : text_ids) {
-        if (type_matches(type, text_id)) {
+        if (building_type_attr_is(type, text_id)) {
             return 1;
         }
     }
@@ -132,26 +130,27 @@ static translation_key efficiency_key_for_value(int efficiency)
 static int show_building_religion(const building *b)
 {
     return building_from_record(b).type().is_temple() ||
-        type_matches_any(b->type, {"oracle", "lararium", "small_mausoleum", "large_mausoleum", "nymphaeum"});
+        building_type_attr_is_any(b->type, {"oracle", "lararium", "small_mausoleum", "large_mausoleum", "nymphaeum"});
 }
 
 static int show_building_food_stocks(const building *b)
 {
     const Building building = building_from_record(b);
     const auto &type = building.type();
-    return type_matches_any(b->type, {"market", "wharf"}) || type.is_granary() ||
+    return building_type_attr_is_any(b->type, {"market", "wharf"}) || type.is_granary() ||
         type.is_caravanserai() || type.is_mess_hall();
 }
 
 static int show_building_tax_income(const building *b)
 {
-    return type_matches_any(b->type, {"forum", "senate"});
+    return building_type_attr_is_any(b->type, {"forum", "senate"});
 }
 
 static int show_building_water(const building *b)
 {
-    return building_type_registry_is_well(b->type) || type_matches_any(b->type, {"fountain", "reservoir"}) ||
-        (type_matches(b->type, "grand_temple_neptune") &&
+    const Building building = building_from_record(b);
+    return building.type().is_well() || building_type_attr_is_any(b->type, {"fountain", "reservoir"}) ||
+        (building_type_attr_is(b->type, "grand_temple_neptune") &&
             building_monument_gt_module_is_active(NEPTUNE_MODULE_2_CAPACITY_AND_WATER));
 }
 
@@ -174,7 +173,7 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
         return 0;
     }
     Building building = Building::from_id(map_building_at(grid_offset));
-    if (!type_matches(building.type_id(), "triumphal_arch")) {
+    if (!building_type_attr_is(building.type_id(), "triumphal_arch")) {
         return 0;
     }
     int image_id = map_image_at(grid_offset);
@@ -202,8 +201,8 @@ static int show_building_logistics(const building *b)
     const auto &type = building.type();
     const auto *definition = building.type_definition();
     const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
-    return type.is_warehouse() || type_matches(b->type, "warehouse_space") ||
-        type.is_granary() || is_dock || type_matches(b->type, "depot") ||
+    return type.is_warehouse() || building_type_attr_is(b->type, "warehouse_space") ||
+        type.is_granary() || is_dock || building_type_attr_is(b->type, "depot") ||
         type.is_lighthouse() || type.is_armoury();
 }
 
@@ -213,7 +212,7 @@ static int show_building_storages(const building *b)
     const Building building = building_from_record(b);
     const auto *definition = building.type_definition();
     return (b->storage_id > 0 && building_storage_get(b->storage_id))
-        || type_matches(b->type, "depot")
+        || building_type_attr_is(b->type, "depot")
         || (definition && std::strcmp(definition->attr(), "dock") == 0);
 }
 
@@ -550,7 +549,7 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
 {
     int building_id = map_building_at(grid_offset);
     building *b = building_get(building_id);
-    if (type_matches(b->type, "depot")) {
+    if (building_type_attr_is(b->type, "depot")) {
         static uint8_t result[256];
         order depot_order = b->data.depot.current_order;
         static const translation_key condition_texts[] = {

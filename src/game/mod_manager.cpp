@@ -2,17 +2,18 @@
 #include "core/crash_context.h"
 
 #include "core/file.h"
+#include "core/log.h"
+#include "platform/file_manager.h"
 extern "C" {
 #include "assets/assets.h"
 #include "core/dir.h"
-#include "core/log.h"
 #include "core/xml_parser.h"
-#include "platform/file_manager.h"
 }
 
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -292,9 +293,11 @@ static int validate_loaded_mod_names(const std::vector<std::string> &mods)
 
 } // namespace
 
-extern "C" void mod_manager_set_mod_name(const char *mod_name)
+namespace mod_manager {
+
+void set_mod_name(std::string_view mod_name)
 {
-    if (mod_name && *mod_name) {
+    if (!mod_name.empty()) {
         g_mod_name = mod_name;
     } else {
         g_mod_name = "Vespasian";
@@ -302,107 +305,92 @@ extern "C" void mod_manager_set_mod_name(const char *mod_name)
     rebuild_legacy_selected_mod_paths();
 }
 
-extern "C" int mod_manager_load_mod_list(void)
+bool load_mod_list()
 {
     g_failure_reason.clear();
 
     if (!ensure_mod_list_file_exists()) {
-        return 0;
+        return false;
     }
 
     const char *filename = dir_get_file_at_location(kDefaultModListFileName, PATH_LOCATION_CONFIG);
     if (!filename || !*filename) {
         set_failure_reason("Failed to load mod list.", "Config mod-list file was not found.");
-        return 0;
+        return false;
     }
 
     std::vector<std::string> loaded_mods;
     if (!parse_mod_list_file(filename, loaded_mods)) {
-        return 0;
+        return false;
     }
 
     if (!validate_loaded_mod_names(loaded_mods)) {
-        return 0;
+        return false;
     }
 
     g_mod_names = std::move(loaded_mods);
     rebuild_mod_lists();
-    return 1;
+    return true;
 }
 
-extern "C" const char *mod_manager_get_failure_reason(void)
+const std::string &failure_reason()
 {
-    return g_failure_reason.c_str();
+    return g_failure_reason;
 }
 
-extern "C" const char *mod_manager_get_mod_name(void)
+const std::string &mod_name()
 {
-    return g_mod_name.c_str();
+    return g_mod_name;
 }
 
-extern "C" const char *mod_manager_get_mod_path(void)
+const std::string &mod_path()
 {
-    return g_mod_path.c_str();
+    return g_mod_path;
 }
 
-extern "C" const char *mod_manager_get_graphics_path(void)
+const std::string &graphics_path()
 {
-    return g_graphics_path.c_str();
+    return g_graphics_path;
 }
 
-extern "C" const char *mod_manager_get_augustus_graphics_path(void)
+const std::string &augustus_graphics_path()
 {
-    return g_augustus_graphics_path.c_str();
+    return g_augustus_graphics_path;
 }
 
-extern "C" const char *mod_manager_get_julius_graphics_path(void)
+const std::string &julius_graphics_path()
 {
-    return g_julius_graphics_path.c_str();
+    return g_julius_graphics_path;
 }
 
-extern "C" int mod_manager_get_mod_count(void)
+const std::vector<std::string> &mod_names()
 {
-    return static_cast<int>(g_mod_names.size());
+    return g_mod_names;
 }
 
-extern "C" const char *mod_manager_get_mod_name_at(int index)
+const std::vector<std::string> &mod_paths()
 {
-    if (index < 0 || index >= static_cast<int>(g_mod_names.size())) {
-        return nullptr;
-    }
-    return g_mod_names[static_cast<size_t>(index)].c_str();
+    return g_mod_paths;
 }
 
-extern "C" const char *mod_manager_get_mod_path_at(int index)
+const std::vector<std::string> &graphics_paths()
 {
-    if (index < 0 || index >= static_cast<int>(g_mod_paths.size())) {
-        return nullptr;
-    }
-    return g_mod_paths[static_cast<size_t>(index)].c_str();
+    return g_graphics_paths;
 }
 
-extern "C" const char *mod_manager_get_graphics_path_at(int index)
-{
-    if (index < 0 || index >= static_cast<int>(g_graphics_paths.size())) {
-        return nullptr;
-    }
-    return g_graphics_paths[static_cast<size_t>(index)].c_str();
-}
-
-extern "C" int mod_manager_validate_mod_path(void)
+bool validate_mod_path()
 {
     return validate_directory_path(g_mod_path.c_str());
 }
 
-extern "C" int mod_manager_validate_graphics_path(void)
+bool validate_graphics_path()
 {
-    int has_mod_graphics = 0;
     for (const std::string &graphics_path : g_graphics_paths) {
         if (validate_directory_path(graphics_path.c_str())) {
-            has_mod_graphics = 1;
-            break;
+            return true;
         }
     }
-    const int has_root_graphics = validate_directory_path(ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH) != 0;
-    return has_mod_graphics || has_root_graphics;
+    return validate_directory_path(ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH);
+}
+
 }

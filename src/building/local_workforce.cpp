@@ -150,10 +150,28 @@ void refresh_house_unemployed(building *house)
 
 int access_workers_for_workplace(const building *workplace)
 {
-    if (!uses_active_workforce(workplace)) {
+    if (!is_live_building(workplace)) {
         return 0;
     }
+    if (!uses_active_workforce(workplace)) {
+        return std::max<int>(0, workplace->houses_covered);
+    }
     return std::min(assigned_workers_for_workplace(workplace->id), required_workers(workplace));
+}
+
+void refresh_access_score(building *workplace)
+{
+    if (!workplace) {
+        return;
+    }
+    workplace->labor_access_score = static_cast<float>(access_workers_for_workplace(workplace));
+}
+
+void refresh_access_scores()
+{
+    for (int id = 1; id < building_count(); id++) {
+        refresh_access_score(building_get(id));
+    }
 }
 
 void add_allocation(unsigned int workplace_id, unsigned int house_id, int workers)
@@ -620,6 +638,7 @@ extern "C" void building_local_workforce_initialize_city(void)
     g_preserve_allocations_on_next_city_initialize = 0;
     clamp_allocation_table();
     rebuild_counters_from_allocations();
+    refresh_access_scores();
 }
 
 extern "C" void building_local_workforce_save_state(buffer *buf)
@@ -691,9 +710,19 @@ extern "C" int building_local_workforce_is_workforce_building(const building *b)
     return uses_active_workforce(b);
 }
 
+extern "C" void building_local_workforce_refresh_access_score(building *b)
+{
+    refresh_access_score(b);
+}
+
+extern "C" void building_local_workforce_refresh_access_scores(void)
+{
+    refresh_access_scores();
+}
+
 extern "C" int building_local_workforce_access_score(const building *b)
 {
-    return access_workers_for_workplace(b);
+    return b ? static_cast<int>(b->labor_access_score) : 0;
 }
 
 extern "C" int building_local_workforce_house_available_workers(building *house)

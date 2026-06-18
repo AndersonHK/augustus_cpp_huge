@@ -1,52 +1,57 @@
 #include "core/log.h"
 #include "SDL.h"
 
-#include <stdio.h>
-#include <string.h>
+#include <cstdio>
+#include <cstring>
 
-#define MSG_SIZE 1000
-#define MAX_OLD_MESSAGES 5
+namespace {
 
-static char log_buffer[MSG_SIZE];
-static struct {
+constexpr int MSG_SIZE = 1000;
+constexpr int MAX_OLD_MESSAGES = 5;
+
+char log_buffer[MSG_SIZE];
+struct PreviousLogMessage {
     char buffer[MSG_SIZE];
     unsigned int count;
-} previous_log_messages[MAX_OLD_MESSAGES];
-static int old_message_index;
-static int debug_enabled;
+};
+PreviousLogMessage previous_log_messages[MAX_OLD_MESSAGES];
+int old_message_index;
+bool debug_enabled;
 
-static const char *build_message(const char *msg, const char *param_str, int param_int)
+const char *build_message(const char *msg, const char *param_str, int param_int)
 {
     int index = 0;
-    index += snprintf(&log_buffer[index], MSG_SIZE - index, "%s", msg);
+    index += std::snprintf(&log_buffer[index], MSG_SIZE - index, "%s", msg);
     if (param_str) {
-        index += snprintf(&log_buffer[index], MSG_SIZE - index, "  %s", param_str);
+        index += std::snprintf(&log_buffer[index], MSG_SIZE - index, "  %s", param_str);
     }
     if (param_int) {
-        index += snprintf(&log_buffer[index], MSG_SIZE - index, "  %d", param_int);
+        index += std::snprintf(&log_buffer[index], MSG_SIZE - index, "  %d", param_int);
     }
     return log_buffer;
 }
 
-static int count_archived_message(void)
+bool count_archived_message()
 {
     for (int i = 0; i < MAX_OLD_MESSAGES; i++) {
-        if (strcmp(previous_log_messages[i].buffer, log_buffer) == 0) {
+        if (std::strcmp(previous_log_messages[i].buffer, log_buffer) == 0) {
             previous_log_messages[i].count++;
-            return 1;
+            return true;
         }
     }
     if (old_message_index == MAX_OLD_MESSAGES) {
         log_repeated_messages();
     }
-    snprintf(previous_log_messages[old_message_index++].buffer, MSG_SIZE, "%s", log_buffer);
+    std::snprintf(previous_log_messages[old_message_index++].buffer, MSG_SIZE, "%s", log_buffer);
     if (old_message_index < MAX_OLD_MESSAGES) {
         previous_log_messages[old_message_index].count = 0;
     }
-    return 0;
+    return false;
 }
 
-void log_repeated_messages(void)
+} // namespace
+
+void log_repeated_messages()
 {
     for (int i = 0; i < MAX_OLD_MESSAGES; i++) {
         if (previous_log_messages[i].count) {
@@ -68,12 +73,12 @@ void log_info(const char *msg, const char *param_str, int param_int)
     }
 }
 
-void log_set_debug_enabled(int enabled)
+void log_set_debug_enabled(bool enabled)
 {
-    debug_enabled = enabled ? 1 : 0;
+    debug_enabled = enabled;
 }
 
-int log_is_debug_enabled(void)
+bool log_is_debug_enabled()
 {
     return debug_enabled;
 }

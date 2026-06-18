@@ -3,18 +3,29 @@
 
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/house.h"
 #include "building/monument.h"
 #include "city/culture.h"
 
-static building_type runtime_type(const char *text_id)
+#include <cstring>
+
+static building_type type_from_attr(const char *attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
 }
 
 static int is_tower_coverage_type(building_type type)
 {
-    return type == runtime_type("tower") || type == runtime_type("watchtower");
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() &&
+        (std::strcmp(definition->attr(), "tower") == 0 || definition->is_watchtower());
 }
 
 static void decay(unsigned char *value)
@@ -89,8 +100,8 @@ void house_service_decay_houses_covered(void)
 void house_service_calculate_culture_aggregates(void)
 {
     int venus_module2 = building_monument_gt_module_is_active(VENUS_MODULE_2_DESIRABILITY_ENTERTAINMENT);
-    int completed_colosseum = building_monument_working(runtime_type("colosseum"));
-    int completed_hippodrome = building_monument_working(runtime_type("hippodrome"));
+    int completed_colosseum = building_monument_working(type_from_attr("colosseum"));
+    int completed_hippodrome = building_monument_working(type_from_attr("hippodrome"));
 
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);

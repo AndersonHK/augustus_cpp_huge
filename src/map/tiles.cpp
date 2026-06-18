@@ -1,5 +1,6 @@
 #include "building/building.h"
 #include "building/connectable.h"
+#include "building/building_type.h"
 #include "building/image.h"
 #include "map/aqueduct.h"
 #include "map/bridge.h"
@@ -14,7 +15,6 @@
 extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "city/map.h"
 #include "city/view.h"
 #include "core/config.h"
@@ -50,11 +50,6 @@ extern "C" {
 static int aqueduct_include_construction = 0;
 static int highway_top_tile_offsets[4] = { 0, -GRID_SIZE, -1, -GRID_SIZE - 1 };
 static int elevation_recalculate_trees = 0;
-
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
 
 static int is_clear(int x, int y, int size, int disallowed_terrain, int terrain_exception,
     int check_figure, int check_image)
@@ -732,6 +727,32 @@ int map_tiles_is_adjacent_to_building_type(int grid_offset, int building_type, i
     return 0;
 }
 
+static int map_tiles_is_adjacent_to_granary(int grid_offset, int diagonals_included)
+{
+    int tiles[8];
+    tiles[0] = grid_offset + map_grid_delta(0, -1);
+    tiles[1] = grid_offset + map_grid_delta(1, 0);
+    tiles[2] = grid_offset + map_grid_delta(0, 1);
+    tiles[3] = grid_offset + map_grid_delta(-1, 0);
+    tiles[4] = grid_offset + map_grid_delta(1, -1);
+    tiles[5] = grid_offset + map_grid_delta(1, 1);
+    tiles[6] = grid_offset + map_grid_delta(-1, 1);
+    tiles[7] = grid_offset + map_grid_delta(-1, -1);
+    for (int i = 0; i < 8; i++) {
+        if (!diagonals_included && i >= 4) {
+            break;
+        }
+        if (map_terrain_is(tiles[i], TERRAIN_BUILDING)) {
+            building *b = building_get(map_building_at(tiles[i]));
+            Building current(b);
+            if (current.has_type_definition() && current.type().is_granary()) {
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 int map_tiles_is_paved_road(int grid_offset)
 {
     int desirability = map_desirability_get(grid_offset);
@@ -741,9 +762,7 @@ int map_tiles_is_paved_road(int grid_offset)
     if (desirability > 0 && map_terrain_is(grid_offset, TERRAIN_FOUNTAIN_RANGE)) {
         return 1;
     }
-    building_type granary_type = runtime_type("granary");
-    if (granary_type != BUILDING_NONE &&
-        map_tiles_is_adjacent_to_building_type(grid_offset, granary_type, 1) &&
+    if (map_tiles_is_adjacent_to_granary(grid_offset, 1) &&
         config_get(CONFIG_UI_PAVED_ROADS_NEAR_GRANNARIES)) {
         return 1;
     }

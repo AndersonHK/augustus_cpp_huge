@@ -12,6 +12,9 @@
     <button group="education" order="40" icon="Health_Culture\Academy_Fix" text_key="main_strings.28.52" />
     <sound id="academy" />
     <event_data attr="academy" />
+    <culture_modules>
+        <culture_module path="academy" capacity="100" upgrade_bonus="50" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Academy_Fix" />

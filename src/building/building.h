@@ -84,8 +84,8 @@ public:
     void assign_graphic_variant(int force_reseed);
     void spawn_figure();
     int has_type_definition() const;
-    int has_workers() const;
     int worker_count() const;
+    float labor_access_score() const;
     int has_required_workers() const;
     int has_road_access(map_point *road) const;
     int has_water_access() const;

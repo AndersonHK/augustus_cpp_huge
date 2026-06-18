@@ -3,12 +3,14 @@
 #include "game/resource_id_bridge.h"
 
 extern "C" {
-#include "building/building_type_api.h"
 #include "core/log.h"
 #include "scenario/allowed_building.h"
 }
 
+#include "building/building_type_registry_internal.h"
+
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -155,8 +157,14 @@ void clear_save_table()
 
 bool wharf_is_allowed()
 {
-    const building_type wharf = building_type_registry_runtime_id_from_text("wharf");
-    return wharf != BUILDING_NONE && scenario_allowed_building(wharf);
+    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && definition->attr() && std::strcmp(definition->attr(), "wharf") == 0) {
+            return scenario_allowed_building(type);
+        }
+    }
+    return false;
 }
 
 resource_type runtime_from_text_id(const char *text_id)

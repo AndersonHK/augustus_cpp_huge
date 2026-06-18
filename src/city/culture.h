@@ -2,26 +2,16 @@
 
 #include "city/constants.h"
 #include "core/buffer.h"
+
+#ifdef __cplusplus
+#include "building/culture_module.h"
+#endif
+
+typedef struct building building;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
-#define THEATER_COVERAGE 500
-#define THEATER_UPGRADE_BONUS_COVERAGE 700
-#define AMPHITHEATER_COVERAGE 1500
-#define AMPHITHEATER_UPGRADE_BONUS_COVERAGE 500
-#define TAVERN_COVERAGE 1000
-#define TAVERN_UPGRADE_BONUS_COVERAGE 500
-#define ARENA_COVERAGE 2500
-#define ARENA_UPGRADE_BONUS_COVERAGE 500
-#define SCHOOL_COVERAGE 75
-#define SCHOOL_UPGRADE_BONUS_COVERAGE 150
-#define LIBRARY_COVERAGE 800
-#define LIBRARY_UPGRADE_BONUS_COVERAGE 900
-#define ACADEMY_COVERAGE 100
-#define ACADEMY_UPGRADE_BONUS_COVERAGE 50
-#define HOSPITAL_COVERAGE 1500
 
 void city_culture_update_coverage(void);
 
@@ -47,15 +37,11 @@ int city_culture_average_health(void);
 
 void city_culture_calculate(void);
 
-int city_culture_get_theatre_person_coverage(void);
-int city_culture_get_school_person_coverage(void);
-int city_culture_get_library_person_coverage(void);
-int city_culture_get_academy_person_coverage(void);
-int city_culture_get_tavern_person_coverage(void);
-int city_culture_get_ampitheatre_person_coverage(void);
-int city_culture_get_arena_person_coverage(void);
-
-
+void city_culture_clear_module_capacity_cache(void);
+void city_culture_rebuild_module_capacity_cache(void);
+void city_culture_add_building_module_capacity(const building *b);
+void city_culture_remove_building_module_capacity(const building *b);
+void city_culture_refresh_building_module_capacity(const building *b);
 
 void city_culture_save_state(buffer *buf);
 
@@ -63,4 +49,6 @@ void city_culture_load_state(buffer *buf);
 
 #ifdef __cplusplus
 }
+
+int city_culture_module_capacity(building_type_registry_impl::CultureModuleType type);
 #endif

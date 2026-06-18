@@ -5,17 +5,26 @@
 #include "water_supply.h"
 
 #include "building/water_access_runtime.h"
+#include "building/building_type_registry_internal.h"
+
+#include <cstring>
 
 extern "C" {
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "map/grid.h"
 #include "map/terrain.h"
 }
 
-static building_type runtime_type(const char *text_id)
+static building_type building_type_from_definition_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (int type = 1; type < BUILDING_TYPE_MAX; type++) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
+        if (definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0) {
+            return static_cast<building_type>(type);
+        }
+    }
+    return BUILDING_NONE;
 }
 
 extern "C" void map_water_supply_update_buildings(void)
@@ -66,20 +75,20 @@ extern "C" int map_water_supply_is_building_unnecessary(int building_id, int rad
 
 extern "C" int map_water_supply_fountain_radius(void)
 {
-    return water_access_runtime_range_for_building(runtime_type("fountain"));
+    return water_access_runtime_range_for_building(building_type_from_definition_attr("fountain"));
 }
 
 extern "C" int map_water_supply_reservoir_radius(void)
 {
-    return water_access_runtime_range_for_building(runtime_type("reservoir"));
+    return water_access_runtime_range_for_building(building_type_from_definition_attr("reservoir"));
 }
 
 extern "C" int map_water_supply_well_radius(void)
 {
-    return water_access_runtime_range_for_building(building_type_registry_well_type());
+    return water_access_runtime_range_for_building(building_type_from_definition_attr("well"));
 }
 
 extern "C" int map_water_supply_latrines_radius(void)
 {
-    return water_access_runtime_range_for_building(runtime_type("latrines"));
+    return water_access_runtime_range_for_building(building_type_from_definition_attr("latrines"));
 }

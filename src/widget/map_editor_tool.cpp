@@ -1,4 +1,5 @@
 #include "building/image.h"
+#include "building/building_type_registry_internal.h"
 #include "editor/tool.h"
 #include "editor/tool_restriction.h"
 #include "graphics/image.h"
@@ -18,6 +19,7 @@ extern "C" {
 #include "scenario/property.h"
 }
 
+#include <cstring>
 
 #define MAX_TILES 16
 
@@ -26,14 +28,28 @@ static const int Y_VIEW_OFFSETS[MAX_TILES] = { 0, 15, 15, 30, 30, 30, 45, 45, 60
 
 static float scale = SCALE_NONE;
 
-static building_type runtime_type(const char *text_id)
+static const building_type_registry_impl::BuildingType *building_type_definition_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
+            return definition.get();
+        }
+    }
+    return nullptr;
 }
 
-static int type_matches(building_type type, const char *text_id)
+static building_type building_type_from_attr(const char *text_id)
 {
-    return type == runtime_type(text_id);
+    const building_type_registry_impl::BuildingType *definition = building_type_definition_from_attr(text_id);
+    return definition ? definition->type() : BUILDING_NONE;
+}
+
+static int building_type_attr_is(building_type type, const char *text_id)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static void offset_to_view_offset(int dx, int dy, int *view_dx, int *view_dy)
@@ -92,9 +108,9 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
         }
     } else {
         int image_id;
-        if (type_matches(type, "native_crops")) {
+        if (building_type_attr_is(type, "native_crops")) {
             image_id = Image::group(GROUP_EDITOR_BUILDING_CROPS);
-        } else if (type_matches(type, "native_hut_alt")) {
+        } else if (building_type_attr_is(type, "native_hut_alt")) {
             switch (scenario_property_climate()) {
                 case CLIMATE_NORTHERN:
                     image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Northern_01");
@@ -105,8 +121,8 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
                 default:
                     image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Central_01");
             };
-        } else if (type_matches(type, "native_decor") || type_matches(type, "native_monument") ||
-            type_matches(type, "native_watchtower")) {
+        } else if (building_type_attr_is(type, "native_decor") || building_type_attr_is(type, "native_monument") ||
+            building_type_attr_is(type, "native_watchtower")) {
             image_id = building_image_get_for_type(type);
         } else if (props->image_group <= 0) {
             image_id = building_image_get_for_type(type);
@@ -261,25 +277,25 @@ void map_editor_tool_draw(const map_tile *tile)
     city_view_get_selected_tile_pixels(&x, &y);
     switch (type) {
         case TOOL_NATIVE_CENTER:
-            draw_building(tile, x, y, runtime_type("native_meeting"));
+            draw_building(tile, x, y, building_type_from_attr("native_meeting"));
             break;
         case TOOL_NATIVE_HUT:
-            draw_building(tile, x, y, runtime_type("native_hut"));
+            draw_building(tile, x, y, building_type_from_attr("native_hut"));
             break;
         case TOOL_NATIVE_HUT_ALT:
-            draw_building(tile, x, y, runtime_type("native_hut_alt"));
+            draw_building(tile, x, y, building_type_from_attr("native_hut_alt"));
             break;
         case TOOL_NATIVE_FIELD:
-            draw_building(tile, x, y, runtime_type("native_crops"));
+            draw_building(tile, x, y, building_type_from_attr("native_crops"));
             break;
         case TOOL_NATIVE_DECORATION:
-            draw_building(tile, x, y, runtime_type("native_decor"));
+            draw_building(tile, x, y, building_type_from_attr("native_decor"));
             break;
         case TOOL_NATIVE_MONUMENT:
-            draw_building(tile, x, y, runtime_type("native_monument"));
+            draw_building(tile, x, y, building_type_from_attr("native_monument"));
             break;
         case TOOL_NATIVE_WATCHTOWER:
-            draw_building(tile, x, y, runtime_type("native_watchtower"));
+            draw_building(tile, x, y, building_type_from_attr("native_watchtower"));
             break;
         case TOOL_EARTHQUAKE_POINT:
         case TOOL_ENTRY_POINT:

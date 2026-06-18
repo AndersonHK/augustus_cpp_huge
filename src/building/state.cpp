@@ -29,14 +29,21 @@ namespace {
 constexpr uint16_t LEGACY_SAVE_TYPE_MENU_FORT = 57;
 constexpr uint16_t LEGACY_SAVE_TYPE_LIGHTHOUSE = 155;
 
-building_type runtime_type(const char *text_id)
+building_type type_from_attr(const char *attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
 }
 
-int type_is(building_type type, const char *text_id)
+int type_is(building_type type, const char *attr)
 {
-    return type == runtime_type(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
 int type_is_any(building_type type, const char *const *text_ids, size_t count)
@@ -356,15 +363,15 @@ static building_type get_fort_type(building *b)
 {
     switch (b->subtype.fort_figure_type) {
         case FIGURE_FORT_JAVELIN:
-            return runtime_type("fort_javelin");
+            return type_from_attr("fort_javelin");
         case FIGURE_FORT_MOUNTED:
-            return runtime_type("fort_mounted");
+            return type_from_attr("fort_mounted");
         case FIGURE_FORT_LEGIONARY:
-            return runtime_type("fort_legionaries");
+            return type_from_attr("fort_legionaries");
         case FIGURE_FORT_INFANTRY:
-            return runtime_type("fort_swords");
+            return type_from_attr("fort_swords");
         case FIGURE_FORT_ARCHER:
-            return runtime_type("fort_archers");
+            return type_from_attr("fort_archers");
         default:
             return BUILDING_NONE;
     }
@@ -894,6 +901,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     b->monthly_levy = buffer_read_u8(buf);
     b->created_sequence = buffer_read_u16(buf);
     b->houses_covered = buffer_read_i16(buf);
+    b->labor_access_score = 0.0f;
     b->percentage_houses_covered = buffer_read_i16(buf);
     b->house_population = buffer_read_i16(buf);
     b->house_population_room = buffer_read_i16(buf);

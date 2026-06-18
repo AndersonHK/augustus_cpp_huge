@@ -12,6 +12,7 @@
 #include "building/building_runtime_graphics.h"
 #include "building/variant.h"
 #include "core/crash_context.h"
+#include "graphics/image_group_reference.h"
 
 extern "C" {
 #include "core/image_group.h"
@@ -127,6 +128,25 @@ int runtime_tile_sentinel_image_id()
     return image_group(GROUP_TERRAIN_FLAT_TILE);
 }
 
+}
+
+int building_runtime_graphics_image_id(const Building &building_object)
+{
+    const ::building *record = building_object.legacy_record();
+    const building_type_registry_impl::BuildingType *definition = building_object.type_definition();
+    if (!record || !definition || !definition->has_graphic()) {
+        return 0;
+    }
+
+    const building_type_registry_impl::GraphicsTarget *target =
+        building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition, building_object);
+    if (!target || !target->has_path()) {
+        return 0;
+    }
+
+    return graphics_image_id_for_group_reference(
+        target->path(),
+        target->has_image() ? target->image() : nullptr);
 }
 
 void building_runtime::clear_cached_graphics_bindings()

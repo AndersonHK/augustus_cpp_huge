@@ -1,4 +1,5 @@
 #include "building/count.h"
+#include "building/building_type_registry_internal.h"
 #include "translation/translation.h"
 #include "city/culture.h"
 #include "city/houses.h"
@@ -17,9 +18,9 @@ extern "C" {
 
 #define ADVISOR_HEIGHT 17
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static int get_education_advice(void)
@@ -85,11 +86,11 @@ static int draw_background(void)
     inner_panel_draw(32, 100, 36, 5);
 
     // schools
-    building_type school = runtime_type("school");
+    building_type school = type_from_attr("school");
     lang_text_draw_amount(current_string_amount_key(8, 18, building_count_total(school)), building_count_total(school), 40, 105, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(school), 170, 105, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
-    width = text_draw_number(city_culture_get_school_person_coverage(), '@', " ", 280, 105, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw_number(city_culture_module_capacity(building_type_registry_impl::CultureModuleType::School), '@', " ", 280, 105, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     lang_text_draw("main_strings.57.7", 280 + width, 105, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     int pct_school = city_culture_coverage_school();
@@ -102,11 +103,11 @@ static int draw_background(void)
     }
 
     // academies
-    building_type academy = runtime_type("academy");
+    building_type academy = type_from_attr("academy");
     lang_text_draw_amount(current_string_amount_key(8, 20, building_count_total(academy)), building_count_total(academy), 40, 125, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(academy), 170, 125, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
-    width = text_draw_number(city_culture_get_academy_person_coverage(), '@', " ", 280, 125, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw_number(city_culture_module_capacity(building_type_registry_impl::CultureModuleType::Academy), '@', " ", 280, 125, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     lang_text_draw("main_strings.57.8", 280 + width, 125, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     int pct_academy = city_culture_coverage_academy();
@@ -119,11 +120,11 @@ static int draw_background(void)
     }
 
     // libraries
-    building_type library = runtime_type("library");
+    building_type library = type_from_attr("library");
     lang_text_draw_amount(current_string_amount_key(8, 22, building_count_total(library)), building_count_total(library), 40, 145, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(building_count_active(library), 170, 145, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
-    width = text_draw_number(city_culture_get_library_person_coverage(), '@', " ", 280, 145, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw_number(city_culture_module_capacity(building_type_registry_impl::CultureModuleType::Library), '@', " ", 280, 145, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     lang_text_draw("main_strings.57.9", 280 + width, 145, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     int pct_library = city_culture_coverage_library();
@@ -136,7 +137,7 @@ static int draw_background(void)
     }
 
     // Mission posts
-    building_type mission_post = runtime_type("mission_post");
+    building_type mission_post = type_from_attr("mission_post");
     int count = building_count_total(mission_post);
     width = text_draw_number(count, ' ', " ", 40, 165, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 

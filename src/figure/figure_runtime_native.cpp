@@ -15,6 +15,7 @@
 
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/market.h"
 #include "core/crash_context.h"
 #include "map/routing_distance.h"
@@ -47,6 +48,7 @@ extern "C" {
 
 
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 
@@ -55,15 +57,16 @@ namespace figure_runtime_native_impl {
 constexpr int kInfiniteDistance = 10000;
 constexpr int kRecalculateEnemyLocationTicks = 30;
 
-building_type runtime_type(const char *text_id)
+bool building_type_attr_is(building_type type, const char *attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
 }
 
-bool type_matches(building_type type, const char *text_id)
+bool building_matches(const building *b, const char *attr)
 {
-    const building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    return b && building_type_attr_is(b->type, attr);
 }
 
 bool owner_state_matches(const building *owner, const figure_type_registry_impl::OwnerBinding &owner_binding)
@@ -1749,7 +1752,7 @@ private:
                 building *burn = building_get(f->destination_building_id);
                 if (burn &&
                     (burn->state == BUILDING_STATE_IN_USE || burn->state == BUILDING_STATE_MOTHBALLED) &&
-                    type_matches(burn->type, "burning_ruin")) {
+                    building_matches(burn, "burning_ruin")) {
                     return true;
                 }
                 break;
@@ -1785,7 +1788,7 @@ private:
         }
         int distance = calc_maximum_distance(f->x, f->y, burn->x, burn->y);
         if ((burn->state == BUILDING_STATE_IN_USE || burn->state == BUILDING_STATE_MOTHBALLED)
-            && type_matches(burn->type, "burning_ruin") && distance < 2) {
+            && building_matches(burn, "burning_ruin") && distance < 2) {
             burn->fire_duration = 32;
             sound_effect_play(SOUND_EFFECT_FIRE_SPLASH);
         } else {
@@ -1865,8 +1868,10 @@ public:
 protected:
     static bool is_finished_venue(const building *venue)
     {
-        const bool is_hippodrome = venue && type_matches(venue->type, "hippodrome");
-        const bool is_colosseum = venue && type_matches(venue->type, "colosseum");
+        const building_type_registry_impl::BuildingType *definition =
+            venue ? building_type_registry_impl::definition_for_type(venue->type) : nullptr;
+        const bool is_hippodrome = definition && definition->is_hippodrome();
+        const bool is_colosseum = definition && definition->attr() && std::strcmp(definition->attr(), "colosseum") == 0;
         return venue &&
             (!is_hippodrome || !venue->prev_part_building_id) &&
             ((!is_colosseum && !is_hippodrome) ||

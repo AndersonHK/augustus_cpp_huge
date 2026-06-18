@@ -2,7 +2,7 @@
 #include "road_access.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
 #include "core/config.h"
@@ -16,20 +16,16 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_runtime_id_from_text(text_id);
-}
+#include <cstring>
 
-static int type_matches(building_type type, const char *text_id)
+static int building_matches(building *b, const char *text_id)
 {
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
-static int building_matches(const building *b, const char *text_id)
-{
-    return b && type_matches(b->type, text_id);
+    if (!b) {
+        return 0;
+    }
+    Building current(b);
+    const building_type_registry_impl::BuildingType *definition = current.type_definition();
+    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
 static void find_minimum_road_tile(int x, int y, int size, int *min_value, int *min_grid_offset)

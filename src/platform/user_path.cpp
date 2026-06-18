@@ -5,6 +5,7 @@
 #include "platform/platform.h"
 #include "platform/prefs.h"
 
+#include <string>
 #include <stdlib.h>
 #include <string.h>
 
@@ -38,9 +39,9 @@ void platform_user_path_create_subdirectories(void)
         if (i == PATH_LOCATION_ROOT || i == PATH_LOCATION_ASSET) {
             continue;
         }
-        const char *new_directory = platform_file_manager_get_directory_for_location(i, 0);
-        if (*new_directory) {
-            platform_file_manager_create_directory(new_directory, pref_user_dir(), 0);
+        const std::string new_directory = platform_file_manager_get_directory_for_location(i);
+        if (!new_directory.empty()) {
+            platform_file_manager_create_directory(new_directory.c_str(), pref_user_dir(), 0);
         }
     }
 }
@@ -64,10 +65,13 @@ void platform_user_path_copy_files(const char *original_user_path, int overwrite
         }
         char original_directory[FILE_NAME_MAX];
         char new_directory[FILE_NAME_MAX];
+        const std::string original_location_directory =
+            platform_file_manager_get_directory_for_location(location, original_user_path);
+        const std::string new_location_directory = platform_file_manager_get_directory_for_location(location);
         snprintf(original_directory, FILE_NAME_MAX, "%s",
-            platform_file_manager_get_directory_for_location(location, original_user_path));
+            original_location_directory.c_str());
         snprintf(new_directory, FILE_NAME_MAX, "%s",
-            platform_file_manager_get_directory_for_location(location, 0));
+            new_location_directory.c_str());
         if (is_same_directory(original_directory, new_directory)) {
             continue;
         }
@@ -138,15 +142,17 @@ void platform_user_path_copy_campaigns_and_custom_empires(void)
     const dir_listing *listing = dir_find_files_with_extension(0, "campaign");
     if (listing->num_files > 0) {
         char new_name[FILE_NAME_MAX];
-        const char *campaign_directory = platform_file_manager_get_directory_for_location(PATH_LOCATION_CAMPAIGN, 0);
-        platform_file_manager_create_directory(campaign_directory, pref_user_dir(), 0);
+        const std::string campaign_directory = platform_file_manager_get_directory_for_location(PATH_LOCATION_CAMPAIGN);
+        platform_file_manager_create_directory(campaign_directory.c_str(), pref_user_dir(), 0);
         for (int i = 0; i < listing->num_files; i++) {
-            snprintf(new_name, FILE_NAME_MAX, "%s%s", campaign_directory, listing->files[i].name);
+            snprintf(new_name, FILE_NAME_MAX, "%s%s", campaign_directory.c_str(), listing->files[i].name);
             if (!dir_get_file_at_location(listing->files[i].name, PATH_LOCATION_CAMPAIGN)) {
                 platform_file_manager_copy_file(listing->files[i].name, new_name);
             }
         }
     }
+    const std::string custom_empires_directory =
+        platform_file_manager_get_directory_for_location(PATH_LOCATION_EDITOR_CUSTOM_EMPIRES);
     platform_file_manager_copy_directory("custom_empires",
-        platform_file_manager_get_directory_for_location(PATH_LOCATION_EDITOR_CUSTOM_EMPIRES, 0), 0);
+        custom_empires_directory.c_str(), 0);
 }

@@ -3,7 +3,6 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
-#include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/destruction.h"
 #include "building/granary.h"
@@ -22,30 +21,32 @@
 
 #define SICKNESS_SPREAD_DIVISION_FACTOR 4
 
-static building_type runtime_type(const char *text_id)
+static int building_matches(const Building &building, const char *text_id)
 {
-    if (!text_id) {
-        return BUILDING_NONE;
-    }
-    return building_type_registry_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    return type && text_id && std::strcmp(type->attr(), text_id) == 0;
 }
 
 static building *first_building_of_type(const char *text_id)
 {
-    building_type type = runtime_type(text_id);
-    return type == BUILDING_NONE ? nullptr : building_first_of_type(type);
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        if (building_matches(Building(b), text_id)) {
+            return b;
+        }
+    }
+    return nullptr;
 }
 
 static int active_count(const char *text_id)
 {
-    building_type type = runtime_type(text_id);
-    return type == BUILDING_NONE ? 0 : building_count_active(type);
+    int active = 0;
+    for (building *b = first_building_of_type(text_id); b; b = b->next_of_type) {
+        if (building_is_active(b) && b == building_main(b)) {
+            active++;
+        }
+    }
+    return active;
 }
 
 int city_health(void)
@@ -63,10 +64,9 @@ void city_health_set(int new_value)
     city_data.health.value = calc_bound(new_value, 0, 100);
 }
 
-static int is_plague_building(building_type type)
+static int is_plague_building(const Building &building)
 {
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
+    const building_type_registry_impl::BuildingType *definition = building.type_definition();
     return definition &&
         (std::strcmp(definition->attr(), "dock") == 0 ||
             definition->is_warehouse() ||
@@ -86,14 +86,14 @@ static void cause_disease_in_building(int building_id)
     if (!b->has_plague) {
 
         // Remove half the granary's food
-        if (type_matches(b->type, "granary")) {
+        if (building_object.type().is_granary()) {
             for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
                 if (!resource_is_food(r)) {
                     continue;
                 }
                 building_granary_try_remove_resource(building_object, r, building_granary_get_amount(building_object, r) / 2);
             }
-        } else if (type_matches(b->type, "warehouse")) {
+        } else if (building_object.type().is_warehouse()) {
             // Remove all food from warehouse
             for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
                 if (!resource_is_food(r)) {
@@ -113,7 +113,7 @@ static void cause_disease_in_building(int building_id)
         b->has_plague = 1;
         b->sickness_duration = 0;
 
-        if (is_plague_building(b->type)) {
+        if (is_plague_building(building_object)) {
             city_message_post(1, MESSAGE_SICKNESS, b->type, b->grid_offset);
         }
     }
@@ -138,14 +138,14 @@ void city_health_dispatch_sickness(figure *f)
     building *dest_b = building_get(f->destination_building_id);
 
     // Dispatch sickness level sub value between granaries, warehouses and docks
-    if (is_plague_building(dest_b->type) && b->sickness_level && b->sickness_level > dest_b->sickness_level) {
+    if (is_plague_building(Building(dest_b)) && b->sickness_level && b->sickness_level > dest_b->sickness_level) {
         int value = b->sickness_level <= SICKNESS_SPREAD_DIVISION_FACTOR ? 1 :
             b->sickness_level / SICKNESS_SPREAD_DIVISION_FACTOR;
         dest_b->sickness_level += value;
         if (dest_b->sickness_level > b->sickness_level) {
             dest_b->sickness_level = b->sickness_level;
         }
-    } else if (is_plague_building(b->type) && dest_b->sickness_level && dest_b->sickness_level > b->sickness_level) {
+    } else if (is_plague_building(Building(b)) && dest_b->sickness_level && dest_b->sickness_level > b->sickness_level) {
         int value = b->sickness_level <= SICKNESS_SPREAD_DIVISION_FACTOR ? 1 :
             b->sickness_level / SICKNESS_SPREAD_DIVISION_FACTOR;
         b->sickness_level += value;
@@ -198,7 +198,7 @@ static int cause_disease(void)
 
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (is_plague_building(b->type) && b->sickness_level >= MAX_SICKNESS_LEVEL) {
+        if (is_plague_building(Building(b)) && b->sickness_level >= MAX_SICKNESS_LEVEL) {
             cause_disease_in_building(b->id);
         }
     }
@@ -296,7 +296,7 @@ static void adjust_sickness_level_in_plague_buildings(int hospital_coverage_bonu
 {
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (!is_plague_building(b->type) || b->has_plague || !b->sickness_level) {
+        if (!is_plague_building(Building(b)) || b->has_plague || !b->sickness_level) {
             continue;
         }
         int decrease_percentage = city_health();
@@ -468,7 +468,7 @@ int city_health_get_global_sickness_level(void)
 
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (!is_plague_building(b->type)) {
+        if (!is_plague_building(Building(b))) {
             continue;
         }
         building_number++;

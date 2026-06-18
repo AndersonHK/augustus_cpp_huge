@@ -2,7 +2,7 @@
 #include "connectable.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/construction.h"
 #include "building/image.h"
 #include "building/rotation.h"
@@ -14,6 +14,8 @@
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
+
+#include <string_view>
 
 #define MAX_TILES 8
 
@@ -53,21 +55,22 @@ static const char *const connectable_buildings[] = {
 
 static const int MAX_CONNECTABLE_BUILDINGS = sizeof(connectable_buildings) / sizeof(connectable_buildings[0]);
 
-static building_type xml_type(const char *text_id)
+static int type_attr_is(building_type type, std::string_view attr)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && std::string_view(definition->attr()) == attr;
 }
 
-static int type_matches(building_type type, const char *text_id)
+static building_type type_from_attr(const char *attr)
 {
-    building_type resolved = xml_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    return building_type_registry_impl::runtime_id_from_text(attr);
 }
 
 static int type_matches_any(building_type type, const char *const *text_ids, int count)
 {
     for (int i = 0; i < count; i++) {
-        if (type_matches(type, text_ids[i])) {
+        if (type_attr_is(type, text_ids[i])) {
             return 1;
         }
     }
@@ -203,8 +206,8 @@ int building_connectable_gate_type(building_type type)
         {"palisade", "palisade_gate"},
     };
     for (const gate_mapping &mapping : mappings) {
-        if (type_matches(type, mapping.wall)) {
-            return xml_type(mapping.gate);
+        if (type_attr_is(type, mapping.wall)) {
+            return type_from_attr(mapping.gate);
         }
     }
     return 0;
@@ -323,8 +326,8 @@ int building_connectable_get_colonnade_offset(int grid_offset)
             continue;
         }
         building *b = building_get(map_building_at(offset));
-        if (type_matches(b->type, "colonnade") ||
-            (map_property_is_constructing(offset) && type_matches(building_construction_type(), "colonnade"))) {
+        if (type_attr_is(b->type, "colonnade") ||
+            (map_property_is_constructing(offset) && type_attr_is(building_construction_type(), "colonnade"))) {
             tiles[i] = 1;
         }
     }
@@ -461,7 +464,7 @@ static int is_palisade_wall_or_gate(building_type type)
 
 static int is_palisade_wall(building_type type)
 {
-    return type_matches(type, "palisade");
+    return type_attr_is(type, "palisade");
 }
 
 int building_connectable_get_palisade_offset(int grid_offset)
@@ -521,7 +524,7 @@ int building_connectable_get_palisade_gate_offset(int grid_offset)
 int building_is_connectable(building_type type)
 {
     for (int i = 0; i < MAX_CONNECTABLE_BUILDINGS; i++) {
-        if (type_matches(type, connectable_buildings[i])) {
+        if (type_attr_is(type, connectable_buildings[i])) {
             return 1;
         }
     }
@@ -567,7 +570,7 @@ void building_connectable_update_connections_for_type(building_type type)
 void building_connectable_update_connections(void)
 {
     for (int i = 0; i < MAX_CONNECTABLE_BUILDINGS; i++) {
-        building_type type = xml_type(connectable_buildings[i]);
+        building_type type = type_from_attr(connectable_buildings[i]);
         if (type != BUILDING_NONE) {
             building_connectable_update_connections_for_type(type);
         }

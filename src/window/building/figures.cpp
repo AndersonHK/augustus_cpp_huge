@@ -12,6 +12,7 @@
 
 #include "figures.h"
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/lighthouse.h"
 #include "window/building/utility.h"
@@ -40,9 +41,9 @@ extern "C" {
 
 #define CAMEL_PORTRAIT 59
 
-static building_type runtime_type(const char *text_id)
+static building_type type_from_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static void select_figure(const generic_button *button);
@@ -297,7 +298,7 @@ static void draw_trader(building_info_context *c, figure *f)
         }
     }
 
-    if (building_monument_working(runtime_type("caravanserai")) && f->type != FIGURE_TRADE_SHIP) {
+    if (building_monument_working(type_from_attr("caravanserai")) && f->type != FIGURE_TRADE_SHIP) {
         trade_policy policy = city_trade_policy_get(LAND_TRADE_POLICY);
         if (policy) {
             int text_width = text_draw(translation_for_key("TR_BUILDING_CARAVANSERAI_POLICY_TITLE"), c->x_offset + 40, c->y_offset + 222, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
@@ -319,7 +320,7 @@ static void draw_trader(building_info_context *c, figure *f)
         }
     }
 
-    if (building_monument_working(runtime_type("lighthouse")) && f->type == FIGURE_TRADE_SHIP) {
+    if (building_monument_working(type_from_attr("lighthouse")) && f->type == FIGURE_TRADE_SHIP) {
         trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);
         if (policy) {
             int text_width = text_draw(translation_for_key("TR_BUILDING_LIGHTHOUSE_POLICY_TITLE"), c->x_offset + 40,

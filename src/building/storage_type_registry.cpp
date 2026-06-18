@@ -4,6 +4,7 @@
 #include "building/storage_type_registry.h"
 
 #include "core/crash_context.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
 extern "C" {
@@ -301,7 +302,7 @@ const StorageType *find_storage_type_definition(const char *path)
 
 extern "C" const char *storage_type_registry_get_storage_type_path(void)
 {
-    building_type_registry_impl::g_storage_type_path = std::string(mod_manager_get_mod_path()) + "StorageType/";
+    building_type_registry_impl::g_storage_type_path = mod_manager::mod_path() + "StorageType/";
     return building_type_registry_impl::g_storage_type_path.c_str();
 }
 

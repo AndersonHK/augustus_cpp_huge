@@ -13,28 +13,32 @@
 
 static const building DUMMY_BUILDING = { 0 };
 
-static building_type runtime_type(const char *text_id)
+static int building_matches(const Building &building, const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    return type && text_id && std::strcmp(type->attr(), text_id) == 0;
 }
 
-static const building *get_first_working_building(building_type type)
+static building *first_of_type(const char *text_id)
 {
-    if (type <= BUILDING_NONE) {
-        return &DUMMY_BUILDING;
+    for (int id = 1; id < building_count(); id++) {
+        building *b = building_get(id);
+        if (building_matches(Building(b), text_id)) {
+            return b;
+        }
     }
-    for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
+    return nullptr;
+}
+
+static const building *get_first_working_building(const char *text_id)
+{
+    for (building *b = first_of_type(text_id); b; b = b->next_of_type) {
         if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED ||
             b->state == BUILDING_STATE_MOTHBALLED) {
             return b;
         }
     }
     return &DUMMY_BUILDING;
-}
-
-static const building *get_first_working_building(const char *text_id)
-{
-    return get_first_working_building(runtime_type(text_id));
 }
 
 int city_buildings_has_senate(void)

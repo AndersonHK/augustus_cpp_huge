@@ -5,6 +5,7 @@
 
 #include "core/crash_context.h"
 #include "core/xml_value.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
 extern "C" {
@@ -230,7 +231,7 @@ extern "C" int water_access_type_registry_load(void)
 {
     using namespace building_type_registry_impl;
 
-    g_water_access_type_path = std::string(mod_manager_get_mod_path()) + "WaterAccessType/";
+    g_water_access_type_path = mod_manager::mod_path() + "WaterAccessType/";
     g_water_access_types.clear();
     g_water_access_by_number.fill(nullptr);
     g_defined_mask = 0;

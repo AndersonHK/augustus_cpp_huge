@@ -1,16 +1,16 @@
 #pragma once
 
 #include "translation/localization.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
+#include "core/log.h"
+#include "platform/file_manager.h"
 extern "C" {
 #include "core/buffer.h"
 #include "core/config.h"
 #include "core/encoding.h"
 #include "core/io.h"
-#include "core/log.h"
-#include "game/mod_manager.h"
-#include "platform/file_manager.h"
 }
 
 #include <array>

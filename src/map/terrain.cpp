@@ -3,6 +3,7 @@
 
 #include "building/building.h"
 #include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "city/map.h"
 #include "core/image.h"
 #include "map/bridge.h"
@@ -18,15 +19,23 @@
 static grid_u32 terrain_grid;
 static grid_u32 terrain_grid_backup;
 
-static building_type runtime_type(const char *text_id)
+static building_type building_type_from_definition_attr(const char *text_id)
 {
-    return building_type_registry_runtime_id_from_text(text_id);
+    for (int type = 1; type < BUILDING_TYPE_MAX; type++) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
+        if (definition && definition->attr() && text_id && strcmp(definition->attr(), text_id) == 0) {
+            return static_cast<building_type>(type);
+        }
+    }
+    return BUILDING_NONE;
 }
 
 static int type_matches(building_type type, const char *text_id)
 {
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && text_id && strcmp(definition->attr(), text_id) == 0;
 }
 
 const terrain_flags_array *map_terrain_to_array(int grid_offset)
@@ -611,7 +620,7 @@ void map_terrain_migrate_old_bridges(void)
                     : map_grid_delta(0, dir);
 
                 int is_ship_bridge = map_sprite_bridge_at(start) > 6 ? 1 : 0;
-                building_type bridge_type = runtime_type(is_ship_bridge ? "ship_bridge" : "low_bridge");
+                building_type bridge_type = building_type_from_definition_attr(is_ship_bridge ? "ship_bridge" : "low_bridge");
                 if (bridge_type == BUILDING_NONE) {
                     continue;
                 }
@@ -633,7 +642,7 @@ void map_terrain_migrate_old_bridges(void)
 
 void map_terrain_migrate_old_walls(void)
 {
-    building_type wall_type = runtime_type("wall");
+    building_type wall_type = building_type_from_definition_attr("wall");
     if (wall_type == BUILDING_NONE) {
         return;
     }

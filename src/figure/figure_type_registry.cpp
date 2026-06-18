@@ -5,15 +5,16 @@
 #include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
 #include "core/xml_value.h"
+#include "game/mod_manager.h"
 
 #include "core/file.h"
+#include "core/log.h"
+#include "platform/file_manager.h"
 extern "C" {
 #include "building/properties.h"
 #include "core/dir.h"
 #include "core/image.h"
-#include "core/log.h"
 #include "core/xml_parser.h"
-#include "platform/file_manager.h"
 }
 
 #include <array>
@@ -274,16 +275,14 @@ static void append_unique_candidate_path(std::vector<std::string> &paths, const 
 std::vector<std::string> build_candidate_definition_paths()
 {
     std::vector<std::string> paths;
-    append_unique_candidate_path(paths, mod_manager_get_mod_path());
+    append_unique_candidate_path(paths, mod_manager::mod_path().c_str());
 
-    const int mod_count = mod_manager_get_mod_count();
-    for (int i = 0; i < mod_count; i++) {
-        const char *name = mod_manager_get_mod_name_at(i);
-        if (!name) {
-            continue;
-        }
-        if (xml_value::equals(name, "Augustus") || xml_value::equals(name, "Julius")) {
-            append_unique_candidate_path(paths, mod_manager_get_mod_path_at(i));
+    const auto &mod_names = mod_manager::mod_names();
+    const auto &mod_paths = mod_manager::mod_paths();
+    for (size_t i = 0; i < mod_names.size() && i < mod_paths.size(); ++i) {
+        const std::string &name = mod_names[i];
+        if (xml_value::equals(name.c_str(), "Augustus") || xml_value::equals(name.c_str(), "Julius")) {
+            append_unique_candidate_path(paths, mod_paths[i].c_str());
         }
     }
     return paths;
