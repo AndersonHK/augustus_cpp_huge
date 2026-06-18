@@ -1776,6 +1776,7 @@ static void window_building_draw_monument_lighthouse_construction_process(buildi
 
 int window_building_handle_mouse_caravanserai(const mouse *m, building_info_context *c)
 {
+    data.building_id = c->building_id;
     return GenericButtonList(go_to_caravanserai_action_button, 1).handle_mouse(
         *m,
         c->x_offset + 32,
@@ -1889,6 +1890,7 @@ void window_building_draw_caravanserai(building_info_context *c)
 
 int window_building_handle_mouse_lighthouse(const mouse *m, building_info_context *c)
 {
+    data.building_id = c->building_id;
     return GenericButtonList(go_to_lighthouse_action_button, 1).handle_mouse(
         *m,
         c->x_offset + 32,
