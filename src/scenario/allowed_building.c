@@ -2,7 +2,6 @@
 
 #include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
-#include "building/building_type_legacy_migration.h"
 #include "building/building_type_startup_bridge.h"
 #include "building/menu.h"
 #include "building/monument.h"
@@ -75,18 +74,6 @@ static uint8_t allowed_buildings[BUILDING_TYPE_MAX];
 static building_type runtime_type(const char *text_id)
 {
     return text_id ? building_type_startup_bridge_runtime_id_from_text(text_id) : BUILDING_NONE;
-}
-
-static building_type runtime_type_for_legacy_allowed_slot(unsigned int save_id)
-{
-    if (!save_id) {
-        return BUILDING_NONE;
-    }
-    const char *text_id = building_type_legacy_migration_text_id_for_enum((uint16_t) save_id);
-    if (!text_id || !*text_id) {
-        return BUILDING_NONE;
-    }
-    return building_type_id_bridge_runtime_from_text(text_id);
 }
 
 static void refresh_dynamic_original_allowed_slots(void)
@@ -177,7 +164,7 @@ void scenario_allowed_building_load_state(buffer *buf)
 
     for (size_t i = 0; i < buildings; i++) {
         int allowed = buffer_read_i8(buf);
-        building_type type = runtime_type_for_legacy_allowed_slot((unsigned int) i);
+        building_type type = building_type_id_bridge_runtime_from_save_id((uint16_t) i);
         if (type > BUILDING_NONE && type < BUILDING_TYPE_MAX) {
             allowed_buildings[type] = allowed;
         }

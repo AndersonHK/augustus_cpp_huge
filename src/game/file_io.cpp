@@ -893,6 +893,9 @@ static void scenario_load_from_state(scenario_state *file, scenario_version_t ve
         scenario_invasion_load_state(file->invasions);
         scenario_demand_change_load_state(file->demand_changes, version);
         scenario_price_change_load_state(file->price_changes);
+        if (version <= SCENARIO_LAST_NO_KEYED_ALLOWED_BUILDINGS) {
+            building_type_id_bridge_save_table_load_state(0, 0);
+        }
         scenario_allowed_building_load_state_keyed(
             file->allowed_buildings,
             version > SCENARIO_LAST_NO_KEYED_ALLOWED_BUILDINGS);
@@ -1008,6 +1011,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     resource_id_bridge_save_table_load_state(
         state->resource_type_table,
         version > SAVE_GAME_LAST_NO_RESOURCE_TYPE_TABLE);
+    building_type_id_bridge_save_table_load_state(
+        state->building_type_table,
+        version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE);
 
     if (scenario_version > SCENARIO_LAST_NO_EXTENDED_REQUESTS) {
         scenario_request_load_state(state->requests, scenario_version);
@@ -1053,9 +1059,6 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     city_data_load_state(state->city_data, state->city_graph_order, state->city_entry_exit_xy,
         state->city_entry_exit_grid_offset, version);
 
-    building_type_id_bridge_save_table_load_state(
-        state->building_type_table,
-        version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE);
     water_access_type_id_bridge_save_table_load_state(
         state->water_access_type_table,
         version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE);
