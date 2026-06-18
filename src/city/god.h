@@ -22,6 +22,16 @@ public:
         return path_.c_str();
     }
 
+    void set_runtime_id(int id)
+    {
+        runtime_id_ = id;
+    }
+
+    int runtime_id() const
+    {
+        return runtime_id_;
+    }
+
     void set_legacy_type(god_type type)
     {
         legacy_type_ = type;
@@ -57,6 +67,7 @@ public:
 
 private:
     std::string path_;
+    int runtime_id_ = -1;
     god_type legacy_type_ = GOD_ALL;
     int neptune_trade_bonus_months_ = 0;
     int venus_employment_months_ = 0;

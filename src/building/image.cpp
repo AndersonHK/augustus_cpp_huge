@@ -718,11 +718,6 @@ int building_image_get(const building *b)
         return 0;
     }
 
-    int image_id = 0;
-    if (building_is_connectable(b->type) && type_handler_image(b, &image_id)) {
-        return image_id;
-    }
-
     Building building_object(const_cast<building *>(b));
     int xml_image_id = building_runtime_graphics_image_id(building_object);
     if (xml_image_id) {
@@ -733,6 +728,7 @@ int building_image_get(const building *b)
         return image_group(GROUP_BUILDING_HOUSE_VACANT_LOT);
     }
 
+    int image_id = 0;
     if (type_handler_image(b, &image_id)) {
         return image_id;
     }

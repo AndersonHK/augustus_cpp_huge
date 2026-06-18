@@ -10,13 +10,15 @@
     </desirability>
     <foundation policy="land" />
     <button group="parks" order="240" text_key="TR_BUILDING_HEDGE_GATE_DARK" />
-    <event_data attr="hedge_gate_dark" />
+    <event_data attr="hedge_gate_dark" />
     <roadblock kind="standard" />
     <flags fire_proof="1" />
     <graphics>
         <default>
-            <path value="Aesthetics\D_Hedge_Gate" />
-            <image value="D Hedge Gate" />
+            <options selection="connectable">
+                <option path="Aesthetics\D_Hedge_Gate" image="D Hedge Gate" />
+                <option path="Aesthetics\D_Hedge_Gate_R" image="D Hedge Gate R" />
+            </options>
         </default>
     </graphics>
     <labor>

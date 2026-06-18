@@ -18,7 +18,10 @@
 #include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/distribution.h"
+#include "building/god_id_bridge.h"
 #include "building/market.h"
+#include "building/religion.h"
+#include "building/temple.h"
 
 extern "C" {
 #include "assets/assets.h"
@@ -37,7 +40,6 @@ extern "C" {
 
 #include <string_view>
 
-#define GOD_PANTHEON 5
 #define MODULE_COST 1000
 
 static void button_add_module_prompt(const generic_button *button);
@@ -54,17 +56,23 @@ static building_type type_from_attr(const char *text_id)
 
 static int building_is_xml_type(building *b, const char *text_id)
 {
-    return b && std::string_view(Building(b).type().attr()) == text_id;
+    if (!b) {
+        return 0;
+    }
+    const Building building_obj(b);
+    return std::string_view(building_obj.type().attr()) == text_id;
 }
 
 static int building_accepts_resource(building *b, resource_type resource)
 {
-    return Building(b).accepts_good(resource);
+    Building building_obj(b);
+    return building_obj.accepts_good(resource);
 }
 
 static const building_type_registry_impl::Distribution *distribution_for(building *b)
 {
-    return Building(b).type().distribution();
+    Building building_obj(b);
+    return building_obj.type().distribution();
 }
 
 static generic_button add_module_button[] = {
@@ -89,7 +97,7 @@ static const ImageGroupEntryRef HORSE_TEAM_IMAGES[] = {
 static struct {
     unsigned int focus_button_id;
     int building_id;
-    int god_id;
+    int module_index;
     int module_choices[2];
 } data;
 
@@ -629,12 +637,12 @@ static void window_building_draw_monument_hippodrome_construction_process(buildi
         "TR_BUILDING_HIPPODROME_PHASE_1_TEXT", "TR_BUILDING_MONUMENT_CONSTRUCTION_DESC");
 }
 
-static void draw_grand_temple_venus_wine(building_info_context *c)
+static void draw_grand_temple_venus_wine(building_info_context *c, Temple &temple)
 {
     int y = 50;
     data.building_id = c->building_id;
     resource_graphics(resource_wine()).panel_icon().draw(c->x_offset + 24, c->y_offset + y - 5);
-    building *b = building_get(c->building_id);
+    building *b = temple.legacy_record();
     if (b->resources[resource_wine()] < 1) {
         lang_text_draw_amount(current_string_amount_key(8, 10, 0), 0, c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
@@ -643,12 +651,12 @@ static void draw_grand_temple_venus_wine(building_info_context *c)
 
 }
 
-static void draw_grand_temple_mars_military(building_info_context *c)
+static void draw_grand_temple_mars_military(building_info_context *c, Temple &temple)
 {
     int y = 60;
     data.building_id = c->building_id;
     resource_graphics(resource_weapons()).panel_icon().draw(c->x_offset + 25, c->y_offset + y - 5);
-    building *b = building_get(c->building_id);
+    building *b = temple.legacy_record();
     if (b->resources[resource_weapons()] < 1) {
         lang_text_draw_amount(current_string_amount_key(8, 10, 0), 0, c->x_offset + 52, c->y_offset + y, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
@@ -787,13 +795,30 @@ void window_building_draw_shrine_venus(building_info_context *c)
     Image::from_id(25 + Image::group(GROUP_PANEL_WINDOWS)).draw(c->x_offset + 180, c->y_offset + 45);
 }
 
-static void draw_grand_temple(building_info_context *c, const char *sound_file,
-    translation_key name, translation_key bonus_desc, const char *banner_group, const char *banner_entry, translation_key quote,
-    int temple_god_id, int extra_y)
+static const building_type_registry_impl::Religion *religion_for_temple(const Temple &temple)
 {
-    building *b = building_get(c->building_id);
-    window_building_play_sound(c, sound_file);
-    data.god_id = temple_god_id;
+    return temple.type().religion();
+}
+
+static int religion_has_legacy_god(const building_type_registry_impl::Religion &religion, god_type legacy_type)
+{
+    return religion.has_god_runtime_id(god_id_bridge_runtime_from_legacy(legacy_type));
+}
+
+void window_building_draw_grand_temple(building_info_context *c, Temple &temple)
+{
+    const building_type_registry_impl::Religion *religion = religion_for_temple(temple);
+    if (!religion) {
+        return;
+    }
+    const building_type_registry_impl::ReligionPresentation &presentation = religion->presentation();
+    if (!presentation.is_complete()) {
+        return;
+    }
+
+    building *b = temple.legacy_record();
+    window_building_play_sound(c, presentation.sound());
+    data.module_index = presentation.module_index();
     if (b->monument.phase == MONUMENT_FINISHED) {
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
         c->advisor_button = ADVISOR_RELIGION;
@@ -802,51 +827,52 @@ static void draw_grand_temple(building_info_context *c, const char *sound_file,
         window_building_draw_monument_temple_construction_process(c);
     }
     if (b->monument.upgrades) {
-        const translation_key module_name = temple_module_options[data.god_id * 2 + (b->monument.upgrades - 1)].option.header;
+        const translation_key module_name = temple_module_options[data.module_index * 2 + (b->monument.upgrades - 1)].option.header;
         text_draw_centered(translation_for(module_name),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     } else {
-        text_draw_centered(translation_for(name),
+        text_draw_centered(translation_for(presentation.name_key()),
             c->x_offset, c->y_offset + 12, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     }
     int height = 0;
     if (b->monument.phase == MONUMENT_FINISHED) {
         if (building_monument_has_labour_problems(b)) {
             height = text_draw_multiline(translation_for_key("TR_BUILDING_GRAND_TEMPLE_NEEDS_WORKERS"),
-                c->x_offset + 22, c->y_offset + 56 + extra_y, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+                c->x_offset + 22, c->y_offset + 56 + presentation.content_y_offset(), 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         } else {
-            height = text_draw_multiline(translation_for(bonus_desc),
-                c->x_offset + 22, c->y_offset + 56 + extra_y, 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+            height = text_draw_multiline(translation_for(presentation.bonus_key()),
+                c->x_offset + 22, c->y_offset + 56 + presentation.content_y_offset(), 15 * c->width_blocks, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             if (b->monument.upgrades) {
-                const translation_key module_desc = temple_module_options[data.god_id * 2 + (b->monument.upgrades - 1)].option.desc;
+                const translation_key module_desc = temple_module_options[data.module_index * 2 + (b->monument.upgrades - 1)].option.desc;
                 height += text_draw_multiline(translation_for(module_desc),
-                    c->x_offset + 22, c->y_offset + 66 + height + extra_y, 15 * c->width_blocks,
+                    c->x_offset + 22, c->y_offset + 66 + height + presentation.content_y_offset(), 15 * c->width_blocks,
                     0, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             }
         }
-        if (Building(b).type().is_grand_temple_mars()) {
-            draw_grand_temple_mars_military(c);
-        } else if (Building(b).type().is_grand_temple_venus() &&
+        if (religion_has_legacy_god(*religion, GOD_MARS)) {
+            draw_grand_temple_mars_military(c, temple);
+        } else if (religion_has_legacy_god(*religion, GOD_VENUS) &&
             (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE))) {
-            draw_grand_temple_venus_wine(c);
+            draw_grand_temple_venus_wine(c, temple);
         }
-        inner_panel_draw(c->x_offset + 16, c->y_offset + 86 + height + extra_y, c->width_blocks - 2, 4);
-        window_building_draw_employment(c, 90 + height + extra_y);
+        inner_panel_draw(c->x_offset + 16, c->y_offset + 86 + height + presentation.content_y_offset(), c->width_blocks - 2, 4);
+        window_building_draw_employment(c, 90 + height + presentation.content_y_offset());
         window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76,
-            c->y_offset + 94 + height + extra_y);
+            c->y_offset + 94 + height + presentation.content_y_offset());
         if (c->height_blocks > 26) {
-            ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 166 + height + extra_y);
-            ImageGroupEntryRef::from_group(banner_group, banner_entry).draw(c->x_offset + 37, c->y_offset + 171 + height + extra_y);
-            text_draw_multiline(translation_for(quote),
-                c->x_offset + 10, c->y_offset + 386 + height + extra_y, BLOCK_SIZE * c->width_blocks - 16,
+            ImageBorder::large_banner().draw(c->x_offset + 32, c->y_offset + 166 + height + presentation.content_y_offset());
+            ImageGroupEntryRef::from_group(presentation.banner_group(), presentation.banner_image()).draw(c->x_offset + 37, c->y_offset + 171 + height + presentation.content_y_offset());
+            text_draw_multiline(translation_for(presentation.quote_key()),
+                c->x_offset + 10, c->y_offset + 386 + height + presentation.content_y_offset(), BLOCK_SIZE * c->width_blocks - 16,
                 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
     }
 }
 
-void window_building_draw_grand_temple_foreground(building_info_context *c)
+void window_building_draw_grand_temple_foreground(building_info_context *c, Temple &temple)
 {
-    building *b = building_get(c->building_id);
+    building *b = temple.legacy_record();
+    const building_type_registry_impl::Religion *religion = religion_for_temple(temple);
     if (b->monument.phase != MONUMENT_FINISHED) {
         return;
     }
@@ -857,15 +883,15 @@ void window_building_draw_grand_temple_foreground(building_info_context *c)
             c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 33,
             16 * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
-    if (Building(b).type().is_grand_temple_mars()) {
+    if (religion && religion_has_legacy_god(*religion, GOD_MARS)) {
         window_building_draw_priority_buttons(c->x_offset + 50, c->y_offset + 135, b->id);
         window_building_draw_delivery_buttons(c->x_offset + 392, c->y_offset + 40, b->id);
     }
 }
 
-int window_building_handle_mouse_grand_temple(const mouse *m, building_info_context *c)
+int window_building_handle_mouse_grand_temple(const mouse *m, building_info_context *c, Temple &temple)
 {
-    building *b = building_get(c->building_id);
+    building *b = temple.legacy_record();
     data.building_id = c->building_id;
     if (b->monument.phase != MONUMENT_FINISHED || b->monument.upgrades) {
         return 0;
@@ -879,53 +905,6 @@ int window_building_handle_mouse_grand_temple(const mouse *m, building_info_cont
         return 1;
     }
     return 0;
-}
-
-void window_building_draw_grand_temple_ceres(building_info_context *c)
-{
-    draw_grand_temple(c, "wavs/temple_farm.wav", "TR_BUILDING_GRAND_TEMPLE_CERES_DESC",
-        "TR_BUILDING_GRAND_TEMPLE_CERES_BONUS_DESC",
-        "UI\\Ceres_L_Banner", "Ceres L Banner",
-        "TR_BUILDING_CERES_TEMPLE_QUOTE", GOD_CERES, 0);
-}
-
-void window_building_draw_grand_temple_neptune(building_info_context *c)
-{
-    draw_grand_temple(c, "wavs/temple_ship.wav", "TR_BUILDING_GRAND_TEMPLE_NEPTUNE_DESC",
-        "TR_BUILDING_GRAND_TEMPLE_NEPTUNE_BONUS_DESC",
-        "UI\\Nept_L_Banner", "Nept L Banner",
-        "TR_BUILDING_NEPTUNE_TEMPLE_QUOTE", GOD_NEPTUNE, 0);
-}
-
-void window_building_draw_grand_temple_mercury(building_info_context *c)
-{
-    draw_grand_temple(c, "wavs/temple_comm.wav", "TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC",
-        "TR_BUILDING_GRAND_TEMPLE_MERCURY_BONUS_DESC",
-        "UI\\Merc_L_Banner", "Merc L Banner",
-        "TR_BUILDING_MERCURY_TEMPLE_QUOTE", GOD_MERCURY, 0);
-}
-
-void window_building_draw_grand_temple_mars(building_info_context *c)
-{
-    draw_grand_temple(c, "wavs/temple_war.wav", "TR_BUILDING_GRAND_TEMPLE_MARS_DESC",
-        "TR_BUILDING_GRAND_TEMPLE_MARS_BONUS_DESC",
-        "UI\\Mars_L_Banner", "Mars L Banner",
-        "TR_BUILDING_MARS_TEMPLE_QUOTE", GOD_MARS, 150);
-}
-
-void window_building_draw_grand_temple_venus(building_info_context *c)
-{
-    draw_grand_temple(c, "wavs/temple_love.wav", "TR_BUILDING_GRAND_TEMPLE_VENUS_DESC",
-        "TR_BUILDING_GRAND_TEMPLE_VENUS_BONUS_DESC",
-        "UI\\Venus_L_Banner", "Venus L Banner",
-        "TR_BUILDING_VENUS_TEMPLE_QUOTE", GOD_VENUS, 20);
-}
-
-void window_building_draw_pantheon(building_info_context *c)
-{
-    draw_grand_temple(c, "wavs/oracle.wav", "TR_BUILDING_PANTHEON_DESC", "TR_BUILDING_PANTHEON_BONUS_DESC",
-        "UI\\Panth_L_Banner", "Panth L Banner",
-        "TR_BUILDING_PANTHEON_QUOTE", GOD_PANTHEON, 0);
 }
 
 void window_building_draw_work_camp(building_info_context *c)
@@ -1408,7 +1387,7 @@ static void generate_module_image_id(int index)
 static void button_add_module_prompt(const generic_button *button)
 {
     int num_options = 0;
-    int option_id = data.god_id * 2;
+    int option_id = data.module_index * 2;
 
     static option_menu_item options[2];
 

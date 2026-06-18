@@ -51,7 +51,8 @@ enum class GraphicsConditionType {
 
 enum class GraphicsOptionSelection {
     StableVariant,
-    BuildRotation
+    BuildRotation,
+    Connectable
 };
 
 // A graphics target is either one direct path/image pair or a set of equivalent
@@ -60,6 +61,7 @@ struct GraphicsTarget {
     void set_path(std::string path);
     void set_image(std::string image);
     void set_option_selection(GraphicsOptionSelection selection);
+    void set_animation_enabled(int enabled);
     GraphicsTarget &add_option();
 
     int has_path() const;
@@ -68,6 +70,7 @@ struct GraphicsTarget {
     int has_image() const;
     const char *image() const;
     GraphicsOptionSelection option_selection() const;
+    int animation_enabled() const;
     int has_options() const;
     int option_count() const;
     const GraphicsTarget *option(int index) const;
@@ -77,6 +80,7 @@ private:
     std::string path_;
     std::string image_;
     GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
+    int animation_enabled_ = 1;
     std::vector<GraphicsTarget> options_;
 };
 

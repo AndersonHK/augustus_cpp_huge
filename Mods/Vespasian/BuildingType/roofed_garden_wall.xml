@@ -14,8 +14,19 @@
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>
         <default>
-            <path value="Aesthetics\R_Garden_Wall_01" />
-            <image value="R Garden Wall 01" />
+            <options selection="connectable">
+                <option path="Aesthetics\R_Garden_Wall_01" image="R Garden Wall 01" />
+                <option path="Aesthetics\R_Garden_Wall_02" image="R Garden Wall 02" />
+                <option path="Aesthetics\R_Garden_Wall_03" image="R Garden Wall 03" />
+                <option path="Aesthetics\R_Garden_Wall_04" image="R Garden Wall 04" />
+                <option path="Aesthetics\R_Garden_Wall_05" image="R Garden Wall 05" />
+                <option path="Aesthetics\R_Garden_Wall_06" image="R Garden Wall 06" />
+                <option path="Aesthetics\R_Garden_Wall_07" image="R Garden Wall 07" />
+                <option path="Aesthetics\R_Garden_Wall_08" image="R Garden Wall 08" />
+                <option path="Aesthetics\R_Garden_Wall_09" image="R Garden Wall 09" />
+                <option path="Aesthetics\R_Garden_Wall_10" image="R Garden Wall 10" />
+                <option path="Aesthetics\R_Garden_Wall_11" image="R Garden Wall 11" />
+            </options>
         </default>
     </graphics>
     <labor>

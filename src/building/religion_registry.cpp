@@ -34,6 +34,7 @@ struct ParseState {
     int saw_god = 0;
     int saw_tier = 0;
     int saw_capacity = 0;
+    int saw_presentation = 0;
     int error = 0;
 };
 
@@ -70,10 +71,41 @@ ReligionTier parse_tier(const char *value)
     if (compare_text(text.c_str(), "oracle") == 0) {
         return ReligionTier::Oracle;
     }
-    if (compare_text(text.c_str(), "pantheon") == 0) {
-        return ReligionTier::Pantheon;
-    }
     return ReligionTier::None;
+}
+
+int parse_presentation_module_index(const char *value)
+{
+    std::string text = xml_value::trim_copy(value ? value : "");
+    if (compare_text(text.c_str(), "ceres") == 0) {
+        return 0;
+    }
+    if (compare_text(text.c_str(), "neptune") == 0) {
+        return 1;
+    }
+    if (compare_text(text.c_str(), "mercury") == 0) {
+        return 2;
+    }
+    if (compare_text(text.c_str(), "mars") == 0) {
+        return 3;
+    }
+    if (compare_text(text.c_str(), "venus") == 0) {
+        return 4;
+    }
+    if (compare_text(text.c_str(), "pantheon") == 0) {
+        return 5;
+    }
+    return -1;
+}
+
+int require_presentation_attribute(const char *attribute)
+{
+    if (xml_parser_has_attribute(attribute)) {
+        return 1;
+    }
+    log_error("Religion presentation is missing required attribute", attribute, 0);
+    g_parse_state.error = 1;
+    return 0;
 }
 
 int parse_root()
@@ -81,6 +113,72 @@ int parse_root()
     if (!g_parse_state.definition) {
         g_parse_state.definition = std::make_unique<Religion>(std::string());
     }
+    return 1;
+}
+
+int parse_presentation()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered Religion presentation before root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_presentation) {
+        log_error("Religion xml contains duplicate presentation nodes", g_parse_state.definition->path(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *required_attributes[] = {
+        "sound", "name_key", "bonus_key", "quote_key", "banner_group", "banner_image",
+        "content_y_offset", "height_blocks", "module_key"
+    };
+    for (const char *attribute : required_attributes) {
+        if (!require_presentation_attribute(attribute)) {
+            return 0;
+        }
+    }
+
+    ReligionPresentation &presentation = g_parse_state.definition->presentation();
+    presentation.set_sound(xml_value::trim_copy(xml_parser_get_attribute_string("sound")));
+    presentation.set_name_key(translation_key(xml_value::trim_copy(xml_parser_get_attribute_string("name_key"))));
+    presentation.set_bonus_key(translation_key(xml_value::trim_copy(xml_parser_get_attribute_string("bonus_key"))));
+    presentation.set_quote_key(translation_key(xml_value::trim_copy(xml_parser_get_attribute_string("quote_key"))));
+    presentation.set_banner_group(xml_value::trim_copy(xml_parser_get_attribute_string("banner_group")));
+    presentation.set_banner_image(xml_value::trim_copy(xml_parser_get_attribute_string("banner_image")));
+
+    int content_y_offset = 0;
+    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("content_y_offset"), &content_y_offset)) {
+        log_error("Unsupported Religion presentation content_y_offset", xml_parser_get_attribute_string("content_y_offset"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    presentation.set_content_y_offset(content_y_offset);
+
+    int height_blocks = 0;
+    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("height_blocks"), &height_blocks) ||
+        height_blocks <= 0) {
+        log_error("Unsupported Religion presentation height_blocks", xml_parser_get_attribute_string("height_blocks"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    presentation.set_height_blocks(height_blocks);
+
+    int module_index = parse_presentation_module_index(xml_parser_get_attribute_string("module_key"));
+    if (module_index < 0) {
+        log_error("Unsupported Religion presentation module_key", xml_parser_get_attribute_string("module_key"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    presentation.set_module_index(module_index);
+
+    if (!presentation.is_complete()) {
+        log_error("Religion presentation is incomplete", g_parse_state.definition->path(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.saw_presentation = 1;
     return 1;
 }
 
@@ -179,7 +277,8 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "religion", parse_root, nullptr, nullptr, nullptr },
     { "god", parse_god, nullptr, "religion", nullptr },
     { "tier", parse_tier, nullptr, "religion", nullptr },
-    { "capacity", parse_capacity, nullptr, "religion", nullptr }
+    { "capacity", parse_capacity, nullptr, "religion", nullptr },
+    { "presentation", parse_presentation, nullptr, "religion", nullptr }
 };
 
 int parse_definition_file(const char *filename, const char *definition_path)
@@ -202,8 +301,11 @@ int parse_definition_file(const char *filename, const char *definition_path)
 
     const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
     xml_parser_free();
+    const ReligionTier tier = g_parse_state.definition ? g_parse_state.definition->tier() : ReligionTier::None;
+    const int needs_presentation = tier == ReligionTier::Grand;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
-        !g_parse_state.saw_god || !g_parse_state.saw_tier || !g_parse_state.saw_capacity) {
+        !g_parse_state.saw_god || !g_parse_state.saw_tier || !g_parse_state.saw_capacity ||
+        (needs_presentation && !g_parse_state.definition->presentation().is_complete())) {
         log_error("Unable to parse Religion xml", filename, 0);
         error_context_report_error("Unable to parse Religion xml.", filename);
         return 0;

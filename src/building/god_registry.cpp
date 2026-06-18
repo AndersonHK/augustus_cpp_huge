@@ -15,6 +15,7 @@ extern "C" {
 #include "core/xml_parser.h"
 }
 
+#include <algorithm>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -35,6 +36,7 @@ struct ParseState {
 };
 
 std::unordered_map<std::string, std::unique_ptr<God>> g_gods;
+std::vector<const God *> g_runtime_gods;
 ParseState g_parse_state;
 
 int compare_text(const char *left, const char *right)
@@ -188,6 +190,28 @@ int parse_definition_file(const char *filename, const char *definition_path)
     return 1;
 }
 
+void assign_runtime_ids()
+{
+    std::vector<std::string> paths;
+    paths.reserve(g_gods.size());
+    for (const auto &entry : g_gods) {
+        paths.push_back(entry.first);
+    }
+    std::sort(paths.begin(), paths.end());
+
+    g_runtime_gods.clear();
+    g_runtime_gods.reserve(paths.size());
+    int runtime_id = 0;
+    for (const std::string &path : paths) {
+        auto found = g_gods.find(path);
+        if (found == g_gods.end() || !found->second) {
+            continue;
+        }
+        found->second->set_runtime_id(runtime_id++);
+        g_runtime_gods.push_back(found->second.get());
+    }
+}
+
 } // namespace
 
 const God *find_god_definition(const char *path)
@@ -207,9 +231,22 @@ const God *find_god_definition(god_type legacy_type)
     return nullptr;
 }
 
+const God *find_god_definition_by_runtime_id(int runtime_id)
+{
+    if (runtime_id < 0 || runtime_id >= static_cast<int>(g_runtime_gods.size())) {
+        return nullptr;
+    }
+    return g_runtime_gods[static_cast<size_t>(runtime_id)];
+}
+
+const God *god_definition_at_runtime_index(int index)
+{
+    return find_god_definition_by_runtime_id(index);
+}
+
 int god_definition_count(void)
 {
-    return static_cast<int>(g_gods.size());
+    return static_cast<int>(g_runtime_gods.size());
 }
 
 } // namespace building_type_registry_impl
@@ -226,6 +263,7 @@ extern "C" int god_registry_load(void)
 
     god_registry_get_god_path();
     g_gods.clear();
+    g_runtime_gods.clear();
 
     const dir_listing *files = dir_find_files_with_extension(g_god_path.c_str(), "xml");
     if (!files || files->num_files <= 0) {
@@ -245,6 +283,8 @@ extern "C" int god_registry_load(void)
             return 0;
         }
     }
+
+    assign_runtime_ids();
 
     return 1;
 }

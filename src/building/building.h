@@ -162,6 +162,7 @@ private:
     ::building *record_ = nullptr;
     mutable const building_type_registry_impl::BuildingType *type_definition_ = nullptr;
 };
+
 #endif
 
 #include "core/buffer.h"

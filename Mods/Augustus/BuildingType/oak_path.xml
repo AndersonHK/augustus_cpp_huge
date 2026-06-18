@@ -14,8 +14,19 @@
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>
         <default>
-            <path value="Aesthetics\path_orn_oak" />
-            <image value="path orn oak" />
+            <options selection="connectable">
+                <option path="Aesthetics\Garden_Path_01" image="Garden Path 01" />
+                <option path="Aesthetics\Garden_Path_02" image="Garden Path 02" />
+                <option path="Aesthetics\Garden_Path_03" image="Garden Path 03" />
+                <option path="Aesthetics\Garden_Path_04" image="Garden Path 04" />
+                <option path="Aesthetics\Garden_Path_05" image="Garden Path 05" />
+                <option path="Aesthetics\Garden_Path_06" image="Garden Path 06" />
+                <option path="Aesthetics\Garden_Path_07" image="Garden Path 07" />
+                <option path="Aesthetics\Garden_Path_08" image="Garden Path 08" />
+                <option path="Aesthetics\Garden_Path_09" image="Garden Path 09" />
+                <option path="Aesthetics\path_orn_oak" image="path orn oak" />
+                <option path="Aesthetics\path_oak_r" image="path oak r" />
+            </options>
         </default>
     </graphics>
     <labor>

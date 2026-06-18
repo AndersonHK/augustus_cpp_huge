@@ -4,6 +4,8 @@
 #include "input/mouse.h"
 #include "translation/translation.h"
 
+class Temple;
+
 void window_building_draw_wall(building_info_context *c);
 void window_building_draw_gatehouse(building_info_context *c);
 void window_building_draw_tower(building_info_context *c);
@@ -28,7 +30,7 @@ int window_building_handle_mouse_legion_info(const mouse *m, building_info_conte
 int window_building_get_legion_info_tooltip_text(building_info_context *c);
 void window_building_barracks_get_tooltip_priority(translation_key *translation);
 
-int window_building_handle_mouse_grand_temple_mars(const mouse *m, building_info_context *c);
+int window_building_handle_mouse_grand_temple_mars(const mouse *m, building_info_context *c, Temple &temple);
 void window_building_draw_watchtower(building_info_context *c);
 void window_building_draw_palisade(building_info_context *c);
 

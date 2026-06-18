@@ -15,6 +15,7 @@
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/religion.h"
+#include "building/temple.h"
 #include "building/warehouse.h"
 #include "city/map.h"
 #include "city/view.h"
@@ -130,14 +131,13 @@ static int type_is_storage(const BuildingType &type_definition)
     return type_definition.is_granary() || type_definition.is_warehouse();
 }
 
-static int type_is_grand_temple_or_pantheon(const BuildingType &type_definition)
+static int grand_temple_panel_height_blocks(const BuildingType &type_definition)
 {
-    return type_definition.is_temple(GOD_CERES, building_type_registry_impl::ReligionTier::Grand) ||
-        type_definition.is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand) ||
-        type_definition.is_temple(GOD_MERCURY, building_type_registry_impl::ReligionTier::Grand) ||
-        type_definition.is_temple(GOD_NEPTUNE, building_type_registry_impl::ReligionTier::Grand) ||
-        type_definition.is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Grand) ||
-        type_definition.is_pantheon();
+    const building_type_registry_impl::Religion *religion = type_definition.religion();
+    if (!religion || !religion->presentation().is_complete()) {
+        return 0;
+    }
+    return religion->presentation().height_blocks();
 }
 
 static void init_context_buttons(building_info_context *c)
@@ -242,14 +242,14 @@ static int get_height_id(void)
         if (is_dock || building_type_attr_is_any(type, {"lighthouse", "caravanserai"})) {
             return HEIGHT_6_38_BLOCKS;
         }
+        if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
+            const int panel_height = grand_temple_panel_height_blocks(type_definition);
+            return panel_height > 0 ? panel_height : HEIGHT_8_40_BLOCKS;
+        }
         if (building_type_attr_is_any(type, {
-            "grand_temple_ceres", "grand_temple_neptune", "grand_temple_mercury",
-            "grand_temple_venus", "pantheon", "hippodrome", "colosseum"
+            "hippodrome", "colosseum"
         })) {
             return HEIGHT_8_40_BLOCKS;
-        }
-        if (building_type_attr_is(type, "grand_temple_mars")) {
-            return HEIGHT_10_46_BLOCKS;
         }
         if (building_type_attr_is_any(type, {
             "fort_legionaries", "fort_javelin", "fort_mounted", "fort_swords", "fort_archers",
@@ -411,7 +411,8 @@ static void init(int grid_offset)
             context.has_road_access = map_has_road_access_hippodrome_rotation(b->x, b->y, 0, b->subtype.orientation);
         } else if (type_definition.is_warehouse()) {
             context.has_road_access = map_has_road_access_warehouse(b->x, b->y, 0);
-            context.warehouse_space_text = building_warehouse_get_space_info(Building(b));
+            const Building warehouse(b);
+            context.warehouse_space_text = building_warehouse_get_space_info(warehouse);
         } else if (building_type_attr_is(btype, "depot")) {
             context.has_road_access = map_has_road_access(b->x, b->y, b->size, 0);
             game_state_set_overlay(OVERLAY_STORAGES);
@@ -490,25 +491,31 @@ static void init(int grid_offset)
     // dialog size
     context.width_blocks = 29;
 
-    switch (get_height_id()) {
-        case 1: context.height_blocks = 16; break;
-        case 2: context.height_blocks = 18; break;
-        case 3: context.height_blocks = 20; break;
-        case 4: context.height_blocks = 14; break;
-        case 5: context.height_blocks = 24; break;
-        case 6: context.height_blocks = 38; break;
-        case 7: context.height_blocks = 26; break;
-        case 8: context.height_blocks = 40; break;
+    int height_id = get_height_id();
+    if (height_id > HEIGHT_13_15_BLOCKS) {
+        context.height_blocks = height_id;
+    } else {
+        switch (height_id) {
+            case 1: context.height_blocks = 16; break;
+            case 2: context.height_blocks = 18; break;
+            case 3: context.height_blocks = 20; break;
+            case 4: context.height_blocks = 14; break;
+            case 5: context.height_blocks = 24; break;
+            case 6: context.height_blocks = 38; break;
+            case 7: context.height_blocks = 26; break;
+            case 8: context.height_blocks = 40; break;
 
-        case 10: context.height_blocks = 46; break;
-        case 11: context.height_blocks = 28; break;
+            case 10: context.height_blocks = 46; break;
+            case 11: context.height_blocks = 28; break;
 
-        case 13: context.height_blocks = 15; break;
-        default: context.height_blocks = 22; break;
+            case 13: context.height_blocks = 15; break;
+            default: context.height_blocks = 22; break;
+        }
     }
     adjust_height_for_storage_buildings(&context);
+    const Building current_dialog_building(b);
     if ((screen_height() <= 600) ||
-        (screen_height() <= 720 && building_type_attr_is(static_cast<building_type>(b->type), "grand_temple_mars"))) {
+        (screen_height() <= 720 && current_dialog_building.type().is_grand_temple_mars())) {
         context.height_blocks = calc_bound(context.height_blocks, 0, 26);
     }
     // dialog placement
@@ -688,18 +695,9 @@ static void draw_background(void)
             } else {
                 window_building_draw_tavern(&context);
             }
-        } else if (building_type_attr_is(btype, "grand_temple_ceres")) {
-            window_building_draw_grand_temple_ceres(&context);
-        } else if (building_type_attr_is(btype, "grand_temple_neptune")) {
-            window_building_draw_grand_temple_neptune(&context);
-        } else if (building_type_attr_is(btype, "grand_temple_mercury")) {
-            window_building_draw_grand_temple_mercury(&context);
-        } else if (building_type_attr_is(btype, "grand_temple_mars")) {
-            window_building_draw_grand_temple_mars(&context);
-        } else if (building_type_attr_is(btype, "grand_temple_venus")) {
-            window_building_draw_grand_temple_venus(&context);
-        } else if (building_type_attr_is(btype, "pantheon")) {
-            window_building_draw_pantheon(&context);
+        } else if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
+            Temple temple(b, current_building.type_definition());
+            window_building_draw_grand_temple(&context, temple);
         } else if (type_definition.is_lighthouse()) {
             window_building_draw_lighthouse(&context);
         } else if (building_type_attr_is_any(btype, {"governors_house", "governors_villa", "governors_palace"})) {
@@ -900,8 +898,9 @@ static void draw_foreground(void)
             }
         } else if (building_type_attr_is(btype, "barracks")) {
             window_building_draw_barracks_foreground(&context);
-        } else if (type_is_grand_temple_or_pantheon(type_definition)) {
-            window_building_draw_grand_temple_foreground(&context);
+        } else if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
+            Temple temple(b, current_building.type_definition());
+            window_building_draw_grand_temple_foreground(&context, temple);
         } else if (type_definition.is_caravanserai() &&
             b->monument.phase == MONUMENT_FINISHED) {
             if (context.show_special_orders) {
@@ -1007,8 +1006,12 @@ static int handle_specific_building_info_mouse(const mouse *m)
             }
         } else if (building_type_attr_is(btype, "barracks")) {
             return window_building_handle_mouse_barracks(m, &context);
-        } else if (building_type_attr_is(btype, "grand_temple_mars")) {
-            return window_building_handle_mouse_grand_temple_mars(m, &context);
+        } else if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
+            Temple temple(b, current_building.type_definition());
+            if (type_definition.is_grand_temple_mars()) {
+                return window_building_handle_mouse_grand_temple_mars(m, &context, temple);
+            }
+            return window_building_handle_mouse_grand_temple(m, &context, temple);
         } else if (type_is_storage(type_definition)) {
             if (context.show_special_orders == SPECIAL_ORDERS_GENERIC ||
                 context.show_special_orders == SPECIAL_ORDERS_STORAGE) {
@@ -1018,8 +1021,6 @@ static int handle_specific_building_info_mouse(const mouse *m)
             } else {
                 return window_building_handle_mouse_storage(m, &context);
             }
-        } else if (type_is_grand_temple_or_pantheon(type_definition)) {
-            return window_building_handle_mouse_grand_temple(m, &context);
         } else if (building_type_attr_is(btype, "depot")) {
             if (context.depot_selection == 2) {
                 window_building_handle_mouse_depot_select_source(m, &context);

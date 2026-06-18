@@ -262,7 +262,7 @@ int window_building_handle_mouse_barracks(const mouse *m, building_info_context 
     return 0;
 }
 
-int window_building_handle_mouse_grand_temple_mars(const mouse *m, building_info_context *c)
+int window_building_handle_mouse_grand_temple_mars(const mouse *m, building_info_context *c, Temple &temple)
 {
     unsigned int focused_button = data.focus_priority_button_id;
     if (GenericButtonList(priority_buttons, 7).handle_mouse(
@@ -284,7 +284,7 @@ int window_building_handle_mouse_grand_temple_mars(const mouse *m, building_info
     if (focused_button != data.focus_priority_button_id) {
         window_invalidate();
     }
-    window_building_handle_mouse_grand_temple(m, c);
+    window_building_handle_mouse_grand_temple(m, c, temple);
     return 0;
 }
 

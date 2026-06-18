@@ -1,4 +1,5 @@
 #include "building/count.h"
+#include "building/god_id_bridge.h"
 #include "building/list.h"
 #include "building/local_workforce.h"
 #include "building/storage.h"
@@ -172,6 +173,7 @@ typedef struct {
     buffer *city_faction;
     buffer *building_type_table;
     buffer *water_access_type_table;
+    buffer *god_type_table;
     buffer *buildings;
     buffer *building_resource_state;
     buffer *city_view_orientation;
@@ -321,6 +323,7 @@ typedef struct {
         int mod_metadata;
         int building_type_table;
         int water_access_type_table;
+        int god_type_table;
         int keyed_resource_state;
         int road_service_history;
         int local_workforce_allocations;
@@ -657,6 +660,7 @@ static void get_version_data(savegame_version_data *version_data, savegame_versi
     version_data->features.mod_metadata = version > SAVE_GAME_LAST_NO_MOD_METADATA;
     version_data->features.building_type_table = version > SAVE_GAME_LAST_NO_BUILDING_TYPE_TABLE;
     version_data->features.water_access_type_table = version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE;
+    version_data->features.god_type_table = version > SAVE_GAME_LAST_NO_GOD_TYPE_TABLE;
     version_data->features.keyed_resource_state = version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE;
     version_data->features.road_service_history = version > SAVE_GAME_LAST_NO_ROAD_SERVICE_HISTORY;
     version_data->features.local_workforce_allocations = version > SAVE_GAME_LAST_NO_LOCAL_WORKFORCE;
@@ -720,6 +724,9 @@ static void init_savegame_data(savegame_version_t version)
     }
     if (version_data.features.water_access_type_table) {
         state->water_access_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
+    }
+    if (version_data.features.god_type_table) {
+        state->god_type_table = create_savegame_piece(PIECE_SIZE_DYNAMIC, 0);
     }
     state->buildings = create_savegame_piece(version_data.piece_sizes.buildings, 1);
     if (version_data.features.keyed_resource_state) {
@@ -1062,6 +1069,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     water_access_type_id_bridge_save_table_load_state(
         state->water_access_type_table,
         version > SAVE_GAME_LAST_NO_WATER_ACCESS_TYPE_TABLE);
+    god_id_bridge_save_table_load_state(
+        state->god_type_table,
+        version > SAVE_GAME_LAST_NO_GOD_TYPE_TABLE);
     building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
     map_building_remove_invalid_references();
     if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
@@ -1187,6 +1197,8 @@ static void savegame_save_to_state(savegame_state *state)
     building_type_id_bridge_save_table_save_state(state->building_type_table);
     water_access_type_id_bridge_prepare_new_save_table();
     water_access_type_id_bridge_save_table_save_state(state->water_access_type_table);
+    god_id_bridge_prepare_new_save_table();
+    god_id_bridge_save_table_save_state(state->god_type_table);
 
     map_building_save_state(state->building_grid, state->building_damage_grid, state->rubble_grid);
     map_terrain_save_state(state->terrain_grid);

@@ -3,6 +3,8 @@
 #include "common.h"
 #include "input/mouse.h"
 
+class Temple;
+
 
 void window_building_draw_clinic(building_info_context *c);
 
@@ -64,19 +66,9 @@ void window_building_draw_lion_house(building_info_context *c);
 
 void window_building_draw_chariot_maker(building_info_context *c);
 
-void window_building_draw_grand_temple_foreground(building_info_context* c);
+void window_building_draw_grand_temple(building_info_context* c, Temple &temple);
 
-void window_building_draw_grand_temple_ceres(building_info_context* c);
-
-void window_building_draw_grand_temple_neptune(building_info_context* c);
-
-void window_building_draw_grand_temple_mercury(building_info_context* c);
-
-void window_building_draw_grand_temple_mars(building_info_context* c);
-
-void window_building_draw_grand_temple_venus(building_info_context* c);
-
-void window_building_draw_pantheon(building_info_context* c);
+void window_building_draw_grand_temple_foreground(building_info_context* c, Temple &temple);
 
 void window_building_draw_work_camp(building_info_context* c);
 
@@ -98,7 +90,7 @@ void window_building_draw_large_mausoleum(building_info_context* c);
 
 void window_building_draw_nymphaeum(building_info_context* c);
 
-int window_building_handle_mouse_grand_temple(const mouse* m, building_info_context* c);
+int window_building_handle_mouse_grand_temple(const mouse* m, building_info_context* c, Temple &temple);
 
 int window_building_handle_mouse_colosseum(const mouse *m, building_info_context *c);
 

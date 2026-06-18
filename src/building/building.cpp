@@ -569,7 +569,21 @@ int Building::has_water_access() const
 
 int Building::is_working() const
 {
-    return worker_count() && has_water_access();
+    if (!record_) {
+        return 0;
+    }
+
+    const building_type_registry_impl::BuildingType *definition = type_definition();
+    if (!definition) {
+        return worker_count() > 0;
+    }
+    if (definition->required_workers() > 0 && !worker_count()) {
+        return 0;
+    }
+    if (definition->water_access().has_requirements() && !has_water_access()) {
+        return 0;
+    }
+    return 1;
 }
 
 int Building::has_primary_figure() const

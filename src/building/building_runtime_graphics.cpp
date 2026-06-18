@@ -4,6 +4,7 @@
 
 #include "building/building_record.h"
 #include "building/building.h"
+#include "building/connectable.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
 
@@ -128,6 +129,19 @@ int runtime_tile_sentinel_image_id()
     return image_group(GROUP_TERRAIN_FLAT_TILE);
 }
 
+int selected_graphics_option(const Building &building, const building_type_registry_impl::GraphicsTarget &target)
+{
+    if (!target.has_options()) {
+        return 0;
+    }
+    if (target.option_selection() == building_type_registry_impl::GraphicsOptionSelection::Connectable) {
+        int option = building_connectable_graphics_option(building);
+        return option < 0 ? 0 : option;
+    }
+    int option = building_variant_get_graphics_option(building, 0);
+    return option < 0 ? 0 : option;
+}
+
 }
 
 int building_runtime_graphics_image_id(const Building &building_object)
@@ -140,13 +154,19 @@ int building_runtime_graphics_image_id(const Building &building_object)
 
     const building_type_registry_impl::GraphicsTarget *target =
         building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition, building_object);
-    if (!target || !target->has_path()) {
+    if (!target) {
+        return 0;
+    }
+
+    building_type_registry_impl::GraphicsTarget resolved_target =
+        target->resolved_option(static_cast<unsigned char>(selected_graphics_option(building_object, *target)));
+    if (!resolved_target.has_path()) {
         return 0;
     }
 
     return graphics_image_id_for_group_reference(
-        target->path(),
-        target->has_image() ? target->image() : nullptr);
+        resolved_target.path(),
+        resolved_target.has_image() ? resolved_target.image() : nullptr);
 }
 
 void building_runtime::clear_cached_graphics_bindings()
@@ -201,6 +221,11 @@ std::uint64_t building_runtime::graphics_state_signature() const
     mix(static_cast<std::uint64_t>(record().monument.phase));
     mix(static_cast<std::uint64_t>(record().monument.upgrades));
     mix(static_cast<std::uint64_t>(record().variant));
+    if (const building_type_registry_impl::GraphicsTarget *target = resolve_graphic_target()) {
+        if (target->has_options()) {
+            mix(static_cast<std::uint64_t>(selected_graphics_option(building(), *target)));
+        }
+    }
 
     for (int i = 0; i < RESOURCE_SLOT_COUNT; i++) {
         mix(static_cast<std::uint64_t>(record().resources[i]));
@@ -374,7 +399,8 @@ void building_runtime::rebuild_cached_graphics_bindings()
     }
     // Conditional graphics pick a target first; the saved variant byte only picks
     // among equivalent options inside that already-selected target.
-    building_type_registry_impl::GraphicsTarget resolved_target = target->resolved_option(record().variant);
+    building_type_registry_impl::GraphicsTarget resolved_target =
+        target->resolved_option(static_cast<unsigned char>(selected_graphics_option(building(), *target)));
 
     const ImageGroupPayload *payload = nullptr;
     const ImageGroupEntry *entry = nullptr;
@@ -389,7 +415,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
 
     graphics_cache_.base_payload = payload;
     graphics_cache_.base_entry = entry;
-    if (entry->has_animation()) {
+    if (resolved_target.animation_enabled() && building().is_working() && entry->has_animation()) {
         graphics_cache_.animation_payload = payload;
         graphics_cache_.animation_entry = entry;
         graphics_cache_.owns_graphic_animation = 1;

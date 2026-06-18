@@ -379,20 +379,6 @@ private:
     TileKind kind_ = TileKind::None;
 };
 
-class TempleDefinition {
-public:
-    void set_religion_reference(std::string path);
-    void set_religion(const Religion *religion);
-
-    const std::string &religion_reference_path() const;
-    const Religion *religion() const;
-    int has_any() const;
-
-private:
-    std::string religion_reference_path_;
-    const Religion *religion_ = nullptr;
-};
-
 class SoundDefinition {
 public:
     void set_city_sound(int sound);
@@ -644,7 +630,7 @@ public:
     const RoadblockDefinition &roadblock() const;
     LaborCategory labor_category() const;
     const TileDefinition &tile() const;
-    const TempleDefinition &temple() const;
+    const Religion *religion() const;
     const SoundDefinition &sound() const;
     const EventDataDefinition &event_data() const;
     const MarketDefinition &market() const;
@@ -738,7 +724,8 @@ private:
     RoadblockDefinition roadblock_;
     LaborCategory labor_category_ = LaborCategory::None;
     TileDefinition tile_;
-    TempleDefinition temple_;
+    std::string religion_reference_path_;
+    const Religion *religion_ = nullptr;
     SoundDefinition sound_;
     EventDataDefinition event_data_;
     MarketDefinition market_;

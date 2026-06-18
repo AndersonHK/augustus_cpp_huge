@@ -123,7 +123,7 @@ static void add_religion_capacity(culture_module_capacity &capacity,
     const building_type_registry_impl::BuildingType &definition,
     int amount)
 {
-    const building_type_registry_impl::Religion *religion = definition.temple().religion();
+    const building_type_registry_impl::Religion *religion = definition.religion();
     if (!religion) {
         for (int god = GOD_CERES; god <= GOD_VENUS; god++) {
             capacity.religion[god] += amount;
@@ -439,7 +439,8 @@ void city_culture_calculate(void)
     int num_houses = 0;
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (building_house_is_active(Building(b))) {
+        const Building house(b);
+        if (building_house_is_active(house)) {
             num_houses++;
             city_data.culture.average_entertainment += b->data.house.entertainment;
             city_data.culture.average_religion += b->data.house.num_gods;

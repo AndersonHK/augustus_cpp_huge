@@ -521,6 +521,58 @@ int building_connectable_get_palisade_gate_offset(int grid_offset)
     return get_image_offset(CONTEXT_GARDEN_GATE, tiles, rotation, terrain_tiles, grid_offset);
 }
 
+static int dense_gate_graphics_option(int legacy_offset)
+{
+    return legacy_offset <= 0 ? 0 : 1;
+}
+
+static int dense_path_graphics_option(int legacy_offset)
+{
+    return legacy_offset == 0 ? 9 : 10;
+}
+
+int building_connectable_graphics_option(const Building &building_obj)
+{
+    const building *record = building_obj.legacy_record();
+    if (!record) {
+        return 0;
+    }
+
+    building_type type = record->type;
+    if (is_hedge_wall(type)) {
+        return building_connectable_get_hedge_offset(record->grid_offset);
+    }
+    if (type_attr_is(type, "colonnade")) {
+        return building_connectable_get_colonnade_offset(record->grid_offset);
+    }
+    if (is_garden_wall(type)) {
+        return building_connectable_get_garden_wall_offset(record->grid_offset);
+    }
+    if (is_garden_path(type)) {
+        int intersection_option = building_connectable_get_garden_path_offset(
+            record->grid_offset,
+            CONTEXT_GARDEN_PATH_INTERSECTION);
+        if (intersection_option >= 0) {
+            return intersection_option;
+        }
+        int context = type_attr_is(type, "garden_path") ? CONTEXT_GARDEN_TREELESS_PATH : CONTEXT_GARDEN_TREE_PATH;
+        return dense_path_graphics_option(building_connectable_get_garden_path_offset(record->grid_offset, context));
+    }
+    if (is_garden_wall_or_gate(type)) {
+        return dense_gate_graphics_option(building_connectable_get_garden_gate_offset(record->grid_offset));
+    }
+    if (is_hedge_wall_or_gate(type)) {
+        return dense_gate_graphics_option(building_connectable_get_hedge_gate_offset(record->grid_offset));
+    }
+    if (is_palisade_wall(type)) {
+        return building_connectable_get_palisade_offset(record->grid_offset);
+    }
+    if (type_attr_is(type, "palisade_gate")) {
+        return dense_gate_graphics_option(building_connectable_get_palisade_gate_offset(record->grid_offset));
+    }
+    return 0;
+}
+
 int building_is_connectable(building_type type)
 {
     for (int i = 0; i < MAX_CONNECTABLE_BUILDINGS; i++) {
@@ -555,6 +607,9 @@ void building_connectable_update_connections_for_type(building_type type)
 {
     for (building *b = building_first_of_type(type); b; b = b->next_of_type) {
         if (b->state == BUILDING_STATE_RUBBLE) {
+            continue;
+        }
+        if (Building(b).refresh_graphic_if_native()) {
             continue;
         }
         int image_id;

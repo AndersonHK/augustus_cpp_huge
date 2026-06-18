@@ -10,13 +10,15 @@
     </desirability>
     <foundation policy="land" />
     <button group="parks" order="280" text_key="TR_BUILDING_LOOPED_GARDEN_WALL_GATE" />
-    <event_data attr="looped_garden_gate" />
+    <event_data attr="looped_garden_gate" />
     <roadblock kind="standard" />
     <flags fire_proof="1" />
     <graphics>
         <default>
-            <path value="Aesthetics\Garden_Gate_A" />
-            <image value="Garden_Gate_A" />
+            <options selection="connectable">
+                <option path="Aesthetics\Garden_Gate_A" image="Garden_Gate_A" />
+                <option path="Aesthetics\Garden_Gate_A_R" image="Garden_Gate_A_R" />
+            </options>
         </default>
     </graphics>
     <labor>

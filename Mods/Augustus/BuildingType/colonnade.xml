@@ -14,8 +14,19 @@
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>
         <default>
-            <path value="Aesthetics\G_Colonnade_01" />
-            <image value="G Colonnade 01" />
+            <options selection="connectable">
+                <option path="Aesthetics\G_Colonnade_01" image="G Colonnade 01" />
+                <option path="Aesthetics\G_Colonnade_02" image="G Colonnade 02" />
+                <option path="Aesthetics\G_Colonnade_03" image="G Colonnade 03" />
+                <option path="Aesthetics\G_Colonnade_04" image="G Colonnade 04" />
+                <option path="Aesthetics\G_Colonnade_05" image="G Colonnade 05" />
+                <option path="Aesthetics\G_Colonnade_06" image="G Colonnade 06" />
+                <option path="Aesthetics\G_Colonnade_07" image="G Colonnade 07" />
+                <option path="Aesthetics\G_Colonnade_08" image="G Colonnade 08" />
+                <option path="Aesthetics\G_Colonnade_09" image="G Colonnade 09" />
+                <option path="Aesthetics\G_Colonnade_10" image="G Colonnade 10" />
+                <option path="Aesthetics\G_Colonnade_11" image="G Colonnade 11" />
+            </options>
         </default>
     </graphics>
     <labor>

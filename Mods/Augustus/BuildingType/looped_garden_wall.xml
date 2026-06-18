@@ -14,8 +14,19 @@
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>
         <default>
-            <path value="Aesthetics\C_Garden_Wall_01" />
-            <image value="C Garden Wall 01" />
+            <options selection="connectable">
+                <option path="Aesthetics\C_Garden_Wall_01" image="C Garden Wall 01" />
+                <option path="Aesthetics\C_Garden_Wall_02" image="C Garden Wall 02" />
+                <option path="Aesthetics\C_Garden_Wall_03" image="C Garden Wall 03" />
+                <option path="Aesthetics\C_Garden_Wall_04" image="C Garden Wall 04" />
+                <option path="Aesthetics\C_Garden_Wall_05" image="C Garden Wall 05" />
+                <option path="Aesthetics\C_Garden_Wall_06" image="C Garden Wall 06" />
+                <option path="Aesthetics\C_Garden_Wall_07" image="C Garden Wall 07" />
+                <option path="Aesthetics\C_Garden_Wall_08" image="C Garden Wall 08" />
+                <option path="Aesthetics\C_Garden_Wall_09" image="C Garden Wall 09" />
+                <option path="Aesthetics\C_Garden_Wall_10" image="C Garden Wall 10" />
+                <option path="Aesthetics\C_Garden_Wall_11" image="C Garden Wall 11" />
+            </options>
         </default>
     </graphics>
     <labor>

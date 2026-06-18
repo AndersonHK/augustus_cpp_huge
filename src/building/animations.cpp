@@ -158,6 +158,11 @@ void GraphicsTarget::set_option_selection(GraphicsOptionSelection selection)
     option_selection_ = selection;
 }
 
+void GraphicsTarget::set_animation_enabled(int enabled)
+{
+    animation_enabled_ = enabled ? 1 : 0;
+}
+
 GraphicsTarget &GraphicsTarget::add_option()
 {
     options_.emplace_back();
@@ -189,6 +194,11 @@ GraphicsOptionSelection GraphicsTarget::option_selection() const
     return option_selection_;
 }
 
+int GraphicsTarget::animation_enabled() const
+{
+    return animation_enabled_;
+}
+
 int GraphicsTarget::has_options() const
 {
     return !options_.empty();
@@ -218,6 +228,9 @@ GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
     GraphicsTarget resolved = options_[variant % options_.size()];
     if (!resolved.has_path()) {
         resolved.set_path(path_);
+    }
+    if (!animation_enabled_) {
+        resolved.set_animation_enabled(0);
     }
     return resolved;
 }

@@ -10,6 +10,7 @@
 #include "building/culture_module_registry.h"
 #include "building/distribution.h"
 #include "building/god_registry.h"
+#include "building/god_id_bridge.h"
 #include "building/housing_type_registry.h"
 #include "building/production_method_registry.h"
 #include "building/religion_registry.h"
@@ -1610,6 +1611,15 @@ static int parse_graphics_default()
 
     g_parse_state.definition->mark_graphics_default_node();
     g_parse_state.current_graphics_target_scope = GraphicsParseTargetScope::Default;
+    if (xml_parser_has_attribute("animation")) {
+        int enabled = 1;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("animation"), &enabled)) {
+            log_error("Unsupported BuildingType graphics default animation flag", xml_parser_get_attribute_string("animation"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->default_graphics_target().set_animation_enabled(enabled);
+    }
     return 1;
 }
 
@@ -1656,6 +1666,8 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::StableVariant;
     } else if (compare_text(selection, "build_rotation") == 0) {
         option_selection = GraphicsOptionSelection::BuildRotation;
+    } else if (compare_text(selection, "connectable") == 0) {
+        option_selection = GraphicsOptionSelection::Connectable;
     } else {
         log_error("Unsupported BuildingType graphics options selection", selection, 0);
         g_parse_state.error = 1;
@@ -1750,6 +1762,15 @@ static int parse_graphics_variant()
         return 0;
     }
     GraphicsVariant &variant = g_parse_state.definition->add_graphics_variant();
+    if (xml_parser_has_attribute("animation")) {
+        int enabled = 1;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("animation"), &enabled)) {
+            log_error("Unsupported BuildingType graphics variant animation flag", xml_parser_get_attribute_string("animation"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        variant.target.set_animation_enabled(enabled);
+    }
     if (xml_parser_has_attribute("role")) {
         std::string role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
         if (role.empty() || compare_text(role.c_str(), "tile_large") != 0) {
@@ -3776,6 +3797,7 @@ extern "C" int building_type_registry_load(void)
         return 0;
     }
     building_type_startup_bridge_apply_model_overrides();
+    god_id_bridge_reset_for_runtime();
     building_type_id_bridge_reset_for_runtime();
     water_access_type_id_bridge_reset_for_runtime();
     building_monument_reset_runtime_bridge();

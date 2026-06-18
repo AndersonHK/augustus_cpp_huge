@@ -282,31 +282,6 @@ int TileDefinition::has_any() const
     return kind_ != TileKind::None;
 }
 
-void TempleDefinition::set_religion_reference(std::string path)
-{
-    religion_reference_path_ = std::move(path);
-}
-
-void TempleDefinition::set_religion(const Religion *religion)
-{
-    religion_ = religion;
-}
-
-const std::string &TempleDefinition::religion_reference_path() const
-{
-    return religion_reference_path_;
-}
-
-const Religion *TempleDefinition::religion() const
-{
-    return religion_;
-}
-
-int TempleDefinition::has_any() const
-{
-    return !religion_reference_path_.empty();
-}
-
 void SoundDefinition::set_city_sound(int sound)
 {
     has_city_sound_ = 1;
@@ -815,7 +790,7 @@ void BuildingType::set_tile_kind(TileKind kind)
 
 void BuildingType::set_temple_religion_reference(std::string path)
 {
-    temple_.set_religion_reference(std::move(path));
+    religion_reference_path_ = std::move(path);
 }
 
 void BuildingType::set_sound_id(int sound)
@@ -1079,7 +1054,7 @@ void BuildingType::set_housing_type(const HousingType *housing_type)
 
 void BuildingType::set_temple_religion(const Religion *religion)
 {
-    temple_.set_religion(religion);
+    religion_ = religion;
 }
 
 void BuildingType::set_housing_transition_type(HousingTransitionKind kind, building_type type)
@@ -1161,9 +1136,9 @@ const TileDefinition &BuildingType::tile() const
     return tile_;
 }
 
-const TempleDefinition &BuildingType::temple() const
+const Religion *BuildingType::religion() const
 {
-    return temple_;
+    return religion_;
 }
 
 const SoundDefinition &BuildingType::sound() const
@@ -1220,17 +1195,17 @@ int BuildingType::required_workers() const
 
 int BuildingType::has_data_only_graphics() const
 {
-    return building_is_farm(type_) || building_is_connectable(type_);
+    return building_is_farm(type_);
 }
 
 int BuildingType::is_temple() const
 {
-    return temple_.religion() ? 1 : 0;
+    return religion_ ? 1 : 0;
 }
 
 int BuildingType::is_temple(god_type god, ReligionTier tier) const
 {
-    const Religion *religion = temple_.religion();
+    const Religion *religion = religion_;
     if (!religion) {
         return 0;
     }
@@ -1277,7 +1252,7 @@ int BuildingType::is_neptune_temple() const
 
 int BuildingType::is_pantheon() const
 {
-    return is_temple_tier(ReligionTier::Pantheon);
+    return religion_ && religion_->is_tier(ReligionTier::Grand) && religion_->has_all_gods();
 }
 
 int BuildingType::is_oracle() const
@@ -1444,7 +1419,7 @@ int BuildingType::has_tile() const
 
 int BuildingType::has_temple() const
 {
-    return temple_.has_any();
+    return !religion_reference_path_.empty();
 }
 
 int BuildingType::has_sound() const
@@ -1529,7 +1504,7 @@ const std::string &BuildingType::vacant_lot_fill_reference() const
 
 const std::string &BuildingType::temple_religion_reference_path() const
 {
-    return temple_.religion_reference_path();
+    return religion_reference_path_;
 }
 
 int BuildingType::housing_capacity() const

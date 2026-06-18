@@ -241,6 +241,7 @@
     <ClCompile Include="src\building\dock.cpp" />
     <ClCompile Include="src\building\entertainment.cpp" />
     <ClCompile Include="src\building\figure.cpp" />
+    <ClCompile Include="src\building\god_id_bridge.cpp" />
     <ClCompile Include="src\building\god_registry.cpp" />
     <ClCompile Include="src\building\government.cpp" />
     <ClCompile Include="src\building\granary.cpp" />
@@ -771,6 +772,7 @@
     <ClInclude Include="src\building\dock.h" />
     <ClInclude Include="src\building\entertainment.h" />
     <ClInclude Include="src\building\figure.h" />
+    <ClInclude Include="src\building\god_id_bridge.h" />
     <ClInclude Include="src\building\god_registry.h" />
     <ClInclude Include="src\building\government.h" />
     <ClInclude Include="src\building\granary.h" />

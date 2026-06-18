@@ -2,6 +2,7 @@
 
 #include "building/count.h"
 #include "building/granary.h"
+#include "building/god_id_bridge.h"
 #include "building/god_registry.h"
 #include "building/industry.h"
 #include "building/building_type_api.h"
@@ -50,7 +51,8 @@ int city_gods_count(void)
 
 static int blessing_months_for_god(god_type god, GodBlessingType blessing)
 {
-    const God *definition = building_type_registry_impl::find_god_definition(god);
+    const God *definition =
+        building_type_registry_impl::find_god_definition_by_runtime_id(god_id_bridge_runtime_from_legacy(god));
     return definition ? definition->blessing_months(blessing) : 0;
 }
 

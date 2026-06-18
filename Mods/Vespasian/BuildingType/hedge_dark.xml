@@ -14,8 +14,19 @@
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>
         <default>
-            <path value="Aesthetics\D_Hedge_01" />
-            <image value="D Hedge 01" />
+            <options selection="connectable">
+                <option path="Aesthetics\D_Hedge_01" image="D Hedge 01" />
+                <option path="Aesthetics\D_Hedge_01" image="D Hedge 02" />
+                <option path="Aesthetics\D_Hedge_03" image="D Hedge 03" />
+                <option path="Aesthetics\D_Hedge_01" image="D Hedge 04" />
+                <option path="Aesthetics\D_Hedge_05" image="D Hedge 05" />
+                <option path="Aesthetics\D_Hedge_06" image="D Hedge 06" />
+                <option path="Aesthetics\D_Hedge_01" image="D Hedge 07" />
+                <option path="Aesthetics\D_Hedge_01" image="D Hedge 08" />
+                <option path="Aesthetics\D_Hedge_01" image="D Hedge 09" />
+                <option path="Aesthetics\D_Hedge_01" image="D Hedge 10" />
+                <option path="Aesthetics\D_Hedge_01" image="D Hedge 11" />
+            </options>
         </default>
     </graphics>
     <labor>

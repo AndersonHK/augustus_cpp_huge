@@ -158,10 +158,10 @@ Current supported `<temple>` attributes:
 
 Temple rules:
 
-- `<temple ... />` marks the BuildingType as the temple child type
-- god identity, temple tier, and religion capacity belong to the referenced Religion module, not to BuildingType names
+- `<temple ... />` marks the BuildingType as religion-backed and links it directly to the referenced Religion module
+- god identity, temple tier, religion capacity, and grand-temple panel presentation belong to the referenced Religion module, not to BuildingType names
 - Religion modules reference God definitions from the selected mod's `Gods` folder
-- Pantheon is represented by a Religion module that references all five God definitions and uses `tier="pantheon"`
+- Pantheon is represented as the grand temple for all gods: `<god path="all" />` plus `tier="grand"`
 - religion and temple behavior must read this tag-backed module data, not infer temple status from BuildingType text ids or file names
 
 Current supported `Gods` XML:
@@ -175,10 +175,22 @@ Current supported `Religions` XML:
 ```xml
 <religion>
     <god path="ceres" />
-    <tier value="shrine|small|large|grand|pantheon" />
+    <tier value="shrine|small|large|grand|oracle" />
     <capacity amount="N" />
+    <presentation
+        sound="wavs/temple_farm.wav"
+        name_key="TR_BUILDING_GRAND_TEMPLE_CERES_DESC"
+        bonus_key="TR_BUILDING_GRAND_TEMPLE_CERES_BONUS_DESC"
+        quote_key="TR_BUILDING_CERES_TEMPLE_QUOTE"
+        banner_group="UI\Ceres_L_Banner"
+        banner_image="Ceres L Banner"
+        content_y_offset="0"
+        height_blocks="40"
+        module_key="ceres" />
 </religion>
 ```
+
+`<presentation>` is required for `tier="grand"` Religion modules. `module_key` selects the two-module option bucket and currently supports `ceres`, `neptune`, `mercury`, `mars`, `venus`, and `pantheon`.
 
 Current supported `<sound>` attributes:
 

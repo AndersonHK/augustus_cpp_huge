@@ -1,6 +1,11 @@
 #pragma once
 
 #include "building/building_type.h"
+
+#ifdef __cplusplus
+class Building;
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -41,4 +46,6 @@ void building_connectable_update_connections_for_type(building_type type);
 
 #ifdef __cplusplus
 }
+
+int building_connectable_graphics_option(const Building &building);
 #endif
