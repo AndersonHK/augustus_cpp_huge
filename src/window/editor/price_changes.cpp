@@ -11,7 +11,6 @@
 
 #include "window/editor/map.h"
 #include "graphics/grid_box.h"
-extern "C" {
 
 #include "core/image_group_editor.h"
 #include "game/resource.h"
@@ -21,7 +20,6 @@ extern "C" {
 #include "scenario/editor.h"
 #include "scenario/price_change.h"
 #include "scenario/property.h"
-}
 
 #include <stdlib.h>
 

@@ -5,7 +5,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/industry.h"
 
-extern "C" {
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/buildings.h"
@@ -14,7 +13,6 @@ extern "C" {
 #include "game/tutorial.h"
 #include "scenario/allowed_building.h"
 #include "scenario/property.h"
-}
 
 #include <algorithm>
 #include <array>

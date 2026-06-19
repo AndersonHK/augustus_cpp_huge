@@ -9,7 +9,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 #include "city/culture.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/properties.h"
@@ -18,7 +17,6 @@ extern "C" {
 #include "city/finance.h"
 #include "city/message.h"
 #include "city/resource.h"
-#include "core/array.h"
 #include "core/calc.h"
 #include "core/log.h"
 #include "empire/city.h"
@@ -26,14 +24,14 @@ extern "C" {
 #include "map/grid.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-}
 
+#include <algorithm>
 #include <cstring>
+#include <cstdlib>
 #include <initializer_list>
 #include <string>
 #include <vector>
 
-#define DELIVERY_ARRAY_SIZE_STEP 200
 #define ORIGINAL_DELIVERY_BUFFER_SIZE 16
 #define MODULES_PER_TEMPLE 2
 #define ARCHITECTS RESOURCE_NONE
@@ -304,14 +302,14 @@ static const monument_type *monument_type_for(building_type type)
     return legacy_type ? legacy_type : xml_monument_type(type);
 }
 
-typedef struct {
+struct monument_delivery {
     int walker_id;
     unsigned int destination_id;
     int resource;
     int cartloads;
-} monument_delivery;
+};
 
-array(monument_delivery) monument_deliveries;
+static std::vector<monument_delivery> monument_deliveries;
 
 static int type_is_monument(building_type type)
 {
@@ -678,37 +676,20 @@ int building_monument_progress(building *b)
     return 1;
 }
 
-static int delivery_in_use(const monument_delivery *delivery)
-{
-    return delivery->destination_id != 0;
-}
-
 void building_monument_initialize_deliveries(void)
 {
-    if (!array_init(monument_deliveries, DELIVERY_ARRAY_SIZE_STEP, 0, delivery_in_use)) {
-        log_error("Failed to create monument array. The game will likely crash.", 0, 0);
-    }
+    monument_deliveries.clear();
 }
 
 void building_monument_add_delivery(unsigned int monument_id, int figure_id, int resource_id, int num_loads)
 {
-    monument_delivery *delivery;
-    array_new_item(monument_deliveries, delivery);
-    if (!delivery) {
-        log_error("Failed to create a new monument delivery. The game may be running out of memory", 0, 0);
-        return;
-    }
-    delivery->destination_id = monument_id;
-    delivery->walker_id = figure_id;
-    delivery->resource = resource_id;
-    delivery->cartloads = num_loads;
+    monument_deliveries.push_back({figure_id, monument_id, resource_id, num_loads});
 }
 
 int building_monument_has_delivery_for_worker(int figure_id)
 {
-    monument_delivery *delivery;
-    array_foreach(monument_deliveries, delivery) {
-        if (delivery->walker_id == figure_id && delivery->destination_id > 0) {
+    for (const monument_delivery &delivery : monument_deliveries) {
+        if (delivery.walker_id == figure_id && delivery.destination_id > 0) {
             return 1;
         }
     }
@@ -717,34 +698,31 @@ int building_monument_has_delivery_for_worker(int figure_id)
 
 void building_monument_remove_delivery(int figure_id)
 {
-    monument_delivery *delivery;
-    array_foreach(monument_deliveries, delivery) {
-        if (delivery->walker_id == figure_id) {
-            delivery->destination_id = 0;
-        }
-    }
-    array_trim(monument_deliveries);
+    monument_deliveries.erase(
+        std::remove_if(monument_deliveries.begin(), monument_deliveries.end(),
+            [figure_id](const monument_delivery &delivery) {
+                return delivery.walker_id == figure_id;
+            }),
+        monument_deliveries.end());
 }
 
 void building_monument_remove_all_deliveries(unsigned int monument_id)
 {
-    monument_delivery *delivery;
-    array_foreach(monument_deliveries, delivery) {
-        if (delivery->destination_id == monument_id) {
-            delivery->destination_id = 0;
-        }
-    }
-    array_trim(monument_deliveries);
+    monument_deliveries.erase(
+        std::remove_if(monument_deliveries.begin(), monument_deliveries.end(),
+            [monument_id](const monument_delivery &delivery) {
+                return delivery.destination_id == monument_id;
+            }),
+        monument_deliveries.end());
 }
 
 static int resource_in_delivery(unsigned int monument_id, int resource_id)
 {
     int resources = 0;
-    monument_delivery *delivery;
-    array_foreach(monument_deliveries, delivery) {
-        if (delivery->destination_id == monument_id &&
-            delivery->resource == resource_id) {
-            resources += delivery->cartloads;
+    for (const monument_delivery &delivery : monument_deliveries) {
+        if (delivery.destination_id == monument_id &&
+            delivery.resource == resource_id) {
+            resources += delivery.cartloads;
         }
     }
     return resources;
@@ -759,11 +737,10 @@ static int resource_in_delivery_multipart(building *b, int resource_id)
     }
 
     while (b->id) {
-        monument_delivery *delivery;
-        array_foreach(monument_deliveries, delivery) {
-            if (delivery->destination_id == b->id &&
-                delivery->resource == resource_id) {
-                resources += delivery->cartloads;
+        for (const monument_delivery &delivery : monument_deliveries) {
+            if (delivery.destination_id == b->id &&
+                delivery.resource == resource_id) {
+                resources += delivery.cartloads;
             }
         }
         b = building_get(b->next_part_building_id);
@@ -939,14 +916,13 @@ static void delivery_load(buffer *buf, monument_delivery *delivery, int size)
 
 void building_monument_delivery_save_state(buffer *buf)
 {
-    int buf_size = 4 + monument_deliveries.size * ORIGINAL_DELIVERY_BUFFER_SIZE;
+    int buf_size = 4 + static_cast<int>(monument_deliveries.size()) * ORIGINAL_DELIVERY_BUFFER_SIZE;
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     buffer_init(buf, buf_data, buf_size);
     buffer_write_i32(buf, ORIGINAL_DELIVERY_BUFFER_SIZE);
 
-    monument_delivery *delivery;
-    array_foreach(monument_deliveries, delivery) {
-        delivery_save(buf, delivery);
+    for (monument_delivery &delivery : monument_deliveries) {
+        delivery_save(buf, &delivery);
     }
 }
 
@@ -962,13 +938,11 @@ void building_monument_delivery_load_state(buffer *buf, int includes_delivery_bu
 
     int deliveries_to_load = static_cast<int>(buf_size) / delivery_buf_size;
 
-    if (!array_init(monument_deliveries, DELIVERY_ARRAY_SIZE_STEP, 0, delivery_in_use) ||
-        !array_expand(monument_deliveries, deliveries_to_load)) {
-        log_error("Failed to create the monument deliveries array. The game may crash.", 0, 0);
-    }
+    monument_deliveries.clear();
+    monument_deliveries.resize(deliveries_to_load);
 
     for (int i = 0; i < deliveries_to_load; i++) {
-        delivery_load(buf, array_next(monument_deliveries), delivery_buf_size);
+        delivery_load(buf, &monument_deliveries[i], delivery_buf_size);
     }
 }
 

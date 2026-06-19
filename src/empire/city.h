@@ -3,9 +3,6 @@
 #include "core/buffer.h"
 #include "empire/type.h"
 #include "game/resource.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define EMPIRE_CITY_MAX_TRADERS 3
@@ -116,6 +113,3 @@ int empire_city_get_icon_image_id(empire_city_icon_type type);
 
 int empire_city_get_at(int x, int y, const uint8_t *name);
 
-#ifdef __cplusplus
-}
-#endif

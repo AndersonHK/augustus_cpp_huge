@@ -6,10 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef __cplusplus
 #include <string>
 #include <string_view>
-#endif
 
 /**
  * @file
@@ -97,7 +95,6 @@ int file_exists(const char *filename, int localizable);
  */
 int file_remove(const char *filename);
 
-#ifdef __cplusplus
 inline FILE *file_open(std::string_view filename, std::string_view mode)
 {
     const std::string filename_s(filename);
@@ -169,4 +166,3 @@ inline bool file_remove(std::string_view filename)
     const std::string filename_s(filename);
     return file_remove(filename_s.c_str()) != 0;
 }
-#endif

@@ -1,12 +1,8 @@
-﻿#pragma once
+#pragma once
 
 #include "input/mouse.h"
 #include "input/hotkey.h"
 #include "empire/object.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 typedef enum {
     EMPIRE_TOOL_MIN = 0,
@@ -48,7 +44,3 @@ void empire_editor_set_current_invasion_path(int path_id);
 int empire_editor_get_current_invasion_path(void);
 
 int empire_editor_handle_placement(const mouse *m, const hotkeys *h, int outside_map);
-
-#ifdef __cplusplus
-}
-#endif

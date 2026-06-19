@@ -19,12 +19,10 @@
 #include "city/warning.h"
 #include "map/grid.h"
 
-extern "C" {
 #include "core/calc.h"
 #include "empire/city.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-}
 
 #include <string>
 #include <string_view>

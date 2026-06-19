@@ -9,7 +9,6 @@
 #include "building/building.h"
 #include "building/market.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
@@ -26,12 +25,11 @@ extern "C" {
 #include "game/time.h"
 #include "map/data.h"
 #include "map/road_network.h"
-}
 
 
 static const building_type_registry_impl::BuildingType *definition_for_building(building *b)
 {
-    return b ? Building(b).type_definition() : nullptr;
+    return b ? Building(b).type : nullptr;
 }
 
 static int building_is_mess_hall(building *b)
@@ -73,22 +71,22 @@ int figure_supplier_max_stocked_mess_hall_adjusted(void)
 
 int figure_supplier_create_delivery_boy(int leader_id, int first_figure_id, int type)
 {
-    figure *f = figure_get(first_figure_id);
-    figure *boy = figure_create(static_cast<figure_type>(type), f->x, f->y, DIR_0_TOP);
-    f = figure_get(first_figure_id);
+    Figure *f = Figure::get(first_figure_id);
+    Figure *boy = Figure::create(static_cast<figure_type>(type), f->x, f->y, DIR_0_TOP);
+    f = Figure::get(first_figure_id);
     boy->leading_figure_id = leader_id;
     boy->collecting_item_id = f->collecting_item_id;
     boy->loads_sold_or_carrying = 1; // for consistency
     // deliver to destination instead of origin
     if (f->action_state == FIGURE_ACTION_214_DESTINATION_MARS_PRIEST_CREATED) {
-        boy->building_id = f->destination_building_id;
+        boy->building = f->destination_building;
     } else {
-        boy->building_id = f->building_id;
+        boy->building = f->building;
     }
-    return boy->id;
+    return boy->id();
 }
 
-static int take_food_from_storage(figure *f, int market_id, int storage_id)
+static int take_food_from_storage(Figure *f, int market_id, int storage_id)
 {
     resource_type resource = static_cast<resource_type>(f->collecting_item_id);
 
@@ -140,8 +138,8 @@ static int take_food_from_storage(figure *f, int market_id, int storage_id)
     } else if (f->type == FIGURE_CARAVANSERAI_SUPPLIER) {
         type = FIGURE_CARAVANSERAI_COLLECTOR;
     }
-    int leader_id = f->id;
-    int previous_boy = f->id;
+    int leader_id = f->id();
+    int previous_boy = f->id();
     for (int i = 0; i < amount_taken; i++) {
         previous_boy = figure_supplier_create_delivery_boy(previous_boy, leader_id, type);
     }
@@ -149,7 +147,7 @@ static int take_food_from_storage(figure *f, int market_id, int storage_id)
 }
 
 // Venus Grand Temple wine
-static int take_resource_from_generic_building(figure *f, int building_id)
+static int take_resource_from_generic_building(Figure *f, int building_id)
 {
     building *b = building_get(building_id);
     int num_loads;
@@ -165,7 +163,7 @@ static int take_resource_from_generic_building(figure *f, int building_id)
     b->resources[resource_wine()] -= num_loads;
 
     // create delivery boys
-    int priest_id = f->id;
+    int priest_id = f->id();
     int boy1 = figure_supplier_create_delivery_boy(priest_id, priest_id, FIGURE_DELIVERY_BOY);
     if (num_loads > 1) {
         figure_supplier_create_delivery_boy(boy1, priest_id, FIGURE_DELIVERY_BOY);
@@ -173,7 +171,7 @@ static int take_resource_from_generic_building(figure *f, int building_id)
     return 1;
 }
 
-static int take_resource_from_warehouse(figure *f, int warehouse_id, int max_amount)
+static int take_resource_from_warehouse(Figure *f, int warehouse_id, int max_amount)
 {
     building *warehouse = building_get(warehouse_id);
     Building warehouse_obj(warehouse);
@@ -195,7 +193,7 @@ static int take_resource_from_warehouse(figure *f, int warehouse_id, int max_amo
 
     // create delivery boys
     if (f->type != FIGURE_LIGHTHOUSE_SUPPLIER) {
-        int supplier_id = f->id;
+        int supplier_id = f->id();
         int boy1 = figure_supplier_create_delivery_boy(supplier_id, supplier_id, FIGURE_DELIVERY_BOY);
         if (num_loads > 1) {
             figure_supplier_create_delivery_boy(boy1, supplier_id, FIGURE_DELIVERY_BOY);
@@ -204,10 +202,10 @@ static int take_resource_from_warehouse(figure *f, int warehouse_id, int max_amo
     return 1;
 }
 
-static int change_market_supplier_destination(figure *f, int dst_building_id)
+static int change_market_supplier_destination(Figure *f, int dst_building_id)
 {
     figure_route_remove(f);
-    f->destination_building_id = dst_building_id;
+    f->destination_building = Building(building_get(dst_building_id));
     building *b_dst = building_get(dst_building_id);
     map_point road = { 0 };
     int has_road_access = 0;
@@ -226,10 +224,10 @@ static int change_market_supplier_destination(figure *f, int dst_building_id)
     return 1;
 }
 
-static int is_better_destination(figure *f, resource_type r, resource_storage_info *info)
+static int is_better_destination(Figure *f, resource_type r, resource_storage_info *info)
 {
-    building *old_dest = building_get(f->destination_building_id);
-    Building old_destination(old_dest);
+    Building old_destination = f->destination_building;
+    building *old_dest = building_get(old_destination.id());
     // if any of these are true, the new building is automatically better
     if (!building_is_active(old_dest)) {
         return 1;
@@ -247,10 +245,10 @@ static int is_better_destination(figure *f, resource_type r, resource_storage_in
     return 0;
 }
 
-static int recalculate_market_supplier_destination(figure *f)
+static int recalculate_market_supplier_destination(Figure *f)
 {
     resource_type item = static_cast<resource_type>(f->collecting_item_id);
-    building *market = building_get(f->building_id);
+    building *market = building_get(f->building.id());
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
 
     Market market_object(market);
@@ -259,7 +257,7 @@ static int recalculate_market_supplier_destination(figure *f)
         return 0;
     }
 
-    if (f->building_id == info[item].building_id || f->destination_building_id == info[item].building_id) {
+    if (f->building.id() == info[item].building_id || f->destination_building.id() == info[item].building_id) {
         return 1;
     }
 
@@ -279,15 +277,15 @@ static int recalculate_market_supplier_destination(figure *f)
     return change_market_supplier_destination(f, info[fetch_inventory].building_id);
 }
 
-void figure_supplier_action(figure *f)
+void figure_supplier_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     f->use_cross_country = 0;
     f->max_roam_length = 800;
 
-    building *b = building_get(f->building_id);
+    building *b = building_get(f->building.id());
     if (b->state != BUILDING_STATE_IN_USE ||
-        (b->figure_id2 != f->id && b->figure_id != f->id && b->figure_id4 != f->id)) {
+        (b->figure_id2 != f->id() && b->figure_id != f->id() && b->figure_id4 != f->id())) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -304,18 +302,18 @@ void figure_supplier_action(figure *f)
                 f->wait_ticks = 0;
                 f->previous_tile_x = f->x;
                 f->previous_tile_y = f->y;
-                int id = f->id;
+                int id = f->id();
                 if (!resource_is_food(static_cast<resource_type>(f->collecting_item_id))) {
                     int max_amount = f->type == FIGURE_LIGHTHOUSE_SUPPLIER ? 1 : 2;
-                    if (!take_resource_from_warehouse(f, f->destination_building_id, max_amount)) {
+                    if (!take_resource_from_warehouse(f, f->destination_building.id(), max_amount)) {
                         f->state = FIGURE_STATE_DEAD;
                     }
                 } else {
-                    if (!take_food_from_storage(f, f->building_id, f->destination_building_id)) {
+                    if (!take_food_from_storage(f, f->building.id(), f->destination_building.id())) {
                         f->state = FIGURE_STATE_DEAD;
                     }
                 }
-                f = figure_get(id);
+                f = Figure::get(id);
                 f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
                 f->destination_x = f->source_x;
                 f->destination_y = f->source_y;
@@ -339,7 +337,7 @@ void figure_supplier_action(figure *f)
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
                 if (f->direction == DIR_FIGURE_AT_DESTINATION && f->type == FIGURE_LIGHTHOUSE_SUPPLIER) {
-                    building_get(f->building_id)->resources[resource_timber()] += 100;
+                    building_get(f->building.id())->resources[resource_timber()] += 100;
                 }
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
@@ -420,14 +418,14 @@ void figure_supplier_action(figure *f)
     }
 }
 
-void figure_delivery_boy_action(figure *f)
+void figure_delivery_boy_action(Figure *f)
 {
     f->is_ghost = 0;
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     figure_image_increase_offset(f, 12);
     f->cart_image_id = 0;
 
-    figure *leader = figure_get(f->leading_figure_id);
+    Figure *leader = Figure::get(f->leading_figure_id);
     if (f->leading_figure_id <= 0 || leader->action_state == FIGURE_ACTION_149_CORPSE) {
         f->state = FIGURE_STATE_DEAD;
     } else {
@@ -442,7 +440,7 @@ void figure_delivery_boy_action(figure *f)
                 f->state = FIGURE_STATE_DEAD;
             }
         } else { // leader arrived at market, drop resource at market
-            building_get(f->building_id)->resources[f->collecting_item_id] += 100;
+            building_get(f->building.id())->resources[f->collecting_item_id] += 100;
             f->state = FIGURE_STATE_DEAD;
         }
     }
@@ -477,13 +475,13 @@ void figure_delivery_boy_action(figure *f)
     }
 }
 
-void figure_fort_supplier_action(figure *f)
+void figure_fort_supplier_action(Figure *f)
 {
     f->is_ghost = 0;
     f->terrain_usage = TERRAIN_USAGE_PREFER_ROADS_HIGHWAY;
     figure_image_increase_offset(f, 12);
 
-    building *b = building_get(f->building_id);
+    building *b = building_get(f->building.id());
     if (!b || b->state != BUILDING_STATE_IN_USE || !building_is_mess_hall(b)) {
         f->state = FIGURE_STATE_DEAD;
     }

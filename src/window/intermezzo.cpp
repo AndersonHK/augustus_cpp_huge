@@ -5,13 +5,11 @@
 #include "game/campaign.h"
 #include "graphics/window.h"
 
-extern "C" {
 #include "core/time.h"
 #include "graphics/screen.h"
 #include "scenario/property.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-}
 
 
 #define DISPLAY_TIME_MILLIS 1000

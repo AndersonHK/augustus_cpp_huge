@@ -20,7 +20,6 @@ typedef void (*crash_context_log_callback)(void *userdata);
  * User-facing logs emitted by this module should reserve error terminology for Error and Fatal error reports.
  */
 
-#ifdef __cplusplus
 class CrashContextScope {
 public:
     CrashContextScope(
@@ -38,11 +37,7 @@ private:
 };
 
 using ErrorContextScope = CrashContextScope;
-#endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void crash_context_clear(void);
 int crash_context_push_scope(
@@ -64,6 +59,3 @@ void error_context_report_fatal_error_dialog(const char *title, const char *mess
 void crash_context_report_error(const char *message, const char *detail);
 void crash_context_report_error_dialog(const char *title, const char *message, const char *detail);
 
-#ifdef __cplusplus
-}
-#endif

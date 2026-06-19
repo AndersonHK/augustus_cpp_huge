@@ -8,14 +8,12 @@
 #include "window/gift_to_emperor.h"
 
 #include "window/advisors.h"
-extern "C" {
 
 #include "city/emperor.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 static void button_set_gift(const generic_button *button);
 static void button_send_gift(const generic_button *button);

@@ -5,14 +5,12 @@
 
 #include "core/file.h"
 #include "game/settings.h"
-extern "C" {
 #include "building/properties.h"
 #include "city/figures.h"
 #include "city/population.h"
 #include "core/random.h"
 #include "core/time.h"
 #include "sound/device.h"
-}
 
 #include <array>
 #include <initializer_list>

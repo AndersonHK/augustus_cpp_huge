@@ -9,11 +9,9 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-}
 
 #include <cstdio>
 #include <memory>
@@ -164,13 +162,13 @@ const Distribution *find_distribution_definition(const char *path)
 
 } // namespace building_type_registry_impl
 
-extern "C" const char *distribution_registry_get_distribution_path(void)
+const char *distribution_registry_get_distribution_path(void)
 {
     building_type_registry_impl::g_distribution_path = mod_manager::mod_path() + "Distribution/";
     return building_type_registry_impl::g_distribution_path.c_str();
 }
 
-extern "C" int distribution_registry_load(void)
+int distribution_registry_load(void)
 {
     using namespace building_type_registry_impl;
 

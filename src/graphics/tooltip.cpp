@@ -12,7 +12,6 @@
 #include "core/crash_context.h"
 
 #include "game/settings.h"
-extern "C" {
 #include "building/building_record.h"
 #include "city/ratings.h"
 #include "city/view.h"
@@ -31,7 +30,6 @@ extern "C" {
 #include "map/terrain.h"
 #include "scenario/criteria.h"
 #include "scenario/property.h"
-}
 
 #include <stdio.h>
 #include <stdlib.h>

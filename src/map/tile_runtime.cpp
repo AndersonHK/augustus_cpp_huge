@@ -5,14 +5,12 @@
 #include "map/tile_runtime_graphics.h"
 #include "core/crash_context.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "core/image.h"
 #include "core/image_group.h"
 #include "core/log.h"
 #include "map/grid.h"
 #include "map/tile_runtime_api.h"
-}
 
 #include <cstdio>
 #include <cstring>
@@ -259,18 +257,18 @@ const RuntimeDrawSlice *tile_runtime::resolve_graphic_slice() const
     return entry->footprint();
 }
 
-extern "C" void tile_runtime_reset(void)
+void tile_runtime_reset(void)
 {
     tile_runtime_impl::g_runtime_tiles.clear();
     g_logged_tile_graphics_fallbacks.clear();
 }
 
-extern "C" void tile_runtime_clear(int grid_offset)
+void tile_runtime_clear(int grid_offset)
 {
     tile_runtime_impl::g_runtime_tiles.erase(grid_offset);
 }
 
-extern "C" void tile_runtime_set_plaza_image_id(int grid_offset, const char *image_id)
+void tile_runtime_set_plaza_image_id(int grid_offset, const char *image_id)
 {
     if (!image_id || !*image_id) {
         tile_runtime_clear(grid_offset);
@@ -285,14 +283,14 @@ extern "C" void tile_runtime_set_plaza_image_id(int grid_offset, const char *ima
     }
 }
 
-extern "C" const char *tile_runtime_plaza_single_image_id(int index)
+const char *tile_runtime_plaza_single_image_id(int index)
 {
     const building_type_registry_impl::BuildingType *definition =
         tile_runtime_impl::find_tile_definition(building_type_registry_impl::TileKind::Plaza);
     return definition ? tile_runtime_impl::target_image_id_at(definition->graphics().default_target(), index) : nullptr;
 }
 
-extern "C" const char *tile_runtime_plaza_large_image_id(int index)
+const char *tile_runtime_plaza_large_image_id(int index)
 {
     const building_type_registry_impl::BuildingType *definition =
         tile_runtime_impl::find_tile_definition(building_type_registry_impl::TileKind::Plaza);
@@ -301,21 +299,21 @@ extern "C" const char *tile_runtime_plaza_large_image_id(int index)
     return variant ? tile_runtime_impl::target_image_id_at(variant->target, index) : nullptr;
 }
 
-extern "C" int tile_runtime_plaza_single_asset_image_id(int index)
+int tile_runtime_plaza_single_asset_image_id(int index)
 {
     const building_type_registry_impl::BuildingType *definition =
         tile_runtime_impl::find_tile_definition(building_type_registry_impl::TileKind::Plaza);
     return definition ? tile_runtime_impl::target_asset_image_id_at(definition->graphics().default_target(), index) : 0;
 }
 
-extern "C" int tile_runtime_plaza_single_option_count(void)
+int tile_runtime_plaza_single_option_count(void)
 {
     const building_type_registry_impl::BuildingType *definition =
         tile_runtime_impl::find_tile_definition(building_type_registry_impl::TileKind::Plaza);
     return definition ? tile_runtime_impl::target_option_count(definition->graphics().default_target()) : 0;
 }
 
-extern "C" int tile_runtime_plaza_large_option_count(void)
+int tile_runtime_plaza_large_option_count(void)
 {
     const building_type_registry_impl::BuildingType *definition =
         tile_runtime_impl::find_tile_definition(building_type_registry_impl::TileKind::Plaza);
@@ -324,7 +322,7 @@ extern "C" int tile_runtime_plaza_large_option_count(void)
     return variant ? tile_runtime_impl::target_option_count(variant->target) : 0;
 }
 
-extern "C" int tile_runtime_plaza_large_asset_image_id(int index)
+int tile_runtime_plaza_large_asset_image_id(int index)
 {
     const building_type_registry_impl::BuildingType *definition =
         tile_runtime_impl::find_tile_definition(building_type_registry_impl::TileKind::Plaza);

@@ -1,13 +1,9 @@
-#
-
 #include "building/production_runtime.h"
 
 #include "building/building.h"
 #include "building/building_runtime_internal.h"
 
-extern "C" {
 #include "building/building_record.h"
-}
 
 namespace production_runtime_impl {
 
@@ -24,7 +20,7 @@ Production *get_or_create(Building building, size_t method_index)
         return nullptr;
     }
 
-    ::building *record = building.legacy_record();
+    ::building *record = building_get(building.id());
     building_runtime *runtime = building_runtime_impl::get_or_create_instance(record);
     if (!runtime || !runtime->definition()) {
         return nullptr;
@@ -46,7 +42,7 @@ Production *get_or_create(Building building, size_t method_index)
     }
 
     std::unique_ptr<Production> &slot = productions[method_index];
-    if (!slot || slot->building().legacy_record() != record || slot->method() != methods[method_index]) {
+    if (!slot || slot->building().id() != building.id() || slot->method() != methods[method_index]) {
         slot = std::make_unique<Production>(building, methods[method_index], method_index);
     }
     return slot.get();
@@ -63,7 +59,7 @@ size_t get_method_count(Building building)
         return 0;
     }
 
-    building_runtime *runtime = building_runtime_impl::get_or_create_instance(building.legacy_record());
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(building_get(building.id()));
     if (!runtime || !runtime->definition()) {
         return 0;
     }

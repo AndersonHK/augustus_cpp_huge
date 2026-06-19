@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "building/building_fwd.h"
 
@@ -26,6 +23,3 @@ void building_destroy_increase_enemy_damage(int grid_offset, int max_damage);
 
 void building_destroy_by_enemy(int x, int y, int grid_offset);
 
-#ifdef __cplusplus
-}
-#endif

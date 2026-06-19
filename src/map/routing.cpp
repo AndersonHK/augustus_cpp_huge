@@ -5,6 +5,7 @@
 #include "building/building_type.h"
 #include "building/connectable.h"
 #include "core/time.h"
+#include "figure/figure.h"
 #include "map/building.h"
 #include "map/figure.h"
 #include "map/grid.h"
@@ -13,19 +14,18 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-#include <stdlib.h>
 #include <cstring>
 
-#define MAX_QUEUE GRID_SIZE * GRID_SIZE
-#define GUARD 50000
+constexpr int MAX_QUEUE = GRID_SIZE * GRID_SIZE;
+constexpr int GUARD = 50000;
 
-#define UNTIL_STOP 0
-#define UNTIL_CONTINUE 1
+constexpr int UNTIL_STOP = 0;
+constexpr int UNTIL_CONTINUE = 1;
 
-typedef enum {
+enum max_directions {
     DIRECTIONS_NO_DIAGONALS = 4,
     DIRECTIONS_DIAGONALS = 8
-} max_directions;
+};
 
 static const int ROUTE_OFFSETS[] = { -162, 1, 162, -1, -161, 163, 161, -163 };
 static const int ROUTE_OFFSETS_X[] = { 0, 1, 0, -1,  1, 1, -1, -1 };
@@ -72,7 +72,7 @@ static int building_matches(building *b, const char *text_id)
         return 0;
     }
     Building current(b);
-    const building_type_registry_impl::BuildingType *definition = current.type_definition();
+    const building_type_registry_impl::BuildingType *definition = current.type;
     return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
@@ -538,7 +538,7 @@ void map_routing_delete_first_wall_or_aqueduct(int x, int y)
     route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_delete_wall_aqueduct, 0);
 }
 
-static int is_fighting_friendly(figure *f)
+static int is_fighting_friendly(Figure *f)
 {
     return f->is_friendly && f->action_state == FIGURE_ACTION_150_ATTACK;
 }
@@ -551,7 +551,7 @@ static inline int has_fighting_friendly(int grid_offset)
     return fighting_data.status.items[grid_offset] & 1;
 }
 
-static int is_fighting_enemy(figure *f)
+static int is_fighting_enemy(Figure *f)
 {
     return !f->is_friendly && f->action_state == FIGURE_ACTION_150_ATTACK;
 }

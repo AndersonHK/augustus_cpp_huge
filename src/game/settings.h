@@ -75,7 +75,6 @@ int setting_personal_savings_for_mission(int mission_id);
 void setting_set_personal_savings_for_mission(int mission_id, int savings);
 void setting_clear_personal_savings(void);
 
-#ifdef __cplusplus
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -149,4 +148,3 @@ inline void set_player_name(std::string_view value)
 }
 
 } // namespace settings
-#endif

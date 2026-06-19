@@ -5,11 +5,9 @@
 #include "game/speed.h"
 
 #include "game/settings.h"
-extern "C" {
 #include "core/time.h"
 #include "graphics/window.h"
 #include "input/scroll.h"
-}
 
 #define MAX_TICKS_PER_FRAME 20
 #define MILLIS_PER_TICK_SCALE 1000

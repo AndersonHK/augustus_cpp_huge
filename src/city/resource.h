@@ -2,9 +2,6 @@
 
 #include "city/constants.h"
 #include "game/resource.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define FOOD_PER_SOLDIER_MONTHLY 4
@@ -85,6 +82,3 @@ void city_resource_calculate_food_stocks_and_supply_wheat(void);
 
 void city_resource_consume_food(void);
 
-#ifdef __cplusplus
-}
-#endif

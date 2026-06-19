@@ -5,12 +5,7 @@
 #include "figure/figure.h"
 #include "game/resource.h"
 
-#ifdef __cplusplus
-extern "C++" {
 class Building;
-}
-extern "C" {
-#endif
 
 /**
  * @file
@@ -137,9 +132,6 @@ int building_storage_change_building(int storage_id, int building_id);
  */
 int building_storage_get_array_size(void);
 
-#ifdef __cplusplus
-}
-extern "C++" {
 /**
  * Generic wrapper that allows adding resource regardless of building type. Supports granaries and warehouses.
  * @return added resource amount
@@ -149,9 +141,6 @@ extern "C++" {
  * @param is_produced flag for food going to granaries
  */
 int building_storage_try_add_resource(Building &b, int resource, int amount, int is_produced);
-}
-extern "C" {
-#endif
 
 /**
  * Gets an entry from the data storage array.
@@ -166,9 +155,6 @@ const data_storage *building_storage_get_array_entry(int storage_id);
  */
 const building_storage *building_storage_get(int storage_id);
 
-#ifdef __cplusplus
-}
-extern "C++" {
 /**
  * Gets a read-only building storage state for a given resource
  * @param b building to check
@@ -177,9 +163,6 @@ extern "C++" {
  * @return Read-only storage state
  */
 building_storage_state building_storage_get_state(const Building &b, int resource, int relative);
-}
-extern "C" {
-#endif
 
 /**
  * Sets values of a building storage to that of another building storage
@@ -188,9 +171,6 @@ extern "C" {
  */
 void building_storage_set_data(int storage_id, building_storage new_data);
 
-#ifdef __cplusplus
-}
-extern "C++" {
 /**
  * Cycles through the storage to return resource with highest count (skips RESOURCE_NONE)
  * @param b building to check
@@ -201,9 +181,6 @@ resource_type building_storage_get_highest_quantity_resource(Building &b);
  * TODO: header
  */
 int building_storage_summary_tooltip(const Building &b, char *tooltip_text, int max_length, storage_summary_style style);
-}
-extern "C" {
-#endif
 
 /**
  * Cycles the resource state for the storage
@@ -226,9 +203,6 @@ void building_storage_cycle_partial_resource_state(int storage_id, resource_type
  */
 void building_storage_accept_none(int storage_id);
 
-#ifdef __cplusplus
-}
-extern "C++" {
 /**
  * check if a building accepts a certain resource
  * @param b The building to check
@@ -237,9 +211,6 @@ extern "C++" {
  * @return 1 if it does, 0 if it does not
  */
 int building_storage_accepts_storage(Building &b, resource_type resource, int *understaffed);
-}
-extern "C" {
-#endif
 
 /**
  * Sets all goods to 'accepting'
@@ -271,9 +242,6 @@ int building_storage_get_empty_all(int building_id);
  */
 void building_storage_reset_building_ids(void);
 
-#ifdef __cplusplus
-}
-extern "C++" {
 /**
  * Gets the maximum (in full units) a given storage will store of a given resource
  * @param b The building to check
@@ -281,9 +249,6 @@ extern "C++" {
  * @return Max amount that can be stored, 0 if it does not accept the resource at all.
  */
 int building_storage_resource_max_storable(const Building &b, resource_type resource_id);
-}
-extern "C" {
-#endif
 
 /**
  * Save data
@@ -306,9 +271,6 @@ int building_storage_count_stored_resource_types(int building_id);
 
 /* STORAGE API HELPERS*/
 
-#ifdef __cplusplus
-}
-extern "C++" {
 /**
  * returns the quantity associated with the storage state for a given resource in a building
  * @param b building to check
@@ -325,11 +287,5 @@ int building_storage_get_amount(const Building &b, resource_type resource);
 void building_storage_toggle_permission(building_storage_permission_states p, Building &b);
 int building_storage_get_permission(building_storage_permission_states p, const Building &b);
 void building_storage_set_permission(building_storage_permission_states p, Building &b, int enable);
-}
-extern "C" {
-#endif
 building_storage_permission_states building_storage_get_permission_from_building_type(building_type type);
 
-#ifdef __cplusplus
-}
-#endif

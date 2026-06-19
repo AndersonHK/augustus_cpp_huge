@@ -3,10 +3,8 @@
 #include "window/city.h"
 #include "window/empire.h"
 
-extern "C" {
 
 #include "game/system.h"
-}
 
 #define CURSOR_PATH_NAME "Cursors/Color_Cursors"
 

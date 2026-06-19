@@ -6,14 +6,12 @@
 #include "financial.h"
 
 #include "translation/translation.h"
-extern "C" {
 #include "city/data_private.h"
 #include "city/finance.h"
 #include "core/calc.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 
 #define ADVISOR_HEIGHT 27

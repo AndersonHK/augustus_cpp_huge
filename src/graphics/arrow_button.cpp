@@ -4,8 +4,6 @@
 
 #include "graphics/image.h"
 
-extern "C" {
-}
 
 
 static const int REPEATS[] = {

@@ -1,12 +1,9 @@
-﻿#pragma once
+#pragma once
 
 #include "game/file_io.h"
 
 #include <stddef.h>
 #include <stdint.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define CAMPAIGN_NO_RANK -1
@@ -150,6 +147,3 @@ void game_campaign_restore(void);
  */
 void game_campaign_clear(void);
 
-#ifdef __cplusplus
-}
-#endif

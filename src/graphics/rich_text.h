@@ -4,9 +4,6 @@
 #include "graphics/font.h"
 #include "input/mouse.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Initializes the rich text
@@ -120,6 +117,3 @@ int rich_text_scroll_position(void);
 */
 int rich_text_get_line_height(void);
 
-#ifdef __cplusplus
-}
-#endif

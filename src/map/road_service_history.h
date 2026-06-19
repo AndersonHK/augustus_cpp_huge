@@ -2,13 +2,10 @@
 
 #include "core/buffer.h"
 
-#include <stdint.h>
+#include <cstdint>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-typedef enum {
+enum road_service_effect {
     ROAD_SERVICE_EFFECT_NONE = 0,
     ROAD_SERVICE_EFFECT_LABOR = 1,
     ROAD_SERVICE_EFFECT_ACADEMY = 2,
@@ -34,7 +31,7 @@ typedef enum {
     ROAD_SERVICE_EFFECT_ENTERTAINMENT_HIPPODROME = 22,
     ROAD_SERVICE_EFFECT_MARKET_GOODS = 23,
     ROAD_SERVICE_EFFECT_MAX = 24
-} road_service_effect;
+};
 
 /* Clears all pathing-only service visit stamps for a fresh city/load. */
 void map_road_service_history_clear(void);
@@ -55,7 +52,3 @@ void map_road_service_history_load_state(
     int has_religion_effects,
     int has_entertainment_effects,
     int has_market_effects);
-
-#ifdef __cplusplus
-}
-#endif

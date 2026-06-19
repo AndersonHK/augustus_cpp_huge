@@ -4,7 +4,6 @@
 #include "core/legacy_image_extractor.h"
 #include "graphics/renderer.h"
 
-#ifdef __cplusplus
 #include <string>
 #include <utility>
 
@@ -119,4 +118,3 @@ public:
 };
 
 } // namespace vespasian::graphics::extraction
-#endif

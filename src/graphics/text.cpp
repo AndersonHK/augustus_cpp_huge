@@ -1,4 +1,4 @@
-﻿#include "graphics/graphics.h"
+#include "graphics/graphics.h"
 #include "translation/translation.h"
 #include "graphics/image.h"
 
@@ -6,13 +6,11 @@
 #include "font_vector_runtime.h"
 #include "text_runtime_internal.h"
 
-extern "C" {
 #include "core/encoding.h"
 #include "core/config.h"
 #include "core/locale.h"
 #include "core/string.h"
 #include "core/time.h"
-}
 
 
 #include <string.h>

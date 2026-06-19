@@ -12,7 +12,6 @@
 #include "window/editor/map.h"
 #include "graphics/grid_box.h"
 #include "scenario/data.h"
-extern "C" {
 
 #include "core/image_group_editor.h"
 #include "core/string.h"
@@ -23,7 +22,6 @@ extern "C" {
 #include "scenario/editor.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-}
 
 static void button_edit_request(const grid_box_item *item);
 static void button_new_request(const generic_button *button);

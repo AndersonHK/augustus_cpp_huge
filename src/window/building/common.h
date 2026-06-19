@@ -1,5 +1,6 @@
 #pragma once
 
+#include "building/building.h"
 #include "translation/translation.h"
 
 static const int MIN_Y_POSITION = 32;
@@ -39,14 +40,14 @@ typedef enum {
     TERRAIN_INFO_HIGHWAY = 16,
 } terrain_info_type;
 
-typedef struct {
+struct building_info_context {
     int x_offset;
     int y_offset;
     int width_blocks;
     int height_blocks;
     int help_id;
     int can_play_sound;
-    int building_id;
+    Building building = Building(nullptr);
     int has_road_access;
     int worker_percentage;
     int has_reservoir_pipes;
@@ -75,7 +76,7 @@ typedef struct {
         int x_offset;
         int y_offset;
     } risk_icons;
-} building_info_context;
+};
 
 void window_building_set_possible_position(int *x_offset, int *y_offset, int width_blocks, int height_blocks);
 

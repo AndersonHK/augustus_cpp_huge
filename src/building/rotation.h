@@ -1,9 +1,6 @@
 #pragma once
 
 #include "building/building_type.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 int building_rotation_get_road_orientation(void);
@@ -26,6 +23,3 @@ void building_rotation_remove_rotation(void);
 
 int building_rotation_type_has_rotations(building_type type);
 
-#ifdef __cplusplus
-}
-#endif

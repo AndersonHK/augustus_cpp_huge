@@ -28,7 +28,6 @@
 
 #include "game/settings.h"
 #include "game/campaign.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/properties.h"
@@ -48,7 +47,6 @@ extern "C" {
 #include "scenario/criteria.h"
 #include "scenario/event/controller.h"
 #include "scenario/property.h"
-}
 
 enum {
     INFO_NONE = 0,
@@ -547,7 +545,7 @@ static char get_cosmetic_day_of_month(void)
     return static_cast<char>(game_time_day() + 1);
 }
 
-extern "C" void widget_top_menu_draw(int force)
+void widget_top_menu_draw(int force)
 {
     // Skip redraw if nothing changed
     if (!force &&
@@ -784,7 +782,7 @@ static int handle_mouse_menu(const mouse *m)
     return 0;
 }
 
-extern "C" int widget_top_menu_handle_input(const mouse *m, const hotkeys *h)
+int widget_top_menu_handle_input(const mouse *m, const hotkeys *h)
 {
     if (widget_city_has_input()) {
         return 0;
@@ -796,7 +794,7 @@ extern "C" int widget_top_menu_handle_input(const mouse *m, const hotkeys *h)
     }
 }
 
-extern "C" int widget_top_menu_get_tooltip_text(tooltip_context *c)
+int widget_top_menu_get_tooltip_text(tooltip_context *c)
 {
     if (data.focus_menu_id) {
         return 49 + data.focus_menu_id;

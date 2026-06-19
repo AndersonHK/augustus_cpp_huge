@@ -249,28 +249,28 @@ font_definition g_stub_font = {};
 
 } // namespace
 
-extern "C" void augustus_graphics_extractor_shims_set_game_root(const char *path)
+void augustus_graphics_extractor_shims_set_game_root(const char *path)
 {
     if (path && *path) {
         g_game_root = std::filesystem::absolute(std::filesystem::path(path));
     }
 }
 
-extern "C" void augustus_graphics_extractor_shims_set_augustus_graphics_path(const char *path)
+void augustus_graphics_extractor_shims_set_augustus_graphics_path(const char *path)
 {
     if (path && *path) {
         g_augustus_graphics_path = with_trailing_separator(std::filesystem::absolute(std::filesystem::path(path)).string());
     }
 }
 
-extern "C" void augustus_graphics_extractor_shims_set_julius_graphics_path(const char *path)
+void augustus_graphics_extractor_shims_set_julius_graphics_path(const char *path)
 {
     if (path && *path) {
         g_julius_graphics_path = with_trailing_separator(std::filesystem::absolute(std::filesystem::path(path)).string());
     }
 }
 
-extern "C" void augustus_graphics_extractor_shims_install_renderer(void)
+void augustus_graphics_extractor_shims_install_renderer(void)
 {
     g_renderer.get_max_image_size = renderer_get_max_image_size;
     g_renderer.prepare_image_atlas = renderer_prepare_image_atlas;
@@ -284,7 +284,7 @@ extern "C" void augustus_graphics_extractor_shims_install_renderer(void)
     graphics_renderer_set_interface(&g_renderer);
 }
 
-extern "C" int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
+int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
 {
     (void) force_reload;
     (void) main_images;
@@ -292,86 +292,86 @@ extern "C" int assets_init(int force_reload, color_t **main_images, int *main_im
     return 1;
 }
 
-extern "C" int assets_get_image_id(const char *assetlist_name, const char *image_name)
+int assets_get_image_id(const char *assetlist_name, const char *image_name)
 {
     (void) assetlist_name;
     (void) image_name;
     return 0;
 }
 
-extern "C" const image *assets_get_image(int image_id)
+const image *assets_get_image(int image_id)
 {
     (void) image_id;
     return &g_stub_image;
 }
 
-extern "C" const image *assets_get_font_image(int letter_id)
+const image *assets_get_font_image(int letter_id)
 {
     (void) letter_id;
     return &g_stub_image;
 }
 
-extern "C" const font_definition *font_definition_for(font_t font)
+const font_definition *font_definition_for(font_t font)
 {
     (void) font;
     return &g_stub_font;
 }
 
-extern "C" void assets_load_unpacked_asset(int image_id)
+void assets_load_unpacked_asset(int image_id)
 {
     (void) image_id;
 }
 
-extern "C" int screen_width(void)
+int screen_width(void)
 {
     return 640;
 }
 
-extern "C" int screen_height(void)
+int screen_height(void)
 {
     return 480;
 }
 
-extern "C" int runtime_overlay_images_init_or_reload(void)
+int runtime_overlay_images_init_or_reload(void)
 {
     return 1;
 }
 
-extern "C" void runtime_overlay_images_reset(void)
+void runtime_overlay_images_reset(void)
 {
 }
 
-extern "C" building *building_first_of_type(building_type type)
+building *building_first_of_type(building_type type)
 {
     (void) type;
     return nullptr;
 }
 
-extern "C" building_type building_type_registry_runtime_id_from_text(const char *text_id)
+building_type building_type_registry_runtime_id_from_text(const char *text_id)
 {
     (void) text_id;
     return BUILDING_NONE;
 }
 
-extern "C" int building_image_get_for_type(building_type type)
+int building_image_get_for_type(building_type type)
 {
     (void) type;
     return 0;
 }
 
-extern "C" unsigned int map_image_at(int grid_offset)
+unsigned int map_image_at(int grid_offset)
 {
     (void) grid_offset;
     return 0;
 }
 
-extern "C" void map_image_set(int grid_offset, int image_id)
+void map_image_set(int grid_offset, int image_id)
 {
     (void) grid_offset;
     (void) image_id;
 }
 
-extern "C" void map_building_tiles_add(unsigned int building_id, int x, int y, int size, int image_id, int terrain)
+void map_building_tiles_add(unsigned int building_id, int x, int y, int size, int image_id, int terrain)
 {
     (void) building_id;
     (void) x;
@@ -381,7 +381,7 @@ extern "C" void map_building_tiles_add(unsigned int building_id, int x, int y, i
     (void) terrain;
 }
 
-extern "C" void log_info(const char *msg, const char *param_str, int param_int)
+void log_info(const char *msg, const char *param_str, int param_int)
 {
     log_line("Info", msg, param_str, param_int);
 }
@@ -396,12 +396,12 @@ bool log_is_debug_enabled()
     return g_debug_enabled != 0;
 }
 
-extern "C" void log_warning(const char *msg, const char *param_str, int param_int)
+void log_warning(const char *msg, const char *param_str, int param_int)
 {
     log_line("Warning", msg, param_str, param_int);
 }
 
-extern "C" void log_error(const char *msg, const char *param_str, int param_int)
+void log_error(const char *msg, const char *param_str, int param_int)
 {
     log_line("Error", msg, param_str, param_int);
 }
@@ -492,7 +492,7 @@ int file_remove(const char *filename)
     return std::filesystem::remove(resolve_asset_marker_path(filename), error) ? 1 : 0;
 }
 
-extern "C" const dir_listing *dir_find_files_with_extension(const char *dir, const char *extension)
+const dir_listing *dir_find_files_with_extension(const char *dir, const char *extension)
 {
     g_listing.entries.clear();
     g_listing.names.clear();
@@ -534,29 +534,29 @@ extern "C" const dir_listing *dir_find_files_with_extension(const char *dir, con
     return &g_listing.listing;
 }
 
-extern "C" const dir_listing *dir_find_files_with_extension_at_location(int location, const char *extension)
+const dir_listing *dir_find_files_with_extension_at_location(int location, const char *extension)
 {
     const std::string directory = platform_file_manager_get_directory_for_location(location);
     return dir_find_files_with_extension(directory.c_str(), extension);
 }
 
-extern "C" const dir_listing *dir_append_files_with_extension(const char *extension)
+const dir_listing *dir_append_files_with_extension(const char *extension)
 {
     return dir_find_files_with_extension(".", extension);
 }
 
-extern "C" const dir_listing *dir_find_all_subdirectories(const char *dir)
+const dir_listing *dir_find_all_subdirectories(const char *dir)
 {
     return dir_find_files_with_extension(dir, nullptr);
 }
 
-extern "C" const dir_listing *dir_find_all_subdirectories_at_location(int location)
+const dir_listing *dir_find_all_subdirectories_at_location(int location)
 {
     const std::string directory = platform_file_manager_get_directory_for_location(location);
     return dir_find_all_subdirectories(directory.c_str());
 }
 
-extern "C" const char *dir_get_file(const char *filepath, int localizable)
+const char *dir_get_file(const char *filepath, int localizable)
 {
     (void) localizable;
     static std::string resolved;
@@ -568,7 +568,7 @@ extern "C" const char *dir_get_file(const char *filepath, int localizable)
     return resolved.c_str();
 }
 
-extern "C" const char *dir_get_file_at_location(const char *filepath, int location)
+const char *dir_get_file_at_location(const char *filepath, int location)
 {
     static std::string resolved;
     resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location)) /
@@ -576,7 +576,7 @@ extern "C" const char *dir_get_file_at_location(const char *filepath, int locati
     return std::filesystem::exists(resolved) ? resolved.c_str() : nullptr;
 }
 
-extern "C" const char *dir_append_location(const char *filename, int location)
+const char *dir_append_location(const char *filename, int location)
 {
     static std::string resolved;
     resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location)) /
@@ -843,11 +843,11 @@ void CrashContextScope::set_callback(crash_context_log_callback callback, void *
     (void) userdata;
 }
 
-extern "C" void crash_context_clear(void)
+void crash_context_clear(void)
 {
 }
 
-extern "C" int crash_context_push_scope(
+int crash_context_push_scope(
     const char *stage,
     const char *context,
     crash_context_log_callback callback,
@@ -860,68 +860,68 @@ extern "C" int crash_context_push_scope(
     return 1;
 }
 
-extern "C" void crash_context_pop_scope(int token)
+void crash_context_pop_scope(int token)
 {
     (void) token;
 }
 
-extern "C" void crash_context_update_scope_context(int token, const char *context)
+void crash_context_update_scope_context(int token, const char *context)
 {
     (void) token;
     (void) context;
 }
 
-extern "C" void crash_context_update_scope_callback(int token, crash_context_log_callback callback, void *userdata)
+void crash_context_update_scope_callback(int token, crash_context_log_callback callback, void *userdata)
 {
     (void) token;
     (void) callback;
     (void) userdata;
 }
 
-extern "C" void crash_context_set_stage(const char *stage, const char *context)
+void crash_context_set_stage(const char *stage, const char *context)
 {
     (void) stage;
     (void) context;
 }
 
-extern "C" void crash_context_log_current(void)
+void crash_context_log_current(void)
 {
 }
 
-extern "C" void error_context_log_current(void)
+void error_context_log_current(void)
 {
 }
 
-extern "C" void error_context_flush_report_counts(void)
+void error_context_flush_report_counts(void)
 {
 }
 
-extern "C" void error_context_report_info(const char *message, const char *detail)
+void error_context_report_info(const char *message, const char *detail)
 {
     log_info(message, detail, 0);
 }
 
-extern "C" void error_context_report_warning(const char *message, const char *detail)
+void error_context_report_warning(const char *message, const char *detail)
 {
     log_warning(message, detail, 0);
 }
 
-extern "C" void error_context_report_error(const char *message, const char *detail)
+void error_context_report_error(const char *message, const char *detail)
 {
     log_error(message, detail, 0);
 }
 
-extern "C" void error_context_report_fatal_error_dialog(const char *title, const char *message, const char *detail)
+void error_context_report_fatal_error_dialog(const char *title, const char *message, const char *detail)
 {
     log_error(title ? title : message, detail, 0);
 }
 
-extern "C" void crash_context_report_error(const char *message, const char *detail)
+void crash_context_report_error(const char *message, const char *detail)
 {
     log_error(message, detail, 0);
 }
 
-extern "C" void crash_context_report_error_dialog(const char *title, const char *message, const char *detail)
+void crash_context_report_error_dialog(const char *title, const char *message, const char *detail)
 {
     log_error(title ? title : message, detail, 0);
 }

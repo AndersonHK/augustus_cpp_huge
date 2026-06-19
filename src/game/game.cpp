@@ -27,7 +27,6 @@
 #include "platform/prefs.h"
 #include "platform/user_path.h"
 #include "sound/system.h"
-extern "C" {
 #include "assets/assets.h"
 #include "assets/image_group_payload_api.h"
 #include "building/properties.h"
@@ -49,7 +48,6 @@ extern "C" {
 #include "platform/file_manager.h"
 #include "scenario/property.h"
 #include "sound/city.h"
-}
 
 #include <stdio.h>
 

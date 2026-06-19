@@ -17,7 +17,6 @@
 #include "city/god.h"
 
 #include "game/settings.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "city/figures.h"
@@ -39,9 +38,8 @@ extern "C" {
 #include "scenario/invasion.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-}
 
-#include <stdlib.h>
+#include <algorithm>
 
 #define EXTRA_INFO_LINE_SPACE 16
 #define EXTRA_INFO_VERTICAL_PADDING 8
@@ -79,19 +77,19 @@ static generic_button buttons_emperor_requests[] = {
 
 static const char *play_pause_button_image_names[] = { "Pause Button", "Play Button" };
 
-typedef struct {
+struct objective {
     int value;
     int target;
-} objective;
+};
 
-typedef struct {
+struct request {
     int index;
     int resource;
     int amount;
     int available;
     int time;
     int stockpiled;
-} request;
+};
 
 static struct {
     int x_offset;
@@ -118,8 +116,8 @@ static struct {
         int angry;
     } gods;
     int next_invasion;
-    unsigned int visible_requests;
-    unsigned int active_requests;
+    int visible_requests;
+    int active_requests;
     int troop_requests;
     int objectives_y_offset;
     int request_buttons_y_offset;
@@ -133,11 +131,6 @@ static int count_active_requests(void)
 {
     int count = city_request_has_troop_request() + scenario_request_count_visible();
     return count > MAX_REQUESTS_TO_DISPLAY ? MAX_REQUESTS_TO_DISPLAY : count;
-}
-
-static int sort_requests(const void *va, const void *vb)
-{
-    return ((request *) va)->time - ((request *) vb)->time;
 }
 
 static sidebar_extra_display calculate_displayable_info(sidebar_extra_display info_to_display, int available_height)
@@ -216,7 +209,7 @@ static int calculate_extra_info_height(int available_height)
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) {
         height += EXTRA_INFO_HEIGHT_REQUESTS_MIN;
-        unsigned int num_requests = count_active_requests();
+        int num_requests = count_active_requests();
         data.visible_requests = 1;
         while (data.visible_requests < num_requests) {
             if (height + EXTRA_INFO_HEIGHT_REQUESTS_PANEL > available_height) {
@@ -323,7 +316,7 @@ static int update_extra_info(int is_background)
         changed |= update_extra_info_value(count_angry_gods(), &data.gods.angry);
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) {
-        int new_requests = update_extra_info_value(count_active_requests(), (int *) &data.active_requests);
+        int new_requests = update_extra_info_value(count_active_requests(), &data.active_requests);
         new_requests |= update_extra_info_value(city_request_has_troop_request(), &data.troop_requests);
 
         if (data.troop_requests) {
@@ -358,7 +351,10 @@ static int update_extra_info(int is_background)
                 &slot->stockpiled);
         }
         if (new_requests || must_resort) {
-            qsort(data.requests + data.troop_requests, other_requests, sizeof(request), sort_requests);
+            request *first = data.requests + data.troop_requests;
+            std::sort(first, first + other_requests, [](const request &a, const request &b) {
+                return a.time < b.time;
+            });
             changed = 1;
         }
     }
@@ -473,7 +469,7 @@ static int draw_request_buttons(int y_offset)
 
     y_offset += EXTRA_INFO_VERTICAL_PADDING;
 
-    for (unsigned int i = 0; i < data.visible_requests; i++) {
+    for (int i = 0; i < data.visible_requests; i++) {
         const request *r = &data.requests[i];
         int base_button_y_offset = i * EXTRA_INFO_HEIGHT_REQUESTS_PANEL;
 
@@ -685,7 +681,7 @@ static void draw_extra_info_buttons(void)
         image_buttons_draw(data.x_offset, data.y_offset, &play_paused_button, 1);
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS && data.active_requests) {
-        for (unsigned int i = 0; i < data.visible_requests; i++) {
+        for (int i = 0; i < data.visible_requests; i++) {
             int button_y_offset = data.request_buttons_y_offset + buttons_emperor_requests[i].y;
             button_border_draw(data.x_offset + 2, button_y_offset, data.width - 4,
                 buttons_emperor_requests[i].height, i == data.focused_request_button_id - 1);
@@ -813,7 +809,7 @@ static void confirm_send_goods(int accepted, int checked)
 static void button_handle_request(const generic_button *button)
 {
     int index = button->parameter1;
-    if (data.active_requests > data.visible_requests && index == (int) data.visible_requests - 1) {
+    if (data.active_requests > data.visible_requests && index == data.visible_requests - 1) {
         window_advisors_show_advisor(ADVISOR_IMPERIAL);
         return;
     }

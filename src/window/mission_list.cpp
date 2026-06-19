@@ -18,7 +18,6 @@
 #include <cstring>
 
 #include "game/campaign.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "core/image_group.h"
@@ -27,7 +26,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #define MISSION_LIST_Y_POSITION 48
 #define MISSION_MAP_MAX_WIDTH 352.0f
@@ -575,12 +573,12 @@ static void show_window(int keep_data)
 
 } // namespace
 
-extern "C" void window_mission_list_show(void)
+void window_mission_list_show(void)
 {
     show_window(0);
 }
 
-extern "C" void window_mission_list_show_again(void)
+void window_mission_list_show_again(void)
 {
     show_window(1);
 }

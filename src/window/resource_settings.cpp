@@ -13,7 +13,6 @@
 #include "resource_settings.h"
 
 #include "translation/translation.h"
-extern "C" {
 
 #include "city/resource.h"
 #include "core/calc.h"
@@ -23,7 +22,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 #include <building/industry.h>
 
 static void button_help(int param1, int param2);

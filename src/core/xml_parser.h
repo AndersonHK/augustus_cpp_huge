@@ -3,9 +3,6 @@
 #define XML_PARSER_MAX_ATTRIBUTES 13
 #define XML_PARSER_TAG_MAX_LENGTH 32
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
  * @brief A structure that holds info about a xml element.
@@ -127,6 +124,3 @@ void xml_parser_reset(void);
  */
 void xml_parser_free(void);
 
-#ifdef __cplusplus
-}
-#endif

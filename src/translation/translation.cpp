@@ -4,13 +4,11 @@
 #include "translation/localization_internal.h"
 
 #include "core/file.h"
-extern "C" {
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "city/message.h"
 #include "core/log.h"
 #include "core/string.h"
-}
 
 #include <stdlib.h>
 #include <string.h>

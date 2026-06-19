@@ -7,9 +7,7 @@
 #include "building/building_type_legacy_migration.h"
 #include "building/building_type_registry_internal.h"
 
-extern "C" {
 #include "core/log.h"
-}
 
 #include <cctype>
 #include <cstdint>
@@ -299,7 +297,7 @@ void load_legacy_save_table()
 
 }
 
-extern "C" void building_type_id_bridge_reset_for_runtime(void)
+void building_type_id_bridge_reset_for_runtime(void)
 {
     g_bridge.runtime_ready = false;
     g_bridge.save_table_ready = false;
@@ -307,13 +305,13 @@ extern "C" void building_type_id_bridge_reset_for_runtime(void)
     ensure_runtime_table();
 }
 
-extern "C" void building_type_id_bridge_clear_save_table(void)
+void building_type_id_bridge_clear_save_table(void)
 {
     clear_save_table();
     g_bridge.save_table_ready = false;
 }
 
-extern "C" const char *building_type_id_bridge_text_from_runtime(building_type runtime_id)
+const char *building_type_id_bridge_text_from_runtime(building_type runtime_id)
 {
     ensure_runtime_table();
     if (runtime_id <= BUILDING_NONE || runtime_id >= BUILDING_TYPE_MAX) {
@@ -331,7 +329,7 @@ extern "C" const char *building_type_id_bridge_text_from_runtime(building_type r
     return g_bridge.runtime_to_text[static_cast<uint16_t>(runtime_id)].c_str();
 }
 
-extern "C" building_type building_type_id_bridge_runtime_from_text(const char *text_id)
+building_type building_type_id_bridge_runtime_from_text(const char *text_id)
 {
     ensure_runtime_table();
     if (!text_id || !*text_id) {
@@ -353,7 +351,7 @@ extern "C" building_type building_type_id_bridge_runtime_from_text(const char *t
     return active_registry_runtime_from_text(text_id);
 }
 
-extern "C" void building_type_id_bridge_prepare_new_save_table(void)
+void building_type_id_bridge_prepare_new_save_table(void)
 {
     ensure_runtime_table();
     clear_save_table();
@@ -370,7 +368,7 @@ extern "C" void building_type_id_bridge_prepare_new_save_table(void)
     g_bridge.save_table_ready = true;
 }
 
-extern "C" void building_type_id_bridge_save_table_save_state(buffer *buf)
+void building_type_id_bridge_save_table_save_state(buffer *buf)
 {
     if (!buf) {
         return;
@@ -409,7 +407,7 @@ extern "C" void building_type_id_bridge_save_table_save_state(buffer *buf)
     }
 }
 
-extern "C" void building_type_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
+void building_type_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
 {
     if (!has_save_table || !buf || !buf->size) {
         load_legacy_save_table();
@@ -453,7 +451,7 @@ extern "C" void building_type_id_bridge_save_table_load_state(buffer *buf, int h
     g_bridge.save_table_ready = true;
 }
 
-extern "C" uint16_t building_type_id_bridge_save_id_from_runtime(building_type runtime_id)
+uint16_t building_type_id_bridge_save_id_from_runtime(building_type runtime_id)
 {
     ensure_save_table();
     if (runtime_id <= BUILDING_NONE || runtime_id >= BUILDING_TYPE_MAX) {
@@ -462,7 +460,7 @@ extern "C" uint16_t building_type_id_bridge_save_id_from_runtime(building_type r
     return g_bridge.runtime_to_save[static_cast<uint16_t>(runtime_id)];
 }
 
-extern "C" building_type building_type_id_bridge_runtime_from_save_id(uint16_t save_id)
+building_type building_type_id_bridge_runtime_from_save_id(uint16_t save_id)
 {
     ensure_save_table();
     if (save_id_has_explicit_mapping(save_id)) {
@@ -483,7 +481,7 @@ extern "C" building_type building_type_id_bridge_runtime_from_save_id(uint16_t s
     return legacy_runtime_from_raw_save_id(save_id);
 }
 
-extern "C" const char *building_type_id_bridge_text_from_save_id(uint16_t save_id)
+const char *building_type_id_bridge_text_from_save_id(uint16_t save_id)
 {
     ensure_save_table();
     if (save_id_has_explicit_mapping(save_id) &&
@@ -501,7 +499,7 @@ extern "C" const char *building_type_id_bridge_text_from_save_id(uint16_t save_i
     return building_type_id_bridge_text_from_runtime(runtime_id);
 }
 
-extern "C" int building_type_id_bridge_save_id_is_missing(uint16_t save_id)
+int building_type_id_bridge_save_id_is_missing(uint16_t save_id)
 {
     ensure_save_table();
     if (save_id == 0) {

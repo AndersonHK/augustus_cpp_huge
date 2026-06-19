@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "building/building_fwd.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 int game_can_undo(void);
@@ -34,6 +31,3 @@ void game_undo_perform(void);
 
 void game_undo_reduce_time_available(void);
 
-#ifdef __cplusplus
-}
-#endif

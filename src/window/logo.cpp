@@ -9,11 +9,9 @@
 
 #include "window/intro_video.h"
 #include "window/popup_dialog.h"
-extern "C" {
 #include "core/config.h"
 #include "graphics/window.h"
 #include "sound/music.h"
-}
 
 
 static int pending_actions;

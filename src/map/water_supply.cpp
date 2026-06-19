@@ -9,11 +9,9 @@
 
 #include <cstring>
 
-extern "C" {
 #include "building/building_record.h"
 #include "map/grid.h"
 #include "map/terrain.h"
-}
 
 static building_type building_type_from_definition_attr(const char *text_id)
 {
@@ -27,27 +25,27 @@ static building_type building_type_from_definition_attr(const char *text_id)
     return BUILDING_NONE;
 }
 
-extern "C" void map_water_supply_update_buildings(void)
+void map_water_supply_update_buildings(void)
 {
     water_access_runtime_refresh();
 }
 
-extern "C" void map_water_supply_update_reservoir_fountain(void)
+void map_water_supply_update_reservoir_fountain(void)
 {
     water_access_runtime_refresh();
 }
 
-extern "C" int map_water_supply_has_aqueduct_access(int grid_offset)
+int map_water_supply_has_aqueduct_access(int grid_offset)
 {
     return water_access_runtime_reservoir_has_network_access(grid_offset);
 }
 
-extern "C" void map_water_supply_refresh_building(building *b)
+void map_water_supply_refresh_building(building *b)
 {
     water_access_runtime_refresh_building(b);
 }
 
-extern "C" int map_water_supply_is_building_unnecessary(int building_id, int radius)
+int map_water_supply_is_building_unnecessary(int building_id, int radius)
 {
     building *b = building_get(building_id);
     int num_houses = 0;
@@ -73,22 +71,22 @@ extern "C" int map_water_supply_is_building_unnecessary(int building_id, int rad
     return num_houses ? BUILDING_UNNECESSARY_FOUNTAIN : BUILDING_UNNECESSARY_NO_HOUSES;
 }
 
-extern "C" int map_water_supply_fountain_radius(void)
+int map_water_supply_fountain_radius(void)
 {
     return water_access_runtime_range_for_building(building_type_from_definition_attr("fountain"));
 }
 
-extern "C" int map_water_supply_reservoir_radius(void)
+int map_water_supply_reservoir_radius(void)
 {
     return water_access_runtime_range_for_building(building_type_from_definition_attr("reservoir"));
 }
 
-extern "C" int map_water_supply_well_radius(void)
+int map_water_supply_well_radius(void)
 {
     return water_access_runtime_range_for_building(building_type_from_definition_attr("well"));
 }
 
-extern "C" int map_water_supply_latrines_radius(void)
+int map_water_supply_latrines_radius(void)
 {
     return water_access_runtime_range_for_building(building_type_from_definition_attr("latrines"));
 }

@@ -6,12 +6,11 @@
 
 #define BASELINE_STOCK 50
 
-#ifdef __cplusplus
 #include <string>
 #include <vector>
 
-extern "C++" {
 class Building;
+class Figure;
 
 namespace building_type_registry_impl {
 class StorageType;
@@ -47,7 +46,7 @@ public:
         resource_storage_info info[RESOURCE_SLOT_COUNT],
         building_type type,
         int road_network,
-        figure *start,
+        Figure *start,
         int max_distance) const;
     resource_type fetch_resource(
         const Building &building,
@@ -70,16 +69,10 @@ int find_distribution_sources_for_figure(
     resource_storage_info info[RESOURCE_SLOT_COUNT],
     building_type type,
     int road_network,
-    figure *start,
+    Figure *start,
     int max_distance);
 }
-}
-extern "C" {
-#endif
 
 const char *distribution_registry_get_distribution_path(void);
 int distribution_registry_load(void);
 
-#ifdef __cplusplus
-}
-#endif

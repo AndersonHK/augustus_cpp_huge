@@ -1,27 +1,24 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
 #include "map/grid.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
-typedef enum {
+enum routed_building_type {
     ROUTED_BUILDING_ROAD = 0,
     ROUTED_BUILDING_WALL = 1,
     ROUTED_BUILDING_AQUEDUCT = 2,
     ROUTED_BUILDING_AQUEDUCT_WITHOUT_GRAPHIC = 4,
     ROUTED_BUILDING_HIGHWAY = 5,
     ROUTED_BUILDING_DRAGGABLE_RESERVOIR = 6
-} routed_building_type;
+};
 
-typedef struct map_routing_distance_grid {
+struct map_routing_distance_grid {
     grid_i16 possible;
     grid_i16 determined;
     int dst_x;
     int dst_y;
-} map_routing_distance_grid;
+};
 
 const map_routing_distance_grid *map_routing_get_distance_grid(void);
 
@@ -49,7 +46,3 @@ void map_routing_block(int x, int y, int size);
 void map_routing_save_state(buffer *buf);
 
 void map_routing_load_state(buffer *buf);
-
-#ifdef __cplusplus
-}
-#endif

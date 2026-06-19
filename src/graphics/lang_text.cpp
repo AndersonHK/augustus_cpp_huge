@@ -1,12 +1,10 @@
-﻿#include "lang_text.h"
+#include "lang_text.h"
 #include "translation/translation.h"
 #include "text_runtime_internal.h"
 
-extern "C" {
 #include "core/locale.h"
 #include "core/string.h"
 #include "graphics/text.h"
-}
 
 int lang_text_get_width(translation_key key, font_t font, int pixel_size)
 {

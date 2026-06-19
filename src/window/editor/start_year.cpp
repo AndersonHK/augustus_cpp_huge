@@ -8,7 +8,6 @@
 #include "start_year.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
@@ -16,7 +15,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-}
 
 static void button_era(const generic_button *button);
 static void button_year(const generic_button *button);

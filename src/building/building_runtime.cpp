@@ -24,8 +24,9 @@
 #include "building/temple.h"
 #include "city/culture.h"
 #include "core/crash_context.h"
+#include "figure/figure.h"
+#include "figure/figure_runtime_api.h"
 
-extern "C" {
 #include "building/granary.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -35,20 +36,29 @@ extern "C" {
 #include "city/population.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "figure/figure.h"
 #include "figure/movement.h"
-#include "figure/figure_runtime_api.h"
 #include "game/animation.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
 #include "core/log.h"
-}
 
 #include <cstdio>
 #include <cstdint>
 #include <string>
+
+building_runtime::building_runtime(::building *building_data, const building_type_registry_impl::BuildingType *definition)
+    : building_runtime(Building(building_data, definition))
+{
+}
+
+building_runtime::building_runtime(const Building &building_object)
+    : data(*building_object.record_)
+    , record_(building_object.record_)
+    , definition_(building_object.type)
+{
+}
 
 Building building_runtime::building() const
 {
@@ -61,20 +71,11 @@ std::vector<std::unique_ptr<building_runtime>> g_runtime_instances;
 
 static int building_has_required_workers_for_runtime_water(const Building &building)
 {
-    const ::building *record = building.legacy_record();
-    if (!record) {
+    if (!building.type) {
         return 0;
     }
-    const int required_workers = building.type().required_workers();
-    return required_workers <= 0 || record->num_workers > 0;
-}
-
-building_runtime *get_city_building(unsigned int id)
-{
-    if (!id) {
-        return nullptr;
-    }
-    return get_or_create_instance(building_get(id));
+    const int required_workers = building.type->required_workers();
+    return required_workers <= 0 || building.worker_count() > 0;
 }
 
 building_runtime *get_city_building(::building *building_data)
@@ -95,10 +96,10 @@ building_runtime *get_or_create_instance(::building *building_data)
 
     // Every live building gets a runtime object, even before that type has migrated to XML-driven behavior.
     const Building runtime_building(building_data);
-    const building_type_registry_impl::BuildingType *definition = runtime_building.type_definition();
+    const building_type_registry_impl::BuildingType *definition = runtime_building.type;
 
     std::unique_ptr<building_runtime> &slot = g_runtime_instances[building_data->id];
-    if (!slot || slot->legacy_record() != building_data || slot->definition() != definition) {
+    if (!slot || &slot->data != building_data || slot->definition() != definition) {
         slot = std::make_unique<building_runtime>(building_data, definition);
     }
     return slot.get();
@@ -108,20 +109,20 @@ building_runtime *get_or_create_instance(::building *building_data)
 
 void building_runtime::refresh_runtime_state()
 {
-    if (!legacy_record() || !definition()) {
+    if (!record_ || !definition()) {
         return;
     }
 
     if (type().water_access().has_requirements()) {
         record().has_water_access =
             building_runtime_impl::building_has_required_workers_for_runtime_water(building()) &&
-            water_access_runtime_building_has_required_access(legacy_record()) ? 1 : 0;
+            water_access_runtime_building_has_required_access(&record()) ? 1 : 0;
     }
 
     if (type().has_graphic()) {
-        city_culture_remove_building_module_capacity(legacy_record());
+        city_culture_remove_building_module_capacity(&record());
         record().upgrade_level = type().upgrade_level_for(building());
-        city_culture_add_building_module_capacity(legacy_record());
+        city_culture_add_building_module_capacity(&record());
     }
 }
 

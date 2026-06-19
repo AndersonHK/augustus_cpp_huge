@@ -197,7 +197,7 @@ def same_path(left: Path, right: Path) -> bool:
         return left.resolve() == right.resolve()
 
 
-def require_exact_mod_folder(mods_path: Path, label: str, expected_parent: Path | None = None) -> Path:
+def require_mod_folder_path(mods_path: Path, label: str, expected_parent: Path | None = None) -> Path:
     if not mods_path.is_dir():
         raise RuntimeError(f"{label} Mods folder does not exist: {mods_path}")
     if mods_path.name != "Mods":
@@ -208,7 +208,11 @@ def require_exact_mod_folder(mods_path: Path, label: str, expected_parent: Path 
     resolved_mods = mods_path.resolve(strict=True)
     if expected_parent and not same_path(resolved_mods.parent, expected_parent.resolve(strict=True)):
         raise RuntimeError(f"{label} Mods folder is not a direct child of the expected folder: {resolved_mods}")
+    return resolved_mods
 
+
+def require_exact_mod_folder(mods_path: Path, label: str, expected_parent: Path | None = None) -> Path:
+    resolved_mods = require_mod_folder_path(mods_path, label, expected_parent)
     entries = list(resolved_mods.iterdir())
     folders = {entry.name for entry in entries if entry.is_dir()}
     non_folders = [entry.name for entry in entries if not entry.is_dir()]
@@ -224,7 +228,7 @@ def require_exact_mod_folder(mods_path: Path, label: str, expected_parent: Path 
 
 
 def require_safe_target_mods(target_mods: Path, game_root: Path) -> Path:
-    resolved_mods = require_exact_mod_folder(target_mods, "Target", game_root)
+    resolved_mods = require_mod_folder_path(target_mods, "Target", game_root)
     if same_path(resolved_mods, game_root) or same_path(resolved_mods, game_root.parent):
         raise RuntimeError(f"Refusing to delete suspicious Mods path: {resolved_mods}")
     return resolved_mods

@@ -4,9 +4,6 @@
 #include "building/properties.h"
 #include "figure/type.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef struct building building;
 
@@ -72,6 +69,3 @@ building_type building_type_registry_get_housing_transition(building_type type, 
 building_type building_type_registry_get_vacant_lot_fill_type(void);
 building_type building_type_registry_get_vacant_lot_occupancy_type(void);
 
-#ifdef __cplusplus
-}
-#endif

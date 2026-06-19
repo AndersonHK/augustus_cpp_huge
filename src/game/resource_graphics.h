@@ -2,9 +2,7 @@
 
 #include "graphics/image.h"
 
-extern "C" {
 #include "game/resource.h"
-}
 
 #include <array>
 

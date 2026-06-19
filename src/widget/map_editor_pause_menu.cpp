@@ -20,14 +20,12 @@
 #include "translation/translation.h"
 #include "window/popup_dialog.h"
 #include "scenario/scenario.h"
-extern "C" {
 
 #include "graphics/text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-}
 
 
 #define MAX_BUTTONS 7

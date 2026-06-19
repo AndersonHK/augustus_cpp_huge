@@ -8,7 +8,6 @@
 #include "select_city_trade_route.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "core/string.h"
 #include "empire/city.h"
@@ -18,7 +17,6 @@ extern "C" {
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #include <string.h>
 #include <stdio.h>

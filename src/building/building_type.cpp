@@ -1,5 +1,4 @@
-#
-
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/building_type.h"
@@ -10,11 +9,9 @@
 #include "building/production_method.h"
 #include "building/religion.h"
 
-extern "C" {
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/constants.h"
-}
 
 #include <initializer_list>
 #include <utility>
@@ -1364,12 +1361,11 @@ const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const Buil
     if (!definition || !definition->has_graphic()) {
         return nullptr;
     }
-    const auto *record = building.legacy_record();
 
     if (definition->has_phased_construction() &&
-        record->monument.phase != MONUMENT_FINISHED &&
-        record->monument.phase >= MONUMENT_START) {
-        if (const GraphicsTarget *target = definition->resolve_construction_graphics_target(record->monument.phase)) {
+        building.monument_phase() != MONUMENT_FINISHED &&
+        building.monument_phase() >= MONUMENT_START) {
+        if (const GraphicsTarget *target = definition->resolve_construction_graphics_target(building.monument_phase())) {
             return target;
         }
     }
@@ -1580,6 +1576,16 @@ int BuildingType::has_native_storage() const
 int BuildingType::has_native_production() const
 {
     return !production_methods_.empty();
+}
+
+int BuildingType::is_farm() const
+{
+    for (const ProductionMethod *method : production_methods_) {
+        if (method && method->is_farm()) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 int BuildingType::has_culture_modules() const

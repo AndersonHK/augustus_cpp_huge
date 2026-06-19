@@ -10,7 +10,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/market.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
@@ -21,7 +20,6 @@ extern "C" {
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "game/time.h"
-}
 
 #include <cstring>
 
@@ -45,7 +43,7 @@ static int first_plague_building_matching(const char *attr)
     return 0;
 }
 
-static void roamer_action(figure *f, int num_ticks)
+static void roamer_action(Figure *f, int num_ticks)
 {
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
@@ -59,7 +57,7 @@ static void roamer_action(figure *f, int num_ticks)
             f->roam_length++;
             if (f->roam_length >= f->max_roam_length) {
                 int x, y;
-                building *b = building_get(f->building_id);
+                building *b = building_get(f->building.id());
                 if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x, &y)) {
                     f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
                     f->destination_x = x;
@@ -82,13 +80,13 @@ static void roamer_action(figure *f, int num_ticks)
     }
 }
 
-static void culture_action(figure *f, int group)
+static void culture_action(Figure *f, int group)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *b = building_get(f->building_id);
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id) {
+    building *b = building_get(f->building.id());
+    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -96,12 +94,14 @@ static void culture_action(figure *f, int group)
     figure_image_update(f, image_group(group));
 }
 
-void figure_destination_priest_action(figure *f)
+void figure_destination_priest_action(Figure *f)
 {
-    building *b = building_get(f->building_id);
-    building *destination = building_get(f->destination_building_id);
+    building *b = building_get(f->building.id());
+    building *destination = building_get(f->destination_building.id());
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
-    if (b->state != BUILDING_STATE_IN_USE || (b->figure_id4 != f->id && b->figure_id2 != f->id) || destination->state != BUILDING_STATE_IN_USE) {
+    if (b->state != BUILDING_STATE_IN_USE ||
+        (b->figure_id4 != f->id() && b->figure_id2 != f->id()) ||
+        destination->state != BUILDING_STATE_IN_USE) {
         f->state = FIGURE_STATE_DEAD;
     }
 
@@ -155,12 +155,12 @@ void figure_destination_priest_action(figure *f)
             b->resources[f->collecting_item_id] -= (100 * num_loads);
 
             // create delivery boys
-            int priest_id = f->id;
-            int previous_boy = f->id;
+            int priest_id = f->id();
+            int previous_boy = f->id();
             for (int i = 0; i < num_loads; i++) {
                 previous_boy = figure_supplier_create_delivery_boy(previous_boy, priest_id, FIGURE_DELIVERY_BOY);
             }
-            f = figure_get(priest_id);
+            f = Figure::get(priest_id);
 
             f->action_state = FIGURE_ACTION_215_PRIEST_GOING_TO_MESS_HALL;
             break;
@@ -194,22 +194,22 @@ void figure_destination_priest_action(figure *f)
 }
 
 
-void figure_priest_action(figure *f)
+void figure_priest_action(Figure *f)
 {
-    if (f->destination_building_id) {
+    if (f->destination_building.id()) {
         figure_destination_priest_action(f);
     } else {
         culture_action(f, GROUP_FIGURE_PRIEST);
     }
 }
 
-void figure_school_child_action(figure *f)
+void figure_school_child_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 192;
 
-    building *b = building_get(f->building_id);
+    building *b = building_get(f->building.id());
     if (b->state != BUILDING_STATE_IN_USE || !building_matches(b, "school")) {
         f->state = FIGURE_STATE_DEAD;
     }
@@ -233,33 +233,33 @@ void figure_school_child_action(figure *f)
     figure_image_update(f, image_group(GROUP_FIGURE_SCHOOL_CHILD));
 }
 
-void figure_teacher_action(figure *f)
+void figure_teacher_action(Figure *f)
 {
     culture_action(f, GROUP_FIGURE_TEACHER_LIBRARIAN);
 }
 
-void figure_librarian_action(figure *f)
+void figure_librarian_action(Figure *f)
 {
     culture_action(f, GROUP_FIGURE_TEACHER_LIBRARIAN);
 }
 
-void figure_barber_action(figure *f)
+void figure_barber_action(Figure *f)
 {
     culture_action(f, GROUP_FIGURE_BARBER);
 }
 
-void figure_bathhouse_worker_action(figure *f)
+void figure_bathhouse_worker_action(Figure *f)
 {
     culture_action(f, GROUP_FIGURE_BATHHOUSE_WORKER);
 }
 
-void figure_tavern_action(figure *f)
+void figure_tavern_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *b = building_get(f->building_id);
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id) {
+    building *b = building_get(f->building.id());
+    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -274,7 +274,7 @@ void figure_tavern_action(figure *f)
     }
 }
 
-static int fight_plague(figure *f, int force)
+static int fight_plague(Figure *f, int force)
 {
     int building_with_plague_id = 0;
 
@@ -321,7 +321,7 @@ static int fight_plague(figure *f, int force)
             if (!force) {
                 return 0;
             }
-            if (building_get(f->destination_building_id)->has_plague) {
+            if (building_get(f->destination_building.id())->has_plague) {
                 return 1;
             }
     }
@@ -339,17 +339,17 @@ static int fight_plague(figure *f, int force)
         f->wait_ticks = 0;
         f->destination_x = building_with_plague->road_access_x;
         f->destination_y = building_with_plague->road_access_y;
-        f->destination_building_id = building_with_plague_id;
+        f->destination_building = Building(building_get(building_with_plague_id));
         figure_route_remove(f);
-        building_with_plague->figure_id4 = f->id;
+        building_with_plague->figure_id4 = f->id();
         return 1;
     }
     return 0;
 }
 
-static void heal_plague(figure *f)
+static void heal_plague(Figure *f)
 {
-    building *building_with_plague = building_get(f->destination_building_id);
+    building *building_with_plague = building_get(f->destination_building.id());
     int distance = calc_maximum_distance(f->x, f->y, building_with_plague->x, building_with_plague->y);
 
     if (building_with_plague->has_plague && distance < 5) {
@@ -364,7 +364,7 @@ static void heal_plague(figure *f)
     f->wait_ticks--;
     if (f->wait_ticks <= 0) {
         if (!fight_plague(f, 1)) {
-            building *b = building_get(f->building_id);
+            building *b = building_get(f->building.id());
             int x_road, y_road;
             if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
                 f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
@@ -378,9 +378,9 @@ static void heal_plague(figure *f)
     }
 }
 
-void figure_doctor_action(figure *f)
+void figure_doctor_action(Figure *f)
 {
-    building *b = building_get(f->building_id);
+    building *b = building_get(f->building.id());
 
     // special actions
     if (!fight_plague(f, 0)) {
@@ -421,13 +421,13 @@ void figure_doctor_action(figure *f)
     }
 }
 
-void figure_missionary_action(figure *f)
+void figure_missionary_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 192;
-    building *b = building_get(f->building_id);
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id) {
+    building *b = building_get(f->building.id());
+    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -435,13 +435,13 @@ void figure_missionary_action(figure *f)
     figure_image_update(f, image_group(GROUP_FIGURE_MISSIONARY));
 }
 
-void figure_labor_seeker_action(figure *f)
+void figure_labor_seeker_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *b = building_get(f->building_id);
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id2 != f->id) {
+    building *b = building_get(f->building.id());
+    if (b->state != BUILDING_STATE_IN_USE || b->figure_id2 != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -449,13 +449,13 @@ void figure_labor_seeker_action(figure *f)
     figure_image_update(f, image_group(GROUP_FIGURE_LABOR_SEEKER));
 }
 
-void figure_market_trader_action(figure *f)
+void figure_market_trader_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *market = building_get(f->building_id);
-    if (market->state != BUILDING_STATE_IN_USE || market->figure_id != f->id) {
+    building *market = building_get(f->building.id());
+    if (market->state != BUILDING_STATE_IN_USE || market->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -464,14 +464,14 @@ void figure_market_trader_action(figure *f)
     figure_image_update(f, image_group(GROUP_FIGURE_MARKET_LADY));
 }
 
-void figure_tax_collector_action(figure *f)
+void figure_tax_collector_action(Figure *f)
 {
-    building *b = building_get(f->building_id);
+    building *b = building_get(f->building.id());
 
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 512;
-    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id) {
+    if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -502,7 +502,7 @@ void figure_tax_collector_action(figure *f)
             f->use_cross_country = 1;
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
-                if (map_building_at(f->grid_offset) == f->building_id) {
+                if (map_building_at(f->grid_offset) == f->building.id()) {
                     // returned to own building
                     f->state = FIGURE_STATE_DEAD;
                 } else {

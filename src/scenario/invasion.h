@@ -1,11 +1,8 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
 #include "figure/formation.h"
 #include "scenario/types.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define INVASION_DEFAULT_START_YEAR 1
@@ -84,6 +81,3 @@ void scenario_invasion_load_state_old_version(buffer *buf, invasion_old_state_se
 
 void repeat_invasion_without_warnings(invasion_t *invasion);
 
-#ifdef __cplusplus
-}
-#endif

@@ -20,10 +20,10 @@
 
 #include "spng/spng.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <ctime>
 
 #define TILE_X_SIZE 60
 #define TILE_Y_SIZE 30
@@ -50,7 +50,7 @@ static void image_free(void)
     screenshot.height = 0;
     screenshot.row_size = 0;
     screenshot.rows_in_memory = 0;
-    free(screenshot.pixels);
+    std::free(screenshot.pixels);
     screenshot.pixels = 0;
     if (screenshot.fp) {
         file_close(screenshot.fp);
@@ -82,30 +82,30 @@ static int image_create(int width, int height, int has_alpha_channel, int rows_i
         screenshot.row_size += width;
     }
     screenshot.rows_in_memory = rows_in_memory;
-    screenshot.pixels = (uint8_t *) malloc(screenshot.row_size);
+    screenshot.pixels = static_cast<uint8_t *>(std::malloc(screenshot.row_size));
     if (!screenshot.pixels) {
         image_free();
         return 0;
     }
-    memset(screenshot.pixels, 0, screenshot.row_size);
+    std::memset(screenshot.pixels, 0, screenshot.row_size);
     return 1;
 }
 
 static const char *generate_filename(screenshot_type type)
 {
     char filename[FILE_NAME_MAX];
-    time_t curtime = time(NULL);
-    struct tm *loctime = localtime(&curtime);
+    std::time_t curtime = std::time(nullptr);
+    std::tm *loctime = std::localtime(&curtime);
     switch (type) {
         case SCREENSHOT_FULL_CITY:
-            strftime(filename, FILE_NAME_MAX, "full city %Y-%m-%d %H.%M.%S.png", loctime);
+            std::strftime(filename, FILE_NAME_MAX, "full city %Y-%m-%d %H.%M.%S.png", loctime);
             break;
         case SCREENSHOT_MINIMAP:
-            strftime(filename, FILE_NAME_MAX, "minimap %Y-%m-%d %H.%M.%S.png", loctime);
+            std::strftime(filename, FILE_NAME_MAX, "minimap %Y-%m-%d %H.%M.%S.png", loctime);
             break;
         case SCREENSHOT_DISPLAY:
         default:
-            strftime(filename, FILE_NAME_MAX, "city %Y-%m-%d %H.%M.%S.png", loctime);
+            std::strftime(filename, FILE_NAME_MAX, "city %Y-%m-%d %H.%M.%S.png", loctime);
             break;
     }
     return dir_append_location(filename, PATH_LOCATION_SCREENSHOT);
@@ -196,10 +196,10 @@ static int image_write_canvas(void)
 {
     const color_t *canvas;
     color_t *pixels = 0;
-    pixels = static_cast<color_t *>(malloc(sizeof(color_t) * screenshot.width * screenshot.height));
+    pixels = static_cast<color_t *>(std::malloc(sizeof(color_t) * screenshot.width * screenshot.height));
     if (!graphics_renderer()->save_screen_buffer(pixels, 0, 0,
         screen_pixel_width(), screen_pixel_height(), screen_pixel_width())) {
-        free(pixels);
+        std::free(pixels);
         return 0;
     }
     canvas = pixels;
@@ -207,12 +207,12 @@ static int image_write_canvas(void)
     int size;
     while ((size = image_request_rows()) != 0) {
         if (!image_write_rows(canvas + current_height * screenshot.width, screenshot.width)) {
-            free(pixels);
+            std::free(pixels);
             return 0;
         }
         current_height += size;
     }
-    free(pixels);
+    std::free(pixels);
     return 1;
 }
 
@@ -277,12 +277,12 @@ static void create_full_city_screenshot(void)
         return;
     }
 
-    color_t *canvas = static_cast<color_t *>(malloc(sizeof(color_t) * city_width_pixels * IMAGE_HEIGHT_CHUNK));
+    color_t *canvas = static_cast<color_t *>(std::malloc(sizeof(color_t) * city_width_pixels * IMAGE_HEIGHT_CHUNK));
     if (!canvas) {
         image_free();
         return;
     }
-    memset(canvas, 0, sizeof(color_t) * city_width_pixels * IMAGE_HEIGHT_CHUNK);
+    std::memset(canvas, 0, sizeof(color_t) * city_width_pixels * IMAGE_HEIGHT_CHUNK);
 
     int canvas_width = 8 * TILE_X_SIZE;
     int old_scale = city_view_get_scale();
@@ -359,12 +359,12 @@ static void create_minimap_screenshot(void)
         return;
     }
 
-    color_t *canvas = static_cast<color_t *>(malloc(sizeof(color_t) * width_pixels * height_pixels));
+    color_t *canvas = static_cast<color_t *>(std::malloc(sizeof(color_t) * width_pixels * height_pixels));
     if (!canvas) {
         image_free();
         return;
     }
-    memset(canvas, 0, sizeof(color_t) * width_pixels * height_pixels);
+    std::memset(canvas, 0, sizeof(color_t) * width_pixels * height_pixels);
     widget_minimap_update(0);
     graphics_clear_screen();
     graphics_renderer()->draw_custom_image(CUSTOM_IMAGE_MINIMAP, 0, 0, 1 / MINIMAP_SCALE, 1);

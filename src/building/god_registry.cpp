@@ -9,11 +9,9 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-}
 
 #include <algorithm>
 #include <cstdio>
@@ -251,13 +249,13 @@ int god_definition_count(void)
 
 } // namespace building_type_registry_impl
 
-extern "C" const char *god_registry_get_god_path(void)
+const char *god_registry_get_god_path(void)
 {
     building_type_registry_impl::g_god_path = mod_manager::mod_path() + "Gods/";
     return building_type_registry_impl::g_god_path.c_str();
 }
 
-extern "C" int god_registry_load(void)
+int god_registry_load(void)
 {
     using namespace building_type_registry_impl;
 

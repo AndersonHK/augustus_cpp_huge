@@ -1,10 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include <stdint.h>
 #include <stddef.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 /**
@@ -77,6 +74,3 @@ int string_from_int(uint8_t *dst, int value, int force_plus_sign);
  */
 int string_compare(const uint8_t *a, const uint8_t *b);
 
-#ifdef __cplusplus
-}
-#endif

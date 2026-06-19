@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 typedef struct {
@@ -60,6 +57,3 @@ void figure_visited_buildings_save_state(buffer *buf);
  */
 void figure_visited_buildings_load_state(buffer *buf);
 
-#ifdef __cplusplus
-}
-#endif

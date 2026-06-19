@@ -1,6 +1,7 @@
 #include "game/undo.h"
 #include "map/building.h"
 #include "map/tiles.h"
+#include "figure/figure.h"
 
 #include "building/building_record.h"
 #include "house_evolution.h"
@@ -8,9 +9,9 @@
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 #include "building/house.h"
+#include "building/housing_type.h"
 #include "city/houses.h"
 
-extern "C" {
 #include "building/building_type_api.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -23,7 +24,6 @@ extern "C" {
 #include "map/grid.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-}
 
 #include <cstring>
 
@@ -55,7 +55,8 @@ static building_type type_from_attr(const char *attr)
 
 static const model_house *model_for_house_requirements(building *house, int for_upgrade, int with_bonus, int *out_level)
 {
-    int level = building_house_legacy_level(Building(house));
+    Building house_object(house);
+    int level = building_house_legacy_level(house_object);
     if (for_upgrade) {
         ++level;
     }
@@ -67,14 +68,15 @@ static const model_house *model_for_house_requirements(building *house, int for_
         *out_level = level;
     }
 
-    if (building_type_registry_has_housing(house->type)) {
+    if (house_object.type && house_object.type->has_housing()) {
         building_type target = BUILDING_NONE;
         if (for_upgrade) {
-            target = building_type_registry_get_housing_transition(
-                house->type, BUILDING_TYPE_HOUSING_TRANSITION_EVOLVE_TO);
+            target = house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::EvolveTo);
         }
-        const model_house *target_model = target == BUILDING_NONE ? nullptr : building_type_registry_get_housing_model(target);
-        return target_model ? target_model : model_for_house(Building(house));
+        const auto *target_type = target == BUILDING_NONE ? nullptr :
+            building_type_registry_impl::definition_for_type(target);
+        const auto *target_housing = target_type ? target_type->housing_type() : nullptr;
+        return target_housing ? &target_housing->model() : model_for_house(house_object);
     }
 
     return model_get_house(static_cast<house_level>(level));
@@ -264,14 +266,16 @@ static int has_devolve_delay(building *house, evolve_status status)
 
 static int evolve_xml_housing(building *house, house_demands *demands)
 {
-    building_type merge_to = building_type_registry_get_housing_transition(
-        house->type, BUILDING_TYPE_HOUSING_TRANSITION_MERGE_TO);
+    Building house_object(house);
+    building_type merge_to = house_object.type ?
+        house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::MergeTo) :
+        BUILDING_NONE;
     int is_empty_vacant_lot =
         house->house_population <= 0 && house->type == building_type_registry_get_vacant_lot_fill_type();
     if (merge_to != BUILDING_NONE && house->house_size == 1 &&
         (house->house_population > 0 ||
             (is_empty_vacant_lot && config_get(CONFIG_GP_CH_HOUSING_PRE_MERGE_VACANT_LOTS)))) {
-        building_house_merge(Building(house));
+        building_house_merge(house_object);
     }
 
     if (house->house_population <= 0) {
@@ -285,20 +289,22 @@ static int evolve_xml_housing(building *house, house_demands *demands)
 
     building_type target = BUILDING_NONE;
     if (status == EVOLVE) {
-        target = building_type_registry_get_housing_transition(
-            house->type, BUILDING_TYPE_HOUSING_TRANSITION_EVOLVE_TO);
+        target = house_object.type ?
+            house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::EvolveTo) :
+            BUILDING_NONE;
     } else if (status == DEVOLVE) {
-        target = building_type_registry_get_housing_transition(
-            house->type, BUILDING_TYPE_HOUSING_TRANSITION_DEVOLVE_TO);
+        target = house_object.type ?
+            house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::DevolveTo) :
+            BUILDING_NONE;
     }
 
     if (target != BUILDING_NONE) {
         int current_size = house->house_size;
         int target_size = building_type_registry_get_model_size(target);
         if (status == EVOLVE && target_size > current_size) {
-            if (building_house_can_expand(Building(house), target_size * target_size)) {
+            if (building_house_can_expand(house_object, target_size * target_size)) {
                 game_undo_disable();
-                building_house_expand_to_type(Building(house), target);
+                building_house_expand_to_type(house_object, target);
                 map_tiles_update_all_gardens();
                 return 1;
             }
@@ -306,9 +312,9 @@ static int evolve_xml_housing(building *house, house_demands *demands)
             if (current_size > 1) {
                 game_undo_disable();
             }
-            building_house_devolve_to_type(Building(house), target);
+            building_house_devolve_to_type(house_object, target);
         } else {
-            building_house_change_to(Building(house), target);
+            building_house_change_to(house_object, target);
         }
     }
     return 0;
@@ -388,9 +394,10 @@ void building_house_process_evolve_and_consume_goods(void)
         if (!b || b->state != BUILDING_STATE_IN_USE || !b->house_size || b->last_update == last_update) {
             continue;
         }
-        building_house_check_for_corruption(Building(b));
+        Building house_object(b);
+        building_house_check_for_corruption(house_object);
         if (!b->has_plague) {
-            if (building_type_registry_has_housing(b->type)) {
+            if (house_object.type && house_object.type->has_housing()) {
                 has_expanded |= evolve_xml_housing(b, demands);
             }
         }
@@ -407,7 +414,7 @@ void building_house_process_evolve_and_consume_goods(void)
 
 void building_house_determine_evolve_text(Building house_object, int worst_desirability_building)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return;
     }
@@ -584,10 +591,13 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
         }
         return;
     }
-    if (building_type_registry_has_housing(house->type)) {
-        building_type target = building_type_registry_get_housing_transition(
-            house->type, BUILDING_TYPE_HOUSING_TRANSITION_EVOLVE_TO);
-        model = target == BUILDING_NONE ? nullptr : building_type_registry_get_housing_model(target);
+    if (house_object.type && house_object.type->has_housing()) {
+        building_type target =
+            house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::EvolveTo);
+        const auto *target_type = target == BUILDING_NONE ? nullptr :
+            building_type_registry_impl::definition_for_type(target);
+        const auto *target_housing = target_type ? target_type->housing_type() : nullptr;
+        model = target_housing ? &target_housing->model() : nullptr;
         if (!model) {
             model = model_for_house(house_object);
         }
@@ -739,7 +749,7 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
 
 static building_type get_building_type_at_tile(Building house_object, int x, int y)
 {
-    const building *house = house_object.legacy_record();
+    const building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return BUILDING_NONE;
     }
@@ -765,12 +775,13 @@ static building_type get_building_type_at_tile(Building house_object, int x, int
             return BUILDING_NONE;
         }
     }
-    return static_cast<building_type>(b->type);
+    Building other(b);
+    return other.type ? other.type->type() : BUILDING_NONE;
 }
 
 building_type building_house_determine_worst_desirability_building_type(Building house_object)
 {
-    const building *house = house_object.legacy_record();
+    const building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return BUILDING_NONE;
     }

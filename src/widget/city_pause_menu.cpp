@@ -22,7 +22,6 @@
 
 #include "game/settings.h"
 #include "game/campaign.h"
-extern "C" {
 #include "building/properties.h"
 #include "game/system.h"
 #include "graphics/text.h"
@@ -30,7 +29,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "scenario/event/controller.h"
 #include "scenario/property.h"
-}
 
 static void button_click(const generic_button *button);
 

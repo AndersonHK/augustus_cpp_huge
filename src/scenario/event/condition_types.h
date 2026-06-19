@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "scenario/event/data.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 int scenario_condition_type_building_count_active_met(const scenario_condition_t *condition);
@@ -59,6 +56,3 @@ int scenario_condition_type_check_formulas(const scenario_condition_t *condition
 
 int scenario_condition_type_terrain_count_area_met(const scenario_condition_t *condition);
 
-#ifdef __cplusplus
-}
-#endif

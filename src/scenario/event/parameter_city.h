@@ -46,9 +46,6 @@ typedef struct
     const char *param_names[3];    // XML attribute names for each parameter
 } city_property_info_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int scenario_event_parameter_city_for_action(scenario_action_t *action);
 
@@ -59,6 +56,3 @@ int scenario_event_parameter_city_for_action(scenario_action_t *action);
  */
 city_property_info_t city_property_get_param_info(city_property_t type);
 
-#ifdef __cplusplus
-}
-#endif

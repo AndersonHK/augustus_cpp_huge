@@ -8,7 +8,6 @@
 
 #include "translation/translation.h"
 #include "window/building/figures.h"
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "city/constants.h"
@@ -16,7 +15,6 @@ extern "C" {
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
-}
 
 
 void window_building_draw_forum(building_info_context *c)
@@ -28,7 +26,7 @@ void window_building_draw_forum(building_info_context *c)
     lang_text_draw_centered("main_strings.106.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     resource_graphics(resource_denarii()).panel_icon().draw(c->x_offset + 16, c->y_offset + 36);
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     int width = lang_text_draw("main_strings.106.2", c->x_offset + 44, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_amount(current_string_amount_key(8, 0, b->tax_income_or_storage), b->tax_income_or_storage, c->x_offset + 44 + width, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
@@ -63,7 +61,7 @@ void window_building_draw_senate(building_info_context *c)
     lang_text_draw_centered("main_strings.105.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     resource_graphics(resource_denarii()).panel_icon().draw(c->x_offset + 16, c->y_offset + 36);
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     int width = lang_text_draw("main_strings.105.2", c->x_offset + 44, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_amount(current_string_amount_key(8, 0, b->tax_income_or_storage), b->tax_income_or_storage, c->x_offset + 44 + width, c->y_offset + 43, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
@@ -130,7 +128,7 @@ void window_building_draw_statue(building_info_context *c)
 
 void window_building_draw_large_statue(building_info_context *c)
 {
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     window_building_draw_statue(c);
     if (!b->has_water_access) {
         lang_text_draw_multiline("TR_WINDOW_BUILDING_GOVERNMENT_LARGE_STATUE_WATER_WARNING",

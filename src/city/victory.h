@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 enum {
@@ -28,6 +25,3 @@ void city_victory_stop_governing(void);
 
 int city_victory_has_won(void);
 
-#ifdef __cplusplus
-}
-#endif

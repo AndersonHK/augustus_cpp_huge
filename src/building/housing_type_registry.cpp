@@ -9,11 +9,9 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-}
 
 #include <cstdio>
 #include <cstring>
@@ -463,13 +461,13 @@ int housing_type_level_at(int index)
 
 } // namespace building_type_registry_impl
 
-extern "C" const char *housing_type_registry_get_housing_type_path(void)
+const char *housing_type_registry_get_housing_type_path(void)
 {
     building_type_registry_impl::g_housing_type_path = mod_manager::mod_path() + "HousingType/";
     return building_type_registry_impl::g_housing_type_path.c_str();
 }
 
-extern "C" int housing_type_registry_load(void)
+int housing_type_registry_load(void)
 {
     using namespace building_type_registry_impl;
 

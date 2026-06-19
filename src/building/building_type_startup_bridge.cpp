@@ -5,9 +5,7 @@
 #include "game/mod_manager.h"
 #include "platform/file_manager.h"
 
-extern "C" {
 #include "building/properties.h"
-}
 
 namespace building_type_registry_impl {
 
@@ -23,13 +21,13 @@ int directory_exists(const char *path)
 
 }
 
-extern "C" const char *building_type_startup_bridge_get_building_type_path(void)
+const char *building_type_startup_bridge_get_building_type_path(void)
 {
     building_type_registry_impl::refresh_building_type_path();
     return building_type_registry_impl::g_building_type_path.c_str();
 }
 
-extern "C" int building_type_startup_bridge_validate_mod(void)
+int building_type_startup_bridge_validate_mod(void)
 {
     building_type_registry_impl::refresh_building_type_path();
     return static_cast<int>(
@@ -39,7 +37,7 @@ extern "C" int building_type_startup_bridge_validate_mod(void)
                 building_type_registry_impl::g_building_type_path.c_str())));
 }
 
-extern "C" void building_type_startup_bridge_apply_model_overrides(void)
+void building_type_startup_bridge_apply_model_overrides(void)
 {
     using namespace building_type_registry_impl;
 
@@ -99,7 +97,7 @@ extern "C" void building_type_startup_bridge_apply_model_overrides(void)
     }
 }
 
-extern "C" building_type building_type_startup_bridge_runtime_id_from_text(const char *text_id)
+building_type building_type_startup_bridge_runtime_id_from_text(const char *text_id)
 {
     return building_type_registry_impl::runtime_id_from_text(text_id);
 }

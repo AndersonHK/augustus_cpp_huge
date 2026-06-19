@@ -16,7 +16,6 @@
 #include "translation/translation.h"
 #include "military.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "building/building_record.h"
@@ -32,7 +31,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "sound/speech.h"
-}
 
 static void button_return_to_fort(const generic_button *button);
 static void button_all_legions_return_to_fort(const generic_button *button);
@@ -73,14 +71,14 @@ static struct {
     unsigned int focus_priority_button_id;
     unsigned int focus_delivery_button_id;
     unsigned int return_button_id;
-    int building_id;
-    building_info_context *context_for_callback;
+    Building building = Building(nullptr);
+    building_info_context *context_for_callback = nullptr;
 } data;
 
-static void draw_priority_buttons(int x, int y, unsigned int buttons, int building_id)
+static void draw_priority_buttons(int x, int y, unsigned int buttons, Building building)
 {
     int base_priority_image_id = assets_get_image_id("UI", "Barracks_Priority_Legionaries_OFF");
-    data.building_id = building_id;
+    data.building = building;
 
     for (unsigned int i = 0; i < buttons; i++) {
         int has_focus = 0;
@@ -92,8 +90,7 @@ static void draw_priority_buttons(int x, int y, unsigned int buttons, int buildi
         int x_adj = x + priority_buttons[i].x;
         int y_adj = y + priority_buttons[i].y;
 
-        building *barracks = building_get(data.building_id);
-        unsigned int priority = Barracks(barracks).priority();
+        unsigned int priority = Barracks(building_get(data.building.id())).priority();
 
         if (has_focus || priority == i) {
             button_border_draw(x_adj - 3, y_adj - 3, 46, 46, 1);
@@ -102,11 +99,11 @@ static void draw_priority_buttons(int x, int y, unsigned int buttons, int buildi
     }
 }
 
-static void draw_delivery_buttons(int x, int y, int building_id)
+static void draw_delivery_buttons(int x, int y, Building barracks_building)
 {
-    data.building_id = building_id;
+    data.building = barracks_building;
 
-    building *barracks = building_get(data.building_id);
+    ::building *barracks = building_get(data.building.id());
 
     int accept_delivery = barracks->accepted_goods[resource_weapons()];
 
@@ -150,7 +147,7 @@ void window_building_draw_tower(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.91.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else if (b->num_workers <= 0) {
@@ -169,13 +166,13 @@ void window_building_draw_barracks(building_info_context *c)
 {
     c->advisor_button = ADVISOR_MILITARY;
     c->help_id = 37;
-    data.building_id = c->building_id;
+    data.building = c->building;
     window_building_play_sound(c, "wavs/barracks.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.136.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     resource_graphics(resource_weapons()).panel_icon().draw(c->x_offset + 32, c->y_offset + 60);
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (b->resources[resource_weapons()] < 1) {
         lang_text_draw_amount(current_string_amount_key(8, 10, 0), 0, c->x_offset + 60, c->y_offset + 66, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     } else {
@@ -227,18 +224,18 @@ void window_building_draw_barracks_foreground(building_info_context *c)
     lang_text_draw("TR_WINDOW_BARRACKS_TOWERS",
         c->x_offset + 324, c->y_offset + 190, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height)); // "Towers"
 
-    draw_priority_buttons(c->x_offset + 42, c->y_offset + 208, 7, data.building_id);
-    draw_delivery_buttons(c->x_offset + 392, c->y_offset + 40, data.building_id);
+    draw_priority_buttons(c->x_offset + 42, c->y_offset + 208, 7, data.building);
+    draw_delivery_buttons(c->x_offset + 392, c->y_offset + 40, data.building);
 }
 
 void window_building_draw_priority_buttons(int x, int y, int building_id)
 {
-    draw_priority_buttons(x, y, 7, building_id);
+    draw_priority_buttons(x, y, 7, building_id ? Building(building_get(building_id)) : Building(nullptr));
 }
 
 void window_building_draw_delivery_buttons(int x, int y, int building_id)
 {
-    draw_delivery_buttons(x, y, building_id);
+    draw_delivery_buttons(x, y, building_id ? Building(building_get(building_id)) : Building(nullptr));
 }
 
 int window_building_handle_mouse_barracks(const mouse *m, building_info_context *c)
@@ -296,7 +293,7 @@ void window_building_draw_military_academy(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.135.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else if (b->num_workers <= 0) {
@@ -321,7 +318,7 @@ void window_building_draw_fort(building_info_context *c)
     int text_id = formation_get(c->formation_id)->cursed_by_mars ? 1 : 2;
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 388, 89, text_id);
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     inner_panel_draw(c->x_offset + 16, c->y_offset + 116, c->width_blocks - 2, 4);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 124);
     if (building_get_levy(b)) {
@@ -679,7 +676,7 @@ void window_building_barracks_get_tooltip_priority(translation_key *translation)
     }
 
     if (data.focus_delivery_button_id) {
-        building *barracks = building_get(data.building_id);
+        building *barracks = building_get(data.building.id());
         if (barracks->accepted_goods[resource_weapons()]) {
             *translation = "TR_TOOLTIP_BUTTON_REJECT_DELIVERY";
         } else {
@@ -749,14 +746,13 @@ static void button_layout(const generic_button *button)
 static void button_priority(const generic_button *button)
 {
     int index = button->parameter1;
-    building *barracks = building_get(data.building_id);
+    building *barracks = building_get(data.building.id());
     Barracks(barracks).set_priority(index);
 }
 
 static void button_delivery(const generic_button *button)
 {
-    building *barracks = building_get(data.building_id);
-    Building(barracks).toggle_accepted_good(resource_weapons());
+    data.building.toggle_accepted_good(resource_weapons());
 }
 
 void window_building_draw_watchtower(building_info_context *c)
@@ -770,7 +766,7 @@ void window_building_draw_watchtower(building_info_context *c)
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else {
-        building *b = building_get(c->building_id);
+        building *b = building_get(c->building.id());
         if (!b->figure_id4) {
             text_draw_multiline(translation_for_key("TR_BUILDING_WATCHTOWER_DESC_NO_SOLDIERS"),
                 c->x_offset + 32, c->y_offset + 56, 16 * (c->width_blocks - 4), 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
@@ -797,7 +793,7 @@ void window_building_draw_armoury(building_info_context *c)
 {
     c->advisor_button = ADVISOR_MILITARY;
     c->help_id = 85;
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
 
     window_building_play_sound(c, "wavs/tower3.wav");
 

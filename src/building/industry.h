@@ -4,9 +4,6 @@
 #include "game/resource.h"
 #include "map/point.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN 20
 
@@ -49,6 +46,3 @@ int building_get_workshop_for_raw_material_with_room(int x, int y, int resource,
 void building_industry_advance_stats(void);
 void building_industry_start_strikes(void);
 
-#ifdef __cplusplus
-}
-#endif

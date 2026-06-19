@@ -6,9 +6,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define TOOLTIP_MAX_EXTRA_VALUES 5
 
@@ -48,6 +45,3 @@ typedef struct {
 
 void tooltip_handle(const mouse *m, void (*func)(tooltip_context *));
 
-#ifdef __cplusplus
-}
-#endif

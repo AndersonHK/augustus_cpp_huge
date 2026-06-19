@@ -2,10 +2,8 @@
 
 #include "dropdown_button.h"
 
-extern "C" {
 #include "graphics/font.h"
 #include "graphics/window.h"
-}
 
 #include <stddef.h>
 #include <stdlib.h>

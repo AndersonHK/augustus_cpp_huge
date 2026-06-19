@@ -17,7 +17,6 @@
 #include "map/tiles.h"
 
 #include "window/popup_dialog.h"
-extern "C" {
 
 #include "building/building_record.h"
 #include "building/monument.h"
@@ -29,7 +28,6 @@ extern "C" {
 #include "map/property.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-}
 
 #include <string.h>
 #include <string_view>
@@ -164,20 +162,21 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                         game_undo_disable();
                     }
                 }
+                Building building_obj(b);
                 if (b->house_size && b->house_population && !measure_only) {
-                    figure *homeless = figure_create_homeless(b, b->house_population);
+                    Figure *homeless = migrant_create_homeless(building_obj, b->house_population);
                     b->house_population = 0;
-                    b->figure_id = homeless->id;
+                    b->figure_id = homeless->id();
                 }
                 if (b->state != BUILDING_STATE_DELETED_BY_PLAYER) {
                     if (type_attr_is(b->type, "shipyard") && b->figure_id) {
-                        figure *f = figure_get(b->figure_id);
+                        Figure *f = Figure::get(b->figure_id);
                         f->state = FIGURE_STATE_DEAD;
                     }
                     items_placed++;
                     game_undo_add_building(b);
                 }
-                building_local_workforce_remove_building(b);
+                building_local_workforce_remove_building(building_obj);
                 city_culture_remove_building_module_capacity(b);
                 b->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 b->is_deleted = 1;
@@ -188,7 +187,8 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     }
                     space = building_get(space->prev_part_building_id);
                     game_undo_add_building(space);
-                    building_local_workforce_remove_building(space);
+                    Building space_obj(space);
+                    building_local_workforce_remove_building(space_obj);
                     city_culture_remove_building_module_capacity(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
@@ -199,7 +199,8 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                         break;
                     }
                     game_undo_add_building(space);
-                    building_local_workforce_remove_building(space);
+                    Building space_obj(space);
+                    building_local_workforce_remove_building(space_obj);
                     city_culture_remove_building_module_capacity(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }

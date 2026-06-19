@@ -11,7 +11,6 @@
 
 #include "window/editor/map.h"
 #include "graphics/grid_box.h"
-extern "C" {
 
 #include "core/image_group_editor.h"
 #include "core/string.h"
@@ -23,7 +22,6 @@ extern "C" {
 #include "scenario/demand_change.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-}
 
 #include <stdlib.h>
 

@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "sentiment.h"
 
@@ -196,9 +197,9 @@ static int get_sentiment_modifier_for_tax_rate(int tax)
     return tax_differential;
 }
 
-static int house_legacy_level_or_min(const building *b)
+static int house_legacy_level_or_min(const Building &house)
 {
-    int level = building_house_legacy_level(b ? Building::from_id(b->id) : Building(nullptr));
+    int level = building_house_legacy_level(house);
     return level >= HOUSE_MIN ? level : HOUSE_MIN;
 }
 
@@ -238,7 +239,7 @@ static int get_average_housing_level(void)
         if (!building_house_is_active(Building(b))) {
             continue;
         }
-        int level = house_legacy_level_or_min(b);
+        int level = house_legacy_level_or_min(Building(b));
         int multiplier = house_average_level_multiplier(level);
         avg += level * b->house_population * multiplier;
         population += b->house_population * multiplier;
@@ -312,7 +313,7 @@ void city_sentiment_update(void)
             continue;
         }
 
-        int level = house_legacy_level_or_min(b);
+        int level = house_legacy_level_or_min(Building(b));
         int house_level_multiplier = house_level_sentiment_multiplier(level);
         const model_house *house_model = building_house_get_model(Building(b));
         int required_entertainment = house_model ? house_model->entertainment : 0;

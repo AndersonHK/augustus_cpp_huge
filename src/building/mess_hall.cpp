@@ -7,7 +7,8 @@
 #define MAX_DISTANCE 40
 int building_mess_hall_get_storage_destination(Building mess_hall)
 {
-    const building_type_registry_impl::Distribution *distribution = mess_hall.type().distribution();
+    const building_type_registry_impl::Distribution *distribution =
+        mess_hall.type ? mess_hall.type->distribution() : nullptr;
     if (!distribution) {
         return 0;
     }

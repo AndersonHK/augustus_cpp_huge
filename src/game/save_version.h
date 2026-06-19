@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 /************************************************SAVEGAME GUIDE*******************************************************
@@ -153,6 +150,3 @@ typedef enum {
     SAVEGAME_STATUS_OK = 1
 } savegame_load_status;
 
-#ifdef __cplusplus
-}
-#endif

@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 int city_entertainment_theater_shows(void);
@@ -21,6 +18,3 @@ int city_entertainment_show_message_colosseum(void);
 
 int city_entertainment_show_message_hippodrome(void);
 
-#ifdef __cplusplus
-}
-#endif

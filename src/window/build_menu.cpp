@@ -13,7 +13,6 @@
 
 #include "build_menu.h"
 
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/building_type_api.h"
@@ -31,7 +30,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
-}
 #include "building/building_type_registry_internal.h"
 #include <building/industry.h>
 

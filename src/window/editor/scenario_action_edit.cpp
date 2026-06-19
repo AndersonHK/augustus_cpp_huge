@@ -22,7 +22,6 @@
 #include "window/editor/map.h"
 #include "window/editor/select_city_trade_route.h"
 #include "window/text_input.h"
-extern "C" {
 
 #include "core/string.h"
 #include "game/resource.h"
@@ -34,7 +33,6 @@ extern "C" {
 #include "scenario/event/action_handler.h"
 #include "scenario/event/controller.h"
 #include "scenario/event/formula.h"
-}
 
 #define BUTTON_LEFT_PADDING 32
 #define BUTTON_WIDTH 608

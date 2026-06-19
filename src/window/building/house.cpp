@@ -11,7 +11,6 @@
 
 #include "translation/translation.h"
 #include "window/building/figures.h"
-extern "C" {
 #include "building/building_record.h"
 #include "city/constants.h"
 #include "city/finance.h"
@@ -23,7 +22,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "sound/speech.h"
-}
 
 
 static void draw_vacant_lot(building_info_context *c)
@@ -42,7 +40,7 @@ static void draw_vacant_lot(building_info_context *c)
     window_building_draw_figure_list(c);
 
     int text_id = 2;
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (map_closest_road_within_radius(b->x, b->y, 1, 2, 0, 0)) {
         text_id = 1;
     }
@@ -51,9 +49,9 @@ static void draw_vacant_lot(building_info_context *c)
 
 static void draw_population_info(building_info_context *c, int y_offset)
 {
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     int icon = 13;
-    if (building_house_has_plebeian_residents(Building(b))) {
+    if (building_house_has_plebeian_residents(c->building)) {
         icon++;
     }
 
@@ -82,13 +80,13 @@ static void draw_population_info(building_info_context *c, int y_offset)
             text_x + width, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     }
     width = text_draw_number(
-        building_local_workforce_house_available_workers(b), '@', " ", text_x, workers_text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+        building_local_workforce_house_available_workers(c->building), '@', " ", text_x, workers_text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     text_draw(string_from_ascii("available workers"), text_x + width, workers_text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
 }
 
 static void draw_tax_info(building_info_context *c, int y_offset)
 {
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (b->house_tax_coverage) {
         int pct = calc_adjust_with_percentage(b->tax_income_or_storage / 2, city_finance_tax_percentage());
         int width = lang_text_draw("main_strings.127.24", c->x_offset + 36, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -101,7 +99,8 @@ static void draw_tax_info(building_info_context *c, int y_offset)
 
 static void draw_happiness_info(building_info_context *c, int y_offset)
 {
-    int happiness = building_get(c->building_id)->sentiment.house_happiness;
+    building *b = building_get(c->building.id());
+    int happiness = b->sentiment.house_happiness;
     static const translation_key sentiment_keys[] = {
         "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1",
         "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2",
@@ -122,7 +121,7 @@ static void draw_happiness_info(building_info_context *c, int y_offset)
     }
     text_draw(translation_for(sentiment_keys[sentiment_index]), c->x_offset + 36, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
 
-    int message = building_get(c->building_id)->house_sentiment_message;
+    int message = b->house_sentiment_message;
     switch (message) {
         case LOW_MOOD_CAUSE_NO_JOBS:
             text_draw(translation_for_key("TR_BUILDING_WINDOW_HOUSE_UPSET_UNEMPLOYMENT"),
@@ -169,7 +168,7 @@ void window_building_draw_house(building_info_context *c)
 {
     c->advisor_button = ADVISOR_HOUSING;
     c->help_id = 56;
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (b->house_population <= 0) {
         draw_vacant_lot(c);
         return;
@@ -293,9 +292,9 @@ const uint8_t *window_building_house_get_tooltip(const building_info_context *c)
         return 0;
     }
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
 
-    const model_house *house_model = building_house_get_model(Building(b));
+    const model_house *house_model = building_house_get_model(c->building);
     if (!house_model || !house_model->food_types) {
         return 0;
     }

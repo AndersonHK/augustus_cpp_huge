@@ -7,7 +7,6 @@
 
 #include "minimap.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
@@ -21,7 +20,6 @@ extern "C" {
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
-}
 
 
 #include <initializer_list>
@@ -302,14 +300,14 @@ static void position_minimap(int x_offset, int y_offset, int width, int height)
     }
 }
 
-static int has_figure_color(figure *f)
+static int has_figure_color(Figure *f)
 {
     int type = f->type;
-    if (figure_is_legion(f)) {
+    if (f->is_legion()) {
         return formation_get_selected() == f->formation_id ?
             FIGURE_COLOR_SELECTED_SOLDIER : FIGURE_COLOR_SOLDIER;
     }
-    if (figure_is_enemy(f)) {
+    if (f->is_enemy()) {
         return FIGURE_COLOR_ENEMY;
     }
     if (f->type == FIGURE_INDIGENOUS_NATIVE &&
@@ -393,7 +391,7 @@ static int building_is_aesthetic(building_type type)
 
 static int building_is_water_structure(const building_type_registry_impl::BuildingType &type)
 {
-    return type.is_well() || type.is_fountain() || building_type_attr_is(type.type(), "reservoir");
+    return type.is_well() || type.is_fountain() || strcmp(type.attr(), "reservoir") == 0;
 }
 
 static void draw_building(int x_offset, int y_offset, int grid_offset)
@@ -418,7 +416,7 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
         const building_type_registry_impl::BuildingType *type_definition = nullptr;
         if (b) {
             const Building building(b);
-            type_definition = building.type_definition();
+            type_definition = building.type;
         }
         if (b && b->house_size) {
             colors = &minimap_colors.house;

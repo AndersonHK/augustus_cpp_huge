@@ -6,7 +6,7 @@
 class Tavern : public Building {
 public:
     using Building::Building;
-    explicit Tavern(Building building) : Building(building.legacy_record(), building.type_definition()) {}
+    explicit Tavern(Building building) : Building(building) {}
 
     int storage_destination();
 };

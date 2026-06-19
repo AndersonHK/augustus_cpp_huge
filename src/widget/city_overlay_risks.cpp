@@ -12,16 +12,14 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
+#include "figure/figure.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "core/config.h"
-#include "figure/properties.h"
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
-}
 
 #include <cstring>
 
@@ -55,7 +53,7 @@ static int building_type_attr_is_any(building_type type, const char *a, const ch
 static int is_problem_cartpusher(int figure_id)
 {
     if (figure_id) {
-        figure *fig = figure_get(figure_id);
+        Figure *fig = Figure::get(figure_id);
         return fig->action_state == FIGURE_ACTION_20_CARTPUSHER_INITIAL && fig->min_max_seen;
     } else {
         return 0;
@@ -66,7 +64,7 @@ void city_overlay_problems_prepare_building(building *b)
 {
     b = building_main(b);
     Building building(b);
-    const auto &type = building.type();
+    const auto *type = building.type;
 
     if (b->strike_duration_days > 0) {
         b->show_on_problem_overlay = 1;
@@ -77,7 +75,7 @@ void city_overlay_problems_prepare_building(building *b)
         b->show_on_problem_overlay = 1;
     } else if (b->state == BUILDING_STATE_MOTHBALLED) {
         b->show_on_problem_overlay = 1;
-    } else if (!b->num_workers && static_cast<bool>(type.required_workers())) {
+    } else if (!b->num_workers && type && static_cast<bool>(type->required_workers())) {
         b->show_on_problem_overlay = 1;
     } else if (building_type_registry_has_water_access_requirements(b->type) && !b->has_water_access) {
         b->show_on_problem_overlay = 1;
@@ -91,7 +89,7 @@ void city_overlay_problems_prepare_building(building *b)
         } else if (!building_industry_has_raw_materials_for_production(b)) {
             b->show_on_problem_overlay = 1;
         }
-    } else if ((type.is_theater() ||
+    } else if (((type && type->is_theater()) ||
         building_type_attr_is_any(b->type, "amphitheater", "arena", "colosseum", "hippodrome")) &&
         !b->data.entertainment.days1) {
         b->show_on_problem_overlay = 1;
@@ -102,7 +100,7 @@ void city_overlay_problems_prepare_building(building *b)
          !b->data.depot.current_order.dst_storage_id)) {
         b->show_on_problem_overlay = 1;
     } else if (b->has_road_access == 0 &&
-        static_cast<bool>(type.required_workers()) && !type.is_latrines() && !type.is_fountain()) {
+        type && static_cast<bool>(type->required_workers()) && !type->is_latrines() && !type->is_fountain()) {
         b->show_on_problem_overlay = 1;
     }
 
@@ -173,27 +171,25 @@ static int show_building_enemy(const building *b)
         building_type_attr_is(b->type, "palisade");
 }
 
-static int show_figure_fire(const figure *f)
+static int show_figure_fire(const Figure *f)
 {
     return f->type == FIGURE_PREFECT;
 }
 
-static int show_figure_damage(const figure *f)
+static int show_figure_damage(const Figure *f)
 {
     return f->type == FIGURE_ENGINEER || f->type == FIGURE_WORK_CAMP_ARCHITECT;
 }
 
-static int show_figure_crime(const figure *f)
+static int show_figure_crime(const Figure *f)
 {
-    const figure_properties *props = figure_properties_for_type(static_cast<figure_type>(f->type));
-    return props->category & FIGURE_CATEGORY_ARMED || props->category & FIGURE_CATEGORY_CRIMINAL
-        || props->category & FIGURE_CATEGORY_PROJECTILE;
+    return f->is_category(FIGURE_CATEGORY_ARMED | FIGURE_CATEGORY_CRIMINAL | FIGURE_CATEGORY_PROJECTILE);
 }
 
-static int show_figure_problems(const figure *f)
+static int show_figure_problems(const Figure *f)
 {
     if (f->type == FIGURE_LABOR_SEEKER) {
-        return building_get(f->building_id)->show_on_problem_overlay;
+        return building_get(f->building.id())->show_on_problem_overlay;
     } else if (f->type == FIGURE_CART_PUSHER) {
         return f->action_state == FIGURE_ACTION_20_CARTPUSHER_INITIAL || f->min_max_seen;
     } else if (f->type == FIGURE_PROTESTER || f->type == FIGURE_BEGGAR) {
@@ -203,17 +199,16 @@ static int show_figure_problems(const figure *f)
     }
 }
 
-static int show_figure_native(const figure *f)
+static int show_figure_native(const Figure *f)
 {
     return f->type == FIGURE_INDIGENOUS_NATIVE || f->type == FIGURE_MISSIONARY ||
         f->type == FIGURE_NATIVE_TRADER;
 }
 
-static int show_figure_enemy(const figure *f)
+static int show_figure_enemy(const Figure *f)
 {
-    const figure_properties *props = figure_properties_for_type(static_cast<figure_type>(f->type));
-    return props->category & FIGURE_CATEGORY_HOSTILE || props->category & FIGURE_CATEGORY_AGGRESSIVE_ANIMAL
-        || props->category & FIGURE_CATEGORY_ARMED || props->category & FIGURE_CATEGORY_PROJECTILE
+    return f->is_category(FIGURE_CATEGORY_HOSTILE | FIGURE_CATEGORY_AGGRESSIVE_ANIMAL |
+            FIGURE_CATEGORY_ARMED | FIGURE_CATEGORY_PROJECTILE)
         || f->type == FIGURE_FORT_STANDARD;
 }
 
@@ -331,7 +326,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
 {
     const building *main_building = b;
     const Building building(const_cast<struct building *>(b));
-    const auto &type = building.type();
+    const auto *type = building.type;
 
     int guard = 0;
     while (guard < 9) {
@@ -351,7 +346,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_STRIKE";
     } else if (b->state == BUILDING_STATE_MOTHBALLED) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_MOTHBALLED";
-    } else if (!b->num_workers && static_cast<bool>(type.required_workers())) {
+    } else if (!b->num_workers && type && static_cast<bool>(type->required_workers())) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_LABOR";
     } else if (building_type_registry_has_water_access_requirements(b->type) && !b->has_water_access) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_WATER_ACCESS";
@@ -365,7 +360,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
         } else if (!building_industry_has_raw_materials_for_production(b)) {
             c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_RESOURCES";
         }
-    } else if (type.is_theater() && !b->data.entertainment.days1) {
+    } else if (type && type->is_theater() && !b->data.entertainment.days1) {
         c->text_group = 72;
         return 5;
     } else if (building_type_attr_is(b->type, "amphitheater")) {
@@ -392,7 +387,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
          !b->data.depot.current_order.dst_storage_id)) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_DEPOT_NO_INSTRUCTIONS";
     } else if (b->has_road_access == 0 &&
-        static_cast<bool>(type.required_workers()) && !type.is_latrines() && !type.is_fountain()) {
+        type && static_cast<bool>(type->required_workers()) && !type->is_latrines() && !type->is_fountain()) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_NO_ROAD_ACCESS";
     }
     if (c->translation_key) {

@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "image_context.h"
 
@@ -21,7 +22,7 @@ static int building_matches(building *b, const char *text_id)
         return 0;
     }
     Building current(b);
-    const building_type_registry_impl::BuildingType *definition = current.type_definition();
+    const building_type_registry_impl::BuildingType *definition = current.type;
     return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
@@ -447,29 +448,29 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
             // receive relevant treatment in the section below
             building *b = building_get(map_building_at(offset));
             Building current(b);
-            if (current.has_type_definition() && current.type().is_granary()) {
+            if (current.type && current.type->is_granary()) {
                 tiles[i] = (offset == b->grid_offset + map_grid_delta(1, 0)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(0, 1)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(2, 1)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(1, 2)) ? 1 : 0;
             }
-            if (current.has_type_definition() && current.type().is_warehouse()) {
+            if (current.type && current.type->is_warehouse()) {
                 building *b_main = building_main(b);
                 if (!b_main) continue; //fallback
                 int base = b_main->grid_offset;
                 tiles[i] = (offset == base) ? 1 : 0;
             }
-            if (current.has_type_definition() &&
-                (current.type().is_temple_tier(building_type_registry_impl::ReligionTier::Grand) ||
-                    current.type().is_pantheon())) {
+            if (current.type &&
+                (current.type->is_temple_tier(building_type_registry_impl::ReligionTier::Grand) ||
+                    current.type->is_pantheon())) {
                 tiles[i] = (offset == b->grid_offset + map_grid_delta(3, 0)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(0, 3)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(6, 3)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(3, 6)) ? 1 : 0;
             }
-            if ((current.has_type_definition() &&
-                    (current.type().is_lighthouse() ||
-                        current.type().is_temple_tier(building_type_registry_impl::ReligionTier::Large))) ||
+            if ((current.type &&
+                    (current.type->is_lighthouse() ||
+                        current.type->is_temple_tier(building_type_registry_impl::ReligionTier::Large))) ||
                 building_matches(b, "large_mausoleum") ||
                 building_matches(b, "nymphaeum") ||
                 building_matches(b, "city_mint")) {

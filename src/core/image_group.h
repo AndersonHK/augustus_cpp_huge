@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 enum {
     GROUP_TERRAIN_BLACK = 1,
@@ -251,6 +248,3 @@ enum {
     GROUP_SELECT_MISSION_BUTTON = 254,
 };
 
-#ifdef __cplusplus
-}
-#endif

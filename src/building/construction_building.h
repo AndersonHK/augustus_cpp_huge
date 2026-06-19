@@ -3,9 +3,6 @@
 #include "building/building_type.h"
 #include "map/grid.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     CLEAR_MODE_FORCE = 0, //removes everything, even if not removable by player
@@ -51,6 +48,3 @@ int building_construction_fill_vacant_lots(grid_slice *area);
  */
 int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode clear_mode, cost_calculation cost);
 
-#ifdef __cplusplus
-}
-#endif

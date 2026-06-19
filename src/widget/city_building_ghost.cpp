@@ -31,11 +31,11 @@
 #include "assets/image_group_payload.h"
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_runtime_graphics.h"
 #include "building/building_type_registry_internal.h"
 #include "building/market.h"
 #include "graphics/runtime_texture.h"
 
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/monument.h"
@@ -59,7 +59,6 @@ extern "C" {
 #include "map/routing_terrain.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
-}
 
 #include <cstring>
 #include <stdlib.h>
@@ -496,8 +495,9 @@ static void draw_runtime_payload_entry(const ImageGroupEntry &entry, int x, int 
 
 static void draw_runtime_ghost_animation(Building &building, int animation_cursor, int x, int y, color_t color)
 {
-    if (data.animation_preview.type != building.type_id()) {
-        data.animation_preview.type = building.type_id();
+    const building_type type = building.type ? building.type->type() : BUILDING_NONE;
+    if (data.animation_preview.type != type) {
+        data.animation_preview.type = type;
         data.animation_preview.cursor = 0;
     }
 
@@ -714,8 +714,14 @@ static int get_building_image_id(int map_x, int map_y, building_type type, const
 
 static int get_new_building_image_id(int grid_offset, building_type type)
 {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_graphic()) {
+        return 0;
+    }
     prepare_ghost_building(grid_offset, type);
-    return building_image_get(&data.ghost_building);
+    Building building(data.ghost_building, definition);
+    return building_runtime_graphics_image_id(building);
 }
 
 static void get_building_base_xy(int map_x, int map_y, int building_size, int *x, int *y)

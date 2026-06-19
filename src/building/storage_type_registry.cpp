@@ -7,11 +7,9 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-}
 
 #include <cstdio>
 #include <cstdlib>
@@ -300,13 +298,13 @@ const StorageType *find_storage_type_definition(const char *path)
 
 } // namespace building_type_registry_impl
 
-extern "C" const char *storage_type_registry_get_storage_type_path(void)
+const char *storage_type_registry_get_storage_type_path(void)
 {
     building_type_registry_impl::g_storage_type_path = mod_manager::mod_path() + "StorageType/";
     return building_type_registry_impl::g_storage_type_path.c_str();
 }
 
-extern "C" int storage_type_registry_load(void)
+int storage_type_registry_load(void)
 {
     using namespace building_type_registry_impl;
 

@@ -4,9 +4,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 enum {
     GRID_SIZE = 162
@@ -193,6 +190,3 @@ grid_slice *map_grid_get_grid_slice_from_center(int center_grid_offset, int radi
 
 grid_slice *map_grid_slice_contains(int grid_offset, grid_slice *slice);
 
-#ifdef __cplusplus
-}
-#endif

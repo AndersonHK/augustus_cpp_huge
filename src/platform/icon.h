@@ -2,9 +2,6 @@
 
 #include "SDL.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Get the window icon's pixels
@@ -12,6 +9,3 @@ extern "C" {
  */
 void *platform_icon_get_pixels(void);
 
-#ifdef __cplusplus
-}
-#endif

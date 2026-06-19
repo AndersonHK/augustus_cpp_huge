@@ -1,12 +1,9 @@
-﻿#pragma once
+#pragma once
 
 #include "map/point.h"
 
 typedef struct building building;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 int map_has_road_access(int x, int y, int size, map_point *road);
@@ -45,6 +42,3 @@ int map_get_adjacent_road_tiles_for_roaming(int grid_offset, int *road_tiles, in
 
 int map_get_diagonal_road_tiles_for_roaming(int grid_offset, int *road_tiles);
 
-#ifdef __cplusplus
-}
-#endif

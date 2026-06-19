@@ -12,7 +12,6 @@
 #include "window/advisors.h"
 #include "city/god.h"
 
-extern "C" {
 
 #include "assets/assets.h"
 #include "city/constants.h"
@@ -22,7 +21,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/image_button.h"
 #include "graphics/window.h"
-}
 
 static void button_god(const generic_button *button);
 static void button_size(const generic_button *button);

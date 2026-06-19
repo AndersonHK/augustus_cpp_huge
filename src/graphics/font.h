@@ -4,9 +4,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     FONT_NORMAL_PLAIN,
@@ -77,6 +74,3 @@ int font_letter_id(const font_definition *def, const uint8_t *str, int *num_byte
 int font_image_width_for_letter(const font_definition *def, int letter_id);
 int font_image_height_for_letter(const font_definition *def, int letter_id);
 
-#ifdef __cplusplus
-}
-#endif

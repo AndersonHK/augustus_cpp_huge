@@ -6,62 +6,37 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __cplusplus
 #include <string_view>
-#endif
 
 static const size_t ASSET_PATH_PREFIX_LENGTH = sizeof(ASSETS_DIRECTORY) - 1;
 
 static const char *find_last_extension(const char *filename)
 {
-#ifdef __cplusplus
     const std::string_view path{filename};
     const auto dot_position = path.find_last_of('.');
     if (dot_position == std::string_view::npos) {
         return nullptr;
     }
     return filename + dot_position;
-#else
-    return strrchr(filename, '.');
-#endif
 }
 
 static const char *find_last_path_separator(const char *filename)
 {
-#ifdef __cplusplus
     const std::string_view path{filename};
     const auto slash_position = path.find_last_of("/\\");
     if (slash_position == std::string_view::npos) {
         return nullptr;
     }
     return filename + slash_position;
-#else
-    const char *slash = strrchr(filename, '/');
-    const char *backslash = strrchr(filename, '\\');
-    if (!slash) {
-        return backslash;
-    }
-    if (!backslash) {
-        return slash;
-    }
-    return slash > backslash ? slash : backslash;
-#endif
 }
 
 static const char *asset_path_start(const char *filename)
 {
-#ifdef __cplusplus
     const std::string_view resolved_filename{filename};
     if (resolved_filename.compare(0, ASSET_PATH_PREFIX_LENGTH, ASSETS_DIRECTORY) == 0) {
         return filename + ASSET_PATH_PREFIX_LENGTH;
     }
     return filename;
-#else
-    if (strncmp(filename, ASSETS_DIRECTORY, ASSET_PATH_PREFIX_LENGTH) == 0) {
-        return filename + ASSET_PATH_PREFIX_LENGTH;
-    }
-    return filename;
-#endif
 }
 
 FILE *file_open(const char *filename, const char *mode)

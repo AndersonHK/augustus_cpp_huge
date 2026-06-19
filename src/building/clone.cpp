@@ -1,6 +1,8 @@
 #include "clone.h"
 
 #include "building/building.h"
+#include "figure/figure.h"
+#include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/variant.h"
@@ -99,8 +101,10 @@ static building_type get_clone_type_from_building(const Building *b, building_ty
 
     if (type_attr_is(clone_type, "burning_ruin")) {
         if (b && b->id()) {
-            Building before_fire = Building::from_id(map_building_rubble_building_id(b->grid_offset()));
-            building_type type = building_clone_type_from_building_type(before_fire.rubble_original_type_id());
+            building *before_fire = building_get(map_building_rubble_building_id(b->grid_offset()));
+            building_type type = before_fire ?
+                building_clone_type_from_building_type(static_cast<building_type>(before_fire->data.rubble.og_type)) :
+                BUILDING_NONE;
             return type;
         }
         return BUILDING_NONE;
@@ -124,11 +128,12 @@ int building_clone_rotation_from_grid_offset(int grid_offset)
     if (!building_id) {
         return 0;
     }
-    Building b = Building::from_id(building_id).main();
+    Building b = Building(building_get(building_id)).main();
     if (!b.id()) {
         return 0;
     }
-    if (building_variant_has_variants(b.type_id())) {
+    building_type type = b.type ? b.type->type() : BUILDING_NONE;
+    if (building_variant_has_variants(type)) {
         return b.variant();
     } else if (b.orientation()) {
         return b.orientation();
@@ -144,13 +149,15 @@ building_type building_clone_type_from_grid_offset(int grid_offset)
     if (terrain & TERRAIN_BUILDING) {
         int building_id = map_building_at(grid_offset);
         if (building_id) {
-            Building b = Building::from_id(building_id).main();
-            return get_clone_type_from_building(&b, b.type_id());
+            Building b = Building(building_get(building_id)).main();
+            building_type type = b.type ? b.type->type() : BUILDING_NONE;
+            return get_clone_type_from_building(&b, type);
         }
     } else if (terrain & TERRAIN_RUBBLE) {
-        Building old_building = Building::from_id(map_building_rubble_building_id(grid_offset));
-        building_type type = building_clone_type_from_building_type(old_building.rubble_original_type_id());
-        return type;
+        building *old_building = building_get(map_building_rubble_building_id(grid_offset));
+        return old_building ?
+            building_clone_type_from_building_type(static_cast<building_type>(old_building->data.rubble.og_type)) :
+            BUILDING_NONE;
     } else if (terrain & TERRAIN_AQUEDUCT) {
         return building_type_from_attr("aqueduct");
     } else if (terrain & TERRAIN_WALL) {

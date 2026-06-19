@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 int city_sentiment(void);
@@ -32,6 +29,3 @@ void city_sentiment_decrement_blessing_boost(void);
 
 void city_sentiment_update(void);
 
-#ifdef __cplusplus
-}
-#endif

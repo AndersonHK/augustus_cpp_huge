@@ -1,8 +1,6 @@
 #pragma once
 
-extern "C" {
 #include "game/resource.h"
-}
 
 #include <string>
 #include <vector>

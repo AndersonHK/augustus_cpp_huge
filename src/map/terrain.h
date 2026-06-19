@@ -1,10 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include <stdint.h>
 #include "core/buffer.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define TERRAIN_LAST_FLAG TERRAIN_HIGHWAY_BOTTOM_RIGHT
@@ -169,6 +166,3 @@ void map_terrain_migrate_old_walls(void);
 
 void map_terrain_load_state(buffer *buf, int expanded_terrain_data, buffer *images, int legacy_image_buffer);
 
-#ifdef __cplusplus
-}
-#endif

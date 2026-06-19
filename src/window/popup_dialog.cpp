@@ -1,4 +1,4 @@
-﻿#include "graphics/generic_button.h"
+#include "graphics/generic_button.h"
 #include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
@@ -6,7 +6,6 @@
 
 #include "popup_dialog.h"
 
-extern "C" {
 #include "core/image_group.h"
 #include "core/string.h"
 #include "graphics/image_button.h"
@@ -14,7 +13,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #define GROUP 5
 

@@ -9,7 +9,6 @@
 #include "window/donate_to_city.h"
 
 #include "window/advisors.h"
-extern "C" {
 
 #include "city/emperor.h"
 #include "core/calc.h"
@@ -17,7 +16,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 static void button_increase_amount(const generic_button *button);
 static void button_donate(const generic_button *button);

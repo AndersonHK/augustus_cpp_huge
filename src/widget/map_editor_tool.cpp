@@ -6,7 +6,6 @@
 
 #include "map_editor_tool.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/properties.h"
 #include "building/building_type_api.h"
@@ -17,7 +16,6 @@ extern "C" {
 #include "map/grid.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-}
 
 #include <cstring>
 

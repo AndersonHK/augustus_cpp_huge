@@ -1,6 +1,5 @@
 #include "event.h"
 
-#include "core/array.h"
 #include "core/encoding.h"
 #include "core/log.h"
 #include "core/random.h"
@@ -9,40 +8,109 @@
 #include "scenario/event/condition_handler.h"
 #include "scenario/event/controller.h"
 
-#include <string.h>
-
-#define SCENARIO_ACTIONS_ARRAY_SIZE_STEP 20
-#define SCENARIO_CONDITIONS_ARRAY_SIZE_STEP 20
-#define SCENARIO_CONDITION_GROUPS_ARRAY_SIZE_STEP 2
+#include <algorithm>
+#include <utility>
 
 namespace {
 
-int valid_condition_group_type(int type)
+bool valid_condition_group_type(int type)
 {
     return type == FULFILLMENT_TYPE_ALL || type == FULFILLMENT_TYPE_ANY;
 }
 
-void release_condition_group_handle(scenario_condition_group_t *group)
+bool action_in_use(const scenario_action_t &action)
 {
-    if (group) {
-        memset(&group->conditions, 0, sizeof(group->conditions));
-    }
+    return action.type != ACTION_TYPE_UNDEFINED;
+}
+
+bool condition_in_use(const scenario_condition_t &condition)
+{
+    return condition.type != CONDITION_TYPE_UNDEFINED;
 }
 
 void discard_condition_group(scenario_condition_group_t *group)
 {
     if (group) {
-        array_clear(group->conditions);
+        group->conditions.clear();
     }
 }
 
-int valid_action_type(int type)
+bool valid_action_type(int type)
 {
     return type >= ACTION_TYPE_UNDEFINED && type < ACTION_TYPE_MAX;
 }
 
-static int link_condition_group_to_event(scenario_event_t *event, scenario_condition_group_t *group);
-static int link_action_to_event(scenario_event_t *event, scenario_action_t *action);
+scenario_action_t *append_action(scenario_action_array_t &actions)
+{
+    actions.push_back({});
+    return &actions.back();
+}
+
+scenario_action_t *create_action(scenario_action_array_t &actions)
+{
+    for (scenario_action_t &action : actions) {
+        if (!action_in_use(action)) {
+            action = {};
+            return &action;
+        }
+    }
+    return append_action(actions);
+}
+
+scenario_condition_t *append_condition(scenario_condition_array_t &conditions)
+{
+    conditions.push_back({});
+    return &conditions.back();
+}
+
+scenario_condition_t *create_condition(scenario_condition_array_t &conditions)
+{
+    for (scenario_condition_t &condition : conditions) {
+        if (!condition_in_use(condition)) {
+            condition = {};
+            return &condition;
+        }
+    }
+    return append_condition(conditions);
+}
+
+scenario_condition_group_t *append_condition_group(scenario_condition_group_array_t &groups)
+{
+    groups.push_back({});
+    scenario_condition_group_t *group = &groups.back();
+    scenario_condition_group_new(group, static_cast<unsigned int>(groups.size() - 1));
+    return group;
+}
+
+scenario_condition_group_t *create_condition_group(scenario_condition_group_array_t &groups)
+{
+    for (size_t i = 0; i < groups.size(); ++i) {
+        scenario_condition_group_t *group = &groups[i];
+        if (!scenario_condition_group_in_use(group)) {
+            scenario_condition_group_new(group, static_cast<unsigned int>(i));
+            return group;
+        }
+    }
+    return append_condition_group(groups);
+}
+
+scenario_condition_group_t *create_condition_group_after(scenario_condition_group_array_t &groups, unsigned int index)
+{
+    while (index > groups.size()) {
+        append_condition_group(groups);
+    }
+    for (size_t i = index; i < groups.size(); ++i) {
+        scenario_condition_group_t *group = &groups[i];
+        if (!scenario_condition_group_in_use(group)) {
+            scenario_condition_group_new(group, static_cast<unsigned int>(i));
+            return group;
+        }
+    }
+    return append_condition_group(groups);
+}
+
+int link_condition_group_to_event(scenario_event_t *event, scenario_condition_group_t *group);
+int link_action_to_event(scenario_event_t *event, scenario_action_t *action);
 
 class ScenarioEventLinker {
 public:
@@ -74,19 +142,11 @@ public:
 
 } // namespace
 
-static int action_in_use(const scenario_action_t *action)
-{
-    return action->type != ACTION_TYPE_UNDEFINED;
-}
-
 void scenario_event_new(scenario_event_t *event, unsigned int position)
 {
     event->id = position;
-    if (!array_init(event->actions, SCENARIO_ACTIONS_ARRAY_SIZE_STEP, 0, action_in_use) ||
-        !array_init(event->condition_groups, SCENARIO_CONDITION_GROUPS_ARRAY_SIZE_STEP,
-            scenario_condition_group_new, scenario_condition_group_in_use)) {
-        log_error("Unable to allocate enough memory for the scenario event. The game will now crash.", 0, 0);
-    }
+    event->actions.clear();
+    event->condition_groups.clear();
 }
 
 int scenario_event_is_active(const scenario_event_t *event)
@@ -98,14 +158,10 @@ void scenario_event_init(scenario_event_t *event)
 {
     event->state = EVENT_STATE_ACTIVE;
     unsigned int event_id = event->id;
-    scenario_condition_group_t *group;
-    scenario_condition_t *condition;
-    for (unsigned int i = 0; i < event->condition_groups.size; i++) {
-        group = array_item(event->condition_groups, i);
-        for (unsigned int j = 0; j < group->conditions.size; j++) {
-            condition = array_item(group->conditions, j);
-            scenario_condition_type_init(condition);
-            condition->parent_event_id = event_id;
+    for (scenario_condition_group_t &group : event->condition_groups) {
+        for (scenario_condition_t &condition : group.conditions) {
+            scenario_condition_type_init(&condition);
+            condition.parent_event_id = event_id;
         }
     }
 }
@@ -115,13 +171,7 @@ void scenario_event_release_contents(scenario_event_t *event)
     if (!event) {
         return;
     }
-    scenario_condition_group_t *condition_group;
-    array_foreach(event->condition_groups, condition_group) {
-        array_clear(condition_group->conditions);
-    }
-    array_clear(event->condition_groups);
-    array_clear(event->actions);
-    memset(event, 0, sizeof(scenario_event_t));
+    *event = {};
     event->state = EVENT_STATE_UNDEFINED;
 }
 
@@ -139,8 +189,8 @@ void scenario_event_save_state(buffer *buf, scenario_event_t *event)
     buffer_write_i32(buf, event->days_until_active);
     buffer_write_i32(buf, event->max_number_of_repeats);
     buffer_write_i32(buf, event->execution_count);
-    buffer_write_u16(buf, event->actions.size);
-    buffer_write_u16(buf, event->condition_groups.size);
+    buffer_write_u16(buf, static_cast<uint16_t>(event->actions.size()));
+    buffer_write_u16(buf, static_cast<uint16_t>(event->condition_groups.size()));
     char name_utf8[EVENT_NAME_LENGTH * 2] = { 0 };
     encoding_to_utf8(event->name, name_utf8, EVENT_NAME_LENGTH * 2, 0);
     buffer_write_raw(buf, name_utf8, EVENT_NAME_LENGTH * 2);
@@ -174,18 +224,12 @@ void scenario_event_load_state(buffer *buf, scenario_event_t *event, int scenari
         encoding_from_utf8(name_utf8, event->name, EVENT_NAME_LENGTH);
     }
 
-    if (!array_init(event->actions, SCENARIO_ACTIONS_ARRAY_SIZE_STEP, 0, action_in_use) ||
-        !array_expand(event->actions, actions_count)) {
-        log_error("Unable to create actions array. The game will now crash.", 0, 0);
-    }
-    if (!array_init(event->condition_groups, SCENARIO_CONDITION_GROUPS_ARRAY_SIZE_STEP,
-        scenario_condition_group_new, scenario_condition_group_in_use) ||
-        !array_expand(event->condition_groups, condition_groups_count)) {
-        log_error("Unable to create condition groups array. The game will now crash.", 0, 0);
-    }
-    // Add the condition group
+    event->actions.clear();
+    event->actions.reserve(actions_count);
+    event->condition_groups.clear();
+    event->condition_groups.reserve(condition_groups_count ? condition_groups_count : 1);
     if (condition_groups_count == 0) {
-        array_advance(event->condition_groups);
+        append_condition_group(event->condition_groups);
     }
     if (event->id != (unsigned int) saved_id) {
         log_error("Loaded event id does not match what it was saved with. The game will likely crash. event->id: ",
@@ -195,11 +239,10 @@ void scenario_event_load_state(buffer *buf, scenario_event_t *event, int scenari
 
 scenario_condition_t *scenario_event_condition_create(scenario_condition_group_t *group, int type)
 {
-    scenario_condition_t *condition;
-    array_new_item(group->conditions, condition);
-    if (!condition) {
+    if (!group) {
         return 0;
     }
+    scenario_condition_t *condition = create_condition(group->conditions);
     condition->type = static_cast<condition_types>(type);
 
     return condition;
@@ -207,7 +250,7 @@ scenario_condition_t *scenario_event_condition_create(scenario_condition_group_t
 
 namespace {
 
-static int link_condition_group_to_event(scenario_event_t *event, scenario_condition_group_t *group)
+int link_condition_group_to_event(scenario_event_t *event, scenario_condition_group_t *group)
 {
     if (!event || !group) {
         log_error("Unable to link scenario condition group to missing event.", 0, 0);
@@ -217,20 +260,15 @@ static int link_condition_group_to_event(scenario_event_t *event, scenario_condi
         log_error("Unable to link scenario condition group with invalid fulfillment type.", 0, group->type);
         return 0;
     }
-    scenario_condition_group_t *new_group = 0;
-    array_new_item(event->condition_groups, new_group);
+    scenario_condition_group_t *new_group = create_condition_group(event->condition_groups);
     if (!new_group) {
         log_error("Unable to create scenario condition group link.", 0, 0);
         return 0;
     }
-    array_clear(new_group->conditions);
     new_group->type = group->type;
-    new_group->conditions = group->conditions;
-    release_condition_group_handle(group);
-    scenario_condition_t *condition;
-    array_foreach(new_group->conditions, condition)
-    {
-        condition->parent_event_id = event->id;
+    new_group->conditions = std::move(group->conditions);
+    for (scenario_condition_t &condition : new_group->conditions) {
+        condition.parent_event_id = event->id;
     }
     return 1;
 }
@@ -244,11 +282,10 @@ int scenario_event_link_condition_group_by_id(int event_id, scenario_condition_g
 
 scenario_action_t *scenario_event_action_create(scenario_event_t *event, int type)
 {
-    scenario_action_t *action = 0;
-    array_new_item(event->actions, action);
-    if (!action) {
+    if (!event) {
         return 0;
     }
+    scenario_action_t *action = create_action(event->actions);
     action->type = static_cast<action_types>(type);
 
     return action;
@@ -256,7 +293,7 @@ scenario_action_t *scenario_event_action_create(scenario_event_t *event, int typ
 
 namespace {
 
-static int link_action_to_event(scenario_event_t *event, scenario_action_t *action)
+int link_action_to_event(scenario_event_t *event, scenario_action_t *action)
 {
     if (!event || !action) {
         log_error("Unable to link scenario action to missing event.", 0, 0);
@@ -266,8 +303,7 @@ static int link_action_to_event(scenario_event_t *event, scenario_action_t *acti
         log_error("Unable to link scenario action with invalid type.", 0, action->type);
         return 0;
     }
-    scenario_action_t *new_action = 0;
-    array_new_item(event->actions, new_action);
+    scenario_action_t *new_action = create_action(event->actions);
     if (!new_action) {
         log_error("Unable to create scenario action link.", 0, 0);
         return 0;
@@ -292,112 +328,116 @@ int scenario_event_link_action_by_id(int event_id, scenario_action_t *action)
 
 unsigned int scenario_event_condition_group_count(const scenario_event_t *event)
 {
-    return event ? event->condition_groups.size : 0;
+    return event ? static_cast<unsigned int>(event->condition_groups.size()) : 0;
 }
 
 scenario_condition_group_t *scenario_event_condition_group_get(scenario_event_t *event, unsigned int index)
 {
-    if (!event || index >= event->condition_groups.size) {
+    if (!event || index >= event->condition_groups.size()) {
         return 0;
     }
-    return array_item(event->condition_groups, index);
+    return &event->condition_groups[index];
 }
 
 const scenario_condition_group_t *scenario_event_condition_group_get_const(const scenario_event_t *event, unsigned int index)
 {
-    if (!event || index >= event->condition_groups.size) {
+    if (!event || index >= event->condition_groups.size()) {
         return 0;
     }
-    return array_item(event->condition_groups, index);
+    return &event->condition_groups[index];
 }
 
 scenario_condition_group_t *scenario_event_condition_group_add(scenario_event_t *event)
 {
-    return event ? array_advance(event->condition_groups) : 0;
+    return event ? append_condition_group(event->condition_groups) : 0;
 }
 
 scenario_condition_group_t *scenario_event_condition_group_add_after(scenario_event_t *event, unsigned int index)
 {
-    if (!event) {
-        return 0;
-    }
-    scenario_condition_group_t *group = 0;
-    array_new_item_after_index(event->condition_groups, index, group);
-    return group;
+    return event ? create_condition_group_after(event->condition_groups, index) : 0;
 }
 
 void scenario_event_condition_groups_pack(scenario_event_t *event)
 {
     if (event) {
-        array_pack(event->condition_groups);
+        event->condition_groups.erase(
+            std::remove_if(event->condition_groups.begin(), event->condition_groups.end(),
+                [](const scenario_condition_group_t &group) { return !scenario_condition_group_in_use(&group); }),
+            event->condition_groups.end());
     }
 }
 
 unsigned int scenario_condition_group_condition_count(const scenario_condition_group_t *group)
 {
-    return group ? group->conditions.size : 0;
+    return group ? static_cast<unsigned int>(group->conditions.size()) : 0;
 }
 
 scenario_condition_t *scenario_condition_group_condition_get(scenario_condition_group_t *group, unsigned int index)
 {
-    if (!group || index >= group->conditions.size) {
+    if (!group || index >= group->conditions.size()) {
         return 0;
     }
-    return array_item(group->conditions, index);
+    return &group->conditions[index];
 }
 
 const scenario_condition_t *scenario_condition_group_condition_get_const(const scenario_condition_group_t *group, unsigned int index)
 {
-    if (!group || index >= group->conditions.size) {
+    if (!group || index >= group->conditions.size()) {
         return 0;
     }
-    return array_item(group->conditions, index);
+    return &group->conditions[index];
 }
 
 scenario_condition_t *scenario_condition_group_condition_add(scenario_condition_group_t *group)
 {
-    return group ? array_advance(group->conditions) : 0;
+    return group ? append_condition(group->conditions) : 0;
 }
 
 void scenario_condition_group_conditions_clear(scenario_condition_group_t *group)
 {
     if (group) {
-        array_clear(group->conditions);
+        group->conditions.clear();
     }
 }
 
 void scenario_condition_group_conditions_pack(scenario_condition_group_t *group)
 {
     if (group) {
-        array_pack(group->conditions);
+        group->conditions.erase(
+            std::remove_if(group->conditions.begin(), group->conditions.end(),
+                [](const scenario_condition_t &condition) { return condition.type == CONDITION_TYPE_UNDEFINED; }),
+            group->conditions.end());
     }
 }
 
 unsigned int scenario_event_action_count(const scenario_event_t *event)
 {
-    return event ? event->actions.size : 0;
+    return event ? static_cast<unsigned int>(event->actions.size()) : 0;
 }
 
 scenario_action_t *scenario_event_action_get(scenario_event_t *event, unsigned int index)
 {
-    if (!event || index >= event->actions.size) {
+    if (!event || index >= event->actions.size()) {
         return 0;
     }
-    return array_item(event->actions, index);
+    return &event->actions[index];
 }
 
 const scenario_action_t *scenario_event_action_get_const(const scenario_event_t *event, unsigned int index)
 {
-    if (!event || index >= event->actions.size) {
+    if (!event || index >= event->actions.size()) {
         return 0;
     }
-    return array_item(event->actions, index);
+    return &event->actions[index];
 }
 
 void scenario_event_actions_pack(scenario_event_t *event)
 {
     if (event) {
-        array_pack(event->actions);
+        event->actions.erase(
+            std::remove_if(event->actions.begin(), event->actions.end(),
+                [](const scenario_action_t &action) { return action.type == ACTION_TYPE_UNDEFINED; }),
+            event->actions.end());
     }
 }
 
@@ -412,24 +452,22 @@ static int conditions_fulfilled(scenario_event_t *event)
     if (event->state != EVENT_STATE_ACTIVE) {
         return 0;
     }
-    if (event->actions.size == 0) {
+    if (event->actions.empty()) {
         return 0;
     }
 
-    scenario_condition_group_t *group;
-    array_foreach(event->condition_groups, group) {
+    for (scenario_condition_group_t &group : event->condition_groups) {
         int group_fulfilled = 0;
-        for (unsigned int i = 0; i < group->conditions.size; i++) {
-            scenario_condition_t *condition = array_item(group->conditions, i);
-            if (group->type == FULFILLMENT_TYPE_ALL && !scenario_condition_type_is_met(condition)) {
+        for (scenario_condition_t &condition : group.conditions) {
+            if (group.type == FULFILLMENT_TYPE_ALL && !scenario_condition_type_is_met(&condition)) {
                 return 0;
             }
-            if (group->type == FULFILLMENT_TYPE_ANY && scenario_condition_type_is_met(condition)) {
+            if (group.type == FULFILLMENT_TYPE_ANY && scenario_condition_type_is_met(&condition)) {
                 group_fulfilled = 1;
                 break;
             }
         }
-        if (group->type == FULFILLMENT_TYPE_ANY && group->conditions.size > 0 && !group_fulfilled) {
+        if (group.type == FULFILLMENT_TYPE_ANY && !group.conditions.empty() && !group_fulfilled) {
             return 0;
         }
     }
@@ -458,9 +496,11 @@ int scenario_event_decrease_pause_time(scenario_event_t *event, int days_passed)
 int scenario_event_count_conditions(const scenario_event_t *event)
 {
     int total_conditions = 0;
-    const scenario_condition_group_t *group;
-    array_foreach(event->condition_groups, group) {
-        total_conditions += group->conditions.size;
+    if (!event) {
+        return total_conditions;
+    }
+    for (const scenario_condition_group_t &group : event->condition_groups) {
+        total_conditions += static_cast<int>(group.conditions.size());
     }
     return total_conditions;
 }
@@ -486,9 +526,8 @@ int scenario_event_execute(scenario_event_t *event)
 {
     int actioned = 1;
 
-    scenario_action_t *current;
-    array_foreach(event->actions, current) {
-        int action_result = scenario_action_type_execute(current);
+    for (scenario_action_t &current : event->actions) {
+        int action_result = scenario_action_type_execute(&current);
         actioned &= action_result;
     }
 
@@ -497,21 +536,16 @@ int scenario_event_execute(scenario_event_t *event)
 
 int scenario_event_uses_custom_variable(const scenario_event_t *event, int custom_variable_id)
 {
-    scenario_condition_group_t *group;
-    scenario_condition_t *condition;
-    for (unsigned int i = 0; i < event->condition_groups.size; i++) {
-        group = array_item(event->condition_groups, i);
-        for (unsigned int j = 0; j < group->conditions.size; j++) {
-            condition = array_item(group->conditions, j);
-            if (scenario_condition_uses_custom_variable(condition, custom_variable_id)) {
+    for (const scenario_condition_group_t &group : event->condition_groups) {
+        for (const scenario_condition_t &condition : group.conditions) {
+            if (scenario_condition_uses_custom_variable(&condition, custom_variable_id)) {
                 return 1;
             }
         }
     }
 
-    scenario_action_t *action;
-    array_foreach(event->actions, action) {
-        if (scenario_action_uses_custom_variable(action, custom_variable_id)) {
+    for (const scenario_action_t &action : event->actions) {
+        if (scenario_action_uses_custom_variable(&action, custom_variable_id)) {
             return 1;
         }
     }

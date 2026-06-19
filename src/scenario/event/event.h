@@ -2,9 +2,6 @@
 
 #include "core/buffer.h"
 #include "scenario/event/data.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 void scenario_event_new(scenario_event_t *event, unsigned int position);
@@ -48,6 +45,3 @@ int scenario_event_conditional_execute(scenario_event_t *event);
 int scenario_event_execute(scenario_event_t *event);
 int scenario_event_uses_custom_variable(const scenario_event_t *event, int custom_variable_id);
 
-#ifdef __cplusplus
-}
-#endif

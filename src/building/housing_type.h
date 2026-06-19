@@ -1,8 +1,6 @@
 #pragma once
 
-extern "C" {
 #include "building/properties.h"
-}
 
 #include <string>
 

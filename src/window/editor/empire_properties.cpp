@@ -20,7 +20,6 @@
 #include "game/resource_id_bridge.h"
 
 #include "scenario/data.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "core/image.h"
@@ -34,7 +33,6 @@ extern "C" {
 #include "input/hotkey.h"
 #include "input/mouse.h"
 #include "scenario/empire.h"
-}
 
 static struct {
     unsigned int focus_button_id;

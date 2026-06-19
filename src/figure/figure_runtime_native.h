@@ -11,7 +11,7 @@ namespace figure_runtime_native_impl {
 class NativeFigure {
 public:
     NativeFigure(
-        figure *data,
+        Figure *data,
         const figure_type_registry_impl::FigureTypeDefinition *definition,
         const figure_type_registry_impl::FigureTypeProfile *profile)
         : figure_(data)
@@ -22,7 +22,7 @@ public:
 
     virtual ~NativeFigure() = default;
 
-    void set_figure(figure *data)
+    void set_figure(Figure *data)
     {
         figure_ = data;
     }
@@ -40,20 +40,20 @@ public:
     virtual int execute() = 0;
 
 protected:
-    figure *data_figure() const
+    Figure *data_figure() const
     {
         return figure_;
     }
 
 private:
-    figure *figure_ = nullptr;
+    Figure *figure_ = nullptr;
     const figure_type_registry_impl::FigureTypeDefinition *definition_ = nullptr;
     const figure_type_registry_impl::FigureTypeProfile *profile_ = nullptr;
 };
 
 // FigureType profiles own native walker behavior; this factory keeps runtime binding separate from controller actions.
 std::unique_ptr<NativeFigure> make_controller(
-    figure *f,
+    Figure *f,
     const figure_type_registry_impl::FigureTypeDefinition *definition,
     const figure_type_registry_impl::FigureTypeProfile *profile);
 

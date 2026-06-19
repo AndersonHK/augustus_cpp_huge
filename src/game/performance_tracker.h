@@ -2,9 +2,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     PERFORMANCE_TRACKER_BUCKET_FRAME,
@@ -30,6 +27,9 @@ typedef enum {
     PERFORMANCE_TRACKER_BUCKET_CITY_DRAW,
     PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_FOOTPRINT,
     PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ROW,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_TOP,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_FIGURES,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ANIMATION,
     PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION,
     PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED,
     PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST,
@@ -48,8 +48,6 @@ void performance_tracker_record_ticks_processed(int ticks);
 void performance_tracker_record_speed_goal(uint64_t elapsed_ms, uint64_t millis_per_tick_x1000);
 void performance_tracker_record_speed_wait(uint64_t elapsed_ms);
 
-#ifdef __cplusplus
-}
 
 class PerformanceTrackerScope {
 public:
@@ -64,4 +62,3 @@ private:
     uint64_t start_;
     int active_;
 };
-#endif

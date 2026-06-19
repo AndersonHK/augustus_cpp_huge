@@ -76,7 +76,7 @@ void game_file_editor_clear_data(void)
     building_menu_enable_all();
     building_clear_all();
     building_storage_clear_all();
-    figure_init_scenario();
+    Figure::init_scenario();
     enemy_armies_clear();
     figure_name_init();
     formations_clear();
@@ -132,7 +132,7 @@ static void prepare_map_for_editing(void)
     empire_object_init_cities(empire_id);
     empire_editor_init(0);
 
-    figure_init_scenario();
+    Figure::init_scenario();
     figure_create_editor_flags();
     figure_create_flotsam();
     figure_runtime_initialize_city();

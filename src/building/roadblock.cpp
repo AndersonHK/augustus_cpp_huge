@@ -1,6 +1,7 @@
 #include "roadblock.h"
 
 #include "building/building.h"
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "building/building_type.h"
 
@@ -32,7 +33,7 @@ static roadblock_type roadblock_kind_from_definition(building_type_registry_impl
 
 roadblock_type Roadblock::kind() const
 {
-    if (const building_type_registry_impl::BuildingType *definition = type_definition()) {
+    if (const building_type_registry_impl::BuildingType *definition = type) {
         return roadblock_kind_from_definition(definition->roadblock().kind());
     }
     return ROADBLOCK_NONE;
@@ -40,13 +41,14 @@ roadblock_type Roadblock::kind() const
 
 int Roadblock::exceptions() const
 {
-    return legacy_record() ? legacy_record()->data.roadblock.exceptions : 0;
+    building *record = id() ? building_get(id()) : nullptr;
+    return record ? record->data.roadblock.exceptions : 0;
 }
 
 void Roadblock::set_exceptions(int exceptions)
 {
-    if (legacy_record()) {
-        legacy_record()->data.roadblock.exceptions = exceptions;
+    if (building *record = id() ? building_get(id()) : nullptr) {
+        record->data.roadblock.exceptions = exceptions;
     }
 }
 

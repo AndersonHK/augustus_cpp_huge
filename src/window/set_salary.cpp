@@ -9,7 +9,6 @@
 #include "set_salary.h"
 
 #include "window/advisors.h"
-extern "C" {
 
 #include "city/emperor.h"
 #include "city/finance.h"
@@ -18,7 +17,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #define MIN_DIALOG_WIDTH 384
 

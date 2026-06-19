@@ -1,12 +1,9 @@
-﻿#pragma once
+#pragma once
 
 #include "building/building_fwd.h"
 #include "figure/figure.h"
 #include "input/mouse.h"
 #include "scenario/property.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 typedef struct {
@@ -17,7 +14,7 @@ typedef struct {
         int (*height)(void);
     } map;
     struct {
-        int (*figure)(int grid_offset, int (*callback)(figure *f));
+        int (*figure)(int grid_offset, int (*callback)(Figure *f));
         int (*terrain)(int grid_offset);
         unsigned int (*building_id)(int grid_offset);
         int (*is_draw_tile)(int grid_offset);
@@ -37,7 +34,3 @@ void widget_minimap_draw(int x_offset, int y_offset, int width, int height);
 void widget_minimap_draw_decorated(int x_offset, int y_offset, int width, int height);
 
 int widget_minimap_handle_mouse(const mouse *m);
-
-#ifdef __cplusplus
-}
-#endif

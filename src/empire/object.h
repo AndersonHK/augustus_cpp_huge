@@ -5,9 +5,6 @@
 #include "empire/type.h"
 #include "game/resource.h"
 #include "map/point.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 typedef struct {
@@ -166,6 +163,3 @@ void empire_object_set_trade_route_coords(const empire_object *our_city);
 
 empire_city_icon_type empire_object_get_random_icon_for_empire_object(full_empire_object *full_obj);
 
-#ifdef __cplusplus
-}
-#endif

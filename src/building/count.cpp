@@ -5,7 +5,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/industry.h"
 #include "building/monument.h"
-#include "core/array.h"
 #include "city/buildings.h"
 #include "city/health.h"
 #include "figure/figure.h"
@@ -20,6 +19,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 struct building_type_set_entry {
     building_type type;
@@ -50,17 +50,6 @@ static int is_fort_menu_type(building_type type)
 {
     return type_matches_text(type, "fort");
 }
-
-static const building_type_set_entry building_set_farms[] = {
-    {BUILDING_NONE, "wheat_farm"},
-    {BUILDING_NONE, "vegetable_farm"},
-    {BUILDING_NONE, "fruit_farm"},
-    {BUILDING_NONE, "olive_farm"},
-    {BUILDING_NONE, "vines_farm"},
-    {BUILDING_NONE, "pig_farm"}
-};
-
-#define BUILDING_SET_SIZE_FARMS (sizeof(building_set_farms) / sizeof(building_type_set_entry))
 
 static const building_type_set_entry building_set_workshops[] = {
     {BUILDING_NONE, "wine_workshop"},
@@ -366,9 +355,23 @@ static int count_all_types_in_set_in_area(const building_type_set_entry *set, in
     return total;
 }
 
+template <typename Count>
+static int count_farm_types(Count count)
+{
+    int total = 0;
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (definition && definition->is_farm()) {
+            total += count(definition->type());
+        }
+    }
+    return total;
+}
+
 int building_set_count_farms(int active_only)
 {
-    return count_all_types_in_set(active_only, building_set_farms, BUILDING_SET_SIZE_FARMS);
+    return count_farm_types([active_only](building_type type) {
+        return building_count_with_active_check(type, active_only);
+    });
 }
 
 int building_set_count_raw_materials(int active_only)
@@ -415,7 +418,9 @@ int building_set_count_deco_statues(void)
 
 int building_set_area_count_farms(int minx, int miny, int maxx, int maxy)
 {
-    return count_all_types_in_set_in_area(building_set_farms, BUILDING_SET_SIZE_FARMS, minx, miny, maxx, maxy);
+    return count_farm_types([minx, miny, maxx, maxy](building_type type) {
+        return building_count_in_area(type, minx, miny, maxx, maxy);
+    });
 }
 
 int building_set_area_count_raw_materials(int minx, int miny, int maxx, int maxy)
@@ -566,8 +571,7 @@ int building_count_bridges(int ship)
 
 int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int ship)
 {
-    array(int) bridge_ids = { 0 };
-    array_init(bridge_ids, 4, NULL, NULL);
+    std::vector<unsigned int> bridge_ids;
     int grid_offset;
     for (int y = miny; y < maxy; y++) {
         for (int x = minx; x < maxx; x++) {
@@ -582,25 +586,17 @@ int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int s
             }
             if (type_matches_text(b->type, ship ? "ship_bridge" : "low_bridge") && map_is_bridge(grid_offset)) {
                 int found = 0;
-                int *item;
-                array_foreach(bridge_ids, item)
-                {
-                    if ((unsigned int) *item == b->id) {
+                for (unsigned int bridge_id : bridge_ids) {
+                    if (bridge_id == b->id) {
                         found = 1;
                         break;
                     }
                 }
                 if (!found) {
-                    int *bridge_id;
-                    array_new_item(bridge_ids, bridge_id);
-                    if (bridge_id) {
-                        *bridge_id = b->id;
-                    }
+                    bridge_ids.push_back(b->id);
                 }
             }
         }
     }
-    int total = bridge_ids.size;
-    array_clear(bridge_ids);
-    return total;
+    return static_cast<int>(bridge_ids.size());
 }

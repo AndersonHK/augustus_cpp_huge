@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 typedef struct {
@@ -25,6 +22,3 @@ const terrain_image *map_image_context_get_dirt_road(int grid_offset);
 const terrain_image *map_image_context_get_paved_road(int grid_offset);
 const terrain_image *map_image_context_get_aqueduct(int grid_offset, int include_construction);
 
-#ifdef __cplusplus
-}
-#endif

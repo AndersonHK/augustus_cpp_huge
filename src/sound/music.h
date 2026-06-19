@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 void sound_music_set_volume(int percentage);
@@ -20,6 +17,3 @@ void sound_music_stop(void);
 
 void sound_music_next_track(void);
 
-#ifdef __cplusplus
-}
-#endif

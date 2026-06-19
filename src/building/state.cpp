@@ -6,16 +6,14 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
-extern "C" {
+#include "figure/figure.h"
 #include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
 #include "building/monument.h"
 #include "core/log.h"
-#include "figure/figure.h"
 #include "game/save_version.h"
 #include "map/grid.h"
-}
 
 #include <cstdio>
 #include <cstddef>
@@ -116,13 +114,11 @@ int type_uses_industry_state(const building *b)
 
 int type_uses_monthly_production_stats(building_type type)
 {
+    const building_type_registry_impl::BuildingType *definition = type_definition(type);
+    if (definition && definition->is_farm()) {
+        return 1;
+    }
     static const char *const monthly_stats_types[] = {
-        "wheat_farm",
-        "vegetable_farm",
-        "fruit_farm",
-        "olive_farm",
-        "vines_farm",
-        "pig_farm",
         "marble_quarry",
         "iron_mine",
         "timber_yard",
@@ -245,16 +241,16 @@ static void remove_figures_referencing_unsupported_building(unsigned int buildin
     if (!building_id) {
         return;
     }
-    const unsigned int count = figure_count();
+    const unsigned int count = Figure::count();
     for (unsigned int i = 1; i < count; i++) {
-        figure *f = figure_get(i);
+        Figure *f = Figure::get(i);
         if (!f || !f->state) {
             continue;
         }
-        if (f->building_id == building_id ||
-            f->destination_building_id == building_id ||
-            f->immigrant_building_id == building_id) {
-            figure_delete(f);
+        if (f->building.id() == building_id ||
+            f->destination_building.id() == building_id ||
+            f->immigrant_building.id() == building_id) {
+            f->remove();
         }
     }
 }
@@ -1128,7 +1124,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
         (type_is(b->type, "lighthouse") || type_is_caravanserai(b->type)) &&
         b->figure_id2 &&
         !for_preview &&
-        figure_get(b->figure_id2)->type != FIGURE_LABOR_SEEKER
+        Figure::get(b->figure_id2)->type != FIGURE_LABOR_SEEKER
     ) {
         b->figure_id = b->figure_id2;
         b->figure_id2 = 0;

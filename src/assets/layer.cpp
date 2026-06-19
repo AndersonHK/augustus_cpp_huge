@@ -5,12 +5,10 @@
 #include "layer.h"
 
 #include "core/file.h"
-extern "C" {
 #include "assets/assets.h"
 #include "core/log.h"
 #include "core/png_read.h"
 #include "core/string.h"
-}
 
 #include <stdlib.h>
 #include <string.h>

@@ -10,7 +10,6 @@
 #include "edit_invasion.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
@@ -21,7 +20,6 @@ extern "C" {
 #include "scenario/invasion.h"
 #include "scenario/property.h"
 #include "scenario/types.h"
-}
 
 enum {
     AMOUNT_MIN = 0,

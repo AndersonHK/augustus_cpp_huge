@@ -8,7 +8,7 @@
 
 static int is_show_venue(const Building &building)
 {
-    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    const building_type_registry_impl::BuildingType *type = building.type;
     if (!type) {
         return 0;
     }

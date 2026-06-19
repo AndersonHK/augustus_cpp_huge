@@ -2,13 +2,8 @@
 
 #include "building/building_type.h"
 
-#ifdef __cplusplus
 class Building;
-#endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES 3
@@ -44,8 +39,5 @@ int building_connectable_num_variants(building_type type);
 void building_connectable_update_connections(void);
 void building_connectable_update_connections_for_type(building_type type);
 
-#ifdef __cplusplus
-}
 
 int building_connectable_graphics_option(const Building &building);
-#endif

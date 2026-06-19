@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 extern struct map_data_t {
@@ -11,6 +8,3 @@ extern struct map_data_t {
     int border_size;
 } map_data;
 
-#ifdef __cplusplus
-}
-#endif

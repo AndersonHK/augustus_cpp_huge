@@ -1,16 +1,13 @@
 #pragma once
 #include "building/building_type.h"
 #include "map/grid.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 int map_bridge_building_length(void);
 
 int building_type_is_bridge(building_type type);
-//technically should be elsewhere, but this is the best place for now, to centralise bridge logic since it's an exemption. 
-//similarly to roadblocks, which also have a building_type check in roadblock.c
+//technically should be elsewhere, but this is the best place for now, to centralise bridge logic since it's an exemption.
+//similarly to roadblocks, which also have a building_type check in roadblock.cpp
 void map_bridge_reset_building_length(void);
 
 int map_bridge_calculate_length_direction(int x, int y, int *length, int *direction, grid_slice *blocking_tiles);
@@ -38,7 +35,3 @@ int map_bridge_has_figures(int grid_offset);
 int map_is_bridge(int grid_offset);
 
 int map_bridge_height(int grid_offset);
-
-#ifdef __cplusplus
-}
-#endif

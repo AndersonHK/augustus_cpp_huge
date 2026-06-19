@@ -2,12 +2,14 @@
 
 #include "building/building.h"
 #include "building/building_type.h"
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "building/image.h"
 #include "building/industry.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "core/image_group.h"
+#include "map/bridge.h"
 #include "map/building_tiles.h"
 #include "map/grid.h"
 #include "map/orientation.h"
@@ -20,7 +22,7 @@ static grid_u32 images_backup;
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    const building_type_registry_impl::BuildingType *definition = building.type;
     return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
@@ -73,18 +75,18 @@ void map_image_update_all(void)
 {
     map_tiles_update_all();
     for (int i = 1; i < Building::count(); i++) {
-        Building b = Building::from_id(i);
+        building *record = building_get(i);
+        Building b(record);
         if (b.state_id() != BUILDING_STATE_IN_USE && b.state_id() != BUILDING_STATE_MOTHBALLED &&
             b.state_id() != BUILDING_STATE_CREATED) {
             continue;
         }
-        if (b.is_farm()) {
-            building *record = b.legacy_record();
-            map_building_tiles_add_farm(b.id(), b.x(), b.y(), building_image_get_base_farm_crop(b.type_id()),
+        if (b.type && b.type->is_farm()) {
+            map_building_tiles_add_farm(b.id(), b.x(), b.y(), building_image_get_base_farm_crop(b.type->type()),
                 calc_percentage(record->data.industry.progress, building_industry_get_max_progress(record)));
             continue;
         }
-        if (b.is_bridge() || building_matches(b, "wall")) {
+        if (building_type_is_bridge(record->type) || building_matches(b, "wall")) {
             continue; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
         }
         if (b.refresh_graphic_if_native()) {

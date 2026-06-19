@@ -24,7 +24,6 @@
 #include "graphics/ui_runtime.h"
 #include "game/resource_graphics.h"
 
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/menu.h"
@@ -48,7 +47,6 @@ extern "C" {
 #include "input/scroll.h"
 #include "scenario/empire.h"
 #include "scenario/invasion.h"
-}
 
 #include <math.h>
 #include <stdio.h>

@@ -3,7 +3,6 @@
 #include "graphics/color.h"
 #include "graphics/renderer.h"
 
-#ifdef __cplusplus
 
 struct RuntimeDrawSlice {
     image_handle handle = 0;
@@ -30,4 +29,3 @@ void runtime_texture_draw_request(
     render_domain domain,
     render_scaling_policy scaling_policy);
 
-#endif

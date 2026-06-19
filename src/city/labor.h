@@ -8,9 +8,6 @@ typedef struct {
     int total_houses_covered;
 } labor_category_data;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int city_labor_unemployment_percentage(void);
 int city_labor_unemployment_percentage_for_senate(void);
@@ -39,6 +36,3 @@ void city_labor_set_priority(int category, int new_priority);
 
 int city_labor_max_selectable_priority(int category);
 
-#ifdef __cplusplus
-}
-#endif

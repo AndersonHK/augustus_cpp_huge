@@ -33,7 +33,6 @@
 #include "file_dialog.h"
 
 #include "core/file.h"
-extern "C" {
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -52,7 +51,6 @@ extern "C" {
 #include "platform/file_manager.h"
 #include "scenario/editor.h"
 #include "scenario/empire.h"
-}
 
 #include <string.h>
 

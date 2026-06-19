@@ -17,9 +17,7 @@
 
 #include "core/file.h"
 #include "game/mod_manager.h"
-extern "C" {
 #include "core/xml_parser.h"
-}
 
 namespace {
 

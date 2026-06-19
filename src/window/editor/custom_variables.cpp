@@ -18,7 +18,6 @@
 #include "widget/dropdown_button.h"
 #include "window/popup_dialog.h"
 #include "scenario/scenario.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "core/log.h"
@@ -32,7 +31,6 @@ extern "C" {
 #include "scenario/event/controller.h"
 #include "scenario/message_media_text_blob.h"
 #include "scenario/property.h"
-}
 
 #define CHECKBOX_ROW_WIDTH 25
 #define ID_ROW_WIDTH 32

@@ -4,6 +4,8 @@
 #include "building/lighthouse.h"
 #include "city/labor.h"
 #include "figure/action.h"
+#include "figure/figure.h"
+#include "figure/figure_runtime_api.h"
 #include "map/road_access.h"
 
 #include "building/building.h"
@@ -19,7 +21,6 @@
 
 #include "core/crash_context.h"
 
-extern "C" {
 #include "building/granary.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -30,18 +31,73 @@ extern "C" {
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/random.h"
-#include "figure/figure.h"
 #include "figure/movement.h"
-#include "figure/figure_runtime_api.h"
 #include "game/animation.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "core/log.h"
-}
 
 #include <cstdio>
 #include <cstdint>
 #include <string>
+
+namespace {
+
+int figure_belongs_to_building(const Figure *f, const Building &building)
+{
+    return f && f->building.id() == building.id();
+}
+
+void attach_figure_to_building(Figure *f, const Building &building)
+{
+    if (f) {
+        f->building = building;
+    }
+}
+
+void send_supplier_to_storage_destination(Figure *supplier, const Building &destination)
+{
+    if (!supplier) {
+        return;
+    }
+    if (supplier->destination_building.id()) {
+        supplier->last_destination_id = supplier->destination_building.id();
+    }
+
+    supplier->destination_building = destination;
+
+    map_point road;
+    int destination_found = 0;
+    if (!destination.type) {
+        return;
+    }
+    const building_type_registry_impl::BuildingType &destination_type = *destination.type;
+    if (destination_type.is_warehouse()) {
+        if (map_has_road_access_warehouse(destination.x(), destination.y(), &road)) {
+            destination_found = 1;
+        }
+    } else if (destination_type.is_granary()) {
+        if (map_has_road_access_granary(destination.x(), destination.y(), &road)) {
+            destination_found = 1;
+        }
+    } else if (destination_type.is_grand_temple_venus()) {
+        if (map_has_road_access(destination.x(), destination.y(), destination.size(), &road)) {
+            destination_found = 1;
+        }
+    }
+
+    if (destination_found) {
+        supplier->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
+        supplier->destination_x = road.x;
+        supplier->destination_y = road.y;
+    } else {
+        supplier->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
+        supplier->destination_x = supplier->x;
+        supplier->destination_y = supplier->y;
+    }
+}
+
+} // namespace
 
 int building_runtime::worker_percentage() const
 {
@@ -69,7 +125,7 @@ int building_runtime::default_spawn_delay() const
 
 void building_runtime::check_labor_problem()
 {
-    if (building_local_workforce_is_workforce_building(building().legacy_record())) {
+    if (building_local_workforce::is_workforce_building(building())) {
         if (!building().worker_count()) {
             record().show_on_problem_overlay = 2;
         }
@@ -94,17 +150,18 @@ void building_runtime::generate_labor_seeker(int x, int y)
         return;
     }
     if (record().figure_id2) {
-        figure *existing = figure_get(record().figure_id2);
-        if (!existing->state || existing->type != FIGURE_LABOR_SEEKER || existing->building_id != building().id()) {
+        Building current = building();
+        Figure *existing = Figure::get(record().figure_id2);
+        if (!existing->state || existing->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(existing, current)) {
             record().figure_id2 = 0;
         }
         return;
     }
 
-    figure *labor_seeker = figure_create(FIGURE_LABOR_SEEKER, x, y, DIR_0_TOP);
+    Figure *labor_seeker = Figure::create(FIGURE_LABOR_SEEKER, x, y, DIR_0_TOP);
     labor_seeker->action_state = FIGURE_ACTION_125_ROAMING;
-    labor_seeker->building_id = building().id();
-    record().figure_id2 = labor_seeker->id;
+    attach_figure_to_building(labor_seeker, building());
+    record().figure_id2 = labor_seeker->id();
     figure_movement_init_roaming(labor_seeker);
 }
 
@@ -132,12 +189,13 @@ void building_runtime::run_labor_phase(const building_type_registry_impl::LaborD
         !config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
         const int trigger_workers = labor_policy.amount;
         const float workforce_access = building().labor_access_score();
+        Building current = building();
         if (workforce_access < trigger_workers) {
-            if (!building_local_workforce_spawn_acquisition(building().legacy_record(), &road) && workforce_access > 0) {
-                building_local_workforce_spawn_validation(building().legacy_record(), &road);
+            if (!building_local_workforce::spawn_acquisition(current, &road) && workforce_access > 0) {
+                building_local_workforce::spawn_validation(current, &road);
             }
         } else {
-            building_local_workforce_spawn_validation(building().legacy_record(), &road);
+            building_local_workforce::spawn_validation(current, &road);
         }
         return;
     }
@@ -163,8 +221,9 @@ int building_runtime::has_figure_of_type(figure_type type)
     if (!building().has_primary_figure()) {
         return 0;
     }
-    figure *existing = figure_get(record().figure_id);
-    if (existing->state && existing->building_id == building().id() && existing->type == type) {
+    Figure *existing = Figure::get(record().figure_id);
+    Building current = building();
+    if (existing->state && figure_belongs_to_building(existing, current) && existing->type == type) {
         return 1;
     }
     record().figure_id = 0;
@@ -180,8 +239,9 @@ int building_runtime::has_figure_of_any(const std::vector<figure_type> &types)
     // Group guards reason about one tracked slot. Do not call the single-type
     // helper repeatedly here because it clears the slot when that one type does
     // not match, which breaks alternates that intentionally share the slot.
-    figure *existing = figure_get(record().figure_id);
-    if (!existing || !existing->state || existing->building_id != building().id()) {
+    Figure *existing = Figure::get(record().figure_id);
+    Building current = building();
+    if (!existing || !existing->state || !figure_belongs_to_building(existing, current)) {
         record().figure_id = 0;
         return 0;
     }
@@ -223,14 +283,15 @@ unsigned int building_runtime::find_live_owned_figure(figure_type primary_type, 
 {
     // Compatibility scan for figures that predate XML-owned slots, or that
     // lost their tracked slot through legacy cleanup. Spawns identify ownership
-    // by building_id, so a live owned walker can safely rehydrate the slot.
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *existing = figure_get(i);
-        if (!existing || !existing->state || existing->building_id != building().id()) {
+    // by building relation, so a live owned walker can safely rehydrate the slot.
+    Building current = building();
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *existing = Figure::get(i);
+        if (!existing || !existing->state || !figure_belongs_to_building(existing, current)) {
             continue;
         }
         if (existing->type == primary_type || (secondary_type != FIGURE_NONE && existing->type == secondary_type)) {
-            return existing->id;
+            return existing->id();
         }
     }
     return 0;
@@ -256,8 +317,9 @@ int building_runtime::slot_has_live_figure(
         return *slot_value > 0;
     }
 
-    figure *existing = figure_get(*slot_value);
-    if (!existing || !existing->state || existing->building_id != building().id()) {
+    Figure *existing = Figure::get(*slot_value);
+    Building current = building();
+    if (!existing || !existing->state || !figure_belongs_to_building(existing, current)) {
         *slot_value = 0;
         *slot_value = find_live_owned_figure(primary_type, secondary_type);
         return *slot_value > 0;
@@ -273,52 +335,6 @@ int building_runtime::slot_has_live_figure(
     return 1;
 }
 
-void building_runtime::send_supplier_to_destination(figure *supplier, int destination_building_id)
-{
-    if (!supplier) {
-        return;
-    }
-    if (supplier->destination_building_id) {
-        supplier->last_destinatation_id = supplier->destination_building_id;
-    }
-
-    supplier->destination_building_id = destination_building_id;
-    const Building destination_building = Building::from_id(destination_building_id);
-    if (!destination_building.id()) {
-        supplier->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
-        supplier->destination_x = supplier->x;
-        supplier->destination_y = supplier->y;
-        return;
-    }
-
-    map_point road;
-    int destination_found = 0;
-    const building_type_registry_impl::BuildingType &destination_type = destination_building.type();
-    if (destination_type.is_warehouse()) {
-        if (map_has_road_access_warehouse(destination_building.x(), destination_building.y(), &road)) {
-            destination_found = 1;
-        }
-    } else if (destination_type.is_granary()) {
-        if (map_has_road_access_granary(destination_building.x(), destination_building.y(), &road)) {
-            destination_found = 1;
-        }
-    } else if (destination_type.is_grand_temple_venus()) {
-        if (map_has_road_access(destination_building.x(), destination_building.y(), destination_building.size(), &road)) {
-            destination_found = 1;
-        }
-    }
-
-    if (destination_found) {
-        supplier->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-        supplier->destination_x = road.x;
-        supplier->destination_y = road.y;
-    } else {
-        supplier->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
-        supplier->destination_x = supplier->x;
-        supplier->destination_y = supplier->y;
-    }
-}
-
 int building_runtime::spawn_caravanserai_supplier(const map_point &road)
 {
     if (slot_has_live_figure(
@@ -328,20 +344,20 @@ int building_runtime::spawn_caravanserai_supplier(const map_point &road)
         return 0;
     }
 
-    int destination_building_id = building_caravanserai_get_storage_destination(building());
-    if (!destination_building_id) {
+    Building destination = building_caravanserai_get_storage_destination(building());
+    if (!destination.id()) {
         return 0;
     }
 
-    figure *supplier = figure_create(FIGURE_CARAVANSERAI_SUPPLIER, road.x, road.y, DIR_0_TOP);
+    Figure *supplier = Figure::create(FIGURE_CARAVANSERAI_SUPPLIER, road.x, road.y, DIR_0_TOP);
     if (!supplier) {
         return 0;
     }
 
-    supplier->building_id = building().id();
+    attach_figure_to_building(supplier, building());
     supplier->collecting_item_id = record().data.market.fetch_inventory_id;
-    building().set_primary_figure_id(supplier->id);
-    send_supplier_to_destination(supplier, destination_building_id);
+    building().set_primary_figure_id(supplier->id());
+    send_supplier_to_storage_destination(supplier, destination);
     return 1;
 }
 
@@ -354,20 +370,20 @@ int building_runtime::spawn_lighthouse_supplier(const map_point &road)
         return 0;
     }
 
-    int destination_building_id = building_lighthouse_get_storage_destination(building());
-    if (!destination_building_id) {
+    Building destination = building_lighthouse_get_storage_destination(building());
+    if (!destination.id()) {
         return 0;
     }
 
-    figure *supplier = figure_create(FIGURE_LIGHTHOUSE_SUPPLIER, road.x, road.y, DIR_0_TOP);
+    Figure *supplier = Figure::create(FIGURE_LIGHTHOUSE_SUPPLIER, road.x, road.y, DIR_0_TOP);
     if (!supplier) {
         return 0;
     }
 
-    supplier->building_id = building().id();
+    attach_figure_to_building(supplier, building());
     supplier->collecting_item_id = resource_timber();
-    building().set_primary_figure_id(supplier->id);
-    send_supplier_to_destination(supplier, destination_building_id);
+    building().set_primary_figure_id(supplier->id());
+    send_supplier_to_storage_destination(supplier, destination);
     return 1;
 }
 
@@ -392,22 +408,22 @@ int building_runtime::spawn_temple_supplier(const map_point &road)
     }
 
     Building current = building();
-    if (const building_type_registry_impl::Distribution *distribution = current.type().distribution()) {
+    if (const building_type_registry_impl::Distribution *distribution = current.type->distribution()) {
         distribution->update_demands(current);
     }
-    int destination_building_id = building_temple_get_storage_destination(current);
-    if (!destination_building_id) {
+    Building destination = building_temple_get_storage_destination(current);
+    if (!destination.id()) {
         return 0;
     }
 
-    figure *supplier = figure_create(FIGURE_PRIEST_SUPPLIER, road.x, road.y, DIR_0_TOP);
+    Figure *supplier = Figure::create(FIGURE_PRIEST_SUPPLIER, road.x, road.y, DIR_0_TOP);
     if (!supplier) {
         return 0;
     }
-    supplier->building_id = building().id();
+    attach_figure_to_building(supplier, building());
     supplier->collecting_item_id = record().data.market.fetch_inventory_id;
-    assign_figure_slot(building_type_registry_impl::FigureSlot::Secondary, supplier->id);
-    send_supplier_to_destination(supplier, destination_building_id);
+    assign_figure_slot(building_type_registry_impl::FigureSlot::Secondary, supplier->id());
+    send_supplier_to_storage_destination(supplier, destination);
     return 1;
 }
 
@@ -419,18 +435,22 @@ int building_runtime::spawn_temple_destination_priest(const map_point &road)
         return 0;
     }
 
-    int pantheon_id = building_monument_working(building_type_registry_impl::runtime_id_from_text("pantheon"));
-    if (!pantheon_id) {
+    building_type pantheon_type = building_type_registry_impl::runtime_id_from_text("pantheon");
+    if (!building_monument_working(pantheon_type)) {
+        return 0;
+    }
+    Building pantheon = Building::first_of_type(pantheon_type);
+    if (!pantheon.id()) {
         return 0;
     }
 
-    figure *priest = figure_create(FIGURE_PRIEST, road.x, road.y, DIR_4_BOTTOM);
+    Figure *priest = Figure::create(FIGURE_PRIEST, road.x, road.y, DIR_4_BOTTOM);
     if (!priest) {
         return 0;
     }
-    assign_figure_slot(building_type_registry_impl::FigureSlot::Quaternary, priest->id);
-    priest->destination_building_id = pantheon_id;
-    priest->building_id = building().id();
+    assign_figure_slot(building_type_registry_impl::FigureSlot::Quaternary, priest->id());
+    priest->destination_building = pantheon;
+    attach_figure_to_building(priest, building());
     priest->action_state = FIGURE_ACTION_212_DESTINATION_PRIEST_CREATED;
     return 1;
 }
@@ -442,14 +462,13 @@ int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
         return 0;
     }
 
-    int mess_hall_id = city_buildings_get_mess_hall();
-    Building mess_hall = Building::from_id(mess_hall_id);
-    if (!mess_hall.id() || !mess_hall.type().is_mess_hall()) {
+    Building mess_hall = Building::first_of_type(building_type_registry_impl::runtime_id_from_text("mess_hall"));
+    if (!mess_hall.id() || !mess_hall.is_in_use() || !mess_hall.type || !mess_hall.type->is_mess_hall()) {
         return 0;
     }
 
     if (building().has_secondary_figure()) {
-        figure *existing = figure_get(record().figure_id2);
+        Figure *existing = Figure::get(record().figure_id2);
         if (existing && existing->state == FIGURE_STATE_ALIVE && existing->type == FIGURE_PRIEST) {
             return 0;
         }
@@ -458,19 +477,19 @@ int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
         }
     }
 
-    int food_to_deliver = building_temple_mars_food_to_deliver(building(), Building::from_id(mess_hall_id));
+    int food_to_deliver = building_temple_mars_food_to_deliver(building(), mess_hall);
     if (food_to_deliver < 0) {
         return 0;
     }
 
-    figure *priest = figure_create(FIGURE_PRIEST, road.x, road.y, DIR_4_BOTTOM);
+    Figure *priest = Figure::create(FIGURE_PRIEST, road.x, road.y, DIR_4_BOTTOM);
     if (!priest) {
         return 0;
     }
     priest->collecting_item_id = static_cast<unsigned char>(food_to_deliver);
-    assign_figure_slot(building_type_registry_impl::FigureSlot::Secondary, priest->id);
-    priest->destination_building_id = mess_hall_id;
-    priest->building_id = building().id();
+    assign_figure_slot(building_type_registry_impl::FigureSlot::Secondary, priest->id());
+    priest->destination_building = mess_hall;
+    attach_figure_to_building(priest, building());
     priest->action_state = FIGURE_ACTION_214_DESTINATION_MARS_PRIEST_CREATED;
     return 1;
 }
@@ -488,22 +507,23 @@ int building_runtime::spawn_temple_neptune_chariot(const map_point &road)
         return 0;
     }
 
-    figure *charioteer = figure_runtime_create_profiled(
+    Building current = building();
+    Figure *charioteer = figure_runtime_create_profiled(
         FIGURE_CHARIOTEER,
         road.x,
         road.y,
         DIR_0_TOP,
-        building().id(),
+        current,
         "venue_seeker");
     if (!charioteer) {
-        charioteer = figure_create(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP);
+        charioteer = Figure::create(FIGURE_CHARIOTEER, road.x, road.y, DIR_0_TOP);
         if (!charioteer) {
             return 0;
         }
         charioteer->action_state = FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED;
-        charioteer->building_id = building().id();
+        attach_figure_to_building(charioteer, current);
     }
-    assign_figure_slot(building_type_registry_impl::FigureSlot::Secondary, charioteer->id);
+    assign_figure_slot(building_type_registry_impl::FigureSlot::Secondary, charioteer->id());
     record().days_since_offering = 0;
     return 1;
 }
@@ -535,7 +555,7 @@ int building_runtime::spawn_grand_temple_mars_recruit(const map_point &road)
     }
     record().figure_spawn_delay = 0;
 
-    Barracks barracks(legacy_record());
+    Barracks barracks(record());
     switch (barracks.priority()) {
         case PRIORITY_FORT:
         case PRIORITY_FORT_JAVELIN:
@@ -554,11 +574,11 @@ int building_runtime::spawn_grand_temple_mars_recruit(const map_point &road)
     }
 
     if (!has_figure_of_type(FIGURE_PRIEST)) {
-        figure *priest = figure_create(FIGURE_PRIEST, road.x, road.y, DIR_0_TOP);
+        Figure *priest = Figure::create(FIGURE_PRIEST, road.x, road.y, DIR_0_TOP);
         if (priest) {
             priest->action_state = FIGURE_ACTION_125_ROAMING;
-            priest->building_id = building().id();
-            building().set_primary_figure_id(priest->id);
+            attach_figure_to_building(priest, building());
+            building().set_primary_figure_id(priest->id());
             figure_movement_init_roaming(priest);
         }
     }
@@ -594,13 +614,13 @@ void building_runtime::spawn_architect_guild()
         return;
     }
 
-    figure *architect = figure_create(FIGURE_WORK_CAMP_ARCHITECT, road.x, road.y, DIR_4_BOTTOM);
+    Figure *architect = Figure::create(FIGURE_WORK_CAMP_ARCHITECT, road.x, road.y, DIR_4_BOTTOM);
     if (!architect) {
         return;
     }
     architect->action_state = FIGURE_ACTION_206_WORK_CAMP_ARCHITECT_CREATED;
-    architect->building_id = building().id();
-    building().set_primary_figure_id(architect->id);
+    attach_figure_to_building(architect, building());
+    building().set_primary_figure_id(architect->id());
 }
 
 void building_runtime::spawn_caravanserai()
@@ -691,21 +711,21 @@ void building_runtime::spawn_watchtower()
     }
 
     record().figure_spawn_delay = 0;
-    figure *primary_watchman = figure_create(FIGURE_WATCHMAN, road.x, road.y, DIR_0_TOP);
+    Figure *primary_watchman = Figure::create(FIGURE_WATCHMAN, road.x, road.y, DIR_0_TOP);
     if (!primary_watchman) {
         return;
     }
     primary_watchman->action_state = FIGURE_ACTION_220_WATCHMAN_PATROL_INITIATE;
-    primary_watchman->building_id = building().id();
-    building().set_primary_figure_id(primary_watchman->id);
+    attach_figure_to_building(primary_watchman, building());
+    building().set_primary_figure_id(primary_watchman->id());
 
-    figure *secondary_watchman = figure_create(FIGURE_WATCHMAN, road.x, road.y, DIR_0_TOP);
+    Figure *secondary_watchman = Figure::create(FIGURE_WATCHMAN, road.x, road.y, DIR_0_TOP);
     if (!secondary_watchman) {
         return;
     }
     secondary_watchman->action_state = FIGURE_ACTION_220_WATCHMAN_PATROL_INITIATE;
-    secondary_watchman->building_id = building().id();
-    assign_figure_slot(building_type_registry_impl::FigureSlot::Secondary, secondary_watchman->id);
+    attach_figure_to_building(secondary_watchman, building());
+    assign_figure_slot(building_type_registry_impl::FigureSlot::Secondary, secondary_watchman->id());
 }
 
 void building_runtime::spawn_armoury()
@@ -751,18 +771,18 @@ void building_runtime::spawn_armoury()
     }
 
     record().figure_spawn_delay = 0;
-    if (!Armoury(legacy_record()).is_needed()) {
+    if (!Armoury(record()).is_needed()) {
         return;
     }
 
-    figure *warehouseman = figure_create(FIGURE_WAREHOUSEMAN, road.x, road.y, DIR_4_BOTTOM);
+    Figure *warehouseman = Figure::create(FIGURE_WAREHOUSEMAN, road.x, road.y, DIR_4_BOTTOM);
     if (!warehouseman) {
         return;
     }
     warehouseman->action_state = FIGURE_ACTION_50_WAREHOUSEMAN_CREATED;
     warehouseman->collecting_item_id = resource_weapons();
-    warehouseman->building_id = building().id();
-    assign_figure_slot(target_slot, warehouseman->id);
+    attach_figure_to_building(warehouseman, building());
+    assign_figure_slot(target_slot, warehouseman->id());
 }
 
 int building_runtime::resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const
@@ -817,9 +837,11 @@ int building_runtime::evaluate_spawn_chance(const building_type_registry_impl::S
         case building_type_registry_impl::SpawnChanceSource::CityUnemploymentPercent:
             source_value = city_labor_unemployment_percentage();
             break;
-        case building_type_registry_impl::SpawnChanceSource::HouseUnemployedWorkers:
-            source_value = building_local_workforce_house_available_workers(building().legacy_record());
+        case building_type_registry_impl::SpawnChanceSource::HouseUnemployedWorkers: {
+            Building current = building();
+            source_value = building_local_workforce::house_available_workers(current);
             break;
+        }
         case building_type_registry_impl::SpawnChanceSource::None:
         default:
             break;
@@ -919,25 +941,26 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
     int spawn_count = policy.spawn_count > 0 ? policy.spawn_count : 1;
     for (int i = 0; i < spawn_count; i++) {
         // XML profiles are the handoff point between BuildingType spawn policy and FigureType behavior.
-        figure *spawned = policy.profile.empty() ?
-            figure_create(policy.spawn_figure, road.x, road.y, static_cast<direction_type>(policy.spawn_direction)) :
+        Building current = building();
+        Figure *spawned = policy.profile.empty() ?
+            Figure::create(policy.spawn_figure, road.x, road.y, static_cast<direction_type>(policy.spawn_direction)) :
             figure_runtime_create_profiled(
                 policy.spawn_figure,
                 road.x,
                 road.y,
                 static_cast<direction_type>(policy.spawn_direction),
-                building().id(),
+                current,
                 policy.profile.c_str());
         if (!spawned) {
             continue;
         }
         if (policy.profile.empty()) {
             spawned->action_state = policy.action_state;
-            spawned->building_id = building().id();
+            attach_figure_to_building(spawned, current);
         }
         // A multi-spawn policy still only owns one legacy tracked slot today; later spawns remain untracked for now.
         if (!spawned_any) {
-            assign_figure_slot(policy.figure_slot, spawned->id);
+            assign_figure_slot(policy.figure_slot, spawned->id());
         }
         if (policy.profile.empty() && policy.init_roaming) {
             figure_movement_init_roaming(spawned);

@@ -1,9 +1,6 @@
 #pragma once
 
 #include "building/building_type.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 /**
@@ -18,6 +15,3 @@ building_type building_clone_type_from_grid_offset(int grid_offset);
 building_type building_clone_type_from_building_type(building_type type);
 int building_clone_rotation_from_grid_offset(int grid_offset);
 
-#ifdef __cplusplus
-}
-#endif

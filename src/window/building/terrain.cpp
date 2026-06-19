@@ -48,7 +48,7 @@ void window_building_draw_terrain(building_info_context *c)
             }
         }
         if (c->figure.count > 0 && c->figure.figure_ids[c->figure.selected_index]) {
-            figure *f = figure_get(c->figure.figure_ids[c->figure.selected_index]);
+            Figure *f = Figure::get(c->figure.figure_ids[c->figure.selected_index]);
             if (f->type < FIGURE_SHIPWRECK || (f->type >= FIGURE_NEW_TYPES && f->type < FIGURE_TYPE_MAX)) {
                 c->help_id = 42;
             } else {

@@ -2,9 +2,7 @@
 
 #include "building/storage_type.h"
 
-extern "C" {
 #include "building/building_fwd.h"
-}
 
 #include <cstddef>
 #include <memory>

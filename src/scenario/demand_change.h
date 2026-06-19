@@ -1,10 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
 #include "game/save_version.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define DEMAND_CHANGE_LEGACY_IS_RISE 9999
@@ -48,6 +45,3 @@ void scenario_demand_change_load_state(buffer *buf, scenario_version_t version);
 
 void scenario_demand_change_load_state_old_version(buffer *buf, int is_legacy_change);
 
-#ifdef __cplusplus
-}
-#endif

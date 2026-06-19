@@ -49,9 +49,6 @@ typedef struct {
     } default_trade_price;
 } resource_data;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void resource_init(void);
 
@@ -111,6 +108,3 @@ resource_type resource_troops(void);
 void production_rates_load(buffer *buf);
 void production_rates_save(buffer *buf);
 
-#ifdef __cplusplus
-}
-#endif

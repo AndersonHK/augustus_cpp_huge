@@ -19,7 +19,6 @@
 
 #include "scenario/data.h"
 #include "scenario/scenario.h"
-extern "C" {
 #include "core/string.h"
 #include "empire/object.h"
 #include "game/resource.h"
@@ -27,7 +26,6 @@ extern "C" {
 #include "scenario/editor.h"
 #include "scenario/editor_map.h"
 #include "scenario/empire.h"
-}
 
 
 #include "game/system.h"

@@ -4,24 +4,24 @@
 #include "map/building_tiles.h"
 #include "map/image.h"
 #include "map/road_access.h"
+#include "figure/figure.h"
 
 #include "house.h"
 
 #include "building/building.h"
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
+#include "building/housing_type.h"
 
-extern "C" {
 #include "building/building_type_api.h"
 #include "city/population.h"
 #include "core/config.h"
 #include "core/image.h"
-#include "figure/figure.h"
 #include "game/resource.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
-}
 
 #define MAX_DIR 4
 
@@ -56,16 +56,21 @@ int building_house_is_active(Building house)
 
 int building_house_legacy_level(Building house)
 {
-    const building *record = house.legacy_record();
-    if (!record) {
+    if (!house.id()) {
         return -1;
     }
 
-    int level = building_type_registry_get_housing_level(house.type_id());
+    const auto *housing = house.type ? house.type->housing_type() : nullptr;
+    const int level = housing ? housing->level() : -1;
     if (level >= HOUSE_MIN && level <= HOUSE_MAX) {
         return level;
     }
-    if (!record->house_size && !building_type_registry_has_housing(house.type_id())) {
+    if (!house.has_house_size() && !(house.type && house.type->has_housing())) {
+        return -1;
+    }
+
+    const building *record = building_get(house.id());
+    if (!record) {
         return -1;
     }
     if (record->subtype.house_level >= HOUSE_MIN && record->subtype.house_level <= HOUSE_MAX) {
@@ -76,13 +81,13 @@ int building_house_legacy_level(Building house)
 
 const model_house *building_house_get_model(Building house)
 {
-    if (!house.legacy_record()) {
+    if (!house.id()) {
         return nullptr;
     }
 
-    const model_house *model = building_type_registry_get_housing_model(house.type_id());
-    if (model) {
-        return model;
+    const auto *housing = house.type ? house.type->housing_type() : nullptr;
+    if (housing) {
+        return &housing->model();
     }
     int level = building_house_legacy_level(house);
     return level >= 0 ? model_get_house(static_cast<house_level>(level)) : nullptr;
@@ -90,12 +95,12 @@ const model_house *building_house_get_model(Building house)
 
 int building_house_has_plebeian_residents(Building house)
 {
-    if (!house.legacy_record()) {
+    if (!house.id()) {
         return 0;
     }
-    if (building_type_registry_has_housing(house.type_id())) {
-        return building_type_registry_housing_has_resident_class(
-            house.type_id(), BUILDING_TYPE_HOUSING_RESIDENT_PLEBEIAN);
+    const auto *housing = house.type ? house.type->housing_type() : nullptr;
+    if (housing) {
+        return housing->resident_class() == building_type_registry_impl::HousingResidentClass::Plebeian;
     }
 
     int level = building_house_legacy_level(house);
@@ -104,12 +109,12 @@ int building_house_has_plebeian_residents(Building house)
 
 int building_house_has_patrician_residents(Building house)
 {
-    if (!house.legacy_record()) {
+    if (!house.id()) {
         return 0;
     }
-    if (building_type_registry_has_housing(house.type_id())) {
-        return building_type_registry_housing_has_resident_class(
-            house.type_id(), BUILDING_TYPE_HOUSING_RESIDENT_PATRICIAN);
+    const auto *housing = house.type ? house.type->housing_type() : nullptr;
+    if (housing) {
+        return housing->resident_class() == building_type_registry_impl::HousingResidentClass::Patrician;
     }
 
     int level = building_house_legacy_level(house);
@@ -118,7 +123,7 @@ int building_house_has_patrician_residents(Building house)
 
 static void add_house_tiles(Building &house_object)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return;
     }
@@ -130,9 +135,16 @@ static void add_house_tiles(Building &house_object)
     }
 }
 
+static int housing_level_for_type(building_type type)
+{
+    const auto *definition = building_type_registry_impl::definition_for_type(type);
+    const auto *housing = definition ? definition->housing_type() : nullptr;
+    return housing ? housing->level() : -1;
+}
+
 static void set_house_legacy_level_from_type(building *house, building_type type)
 {
-    int level = building_type_registry_get_housing_level(type);
+    int level = housing_level_for_type(type);
     if (level >= 0) {
         house->subtype.house_level = level;
     }
@@ -140,7 +152,8 @@ static void set_house_legacy_level_from_type(building *house, building_type type
 
 static int housing_model_size(building_type type, int fallback_size)
 {
-    int size = building_type_registry_get_model_size(type);
+    const auto *definition = building_type_registry_impl::definition_for_type(type);
+    int size = definition ? definition->model().size() : 0;
     return size > 0 ? size : fallback_size;
 }
 
@@ -161,22 +174,24 @@ static int is_empty_vacant_lot(const building *house)
 
 static building_type split_type_for_house(building *house, building_type fallback_type)
 {
-    building_type split_type = building_type_registry_get_housing_transition(
-        house->type, BUILDING_TYPE_HOUSING_TRANSITION_SPLIT_TO);
+    Building house_object(house);
+    building_type split_type = house_object.type ?
+        house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::SplitTo) :
+        BUILDING_NONE;
     return split_type == BUILDING_NONE ? fallback_type : split_type;
 }
 
 void building_house_change_to(Building house_object, building_type type)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return;
     }
     int should_reseed_graphics = is_empty_vacant_lot(house);
     house_object.change_type(type);
     set_house_legacy_level_from_type(house, house->type);
-    if (building_type_registry_has_housing(house->type)) {
-        int size = building_type_registry_get_model_size(house->type);
+    if (house_object.type && house_object.type->has_housing()) {
+        int size = house_object.type->model().size();
         if (size > 0) {
             house->size = house->house_size = size;
             house->house_is_merged = size > 1 ? 1 : 0;
@@ -212,7 +227,7 @@ void building_house_vacant_lot_mark_draw(int building_id)
 
 void building_house_change_to_vacant_lot(Building house_object)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return;
     }
@@ -266,17 +281,16 @@ static void merge(building *b)
 {
     prepare_for_merge(b->id, 4);
 
-    building_type merge_type = building_type_registry_get_housing_transition(
-        b->type, BUILDING_TYPE_HOUSING_TRANSITION_MERGE_TO);
+    Building house_object(b);
+    building_type merge_type = house_object.type ?
+        house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::MergeTo) :
+        BUILDING_NONE;
     if (merge_type != BUILDING_NONE) {
-        building_change_type(b, merge_type);
-        int level = building_type_registry_get_housing_level(merge_type);
-        if (level >= 0) {
-            b->subtype.house_level = level;
-        }
+        house_object.change_type(merge_type);
+        set_house_legacy_level_from_type(b, merge_type);
     }
 
-    int merged_size = building_type_registry_get_model_size(b->type);
+    int merged_size = house_object.type ? house_object.type->model().size() : 0;
     b->size = b->house_size = merged_size > 0 ? merged_size : 2;
     b->is_close_to_water = building_is_close_to_water(b);
     merge_data.sentiment += b->house_population * b->sentiment.house_happiness;
@@ -308,7 +322,7 @@ static void merge(building *b)
 
 void building_house_merge(Building house_object)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return;
     }
@@ -344,7 +358,7 @@ void building_house_merge(Building house_object)
 
 int building_house_can_expand(Building house_object, int num_tiles)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return 0;
     }
@@ -573,7 +587,7 @@ static void split(building *house, int num_tiles)
 
 int building_house_expand_to_type(Building house_object, building_type type)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return 0;
     }
@@ -681,15 +695,15 @@ static void shrink_house_to_type(building *house, building_type type)
 
 void building_house_devolve_to_type(Building house_object, building_type type)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return;
     }
     int current_size = house->house_size;
     int target_size = housing_model_size(type, current_size);
 
-    int current_level = building_type_registry_get_housing_level(house->type);
-    int target_level = building_type_registry_get_housing_level(type);
+    int current_level = building_house_legacy_level(house_object);
+    int target_level = housing_level_for_type(type);
     if (current_level == HOUSE_LARGE_INSULA && target_level == HOUSE_MEDIUM_INSULA &&
         current_size == 2 && target_size == 2) {
         building_type split_type = split_type_for_house(house, BUILDING_NONE);
@@ -752,7 +766,7 @@ static int find_best_corner_for_devolve(int x, int y, int old_size, int new_size
 
 void building_house_check_for_corruption(Building house_object)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return;
     }
@@ -780,16 +794,16 @@ void building_house_check_for_corruption(Building house_object)
 
 void building_house_restore_population_after_undo(Building house_object)
 {
-    building *house = house_object.legacy_record();
+    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
     if (!house) {
         return;
     }
     if (house->figure_id) {
-        figure *homeless = figure_get(house->figure_id);
-        if (homeless->building_id == house->id) {
+        Figure *homeless = Figure::get(house->figure_id);
+        if (homeless && homeless->building.id() == house->id) {
             house->house_population = homeless->migrant_num_people;
             city_population_add_homeless(homeless->migrant_num_people);
-            figure_delete(homeless);
+            homeless->remove();
         }
     }
 }

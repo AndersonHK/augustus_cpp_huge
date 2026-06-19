@@ -2,11 +2,9 @@
 
 #include "game/campaign.h"
 #include "scenario/data.h"
-extern "C" {
 #include "property.h"
 #include "core/calc.h"
 #include "core/string.h"
-}
 
 
 int scenario_is_custom(void)

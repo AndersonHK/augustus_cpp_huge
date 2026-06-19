@@ -49,7 +49,7 @@ static int building_matches(const building *b, const char *text_id)
         return 0;
     }
     Building current(const_cast<building *>(b));
-    const building_type_registry_impl::BuildingType *definition = current.type_definition();
+    const building_type_registry_impl::BuildingType *definition = current.type;
     return definition && definition->attr() && strcmp(definition->attr(), text_id) == 0;
 }
 

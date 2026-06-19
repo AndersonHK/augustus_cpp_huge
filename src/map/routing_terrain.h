@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 void map_routing_update_all(void);
@@ -30,6 +27,3 @@ enum {
 };
 int map_routing_get_destroyable(int grid_offset);
 
-#ifdef __cplusplus
-}
-#endif

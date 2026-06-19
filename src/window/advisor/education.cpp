@@ -8,12 +8,10 @@
 
 #include "education.h"
 
-extern "C" {
 #include "building/building_type_api.h"
 #include "city/population.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
-}
 
 
 #define ADVISOR_HEIGHT 17

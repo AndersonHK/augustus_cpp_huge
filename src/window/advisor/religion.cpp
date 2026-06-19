@@ -14,13 +14,11 @@
 #include "graphics/ui_runtime.h"
 
 #include "game/settings.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
-}
 
 static void button_hold_festival(const generic_button *button);
 static void draw_hold_festival_widget(void);

@@ -9,8 +9,8 @@
 #include "window/advisors.h"
 #include "scenario/event/parameter_city.h"
 
+#include "figure/figure.h"
 #include "game/settings.h"
-extern "C" {
 #include "building/building_type_api.h"
 #include "building/granary.h"
 #include "building/warehouse.h"
@@ -23,12 +23,10 @@ extern "C" {
 #include "core/calc.h"
 #include "empire/city.h"
 #include "empire/trade_route.h"
-#include "figure/figure.h"
 #include "figure/formation.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/terrain.h"
-}
 
 #define RESOURCE_ALL_BUYS RESOURCE_SLOT_COUNT + 1 // max +1 indicates all resources that this trade route buys
 #define RESOURCE_ALL_SELLS RESOURCE_SLOT_COUNT + 2 // max +2 indicates all resources that this trade route sells
@@ -274,20 +272,20 @@ static int get_enemy_troops_count(scenario_action_t *action)
 {
     enemy_class_t enemy_class = static_cast<enemy_class_t>(action->parameter3);
     int count = 0;
-    for (unsigned int i = 1; i < figure_count(); i++) {    // Iterate through all figures to count enemy troops
-        figure *f = figure_get(i);
-        if (!figure_is_enemy(f) || figure_is_dead(f)) {
+    for (unsigned int i = 1; i < Figure::count(); i++) {    // Iterate through all figures to count enemy troops
+        Figure *f = Figure::get(i);
+        if (!f->is_enemy() || f->is_dead()) {
             continue;
         }
         switch (enemy_class) {
             case ENEMY_CLASS_MELEE:
-                count += figure_is_melee_enemy(f);
+                count += f->is_melee_enemy();
                 break;
             case ENEMY_CLASS_RANGED:
-                count += figure_is_ranged_enemy(f);
+                count += f->is_ranged_enemy();
                 break;
             case ENEMY_CLASS_MOUNTED:
-                count += figure_is_mounted_enemy(f);
+                count += f->is_mounted_enemy();
                 break;
             case ENEMY_CLASS_ALL:
                 count++;

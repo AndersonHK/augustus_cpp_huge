@@ -8,7 +8,6 @@
 #include "win_criteria.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
@@ -18,7 +17,6 @@ extern "C" {
 #include "scenario/criteria.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-}
 
 enum {
     RATING_CULTURE,

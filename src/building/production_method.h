@@ -1,13 +1,9 @@
 #pragma once
 
-extern "C" {
 #include "game/resource.h"
 #include "scenario/property.h"
-}
 
-#include "building/building_fwd.h"
-
-class Building;
+#include "building/building.h"
 
 #include <string>
 #include <vector>

@@ -18,7 +18,6 @@
 #include "building/building.h"
 #include "city/god.h"
 
-extern "C" {
 
 #include "building/granary.h"
 #include "city/constants.h"
@@ -30,7 +29,6 @@ extern "C" {
 #include "graphics/image_button.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 static void button_game(const generic_button *button);
 static void button_help(int param1, int param2);

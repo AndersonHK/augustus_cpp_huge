@@ -5,12 +5,10 @@
 
 #include "city_bridge.h"
 
-extern "C" {
 #include "building/building_type_api.h"
 #include "map/property.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
-}
 
 #include <cstring>
 

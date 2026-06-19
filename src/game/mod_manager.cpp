@@ -4,11 +4,9 @@
 #include "core/file.h"
 #include "core/log.h"
 #include "platform/file_manager.h"
-extern "C" {
 #include "assets/assets.h"
 #include "core/dir.h"
 #include "core/xml_parser.h"
-}
 
 #include <cstdio>
 #include <cstring>
@@ -390,7 +388,7 @@ bool validate_graphics_path()
             return true;
         }
     }
-    return validate_directory_path(ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH);
+    return false;
 }
 
 }

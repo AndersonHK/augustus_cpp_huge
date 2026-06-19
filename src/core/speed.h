@@ -2,9 +2,6 @@
 
 #include "core/time.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * @file
@@ -88,6 +85,3 @@ speed_direction speed_get_current_direction(const speed_type *speed);
  */
 int speed_is_changing(const speed_type *speed);
 
-#ifdef __cplusplus
-}
-#endif

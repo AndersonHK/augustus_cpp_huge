@@ -242,7 +242,7 @@ void build_legacy_text_ids()
 
 }
 
-extern "C" const char *building_type_legacy_migration_text_id_for_enum(uint16_t legacy_type)
+const char *building_type_legacy_migration_text_id_for_enum(uint16_t legacy_type)
 {
     build_legacy_text_ids();
     if (legacy_type == 0 || legacy_type >= BUILDING_TYPE_MAX || g_legacy_text_ids[legacy_type].empty()) {
@@ -251,7 +251,7 @@ extern "C" const char *building_type_legacy_migration_text_id_for_enum(uint16_t 
     return g_legacy_text_ids[legacy_type].c_str();
 }
 
-extern "C" uint16_t building_type_legacy_migration_enum_for_text_id(const char *text_id)
+uint16_t building_type_legacy_migration_enum_for_text_id(const char *text_id)
 {
     if (!text_id || !*text_id) {
         return 0;
@@ -265,7 +265,7 @@ extern "C" uint16_t building_type_legacy_migration_enum_for_text_id(const char *
     return 0;
 }
 
-extern "C" int building_type_legacy_migration_text_id_is_xml_owned(const char *text_id)
+int building_type_legacy_migration_text_id_is_xml_owned(const char *text_id)
 {
     if (!text_id || !*text_id) {
         return 0;

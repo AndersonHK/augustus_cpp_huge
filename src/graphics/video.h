@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Start playing the video
@@ -49,6 +46,3 @@ void video_shutdown(void);
  */
 void video_draw(int x_offset, int y_offset, int width, int height);
 
-#ifdef __cplusplus
-}
-#endif

@@ -15,7 +15,6 @@
 #include "building/religion.h"
 #include "building/water_access_type.h"
 
-extern "C" {
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "city/view.h"
@@ -24,7 +23,6 @@ extern "C" {
 #include "map/property.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-}
 
 
 #include <array>
@@ -702,14 +700,14 @@ void ensure_runtime_refreshed()
 
 } // namespace
 
-extern "C" void water_access_runtime_reset(void)
+void water_access_runtime_reset(void)
 {
     clear_masks(g_state.masks);
     g_state.preview = PreviewState();
     g_state.refreshed = 0;
 }
 
-extern "C" void water_access_runtime_refresh(void)
+void water_access_runtime_refresh(void)
 {
     SimulationInput input;
     SimulationResult result;
@@ -722,7 +720,7 @@ extern "C" void water_access_runtime_refresh(void)
     project_building_state(result);
 }
 
-extern "C" void water_access_runtime_refresh_building(building *b)
+void water_access_runtime_refresh_building(building *b)
 {
     if (!b) {
         return;
@@ -749,7 +747,7 @@ extern "C" void water_access_runtime_refresh_building(building *b)
     }
 }
 
-extern "C" int water_access_runtime_range_for_building(building_type type)
+int water_access_runtime_range_for_building(building_type type)
 {
     type = normalize_provider_building_type(type);
     const WaterAccessProvideRule *rule = primary_provider_rule(type);
@@ -775,19 +773,19 @@ extern "C" int water_access_runtime_range_for_building(building_type type)
     return radius < 0 ? 0 : radius;
 }
 
-extern "C" const char *water_access_runtime_primary_provider_access_text(building_type type)
+const char *water_access_runtime_primary_provider_access_text(building_type type)
 {
     const WaterAccessProvideRule *rule = primary_provider_rule(type);
     return rule ? text_from_mask(rule->mask) : nullptr;
 }
 
-extern "C" int water_access_runtime_building_type_provides_access(building_type type)
+int water_access_runtime_building_type_provides_access(building_type type)
 {
     const WaterAccessDefinition *water = water_definition_for_building_type(type);
     return water && water->has_provider();
 }
 
-extern "C" int water_access_runtime_building_type_provides_access_text(building_type type, const char *text_id)
+int water_access_runtime_building_type_provides_access_text(building_type type, const char *text_id)
 {
     const uint8_t mask = access_mask(text_id);
     if (!mask) {
@@ -805,7 +803,7 @@ extern "C" int water_access_runtime_building_type_provides_access_text(building_
     return 0;
 }
 
-extern "C" int water_access_runtime_building_type_requires_access_text(building_type type, const char *text_id)
+int water_access_runtime_building_type_requires_access_text(building_type type, const char *text_id)
 {
     const uint8_t mask = access_mask(text_id);
     const WaterAccessDefinition *water = water_definition_for_building_type(type);
@@ -822,7 +820,7 @@ extern "C" int water_access_runtime_building_type_requires_access_text(building_
     return 0;
 }
 
-extern "C" int water_access_runtime_tile_has_access(int grid_offset, const char *text_id)
+int water_access_runtime_tile_has_access(int grid_offset, const char *text_id)
 {
     ensure_runtime_refreshed();
     if (!map_grid_is_valid_offset(grid_offset)) {
@@ -832,7 +830,7 @@ extern "C" int water_access_runtime_tile_has_access(int grid_offset, const char 
     return mask && (g_state.masks.access[grid_offset] & mask);
 }
 
-extern "C" int water_access_runtime_building_area_has_access(const building *b, const char *text_id)
+int water_access_runtime_building_area_has_access(const building *b, const char *text_id)
 {
     if (!b) {
         return 0;
@@ -841,7 +839,7 @@ extern "C" int water_access_runtime_building_area_has_access(const building *b, 
     return area_has_access(g_state.masks.access, b->x, b->y, b->size, access_mask(text_id));
 }
 
-extern "C" int water_access_runtime_building_has_required_access(const building *b)
+int water_access_runtime_building_has_required_access(const building *b)
 {
     if (!b) {
         return 0;
@@ -855,7 +853,7 @@ extern "C" int water_access_runtime_building_has_required_access(const building 
     return requirements_are_satisfied(definition->water_access(), b->x, b->y, b->size, g_state.masks);
 }
 
-extern "C" int water_access_runtime_building_type_has_required_access_at(building_type type, int x, int y, int size)
+int water_access_runtime_building_type_has_required_access_at(building_type type, int x, int y, int size)
 {
     ensure_runtime_refreshed();
     const BuildingType *definition = definition_for_provider(type);
@@ -865,7 +863,7 @@ extern "C" int water_access_runtime_building_type_has_required_access_at(buildin
     return requirements_are_satisfied(definition->water_access(), x, y, size, g_state.masks);
 }
 
-extern "C" int water_access_runtime_reservoir_has_network_access(int grid_offset)
+int water_access_runtime_reservoir_has_network_access(int grid_offset)
 {
     ensure_runtime_refreshed();
     const BuildingType *definition = definition_for_provider(reservoir_type_id());
@@ -880,7 +878,7 @@ extern "C" int water_access_runtime_reservoir_has_network_access(int grid_offset
         g_state.masks);
 }
 
-extern "C" void water_access_runtime_begin_preview(building_type type, int primary_grid_offset, int secondary_grid_offset)
+void water_access_runtime_begin_preview(building_type type, int primary_grid_offset, int secondary_grid_offset)
 {
     ensure_runtime_refreshed();
 
@@ -912,17 +910,17 @@ extern "C" void water_access_runtime_begin_preview(building_type type, int prima
     build_preview_highlight(type, preview_result);
 }
 
-extern "C" void water_access_runtime_end_preview(void)
+void water_access_runtime_end_preview(void)
 {
     g_state.preview = PreviewState();
 }
 
-extern "C" int water_access_runtime_tile_has_preview_highlight(int grid_offset)
+int water_access_runtime_tile_has_preview_highlight(int grid_offset)
 {
     return g_state.preview.active && map_grid_is_valid_offset(grid_offset) && g_state.preview.highlight[grid_offset];
 }
 
-extern "C" int water_access_runtime_should_draw_overlay_at(int grid_offset)
+int water_access_runtime_should_draw_overlay_at(int grid_offset)
 {
     if (!map_grid_is_valid_offset(grid_offset)) {
         return 0;

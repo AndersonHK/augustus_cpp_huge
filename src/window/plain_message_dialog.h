@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "translation/translation.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 void window_plain_message_dialog_show(translation_key title, translation_key message, int should_draw_underlying_window);
@@ -14,6 +11,3 @@ void window_plain_message_dialog_show_with_extra(translation_key title, translat
 void window_plain_message_dialog_show_text_list(translation_key title, translation_key message,
     const uint8_t **texts, unsigned int num_texts);
 
-#ifdef __cplusplus
-}
-#endif

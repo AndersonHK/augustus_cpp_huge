@@ -4,26 +4,15 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-typedef struct warning_type {
-    const char *name;
-} warning_type;
+struct warning_type {
+    const char *name = nullptr;
+};
 
-#ifdef __cplusplus
-}
-#endif
 
-#ifdef __cplusplus
 #define DECLARE_WARNING_TYPE(name) inline constexpr warning_type name{#name}
-#else
-#define DECLARE_WARNING_TYPE(name) static const warning_type name = {#name}
-#endif
 
-static const warning_type WARNING_NONE = {0};
-
+inline constexpr warning_type WARNING_NONE{};
 DECLARE_WARNING_TYPE(WARNING_ORIENTATION);
 DECLARE_WARNING_TYPE(WARNING_CLEAR_LAND_NEEDED);
 DECLARE_WARNING_TYPE(WARNING_OUT_OF_MONEY);
@@ -77,8 +66,9 @@ DECLARE_WARNING_TYPE(WARNING_WAREHOUSE_BREAKIN);
 DECLARE_WARNING_TYPE(WARNING_GRANARY_BREAKIN);
 DECLARE_WARNING_TYPE(WARNING_THEFT);
 DECLARE_WARNING_TYPE(WARNING_WOLF_NEARBY);
-DECLARE_WARNING_TYPE(WARNING_BET_VICTORY);
 DECLARE_WARNING_TYPE(WARNING_BET_DEFEAT);
+DECLARE_WARNING_TYPE(WARNING_BET_VICTORY);
+DECLARE_WARNING_TYPE(WARNING_CHEAT);
 DECLARE_WARNING_TYPE(WARNING_DATA_COPY_SUCCESS);
 DECLARE_WARNING_TYPE(WARNING_DATA_COPY_NOT_SUPPORTED);
 DECLARE_WARNING_TYPE(WARNING_DATA_PASTE_SUCCESS);
@@ -100,15 +90,10 @@ DECLARE_WARNING_TYPE(WARNING_DEPOT_RESOURCE_CHANGE);
 DECLARE_WARNING_TYPE(WARNING_BUILDING_ROTATION);
 DECLARE_WARNING_TYPE(WARNING_SCREENSHOT_SAVED);
 DECLARE_WARNING_TYPE(WARNING_CONSOLE_COMMAND);
-DECLARE_WARNING_TYPE(WARNING_CHEAT);
 DECLARE_WARNING_TYPE(WARNING_MESSAGE_ALERT);
 DECLARE_WARNING_TYPE(WARNING_ZOOM);
 
 #undef DECLARE_WARNING_TYPE
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int city_warning_show(warning_type warning, const uint8_t *text);
 int city_warning_show_translated(warning_type warning);
@@ -121,7 +106,3 @@ const uint8_t *city_warning_get(int position);
 void city_warning_clear(warning_type warning);
 void city_warning_clear_all(void);
 void city_warning_clear_outdated(void);
-
-#ifdef __cplusplus
-}
-#endif

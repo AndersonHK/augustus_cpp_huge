@@ -6,13 +6,11 @@
 
 #include "city/population.h"
 
-extern "C" {
 #include "building/building_record.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/random.h"
-}
 
 int city_population(void)
 {

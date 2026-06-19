@@ -1,4 +1,4 @@
-﻿#include "assets/image_group_payload.h"
+#include "assets/image_group_payload.h"
 #include "assets/image_group_payload_internal.h"
 
 #include "core/crash_context.h"
@@ -172,7 +172,7 @@ int image_group_payload_load(const char *path_key)
     return 1;
 }
 
-extern "C" void image_group_payload_clear_all(void)
+void image_group_payload_clear_all(void)
 {
     image_group_payload_internal::clear_all_cached_payload_state();
 }

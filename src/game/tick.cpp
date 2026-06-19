@@ -39,7 +39,6 @@
 #include "city/god.h"
 
 #include "game/settings.h"
-extern "C" {
 #include "building/granary.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
@@ -69,7 +68,6 @@ extern "C" {
 #include "scenario/price_change.h"
 #include "scenario/request.h"
 #include "sound/music.h"
-}
 
 static void advance_year(void)
 {

@@ -1,4 +1,4 @@
-﻿#include "building/building.h"
+#include "building/building.h"
 #include "translation/translation.h"
 #include "building/house.h"
 #include "building/industry.h"
@@ -14,7 +14,6 @@
 
 #include "city_overlay_housing.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/monument.h"
@@ -30,12 +29,11 @@ extern "C" {
 #include "map/random.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-}
 
 
 #include <stdio.h>
 
-static int show_figure_none(const figure *f)
+static int show_figure_none(const Figure *f)
 {
     return 0;
 }
@@ -47,12 +45,12 @@ static int get_column_height_none(const building *b)
 
 static int show_house_level(const building *b, int level)
 {
-    return building_house_legacy_level(Building::from_id(b->id)) == level;
+    return building_house_legacy_level(Building(building_get(b->id))) == level;
 }
 
 static int show_house_level_range(const building *b, int min_level, int max_level)
 {
-    int level = building_house_legacy_level(Building::from_id(b->id));
+    int level = building_house_legacy_level(Building(building_get(b->id)));
     return level >= min_level && level <= max_level;
 }
 

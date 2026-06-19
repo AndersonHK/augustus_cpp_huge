@@ -5,9 +5,7 @@
 #include "building/water_access_runtime.h"
 #include "widget/city_building_ghost.h"
 
-extern "C" {
 #include "city/view.h"
-}
 
 #include <cstring>
 
@@ -65,17 +63,17 @@ const char *preview_access_type_for_building(building_type type)
 
 } // namespace
 
-extern "C" void city_water_ghost_draw_water_structure_ranges(void)
+void city_water_ghost_draw_water_structure_ranges(void)
 {
     city_view_foreach_valid_map_tile(draw_water_structure_access);
 }
 
-extern "C" void city_water_ghost_draw_reservoir_ranges(void)
+void city_water_ghost_draw_reservoir_ranges(void)
 {
     city_view_foreach_valid_map_tile(draw_reservoir_access);
 }
 
-extern "C" void city_water_ghost_draw_preview(building_type type, int primary_grid_offset, int secondary_grid_offset)
+void city_water_ghost_draw_preview(building_type type, int primary_grid_offset, int secondary_grid_offset)
 {
     g_preview_access_type = preview_access_type_for_building(type);
     water_access_runtime_begin_preview(type, primary_grid_offset, secondary_grid_offset);

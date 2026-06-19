@@ -8,7 +8,6 @@
 #include "graphics/advisor_card_button_widget.h"
 #include "graphics/ui_runtime.h"
 
-extern "C" {
 
 #include "city/ratings.h"
 #include "core/calc.h"
@@ -19,7 +18,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "scenario/criteria.h"
 #include "scenario/property.h"
-}
 
 #define ADVISOR_HEIGHT 27
 

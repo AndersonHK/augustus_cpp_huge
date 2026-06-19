@@ -5,9 +5,6 @@
 #include "core/buffer.h"
 #include "map/road_access.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define MONUMENT_FINISHED -1
 #define MONUMENT_START 1
@@ -74,6 +71,3 @@ int building_monument_is_construction_halted(building *b);
 int building_monument_toggle_construction_halted(building *b);
 int building_monument_is_unfinished_monument(const building *b);
 
-#ifdef __cplusplus
-}
-#endif

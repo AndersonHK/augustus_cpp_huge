@@ -19,7 +19,6 @@
 
 #include "city_overlay_other.h"
 
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/building_record.h"
@@ -38,7 +37,6 @@ extern "C" {
 #include "map/random.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-}
 
 #include <initializer_list>
 #include <cstring>
@@ -129,16 +127,17 @@ static translation_key efficiency_key_for_value(int efficiency)
 
 static int show_building_religion(const building *b)
 {
-    return building_from_record(b).type().is_temple() ||
+    const Building building = building_from_record(b);
+    return (building.type && building.type->is_temple()) ||
         building_type_attr_is_any(b->type, {"oracle", "lararium", "small_mausoleum", "large_mausoleum", "nymphaeum"});
 }
 
 static int show_building_food_stocks(const building *b)
 {
     const Building building = building_from_record(b);
-    const auto &type = building.type();
-    return building_type_attr_is_any(b->type, {"market", "wharf"}) || type.is_granary() ||
-        type.is_caravanserai() || type.is_mess_hall();
+    const auto *type = building.type;
+    return building_type_attr_is_any(b->type, {"market", "wharf"}) || (type && type->is_granary()) ||
+        (type && type->is_caravanserai()) || (type && type->is_mess_hall());
 }
 
 static int show_building_tax_income(const building *b)
@@ -149,7 +148,7 @@ static int show_building_tax_income(const building *b)
 static int show_building_water(const building *b)
 {
     const Building building = building_from_record(b);
-    return building.type().is_well() || building_type_attr_is_any(b->type, {"fountain", "reservoir"}) ||
+    return (building.type && building.type->is_well()) || building_type_attr_is_any(b->type, {"fountain", "reservoir"}) ||
         (building_type_attr_is(b->type, "grand_temple_neptune") &&
             building_monument_gt_module_is_active(NEPTUNE_MODULE_2_CAPACITY_AND_WATER));
 }
@@ -172,8 +171,8 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         return 0;
     }
-    Building building = Building::from_id(map_building_at(grid_offset));
-    if (!building_type_attr_is(building.type_id(), "triumphal_arch")) {
+    Building building(building_get(map_building_at(grid_offset)));
+    if (!building.type || !building_type_attr_is(building.type->type(), "triumphal_arch")) {
         return 0;
     }
     int image_id = map_image_at(grid_offset);
@@ -198,19 +197,19 @@ static int show_building_mothball(const building *b)
 static int show_building_logistics(const building *b)
 {
     const Building building = building_from_record(b);
-    const auto &type = building.type();
-    const auto *definition = building.type_definition();
+    const auto *type = building.type;
+    const auto *definition = building.type;
     const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
-    return type.is_warehouse() || building_type_attr_is(b->type, "warehouse_space") ||
-        type.is_granary() || is_dock || building_type_attr_is(b->type, "depot") ||
-        type.is_lighthouse() || type.is_armoury();
+    return (type && type->is_warehouse()) || building_type_attr_is(b->type, "warehouse_space") ||
+        (type && type->is_granary()) || is_dock || building_type_attr_is(b->type, "depot") ||
+        (type && type->is_lighthouse()) || (type && type->is_armoury());
 }
 
 static int show_building_storages(const building *b)
 {
     b = building_main(b);
     const Building building = building_from_record(b);
-    const auto *definition = building.type_definition();
+    const auto *definition = building.type;
     return (b->storage_id > 0 && building_storage_get(b->storage_id))
         || building_type_attr_is(b->type, "depot")
         || (definition && std::strcmp(definition->attr(), "dock") == 0);
@@ -222,17 +221,17 @@ static int show_building_none(const building *b)
 }
 
 
-static int show_figure_religion(const figure *f)
+static int show_figure_religion(const Figure *f)
 {
     return f->type == FIGURE_PRIEST || f->type == FIGURE_PRIEST_SUPPLIER;
 }
 
-static int show_figure_efficiency(const figure *f)
+static int show_figure_efficiency(const Figure *f)
 {
     return f->type == FIGURE_CART_PUSHER || f->type == FIGURE_LABOR_SEEKER;
 }
 
-static int show_figure_food_stocks(const figure *f)
+static int show_figure_food_stocks(const Figure *f)
 {
     switch (f->type) {
         case FIGURE_MARKET_SUPPLIER:
@@ -251,20 +250,19 @@ static int show_figure_food_stocks(const figure *f)
 
         case FIGURE_WAREHOUSEMAN:
         {
-            building *b = building_get(f->building_id);
-            return building_from_record(b).type().is_granary();
+            return f->building.id() && f->building.type && f->building.type->is_granary();
         }
         default:
             return 0;
     }
 }
 
-static int show_figure_tax_income(const figure *f)
+static int show_figure_tax_income(const Figure *f)
 {
     return f->type == FIGURE_TAX_COLLECTOR;
 }
 
-static int show_figure_logistics(const figure *f)
+static int show_figure_logistics(const Figure *f)
 {
     switch (f->type) {
         case FIGURE_CART_PUSHER:
@@ -283,12 +281,12 @@ static int show_figure_logistics(const figure *f)
     }
 }
 
-static int show_figure_employment(const figure *f)
+static int show_figure_employment(const Figure *f)
 {
     return f->type == FIGURE_LABOR_SEEKER;
 }
 
-static int show_figure_none(const figure *f)
+static int show_figure_none(const Figure *f)
 {
     return 0;
 }
@@ -309,7 +307,7 @@ static int get_column_height_efficiency(const building *b)
 
 static int get_column_height_food_stocks(const building *b)
 {
-    const model_house *house_model = building_house_get_model(Building::from_id(b->id));
+    const model_house *house_model = building_house_get_model(Building(const_cast<building *>(b)));
     if (b->house_size && house_model && house_model->food_types) {
         int pop = b->house_population;
         int stocks = 0;
@@ -352,7 +350,8 @@ static int get_column_height_tax_income(const building *b)
 
 static int get_column_height_employment(const building *b)
 {
-    int full_staff = building_get_laborers(b->type);
+    const Building building = building_from_record(b);
+    int full_staff = building.type ? building.type->required_workers() : 0;
     int pct_staff = calc_percentage(b->num_workers, full_staff);
 
     int height = 100 - pct_staff;
@@ -431,7 +430,7 @@ static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
     if (b->house_population <= 0) {
         return 0;
     }
-    const model_house *house_model = building_house_get_model(Building::from_id(b->id));
+    const model_house *house_model = building_house_get_model(Building(const_cast<building *>(b)));
     if (!house_model || !house_model->food_types) {
         return 104;
     } else {
@@ -474,7 +473,8 @@ static int get_tooltip_tax_income(tooltip_context *c, const building *b)
 
 static int get_tooltip_employment(tooltip_context *c, const building *b)
 {
-    int full = building_get_laborers(b->type);
+    const Building building = building_from_record(b);
+    int full = building.type ? building.type->required_workers() : 0;
     int missing = full - b->num_workers;
 
     if (full >= 1) {
@@ -1074,11 +1074,11 @@ static void draw_storage_ids(int x, int y, float scale, int grid_offset)
     int box_width = text_width + 10;
     int box_height = 22;
     const Building building = building_from_record(b);
-    const auto &type = building.type();
-    if (type.is_granary()) {
+    const auto *type = building.type;
+    if (type && type->is_granary()) {
         x += 90;
         y += 15;
-    } else if (type.is_warehouse()) {
+    } else if (type && type->is_warehouse()) {
         switch (building_rotation_get_building_orientation(b->subtype.orientation)) {
             case 6:
                 x -= 30;

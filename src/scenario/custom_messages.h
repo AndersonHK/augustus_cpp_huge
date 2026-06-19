@@ -1,11 +1,8 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
 #include "scenario/custom_media.h"
 #include "scenario/message_media_text_blob.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 typedef enum {
@@ -49,6 +46,3 @@ const uint8_t *custom_messages_get_background_image(custom_message_t *message);
 
 int custom_messages_relink_text_blob(size_t text_id, text_blob_string_t *new_text_link);
 
-#ifdef __cplusplus
-}
-#endif

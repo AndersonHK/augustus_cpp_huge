@@ -2,10 +2,6 @@
 
 #include "city/resource.h"
 #include "translation/translation.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 #define MAX_GAMES 3
 
@@ -42,7 +38,3 @@ void city_festival_schedule(void);
 
 void city_festival_update(void);
 void city_festival_calculate_costs(void);
-
-#ifdef __cplusplus
-}
-#endif

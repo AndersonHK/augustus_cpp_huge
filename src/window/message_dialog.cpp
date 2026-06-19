@@ -15,7 +15,6 @@
 #include "window/editor/map.h"
 #include "window/advisors.h"
 #include "game/settings.h"
-extern "C" {
 
 #include "city/emperor.h"
 #include "city/message.h"
@@ -37,7 +36,6 @@ extern "C" {
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-}
 
 #define MAX_HISTORY 200
 #define POPUP_PROTECTION_MILIS 400
@@ -974,12 +972,12 @@ static void init_window(int text_id, int message_type, int custom_message_id, vo
     window_show(&window);
 }
 
-extern "C" void window_message_dialog_show(int text_id, void (*background_callback)(void))
+void window_message_dialog_show(int text_id, void (*background_callback)(void))
 {
     init_window(text_id, 0, 0, background_callback);
 }
 
-extern "C" void window_message_dialog_show_city_message(int message_type, int year, int month,
+void window_message_dialog_show_city_message(int message_type, int year, int month,
     int param1, int param2, int advisor, int use_popup)
 {
     set_city_message(year, month, param1, param2, static_cast<message_advisor>(advisor), use_popup);

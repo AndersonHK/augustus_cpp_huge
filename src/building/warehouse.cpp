@@ -9,9 +9,6 @@
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "building/monument.h"
 #include "building/properties.h"
@@ -26,9 +23,6 @@ extern "C" {
 #include "map/grid.h"
 #include "scenario/property.h"
 
-#ifdef __cplusplus
-}
-#endif
 
 #include "building/granary.h"
 
@@ -61,7 +55,7 @@ static Building first_warehouse()
 
 static int building_is_warehouse(const Building &building)
 {
-    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    const building_type_registry_impl::BuildingType *definition = building.type;
     return definition && definition->is_warehouse();
 }
 
@@ -556,11 +550,11 @@ static void try_create_cart_to_rome(const Building &b, resource_type resource, i
 {
     map_point road;
     if (map_has_road_access_rotation(b.orientation(), b.x(), b.y(), 3, &road)) {
-        figure *f = figure_create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
+        Figure *f = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
         f->action_state = FIGURE_ACTION_234_CARTPUSHER_GOING_TO_ROME_CREATED;
         f->resource_id = resource;
         f->loads_sold_or_carrying = loads;
-        f->building_id = b.id();
+        f->building = b;
     }
 }
 
@@ -646,7 +640,7 @@ int building_warehouse_accepts_storage(Building &warehouse, resource_type resour
         building_storage_get_empty_all(warehouse.id())) {
         return 0;
     }
-    int pct_workers = calc_percentage(warehouse.worker_count(), model_get_building(warehouse.type_id())->laborers);
+    int pct_workers = calc_percentage(warehouse.worker_count(), warehouse.type ? warehouse.type->required_workers() : 0);
     if (pct_workers < 100) {
         if (understaffed) {
             *understaffed += 1;
@@ -663,7 +657,7 @@ int building_warehouse_for_storing(int src_building_id, int x, int y, resource_t
     int *understaffed, map_point *dst)
 {
     int min_dist = INFINITE;
-    int min_building_id = 0;
+    Building nearest_warehouse(nullptr);
     for (Building b = first_warehouse(); b.id(); b = b.next_of_type()) {
         if (b.id() == (unsigned int) src_building_id || (road_network_id != -1 && b.road_network_id() != road_network_id) ||
             !building_warehouse_accepts_storage(b, resource, understaffed) ||
@@ -673,19 +667,18 @@ int building_warehouse_for_storing(int src_building_id, int x, int y, resource_t
         int dist = b.max_distance_to(x, y);
         if (dist < min_dist) {
             min_dist = dist;
-            min_building_id = b.id();
+            nearest_warehouse = b;
         }
     }
-    Building b = Building::from_id(min_building_id);
-    if (!b.id()) {
+    if (!nearest_warehouse.id()) {
         return 0;
     }
-    if (b.has_cached_road_access() == 1) {
-        map_point_store_result(b.x(), b.y(), dst);
-    } else if (!map_has_road_access_warehouse(b.x(), b.y(), dst)) {
+    if (nearest_warehouse.has_cached_road_access() == 1) {
+        map_point_store_result(nearest_warehouse.x(), nearest_warehouse.y(), dst);
+    } else if (!map_has_road_access_warehouse(nearest_warehouse.x(), nearest_warehouse.y(), dst)) {
         return 0;
     }
-    return min_building_id;
+    return nearest_warehouse.id();
 }
 
 int building_warehouse_amount_can_get_from(const Building &destination, resource_type resource)
@@ -748,7 +741,7 @@ int building_warehouse_with_resource(int x, int y, resource_type resource, int r
             continue;
         }
 
-        int pct_workers = calc_percentage(b.worker_count(), model_get_building(b.type_id())->laborers);
+        int pct_workers = calc_percentage(b.worker_count(), b.type ? b.type->required_workers() : 0);
         if (pct_workers < 100) {
             if (understaffed) {
                 *understaffed += 1;
@@ -777,7 +770,7 @@ int building_warehouse_with_resource(int x, int y, resource_type resource, int r
 
 int building_warehouse_determine_worker_task(Building &warehouse, int *resource)
 {
-    int pct_workers = calc_percentage(warehouse.worker_count(), model_get_building(warehouse.type_id())->laborers);
+    int pct_workers = calc_percentage(warehouse.worker_count(), warehouse.type ? warehouse.type->required_workers() : 0);
     if (pct_workers < 50) {
         return WAREHOUSE_TASK_NONE;
     }

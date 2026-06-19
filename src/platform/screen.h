@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int platform_screen_get_scale(void);
 int platform_screen_create(const char *title, int dispay_scale_percentage, int display_id);
@@ -27,6 +24,3 @@ int platform_screen_get_scale(void);
 
 void platform_screen_show_error_message_box(const char *title, const char *message);
 
-#ifdef __cplusplus
-}
-#endif

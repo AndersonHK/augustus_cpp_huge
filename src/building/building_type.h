@@ -60,21 +60,17 @@ enum {
     BUILDING_STATE_MOTHBALLED = 7
 };
 
-#ifdef __cplusplus
-extern "C++" {
 
 
 #include "building/animations.h"
 #include "building/water_access_type.h"
 #include "graphics/image.h"
 
-extern "C" {
 #include "city/constants.h"
 #include "core/direction.h"
 #include "figure/type.h"
 #include "game/resource.h"
 #include "map/point.h"
-}
 
 #include <string>
 #include <cstdint>
@@ -668,6 +664,7 @@ public:
     int is_lighthouse() const;
     int is_watchtower() const;
     int is_armoury() const;
+    int is_farm() const;
     int production_is_enabled() const;
     const GraphicsTarget *resolve_graphics_target(const Building &building) const;
     const GraphicsTarget *resolve_construction_graphics_target(int phase) const;
@@ -760,6 +757,4 @@ private:
 
 } // namespace building_type_registry_impl
 
-} // extern "C++"
 
-#endif

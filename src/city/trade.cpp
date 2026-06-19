@@ -11,7 +11,7 @@
 #include "empire/city.h"
 #include "figure/figure.h"
 
-extern "C" void city_trade_update(void)
+void city_trade_update(void)
 {
     city_data.trade.num_sea_routes = 0;
     city_data.trade.num_land_routes = 0;
@@ -49,47 +49,47 @@ extern "C" void city_trade_update(void)
     empire_city_generate_trader();
 }
 
-extern "C" void city_trade_add_land_trade_route(void)
+void city_trade_add_land_trade_route(void)
 {
     city_data.trade.num_land_routes++;
 }
 
-extern "C" void city_trade_add_sea_trade_route(void)
+void city_trade_add_sea_trade_route(void)
 {
     city_data.trade.num_sea_routes++;
 }
 
-extern "C" int city_trade_has_land_trade_route(void)
+int city_trade_has_land_trade_route(void)
 {
     return city_data.trade.num_land_routes > 0;
 }
 
-extern "C" int city_trade_has_sea_trade_route(void)
+int city_trade_has_sea_trade_route(void)
 {
     return city_data.trade.num_sea_routes > 0;
 }
 
-extern "C" void city_trade_start_land_trade_problems(int duration)
+void city_trade_start_land_trade_problems(int duration)
 {
     city_data.trade.land_trade_problem_duration = duration;
 }
 
-extern "C" void city_trade_start_sea_trade_problems(int duration)
+void city_trade_start_sea_trade_problems(int duration)
 {
     city_data.trade.sea_trade_problem_duration = duration;
 }
 
-extern "C" int city_trade_has_land_trade_problems(void)
+int city_trade_has_land_trade_problems(void)
 {
     return city_data.trade.land_trade_problem_duration > 0;
 }
 
-extern "C" int city_trade_has_sea_trade_problems(void)
+int city_trade_has_sea_trade_problems(void)
 {
     return city_data.trade.sea_trade_problem_duration > 0;
 }
 
-extern "C" int city_trade_next_docker_import_resource(void)
+int city_trade_next_docker_import_resource(void)
 {
     do {
         city_data.trade.docker_import_resource++;
@@ -100,7 +100,7 @@ extern "C" int city_trade_next_docker_import_resource(void)
     return city_data.trade.docker_import_resource;
 }
 
-extern "C" int city_trade_next_docker_export_resource(void)
+int city_trade_next_docker_export_resource(void)
 {
     do {
         city_data.trade.docker_export_resource++;
@@ -111,11 +111,11 @@ extern "C" int city_trade_next_docker_export_resource(void)
     return city_data.trade.docker_export_resource;
 }
 
-extern "C" int trade_caravan_count(void)
+int trade_caravan_count(void)
 {
     int count = 0;
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
         if (f->type == FIGURE_TRADE_CARAVAN || f->type == FIGURE_TRADE_CARAVAN_DONKEY || f->type == FIGURE_NATIVE_TRADER) {
             count++;
         }

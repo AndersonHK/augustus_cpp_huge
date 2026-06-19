@@ -1,11 +1,5 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 void scenario_random_event_process(void);
 
-#ifdef __cplusplus
-}
-#endif

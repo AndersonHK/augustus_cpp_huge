@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "ratings.h"
 
@@ -23,8 +24,7 @@
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *type = building.type_definition();
-    return type && text_id && std::strcmp(type->attr(), text_id) == 0;
+    return building.type && text_id && std::strcmp(building.type->attr(), text_id) == 0;
 }
 
 static int building_matches_any(const Building &building, const char *const *text_ids)
@@ -106,7 +106,7 @@ void city_ratings_reduce_prosperity_after_bailout(void)
 
 void city_ratings_peace_building_destroyed(const Building &building)
 {
-    const building_type type = building.type_id();
+    const building_type type = building.type ? building.type->type() : BUILDING_NONE;
     static const char *PEACE_EXEMPT_SECURITY_BUILDINGS[] = {
         "prefecture",
         "engineers_post",
@@ -119,7 +119,7 @@ void city_ratings_peace_building_destroyed(const Building &building)
         nullptr
     };
 
-    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    const building_type_registry_impl::BuildingType *definition = building.type;
     if (definition && definition->is_well()) {
         return;
     }

@@ -26,7 +26,6 @@
 #include "widget/input_box.h"
 #include "window/editor/allowed_buildings.h"
 #include "window/editor/map.h"
-extern "C" {
 
 #include "core/image.h"
 #include "core/image_group_editor.h"
@@ -42,7 +41,6 @@ extern "C" {
 #include "scenario/price_change.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-}
 
 #define BRIEF_DESC_LENGTH 64
 

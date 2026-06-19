@@ -10,7 +10,6 @@
 #include "select_custom_message.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
@@ -22,7 +21,6 @@ extern "C" {
 #include "scenario/custom_media.h"
 #include "scenario/custom_messages.h"
 #include "scenario/message_media_text_blob.h"
-}
 
 #define MESSAGES_Y_OFFSET 146
 #define MESSAGES_ROW_HEIGHT 32

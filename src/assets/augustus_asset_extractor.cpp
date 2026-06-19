@@ -10,11 +10,9 @@
 #include "core/file.h"
 #include "core/log.h"
 #include "platform/file_manager.h"
-extern "C" {
 #include "assets/assets.h"
 #include "core/dir.h"
 #include "core/png_read.h"
-}
 
 #include "spng/spng.h"
 

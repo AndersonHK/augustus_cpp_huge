@@ -1,16 +1,12 @@
-#
-
 #include "city_figure.h"
 
 #include "game/resource_graphics.h"
 
-extern "C" {
 #include "city/view.h"
 #include "figure/formation.h"
 #include "figure/image.h"
 #include "figuretype/editor.h"
 #include "graphics/text.h"
-}
 
 
 static color_t get_highlight_mask(int highlight_mask)
@@ -27,7 +23,7 @@ static color_t get_highlight_mask(int highlight_mask)
     }
 }
 
-static resource_type cart_resource_for_figure(const figure *f)
+static resource_type cart_resource_for_figure(const Figure *f)
 {
     if (f->type == FIGURE_LIGHTHOUSE_SUPPLIER && f->action_state == FIGURE_ACTION_146_SUPPLIER_RETURNING) {
         return static_cast<resource_type>(f->collecting_item_id);
@@ -35,7 +31,7 @@ static resource_type cart_resource_for_figure(const figure *f)
     return static_cast<resource_type>(f->resource_id);
 }
 
-static void draw_cart_image(const figure *f, int x, int y, color_t color_mask, float scale)
+static void draw_cart_image(const Figure *f, int x, int y, color_t color_mask, float scale)
 {
     if (!resource_graphics_cart_marker_is(f->cart_image_id)) {
         Image::from_id(f->cart_image_id).draw(x, y, color_mask, scale);
@@ -55,7 +51,7 @@ static void draw_cart_image(const figure *f, int x, int y, color_t color_mask, f
     ref.draw(x, y, color_mask, scale);
 }
 
-static void draw_figure_with_cart(const figure *f, int x, int y, color_t color_mask, float scale)
+static void draw_figure_with_cart(const Figure *f, int x, int y, color_t color_mask, float scale)
 {
     if (f->y_offset_cart >= 0) {
         Image::from_id(f->image_id).draw(x, y, color_mask, scale);
@@ -66,7 +62,7 @@ static void draw_figure_with_cart(const figure *f, int x, int y, color_t color_m
     }
 }
 
-static void draw_hippodrome_horse(const figure *f, int x, int y, color_t color_mask, float scale)
+static void draw_hippodrome_horse(const Figure *f, int x, int y, color_t color_mask, float scale)
 {
     int val = f->wait_ticks_missile;
     switch (city_view_orientation()) {
@@ -149,7 +145,7 @@ static void draw_hippodrome_horse(const figure *f, int x, int y, color_t color_m
     draw_figure_with_cart(f, x, y, color_mask, scale);
 }
 
-static void draw_fort_standard(const figure *f, int x, int y, float scale)
+static void draw_fort_standard(const Figure *f, int x, int y, float scale)
 {
     if (!formation_get(f->formation_id)->in_distant_battle) {
         // base
@@ -165,7 +161,7 @@ static void draw_fort_standard(const figure *f, int x, int y, float scale)
     }
 }
 
-static void draw_map_flag(const figure *f, int x, int y, float scale)
+static void draw_map_flag(const Figure *f, int x, int y, float scale)
 {
     // base
     Image::from_id(f->image_id).draw(x, y, COLOR_MASK_NONE, scale);
@@ -253,7 +249,7 @@ static void tile_progress_to_pixel_offset(int direction, int progress, int *pixe
     *pixel_y = tile_progress_to_pixel_offset_y(direction, progress);
 }
 
-static void adjust_pixel_offset(const figure *f, int *pixel_x, int *pixel_y)
+static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
 {
     // determining x/y offset on tile
     int x_offset = 0;
@@ -298,7 +294,7 @@ static void adjust_pixel_offset(const figure *f, int *pixel_x, int *pixel_y)
     *pixel_y += y_offset - (animation ? animation->sprite_offset_y : 0);
 }
 
-static void draw_figure(const figure *f, int x, int y, float scale, int highlight)
+static void draw_figure(const Figure *f, int x, int y, float scale, int highlight)
 {
     color_t color_mask = get_highlight_mask(highlight);
     if (f->cart_image_id) {
@@ -337,13 +333,13 @@ static void draw_figure(const figure *f, int x, int y, float scale, int highligh
     }
 }
 
-void city_draw_figure(const figure *f, int x, int y, float scale, int highlight)
+void city_draw_figure(const Figure *f, int x, int y, float scale, int highlight)
 {
     adjust_pixel_offset(f, &x, &y);
     draw_figure(f, x, y, scale, highlight);
 }
 
-void city_draw_selected_figure(const figure *f, int x, int y, float scale, pixel_coordinate *coord)
+void city_draw_selected_figure(const Figure *f, int x, int y, float scale, pixel_coordinate *coord)
 {
     adjust_pixel_offset(f, &x, &y);
     draw_figure(f, x, y, scale, 0);

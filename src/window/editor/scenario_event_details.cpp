@@ -17,11 +17,11 @@
 #include "widget/dropdown_button.h"
 #include "window/popup_dialog.h"
 #include <array>
+#include <cstdlib>
 
 #include "scenario_event_details.h"
 #include "graphics/image.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "core/log.h"
 #include "core/string.h"
@@ -31,7 +31,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/event/controller.h"
-}
 
 #define BUTTON_LEFT_PADDING 32
 #define BUTTON_WIDTH 608
@@ -227,8 +226,8 @@ static void update_visible_conditions_and_actions(void)
     if (max_needed_items > data.conditions.available) {
         free(data.conditions.list);
         free(data.conditions.selected);
-        data.conditions.list = (condition_list_item *) calloc(max_needed_items, sizeof(condition_list_item));
-        data.conditions.selected = (uint8_t *) calloc(max_needed_items, sizeof(uint8_t));
+        data.conditions.list = static_cast<condition_list_item *>(std::calloc(max_needed_items, sizeof(condition_list_item)));
+        data.conditions.selected = static_cast<uint8_t *>(std::calloc(max_needed_items, sizeof(uint8_t)));
 
         if (!data.conditions.list) {
             log_error("Unable to create conditions list - out of memory. The game will probably crash.", 0, 0);
@@ -278,8 +277,8 @@ static void update_visible_conditions_and_actions(void)
     if (action_count > data.actions.available) {
         free(data.actions.list);
         free(data.actions.selected);
-        data.actions.list = (scenario_action_t **) calloc(action_count, sizeof(scenario_action_t *));
-        data.actions.selected = (uint8_t *) calloc(action_count, sizeof(uint8_t));
+        data.actions.list = static_cast<scenario_action_t **>(std::calloc(action_count, sizeof(scenario_action_t *)));
+        data.actions.selected = static_cast<uint8_t *>(std::calloc(action_count, sizeof(uint8_t)));
 
         if (!data.actions.list) {
             log_error("Unable to create actions list - out of memory. The game will probably crash.", 0, 0);
@@ -308,7 +307,7 @@ static void update_groups(void)
     }
     free(data.conditions.groups.names);
     unsigned int group_count = scenario_event_condition_group_count(data.event);
-    data.conditions.groups.names = (uint8_t **) calloc(group_count + 1, sizeof(uint8_t *));
+    data.conditions.groups.names = static_cast<uint8_t **>(std::calloc(group_count + 1, sizeof(uint8_t *)));
     if (!data.conditions.groups.names) {
         log_error("Unable to create groups list - out of memory. The game will probably crash.", 0, 0);
         data.conditions.groups.available = 0;
@@ -317,20 +316,20 @@ static void update_groups(void)
     data.conditions.groups.available = group_count + 1;
     const uint8_t *text = translation_for_key("TR_EDITOR_SCENARIO_EVENTS_NO_GROUP");
     int length = string_length(text) + 1;
-    data.conditions.groups.names[0] = (uint8_t *) calloc(length, sizeof(uint8_t));
+    data.conditions.groups.names[0] = static_cast<uint8_t *>(std::calloc(length, sizeof(uint8_t)));
     string_copy(text, data.conditions.groups.names[0], length);
 
     for (unsigned int i = 1; i < group_count; i++) {
         text = translation_for_key("TR_EDITOR_SCENARIO_EVENTS_GROUP");
         length = string_length(text) + 11;
-        data.conditions.groups.names[i] = (uint8_t *) calloc(length, sizeof(uint8_t));
+        data.conditions.groups.names[i] = static_cast<uint8_t *>(std::calloc(length, sizeof(uint8_t)));
         uint8_t *cursor = string_copy(text, data.conditions.groups.names[i], length);
         string_from_int(cursor, i, 0);
     }
 
     text = translation_for_key("TR_EDITOR_SCENARIO_EVENTS_NEW_GROUP");
     length = string_length(text) + 1;
-    data.conditions.groups.names[group_count] = (uint8_t *) calloc(length, sizeof(uint8_t));
+    data.conditions.groups.names[group_count] = static_cast<uint8_t *>(std::calloc(length, sizeof(uint8_t)));
     string_copy(text, data.conditions.groups.names[group_count], length);
 }
 
@@ -414,7 +413,7 @@ static void init(int event_id)
     prepare_event(event_id);
     start_input();
     grid_box_init(&conditions_grid_box, count_maximum_needed_list_items());
-    grid_box_init(&actions_grid_box, data.event->actions.size);
+    grid_box_init(&actions_grid_box, scenario_event_action_count(data.event));
     dropdown_init();
     select_no_conditions();
     select_no_actions();

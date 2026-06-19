@@ -2,7 +2,7 @@
 
 int Tavern::storage_destination()
 {
-    const building_type_registry_impl::Distribution *distribution = type().distribution();
+    const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     if (!distribution) {
         return 0;
     }

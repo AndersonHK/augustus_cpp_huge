@@ -2,9 +2,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     KEY_TYPE_NONE = 0,
@@ -122,12 +119,20 @@ typedef enum {
     KEY_MOD_GUI = 8,
 } key_modifier_type;
 
+inline key_modifier_type operator|(key_modifier_type lhs, key_modifier_type rhs)
+{
+    return static_cast<key_modifier_type>(static_cast<int>(lhs) | static_cast<int>(rhs));
+}
+
+inline key_modifier_type &operator|=(key_modifier_type &lhs, key_modifier_type rhs)
+{
+    lhs = lhs | rhs;
+    return lhs;
+}
+
 const char *key_combination_name(key_type key, key_modifier_type modifiers);
 
 int key_combination_from_name(const char *name, key_type *key, key_modifier_type *modifiers);
 
 const uint8_t *key_combination_display_name(key_type key, key_modifier_type modifiers);
 
-#ifdef __cplusplus
-}
-#endif

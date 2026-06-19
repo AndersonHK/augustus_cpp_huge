@@ -20,7 +20,6 @@
 #include "translation/localization.h"
 
 #include "game/settings.h"
-extern "C" {
 #include "core/calc.h"
 #include "core/image_group.h"
 #include "core/log.h"
@@ -39,7 +38,6 @@ extern "C" {
 #include "sound/effect.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-}
 
 #include <stdio.h>
 #include <string.h>
@@ -2342,7 +2340,7 @@ static void init(unsigned int page, unsigned int category, int show_background_i
 
     init_list_boxes();
 }
-extern "C" void window_config_show(window_config_page page, unsigned int category, int show_background_image)
+void window_config_show(window_config_page page, unsigned int category, int show_background_image)
 {
     window_type window = {
         WINDOW_CONFIG,

@@ -2,11 +2,9 @@
 
 #include "graphics/image.h"
 
-extern "C" {
 #include "core/log.h"
 #include "graphics/color.h"
 #include "graphics/renderer.h"
-}
 
 #include <array>
 #include <cmath>
@@ -71,7 +69,7 @@ int upload_overlay(RuntimeOverlayEntry &entry, const color_t *pixels, int width,
 
 } // namespace
 
-extern "C" int runtime_overlay_images_init_or_reload(void)
+int runtime_overlay_images_init_or_reload(void)
 {
     std::array<color_t, kOverlayWidth * kOverlayHeight> water_range_pixels;
     generate_water_range_pixels(water_range_pixels);
@@ -82,7 +80,7 @@ extern "C" int runtime_overlay_images_init_or_reload(void)
         kOverlayHeight);
 }
 
-extern "C" void runtime_overlay_images_reset(void)
+void runtime_overlay_images_reset(void)
 {
     for (RuntimeOverlayEntry &entry : g_overlays) {
         image_manager().release(entry.payload_key);
@@ -90,7 +88,7 @@ extern "C" void runtime_overlay_images_reset(void)
     }
 }
 
-extern "C" const image *runtime_overlay_image_get(runtime_overlay_image type)
+const image *runtime_overlay_image_get(runtime_overlay_image type)
 {
     if (type < 0 || type >= RUNTIME_OVERLAY_IMAGE_MAX) {
         return nullptr;

@@ -405,16 +405,17 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
         if (!building_id) {
             continue;
         }
-        Building b = Building::from_id(building_id).main();
-        if (std::string_view(b.type().attr()) == "burning_ruin") {
+        Building b = Building(building_get(building_id)).main();
+        if (b.type && b.type->attr() && std::string_view(b.type->attr()) == "burning_ruin") {
             continue;
         }
         if ((b.state_id() != BUILDING_STATE_IN_USE && b.state_id() != BUILDING_STATE_MOTHBALLED) || b.is_deleted()) {
             continue;
         }
-        if (destroy_all || b.type_id() == type ||
-            (type == SCENARIO_BUILDING_MENU_FORT && building_is_fort(b.type_id()))) {
-            building_destroy_by_collapse(b.legacy_record());
+        const building_type building_type_id = b.type ? b.type->type() : BUILDING_NONE;
+        if (destroy_all || building_type_id == type ||
+            (type == SCENARIO_BUILDING_MENU_FORT && building_is_fort(building_type_id))) {
+            building_destroy_by_collapse(building_get(b.id()));
         }
     }
 
@@ -755,8 +756,8 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
                 // Destroy buildings if the new terrains doesn't allow for buildings
                 int building_id = map_building_at(current_grid_offset);
                 if (building_id) {
-                    Building b = Building::from_id(building_id).main();
-                    building_destroy_without_rubble(b.legacy_record());
+                    Building b = Building(building_get(building_id)).main();
+                    building_destroy_without_rubble(building_get(b.id()));
                 }
                 // Since the engine only supports one blocking terrain per tile, 
                 // remove all others before adding a new one
@@ -768,8 +769,8 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
                 // Destroy water buildings when removing water
                 int building_id = map_building_at(current_grid_offset);
                 if (building_id) {
-                    Building b = Building::from_id(building_id).main();
-                    building_destroy_without_rubble(b.legacy_record());
+                    Building b = Building(building_get(building_id)).main();
+                    building_destroy_without_rubble(building_get(b.id()));
                 }
 
             }

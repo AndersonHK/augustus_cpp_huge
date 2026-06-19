@@ -1,8 +1,6 @@
 #pragma once
 
-extern "C" {
 #include "map/point.h"
-}
 
 typedef struct building building;
 

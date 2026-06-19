@@ -1,7 +1,6 @@
 #include "widget/input_box.h"
 #include "text_input.h"
 
-#include "core/array.h"
 #include "core/image_group.h"
 #include "core/log.h"
 #include "core/string.h"

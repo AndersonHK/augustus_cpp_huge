@@ -7,11 +7,9 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-}
 
 #include <cstdio>
 #include <cstdlib>
@@ -582,13 +580,13 @@ void reset_production_overrides()
 
 } // namespace building_type_registry_impl
 
-extern "C" const char *production_method_registry_get_production_method_path(void)
+const char *production_method_registry_get_production_method_path(void)
 {
     building_type_registry_impl::g_production_method_path = mod_manager::mod_path() + "ProductionMethod/";
     return building_type_registry_impl::g_production_method_path.c_str();
 }
 
-extern "C" int production_method_registry_load(void)
+int production_method_registry_load(void)
 {
     using namespace building_type_registry_impl;
 
@@ -616,32 +614,32 @@ extern "C" int production_method_registry_load(void)
     return 1;
 }
 
-extern "C" int production_method_registry_production_per_month_for_resource(resource_type resource)
+int production_method_registry_production_per_month_for_resource(resource_type resource)
 {
     return building_type_registry_impl::production_per_month_for_resource(resource);
 }
 
-extern "C" int production_method_registry_default_production_per_month_for_resource(resource_type resource)
+int production_method_registry_default_production_per_month_for_resource(resource_type resource)
 {
     return building_type_registry_impl::default_production_per_month_for_resource(resource);
 }
 
-extern "C" int production_method_registry_set_production_per_month_for_resource(resource_type resource, int production)
+int production_method_registry_set_production_per_month_for_resource(resource_type resource, int production)
 {
     return building_type_registry_impl::set_production_per_month_for_resource(resource, production);
 }
 
-extern "C" int production_method_registry_adjust_production_per_month_for_resource(resource_type resource, int delta)
+int production_method_registry_adjust_production_per_month_for_resource(resource_type resource, int delta)
 {
     return building_type_registry_impl::adjust_production_per_month_for_resource(resource, delta);
 }
 
-extern "C" void production_method_registry_reset_production_overrides(void)
+void production_method_registry_reset_production_overrides(void)
 {
     building_type_registry_impl::reset_production_overrides();
 }
 
-extern "C" int production_method_registry_supply_chain_for_good(
+int production_method_registry_supply_chain_for_good(
     resource_supply_chain *chain,
     resource_type good,
     int max_entries)
@@ -670,7 +668,7 @@ extern "C" int production_method_registry_supply_chain_for_good(
     return count;
 }
 
-extern "C" int production_method_registry_supply_chain_for_raw_material(
+int production_method_registry_supply_chain_for_raw_material(
     resource_supply_chain *chain,
     resource_type raw_material,
     int max_entries)

@@ -6,7 +6,7 @@
 int Market::max_food_stock() const
 {
     int max_stock = 0;
-    const building_type_registry_impl::Distribution *distribution = type().distribution();
+    const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     if (!distribution) {
         return 0;
     }
@@ -24,13 +24,13 @@ int Market::max_food_stock() const
 
 int Market::max_supplier_distance() const
 {
-    return type().market().max_distance();
+    return type ? type->market().max_distance() : 0;
 }
 
 int Market::needed_inventory(resource_storage_info info[RESOURCE_SLOT_COUNT]) const
 {
     int needed = 0;
-    const building_type_registry_impl::Distribution *distribution = type().distribution();
+    const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     if (!distribution) {
         return 0;
     }
@@ -44,16 +44,16 @@ int Market::needed_inventory(resource_storage_info info[RESOURCE_SLOT_COUNT]) co
     return needed;
 }
 
-int Market::resource_storages_for_supplier(resource_storage_info info[RESOURCE_SLOT_COUNT], figure *supplier) const
+int Market::resource_storages_for_supplier(resource_storage_info info[RESOURCE_SLOT_COUNT], Figure *supplier) const
 {
-    const building_type_registry_impl::Distribution *distribution = type().distribution();
+    const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     return distribution ? distribution->find_sources_for_figure(
-        info, type_id(), road_network_id(), supplier, supply_search_distance()) : 0;
+        info, type ? type->type() : BUILDING_NONE, road_network_id(), supplier, supply_search_distance()) : 0;
 }
 
 resource_type Market::fetch_inventory(resource_storage_info info[RESOURCE_SLOT_COUNT]) const
 {
-    const building_type_registry_impl::Distribution *distribution = type().distribution();
+    const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     if (!distribution) {
         return RESOURCE_NONE;
     }
@@ -80,7 +80,7 @@ resource_type Market::fetch_inventory(resource_storage_info info[RESOURCE_SLOT_C
 int Market::storage_destination()
 {
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
-    const building_type_registry_impl::Distribution *distribution = type().distribution();
+    const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     if (!needed_inventory(info) ||
         !distribution ||
         !distribution->find_sources_for_building(info, *this, supply_search_distance())) {
@@ -93,7 +93,7 @@ int Market::storage_destination()
 
 int Market::handles_distribution(resource_type resource) const
 {
-    const building_type_registry_impl::Distribution *distribution = type().distribution();
+    const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     return distribution && distribution->handles_resource(resource);
 }
 

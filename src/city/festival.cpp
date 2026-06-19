@@ -58,7 +58,7 @@ static int working_monument_matching(int (*matches)(const building_type_registry
     for (int id = 1; id < building_count(); id++) {
         building *b = building_get(id);
         Building building_object(b);
-        const building_type_registry_impl::BuildingType *definition = building_object.type_definition();
+        const building_type_registry_impl::BuildingType *definition = building_object.type;
         if (definition && matches(*definition) && b->monument.phase == MONUMENT_FINISHED &&
             b->state == BUILDING_STATE_IN_USE && !building_monument_has_labour_problems(b)) {
             return b->id;
@@ -200,7 +200,7 @@ void city_festival_schedule(void)
     if (city_data.festival.selected.size == FESTIVAL_GRAND) {
         int wine_needed = city_data.festival.grand_wine;
         if (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
-            Building venus_gt = Building::from_id(building_monument_get_venus_gt());
+            Building venus_gt(building_get(building_monument_get_venus_gt()));
             int temple_wine = venus_gt.resource_amount(resource_wine());
             if (wine_needed <= temple_wine) {
                 venus_gt.add_resource(resource_wine(), -wine_needed);
@@ -282,7 +282,7 @@ void city_festival_calculate_costs(void)
 {
     int wine_available = city_data.resource.stored_in_warehouses[resource_wine()];
     if (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
-        Building venus_gt = Building::from_id(building_monument_get_venus_gt());
+        Building venus_gt(building_get(building_monument_get_venus_gt()));
         wine_available += venus_gt.resource_amount(resource_wine());
     }
 

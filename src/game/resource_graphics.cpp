@@ -1,8 +1,6 @@
 #include "game/resource_graphics.h"
 
-extern "C" {
 #include "core/crash_context.h"
-}
 
 #include <cctype>
 #include <cstdio>

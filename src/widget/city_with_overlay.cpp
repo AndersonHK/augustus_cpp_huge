@@ -32,9 +32,9 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
+#include "city/view_render.h"
 #include "widget/city_draw.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/granary.h"
 #include "building/properties.h"
@@ -51,7 +51,6 @@ extern "C" {
 #include "map/random.h"
 #include "map/terrain.h"
 #include "widget/city_overlay.h"
-}
 
 #include <cstring>
 
@@ -64,7 +63,7 @@ static unsigned int city_roamer_preview_selected_building_id = ((unsigned int) -
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    const building_type_registry_impl::BuildingType *definition = building.type;
     return definition && std::strcmp(definition->attr(), text_id) == 0;
 }
 
@@ -233,7 +232,7 @@ void city_with_overlay_update(void)
 static color_t get_building_color_mask(const Building &building)
 {
     color_t color_mask = COLOR_MASK_NONE;
-    const building_type type = building.type_id();
+    const building_type type = building.type ? building.type->type() : BUILDING_NONE;
     const model_building *model = model_get_building(type);
     int labor_needed = model->laborers;
     if (!labor_needed && !building_matches(building, "warehouse_space")) { // account for warehouse case
@@ -321,7 +320,7 @@ static int has_adjacent_deletion(int grid_offset)
     const int *adjacent_offset = ADJACENT_OFFSETS[size - 2][city_view_orientation() / 2];
     for (int i = 0; i < total_adjacent_offsets; ++i) {
         if (map_property_is_deleted(grid_offset + adjacent_offset[i]) ||
-            draw_building_as_deleted(Building::from_id(map_building_at(grid_offset + adjacent_offset[i])))) {
+            draw_building_as_deleted(Building(building_get(map_building_at(grid_offset + adjacent_offset[i]))))) {
             return 1;
         }
     }
@@ -334,7 +333,7 @@ static void draw_flattened_building_footprint(const Building &building, int x, i
     if (building.has_house_size()) {
         image_base += 4;
     }
-    if (building.is_bridge()) {//dont draw bridges
+    if (map_is_bridge(building.grid_offset())) {//dont draw bridges
         return;
     }
     if (building.size() == 1) {
@@ -447,7 +446,7 @@ void city_with_overlay_draw_building_footprint(int x, int y, int grid_offset, in
     if (!building_id) {
         return;
     }
-    Building building = Building::from_id(building_id);
+    Building building(building_get(building_id));
     ::building *overlay_building = building_get(building_id);
     color_t color_mask = 0;
     if (overlay->type == OVERLAY_PROBLEMS) {
@@ -457,7 +456,7 @@ void city_with_overlay_draw_building_footprint(int x, int y, int grid_offset, in
         if (is_building_selected(building)) {
             color_mask = get_building_color_mask(building);
         }
-        if (building.is_farm()) {
+        if (building.type && building.type->is_farm()) {
             if (is_drawable_farmhouse(grid_offset, city_view_orientation())) {
                 Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
             } else if (map_property_is_draw_tile(grid_offset)) {
@@ -470,7 +469,7 @@ void city_with_overlay_draw_building_footprint(int x, int y, int grid_offset, in
         }
     } else {
         int draw = 1;
-        if (building.size() == 3 && building.is_farm()) {
+        if (building.size() == 3 && building.type && building.type->is_farm()) {
             draw = is_drawable_farm_corner(grid_offset);
         }
         if (draw) {
@@ -691,11 +690,11 @@ static color_t building_top_color_mask(const Building &building)
     return is_building_selected(building) ? get_building_color_mask(building) : color_mask;
 }
 
-static void draw_building_top(int grid_offset, Building &building, int x, int y)
+static void draw_building_top(Building building, int x, int y, int grid_offset)
 {
     color_t color_mask = building_top_color_mask(building);
 
-    if (building.is_farm()) {
+    if (building.type && building.type->is_farm()) {
         if (is_drawable_farmhouse(grid_offset, city_view_orientation())) {
             Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
         } else if (map_property_is_draw_tile(grid_offset)) {
@@ -703,10 +702,10 @@ static void draw_building_top(int grid_offset, Building &building, int x, int y)
         }
         return;
     }
-    if (building.type().is_granary()) {
+    if (building.type && building.type->is_granary()) {
         draw_granary_stores(*image_get(map_image_at(grid_offset)), building, x, y, color_mask);
     }
-    if (building.type().is_warehouse()) {
+    if (building.type && building.type->is_warehouse()) {
         draw_warehouse_ornaments(x, y, color_mask);
         draw_permissions_flag(building, x + 19, y - 56, color_mask);
     }
@@ -719,18 +718,16 @@ static void draw_building_top(int grid_offset, Building &building, int x, int y)
     }
 }
 
-void city_with_overlay_draw_building_top(int x, int y, int grid_offset)
+static void city_with_overlay_draw_building_top_for_building(Building building, int x, int y, int grid_offset)
 {
-    const int building_id = map_building_at(grid_offset);
-    Building building = Building::from_id(building_id);
-    const ::building *overlay_building = building_get(building_id);
+    const ::building *overlay_building = building_get(building.id());
     if (overlay->show_building(overlay_building)) {
-        draw_building_top(grid_offset, building, x, y);
+        draw_building_top(building, x, y, grid_offset);
     } else {
         int column_height = overlay->get_column_height(overlay_building);
         if (column_height != NO_COLUMN) {
             int draw = 1;
-            if (building.is_farm()) {
+            if (building.type && building.type->is_farm()) {
                 draw = is_drawable_farm_corner(grid_offset);
             }
             if (draw) {
@@ -740,7 +737,12 @@ void city_with_overlay_draw_building_top(int x, int y, int grid_offset)
     }
 }
 
-static void draw_top(int x, int y, int grid_offset)
+void city_with_overlay_draw_building_top(int x, int y, int grid_offset)
+{
+    city_with_overlay_draw_building_top_for_building(Building(building_get(map_building_at(grid_offset))), x, y, grid_offset);
+}
+
+static void draw_top_for_building(Building building, int x, int y, int grid_offset)
 {
     if (overlay->draw_custom_top && overlay->draw_custom_top(x, y, scale, grid_offset)) {
         return;
@@ -748,8 +750,8 @@ static void draw_top(int x, int y, int grid_offset)
     if (!map_property_is_draw_tile(grid_offset)) {
         return;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && map_building_at(grid_offset)) {
-        city_with_overlay_draw_building_top(x, y, grid_offset);
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building.id()) {
+        city_with_overlay_draw_building_top_for_building(building, x, y, grid_offset);
     } else if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         if (!map_terrain_is(grid_offset, TERRAIN_WALL | TERRAIN_AQUEDUCT | TERRAIN_ROAD)) {
             color_t color_mask = 0;
@@ -762,6 +764,16 @@ static void draw_top(int x, int y, int grid_offset)
     }
 }
 
+static void draw_top(int x, int y, int grid_offset)
+{
+    draw_top_for_building(Building(building_get(map_building_at(grid_offset))), x, y, grid_offset);
+}
+
+static void draw_top_render_tile(const CityViewRenderTile &tile)
+{
+    draw_top_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+}
+
 static int overlay_draws_building_animation(const Building &building)
 {
     switch (overlay->type) {
@@ -771,30 +783,28 @@ static int overlay_draws_building_animation(const Building &building)
         case OVERLAY_ENEMY:
             return building_matches(building, "prefecture") ||
                 building_matches(building, "burning_ruin") ||
-                building.type().is_watchtower();
+                (building.type && building.type->is_watchtower());
         case OVERLAY_DAMAGE:
             return building_matches(building, "engineers_post");
         case OVERLAY_WATER:
             return building_matches(building, "reservoir") || building_matches(building, "fountain");
         case OVERLAY_FOOD_STOCKS:
-            return building_matches(building, "market") || building.type().is_granary();
+            return building_matches(building, "market") || (building.type && building.type->is_granary());
         default:
             return 0;
     }
 }
 
-static void draw_animation(int x, int y, int grid_offset)
+static void draw_animation_for_building(Building building, int x, int y, int grid_offset)
 {
-    const int building_id = map_building_at(grid_offset);
-    Building building = Building::from_id(building_id);
-    int draw = building_id && overlay_draws_building_animation(building);
+    int draw = building.id() && overlay_draws_building_animation(building);
 
     int image_id = map_image_at(grid_offset);
     const image *img = image_get(image_id);
     if (map_is_bridge(grid_offset)) {
         city_draw_bridge(x, y, scale, grid_offset);
     } else {
-        if (!draw || !building_id || !map_property_is_draw_tile(grid_offset)) {
+        if (!draw || !building.id() || !map_property_is_draw_tile(grid_offset)) {
             return;
         }
 
@@ -803,7 +813,7 @@ static void draw_animation(int x, int y, int grid_offset)
             return;
         }
         if (img->animation) {
-            if (building.type().is_granary()) {
+            if (building.type && building.type->is_granary()) {
                 draw_granary_stores(*img, building, x, y, color_mask);
             } else {
                 int frame_offset = building.animate().offset_for(Image::from_id(image_id), grid_offset);
@@ -819,11 +829,21 @@ static void draw_animation(int x, int y, int grid_offset)
     }
 }
 
+static void draw_animation(int x, int y, int grid_offset)
+{
+    draw_animation_for_building(Building(building_get(map_building_at(grid_offset))), x, y, grid_offset);
+}
+
+static void draw_animation_render_tile(const CityViewRenderTile &tile)
+{
+    draw_animation_for_building(tile.building, tile.x, tile.y, tile.grid_offset);
+}
+
 static void draw_figures(int x, int y, int grid_offset)
 {
     int figure_id = map_figure_at(grid_offset);
     while (figure_id) {
-        figure *f = figure_get(figure_id);
+        Figure *f = Figure::get(figure_id);
         if (!f->is_ghost && overlay->show_figure(f)) {
             city_draw_figure(f, x, y, scale, 0);
         }
@@ -831,14 +851,19 @@ static void draw_figures(int x, int y, int grid_offset)
     }
 }
 
+static void draw_figures_render_tile(const CityViewRenderTile &tile)
+{
+    draw_figures(tile.x, tile.y, tile.grid_offset);
+}
+
 static void draw_elevated_figures(int x, int y, int grid_offset)
 {
     int figure_id = map_figure_at(grid_offset);
     while (figure_id > 0) {
-        figure *f = figure_get(figure_id);
+        Figure *f = Figure::get(figure_id);
         if (((f->use_cross_country && !f->is_ghost && !f->dont_draw_elevated) || f->height_adjusted_ticks) && overlay->show_figure(f)) {
             city_draw_figure(f, x, y, scale, 0);
-        } else if (f->building_id == city_roamer_preview_selected_building_id) { //figure from selected building
+        } else if (f->building.id() == city_roamer_preview_selected_building_id) { //figure from selected building
             if (config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
                 int highlight = FIGURE_HIGHLIGHT_GREEN;
                 if (f->type == FIGURE_MARKET_SUPPLIER || f->type == FIGURE_DELIVERY_BOY) {
@@ -866,7 +891,7 @@ static void deletion_draw_terrain_top(int x, int y, int grid_offset)
 
 static void deletion_draw_animations(int x, int y, int grid_offset)
 {
-    if (map_property_is_deleted(grid_offset) || draw_building_as_deleted(Building::from_id(map_building_at(grid_offset)))) {
+    if (map_property_is_deleted(grid_offset) || draw_building_as_deleted(Building(building_get(map_building_at(grid_offset))))) {
         Image::blend_footprint_color(x, y, building_construction_clear_color(), scale);
     }
     if (!should_draw_top_before_deletion(grid_offset)) {
@@ -900,10 +925,13 @@ void city_with_overlay_draw(const map_tile *tile, unsigned int roamer_preview_bu
     if (!should_mark_deleting) {
         {
             PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ROW);
-            city_view_foreach_valid_map_tile_row(
-                draw_figures,
-                draw_top,
-                draw_animation
+            city_view_foreach_valid_render_tile_row(
+                draw_figures_render_tile,
+                draw_top_render_tile,
+                draw_animation_render_tile,
+                PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_FIGURES,
+                PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_TOP,
+                PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ANIMATION
             );
         }
         {
@@ -953,7 +981,7 @@ int city_with_overlay_get_tooltip_text(tooltip_context *c, int grid_offset)
         overlay_type != OVERLAY_PROBLEMS && overlay_type != OVERLAY_MOTHBALL && overlay_type != OVERLAY_ENEMY &&
         overlay_type != OVERLAY_LOGISTICS && overlay_type != OVERLAY_SICKNESS && overlay_type != OVERLAY_EFFICIENCY &&
         overlay_type != OVERLAY_HEALTH && overlay_type != OVERLAY_EMPLOYMENT;
-    Building building = Building::from_id(building_id);
+    Building building(building_get(building_id));
     ::building *overlay_building = building_get(building_id);
     if (overlay_requires_house && !building.has_house_size()) {
         return 0;

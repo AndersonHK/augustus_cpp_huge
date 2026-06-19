@@ -1,10 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
 #include "scenario/event/data.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 void scenario_condition_group_new(scenario_condition_group_t *group, unsigned int id);
@@ -21,6 +18,3 @@ int scenario_condition_group_load_state(buffer *buf, scenario_condition_group_t 
     int *link_type, int32_t *link_id);
 int scenario_condition_uses_custom_variable(const scenario_condition_t *condition, int custom_variable_id);
 
-#ifdef __cplusplus
-}
-#endif

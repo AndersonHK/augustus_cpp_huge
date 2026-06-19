@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void map_tiles_update_all_rocks(void);
 
@@ -60,6 +57,3 @@ void map_tiles_remove_entry_exit_flags(void);
 
 void map_tiles_update_all(void);
 
-#ifdef __cplusplus
-}
-#endif

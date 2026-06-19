@@ -5,9 +5,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void building_type_id_bridge_reset_for_runtime(void);
 void building_type_id_bridge_clear_save_table(void);
@@ -22,6 +19,3 @@ uint16_t building_type_id_bridge_save_id_from_runtime(building_type runtime_id);
 building_type building_type_id_bridge_runtime_from_save_id(uint16_t save_id);
 int building_type_id_bridge_save_id_is_missing(uint16_t save_id);
 
-#ifdef __cplusplus
-}
-#endif

@@ -30,7 +30,6 @@
 
 #include <string_view>
 
-extern "C" {
 
 #include "building/building_type_api.h"
 #include "building/menu.h"
@@ -45,7 +44,6 @@ extern "C" {
 #include "input/hotkey.h"
 #include "scenario/allowed_building.h"
 #include "scenario/property.h"
-}
 
 
 #define MINIMAP_Y_OFFSET 59

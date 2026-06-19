@@ -1,8 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
-
+#pragma once
 
 typedef enum {
     SOUND_EFFECT_PANEL,
@@ -52,7 +48,3 @@ typedef enum {
 void sound_effect_set_volume(int percentage);
 
 void sound_effect_play(sound_effect_type effect);
-
-#ifdef __cplusplus
-}
-#endif

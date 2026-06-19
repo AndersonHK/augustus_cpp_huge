@@ -10,7 +10,6 @@
 
 #include "building/building_type_startup_bridge.h"
 #include "window/editor/map.h"
-extern "C" {
 
 #include "building/building_type_api.h"
 #include "core/string.h"
@@ -19,7 +18,6 @@ extern "C" {
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #define MAX_BUTTONS 13
 #define BUTTON_LEFT_PADDING 32

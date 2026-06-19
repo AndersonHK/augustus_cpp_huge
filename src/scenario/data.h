@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "core/file.h"
 #include "map/point.h"
@@ -6,9 +6,6 @@
 #include "scenario/types.h"
 
 #include <stdint.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define MAX_HERD_POINTS 4
@@ -151,6 +148,3 @@ extern struct scenario_t {
     } campaign;
 } scenario;
 
-#ifdef __cplusplus
-}
-#endif

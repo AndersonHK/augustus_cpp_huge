@@ -1,10 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "building/building_fwd.h"
 #include "map/point.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define FIGURE_ROAMER_PREVIEW_MAX_PASSAGES 8
@@ -18,6 +15,3 @@ void figure_roamer_preview_reset(building_type type);
 void figure_roamer_preview_reset_building_types(void);
 int figure_roamer_preview_get_frequency(int grid_offset);
 
-#ifdef __cplusplus
-}
-#endif

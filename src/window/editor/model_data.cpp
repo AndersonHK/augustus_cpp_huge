@@ -15,7 +15,6 @@
 #include "building/building_type_registry.h"
 #include "building/building_type_startup_bridge.h"
 
-extern "C" {
 
 #include "building/building_type_api.h"
 #include "building/properties.h"
@@ -25,7 +24,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #define NO_SELECTION (unsigned int) -1
 #define NUM_DATA_BUTTONS (sizeof(data_buttons) / sizeof(generic_button))

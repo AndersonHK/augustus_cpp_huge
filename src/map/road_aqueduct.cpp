@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "road_aqueduct.h"
 
@@ -21,7 +22,7 @@ static int building_matches(building *b, const char *text_id)
         return 0;
     }
     Building current(b);
-    const building_type_registry_impl::BuildingType *definition = current.type_definition();
+    const building_type_registry_impl::BuildingType *definition = current.type;
     return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
@@ -151,7 +152,7 @@ static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
             }
         } else {
             Building current(b);
-            if (current.has_type_definition() && current.type().is_granary()) {
+            if (current.type && current.type->is_granary()) {
                 if (map_routing_citizen_is_road(grid_offset)) {
                     is_road = 1;
                 }

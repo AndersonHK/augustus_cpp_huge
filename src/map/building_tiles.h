@@ -1,6 +1,6 @@
 #pragma once
 
-class Building;
+#include "building/building.h"
 
 void map_building_tiles_add_remove(unsigned int building_id, int x, int y, int size, int image_id, int terrain_to_add, int terrain_to_remove);
 

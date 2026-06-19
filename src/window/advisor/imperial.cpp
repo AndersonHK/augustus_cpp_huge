@@ -14,7 +14,6 @@
 #include "window/popup_dialog.h"
 #include "graphics/ui_runtime.h"
 
-extern "C" {
 
 #include "city/emperor.h"
 #include "city/finance.h"
@@ -31,7 +30,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-}
 
 #define ADVISOR_HEIGHT 27
 #define RESOURCE_INFO_MAX_TEXT 200

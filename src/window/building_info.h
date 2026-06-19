@@ -1,29 +1,21 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 void window_building_info_show(int grid_offset);
 
 int window_building_info_get_building_type(void);
 
-#ifdef __cplusplus
-}
 
 class Building;
 Building window_building_info_current_building();
+void window_building_info_show_storage_special_orders_on_top(Building building);
 
-extern "C" {
-#endif
 
 void window_building_info_show_storage_orders(void);
 
 void window_building_info_show_roadblock_orders(void);
 
 void window_building_info_show_storage_special_orders(void);
-
-void window_building_info_show_storage_special_orders_on_top(int building_id);
 
 void window_building_info_restore_previous_context(void);
 
@@ -43,6 +35,3 @@ void window_building_info_depot_toggle_condition_threshold_reverse(void);
 
 void window_building_info_depot_return_to_main_window(void);
 
-#ifdef __cplusplus
-}
-#endif

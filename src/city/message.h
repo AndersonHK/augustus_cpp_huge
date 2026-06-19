@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 typedef enum {
@@ -262,12 +259,7 @@ void city_message_save_state(buffer *messages, buffer *extra, buffer *counts, bu
 
 void city_message_load_state(buffer *messages, buffer *extra, buffer *counts, buffer *delays, buffer *population);
 
-#ifdef __cplusplus
-}
 
-extern "C++" {
 struct lang_message;
 const lang_message *city_message_get_lang_message(const city_message *message);
 const lang_message *city_message_get_lang_message_for(int message_type, int custom_message_id);
-}
-#endif

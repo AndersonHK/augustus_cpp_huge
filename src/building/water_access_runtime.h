@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include "building/building_type.h"
 
@@ -28,6 +25,3 @@ void water_access_runtime_end_preview(void);
 int water_access_runtime_tile_has_preview_highlight(int grid_offset);
 int water_access_runtime_should_draw_overlay_at(int grid_offset);
 
-#ifdef __cplusplus
-}
-#endif

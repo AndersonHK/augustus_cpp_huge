@@ -3,7 +3,7 @@
 #include "building/clone.h"
 #include "building/construction.h"
 #include "building/data_transfer.h"
-#include "building/industry.h"
+#include "../building/industry.h"
 #include "building/rotation.h"
 #include "building/variant.h"
 #include "city/victory.h"
@@ -38,7 +38,6 @@
 #include "building/building_type_registry_internal.h"
 
 #include "game/settings.h"
-extern "C" {
 
 #include "building/building_type_api.h"
 #include "building/menu.h"
@@ -62,7 +61,6 @@ extern "C" {
 #include "scenario/allowed_building.h"
 #include "scenario/criteria.h"
 #include "scenario/custom_variable.h"
-}
 
 
 #include <cstring>
@@ -510,8 +508,8 @@ static int get_overlay_for_building_type(const building_type_registry_impl::Buil
     } else if (building_type_attr_is_any(type, {"forum", "senate"})) {
         overlay = OVERLAY_TAX_INCOME;
     } else if (type.is_granary() || type.is_mess_hall() || type.is_caravanserai() ||
+        resource_is_food(building_output_resource(type.type())) ||
         building_type_attr_is_any(type, {
-            "wheat_farm", "vegetable_farm", "fruit_farm", "olive_farm", "vines_farm", "pig_farm",
             "market", "oil_workshop", "wine_workshop", "wharf"
         })) {
         overlay = OVERLAY_FOOD_STOCKS;
@@ -539,7 +537,8 @@ static int get_overlay_for_building_type(const building_type_registry_impl::Buil
 
 static Building building_main_at_grid_offset(int grid_offset)
 {
-    return Building::from_id(map_building_at(grid_offset)).main();
+    const int building_id = map_building_at(grid_offset);
+    return building_id ? Building(building_get(building_id)).main() : Building(nullptr);
 }
 
 static int get_overlay_for_terrain(int terrain)
@@ -567,8 +566,8 @@ static void show_overlay_from_grid_offset(int grid_offset)
     int overlay = OVERLAY_NONE;
     const int terrain = map_terrain_get(grid_offset);
     const Building building = building_main_at_grid_offset(grid_offset);
-    if (building.id()) {
-        overlay = get_overlay_for_building_type(building.type());
+    if (building.id() && building.type) {
+        overlay = get_overlay_for_building_type(*building.type);
     } else {
         overlay = get_overlay_for_terrain(terrain);
     }
@@ -596,16 +595,16 @@ static int has_storage_orders(const building_type_registry_impl::BuildingType &t
 
 static void toggle_mothball_building(Building &building)
 {
-    if (!building.id()) {
+    if (!building.id() || !building.type) {
         return;
     }
 
-    const model_building *model = model_get_building(building.type_id());
+    const model_building *model = model_get_building(building.type->type());
     if (!model || !model->laborers) {
         return;
     }
 
-    building_mothball_toggle(building.legacy_record());
+    building_mothball_toggle(building_get(building.id()));
     if (building.is_in_use()) {
         city_warning_show(WARNING_DATA_MOTHBALL_OFF, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_OFF"));
     } else if (building.is_mothballed()) {
@@ -618,7 +617,7 @@ static void copy_building_settings(Building &building)
     if (!building.id()) {
         return;
     }
-    building_data_transfer_copy(building.legacy_record(), 0);
+    building_data_transfer_copy(building_get(building.id()), 0);
 }
 
 static void paste_building_settings(Building &building)
@@ -626,7 +625,7 @@ static void paste_building_settings(Building &building)
     if (!building.id()) {
         return;
     }
-    building_data_transfer_paste(building.legacy_record(), 0);
+    building_data_transfer_paste(building_get(building.id()), 0);
 }
 
 static int tooltip_has_widget_payload(const tooltip_context *c)
@@ -764,8 +763,8 @@ static void handle_hotkeys(const hotkeys *h)
     if (h->storage_order) {
         int grid_offset = widget_city_current_grid_offset();
         const Building building = building_main_at_grid_offset(grid_offset);
-        if (building.id()) {
-            if (has_storage_orders(building.type())) {
+        if (building.id() && building.type) {
+            if (has_storage_orders(*building.type)) {
                 window_building_info_show(grid_offset);
                 window_building_info_show_storage_orders();
             }

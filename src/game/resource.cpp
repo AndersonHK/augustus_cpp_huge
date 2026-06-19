@@ -9,10 +9,7 @@
 
 #include "building/production_method_registry.h"
 
-#ifdef __cplusplus
 #include "core/file.h"
-extern "C" {
-#endif
 
 #include "core/crash_context.h"
 #include "core/dir.h"
@@ -22,9 +19,6 @@ extern "C" {
 #include "scenario/allowed_building.h"
 #include "scenario/property.h"
 
-#ifdef __cplusplus
-}
-#endif
 
 #include "game/resource_id_bridge.h"
 

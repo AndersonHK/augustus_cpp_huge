@@ -9,7 +9,6 @@
 #include "translation/translation.h"
 #include "graphics/ui_runtime.h"
 
-extern "C" {
 
 #include "city/data_private.h"
 #include "city/figures.h"
@@ -23,7 +22,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "map/grid.h"
 #include "scenario/invasion.h"
-}
 
 #define ADVISOR_HEIGHT 27
 

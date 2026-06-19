@@ -1,9 +1,6 @@
 #pragma once
 
 #include "building/building_type.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define SMALL_TEMPLE_LEVY_MONTHLY 4
@@ -101,6 +98,3 @@ const finance_overview *city_finance_overview_this_year(void);
 
 int city_finance_spawn_tourist(void);
 
-#ifdef __cplusplus
-}
-#endif

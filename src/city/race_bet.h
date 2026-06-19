@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 typedef enum {
@@ -15,6 +12,3 @@ typedef enum {
 int has_bet_in_progress(void);
 void race_result_process(void);
 
-#ifdef __cplusplus
-}
-#endif

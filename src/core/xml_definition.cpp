@@ -3,9 +3,7 @@
 #include "core/xml_value.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/log.h"
-}
 
 #include <cstdio>
 #include <cstring>

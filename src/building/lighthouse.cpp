@@ -21,25 +21,26 @@ int building_lighthouse_enough_timber(Building lighthouse)
     return lighthouse.resource_amount(resource_timber()) > TIMBER_LOW;
 }
 
-int building_lighthouse_get_storage_destination(Building lighthouse)
+Building building_lighthouse_get_storage_destination(Building lighthouse)
 {
-    const building_type_registry_impl::Distribution *distribution = lighthouse.type().distribution();
+    const building_type_registry_impl::Distribution *distribution =
+        lighthouse.type ? lighthouse.type->distribution() : nullptr;
     if (!distribution) {
-        return 0;
+        return Building(nullptr);
     }
 
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
     if (!distribution->needed_resources_for(lighthouse, info) ||
         !distribution->find_sources_for_building(info, lighthouse, INFINITE)) {
-        return 0;
+        return Building(nullptr);
     }
 
     resource_type resource = distribution->fetch_resource(lighthouse, info, 0, 0, 1);
     if (resource == RESOURCE_NONE) {
-        return 0;
+        return Building(nullptr);
     }
     lighthouse.set_fetch_inventory_id(resource);
-    return info[resource].building_id;
+    return Building(building_get(info[resource].building_id));
 }
 
 int building_lighthouse_is_fully_functional(void)
@@ -57,8 +58,7 @@ static void set_lighthouse_graphic(Building lighthouse)
     if (!lighthouse.is_in_use()) {
         return;
     }
-    building *record = lighthouse.legacy_record();
-    if (lighthouse.type().has_phased_construction()) {
+    if (lighthouse.type && lighthouse.type->has_phased_construction()) {
         lighthouse.refresh_graphic();
     } else {
         map_building_tiles_add(
@@ -66,7 +66,7 @@ static void set_lighthouse_graphic(Building lighthouse)
             lighthouse.x(),
             lighthouse.y(),
             lighthouse.size(),
-            building_image_get(record),
+            building_image_get(building_get(lighthouse.id())),
             TERRAIN_BUILDING);
     }
 }

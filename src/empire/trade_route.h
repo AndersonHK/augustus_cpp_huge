@@ -1,10 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
 #include "game/resource.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 typedef enum {
@@ -59,6 +56,3 @@ void trade_routes_load_state(buffer *trade_routes);
 
 void trade_routes_migrate_to_buys_sells(buffer *limit, buffer *traded, int version);
 
-#ifdef __cplusplus
-}
-#endif

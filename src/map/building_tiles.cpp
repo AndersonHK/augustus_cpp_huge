@@ -210,17 +210,17 @@ void map_building_tiles_set_rubble(const Building *building, int x, int y, int s
     }
     // building id passed here is the original building that got destroyed, but can be 0 for walls and aqueducts
     const unsigned int building_id = building ? building->id() : 0;
-    const ::building *record = building ? building->legacy_record() : nullptr;
-    const bool is_burning_ruin = building && std::string_view(building->type().attr()) == "burning_ruin";
+    const bool is_burning_ruin = building && building->type && building->type->attr() &&
+        std::string_view(building->type->attr()) == "burning_ruin";
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);
             if (map_building_at(grid_offset) != building_id) {
                 continue;
             }
-            if (building_id && !is_burning_ruin && record) {
-                map_building_set_rubble_grid_building_id(grid_offset, record->id, 1);
-                // set rubble building id for the original. Collapsing into burning ruin sets this in destruction.c
+            if (building_id && !is_burning_ruin) {
+                map_building_set_rubble_grid_building_id(grid_offset, building_id, 1);
+                // set rubble building id for the original. Collapsing into burning ruin sets this in destruction.cpp
             }
             map_property_clear_constructing(grid_offset);
             map_property_set_multi_tile_size(grid_offset, 1);

@@ -8,9 +8,6 @@
 #include "city/labor.h"
 #include "city/resource.h"
 #include "map/point.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 typedef struct {
@@ -419,6 +416,3 @@ extern struct city_data_t {
     } caravanserai;
 } city_data;
 
-#ifdef __cplusplus
-}
-#endif

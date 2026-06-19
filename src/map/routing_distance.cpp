@@ -2,14 +2,12 @@
 
 #include "map/routing_distance.h"
 
-extern "C" {
 #include "building/building_record.h"
 #include "map/grid.h"
 #include "map/road_network.h"
 #include "map/routing.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-}
 
 #include <limits>
 

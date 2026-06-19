@@ -9,7 +9,6 @@
 #include "chief.h"
 
 #include "translation/translation.h"
-extern "C" {
 #include "city/data_private.h"
 #include "city/figures.h"
 #include "city/finance.h"
@@ -21,7 +20,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "scenario/invasion.h"
 #include "scenario/property.h"
-}
 
 
 #define ADVISOR_HEIGHT 26

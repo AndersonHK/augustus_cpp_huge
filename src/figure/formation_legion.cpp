@@ -24,10 +24,10 @@ int formation_legion_create_for_fort(const Building &fort)
     if (!m->id) {
         return 0;
     }
-    figure *standard = figure_create(FIGURE_FORT_STANDARD, 0, 0, DIR_0_TOP);
-    standard->building_id = fort.id();
+    Figure *standard = Figure::create(FIGURE_FORT_STANDARD, 0, 0, DIR_0_TOP);
+    standard->building = fort;
     standard->formation_id = m->id;
-    m->standard_figure_id = standard->id;
+    m->standard_figure_id = standard->id();
 
     return m->id;
 }
@@ -38,10 +38,10 @@ void formation_legion_delete_for_fort(const Building &fort)
         formation *m = formation_get(fort.formation_id());
         if (m->in_use) {
             if (m->standard_figure_id) {
-                figure_delete(figure_get(m->standard_figure_id));
+                Figure::get(m->standard_figure_id)->remove();
             }
             for (int i = 0; i < m->num_figures; ++i) {
-                figure_get(m->figures[i])->state = FIGURE_STATE_DEAD;
+                Figure::get(m->figures[i])->state = FIGURE_STATE_DEAD;
             }
             formation_clear(fort.formation_id());
             formation_calculate_legion_totals();
@@ -84,7 +84,7 @@ void formation_legion_update_recruit_status(const Building &fort)
         int too_many = m->num_figures - m->max_figures;
         for (int i = MAX_FORMATION_FIGURES - 1; i >= 0 && too_many > 0; i--) {
             if (m->figures[i]) {
-                figure_get(m->figures[i])->action_state = FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS;
+                Figure::get(m->figures[i])->action_state = FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS;
                 too_many--;
             }
         }
@@ -137,7 +137,7 @@ void formation_legion_move_to(formation *m, const map_tile *tile)
 
     int figure_id = map_figure_at(tile->grid_offset);
     while (figure_id) {
-        figure *f = figure_get(figure_id);
+        Figure *f = Figure::get(figure_id);
         if (f->formation_id) {
             formation *l = formation_get(f->formation_id);
             if (!l->is_legion) {
@@ -153,7 +153,7 @@ void formation_legion_move_to(formation *m, const map_tile *tile)
         city_warning_show(WARNING_LEGION_MORALE_TOO_LOW, translation_for_key("TR_CITY_WARNING_LEGION_MORALE_TOO_LOW"));
     }
     for (int i = 0; i < MAX_FORMATION_FIGURES && m->figures[i]; i++) {
-        figure *f = figure_get(m->figures[i]);
+        Figure *f = Figure::get(m->figures[i]);
         if (f->action_state == FIGURE_ACTION_149_CORPSE ||
             f->action_state == FIGURE_ACTION_150_ATTACK) {
             continue;
@@ -178,7 +178,7 @@ void formation_legion_return_home(formation *m)
     m->is_at_fort = 1;
     formation_legion_restore_layout(m);
     for (int i = 0; i < MAX_FORMATION_FIGURES && m->figures[i]; i++) {
-        figure *f = figure_get(m->figures[i]);
+        Figure *f = Figure::get(m->figures[i]);
         if (f->action_state == FIGURE_ACTION_149_CORPSE ||
             f->action_state == FIGURE_ACTION_150_ATTACK) {
             continue;
@@ -207,8 +207,8 @@ static int dispatch_soldiers(formation *m)
     m->is_at_fort = 0;
     for (int fig = 0; fig < m->num_figures; fig++) {
         if (m->figures[fig] > 0) {
-            figure *f = figure_get(m->figures[fig]);
-            if (!figure_is_dead(f)) {
+            Figure *f = Figure::get(m->figures[fig]);
+            if (!f->is_dead()) {
                 f->action_state = FIGURE_ACTION_87_SOLDIER_GOING_TO_DISTANT_BATTLE;
             }
         }
@@ -257,8 +257,8 @@ static void kill_soldiers(formation *m, int kill_percentage)
     }
     for (int fig = 0; fig < m->num_figures; fig++) {
         if (m->figures[fig] > 0) {
-            figure *f = figure_get(m->figures[fig]);
-            if (!figure_is_dead(f)) {
+            Figure *f = Figure::get(m->figures[fig]);
+            if (!f->is_dead()) {
                 if (soldiers_to_kill) {
                     soldiers_to_kill--;
                     f->state = FIGURE_STATE_DEAD;
@@ -283,8 +283,8 @@ static void return_soldiers(formation *m)
     m->in_distant_battle = 0;
     for (int fig = 0; fig < m->num_figures; fig++) {
         if (m->figures[fig] > 0) {
-            figure *f = figure_get(m->figures[fig]);
-            if (!figure_is_dead(f)) {
+            Figure *f = Figure::get(m->figures[fig]);
+            if (!f->is_dead()) {
                 f->action_state = FIGURE_ACTION_88_SOLDIER_RETURNING_FROM_DISTANT_BATTLE;
                 f->formation_at_rest = 1;
             }
@@ -324,7 +324,7 @@ int formation_legion_curse(void)
     }
     for (int i = 0; i < MAX_FORMATION_FIGURES; i++) {
         if (best_legion->figures[i] > 0) {
-            figure_get(best_legion->figures[i])->action_state = FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS;
+            Figure::get(best_legion->figures[i])->action_state = FIGURE_ACTION_82_SOLDIER_RETURNING_TO_BARRACKS;
         }
     }
     best_legion->cursed_by_mars = 96;
@@ -332,17 +332,17 @@ int formation_legion_curse(void)
     return 1;
 }
 
-static int is_legion(figure *f)
+static int is_legion(Figure *f)
 {
-    if (figure_is_legion(f) || f->type == FIGURE_FORT_STANDARD) {
+    if (f->is_legion() || f->type == FIGURE_FORT_STANDARD) {
         return f->formation_id;
     }
     return 0;
 }
 
-static int is_herd(figure *f)
+static int is_herd(Figure *f)
 {
-    if (figure_is_herd(f)) {
+    if (f->is_herd()) {
         return f->formation_id;
     }
     return 0;
@@ -364,12 +364,12 @@ int formation_legion_or_herd_at_grid_offset(int grid_offset)
 
 int formation_legion_at_building(int grid_offset)
 {
-    int building_id = map_building_at(grid_offset);
-    if (building_id > 0) {
-        Building b = Building::from_id(building_id);
+    if (int id = map_building_at(grid_offset)) {
+        Building b(building_get(id));
         const building_type fort_ground = building_type_registry_impl::runtime_id_from_text("fort_ground");
-        if (b.is_in_use() && (building_is_fort(b.type_id()) ||
-                (fort_ground != BUILDING_NONE && b.is_type(fort_ground)))) {
+        const building_type type = b.type ? b.type->type() : BUILDING_NONE;
+        if (b.is_in_use() && (building_is_fort(type) ||
+                (fort_ground != BUILDING_NONE && type == fort_ground))) {
             return b.formation_id();
         }
     }
@@ -388,14 +388,14 @@ void formation_legion_update(void)
             formation_clear_monthly_counters(m);
         }
         for (int n = 0; n < MAX_FORMATION_FIGURES; n++) {
-            if (figure_get(m->figures[n])->action_state == FIGURE_ACTION_150_ATTACK) {
+            if (Figure::get(m->figures[n])->action_state == FIGURE_ACTION_150_ATTACK) {
                 formation_record_fight(m);
             }
         }
         if (formation_has_low_morale(m)) {
             // flee back to fort
             for (int n = 0; n < MAX_FORMATION_FIGURES; n++) {
-                figure *f = figure_get(m->figures[n]);
+                Figure *f = Figure::get(m->figures[n]);
                 if (f->action_state != FIGURE_ACTION_150_ATTACK &&
                     f->action_state != FIGURE_ACTION_149_CORPSE &&
                     f->action_state != FIGURE_ACTION_148_FLEEING) {
@@ -409,7 +409,7 @@ void formation_legion_update(void)
                 city_figures_attacking_natives() > 0) {
                 for (int n = 0; n < MAX_FORMATION_FIGURES; n++) {
                     if (m->figures[n] != 0) {
-                        figure *f = figure_get(m->figures[n]);
+                        Figure *f = Figure::get(m->figures[n]);
                         if (f->action_state != FIGURE_ACTION_150_ATTACK &&
                             f->action_state != FIGURE_ACTION_149_CORPSE) {
                             f->action_state = FIGURE_ACTION_86_SOLDIER_MOPPING_UP;
@@ -425,9 +425,9 @@ void formation_legion_update(void)
 
 void formation_legion_decrease_damage(void)
 {
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
-        if (f->state == FIGURE_STATE_ALIVE && figure_is_legion(f)) {
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
+        if (f->state == FIGURE_STATE_ALIVE && f->is_legion()) {
             if (f->action_state == FIGURE_ACTION_80_SOLDIER_AT_REST) {
                 if (f->damage) {
                     f->damage--;

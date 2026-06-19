@@ -10,7 +10,6 @@
 #include "window/editor/map.h"
 #include "graphics/grid_box.h"
 #include "scenario/data.h"
-extern "C" {
 
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
@@ -19,7 +18,6 @@ extern "C" {
 #include "scenario/editor.h"
 #include "scenario/invasion.h"
 #include "scenario/property.h"
-}
 
 static void button_invasion(const grid_box_item *item);
 static void button_new_invasion(const generic_button *button);

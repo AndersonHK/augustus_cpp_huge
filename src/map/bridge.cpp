@@ -386,8 +386,7 @@ void map_bridge_remove(int grid_offset, int mark_deleted)
             map_property_mark_deleted(current);
         } else {
             if (config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES)) {
-                map_kill_figures_category_at(current,
-                    static_cast<figure_category>(FIGURE_CATEGORY_ALL ^ FIGURE_CATEGORY_INACTIVE));
+                map_kill_figures_category_at(current, FIGURE_CATEGORY_ALL ^ FIGURE_CATEGORY_INACTIVE);
             }
             map_sprite_clear_tile(current);
             map_terrain_remove(current, TERRAIN_ROAD);
@@ -426,8 +425,7 @@ int map_bridge_has_figures(int grid_offset)
     int current = start;
     // find lower end of the bridge
     while (map_is_bridge(current) && map_building_at(current) == building_id) {
-        if (map_has_figure_category_at(current,
-            static_cast<figure_category>(FIGURE_CATEGORY_ALL ^ FIGURE_CATEGORY_INACTIVE))) {
+        if (map_has_figure_category_at(current, FIGURE_CATEGORY_ALL ^ FIGURE_CATEGORY_INACTIVE)) {
             return 1;
         }
         current += delta;

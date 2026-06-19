@@ -14,7 +14,6 @@
 
 #include "game/settings.h"
 #include "game/campaign.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "core/image_group.h"
@@ -28,7 +27,6 @@ extern "C" {
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-}
 
 #define BACKGROUND_WIDTH 1024
 #define BACKGROUND_HEIGHT 768
@@ -307,13 +305,13 @@ static void show(void)
 
 } // namespace
 
-extern "C" void window_mission_selection_show(void)
+void window_mission_selection_show(void)
 {
     init();
     data.mission.intro_video ? window_video_show(data.mission.intro_video, show) : show();
 }
 
-extern "C" void window_mission_selection_show_again(void)
+void window_mission_selection_show_again(void)
 {
     init();
     show();

@@ -23,7 +23,7 @@
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    const building_type_registry_impl::BuildingType *type = building.type;
     return type && text_id && std::strcmp(type->attr(), text_id) == 0;
 }
 
@@ -66,7 +66,7 @@ void city_health_set(int new_value)
 
 static int is_plague_building(const Building &building)
 {
-    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    const building_type_registry_impl::BuildingType *definition = building.type;
     return definition &&
         (std::strcmp(definition->attr(), "dock") == 0 ||
             definition->is_warehouse() ||
@@ -75,7 +75,7 @@ static int is_plague_building(const Building &building)
 
 static int occupied_house_at_level(Building house, int level)
 {
-    const building *b = house.legacy_record();
+    const building *b = building_get(house.id());
     return b && building_house_is_active(house) && b->house_population && building_house_legacy_level(house) == level;
 }
 
@@ -86,14 +86,14 @@ static void cause_disease_in_building(int building_id)
     if (!b->has_plague) {
 
         // Remove half the granary's food
-        if (building_object.type().is_granary()) {
+        if (building_object.type && building_object.type->is_granary()) {
             for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
                 if (!resource_is_food(r)) {
                     continue;
                 }
                 building_granary_try_remove_resource(building_object, r, building_granary_get_amount(building_object, r) / 2);
             }
-        } else if (building_object.type().is_warehouse()) {
+        } else if (building_object.type && building_object.type->is_warehouse()) {
             // Remove all food from warehouse
             for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
                 if (!resource_is_food(r)) {
@@ -132,10 +132,13 @@ void city_health_update_sickness_level_in_building(int building_id)
     }
 }
 
-void city_health_dispatch_sickness(figure *f)
+void city_health_dispatch_sickness(Figure *f)
 {
-    building *b = building_get(f->building_id);
-    building *dest_b = building_get(f->destination_building_id);
+    building *b = building_get(f->building.id());
+    building *dest_b = building_get(f->destination_building.id());
+    if (!b || !dest_b) {
+        return;
+    }
 
     // Dispatch sickness level sub value between granaries, warehouses and docks
     if (is_plague_building(Building(dest_b)) && b->sickness_level && b->sickness_level > dest_b->sickness_level) {
@@ -316,7 +319,7 @@ static void adjust_sickness_level_in_house(building *b, int house_health, int po
 // House Health Calculation
 int city_health_get_house_health_level(Building house, int update_city_data)
 {
-    const building *b = house.legacy_record();
+    const building *b = building_get(house.id());
     if (!b) {
         return 0;
     }

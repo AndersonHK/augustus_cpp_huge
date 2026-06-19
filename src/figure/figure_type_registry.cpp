@@ -10,12 +10,10 @@
 #include "core/file.h"
 #include "core/log.h"
 #include "platform/file_manager.h"
-extern "C" {
 #include "building/properties.h"
 #include "core/dir.h"
 #include "core/image.h"
 #include "core/xml_parser.h"
-}
 
 #include <array>
 #include <cstddef>
@@ -1356,12 +1354,12 @@ static int validate_building_spawn_profile_references()
 
 } // namespace figure_type_registry_impl
 
-extern "C" const char *figure_type_registry_get_failure_reason(void)
+const char *figure_type_registry_get_failure_reason(void)
 {
     return figure_type_registry_impl::g_failure_reason.c_str();
 }
 
-extern "C" void figure_type_registry_reset(void)
+void figure_type_registry_reset(void)
 {
     figure_type_registry_impl::g_failure_reason.clear();
     for (std::unique_ptr<figure_type_registry_impl::FigureTypeDefinition> &definition :
@@ -1370,7 +1368,7 @@ extern "C" void figure_type_registry_reset(void)
     }
 }
 
-extern "C" int figure_type_registry_load(void)
+int figure_type_registry_load(void)
 {
     figure_type_registry_reset();
 

@@ -1,10 +1,8 @@
 #pragma once
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_type.h"
 #include "figure/type.h"
-}
 
 #include "figure/PathingMode.h"
 #include "map/road_service_history.h"

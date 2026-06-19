@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef struct building building;
 
@@ -23,6 +20,3 @@ int map_water_supply_reservoir_radius(void);
 int map_water_supply_well_radius(void);
 int map_water_supply_latrines_radius(void);
 
-#ifdef __cplusplus
-}
-#endif

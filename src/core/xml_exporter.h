@@ -2,9 +2,6 @@
 
 #include "core/buffer.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
  * @brief A structure that holds info about a xml export element.
@@ -85,6 +82,3 @@ void xml_exporter_close_element(void);
  */
 void xml_exporter_newline(void);
 
-#ifdef __cplusplus
-}
-#endif

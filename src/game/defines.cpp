@@ -6,10 +6,8 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/log.h"
 #include "core/xml_parser.h"
-}
 
 #include <array>
 #include <climits>
@@ -593,23 +591,23 @@ static int days_before_month(int month)
 
 } // namespace
 
-extern "C" int game_defines_load(void)
+int game_defines_load(void)
 {
     g_failure_reason.clear();
     return load_and_merge_defines();
 }
 
-extern "C" const char *game_defines_get_failure_reason(void)
+const char *game_defines_get_failure_reason(void)
 {
     return g_failure_reason.c_str();
 }
 
-extern "C" int game_defines_ticks_per_day(void)
+int game_defines_ticks_per_day(void)
 {
     return g_active_calendar.ticks_per_day;
 }
 
-extern "C" int game_defines_days_in_month(int month)
+int game_defines_days_in_month(int month)
 {
     if (month < 0 || month >= GAME_TIME_MONTHS_PER_YEAR) {
         return 0;
@@ -617,33 +615,33 @@ extern "C" int game_defines_days_in_month(int month)
     return g_active_calendar.month_days[static_cast<size_t>(month)];
 }
 
-extern "C" int game_defines_days_per_year(void)
+int game_defines_days_per_year(void)
 {
     return days_before_month(GAME_TIME_MONTHS_PER_YEAR);
 }
 
-extern "C" int game_defines_ticks_per_month(int month)
+int game_defines_ticks_per_month(int month)
 {
     return game_defines_ticks_per_day() * game_defines_days_in_month(month);
 }
 
-extern "C" int game_defines_ticks_per_year(void)
+int game_defines_ticks_per_year(void)
 {
     return game_defines_ticks_per_day() * game_defines_days_per_year();
 }
 
-extern "C" int game_defines_is_last_day_of_month(int month, int day)
+int game_defines_is_last_day_of_month(int month, int day)
 {
     const int days_in_month = game_defines_days_in_month(month);
     return days_in_month > 0 && day == days_in_month - 1;
 }
 
-extern "C" int game_defines_is_last_day_of_year(int month, int day)
+int game_defines_is_last_day_of_year(int month, int day)
 {
     return month == GAME_TIME_MONTHS_PER_YEAR - 1 && game_defines_is_last_day_of_month(month, day);
 }
 
-extern "C" int game_defines_mortality_percentage(int health_bucket, int age_decennium)
+int game_defines_mortality_percentage(int health_bucket, int age_decennium)
 {
     if (health_bucket < 0) {
         health_bucket = 0;
@@ -658,7 +656,7 @@ extern "C" int game_defines_mortality_percentage(int health_bucket, int age_dece
     return g_active_mortality.values[static_cast<size_t>(health_bucket)][static_cast<size_t>(age_decennium)];
 }
 
-extern "C" int game_defines_birth_percentage(int age_decennium)
+int game_defines_birth_percentage(int age_decennium)
 {
     if (age_decennium < 0 || age_decennium >= kAgeDecennia) {
         return 0;

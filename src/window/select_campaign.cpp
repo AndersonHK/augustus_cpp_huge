@@ -19,7 +19,6 @@
 #include "game/settings.h"
 #include "game/campaign.h"
 #include "scenario/scenario.h"
-extern "C" {
 
 #include "core/dir.h"
 #include "core/direction.h"
@@ -31,7 +30,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
-}
 
 #define PLAYER_NAME_LENGTH 32
 #define CAMPAIGN_LIST_Y_POSITION 96
@@ -316,7 +314,7 @@ static void handle_tooltip(tooltip_context *c)
     list_box_handle_tooltip(&list_box, c);
 }
 
-extern "C" void window_select_campaign_show(void)
+void window_select_campaign_show(void)
 {
     window_type window = {
         WINDOW_SELECT_CAMPAIGN,

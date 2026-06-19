@@ -22,7 +22,6 @@
 #include "game/resource_id_bridge.h"
 #include "input/zoom.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "core/config.h"
 #include "core/string.h"
@@ -41,7 +40,6 @@ extern "C" {
 #include "scenario/event/controller.h"
 #include "sound/city.h"
 #include "sound/effect.h"
-}
 
 #include <cstdio>
 #include <cstring>
@@ -173,7 +171,7 @@ static void draw_flags(int x, int y, int grid_offset)
 {
     int figure_id = map_figure_at(grid_offset);
     while (figure_id) {
-        figure *f = figure_get(figure_id);
+        Figure *f = Figure::get(figure_id);
         if (!f->is_ghost) {
             city_draw_figure(f, x, y, draw_context.scale, 0);
         }

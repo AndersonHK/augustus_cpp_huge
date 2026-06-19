@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "map/point.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 void scenario_map_init(void);
@@ -32,6 +29,3 @@ int scenario_map_closest_fishing_point(int x, int y, map_point *fish);
 
 int scenario_map_has_flotsam(void);
 
-#ifdef __cplusplus
-}
-#endif

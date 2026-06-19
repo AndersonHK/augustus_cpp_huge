@@ -1,25 +1,25 @@
 #include "player_data.h"
 
-#include "core/array.h"
 #include "core/dir.h"
 #include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 #include "core/xml_exporter.h"
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
 
-#define CAMPAIGNS_ARRAY_SIZE 5
 #define XML_PARSER_ELEMENTS 2
 #define XML_FILE_NAME "campaign_player_data.xml"
 
-typedef struct {
+struct campaign_player_data {
     const char *file_name;
     int current_mission;
-} campaign_player_data;
+};
 
 static struct {
-    array(campaign_player_data) campaigns;
+    std::vector<campaign_player_data> campaigns;
     int is_loaded;
 } data;
 
@@ -35,13 +35,10 @@ static int xml_start_campaign(void)
     if (!xml_parser_has_attribute("file_name") || !xml_parser_has_attribute("current_mission")) {
         return 1;
     }
-    campaign_player_data *campaign = array_advance(data.campaigns);
-    if (!campaign) {
-        log_error("Problem creating a campaign element. Out of memory.", 0, 0);
-        return 0;
-    }
-    campaign->file_name = xml_parser_copy_attribute_string("file_name");
-    campaign->current_mission = xml_parser_get_attribute_int("current_mission");
+    data.campaigns.push_back({
+        xml_parser_copy_attribute_string("file_name"),
+        xml_parser_get_attribute_int("current_mission")
+    });
 
     return 1;
 }
@@ -80,10 +77,7 @@ static void load_campaign_player_data(void)
     if (data.is_loaded) {
         return;
     }
-    if (!array_init(data.campaigns, CAMPAIGNS_ARRAY_SIZE, 0, 0)) {
-        log_error("Problem creating the campaign player data structure. Out of memory.", 0, 0);
-        return;
-    }
+    data.campaigns.clear();
 
     const char *xml_file = dir_get_file_at_location(XML_FILE_NAME, PATH_LOCATION_CONFIG);
 
@@ -113,19 +107,18 @@ static void load_campaign_player_data(void)
 static campaign_player_data *get_campaign_data_for_file_name(const char *campaign_file_name)
 {
     load_campaign_player_data();
-    campaign_player_data *campaign;
-    array_foreach(data.campaigns, campaign) {
-        if (strcmp(campaign_file_name, campaign->file_name) == 0) {
-            return campaign;
+    for (campaign_player_data &campaign : data.campaigns) {
+        if (strcmp(campaign_file_name, campaign.file_name) == 0) {
+            return &campaign;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 static void save_campaign_player_data(void)
 {
     buffer buf;
-    int buf_size = 1024 + 512 * data.campaigns.size;
+    int buf_size = 1024 + 512 * static_cast<int>(data.campaigns.size());
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     if (!buf_data) {
         log_error("Unable to save campaign player data. Out of memory", 0, 0);
@@ -134,11 +127,10 @@ static void save_campaign_player_data(void)
     buffer_init(&buf, buf_data, buf_size);
     xml_exporter_init(&buf, "campaign_player_data");
     xml_exporter_new_element("campaigns");
-    const campaign_player_data *campaign;
-    array_foreach(data.campaigns, campaign) {
+    for (const campaign_player_data &campaign : data.campaigns) {
         xml_exporter_new_element("campaign");
-        xml_exporter_add_attribute_text("file_name", campaign->file_name);
-        xml_exporter_add_attribute_int("current_mission", campaign->current_mission);
+        xml_exporter_add_attribute_text("file_name", campaign.file_name);
+        xml_exporter_add_attribute_int("current_mission", campaign.current_mission);
         xml_exporter_close_element();
     }
     xml_exporter_close_element();
@@ -172,18 +164,14 @@ void campaign_player_data_update_current_mission(const char *campaign_file_name,
         return;
     }
     if (!campaign) {
-        campaign = array_advance(data.campaigns);
-        if (!campaign) {
-            log_error("Problem creating a campaign element. Out of memory.", 0, 0);
-            return;
-        }
         char * new_file_name = static_cast<char *>(malloc((strlen(campaign_file_name) + 1) * sizeof(char)));
         if (!new_file_name) {
             log_error("Problem creating a campaign element. Out of memory.", 0, 0);
             return;
         }
         snprintf(new_file_name, strlen(campaign_file_name) + 1, "%s", campaign_file_name);
-        campaign->file_name = new_file_name;
+        data.campaigns.push_back({new_file_name, 0});
+        campaign = &data.campaigns.back();
     }
     campaign->current_mission = current_mission;
     save_campaign_player_data();

@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 int difficulty_starting_favor(void);
@@ -28,6 +25,3 @@ int difficulty_random_event_cooldown_months(void);
 
 int difficulty_high_salary_punishment(void);
 
-#ifdef __cplusplus
-}
-#endif

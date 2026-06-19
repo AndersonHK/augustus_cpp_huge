@@ -4,9 +4,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void keyboard_start_capture(uint8_t *text, int max_length, int allow_punctuation, int box_width, font_t font, const char *allowed_chars);
 void keyboard_refresh(void);
@@ -41,6 +38,3 @@ void keyboard_set_text(const uint8_t *text);
 
 int keyboard_get_max_text_length(void);
 
-#ifdef __cplusplus
-}
-#endif

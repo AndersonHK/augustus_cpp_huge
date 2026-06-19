@@ -1,9 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void city_figures_reset(void);
 
 void city_figures_add_animal(void);
@@ -30,7 +26,3 @@ int city_figures_soldiers(void);
 
 int city_figures_total_invading_enemies(void);
 int city_figures_has_security_breach(void);
-
-#ifdef __cplusplus
-}
-#endif

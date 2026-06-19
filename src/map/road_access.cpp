@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "road_access.h"
 
@@ -24,7 +25,7 @@ static int building_matches(building *b, const char *text_id)
         return 0;
     }
     Building current(b);
-    const building_type_registry_impl::BuildingType *definition = current.type_definition();
+    const building_type_registry_impl::BuildingType *definition = current.type;
     return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
@@ -549,7 +550,7 @@ static int get_adjacent_road_tile_for_roaming(int grid_offset, roadblock_permiss
                 no_permissions = 1;
             }
         }
-        if (current.has_type_definition() && current.type().is_granary()) {
+        if (current.type && current.type->is_granary()) {
             if (map_routing_citizen_is_road(grid_offset)) {
                 if (map_road_get_granary_inner_road_tiles_count(b) >= 3) {
                     is_road = 1; //edges of the granary that connect to another road become roads
@@ -558,7 +559,7 @@ static int get_adjacent_road_tile_for_roaming(int grid_offset, roadblock_permiss
                     is_road = 0; // dont roam into dead-end granaries
                 }
             }
-        } else if (current.has_type_definition() && current.type().is_warehouse()) {
+        } else if (current.type && current.type->is_warehouse()) {
             if (map_routing_citizen_is_passable_terrain(grid_offset) || map_routing_citizen_is_road(grid_offset)) {
                 is_road = 1;
             }

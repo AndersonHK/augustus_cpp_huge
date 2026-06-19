@@ -14,11 +14,11 @@
 #include "orientation.h"
 
 #include "building/building.h"
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/properties.h"
 #include "city/view.h"
@@ -29,7 +29,6 @@ extern "C" {
 #include "map/property.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
-}
 
 #include <cstring>
 #include <math.h>
@@ -327,13 +326,13 @@ void map_orientation_update_buildings(void)
                 "decorative_column",
             };
             Building current(b);
-            const auto *definition = current.type_definition();
+            const auto *definition = current.type;
             if ((definition && std::strcmp(definition->attr(), "dock") == 0) ||
                 type_matches_any(type, water_buildings, sizeof(water_buildings) / sizeof(water_buildings[0]))) {
                 map_water_add_building(i, b->x, b->y, b->size);
             } else if (type_matches_any(type, decorative_buildings,
                     sizeof(decorative_buildings) / sizeof(decorative_buildings[0])) ||
-                (current.has_type_definition() && current.type().is_watchtower())) {
+                (current.type && current.type->is_watchtower())) {
                 map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
             } else if (definition && definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
                     definition->roadblock().kind() != building_type_registry_impl::RoadblockKind::Bridge) {

@@ -1,4 +1,4 @@
-﻿#include "graphics/generic_button.h"
+#include "graphics/generic_button.h"
 #include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
@@ -8,7 +8,6 @@
 #include "select_city_by_type.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "core/string.h"
 #include "empire/city.h"
@@ -18,10 +17,9 @@ extern "C" {
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 
 #define MAX_BUTTONS 14
 #define BUTTON_LEFT_PADDING 32
@@ -102,11 +100,11 @@ static void close(void)
 static void id_list_mem_handling(int city_array_size)
 {
     if (!data.valid_city_ids_size) {
-        data.valid_city_ids = static_cast<int *>(malloc(INITIAL_ID_LIST_SIZE * sizeof(int)));
+        data.valid_city_ids = static_cast<int *>(std::malloc(INITIAL_ID_LIST_SIZE * sizeof(int)));
         data.valid_city_ids_size = INITIAL_ID_LIST_SIZE;
     }
     if (city_array_size > data.valid_city_ids_size) {
-        data.valid_city_ids = (int *) realloc(data.valid_city_ids, city_array_size * sizeof(int));
+        data.valid_city_ids = static_cast<int *>(std::realloc(data.valid_city_ids, city_array_size * sizeof(int)));
         data.valid_city_ids_size = city_array_size;
     }
 

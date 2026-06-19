@@ -9,7 +9,6 @@
 #include "edit_price_change.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
@@ -19,7 +18,6 @@ extern "C" {
 #include "scenario/editor.h"
 #include "scenario/price_change.h"
 #include "scenario/property.h"
-}
 
 static void button_year(const generic_button *button);
 static void button_resource(const generic_button *button);

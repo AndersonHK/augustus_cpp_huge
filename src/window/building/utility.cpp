@@ -14,7 +14,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/roadblock.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "building/building_record.h"
@@ -25,7 +24,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #include <stdlib.h>
 
@@ -37,9 +35,9 @@ static struct {
     unsigned int focus_button_id;
     unsigned int orders_focus_button_id;
     unsigned int figure_focus_button_id;
-    int building_id;
-    int tooltip_id;
-} data = { 0, 0, 0, 0, 0 };
+    Building building = Building(nullptr);
+    int tooltip_id = 0;
+} data;
 
 static building_type type_from_attr(const char *text_id)
 {
@@ -99,7 +97,7 @@ void window_building_draw_engineers_post(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.104.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
 
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
@@ -138,7 +136,7 @@ void window_building_draw_prefect(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.88.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else if (b->num_workers <= 0) {
@@ -170,7 +168,7 @@ void window_building_draw_prefect(building_info_context *c)
 
 static int affect_all_button_state(void)
 {
-    building *b = building_get(data.building_id);
+    building *b = building_get(data.building.id());
     if (b->data.roadblock.exceptions) {
         return REJECT_ALL;
     } else {
@@ -224,8 +222,8 @@ void window_building_draw_roadblock_orders_foreground(building_info_context *c)
         GROUP_FIGURE_TAX_COLLECTOR, GROUP_FIGURE_TAX_COLLECTOR, GROUP_FIGURE_LABOR_SEEKER, GROUP_FIGURE_LABOR_SEEKER,
         GROUP_FIGURE_MISSIONARY, GROUP_FIGURE_MISSIONARY, GROUP_FIGURE_TOWER_SENTRY, GROUP_FIGURE_TOWER_SENTRY,
     };
-    building *b = building_get(c->building_id);
-    data.building_id = b->id;
+    building *b = building_get(c->building.id());
+    data.building = c->building;
     draw_roadblock_orders_buttons(c->x_offset + 365, y_offset + 404, data.orders_focus_button_id == 1);
 
     for (unsigned int i = 0; i < size_of_orders_permission_buttons; i++) {
@@ -355,7 +353,7 @@ void window_building_draw_reservoir(building_info_context *c)
     window_building_play_sound(c, "wavs/resevoir.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.107.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    int text_id = building_get(c->building_id)->has_water_access ? 1 : 3;
+    int text_id = c->building.has_water_access() ? 1 : 3;
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 173, 107, text_id);
 }
 
@@ -375,7 +373,7 @@ void window_building_draw_fountain(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.108.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     int text_id;
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (b->has_water_access) {
         if (b->num_workers > 0) {
             text_id = 1;
@@ -399,7 +397,7 @@ void window_building_draw_well(building_info_context *c)
     window_building_play_sound(c, "wavs/well.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.109.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    int well_necessity = map_water_supply_is_building_unnecessary(c->building_id, 2);
+    int well_necessity = map_water_supply_is_building_unnecessary(c->building.id(), 2);
     int text_id = 0;
     if (well_necessity == BUILDING_NECESSARY) { // well is OK
         text_id = 1;
@@ -426,8 +424,8 @@ void window_building_draw_latrines(building_info_context *c)
     lang_text_draw_centered("TR_BUILDING_LATRINES", c->x_offset, c->y_offset + 10,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    int latrines_necessity = map_water_supply_is_building_unnecessary(c->building_id, 3);
-    building *b = building_get(c->building_id);
+    int latrines_necessity = map_water_supply_is_building_unnecessary(c->building.id(), 3);
+    building *b = building_get(c->building.id());
     if (b->num_workers <= 0) {
         window_building_draw_description(c, "TR_BUILDING_LATRINES_NO_WORKERS");
     } else if (latrines_necessity == BUILDING_NECESSARY) { // latrines cover at least one house with well access
@@ -530,7 +528,7 @@ void window_building_draw_highway(building_info_context *c)
 static void button_toggle_figure_state(const generic_button *button)
 {
     int index = button->parameter1;
-    building *b = building_get(data.building_id);
+    building *b = building_get(data.building.id());
     Roadblock roadblock(b);
     if (roadblock.kind() != ROADBLOCK_NONE) {
         roadblock.toggle_permission(static_cast<roadblock_permission>(index));
@@ -540,7 +538,7 @@ static void button_toggle_figure_state(const generic_button *button)
 
 static void button_roadblock_orders(const generic_button *button)
 {
-    building *b = building_get(data.building_id);
+    building *b = building_get(data.building.id());
     Roadblock roadblock(b);
     if (affect_all_button_state() == REJECT_ALL) {
         roadblock.accept_none();
@@ -575,7 +573,7 @@ int window_building_handle_mouse_roadblock_orders(const mouse *m, building_info_
 {
     int y_offset = window_building_get_vertical_offset(c, 28);
 
-    data.building_id = c->building_id;
+    data.building = c->building;
     if (GenericButtonList(orders_permission_buttons, size_of_orders_permission_buttons).handle_mouse(
         *m,
         c->x_offset + 180,

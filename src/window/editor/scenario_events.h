@@ -1,11 +1,5 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 void window_editor_scenario_events_show(void);
 
-#ifdef __cplusplus
-}
-#endif

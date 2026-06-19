@@ -10,7 +10,6 @@
 #include "map/image.h"
 
 #include "core/file.h"
-extern "C" {
 #include "image.h"
 #include "assets/assets.h"
 #include "building/building_record.h"
@@ -22,7 +21,6 @@ extern "C" {
 #include "graphics/renderer.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-}
 
 
 #include <stdlib.h>

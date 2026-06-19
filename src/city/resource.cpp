@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "resource.h"
 
@@ -46,8 +47,7 @@ static struct {
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *type = building.type_definition();
-    return type && text_id && std::strcmp(type->attr(), text_id) == 0;
+    return building.type && text_id && std::strcmp(building.type->attr(), text_id) == 0;
 }
 
 static building *first_of_type(const char *text_id)
@@ -351,7 +351,8 @@ void city_resource_calculate_warehouse_stocks(void)
             continue;
         }
         building *warehouse = building_main(b);
-        if (warehouse->state != BUILDING_STATE_IN_USE || !Building(warehouse).type().is_warehouse()) {
+        Building warehouse_obj(warehouse);
+        if (warehouse->state != BUILDING_STATE_IN_USE || !warehouse_obj.type || !warehouse_obj.type->is_warehouse()) {
             continue;
         }
         if (warehouse->has_road_access) {

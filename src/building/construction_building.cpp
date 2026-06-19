@@ -25,7 +25,6 @@
 #include "building/religion.h"
 #include "figure/formation_legion.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
@@ -48,7 +47,6 @@ extern "C" {
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-}
 
 #include <initializer_list>
 #include <cstring>
@@ -548,8 +546,8 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
     // Native graphics options share the saved variant byte, so XML-owned
     // buildings seed it after legacy variant/rotation setup has run.
     building_obj.assign_graphic_variant(1);
-    if (type_is_basic_venus_temple(building_obj.type())) {
-        if (const building_type_registry_impl::Distribution *distribution = building_obj.type().distribution()) {
+    if (building_obj.type && type_is_basic_venus_temple(*building_obj.type)) {
+        if (const building_type_registry_impl::Distribution *distribution = building_obj.type->distribution()) {
             distribution->set_acceptance(building_obj, 0);
         }
     }
@@ -558,7 +556,8 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
         if (road_update_radius > 0) {
             map_tiles_update_area_roads(b->x, b->y, road_update_radius);
         }
-        if (building_obj.type().is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand)) {
+        if (building_obj.type &&
+            building_obj.type->is_temple(GOD_MARS, building_type_registry_impl::ReligionTier::Grand)) {
             b->accepted_goods[resource_weapons()] = 1;
             b->accepted_goods[RESOURCE_NONE] = 1;
         }
@@ -570,9 +569,10 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
         map_building_tiles_add_farm(b->id, b->x, b->y, building_image_get_base_farm_crop(type), 0);
     } else if (building_type_attr_is(type, "granary")) {
         add_granary(b);
-    } else if (building_obj.type().is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Small)) {
+    } else if (building_obj.type &&
+        building_obj.type->is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Small)) {
         add_building(b);
-        if (const building_type_registry_impl::Distribution *distribution = building_obj.type().distribution()) {
+        if (const building_type_registry_impl::Distribution *distribution = building_obj.type->distribution()) {
             distribution->set_acceptance(building_obj, 0);
         }
     } else if (building_type_attr_is_any(type, {"large_mausoleum", "nymphaeum", "city_mint"})) {
@@ -586,7 +586,8 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
     } else if (building_type_attr_is_any(type, {"shipyard", "wharf"})) {
         b->data.industry.orientation = waterside_orientation_abs;
         map_water_add_building(b->id, b->x, b->y, 2);
-    } else if (std::strcmp(building_obj.type().attr(), "dock") == 0) {
+    } else if (building_obj.type && building_obj.type->attr() &&
+        std::strcmp(building_obj.type->attr(), "dock") == 0) {
         b->data.dock.orientation = waterside_orientation_abs;
         map_water_add_building(b->id, b->x, b->y, size);
     } else if (building_type_attr_is(type, "tower")) {
@@ -640,7 +641,8 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
         building_monument_set_phase(b, MONUMENT_START);
     } else if (building_type_attr_is(type, "depot")) {
         add_depot(b);
-    } else if (building_obj.type().is_temple_tier(building_type_registry_impl::ReligionTier::Shrine)) {
+    } else if (building_obj.type &&
+        building_obj.type->is_temple_tier(building_type_registry_impl::ReligionTier::Shrine)) {
         b->subtype.orientation = building_rotation_get_rotation();
         add_building(b);
     } else if (building_type_attr_is(type, "barracks")) {

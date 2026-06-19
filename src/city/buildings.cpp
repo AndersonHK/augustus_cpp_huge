@@ -15,7 +15,7 @@ static const building DUMMY_BUILDING = { 0 };
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    const building_type_registry_impl::BuildingType *type = building.type;
     return type && text_id && std::strcmp(type->attr(), text_id) == 0;
 }
 
@@ -128,9 +128,9 @@ int city_buildings_has_working_dock(void)
             continue;
         }
         Building building_object(dock);
-        const auto *definition = building_object.type_definition();
+        const auto *definition = building_object.type;
         if (definition && std::strcmp(definition->attr(), "dock") == 0 &&
-            building_dock_is_working(dock->id)) {
+            building_dock_is_working(building_object)) {
             return 1;
         }
     }
@@ -174,7 +174,7 @@ int city_buildings_get_closest_plague(int x, int y, int *distance)
             continue;
         }
         Building building_object(b);
-        const auto *definition = building_object.type_definition();
+        const auto *definition = building_object.type;
         const int is_plague_building = definition &&
             (std::strcmp(definition->attr(), "dock") == 0 ||
                 definition->is_warehouse() ||
@@ -237,7 +237,7 @@ void city_buildings_update_plague(void)
             continue;
         }
         Building building_object(b);
-        const auto *definition = building_object.type_definition();
+        const auto *definition = building_object.type;
         if (definition && (std::strcmp(definition->attr(), "dock") == 0 ||
             definition->is_warehouse() || definition->is_granary())) {
             update_sickness_duration(b->id);

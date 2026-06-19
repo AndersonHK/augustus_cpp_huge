@@ -5,7 +5,6 @@
 #include "xml.h"
 
 #include "core/file.h"
-extern "C" {
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/dir.h"
@@ -14,7 +13,6 @@ extern "C" {
 #include "core/string.h"
 #include "core/xml_parser.h"
 #include "graphics/renderer.h"
-}
 
 #include <string>
 #include <string.h>
@@ -52,11 +50,6 @@ static const xml_parser_element xml_elements[XML_TOTAL_ELEMENTS] = {
 static const char *INVERT_VALUES[3] = { "horizontal", "vertical", "both" };
 static const char *ROTATE_VALUES[3] = { "90", "180", "270" };
 
-static int append_root_graphics_path(char *full_path, const char *relative_path)
-{
-    return snprintf(full_path, FILE_NAME_MAX, ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH "/%s", relative_path) < FILE_NAME_MAX;
-}
-
 static int append_mod_graphics_path(char *full_path, const char *relative_path)
 {
     return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager::graphics_path().c_str(), relative_path) < FILE_NAME_MAX;
@@ -81,8 +74,6 @@ static int append_graphics_path_for_source(char *full_path, const char *relative
             return append_augustus_graphics_path(full_path, relative_path);
         case XML_ASSET_SOURCE_JULIUS:
             return append_julius_graphics_path(full_path, relative_path);
-        case XML_ASSET_SOURCE_ROOT:
-            return append_root_graphics_path(full_path, relative_path);
         case XML_ASSET_SOURCE_AUTO:
         default:
             return append_mod_graphics_path(full_path, relative_path);
@@ -146,9 +137,6 @@ static int collect_graphics_source_priority(xml_asset_source *sources, int max_s
             continue;
         }
         sources[count++] = source;
-    }
-    if (count < max_sources) {
-        sources[count++] = XML_ASSET_SOURCE_ROOT;
     }
     return count;
 }

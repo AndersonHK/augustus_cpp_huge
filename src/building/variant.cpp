@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "building/building.h"
 #include "variant.h"
@@ -143,9 +144,8 @@ int building_variant_get_number_of_variants(building_type type)
 
 int building_variant_get_graphics_option(const Building &building_obj, int force_reseed)
 {
-    const building *record = building_obj.legacy_record();
-    const building_type_registry_impl::BuildingType *definition = building_obj.type_definition();
-    if (!record || !definition || !definition->has_graphic()) {
+    const building_type_registry_impl::BuildingType *definition = building_obj.type;
+    if (!definition || !definition->has_graphic()) {
         return -1;
     }
 
@@ -160,10 +160,10 @@ int building_variant_get_graphics_option(const Building &building_obj, int force
         return 0;
     }
     if (target->option_selection() == building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
-        return record->variant % option_count;
+        return building_obj.variant() % option_count;
     }
     if (force_reseed) {
-        return map_random_get(record->grid_offset) % option_count;
+        return map_random_get(building_obj.grid_offset()) % option_count;
     }
-    return record->variant % option_count;
+    return building_obj.variant() % option_count;
 }

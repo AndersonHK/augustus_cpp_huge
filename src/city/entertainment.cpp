@@ -8,7 +8,7 @@
 
 static int building_type_attr_is(const Building &building, std::string_view attr)
 {
-    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    const building_type_registry_impl::BuildingType *type = building.type;
     return type && std::string_view(type->attr()) == attr;
 }
 

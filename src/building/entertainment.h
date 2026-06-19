@@ -1,11 +1,5 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 void building_entertainment_run_shows(void);
 
-#ifdef __cplusplus
-}
-#endif

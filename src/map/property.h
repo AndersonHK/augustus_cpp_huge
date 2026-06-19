@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 enum {
@@ -70,6 +67,3 @@ void map_property_save_state(buffer *bitfields, buffer *edge);
 void map_property_load_state(buffer *bitfields, buffer *edge);
 void map_property_load_state_u8(buffer *bitfields, buffer *edge);
 
-#ifdef __cplusplus
-}
-#endif

@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include <stdint.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 enum {
@@ -60,6 +57,3 @@ void game_file_write_mission_saved_game(void);
 
 void game_file_show_loaded_save_mod_mismatch_warning(void);
 
-#ifdef __cplusplus
-}
-#endif

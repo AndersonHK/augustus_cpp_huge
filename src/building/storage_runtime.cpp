@@ -5,9 +5,7 @@
 #include "building/building.h"
 #include "building/building_runtime_internal.h"
 
-extern "C" {
 #include "building/building_record.h"
-}
 
 namespace storage_runtime_impl {
 

@@ -5,24 +5,19 @@
 #include "image.h"
 
 #include "game/campaign.h"
-extern "C" {
-#include "core/array.h"
 #include "core/image.h"
 #include "core/image_packer.h"
 #include "core/log.h"
 #include "core/png_read.h"
 #include "graphics/color.h"
 #include "graphics/renderer.h"
-}
-
 
 #include <stdlib.h>
 #include <string.h>
-
-#define ASSET_ARRAY_SIZE 2000
+#include <deque>
 
 static struct {
-    array(asset_image) asset_images;
+    std::deque<asset_image> asset_images;
     int total_isometric_images;
 } data;
 
@@ -457,11 +452,10 @@ int asset_image_add_layer(asset_image *img,
 
 asset_image *asset_image_get_from_id(unsigned int image_id)
 {
-    asset_image *last = array_last(data.asset_images);
-    if (!last || image_id > last->index) {
+    if (image_id >= data.asset_images.size()) {
         return 0;
     }
-    return array_item(data.asset_images, image_id);
+    return &data.asset_images[image_id];
 }
 
 void asset_image_unload(asset_image *img)
@@ -485,13 +479,9 @@ void asset_image_unload(asset_image *img)
 
 static void new_image(asset_image *img, unsigned int index)
 {
+    memset(img, 0, sizeof(asset_image));
     img->index = index;
     img->active = 1;
-}
-
-static int is_image_active(const asset_image *img)
-{
-    return img->active;
 }
 
 static int upload_cropped_image_resource(
@@ -610,18 +600,31 @@ static int load_asset_image_direct_payload(asset_image *img)
 int asset_image_init_array(void)
 {
     data.total_isometric_images = 0;
-    asset_image *img;
-    array_foreach(data.asset_images, img) {
-        asset_image_unload(img);
+    for (asset_image &img : data.asset_images) {
+        if (img.active) {
+            asset_image_unload(&img);
+        }
     }
-    return array_init(data.asset_images, ASSET_ARRAY_SIZE, new_image, is_image_active);
+    data.asset_images.clear();
+    return 1;
 }
 
 asset_image *asset_image_create(void)
 {
-    asset_image *result;
-    array_new_item_after_index(data.asset_images, 1, result);
-    return result;
+    if (data.asset_images.empty()) {
+        data.asset_images.emplace_back();
+        new_image(&data.asset_images.back(), 0);
+        return &data.asset_images.back();
+    }
+    for (size_t i = 1; i < data.asset_images.size(); i++) {
+        if (!data.asset_images[i].active) {
+            new_image(&data.asset_images[i], static_cast<unsigned int>(i));
+            return &data.asset_images[i];
+        }
+    }
+    data.asset_images.emplace_back();
+    new_image(&data.asset_images.back(), static_cast<unsigned int>(data.asset_images.size() - 1));
+    return &data.asset_images.back();
 }
 
 int asset_image_load_all(color_t **main_images, int *main_image_widths)
@@ -630,7 +633,7 @@ int asset_image_load_all(color_t **main_images, int *main_image_widths)
     image_packer packer;
     int max_width, max_height;
     graphics_renderer()->get_max_image_size(&max_width, &max_height);
-    if (image_packer_init(&packer, data.asset_images.size + data.total_isometric_images,
+    if (image_packer_init(&packer, static_cast<unsigned int>(data.asset_images.size()) + data.total_isometric_images,
         max_width, max_height) != IMAGE_PACKER_OK) {
         log_error("Failed to init image packer", 0, 0);
         return 0;
@@ -639,10 +642,10 @@ int asset_image_load_all(color_t **main_images, int *main_image_widths)
     packer.options.reduce_image_size = 1;
     packer.options.sort_by = IMAGE_PACKER_SORT_BY_AREA;
 
-    asset_image *current_image;
     int rect = 0;
-    array_foreach(data.asset_images, current_image) {
-        if (current_image->is_reference) {
+    for (asset_image &current_asset_image : data.asset_images) {
+        asset_image *current_image = &current_asset_image;
+        if (!current_image->active || current_image->is_reference) {
             continue;
         }
         load_image(current_image, main_images, main_image_widths);
@@ -707,7 +710,11 @@ int asset_image_load_all(color_t **main_images, int *main_image_widths)
     int total_unpacked_assets = 0;
     rect = 0;
 
-    array_foreach(data.asset_images, current_image) {
+    for (asset_image &current_asset_image : data.asset_images) {
+        asset_image *current_image = &current_asset_image;
+        if (!current_image->active) {
+            continue;
+        }
         int top_height = current_image->img.top ? current_image->img.top->height : 0;
 
         if (current_image->is_reference) {
@@ -810,8 +817,11 @@ int asset_image_load_all(color_t **main_images, int *main_image_widths)
 void asset_image_reload_climate(void)
 {
 #ifndef BUILDING_ASSET_PACKER
-    asset_image *current_image;
-    array_foreach(data.asset_images, current_image) {
+    for (asset_image &current_asset_image : data.asset_images) {
+        asset_image *current_image = &current_asset_image;
+        if (!current_image->active) {
+            continue;
+        }
         if (current_image->is_reference && (current_image->img.atlas.id >> IMAGE_ATLAS_BIT_OFFSET) == ATLAS_MAIN) {
             translate_reference_position(current_image);
         }

@@ -2,9 +2,6 @@
 
 #include "core/image.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define ASSETS_IMAGE_PATH "Graphics"
 
@@ -79,6 +76,3 @@ const image *assets_get_font_image(int letter_id);
 void assets_load_unpacked_asset(int image_id);
 const char *assets_get_failure_reason(void);
 
-#ifdef __cplusplus
-}
-#endif

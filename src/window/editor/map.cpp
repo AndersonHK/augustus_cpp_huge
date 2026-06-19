@@ -14,7 +14,6 @@
 
 #include "editor/editor.h"
 #include "window/popup_dialog.h"
-extern "C" {
 
 #include "city/view.h"
 #include "core/config.h"
@@ -23,7 +22,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/event/controller.h"
-}
 
 
 static void init(void)

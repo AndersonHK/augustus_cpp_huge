@@ -134,7 +134,7 @@ static void clear_scenario_data(void)
     building_menu_enable_all();
     building_clear_all();
     building_storage_clear_all();
-    figure_init_scenario();
+    Figure::init_scenario();
     enemy_armies_clear();
     figure_name_init();
     formations_clear();
@@ -273,8 +273,8 @@ static void check_hippodrome_compatibility(Building b)
 {
     // if we got the middle part of the hippodrome
     if (b.next_part_id() && b.previous_part_id()) {
-        Building next = Building::from_id(b.next_part_id());
-        Building prev = Building::from_id(b.previous_part_id());
+        Building next(building_get(b.next_part_id()));
+        Building prev(building_get(b.previous_part_id()));
         // if orientation is different, it means that rotation was not available yet in augustus, so it should be set to 0
         if (b.orientation() != next.orientation() || b.orientation() != prev.orientation()) {
             prev.set_orientation(0);

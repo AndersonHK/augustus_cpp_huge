@@ -7,7 +7,6 @@
 
 #include "building/building_type_registry_internal.h"
 
-extern "C" {
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/finance.h"
@@ -15,7 +14,6 @@ extern "C" {
 #include "core/calc.h"
 #include "game/time.h"
 #include "scenario/property.h"
-}
 
 #include <utility>
 
@@ -25,7 +23,7 @@ namespace {
 
 int building_type_requires_water_access(const Building &building)
 {
-    const BuildingType *definition = building.type_definition();
+    const BuildingType *definition = building.type;
     return definition && definition->water_access().has_requirements();
 }
 
@@ -201,7 +199,8 @@ int ProductionMethod::max_progress_for(const Building &building) const
 
     const int base_max_progress =
         calc_percentage(
-            GAME_TIME_DAYS_PER_MONTH * 2 * model_get_building(building.type_id())->laborers, monthly_production);
+            GAME_TIME_DAYS_PER_MONTH * 2 * (building.type ? building.type->required_workers() : 0),
+            monthly_production);
     return base_max_progress * batch_size_;
 }
 
@@ -230,7 +229,7 @@ int ProductionMethod::labor_access_for(const Building &building) const
 
 int ProductionMethod::can_start_cycle(const Building &building) const
 {
-    const ::building *record = building.legacy_record();
+    const ::building *record = building_get(building.id());
     if (!record) {
         return 0;
     }

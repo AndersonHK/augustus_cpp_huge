@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "finance.h"
 
@@ -19,16 +20,15 @@
 
 #include <cstring>
 
-static int house_tax_multiplier(const building *b)
+static int house_tax_multiplier(const Building &house)
 {
-    const model_house *model = building_house_get_model(b ? Building::from_id(b->id) : Building(nullptr));
+    const model_house *model = building_house_get_model(house);
     return model ? difficulty_adjust_money(model->tax_multiplier) : 0;
 }
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *type = building.type_definition();
-    return type && text_id && std::strcmp(type->attr(), text_id) == 0;
+    return building.type && text_id && std::strcmp(building.type->attr(), text_id) == 0;
 }
 
 static building *first_of_type(const char *text_id)
@@ -109,7 +109,7 @@ static int tourism_capacity(const tourism_spec &spec, const Building &building)
         return 0;
     }
 
-    const building_type_registry_impl::BuildingType *definition = building.type_definition();
+    const building_type_registry_impl::BuildingType *definition = building.type;
     if (!definition) {
         return 0;
     }
@@ -278,9 +278,10 @@ void city_finance_estimate_taxes(void)
     city_data.taxes.monthly.collected_patricians = 0;
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (building_house_is_active(Building(b)) && b->house_tax_coverage) {
-            int trm = house_tax_multiplier(b);
-            if (building_house_has_patrician_residents(Building(b))) {
+        Building house(b);
+        if (building_house_is_active(house) && b->house_tax_coverage) {
+            int trm = house_tax_multiplier(house);
+            if (building_house_has_patrician_residents(house)) {
                 city_data.taxes.monthly.collected_patricians += b->house_population * trm;
             } else {
                 city_data.taxes.monthly.collected_plebs += b->house_population * trm;
@@ -320,14 +321,15 @@ static void collect_monthly_taxes(void)
     }
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (!building_house_is_active(Building(b))) {
+        Building house(b);
+        if (!building_house_is_active(house)) {
             continue;
         }
 
-        int level = building_house_legacy_level(Building(b));
-        int is_patrician = building_house_has_patrician_residents(Building(b));
+        int level = building_house_legacy_level(house);
+        int is_patrician = building_house_has_patrician_residents(house);
         int population = b->house_population;
-        int tax = population * house_tax_multiplier(b);
+        int tax = population * house_tax_multiplier(house);
         if (level >= 0) {
             city_data.population.at_level[level] += population;
         }

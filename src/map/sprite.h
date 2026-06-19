@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 /**
@@ -34,6 +31,3 @@ void map_sprite_save_state(buffer *buf, buffer *backup);
 
 void map_sprite_load_state(buffer *buf, buffer *backup);
 
-#ifdef __cplusplus
-}
-#endif

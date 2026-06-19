@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 int map_can_place_road_under_aqueduct(int grid_offset);
@@ -16,6 +13,3 @@ int map_can_place_aqueduct_on_highway(int grid_offset, int check_aqueduct_routin
 
 int map_can_place_highway_under_aqueduct(int grid_offset, int check_highway_routing);
 
-#ifdef __cplusplus
-}
-#endif

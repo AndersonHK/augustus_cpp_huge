@@ -8,7 +8,6 @@
 #include "select_scenario_condition_type.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
@@ -16,7 +15,6 @@ extern "C" {
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #define MAX_BUTTONS 14
 #define BUTTON_LEFT_PADDING 32

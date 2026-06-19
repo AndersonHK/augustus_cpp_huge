@@ -1,10 +1,8 @@
 #include "core/crash_context.h"
 
 #include "platform/platform.h"
-extern "C" {
 #include "core/log.h"
 #include "platform/screen.h"
-}
 
 #include <cstdlib>
 #include <cstdio>
@@ -390,7 +388,7 @@ static void report_issue_internal(
     exit_with_status(1);
 }
 
-extern "C" void crash_context_clear(void)
+void crash_context_clear(void)
 {
     for (int i = 0; i < g_scope_depth; ++i) {
         g_scopes[i] = {};
@@ -399,7 +397,7 @@ extern "C" void crash_context_clear(void)
     g_next_token = 1;
 }
 
-extern "C" int crash_context_push_scope(
+int crash_context_push_scope(
     const char *stage,
     const char *context,
     crash_context_log_callback callback,
@@ -408,7 +406,7 @@ extern "C" int crash_context_push_scope(
     return push_scope(stage, context, callback, userdata);
 }
 
-extern "C" void crash_context_pop_scope(int token)
+void crash_context_pop_scope(int token)
 {
     ScopeState *scope = find_scope(token);
     if (!scope) {
@@ -419,14 +417,14 @@ extern "C" void crash_context_pop_scope(int token)
     compact_scopes();
 }
 
-extern "C" void crash_context_update_scope_context(int token, const char *context)
+void crash_context_update_scope_context(int token, const char *context)
 {
     if (ScopeState *scope = find_scope(token)) {
         copy_text(scope->context, sizeof(scope->context), context);
     }
 }
 
-extern "C" void crash_context_update_scope_callback(
+void crash_context_update_scope_callback(
     int token,
     crash_context_log_callback callback,
     void *userdata)
@@ -437,7 +435,7 @@ extern "C" void crash_context_update_scope_callback(
     }
 }
 
-extern "C" void crash_context_set_stage(const char *stage, const char *context)
+void crash_context_set_stage(const char *stage, const char *context)
 {
     ScopeState *scope = current_scope();
     if (!scope) {
@@ -449,7 +447,7 @@ extern "C" void crash_context_set_stage(const char *stage, const char *context)
     copy_text(scope->context, sizeof(scope->context), context);
 }
 
-extern "C" void error_context_log_current(void)
+void error_context_log_current(void)
 {
     const std::string context_report = build_context_report();
     if (context_report.empty()) {
@@ -469,42 +467,42 @@ extern "C" void error_context_log_current(void)
     }
 }
 
-extern "C" void error_context_flush_report_counts(void)
+void error_context_flush_report_counts(void)
 {
     flush_issue_counts_internal();
 }
 
-extern "C" void crash_context_log_current(void)
+void crash_context_log_current(void)
 {
     error_context_log_current();
 }
 
-extern "C" void error_context_report_info(const char *message, const char *detail)
+void error_context_report_info(const char *message, const char *detail)
 {
     report_issue_internal(ErrorReportSeverity::Info, "Vespasian Info", message, detail, 0);
 }
 
-extern "C" void error_context_report_warning(const char *message, const char *detail)
+void error_context_report_warning(const char *message, const char *detail)
 {
     report_issue_internal(ErrorReportSeverity::Warning, "Vespasian Warning", message, detail, 0);
 }
 
-extern "C" void error_context_report_error(const char *message, const char *detail)
+void error_context_report_error(const char *message, const char *detail)
 {
     report_issue_internal(ErrorReportSeverity::Error, "Vespasian Error", message, detail, 0);
 }
 
-extern "C" void error_context_report_fatal_error_dialog(const char *title, const char *message, const char *detail)
+void error_context_report_fatal_error_dialog(const char *title, const char *message, const char *detail)
 {
     report_issue_internal(ErrorReportSeverity::Fatal, title, message, detail, 1);
 }
 
-extern "C" void crash_context_report_error(const char *message, const char *detail)
+void crash_context_report_error(const char *message, const char *detail)
 {
     error_context_report_error(message, detail);
 }
 
-extern "C" void crash_context_report_error_dialog(const char *title, const char *message, const char *detail)
+void crash_context_report_error_dialog(const char *title, const char *message, const char *detail)
 {
     error_context_report_fatal_error_dialog(title, message, detail);
 }

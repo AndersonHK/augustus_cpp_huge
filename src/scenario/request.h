@@ -2,9 +2,6 @@
 
 #include "core/buffer.h"
 #include "game/resource.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define REQUESTS_DEFAULT_RESOURCE resource_denarii()
@@ -104,6 +101,3 @@ void scenario_request_load_state(buffer *list, int version);
 
 void scenario_request_load_state_old_version(buffer *list, requests_old_state_sections section);
 
-#ifdef __cplusplus
-}
-#endif

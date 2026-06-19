@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "data_transfer.h"
 
@@ -59,23 +60,10 @@ static int type_is_roadblock_transfer(building_type type)
     return type_is_any(type, roadblock_types, sizeof(roadblock_types) / sizeof(roadblock_types[0]));
 }
 
-static int type_is_farm_or_wharf(building_type type)
-{
-    static const char *const types[] = {
-        "wheat_farm",
-        "vegetable_farm",
-        "fruit_farm",
-        "olive_farm",
-        "vines_farm",
-        "pig_farm",
-        "wharf"
-    };
-    return type_is_any(type, types, sizeof(types) / sizeof(types[0]));
-}
-
 static int type_is_primary_product_producer(building_type type)
 {
-    return resource_is_raw_material(building_output_resource(type)) || type_is_farm_or_wharf(type);
+    const resource_type output = building_output_resource(type);
+    return resource_is_raw_material(output) || resource_is_food(output);
 }
 
 void building_data_transfer_clear(int backup)
@@ -104,7 +92,8 @@ void building_data_transfer_restore_and_clear_backup(void)
 
 static int can_transfer_to(const Building &target, int supress_warnings)
 {
-    building_data_type data_type = building_data_transfer_data_type_from_building_type(target.type_id());
+    building_data_type data_type = building_data_transfer_data_type_from_building_type(
+        target.type ? target.type->type() : BUILDING_NONE);
     if (data.data_type == DATA_TYPE_NOT_SUPPORTED || data_type == DATA_TYPE_NOT_SUPPORTED) {
         if (!supress_warnings) {
             city_warning_show(WARNING_DATA_PASTE_FAILURE, translation_for_key("TR_CITY_WARNING_DATA_PASTE_NOT_SUPPORTED"));
@@ -129,9 +118,9 @@ int building_data_transfer_possible(building *b, int supress_warnings)
 int building_data_transfer_copy(building *b, int supress_warnings)
 {
     Building source(b);
-    building_type copy_type = source.type_id();
-    if (type_attr_is(source.type_id(), "burning_ruin")) {
-        copy_type = source.rubble_original_type_id();
+    building_type copy_type = source.type ? source.type->type() : BUILDING_NONE;
+    if (type_attr_is(copy_type, "burning_ruin")) {
+        copy_type = b ? static_cast<building_type>(b->data.rubble.og_type) : BUILDING_NONE;
     }
     building_data_type data_type = building_data_transfer_data_type_from_building_type(copy_type);
     if (data_type == DATA_TYPE_NOT_SUPPORTED) {
@@ -149,7 +138,7 @@ int building_data_transfer_copy(building *b, int supress_warnings)
     data.mothball = source.is_mothballed() ? 1 : 0;
     switch (data_type) {
         case DATA_TYPE_ROADBLOCK:
-            data.i16 = static_cast<short>(Roadblock(source.legacy_record()).exceptions());
+            data.i16 = static_cast<short>(Roadblock(b).exceptions());
             break;
         case DATA_TYPE_MARKET:
             source.copy_accepted_goods(data.resource, RESOURCE_SLOT_COUNT);
@@ -160,7 +149,7 @@ int building_data_transfer_copy(building *b, int supress_warnings)
         case DATA_TYPE_GRANARY:
             storage = building_storage_get(source.storage_id());
             data.storage = *storage;
-            data.i16 = static_cast<short>(Roadblock(source.legacy_record()).exceptions());
+            data.i16 = static_cast<short>(Roadblock(b).exceptions());
             break;
         case DATA_TYPE_WAREHOUSE:
             storage = building_storage_get(source.storage_id());
@@ -190,7 +179,8 @@ int building_data_transfer_copy(building *b, int supress_warnings)
 int building_data_transfer_paste(building *b, int supress_warnings)
 {
     Building target(b);
-    building_data_type data_type = building_data_transfer_data_type_from_building_type(target.type_id());
+    building_data_type data_type = building_data_transfer_data_type_from_building_type(
+        target.type ? target.type->type() : BUILDING_NONE);
 
     if (!can_transfer_to(target, supress_warnings)) {
         return 0;
@@ -198,7 +188,7 @@ int building_data_transfer_paste(building *b, int supress_warnings)
 
     switch (data_type) {
         case DATA_TYPE_ROADBLOCK:
-            Roadblock(target.legacy_record()).set_exceptions(data.i16);
+            Roadblock(b).set_exceptions(data.i16);
             break;
         case DATA_TYPE_MARKET:
         case DATA_TYPE_TAVERN:
@@ -207,7 +197,7 @@ int building_data_transfer_paste(building *b, int supress_warnings)
         case DATA_TYPE_GRANARY:
         case DATA_TYPE_WAREHOUSE:
             building_storage_set_data(target.storage_id(), data.storage);
-            Roadblock(target.legacy_record()).set_exceptions(data.i16);
+            Roadblock(b).set_exceptions(data.i16);
             break;
         case DATA_TYPE_DOCK:
             target.set_accepted_goods(data.resource, RESOURCE_SLOT_COUNT);

@@ -24,7 +24,6 @@
 #include "input/zoom.h"
 
 #include "game/settings.h"
-extern "C" {
 
 #include "building/building_type_api.h"
 #include "building/properties.h"
@@ -48,7 +47,6 @@ extern "C" {
 #include "sound/city.h"
 #include "sound/speech.h"
 #include "sound/effect.h"
-}
 
 #include <cstring>
 
@@ -684,7 +682,7 @@ static void handle_mouse(const mouse *m)
             int grid_offset = tile->grid_offset;
             int building_id = map_building_at(grid_offset);
             if (building_id) {
-                Building b = Building::from_id(building_id).main();
+                Building b = Building(building_get(building_id)).main();
                 grid_offset = b.grid_offset();
             }
             if (data.routing_grid_offset != grid_offset) {
@@ -706,7 +704,7 @@ static void handle_mouse(const mouse *m)
             return;
         }
         if (handle_right_click_allow_building_info(tile)) {
-            int building_id = Building::from_id(map_building_at(tile->grid_offset)).main().id();
+            int building_id = Building(building_get(map_building_at(tile->grid_offset))).main().id();
             data.selected_building_id = building_id ? building_id : NO_POSITION; //no position if selected 0
             window_building_info_show(tile->grid_offset);
             return;
@@ -832,11 +830,13 @@ void widget_city_get_tooltip(tooltip_context *c)
         return;
     }
     // regular tooltips
-    if (overlay == static_cast<int>(OVERLAY_NONE) && building_id &&
-        building_type_attr_is(Building::from_id(building_id).type_id(), "senate")) {
-        c->type = static_cast<tooltip_type>(TOOLTIP_SENATE);
-        c->high_priority = 1;
-        return;
+    if (overlay == static_cast<int>(OVERLAY_NONE) && building_id) {
+        Building building(building_get(building_id));
+        if (building.type && building_type_attr_is(building.type->type(), "senate")) {
+            c->type = static_cast<tooltip_type>(TOOLTIP_SENATE);
+            c->high_priority = 1;
+            return;
+        }
     }
     // overlay tooltips
     if (overlay != static_cast<int>(OVERLAY_NONE)) {
@@ -877,9 +877,10 @@ void widget_city_setup_routing_preview(void)
 
     if (building_id) {
         data.selected_building_id = building_id;
-        Building b = Building::from_id(building_id).main();
-        figure_roamer_preview_reset(b.type_id());
-        figure_roamer_preview_create(b.type_id(), b.x(), b.y());
+        Building b = Building(building_get(building_id)).main();
+        const building_type type = b.type ? b.type->type() : BUILDING_NONE;
+        figure_roamer_preview_reset(type);
+        figure_roamer_preview_create(type, b.x(), b.y());
     } else {
         data.selected_building_id = NO_POSITION;
         figure_roamer_preview_reset(building_construction_type());

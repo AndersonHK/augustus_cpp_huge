@@ -11,7 +11,6 @@
 #include "platform/prefs.h"
 #include "platform/user_path.h"
 #include "platform/file_manager.h"
-extern "C" {
 
 #include "core/encoding.h"
 #include "core/image_group.h"
@@ -22,7 +21,6 @@ extern "C" {
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #include <string.h>
 

@@ -2,11 +2,9 @@
 #include "graphics/image.h"
 
 #include "complex_button.h"
-extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
 #include "input/mouse.h"
-}
 
 
 #include <stddef.h>

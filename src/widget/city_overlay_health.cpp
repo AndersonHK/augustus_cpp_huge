@@ -6,6 +6,7 @@
 #include "building/building_type_registry_internal.h"
 #include "building/building_type_api.h"
 #include "city/health.h"
+#include "figure/figure.h"
 #include "game/state.h"
 
 #include <cstring>
@@ -50,33 +51,33 @@ static int show_building_sickness(const building *b)
     return show_building_health(b);
 }
 
-static int show_figure_health(const figure *f)
+static int show_figure_health(const Figure *f)
 {
     return f->type == FIGURE_SURGEON || f->type == FIGURE_DOCTOR ||
            f->type == FIGURE_BARBER || f->type == FIGURE_BATHHOUSE_WORKER;
 }
 
-static int show_figure_barber(const figure *f)
+static int show_figure_barber(const Figure *f)
 {
     return f->type == FIGURE_BARBER;
 }
 
-static int show_figure_bathhouse(const figure *f)
+static int show_figure_bathhouse(const Figure *f)
 {
     return f->type == FIGURE_BATHHOUSE_WORKER;
 }
 
-static int show_figure_clinic(const figure *f)
+static int show_figure_clinic(const Figure *f)
 {
     return f->type == FIGURE_DOCTOR;
 }
 
-static int show_figure_hospital(const figure *f)
+static int show_figure_hospital(const Figure *f)
 {
     return f->type == FIGURE_SURGEON;
 }
 
-static int show_figure_sickness(const figure *f)
+static int show_figure_sickness(const Figure *f)
 {
     if (f->type == FIGURE_SURGEON || f->type == FIGURE_DOCTOR ||
         f->type == FIGURE_TRADE_SHIP || f->type == FIGURE_TRADE_CARAVAN ||
@@ -86,11 +87,11 @@ static int show_figure_sickness(const figure *f)
     } else if (f->type == FIGURE_DOCKER || f->type == FIGURE_CART_PUSHER ||
                f->type == FIGURE_WAREHOUSEMAN || f->type == FIGURE_DEPOT_CART_PUSHER ||
                f->type == FIGURE_LIGHTHOUSE_SUPPLIER || f->type == FIGURE_NATIVE_TRADER) {
-               building *b = building_get(f->building_id);
-               building *dest_b = building_get(f->destination_building_id);
-               if (b->sickness_level > 0 || dest_b->sickness_level > 0) {
-               return 1;
-               }
+        building *b = building_get(f->building.id());
+        building *dest_b = building_get(f->destination_building.id());
+        if (b->sickness_level > 0 || dest_b->sickness_level > 0) {
+            return 1;
+        }
     }
     return 0;
 }
@@ -229,9 +230,10 @@ static int get_tooltip_sickness(tooltip_context *c, const building *b)
 {
     const Building current_building(const_cast<building *>(b));
     if (building_is_house(b->type) ||
-        std::strcmp(current_building.type().attr(), "dock") == 0 ||
-        current_building.type().is_warehouse() ||
-        current_building.type().is_granary()) {
+        (current_building.type && current_building.type->attr() &&
+            std::strcmp(current_building.type->attr(), "dock") == 0) ||
+        (current_building.type && current_building.type->is_warehouse()) ||
+        (current_building.type && current_building.type->is_granary())) {
         if (b->sickness_level < 1) {
             c->translation_key = "TR_TOOLTIP_OVERLAY_SICKNESS_NONE";
         } else if (b->sickness_level < LOW_SICKNESS_LEVEL) {

@@ -10,13 +10,11 @@
 
 #include "window/editor/map.h"
 #include "translation/translation.h"
-extern "C" {
 
 #include "city/view.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
-}
 
 #define MENU_X_OFFSET 170
 #define MENU_Y_OFFSET 110

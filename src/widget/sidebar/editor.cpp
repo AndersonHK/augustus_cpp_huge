@@ -11,7 +11,6 @@
 #include "editor.h"
 
 #include "window/editor/map.h"
-extern "C" {
 #include "core/image_group_editor.h"
 #include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"
@@ -23,7 +22,6 @@ extern "C" {
 #include "scenario/editor_map.h"
 #include "scenario/invasion.h"
 #include "scenario/map.h"
-}
 
 
 #define MINIMAP_Y_OFFSET 30

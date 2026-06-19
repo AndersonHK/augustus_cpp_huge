@@ -3,9 +3,6 @@
 #include "building/building_type.h"
 #include "city/resource.h"
 #include "translation/translation.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 #define MAX_GAMES 3
@@ -41,6 +38,3 @@ void city_games_remove_naval_battle_distant_battle_bonus(void);
 
 games_type *city_games_get_game_type(int id);
 
-#ifdef __cplusplus
-}
-#endif

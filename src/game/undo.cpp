@@ -17,7 +17,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/house.h"
 
-extern "C" {
 
 #include "building/menu.h"
 #include "building/monument.h"
@@ -34,7 +33,6 @@ extern "C" {
 #include "map/routing_terrain.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
-}
 
 #include <initializer_list>
 #include <string.h>
@@ -287,7 +285,7 @@ void game_undo_perform(void)
             if (data.buildings[i].id) {
                 building *b = building_restore_from_undo(&data.buildings[i]);
                 Building restored(b);
-                if (restored.type().is_warehouse() || restored.type().is_granary()) {
+                if (restored.type && (restored.type->is_warehouse() || restored.type->is_granary())) {
                     if (!building_storage_restore(b->storage_id)) {
                         building_storage_reset_building_ids();
                     }

@@ -3,7 +3,6 @@
 #include "building/building_type.h"
 #include "graphics/runtime_texture.h"
 
-#ifdef __cplusplus
 
 #include <string>
 #include <utility>
@@ -61,4 +60,3 @@ tile_runtime *get_instance(int grid_offset);
 
 }
 
-#endif

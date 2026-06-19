@@ -1,10 +1,8 @@
-﻿#pragma once
+#pragma once
 
 #include <stdio.h>
 
-#ifdef __cplusplus
 #include <string>
-#endif
 
 
 enum {
@@ -21,9 +19,6 @@ enum {
     LIST_MATCH = 2
 };
 
-#ifdef __cplusplus
-extern "C++" {
-#endif
 
 /**
  * Sets the base path for Julius
@@ -157,6 +152,3 @@ int platform_file_manager_copy_directory(const char *src, const char *dst, int o
  */
 int platform_file_manager_remove_directory(const char *path);
 
-#ifdef __cplusplus
-}
-#endif

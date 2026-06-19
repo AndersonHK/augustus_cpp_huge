@@ -4,9 +4,6 @@
 #include "graphics/font.h"
 #include "input/mouse.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef struct {
     int x;
@@ -63,6 +60,3 @@ void scrollbar_draw(scrollbar_type *scrollbar);
  */
 int scrollbar_handle_mouse(scrollbar_type *scrollbar, const mouse *m, int in_dialog);
 
-#ifdef __cplusplus
-}
-#endif

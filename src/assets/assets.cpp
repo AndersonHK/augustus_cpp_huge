@@ -6,12 +6,10 @@
 #include "assets.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/png_read.h"
 #include "graphics/renderer.h"
-}
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -95,11 +93,6 @@ static int collect_graphics_sources(const char **paths, xml_asset_source *source
         }
         paths[count] = path.c_str();
         sources[count] = source;
-        count++;
-    }
-    if (count < max_sources) {
-        paths[count] = ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH;
-        sources[count] = XML_ASSET_SOURCE_ROOT;
         count++;
     }
     return count;

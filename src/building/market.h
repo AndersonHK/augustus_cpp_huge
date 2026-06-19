@@ -6,12 +6,12 @@
 class Market : public Building {
 public:
     using Building::Building;
-    explicit Market(Building building) : Building(building.legacy_record(), building.type_definition()) {}
+    explicit Market(Building building) : Building(building) {}
 
     int max_food_stock() const;
     int max_supplier_distance() const;
     int needed_inventory(resource_storage_info info[RESOURCE_SLOT_COUNT]) const;
-    int resource_storages_for_supplier(resource_storage_info info[RESOURCE_SLOT_COUNT], figure *supplier) const;
+    int resource_storages_for_supplier(resource_storage_info info[RESOURCE_SLOT_COUNT], Figure *supplier) const;
     resource_type fetch_inventory(resource_storage_info data[RESOURCE_SLOT_COUNT]) const;
     int storage_destination();
 

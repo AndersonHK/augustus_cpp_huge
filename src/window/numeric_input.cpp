@@ -4,7 +4,6 @@
 
 #include "numeric_input.h"
 
-extern "C" {
 
 #include "core/string.h"
 #include "game/system.h"
@@ -15,7 +14,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "input/keyboard.h"
 #include "sound/effect.h"
-}
 
 #include <limits.h>
 

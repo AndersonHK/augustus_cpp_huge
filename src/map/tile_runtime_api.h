@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void tile_runtime_reset(void);
 void tile_runtime_clear(int grid_offset);
@@ -14,6 +11,3 @@ int tile_runtime_plaza_large_option_count(void);
 int tile_runtime_plaza_single_asset_image_id(int index);
 int tile_runtime_plaza_large_asset_image_id(int index);
 
-#ifdef __cplusplus
-}
-#endif

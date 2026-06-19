@@ -9,6 +9,7 @@
 #include "assets/assets.h"
 #include "assets/image_group_entry.h"
 #include "building/building.h"
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
 #include "building/distribution.h"
@@ -19,7 +20,6 @@
 #include "graphics/image.h"
 #include "graphics/runtime_texture.h"
 
-extern "C" {
 #include "building/monument.h"
 #include "building/properties.h"
 #include "core/calc.h"
@@ -28,7 +28,6 @@ extern "C" {
 #include "map/property.h"
 #include "map/sprite.h"
 #include "scenario/property.h"
-}
 
 #include <cstdio>
 #include <cstring>
@@ -54,7 +53,7 @@ int definition_is_any(const BuildingType *definition, const char *const *attrs, 
     return 0;
 }
 
-building_type runtime_type_id(const char *attr)
+building_type runtime_type_from_attr(const char *attr)
 {
     return building_type_registry_impl::runtime_id_from_text(attr);
 }
@@ -100,39 +99,29 @@ int normalized_animation_frame(int animation_cursor, const RuntimeAnimationTrack
 
 building_runtime *runtime_for_building(Building building, std::unique_ptr<building_runtime> &temporary_runtime)
 {
-    ::building *record = building.legacy_record();
-    if (!record) {
+    Building owner = building.main();
+    if (!owner.type) {
         return nullptr;
     }
 
-    ::building *main_record = record->id ? building_main(record) : record;
-    if (!main_record) {
-        return nullptr;
+    if (building_runtime *runtime = owner.runtime_instance()) {
+        return runtime;
     }
 
-    if (main_record->id) {
-        return building_runtime_impl::get_or_create_instance(main_record);
-    }
-
-    if (!building.has_type_definition()) {
-        return nullptr;
-    }
-
-    temporary_runtime = std::make_unique<building_runtime>(main_record, building.type_definition());
+    temporary_runtime = std::make_unique<building_runtime>(owner);
     return temporary_runtime.get();
 }
 
-void log_missing_runtime_stage_slice(const char *stage, const building *record)
+void log_missing_runtime_stage_slice(const char *stage, const Building &building)
 {
     char detail[256];
-    if (record) {
+    if (building.type) {
         snprintf(
             detail,
             sizeof(detail),
-            "building_id=%u type=%d grid_offset=%d stage=%s",
-            record->id,
-            static_cast<int>(record->type),
-            record->grid_offset,
+            "type=%s grid_offset=%d stage=%s",
+            building.type->attr(),
+            building.grid_offset(),
             stage ? stage : "");
     } else {
         snprintf(detail, sizeof(detail), "building=null stage=%s", stage ? stage : "");
@@ -397,14 +386,14 @@ int GraphicsDefinition::draw_footprint(Building building, const BuildingDrawCont
 {
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
-    if (!runtime || !runtime->owns_graphics()) {
+    if (!runtime || !runtime->resolve_graphics_cache()) {
         return 0;
     }
 
     if (ctx.force_draw_tile || map_property_is_draw_tile(ctx.grid_offset)) {
-        const RuntimeDrawSlice *footprint = runtime->graphic_footprint();
+        const RuntimeDrawSlice *footprint = runtime->cached_graphic_footprint();
         if (!footprint) {
-            log_missing_runtime_stage_slice("footprint", building.legacy_record());
+            log_missing_runtime_stage_slice("footprint", building);
             return 0;
         }
         runtime_texture_draw(*footprint, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
@@ -417,7 +406,7 @@ int GraphicsDefinition::draw_top(Building building, const BuildingDrawContext &c
 {
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
-    if (!runtime || !runtime->owns_graphics()) {
+    if (!runtime || !runtime->resolve_graphics_cache()) {
         return 0;
     }
 
@@ -425,7 +414,7 @@ int GraphicsDefinition::draw_top(Building building, const BuildingDrawContext &c
         return 1;
     }
 
-    if (const RuntimeDrawSlice *top = runtime->graphic_top()) {
+    if (const RuntimeDrawSlice *top = runtime->cached_graphic_top()) {
         runtime_texture_draw(*top, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
     }
 
@@ -436,7 +425,7 @@ int GraphicsDefinition::draw_animation(Building building, const BuildingDrawCont
 {
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
-    if (!runtime || !runtime->owns_graphics()) {
+    if (!runtime || !runtime->resolve_graphics_cache()) {
         return 0;
     }
 
@@ -444,9 +433,9 @@ int GraphicsDefinition::draw_animation(Building building, const BuildingDrawCont
         return 1;
     }
 
-    if (runtime->owns_graphic_animation()) {
-        runtime->advance_graphic_animation(ctx.grid_offset);
-        if (const RuntimeDrawSlice *frame = runtime->graphic_animation(ctx.grid_offset)) {
+    if (runtime->cached_owns_graphic_animation()) {
+        runtime->advance_cached_graphic_animation(ctx.grid_offset);
+        if (const RuntimeDrawSlice *frame = runtime->cached_graphic_animation(ctx.grid_offset)) {
             runtime_texture_draw(*frame, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
         }
     }
@@ -472,8 +461,8 @@ unsigned char GraphicsDefinition::upgrade_level_for(const Building &building) co
 }
 
 BuildingAnimation::BuildingAnimation(Building building)
-    : record_(building.legacy_record())
-    , definition_(building.type_definition())
+    : record_(building.record_)
+    , definition_(building.type)
 {
 }
 
@@ -492,7 +481,7 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
     const building &building = record();
 
     *offset = 0;
-    // These gates deliberately mirror the old animation.c decisions: XML-authored
+    // These gates deliberately mirror the old animation decisions: XML-authored
     // animations and legacy image animations must both pause for the same runtime
     // building states, otherwise placing a migrated graphic changes gameplay cues.
     if (definition_ && definition_->water_access().has_requirements() && !building.has_water_access) {
@@ -551,7 +540,7 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
         ((building.output_resource_id == resource_denarii() &&
             building.resources[resource_gold()] < BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN) ||
             building.num_workers <= 0 ||
-            (building_count_active(runtime_type_id("senate")) == 0))) {
+            (building_count_active(runtime_type_from_attr("senate")) == 0))) {
         return 1;
     }
     static const char *worker_paused_buildings[] = { "architect_guild", "mess_hall", "arena" };

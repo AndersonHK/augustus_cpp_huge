@@ -6,14 +6,12 @@
 #include "input/joystick.h"
 #include "window.h"
 
-extern "C" {
 #include "game/system.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 #include "input/hotkey.h"
 #include "input/scroll.h"
 #include "input/touch.h"
-}
 
 #define MAX_QUEUE 5
 

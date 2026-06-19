@@ -1,9 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "map/grid.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 // if a tile is passable, it gets value > 0
 // if a tile is blocked, it gets value < 0
@@ -41,6 +38,3 @@ extern grid_i8 terrain_land_noncitizen;
 extern grid_i8 terrain_water;
 extern grid_i8 terrain_walls;
 
-#ifdef __cplusplus
-}
-#endif

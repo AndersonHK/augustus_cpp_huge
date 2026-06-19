@@ -23,7 +23,6 @@
 #include "game/resource_id_bridge.h"
 
 #include "scenario/data.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "core/image_group_editor.h"
@@ -41,7 +40,6 @@ extern "C" {
 #include "input/scroll.h"
 #include "scenario/editor.h"
 #include "scenario/empire.h"
-}
 
 #include <math.h>
 #include <stdio.h>

@@ -1,9 +1,8 @@
-﻿#pragma once
+#pragma once
 
 #include <stdint.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
+
+#include <vector>
 
 
 #define EVENT_NAME_LENGTH 32
@@ -143,15 +142,7 @@ typedef struct {
     int parent_event_id; // not saved to savefile or scenario file, assigned during load for reference
 } scenario_condition_t;
 
-typedef struct {
-    scenario_condition_t **items;
-    unsigned int size;
-    unsigned int blocks;
-    unsigned int block_offset;
-    unsigned int bit_offset;
-    void (*constructor)(scenario_condition_t *, unsigned int);
-    int (*in_use)(const scenario_condition_t *);
-} scenario_condition_array_t;
+using scenario_condition_array_t = std::vector<scenario_condition_t>;
 
 typedef struct {
     fulfillment_type type;
@@ -168,25 +159,9 @@ typedef struct {
     int parent_event_id; // not saved to savefile or scenario file, assigned during load for reference
 } scenario_action_t;
 
-typedef struct {
-    scenario_condition_group_t **items;
-    unsigned int size;
-    unsigned int blocks;
-    unsigned int block_offset;
-    unsigned int bit_offset;
-    void (*constructor)(scenario_condition_group_t *, unsigned int);
-    int (*in_use)(const scenario_condition_group_t *);
-} scenario_condition_group_array_t;
+using scenario_condition_group_array_t = std::vector<scenario_condition_group_t>;
 
-typedef struct {
-    scenario_action_t **items;
-    unsigned int size;
-    unsigned int blocks;
-    unsigned int block_offset;
-    unsigned int bit_offset;
-    void (*constructor)(scenario_action_t *, unsigned int);
-    int (*in_use)(const scenario_action_t *);
-} scenario_action_array_t;
+using scenario_action_array_t = std::vector<scenario_action_t>;
 
 typedef struct {
     unsigned int id;
@@ -212,6 +187,3 @@ typedef struct {
     int max_evaluation; //they cannot be set afterwards, because they are dictated by the kind of number expected to be returned
 } scenario_formula_t;
 
-#ifdef __cplusplus
-}
-#endif

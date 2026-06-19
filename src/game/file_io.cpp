@@ -27,7 +27,6 @@
 
 #include "core/file.h"
 #include "scenario/scenario.h"
-extern "C" {
 #include "building/building_type_id_bridge.h"
 #include "building/granary.h"
 #include "building/monument.h"
@@ -81,7 +80,6 @@ extern "C" {
 #include "scenario/price_change.h"
 #include "scenario/request.h"
 #include "sound/city.h"
-}
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1059,7 +1057,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     map_random_load_state(state->random_grid);
     map_desirability_load_state(state->desirability_grid);
     map_elevation_load_state(state->elevation_grid);
-    figure_load_state(state->figures, state->figure_sequence, version);
+    Figure::load_state(state->figures, state->figure_sequence, version);
     figure_route_load_state(state->route_figures, state->route_paths, version);
     formations_load_state(state->formations, state->formation_totals, version);
 
@@ -1074,6 +1072,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
         version > SAVE_GAME_LAST_NO_GOD_TYPE_TABLE);
     building_load_state(state->buildings, state->building_extra_sequence, state->building_extra_corrupt_houses, version);
     map_building_remove_invalid_references();
+    Figure::resolve_loaded_building_references();
     if (version > SAVE_GAME_LAST_NO_KEYED_RESOURCE_STATE) {
         building_resource_state_load(state->building_resource_state);
     }
@@ -1151,10 +1150,9 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     }
     if (version > SAVE_GAME_LAST_UNVERSIONED_SCENARIOS) {
         empire_object_load(state->custom_empire, scenario_version);
-        if (resource_id_bridge_mapping_joins_meat_and_fish()) {
+        if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE && resource_id_bridge_mapping_joins_meat_and_fish()) {
             empire_city_update_our_fish_and_meat_production();
         }
-        empire_city_update_trading_data(scenario_empire_id());
     }
     if (version <= SAVE_GAME_LAST_GLOBAL_BUILDING_INFO) {
         figure_visited_buildings_migrate();
@@ -1210,7 +1208,7 @@ static void savegame_save_to_state(savegame_state *state)
     map_desirability_save_state(state->desirability_grid);
     map_elevation_save_state(state->elevation_grid);
 
-    figure_save_state(state->figures, state->figure_sequence);
+    Figure::save_state(state->figures, state->figure_sequence);
     figure_route_save_state(state->route_figures, state->route_paths);
     formations_save_state(state->formations, state->formation_totals);
 

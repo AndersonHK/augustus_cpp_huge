@@ -13,7 +13,6 @@
 #include "window/cck_selection.h"
 
 #include "core/file.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "core/dir.h"
@@ -27,7 +26,6 @@ extern "C" {
 #include "sound/music.h"
 
 #include <string.h>
-}
 
 #define MAX_SCENARIOS 15
 

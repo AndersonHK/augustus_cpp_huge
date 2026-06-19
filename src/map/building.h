@@ -3,9 +3,6 @@
 #include "building/building_type.h"
 #include "core/buffer.h"
 #include "game/save_version.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 /**
@@ -61,6 +58,3 @@ void map_building_remove_invalid_references(void);
 
 int map_building_is_reservoir(int x, int y);
 
-#ifdef __cplusplus
-}
-#endif

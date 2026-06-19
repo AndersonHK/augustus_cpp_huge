@@ -36,24 +36,30 @@ static int show_building_academy(const building *b)
     return building_type_attr_is(b->type, "academy");
 }
 
-static int show_figure_education(const figure *f)
+static int is_figure_type(const Figure *f, figure_type type)
 {
-    return f->type == FIGURE_SCHOOL_CHILD || f->type == FIGURE_LIBRARIAN || f->type == FIGURE_TEACHER;
+    return f->type == type;
 }
 
-static int show_figure_school(const figure *f)
+static int show_figure_education(const Figure *f)
 {
-    return f->type == FIGURE_SCHOOL_CHILD;
+    return is_figure_type(f, FIGURE_SCHOOL_CHILD) || is_figure_type(f, FIGURE_LIBRARIAN) ||
+        is_figure_type(f, FIGURE_TEACHER);
 }
 
-static int show_figure_library(const figure *f)
+static int show_figure_school(const Figure *f)
 {
-    return f->type == FIGURE_LIBRARIAN;
+    return is_figure_type(f, FIGURE_SCHOOL_CHILD);
 }
 
-static int show_figure_academy(const figure *f)
+static int show_figure_library(const Figure *f)
 {
-    return f->type == FIGURE_TEACHER;
+    return is_figure_type(f, FIGURE_LIBRARIAN);
+}
+
+static int show_figure_academy(const Figure *f)
+{
+    return is_figure_type(f, FIGURE_TEACHER);
 }
 
 static int get_column_height_education(const building *b)

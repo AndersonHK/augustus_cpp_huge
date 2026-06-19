@@ -3,10 +3,7 @@
 #include "assets/image_group_entry.h"
 #include "building/building_fwd.h"
 #include "building/building_type.h"
-
-extern "C" {
 #include "figure/figure.h"
-}
 
 #include <cstddef>
 #include <cstdint>
@@ -19,12 +16,8 @@ void building_runtime_initialize_city_graphics_cache(void);
 
 class building_runtime {
 public:
-    building_runtime(::building *building, const building_type_registry_impl::BuildingType *definition)
-        : data(*building)
-        , record_(building)
-        , definition_(definition)
-    {
-    }
+    building_runtime(::building *building, const building_type_registry_impl::BuildingType *definition);
+    explicit building_runtime(const Building &building);
 
     // Transitional public access to the legacy saved struct while behavior is still migrating into methods.
     ::building &data;
@@ -37,22 +30,18 @@ public:
     const RuntimeDrawSlice *graphic_top();
     const RuntimeDrawSlice *graphic_animation(int animation_cursor);
     void advance_graphic_animation(int animation_cursor);
+    int resolve_graphics_cache();
+    const RuntimeDrawSlice *cached_graphic_footprint() const;
+    const RuntimeDrawSlice *cached_graphic_top() const;
+    const RuntimeDrawSlice *cached_graphic_animation(int animation_cursor);
+    void advance_cached_graphic_animation(int animation_cursor);
+    int cached_owns_graphic_animation() const;
     int owns_graphics();
     int owns_graphic_animation();
     int owns_native_storage() const;
     int owns_native_production() const;
 
     Building building() const;
-
-    ::building *legacy_record()
-    {
-        return record_;
-    }
-
-    const ::building *legacy_record() const
-    {
-        return record_;
-    }
 
     const building_type_registry_impl::BuildingType *definition() const
     {
@@ -105,7 +94,6 @@ private:
         building_type_registry_impl::FigureSlot slot,
         figure_type primary_type,
         figure_type secondary_type = FIGURE_NONE);
-    void send_supplier_to_destination(figure *supplier, int destination_building_id);
     int spawn_caravanserai_supplier(const map_point &road);
     int spawn_lighthouse_supplier(const map_point &road);
     int spawn_temple_supplier(const map_point &road);

@@ -108,9 +108,6 @@ typedef enum {
     SCENARIO_BUILDING_MENU_FORT
 } scenario_building_parameter;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 scenario_condition_data_t *scenario_events_parameter_data_get_conditions_xml_attributes(condition_types type);
 scenario_condition_data_t *scenario_events_parameter_data_get_conditions_xml_attributes_alphabetical(int index);
@@ -162,6 +159,3 @@ void scenario_events_parameter_data_get_display_string_for_condition(const scena
  */
 parameter_type scenario_events_parameter_data_resolve_flexible_type(const scenario_action_t *action, int param_number);
 
-#ifdef __cplusplus
-}
-#endif

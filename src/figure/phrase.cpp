@@ -13,6 +13,7 @@
 #include "city/sentiment.h"
 #include "core/calc.h"
 #include "core/file.h"
+#include "figure/figure.h"
 #include "figure/trader.h"
 #include "figuretype/trader.h"
 #include "sound/speech.h"
@@ -282,9 +283,9 @@ static void play_sound_file(int sound_id, int phrase_id)
     }
 }
 
-int figure_phrase_play(figure *f)
+int figure_phrase_play(Figure *f)
 {
-    if (f->id <= 0) {
+    if (f->id() <= 0) {
         return 0;
     }
     int sound_id = FIGURE_TYPE_TO_SOUND_TYPE[f->type];
@@ -302,7 +303,7 @@ int figure_phrase_play(figure *f)
     return sound_id;
 }
 
-static int lion_tamer_phrase(figure *f)
+static int lion_tamer_phrase(Figure *f)
 {
     if (f->action_state == FIGURE_ACTION_150_ATTACK) {
         if (++f->phrase_sequence_exact >= 3) {
@@ -313,12 +314,12 @@ static int lion_tamer_phrase(figure *f)
     return -1;
 }
 
-static int gladiator_phrase(figure *f)
+static int gladiator_phrase(Figure *f)
 {
     return f->action_state == FIGURE_ACTION_150_ATTACK ? 7 : -1;
 }
 
-static int tax_collector_phrase(figure *f)
+static int tax_collector_phrase(Figure *f)
 {
     if (f->min_max_seen >= HOUSE_LARGE_CASA) {
         return 7;
@@ -331,17 +332,17 @@ static int tax_collector_phrase(figure *f)
     }
 }
 
-static int market_trader_phrase(figure *f)
+static int market_trader_phrase(Figure *f)
 {
     if (f->action_state == FIGURE_ACTION_126_ROAMER_RETURNING) {
-        if (Market(Building::from_id(f->building_id)).max_food_stock() <= 0) {
+        if (Market(f->building).max_food_stock() <= 0) {
             return 9; // run out of goods
         }
     }
     return -1;
 }
 
-static int market_supplier_phrase(figure *f)
+static int market_supplier_phrase(Figure *f)
 {
     if (f->action_state == FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE) {
         return 7;
@@ -357,7 +358,7 @@ static int market_supplier_phrase(figure *f)
     }
 }
 
-static int cart_pusher_phrase(figure *f)
+static int cart_pusher_phrase(Figure *f)
 {
     if (f->action_state == FIGURE_ACTION_20_CARTPUSHER_INITIAL) {
         if (f->min_max_seen == 2) {
@@ -376,12 +377,12 @@ static int cart_pusher_phrase(figure *f)
     return -1;
 }
 
-static int mess_hall_supplier_phrase(figure *f)
+static int mess_hall_supplier_phrase(Figure *f)
 {
     return 0;
 }
 
-static int warehouseman_phrase(figure *f)
+static int warehouseman_phrase(Figure *f)
 {
     if (f->action_state == FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE) {
         if (calc_maximum_distance(
@@ -392,7 +393,7 @@ static int warehouseman_phrase(figure *f)
     return -1;
 }
 
-static int prefect_phrase(figure *f)
+static int prefect_phrase(Figure *f)
 {
     if (++f->phrase_sequence_exact >= 4) {
         f->phrase_sequence_exact = 0;
@@ -417,7 +418,7 @@ static int prefect_phrase(figure *f)
     }
 }
 
-static int engineer_phrase(figure *f)
+static int engineer_phrase(Figure *f)
 {
     if (f->min_max_seen >= 60) {
         return 7;
@@ -428,7 +429,7 @@ static int engineer_phrase(figure *f)
     }
 }
 
-static int citizen_phrase(figure *f)
+static int citizen_phrase(Figure *f)
 {
     if (++f->phrase_sequence_exact >= 3) {
         f->phrase_sequence_exact = 0;
@@ -436,7 +437,7 @@ static int citizen_phrase(figure *f)
     return 7 + f->phrase_sequence_exact;
 }
 
-static int missionary_phrase(figure *f)
+static int missionary_phrase(Figure *f)
 {
     if (++f->phrase_sequence_exact >= 4) {
         f->phrase_sequence_exact = 0;
@@ -444,7 +445,7 @@ static int missionary_phrase(figure *f)
     return 7 + f->phrase_sequence_exact;
 }
 
-static int ox_phrase(figure *f)
+static int ox_phrase(Figure *f)
 {
     if (++f->phrase_sequence_exact >= 1) {
         f->phrase_sequence_exact = 0;
@@ -452,7 +453,7 @@ static int ox_phrase(figure *f)
     return 7 + f->phrase_sequence_exact;
 }
 
-static int homeless_phrase(figure *f)
+static int homeless_phrase(Figure *f)
 {
     if (++f->phrase_sequence_exact >= 2) {
         f->phrase_sequence_exact = 0;
@@ -460,7 +461,7 @@ static int homeless_phrase(figure *f)
     return 7 + f->phrase_sequence_exact;
 }
 
-static int house_seeker_phrase(figure *f)
+static int house_seeker_phrase(Figure *f)
 {
     if (++f->phrase_sequence_exact >= 3) {
         f->phrase_sequence_exact = 0;
@@ -484,7 +485,7 @@ static int emigrant_phrase(void)
     }
 }
 
-static int tower_sentry_phrase(figure *f)
+static int tower_sentry_phrase(Figure *f)
 {
     if (++f->phrase_sequence_exact >= 2) {
         f->phrase_sequence_exact = 0;
@@ -514,7 +515,7 @@ static int soldier_phrase(void)
     return -1;
 }
 
-static int docker_phrase(figure *f)
+static int docker_phrase(Figure *f)
 {
     if (f->action_state == FIGURE_ACTION_135_DOCKER_IMPORT_GOING_TO_STORAGE ||
         f->action_state == FIGURE_ACTION_136_DOCKER_EXPORT_GOING_TO_STORAGE) {
@@ -526,7 +527,7 @@ static int docker_phrase(figure *f)
     return -1;
 }
 
-static int trade_caravan_phrase(figure *f)
+static int trade_caravan_phrase(Figure *f)
 {
     if (++f->phrase_sequence_exact >= 2) {
         f->phrase_sequence_exact = 0;
@@ -536,16 +537,17 @@ static int trade_caravan_phrase(figure *f)
             return 7; // no trade
         }
     } else if (f->action_state == FIGURE_ACTION_102_TRADE_CARAVAN_TRADING) {
-        if (figure_trade_caravan_can_buy(f, f->destination_building_id, f->empire_city_id)) {
+        const unsigned int destination_id = f->destination_building.id();
+        if (figure_trade_caravan_can_buy(f, destination_id, f->empire_city_id)) {
             return 11; // buying goods
-        } else if (figure_trade_caravan_can_sell(f, f->destination_building_id, f->empire_city_id)) {
+        } else if (figure_trade_caravan_can_sell(f, destination_id, f->empire_city_id)) {
             return 10; // selling goods
         }
     }
     return 8 + f->phrase_sequence_exact;
 }
 
-static int trade_ship_phrase(figure *f)
+static int trade_ship_phrase(Figure *f)
 {
     if (f->action_state == FIGURE_ACTION_115_TRADE_SHIP_LEAVING) {
         if (!trader_has_traded(f->trader_id)) {
@@ -593,7 +595,7 @@ static int city_god_state(void)
     }
 }
 
-static int barkeep_phrase(figure *f)
+static int barkeep_phrase(Figure *f)
 {
     f->phrase_sequence_city = 0;
     int god_state = city_god_state();
@@ -629,7 +631,7 @@ static int barkeep_phrase(figure *f)
     }
 }
 
-static int beggar_phrase(figure *f)
+static int beggar_phrase(Figure *f)
 {
     if (++f->phrase_sequence_exact >= 2) {
         f->phrase_sequence_exact = 0;
@@ -637,7 +639,7 @@ static int beggar_phrase(figure *f)
     return 7 + f->phrase_sequence_exact;
 }
 
-static int phrase_based_on_figure_state(figure *f)
+static int phrase_based_on_figure_state(Figure *f)
 {
     switch (f->type) {
         case FIGURE_LION_TAMER:
@@ -696,7 +698,7 @@ static int phrase_based_on_figure_state(figure *f)
             return barkeep_phrase(f);
         case FIGURE_TRADE_CARAVAN_DONKEY:
             while (f->type == FIGURE_TRADE_CARAVAN_DONKEY && f->leading_figure_id) {
-                f = figure_get(f->leading_figure_id);
+                f = Figure::get(f->leading_figure_id);
             }
             return f->type == FIGURE_TRADE_CARAVAN ? trade_caravan_phrase(f) : -1;
         case FIGURE_TRADE_SHIP:
@@ -707,7 +709,7 @@ static int phrase_based_on_figure_state(figure *f)
     return -1;
 }
 
-static int phrase_based_on_city_state(figure *f)
+static int phrase_based_on_city_state(Figure *f)
 {
     f->phrase_sequence_city = 0;
     int god_state = city_god_state();
@@ -745,14 +747,14 @@ static int phrase_based_on_city_state(figure *f)
     }
 }
 
-void figure_phrase_determine(figure *f)
+void figure_phrase_determine(Figure *f)
 {
-    if (f->id <= 0) {
+    if (f->id() <= 0) {
         return;
     }
     f->phrase_id = 0;
 
-    if (figure_is_enemy(f) || f->type == FIGURE_INDIGENOUS_NATIVE || f->type == FIGURE_NATIVE_TRADER) {
+    if (f->is_enemy() || f->type == FIGURE_INDIGENOUS_NATIVE || f->type == FIGURE_NATIVE_TRADER) {
         f->phrase_id = -1;
         return;
     }

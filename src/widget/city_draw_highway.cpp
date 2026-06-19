@@ -1,4 +1,6 @@
 #include "building/building.h"
+#include "figure/figure.h"
+#include "building/building_record.h"
 #include "graphics/image.h"
 #include "map/aqueduct.h"
 #include "map/building.h"
@@ -6,14 +8,11 @@
 
 #include "city_draw_highway.h"
 
-extern "C" {
 #include "assets/assets.h"
-#include "building/building_record.h"
 #include "city/view.h"
 #include "map/grid.h"
 #include "map/random.h"
 #include "map/terrain.h"
-}
 
 
 static int highway_barrier_direction_offsets[4] = { 1, -GRID_SIZE, -1, GRID_SIZE };
@@ -44,7 +43,8 @@ static int is_highway_access(int grid_offset, int direction_index)
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         const building *b = building_get(map_building_at(grid_offset));
-        if (Building(const_cast<building *>(b)).type().is_granary()) {
+        Building building_object(const_cast<building *>(b));
+        if (building_object.type && building_object.type->is_granary()) {
             return grid_offset == b->grid_offset + map_grid_delta(1, 0) ||
                 grid_offset == b->grid_offset + map_grid_delta(0, 1) ||
                 grid_offset == b->grid_offset + map_grid_delta(2, 1) ||

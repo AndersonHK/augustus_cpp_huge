@@ -24,7 +24,6 @@
 #include "game/settings.h"
 #include "game/campaign.h"
 #include "scenario/scenario.h"
-extern "C" {
 
 #include "city/mission.h"
 #include "core/config.h"
@@ -44,7 +43,6 @@ extern "C" {
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-}
 
 namespace {
 
@@ -705,7 +703,6 @@ static void show(void)
 
 } // namespace
 
-extern "C" {
 
 void window_mission_briefing_show(void)
 {
@@ -733,4 +730,3 @@ void window_mission_briefing_show_from_scenario_selection(void)
     game_campaign_is_original() ? window_intermezzo_show(INTERMEZZO_MISSION_BRIEFING, show) : show();
 }
 
-} // extern "C"

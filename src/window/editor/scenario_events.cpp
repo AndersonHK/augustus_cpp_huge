@@ -19,7 +19,6 @@
 
 #include "graphics/image.h"
 
-extern "C" {
 
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
@@ -30,7 +29,6 @@ extern "C" {
 #include "scenario/editor_events.h"
 #include "scenario/event/controller.h"
 #include "scenario/property.h"
-}
 
 #define EVENTS_Y_OFFSET 100
 #define EVENTS_ROW_HEIGHT 31
@@ -156,7 +154,7 @@ static void draw_foreground(void)
                         scenario_event_count_conditions(data.list[i]), "", 100, buttons[i].y + 8,
                         FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
                     text_draw_label_and_number(translation_for_key("TR_EDITOR_SCENARIO_EVENTS_ACTIONS"),
-                        data.list[i]->actions.size, "", 250, buttons[i].y + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
+                        scenario_event_action_count(data.list[i]), "", 250, buttons[i].y + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
                 } else {
                     text_draw(data.list[i]->name, 100, buttons[i].y + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), color);
                 }

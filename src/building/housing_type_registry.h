@@ -12,13 +12,7 @@ int housing_type_level_at(int index);
 
 }
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 const char *housing_type_registry_get_housing_type_path(void);
 int housing_type_registry_load(void);
 
-#ifdef __cplusplus
-}
-#endif

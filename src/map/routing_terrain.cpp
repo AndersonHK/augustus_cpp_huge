@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "routing_terrain.h"
 
@@ -6,6 +7,7 @@
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
+#include "map/bridge.h"
 #include "map/building.h"
 #include "map/data.h"
 #include "map/image.h"
@@ -122,7 +124,7 @@ static int get_land_type_citizen_building(int grid_offset)
     int terrain = map_terrain_get(grid_offset);
     int type = CITIZEN_N1_BLOCKED;
     Building current(b);
-    if (current.has_type_definition() && current.type().is_warehouse()) {
+    if (current.type && current.type->is_warehouse()) {
         type = CITIZEN_0_ROAD;
     } else if (type_matches(b->type, "gatehouse")) {
         if (terrain & TERRAIN_HIGHWAY) {
@@ -130,14 +132,14 @@ static int get_land_type_citizen_building(int grid_offset)
         } else {
             type = CITIZEN_0_ROAD;
         }
-    } else if (current.has_type_definition() && current.type().has_roadblock()) {
+    } else if (current.type && current.type->has_roadblock()) {
         type = CITIZEN_0_ROAD;
     } else if (is_transformable_gate_wall(b->type)) {
         // colonnade can be enabled if we add a gate variant
         type = GATE_0_TRANSFORMABLE;
     } else if (type_matches(b->type, "fort_ground")) {
         type = CITIZEN_2_PASSABLE_TERRAIN;
-    } else if (current.has_type_definition() && current.type().is_granary()) {
+    } else if (current.type && current.type->is_granary()) {
         if (is_granary_cross_tile(grid_offset)) {
             type = CITIZEN_0_ROAD;
         }
@@ -211,19 +213,19 @@ static int get_land_type_noncitizen(int grid_offset)
     int type = NONCITIZEN_1_BUILDING;
     building *b = building_get(map_building_at(grid_offset));
     Building current(b);
-    if ((current.has_type_definition() && current.type().is_warehouse()) ||
+    if ((current.type && current.type->is_warehouse()) ||
         type_matches(b->type, "fort_ground")) {
         type = NONCITIZEN_0_PASSABLE;
     } else if (is_native_blocker(b->type)) {
         type = NONCITIZEN_N1_BLOCKED;
     } else if (building_is_fort(b->type)) {
         type = NONCITIZEN_5_FORT;
-    } else if (current.has_type_definition() && current.type().is_granary()) {
+    } else if (current.type && current.type->is_granary()) {
         if (is_granary_cross_tile(grid_offset)) { // granary cross always passable
             type = NONCITIZEN_0_PASSABLE;
         }
-    } else if ((current.has_type_definition() && current.type().has_roadblock()) ||
-        is_roadblock_like_passable(b->type) || current.is_bridge()) {
+    } else if ((current.type && current.type->has_roadblock()) ||
+        is_roadblock_like_passable(b->type) || building_type_is_bridge(b->type)) {
         type = NONCITIZEN_0_PASSABLE;
     } else if (is_transformable_gate_wall(b->type)) {
         // colonnade can be enabled if we add a gate variant

@@ -7,10 +7,10 @@
 
 #include "window/editor/select_city_trade_route.h"
 #include <array>
+#include <vector>
 
 #include "building/building_type_startup_bridge.h"
 #include "core/file.h"
-extern "C" {
 
 #include "building/building_type_api.h"
 #include "core/encoding.h"
@@ -23,7 +23,6 @@ extern "C" {
 #include "scenario/custom_variable.h"
 #include "scenario/event/controller.h"
 #include "scenario/event/data.h"
-}
 
 #include <math.h>
 #include <stdio.h>
@@ -845,51 +844,41 @@ static int parse_xml(char *buf, int buffer_length)
     return data.success;
 }
 
-static char *file_to_buffer(const char *filename, int *output_length)
+static std::vector<char> file_to_buffer(const char *filename)
 {
     FILE *file = file_open(filename, "r");
     if (!file) {
         log_error("Error opening event file", filename, 0);
-        return 0;
+        return {};
     }
     fseek(file, 0, SEEK_END);
     int size = ftell(file);
     rewind(file);
 
-    char *buf = (char *) malloc(size);
-    if (!buf) {
-        log_error("Error opening event file", filename, 0);
-        file_close(file);
-        return 0;
-    }
-    memset(buf, 0, size);
-    if (!buf) {
+    std::vector<char> buf(size);
+    if (buf.empty() && size > 0) {
         log_error("Unable to allocate buffer to read XML file", filename, 0);
-        free(buf);
         file_close(file);
-        return 0;
+        return {};
     }
-    *output_length = (int) fread(buf, 1, size, file);
-    if (*output_length > size) {
+    int output_length = static_cast<int>(fread(buf.data(), 1, size, file));
+    if (output_length > size) {
         log_error("Unable to read file into buffer", filename, 0);
-        free(buf);
         file_close(file);
-        *output_length = 0;
-        return 0;
+        return {};
     }
+    buf.resize(output_length);
     file_close(file);
     return buf;
 }
 
 int scenario_events_xml_parse_file(const char *filename)
 {
-    int output_length = 0;
-    char *xml_contents = file_to_buffer(filename, &output_length);
-    if (!xml_contents) {
+    std::vector<char> xml_contents = file_to_buffer(filename);
+    if (xml_contents.empty()) {
         return 0;
     }
-    int success = parse_xml(xml_contents, output_length);
-    free(xml_contents);
+    int success = parse_xml(xml_contents.data(), static_cast<int>(xml_contents.size()));
     if (!success) {
         log_error("Error parsing file", filename, 0);
         scenario_events_clear();

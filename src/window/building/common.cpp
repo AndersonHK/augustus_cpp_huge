@@ -11,7 +11,6 @@
 #include "translation/translation.h"
 #include "common.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/monument.h"
@@ -24,7 +23,6 @@ extern "C" {
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "sound/speech.h"
-}
 
 
 #include <stdlib.h>
@@ -72,12 +70,12 @@ int window_building_get_vertical_offset(building_info_context *c, int new_window
     return new_window_y;
 }
 
-static int get_employment_info_text(const building *b, int consider_house_covering)
+static int get_employment_info_text(const Building &current, const building *b, int consider_house_covering)
 {
     int text_id;
-    int local_workforce = building_local_workforce_is_workforce_building(b);
-    int labor_access = building_local_workforce_access_score(b);
-    int required_workers = building_get_laborers(b->type);
+    int local_workforce = building_local_workforce_is_workforce_building(current);
+    int labor_access = building_local_workforce_access_score(current);
+    int required_workers = current.type ? current.type->required_workers() : 0;
 
     if (b->num_workers >= required_workers) {
         text_id = 0;
@@ -113,23 +111,7 @@ void window_building_draw_levy(int amount, int x_offset, int y_offset)
     }
 }
 
-/***
- * UNUSED
- *
- * void window_building_draw_tourism(building_info_context *c, int x_offset, int y_offset)
-{
-    building *b = building_get(c->building_id);
-    if (b->tourism_income_this_year > 0) {
-        int width = text_draw_money(b->tourism_income_this_year, x_offset + 0, y_offset + 10, FONT_NORMAL_BROWN);
-        text_draw(translation_for_key("TR_WINDOW_BUILDING_TOURISM_ANNUAL"),
-            x_offset + 0 + width, y_offset + 10, FONT_NORMAL_BROWN, 0);
-    } else if (b->tourism_disabled) {
-        text_draw(translation_for_key("TR_WINDOW_BUILDING_TOURISM_DISABLED"),
-            x_offset + 0, y_offset + 10, FONT_NORMAL_BROWN, 0);
-    }
-} ***/
-
-static void draw_employment_details(building_info_context *c, building *b, int y_offset, int text_id)
+static void draw_employment_details(building_info_context *c, const Building &current, building *b, int y_offset, int text_id)
 {
     y_offset += c->y_offset;
     Image::from_id(Image::group(GROUP_CONTEXT_ICONS) + 14).draw(c->x_offset + 40, y_offset + 6);
@@ -139,7 +121,7 @@ static void draw_employment_details(building_info_context *c, building *b, int y
         y_offset -= 10;
     }
 
-    int laborers_needed = building_get_laborers(b->type);
+    int laborers_needed = current.type ? current.type->required_workers() : 0;
     if (laborers_needed) {
         if (b->state == BUILDING_STATE_MOTHBALLED) {
             int width = lang_text_draw_amount(current_string_amount_key(8, 12, b->num_workers), b->num_workers, c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -169,16 +151,16 @@ static void draw_employment_details(building_info_context *c, building *b, int y
 
 void window_building_draw_employment(building_info_context *c, int y_offset)
 {
-    building *b = building_get(c->building_id);
-    int text_id = get_employment_info_text(b, 1);
-    draw_employment_details(c, b, y_offset, text_id);
+    building *b = building_get(c->building.id());
+    int text_id = get_employment_info_text(c->building, b, 1);
+    draw_employment_details(c, c->building, b, y_offset, text_id);
 }
 
 void window_building_draw_employment_without_house_cover(building_info_context *c, int y_offset)
 {
-    building *b = building_get(c->building_id);
-    int text_id = get_employment_info_text(b, 0);
-    draw_employment_details(c, b, y_offset, text_id);
+    building *b = building_get(c->building.id());
+    int text_id = get_employment_info_text(c->building, b, 0);
+    draw_employment_details(c, c->building, b, y_offset, text_id);
 }
 
 void window_building_draw_description(building_info_context *c, int text_group, int text_id)
@@ -213,7 +195,7 @@ void window_building_play_sound(building_info_context *c, const char *sound_file
 
 static void window_building_draw_monument_resources_needed(building_info_context *c)
 {
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     int y_offset = 95;
     inner_panel_draw(c->x_offset + 16, c->y_offset + y_offset, c->width_blocks - 2, 5);
     if (building_monument_needs_resources(b)) {
@@ -332,7 +314,7 @@ static translation_key monument_phase_text_key(translation_key first_phase_text,
 void window_building_draw_monument_construction_process(building_info_context *c,
     translation_key tr_phase_name, translation_key tr_phase_name_text, translation_key tr_construction_desc)
 {
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
 
     if (b->monument.phase != MONUMENT_FINISHED) {
         if (!c->has_road_access) {
@@ -383,7 +365,7 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     c->risk_icons.x_offset = x_offset;
     c->risk_icons.y_offset = y_offset;
 
-    const building *b = building_get(c->building_id);
+    const building *b = building_get(c->building.id());
     int risks_image_id = assets_lookup_image_id(ASSET_UI_RISKS);
 
     // Health risk
@@ -405,7 +387,7 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     // Damage risk
     graphics_draw_inset_rect(x_offset + 28, y_offset, 24, 24,
         COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
-    int house_level = building_house_legacy_level(Building::from_id(b->id));
+    int house_level = building_house_legacy_level(c->building);
     if (b->fire_proof || (b->house_size && house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_TENT)) {
         Image::from_id(risks_image_id).draw(x_offset + 28, y_offset);
         Image::from_id(risks_image_id + 3).draw(x_offset + 28, y_offset);
@@ -421,7 +403,7 @@ void window_building_get_risks_tooltip(
         return;
     }
 
-    const building *b = building_get(c->building_id);
+    const building *b = building_get(c->building.id());
     const mouse *m = mouse_get();
 
     // Health tooltip

@@ -3,9 +3,7 @@
 #include "building/god_registry.h"
 #include "city/god.h"
 
-extern "C" {
 #include "core/log.h"
-}
 
 #include <array>
 #include <cstdint>
@@ -119,7 +117,7 @@ void ensure_save_table()
 
 } // namespace
 
-extern "C" void god_id_bridge_reset_for_runtime(void)
+void god_id_bridge_reset_for_runtime(void)
 {
     g_bridge.runtime_ready = false;
     g_bridge.save_table_ready = false;
@@ -127,13 +125,13 @@ extern "C" void god_id_bridge_reset_for_runtime(void)
     clear_save_table();
 }
 
-extern "C" void god_id_bridge_clear_save_table(void)
+void god_id_bridge_clear_save_table(void)
 {
     clear_save_table();
     g_bridge.save_table_ready = false;
 }
 
-extern "C" const char *god_id_bridge_text_from_runtime(int runtime_id)
+const char *god_id_bridge_text_from_runtime(int runtime_id)
 {
     ensure_runtime_table();
     if (runtime_id < 0 || runtime_id >= static_cast<int>(g_bridge.runtime_to_text.size()) ||
@@ -143,12 +141,12 @@ extern "C" const char *god_id_bridge_text_from_runtime(int runtime_id)
     return g_bridge.runtime_to_text[static_cast<size_t>(runtime_id)].c_str();
 }
 
-extern "C" const char *god_id_bridge_text_from_legacy(god_type legacy_type)
+const char *god_id_bridge_text_from_legacy(god_type legacy_type)
 {
     return legacy_text_from_god(legacy_type);
 }
 
-extern "C" int god_id_bridge_runtime_from_text(const char *text_id)
+int god_id_bridge_runtime_from_text(const char *text_id)
 {
     ensure_runtime_table();
     if (!text_id || !*text_id) {
@@ -158,12 +156,12 @@ extern "C" int god_id_bridge_runtime_from_text(const char *text_id)
     return found == g_bridge.text_to_runtime.end() ? kInvalidGodRuntimeId : found->second;
 }
 
-extern "C" int god_id_bridge_runtime_from_legacy(god_type legacy_type)
+int god_id_bridge_runtime_from_legacy(god_type legacy_type)
 {
     return god_id_bridge_runtime_from_text(legacy_text_from_god(legacy_type));
 }
 
-extern "C" void god_id_bridge_prepare_new_save_table(void)
+void god_id_bridge_prepare_new_save_table(void)
 {
     ensure_runtime_table();
     clear_save_table();
@@ -179,7 +177,7 @@ extern "C" void god_id_bridge_prepare_new_save_table(void)
     g_bridge.save_table_ready = true;
 }
 
-extern "C" void god_id_bridge_save_table_save_state(buffer *buf)
+void god_id_bridge_save_table_save_state(buffer *buf)
 {
     if (!buf) {
         return;
@@ -216,7 +214,7 @@ extern "C" void god_id_bridge_save_table_save_state(buffer *buf)
     }
 }
 
-extern "C" void god_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
+void god_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
 {
     if (!has_save_table || !buf || !buf->size) {
         load_legacy_save_table();
@@ -258,7 +256,7 @@ extern "C" void god_id_bridge_save_table_load_state(buffer *buf, int has_save_ta
     g_bridge.save_table_ready = true;
 }
 
-extern "C" uint16_t god_id_bridge_save_id_from_runtime(int runtime_id)
+uint16_t god_id_bridge_save_id_from_runtime(int runtime_id)
 {
     ensure_save_table();
     if (runtime_id < 0 || runtime_id >= static_cast<int>(g_bridge.runtime_to_save.size())) {
@@ -267,7 +265,7 @@ extern "C" uint16_t god_id_bridge_save_id_from_runtime(int runtime_id)
     return g_bridge.runtime_to_save[static_cast<size_t>(runtime_id)];
 }
 
-extern "C" int god_id_bridge_runtime_from_save_id(uint16_t save_id)
+int god_id_bridge_runtime_from_save_id(uint16_t save_id)
 {
     ensure_save_table();
     if (static_cast<size_t>(save_id) < g_bridge.save_to_runtime.size()) {

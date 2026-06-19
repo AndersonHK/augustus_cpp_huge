@@ -5,9 +5,7 @@
 
 #include "orientation.h"
 
-extern "C" {
 #include "city/view.h"
-}
 
 namespace {
 

@@ -4,11 +4,9 @@
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
 #include "building/building_type_api.h"
-extern "C" {
 #include "city/view.h"
 #include "core/direction.h"
 #include "map/terrain.h"
-}
 
 #include <array>
 #include <cstring>
@@ -262,17 +260,17 @@ const ModeSwitchTool *find_tool_for_selection(building_type selection_type)
 
 } // namespace
 
-extern "C" int building_tool_mode_handles_requested_type(building_type requested_type)
+int building_tool_mode_handles_requested_type(building_type requested_type)
 {
     return find_tool_for_requested_type(requested_type) != nullptr;
 }
 
-extern "C" int building_tool_mode_handles_selection(building_type selection_type)
+int building_tool_mode_handles_selection(building_type selection_type)
 {
     return find_tool_for_selection(selection_type) != nullptr;
 }
 
-extern "C" building_type building_tool_mode_selection_type(building_type requested_type)
+building_type building_tool_mode_selection_type(building_type requested_type)
 {
     const ModeSwitchTool *tool = find_tool_for_requested_type(requested_type);
     if (!tool) {
@@ -281,13 +279,13 @@ extern "C" building_type building_tool_mode_selection_type(building_type request
     return tool->selection_type();
 }
 
-extern "C" int building_tool_mode_is_drag_tool(building_type selection_type)
+int building_tool_mode_is_drag_tool(building_type selection_type)
 {
     const ModeSwitchTool *tool = find_tool_for_selection(selection_type);
     return tool && tool->is_drag_tool();
 }
 
-extern "C" building_type building_tool_mode_resolve(
+building_type building_tool_mode_resolve(
     building_type selection_type,
     building_type compatibility_alias_type,
     key_modifier_type modifiers)
@@ -299,7 +297,7 @@ extern "C" building_type building_tool_mode_resolve(
     return tool->resolve(compatibility_alias_type, modifiers);
 }
 
-extern "C" building_type building_tool_mode_resolve_for_tile(
+building_type building_tool_mode_resolve_for_tile(
     building_type selection_type,
     building_type compatibility_alias_type,
     key_modifier_type modifiers,
@@ -321,7 +319,7 @@ extern "C" building_type building_tool_mode_resolve_for_tile(
         construction_in_progress);
 }
 
-extern "C" void building_tool_mode_resolve_drag_points(
+void building_tool_mode_resolve_drag_points(
     building_type selection_type,
     building_type compatibility_alias_type,
     key_modifier_type modifiers,

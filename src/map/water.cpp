@@ -258,19 +258,19 @@ int map_water_has_water_in_front(int x, int y, int adjust_xy, const waterside_ti
     return water_ok;
 }
 
-int map_water_get_wharf_for_new_fishing_boat(figure *boat, map_point *tile)
+int map_water_get_wharf_for_new_fishing_boat(Figure *boat, map_point *tile)
 {
     building *wharf = 0;
     for (int i = 1; i < Building::count(); i++) {
-        Building candidate = Building::from_id(i);
+        Building candidate(building_get(i));
         if (candidate.state_id() != BUILDING_STATE_IN_USE) {
             continue;
         }
-        const building_type_registry_impl::BuildingType *definition = candidate.type_definition();
+        const building_type_registry_impl::BuildingType *definition = candidate.type;
         if (definition && definition->attr() && std::strcmp(definition->attr(), "wharf") == 0) {
-            building *b = candidate.legacy_record();
+            building *b = building_get(candidate.id());
             int wharf_boat_id = b->data.industry.fishing_boat_id;
-            if (!wharf_boat_id || wharf_boat_id == (int) boat->id) {
+            if (!wharf_boat_id || wharf_boat_id == static_cast<int>(boat->id())) {
                 wharf = b;
                 break;
             }
@@ -290,9 +290,9 @@ int map_water_get_wharf_for_new_fishing_boat(figure *boat, map_point *tile)
     return wharf->id;
 }
 
-int map_water_find_alternative_fishing_boat_tile(figure *boat, map_point *tile)
+int map_water_find_alternative_fishing_boat_tile(Figure *boat, map_point *tile)
 {
-    if (map_figure_at(boat->grid_offset) == (int) boat->id) {
+    if (map_figure_at(boat->grid_offset) == static_cast<int>(boat->id())) {
         return 0;
     }
     for (int radius = 1; radius <= 5; radius++) {
@@ -312,9 +312,10 @@ int map_water_find_alternative_fishing_boat_tile(figure *boat, map_point *tile)
     return 0;
 }
 
-int map_water_find_shipwreck_tile(figure *wreck, map_point *tile)
+int map_water_find_shipwreck_tile(Figure *wreck, map_point *tile)
 {
-    if (map_terrain_is(wreck->grid_offset, TERRAIN_WATER) && map_figure_at(wreck->grid_offset) == (int) wreck->id) {
+    if (map_terrain_is(wreck->grid_offset, TERRAIN_WATER) &&
+        map_figure_at(wreck->grid_offset) == static_cast<int>(wreck->id())) {
         return 0;
     }
     for (int radius = 1; radius <= 5; radius++) {
@@ -324,7 +325,7 @@ int map_water_find_shipwreck_tile(figure *wreck, map_point *tile)
         for (int yy = y_min; yy <= y_max; yy++) {
             for (int xx = x_min; xx <= x_max; xx++) {
                 int grid_offset = map_grid_offset(xx, yy);
-                if (!map_has_figure_at(grid_offset) || map_figure_at(grid_offset) == (int) wreck->id) {
+                if (!map_has_figure_at(grid_offset) || map_figure_at(grid_offset) == static_cast<int>(wreck->id())) {
                     if (map_terrain_is(grid_offset, TERRAIN_WATER) &&
                         map_terrain_is(map_grid_offset(xx, yy - 2), TERRAIN_WATER) &&
                         map_terrain_is(map_grid_offset(xx, yy + 2), TERRAIN_WATER) &&

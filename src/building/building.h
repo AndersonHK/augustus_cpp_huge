@@ -2,21 +2,49 @@
 
 #include "building/building_fwd.h"
 #include "building/building_order.h"
+#include "building/building_type.h"
 #include "game/resource.h"
 
-#ifdef __cplusplus
 #include "graphics/color.h"
 #include "map/point.h"
 
+#include <cstdint>
 #include <source_location>
 
 namespace building_type_registry_impl {
 class BuildingAnimation;
-class BuildingType;
 }
 
+class building_runtime;
+
 class Building {
+    friend class building_runtime;
+    friend class building_type_registry_impl::BuildingAnimation;
+
 public:
+    class TypeRange {
+    public:
+        class iterator {
+        public:
+            explicit iterator(::building *record);
+            Building operator*() const;
+            iterator &operator++();
+            bool operator!=(const iterator &other) const;
+
+        private:
+            ::building *record_ = nullptr;
+        };
+
+        iterator begin() const;
+        iterator end() const;
+
+    private:
+        friend class Building;
+        explicit TypeRange(building_type type);
+
+        building_type type_ = BUILDING_NONE;
+    };
+
     explicit Building(::building *record, const std::source_location &location = std::source_location::current());
     explicit Building(::building &record, const std::source_location &location = std::source_location::current());
     Building(::building *record, const building_type_registry_impl::BuildingType *type_definition,
@@ -24,42 +52,25 @@ public:
     Building(::building &record, const building_type_registry_impl::BuildingType *type_definition,
         const std::source_location &location = std::source_location::current());
 
-    // Object-first helpers answer questions about this building. Code that only
-    // has a raw building_type should use BuildingType or a narrow legacy helper
-    // until that call site can be given a Building.
-    static Building from_id(unsigned int id);
+    static TypeRange of_type(building_type type);
     static Building first_of_type(building_type type);
     static int count();
-    int is_house_type() const;
-    int is_ceres_temple_type() const;
-    int is_neptune_temple_type() const;
-    int is_mercury_temple_type() const;
-    int is_mars_temple_type() const;
-    int is_venus_temple_type() const;
-    int has_supplier_inventory_type() const;
 
     unsigned int id() const;
     Building main() const;
     Building next() const;
     Building next_of_type() const;
-    ::building *legacy_record();
-    const ::building *legacy_record() const;
-    building_type type_id() const;
-    building_type legacy_type_id() const;
-    building_type rubble_original_type_id() const;
+    const building_type_registry_impl::BuildingType *type = nullptr;
     int grid_offset() const;
     int x() const;
     int y() const;
     int size() const;
-    int is_type(building_type type) const;
-    int is_farm() const;
-    int is_bridge() const;
-    int is_house() const;
     int previous_part_id() const;
     int next_part_id() const;
     int is_main_part() const;
     int road_network_id() const;
     int distance_from_entry() const;
+    void set_distance_from_entry(int value);
     int road_access_x() const;
     int road_access_y() const;
     int state_id() const;
@@ -72,9 +83,14 @@ public:
     int has_cached_road_access() const;
     int is_close_to_water() const;
     int has_house_size() const;
-    const building_type_registry_impl::BuildingType *type_definition() const;
-    const building_type_registry_impl::BuildingType &type(
-        const std::source_location &location = std::source_location::current()) const;
+    int house_population() const;
+    void set_house_population(int value);
+    int house_population_room() const;
+    void set_house_population_room(int value);
+    unsigned int immigrant_figure_id() const;
+    void set_immigrant_figure_id(unsigned int id);
+    int house_figure_generation_delay() const;
+    building_runtime *runtime_instance() const;
     building_type_registry_impl::BuildingAnimation animate();
     int draw_footprint(const BuildingDrawContext &ctx);
     int draw_top(const BuildingDrawContext &ctx);
@@ -83,7 +99,6 @@ public:
     int refresh_graphic_if_native();
     void assign_graphic_variant(int force_reseed);
     void spawn_figure();
-    int has_type_definition() const;
     int worker_count() const;
     float labor_access_score() const;
     int has_required_workers() const;
@@ -110,7 +125,9 @@ public:
     int orientation() const;
     void set_orientation(int orientation);
     int variant() const;
+    void set_variant(int variant);
     int image_id() const;
+    void add_map_tiles(int image_id) const;
     int storage_id() const;
     void set_storage_id(int storage_id);
     int blocked_storage_permission_mask() const;
@@ -157,20 +174,15 @@ public:
     int entertainment_days1() const;
     int entertainment_days2() const;
     int desirability() const;
+    std::uint64_t graphics_state_signature(int selected_graphics_option) const;
 
 private:
     ::building *record_ = nullptr;
-    mutable const building_type_registry_impl::BuildingType *type_definition_ = nullptr;
 };
 
-#endif
 
 #include "core/buffer.h"
 #include "translation/translation.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 building *building_get(unsigned int id);
 
@@ -281,7 +293,3 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
 void building_resource_state_save(buffer *buf);
 
 void building_resource_state_load(buffer *buf);
-
-#ifdef __cplusplus
-}
-#endif

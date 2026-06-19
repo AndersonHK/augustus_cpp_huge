@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 void city_mission_reset_save_start(void);
@@ -14,6 +11,3 @@ int city_mission_tutorial_show_disease_message(void);
 void city_mission_tutorial_add_senate(void);
 int city_mission_tutorial_has_senate(void);
 
-#ifdef __cplusplus
-}
-#endif

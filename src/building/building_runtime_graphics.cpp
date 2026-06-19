@@ -15,12 +15,10 @@
 #include "core/crash_context.h"
 #include "graphics/image_group_reference.h"
 
-extern "C" {
 #include "core/image_group.h"
 #include "game/resource.h"
 #include "map/terrain.h"
 #include "core/log.h"
-}
 
 #include <cstdio>
 #include <cstdint>
@@ -30,16 +28,15 @@ namespace {
 
 void make_building_context(char *buffer, size_t buffer_size, const building_runtime *runtime)
 {
-    const building *b = runtime ? runtime->legacy_record() : nullptr;
+    const Building b = runtime ? runtime->building() : Building(nullptr);
     const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
-    if (b) {
+    if (b.type) {
         snprintf(
             buffer,
             buffer_size,
-            "building_id=%u type=%s grid_offset=%d",
-            b->id,
+            "type=%s grid_offset=%d",
             definition ? definition->attr() : "unknown",
-            b->grid_offset);
+            b.grid_offset());
     } else {
         snprintf(buffer, buffer_size, "building=null");
     }
@@ -48,9 +45,9 @@ void make_building_context(char *buffer, size_t buffer_size, const building_runt
 void log_building_scope_state(void *userdata)
 {
     const building_runtime *runtime = static_cast<const building_runtime *>(userdata);
-    const building *b = runtime ? runtime->legacy_record() : nullptr;
+    const Building b = runtime ? runtime->building() : Building(nullptr);
     const building_type_registry_impl::BuildingType *definition = runtime ? runtime->definition() : nullptr;
-    if (!b) {
+    if (!b.type) {
         return;
     }
 
@@ -66,11 +63,11 @@ void log_building_scope_state(void *userdata)
         details,
         sizeof(details),
         "state=%d size=%d desirability=%d water=%d upgrade=%d target_path=%s target_image=%s",
-        b->state,
-        b->size,
-        b->desirability,
-        b->has_water_access,
-        b->upgrade_level,
+        b.state_id(),
+        b.size(),
+        b.desirability(),
+        b.has_water_access(),
+        definition ? definition->upgrade_level_for(b) : 0,
         target && target->has_path() ? target->path() : "",
         target && target->has_image() ? target->image() : "");
     log_info("Graphics building state", details, 0);
@@ -146,9 +143,8 @@ int selected_graphics_option(const Building &building, const building_type_regis
 
 int building_runtime_graphics_image_id(const Building &building_object)
 {
-    const ::building *record = building_object.legacy_record();
-    const building_type_registry_impl::BuildingType *definition = building_object.type_definition();
-    if (!record || !definition || !definition->has_graphic()) {
+    const building_type_registry_impl::BuildingType *definition = building_object.type;
+    if (!definition || !definition->has_graphic()) {
         return 0;
     }
 
@@ -176,18 +172,18 @@ void building_runtime::clear_cached_graphics_bindings()
 
 int building_runtime::uses_new_graphics() const
 {
-    return legacy_record() &&
-        definition() &&
-        type().has_graphic() &&
-        !type().has_data_only_graphics();
+    const Building b = building();
+    return b.type &&
+        b.type->has_graphic() &&
+        !b.type->has_data_only_graphics();
 }
 
 int building_runtime::building_state_supports_native_graphics() const
 {
-    return legacy_record() &&
-        (record().state == BUILDING_STATE_CREATED ||
-            record().state == BUILDING_STATE_IN_USE ||
-            record().state == BUILDING_STATE_MOTHBALLED);
+    const Building b = building();
+    return b.state_id() == BUILDING_STATE_CREATED ||
+        b.state_id() == BUILDING_STATE_IN_USE ||
+        b.state_id() == BUILDING_STATE_MOTHBALLED;
 }
 
 void building_runtime::invalidate_graphics_cache()
@@ -197,41 +193,18 @@ void building_runtime::invalidate_graphics_cache()
 
 std::uint64_t building_runtime::graphics_state_signature() const
 {
-    if (!legacy_record()) {
+    const Building b = building();
+    if (!b.type) {
         return 0;
     }
 
-    std::uint64_t hash = 1469598103934665603ull;
-    const auto mix = [&hash](std::uint64_t value) {
-        hash ^= value;
-        hash *= 1099511628211ull;
-    };
-
-    mix(static_cast<std::uint64_t>(record().state));
-    mix(static_cast<std::uint64_t>(record().num_workers));
-    mix(static_cast<std::uint64_t>(record().has_water_access));
-    mix(static_cast<std::uint64_t>(record().desirability));
-    mix(static_cast<std::uint64_t>(record().strike_duration_days));
-    mix(static_cast<std::uint64_t>(record().data.industry.progress));
-    mix(static_cast<std::uint64_t>(record().data.industry.has_raw_materials));
-    mix(static_cast<std::uint64_t>(record().output_resource_id));
-    mix(static_cast<std::uint64_t>(record().figure_id));
-    mix(static_cast<std::uint64_t>(record().figure_id2));
-    mix(static_cast<std::uint64_t>(record().figure_id4));
-    mix(static_cast<std::uint64_t>(record().monument.phase));
-    mix(static_cast<std::uint64_t>(record().monument.upgrades));
-    mix(static_cast<std::uint64_t>(record().variant));
+    int selected_option = -1;
     if (const building_type_registry_impl::GraphicsTarget *target = resolve_graphic_target()) {
         if (target->has_options()) {
-            mix(static_cast<std::uint64_t>(selected_graphics_option(building(), *target)));
+            selected_option = selected_graphics_option(b, *target);
         }
     }
-
-    for (int i = 0; i < RESOURCE_SLOT_COUNT; i++) {
-        mix(static_cast<std::uint64_t>(record().resources[i]));
-    }
-
-    return hash;
+    return b.graphics_state_signature(selected_option);
 }
 
 const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_graphic_target() const
@@ -244,21 +217,22 @@ const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_gra
 
 void building_runtime::assign_graphic_variant(int force_reseed)
 {
-    if (!legacy_record()) {
+    Building b = building();
+    if (!b.type) {
         return;
     }
 
     refresh_runtime_state();
-    int graphics_option = building_variant_get_graphics_option(building(), force_reseed);
+    int graphics_option = building_variant_get_graphics_option(b, force_reseed);
     if (graphics_option < 0) {
         return;
     }
 
     unsigned char variant = static_cast<unsigned char>(graphics_option);
-    if (record().variant == variant) {
+    if (b.variant() == variant) {
         return;
     }
-    record().variant = variant;
+    b.set_variant(variant);
     invalidate_graphics_cache();
 }
 
@@ -324,6 +298,49 @@ const RuntimeAnimationTrack *building_runtime::cached_animation_track() const
     return graphics_cache_.animation_entry && graphics_cache_.animation_entry->has_animation() ?
         &graphics_cache_.animation_entry->animation() :
         nullptr;
+}
+
+int building_runtime::resolve_graphics_cache()
+{
+    if (!uses_new_graphics()) {
+        clear_cached_graphics_bindings();
+        return 0;
+    }
+
+    ensure_cached_graphics_bindings();
+    return graphics_cache_.owns_graphics;
+}
+
+const RuntimeDrawSlice *building_runtime::cached_graphic_footprint() const
+{
+    return graphics_cache_.base_entry ? graphics_cache_.base_entry->footprint() : nullptr;
+}
+
+const RuntimeDrawSlice *building_runtime::cached_graphic_top() const
+{
+    return graphics_cache_.base_entry ? graphics_cache_.base_entry->top() : nullptr;
+}
+
+void building_runtime::advance_cached_graphic_animation(int animation_cursor)
+{
+    const RuntimeAnimationTrack *track_ptr = cached_animation_track();
+    if (!track_ptr || !graphics_cache_.owns_graphic_animation) {
+        return;
+    }
+
+    building().animate().runtime_track_offset(*track_ptr, 1, animation_cursor);
+    graphics_cache_.animation_slice = RuntimeDrawSlice();
+}
+
+const RuntimeDrawSlice *building_runtime::cached_graphic_animation(int animation_cursor)
+{
+    rebuild_cached_animation_slice(animation_cursor);
+    return graphics_cache_.animation_slice.is_valid() ? &graphics_cache_.animation_slice : nullptr;
+}
+
+int building_runtime::cached_owns_graphic_animation() const
+{
+    return graphics_cache_.owns_graphic_animation;
 }
 
 // Input: one live building instance whose cached animation binding already points at an image-group entry.
@@ -496,11 +513,12 @@ void building_runtime::set_building_graphic()
 
     rebuild_cached_graphics_bindings();
     // XML payload graphics render from cached RuntimeDrawSlice entries; map_image only keeps legacy tile bookkeeping alive.
-    int image_id = graphics_cache_.owns_graphics ? runtime_tile_sentinel_image_id() : building_image_get(legacy_record());
+    Building b = building();
+    int image_id = graphics_cache_.owns_graphics ? runtime_tile_sentinel_image_id() : b.image_id();
     if (!image_id) {
         image_id = runtime_tile_sentinel_image_id();
     }
-    map_building_tiles_add(record().id, record().x, record().y, record().size, image_id, TERRAIN_BUILDING);
+    b.add_map_tiles(image_id);
 }
 
 int building_runtime::owns_graphics()

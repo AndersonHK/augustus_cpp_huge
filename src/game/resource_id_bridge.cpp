@@ -2,10 +2,8 @@
 
 #include "game/resource_id_bridge.h"
 
-extern "C" {
 #include "core/log.h"
 #include "scenario/allowed_building.h"
-}
 
 #include "building/building_type_registry_internal.h"
 
@@ -331,7 +329,7 @@ void ensure_save_table()
 
 } // namespace
 
-extern "C" void resource_id_bridge_reset_for_runtime(void)
+void resource_id_bridge_reset_for_runtime(void)
 {
     const bool had_save_table = g_bridge.save_table_ready;
     g_bridge.runtime_ready = false;
@@ -341,13 +339,13 @@ extern "C" void resource_id_bridge_reset_for_runtime(void)
     }
 }
 
-extern "C" void resource_id_bridge_clear_save_table(void)
+void resource_id_bridge_clear_save_table(void)
 {
     clear_save_table();
     g_bridge.save_table_ready = false;
 }
 
-extern "C" void resource_id_bridge_save_table_save_state(buffer *buf)
+void resource_id_bridge_save_table_save_state(buffer *buf)
 {
     if (!buf) {
         return;
@@ -385,7 +383,7 @@ extern "C" void resource_id_bridge_save_table_save_state(buffer *buf)
     }
 }
 
-extern "C" void resource_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
+void resource_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
 {
     if (!has_save_table || !buf || !buf->size) {
         load_legacy_save_table(g_bridge.version);
@@ -429,32 +427,32 @@ extern "C" void resource_id_bridge_save_table_load_state(buffer *buf, int has_sa
     g_bridge.save_table_ready = true;
 }
 
-extern "C" resource_version_t resource_id_bridge_original_version(void)
+resource_version_t resource_id_bridge_original_version(void)
 {
     return RESOURCE_ORIGINAL_VERSION;
 }
 
-extern "C" resource_version_t resource_id_bridge_current_version(void)
+resource_version_t resource_id_bridge_current_version(void)
 {
     return RESOURCE_CURRENT_VERSION;
 }
 
-extern "C" int resource_id_bridge_legacy_resource_count(void)
+int resource_id_bridge_legacy_resource_count(void)
 {
     return kLegacyMaxResources;
 }
 
-extern "C" int resource_id_bridge_legacy_food_count(void)
+int resource_id_bridge_legacy_food_count(void)
 {
     return kLegacyMaxFood;
 }
 
-extern "C" int resource_id_bridge_legacy_inventory_count(void)
+int resource_id_bridge_legacy_inventory_count(void)
 {
     return LEGACY_INVENTORY_MAX;
 }
 
-extern "C" int resource_id_bridge_mapping_joins_meat_and_fish(void)
+int resource_id_bridge_mapping_joins_meat_and_fish(void)
 {
     return g_bridge.version < RESOURCE_SEPARATE_FISH_AND_MEAT_VERSION;
 }
@@ -468,19 +466,19 @@ static resource_type runtime_from_save_id(uint16_t save_id)
     return RESOURCE_NONE;
 }
 
-extern "C" void resource_set_mapping(resource_version_t version)
+void resource_set_mapping(resource_version_t version)
 {
     g_bridge.version = version;
     g_bridge.save_table_ready = false;
     load_legacy_save_table(version);
 }
 
-extern "C" resource_version_t resource_mapping_get_version(void)
+resource_version_t resource_mapping_get_version(void)
 {
     return g_bridge.version;
 }
 
-extern "C" resource_type resource_map_legacy_inventory(int id)
+resource_type resource_map_legacy_inventory(int id)
 {
     if (id < 0 || id >= LEGACY_INVENTORY_MAX) {
         return RESOURCE_NONE;
@@ -493,7 +491,7 @@ extern "C" resource_type resource_map_legacy_inventory(int id)
     return runtime_from_raw_runtime_slot(id);
 }
 
-extern "C" resource_type resource_remap(int id)
+resource_type resource_remap(int id)
 {
     if (id < 0) {
         return RESOURCE_NONE;
@@ -501,7 +499,7 @@ extern "C" resource_type resource_remap(int id)
     return runtime_from_save_id(static_cast<uint16_t>(id));
 }
 
-extern "C" uint16_t resource_id_bridge_save_id_from_runtime(resource_type runtime_id)
+uint16_t resource_id_bridge_save_id_from_runtime(resource_type runtime_id)
 {
     ensure_save_table();
     if (runtime_id == RESOURCE_NONE) {
@@ -517,13 +515,13 @@ extern "C" uint16_t resource_id_bridge_save_id_from_runtime(resource_type runtim
     return 0;
 }
 
-extern "C" int resource_total_mapped(void)
+int resource_total_mapped(void)
 {
     ensure_save_table();
     return g_bridge.total_resources;
 }
 
-extern "C" int resource_total_food_mapped(void)
+int resource_total_food_mapped(void)
 {
     ensure_save_table();
     return g_bridge.total_food_resources;

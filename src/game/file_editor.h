@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 /**
@@ -29,6 +26,3 @@ int game_file_editor_load_scenario(const char *scenario_file);
  */
 int game_file_editor_write_scenario(const char *scenario_file);
 
-#ifdef __cplusplus
-}
-#endif

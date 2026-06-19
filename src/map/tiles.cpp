@@ -1,6 +1,8 @@
 #include "building/building.h"
 #include "building/connectable.h"
 #include "building/building_type.h"
+#include "figure/figure.h"
+#include "building/building_record.h"
 #include "building/image.h"
 #include "map/aqueduct.h"
 #include "map/bridge.h"
@@ -12,9 +14,7 @@
 
 #include "tiles.h"
 
-extern "C" {
 #include "assets/assets.h"
-#include "building/building_record.h"
 #include "city/map.h"
 #include "city/view.h"
 #include "core/config.h"
@@ -30,7 +30,6 @@ extern "C" {
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "scenario/map.h"
-}
 
 #include "map/tile_runtime_api.h"
 
@@ -745,7 +744,7 @@ static int map_tiles_is_adjacent_to_granary(int grid_offset, int diagonals_inclu
         if (map_terrain_is(tiles[i], TERRAIN_BUILDING)) {
             building *b = building_get(map_building_at(tiles[i]));
             Building current(b);
-            if (current.has_type_definition() && current.type().is_granary()) {
+            if (current.type && current.type->is_granary()) {
                 return 1;
             }
         }
@@ -905,7 +904,7 @@ static void update_granaries(int x, int y)
             building *b = building_get(map_building_at(map_grid_offset(xx, yy)));
             if (b) {
                 Building current(b);
-                if (current.has_type_definition() && current.type().is_granary()) {
+                if (current.type && current.type->is_granary()) {
                     map_update_granary_internal_roads(b);
                 }
             }

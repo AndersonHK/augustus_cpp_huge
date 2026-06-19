@@ -15,7 +15,6 @@
 #include "platform/file_manager_cache.h"
 #include "platform/prefs.h"
 #include "platform/user_path.h"
-extern "C" {
 #include "assets/assets.h"
 #include "core/config.h"
 #include "core/encoding.h"
@@ -36,7 +35,6 @@ extern "C" {
 #include "platform/switch/switch.h"
 #include "platform/touch.h"
 #include "platform/vita/vita.h"
-}
 
 #include "SDL.h"
 

@@ -1,10 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include <stdint.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 void scenario_editor_create(int map_size);
 
@@ -68,7 +64,3 @@ void scenario_editor_set_custom_message_introduction(int id);
 
 int scenario_editor_get_custom_victory_message(void);
 void scenario_editor_set_custom_victory_message(int id);
-
-#ifdef __cplusplus
-}
-#endif

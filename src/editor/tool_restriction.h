@@ -1,11 +1,8 @@
-﻿#pragma once
+#pragma once
 
 #include "city/warning.h"
 #include "editor/tool.h"
 #include "map/point.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 int editor_tool_can_place_flag(tool_type type, const map_tile *tile, warning_type *warning);
@@ -16,6 +13,3 @@ int editor_tool_can_place_building(const map_tile *tile, int num_tiles, int *blo
 
 int editor_tool_can_place_custom_earthquake(const map_tile *tile);
 
-#ifdef __cplusplus
-}
-#endif

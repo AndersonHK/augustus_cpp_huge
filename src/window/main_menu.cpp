@@ -17,7 +17,6 @@
 #include "window/video.h"
 #include "window/popup_dialog.h"
 #include "game/campaign.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "core/calc.h"
@@ -30,7 +29,6 @@ extern "C" {
 #include "graphics/screen.h"
 #include "graphics/window.h"
 #include "sound/music.h"
-}
 
 #define MAX_BUTTONS 6
 

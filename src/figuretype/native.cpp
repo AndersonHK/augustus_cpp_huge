@@ -16,15 +16,15 @@
 
 static time_millis native_attack_last_played = 0;
 
-void figure_indigenous_native_action(figure *f)
+void figure_indigenous_native_action(Figure *f)
 {
     time_millis now = time_get_millis();
 
-    building *b = building_get(f->building_id);
+    building *b = building_get(f->building.id());
     f->terrain_usage = TERRAIN_USAGE_ANY;
     f->use_cross_country = 0;
     f->max_roam_length = 800;
-    if (b->state != BUILDING_STATE_IN_USE || (unsigned int) b->figure_id != f->id) {
+    if (b->state != BUILDING_STATE_IN_USE || (unsigned int) b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -56,7 +56,7 @@ void figure_indigenous_native_action(figure *f)
         case FIGURE_ACTION_158_NATIVE_CREATED:
             f->image_offset = 0;
             f->wait_ticks++;
-            if ((unsigned int) f->wait_ticks > 10 + (f->id & 3)) {
+            if ((unsigned int) f->wait_ticks > 10 + (f->id() & 3)) {
                 f->wait_ticks = 0;
                 const formation *m = formation_get(NATIVE_FORMATION);
                 if (!city_military_is_native_attack_active() || m->months_low_morale > 0) {
@@ -72,7 +72,7 @@ void figure_indigenous_native_action(figure *f)
                     f->action_state = FIGURE_ACTION_159_NATIVE_ATTACKING;
                     f->destination_x = m->destination_x;
                     f->destination_y = m->destination_y;
-                    f->destination_building_id = m->destination_building_id;
+                    f->destination_building = Building(building_get(m->destination_building_id));
                     if (native_attack_last_played == 0 || (now - native_attack_last_played) > NATIVE_ATTACK_SOUND_DELAY) {
                         sound_speech_play_file("wavs/barbarian_war_cry.wav");
                         native_attack_last_played = now;

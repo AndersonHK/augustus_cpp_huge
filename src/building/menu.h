@@ -2,9 +2,6 @@
 
 #include "building/building_type.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     SUBMENU_NONE = -1,
@@ -66,6 +63,3 @@ int building_menu_is_submenu(build_menu_group menu);
 
 int building_menu_get_submenu_for_type(building_type type);
 
-#ifdef __cplusplus
-}
-#endif

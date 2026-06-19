@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 void city_military_clear_legionary_legions(void);
@@ -47,6 +44,3 @@ int city_military_months_until_distant_battle(void);
 
 void city_military_process_distant_battle(void);
 
-#ifdef __cplusplus
-}
-#endif

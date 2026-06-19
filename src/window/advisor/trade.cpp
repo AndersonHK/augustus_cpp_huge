@@ -15,7 +15,6 @@
 #include "window/option_popup.h"
 #include "graphics/ui_runtime.h"
 
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/building_type_api.h"
@@ -31,7 +30,6 @@ extern "C" {
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "sound/speech.h"
-}
 
 #include <string.h>
 

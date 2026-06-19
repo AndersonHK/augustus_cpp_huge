@@ -1,9 +1,6 @@
 #pragma once
 
 #include "building/building_type.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 typedef enum {
@@ -25,14 +22,10 @@ int city_rating_explanation_for(selected_rating rating);
 
 void city_ratings_reduce_prosperity_after_bailout(void);
 
-#ifdef __cplusplus
-}
 
 class Building;
 void city_ratings_peace_building_destroyed(const Building &building);
 
-extern "C" {
-#endif
 
 void city_ratings_peace_record_criminal(void);
 
@@ -64,6 +57,3 @@ void city_ratings_update(int is_yearly_update, int is_monthly_update);
 
 int city_ratings_prosperity_max(void);
 
-#ifdef __cplusplus
-}
-#endif

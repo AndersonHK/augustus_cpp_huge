@@ -33,13 +33,13 @@
     <ClCompile Include="src\assets\graphics_extractor_common.cpp">
       <Filter>Extractor</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\buffer.c">
+    <ClCompile Include="src\core\buffer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\image.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\image_packer.c">
+    <ClCompile Include="src\core\image_packer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\core\io.cpp">
@@ -51,13 +51,13 @@
     <ClCompile Include="src\core\png_read.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\core\xml_parser.c">
+    <ClCompile Include="src\core\xml_parser.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="src\graphics\image.cpp">
       <Filter>Core</Filter>
     </ClCompile>
-    <ClCompile Include="src\graphics\renderer.c">
+    <ClCompile Include="src\graphics\renderer.cpp">
       <Filter>Core</Filter>
     </ClCompile>
     <ClCompile Include="ext\sxml\sxml.c">

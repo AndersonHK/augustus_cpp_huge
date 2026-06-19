@@ -3,10 +3,8 @@
 #include "core/crash_context.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/log.h"
 #include "core/xml_parser.h"
-}
 
 #include <utility>
 

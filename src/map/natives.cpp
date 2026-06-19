@@ -1,3 +1,4 @@
+#include "figure/figure.h"
 #include "building/building_record.h"
 #include "natives.h"
 
@@ -81,8 +82,9 @@ static int has_building_on_native_land(int x, int y, int size, int radius)
         for (int xx = x_min; xx <= x_max; xx++) {
             int building_id = map_building_at(map_grid_offset(xx, yy));
             if (building_id > 0) {
-                Building existing = Building::from_id(building_id);
-                building_type type = existing.type_id();
+                building *record = building_get(building_id);
+                Building existing(record);
+                building_type type = existing.type ? existing.type->type() : BUILDING_NONE;
                 static const char *const native_land_allowed[] = {
                     "mission_post",
                     "native_hut",
@@ -98,11 +100,11 @@ static int has_building_on_native_land(int x, int y, int size, int radius)
                     "triumphal_arch",
                     "gatehouse",
                 };
-                int is_storage = existing.has_type_definition() &&
-                    (existing.type().is_granary() || existing.type().is_warehouse());
+                int is_storage = existing.type &&
+                    (existing.type->is_granary() || existing.type->is_warehouse());
                 if (!type_matches_any(type, native_land_allowed,
                         sizeof(native_land_allowed) / sizeof(native_land_allowed[0])) &&
-                    (Roadblock(existing.legacy_record()).kind() == ROADBLOCK_NONE ||
+                    (Roadblock(record).kind() == ROADBLOCK_NONE ||
                         type_matches_any(type, roadblock_pass_allowed,
                             sizeof(roadblock_pass_allowed) / sizeof(roadblock_pass_allowed[0])) ||
                         is_storage)) {

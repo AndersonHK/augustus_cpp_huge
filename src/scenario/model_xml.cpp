@@ -6,7 +6,6 @@
 #include "building/building_type_registry.h"
 #include "building/building_type_startup_bridge.h"
 
-extern "C" {
 
 #include "building/properties.h"
 #include "building/building_type_api.h"
@@ -17,7 +16,6 @@ extern "C" {
 #include "core/xml_exporter.h"
 #include "core/xml_parser.h"
 #include "game/resource.h"
-}
 
 #include <stdio.h>
 #include <stdlib.h>

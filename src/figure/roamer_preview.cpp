@@ -13,8 +13,6 @@
 #include "map/grid.h"
 #include "map/road_access.h"
 
-#include <string.h>
-
 #define TOTAL_ROAMERS 4
 #define MAX_STORED_BUILDING_TYPES 2
 #define SHOWN_BUILDING_OFFSET 12
@@ -62,7 +60,7 @@ static int figure_enters_exits_building(figure_type type)
     }
 }
 
-static void init_roaming(figure *f, int roam_dir, int x, int y)
+static void init_roaming(Figure *f, int roam_dir, int x, int y)
 {
     f->progress_on_tile = 15;
     f->roam_choose_destination = 0;
@@ -151,9 +149,7 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
     int should_return = fig_type != FIGURE_SCHOOL_CHILD;
 
     for (int i = 0; i < TOTAL_ROAMERS; i++) {
-        figure roamer;
-
-        memset(&roamer, 0, sizeof(figure));
+        Figure roamer{};
 
         roamer.source_x = roamer.destination_x = roamer.previous_tile_x = road.x;
         roamer.source_y = roamer.destination_y = roamer.previous_tile_y = road.y;
@@ -251,7 +247,7 @@ void figure_roamer_preview_reset(building_type type)
     if (show_other_roamers) {
         for (int i = 0; i < data.stored_building_types; i++) {
             for (Building b = Building::first_of_type(data.types[i]); b.id(); b = b.next_of_type()) {
-                figure_roamer_preview_create(b.type_id(), b.x(), b.y());
+                figure_roamer_preview_create(data.types[i], b.x(), b.y());
             }
         }
     }

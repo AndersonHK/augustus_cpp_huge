@@ -1,10 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
 #include "scenario/event/data.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 int scenario_action_type_execute(scenario_action_t *action);
@@ -16,6 +13,3 @@ unsigned int scenario_action_type_load_state(buffer *buf, scenario_action_t *act
 unsigned int scenario_action_type_load_allowed_building(scenario_action_t *action, int original_id, unsigned int index);
 int scenario_action_uses_custom_variable(const scenario_action_t *action, int custom_variable_id);
 
-#ifdef __cplusplus
-}
-#endif

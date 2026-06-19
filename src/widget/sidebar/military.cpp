@@ -16,7 +16,6 @@
 
 #include "widget/sidebar/slide.h"
 #include "window/building/military.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/building_type_api.h"
@@ -31,7 +30,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "map/grid.h"
 #include "sound/speech.h"
-}
 
 
 #define LAYOUTS_PER_LEGION 5

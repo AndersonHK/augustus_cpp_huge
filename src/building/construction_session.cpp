@@ -7,9 +7,7 @@
 
 #include <string_view>
 
-extern "C" {
 #include "map/grid.h"
-}
 
 static int type_attr_is(building_type type, std::string_view attr)
 {

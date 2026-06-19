@@ -1,12 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "building/building_fwd.h"
-#ifdef __cplusplus
-extern "C++" {
 class Building;
-}
-extern "C" {
-#endif
 
 
 class Building;
@@ -30,6 +25,3 @@ void building_house_determine_evolve_text(Building house, int worst_desirability
  */
 building_type building_house_determine_worst_desirability_building_type(Building house);
 
-#ifdef __cplusplus
-}
-#endif

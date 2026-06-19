@@ -24,7 +24,6 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -34,7 +33,6 @@ extern "C" {
 #include "game/resource.h"
 #include "scenario/property.h"
 #include "sound/city.h"
-}
 
 #include <cctype>
 #include <climits>
@@ -3730,7 +3728,7 @@ static int load_building_type_definitions_from_path(
 
 }
 
-extern "C" int building_type_registry_load(void)
+int building_type_registry_load(void)
 {
     using namespace building_type_registry_impl;
 

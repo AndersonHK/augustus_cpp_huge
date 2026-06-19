@@ -24,11 +24,11 @@
 #include "map/water_supply.h"
 
 #include "building/construction_session.h"
+#include "figure/figure.h"
 #include "translation/translation.h"
 
 #include <cstring>
 
-extern "C" {
 
 #include "assets/assets.h"
 #include "building/building_record.h"
@@ -54,7 +54,6 @@ extern "C" {
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "scenario/allowed_building.h"
-}
 
 #include <initializer_list>
 
@@ -1228,13 +1227,13 @@ figure_type building_construction_nearby_enemy_type(grid_slice *slice)
         return FIGURE_NONE;
     }
 
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
         if (config_get(CONFIG_GP_CH_WOLVES_BLOCK)) {
-            if (f->state != FIGURE_STATE_ALIVE || (!figure_is_enemy(f) && f->type != FIGURE_WOLF)) {
+            if (f->state != FIGURE_STATE_ALIVE || (!f->is_enemy() && f->type != FIGURE_WOLF)) {
                 continue;
             }
-        } else if (figure_is_dead(f) || !figure_is_enemy(f)) {
+        } else if (f->is_dead() || !f->is_enemy()) {
             continue;
         }
 

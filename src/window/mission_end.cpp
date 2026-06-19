@@ -17,7 +17,6 @@
 #include "game/settings.h"
 #include "game/campaign.h"
 #include "scenario/scenario.h"
-extern "C" {
 #include "assets/assets.h"
 #include "city/emperor.h"
 #include "city/finance.h"
@@ -35,7 +34,6 @@ extern "C" {
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-}
 
 #include <string.h>
 

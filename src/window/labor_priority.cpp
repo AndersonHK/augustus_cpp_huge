@@ -6,11 +6,9 @@
 
 #include "labor_priority.h"
 
-extern "C" {
 
 #include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
-}
 
 #define MIN_DIALOG_WIDTH 320
 

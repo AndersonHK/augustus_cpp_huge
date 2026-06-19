@@ -5,9 +5,6 @@
 #include "figure/type.h"
 #include "map/grid.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int building_construction_cycle_forward(void);
 
@@ -76,6 +73,3 @@ int building_construction_is_land_work_type(building_type type);
 */
 int building_construction_place_wall(int grid_offset);
 
-#ifdef __cplusplus
-}
-#endif

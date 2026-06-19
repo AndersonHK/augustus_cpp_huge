@@ -11,7 +11,6 @@
 
 #include "building/production_method.h"
 
-extern "C" {
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/buildings.h"
@@ -19,10 +18,10 @@ extern "C" {
 #include "core/calc.h"
 #include "core/image.h"
 #include "core/random.h"
-#include "figure/figure.h"
 #include "game/time.h"
 #include "scenario/property.h"
-}
+
+#include "figure/figure.h"
 
 #include <cstring>
 
@@ -105,8 +104,9 @@ int is_valid_resource_slot(resource_type resource)
 
 int building_is_farm(building_type type)
 {
-    const building_type_registry_impl::ProductionMethod *method = primary_native_production_method(type);
-    return method && method->is_farm();
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->is_farm();
 }
 
 resource_type building_output_resource(building_type type)
@@ -436,7 +436,9 @@ void building_industry_update_production(int new_day)
                     city_data.building.num_striking_industries--;
                     striking_buildings--;
                     // remove striker walker
-                    figure_delete(figure_get(b->figure_id4));
+                    if (Figure *striker = Figure::get(b->figure_id4)) {
+                        striker->remove();
+                    }
                 }
             }
 

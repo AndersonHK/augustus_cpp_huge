@@ -21,7 +21,7 @@ int Armoury::is_needed() const
         return 0;
     }
 
-    const building_type_registry_impl::Distribution *distribution = type().distribution();
+    const building_type_registry_impl::Distribution *distribution = type ? type->distribution() : nullptr;
     if (!distribution) {
         return 0;
     }

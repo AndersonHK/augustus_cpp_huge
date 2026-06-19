@@ -1,12 +1,13 @@
 #pragma once
 
-#include <stddef.h>
-#include <stdint.h>
+#include <cstddef>
+#include <cstdint>
 
-#define ROUTING_PATH_DIRECTION_BIT_OFFSET 5
-#define ROUTING_PATH_DIRECTION_COUNT_BIT_MASK ((uint8_t) (1u << ROUTING_PATH_DIRECTION_BIT_OFFSET) - 1)
+constexpr int ROUTING_PATH_DIRECTION_BIT_OFFSET = 5;
+constexpr uint8_t ROUTING_PATH_DIRECTION_COUNT_BIT_MASK =
+    static_cast<uint8_t>((1u << ROUTING_PATH_DIRECTION_BIT_OFFSET) - 1);
 
-typedef struct {
+struct figure_path_data {
     unsigned int id;
     unsigned int figure_id;
     unsigned int total_directions;
@@ -14,7 +15,7 @@ typedef struct {
 
     size_t current_step;
     uint8_t same_direction_count;
-} figure_path_data;
+};
 
 int map_routing_get_path(figure_path_data *path, int dst_x, int dst_y, int num_directions);
 

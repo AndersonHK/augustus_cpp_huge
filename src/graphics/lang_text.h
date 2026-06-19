@@ -5,9 +5,6 @@
 #include "translation/translation.h"
 #include "graphics/screen.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     LANG_FRAG_LABEL,    // a lang string
@@ -42,8 +39,6 @@ int lang_text_draw_sequence_centered_ellipsized(const lang_fragment *seq, int co
 
 int lang_text_concatenate_sequence(const lang_fragment *seq, int count, uint8_t *dst, int dst_size);
 
-#ifdef __cplusplus
-}
 
 int lang_text_get_width(translation_key key, font_t font, int pixel_size);
 
@@ -67,4 +62,3 @@ int lang_text_draw_amount_colored(
     translation_key key, int amount, int x_offset, int y_offset, font_t font, int pixel_size, color_t color);
 int lang_text_draw_multiline(
     translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
-#endif

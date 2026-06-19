@@ -1,10 +1,8 @@
 #pragma once
 
-extern "C" {
 #include "building/building_type.h"
 #include "input/keys.h"
 #include "map/point.h"
-}
 
 class ConstructionToolSession {
 public:

@@ -10,7 +10,6 @@
 #include "starting_conditions.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
@@ -19,7 +18,6 @@ extern "C" {
 #include "scenario/editor.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
-}
 
 static void button_rank(const generic_button *button);
 static void button_caesar_salary(const generic_button *button);

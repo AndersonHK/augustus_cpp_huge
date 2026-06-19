@@ -2,7 +2,6 @@
 #include "import_xml.h"
 
 #include "assets/assets.h"
-#include "core/array.h"
 #include "core/buffer.h"
 #include "core/calc.h"
 #include "core/file.h"
@@ -22,6 +21,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <vector>
 
 #define XML_TOTAL_ELEMENTS 19
 #define BASE_BORDER_FLAG_IMAGE_ID 3323
@@ -61,9 +61,9 @@ static struct {
     city_list current_city_list;
     int has_vulnerable_city;
     int current_invasion_path_id;
-    array(int) invasion_path_ids;
+    std::vector<int> invasion_path_ids;
     distant_battle_path_type distant_battle_path_type;
-    array(waypoint) distant_battle_waypoints;
+    std::vector<waypoint> distant_battle_waypoints;
     int border_status;
     char added_ornaments[TOTAL_ORNAMENTS];
     char info_filename[FILE_NAME_MAX];
@@ -526,21 +526,13 @@ static int xml_start_battle(void)
         log_error("Battle not in path tag", 0, 0);
         return 0;
     }
-    int *battle_id = array_advance(data.invasion_path_ids);
-    if (!battle_id) {
-        data.success = 0;
-        log_error("Error creating invasion path - out of memory", 0, 0);
-        return 0;
-    }
-
     full_empire_object *battle_obj = empire_object_get_new();
     if (!battle_obj) {
-        data.invasion_path_ids.size--;
         data.success = 0;
         log_error("Error creating new object - out of memory", 0, 0);
         return 0;
     }
-    *battle_id = battle_obj->obj.id;
+    data.invasion_path_ids.push_back(battle_obj->obj.id);
     battle_obj->in_use = 1;
     battle_obj->obj.type = EMPIRE_OBJECT_BATTLE_ICON;
     battle_obj->obj.invasion_path_id = data.current_invasion_path_id;
@@ -583,16 +575,11 @@ static int xml_start_distant_battle_path(void)
         return 0;
     }
 
-    waypoint *w = array_advance(data.distant_battle_waypoints);
-    if (!w) {
-        data.success = 0;
-        log_error("Error creating new object - out of memory", 0, 0);
-        return 0;
-    }
-    w->x = xml_parser_get_attribute_int("start_x");
-    w->y = xml_parser_get_attribute_int("start_y");
-    empire_transform_coordinates(&w->x, &w->y);
-    w->num_months = 0;
+    waypoint &w = data.distant_battle_waypoints.emplace_back();
+    w.x = xml_parser_get_attribute_int("start_x");
+    w.y = xml_parser_get_attribute_int("start_y");
+    empire_transform_coordinates(&w.x, &w.y);
+    w.num_months = 0;
     return 1;
 }
 
@@ -612,16 +599,11 @@ static int xml_start_distant_battle_waypoint(void)
         return 0;
     }
 
-    waypoint *w = array_advance(data.distant_battle_waypoints);
-    if (!w) {
-        data.success = 0;
-        log_error("Error creating new object - out of memory", 0, 0);
-        return 0;
-    }
-    w->x = xml_parser_get_attribute_int("x");
-    w->y = xml_parser_get_attribute_int("y");
-    empire_transform_coordinates(&w->x, &w->y);
-    w->num_months = xml_parser_get_attribute_int("num_months");
+    waypoint &w = data.distant_battle_waypoints.emplace_back();
+    w.x = xml_parser_get_attribute_int("x");
+    w.y = xml_parser_get_attribute_int("y");
+    empire_transform_coordinates(&w.x, &w.y);
+    w.num_months = xml_parser_get_attribute_int("num_months");
     return 1;
 }
 
@@ -646,11 +628,11 @@ static void xml_end_sells_buys_or_waypoints(void)
 
 static void xml_end_invasion_path(void)
 {
-    for (int i = data.invasion_path_ids.size - 1; i >= 0; i--) {
-        full_empire_object *battle = empire_object_get_full(*array_item(data.invasion_path_ids, i));
+    for (int i = static_cast<int>(data.invasion_path_ids.size()) - 1; i >= 0; i--) {
+        full_empire_object *battle = empire_object_get_full(data.invasion_path_ids[i]);
         battle->obj.invasion_years = i + 1;
     }
-    data.invasion_path_ids.size = 0;
+    data.invasion_path_ids.clear();
 }
 
 static void xml_end_distant_battle_path(void)
@@ -670,12 +652,12 @@ static void xml_end_distant_battle_path(void)
     }
 
     int month = 1;
-    for (unsigned int i = 1; i < data.distant_battle_waypoints.size; i++) {
-        waypoint *last = array_item(data.distant_battle_waypoints, i - 1);
-        waypoint *current = array_item(data.distant_battle_waypoints, i);
-        int x_diff = current->x - last->x;
-        int y_diff = current->y - last->y;
-        for (int j = 0; j < current->num_months; j++) {
+    for (size_t i = 1; i < data.distant_battle_waypoints.size(); i++) {
+        const waypoint &last = data.distant_battle_waypoints[i - 1];
+        const waypoint &current = data.distant_battle_waypoints[i];
+        int x_diff = current.x - last.x;
+        int y_diff = current.y - last.y;
+        for (int j = 0; j < current.num_months; j++) {
             full_empire_object *army_obj = empire_object_get_new();
             if (!army_obj) {
                 data.success = 0;
@@ -685,14 +667,14 @@ static void xml_end_distant_battle_path(void)
             army_obj->in_use = 1;
             army_obj->obj.type = obj_type;
             army_obj->obj.image_id = image_group(image_id);
-            army_obj->obj.x = (int) ((double) j / current->num_months * x_diff + last->x);
-            army_obj->obj.y = (int) ((double) j / current->num_months * y_diff + last->y);
+            army_obj->obj.x = (int) ((double) j / current.num_months * x_diff + last.x);
+            army_obj->obj.y = (int) ((double) j / current.num_months * y_diff + last.y);
             army_obj->obj.distant_battle_travel_months = month;
             month++;
         }
     }
     data.distant_battle_path_type = DISTANT_BATTLE_PATH_NONE;
-    data.distant_battle_waypoints.size = 0;
+    data.distant_battle_waypoints.clear();
 }
 
 static void reset_data(void)
@@ -703,9 +685,9 @@ static void reset_data(void)
     data.current_city_list = LIST_NONE;
     data.has_vulnerable_city = 0;
     data.current_invasion_path_id = 0;
-    array_init(data.invasion_path_ids, 10, 0, 0);
+    data.invasion_path_ids.clear();
     data.distant_battle_path_type = DISTANT_BATTLE_PATH_NONE;
-    array_init(data.distant_battle_waypoints, 50, 0, 0);
+    data.distant_battle_waypoints.clear();
     data.border_status = BORDER_STATUS_NONE;
     memset(data.added_ornaments, 0, sizeof(data.added_ornaments));
 }

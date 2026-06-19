@@ -5,13 +5,11 @@
 #include "graphics/font_vector_runtime.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/encoding.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
-}
 
 #include "translation/localization.h"
 

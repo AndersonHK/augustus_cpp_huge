@@ -10,7 +10,6 @@
 #include "edit_request.h"
 
 #include "window/editor/map.h"
-extern "C" {
 
 #include "core/string.h"
 #include "game/resource.h"
@@ -21,7 +20,6 @@ extern "C" {
 #include "scenario/editor.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-}
 
 enum {
     AMOUNT_MIN = 0,

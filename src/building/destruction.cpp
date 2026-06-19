@@ -15,7 +15,6 @@
 #include "city/culture.h"
 #include "destruction.h"
 
-extern "C" {
 #include "city/message.h"
 #include "city/population.h"
 #include "core/image.h"
@@ -26,7 +25,6 @@ extern "C" {
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "sound/effect.h"
-}
 
 #include <string.h>
 #include <cstring>
@@ -89,7 +87,8 @@ static void destroy_without_rubble(building *b)
 {
     game_undo_disable();
     city_culture_remove_building_module_capacity(b);
-    building_local_workforce_remove_building(b);
+    Building building_object(*b);
+    building_local_workforce_remove_building(building_object);
     if (b->house_size && b->house_population) {
         city_population_remove_home_removed(b->house_population);
     }
@@ -106,7 +105,8 @@ static void destroy_on_fire(building *b, int plagued)
 {
     game_undo_disable();
     city_culture_remove_building_module_capacity(b);
-    building_local_workforce_remove_building(b);
+    Building building_object(*b);
+    building_local_workforce_remove_building(building_object);
     b->fire_risk = 0;
     b->damage_risk = 0;
     if (b->house_size && b->house_population) {
@@ -272,14 +272,14 @@ static void destroy_linked_parts(building *b, int destruction_method, int plague
 void building_destroy_by_collapse(building *b)
 {
     city_culture_remove_building_module_capacity(b);
-    building_local_workforce_remove_building(b);
+    Building building_object(*b);
+    building_local_workforce_remove_building(building_object);
     b->state = BUILDING_STATE_RUBBLE;
     if (building_type_attr_is(b, "tower")) {
         figure_kill_tower_sentries_in_building(b);
     }
     set_rubble_grid_info_for_all_parts(b);
-    Building building(*b);
-    map_building_tiles_set_rubble(&building, b->x, b->y, b->size);
+    map_building_tiles_set_rubble(&building_object, b->x, b->y, b->size);
     figure_create_explosion_cloud(b->x, b->y, b->size, 0);
     destroy_linked_parts(b, DESTROY_COLLAPSE, 0);
 
@@ -294,12 +294,12 @@ void building_destroy_by_fire(building *b)
 void building_destroy_by_earthquake(building *b)
 {
     city_culture_remove_building_module_capacity(b);
-    building_local_workforce_remove_building(b);
+    Building building_object(*b);
+    building_local_workforce_remove_building(building_object);
     int grid_offset = b->grid_offset; // save before destroying building
     int size = b->size;
     b->state = BUILDING_STATE_DELETED_BY_GAME;
-    Building building(*b);
-    map_building_tiles_set_rubble(&building, b->x, b->y, b->size);
+    map_building_tiles_set_rubble(&building_object, b->x, b->y, b->size);
     destroy_linked_parts(b, DESTROY_EARTHQUAKE, 0);
     map_building_set_rubble_grid_building_id(grid_offset, 0, size);
 }
@@ -369,13 +369,14 @@ void building_destroy_increase_enemy_damage(int grid_offset, int max_damage)
 static void set_rubble_grid_info_for_all_parts(building *b)
 {
     b = building_main(b); //get main warehouse building to copy data from
-    const building_type_registry_impl::BuildingType &main_type = Building(b).type();
+    Building main_building(b);
+    const building_type_registry_impl::BuildingType *main_type = main_building.type;
     building *part = b; //initialize part iterator - start with main building
     for (int i = 0; i < 9 && part->id > 0; i++) {
         building *next_part = building_next(part);
         part->data.rubble.og_type = b->type;
         part->data.rubble.og_grid_offset = b->grid_offset;
-        part->data.rubble.og_size = main_type.is_warehouse() ? 3 : b->size;
+        part->data.rubble.og_size = main_type && main_type->is_warehouse() ? 3 : b->size;
         part->data.rubble.og_orientation = (unsigned char) b->subtype.orientation;
         part = next_part;
     }

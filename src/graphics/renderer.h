@@ -2,9 +2,6 @@
 
 #include "core/image.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     ATLAS_FIRST,
@@ -164,7 +161,4 @@ const graphics_renderer_interface *graphics_renderer(void);
 
 void graphics_renderer_set_interface(const graphics_renderer_interface *new_renderer);
 
-#ifdef __cplusplus
-}
-#endif
 

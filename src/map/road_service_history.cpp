@@ -2,9 +2,7 @@
 
 #include "core/crash_context.h"
 
-extern "C" {
 #include "map/grid.h"
-}
 
 #include <algorithm>
 #include <array>
@@ -87,7 +85,7 @@ void update_last_visit_stamp_from_history(road_service_effect effect)
 
 } // namespace
 
-extern "C" void map_road_service_history_clear(void)
+void map_road_service_history_clear(void)
 {
     for (int effect = 0; effect < ROAD_SERVICE_EFFECT_MAX; effect++) {
         map_grid_clear_u32(g_history[effect].items);
@@ -95,7 +93,7 @@ extern "C" void map_road_service_history_clear(void)
     g_last_visit_stamp = 0;
 }
 
-extern "C" uint32_t map_road_service_history_get(road_service_effect effect, int grid_offset)
+uint32_t map_road_service_history_get(road_service_effect effect, int grid_offset)
 {
     if (!is_valid_effect(effect) || !map_grid_is_valid_offset(grid_offset)) {
         return 0;
@@ -103,7 +101,7 @@ extern "C" uint32_t map_road_service_history_get(road_service_effect effect, int
     return g_history[effect].items[grid_offset];
 }
 
-extern "C" void map_road_service_history_record(road_service_effect effect, int grid_offset)
+void map_road_service_history_record(road_service_effect effect, int grid_offset)
 {
     if (!is_valid_effect(effect) || !map_grid_is_valid_offset(grid_offset)) {
         return;
@@ -111,7 +109,7 @@ extern "C" void map_road_service_history_record(road_service_effect effect, int 
     g_history[effect].items[grid_offset] = next_visit_stamp();
 }
 
-extern "C" void map_road_service_history_save_state(buffer *buf)
+void map_road_service_history_save_state(buffer *buf)
 {
     // The payload is ordinal by road_service_effect. Append new effects only;
     // keep removed meanings as reserved ids so old saves do not shift columns.
@@ -126,7 +124,7 @@ extern "C" void map_road_service_history_save_state(buffer *buf)
     }
 }
 
-extern "C" void map_road_service_history_load_state(
+void map_road_service_history_load_state(
     buffer *buf,
     int has_saved_state,
     int has_religion_effects,

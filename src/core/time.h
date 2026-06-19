@@ -2,9 +2,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * @file
@@ -28,6 +25,3 @@ time_millis time_get_millis(void);
  */
 void time_set_millis(time_millis millis);
 
-#ifdef __cplusplus
-}
-#endif

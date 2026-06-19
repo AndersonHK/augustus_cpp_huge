@@ -24,14 +24,14 @@ static struct trade_price prices[RESOURCE_SLOT_COUNT];
 
 static int building_type_attr_is(const Building &building, std::string_view attr)
 {
-    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    const building_type_registry_impl::BuildingType *type = building.type;
     return type && std::string_view(type->attr()) == attr;
 }
 
 static Building first_building(const char *text_id)
 {
     for (int id = 1; id < Building::count(); id++) {
-        Building building = Building::from_id(id);
+        Building building(building_get(id));
         if (building_type_attr_is(building, text_id)) {
             return building;
         }
@@ -51,7 +51,7 @@ static int trade_percentage_from_laborers(int percent, Building building)
     }
     int percent_laborers = 0;
     // get workers percentage
-    int pct_workers = calc_percentage(building.worker_count(), building.type().required_workers());
+    int pct_workers = calc_percentage(building.worker_count(), building.type ? building.type->required_workers() : 0);
     if (pct_workers >= 100) { // full laborers
         percent_laborers = percent;
     } else if (pct_workers > 0) {
@@ -125,7 +125,7 @@ static int trade_factor_buy(int land_trader)
     return percent;
 }
 
-extern "C" void trade_prices_reset(void)
+void trade_prices_reset(void)
 {
     for (resource_type resource = RESOURCE_NONE; resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
         prices[resource].buy = 0;
@@ -142,27 +142,27 @@ extern "C" void trade_prices_reset(void)
     }
 }
 
-extern "C" int trade_price_base_buy(resource_type resource)
+int trade_price_base_buy(resource_type resource)
 {
     return prices[resource].buy;
 }
 
-extern "C" int trade_price_buy(resource_type resource, int land_trader)
+int trade_price_buy(resource_type resource, int land_trader)
 {
     return calc_adjust_with_percentage(prices[resource].buy, 100 + trade_factor_buy(land_trader));
 }
 
-extern "C" int trade_price_base_sell(resource_type resource)
+int trade_price_base_sell(resource_type resource)
 {
     return prices[resource].sell;
 }
 
-extern "C" int trade_price_sell(resource_type resource, int land_trader)
+int trade_price_sell(resource_type resource, int land_trader)
 {
     return calc_adjust_with_percentage(prices[resource].sell, 100 + trade_factor_sell(land_trader));
 }
 
-extern "C" int trade_factor_sign(int land_trader, int is_sell) { //return sign of price compared to base
+int trade_factor_sign(int land_trader, int is_sell) { //return sign of price compared to base
     int factor = is_sell ? trade_factor_sell(land_trader) : trade_factor_buy(land_trader);
 
     if (factor > 0) {
@@ -175,7 +175,7 @@ extern "C" int trade_factor_sign(int land_trader, int is_sell) { //return sign o
 }
 
 
-extern "C" int trade_price_change(resource_type resource, int amount)
+int trade_price_change(resource_type resource, int amount)
 {
     if (amount < 0 && prices[resource].sell <= 0) {
         // cannot lower the price to negative
@@ -191,7 +191,7 @@ extern "C" int trade_price_change(resource_type resource, int amount)
     return 1;
 }
 
-extern "C" int trade_price_set_buy(resource_type resource, int new_price)
+int trade_price_set_buy(resource_type resource, int new_price)
 {
     if (new_price < MIN_PRICE) {
         prices[resource].buy = MIN_PRICE;
@@ -202,7 +202,7 @@ extern "C" int trade_price_set_buy(resource_type resource, int new_price)
     return 1;
 }
 
-extern "C" int trade_price_set_sell(resource_type resource, int new_price)
+int trade_price_set_sell(resource_type resource, int new_price)
 {
     if (new_price < MIN_PRICE) {
         prices[resource].sell = MIN_PRICE;
@@ -213,7 +213,7 @@ extern "C" int trade_price_set_sell(resource_type resource, int new_price)
     return 1;
 }
 
-extern "C" void trade_prices_save_state(buffer *buf)
+void trade_prices_save_state(buffer *buf)
 {
     for (int i = 0; i < resource_total_mapped(); i++) {
         resource_type resource = resource_remap(i);
@@ -227,7 +227,7 @@ extern "C" void trade_prices_save_state(buffer *buf)
     }
 }
 
-extern "C" void trade_prices_load_state(buffer *buf)
+void trade_prices_load_state(buffer *buf)
 {
     trade_prices_reset();
     for (int i = 0; i < resource_total_mapped(); i++) {

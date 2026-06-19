@@ -7,7 +7,6 @@
 
 #include <string_view>
 
-extern "C" {
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "city/figures.h"
@@ -23,7 +22,6 @@ extern "C" {
 #include "map/grid.h"
 #include "map/road_network.h"
 #include "scenario/gladiator_revolt.h"
-}
 
 #define INFINITE 10000
 #define DEFAULT_SHOW_DURATION_DAYS 32
@@ -39,7 +37,7 @@ enum class EntertainmentVenueKind {
 
 static EntertainmentVenueKind venue_kind(const Building &building)
 {
-    const building_type_registry_impl::BuildingType *type = building.type_definition();
+    const building_type_registry_impl::BuildingType *type = building.type;
     if (!type) {
         return EntertainmentVenueKind::None;
     }
@@ -64,7 +62,7 @@ static EntertainmentVenueKind venue_kind(const Building &building)
 
 static int venue_ready(const Building &building, EntertainmentVenueKind kind)
 {
-    const ::building *record = building.legacy_record();
+    const ::building *record = building_get(building.id());
     if (!record) {
         return 0;
     }
@@ -98,20 +96,20 @@ static int entertainer_uses_secondary_show(EntertainmentVenueKind kind, int figu
             (kind == EntertainmentVenueKind::Arena || kind == EntertainmentVenueKind::Colosseum));
 }
 
-extern "C" void figure_spawn_tourist(void)
+void figure_spawn_tourist(void)
 {
     const map_tile *entry = city_map_entry_point();
     const map_tile *exit = city_map_exit_point();
     if (random_byte() % 2) {
-        figure *tourist = figure_create(FIGURE_TOURIST, entry->x, entry->y, DIR_0_TOP);
+        Figure *tourist = Figure::create(FIGURE_TOURIST, entry->x, entry->y, DIR_0_TOP);
         tourist->action_state = FIGURE_ACTION_217_TOURIST_CREATED;
     } else {
-        figure *tourist = figure_create(FIGURE_TOURIST, exit->x, exit->y, DIR_0_TOP);
+        Figure *tourist = Figure::create(FIGURE_TOURIST, exit->x, exit->y, DIR_0_TOP);
         tourist->action_state = FIGURE_ACTION_217_TOURIST_CREATED;
     }
 }
 
-static int determine_tourist_destination(int x, int y)
+static Building determine_tourist_destination(int x, int y)
 {
     int road_network = map_road_network_get(map_grid_offset(x, y));
 
@@ -137,15 +135,13 @@ static int determine_tourist_destination(int x, int y)
     }
     int total_venues = building_list_large_size();
     if (total_venues <= 0) {
-        return 0;
+        return Building(nullptr);
     }
 
     int index;
 
     index = random_from_stdlib() % total_venues;
-    building *b = building_get(building_list_large_item(index));
-
-    return b->id;
+    return Building(building_get(building_list_large_item(index)));
 }
 
 static int is_venue(building *b)
@@ -154,7 +150,7 @@ static int is_venue(building *b)
     return venue_ready(building, venue_kind(building));
 }
 
-static building *determine_destination(figure *f)
+static Building determine_destination(Figure *f)
 {
     int road_network = map_road_network_get(map_grid_offset(f->x, f->y));
 
@@ -187,13 +183,13 @@ static building *determine_destination(figure *f)
             closest = b;
         }
     }
-    return closest;
+    return Building(closest);
 }
 
-static void update_shows(figure *f)
+static void update_shows(Figure *f)
 {
-    building *b = building_main(building_get(f->destination_building_id));
-    Building venue(b);
+    Building venue = f->destination_building.main();
+    building *b = building_get(venue.id());
     EntertainmentVenueKind kind = venue_kind(venue);
     if (!venue_ready(venue, kind)) {
         return;
@@ -224,7 +220,7 @@ static void update_shows(figure *f)
     }
 }
 
-static void update_image(figure *f)
+static void update_image(Figure *f)
 {
     int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
 
@@ -279,7 +275,7 @@ static void update_image(figure *f)
     }
 }
 
-static int get_enemy_distance(figure *f, int x, int y)
+static int get_enemy_distance(Figure *f, int x, int y)
 {
     if (f->type == FIGURE_RIOTER || f->type == FIGURE_ENEMY54_GLADIATOR) {
         return calc_maximum_distance(x, y, f->x, f->y);
@@ -287,7 +283,7 @@ static int get_enemy_distance(figure *f, int x, int y)
         return 3 * calc_maximum_distance(x, y, f->x, f->y);
     } else if (f->type == FIGURE_INDIGENOUS_NATIVE && f->action_state == FIGURE_ACTION_159_NATIVE_ATTACKING) {
         return calc_maximum_distance(x, y, f->x, f->y);
-    } else if (figure_is_enemy(f)) {
+    } else if (f->is_enemy()) {
         return calc_maximum_distance(x, y, f->x, f->y);
     } else if (f->type == FIGURE_WOLF) {
         return 2 * calc_maximum_distance(x, y, f->x, f->y);
@@ -295,32 +291,32 @@ static int get_enemy_distance(figure *f, int x, int y)
     return INFINITE;
 }
 
-static int get_nearest_enemy(int x, int y, int *distance)
+static Figure *get_nearest_enemy(int x, int y, int *distance)
 {
-    int min_enemy_id = 0;
+    Figure *min_enemy = nullptr;
     int min_dist = INFINITE;
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
-        if (figure_is_dead(f)) {
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
+        if (f->is_dead()) {
             continue;
         }
         int dist = get_enemy_distance(f, x, y);
-        if (dist != INFINITE && f->targeted_by_figure_id) {
-            figure *pursuiter = figure_get(f->targeted_by_figure_id);
+        if (dist != INFINITE && f->targeted_by_figure.save_id()) {
+            Figure *pursuiter = &f->targeted_by_figure.get();
             if (get_enemy_distance(f, pursuiter->x, pursuiter->y) < dist) {
                 continue;
             }
         }
         if (dist < min_dist) {
             min_dist = dist;
-            min_enemy_id = i;
+            min_enemy = f;
         }
     }
     *distance = min_dist;
-    return min_enemy_id;
+    return min_enemy;
 }
 
-static int fight_enemy(figure *f)
+static int fight_enemy(Figure *f)
 {
     if (!city_figures_has_security_breach() && enemy_army_total_enemy_formations() <= 0) {
         return 0;
@@ -332,16 +328,15 @@ static int fight_enemy(figure *f)
     }
 
     int distance;
-    int enemy_id = get_nearest_enemy(f->x, f->y, &distance);
-    if (enemy_id > 0 && distance <= 50) {
-        figure *enemy = figure_get(enemy_id);
-        if (enemy->targeted_by_figure_id) {
-            figure_get(enemy->targeted_by_figure_id)->target_figure_id = 0;
+    Figure *enemy = get_nearest_enemy(f->x, f->y, &distance);
+    if (enemy && distance <= 50) {
+        if (enemy->targeted_by_figure.save_id()) {
+            enemy->targeted_by_figure.get().target_figure.clear();
         }
         f->destination_x = enemy->x;
         f->destination_y = enemy->y;
-        f->target_figure_id = enemy_id;
-        enemy->targeted_by_figure_id = f->id;
+        f->target_figure.retarget(*enemy);
+        enemy->targeted_by_figure.retarget(*f);
         f->target_figure_created_sequence = enemy->created_sequence;
         figure_route_remove(f);
         return 1;
@@ -350,9 +345,8 @@ static int fight_enemy(figure *f)
     return 0;
 }
 
-extern "C" void figure_entertainer_action(figure *f)
+void figure_entertainer_action(Figure *f)
 {
-    building *b = building_get(f->building_id);
     f->cart_image_id = image_group(GROUP_FIGURE_CARTPUSHER_CART);
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     f->use_cross_country = 0;
@@ -389,7 +383,7 @@ extern "C" void figure_entertainer_action(figure *f)
             f->wait_ticks--;
             if (f->wait_ticks <= 0) {
                 int x_road, y_road;
-                if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
+                if (map_closest_road_within_radius(f->building.x(), f->building.y(), f->building.size(), 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_91_ENTERTAINER_EXITING_SCHOOL;
                     figure_movement_set_cross_country_destination(f, x_road, y_road);
                     f->roam_length = 0;
@@ -402,13 +396,13 @@ extern "C" void figure_entertainer_action(figure *f)
             f->use_cross_country = 1;
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
-                building *b_dst = determine_destination(f);
-                if (b_dst) {
+                Building destination = determine_destination(f);
+                if (destination.id()) {
                     int x_road, y_road;
                     int found_road = 0;
                     do {
-                        if (map_closest_road_within_radius(b_dst->x, b_dst->y, b_dst->size, 2, &x_road, &y_road)) {
-                            f->destination_building_id = b_dst->id;
+                        if (map_closest_road_within_radius(destination.x(), destination.y(), destination.size(), 2, &x_road, &y_road)) {
+                            f->destination_building = destination;
                             f->action_state = FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE;
                             f->destination_x = x_road;
                             f->destination_y = y_road;
@@ -416,8 +410,8 @@ extern "C" void figure_entertainer_action(figure *f)
                             found_road = 1;
                             break;
                         }
-                        b_dst = building_get(b_dst->next_part_building_id);
-                    } while (b_dst->id != 0);
+                        destination = destination.next();
+                    } while (destination.id() != 0);
                     if (!found_road) {
                         f->state = FIGURE_STATE_DEAD;
                     }
@@ -449,7 +443,7 @@ extern "C" void figure_entertainer_action(figure *f)
             f->roam_length++;
             if (f->roam_length >= f->max_roam_length) {
                 int x_road, y_road;
-                if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
+                if (map_closest_road_within_radius(f->building.x(), f->building.y(), f->building.size(), 2, &x_road, &y_road)) {
                     f->action_state = FIGURE_ACTION_95_ENTERTAINER_RETURNING;
                     f->destination_x = x_road;
                     f->destination_y = y_road;
@@ -470,16 +464,20 @@ extern "C" void figure_entertainer_action(figure *f)
             break;
         case FIGURE_ACTION_230_LION_TAMERS_HUNTING_ENEMIES:
             f->terrain_usage = TERRAIN_USAGE_ANY;
-            if (!figure_target_is_alive(f) &&
+            if (!f->target_is_alive() &&
                 !fight_enemy(f)) {
                 f->state = FIGURE_STATE_DEAD;
             }
             figure_movement_move_ticks_with_percentage(f, 1, 50);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
-                figure *target = figure_get(f->target_figure_id);
-                f->destination_x = target->x;
-                f->destination_y = target->y;
-                figure_route_remove(f);
+                if (f->target_figure.save_id()) {
+                    Figure *target = &f->target_figure.get();
+                    f->destination_x = target->x;
+                    f->destination_y = target->y;
+                    figure_route_remove(f);
+                } else {
+                    f->state = FIGURE_STATE_DEAD;
+                }
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -488,7 +486,7 @@ extern "C" void figure_entertainer_action(figure *f)
     update_image(f);
 }
 
-extern "C" void figure_tourist_action(figure *f)
+void figure_tourist_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
@@ -511,14 +509,12 @@ extern "C" void figure_tourist_action(figure *f)
         {
             f->use_cross_country = 1;
             f->is_ghost = 1;
-            int dst_building_id = 0;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
-                dst_building_id = determine_tourist_destination(f->x, f->y);
-                if (dst_building_id) {
-                    building *b_dst = building_get(dst_building_id);
+                Building destination = determine_tourist_destination(f->x, f->y);
+                if (destination.id()) {
                     int x_road, y_road;
-                    if (map_closest_road_within_radius(b_dst->x, b_dst->y, b_dst->size, 2, &x_road, &y_road)) {
-                        f->destination_building_id = dst_building_id;
+                    if (map_closest_road_within_radius(destination.x(), destination.y(), destination.size(), 2, &x_road, &y_road)) {
+                        f->destination_building = destination;
                         f->action_state = FIGURE_ACTION_219_TOURIST_GOING_TO_VENUE;
                         f->destination_x = x_road;
                         f->destination_y = y_road;

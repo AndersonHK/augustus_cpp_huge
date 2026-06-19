@@ -4,9 +4,7 @@
 #include "graphics/image.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/png_read.h"
-}
 
 #include <algorithm>
 #include <cstring>

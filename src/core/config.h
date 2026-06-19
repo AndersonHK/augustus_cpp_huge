@@ -2,9 +2,6 @@
 
 #define CONFIG_STRING_VALUE_MAX 65
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     CONFIG_GENERAL_ENABLE_AUDIO,
@@ -197,6 +194,3 @@ int config_must_configure_user_directory(void);
  */
 void config_save(void);
 
-#ifdef __cplusplus
-}
-#endif

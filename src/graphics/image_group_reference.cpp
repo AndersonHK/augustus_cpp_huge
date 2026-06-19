@@ -2,9 +2,7 @@
 
 #include "assets/image_group_payload.h"
 
-extern "C" {
 #include "assets/assets.h"
-}
 
 int graphics_image_id_for_group_reference(const char *path, const char *image_name)
 {

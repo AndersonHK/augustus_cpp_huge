@@ -10,7 +10,6 @@
 #include "building/caravanserai.h"
 #include "building/lighthouse.h"
 
-extern "C" {
 #include "building/monument.h"
 #include "city/buildings.h"
 #include "city/resource.h"
@@ -21,7 +20,6 @@ extern "C" {
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 
 static struct {

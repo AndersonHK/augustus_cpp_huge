@@ -183,12 +183,13 @@ static void setup_buttons_for_selected_depot(void)
     for (int i = 0; i < storage_array_size; i++) {
         const data_storage *storage = building_storage_get_array_entry(i);
         building *store_building = building_get(storage->building_id);
+        Building store(store_building);
         if (!storage->in_use || !storage->building_id || store_building->state == BUILDING_STATE_MOTHBALLED ||
         (!resource_is_food(data.target_resource_id) &&
-            Building(store_building).type().is_granary())) {
+            store.type && store.type->is_granary())) {
             continue;
         }
-        int max_storable = building_storage_resource_max_storable(Building(store_building), data.target_resource_id);
+        int max_storable = building_storage_resource_max_storable(store, data.target_resource_id);
         if (storage->in_use && max_storable > 0) {
             row_count++;
             if (row_count <= scrollbar.scroll_position || drawn_rows >= MAX_VISIBLE_ROWS) {
@@ -219,13 +220,14 @@ static void setup_buttons_for_selected_depot(void)
     for (int i = 0; i < storage_array_size; i++) {
         const data_storage *storage = building_storage_get_array_entry(i);
         building *store_building = building_get(storage->building_id);
+        Building store(store_building);
         if (!storage->building_id ||
         (!resource_is_food(data.target_resource_id) &&
-            Building(store_building).type().is_granary())) {
+            store.type && store.type->is_granary())) {
             continue;
         }
         // Only include inactive storages that have a valid storage_id and weren't already counted in first pass
-        int max_storable = building_storage_resource_max_storable(Building(store_building), data.target_resource_id);
+        int max_storable = building_storage_resource_max_storable(store, data.target_resource_id);
         if ((max_storable == 0 || !storage->in_use || store_building->state == BUILDING_STATE_MOTHBALLED) &&
             store_building->storage_id > 0) {
             row_count++;
@@ -268,14 +270,15 @@ static void calculate_available_storages(int building_id)
 
         const data_storage *storage = building_storage_get_array_entry(i);
         building *store = building_get(storage->building_id);
-        int max_storable = building_storage_resource_max_storable(Building(store), data.target_resource_id);
+        Building store_obj(store);
+        int max_storable = building_storage_resource_max_storable(store_obj, data.target_resource_id);
         int active = storage->in_use;
         if (store->state == BUILDING_STATE_RUBBLE) {
             continue; // skip rubble buildings
         }
         if (!store || !building_id ||
         (!resource_is_food(data.target_resource_id) &&
-            Building(store).type().is_granary())) {
+            store_obj.type && store_obj.type->is_granary())) {
             continue;
         }
         if (active && max_storable > 0) {
@@ -287,12 +290,12 @@ static void calculate_available_storages(int building_id)
         }
         if ((unsigned) b->data.depot.current_order.src_storage_id == store->id) {
             building_storage_state src_state = building_storage_get_state(
-                Building::from_id(b->data.depot.current_order.src_storage_id), b->data.depot.current_order.resource_type, 0);
+                store_obj, b->data.depot.current_order.resource_type, 0);
             has_valid_src = src_state != BUILDING_STORAGE_STATE_NOT_ACCEPTING ? 1 : 0;
         }
         if ((unsigned) b->data.depot.current_order.dst_storage_id == store->id) {
             building_storage_state dst_state = building_storage_get_state(
-                Building::from_id(b->data.depot.current_order.dst_storage_id), b->data.depot.current_order.resource_type, 0);
+                store_obj, b->data.depot.current_order.resource_type, 0);
             has_valid_dst = dst_state != BUILDING_STORAGE_STATE_NOT_ACCEPTING ? 1 : 0;
         }
     }
@@ -389,9 +392,9 @@ static void depot_draw_cart_status(const building *b, building_info_context *c)
 
     for (int i = 0; i < 3; i++) {
         int y_pos = y_cart + i * 16;
-        figure *f = 0;
+        Figure *f = nullptr;
         if (b->data.distribution.cartpusher_ids[i]) {
-            f = figure_get(b->data.distribution.cartpusher_ids[i]);
+            f = Figure::get(b->data.distribution.cartpusher_ids[i]);
         }
 
         if (f && f->state != FIGURE_STATE_DEAD) {
@@ -410,8 +413,8 @@ static void depot_draw_cart_status(const building *b, building_info_context *c)
             switch (f->action_state) {
                 case FIGURE_ACTION_239_DEPOT_CART_PUSHER_HEADING_TO_SOURCE:
                 {
-                    building *src = building_get(f->destination_building_id);
-        text_draw(translation_for((src && Building(src).type().is_granary())
+                    const Building &src = f->destination_building;
+                    text_draw(translation_for((src.id() && src.type && src.type->is_granary())
                             ? "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_FOOD"
                             : "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_GOODS"),
                         x_action, y_pos, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
@@ -678,14 +681,15 @@ void window_building_draw_depot_select_source_destination(building_info_context 
     for (int i = 0; i < storage_array_size && drawn_rows < MAX_VISIBLE_ROWS; i++) {
         const data_storage *storage = building_storage_get_array_entry(i);
         building *store_building = building_get(storage->building_id);
+        Building store(store_building);
         if (!storage->in_use || !storage->building_id || store_building->state == BUILDING_STATE_MOTHBALLED ||
             store_building->state == BUILDING_STATE_RUBBLE ||
         (!resource_is_food(data.target_resource_id) &&
-            Building(store_building).type().is_granary())) {
+            store.type && store.type->is_granary())) {
             continue;
         }
 
-        int max_storable = building_storage_resource_max_storable(Building(store_building), data.target_resource_id);
+        int max_storable = building_storage_resource_max_storable(store, data.target_resource_id);
         if (storage->in_use && max_storable > 0) {
             row_count++;
             if (row_count <= scrollbar.scroll_position) {
@@ -743,14 +747,15 @@ void window_building_draw_depot_select_source_destination(building_info_context 
     for (int i = 0; i < storage_array_size && drawn_rows < MAX_VISIBLE_ROWS; i++) {
         const data_storage *storage = building_storage_get_array_entry(i);
         building *store_building = building_get(storage->building_id);
+        Building store(store_building);
         if (!storage->in_use || !storage->building_id ||
         (!resource_is_food(data.target_resource_id) &&
-            Building(store_building).type().is_granary())) {
+            store.type && store.type->is_granary())) {
             continue;
         }
 
         // Only include inactive storages that have a valid storage_id and weren't already counted in first pass
-        int max_storable = building_storage_resource_max_storable(Building(store_building), data.target_resource_id);
+        int max_storable = building_storage_resource_max_storable(store, data.target_resource_id);
         if ((max_storable == 0 || store_building->state == BUILDING_STATE_MOTHBALLED)
             && store_building->storage_id > 0 && store_building->state != BUILDING_STATE_RUBBLE) {
             row_count++;
@@ -855,7 +860,10 @@ static void paste_settings(const generic_button *button)
 
 static void goto_special_orders_on_top(const generic_button *button)
 {
-    window_building_info_show_storage_special_orders_on_top(button->parameter1);
+    building *storage = building_get(button->parameter1);
+    if (storage) {
+        window_building_info_show_storage_special_orders_on_top(Building(storage));
+    }
 }
 
 static int handle_mouse_depot_select_source_destination(const mouse *m, building_info_context *c, int is_source)
@@ -928,7 +936,7 @@ static void order_set_resource(const generic_button *button)
     }
     for (int i = 0; i < 3; i++) {
         if (b->data.distribution.cartpusher_ids[i]) {
-            figure *f = figure_get(b->data.distribution.cartpusher_ids[i]);
+            Figure *f = Figure::get(b->data.distribution.cartpusher_ids[i]);
             if (f && f->state != FIGURE_STATE_DEAD) {
                 city_warning_show(WARNING_DEPOT_RESOURCE_CHANGE, translation_for_key("TR_WARNING_DEPOT_RESOURCE_CHANGE"));
                 return;
@@ -980,7 +988,7 @@ static void depot_recall_all_cart_pushers(const generic_button *button)
     int recalled_count = 0;
     for (int i = 0; i < 3; i++) {
         if (b->data.distribution.cartpusher_ids[i]) {
-            figure *f = figure_get(b->data.distribution.cartpusher_ids[i]);
+            Figure *f = Figure::get(b->data.distribution.cartpusher_ids[i]);
             if (f && f->state != FIGURE_STATE_DEAD) {
                 figure_depot_recall(f);
                 recalled_count++;

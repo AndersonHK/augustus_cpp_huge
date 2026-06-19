@@ -50,12 +50,14 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
             default:
             case ROUTED_BUILDING_ROAD:
                 if (!measure_only && map_routing_is_gate_transformable(grid_offset)) {
-                    Building gate = Building::from_id(map_building_at(grid_offset));
-                    building_type gate_type = static_cast<building_type>(building_connectable_gate_type(gate.type_id()));
+                    building *gate_record = building_get(map_building_at(grid_offset));
+                    Building gate(gate_record);
+                    building_type gate_type = static_cast<building_type>(
+                        building_connectable_gate_type(gate.type ? gate.type->type() : BUILDING_NONE));
                     if (gate_type) {
-                        game_undo_record_building_type(gate.legacy_record());
+                        game_undo_record_building_type(gate_record);
                         gate.change_type(gate_type);
-                        Roadblock roadblock(gate.legacy_record());
+                        Roadblock roadblock(gate_record);
                         if (config_get(CONFIG_GP_CH_GATES_DEFAULT_TO_PASS_ALL_WALKERS)) {
                             roadblock.accept_all();
                         } else {

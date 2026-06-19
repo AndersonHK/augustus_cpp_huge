@@ -3,9 +3,6 @@
 #include "building/building_type.h"
 #include "input/keys.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int building_tool_mode_handles_requested_type(building_type requested_type);
 
@@ -42,6 +39,3 @@ void building_tool_mode_resolve_drag_points(
     int *end_x,
     int *end_y);
 
-#ifdef __cplusplus
-}
-#endif

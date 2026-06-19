@@ -1,4 +1,4 @@
-﻿#include "renderer.h"
+#include "renderer.h"
 
 #include "core/calc.h"
 #include "core/config.h"
@@ -949,7 +949,7 @@ static color_t *get_custom_texture_buffer(custom_image_type type, int *actual_te
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot get buffer to YUV texture");
         return 0;
     }
-    data.custom_textures[type].buffer = (color_t *) malloc((size_t) width * height * sizeof(color_t));
+    data.custom_textures[type].buffer = static_cast<color_t *>(malloc(static_cast<size_t>(width) * height * sizeof(color_t)));
     if (actual_texture_width) {
         *actual_texture_width = width;
     }

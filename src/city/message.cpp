@@ -5,7 +5,6 @@
 
 #include "core/file.h"
 #include "game/settings.h"
-extern "C" {
 
 #include "core/config.h"
 #include "core/encoding.h"
@@ -19,7 +18,6 @@ extern "C" {
 #include "scenario/request.h"
 #include "scenario/custom_messages.h"
 #include "sound/effect.h"
-}
 
 #define MAX_MESSAGES 1000
 #define MAX_QUEUE 20

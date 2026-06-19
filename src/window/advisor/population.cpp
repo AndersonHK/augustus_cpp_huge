@@ -14,7 +14,6 @@
 #include "graphics/advisor_card_button_widget.h"
 #include "graphics/ui_runtime.h"
 
-extern "C" {
 
 #include "core/config.h"
 #include "core/locale.h"
@@ -29,7 +28,6 @@ extern "C" {
 #include "graphics/window.h"
 #include "scenario/property.h"
 #include "scenario/criteria.h"
-}
 
 #define ADVISOR_HEIGHT 27
 

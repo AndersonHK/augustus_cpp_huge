@@ -4,9 +4,6 @@
 #include "building/building_type.h"
 #include "figure/type.h"
 #include "game/resource.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 /**
@@ -129,6 +126,3 @@ int building_count_terrain(int terrain, int (*condition)(int));
 int building_count_bridges(int ship);
 int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int ship);
 
-#ifdef __cplusplus
-}
-#endif

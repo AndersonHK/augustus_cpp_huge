@@ -12,7 +12,6 @@
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
 
-extern "C" {
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/destruction.h"
@@ -37,7 +36,6 @@ extern "C" {
 #include "game/time.h"
 #include "map/grid.h"
 #include "scenario/property.h"
-}
 
 #include <cstring>
 
@@ -69,7 +67,7 @@ static int type_matches_any(building_type type, const char * const *attrs)
     return 0;
 }
 
-static int get_looter_destination(figure *f)
+static int get_looter_destination(Figure *f)
 {
     resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
 
@@ -104,7 +102,7 @@ static int get_looter_destination(figure *f)
 
         f->destination_x = storage->road_access_x;
         f->destination_y = storage->road_access_y;
-        f->destination_building_id = storage->id;
+        f->destination_building = Building(storage);
         f->collecting_item_id = resource;
 
         return storage->id;
@@ -113,11 +111,11 @@ static int get_looter_destination(figure *f)
     }
 }
 
-static void loot_storage(figure *f, resource_type resource, int building_id)
+static void loot_storage(Figure *f, resource_type resource, int building_id)
 {
-    Building storage = Building::from_id(building_id);
+    Building storage(building_get(building_id));
 
-    if (storage.type().is_granary()) {
+    if (storage.type && storage.type->is_granary()) {
         building_granary_try_remove_resource(storage, resource, 100);
         city_warning_show(WARNING_GRANARY_BREAKIN, translation_for_key("TR_CITY_WARNING_GRANARY_BREAKIN"));
     } else {
@@ -126,10 +124,11 @@ static void loot_storage(figure *f, resource_type resource, int building_id)
     }
 
     city_message_apply_sound_interval(MESSAGE_CAT_THEFT);
-    city_message_post_with_popup_delay(MESSAGE_CAT_THEFT, MESSAGE_LOOTING, storage.type_id(), f->grid_offset);
+    city_message_post_with_popup_delay(MESSAGE_CAT_THEFT, MESSAGE_LOOTING,
+        storage.type ? storage.type->type() : BUILDING_NONE, f->grid_offset);
 }
 
-static void figure_crime_steal_money(figure *f)
+static void figure_crime_steal_money(Figure *f)
 {
     int treasury = city_finance_treasury();
     int money_stolen = treasury / 40;
@@ -150,9 +149,9 @@ static void generate_striker(building *b)
 {
     int x_road, y_road;
     if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road) && b->figure_id4 == 0) {
-        figure *f = figure_create(FIGURE_PROTESTER, x_road, y_road, DIR_4_BOTTOM);
-        f->building_id = b->id;
-        b->figure_id4 = f->id;
+        Figure *f = Figure::create(FIGURE_PROTESTER, x_road, y_road, DIR_4_BOTTOM);
+        f->building = Building(b);
+        b->figure_id4 = f->id();
     }
 }
 
@@ -172,7 +171,7 @@ static void generate_rioter(building *b, int amount)
     city_sentiment_add_criminal();
 
     for (int i = 0; i < amount; i++) {
-        figure *f = figure_create(FIGURE_RIOTER, x_road, y_road, DIR_4_BOTTOM);
+        Figure *f = Figure::create(FIGURE_RIOTER, x_road, y_road, DIR_4_BOTTOM);
         f->action_state = FIGURE_ACTION_120_RIOTER_CREATED;
         f->roam_length = 0;
         f->wait_ticks = game_time_scale_legacy_day_ticks(10 + 4 * i);
@@ -196,7 +195,7 @@ static void generate_looter(building *b, int amount)
     city_sentiment_add_criminal();
 
     for (int i = 0; i < amount; i++) {
-        figure *f = figure_create(FIGURE_CRIMINAL_LOOTER, x_road, y_road, DIR_4_BOTTOM);
+        Figure *f = Figure::create(FIGURE_CRIMINAL_LOOTER, x_road, y_road, DIR_4_BOTTOM);
         f->terrain_usage = TERRAIN_USAGE_ANY;
         f->action_state = FIGURE_ACTION_226_CRIMINAL_LOOTER_CREATED;
         f->roam_length = 0;
@@ -220,7 +219,7 @@ static void generate_robber(building *b, int amount)
     b->house_criminal_active = 1;
 
     for (int i = 0; i < amount; i++) {
-        figure *f = figure_create(FIGURE_CRIMINAL_ROBBER, x_road, y_road, DIR_4_BOTTOM);
+        Figure *f = Figure::create(FIGURE_CRIMINAL_ROBBER, x_road, y_road, DIR_4_BOTTOM);
         f->action_state = FIGURE_ACTION_227_CRIMINAL_ROBBER_CREATED;
         f->roam_length = 0;
         f->wait_ticks = game_time_scale_legacy_day_ticks(10 + 4 * i);
@@ -235,7 +234,7 @@ static void generate_protestor(building *b)
         b->house_criminal_active = 1;
         int x_road, y_road;
         if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
-            figure *f = figure_create(FIGURE_PROTESTER, x_road, y_road, DIR_4_BOTTOM);
+            Figure *f = Figure::create(FIGURE_PROTESTER, x_road, y_road, DIR_4_BOTTOM);
             f->wait_ticks = game_time_scale_legacy_day_ticks(10 + (b->house_figure_generation_delay & 0xf));
             city_ratings_peace_record_criminal();
         }
@@ -304,7 +303,7 @@ void figure_generate_criminals(void)
     }
 }
 
-void figure_protestor_action(figure *f)
+void figure_protestor_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     figure_image_increase_offset(f, 64);
@@ -315,7 +314,7 @@ void figure_protestor_action(figure *f)
         figure_combat_handle_corpse(f);
     }
     f->wait_ticks++;
-    if (f->wait_ticks > 200 && f->building_id == 0) {
+    if (f->wait_ticks > 200 && f->building.id() == 0) {
         f->state = FIGURE_STATE_DEAD;
         f->image_offset = 0;
     }
@@ -326,7 +325,7 @@ void figure_protestor_action(figure *f)
     }
 }
 
-static void set_criminal_image(figure *f)
+static void set_criminal_image(Figure *f)
 {
     int dir;
     if (f->direction == DIR_FIGURE_ATTACK) {
@@ -349,9 +348,9 @@ static void set_criminal_image(figure *f)
 }
 
 
-void figure_rioter_action(figure *f)
+void figure_rioter_action(Figure *f)
 {
-    city_figures_add_rioter(!f->targeted_by_figure_id);
+    city_figures_add_rioter(!f->targeted_by_figure.save_id());
     f->terrain_usage = TERRAIN_USAGE_ENEMY;
     f->max_roam_length = 480;
     f->cart_image_id = 0;
@@ -376,7 +375,7 @@ void figure_rioter_action(figure *f)
                 if (target_building_id) {
                     f->destination_x = x_tile;
                     f->destination_y = y_tile;
-                    f->destination_building_id = target_building_id;
+                    f->destination_building = Building(building_get(target_building_id));
                     f->collecting_item_id = resource;
                     figure_route_remove(f);
                 } else {
@@ -397,7 +396,7 @@ void figure_rioter_action(figure *f)
                 if (building_id) {
                     f->destination_x = x_tile;
                     f->destination_y = y_tile;
-                    f->destination_building_id = building_id;
+                    f->destination_building = Building(building_get(building_id));
                     figure_route_remove(f);
                 } else {
                     f->type = FIGURE_CRIMINAL;
@@ -417,9 +416,9 @@ void figure_rioter_action(figure *f)
     set_criminal_image(f);
 }
 
-void figure_robber_action(figure *f)
+void figure_robber_action(Figure *f)
 {
-    city_figures_add_robber(!f->targeted_by_figure_id);
+    city_figures_add_robber(!f->targeted_by_figure.save_id());
     f->terrain_usage = TERRAIN_USAGE_PREFER_ROADS_HIGHWAY;
     f->max_roam_length = 480;
     f->cart_image_id = 0;
@@ -443,7 +442,7 @@ void figure_robber_action(figure *f)
                 if (target_building_id) {
                     f->destination_x = x_tile;
                     f->destination_y = y_tile;
-                    f->destination_building_id = target_building_id;
+                    f->destination_building = Building(building_get(target_building_id));
                     f->collecting_item_id = resource;
                     f->action_state = FIGURE_ACTION_229_CRIMINAL_GOING_TO_ROB;
                     figure_route_remove(f);
@@ -470,9 +469,9 @@ void figure_robber_action(figure *f)
     set_criminal_image(f);
 }
 
-void figure_looter_action(figure *f)
+void figure_looter_action(Figure *f)
 {
-    city_figures_add_looter(!f->targeted_by_figure_id);
+    city_figures_add_looter(!f->targeted_by_figure.save_id());
     f->terrain_usage = TERRAIN_USAGE_PREFER_ROADS_HIGHWAY;
     f->max_roam_length = 480;
     f->cart_image_id = 0;
@@ -506,7 +505,7 @@ void figure_looter_action(figure *f)
             figure_image_increase_offset(f, 12);
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
-                loot_storage(f, static_cast<resource_type>(f->collecting_item_id), f->destination_building_id);
+                loot_storage(f, static_cast<resource_type>(f->collecting_item_id), f->destination_building.id());
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
                 figure_route_remove(f);
@@ -520,7 +519,7 @@ void figure_looter_action(figure *f)
 }
 
 
-int figure_rioter_collapse_building(figure *f)
+int figure_rioter_collapse_building(Figure *f)
 {
     static const char * const non_collapsible_types[] = {
         "warehouse_space",
@@ -554,7 +553,8 @@ int figure_rioter_collapse_building(figure *f)
             continue;
         }
         building *b = building_get(map_building_at(grid_offset));
-        if (Building(b).type().is_well()) {
+        Building building(b);
+        if (building.type && building.type->is_well()) {
             continue;
         }
         if (type_matches_any(b->type, non_collapsible_types)) {

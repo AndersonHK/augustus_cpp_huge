@@ -2,7 +2,6 @@
 
 #include "graphics/color.h"
 
-#ifdef __cplusplus
 class Building;
 
 struct BuildingDrawContext {
@@ -14,14 +13,9 @@ struct BuildingDrawContext {
     int force_draw_tile = 0;
 };
 
-extern "C" {
-#endif
 
 typedef struct building building;
 typedef struct order order;
 
-#ifdef __cplusplus
-}
-#endif
 
 #include "building/building_type.h"

@@ -7,7 +7,6 @@
 
 #include "graphics/grid_box.h"
 #include "translation/translation.h"
-extern "C" {
 #include "empire/city.h"
 #include "empire/trade_prices.h"
 #include "empire/trade_route.h"
@@ -17,7 +16,6 @@ extern "C" {
 #include "core/image_group.h"
 #include "core/string.h"
 #include "input/mouse.h"
-}
 
 
 #include <string.h>

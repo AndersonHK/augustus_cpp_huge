@@ -2,9 +2,6 @@
 
 #include "core/time.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define MAX_ACTIVE_TOUCHES 2
 
@@ -56,6 +53,3 @@ int touch_to_mouse(void);
 void touch_set_mode(touch_mode mode);
 void touch_cycle_mode(void);
 
-#ifdef __cplusplus
-}
-#endif

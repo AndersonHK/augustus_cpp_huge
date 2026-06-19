@@ -22,6 +22,8 @@
 #include "window/mission_briefing.h"
 #include "graphics/image.h"
 
+#include <cstdlib>
+
 #define MAX_MESSAGES 10
 
 typedef enum {
@@ -147,7 +149,7 @@ static void select_messages(void)
     }
 
     data.message_count = 0;
-    data.filtered_message_list = (int *) malloc(sizeof(int) * city_message_count());
+    data.filtered_message_list = static_cast<int *>(std::malloc(sizeof(int) * city_message_count()));
     for (int i = 0; i < city_message_count(); i++) {
         const city_message *msg = city_message_get(i);
         if (data.type_displayed == COMMON_MESSAGES_ONLY && (msg->message_type == MESSAGE_CUSTOM_MESSAGE)) {

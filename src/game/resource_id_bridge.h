@@ -7,9 +7,6 @@
 
 typedef int resource_version_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void resource_id_bridge_reset_for_runtime(void);
 void resource_id_bridge_clear_save_table(void);
@@ -32,6 +29,3 @@ uint16_t resource_id_bridge_save_id_from_runtime(resource_type runtime_id);
 int resource_total_mapped(void);
 int resource_total_food_mapped(void);
 
-#ifdef __cplusplus
-}
-#endif

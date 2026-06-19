@@ -182,12 +182,14 @@ static int get_height_id(void)
     } else if (context.type == BUILDING_INFO_LEGION) {
         return HEIGHT_7_26_BLOCKS;
     } else if (context.type == BUILDING_INFO_BUILDING) {
-        building *b = building_get(context.building_id);
-        const Building current_building(b);
-        const BuildingType &type_definition = current_building.type();
+        const Building current_building = context.building;
+        building *b = current_building.id() ? building_get(current_building.id()) : nullptr;
+        if (!b || !current_building.type) {
+            return HEIGHT_0_22_BLOCKS;
+        }
+        const BuildingType &type_definition = *current_building.type;
         const building_type type = static_cast<building_type>(b->type);
-        const auto *definition = current_building.type_definition();
-        const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
+        const int is_dock = std::strcmp(type_definition.attr(), "dock") == 0;
         if (type_definition.is_well()) {
             return HEIGHT_4_14_BLOCKS;
         }
@@ -266,11 +268,11 @@ static int get_height_id(void)
 
 static void adjust_height_for_storage_buildings(building_info_context *c)
 {
-    building *b = building_get(c->building_id);
-    if (!b->storage_id) {
+    building *b = c->building.id() ? building_get(c->building.id()) : nullptr;
+    if (!b || !b->storage_id) {
         return;
     }
-    int stored_types = building_storage_count_stored_resource_types(c->building_id);
+    int stored_types = building_storage_count_stored_resource_types(c->building.id());
     int y_offset_blocks = 0;
 
     if (!b->has_plague && c->has_road_access) {
@@ -279,14 +281,17 @@ static void adjust_height_for_storage_buildings(building_info_context *c)
     c->height_blocks += y_offset_blocks;
 }
 
-static int has_mothball_button(void)
+static int has_mothball_button(const Building &building)
 {
-    return model_get_building(building_get(context.building_id)->type)->laborers;
+    return building.type ? building.type->required_workers() : 0;
 }
 
 static void draw_mothball_button(void)
 {
-    building *b = building_get(context.building_id);
+    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    if (!b) {
+        return;
+    }
     if (b->state == BUILDING_STATE_MOTHBALLED) {
         image_buttons_draw(0, 0, image_button_mothball, 2); //  x and y offsets adjusted dynamically in init()
     } else {
@@ -322,18 +327,29 @@ static void init(int grid_offset)
     context.show_special_orders = 0;
     context.depot_selection = 0;
     context.advisor_button = ADVISOR_NONE;
-    context.building_id = map_building_at(grid_offset);
+    context.building = Building(nullptr);
     context.rubble_building_id = map_building_rubble_building_id(grid_offset);
     context.has_reservoir_pipes = map_terrain_is(grid_offset, TERRAIN_RESERVOIR_RANGE);
     context.aqueduct_has_water = map_aqueduct_has_water_access_at(grid_offset);
+    context.has_road_access = 0;
+    context.worker_percentage = 0;
+    context.formation_id = 0;
+    context.formation_types = 0;
+    context.barracks_soldiers_requested = 0;
+    context.worst_desirability_building_type = BUILDING_NONE;
+    context.warehouse_space_text = 0;
 
     city_resource_determine_available(1);
     context.type = BUILDING_INFO_TERRAIN;
     context.figure.drawn = 0;
 
-    building *b = building_get(context.building_id);
+    const unsigned int selected_building_id = map_building_at(grid_offset);
+    building *selected_building = selected_building_id ? building_get(selected_building_id) : nullptr;
 
     if (map_is_bridge(grid_offset)) {
+        if (selected_building) {
+            context.building = Building(selected_building);
+        }
         if (map_terrain_is(grid_offset, TERRAIN_WATER)) {
             context.terrain_type = TERRAIN_INFO_BRIDGE;
         } else {
@@ -375,24 +391,32 @@ static void init(int grid_offset)
         context.terrain_type = TERRAIN_INFO_WALL;
     } else if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
         context.terrain_type = TERRAIN_INFO_HIGHWAY;
-    } else if (!context.building_id) {
+    } else if (!selected_building) {
         context.terrain_type = TERRAIN_INFO_EMPTY;
     } else {
         context.type = BUILDING_INFO_BUILDING;
-        context.worker_percentage = calc_percentage(b->num_workers, model_get_building(b->type)->laborers);
-        const Building current_building(b);
-        const BuildingType &type_definition = current_building.type();
+        building *b = selected_building;
         building_type btype = static_cast<building_type>(b->type);
         if (building_type_attr_is(btype, "fort_ground")) {
-            context.building_id = b->prev_part_building_id;
             context.formation_id = b->formation_id;
+            if (b->prev_part_building_id) {
+                b = building_get(b->prev_part_building_id);
+                btype = static_cast<building_type>(b->type);
+            }
         } else if (building_is_fort(btype)) {
             context.formation_id = b->formation_id;
         } else if (building_type_attr_is_any(btype, {"warehouse_space", "hippodrome"})) {
             b = building_main(b);
             btype = static_cast<building_type>(b->type);
-            context.building_id = b->id;
-        } else if (building_type_attr_is(btype, "barracks")) {
+        }
+
+        context.building = Building(b);
+        const Building current_building = context.building;
+        const BuildingType *type_definition = current_building.type;
+        context.worker_percentage = calc_percentage(
+            b->num_workers, type_definition ? type_definition->required_workers() : 0);
+
+        if (building_type_attr_is(btype, "barracks")) {
             context.barracks_soldiers_requested = formation_legion_recruits_needed();
             if (Barracks(b).unmanned_tower(nullptr).id()) {
                 context.barracks_soldiers_requested++;
@@ -405,11 +429,11 @@ static void init(int grid_offset)
         }
         // TODO: this information should be derived from b->has_road_access.
         // Context information should not differ from building properties.
-        if (type_definition.is_granary()) {
+        if (type_definition && type_definition->is_granary()) {
             context.has_road_access = map_has_road_access_granary(b->x, b->y, 0);
         } else if (building_type_attr_is(btype, "hippodrome")) {
             context.has_road_access = map_has_road_access_hippodrome_rotation(b->x, b->y, 0, b->subtype.orientation);
-        } else if (type_definition.is_warehouse()) {
+        } else if (type_definition && type_definition->is_warehouse()) {
             context.has_road_access = map_has_road_access_warehouse(b->x, b->y, 0);
             const Building warehouse(b);
             context.warehouse_space_text = building_warehouse_get_space_info(warehouse);
@@ -438,7 +462,7 @@ static void init(int grid_offset)
     for (int i = 0; i < 9 && context.figure.count < 7; i++) {
         int figure_id = map_figure_at(grid_offset + FIGURE_OFFSETS[i]);
         while (figure_id > 0 && context.figure.count < 7) {
-            figure *f = figure_get(figure_id);
+            Figure *f = Figure::get(figure_id);
             if (f->state != FIGURE_STATE_DEAD &&
                 f->action_state != FIGURE_ACTION_149_CORPSE) {
                 switch (f->type) {
@@ -473,8 +497,8 @@ static void init(int grid_offset)
         if (figure_id <= 0) {
             continue;
         }
-        figure *f = figure_get(figure_id);
-        if (f->type == FIGURE_FORT_STANDARD || figure_is_legion(f)) {
+        Figure *f = Figure::get(figure_id);
+        if (f->type == FIGURE_FORT_STANDARD || f->is_legion()) {
             context.type = BUILDING_INFO_LEGION;
             context.formation_id = f->formation_id;
             const formation *m = formation_get(context.formation_id);
@@ -513,9 +537,9 @@ static void init(int grid_offset)
         }
     }
     adjust_height_for_storage_buildings(&context);
-    const Building current_dialog_building(b);
+    const Building current_dialog_building = context.building;
     if ((screen_height() <= 600) ||
-        (screen_height() <= 720 && current_dialog_building.type().is_grand_temple_mars())) {
+        (screen_height() <= 720 && current_dialog_building.type && current_dialog_building.type->is_grand_temple_mars())) {
         context.height_blocks = calc_bound(context.height_blocks, 0, 26);
     }
     // dialog placement
@@ -544,26 +568,18 @@ static void draw_background(void)
     } else if (context.type == BUILDING_INFO_TERRAIN) {
         window_building_draw_terrain(&context);
     } else if (context.type == BUILDING_INFO_BUILDING) {
-        building *b = building_get(context.building_id);
-        building_type btype = b->type;
-        const Building current_building(b);
-        const BuildingType &type_definition = current_building.type();
-        const auto *definition = current_building.type_definition();
-        const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
+        const Building current_building = context.building;
+        building *b = current_building.id() ? building_get(current_building.id()) : nullptr;
+        if (!b || !current_building.type) {
+            return;
+        }
+        const BuildingType &type_definition = *current_building.type;
+        building_type btype = static_cast<building_type>(b->type);
+        const int is_dock = std::strcmp(type_definition.attr(), "dock") == 0;
         if (building_is_house(btype)) {
             window_building_draw_house(&context);
-        } else if (building_type_attr_is(btype, "wheat_farm")) {
-            window_building_draw_wheat_farm(&context);
-        } else if (building_type_attr_is(btype, "vegetable_farm")) {
-            window_building_draw_vegetable_farm(&context);
-        } else if (building_type_attr_is(btype, "fruit_farm")) {
-            window_building_draw_fruit_farm(&context);
-        } else if (building_type_attr_is(btype, "olive_farm")) {
-            window_building_draw_olive_farm(&context);
-        } else if (building_type_attr_is(btype, "vines_farm")) {
-            window_building_draw_vines_farm(&context);
-        } else if (building_type_attr_is(btype, "pig_farm")) {
-            window_building_draw_pig_farm(&context);
+        } else if (type_definition.is_farm()) {
+            window_building_draw_farm(&context, building_output_resource(btype));
         } else if (building_type_attr_is(btype, "marble_quarry")) {
             window_building_draw_marble_quarry(&context);
         } else if (building_type_attr_is(btype, "iron_mine")) {
@@ -696,7 +712,7 @@ static void draw_background(void)
                 window_building_draw_tavern(&context);
             }
         } else if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
-            Temple temple(b, current_building.type_definition());
+            Temple temple(b, &type_definition);
             window_building_draw_grand_temple(&context, temple);
         } else if (type_definition.is_lighthouse()) {
             window_building_draw_lighthouse(&context);
@@ -745,7 +761,7 @@ static void draw_background(void)
             window_building_draw_prefect(&context);
         } else if (building_type_attr_is(btype, "obelisk")) {
             window_building_draw_obelisk(&context);
-        } else if (Roadblock(building_get(context.building_id)).kind() != ROADBLOCK_NONE && context.show_special_orders) {
+        } else if (Roadblock(b).kind() != ROADBLOCK_NONE && context.show_special_orders) {
             window_building_draw_roadblock_orders(&context);
         } else if (building_type_attr_is(btype, "roadblock")) {
             window_building_draw_roadblock(&context);
@@ -817,15 +833,14 @@ static void draw_background(void)
 
 static void draw_foreground(void)
 {
-    building *b = building_get(context.building_id);
+    const Building current_building = context.building;
+    building *b = current_building.id() ? building_get(current_building.id()) : nullptr;
     // building-specific buttons
     init_context_buttons(&context);
-    if (context.type == BUILDING_INFO_BUILDING) {
-        building_type btype = static_cast<building_type>(building_get(context.building_id)->type);
-        const Building current_building(b);
-        const BuildingType &type_definition = current_building.type();
-        const auto *definition = current_building.type_definition();
-        const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
+    if (context.type == BUILDING_INFO_BUILDING && b && current_building.type) {
+        const BuildingType &type_definition = *current_building.type;
+        building_type btype = static_cast<building_type>(b->type);
+        const int is_dock = std::strcmp(type_definition.attr(), "dock") == 0;
 
         if (building_is_primary_product_producer(btype)) {
             window_building_draw_primary_product_stockpiling(&context);
@@ -899,7 +914,7 @@ static void draw_foreground(void)
         } else if (building_type_attr_is(btype, "barracks")) {
             window_building_draw_barracks_foreground(&context);
         } else if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
-            Temple temple(b, current_building.type_definition());
+            Temple temple(b, &type_definition);
             window_building_draw_grand_temple_foreground(&context, temple);
         } else if (type_definition.is_caravanserai() &&
             b->monument.phase == MONUMENT_FINISHED) {
@@ -947,18 +962,12 @@ static void draw_foreground(void)
     }
 
     if (!context.show_special_orders &&
+        context.type == BUILDING_INFO_BUILDING &&
         context.depot_selection == 0 &&
+        b &&
         !building_monument_is_unfinished_monument(b) &&
-        has_mothball_button()) {
+        has_mothball_button(context.building)) {
         draw_mothball_button();
-    }
-    if (!context.show_special_orders &&
-        context.depot_selection == 0 &&
-        !building_monument_is_unfinished_monument(b)) {
-        int workers_needed = model_get_building(building_get(context.building_id)->type)->laborers;
-        if (workers_needed) {
-            draw_mothball_button();
-        }
     }
 }
 
@@ -974,12 +983,14 @@ static int handle_specific_building_info_mouse(const mouse *m)
     } else if (context.figure.drawn) {
         return window_building_handle_mouse_figure_list(m, &context);
     } else if (context.type == BUILDING_INFO_BUILDING) {
-        building *b = building_get(context.building_id);
+        const Building current_building = context.building;
+        building *b = current_building.id() ? building_get(current_building.id()) : nullptr;
+        if (!b || !current_building.type) {
+            return 0;
+        }
+        const BuildingType &type_definition = *current_building.type;
         building_type btype = static_cast<building_type>(b->type);
-        const Building current_building(b);
-        const BuildingType &type_definition = current_building.type();
-        const auto *definition = current_building.type_definition();
-        const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
+        const int is_dock = std::strcmp(type_definition.attr(), "dock") == 0;
 
         if (building_has_supplier_inventory(btype)) {
             if (context.show_special_orders) {
@@ -992,7 +1003,7 @@ static int handle_specific_building_info_mouse(const mouse *m)
                 }
                 return window_building_handle_mouse_distributor(m, &context);
             }
-        } else if (Roadblock(building_get(context.building_id)).kind() == ROADBLOCK_STANDARD) {
+        } else if (Roadblock(b).kind() == ROADBLOCK_STANDARD) {
             if (context.show_special_orders) {
                 return window_building_handle_mouse_roadblock_orders(m, &context);
             } else {
@@ -1007,7 +1018,7 @@ static int handle_specific_building_info_mouse(const mouse *m)
         } else if (building_type_attr_is(btype, "barracks")) {
             return window_building_handle_mouse_barracks(m, &context);
         } else if (type_definition.is_temple_tier(building_type_registry_impl::ReligionTier::Grand)) {
-            Temple temple(b, current_building.type_definition());
+            Temple temple(b, &type_definition);
             if (type_definition.is_grand_temple_mars()) {
                 return window_building_handle_mouse_grand_temple_mars(m, &context, temple);
             }
@@ -1060,16 +1071,17 @@ static void handle_input(const mouse *m, const hotkeys *h)
     } else {
         handled |= image_buttons_handle_mouse(
             m, 0, 0, image_buttons_help_advisor_close, context.advisor_button ? 3 : 2, &focus_image_button_id);
-        building *b = building_get(context.building_id);
-        if (building_monument_is_unfinished_monument(b)) {
+        building *b = (context.type == BUILDING_INFO_BUILDING && context.building.id()) ?
+            building_get(context.building.id()) : nullptr;
+        if (b && building_monument_is_unfinished_monument(b)) {
             handled = GenericButtonList(generic_button_monument_construction, 1).handle_mouse(
                 *m,
                 context.x_offset,
                 context.y_offset + BLOCK_SIZE * context.height_blocks - 40,
                 &focus_monument_construction_button_id
             );
-        } else {
-            if (has_mothball_button()) {
+        } else if (b) {
+            if (has_mothball_button(context.building)) {
                 if (b->state == BUILDING_STATE_MOTHBALLED) {
                     handled |= image_buttons_handle_mouse(m, 0, 0,
                         image_button_mothball, 2, &focus_mothball_image_button_id);
@@ -1085,7 +1097,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         handled |= handle_specific_building_info_mouse(m);
     }
     if (!handled && input_go_back_requested(m, h)) {
-        if (previous_context.building_id) {
+        if (previous_context.type != BUILDING_INFO_NONE) {
             window_building_info_restore_previous_context();
             return;
         }
@@ -1114,12 +1126,12 @@ static void get_tooltip(tooltip_context *c)
         text_id = window_building_get_legion_info_tooltip_text(&context);
     }
 
-    building *b = context.building_id ? building_get(context.building_id) : nullptr;
+    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
     if (!text_id && !group_id && !translation && !precomposed_text &&
         context.type == BUILDING_INFO_BUILDING && b &&
-        focus_mothball_image_button_id && has_mothball_button()) {
+        focus_mothball_image_button_id && has_mothball_button(context.building)) {
         if (!building_monument_is_unfinished_monument(b)) {
-            if (building_get(context.building_id)->state == BUILDING_STATE_MOTHBALLED) {
+            if (b->state == BUILDING_STATE_MOTHBALLED) {
                 translation = "TR_TOOLTIP_BUTTON_MOTHBALL_OFF";
             } else {
                 translation = "TR_TOOLTIP_BUTTON_MOTHBALL_ON";
@@ -1130,8 +1142,8 @@ static void get_tooltip(tooltip_context *c)
     const int has_building_tooltip_context =
         context.type == BUILDING_INFO_BUILDING || (context.terrain_type == TERRAIN_INFO_BRIDGE && b);
     building_type btype = (has_building_tooltip_context && b) ? static_cast<building_type>(b->type) : BUILDING_NONE;
-    const Building current_building(has_building_tooltip_context ? b : nullptr);
-    const BuildingType *type_definition = has_building_tooltip_context ? current_building.type_definition() : nullptr;
+    const Building current_building = context.building;
+    const BuildingType *type_definition = has_building_tooltip_context ? current_building.type : nullptr;
     const int is_dock = type_definition && std::strcmp(type_definition->attr(), "dock") == 0;
 
     if (!text_id && !group_id && !translation && !precomposed_text && type_definition) {
@@ -1203,7 +1215,7 @@ static void button_close(int param1, int param2)
         return;
     }
     if (context.show_special_orders) {
-        if (previous_context.building_id) {
+        if (previous_context.type != BUILDING_INFO_NONE) {
             window_building_info_restore_previous_context();
             return;
         }
@@ -1222,9 +1234,9 @@ static void button_advisor(int advisor, int param2)
 
 static void button_mothball(int param1, int param2)
 {
-    building *b = building_get(context.building_id);
-    int workers_needed = model_get_building(b->type)->laborers;
-    if (workers_needed) {
+    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    int workers_needed = context.building.type ? context.building.type->required_workers() : 0;
+    if (b && workers_needed) {
         building_mothball_toggle(b);
         window_invalidate();
     }
@@ -1232,9 +1244,11 @@ static void button_mothball(int param1, int param2)
 
 static void button_monument_construction(const generic_button *button)
 {
-    building *b = building_get(context.building_id);
-    building_monument_toggle_construction_halted(b);
-    window_invalidate();
+    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    if (b) {
+        building_monument_toggle_construction_halted(b);
+        window_invalidate();
+    }
 }
 
 void window_building_info_show(int grid_offset)
@@ -1253,14 +1267,14 @@ void window_building_info_show(int grid_offset)
 int window_building_info_get_building_type(void)
 {
     if (context.type == BUILDING_INFO_BUILDING) {
-        return building_get(context.building_id)->type;
+        return context.building.type ? context.building.type->type() : BUILDING_NONE;
     }
     return BUILDING_NONE;
 }
 
 Building window_building_info_current_building()
 {
-    return context.type == BUILDING_INFO_BUILDING ? Building(building_get(context.building_id)) : Building(nullptr);
+    return context.type == BUILDING_INFO_BUILDING ? context.building : Building(nullptr);
 }
 
 void window_building_info_show_storage_orders(void)
@@ -1275,12 +1289,11 @@ void window_building_info_show_storage_special_orders(void)
     window_invalidate();
 }
 
-void window_building_info_show_storage_special_orders_on_top(int building_id)
+void window_building_info_show_storage_special_orders_on_top(Building building)
 {
     previous_context = context;
     previous_overlay = original_overlay;
-    building *new_context_building = building_get(building_id);
-    window_building_info_show(new_context_building->grid_offset);
+    window_building_info_show(building.grid_offset());
     context.show_special_orders = SPECIAL_ORDERS_STORAGE;
     window_invalidate();
 }
@@ -1328,7 +1341,10 @@ void window_building_info_depot_select_resource(void)
 
 void window_building_info_depot_toggle_condition_type(void)
 {
-    building *b = building_get(context.building_id);
+    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    if (!b) {
+        return;
+    }
     b->data.depot.current_order.condition.condition_type = static_cast<order_condition_type>(
         (b->data.depot.current_order.condition.condition_type + 1) % 4);
     window_invalidate();
@@ -1336,7 +1352,10 @@ void window_building_info_depot_toggle_condition_type(void)
 
 void window_building_info_depot_toggle_condition_threshold(void)
 {
-    building *b = building_get(context.building_id);
+    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    if (!b) {
+        return;
+    }
     int step = config_get(CONFIG_GP_STORAGE_INCREMENT_4) ? 4 : 8;
     int step_max = config_get(CONFIG_GP_STORAGE_INCREMENT_4) ? 36 : 40;
     b->data.depot.current_order.condition.threshold = (b->data.depot.current_order.condition.threshold + step) % step_max;
@@ -1345,7 +1364,10 @@ void window_building_info_depot_toggle_condition_threshold(void)
 
 void window_building_info_depot_toggle_condition_threshold_reverse(void)
 {
-    building *b = building_get(context.building_id);
+    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    if (!b) {
+        return;
+    }
     int step = config_get(CONFIG_GP_STORAGE_INCREMENT_4) ? 4 : 8;
     int new_threshold = (b->data.depot.current_order.condition.threshold - step);
     new_threshold = new_threshold < 0 ? 32 : new_threshold;

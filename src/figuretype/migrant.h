@@ -2,24 +2,16 @@
 
 #include "figure/figure.h"
 
-typedef struct building building;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+	void migrant_create_immigrant(Building &house, int num_people);
 
-void figure_create_immigrant(building *house, int num_people);
+	void migrant_create_emigrant(Building &house, int num_people);
 
-void figure_create_emigrant(building *house, int num_people);
+	Figure *migrant_create_homeless(Building &house, int num_people);
 
-figure *figure_create_homeless(building *house, int num_people);
+	void figure_immigrant_action(Figure *f);
 
-void figure_immigrant_action(figure *f);
+	void figure_emigrant_action(Figure *f);
 
-void figure_emigrant_action(figure *f);
+	void figure_homeless_action(Figure *f);
 
-void figure_homeless_action(figure *f);
-
-#ifdef __cplusplus
-}
-#endif

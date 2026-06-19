@@ -11,9 +11,6 @@
 #pragma warning(pop)
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int platform_renderer_init(SDL_Window *window);
 
@@ -36,6 +33,3 @@ void platform_renderer_resume(void);
 
 void platform_renderer_destroy(void);
 
-#ifdef __cplusplus
-}
-#endif

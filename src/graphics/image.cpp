@@ -1,12 +1,10 @@
 #include "image.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "core/crash_context.h"
 #include "core/png_read.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
-}
 
 #include <cstdlib>
 #include <cstdio>

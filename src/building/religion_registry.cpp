@@ -10,11 +10,9 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-}
 
 #include <cstdio>
 #include <memory>
@@ -333,13 +331,13 @@ const Religion *find_religion_definition(const char *path)
 
 } // namespace building_type_registry_impl
 
-extern "C" const char *religion_registry_get_religion_path(void)
+const char *religion_registry_get_religion_path(void)
 {
     building_type_registry_impl::g_religion_path = mod_manager::mod_path() + "Religions/";
     return building_type_registry_impl::g_religion_path.c_str();
 }
 
-extern "C" int religion_registry_load(void)
+int religion_registry_load(void)
 {
     using namespace building_type_registry_impl;
 

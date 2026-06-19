@@ -11,7 +11,6 @@
 #include "city/race_bet.h"
 
 #include "translation/translation.h"
-extern "C" {
 #include "assets/assets.h"
 #include "city/data_private.h"
 #include "core/calc.h"
@@ -19,7 +18,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 static void arrow_button_bet(int is_down, int param2);
 static void button_horse_selection(const generic_button *button);

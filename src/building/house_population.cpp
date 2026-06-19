@@ -2,6 +2,7 @@
 #include "building/local_workforce.h"
 #include "city/labor.h"
 #include "city/migration.h"
+#include "figure/figure.h"
 #include "figuretype/migrant.h"
 
 #include "building/building_record.h"
@@ -10,12 +11,10 @@
 #include "building/building.h"
 #include "building/house.h"
 
-extern "C" {
 #include "building/building_type_api.h"
 #include "building/monument.h"
 #include "city/message.h"
 #include "city/population.h"
-}
 
 static int house_is_plebeian(const building *b)
 {
@@ -25,19 +24,6 @@ static int house_is_plebeian(const building *b)
 static int house_is_patrician(const building *b)
 {
     return building_house_has_patrician_residents(Building(const_cast<building *>(b)));
-}
-
-static building_type housing_capacity_type(Building house_object)
-{
-    const building *house = house_object.legacy_record();
-    if (!house) {
-        return BUILDING_NONE;
-    }
-    building_type type = house_object.type_id();
-    if (house->house_population == 0 && type == building_type_registry_get_vacant_lot_fill_type()) {
-        return type;
-    }
-    return type;
 }
 
 int house_population_add_to_city(int num_people)
@@ -81,7 +67,8 @@ int house_population_remove_from_city(int num_people)
             city_population_set_last_used_house_remove(building_id);
             ++removed;
             --b->house_population;
-            building_local_workforce_reconcile_house(b);
+            Building house(b);
+            building_local_workforce_reconcile_house(house);
             buildings_without_removal = 0;
         } else {
             buildings_without_removal++;
@@ -92,15 +79,15 @@ int house_population_remove_from_city(int num_people)
 
 int house_population_get_capacity(Building house_object)
 {
-    const building *house = house_object.legacy_record();
-    if (!house) {
+    const building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    if (!house || !house_object.type) {
         return 0;
     }
     // This is the single runtime capacity path for houses; XML load has already
     // rejected residential BuildingTypes without an authored whole-building capacity.
     // Empty vacant lots borrow the capacity of the validated first-occupancy
     // house so immigration can target them before they transform into housing.
-    int capacity = building_type_registry_get_housing_capacity(housing_capacity_type(house_object));
+    int capacity = house_object.type->housing_capacity();
 
     // Neptune module 2 bonus
     if (building_monument_gt_module_is_active(NEPTUNE_MODULE_2_CAPACITY_AND_WATER) &&
@@ -140,7 +127,7 @@ int house_population_create_immigrants(int num_people)
     // clean up any dead immigrants
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (b->house_size && b->immigrant_figure_id && figure_get(b->immigrant_figure_id)->state != FIGURE_STATE_ALIVE) {
+        if (b->house_size && b->immigrant_figure_id && Figure::get(b->immigrant_figure_id)->state != FIGURE_STATE_ALIVE) {
             b->immigrant_figure_id = 0;
         }
     }
@@ -151,11 +138,12 @@ int house_population_create_immigrants(int num_people)
             continue;
         }
         if (b->distance_from_entry > 0 && b->house_population_room >= 8 && !b->immigrant_figure_id) {
+            Building house(b);
             if (to_immigrate <= 4) {
-                figure_create_immigrant(b, to_immigrate);
+                migrant_create_immigrant(house, to_immigrate);
                 to_immigrate = 0;
             } else {
-                figure_create_immigrant(b, 4);
+                migrant_create_immigrant(house, 4);
                 to_immigrate -= 4;
             }
         }
@@ -167,11 +155,12 @@ int house_population_create_immigrants(int num_people)
             continue;
         }
         if (b->distance_from_entry > 0 && b->house_population_room > 0 && !b->immigrant_figure_id) {
+            Building house(b);
             if (to_immigrate <= b->house_population_room) {
-                figure_create_immigrant(b, to_immigrate);
+                migrant_create_immigrant(house, to_immigrate);
                 to_immigrate = 0;
             } else {
-                figure_create_immigrant(b, b->house_population_room);
+                migrant_create_immigrant(house, b->house_population_room);
                 to_immigrate -= b->house_population_room;
             }
         }
@@ -188,11 +177,12 @@ int house_population_create_emigrants(int num_people)
             continue;
         }
         int current_people = b->house_population >= 4 ? 4 : b->house_population;
+        Building house(b);
         if (to_emigrate <= current_people) {
-            figure_create_emigrant(b, to_emigrate);
+            migrant_create_emigrant(house, to_emigrate);
             to_emigrate = 0;
         } else {
-            figure_create_emigrant(b, current_people);
+            migrant_create_emigrant(house, current_people);
             to_emigrate -= current_people;
         }
     }
@@ -262,14 +252,15 @@ void house_population_evict_overcrowded(void)
             continue;
         }
         int num_people_to_evict = -b->house_population_room;
-        figure_create_homeless(b, num_people_to_evict);
+        Building house(b);
+        migrant_create_homeless(house, num_people_to_evict);
         if (num_people_to_evict < b->house_population) {
             b->house_population -= num_people_to_evict;
-            building_local_workforce_reconcile_house(b);
+            building_local_workforce_reconcile_house(house);
         } else {
             // house has been removed
             b->house_population = 0;
-            building_local_workforce_reconcile_house(b);
+            building_local_workforce_reconcile_house(house);
             b->state = BUILDING_STATE_UNDO;
         }
     }

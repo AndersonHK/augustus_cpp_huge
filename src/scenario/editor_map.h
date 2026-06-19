@@ -1,10 +1,6 @@
-﻿#pragma once
+#pragma once
 
 #include "map/point.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 
 void scenario_editor_set_entry_point(int x, int y);
 void scenario_editor_set_exit_point(int x, int y);
@@ -27,7 +23,3 @@ void scenario_editor_set_invasion_point(int id, int x, int y);
 
 map_point scenario_editor_earthquake_point(void);
 void scenario_editor_set_earthquake_point(int x, int y);
-
-#ifdef __cplusplus
-}
-#endif

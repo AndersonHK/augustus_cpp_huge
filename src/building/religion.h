@@ -1,8 +1,6 @@
 #pragma once
 
-extern "C" {
 #include "city/constants.h"
-}
 
 #include "translation/translation.h"
 

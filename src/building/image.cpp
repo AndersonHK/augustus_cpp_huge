@@ -8,10 +8,10 @@
 #include "building/building_runtime_graphics.h"
 #include "building/building_type.h"
 #include "building/building_type_registry_internal.h"
+#include "building/industry.h"
 
 #include <cstring>
 
-extern "C" {
 #include "image.h"
 
 #include "assets/assets.h"
@@ -26,7 +26,6 @@ extern "C" {
 #include "map/random.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-}
 
 #include "building/building_type_api.h"
 
@@ -575,7 +574,7 @@ static int image_overgrown_gardens(const building *b)
 static int type_handler_image(const building *b, int *image_id)
 {
     Building building_object(const_cast<building *>(b));
-    const auto *definition = building_object.type_definition();
+    const auto *definition = building_object.type;
     if (definition && std::strcmp(definition->attr(), "dock") == 0) {
         *image_id = image_dock(b);
         return 1;
@@ -678,23 +677,23 @@ static int type_handler_image(const building *b, int *image_id)
 
 int building_image_get_base_farm_crop(building_type type)
 {
-    static const char *const crop_types[] = {
-        "wheat_farm",
-        "native_crops",
-        "vegetable_farm",
-        "fruit_farm",
-        "olive_farm",
-        "vines_farm",
-        "pig_farm",
-    };
-    int index = type_index(type, crop_types, sizeof(crop_types) / sizeof(crop_types[0]));
-    if (index < 0) {
-        return 0;
-    }
-    if (index <= 1) {
+    const resource_type output = building_output_resource(type);
+    if (output == resource_wheat() || type_matches(type, "native_crops")) {
         return image_group(GROUP_BUILDING_FARM_CROPS);
     }
-    return image_group(GROUP_BUILDING_FARM_CROPS) + (index - 1) * 5;
+    const resource_type crop_resources[] = {
+        resource_vegetables(),
+        resource_fruit(),
+        resource_olives(),
+        resource_vines(),
+        resource_meat(),
+    };
+    for (int i = 0; i < sizeof(crop_resources) / sizeof(crop_resources[0]); i++) {
+        if (output == crop_resources[i]) {
+            return image_group(GROUP_BUILDING_FARM_CROPS) + (i + 1) * 5;
+        }
+    }
+    return 0;
 }
 
 int building_image_get_garden_gate_image(int grid_offset)

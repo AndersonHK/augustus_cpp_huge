@@ -6,14 +6,12 @@
 
 #include "core/hotkey_config.h"
 #include "translation/translation.h"
-extern "C" {
 
 #include "core/image_group.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #define NUM_BOTTOM_BUTTONS 2
 

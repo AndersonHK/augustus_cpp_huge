@@ -7,14 +7,12 @@
 
 #include "labor.h"
 
-extern "C" {
 
 #include "city/finance.h"
 #include "core/calc.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-}
 
 #define ADVISOR_HEIGHT 26
 

@@ -1,16 +1,8 @@
-﻿#pragma once
+#pragma once
 
-#include "building/building_fwd.h"
+#include "building/building.h"
 #include "building/properties.h"
-#ifdef __cplusplus
-extern "C++" {
-class Building;
-}
-extern "C" {
-#endif
 
-
-class Building;
 
 int building_house_is_active(Building house);
 int building_house_legacy_level(Building house);
@@ -34,6 +26,3 @@ void building_house_check_for_corruption(Building house);
 
 void building_house_restore_population_after_undo(Building house);
 
-#ifdef __cplusplus
-}
-#endif

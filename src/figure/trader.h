@@ -1,12 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "core/buffer.h"
 #include "game/resource.h"
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
 /**
  * @file
  * Trade figure extra info
@@ -93,7 +88,3 @@ void traders_save_state(buffer *buf);
  * @param buf Buffer
  */
 void traders_load_state(buffer *buf);
-
-#ifdef __cplusplus
-}
-#endif

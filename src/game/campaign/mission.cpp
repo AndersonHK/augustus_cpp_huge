@@ -1,90 +1,81 @@
 #include "mission.h"
 
-#include "core/array.h"
-
-#define MISSIONS_ARRAY_SIZE_STEP 8
-#define SCENARIOS_ARRAY_SIZE_STEP 16
+#include <cstdlib>
+#include <vector>
 
 static struct {
-    array(campaign_mission) missions;
-    array(campaign_scenario) scenarios;
+    std::vector<campaign_mission> missions;
+    std::vector<campaign_scenario> scenarios;
 } data;
-
-static void new_mission(campaign_mission *mission, unsigned int index)
-{
-    mission->id = index;
-    mission->first_scenario = data.scenarios.size;
-    mission->last_scenario = mission->first_scenario - 1;
-}
-
-static void new_scenario(campaign_scenario *camp_scenario, unsigned int index)
-{
-    camp_scenario->id = index;
-}
 
 campaign_mission *campaign_mission_new(void)
 {
-    return array_advance(data.missions);
+    data.missions.emplace_back();
+    campaign_mission &mission = data.missions.back();
+    mission = {};
+    mission.id = static_cast<unsigned int>(data.missions.size() - 1);
+    mission.first_scenario = static_cast<int>(data.scenarios.size());
+    mission.last_scenario = mission.first_scenario - 1;
+    return &mission;
 }
 
 campaign_mission *campaign_mission_current(int index)
 {
-    campaign_mission *mission;
-    array_foreach(data.missions, mission) {
-        if (mission->first_scenario <= index && mission->last_scenario >= index) {
-            return mission;
+    for (campaign_mission &mission : data.missions) {
+        if (mission.first_scenario <= index && mission.last_scenario >= index) {
+            return &mission;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 campaign_mission *campaign_mission_next(int last_index)
 {
-    campaign_mission *mission;
-    array_foreach(data.missions, mission) {
-        if (mission->first_scenario > last_index) {
-            return mission;
+    for (campaign_mission &mission : data.missions) {
+        if (mission.first_scenario > last_index) {
+            return &mission;
         }
     }
-    return 0;
+    return nullptr;
 }
 
 campaign_scenario *campaign_mission_new_scenario(void)
 {
-    return array_advance(data.scenarios);
+    data.scenarios.emplace_back();
+    campaign_scenario &scenario = data.scenarios.back();
+    scenario = {};
+    scenario.id = static_cast<unsigned int>(data.scenarios.size() - 1);
+    return &scenario;
 }
 
 campaign_scenario *campaign_mission_get_scenario(unsigned int scenario_id)
 {
-    return scenario_id < data.scenarios.size ? array_item(data.scenarios, scenario_id) : 0;
+    return scenario_id < data.scenarios.size() ? &data.scenarios[scenario_id] : nullptr;
 }
 
 int campaign_mission_init(void)
 {
     campaign_mission_clear();
-    return array_init(data.missions, MISSIONS_ARRAY_SIZE_STEP, new_mission, 0) &&
-        array_init(data.scenarios, SCENARIOS_ARRAY_SIZE_STEP, new_scenario, 0);
+    return 1;
 }
 
 void campaign_mission_clear(void)
 {
     if (game_campaign_is_custom()) {
-        campaign_mission *mission;
-        array_foreach(data.missions, mission) {
-            free((uint8_t *) mission->title);
-            free((char *) mission->background_image.path);
-            free((char *) mission->intro_video);
+        for (campaign_mission &mission : data.missions) {
+            free((uint8_t *) mission.title);
+            free((char *) mission.background_image.path);
+            free((char *) mission.intro_video);
         }
     }
-    array_clear(data.missions);
-    campaign_scenario *camp_scenario;
-    array_foreach(data.scenarios, camp_scenario) {
-        free((uint8_t *) camp_scenario->name);
+    data.missions.clear();
+    for (campaign_scenario &scenario : data.scenarios) {
+        free((uint8_t *) scenario.name);
         if (game_campaign_is_custom()) {
-            free((uint8_t *) camp_scenario->description);
-            free((char *) camp_scenario->fanfare);
-            free((char *) camp_scenario->path);
+            free((uint8_t *) scenario.description);
+            free((char *) scenario.fanfare);
+            free((char *) scenario.path);
         }
     }
-    array_clear(data.scenarios);
+    data.scenarios.clear();
 }

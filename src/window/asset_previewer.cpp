@@ -12,7 +12,6 @@
 #include "window/popup_dialog.h"
 #include "core/file.h"
 #include "game/settings.h"
-extern "C" {
 
 #include "assets/assets.h"
 #include "core/calc.h"
@@ -33,7 +32,6 @@ extern "C" {
 #include "input/scroll.h"
 #include "scenario/property.h"
 #include "sound/music.h"
-}
 
 #include <string.h>
 

@@ -8,7 +8,6 @@
 #include "graphics/window.h"
 
 #include "core/file.h"
-extern "C" {
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/encoding.h"
@@ -20,7 +19,6 @@ extern "C" {
 #include "graphics/ui_runtime_api.h"
 #include "graphics/scrollbar.h"
 #include "graphics/screen.h"
-}
 
 
 #include <stdlib.h>

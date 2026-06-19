@@ -8,11 +8,9 @@
 #include "game/mod_manager.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-}
 
 #include <cstdio>
 #include <memory>
@@ -184,13 +182,13 @@ const CultureModule *find_culture_module_definition(const char *path)
 
 } // namespace building_type_registry_impl
 
-extern "C" const char *culture_module_registry_get_culture_module_path(void)
+const char *culture_module_registry_get_culture_module_path(void)
 {
     building_type_registry_impl::g_culture_module_path = mod_manager::mod_path() + "CultureModule/";
     return building_type_registry_impl::g_culture_module_path.c_str();
 }
 
-extern "C" int culture_module_registry_load(void)
+int culture_module_registry_load(void)
 {
     using namespace building_type_registry_impl;
 

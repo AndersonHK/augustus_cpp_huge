@@ -7,7 +7,6 @@
 
 #include "military_menu.h"
 
-extern "C" {
 
 #include "city/view.h"
 #include "figure/formation.h"
@@ -15,7 +14,6 @@ extern "C" {
 #include "graphics/screen.h"
 #include "graphics/window.h"
 #include "map/grid.h"
-}
 
 #define MENU_X_OFFSET 170
 #define MENU_Y_OFFSET 72

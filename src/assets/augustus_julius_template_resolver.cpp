@@ -4,9 +4,7 @@
 #include "core/legacy_image_extractor.h"
 
 #include "core/file.h"
-extern "C" {
 #include "core/dir.h"
-}
 
 #include <algorithm>
 #include <cstdlib>

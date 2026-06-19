@@ -1,12 +1,7 @@
-﻿#pragma once
+#pragma once
 
 #include "building/building_fwd.h"
-#ifdef __cplusplus
-extern "C++" {
 class Building;
-}
-extern "C" {
-#endif
 
 
 class Building;
@@ -56,6 +51,3 @@ int house_population_create_emigrants(int num_people);
 
 int house_population_get_capacity(Building house);
 
-#ifdef __cplusplus
-}
-#endif

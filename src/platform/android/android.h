@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifdef __ANDROID__
 
@@ -24,6 +21,3 @@ void platform_hide_virtual_keyboard(void);
 
 #endif // __ANDROID__
 
-#ifdef __cplusplus
-}
-#endif

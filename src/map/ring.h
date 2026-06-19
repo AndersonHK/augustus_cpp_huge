@@ -1,7 +1,4 @@
-﻿#pragma once
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma once
 
 
 typedef struct {
@@ -20,6 +17,3 @@ int map_ring_is_inside_map(int x, int y);
 
 const ring_tile *map_ring_tile(int index);
 
-#ifdef __cplusplus
-}
-#endif

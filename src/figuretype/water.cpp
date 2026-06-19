@@ -5,7 +5,6 @@
 
 #include "city/god.h"
 
-extern "C" {
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/monument.h"
@@ -21,7 +20,6 @@ extern "C" {
 #include "map/figure.h"
 #include "map/grid.h"
 #include "scenario/map.h"
-}
 
 static const int FLOTSAM_RESOURCE_IDS[] = {
     3, 1, 3, 2, 1, 3, 2, 3, 2, 1, 3, 3, 2, 3, 3, 3, 1, 2, 0, 1
@@ -43,7 +41,7 @@ static int lighthouse_monument_working(void)
 {
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        const building_type_registry_impl::BuildingType *definition = b ? Building(b).type_definition() : nullptr;
+        const building_type_registry_impl::BuildingType *definition = b ? Building(b).type : nullptr;
         if (definition && definition->is_lighthouse()) {
             return building_monument_working(b->type);
         }
@@ -56,23 +54,23 @@ void figure_create_flotsam(void)
     if (!scenario_map_has_river_entry() || !scenario_map_has_river_exit() || !scenario_map_has_flotsam()) {
         return;
     }
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
         if (f->state && f->type == FIGURE_FLOTSAM) {
-            figure_delete(f);
+            f->remove();
         }
     }
 
     map_point river_entry = scenario_map_river_entry();
     for (int i = 0; i < 20; i++) {
-        figure *f = figure_create(FIGURE_FLOTSAM, river_entry.x, river_entry.y, DIR_0_TOP);
+        Figure *f = Figure::create(FIGURE_FLOTSAM, river_entry.x, river_entry.y, DIR_0_TOP);
         f->action_state = FIGURE_ACTION_128_FLOTSAM_CREATED;
         f->resource_id = FLOTSAM_RESOURCE_IDS[i];
         f->wait_ticks = FLOTSAM_WAIT_TICKS[i];
     }
 }
 
-void figure_flotsam_action(figure *f)
+void figure_flotsam_action(Figure *f)
 {
     f->is_boat = 2;
     if (!scenario_map_has_river_exit()) {
@@ -158,7 +156,7 @@ void figure_flotsam_action(figure *f)
     }
 }
 
-void figure_shipwreck_action(figure *f)
+void figure_shipwreck_action(Figure *f)
 {
     f->is_ghost = 0;
     f->height_adjusted_ticks = 0;
@@ -192,20 +190,24 @@ static int fishing_boat_percentage_speed(void)
     return 0;
 }
 
-void figure_fishing_boat_action(figure *f)
+void figure_fishing_boat_action(Figure *f)
 {
-    building *b = building_get(f->building_id);
+    building *b = building_get(f->building.id());
+    if (!b) {
+        f->state = FIGURE_STATE_DEAD;
+        return;
+    }
     if (b->state != BUILDING_STATE_IN_USE) {
         f->state = FIGURE_STATE_DEAD;
     }
     int speed = 1;
     int percentage_speed = fishing_boat_percentage_speed();
-    if (f->action_state != FIGURE_ACTION_190_FISHING_BOAT_CREATED && b->data.industry.fishing_boat_id != f->id) {
+    if (f->action_state != FIGURE_ACTION_190_FISHING_BOAT_CREATED && b->data.industry.fishing_boat_id != f->id()) {
         map_point tile;
         b = building_get(map_water_get_wharf_for_new_fishing_boat(f, &tile));
-        if (b->id) {
-            f->building_id = b->id;
-            b->data.industry.fishing_boat_id = f->id;
+        if (b && b->id) {
+            f->building = Building(b);
+            b->data.industry.fishing_boat_id = f->id();
             f->action_state = FIGURE_ACTION_193_FISHING_BOAT_GOING_TO_WHARF;
             f->destination_x = tile.x;
             f->destination_y = tile.y;
@@ -229,8 +231,8 @@ void figure_fishing_boat_action(figure *f)
                 int wharf_id = map_water_get_wharf_for_new_fishing_boat(f, &tile);
                 if (wharf_id) {
                     b->figure_id = 0; // remove from original building
-                    f->building_id = wharf_id;
-                    building_get(wharf_id)->data.industry.fishing_boat_id = f->id;
+                    f->building = Building(building_get(wharf_id));
+                    building_get(wharf_id)->data.industry.fishing_boat_id = f->id();
                     f->action_state = FIGURE_ACTION_193_FISHING_BOAT_GOING_TO_WHARF;
                     f->destination_x = tile.x;
                     f->destination_y = tile.y;
@@ -333,19 +335,19 @@ void figure_fishing_boat_action(figure *f)
 
 void figure_sink_all_ships(void)
 {
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
         if (f->state != FIGURE_STATE_ALIVE) {
             continue;
         }
         if (f->type == FIGURE_TRADE_SHIP) {
-            building_get(f->destination_building_id)->data.dock.trade_ship_id = 0;
+            building_get(f->destination_building.id())->data.dock.trade_ship_id = 0;
         } else if (f->type == FIGURE_FISHING_BOAT) {
-            building_get(f->building_id)->data.industry.fishing_boat_id = 0;
+            building_get(f->building.id())->data.industry.fishing_boat_id = 0;
         } else {
             continue;
         }
-        f->building_id = 0;
+        f->building = Building(nullptr);
         f->type = FIGURE_SHIPWRECK;
         f->wait_ticks = 0;
     }
@@ -355,8 +357,8 @@ void figure_sink_half_ships(void)
 {
     int fishing_to_destroy = 0;
     int trade_to_destroy = 0;
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
         if (f->state != FIGURE_STATE_ALIVE) {
             continue;
         }
@@ -368,21 +370,21 @@ void figure_sink_half_ships(void)
     }
     int fishing_destroyed = 0;
     int trade_destroyed = 0;
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
         if (f->state != FIGURE_STATE_ALIVE) {
             continue;
         }
         if (f->type == FIGURE_TRADE_SHIP && (trade_destroyed < (int)trade_to_destroy / 2 )) {
-            building_get(f->destination_building_id)->data.dock.trade_ship_id = 0;
+            building_get(f->destination_building.id())->data.dock.trade_ship_id = 0;
             trade_destroyed++;
         } else if (f->type == FIGURE_FISHING_BOAT && (fishing_destroyed < (int)fishing_to_destroy / 2 )) {
-            building_get(f->building_id)->data.industry.fishing_boat_id = 0;
+            building_get(f->building.id())->data.industry.fishing_boat_id = 0;
             fishing_destroyed++;
         } else {
             continue;
         }
-        f->building_id = 0;
+        f->building = Building(nullptr);
         f->type = FIGURE_SHIPWRECK;
         f->wait_ticks = 0;
     }

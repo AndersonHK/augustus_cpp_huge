@@ -3,10 +3,8 @@
 
 #include "common.h"
 
-extern "C" {
 #include "city/view.h"
 #include "graphics/screen.h"
-}
 
 
 int sidebar_common_get_x_offset_expanded(void)

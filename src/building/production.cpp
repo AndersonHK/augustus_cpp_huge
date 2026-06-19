@@ -5,14 +5,12 @@
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/production.h"
+#include "figure/figure.h"
 
-extern "C" {
 #include "city/finance.h"
 #include "city/data_private.h"
 #include "core/calc.h"
-#include "figure/figure.h"
 #include "game/resource.h"
-}
 
 namespace {
 
@@ -29,12 +27,12 @@ int get_resource_slot_index(resource_type resource)
 
 ::building *production_record(Building building)
 {
-    return building.legacy_record();
+    return building_get(building.id());
 }
 
 void update_farm_image(const Building &building, int max_progress)
 {
-    const ::building *record = building.legacy_record();
+    const ::building *record = building_get(building.id());
     if (!record) {
         return;
     }
@@ -42,7 +40,7 @@ void update_farm_image(const Building &building, int max_progress)
         building.id(),
         building.x(),
         building.y(),
-        building_image_get_base_farm_crop(building.type_id()),
+        building_image_get_base_farm_crop(building.type ? building.type->type() : BUILDING_NONE),
         calc_percentage(record->data.industry.progress, max_progress));
 }
 
@@ -52,8 +50,8 @@ Production::Production(
     const Building &building,
     const building_type_registry_impl::ProductionMethod *method,
     size_t method_index)
-    : record_(const_cast<::building *>(building.legacy_record()))
-    , definition_(building.type_definition())
+    : record_(building_get(building.id()))
+    , definition_(building.type)
     , method_(method)
     , method_index_(method_index)
 {
@@ -103,7 +101,7 @@ int Production::decrement_strike_if_needed(int new_day, int *out_is_striking)
 
     if (legacy->strike_duration_days == 0) {
         city_data.building.num_striking_industries--;
-        figure_delete(figure_get(legacy->figure_id4));
+        Figure::get(legacy->figure_id4)->remove();
         if (out_is_striking) {
             *out_is_striking = 0;
         }

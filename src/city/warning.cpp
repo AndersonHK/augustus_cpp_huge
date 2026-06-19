@@ -1,9 +1,7 @@
 #include "translation/translation.h"
 #include "warning.h"
 
-extern "C" {
 #include "core/string.h"
-}
 
 #include "core/time.h"
 #include "game/settings.h"

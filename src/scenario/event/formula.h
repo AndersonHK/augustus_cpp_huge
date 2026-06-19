@@ -1,11 +1,8 @@
-﻿#pragma once
+#pragma once
 
 #include "scenario/event/data.h"
 
 #include <stddef.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 /**
@@ -41,6 +38,3 @@ int scenario_event_formula_check(scenario_formula_t *formula);
 int scenario_event_formula_is_static(unsigned int id);
 int scenario_event_formula_is_error(unsigned int id);
 
-#ifdef __cplusplus
-}
-#endif

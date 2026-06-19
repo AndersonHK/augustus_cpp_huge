@@ -1,17 +1,12 @@
-﻿#pragma once
+#pragma once
 
 #include "city/constants.h"
 #include "core/buffer.h"
 
-#ifdef __cplusplus
 #include "building/culture_module.h"
-#endif
 
 typedef struct building building;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void city_culture_update_coverage(void);
 
@@ -47,8 +42,5 @@ void city_culture_save_state(buffer *buf);
 
 void city_culture_load_state(buffer *buf);
 
-#ifdef __cplusplus
-}
 
 int city_culture_module_capacity(building_type_registry_impl::CultureModuleType type);
-#endif
