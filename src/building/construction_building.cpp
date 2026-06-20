@@ -640,7 +640,7 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
         b->subtype.orientation = building_rotation_get_rotation();
         map_tiles_update_area_roads(b->x, b->y, 4);
         building_monument_set_phase(b, MONUMENT_START);
-    } else if (building_type_attr_is(type, "depot")) {
+    } else if (building_type_attr_is(type, "cart_depot")) {
         add_depot(b);
     } else if (building_obj.type &&
         building_obj.type->is_temple_tier(building_type_registry_impl::ReligionTier::Shrine)) {

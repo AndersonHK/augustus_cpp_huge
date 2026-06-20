@@ -22,7 +22,7 @@ typedef struct {
     int inner_length;
 } waterside_tile_loop;
 
-void map_water_add_building(int building_id, int x, int y, int size);
+void map_water_add_building(int building_id, int x, int y, int size, int image_id = 0);
 
 int map_water_determine_orientation(int x, int y, int size, int adjust_xy,
     int *orientation_absolute, int *orientation_relative, int check_water_in_front, int *blocked);

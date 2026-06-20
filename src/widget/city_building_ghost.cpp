@@ -449,8 +449,9 @@ static void prepare_ghost_building(int grid_offset, building_type type)
     }
     if (is_waterside_type(type)) {
         int waterside_orientation_abs = -1;
-        if (!map_water_determine_orientation(building_x, building_y, data.ghost_building.size, 0,
-            &waterside_orientation_abs, 0, 0, 0) && waterside_orientation_abs >= 0) {
+        map_water_determine_orientation(building_x, building_y, data.ghost_building.size, 0,
+            &waterside_orientation_abs, 0, 0, 0);
+        if (waterside_orientation_abs >= 0) {
             data.ghost_building.subtype.orientation = static_cast<short>(waterside_orientation_abs);
             if (is_dock_type(type)) {
                 data.ghost_building.data.dock.orientation = static_cast<signed char>(waterside_orientation_abs);

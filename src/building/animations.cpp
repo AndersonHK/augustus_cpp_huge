@@ -751,7 +751,7 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
     if (definition_is(definition_, "watchtower") && (building.num_workers <= 0 || !building.figure_id4)) {
         return 1;
     }
-    if (definition_is(definition_, "depot") && building.num_workers <= 0) {
+    if (definition_is(definition_, "cart_depot") && building.num_workers <= 0) {
         return 1;
     }
     if (definition_ && definition_->is_armoury() && building.num_workers <= 0) {

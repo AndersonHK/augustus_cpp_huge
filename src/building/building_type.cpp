@@ -652,7 +652,7 @@ static LaborCategory determine_labor_category(const std::string &attr)
     }
     if (attr_is_any(attr, {
         "market", "warehouse", "dock", "city_mint", "concrete_maker",
-        "brickworks", "depot", "distribution_center_unused"
+        "brickworks", "cart_depot", "distribution_center_unused"
     })) {
         return LaborCategory::IndustryCommerce;
     }

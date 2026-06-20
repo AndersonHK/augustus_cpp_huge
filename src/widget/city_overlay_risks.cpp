@@ -95,7 +95,7 @@ void city_overlay_problems_prepare_building(building *b)
         b->show_on_problem_overlay = 1;
     } else if (building_type_attr_is_any(b->type, "arena", "colosseum") && !b->data.entertainment.days2) {
         b->show_on_problem_overlay = 1;
-    } else if (building_type_attr_is(b->type, "depot") &&
+    } else if (building_type_attr_is(b->type, "cart_depot") &&
         (!b->data.depot.current_order.src_storage_id ||
          !b->data.depot.current_order.dst_storage_id)) {
         b->show_on_problem_overlay = 1;
@@ -382,7 +382,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
     } else if (building_type_attr_is(b->type, "hippodrome") && !b->data.entertainment.days1) {
         c->text_group = 73;
         return 5;
-    } else if (building_type_attr_is(b->type, "depot") &&
+    } else if (building_type_attr_is(b->type, "cart_depot") &&
         (!b->data.depot.current_order.src_storage_id ||
          !b->data.depot.current_order.dst_storage_id)) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_DEPOT_NO_INSTRUCTIONS";

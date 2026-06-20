@@ -527,7 +527,7 @@ static int get_overlay_for_building_type(const building_type_registry_impl::Buil
     } else if (building_type_attr_is_any(type, {"mission_post", "native_hut", "native_hut_alt", "native_meeting"})) {
         overlay = OVERLAY_NATIVE;
     } else if (type.is_warehouse() || type.is_lighthouse() || type.is_armoury() ||
-        is_dock || building_type_attr_is_any(type, {"warehouse_space", "depot"})) {
+        is_dock || building_type_attr_is_any(type, {"warehouse_space", "cart_depot"})) {
         overlay = OVERLAY_LOGISTICS;
     } else if (building_type_attr_is(type, "latrines")) {
         overlay = OVERLAY_HEALTH;

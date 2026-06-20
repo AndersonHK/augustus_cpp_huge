@@ -830,7 +830,7 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
             if (building.has_plague()) {
                 draw_plague(building, x, y, color_mask);
             }
-            if (building_matches(building, "depot")) {
+            if (building_matches(building, "cart_depot")) {
                 draw_depot_resource(building, x, y);
             }
         }

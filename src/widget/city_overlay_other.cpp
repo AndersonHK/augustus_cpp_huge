@@ -201,7 +201,7 @@ static int show_building_logistics(const building *b)
     const auto *definition = building.type;
     const int is_dock = definition && std::strcmp(definition->attr(), "dock") == 0;
     return (type && type->is_warehouse()) || building_type_attr_is(b->type, "warehouse_space") ||
-        (type && type->is_granary()) || is_dock || building_type_attr_is(b->type, "depot") ||
+        (type && type->is_granary()) || is_dock || building_type_attr_is(b->type, "cart_depot") ||
         (type && type->is_lighthouse()) || (type && type->is_armoury());
 }
 
@@ -211,7 +211,7 @@ static int show_building_storages(const building *b)
     const Building building = building_from_record(b);
     const auto *definition = building.type;
     return (b->storage_id > 0 && building_storage_get(b->storage_id))
-        || building_type_attr_is(b->type, "depot")
+        || building_type_attr_is(b->type, "cart_depot")
         || (definition && std::strcmp(definition->attr(), "dock") == 0);
 }
 
@@ -549,7 +549,7 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
 {
     int building_id = map_building_at(grid_offset);
     building *b = building_get(building_id);
-    if (building_type_attr_is(b->type, "depot")) {
+    if (building_type_attr_is(b->type, "cart_depot")) {
         static uint8_t result[256];
         order depot_order = b->data.depot.current_order;
         static const translation_key condition_texts[] = {

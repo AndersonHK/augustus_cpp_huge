@@ -95,7 +95,7 @@ int type_is_granary(building_type type)
 
 int type_is_depot(building_type type)
 {
-    return type_is(type, "depot");
+    return type_is(type, "cart_depot");
 }
 
 int type_is_burning_ruin(building_type type)
@@ -794,6 +794,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             buffer_skip(buf, 2);
         }
         b->data.dock.orientation = buffer_read_i8(buf);
+        b->subtype.orientation = b->data.dock.orientation;
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             buffer_skip(buf, 3);
         }

@@ -676,11 +676,12 @@ static void draw_paneling(void)
     graphics_set_clip_rectangle(data.sidebar.x_min - WIDTH_BORDER, data.sidebar.y_min, //clipping - border, to let border be drawn OUTSIDE
         data.sidebar.width + WIDTH_BORDER, //account for width border substracted earlier to make sure textures stretch all the way
         data.sidebar.y_max - data.sidebar.y_min);
-    int asset_id = assets_lookup_image_id(ASSET_UI_VERTICAL_EMPIRE_PANEL);
+    static const ImageGroupEntryRef sidebar_background =
+        ImageGroupEntryRef::from_group("UI\\Empire_panel_texture_vertical", "Empire_panel_texture_vertical");
 
     for (int x = data.sidebar.x_min; x <= data.sidebar.x_max; x += 40) {
         for (int y = data.sidebar.y_min; y < data.sidebar.y_max; y += 70) {
-            Image::from_id(asset_id).draw(x, y);
+            sidebar_background.draw(x, y);
         }
     }
     // Sidebar border 

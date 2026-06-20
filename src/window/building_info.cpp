@@ -501,7 +501,7 @@ static void init(int grid_offset)
             context.has_road_access = map_has_road_access_warehouse(b->x, b->y, 0);
             const Building warehouse(b);
             context.warehouse_space_text = building_warehouse_get_space_info(warehouse);
-        } else if (building_type_attr_is(btype, "depot")) {
+        } else if (building_type_attr_is(btype, "cart_depot")) {
             context.has_road_access = map_has_road_access(b->x, b->y, b->size, 0);
             game_state_set_overlay(OVERLAY_STORAGES);
             window_building_depot_init_main(b->id);
@@ -695,7 +695,7 @@ static void draw_background(void)
             } else {
                 window_building_draw_storage(&context);
             }
-        } else if (building_type_attr_is(btype, "depot")) {
+        } else if (building_type_attr_is(btype, "cart_depot")) {
             if (context.depot_selection == 2) {
                 window_building_draw_depot_order_source_destination_background(&context, 0);
             } else if (context.depot_selection == 3) {
@@ -920,7 +920,7 @@ static void draw_foreground(void)
             } else {
                 window_building_draw_storage_foreground(&context);
             }
-        } else if (building_type_attr_is(btype, "depot")) {
+        } else if (building_type_attr_is(btype, "cart_depot")) {
             if (context.depot_selection == 2) {
                 window_building_draw_depot_select_source_destination(&context);
             } else if (context.depot_selection == 3) {
@@ -1095,7 +1095,7 @@ static int handle_specific_building_info_mouse(const mouse *m)
             } else {
                 return window_building_handle_mouse_storage(m, &context);
             }
-        } else if (building_type_attr_is(btype, "depot")) {
+        } else if (building_type_attr_is(btype, "cart_depot")) {
             if (context.depot_selection == 2) {
                 window_building_handle_mouse_depot_select_source(m, &context);
             } else if (context.depot_selection == 3) {
@@ -1231,7 +1231,7 @@ static void get_tooltip(tooltip_context *c)
             window_building_storage_get_tooltip_distribution_permissions(&translation);
         } else if (is_dock) {
             precomposed_text = window_building_dock_get_tooltip(&context);
-        } else if (context.type == BUILDING_INFO_BUILDING && building_type_attr_is(btype, "depot")) {
+        } else if (context.type == BUILDING_INFO_BUILDING && building_type_attr_is(btype, "cart_depot")) {
             if (context.depot_selection == 2 || context.depot_selection == 3) {
                 precomposed_text = window_building_depot_get_tooltip_source_destination(&translation, &group_id);
             } else if (context.depot_selection == 0) {

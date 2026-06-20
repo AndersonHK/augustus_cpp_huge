@@ -930,7 +930,7 @@ int window_building_handle_mouse_depot_select_destination(const mouse *m, buildi
 static void order_set_resource(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || !type_matches(static_cast<building_type>(b->type), "depot")) {
+    if (!b || !type_matches(static_cast<building_type>(b->type), "cart_depot")) {
         return;
     }
     for (int i = 0; i < 3; i++) {
@@ -981,7 +981,7 @@ void window_building_depot_get_tooltip_main(translation_key *translation)
 static void depot_recall_all_cart_pushers(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || !type_matches(static_cast<building_type>(b->type), "depot")) {
+    if (!b || !type_matches(static_cast<building_type>(b->type), "cart_depot")) {
         return;
     }
     int recalled_count = 0;
@@ -1003,7 +1003,7 @@ static void depot_recall_all_cart_pushers(const generic_button *button)
 static void order_clear_source(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || !type_matches(static_cast<building_type>(b->type), "depot")) {
+    if (!b || !type_matches(static_cast<building_type>(b->type), "cart_depot")) {
         return;
     }
     b->data.depot.current_order.src_storage_id = 0;
@@ -1013,7 +1013,7 @@ static void order_clear_source(const generic_button *button)
 static void order_clear_destination(const generic_button *button)
 {
     building *b = building_get(data.depot_building_id);
-    if (!b || !type_matches(static_cast<building_type>(b->type), "depot")) {
+    if (!b || !type_matches(static_cast<building_type>(b->type), "cart_depot")) {
         return;
     }
     b->data.depot.current_order.dst_storage_id = 0;

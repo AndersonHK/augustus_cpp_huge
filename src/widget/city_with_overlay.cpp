@@ -686,7 +686,7 @@ static void draw_building_top(Building building, int x, int y, int grid_offset)
         draw_warehouse_ornaments(x, y, color_mask);
         draw_permissions_flag(building, x + 19, y - 56, color_mask);
     }
-    if (building_matches(building, "depot")) {
+    if (building_matches(building, "cart_depot")) {
         draw_depot_resource(building, x, y);
     }
 

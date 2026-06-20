@@ -1408,7 +1408,7 @@ void building_figure_generate(void)
             spawn_figure_mess_hall(b);
         } else if (building_matches(b, "tavern")) {
             spawn_figure_tavern(b);
-        } else if (building_matches(b, "depot")) {
+        } else if (building_matches(b, "cart_depot")) {
             spawn_figure_depot(b);
         }
     }

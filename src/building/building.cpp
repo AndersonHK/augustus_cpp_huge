@@ -21,6 +21,7 @@
 #include "map/building_tiles.h"
 #include "map/road_access.h"
 #include "map/tiles.h"
+#include "map/water.h"
 #include "map/water_supply.h"
 
 #include "building.h"
@@ -770,6 +771,11 @@ int Building::image_id() const
 void Building::add_map_tiles(int image_id) const
 {
     if (record_) {
+        const char *attr = type ? type->attr() : nullptr;
+        if (attr && (!std::strcmp(attr, "dock") || !std::strcmp(attr, "shipyard") || !std::strcmp(attr, "wharf"))) {
+            map_water_add_building(record_->id, record_->x, record_->y, record_->size, image_id);
+            return;
+        }
         map_building_tiles_add(record_->id, record_->x, record_->y, record_->size, image_id, TERRAIN_BUILDING);
     }
 }
@@ -2173,7 +2179,7 @@ static void building_resource_state_write_payload(buffer *buf)
                 static_cast<resource_type>(b->data.market.fetch_inventory_id) :
                 RESOURCE_NONE);
         resource_save_write_ref(buf,
-            building_matches(b, "depot") ?
+            building_matches(b, "cart_depot") ?
                 static_cast<resource_type>(b->data.depot.current_order.resource_type) :
                 RESOURCE_NONE);
         building_write_resource_i16_values(buf, b->resources);
@@ -2289,7 +2295,7 @@ void building_resource_state_load(buffer *buf)
                         static_cast<unsigned char>(fetch_inventory) :
                         RESOURCE_NONE;
             }
-            if (building_matches(b, "depot")) {
+            if (building_matches(b, "cart_depot")) {
                 b->data.depot.current_order.resource_type =
                     depot_order_resource >= RESOURCE_NONE && depot_order_resource < RESOURCE_SLOT_COUNT ?
                         static_cast<resource_type>(depot_order_resource) :

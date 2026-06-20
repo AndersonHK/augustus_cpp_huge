@@ -247,7 +247,7 @@ building_data_type building_data_transfer_data_type_from_building_type(building_
     if (type_attr_is(type, "tavern")) {
         return DATA_TYPE_TAVERN;
     }
-    if (type_attr_is(type, "depot")) {
+    if (type_attr_is(type, "cart_depot")) {
         return DATA_TYPE_DEPOT;
     }
     return DATA_TYPE_NOT_SUPPORTED;
