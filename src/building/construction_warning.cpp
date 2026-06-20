@@ -24,26 +24,32 @@
 #include "map/terrain.h"
 #include "scenario/property.h"
 
+#include <initializer_list>
 #include <string>
 #include <string_view>
 
 static int has_warning = 0;
 
-static building_type runtime_type(const char *text_id)
+static const building_type_registry_impl::BuildingType *type_definition(building_type type)
 {
-    return building_type_registry_impl::runtime_id_from_text(text_id);
+    return building_type_registry_impl::definition_for_type(type);
 }
 
-static int type_matches(building_type type, const char *text_id)
+static int type_has_attr(building_type type, std::string_view attr)
 {
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
+    const building_type_registry_impl::BuildingType *definition = type_definition(type);
+    return definition && std::string_view(definition->attr()) == attr;
 }
 
-static int type_matches_any(building_type type, const char *const *text_ids, int count)
+static int type_has_any_attr(building_type type, std::initializer_list<std::string_view> attrs)
 {
-    for (int i = 0; i < count; i++) {
-        if (type_matches(type, text_ids[i])) {
+    const building_type_registry_impl::BuildingType *definition = type_definition(type);
+    if (!definition) {
+        return 0;
+    }
+    std::string_view attr(definition->attr());
+    for (std::string_view candidate : attrs) {
+        if (attr == candidate) {
             return 1;
         }
     }
@@ -58,14 +64,13 @@ static int is_vacant_lot_fill_type(building_type type)
 
 static int is_shrine_tier(building_type type)
 {
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
+    const building_type_registry_impl::BuildingType *definition = type_definition(type);
     return definition && definition->is_temple_tier(building_type_registry_impl::ReligionTier::Shrine);
 }
 
-static int active_count(const char *text_id)
+static int active_count(std::string_view attr)
 {
-    building_type type = runtime_type(text_id);
+    building_type type = building_type_registry_impl::type_from_attr(attr);
     return type != BUILDING_NONE ? building_count_active(type) : 0;
 }
 
@@ -105,8 +110,7 @@ static void show_missing_resource(resource_type resource)
 
 static std::string building_type_name(building_type type)
 {
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
+    const building_type_registry_impl::BuildingType *definition = type_definition(type);
     const char *name_key = definition && definition->has_identity() ? definition->identity().name_key() : nullptr;
     if (name_key) {
         std::string name = legacy_text(translation_for_key(name_key));
@@ -134,7 +138,7 @@ static void show_missing_producer(building_type producer)
 
 static void check_road_access(building_type type, int x, int y, int size)
 {
-    static const char *const no_road_access_types[] = {
+    if (is_vacant_lot_fill_type(type) || type_has_any_attr(type, {
         "well",
         "large_statue",
         "fountain",
@@ -154,11 +158,7 @@ static void check_road_access(building_type type, int x, int y, int size)
         "plum_tree",
         "palm_tree",
         "date_tree",
-        "pavilion_blue",
-        "pavilion_red",
-        "pavilion_orange",
-        "pavilion_yellow",
-        "pavilion_green",
+        "pavilion",
         "obelisk",
         "gatehouse",
         "triumphal_arch",
@@ -176,24 +176,22 @@ static void check_road_access(building_type type, int x, int y, int size)
         "decorative_column",
         "gladiator_statue",
         "latrines",
-    };
-    if (is_vacant_lot_fill_type(type) ||
-        type_matches_any(type, no_road_access_types, sizeof(no_road_access_types) / sizeof(no_road_access_types[0]))) {
+    })) {
         return;
     }
 
     int has_road = 0;
     if (map_has_road_access(x, y, size, 0)) {
         has_road = 1;
-    } else if (type_matches(type, "granary") && map_has_road_access_granary(x, y, 0)) {
+    } else if (type_has_attr(type, "granary") && map_has_road_access_granary(x, y, 0)) {
         has_road = 1;
-    } else if (type_matches(type, "warehouse")) {
+    } else if (type_has_attr(type, "warehouse")) {
         // Warehouse road access is checked in construction_building.cpp -> add_warehouse().
         //TODO: a dedicated function similar as for hippodrome should be used for consistency
         has_road = 1;
-    } else if (type_matches(type, "hippodrome") && map_has_road_access_hippodrome(x, y, 0)) {
+    } else if (type_has_attr(type, "hippodrome") && map_has_road_access_hippodrome(x, y, 0)) {
         has_road = 1;
-    } else if (type_matches(type, "lararium") && map_closest_road_within_radius(x, y, size, 2, 0, 0)) {
+    } else if (type_has_attr(type, "lararium") && map_closest_road_within_radius(x, y, size, 2, 0, 0)) {
         has_road = 1;
     } else if (is_shrine_tier(type) && map_closest_road_within_radius(x, y, size, 2, 0, 0)) {
         has_road = 1;
@@ -206,7 +204,7 @@ static void check_road_access(building_type type, int x, int y, int size)
 
 static void check_water(building_type type, int x, int y, int size)
 {
-    if (has_warning || type_matches(type, "reservoir") || type_matches(type, "aqueduct") ||
+    if (has_warning || type_has_attr(type, "reservoir") || type_has_attr(type, "aqueduct") ||
         !building_type_registry_has_water_access_requirements(type)) {
         return;
     }
@@ -218,7 +216,7 @@ static void check_water(building_type type, int x, int y, int size)
 
 static void check_workers(building_type type)
 {
-    if (!has_warning && !type_matches(type, "well") && !building_is_fort(type)) {
+    if (!has_warning && !type_has_attr(type, "well") && !building_is_fort(type)) {
         if (model_get_building(type)->laborers > 0 && city_labor_workers_needed() >= 10) {
             show(WARNING_WORKERS_NEEDED, "TR_CITY_WARNING_WORKERS_NEEDED");
         }
@@ -227,7 +225,7 @@ static void check_workers(building_type type)
 
 static void check_market(building_type type)
 {
-    if (!has_warning && type_matches(type, "granary")) {
+    if (!has_warning && type_has_attr(type, "granary")) {
         if (active_count("market") <= 0) {
             show(WARNING_BUILD_MARKET, "TR_CITY_WARNING_BUILD_MARKET");
         }
@@ -246,7 +244,7 @@ static void check_barracks(building_type type)
 
 static void check_armoury(building_type type)
 {
-    if (type_matches(type, "barracks")) {
+    if (type_has_attr(type, "barracks")) {
         if (active_count("armoury") <= 0) {
             show(WARNING_NO_ARMOURY, "TR_WARNING_NO_ARMOURY");
         }
@@ -255,7 +253,7 @@ static void check_armoury(building_type type)
 
 static void check_weapons_access(building_type type)
 {
-    if (type_matches(type, "barracks")) {
+    if (type_has_attr(type, "barracks")) {
         if (city_resource_count_warehouses_amount(resource_weapons()) <= 0) {
             show(WARNING_WEAPONS_NEEDED, "TR_CITY_WARNING_WEAPONS_NEEDED");
         }
@@ -264,7 +262,7 @@ static void check_weapons_access(building_type type)
 
 static void check_wall(building_type type, int x, int y, int size)
 {
-    if (!has_warning && type_matches(type, "tower")) {
+    if (!has_warning && type_has_attr(type, "tower")) {
         if (!map_terrain_is_adjacent_to_wall(x, y, size)) {
             show(WARNING_SENTRIES_NEED_WALL, "TR_CITY_WARNING_SENTRIES_NEED_WALL");
         }
@@ -273,7 +271,7 @@ static void check_wall(building_type type, int x, int y, int size)
 
 static void check_actor_access(building_type type)
 {
-    if (!has_warning && type_matches(type, "theater")) {
+    if (!has_warning && type_has_attr(type, "theater")) {
         if (active_count("actor_colony") <= 0) {
             show(WARNING_BUILD_ACTOR_COLONY, "TR_CITY_WARNING_BUILD_ACTOR_COLONY");
         }
@@ -282,8 +280,7 @@ static void check_actor_access(building_type type)
 
 static void check_gladiator_access(building_type type)
 {
-    if (!has_warning && (type_matches(type, "amphitheater") || type_matches(type, "colosseum") ||
-        type_matches(type, "arena"))) {
+    if (!has_warning && type_has_any_attr(type, {"amphitheater", "colosseum", "arena"})) {
         if (active_count("gladiator_school") <= 0) {
             show(WARNING_BUILD_GLADIATOR_SCHOOL, "TR_CITY_WARNING_BUILD_GLADIATOR_SCHOOL");
         }
@@ -292,7 +289,7 @@ static void check_gladiator_access(building_type type)
 
 static void check_lion_access(building_type type)
 {
-    if (!has_warning && (type_matches(type, "colosseum") || type_matches(type, "arena"))) {
+    if (!has_warning && type_has_any_attr(type, {"colosseum", "arena"})) {
         if (active_count("lion_house") <= 0) {
             show(WARNING_BUILD_LION_HOUSE, "TR_CITY_WARNING_BUILD_LION_HOUSE");
         }
@@ -301,7 +298,7 @@ static void check_lion_access(building_type type)
 
 static void check_charioteer_access(building_type type)
 {
-    if (!has_warning && type_matches(type, "hippodrome")) {
+    if (!has_warning && type_has_attr(type, "hippodrome")) {
         if (active_count("chariot_maker") <= 0) {
             show(WARNING_BUILD_CHARIOT_MAKER, "TR_CITY_WARNING_BUILD_CHARIOT_MAKER");
         }
@@ -368,7 +365,7 @@ void building_construction_warning_check_food_stocks(building_type type)
 
 void building_construction_warning_check_reservoir(building_type type)
 {
-    if (!has_warning && type_matches(type, "reservoir")) {
+    if (!has_warning && type_has_attr(type, "reservoir")) {
         if (building_count_active(type)) {
             show(WARNING_CONNECT_TO_RESERVOIR, "TR_CITY_WARNING_CONNECT_TO_RESERVOIR");
         } else {

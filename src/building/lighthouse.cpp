@@ -16,6 +16,11 @@
 #define TIMBER_CONSUMPTION 20
 #define TIMBER_LOW 100
 
+static building_type lighthouse_type()
+{
+    return building_type_registry_impl::type_from_attr("lighthouse");
+}
+
 int building_lighthouse_enough_timber(Building lighthouse)
 {
     return lighthouse.resource_amount(resource_timber()) > TIMBER_LOW;
@@ -45,12 +50,12 @@ Building building_lighthouse_get_storage_destination(Building lighthouse)
 
 int building_lighthouse_is_fully_functional(void)
 {
-    building_type lighthouse_type = building_type_registry_impl::runtime_id_from_text("lighthouse");
-    if (!building_monument_working(lighthouse_type)) {
+    const building_type type = lighthouse_type();
+    if (!building_monument_working(type)) {
         return 0;
     }
 
-    return building_lighthouse_enough_timber(Building::first_of_type(lighthouse_type));
+    return building_lighthouse_enough_timber(Building::first_of_type(type));
 }
 
 static void set_lighthouse_graphic(Building lighthouse)
@@ -73,9 +78,9 @@ static void set_lighthouse_graphic(Building lighthouse)
 
 void building_lighthouse_consume_timber(void)
 {
-    building_type lighthouse_type = building_type_registry_impl::runtime_id_from_text("lighthouse");
-    if (building_monument_working(lighthouse_type)) {
-        Building lighthouse = Building::first_of_type(lighthouse_type);
+    const building_type type = lighthouse_type();
+    if (building_monument_working(type)) {
+        Building lighthouse = Building::first_of_type(type);
         int timber = lighthouse.resource_amount(resource_timber());
         if (timber > 0) {
             trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);

@@ -185,9 +185,27 @@ int is_vacant_lot_alias(const char *text_id)
         std::string_view(text_id) == "house_vacant_lot");
 }
 
+int is_pavilion_alias(const char *text_id)
+{
+    if (!text_id) {
+        return 0;
+    }
+    std::string_view id(text_id);
+    return id == "pavilion_blue" ||
+        id == "pavilion_red" ||
+        id == "pavilion_orange" ||
+        id == "pavilion_yellow" ||
+        id == "pavilion_green";
+}
+
 building_type vacant_lot_alias_runtime()
 {
     return building_type_registry_get_vacant_lot_fill_type();
+}
+
+building_type pavilion_alias_runtime()
+{
+    return active_registry_runtime_from_text("pavilion");
 }
 
 void ensure_runtime_table()
@@ -337,6 +355,9 @@ building_type building_type_id_bridge_runtime_from_text(const char *text_id)
     }
     if (is_vacant_lot_alias(text_id)) {
         return vacant_lot_alias_runtime();
+    }
+    if (is_pavilion_alias(text_id)) {
+        return pavilion_alias_runtime();
     }
 
     auto found = g_bridge.text_to_runtime.find(text_id);

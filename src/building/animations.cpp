@@ -55,7 +55,7 @@ int definition_is_any(const BuildingType *definition, const char *const *attrs, 
 
 building_type runtime_type_from_attr(const char *attr)
 {
-    return building_type_registry_impl::runtime_id_from_text(attr);
+    return building_type_registry_impl::type_from_attr(attr);
 }
 
 int has_first_distribution_resource(const building &building, const BuildingType *definition)

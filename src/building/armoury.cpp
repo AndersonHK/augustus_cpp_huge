@@ -11,7 +11,7 @@
 
 int Armoury::is_needed() const
 {
-    if (!building_count_active(building_type_registry_impl::runtime_id_from_text("barracks")) &&
+    if (!building_count_active(building_type_registry_impl::type_from_attr("barracks")) &&
         !building_monument_get_grand_temple_for_god(GOD_MARS)) {
         return 0;
     }

@@ -52,7 +52,7 @@ static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int
 
 static building_type type_from_attr(const char *text_id)
 {
-    return building_type_registry_impl::runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static int type_attr_is(building_type type, std::string_view attr)

@@ -31,7 +31,7 @@ static const char *const CONVERSION_FROM_ORIGINAL_TEXT[MAX_ORIGINAL_ALLOWED_BUIL
     { "lion_house" },
     { "actor_colony" },
     { "chariot_maker" },
-    { "gardens", "overgrown_gardens", "hedge_dark", "hedge_light", "pavilion_blue", "colonnade", "looped_garden_wall", "roofed_garden_wall", "decorative_column" },
+{ "gardens", "overgrown_gardens", "hedge_dark", "hedge_light", "pavilion", "colonnade", "looped_garden_wall", "roofed_garden_wall", "decorative_column" },
     { "plaza" },
     { "small_statue", "goddess_statue", "senator_statue", "gladiator_statue", "medium_statue", "legion_statue", "large_statue", "horse_statue", "obelisk", "small_pond", "large_pond" },
     { "doctor" },

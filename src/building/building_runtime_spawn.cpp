@@ -187,7 +187,7 @@ void building_runtime::run_labor_phase(const building_type_registry_impl::LaborD
     const building_type_registry_impl::LaborSeekerPolicy &labor_policy = labor.seeker_policy();
     if (labor_policy.method == building_type_registry_impl::LaborSeekerMethod::Workforce &&
         !config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
-        const int trigger_workers = labor_policy.amount;
+        const int trigger_workers = type().required_workers();
         const float workforce_access = building().labor_access_score();
         Building current = building();
         if (workforce_access < trigger_workers) {
@@ -435,7 +435,7 @@ int building_runtime::spawn_temple_destination_priest(const map_point &road)
         return 0;
     }
 
-    building_type pantheon_type = building_type_registry_impl::runtime_id_from_text("pantheon");
+    building_type pantheon_type = building_type_registry_impl::type_from_attr("pantheon");
     if (!building_monument_working(pantheon_type)) {
         return 0;
     }
@@ -462,7 +462,7 @@ int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
         return 0;
     }
 
-    Building mess_hall = Building::first_of_type(building_type_registry_impl::runtime_id_from_text("mess_hall"));
+    Building mess_hall = Building::first_of_type(building_type_registry_impl::type_from_attr("mess_hall"));
     if (!mess_hall.id() || !mess_hall.is_in_use() || !mess_hall.type || !mess_hall.type->is_mess_hall()) {
         return 0;
     }

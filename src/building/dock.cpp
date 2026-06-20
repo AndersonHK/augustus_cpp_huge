@@ -21,25 +21,29 @@
 #include "map/terrain.h"
 #include "scenario/map.h"
 
-#include <stdlib.h>
-#include <string.h>
 #include <cstring>
+#include <cstdlib>
 
 #define MAX_DISTANCE_FOR_REROUTING 50
 
-typedef struct {
+struct handled_goods_by_road_network {
     unsigned char road_network_id;
     int goods[RESOURCE_SLOT_COUNT];
-} handled_goods_by_road_network;
+};
 
-typedef struct {
+struct handled_goods {
     handled_goods_by_road_network *networks;
     int max_networks;
-} handled_goods;
+};
+
+static building_type dock_type()
+{
+    return building_type_registry_impl::type_from_attr("dock");
+}
 
 static int is_dock(const Building &dock)
 {
-    return dock.type && std::strcmp(dock.type->attr(), "dock") == 0;
+    return dock.type && dock.type->type() == dock_type();
 }
 
 int building_dock_count_idle_dockers(const Building &dock)
@@ -62,8 +66,7 @@ void building_dock_update_open_water_access(void)
 {
     map_point river_entry = scenario_map_river_entry();
     map_routing_calculate_distances_water_boat(river_entry.x, river_entry.y);
-    const building_type dock_type = building_type_registry_impl::runtime_id_from_text("dock");
-    for (Building b : Building::of_type(dock_type)) {
+    for (Building b : Building::of_type(dock_type())) {
         if (b.is_in_use() && !b.has_house_size()) {
             if (map_terrain_is_adjacent_to_open_water(b.x(), b.y(), 3)) {
                 b.set_has_water_access(1);
@@ -146,8 +149,7 @@ int building_dock_can_export_to_ship(const Building &dock, int ship_id)
 
 void building_dock_enable_resource_in_all_docks(resource_type resource)
 {
-    const building_type dock_type = building_type_registry_impl::runtime_id_from_text("dock");
-    for (Building b : Building::of_type(dock_type)) {
+    for (Building b : Building::of_type(dock_type())) {
         b.set_accepted_good(resource, 1);
     }
 }
@@ -156,12 +158,11 @@ void building_dock_enable_resource_in_all_docks(resource_type resource)
 // for each road network a ship has visited
 static void get_already_handled_goods(handled_goods *handled, int ship_id)
 {
-    memset(handled->networks, 0, sizeof(handled_goods_by_road_network) * handled->max_networks);
+    std::memset(handled->networks, 0, sizeof(handled_goods_by_road_network) * handled->max_networks);
     Figure *ship = Figure::get(ship_id);
 
     // loop through the docks
-    const building_type dock_type = building_type_registry_impl::runtime_id_from_text("dock");
-    for (Building dock : Building::of_type(dock_type)) {
+    for (Building dock : Building::of_type(dock_type())) {
         // check and see if the ship has visited this dock
         if (!dock.is_in_use() || !dock.is_working() ||
             !figure_visited_building_in_list(ship->last_visited_index, dock.id())) {
@@ -170,7 +171,7 @@ static void get_already_handled_goods(handled_goods *handled, int ship_id)
 
         // find the handled_good that is on this road network or find the next one that hasn't
         // been assigned to a road network yet
-        handled_goods_by_road_network *network = 0;
+        handled_goods_by_road_network *network = nullptr;
         for (int j = 0; j < handled->max_networks; j++) {
             network = &handled->networks[j];
             if (!network->road_network_id ||
@@ -224,8 +225,7 @@ static Building get_free_destination(Figure &ship, const Building *exclude_dock,
     Building importing_dock(nullptr);
     Building exporting_dock(nullptr);
 
-    const building_type dock_type = building_type_registry_impl::runtime_id_from_text("dock");
-    for (Building dock : Building::of_type(dock_type)) {
+    for (Building dock : Building::of_type(dock_type())) {
         if (!dock.is_in_use() || !dock.is_working()) {
             continue;
         }
@@ -267,8 +267,7 @@ static Building get_queue_destination(Figure &ship, const Building *exclude_dock
     Building importing_dock(nullptr);
     Building exporting_dock(nullptr);
 
-    const building_type dock_type = building_type_registry_impl::runtime_id_from_text("dock");
-    for (Building dock : Building::of_type(dock_type)) {
+    for (Building dock : Building::of_type(dock_type())) {
         if (!dock.is_in_use() || !dock.is_working()) {
             continue;
         }
@@ -328,8 +327,7 @@ static int destination_dock_ready_for_ship(Figure &ship)
 Building building_dock_get_destination(Figure &ship, const Building *exclude_dock, map_point *tile)
 {
     int total_docks = 0;
-    const building_type dock_type = building_type_registry_impl::runtime_id_from_text("dock");
-    for (Building dock : Building::of_type(dock_type)) {
+    for (Building dock : Building::of_type(dock_type())) {
         if (dock.is_in_use() && dock.is_working()) {
             total_docks++;
         }
@@ -363,8 +361,7 @@ Building building_dock_get_closer_free_destination(Figure &ship, ship_dock_reque
     int min_distance_import = -1, min_distance_export = -1;
     Building nearest_import_dock(nullptr);
     Building nearest_export_dock(nullptr);
-    const building_type dock_type = building_type_registry_impl::runtime_id_from_text("dock");
-    for (Building dock : Building::of_type(dock_type)) {
+    for (Building dock : Building::of_type(dock_type())) {
         if (!dock.is_in_use() || !dock.is_working()) {
             continue;
         }

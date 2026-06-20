@@ -519,7 +519,7 @@ static int get_overlay_for_building_type(const building_type_registry_impl::Buil
             "small_statue", "medium_statue", "large_statue", "triumphal_arch", "small_pond", "large_pond",
             "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree", "palm_tree", "date_tree",
             "pine_path", "fir_path", "oak_path", "elm_path", "fig_path", "plum_path", "palm_path", "date_path",
-            "garden_path", "pavilion_blue", "pavilion_red", "pavilion_orange", "pavilion_yellow", "pavilion_green",
+            "garden_path", "pavilion",
             "goddess_statue", "senator_statue", "obelisk", "horse_statue", "legion_statue", "gladiator_statue",
             "panelled_garden_wall"
         })) {

@@ -25,7 +25,7 @@ typedef struct {
 } building_variant;
 
 static building_variant variants[] = {
-    {6, "pavilion_blue", {0,1,2,3,4,5}, CITY_DIRECTION_ANY},
+    {6, "pavilion", {0,1,2,3,4,5}, CITY_DIRECTION_ANY},
     {12, "decorative_column", {0,1,2,3,4,5,6,7,8,9,10,11}, 0},
     {12, "decorative_column", {1,0,3,2,5,4,7,6,9,8,11,10}, 1},
     {12, "decorative_column", {0,1,2,3,4,5,6,7,8,9,10,11}, 2},

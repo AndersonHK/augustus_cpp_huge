@@ -26,6 +26,8 @@ namespace {
 
 constexpr uint16_t LEGACY_SAVE_TYPE_MENU_FORT = 57;
 constexpr uint16_t LEGACY_SAVE_TYPE_LIGHTHOUSE = 155;
+constexpr uint16_t LEGACY_SAVE_TYPE_PAVILION_FIRST = 144;
+constexpr uint16_t LEGACY_SAVE_TYPE_PAVILION_LAST = 148;
 
 building_type type_from_attr(const char *attr)
 {
@@ -1043,6 +1045,12 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     if (building_buf_size >= BUILDING_STATE_VARIANTS_AND_UPGRADES) {
         b->variant = buffer_read_u8(buf);
         b->upgrade_level = buffer_read_u8(buf);
+    }
+    if (building_buf_size < BUILDING_STATE_VARIANTS_AND_UPGRADES &&
+        saved_building_type >= LEGACY_SAVE_TYPE_PAVILION_FIRST &&
+        saved_building_type <= LEGACY_SAVE_TYPE_PAVILION_LAST &&
+        type_is(b->type, "pavilion")) {
+        b->variant = static_cast<unsigned char>(saved_building_type - LEGACY_SAVE_TYPE_PAVILION_FIRST);
     }
 
     if (building_buf_size >= BUILDING_STATE_STRIKES) {

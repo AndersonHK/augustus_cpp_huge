@@ -319,7 +319,7 @@ void map_orientation_update_buildings(void)
                 "gladiator_statue",
                 "medium_statue",
                 "legion_statue",
-                "pavilion_blue",
+    "pavilion",
                 "horse_statue",
                 "small_mausoleum",
                 "large_mausoleum",

@@ -82,7 +82,7 @@ static struct {
 
 static building_type runtime_type(const char *text_id)
 {
-    return building_type_registry_impl::runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static int type_matches(building_type type, const char *text_id)

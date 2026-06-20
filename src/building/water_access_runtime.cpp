@@ -93,7 +93,7 @@ uint8_t access_mask(const char *text_id)
 
 building_type runtime_type_id(const char *text_id)
 {
-    return building_type_registry_impl::runtime_id_from_text(text_id);
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 building_type reservoir_type_id()

@@ -64,7 +64,6 @@
         <employees count="100" />
         <labor_seeker>
             <method value="workforce" />
-            <amount value="50" />
         </labor_seeker>
     </labor>
 </building>

@@ -265,8 +265,7 @@ static int get_height_id(void)
         if (building_type_attr_is_any(type, {
             "small_pond", "large_pond", "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree",
             "plum_tree", "palm_tree", "date_tree", "pine_path", "fir_path", "oak_path", "elm_path",
-            "fig_path", "plum_path", "palm_path", "date_path", "garden_path", "pavilion_blue",
-            "pavilion_red", "pavilion_orange", "pavilion_yellow", "pavilion_green", "goddess_statue",
+            "fig_path", "plum_path", "palm_path", "date_path", "garden_path", "pavilion", "goddess_statue",
             "senator_statue"
         })) {
             return HEIGHT_1_16_BLOCKS;
@@ -817,8 +816,7 @@ static void draw_background(void)
         } else if (building_type_attr_is_any(btype, {
             "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree", "palm_tree", "date_tree",
             "pine_path", "fir_path", "oak_path", "elm_path", "fig_path", "plum_path", "palm_path", "date_path",
-            "pavilion_blue", "pavilion_red", "pavilion_orange", "pavilion_yellow", "pavilion_green",
-            "hedge_dark", "hedge_light", "colonnade", "garden_path", "looped_garden_wall",
+            "pavilion", "hedge_dark", "hedge_light", "colonnade", "garden_path", "looped_garden_wall",
             "roofed_garden_wall", "panelled_garden_wall"
         })) {
             window_building_draw_garden(&context);

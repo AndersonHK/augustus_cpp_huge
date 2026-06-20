@@ -588,6 +588,7 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
         map_water_add_building(b->id, b->x, b->y, 2);
     } else if (building_obj.type && building_obj.type->attr() &&
         std::strcmp(building_obj.type->attr(), "dock") == 0) {
+        b->subtype.orientation = waterside_orientation_abs;
         b->data.dock.orientation = waterside_orientation_abs;
         map_water_add_building(b->id, b->x, b->y, size);
     } else if (building_type_attr_is(type, "tower")) {
@@ -926,9 +927,24 @@ static int building_construction_place_building_internal(building_type type, int
     int waterside_orientation_abs = 0, waterside_orientation_rel = 0;
 
     if (is_waterside_type(type)) {
-        if (map_water_determine_orientation(x, y, building_properties_for_type(type)->size, 0,
-            &waterside_orientation_abs, &waterside_orientation_rel, 1, 0)) {
+        waterside_orientation_abs = -1;
+        waterside_orientation_rel = -1;
+        int blocked_tiles = map_water_determine_orientation(x, y, building_properties_for_type(type)->size, 0,
+            &waterside_orientation_abs, &waterside_orientation_rel, 0, 0);
+        if (waterside_orientation_abs < 0) {
             shore_needed_warning().show_when(emit_warnings);
+            return 0;
+        }
+        const waterside_tile_loop *loop =
+            map_water_get_waterside_tile_loop(waterside_orientation_abs, building_properties_for_type(type)->size);
+        if (!map_water_has_water_in_front(x, y, 0, loop, 0)) {
+            shore_needed_warning().show_when(emit_warnings);
+            return 0;
+        }
+        if (blocked_tiles &&
+            !tiles_are_clear_or_force_clearable(x, y, building_properties_for_type(type)->size,
+                TERRAIN_ALL & ~TERRAIN_WATER, check_figure, force_check)) {
+            clear_land_needed_warning().show_when(emit_warnings);
             return 0;
         }
         const building_type_registry_impl::BuildingType *definition =

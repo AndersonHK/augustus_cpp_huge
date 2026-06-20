@@ -393,7 +393,7 @@ building_type building_type_registry_get_housing_transition(building_type type, 
 
 building_type building_type_registry_get_vacant_lot_fill_type(void)
 {
-    building_type vacant_lot = building_type_registry_impl::runtime_id_from_text("vacant_lot");
+    building_type vacant_lot = building_type_registry_impl::type_from_attr("vacant_lot");
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(vacant_lot);
     if (definition && definition->is_vacant_lot()) {
@@ -404,7 +404,7 @@ building_type building_type_registry_get_vacant_lot_fill_type(void)
 
 building_type building_type_registry_get_vacant_lot_occupancy_type(void)
 {
-    building_type vacant_lot = building_type_registry_impl::runtime_id_from_text("vacant_lot");
+    building_type vacant_lot = building_type_registry_impl::type_from_attr("vacant_lot");
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(vacant_lot);
     if (definition && definition->is_vacant_lot() && definition->vacant_lot_fill_type() != BUILDING_NONE) {

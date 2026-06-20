@@ -69,7 +69,7 @@ Building building_caravanserai_get_storage_destination(Building caravanserai)
 
 int building_caravanserai_is_fully_functional(void)
 {
-    building_type caravanserai_type = building_type_registry_impl::runtime_id_from_text("caravanserai");
+    building_type caravanserai_type = building_type_registry_impl::type_from_attr("caravanserai");
     if (!building_monument_working(caravanserai_type)) {
         return 0;
     }

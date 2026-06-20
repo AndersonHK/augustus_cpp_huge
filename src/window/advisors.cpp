@@ -1,7 +1,6 @@
 #include "translation/translation.h"
 #include "advisors.h"
 
-#include "assets/assets.h"
 #include "city/constants.h"
 #include "city/culture.h"
 #include "city/finance.h"
@@ -187,15 +186,22 @@ static void prepare_advisor_image_ids(void)
     for (int i = 0; i < ADVISOR_MAX; i++) {
         if (i == (ADVISOR_HOUSING - 1)) {
             reduce = 1;
-            advisor_image_ids[0][ADVISOR_HOUSING - 1] = assets_get_image_id("UI\\Housing_Advisor_Button",
-                "Housing Advisor Button");
-            advisor_image_ids[1][ADVISOR_HOUSING - 1] = assets_get_image_id("UI\\Housing_Advisor_Button_Selected",
-                "Housing Advisor Button Selected");
         } else {
             advisor_image_ids[0][i] = Image::group(GROUP_ADVISOR_ICONS) + i - reduce;
             advisor_image_ids[1][i] = Image::group(GROUP_ADVISOR_ICONS) + i - reduce + 13;
         }
     }
+}
+
+static void draw_advisor_button(int index, int selected, int x, int y)
+{
+    if (index == (ADVISOR_HOUSING - 1)) {
+        ImageGroupEntryRef::from_group(
+            selected ? "UI\\Housing_Advisor_Button_Selected" : "UI\\Housing_Advisor_Button",
+            selected ? "Housing Advisor Button Selected" : "Housing Advisor Button").draw(x, y);
+        return;
+    }
+    Image::from_id(advisor_image_ids[selected][index]).draw(x, y);
 }
 
 void window_advisors_draw_dialog_background(void)
@@ -208,7 +214,7 @@ void window_advisors_draw_dialog_background(void)
 
     for (int i = 0; i < ADVISOR_MAX; i++) {
         int selected = current_advisor && i == (current_advisor % ADVISOR_MAX) - 1;
-        Image::from_id(advisor_image_ids[selected][i]).draw(45 * i + 8, 441);
+        draw_advisor_button(i, selected, 45 * i + 8, 441);
     }
     graphics_reset_dialog();
 }

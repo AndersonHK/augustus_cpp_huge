@@ -22,7 +22,7 @@
 
 static Building first_building_with_attr(const char *attr)
 {
-    building_type type = building_type_registry_impl::runtime_id_from_text(attr);
+    building_type type = building_type_registry_impl::type_from_attr(attr);
     return type == BUILDING_NONE ? Building(nullptr) : Building::first_of_type(type);
 }
 
@@ -64,12 +64,6 @@ Building Barracks::for_weapon(int x, int y, resource_type resource, int road_net
         if (!is_valid_destination(b, road_network_id)) {
             continue;
         }
-        if (b.resource_amount(resource_weapons()) >= MAX_WEAPONS_BARRACKS) {
-            continue;
-        }
-        if (!b.accepts_good(resource_weapons())) {
-            continue;
-        }
         int dist = b.max_distance_to(x, y);
         dist += 8 * b.resource_amount(resource_weapons());
         if (dist < min_dist) {
@@ -79,9 +73,7 @@ Building Barracks::for_weapon(int x, int y, resource_type resource, int road_net
     }
     Building monument = grand_temple_for_god(GOD_MARS);
     if (monument.id() && monument.monument_phase() == MONUMENT_FINISHED &&
-        is_valid_destination(monument, road_network_id) &&
-        monument.resource_amount(resource_weapons()) < MAX_WEAPONS_BARRACKS &&
-        monument.accepts_good(resource_weapons())) {
+        is_valid_destination(monument, road_network_id)) {
         int dist = monument.max_distance_to(x, y);
         dist += 8 * monument.resource_amount(resource_weapons());
         if (dist < min_dist) {

@@ -382,8 +382,7 @@ static int building_is_aesthetic(building_type type)
     return building_type_attr_is_any(type,
         {"small_pond", "large_pond", "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree",
             "palm_tree", "date_tree", "pine_path", "fir_path", "oak_path", "elm_path", "fig_path", "plum_path",
-            "palm_path", "date_path", "pavilion_blue", "pavilion_red", "pavilion_orange", "pavilion_yellow",
-            "pavilion_green", "goddess_statue", "senator_statue", "obelisk", "triumphal_arch", "horse_statue",
+            "palm_path", "date_path", "pavilion", "goddess_statue", "senator_statue", "obelisk", "triumphal_arch", "horse_statue",
             "dolphin_fountain", "hedge_dark", "hedge_light", "looped_garden_wall", "legion_statue",
             "decorative_column", "colonnade", "garden_path", "roofed_garden_wall", "roofed_garden_wall_gate",
             "hedge_gate_dark", "hedge_gate_light", "gardens"});

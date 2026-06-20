@@ -2,9 +2,30 @@
 
 #include "assets/image_group_entry.h"
 #include "assets/image_group_payload.h"
+#include "core/crash_context.h"
 #include "graphics/runtime_texture.h"
 
+#include <cstdio>
+#include <unordered_set>
 #include <utility>
+
+namespace {
+
+void log_missing_ref_once(const char *message, const std::string &group_path, const std::string &entry_id)
+{
+    static std::unordered_set<std::string> reported;
+    std::string key = group_path + '\n' + entry_id + '\n' + message;
+    if (!reported.insert(key).second) {
+        return;
+    }
+
+    char detail[512];
+    snprintf(detail, sizeof(detail), "path=%s image=%s",
+        group_path.c_str(), entry_id.empty() ? "<default>" : entry_id.c_str());
+    error_context_report_error(message, detail);
+}
+
+}
 
 ImageGroupEntryRef ImageGroupEntryRef::from_group(std::string group_path, std::string entry_id)
 {
@@ -31,14 +52,23 @@ const std::string &ImageGroupEntryRef::entry_id() const
 
 const ImageGroupEntry *ImageGroupEntryRef::entry() const
 {
-    if (group_path_.empty() || !image_group_payload_load(group_path_.c_str())) {
+    if (group_path_.empty()) {
+        return nullptr;
+    }
+    if (!image_group_payload_load(group_path_.c_str())) {
+        log_missing_ref_once("Native image group could not be resolved", group_path_, entry_id_);
         return nullptr;
     }
     const ImageGroupPayload *payload = image_group_payload_get(group_path_.c_str());
     if (!payload) {
+        log_missing_ref_once("Native image group payload missing after load", group_path_, entry_id_);
         return nullptr;
     }
-    return entry_id_.empty() ? payload->default_entry() : payload->entry_for(entry_id_.c_str());
+    const ImageGroupEntry *resolved_entry = entry_id_.empty() ? payload->default_entry() : payload->entry_for(entry_id_.c_str());
+    if (!resolved_entry) {
+        log_missing_ref_once("Native image group entry could not be resolved", group_path_, entry_id_);
+    }
+    return resolved_entry;
 }
 
 RuntimeDrawSlice ImageGroupEntryRef::runtime_slice() const

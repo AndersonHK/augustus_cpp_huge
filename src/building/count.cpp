@@ -19,147 +19,123 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <span>
+#include <string_view>
 #include <vector>
 
-struct building_type_set_entry {
-    building_type type;
-    const char *text_id;
-};
-
-static building_type resolve_set_entry(const building_type_set_entry &entry)
+static building_type type_from_attr(std::string_view attr)
 {
-    return entry.text_id ? building_type_registry_impl::runtime_id_from_text(entry.text_id) : entry.type;
+    return building_type_registry_impl::type_from_attr(attr);
 }
 
-static building_type runtime_type(const char *text_id)
+static int type_matches_attr(building_type type, std::string_view attr)
 {
-    return building_type_registry_impl::runtime_id_from_text(text_id);
-}
-
-static int type_matches_text(building_type type, const char *text_id)
-{
-    return type == runtime_type(text_id);
+    return type == type_from_attr(attr);
 }
 
 static int is_any_type(building_type type)
 {
-    return type == BUILDING_NONE || type_matches_text(type, "any");
+    return type == BUILDING_NONE || type_matches_attr(type, "any");
 }
 
 static int is_fort_menu_type(building_type type)
 {
-    return type_matches_text(type, "fort");
+    return type_matches_attr(type, "fort");
 }
 
-static const building_type_set_entry building_set_workshops[] = {
-    {BUILDING_NONE, "wine_workshop"},
-    {BUILDING_NONE, "oil_workshop"},
-    {BUILDING_NONE, "weapons_workshop"},
-    {BUILDING_NONE, "furniture_workshop"},
-    {BUILDING_NONE, "pottery_workshop"},
-    {BUILDING_NONE, "concrete_maker"},
-    {BUILDING_NONE, "brickworks"},
-    {BUILDING_NONE, "city_mint"}
+static constexpr std::string_view building_set_workshops[] = {
+    "wine_workshop",
+    "oil_workshop",
+    "weapons_workshop",
+    "furniture_workshop",
+    "pottery_workshop",
+    "concrete_maker",
+    "brickworks",
+    "city_mint",
 };
 
-#define BUILDING_SET_SIZE_WORKSHOPS (sizeof(building_set_workshops) / sizeof(building_type_set_entry))
-
-static const building_type_set_entry building_set_small_temples[] = {
-    {BUILDING_NONE, "small_temple_ceres"},
-    {BUILDING_NONE, "small_temple_neptune"},
-    {BUILDING_NONE, "small_temple_mercury"},
-    {BUILDING_NONE, "small_temple_mars"},
-    {BUILDING_NONE, "small_temple_venus"}
+static constexpr std::string_view building_set_small_temples[] = {
+    "small_temple_ceres",
+    "small_temple_neptune",
+    "small_temple_mercury",
+    "small_temple_mars",
+    "small_temple_venus",
 };
 
-#define BUILDING_SET_SIZE_SMALL_TEMPLES (sizeof(building_set_small_temples) / sizeof(building_type_set_entry))
-
-static const building_type_set_entry building_set_large_temples[] = {
-    {BUILDING_NONE, "large_temple_ceres"},
-    {BUILDING_NONE, "large_temple_neptune"},
-    {BUILDING_NONE, "large_temple_mercury"},
-    {BUILDING_NONE, "large_temple_mars"},
-    {BUILDING_NONE, "large_temple_venus"}
+static constexpr std::string_view building_set_large_temples[] = {
+    "large_temple_ceres",
+    "large_temple_neptune",
+    "large_temple_mercury",
+    "large_temple_mars",
+    "large_temple_venus",
 };
 
-#define BUILDING_SET_SIZE_LARGE_TEMPLES (sizeof(building_set_large_temples) / sizeof(building_type_set_entry))
-
-static const building_type_set_entry building_set_grand_temples[] = {
-    {BUILDING_NONE, "grand_temple_ceres"},
-    {BUILDING_NONE, "grand_temple_neptune"},
-    {BUILDING_NONE, "grand_temple_mercury"},
-    {BUILDING_NONE, "grand_temple_mars"},
-    {BUILDING_NONE, "grand_temple_venus"},
-    {BUILDING_NONE, "pantheon"}
+static constexpr std::string_view building_set_grand_temples[] = {
+    "grand_temple_ceres",
+    "grand_temple_neptune",
+    "grand_temple_mercury",
+    "grand_temple_mars",
+    "grand_temple_venus",
+    "pantheon",
 };
 
-#define BUILDING_SET_SIZE_GRAND_TEMPLES (sizeof(building_set_grand_temples) / sizeof(building_type_set_entry))
-
-static const building_type_set_entry building_set_deco_trees[] = {
-    {BUILDING_NONE, "pine_tree"},
-    {BUILDING_NONE, "fir_tree"},
-    {BUILDING_NONE, "oak_tree"},
-    {BUILDING_NONE, "elm_tree"},
-    {BUILDING_NONE, "fig_tree"},
-    {BUILDING_NONE, "plum_tree"},
-    {BUILDING_NONE, "palm_tree"},
-    {BUILDING_NONE, "date_tree"}
+static constexpr std::string_view building_set_deco_trees[] = {
+    "pine_tree",
+    "fir_tree",
+    "oak_tree",
+    "elm_tree",
+    "fig_tree",
+    "plum_tree",
+    "palm_tree",
+    "date_tree",
 };
 
-#define BUILDING_SET_SIZE_DECO_TREES (sizeof(building_set_deco_trees) / sizeof(building_type_set_entry))
-
-static const building_type_set_entry building_set_deco_paths[] = {
-    {BUILDING_NONE, "pine_path"},
-    {BUILDING_NONE, "fir_path"},
-    {BUILDING_NONE, "oak_path"},
-    {BUILDING_NONE, "elm_path"},
-    {BUILDING_NONE, "fig_path"},
-    {BUILDING_NONE, "plum_path"},
-    {BUILDING_NONE, "palm_path"},
-    {BUILDING_NONE, "date_path"},
-    {BUILDING_NONE, "garden_path"}
+static constexpr std::string_view building_set_deco_paths[] = {
+    "pine_path",
+    "fir_path",
+    "oak_path",
+    "elm_path",
+    "fig_path",
+    "plum_path",
+    "palm_path",
+    "date_path",
+    "garden_path",
 };
 
-#define BUILDING_SET_SIZE_DECO_PATHS (sizeof(building_set_deco_paths) / sizeof(building_type_set_entry))
-
-static const building_type_set_entry building_set_deco_statues[] = {
-    {BUILDING_NONE, "gardens"},
-    {BUILDING_NONE, "grand_garden"},
-    {BUILDING_NONE, "small_statue"},
-    {BUILDING_NONE, "medium_statue"},
-    {BUILDING_NONE, "large_statue"},
-    {BUILDING_NONE, "goddess_statue"},
-    {BUILDING_NONE, "senator_statue"},
-    {BUILDING_NONE, "legion_statue"},
-    {BUILDING_NONE, "gladiator_statue"},
-    {BUILDING_NONE, "small_pond"},
-    {BUILDING_NONE, "large_pond"},
-    {BUILDING_NONE, "dolphin_fountain"}
+static constexpr std::string_view building_set_deco_statues[] = {
+    "gardens",
+    "grand_garden",
+    "small_statue",
+    "medium_statue",
+    "large_statue",
+    "goddess_statue",
+    "senator_statue",
+    "legion_statue",
+    "gladiator_statue",
+    "small_pond",
+    "large_pond",
+    "dolphin_fountain",
 };
 
-#define BUILDING_SET_SIZE_DECO_STATUES (sizeof(building_set_deco_statues) / sizeof(building_type_set_entry))
-
-static const building_type_set_entry all_fort_types[] = {
-    {BUILDING_NONE, "fort_legionaries"},
-    {BUILDING_NONE, "fort_javelin"},
-    {BUILDING_NONE, "fort_mounted"},
-    {BUILDING_NONE, "fort_swords"},
-    {BUILDING_NONE, "fort_archers"},
+static constexpr std::string_view all_fort_types[] = {
+    "fort_legionaries",
+    "fort_javelin",
+    "fort_mounted",
+    "fort_swords",
+    "fort_archers",
 };
-
-#define BUILDING_SET_SIZE_FORTS (sizeof(all_fort_types) / sizeof(building_type_set_entry))
 
 int building_count_forts(int active_only);
-static int count_all_types_in_set(int active_only, const building_type_set_entry *set, int count);
+static int count_all_types_in_set(int active_only, std::span<const std::string_view> set);
 
 int building_count_grand_temples(void)
 {
-    return count_all_types_in_set(0, building_set_grand_temples, BUILDING_SET_SIZE_GRAND_TEMPLES);
+    return count_all_types_in_set(0, building_set_grand_temples);
 }
 
 int building_count_grand_temples_active(void)
 {
-    return count_all_types_in_set(1, building_set_grand_temples, BUILDING_SET_SIZE_GRAND_TEMPLES);
+    return count_all_types_in_set(1, building_set_grand_temples);
 }
 
 static int count_forts_per_type(building_type type, int active_only);
@@ -331,11 +307,11 @@ static int building_count_with_active_check(building_type type, int active_only)
     }
 }
 
-static int count_all_types_in_set(int active_only, const building_type_set_entry *set, int count)
+static int count_all_types_in_set(int active_only, std::span<const std::string_view> set)
 {
     int total = 0;
-    for (int i = 0; i < count; i++) {
-        building_type type = resolve_set_entry(set[i]);
+    for (std::string_view attr : set) {
+        building_type type = type_from_attr(attr);
         if (type != BUILDING_NONE) {
             total += building_count_with_active_check(type, active_only);
         }
@@ -343,11 +319,11 @@ static int count_all_types_in_set(int active_only, const building_type_set_entry
     return total;
 }
 
-static int count_all_types_in_set_in_area(const building_type_set_entry *set, int count, int minx, int miny, int maxx, int maxy)
+static int count_all_types_in_set_in_area(std::span<const std::string_view> set, int minx, int miny, int maxx, int maxy)
 {
     int total = 0;
-    for (int i = 0; i < count; i++) {
-        building_type type = resolve_set_entry(set[i]);
+    for (std::string_view attr : set) {
+        building_type type = type_from_attr(attr);
         if (type != BUILDING_NONE) {
             total += building_count_in_area(type, minx, miny, maxx, maxy);
         }
@@ -388,32 +364,32 @@ int building_set_count_raw_materials(int active_only)
 
 int building_set_count_workshops(int active_only)
 {
-    return count_all_types_in_set(active_only, building_set_workshops, BUILDING_SET_SIZE_WORKSHOPS);
+    return count_all_types_in_set(active_only, building_set_workshops);
 }
 
 int building_set_count_small_temples(int active_only)
 {
-    return count_all_types_in_set(active_only, building_set_small_temples, BUILDING_SET_SIZE_SMALL_TEMPLES);
+    return count_all_types_in_set(active_only, building_set_small_temples);
 }
 
 int building_set_count_large_temples(int active_only)
 {
-    return count_all_types_in_set(active_only, building_set_large_temples, BUILDING_SET_SIZE_LARGE_TEMPLES);
+    return count_all_types_in_set(active_only, building_set_large_temples);
 }
 
 int building_set_count_deco_trees(void)
 {
-    return count_all_types_in_set(0, building_set_deco_trees, BUILDING_SET_SIZE_DECO_TREES);
+    return count_all_types_in_set(0, building_set_deco_trees);
 }
 
 int building_set_count_deco_paths(void)
 {
-    return count_all_types_in_set(0, building_set_deco_paths, BUILDING_SET_SIZE_DECO_PATHS);
+    return count_all_types_in_set(0, building_set_deco_paths);
 }
 
 int building_set_count_deco_statues(void)
 {
-    return count_all_types_in_set(0, building_set_deco_statues, BUILDING_SET_SIZE_DECO_STATUES);
+    return count_all_types_in_set(0, building_set_deco_statues);
 }
 
 int building_set_area_count_farms(int minx, int miny, int maxx, int maxy)
@@ -437,37 +413,37 @@ int building_set_area_count_raw_materials(int minx, int miny, int maxx, int maxy
 
 int building_set_area_count_workshops(int minx, int miny, int maxx, int maxy)
 {
-    return count_all_types_in_set_in_area(building_set_workshops, BUILDING_SET_SIZE_WORKSHOPS, minx, miny, maxx, maxy);
+    return count_all_types_in_set_in_area(building_set_workshops, minx, miny, maxx, maxy);
 }
 
 int building_set_area_count_small_temples(int minx, int miny, int maxx, int maxy)
 {
-    return count_all_types_in_set_in_area(building_set_small_temples, BUILDING_SET_SIZE_SMALL_TEMPLES, minx, miny, maxx, maxy);
+    return count_all_types_in_set_in_area(building_set_small_temples, minx, miny, maxx, maxy);
 }
 
 int building_set_area_count_large_temples(int minx, int miny, int maxx, int maxy)
 {
-    return count_all_types_in_set_in_area(building_set_large_temples, BUILDING_SET_SIZE_LARGE_TEMPLES, minx, miny, maxx, maxy);
+    return count_all_types_in_set_in_area(building_set_large_temples, minx, miny, maxx, maxy);
 }
 
 int building_set_area_count_grand_temples(int minx, int miny, int maxx, int maxy)
 {
-    return count_all_types_in_set_in_area(building_set_grand_temples, BUILDING_SET_SIZE_GRAND_TEMPLES, minx, miny, maxx, maxy);
+    return count_all_types_in_set_in_area(building_set_grand_temples, minx, miny, maxx, maxy);
 }
 
 int building_set_area_count_deco_trees(int minx, int miny, int maxx, int maxy)
 {
-    return count_all_types_in_set_in_area(building_set_deco_trees, BUILDING_SET_SIZE_DECO_TREES, minx, miny, maxx, maxy);
+    return count_all_types_in_set_in_area(building_set_deco_trees, minx, miny, maxx, maxy);
 }
 
 int building_set_area_count_deco_paths(int minx, int miny, int maxx, int maxy)
 {
-    return count_all_types_in_set_in_area(building_set_deco_paths, BUILDING_SET_SIZE_DECO_PATHS, minx, miny, maxx, maxy);
+    return count_all_types_in_set_in_area(building_set_deco_paths, minx, miny, maxx, maxy);
 }
 
 int building_set_area_count_deco_statues(int minx, int miny, int maxx, int maxy)
 {
-    return count_all_types_in_set_in_area(building_set_deco_statues, BUILDING_SET_SIZE_DECO_STATUES, minx, miny, maxx, maxy);
+    return count_all_types_in_set_in_area(building_set_deco_statues, minx, miny, maxx, maxy);
 }
 
 static int count_forts_per_type(building_type type, int active_only)
@@ -502,7 +478,7 @@ figure_type building_count_forts_get_figure_type_from_building(building_type typ
         {"fort_archers", FIGURE_FORT_ARCHER},
     };
     for (const fort_figure_type &entry : fort_figure_types) {
-        if (type_matches_text(type, entry.text_id)) {
+        if (type_matches_attr(type, entry.text_id)) {
             return entry.figure;
         }
     }
@@ -512,8 +488,8 @@ figure_type building_count_forts_get_figure_type_from_building(building_type typ
 int building_count_forts(int active_only)
 {
     int total = 0;
-    for (size_t i = 0; i < BUILDING_SET_SIZE_FORTS; i++) {
-        building_type type = resolve_set_entry(all_fort_types[i]);
+    for (std::string_view attr : all_fort_types) {
+        building_type type = type_from_attr(attr);
         if (type != BUILDING_NONE) {
             total += count_forts_per_type(type, active_only);
         }
@@ -584,7 +560,7 @@ int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int s
             if (!b) {
                 continue;
             }
-            if (type_matches_text(b->type, ship ? "ship_bridge" : "low_bridge") && map_is_bridge(grid_offset)) {
+            if (type_matches_attr(b->type, ship ? "ship_bridge" : "low_bridge") && map_is_bridge(grid_offset)) {
                 int found = 0;
                 for (unsigned int bridge_id : bridge_ids) {
                     if (bridge_id == b->id) {

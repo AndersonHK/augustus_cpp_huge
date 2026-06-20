@@ -414,6 +414,8 @@ static void prepare_ghost_building(int grid_offset, building_type type)
     data.ghost_building.state = BUILDING_STATE_IN_USE;
     data.ghost_building.size = static_cast<unsigned char>(ghost_building_size(type));
     data.ghost_building.num_workers = model_get_building(type)->laborers;
+    data.ghost_building.data.entertainment.days1 = 1;
+    data.ghost_building.data.entertainment.days2 = 1;
     if (definition && definition->is_granary()) {
         data.ghost_building.resources[RESOURCE_NONE] = FULL_GRANARY;
     }
@@ -444,6 +446,16 @@ static void prepare_ghost_building(int grid_offset, building_type type)
         data.ghost_building.subtype.orientation = building_rotation_get_rotation();
     } else {
         data.ghost_building.subtype.orientation = 0;
+    }
+    if (is_waterside_type(type)) {
+        int waterside_orientation_abs = -1;
+        if (!map_water_determine_orientation(building_x, building_y, data.ghost_building.size, 0,
+            &waterside_orientation_abs, 0, 0, 0) && waterside_orientation_abs >= 0) {
+            data.ghost_building.subtype.orientation = static_cast<short>(waterside_orientation_abs);
+            if (is_dock_type(type)) {
+                data.ghost_building.data.dock.orientation = static_cast<signed char>(waterside_orientation_abs);
+            }
+        }
     }
 }
 
@@ -1475,12 +1487,20 @@ static void draw_waterside_building(const map_tile *tile, int x, int y, building
     if (city_finance_out_of_money()) {
         blocked = 1;
     }
-    int offset_multiplier = is_dock_type(type) ? 12 : 1;
-    int image_id = Image::group(props->image_group) + props->image_offset + dir_relative * offset_multiplier;
 
     const waterside_tile_loop *loop = map_water_get_waterside_tile_loop(dir_absolute, props->size);
     int land_tiles[5 * MAP_WATER_WATERSIDE_ROWS_NEEDED];
     int has_water_in_front = map_water_has_water_in_front(tile->x, tile->y, 1, loop, land_tiles);
+    int force_place_clear_cost = 0;
+    int force_place_valid = building_construction_force_place_active() &&
+        building_construction_force_place_assess(type, tile->x, tile->y, 0, &force_place_clear_cost);
+    if (force_place_valid) {
+        building_construction_set_force_place_clear_cost(force_place_clear_cost);
+        blocked = 0;
+        for (int i = 0; i < props->size * props->size; i++) {
+            blocked_tiles[i] = 0;
+        }
+    }
 
     color_t color = blocked || !has_water_in_front ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
 
@@ -1490,10 +1510,18 @@ static void draw_waterside_building(const map_tile *tile, int x, int y, building
         }
     }
 
-    draw_building(image_id, x, y, color);
-    draw_building_tiles(x, y, props->size * props->size, blocked_tiles);
+    int can_place = !blocked && has_water_in_front;
+    building_construction_set_can_place(can_place);
+    if (draw_runtime_regular_building(type, tile->grid_offset, x, y, props->size, color)) {
+        draw_building_tiles(x, y, props->size * props->size, blocked_tiles);
+    } else {
+        int offset_multiplier = is_dock_type(type) ? 12 : 1;
+        int image_id = Image::group(props->image_group) + props->image_offset + dir_relative * offset_multiplier;
+        draw_building(image_id, x, y, color);
+        draw_building_tiles(x, y, props->size * props->size, blocked_tiles);
+    }
 
-    if (blocked || has_water_in_front) {
+    if (blocked || has_water_in_front || force_place_valid) {
         return;
     }
 
