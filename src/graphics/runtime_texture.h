@@ -18,7 +18,12 @@ struct RuntimeDrawSlice {
     }
 };
 
-void runtime_texture_draw(const RuntimeDrawSlice &slice, int x, int y, color_t color, float scale);
+void runtime_texture_draw(
+    const RuntimeDrawSlice &slice,
+    int x,
+    int y,
+    color_t color = COLOR_MASK_NONE,
+    float scale = 1.0f);
 void runtime_texture_draw_request(
     const RuntimeDrawSlice &slice,
     float x,

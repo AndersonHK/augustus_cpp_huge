@@ -13,7 +13,6 @@
 #include "city/god.h"
 
 
-#include "assets/assets.h"
 #include "city/constants.h"
 #include "city/finance.h"
 #include "core/image_group.h"
@@ -84,7 +83,7 @@ static void draw_button_labels(void)
     width += lang_text_draw_amount_colored(current_string_amount_key(8, 0, city_festival_grand_cost()), city_festival_grand_cost(), 92 + width, 284, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     width += lang_text_draw_amount_colored(current_string_amount_key(8, 10, city_festival_grand_wine()), city_festival_grand_wine(), 97 + width, 284, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     if (use_disabled_wine_image) {
-        Image::from_id(assets_get_image_id("UI", "Grand Festival Wine Disabled")).draw(97 + width, 279);
+        ImageGroupEntryRef::from_group("UI\\Grand_Festival_Wine_Disabled", "Grand Festival Wine Disabled").draw(97 + width, 279);
     } else {
         resource_graphics(resource_wine()).panel_icon().draw(97 + width, 279);
     }

@@ -17,6 +17,13 @@ static color_t DUMMY_LAYER_DATA = COLOR_BLACK;
 
 static void load_dummy_layer(layer *l)
 {
+    if (l->asset_image_path) {
+        log_error("Using black dummy layer for failed image", l->asset_image_path, 0);
+    } else if (l->calculated_image_id) {
+        log_error("Using black dummy layer for failed image id", 0, l->calculated_image_id);
+    } else {
+        log_error("Using black dummy layer for unknown source", 0, 0);
+    }
     l->data = &DUMMY_LAYER_DATA;
     l->width = 1;
     l->height = 1;

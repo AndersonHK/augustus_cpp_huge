@@ -830,7 +830,7 @@ void window_empire_draw_static_trade_waypoints(const empire_object *route_object
     }
     int is_sea_route = route_object->type == EMPIRE_OBJECT_SEA_TRADE_ROUTE;
 
-    int image_id = assets_get_image_id("UI", is_sea_route ? "SeaRouteDot" : "LandRouteDot");
+    int image_id = assets_get_image_id(is_sea_route ? "UI\\SeaRouteDot" : "UI\\LandRouteDot", is_sea_route ? "SeaRouteDot" : "LandRouteDot");
     int route_id = route_object->trade_route_id;
     if (route_id < 0 || route_id >= MAX_SIDEBAR_CITIES) {
         return; // invalid route id; nothing to draw
@@ -911,7 +911,7 @@ static void window_empire_draw_trade_route_pulses(const empire_object *route_obj
         return;
     }
     int route_id = route_object->trade_route_id;
-    int pulse_image_id = assets_get_image_id("UI", !is_sea_route ? "SeaRouteDot" : "LandRouteDot"); //opposite image
+    int pulse_image_id = assets_get_image_id(!is_sea_route ? "UI\\SeaRouteDot" : "UI\\LandRouteDot", !is_sea_route ? "SeaRouteDot" : "LandRouteDot"); //opposite image
 
     int total_length_pixels = 0;
     for (int list_index = 0; list_index < MAX_TRADE_EDGES; list_index++) {
@@ -1299,8 +1299,8 @@ static void draw_sidebar_city_item(const grid_box_item *item)
         button_border_draw(item->x, item->y, item_usable_width, item->height - data.sidebar.margin_bottom / 2, 1); // margin/2 to not be exactly the same size as the item
     }
 
-    int badge_id = assets_get_image_id("UI", "Empire_sidebar_city_badge");
-    int badge_width = image_get(badge_id)->width;
+    const ImageGroupEntryRef badge = ImageGroupEntryRef::from_group("UI\\Empire_sidebar_city_badge", "Empire_sidebar_city_badge");
+    int badge_width = badge.width();
     int image_id = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1 - city->is_sea_trade;
     int available_width = item_usable_width - data.sidebar.margin_right;
     int badge_and_icon_width = badge_width + 2 + 34;
@@ -1310,7 +1310,7 @@ static void draw_sidebar_city_item(const grid_box_item *item)
 
     if (badge_and_icon_width <= available_width) {
         // Everything fits
-        Image::from_id(badge_id).draw(x_offset + badge_margin, y_offset + badge_margin);
+        badge.draw(x_offset + badge_margin, y_offset + badge_margin);
 
         text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         if (city->is_open || draw_icon_on_top) {
@@ -1323,7 +1323,7 @@ static void draw_sidebar_city_item(const grid_box_item *item)
 
     } else if (badge_width <= available_width) {
         // Only badge fits, check if the icon fits inside it
-        Image::from_id(badge_id).draw(x_offset + badge_margin, y_offset + badge_margin);
+        badge.draw(x_offset + badge_margin, y_offset + badge_margin);
         int city_name_end = text_draw(name, x_offset + badge_margin + BLOCK_SIZE, y_offset + 9, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
         int icon_fits_in_badge = (city_name_end + badge_margin + 2 + 34) <= (x_offset + badge_margin + badge_width);
         if (icon_fits_in_badge) {

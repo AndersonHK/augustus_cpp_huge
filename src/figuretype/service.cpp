@@ -266,10 +266,10 @@ void figure_tavern_action(Figure *f)
     roamer_action(f, 1);
     int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Walkers", "Barkeep Death 01") +
+        f->image_id = assets_get_image_id("Walkers\\Barkeep_death_01", "Barkeep death 01") +
             figure_image_corpse_offset(f);
     } else {
-        f->image_id = assets_get_image_id("Walkers", "Barkeep NE 01") + dir * 12 +
+        f->image_id = assets_get_image_id("Walkers\\Barkeep_NE_01", "Barkeep NE 01") + dir * 12 +
             f->image_offset;
     }
 }
@@ -415,7 +415,7 @@ void figure_doctor_action(Figure *f)
             if (f->image_offset >= sizeof DOCTOR_HEALING_OFFSETS / sizeof DOCTOR_HEALING_OFFSETS[0]) {
                 f->image_offset = 0;
             }
-            f->image_id = assets_get_image_id("Health_Culture", "Doctor heal") +
+            f->image_id = assets_get_image_id("Health_Culture\\Doctor_heal", "Doctor heal") +
                 DOCTOR_HEALING_OFFSETS[f->image_offset];
             break;
     }

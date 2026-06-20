@@ -40,7 +40,6 @@ const char *building_type_registry_get_button_group(building_type type);
 int building_type_registry_get_button_order(building_type type);
 const char *building_type_registry_get_button_icon(building_type type);
 const char *building_type_registry_get_button_icon_image(building_type type);
-int building_type_registry_get_button_icon_image_id(building_type type);
 const char *building_type_registry_get_button_text_key(building_type type);
 int building_type_registry_has_labor_seeker(building_type type);
 figure_type building_type_registry_get_preview_figure(building_type type);

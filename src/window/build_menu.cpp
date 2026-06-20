@@ -14,7 +14,6 @@
 #include "build_menu.h"
 
 
-#include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
@@ -466,20 +465,17 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
         draw_menu_money_centered(build_cost, x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4, MENU_ITEM_MONEY_OFFSET,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else {
-        int image_id = assets_get_image_id("UI", "Expand Menu Icon");
-        Image::from_id(image_id).draw(item_x_align + MENU_ICON_X_OFFSET + 268, item_y + MENU_ICON_Y_OFFSET);
+        ImageGroupEntryRef::from_group("UI\\Expand_Menu_Icon", "Expand Menu Icon").draw(item_x_align + MENU_ICON_X_OFFSET + 268, item_y + MENU_ICON_Y_OFFSET);
     }
 
     int icons_drawn = 0;
     if (has_rotation_icon()) {
-        int image_id = assets_get_image_id("UI", "Rotate Build Icon");
-        Image::from_id(image_id).draw(item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET);
+        ImageGroupEntryRef::from_group("UI\\Rotate_Build_Icon", "Rotate Build Icon").draw(item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET);
         icons_drawn++;
     }
 
     if (has_monument_icon()) {
-        int image_id = assets_get_image_id("UI", "Monument Build Icon");
-        Image::from_id(image_id).draw(item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET);
+        ImageGroupEntryRef::from_group("UI\\Monument_Build_Icon", "Monument Build Icon").draw(item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET);
     }
 }
 

@@ -37,6 +37,7 @@ void building_construction_set_hover_tile(int x, int y, int grid_offset);
 
 int building_construction_cost(void);
 int building_construction_force_place_clear_cost(void);
+int building_construction_can_place(void);
 
 int building_construction_size(int *x, int *y);
 
@@ -56,6 +57,7 @@ figure_type building_construction_nearby_enemy_type(grid_slice *slice);
 void building_construction_offset_start_from_orientation(int *x, int *y, int size);
 
 void building_construction_place(void);
+void building_construction_set_can_place(int can_place);
 
 int building_construction_can_place_on_terrain(int x, int y, warning_type *warning, translation_key *text_key);
 

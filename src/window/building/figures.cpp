@@ -124,8 +124,6 @@ static int big_people_image(figure_type type)
             return assets_get_image_id("Walkers", "Barkeep Portrait");
         case FIGURE_DEPOT_CART_PUSHER:
             return assets_lookup_image_id(ASSET_OX);
-        case FIGURE_MARKET_SUPPLIER:
-            return assets_get_image_id("Walkers", "marketbuyer_portrait");
         case FIGURE_WORK_CAMP_ARCHITECT:
             return assets_get_image_id("Walkers", "architect_portrait");
         case FIGURE_WORK_CAMP_WORKER:
@@ -437,7 +435,7 @@ static void draw_cartpusher(building_info_context *c, Figure *f)
     Building source_building = f->building;
     const int is_armoury_cart = source_building.type && source_building.type->is_armoury();
     if (is_armoury_cart) {
-        Image::from_id(assets_get_image_id("Walkers", "barracks_worker_portrait")).draw(c->x_offset + 28, c->y_offset + 112);
+        ImageGroupEntryRef::from_group("Walkers\\barracks_worker_portrait", "barracks_worker_portrait").draw(c->x_offset + 28, c->y_offset + 112);
     } else {
         Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112);
     }
@@ -583,7 +581,12 @@ static void draw_depot_cartpusher(building_info_context *c, Figure *f)
 
 static void draw_supplier(building_info_context *c, Figure *f)
 {
-    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112);
+    if (f->type == FIGURE_MARKET_SUPPLIER) {
+        ImageGroupEntryRef::from_group("Walkers\\marketbuyer_portrait", "marketbuyer_portrait")
+            .draw(c->x_offset + 28, c->y_offset + 112);
+    } else {
+        Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112);
+    }
 
     lang_text_draw(current_string_key(65, f->name), c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     int width = 0;

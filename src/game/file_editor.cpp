@@ -185,13 +185,13 @@ int game_file_editor_write_scenario(const char *scenario_file)
     int image_alt_hut;
     switch (scenario_property_climate()) {
         case CLIMATE_NORTHERN:
-            image_alt_hut = assets_get_image_id("Terrain_Maps", "Native_Hut_Northern_01");
+            image_alt_hut = assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01");
             break;
         case CLIMATE_DESERT:
-            image_alt_hut = assets_get_image_id("Terrain_Maps", "Native_Hut_Southern_01");
+            image_alt_hut = assets_get_image_id("Terrain_Maps\\Native_Hut_Southern_01", "Native_Hut_Southern_01");
             break;
         default:
-            image_alt_hut = assets_get_image_id("Terrain_Maps", "Native_Hut_Central_01");
+            image_alt_hut = assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01");
     }
     int image_native_decoration = building_image_for_text_id("native_decoration");
     int image_native_monument = building_image_for_text_id("native_monument");

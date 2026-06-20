@@ -93,15 +93,15 @@ void figure_military_standard_action(Figure *f)
         }
     } else if (m->figure_type == FIGURE_FORT_INFANTRY) {
         if (m->is_halted) {
-            f->cart_image_id = assets_get_image_id("UI", "auxinf_banner_0");
+            f->cart_image_id = assets_get_image_id("UI\\auxinf_banner_0", "auxinf_banner_0");
         } else {
-            f->cart_image_id = assets_get_image_id("UI", "auxinf_banner_01") + f->image_offset / 2;
+            f->cart_image_id = assets_get_image_id("UI\\auxinf_banner_01", "auxinf_banner_01") + f->image_offset / 2;
         }
     } else {
         if (m->is_halted) {
-            f->cart_image_id = assets_get_image_id("UI", "auxarch_banner_0");
+            f->cart_image_id = assets_get_image_id("UI\\auxarch_banner_0", "auxarch_banner_0");
         } else {
-            f->cart_image_id = assets_get_image_id("UI", "auxarch_banner_01") + f->image_offset / 2;
+            f->cart_image_id = assets_get_image_id("UI\\auxarch_banner_01", "auxarch_banner_01") + f->image_offset / 2;
         }
     }
 }
@@ -256,7 +256,7 @@ static void update_image_legionary(Figure *f, const formation *m, int dir)
         if (m->is_halted && m->layout == FORMATION_COLUMN && m->missile_attack_timeout) {
             f->image_id = image_id + dir + 144;
         } else if (legionary_can_throw_javelin(f) && missile_offset >= 0 && dir < DIR_8_NONE) {
-            f->image_id = assets_get_image_id("Warriors", "legionary_fr_ne_01") + dir * 5 + missile_offset;
+            f->image_id = assets_get_image_id("Warriors\\legionary_fr_ne_01", "legionary_fr_ne_01") + dir * 5 + missile_offset;
         } else {
             f->image_id = image_id + dir;
         }
@@ -269,14 +269,14 @@ static void update_image_infantry(Figure *f, int dir)
 {
     if (f->action_state == FIGURE_ACTION_150_ATTACK) {
         if (f->attack_image_offset < 14) {
-            f->image_id = assets_get_image_id("Warriors", "auxinf_f_ne_01") + dir * 5;
+            f->image_id = assets_get_image_id("Warriors\\auxinf_f_ne_01", "auxinf_f_ne_01") + dir * 5;
         } else {
-            f->image_id = assets_get_image_id("Warriors", "auxinf_f_ne_01") + dir * 5 + ((f->attack_image_offset - 14) / 2);
+            f->image_id = assets_get_image_id("Warriors\\auxinf_f_ne_01", "auxinf_f_ne_01") + dir * 5 + ((f->attack_image_offset - 14) / 2);
         }
     } else if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Warriors", "auxinf_death_01") + figure_image_corpse_offset(f);
+        f->image_id = assets_get_image_id("Warriors\\auxinf_death_01", "auxinf_death_01") + figure_image_corpse_offset(f);
     } else {
-        f->image_id = assets_get_image_id("Warriors", "auxinf_ne_01") + dir * 12 + f->image_offset;
+        f->image_id = assets_get_image_id("Warriors\\auxinf_ne_01", "auxinf_ne_01") + dir * 12 + f->image_offset;
     }
 }
 
@@ -286,17 +286,17 @@ static void update_image_archer(Figure *f, int dir)
     
     if (f->action_state == FIGURE_ACTION_150_ATTACK) {
         if (f->attack_image_offset < 14) {
-            f->image_id = assets_get_image_id("Warriors", "auxarch_fm_ne_01") + dir * 5;
+            f->image_id = assets_get_image_id("Warriors\\auxarch_fm_ne_01", "auxarch_fm_ne_01") + dir * 5;
         } else {
-            f->image_id = assets_get_image_id("Warriors", "auxarch_fm_ne_01") + dir * 5 + ((f->attack_image_offset - 14) / 2);
+            f->image_id = assets_get_image_id("Warriors\\auxarch_fm_ne_01", "auxarch_fm_ne_01") + dir * 5 + ((f->attack_image_offset - 14) / 2);
         }
     } else if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Warriors", "auxarch_death_01") + figure_image_corpse_offset(f);
+        f->image_id = assets_get_image_id("Warriors\\auxarch_death_01", "auxarch_death_01") + figure_image_corpse_offset(f);
     } else if (f->action_state == FIGURE_ACTION_84_SOLDIER_AT_STANDARD) {
         int missile_offset = calc_bound(figure_image_missile_launcher_offset(f) - 1, 0, 4);
-        f->image_id = assets_get_image_id("Warriors", "auxarch_fr_ne_01") + dir * 5 + missile_offset;
+        f->image_id = assets_get_image_id("Warriors\\auxarch_fr_ne_01", "auxarch_fr_ne_01") + dir * 5 + missile_offset;
     } else {
-        f->image_id = assets_get_image_id("Warriors", "auxarch_ne_01") + dir * 12 + f->image_offset;
+        f->image_id = assets_get_image_id("Warriors\\auxarch_ne_01", "auxarch_ne_01") + dir * 12 + f->image_offset;
     }
 
 }

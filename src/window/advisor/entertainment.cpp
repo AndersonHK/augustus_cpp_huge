@@ -18,7 +18,6 @@
 #include "graphics/ui_runtime.h"
 
 
-#include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "city/finance.h"
 #include "core/calc.h"
@@ -256,49 +255,37 @@ static void draw_hold_games_button_widget(void)
 static void draw_games_banner_widget_assets(void)
 {
     UiPrimitives &primitives = shared_ui_runtime().primitives();
-    const int banner_image_id = assets_get_image_id("UI", "HoldGames Banner");
-    const int border_base_image_id = assets_get_image_id("UI", "HoldGames Banner Border");
+    const RuntimeDrawSlice banner = ImageGroupEntryRef::from_group("UI\\HoldGames_Banner", "HoldGames Banner").runtime_slice();
+    primitives.draw_runtime_slice(banner, 460.0f, 305.0f, banner.width, banner.height, COLOR_MASK_NONE, RENDER_SCALING_POLICY_PIXEL_ART);
 
-    const image *banner = primitives.resolve_image(banner_image_id);
-    if (banner) {
-        primitives.draw_image(
-            banner,
-            460.0f,
-            305.0f,
-            banner->width,
-            banner->height,
-            COLOR_MASK_NONE,
-            RENDER_SCALING_POLICY_PIXEL_ART);
-    }
-
-    const image *top_border = primitives.resolve_image(border_base_image_id);
-    const image *left_border = primitives.resolve_image(border_base_image_id + 1);
-    const image *bottom_border = primitives.resolve_image(border_base_image_id + 2);
-    const image *right_border = primitives.resolve_image(border_base_image_id + 3);
-    if (!top_border || !left_border || !bottom_border || !right_border) {
+    const RuntimeDrawSlice top_border = ImageGroupEntryRef::from_group("UI\\HoldGames_Banner_Border", "HoldGames Banner Border").runtime_slice();
+    const RuntimeDrawSlice left_border = ImageGroupEntryRef::from_group("UI\\HoldGames_Banner_Border", "Image_0015").runtime_slice();
+    const RuntimeDrawSlice bottom_border = ImageGroupEntryRef::from_group("UI\\HoldGames_Banner_Border", "Image_0016").runtime_slice();
+    const RuntimeDrawSlice right_border = ImageGroupEntryRef::from_group("UI\\HoldGames_Banner_Border", "Image_0017").runtime_slice();
+    if (!top_border.is_valid() || !left_border.is_valid() || !bottom_border.is_valid() || !right_border.is_valid()) {
         return;
     }
 
     const int x = 460;
     const int y = 305;
-    const int top_y_offset = top_border->height + top_border->y_offset;
+    const int top_y_offset = top_border.height + top_border.draw_offset_y;
 
-    primitives.draw_image(top_border, static_cast<float>(x), static_cast<float>(y),
-        top_border->width, top_border->height, COLOR_MASK_NONE, RENDER_SCALING_POLICY_PIXEL_ART);
-    primitives.draw_image(left_border, static_cast<float>(x), static_cast<float>(y + top_y_offset),
-        left_border->width, left_border->height, COLOR_MASK_NONE, RENDER_SCALING_POLICY_PIXEL_ART);
-    primitives.draw_image(bottom_border,
+    primitives.draw_runtime_slice(top_border, static_cast<float>(x), static_cast<float>(y),
+        top_border.width, top_border.height, COLOR_MASK_NONE, RENDER_SCALING_POLICY_PIXEL_ART);
+    primitives.draw_runtime_slice(left_border, static_cast<float>(x), static_cast<float>(y + top_y_offset),
+        left_border.width, left_border.height, COLOR_MASK_NONE, RENDER_SCALING_POLICY_PIXEL_ART);
+    primitives.draw_runtime_slice(bottom_border,
         static_cast<float>(x),
-        static_cast<float>(y + top_y_offset + left_border->height + left_border->y_offset),
-        bottom_border->width,
-        bottom_border->height,
+        static_cast<float>(y + top_y_offset + left_border.height + left_border.draw_offset_y),
+        bottom_border.width,
+        bottom_border.height,
         COLOR_MASK_NONE,
         RENDER_SCALING_POLICY_PIXEL_ART);
-    primitives.draw_image(right_border,
-        static_cast<float>(x + top_border->width + top_border->x_offset - right_border->width - right_border->y_offset),
+    primitives.draw_runtime_slice(right_border,
+        static_cast<float>(x + top_border.width + top_border.draw_offset_x - right_border.width - right_border.draw_offset_y),
         static_cast<float>(y + top_y_offset),
-        right_border->width,
-        right_border->height,
+        right_border.width,
+        right_border.height,
         COLOR_MASK_NONE,
         RENDER_SCALING_POLICY_PIXEL_ART);
 }

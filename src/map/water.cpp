@@ -260,7 +260,7 @@ int map_water_has_water_in_front(int x, int y, int adjust_xy, const waterside_ti
 
 int map_water_get_wharf_for_new_fishing_boat(Figure *boat, map_point *tile)
 {
-    building *wharf = 0;
+    Building wharf(nullptr);
     for (int i = 1; i < Building::count(); i++) {
         Building candidate(building_get(i));
         if (candidate.state_id() != BUILDING_STATE_IN_USE) {
@@ -271,23 +271,23 @@ int map_water_get_wharf_for_new_fishing_boat(Figure *boat, map_point *tile)
             building *b = building_get(candidate.id());
             int wharf_boat_id = b->data.industry.fishing_boat_id;
             if (!wharf_boat_id || wharf_boat_id == static_cast<int>(boat->id())) {
-                wharf = b;
+                wharf = candidate;
                 break;
             }
         }
     }
-    if (!wharf) {
+    if (!wharf.id()) {
         return 0;
     }
     int dx, dy;
-    switch (wharf->data.industry.orientation) {
+    switch (wharf.orientation()) {
         case 0: dx = 1; dy = -1; break;
         case 1: dx = 2; dy = 1; break;
         case 2: dx = 1; dy = 2; break;
         default: dx = -1; dy = 1; break;
     }
-    map_point_store_result(wharf->x + dx, wharf->y + dy, tile);
-    return wharf->id;
+    map_point_store_result(wharf.x() + dx, wharf.y() + dy, tile);
+    return wharf.id();
 }
 
 int map_water_find_alternative_fishing_boat_tile(Figure *boat, map_point *tile)

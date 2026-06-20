@@ -307,7 +307,7 @@ static void draw_footprint(int x, int y, int grid_offset)
         //grid is drawn by the renderer directly at zoom > 200%
         static int grid_id = 0;
         if (!grid_id) {
-            grid_id = assets_get_image_id("UI", "Grid_Full");
+            grid_id = assets_get_image_id("UI\\Grid_Full", "Grid_Full");
         }
         Image::from_id(grid_id).draw(x, y, COLOR_GRID, draw_context.scale);
     }
@@ -414,18 +414,18 @@ static void draw_workshop_raw_material_storage(const Building &building, int x, 
             Image::from_id(Image::group(GROUP_BUILDING_WORKSHOP_RAW_MATERIAL) + 4).draw(x + 47, y + 24, color_mask, draw_context.scale);
         }
         if (building.industry_has_raw_materials() || building.has_required_raw_amount_for_production(resource_sand())) {
-            Image::from_id(assets_get_image_id("Industry", "Sand_Supplied_Workshop")).draw(x + 67, y + 12, color_mask, draw_context.scale);
+            ImageGroupEntryRef::from_group("Industry\\Sand_Supplied_Workshop", "Sand_Supplied_Workshop").draw(x + 67, y + 12, color_mask, draw_context.scale);
         }
     }
     if (building_matches(building, "concrete_maker") && has_workshop_raw_materials(building)) {
-        Image::from_id(assets_get_image_id("Industry", "Sand_Supplied_Workshop")).draw(x + 47, y + 24, color_mask, draw_context.scale);
+        ImageGroupEntryRef::from_group("Industry\\Sand_Supplied_Workshop", "Sand_Supplied_Workshop").draw(x + 47, y + 24, color_mask, draw_context.scale);
     }
 }
 
 static void get_mothball_icon_position(const Building &building, int *x, int *y)
 {
     const Image &building_image = Image::from_id(building.image_id());
-    int icon_id = assets_get_image_id("UI", "Mothball_Sprite");
+    const ImageGroupEntryRef icon = ImageGroupEntryRef::from_group("UI\\Mothball_Sprite", "Mothball_Sprite");
 
     if (building.type && building.type->is_warehouse()) {
         *x += 21;
@@ -440,8 +440,8 @@ static void get_mothball_icon_position(const Building &building, int *x, int *y)
         *x += 50;
         *y -= 50;
     } else {
-        *x = (building_image.width() - Image::from_id(icon_id).width()) / 2;
-        *y = (-Image::from_id(icon_id).height() / 2) + 10;
+        *x = (building_image.width() - icon.width()) / 2;
+        *y = (-icon.height() / 2) + 10;
     }
     if (const Image *top = building_image.top()) {
         *y -= top->original_height();
@@ -469,9 +469,9 @@ static void draw_mothball_icon(const Building &building, int x, int y, color_t c
     y += mothball_y;
 
     if (building.is_mothballed()) {
-        Image::from_id(assets_get_image_id("UI", "Mothball_Sprite")).draw(x, y, COLOR_MASK_NONE, draw_context.scale);
+        ImageGroupEntryRef::from_group("UI\\Mothball_Sprite", "Mothball_Sprite").draw(x, y, COLOR_MASK_NONE, draw_context.scale);
     } else if (building.industry_is_stockpiling()) {
-        Image::from_id(assets_get_image_id("UI", "Stockpile_Sprite")).draw(x, y, COLOR_MASK_NONE, draw_context.scale);
+        ImageGroupEntryRef::from_group("UI\\Stockpile_Sprite", "Stockpile_Sprite").draw(x, y, COLOR_MASK_NONE, draw_context.scale);
     }
 }
 
@@ -521,6 +521,9 @@ static void draw_top_for_building(Building building, int x, int y, int grid_offs
         color_mask = COLOR_MASK_HOVER;
     }
 
+    if (!building.id() && city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
+        return;
+    }
     if (!building.draw_top({ x, y, grid_offset, color_mask, draw_context.scale })) {
         Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, color_mask, draw_context.scale);
     }
@@ -644,52 +647,52 @@ static void draw_plague(Building &building, int x, int y, color_t color_mask)
 static int depot_cart_image_id(resource_type resource)
 {
     if (resource == resource_vegetables()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Vegetables");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Vegetables", "Cart_Depot_Vegetables");
     } else if (resource == resource_fruit()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Fruit");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Fruit", "Cart_Depot_Fruit");
     } else if (resource == resource_meat()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Meat");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Meat", "Cart_Depot_Meat");
     } else if (resource == resource_fish()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Fish");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Fish", "Cart_Depot_Fish");
     } else if (resource == resource_vines()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Grapes");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Grapes", "Cart_Depot_Grapes");
     } else if (resource == resource_pottery()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Pottery");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Pottery", "Cart_Depot_Pottery");
     } else if (resource == resource_furniture()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Furniture");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Furniture", "Cart_Depot_Furniture");
     } else if (resource == resource_oil()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Oil");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Oil", "Cart_Depot_Oil");
     } else if (resource == resource_wine()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Wine");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Wine", "Cart_Depot_Wine");
     } else if (resource == resource_marble()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Marble");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Marble", "Cart_Depot_Marble");
     } else if (resource == resource_weapons()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Weapons");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Weapons", "Cart_Depot_Weapons");
     } else if (resource == resource_clay()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Clay");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Clay", "Cart_Depot_Clay");
     } else if (resource == resource_timber()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Timber");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Timber", "Cart_Depot_Timber");
     } else if (resource == resource_olives()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Olives");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Olives", "Cart_Depot_Olives");
     } else if (resource == resource_iron()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Iron");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Iron", "Cart_Depot_Iron");
     } else if (resource == resource_gold()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Gold");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Gold", "Cart_Depot_Gold");
     } else if (resource == resource_sand()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Sand");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Sand", "Cart_Depot_Sand");
     } else if (resource == resource_stone()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Stone");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Stone", "Cart_Depot_Stone");
     } else if (resource == resource_bricks()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Bricks");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Bricks", "Cart_Depot_Bricks");
     }
-    return assets_get_image_id("Admin_Logistics", "Cart_Depot_Wheat");
+    return assets_get_image_id("Admin_Logistics\\Cart_Depot_Wheat", "Cart_Depot_Wheat");
 }
 
 static void draw_depot_resource(const Building &building, int x, int y)
 {
     const int image_id = building.worker_count() ?
         depot_cart_image_id(building.depot_order().resource_type) :
-        assets_get_image_id("Admin_Logistics", "Cart_Depot_Cat");
+        assets_get_image_id("Admin_Logistics\\Cart_Depot_Cat", "Cart_Depot_Cat");
     Image::from_id(image_id).draw(x + 11, y, COLOR_MASK_NONE, draw_context.scale);
 }
 
@@ -724,27 +727,7 @@ static void draw_dock_workers(const Building &building, int x, int y, color_t co
 
 static void draw_permissions_flag(Building &building, int x, int y, color_t color_mask)
 {
-    if (building.has_plague()) {
-        return;
-    }
-    static int base_permission_image[8];
-    if (!base_permission_image[0]) {
-        base_permission_image[0] = 0xdeadbeef; // Invalid image ID, just to confirm the other values have been set
-        base_permission_image[1] = assets_get_image_id("UI", "Warehouse_Flag_Market");
-        base_permission_image[2] = assets_get_image_id("UI", "Warehouse_Flag_Land");
-        base_permission_image[3] = assets_get_image_id("UI", "Warehouse_Flag_Market_Land");
-        base_permission_image[4] = assets_get_image_id("UI", "Warehouse_Flag_Sea");
-        base_permission_image[5] = assets_get_image_id("UI", "Warehouse_Flag_Market_Sea");
-        base_permission_image[6] = assets_get_image_id("UI", "Warehouse_Flag_Land_Sea");
-        base_permission_image[7] = assets_get_image_id("UI", "Warehouse_Flag_All");
-    }
-    int permissions = building.blocked_storage_permission_mask();
-    if (!permissions) {
-        return;
-    }
-    Image::from_id(base_permission_image[permissions] + building.warehouse_flag_frame()).draw(x, y, color_mask, draw_context.scale);
-
-    building.animate().advance_storage_flag(Image::from_id(base_permission_image[permissions]));
+    city_draw_storage_permission_flag(building, x, y, color_mask, draw_context.scale);
 }
 
 static void draw_warehouse_ornaments(int x, int y, color_t color_mask)
@@ -777,13 +760,13 @@ static void draw_granary_stores(const image &image, const Building &building, in
 
 static void draw_ceres_module_crops(int x, int y, int image_offset, color_t color_mask)
 {
-    int image_id = assets_get_image_id("Monuments", "Ceres Module 1 Crop");
+    int image_id = assets_get_image_id("Monuments\\Ceres_Module_1_Crop", "Ceres Module 1 Crop");
     Image::from_id(image_id + image_offset).draw(x, y, color_mask, draw_context.scale);
 }
 
 static void draw_neptune_fountain(int x, int y, int image_offset, color_t color_mask)
 {
-    int image_id = assets_get_image_id("Monuments", "Neptune Module 2 Fountain");
+    int image_id = assets_get_image_id("Monuments\\Neptune_Module_2_Fountain", "Neptune Module 2 Fountain");
     Image::from_id(image_id + image_offset).draw(x, y, color_mask, draw_context.scale);
 }
 
@@ -840,7 +823,7 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
                     int festival_id = calc_bound(city_festival_games_active(), 0, 4);
                     int extra_x = festival_id ? 57 : 127;
                     int extra_y = festival_id ? 12 : 93;
-                    int overlay_id = assets_get_image_id("Monuments", "Col Base Overlay") + festival_id;
+                    int overlay_id = assets_get_image_id("Monuments\\Col_Base_Overlay", "Col Base Overlay") + festival_id;
                     Image::from_id(overlay_id).draw(x + extra_x, y + extra_y - y_offset, color_mask, draw_context.scale);
                 }
             }
@@ -857,7 +840,7 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
         city_draw_bridge(x, y, draw_context.scale, grid_offset);
     } else if (building_is_fort(building.type ? building.type->type() : BUILDING_NONE)) {
         if (map_property_is_draw_tile(grid_offset)) {
-            image_id = assets_get_image_id("Military", "Fort_Jav_Flag_Central");
+            image_id = assets_get_image_id("Military\\Fort_Jav_Flag_Central", "Fort_Jav_Flag_Central");
             switch (building.fort_figure_type()) {
                 case FIGURE_FORT_LEGIONARY: image_id += 2; break;
                 case FIGURE_FORT_MOUNTED: image_id += 1; break;
@@ -869,7 +852,7 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
                 default: break;
             }
             if (building.fort_figure_type() == FIGURE_FORT_INFANTRY) {
-                image_id = assets_get_image_id("Military", "fort_aux_inf_flag_central");
+                image_id = assets_get_image_id("Military\\fort_aux_inf_flag_central", "fort_aux_inf_flag_central");
                 switch (scenario_property_climate()) {
                     case CLIMATE_DESERT: image_id += 2; break;
                     case CLIMATE_NORTHERN: image_id += 1; break;
@@ -877,7 +860,7 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
                 }
             }
             if (building.fort_figure_type() == FIGURE_FORT_ARCHER) {
-                image_id = assets_get_image_id("Military", "fort_aux_arch_flag_central");
+                image_id = assets_get_image_id("Military\\fort_aux_arch_flag_central", "fort_aux_arch_flag_central");
                 switch (scenario_property_climate()) {
                     case CLIMATE_DESERT: image_id += 2; break;
                     case CLIMATE_NORTHERN: image_id += 1; break;
@@ -1090,7 +1073,7 @@ static void update_clouds(void)
          return;
      }
      if (tx == distance->dst_x && ty == distance->dst_y) {
-         int dst_image_id = assets_get_image_id("UI", "Happy God Icon");
+         int dst_image_id = assets_get_image_id("UI\\Happy_God_Icon", "Happy God Icon");
          Image::from_id(dst_image_id).draw(x + 29 - 10, y + 15 - 10, 0, 1);
      }
      uint8_t text[20];

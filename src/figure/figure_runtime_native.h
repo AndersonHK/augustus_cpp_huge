@@ -3,6 +3,7 @@
 #include "figure/figure_type_registry_internal.h"
 
 #include "figure/figure.h"
+#include "graphics/runtime_texture.h"
 
 #include <memory>
 
@@ -61,5 +62,10 @@ road_service_effect primary_service_effect_for_profile(
     const figure_type_registry_impl::FigureTypeProfile *profile);
 
 bool is_road_history_tile(int grid_offset);
+
+int graphics_policy_has_native_payload(const figure_type_registry_impl::FigureTypeDefinition *definition);
+const RuntimeDrawSlice *graphics_policy_slice_for_figure(
+    const Figure *f,
+    const figure_type_registry_impl::FigureTypeDefinition *definition);
 
 } // namespace figure_runtime_native_impl

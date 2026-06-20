@@ -58,6 +58,7 @@
 #include "building/building_type_registry_internal.h"
 #include "graphics/image.h"
 
+#include <cstdio>
 #include <cstring>
 #include <initializer_list>
 
@@ -109,6 +110,70 @@ static unsigned int focus_mothball_image_button_id;
 static unsigned int focus_monument_construction_button_id;
 static int original_overlay;
 static int previous_overlay;
+
+static const char *advisor_button_image_base(int advisor)
+{
+    switch (advisor) {
+        case ADVISOR_LABOR:
+            return "Advisor_Building_Window_Labor";
+        case ADVISOR_MILITARY:
+            return "Advisor_Building_Window_Military";
+        case ADVISOR_IMPERIAL:
+            return "Advisor_Building_Window_Imperial";
+        case ADVISOR_RATINGS:
+            return "Advisor_Building_Window_Ratings";
+        case ADVISOR_TRADE:
+            return "Advisor_Building_Window_Trade";
+        case ADVISOR_POPULATION:
+            return "Advisor_Building_Window_Population";
+        case ADVISOR_HOUSING:
+            return "Advisor_Building_Window_Housing";
+        case ADVISOR_HEALTH:
+            return "Advisor_Building_Window_Health";
+        case ADVISOR_EDUCATION:
+            return "Advisor_Building_Window_Education";
+        case ADVISOR_ENTERTAINMENT:
+            return "Advisor_Building_Window_Entertainment";
+        case ADVISOR_RELIGION:
+            return "Advisor_Building_Window_Religion";
+        case ADVISOR_FINANCIAL:
+            return "Advisor_Building_Window_Financial";
+        case ADVISOR_CHIEF:
+            return "Advisor_Building_Window_Chief";
+        default:
+            return "Advisor_Building_Window_Border";
+    }
+}
+
+static int image_button_state_suffix(const image_button &button)
+{
+    if (!button.enabled) {
+        return 4;
+    }
+    if (button.pressed) {
+        return 3;
+    }
+    if (button.focused) {
+        return 2;
+    }
+    return 1;
+}
+
+static void update_advisor_button_image(int advisor)
+{
+    static char image_name[64];
+    std::snprintf(
+        image_name,
+        sizeof(image_name),
+        "%s_%d",
+        advisor_button_image_base(advisor),
+        image_button_state_suffix(image_buttons_help_advisor_close[2]));
+
+    image_buttons_help_advisor_close[2].assetlist_name = "UI\\Advisor_Building_Window_Border_1";
+    image_buttons_help_advisor_close[2].image_name = image_name;
+    image_buttons_help_advisor_close[2].image_offset = 0;
+    image_buttons_help_advisor_close[2].parameter1 = advisor;
+}
 
 static int building_type_attr_is(building_type type, const char *text_id)
 {
@@ -954,9 +1019,9 @@ static void draw_foreground(void)
         update_context_buttons_vertical_offset(new_context_y, 28);
         image_buttons_draw(0, 0, image_buttons_help_advisor_close, 2);
     } else {
-        int image_id = assets_get_image_id("UI", "Advisor_Building_Window_Border_1");
-        image_buttons_help_advisor_close[2].image_offset = image_id + context.advisor_button * 4;
-        image_buttons_help_advisor_close[2].parameter1 = context.advisor_button;
+        if (context.advisor_button) {
+            update_advisor_button_image(context.advisor_button);
+        }
 
         image_buttons_draw(0, 0, image_buttons_help_advisor_close, context.advisor_button ? 3 : 2);
     }

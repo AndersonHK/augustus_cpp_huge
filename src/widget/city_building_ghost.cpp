@@ -2,6 +2,7 @@
 #include "building/connectable.h"
 #include "building/construction.h"
 #include "building/construction_building.h"
+#include "building/granary.h"
 #include "building/image.h"
 #include "building/industry.h"
 #include "building/roadblock.h"
@@ -34,6 +35,7 @@
 #include "building/building_runtime_graphics.h"
 #include "building/building_type_registry_internal.h"
 #include "building/market.h"
+#include "core/log.h"
 #include "graphics/runtime_texture.h"
 
 
@@ -60,6 +62,7 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 
+#include <cstdio>
 #include <cstring>
 #include <stdlib.h>
 
@@ -345,8 +348,7 @@ static int is_blocked_for_building(int grid_offset, int building_size, int *bloc
 static int has_blocked_tiles(int num_tiles, int *blocked_tiles)
 {
     for (int i = 0; i < num_tiles; i++) {
-        if (blocked_tiles[i] == TILE_FORBIDDEN) {
-            //TILE_DISCOURAGED shouldnt trigger this condition - these are discouraged, not blocked tiles.
+        if (blocked_tiles[i] != TILE_ALLOWED) {
             return 1;
         }
     }
@@ -378,6 +380,13 @@ static int graphics_definition_is_data_only_for_ghost(building_type type)
     return building_is_farm(type);
 }
 
+static int type_uses_native_ghost_graphics(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_graphic() && !graphics_definition_is_data_only_for_ghost(type);
+}
+
 static int ghost_building_size(building_type type)
 {
     return is_warehouse_type(type) ? 3 : building_properties_for_type(type)->size;
@@ -405,6 +414,9 @@ static void prepare_ghost_building(int grid_offset, building_type type)
     data.ghost_building.state = BUILDING_STATE_IN_USE;
     data.ghost_building.size = static_cast<unsigned char>(ghost_building_size(type));
     data.ghost_building.num_workers = model_get_building(type)->laborers;
+    if (definition && definition->is_granary()) {
+        data.ghost_building.resources[RESOURCE_NONE] = FULL_GRANARY;
+    }
 
     int building_x = map_grid_offset_to_x(grid_offset);
     int building_y = map_grid_offset_to_y(grid_offset);
@@ -435,6 +447,28 @@ static void prepare_ghost_building(int grid_offset, building_type type)
     }
 }
 
+static void log_native_ghost_draw_failure(building_type type, int grid_offset)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition) {
+        return;
+    }
+    prepare_ghost_building(grid_offset, type);
+    Building building(data.ghost_building, definition);
+    if (!building_runtime_graphics_image_id(building)) {
+        return;
+    }
+    char detail[256];
+    snprintf(
+        detail,
+        sizeof(detail),
+        "building_attr=%s grid_offset=%d",
+        definition->attr(),
+        grid_offset);
+    log_info("Native ghost graphics draw failed after image lookup succeeded: ", detail, 0);
+}
+
 static const ImageGroupEntry *runtime_ghost_entry(int grid_offset, building_type type, int include_data_only)
 {
     if (!include_data_only && graphics_definition_is_data_only_for_ghost(type)) {
@@ -449,14 +483,19 @@ static const ImageGroupEntry *runtime_ghost_entry(int grid_offset, building_type
     Building building(data.ghost_building, definition);
     const building_type_registry_impl::GraphicsTarget *target =
         definition->resolve_graphics_target(building);
-    if (!target || !target->has_path() || !image_group_payload_load(target->path())) {
+    if (!target) {
         return nullptr;
     }
-    const ImageGroupPayload *payload = image_group_payload_get(target->path());
+    building_type_registry_impl::GraphicsTarget resolved_target =
+        target->resolved_option(static_cast<unsigned char>(building_runtime_graphics_selected_option(building, *target)));
+    if (!resolved_target.has_path() || !image_group_payload_load(resolved_target.path())) {
+        return nullptr;
+    }
+    const ImageGroupPayload *payload = image_group_payload_get(resolved_target.path());
     if (!payload) {
         return nullptr;
     }
-    return target->has_image() ? payload->entry_for(target->image()) : payload->default_entry();
+    return resolved_target.has_image() ? payload->entry_for(resolved_target.image()) : payload->default_entry();
 }
 
 static void draw_tile_view_offset(int building_size, int *x_offset, int *y_offset)
@@ -649,7 +688,9 @@ static void draw_farm_image(building_type type, int image_id, int x, int y, int 
 static void draw_regular_building(building_type type, int image_id, int x, int y, int grid_offset,
     int num_tiles, int *blocked_tiles)
 {
-    color_t color = has_blocked_tiles(num_tiles, blocked_tiles) ?
+    const int has_blocked = has_blocked_tiles(num_tiles, blocked_tiles);
+    building_construction_set_can_place(!has_blocked);
+    color_t color = has_blocked ?
         COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
     if (building_is_farm(type)) {
         draw_farm_image(type, image_id, x, y, grid_offset, color);
@@ -942,7 +983,7 @@ static void draw_default(const map_tile *tile, int x_view, int y_view, building_
     for (int i = 0; i < num_tiles; i++) {
         int tile_offset = grid_offset + tile_grid_offset(orientation_index, i);
         int forbidden_terrain = map_terrain_get(tile_offset) & TERRAIN_NOT_CLEAR;
-        int discouraged_terrain = map_terrain_get(tile_offset) & TERRAIN_NOT_CLEAR;
+        int discouraged_terrain = forbidden_terrain;
         // forbidden terrain cannot be built on
         // discouraged terrain can be built on, but is still highlighted red,
         // to suggest e.g. that it will become unusable/be overwritten
@@ -965,11 +1006,11 @@ static void draw_default(const map_tile *tile, int x_view, int y_view, building_
             }
             if (config_get(CONFIG_GP_CH_WAREHOUSES_GRANARIES_OVER_ROAD_PLACEMENT)) {
                 if (is_warehouse_type(type)) {
-                    forbidden_terrain &= ~TERRAIN_ROAD; //every tile is allowed over roads
+                    forbidden_terrain &= ~TERRAIN_ROAD;
                     if (building_construction_is_warehouse_corner(i)) {
-                        discouraged_terrain &= ~TERRAIN_ROAD; //corner tile isnt even discouraged over roads
+                        discouraged_terrain &= ~TERRAIN_ROAD;
                     }
-                } else if (is_granary_type(type)) { // Allow roads under granary's cross shape
+                } else if (is_granary_type(type)) {
                     forbidden_terrain &= ~TERRAIN_ROAD;
                     if (building_construction_is_granary_cross_tile(i)) {
                         discouraged_terrain &= ~TERRAIN_ROAD;
@@ -993,20 +1034,23 @@ static void draw_default(const map_tile *tile, int x_view, int y_view, building_
             }
         }
     }
-    color_t color = has_blocked_tiles(num_tiles, blocked_tiles) ?
+    const int has_blocked = has_blocked_tiles(num_tiles, blocked_tiles);
+    building_construction_set_can_place(!has_blocked);
+    color_t color = has_blocked ?
         COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
     draw_water_access_context_overlays(tile, type);
     draw_distribution_context_overlays(tile, type, building_size);
     if (draw_runtime_regular_building(type, grid_offset, x_view, y_view, building_size, color)) {
         draw_building_tiles(x_view, y_view, num_tiles, blocked_tiles);
-    } else if ((image_id = get_new_building_image_id(grid_offset, type)) != 0) {
-        draw_regular_building(type, image_id, x_view, y_view, grid_offset, num_tiles, blocked_tiles);
+    } else if (type_uses_native_ghost_graphics(type)) {
+        log_native_ghost_draw_failure(type, grid_offset);
+        draw_building_tiles(x_view, y_view, num_tiles, blocked_tiles);
     } else {
         image_id = props->image_group > 0 ? get_building_image_id(tile->x, tile->y, type, props) : 0;
         draw_regular_building(type, image_id, x_view, y_view, grid_offset, num_tiles, blocked_tiles);
     }
 
-    set_roamer_path(type, building_size, tile, has_blocked_tiles(num_tiles, blocked_tiles));
+    set_roamer_path(type, building_size, tile, has_blocked);
 }
 
 static void draw_single_reservoir(int grid_offset, int x, int y, color_t color, int has_water, int draw_blocked)
@@ -1607,7 +1651,7 @@ static void draw_grid_tile(int x, int y, int grid_offset)
 {
     static int image_id = 0;
     if (!image_id) {
-        image_id = assets_get_image_id("UI", "Grid_Full");
+        image_id = assets_get_image_id("UI\\Grid_Full", "Grid_Full");
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_terrain_is(grid_offset, TERRAIN_ROCK) ||
         map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP) || map_terrain_is(grid_offset, TERRAIN_ELEVATION) ||

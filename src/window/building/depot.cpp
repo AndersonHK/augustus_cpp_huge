@@ -3,7 +3,6 @@
 #include "widget/dropdown_button.h"
 #include "depot.h"
 
-#include "assets/assets.h"
 #include "building/building.h"
 #include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
@@ -533,7 +532,7 @@ void window_building_draw_depot_foreground(building_info_context *c)
             depot_order_buttons[1].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         button_border_draw(x_offset + depot_order_buttons[5].x, y_offset + depot_order_buttons[5].y,
             depot_order_buttons[5].width, depot_order_buttons[5].height, data.focus_button_id == 6);
-        Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(x_offset + depot_order_buttons[5].x + 3, y_offset + depot_order_buttons[5].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
+            ImageGroupEntryRef::from_group("UI\\Center_Camera_Button", "Center Camera Button").draw(x_offset + depot_order_buttons[5].x + 3, y_offset + depot_order_buttons[5].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
         depot_order_buttons[5].parameter1 = src->id;
     } else if (total_storages() > 1) {
         lang_text_draw_centered("TR_BUILDING_INFO_DEPOT_SELECT_SOURCE",
@@ -558,7 +557,7 @@ void window_building_draw_depot_foreground(building_info_context *c)
             depot_order_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         button_border_draw(x_offset + depot_order_buttons[6].x, y_offset + depot_order_buttons[6].y,
             depot_order_buttons[6].width, depot_order_buttons[6].height, data.focus_button_id == 7);
-        Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(x_offset + depot_order_buttons[6].x + 3, y_offset + depot_order_buttons[6].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
+            ImageGroupEntryRef::from_group("UI\\Center_Camera_Button", "Center Camera Button").draw(x_offset + depot_order_buttons[6].x + 3, y_offset + depot_order_buttons[6].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
         depot_order_buttons[6].parameter1 = dst->id;
     } else if (total_storages() > 1) {
         lang_text_draw_centered("TR_BUILDING_INFO_DEPOT_SELECT_DESTINATION",
@@ -575,10 +574,10 @@ void window_building_draw_depot_foreground(building_info_context *c)
     if (data.advanced_mode) {
         button_border_draw(x_offset + depot_order_buttons[7].x, y_offset + depot_order_buttons[7].y,
             depot_order_buttons[7].width, depot_order_buttons[7].height, data.focus_button_id == 8);
-        Image::from_id(assets_lookup_image_id(ASSET_UI_COPY_ICON)).draw(x_offset + depot_order_buttons[7].x + 3, y_offset + depot_order_buttons[7].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
+        ImageGroupEntryRef::from_group("UI\\copy_icon", "copy_icon").draw(x_offset + depot_order_buttons[7].x + 3, y_offset + depot_order_buttons[7].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
         button_border_draw(x_offset + depot_order_buttons[8].x, y_offset + depot_order_buttons[8].y,
             depot_order_buttons[8].width, depot_order_buttons[8].height, data.focus_button_id == 9);
-        Image::from_id(assets_lookup_image_id(ASSET_UI_PASTE_ICON)).draw(x_offset + depot_order_buttons[8].x + 3, y_offset + depot_order_buttons[8].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
+        ImageGroupEntryRef::from_group("UI\\paste_icon", "paste_icon").draw(x_offset + depot_order_buttons[8].x + 3, y_offset + depot_order_buttons[8].y + 3, COLOR_FONT_PLAIN, SCALE_NONE);
 
         button_border_draw(x_offset + depot_order_buttons[9].x, y_offset + depot_order_buttons[9].y,
             depot_order_buttons[9].width, depot_order_buttons[9].height, data.focus_button_id == 10);
@@ -588,11 +587,11 @@ void window_building_draw_depot_foreground(building_info_context *c)
 
         button_border_draw(x_offset + depot_order_buttons[10].x, y_offset + depot_order_buttons[10].y,
             depot_order_buttons[10].width, depot_order_buttons[10].height, data.focus_button_id == 11);
-        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x_offset + depot_order_buttons[10].x + 5, y_offset + depot_order_buttons[10].y + 5);
+        ImageGroupEntryRef::from_group("UI\\Denied_Walker_Checkmark", "Denied_Walker_Checkmark").draw(x_offset + depot_order_buttons[10].x + 5, y_offset + depot_order_buttons[10].y + 5);
 
         button_border_draw(x_offset + depot_order_buttons[11].x, y_offset + depot_order_buttons[11].y,
             depot_order_buttons[11].width, depot_order_buttons[11].height, data.focus_button_id == 12);
-        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x_offset + depot_order_buttons[11].x + 5, y_offset + depot_order_buttons[11].y + 5);
+        ImageGroupEntryRef::from_group("UI\\Denied_Walker_Checkmark", "Denied_Walker_Checkmark").draw(x_offset + depot_order_buttons[11].x + 5, y_offset + depot_order_buttons[11].y + 5);
     }
 }
 
@@ -700,8 +699,8 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             // Left button - goto storage orders
             button_border_draw(c->x_offset + 18, y_offset + 46 + ROW_HEIGHT * drawn_rows, BLOCK_SIZE * 2, 22,
                 data.storage_building_goto_orders_focus_button_id == drawn_rows + 1);
-            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows);
+            ImageGroupEntryRef::from_group("UI\\gear_icon", "gear_icon").draw(c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
+            ImageGroupEntryRef::from_group("UI\\gear_icon", "gear_icon").draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows);
 
             // Middle button - select storage
             button_border_draw(c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows, base_width,
@@ -713,8 +712,8 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             // Right button - view storage
             button_border_draw(c->x_offset + 18 + base_width + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
                 BLOCK_SIZE * 2, 22, data.storage_building_view_focus_button_id == drawn_rows + 1);
-            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 22 + base_width + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows);
+                ImageGroupEntryRef::from_group("UI\\Center_Camera_Button", "Center Camera Button").draw(c->x_offset + 22 + base_width + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
+                ImageGroupEntryRef::from_group("UI\\Center_Camera_Button", "Center Camera Button").draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows);
 
             drawn_rows++;
         }
@@ -767,8 +766,8 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             // Left button - goto storage orders
             button_border_draw(c->x_offset + 18, y_offset + 46 + ROW_HEIGHT * drawn_rows, BLOCK_SIZE * 2, 22,
                 data.storage_building_goto_orders_focus_button_id == drawn_rows + 1);
-            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            Image::from_id(assets_lookup_image_id(ASSET_UI_GEAR_ICON)).draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows);
+            ImageGroupEntryRef::from_group("UI\\gear_icon", "gear_icon").draw(c->x_offset + 28, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
+            ImageGroupEntryRef::from_group("UI\\gear_icon", "gear_icon").draw(c->x_offset + 27, y_offset + 49 + ROW_HEIGHT * drawn_rows);
 
             // Middle button - select storage (disabled for inactive storages)
             button_border_draw(c->x_offset + 18 + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
@@ -780,8 +779,8 @@ void window_building_draw_depot_select_source_destination(building_info_context 
             // Right button - view storage - center camera on storage
             button_border_draw(c->x_offset + 18 + base_width + BLOCK_SIZE * 2, y_offset + 46 + ROW_HEIGHT * drawn_rows,
                 BLOCK_SIZE * 2, 22, data.storage_building_view_focus_button_id == drawn_rows + 1);
-            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 22 + base_width + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
-            Image::from_id(assets_lookup_image_id(ASSET_CENTER_CAMERA_ON_BUILDING)).draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows);
+                ImageGroupEntryRef::from_group("UI\\Center_Camera_Button", "Center Camera Button").draw(c->x_offset + 22 + base_width + BLOCK_SIZE * 2, y_offset + 50 + ROW_HEIGHT * drawn_rows, COLOR_FONT_PLAIN, SCALE_NONE);
+                ImageGroupEntryRef::from_group("UI\\Center_Camera_Button", "Center Camera Button").draw(c->x_offset + 21 + base_width + BLOCK_SIZE * 2, y_offset + 49 + ROW_HEIGHT * drawn_rows);
 
             drawn_rows++;
         }

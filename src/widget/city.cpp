@@ -387,7 +387,8 @@ static void build_move(const map_tile *tile)
 static void build_end(void)
 {
     if (building_construction_in_progress()) {
-        if (building_construction_type() != static_cast<building_type>(BUILDING_NONE)) {
+        if (building_construction_type() != static_cast<building_type>(BUILDING_NONE) &&
+            building_construction_can_place()) {
             sound_effect_play(static_cast<sound_effect_type>(SOUND_EFFECT_BUILD));
         }
         building_construction_place();

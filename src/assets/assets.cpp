@@ -1,7 +1,6 @@
 #include "assets/image.h"
 #include "assets/group.h"
 #include "assets/xml.h"
-#include "game/mod_manager.h"
 
 #include "assets.h"
 
@@ -14,7 +13,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-#include <string>
 
 static struct {
     int roadblock_image_id;
@@ -33,85 +31,6 @@ static void set_failure_reason(const char *reason, const char *detail)
     }
 }
 
-static int ascii_equals_ignore_case(const char *left, const char *right)
-{
-    if (!left || !right) {
-        return 0;
-    }
-    while (*left && *right) {
-        char l = *left++;
-        char r = *right++;
-        if (l >= 'A' && l <= 'Z') {
-            l = static_cast<char>(l - 'A' + 'a');
-        }
-        if (r >= 'A' && r <= 'Z') {
-            r = static_cast<char>(r - 'A' + 'a');
-        }
-        if (l != r) {
-            return 0;
-        }
-    }
-    return *left == *right;
-}
-
-static int source_already_listed(const xml_asset_source *sources, int count, xml_asset_source source)
-{
-    for (int i = 0; i < count; i++) {
-        if (sources[i] == source) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static xml_asset_source source_for_mod_index(int index, int top_index)
-{
-    if (index == top_index) {
-        return XML_ASSET_SOURCE_MOD;
-    }
-    const std::string &name = mod_manager::mod_names().at(index);
-    if (ascii_equals_ignore_case(name.c_str(), "Augustus")) {
-        return XML_ASSET_SOURCE_AUGUSTUS;
-    }
-    if (ascii_equals_ignore_case(name.c_str(), "Julius")) {
-        return XML_ASSET_SOURCE_JULIUS;
-    }
-    return XML_ASSET_SOURCE_AUTO;
-}
-
-static int collect_graphics_sources(const char **paths, xml_asset_source *sources, int max_sources)
-{
-    int count = 0;
-    const auto &graphics_paths = mod_manager::graphics_paths();
-    const int mod_count = static_cast<int>(graphics_paths.size());
-    const int top_index = mod_count - 1;
-    for (int i = top_index; i >= 0 && count < max_sources; i--) {
-        const xml_asset_source source = source_for_mod_index(i, top_index);
-        const std::string &path = graphics_paths.at(i);
-        if (source == XML_ASSET_SOURCE_AUTO || path.empty() || source_already_listed(sources, count, source)) {
-            continue;
-        }
-        paths[count] = path.c_str();
-        sources[count] = source;
-        count++;
-    }
-    return count;
-}
-
-static int load_assetlists_from_source(const char *path, xml_asset_source source)
-{
-    const dir_listing *xml_files = dir_find_files_with_extension(path, "xml");
-    for (int i = 0; i < xml_files->num_files; ++i) {
-        if (!xml_process_assetlist_file_from_source(xml_files->files[i].name, source)) {
-            char detail[FILE_NAME_MAX + 64];
-            snprintf(detail, sizeof(detail), "Asset list: %s", xml_files->files[i].name);
-            set_failure_reason("Failed to parse or load an asset list.", detail);
-            return 0;
-        }
-    }
-    return 1;
-}
-
 int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
 {
     data.failure_reason[0] = '\0';
@@ -122,34 +41,16 @@ int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
     }
 
     graphics_renderer()->free_image_atlas(ATLAS_EXTRA_ASSET);
+    memset(data.asset_lookup, 0, sizeof(data.asset_lookup));
+    memset(data.font_lookup, 0, sizeof(data.font_lookup));
+    data.roadblock_image_id = 0;
+    data.roadblock_image = nullptr;
 
-    const char *graphics_paths[8] = {};
-    xml_asset_source graphics_sources[8] = {};
-    const int graphics_source_count = collect_graphics_sources(
-        graphics_paths,
-        graphics_sources,
-        static_cast<int>(sizeof(graphics_sources) / sizeof(graphics_sources[0])));
-    int total_xml_files = 0;
-    for (int i = 0; i < graphics_source_count; i++) {
-        const dir_listing *xml_files = dir_find_files_with_extension(graphics_paths[i], "xml");
-        total_xml_files += xml_files->num_files;
-    }
-
-    if (!group_create_all(total_xml_files) || !asset_image_init_array()) {
+    if (!group_create_all(0) || !asset_image_init_array()) {
         log_error("Not enough memory to initialize extra assets. The game will probably crash.", 0, 0);
         set_failure_reason("Not enough memory to initialize extra assets.", 0);
         return 0;
     }
-
-    xml_init();
-
-    for (int i = 0; i < graphics_source_count; i++) {
-        if (!load_assetlists_from_source(graphics_paths[i], graphics_sources[i])) {
-            return 0;
-        }
-    }
-
-    xml_finish();
 
     if (!asset_image_load_all(main_images, main_image_widths)) {
         set_failure_reason("Failed to build or upload extra asset graphics.", 0);
@@ -157,49 +58,6 @@ int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
     }
 
     group_set_for_external_files();
-
-    // By default, if the requested image is not found, the roadblock image will be shown.
-    // This ensures compatibility with previous release versions of Augustus, which only had roadblocks
-    data.roadblock_image_id = assets_get_group_id("Admin_Logistics");
-    data.roadblock_image = asset_image_get_from_id(data.roadblock_image_id - IMAGE_MAIN_ENTRIES);
-    data.asset_lookup[ASSET_HIGHWAY_BASE_START] = assets_get_image_id("Admin_Logistics", "Highway_Base_Start");
-    data.asset_lookup[ASSET_HIGHWAY_BARRIER_START] = assets_get_image_id("Admin_Logistics", "Highway_Barrier_Start");
-    data.asset_lookup[ASSET_AQUEDUCT_WITH_WATER] = assets_get_image_id("Admin_Logistics", "Aqueduct_Bridge_Left_Water");
-    data.asset_lookup[ASSET_AQUEDUCT_WITHOUT_WATER] = assets_get_image_id("Admin_Logistics", "Aqueduct_Bridge_Left_Empty");
-    data.asset_lookup[ASSET_GOLD_SHIELD] = assets_get_image_id("UI", "GoldShield");
-    data.asset_lookup[ASSET_HAGIA_SOPHIA_FIX] = assets_get_image_id("UI", "H Sophia Fix");
-    data.asset_lookup[ASSET_FIRST_ORNAMENT] = assets_get_image_id("UI", "First Ornament");
-    data.asset_lookup[ASSET_CENTER_CAMERA_ON_BUILDING] = assets_get_image_id("UI", "Center Camera Button");
-    data.asset_lookup[ASSET_OX] = assets_get_image_id("Walkers", "Ox_Portrait");
-    data.asset_lookup[ASSET_UI_RISKS] = assets_get_image_id("UI", "Risk_Widget_Collapse");
-    data.asset_lookup[ASSET_UI_SELECTION_CHECKMARK] = assets_get_image_id("UI", "Selection_Checkmark");
-    data.asset_lookup[ASSET_UI_VERTICAL_EMPIRE_PANEL] = assets_get_image_id("UI", "Empire_panel_texture_vertical");
-    data.asset_lookup[ASSET_UI_GEAR_ICON] = assets_get_image_id("UI", "gear_icon");
-    data.asset_lookup[ASSET_UI_COPY_ICON] = assets_get_image_id("UI", "copy_icon");
-    data.asset_lookup[ASSET_UI_PASTE_ICON] = assets_get_image_id("UI", "paste_icon");
-    data.asset_lookup[ASSET_UI_ASCEPIUS] = assets_get_image_id("UI", "Asclepius Button");
-    // empire icons
-    data.asset_lookup[ASSET_UI_EMP_ICON_1] = assets_get_image_id("UI", "Empire_Icon_Roman_01");         // tr_town
-    data.asset_lookup[ASSET_UI_EMP_ICON_2] = assets_get_image_id("UI", "Empire_Icon_Roman_02");         // ro_town
-    data.asset_lookup[ASSET_UI_EMP_ICON_3] = assets_get_image_id("UI", "Empire_Icon_Roman_03");         // tr_village
-    data.asset_lookup[ASSET_UI_EMP_ICON_4] = assets_get_image_id("UI", "Empire_Icon_Roman_04");         // ro_village
-    data.asset_lookup[ASSET_UI_EMP_ICON_5] = assets_get_image_id("UI", "Empire_Icon_Roman_05");         // ro_capital
-    data.asset_lookup[ASSET_UI_EMP_ICON_6] = assets_get_image_id("UI", "Empire_Icon_Distant_01");       // dis_town
-    data.asset_lookup[ASSET_UI_EMP_ICON_7] = assets_get_image_id("UI", "Empire_Icon_Distant_02");       // dis_village
-    data.asset_lookup[ASSET_UI_EMP_ICON_8] = assets_get_image_id("UI", "Empire_Icon_Construction_01");  // construction
-    data.asset_lookup[ASSET_UI_EMP_ICON_9] = assets_get_image_id("UI", "Empire_Icon_Resource_01");      // res_food
-    data.asset_lookup[ASSET_UI_EMP_ICON_10] = assets_get_image_id("UI", "Empire_Icon_Resource_02");     // res_goods
-    data.asset_lookup[ASSET_UI_EMP_ICON_11] = assets_get_image_id("UI", "Empire_Icon_Resource_03");     // res_sea
-    data.asset_lookup[ASSET_UI_EMP_ICON_12] = assets_get_image_id("UI", "Empire_Icon_Trade_01");        // tr_sea
-    data.asset_lookup[ASSET_UI_EMP_ICON_13] = assets_get_image_id("UI", "Empire_Icon_Trade_02");        // tr_land
-    data.asset_lookup[ASSET_UI_EMP_ICON_OLD_WATCHTOWER] = assets_get_image_id("UI", "Empire_Icon_Watchtower"); // tower
-    data.asset_lookup[ASSET_UI_RESERVOIR_RANGE] = assets_get_image_id("UI", "Reservoir_Range_Overlay_Icon");
-    // font assets - keep last
-    data.font_lookup[ASSET_FONT_SQ_BRACKET_LEFT] = assets_get_image_id("UI", "leftbracket_white_l");
-    data.font_lookup[ASSET_FONT_SQ_BRACKET_RIGHT] = assets_get_image_id("UI", "rightbracket_white_l");
-    data.font_lookup[ASSET_FONT_CRLY_BRACKET_LEFT] = assets_get_image_id("UI", "curlybracket_white_left");
-    data.font_lookup[ASSET_FONT_CRLY_BRACKET_RIGHT] = assets_get_image_id("UI", "curlybracket_white_right");
-
     return 1;
 }
 
@@ -260,15 +118,18 @@ int assets_get_image_id(const char *assetlist_name, const char *image_name)
     }
     image_groups *group = group_get_from_name(assetlist_name);
     if (!group) {
-        log_info("Asset group not found: ", assetlist_name, 0);
+        char detail[256];
+        snprintf(detail, sizeof(detail), "%s image=%s", assetlist_name ? assetlist_name : "", image_name);
+        log_info("Asset group not found: ", detail, 0);
         return data.roadblock_image_id;
     }
     int image_id = image_id_from_group(group, image_name);
     if (image_id) {
         return image_id;
     }
-    log_info("Asset image not found: ", image_name, 0);
-    log_info("Asset group is: ", assetlist_name, 0);
+    char detail[256];
+    snprintf(detail, sizeof(detail), "%s image=%s", assetlist_name ? assetlist_name : "", image_name);
+    log_info("Asset image not found: ", detail, 0);
     return data.roadblock_image_id;
 }
 
@@ -284,36 +145,6 @@ int assets_get_image_id_by_name(const char *image_name)
         }
     }
     return 0;
-}
-
-int assets_get_image_id_from_path_or_name(const char *path, const char *image_name)
-{
-    if (!image_name || !*image_name) {
-        return 0;
-    }
-
-    if (path && *path) {
-        int image_id = image_id_from_group(group_get_from_name(path), image_name);
-        if (image_id) {
-            return image_id;
-        }
-
-        char group_name[128];
-        size_t length = 0;
-        while (path[length] && path[length] != '\\' && path[length] != '/' && length < sizeof(group_name) - 1) {
-            length++;
-        }
-        if (length > 0) {
-            memcpy(group_name, path, length);
-            group_name[length] = '\0';
-            image_id = image_id_from_group(group_get_from_name(group_name), image_name);
-            if (image_id) {
-                return image_id;
-            }
-        }
-    }
-
-    return assets_get_image_id_by_name(image_name);
 }
 
 int assets_get_external_image(const char *path, int force_reload)

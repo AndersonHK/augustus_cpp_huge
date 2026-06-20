@@ -584,7 +584,7 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
         map_tiles_update_area_roads(b->x, b->y, 5);
         map_tiles_update_all_plazas();
     } else if (building_type_attr_is_any(type, {"shipyard", "wharf"})) {
-        b->data.industry.orientation = waterside_orientation_abs;
+        b->subtype.orientation = waterside_orientation_abs;
         map_water_add_building(b->id, b->x, b->y, 2);
     } else if (building_obj.type && building_obj.type->attr() &&
         std::strcmp(building_obj.type->attr(), "dock") == 0) {
@@ -847,9 +847,6 @@ static int building_construction_place_building_internal(building_type type, int
     } else if (building_type_attr_is_any(type, {"reservoir", "draggable_reservoir"})) {
         terrain_mask = ~TERRAIN_AQUEDUCT;
     }
-    //allow building granaries and warehouses over all road, BUT,
-    //the building ghost is set up to SUGGEST placing it over crossroads only
-
     int size = building_properties_for_type(type)->size;
     if (building_type_attr_is(type, "warehouse")) {
         size = 3;
@@ -942,12 +939,13 @@ static int building_construction_place_building_internal(building_type type, int
             return 0;
         }
     } else {
-        if (!tiles_are_clear_or_force_clearable(x, y, size, terrain_mask, check_figure, force_check)) {
+        if ((exact_coordinates || force_check) &&
+            !tiles_are_clear_or_force_clearable(x, y, size, terrain_mask, check_figure, force_check)) {
             clear_land_needed_warning().show_when(emit_warnings);
             return 0;
         }
         PlaceWarningMessage terrain_warning;
-        if (!terrain_requirement_allows_placement(x, y, &terrain_warning)) {
+        if ((exact_coordinates || force_check) && !terrain_requirement_allows_placement(x, y, &terrain_warning)) {
             terrain_warning.show_when(emit_warnings);
             return 0;
         }

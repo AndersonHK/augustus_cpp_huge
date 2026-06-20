@@ -128,7 +128,7 @@ static image_button buttons_build_expanded[] = {
 static image_button buttons_top_expanded[] = {
     {7, 155, 71, 23, IB_NORMAL, GROUP_SIDEBAR_ADVISORS_EMPIRE, 0, button_advisors, button_none, 0, 0, 1},
     {84, 155, 71, 23, IB_NORMAL, GROUP_SIDEBAR_ADVISORS_EMPIRE, 3, button_empire, button_help, 0, MESSAGE_DIALOG_EMPIRE_MAP, 1},
-    {7, 184, 33, 22, IB_NORMAL, 0, 0, button_toggle_grid, button_none, 0, 0, 1, "UI", "Toggle Grid Button" },
+    {7, 184, 33, 22, IB_NORMAL, 0, 0, button_toggle_grid, button_none, 0, 0, 1, "UI\\Toggle_Grid_Button", "Toggle Grid Button" },
     {46, 184, 33, 22, IB_NORMAL, GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS, 3, button_rotate_north, button_none, 0, 0, 1},
     {84, 184, 33, 22, IB_NORMAL, GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS, 6, button_rotate, button_none, 0, 0, 1},
     {123, 184, 33, 22, IB_NORMAL, GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS, 9, button_rotate, button_none, 1, 0, 1},
@@ -188,7 +188,7 @@ static void draw_number_of_messages(int x_offset)
 static void draw_buttons_collapsed(int x_offset)
 {
     int asclepius = config_get(CONFIG_UI_DRAW_ASCLEPIUS);
-    buttons_build_collapsed[4].assetlist_name = asclepius ? "UI" : 0;
+    buttons_build_collapsed[4].assetlist_name = asclepius ? "UI\\Asclepius_Button" : 0;
     buttons_build_collapsed[4].image_name = asclepius ? "Asclepius Button" : 0;
     image_buttons_draw(x_offset, 24, button_expand_sidebar, 1);
     image_buttons_draw(x_offset, 24, buttons_build_collapsed, 12);
@@ -197,7 +197,7 @@ static void draw_buttons_collapsed(int x_offset)
 static void draw_buttons_expanded(int x_offset)
 {
     int asclepius = config_get(CONFIG_UI_DRAW_ASCLEPIUS);
-    buttons_build_expanded[4].assetlist_name = asclepius ? "UI" : 0;
+    buttons_build_expanded[4].assetlist_name = asclepius ? "UI\\Asclepius_Button" : 0;
     buttons_build_expanded[4].image_name = asclepius ? "Asclepius Button" : 0;
     buttons_build_expanded[12].enabled = game_can_undo();
     image_buttons_draw(x_offset, 24, buttons_overlays_collapse_sidebar, 2);

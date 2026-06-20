@@ -433,7 +433,6 @@
     <ClCompile Include="src\graphics\grid_box.cpp" />
     <ClCompile Include="src\graphics\image_border.cpp" />
     <ClCompile Include="src\graphics\image.cpp" />
-    <ClCompile Include="src\graphics\image_group_reference.cpp" />
     <ClCompile Include="src\graphics\image_group_entry_ref.cpp" />
     <ClCompile Include="src\graphics\runtime_overlay_images.cpp" />
     <ClCompile Include="src\graphics\runtime_texture.cpp" />
@@ -853,7 +852,6 @@
     <ClInclude Include="src\core\crash_context.h" />
     <ClInclude Include="src\core\hotkey_config.h" />
     <ClInclude Include="src\core\image.h" />
-    <ClInclude Include="src\graphics\image_group_reference.h" />
     <ClInclude Include="src\core\image_group.h" />
     <ClInclude Include="src\core\image_group_editor.h" />
     <ClInclude Include="src\core\legacy_image_extractor.h" />

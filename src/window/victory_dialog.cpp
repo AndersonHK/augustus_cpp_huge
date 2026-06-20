@@ -8,7 +8,6 @@
 #include "victory_dialog.h"
 
 #include "game/campaign.h"
-#include "assets/assets.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
@@ -57,9 +56,9 @@ static void draw_foreground(void)
     graphics_in_dialog();
 
     if (city_victory_state() == VICTORY_STATE_WON) {
-        int image_id = assets_get_image_id("UI", "Victory_Banner");
-        Image::from_id(image_id).draw(88, 137);
-        Image::from_id(image_id).draw(512, 137);
+        const ImageGroupEntryRef banner = ImageGroupEntryRef::from_group("UI\\Victory_Banner", "Victory_Banner");
+        banner.draw(88, 137);
+        banner.draw(512, 137);
         large_label_draw(80, 240, 30, focus_button_id == 1);
         const campaign_mission_info *mission = game_campaign_get_current_mission(scenario_campaign_mission());
         if (!mission || mission->next_rank <= CAMPAIGN_NO_RANK || mission->next_rank == scenario_campaign_rank()) {

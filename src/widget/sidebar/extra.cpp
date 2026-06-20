@@ -18,7 +18,6 @@
 
 #include "game/settings.h"
 
-#include "assets/assets.h"
 #include "city/figures.h"
 #include "city/finance.h"
 #include "city/military.h"
@@ -64,7 +63,7 @@ static arrow_button arrow_buttons_speed[] = {
 };
 
 static image_button play_paused_button = {
-    108, 29, 39, 26, IB_NORMAL, 0, 0, button_toggle_play_paused, button_none, 0, 0, 1, "UI", "Pause Button"
+    108, 29, 39, 26, IB_NORMAL, 0, 0, button_toggle_play_paused, button_none, 0, 0, 1, "UI\\Pause_Button", "Pause Button"
 };
 
 static generic_button buttons_emperor_requests[] = {
@@ -76,6 +75,7 @@ static generic_button buttons_emperor_requests[] = {
 };
 
 static const char *play_pause_button_image_names[] = { "Pause Button", "Play Button" };
+static const char *play_pause_button_asset_paths[] = { "UI\\Pause_Button", "UI\\Play_Button" };
 
 struct objective {
     int value;
@@ -520,7 +520,7 @@ static int draw_request_buttons(int y_offset)
                 if (status) {
                     if (status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES) {
                         if (is_stockpiled) {
-                            Image::from_id(assets_get_image_id("UI", "Store Icon")).draw(data.x_offset + 5, y_offset + 10);
+                            ImageGroupEntryRef::from_group("UI\\Store_Icon", "Store Icon").draw(data.x_offset + 5, y_offset + 10);
                         }
                     } else {
                         enough_resource = 1;
@@ -612,12 +612,8 @@ static void draw_extra_info_panel(void)
         int width = text_draw_number(data.gods.angry, 0, "", data.x_offset + 42, y_offset + 2, font_type, screen_ui_to_pixel(font_definition_for(font_type)->line_height), 0);
         Image::from_id(Image::group(GROUP_GOD_BOLT)).draw(data.x_offset + 42 + width, y_offset - 2);
 
-        static int happy_image_id;
-        if (!happy_image_id) {
-            happy_image_id = assets_get_image_id("UI", "Happy God Icon");
-        }
         width = text_draw_number(data.gods.happy, 0, "", data.x_offset + 82, y_offset + 2, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-        Image::from_id(happy_image_id).draw(data.x_offset + 82 + width, y_offset - 2);
+        ImageGroupEntryRef::from_group("UI\\Happy_God_Icon", "Happy God Icon").draw(data.x_offset + 82 + width, y_offset - 2);
 
         y_offset += EXTRA_INFO_VERTICAL_PADDING * 2;
     }
@@ -675,6 +671,7 @@ static void draw_extra_info_buttons(void)
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_GAME_SPEED) {
         if (!play_paused_button.pressed) {
+            play_paused_button.assetlist_name = play_pause_button_asset_paths[game_state_is_paused()];
             play_paused_button.image_name = play_pause_button_image_names[game_state_is_paused()];
         }
         arrow_buttons_draw(data.x_offset, data.y_offset, arrow_buttons_speed, 2);

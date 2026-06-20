@@ -111,13 +111,13 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
         } else if (building_type_attr_is(type, "native_hut_alt")) {
             switch (scenario_property_climate()) {
                 case CLIMATE_NORTHERN:
-                    image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Northern_01");
+                    image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01");
                     break;
                 case CLIMATE_DESERT:
-                    image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Southern_01");
+                    image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Southern_01", "Native_Hut_Southern_01");
                     break;
                 default:
-                    image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Central_01");
+                    image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01");
             };
         } else if (building_type_attr_is(type, "native_decor") || building_type_attr_is(type, "native_monument") ||
             building_type_attr_is(type, "native_watchtower")) {

@@ -493,7 +493,7 @@ static void write_type_data(buffer *buf, const building *b)
         buffer_write_u8(buf, b->data.industry.is_stockpiling);
         buffer_write_u8(buf, b->data.industry.has_fish);
         buffer_write_u8(buf, b->data.industry.blessing_days_left);
-        buffer_write_u8(buf, b->data.industry.orientation);
+        buffer_write_u8(buf, static_cast<unsigned char>(b->subtype.orientation));
         buffer_write_u8(buf, b->data.industry.has_raw_materials);
         buffer_write_u8(buf, b->data.industry.curse_days_left);
         if (type_uses_monthly_production_stats(b->type)) {
@@ -812,7 +812,7 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             buffer_skip(buf, 14);
         }
         b->data.industry.blessing_days_left = buffer_read_u8(buf);
-        b->data.industry.orientation = buffer_read_u8(buf);
+        b->subtype.orientation = buffer_read_u8(buf);
         b->data.industry.has_raw_materials = buffer_read_u8(buf);
         if (version <= SAVE_GAME_LAST_STATIC_RESOURCES) {
             buffer_skip(buf, 1);

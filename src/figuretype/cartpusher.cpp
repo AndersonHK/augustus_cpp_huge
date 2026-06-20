@@ -358,9 +358,9 @@ static void update_image(Figure *f, const Building &source)
 
     if (building_matches(source, "armoury")) {
         if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = assets_get_image_id("Walkers", "barracks_worker_death_01") + figure_image_corpse_offset(f);
+            f->image_id = assets_get_image_id("Walkers\\barracks_worker_death_01", "barracks_worker_death_01") + figure_image_corpse_offset(f);
         } else {
-            f->image_id = assets_get_image_id("Walkers", "barracks_worker_ne_01") + dir * 12 + f->image_offset;
+            f->image_id = assets_get_image_id("Walkers\\barracks_worker_ne_01", "barracks_worker_ne_01") + dir * 12 + f->image_offset;
         }
     } else {
         int base_group = f->type == FIGURE_CART_PUSHER ? GROUP_FIGURE_CARTPUSHER : GROUP_FIGURE_MIGRANT;

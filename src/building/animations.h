@@ -39,6 +39,7 @@ enum class GraphicsConditionType {
     WaterAccess,
     FigureSlotOccupied,
     ResourcePositive,
+    ResourceAmount,
     Climate,
     MonumentUpgrade,
     FestivalGames,
@@ -52,36 +53,16 @@ enum class GraphicsConditionType {
 enum class GraphicsOptionSelection {
     StableVariant,
     BuildRotation,
-    Connectable
+    Connectable,
+    StorageLoad,
+    Orientation
 };
 
-// A graphics target is either one direct path/image pair or a set of equivalent
-// options that materialize into one direct target after stable variant selection.
-struct GraphicsTarget {
-    void set_path(std::string path);
-    void set_image(std::string image);
-    void set_option_selection(GraphicsOptionSelection selection);
-    void set_animation_enabled(int enabled);
-    GraphicsTarget &add_option();
-
-    int has_path() const;
-    const char *path() const;
-
-    int has_image() const;
-    const char *image() const;
-    GraphicsOptionSelection option_selection() const;
-    int animation_enabled() const;
-    int has_options() const;
-    int option_count() const;
-    const GraphicsTarget *option(int index) const;
-    GraphicsTarget resolved_option(unsigned char variant) const;
-
-private:
-    std::string path_;
-    std::string image_;
-    GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
-    int animation_enabled_ = 1;
-    std::vector<GraphicsTarget> options_;
+enum class GraphicsLayerStage {
+    Auto,
+    Footprint,
+    Top,
+    Animation
 };
 
 struct GraphicsCondition {
@@ -93,6 +74,82 @@ struct GraphicsCondition {
     int climate = 0;
     int monument_upgrade = 0;
     int festival_games = 0;
+};
+
+struct GraphicsLayerOption {
+    std::string path;
+    std::string image;
+};
+
+struct GraphicsLayer {
+    void set_path(std::string path);
+    void set_image(std::string image);
+    void set_option_selection(GraphicsOptionSelection selection);
+    void set_animation_enabled(int enabled);
+    void set_stage(GraphicsLayerStage stage);
+    void set_offset(int x, int y);
+    GraphicsLayerOption &add_option();
+    void add_condition(GraphicsCondition condition);
+
+    int has_path() const;
+    const char *path() const;
+
+    int has_image() const;
+    const char *image() const;
+    GraphicsOptionSelection option_selection() const;
+    int animation_enabled() const;
+    GraphicsLayerStage stage() const;
+    int x_offset() const;
+    int y_offset() const;
+    int has_options() const;
+    int option_count() const;
+    const GraphicsLayerOption *option(int index) const;
+    const std::vector<GraphicsCondition> &conditions() const;
+    int matches(const Building &building) const;
+    GraphicsLayer resolved_option(unsigned char variant) const;
+
+private:
+    std::string path_;
+    std::string image_;
+    GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
+    int animation_enabled_ = 1;
+    GraphicsLayerStage stage_ = GraphicsLayerStage::Auto;
+    int x_offset_ = 0;
+    int y_offset_ = 0;
+    std::vector<GraphicsLayerOption> options_;
+    std::vector<GraphicsCondition> conditions_;
+};
+
+// A graphics target is either one direct path/image pair or a set of equivalent
+// options that materialize into one direct target after stable variant selection.
+struct GraphicsTarget {
+    void set_path(std::string path);
+    void set_image(std::string image);
+    void set_option_selection(GraphicsOptionSelection selection);
+    void set_animation_enabled(int enabled);
+    GraphicsTarget &add_option();
+    GraphicsLayer &add_layer();
+
+    int has_path() const;
+    const char *path() const;
+
+    int has_image() const;
+    const char *image() const;
+    GraphicsOptionSelection option_selection() const;
+    int animation_enabled() const;
+    int has_options() const;
+    int option_count() const;
+    const GraphicsTarget *option(int index) const;
+    const std::vector<GraphicsLayer> &layers() const;
+    GraphicsTarget resolved_option(unsigned char variant) const;
+
+private:
+    std::string path_;
+    std::string image_;
+    GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
+    int animation_enabled_ = 1;
+    std::vector<GraphicsTarget> options_;
+    std::vector<GraphicsLayer> layers_;
 };
 
 struct GraphicsVariant {

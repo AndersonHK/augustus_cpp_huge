@@ -313,7 +313,7 @@ static figure_type parse_figure_type_name(const char *name)
         figure_type type;
     };
 
-    static constexpr std::array<NamedFigure, 19> kFigureNames = { {
+    static constexpr std::array<NamedFigure, 21> kFigureNames = { {
         { "labor_seeker", FIGURE_LABOR_SEEKER },
         { "engineer", FIGURE_ENGINEER },
         { "prefect", FIGURE_PREFECT },
@@ -332,7 +332,9 @@ static figure_type parse_figure_type_name(const char *name)
         { "barber", FIGURE_BARBER },
         { "bathhouse_worker", FIGURE_BATHHOUSE_WORKER },
         { "school_child", FIGURE_SCHOOL_CHILD },
-        { "depot_cart_pusher", FIGURE_DEPOT_CART_PUSHER }
+        { "depot_cart_pusher", FIGURE_DEPOT_CART_PUSHER },
+        { "work_camp_worker", FIGURE_WORK_CAMP_WORKER },
+        { "work_camp_slave", FIGURE_WORK_CAMP_SLAVE }
     } };
 
     for (const NamedFigure &entry : kFigureNames) {
@@ -353,6 +355,9 @@ static building_type parse_building_type_name(const char *attr)
 
 static NativeClassId parse_native_class_name(const char *name)
 {
+    if (xml_value::equals(name, "legacy_action")) {
+        return NativeClassId::LegacyAction;
+    }
     if (xml_value::equals(name, "roaming_service")) {
         return NativeClassId::RoamingService;
     }
@@ -974,14 +979,17 @@ static int parse_graphics_node()
     }
     const bool has_image_group = xml_parser_has_attribute("image_group");
     const bool has_image_asset = xml_parser_has_attribute("image_asset");
-    if (!has_image_group && !has_image_asset) {
+    const bool has_path_pattern = xml_parser_has_attribute("path_pattern");
+    const bool has_image_pattern = xml_parser_has_attribute("image_pattern");
+    const int source_count = (has_image_group ? 1 : 0) + (has_image_asset ? 1 : 0) + (has_path_pattern || has_image_pattern ? 1 : 0);
+    if (source_count != 1) {
         g_parse_state.error = true;
-        log_error("FigureType graphics node is missing required image_group or image_asset", 0, 0);
+        log_error("FigureType graphics node must choose exactly one image_group, image_asset, or path/image pattern", 0, 0);
         return 0;
     }
-    if (has_image_group && has_image_asset) {
+    if (has_path_pattern != has_image_pattern) {
         g_parse_state.error = true;
-        log_error("FigureType graphics node must choose image_group or image_asset, not both", 0, 0);
+        log_error("FigureType graphics path pattern requires both path_pattern and image_pattern", 0, 0);
         return 0;
     }
 
@@ -993,11 +1001,19 @@ static int parse_graphics_node()
             log_error("FigureType graphics node has an unknown image_group", xml_parser_get_attribute_string("image_group"), 0);
             return 0;
         }
-    } else {
+    } else if (has_image_asset) {
         graphics_policy.image_asset = parse_image_asset_name(xml_parser_get_attribute_string("image_asset"));
         if (graphics_policy.image_asset == ASSET_MAX_KEY) {
             g_parse_state.error = true;
             log_error("FigureType graphics node has an unknown image_asset", xml_parser_get_attribute_string("image_asset"), 0);
+            return 0;
+        }
+    } else {
+        graphics_policy.path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string("path_pattern"));
+        graphics_policy.image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string("image_pattern"));
+        if (graphics_policy.path_pattern.empty() || graphics_policy.image_pattern.empty()) {
+            g_parse_state.error = true;
+            log_error("FigureType graphics path pattern requires non-empty path_pattern and image_pattern", 0, 0);
             return 0;
         }
     }
@@ -1035,9 +1051,20 @@ static int parse_graphics_node()
     }
     const bool has_corpse_image_group = xml_parser_has_attribute("corpse_image_group");
     const bool has_corpse_image_asset = xml_parser_has_attribute("corpse_image_asset");
-    if (has_corpse_image_group && has_corpse_image_asset) {
+    const bool has_corpse_path_pattern = xml_parser_has_attribute("corpse_path_pattern");
+    const bool has_corpse_image_pattern = xml_parser_has_attribute("corpse_image_pattern");
+    const int corpse_source_count =
+        (has_corpse_image_group ? 1 : 0) +
+        (has_corpse_image_asset ? 1 : 0) +
+        (has_corpse_path_pattern || has_corpse_image_pattern ? 1 : 0);
+    if (corpse_source_count > 1) {
         g_parse_state.error = true;
-        log_error("FigureType graphics node must choose corpse_image_group or corpse_image_asset, not both", 0, 0);
+        log_error("FigureType graphics node must choose only one corpse image source", 0, 0);
+        return 0;
+    }
+    if (has_corpse_path_pattern != has_corpse_image_pattern) {
+        g_parse_state.error = true;
+        log_error("FigureType corpse graphics path pattern requires both corpse_path_pattern and corpse_image_pattern", 0, 0);
         return 0;
     }
     if (has_corpse_image_group) {
@@ -1047,6 +1074,15 @@ static int parse_graphics_node()
             g_parse_state.error = true;
             log_error("FigureType graphics node has an unknown corpse_image_group",
                 xml_parser_get_attribute_string("corpse_image_group"), 0);
+            return 0;
+        }
+    }
+    if (has_corpse_path_pattern) {
+        graphics_policy.corpse_path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string("corpse_path_pattern"));
+        graphics_policy.corpse_image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string("corpse_image_pattern"));
+        if (graphics_policy.corpse_path_pattern.empty() || graphics_policy.corpse_image_pattern.empty()) {
+            g_parse_state.error = true;
+            log_error("FigureType corpse graphics path pattern requires non-empty corpse_path_pattern and corpse_image_pattern", 0, 0);
             return 0;
         }
     }

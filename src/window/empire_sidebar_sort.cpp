@@ -6,6 +6,7 @@
 #include "empire_sidebar_sort.h"
 
 #include "graphics/grid_box.h"
+#include "graphics/runtime_texture.h"
 #include "translation/translation.h"
 #include "empire/city.h"
 #include "empire/trade_prices.h"
@@ -318,8 +319,17 @@ static const translation_key filter_keys[] = {
     "TR_EMPIRE_SIDE_BAR_FILTER_BY_NONE",
 };
 
-void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int height, int is_focused, translation_key key1,
-     translation_key key2, int button_type, int image_id)
+static void window_empire_sidebar_sort_draw_simple_button(
+    int x,
+    int y,
+    int width,
+    int height,
+    int is_focused,
+    translation_key key1,
+    translation_key key2,
+    int button_type,
+    int image_id,
+    const ImageGroupEntryRef *icon_ref = nullptr)
 {
     graphics_set_clip_rectangle(x, y, width, height);
     int height_blocks = height / BLOCK_SIZE;
@@ -333,8 +343,11 @@ void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int 
     if (key2 == "TR_EMPIRE_SIDE_BAR_FILTER_BY_NONE") { // dont draw second text if it's "None"
         key2 = {};
     }
+    RuntimeDrawSlice payload_icon = icon_ref && icon_ref->is_bound() ? icon_ref->runtime_slice() : RuntimeDrawSlice();
     const Image *button_image = image_id > 0 ? &Image::from_id(image_id) : nullptr;
-    if (image_id > 0) {
+    if (payload_icon.is_valid()) {
+        image_width = payload_icon.width;
+    } else if (button_image) {
         image_width = button_image->width();
     }
     // Special handling for resource buttons - use resource name instead of lang_text
@@ -343,7 +356,7 @@ void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int 
         const uint8_t *resource_name = resource_get_data(r)->text;
         int text_width = text_get_width(resource_name, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         // Account for image width if present
-        content_width = text_width;
+        content_width = text_width + (image_width > 0 ? image_width + 4 : 0);
         available_width = width - 2 * margin;
         text_x = x + margin + (available_width - content_width) / 2;
         cursor_x = text_x + text_draw(resource_name, text_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
@@ -353,7 +366,7 @@ void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int 
         int text2_width = key2 ? lang_text_get_width(key2, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) : 0;
         int total_text_width = text1_width + text2_width;
         available_width = width - 2 * margin;
-        content_width = total_text_width + image_width;
+        content_width = total_text_width + (image_width > 0 ? image_width + 4 : 0);
         text_x = x + margin + (available_width - content_width) / 2; // Center horizontally
         cursor_x = text_x;
         if (key1) {
@@ -363,7 +376,10 @@ void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int 
             cursor_x += lang_text_draw(key2, cursor_x, y_text_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     }
-    if (image_id > 0) {
+    if (payload_icon.is_valid()) {
+        int img_y_offset = y + (height - payload_icon.height) / 2;
+        runtime_texture_draw(payload_icon, cursor_x + 4, img_y_offset);
+    } else if (button_image) {
         int img_y_offset = y + (height - button_image->height()) / 2;
         button_image->draw(cursor_x + 4, img_y_offset); // 4px spacing
     }
@@ -416,13 +432,13 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
     // Filter main button with current selection displayed
     translation_key filter_key = filter_keys[window_empire_sidebar_sort_get_current_filtering()];
     int filter_image_id = 0;
+    const ImageGroupEntryRef *filter_icon = nullptr;
     switch (window_empire_sidebar_sort_get_current_filtering()) {
         case FILTER_BY_RESOURCE:
         case FILTER_BY_RESOURCE_SELL:
         case FILTER_BY_RESOURCE_BUY:
             if (window_empire_sidebar_sort_get_selected_filter_resource() != RESOURCE_NONE) {
-                filter_image_id = resource_graphics(window_empire_sidebar_sort_get_selected_filter_resource()).
-                    panel_icon().image_id();
+                filter_icon = &resource_graphics(window_empire_sidebar_sort_get_selected_filter_resource()).panel_icon();
             }
             break;
         case FILTER_BY_LAND:
@@ -435,7 +451,7 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
 
     window_empire_sidebar_sort_draw_simple_button(x_filter, base_y, button_width, button_height,
         window_empire_sidebar_sort_get_hovered_sorting_button() == BUTTON_INDEX_FILTER_MAIN, //hovered state
-        "TR_EMPIRE_SIDE_BAR_FILTER", filter_key, 1, filter_image_id);
+        "TR_EMPIRE_SIDE_BAR_FILTER", filter_key, 1, filter_image_id, filter_icon);
 
     if (window_empire_sidebar_sort_get_expanded_main() == 0) {
         for (int i = 0; i < MAX_SORTING_KEY; ++i) {
@@ -456,9 +472,9 @@ void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int si
                     int button_type = BUTTON_INDEX_FILTERING_RESOURCES + r; // Use 100+ range for resource buttons
                     int y = base_y + v_margin + button_height + resource_count * button_v_spacing;
                     int is_focused = (window_empire_sidebar_sort_get_hovered_sorting_button() == button_type);
-                    int resource_icon_id = resource_graphics(r).panel_icon().image_id();
+                    const ImageGroupEntryRef &resource_icon = resource_graphics(r).panel_icon();
                     window_empire_sidebar_sort_draw_simple_button(x_filter, y, button_width, button_height, is_focused,
-                        {}, {}, button_type, resource_icon_id);
+                        {}, {}, button_type, 0, &resource_icon);
                     // text doesn't matter, resource name will decided basing on button_type
                     resource_count++;
                 }

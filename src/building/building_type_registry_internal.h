@@ -60,6 +60,7 @@ struct ParseState {
     int parsing_desirability = 0;
     int parsing_graphics = 0;
     int parsing_graphics_options = 0;
+    int parsing_graphics_layer = 0;
     int parsing_construction = 0;
     int parsing_construction_phase = 0;
     int parsing_labor = 0;
@@ -70,6 +71,7 @@ struct ParseState {
     int parsing_housing = 0;
     int has_current_graphics_variant = 0;
     size_t current_graphics_variant_index = 0;
+    GraphicsLayer *current_graphics_layer = nullptr;
     GraphicsParseTargetScope current_graphics_target_scope = GraphicsParseTargetScope::None;
     LaborSeekerPolicy current_labor_seeker_policy;
     WaterAccessRequirementRule current_water_access_requirement_rule;

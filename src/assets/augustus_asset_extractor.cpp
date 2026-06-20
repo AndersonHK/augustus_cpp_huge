@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <numeric>
 #include <string>
 #include <unordered_map>
@@ -404,6 +405,12 @@ static std::string make_stamp_path(const ResolvedExtractionPaths &paths)
     return without_trailing_separator(paths.output_graphics_path) + ".graphics_extract.stamp";
 }
 
+static bool augustus_extracted_output_is_present(const ResolvedExtractionPaths &paths)
+{
+    std::error_code error;
+    return std::filesystem::is_directory(paths.output_graphics_path, error);
+}
+
 static bool resolve_extraction_paths(
     const vespasian::graphics::extraction::ExtractorPaths &input_paths,
     ResolvedExtractionPaths &paths)
@@ -416,13 +423,6 @@ static bool resolve_extraction_paths(
     paths.output_graphics_path = ensure_trailing_separator(mod_manager::augustus_graphics_path().c_str());
     paths.julius_graphics_path = ensure_trailing_separator(mod_manager::julius_graphics_path().c_str());
     return !paths.source_graphics_path.empty() && !paths.output_graphics_path.empty();
-}
-
-static int stop_on_first_entry(const char *name, long modified_time)
-{
-    (void) name;
-    (void) modified_time;
-    return LIST_MATCH;
 }
 
 bool AugustusExtractionRun::build_expected_stamp(std::string &stamp) const
@@ -1835,9 +1835,8 @@ bool AugustusExtractionRun::run()
     std::string existing_stamp;
     const bool has_existing_stamp = write_stamp_ && read_text_file(stamp_path, existing_stamp);
     const bool has_current_stamp = write_stamp_ && has_existing_stamp && existing_stamp == expected_stamp;
-    if (!force_ && has_current_stamp &&
-        platform_file_manager_list_directory_contents(
-            graphics_root.c_str(), TYPE_DIR | TYPE_FILE, 0, stop_on_first_entry) == LIST_MATCH) {
+    const bool has_extracted_output = augustus_extracted_output_is_present(paths_);
+    if (!force_ && has_current_stamp && has_extracted_output) {
         return true;
     }
 
@@ -1848,7 +1847,7 @@ bool AugustusExtractionRun::run()
     } else if (!has_current_stamp) {
         log_info("Bootstrapping Augustus graphics because the source fingerprint or XML metadata version changed", 0, 0);
     } else {
-        log_info("Bootstrapping Augustus graphics because the fallback directory is missing or empty", 0, 0);
+        log_info("Bootstrapping Augustus graphics because the extracted graphics output is missing or incomplete", 0, 0);
     }
 
     platform_file_manager_remove_directory(graphics_root.c_str());

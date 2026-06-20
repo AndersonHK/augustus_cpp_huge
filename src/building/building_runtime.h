@@ -35,6 +35,13 @@ public:
     const RuntimeDrawSlice *cached_graphic_top() const;
     const RuntimeDrawSlice *cached_graphic_animation(int animation_cursor);
     void advance_cached_graphic_animation(int animation_cursor);
+    void draw_cached_graphic_layers(
+        building_type_registry_impl::GraphicsLayerStage stage,
+        int x,
+        int y,
+        color_t color,
+        float scale);
+    void draw_cached_graphic_layer_animations(int animation_cursor, int x, int y, color_t color, float scale);
     int cached_owns_graphic_animation() const;
     int owns_graphics();
     int owns_graphic_animation();
@@ -58,6 +65,16 @@ private:
         const ImageGroupPayload *animation_payload = nullptr;
         const ImageGroupEntry *animation_entry = nullptr;
         RuntimeDrawSlice animation_slice;
+        struct Layer {
+            const ImageGroupPayload *payload = nullptr;
+            const ImageGroupEntry *entry = nullptr;
+            building_type_registry_impl::GraphicsLayerStage stage = building_type_registry_impl::GraphicsLayerStage::Auto;
+            int x_offset = 0;
+            int y_offset = 0;
+            int owns_animation = 0;
+            RuntimeDrawSlice animation_slice;
+        };
+        std::vector<Layer> layers;
         int owns_graphics = 0;
         int owns_graphic_animation = 0;
         int dirty = 1;

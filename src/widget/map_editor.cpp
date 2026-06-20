@@ -130,7 +130,7 @@ static void draw_footprint(int x, int y, int grid_offset)
         //grid is drawn by the renderer directly at zoom > 200%
         static int grid_id = 0;
         if (!grid_id) {
-            grid_id = assets_get_image_id("UI", "Grid_Full");
+            grid_id = assets_get_image_id("UI\\Grid_Full", "Grid_Full");
         }
         Image::from_id(grid_id).draw(x, y, COLOR_GRID, draw_context.scale);
     }

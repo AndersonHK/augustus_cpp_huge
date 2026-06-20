@@ -21,7 +21,7 @@
 
 namespace {
 
-constexpr char kExtractionStampPrefix[] = "legacy_extract_v8:";
+constexpr char kExtractionStampPrefix[] = "legacy_extract_v9:";
 class LegacyFamily {
 public:
     const char *folder_name;
@@ -1273,6 +1273,60 @@ static void append_compatibility_aliases(
     }
 }
 
+static void append_granary_empty_animation_alias(
+    std::string &xml,
+    int &exported_images,
+    const image *base_image,
+    const std::unordered_set<int> &exported_local_indices)
+{
+    if (!base_image || !base_image->animation || exported_local_indices.find(0) == exported_local_indices.end()) {
+        return;
+    }
+    for (int frame = 6; frame <= 12; frame++) {
+        if (exported_local_indices.find(frame) == exported_local_indices.end()) {
+            return;
+        }
+    }
+
+    append_indent(xml, 1);
+    xml += "<image";
+    append_attribute(xml, "id", "Granary_Empty");
+    append_attribute(xml, "group", "this");
+    append_attribute(xml, "image", "Image_0000");
+    xml += ">\n";
+
+    append_indent(xml, 2);
+    xml += "<animation";
+    append_attribute(xml, "frames", 7);
+    if (base_image->animation->speed_id > 0) {
+        append_attribute(xml, "speed", base_image->animation->speed_id);
+    }
+    if (base_image->animation->can_reverse) {
+        append_attribute(xml, "reversible", "true");
+    }
+    if (base_image->animation->sprite_offset_x != 0) {
+        append_attribute(xml, "x", base_image->animation->sprite_offset_x);
+    }
+    if (base_image->animation->sprite_offset_y != 0) {
+        append_attribute(xml, "y", base_image->animation->sprite_offset_y);
+    }
+    xml += ">\n";
+
+    for (int frame = 6; frame <= 12; frame++) {
+        append_indent(xml, 3);
+        xml += "<frame";
+        append_attribute(xml, "group", "this");
+        append_attribute(xml, "image", make_generated_image_id(frame));
+        xml += "/>\n";
+    }
+
+    append_indent(xml, 2);
+    xml += "</animation>\n";
+    append_indent(xml, 1);
+    xml += "</image>\n";
+    exported_images++;
+}
+
 static bool export_group(
     const image *images,
     const std::vector<LegacyGroupRange> &ranges,
@@ -1362,6 +1416,9 @@ static bool export_group(
     }
 
     append_compatibility_aliases(xml, exported_images, images, range, ranges, exported_local_indices);
+    if (range.group_id == GROUP_BUILDING_GRANARY) {
+        append_granary_empty_animation_alias(xml, exported_images, &images[range.first_image_id], exported_local_indices);
+    }
 
     xml += "</assetlist>\n";
     if (exported_images <= 0) {

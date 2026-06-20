@@ -18,7 +18,6 @@
 #include "window/popup_dialog.h"
 #include "game/campaign.h"
 
-#include "assets/assets.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/string.h"
@@ -36,7 +35,7 @@ static void button_click(const generic_button *button);
 
 static struct {
     unsigned int focus_button_id;
-    int logo_image_id;
+    ImageGroupEntryRef logo;
 } data;
 
 static generic_button buttons[] = {
@@ -72,10 +71,10 @@ static void draw_background(void)
     if (!window_is(WINDOW_FILE_DIALOG)) {
         graphics_in_dialog();
         outer_panel_draw(162, 32, 20, 22);
-        if (!data.logo_image_id) {
-            data.logo_image_id = assets_get_image_id("UI", "Main Menu Banner");
+        if (!data.logo.is_bound()) {
+            data.logo = ImageGroupEntryRef::from_group("UI\\Main_Menu_Banner", "Main Menu Banner");
         }
-        Image::from_id(data.logo_image_id).draw(176, 50);
+        data.logo.draw(176, 50);
         graphics_reset_dialog();
         draw_version_string();
     }

@@ -596,7 +596,7 @@ void window_building_draw_city_mint_foreground(building_info_context *c)
     button_border_draw(x, y + 24, 20, 20, data.focus_button_id == 2);
     building *city_mint = building_get(data.city_mint.id());
     int selected_offset = city_mint && city_mint->output_resource_id == resource_denarii() ? 0 : 24;
-    Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x + 4, y + 4 + selected_offset);
+    ImageGroupEntryRef::from_group("UI\\Denied_Walker_Checkmark", "Denied_Walker_Checkmark").draw(x + 4, y + 4 + selected_offset);
 }
 
 static int shipyard_boats_needed(void)

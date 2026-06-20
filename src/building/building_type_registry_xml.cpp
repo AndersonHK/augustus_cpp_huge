@@ -574,23 +574,30 @@ static int parse_graphics_comparison(const char *comparison_text, GraphicCompari
     if (!out_comparison) {
         return 0;
     }
-    if (comparison_text && compare_text(comparison_text, "lt") == 0) {
+    if (comparison_text && (compare_text(comparison_text, "lt") == 0 ||
+        compare_text(comparison_text, "less_than") == 0)) {
         *out_comparison = GraphicComparison::LessThan;
         return 1;
     }
-    if (comparison_text && (compare_text(comparison_text, "lte") == 0 || compare_text(comparison_text, "let") == 0)) {
+    if (comparison_text && (compare_text(comparison_text, "lte") == 0 ||
+        compare_text(comparison_text, "le") == 0 ||
+        compare_text(comparison_text, "less_than_or_equal") == 0)) {
         *out_comparison = GraphicComparison::LessThanOrEqual;
         return 1;
     }
-    if (comparison_text && compare_text(comparison_text, "eq") == 0) {
+    if (comparison_text && (compare_text(comparison_text, "eq") == 0 ||
+        compare_text(comparison_text, "equal") == 0)) {
         *out_comparison = GraphicComparison::Equal;
         return 1;
     }
-    if (comparison_text && compare_text(comparison_text, "gt") == 0) {
+    if (comparison_text && (compare_text(comparison_text, "gt") == 0 ||
+        compare_text(comparison_text, "greater_than") == 0)) {
         *out_comparison = GraphicComparison::GreaterThan;
         return 1;
     }
-    if (comparison_text && compare_text(comparison_text, "gte") == 0) {
+    if (comparison_text && (compare_text(comparison_text, "gte") == 0 ||
+        compare_text(comparison_text, "ge") == 0 ||
+        compare_text(comparison_text, "greater_than_or_equal") == 0)) {
         *out_comparison = GraphicComparison::GreaterThanOrEqual;
         return 1;
     }
@@ -1037,6 +1044,9 @@ static int parse_roadblock()
 
 static TileKind parse_tile_kind(const char *text)
 {
+    if (compare_text(text, "garden") == 0) {
+        return TileKind::Garden;
+    }
     if (compare_text(text, "plaza") == 0) {
         return TileKind::Plaza;
     }
@@ -1644,6 +1654,117 @@ static GraphicsTarget *current_graphics_target()
     }
 }
 
+static GraphicsLayerStage parse_graphics_layer_stage(const char *text, int *valid)
+{
+    *valid = 1;
+    if (!text || compare_text(text, "auto") == 0) {
+        return GraphicsLayerStage::Auto;
+    }
+    if (compare_text(text, "footprint") == 0) {
+        return GraphicsLayerStage::Footprint;
+    }
+    if (compare_text(text, "top") == 0) {
+        return GraphicsLayerStage::Top;
+    }
+    if (compare_text(text, "animation") == 0) {
+        return GraphicsLayerStage::Animation;
+    }
+    *valid = 0;
+    return GraphicsLayerStage::Auto;
+}
+
+static int parse_optional_int_attribute(const char *name, int *out_value)
+{
+    if (!xml_parser_has_attribute(name)) {
+        *out_value = 0;
+        return 1;
+    }
+    const char *text = xml_parser_get_attribute_string(name);
+    if (!text || !xml_value::parse_int_strict(text, out_value)) {
+        return 0;
+    }
+    return 1;
+}
+
+static int parse_graphics_layer()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_graphics) {
+        log_error("Encountered graphics layer outside graphics node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    GraphicsTarget *target = current_graphics_target();
+    if (!target || g_parse_state.parsing_graphics_layer) {
+        log_error("Encountered graphics layer without an active target", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    GraphicsLayer &layer = target->add_layer();
+    if (xml_parser_has_attribute("path")) {
+        std::string normalized_path = normalize_graphics_path(xml_parser_get_attribute_string("path"));
+        if (normalized_path.empty()) {
+            log_error("Unsupported BuildingType graphics layer path", xml_parser_get_attribute_string("path"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        layer.set_path(std::move(normalized_path));
+    }
+    if (xml_parser_has_attribute("image")) {
+        std::string image_id = xml_value::trim_copy(xml_parser_get_attribute_string("image"));
+        if (image_id.empty()) {
+            log_error("Unsupported BuildingType graphics layer image", xml_parser_get_attribute_string("image"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        layer.set_image(std::move(image_id));
+    }
+    if (xml_parser_has_attribute("stage")) {
+        int valid = 0;
+        GraphicsLayerStage stage = parse_graphics_layer_stage(xml_parser_get_attribute_string("stage"), &valid);
+        if (!valid) {
+            log_error("Unsupported BuildingType graphics layer stage", xml_parser_get_attribute_string("stage"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        layer.set_stage(stage);
+    }
+    if (xml_parser_has_attribute("animation")) {
+        int enabled = 1;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("animation"), &enabled)) {
+            log_error("Unsupported BuildingType graphics layer animation flag", xml_parser_get_attribute_string("animation"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        layer.set_animation_enabled(enabled);
+    }
+    int x = 0;
+    int y = 0;
+    if (!parse_optional_int_attribute("x", &x) || !parse_optional_int_attribute("y", &y)) {
+        log_error("Unsupported BuildingType graphics layer offset", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    layer.set_offset(x, y);
+    g_parse_state.parsing_graphics_layer = 1;
+    g_parse_state.current_graphics_layer = &layer;
+    return 1;
+}
+
+static void finish_graphics_layer()
+{
+    if (!g_parse_state.parsing_graphics_layer) {
+        return;
+    }
+    GraphicsLayer *layer = g_parse_state.current_graphics_layer;
+    if (!layer || (!layer->has_image() && !layer->has_options())) {
+        log_error("BuildingType graphics layer is missing image/options", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_graphics_layer = 0;
+    g_parse_state.current_graphics_layer = nullptr;
+}
+
 static int parse_graphics_options()
 {
     if (!g_parse_state.definition || !g_parse_state.parsing_graphics) {
@@ -1651,7 +1772,8 @@ static int parse_graphics_options()
         g_parse_state.error = 1;
         return 0;
     }
-    if (g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::Default &&
+    if (!g_parse_state.parsing_graphics_layer &&
+        g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::Default &&
         g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::Variant) {
         log_error("BuildingType graphics options must appear inside default or variant", 0, 0);
         g_parse_state.error = 1;
@@ -1666,10 +1788,26 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::BuildRotation;
     } else if (compare_text(selection, "connectable") == 0) {
         option_selection = GraphicsOptionSelection::Connectable;
+    } else if (compare_text(selection, "storage_load") == 0) {
+        option_selection = GraphicsOptionSelection::StorageLoad;
+    } else if (compare_text(selection, "orientation") == 0) {
+        option_selection = GraphicsOptionSelection::Orientation;
     } else {
         log_error("Unsupported BuildingType graphics options selection", selection, 0);
         g_parse_state.error = 1;
         return 0;
+    }
+
+    if (g_parse_state.parsing_graphics_layer) {
+        GraphicsLayer *layer = g_parse_state.current_graphics_layer;
+        if (!layer || layer->has_options()) {
+            log_error("BuildingType graphics layer contains duplicate options nodes", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        layer->set_option_selection(option_selection);
+        g_parse_state.parsing_graphics_options = 1;
+        return 1;
     }
 
     GraphicsTarget *target = current_graphics_target();
@@ -1691,6 +1829,15 @@ static void finish_graphics_options()
     }
 
     GraphicsTarget *target = current_graphics_target();
+    if (g_parse_state.parsing_graphics_layer) {
+        GraphicsLayer *layer = g_parse_state.current_graphics_layer;
+        if (!layer || !layer->has_options()) {
+            log_error("BuildingType graphics layer options is missing option nodes", 0, 0);
+            g_parse_state.error = 1;
+        }
+        g_parse_state.parsing_graphics_options = 0;
+        return;
+    }
     if (!target || !target->has_options()) {
         log_error("BuildingType graphics options is missing option nodes", 0, 0);
         g_parse_state.error = 1;
@@ -1709,6 +1856,33 @@ static int parse_graphics_option()
         log_error("BuildingType graphics option is missing required attribute 'image'", 0, 0);
         g_parse_state.error = 1;
         return 0;
+    }
+
+    if (g_parse_state.parsing_graphics_layer) {
+        GraphicsLayer *layer = g_parse_state.current_graphics_layer;
+        if (!layer) {
+            log_error("Encountered graphics layer option without an active layer", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        GraphicsLayerOption &option = layer->add_option();
+        if (xml_parser_has_attribute("path")) {
+            std::string normalized_path = normalize_graphics_path(xml_parser_get_attribute_string("path"));
+            if (normalized_path.empty()) {
+                log_error("Unsupported BuildingType graphics layer option path", xml_parser_get_attribute_string("path"), 0);
+                g_parse_state.error = 1;
+                return 0;
+            }
+            option.path = std::move(normalized_path);
+        }
+        option.image = xml_value::trim_copy(xml_parser_get_attribute_string("image"));
+        if (option.image.empty()) {
+            log_error("Unsupported BuildingType graphics layer option image", xml_parser_get_attribute_string("image"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        return 1;
     }
 
     GraphicsTarget *target = current_graphics_target();
@@ -1771,7 +1945,10 @@ static int parse_graphics_variant()
     }
     if (xml_parser_has_attribute("role")) {
         std::string role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
-        if (role.empty() || compare_text(role.c_str(), "tile_large") != 0) {
+        if (role.empty() ||
+            (compare_text(role.c_str(), "tile_large") != 0 &&
+                compare_text(role.c_str(), "overgrown") != 0 &&
+                compare_text(role.c_str(), "overgrown_large") != 0)) {
             log_error("Unsupported BuildingType graphics variant role", xml_parser_get_attribute_string("role"), 0);
             g_parse_state.error = 1;
             return 0;
@@ -1963,8 +2140,9 @@ static int parse_climate_name(const char *name, int *out_climate)
 
 static int parse_graphics_condition()
 {
-    if (!g_parse_state.definition || !g_parse_state.parsing_graphics || !g_parse_state.has_current_graphics_variant) {
-        log_error("Encountered graphics condition outside graphics variant", 0, 0);
+    if (!g_parse_state.definition || !g_parse_state.parsing_graphics ||
+        (!g_parse_state.has_current_graphics_variant && !g_parse_state.parsing_graphics_layer)) {
+        log_error("Encountered graphics condition outside graphics variant/layer", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -2013,6 +2191,40 @@ static int parse_graphics_condition()
             return 0;
         }
         condition.type = GraphicsConditionType::ResourcePositive;
+    } else if (type_text && compare_text(type_text, "resource_amount") == 0) {
+        if (!xml_parser_has_attribute("resource") || !xml_parser_has_attribute("operator") ||
+            !xml_parser_has_attribute("threshold")) {
+            log_error("BuildingType graphics resource_amount condition is missing required attributes", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        const char *resource_text = xml_parser_get_attribute_string("resource");
+        condition.resource = resource_text && compare_text(resource_text, "none") == 0 ?
+            RESOURCE_NONE :
+            parse_resource_type_name(resource_text);
+        if (condition.resource == RESOURCE_NONE && compare_text(resource_text, "none") != 0) {
+            log_error("Unsupported BuildingType graphics resource_amount resource", resource_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        const char *comparison_text = xml_parser_get_attribute_string("operator");
+        if (!parse_graphics_comparison(comparison_text, &condition.comparison)) {
+            log_error("Unsupported BuildingType graphics resource_amount operator", comparison_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+
+        int threshold = 0;
+        const char *threshold_text = xml_parser_get_attribute_string("threshold");
+        if (!threshold_text || !xml_value::parse_int_strict(threshold_text, &threshold)) {
+            log_error("Unsupported BuildingType graphics resource_amount threshold", threshold_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        condition.type = GraphicsConditionType::ResourceAmount;
+        condition.threshold = threshold;
     } else if (type_text && compare_text(type_text, "climate") == 0) {
         if (!xml_parser_has_attribute("value")) {
             log_error("BuildingType graphics climate condition is missing required attribute 'value'", 0, 0);
@@ -2104,6 +2316,15 @@ static int parse_graphics_condition()
         return 0;
     }
 
+    if (g_parse_state.parsing_graphics_layer) {
+        if (!g_parse_state.current_graphics_layer) {
+            log_error("Encountered graphics layer condition without an active layer", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.current_graphics_layer->add_condition(condition);
+        return 1;
+    }
     g_parse_state.definition->add_graphics_variant_condition(condition);
     return 1;
 }
@@ -3121,9 +3342,10 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "variant", parse_graphics_variant, finish_graphics_variant, "graphics", nullptr },
     { "path", parse_graphics_path, nullptr, "default|variant|graphics", nullptr },
     { "image", parse_graphics_image, nullptr, "default|variant|graphics", nullptr },
-    { "options", parse_graphics_options, finish_graphics_options, "default|variant", nullptr },
+    { "layer", parse_graphics_layer, finish_graphics_layer, "default|variant", nullptr },
+    { "options", parse_graphics_options, finish_graphics_options, "default|variant|layer", nullptr },
     { "option", parse_graphics_option, nullptr, "options", nullptr },
-    { "condition", parse_graphics_condition, nullptr, "variant", nullptr },
+    { "condition", parse_graphics_condition, nullptr, "variant|layer", nullptr },
     { "labor", parse_labor, finish_labor, "building", nullptr },
     { "employees", parse_labor_employees, nullptr, "labor", nullptr },
     { "labor_seeker", parse_labor_seeker, finish_labor_seeker, "labor", nullptr },
@@ -3354,6 +3576,76 @@ static int validate_graphics_target_entry(
             log_error("Disabling invalid runtime graphics because the group has no default entry", detail, 0);
         }
         return 0;
+    }
+
+    GraphicsTarget resolved_target_for_layers = target.resolved_option(0);
+    const std::vector<GraphicsLayer> &layers = resolved_target_for_layers.layers();
+    for (size_t i = 0; i < layers.size(); i++) {
+        const GraphicsLayer &layer = layers[i];
+        GraphicsLayer resolved_layer = layer.has_options() ? layer.resolved_option(0) : layer;
+        char scope[96];
+        snprintf(
+            scope,
+            sizeof(scope),
+            "%s.layer[%u]",
+            target_scope ? target_scope : "graphics",
+            static_cast<unsigned int>(i));
+        if (!resolved_layer.has_path()) {
+            char detail[512];
+            snprintf(detail, sizeof(detail), "building=%s scope=%s", definition.attr(), scope);
+            log_error("Disabling invalid runtime graphics because a layer is missing path", detail, 0);
+            return 0;
+        }
+        if (layer.has_options()) {
+            const int option_count = layer.option_count();
+            for (int option_index = 0; option_index < option_count; option_index++) {
+                GraphicsLayer resolved_option = layer.resolved_option(static_cast<unsigned char>(option_index));
+                if (!resolved_option.has_path() || !resolved_option.has_image()) {
+                    char detail[512];
+                    snprintf(detail, sizeof(detail), "building=%s scope=%s option=%d",
+                        definition.attr(), scope, option_index);
+                    log_error("Disabling invalid runtime graphics because a layer option is incomplete", detail, 0);
+                    return 0;
+                }
+                if (!image_group_payload_load(resolved_option.path())) {
+                    char detail[512];
+                    snprintf(detail, sizeof(detail), "building=%s scope=%s path=%s",
+                        definition.attr(), scope, resolved_option.path());
+                    log_error("Disabling invalid runtime graphics because a layer group could not be loaded", detail, 0);
+                    return 0;
+                }
+                const ImageGroupPayload *option_payload = image_group_payload_get(resolved_option.path());
+                if (!option_payload || !option_payload->entry_for(resolved_option.image())) {
+                    char detail[768];
+                    snprintf(detail, sizeof(detail), "building=%s scope=%s path=%s image=%s",
+                        definition.attr(), scope, resolved_option.path(), resolved_option.image());
+                    log_error("Disabling invalid runtime graphics because a layer image id could not be resolved", detail, 0);
+                    return 0;
+                }
+            }
+            continue;
+        }
+        if (!resolved_layer.has_image()) {
+            char detail[512];
+            snprintf(detail, sizeof(detail), "building=%s scope=%s", definition.attr(), scope);
+            log_error("Disabling invalid runtime graphics because a layer is missing image", detail, 0);
+            return 0;
+        }
+        if (!image_group_payload_load(resolved_layer.path())) {
+            char detail[512];
+            snprintf(detail, sizeof(detail), "building=%s scope=%s path=%s",
+                definition.attr(), scope, resolved_layer.path());
+            log_error("Disabling invalid runtime graphics because a layer group could not be loaded", detail, 0);
+            return 0;
+        }
+        const ImageGroupPayload *layer_payload = image_group_payload_get(resolved_layer.path());
+        if (!layer_payload || !layer_payload->entry_for(resolved_layer.image())) {
+            char detail[768];
+            snprintf(detail, sizeof(detail), "building=%s scope=%s path=%s image=%s",
+                definition.attr(), scope, resolved_layer.path(), resolved_layer.image());
+            log_error("Disabling invalid runtime graphics because a layer image id could not be resolved", detail, 0);
+            return 0;
+        }
     }
 
     return 1;

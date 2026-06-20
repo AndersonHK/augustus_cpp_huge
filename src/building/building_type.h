@@ -137,6 +137,7 @@ enum class RoadblockKind {
 
 enum class TileKind {
     None,
+    Garden,
     Plaza,
     Roadblock
 };

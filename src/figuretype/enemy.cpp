@@ -696,15 +696,15 @@ void figure_enemy_catapult_action(Figure *f)
     int dir = get_missile_direction(f, m);
 
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Warriors", "catapult_death_01") + figure_image_corpse_offset(f);
+        f->image_id = assets_get_image_id("Warriors\\catapult_death_01", "catapult_death_01") + figure_image_corpse_offset(f);
     } else if (f->direction == DIR_FIGURE_ATTACK) {
-        f->image_id = assets_get_image_id("Warriors", "catapult_ne_01") + dir;
+        f->image_id = assets_get_image_id("Warriors\\catapult_ne_01", "catapult_ne_01") + dir;
     } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-        f->image_id = assets_get_image_id("Warriors", "catapult_ne_01") + dir;
+        f->image_id = assets_get_image_id("Warriors\\catapult_ne_01", "catapult_ne_01") + dir;
     } else if (f->action_state == FIGURE_ACTION_151_ENEMY_INITIAL) {
-        f->image_id = assets_get_image_id("Warriors", "catapult_fe_e_01") + dir * 8 + figure_image_missile_launcher_offset(f);
+        f->image_id = assets_get_image_id("Warriors\\catapult_fe_e_01", "catapult_fe_e_01") + dir * 8 + figure_image_missile_launcher_offset(f);
     } else {
-        f->image_id = assets_get_image_id("Warriors", "catapult_ne_01") + dir;
+        f->image_id = assets_get_image_id("Warriors\\catapult_ne_01", "catapult_ne_01") + dir;
     }
 
 }

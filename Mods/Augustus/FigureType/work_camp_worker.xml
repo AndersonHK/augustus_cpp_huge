@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="work_camp_worker">
+    <profiles default="legacy">
+        <profile id="legacy">
+            <native class="legacy_action" />
+            <owner slot="primary" building="workcamp" state="in_use" />
+            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="384" />
+            <pathing mode="vanilla_roaming" />
+        </profile>
+    </profiles>
+    <graphics
+        path_pattern="Walkers\overseer_{dir}_{frame}"
+        image_pattern="overseer_{dir}_{frame}"
+        corpse_path_pattern="Walkers\overseer_death_{frame}"
+        corpse_image_pattern="overseer_death_{frame}"
+        max_image_offset="12" />
+</figure>

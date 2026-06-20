@@ -441,13 +441,13 @@ static void place_building(const map_tile *tile)
             type = runtime_type("native_hut_alt");
             switch (scenario_property_climate()) {
                 case CLIMATE_NORTHERN:
-                    image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Northern_01") + (random_byte() & 1);
+                    image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01") + (random_byte() & 1);
                     break;
                 case CLIMATE_DESERT:
-                    image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Southern_01") + (random_byte() & 1);
+                    image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Southern_01", "Native_Hut_Southern_01") + (random_byte() & 1);
                     break;
                 default:
-                    image_id = assets_get_image_id("Terrain_Maps", "Native_Hut_Central_01") + (random_byte() & 1);
+                    image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01") + (random_byte() & 1);
             }
             size = 1;
             break;

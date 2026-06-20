@@ -97,6 +97,117 @@ int normalized_animation_frame(int animation_cursor, const RuntimeAnimationTrack
     return current_frame;
 }
 
+int graphics_condition_matches(const GraphicsCondition &condition, const Building &building)
+{
+    int matches = 0;
+    switch (condition.type) {
+        case GraphicsConditionType::HasWorkers:
+            matches = building.worker_count();
+            break;
+        case GraphicsConditionType::Working:
+            matches = building.is_working();
+            break;
+        case GraphicsConditionType::WaterAccess:
+            matches = building.has_water_access();
+            break;
+        case GraphicsConditionType::FigureSlotOccupied:
+            switch (condition.figure_slot) {
+                case FigureSlot::Primary:
+                    matches = building.has_primary_figure();
+                    break;
+                case FigureSlot::Secondary:
+                    matches = building.has_secondary_figure();
+                    break;
+                case FigureSlot::Quaternary:
+                    matches = building.has_quaternary_figure();
+                    break;
+                case FigureSlot::None:
+                default:
+                    matches = 0;
+                    break;
+            }
+            break;
+        case GraphicsConditionType::ResourcePositive:
+            matches = building.resource_amount(condition.resource) > 0;
+            break;
+        case GraphicsConditionType::ResourceAmount:
+        {
+            const int amount = building.resource_amount(condition.resource);
+            switch (condition.comparison) {
+                case GraphicComparison::LessThan:
+                    matches = amount < condition.threshold;
+                    break;
+                case GraphicComparison::LessThanOrEqual:
+                    matches = amount <= condition.threshold;
+                    break;
+                case GraphicComparison::Equal:
+                    matches = amount == condition.threshold;
+                    break;
+                case GraphicComparison::GreaterThan:
+                    matches = amount > condition.threshold;
+                    break;
+                case GraphicComparison::GreaterThanOrEqual:
+                    matches = amount >= condition.threshold;
+                    break;
+                case GraphicComparison::None:
+                default:
+                    matches = 0;
+                    break;
+            }
+            break;
+        }
+        case GraphicsConditionType::Climate:
+            matches = scenario_property_climate() == condition.climate;
+            break;
+        case GraphicsConditionType::MonumentUpgrade:
+            matches = building.monument_upgrade_level() == condition.monument_upgrade;
+            break;
+        case GraphicsConditionType::FestivalGames:
+            matches = city_festival_games_active() == condition.festival_games;
+            break;
+        case GraphicsConditionType::Days1Positive:
+            matches = building.entertainment_days1() > 0;
+            break;
+        case GraphicsConditionType::Days1NotPositive:
+            matches = building.entertainment_days1() <= 0;
+            break;
+        case GraphicsConditionType::Days2Positive:
+            matches = building.entertainment_days2() > 0;
+            break;
+        case GraphicsConditionType::Days1OrDays2Positive:
+            matches = building.entertainment_days1() > 0 || building.entertainment_days2() > 0;
+            break;
+        case GraphicsConditionType::Desirability:
+            switch (condition.comparison) {
+                case GraphicComparison::LessThan:
+                    matches = building.desirability() < condition.threshold;
+                    break;
+                case GraphicComparison::LessThanOrEqual:
+                    matches = building.desirability() <= condition.threshold;
+                    break;
+                case GraphicComparison::Equal:
+                    matches = building.desirability() == condition.threshold;
+                    break;
+                case GraphicComparison::GreaterThan:
+                    matches = building.desirability() > condition.threshold;
+                    break;
+                case GraphicComparison::GreaterThanOrEqual:
+                    matches = building.desirability() >= condition.threshold;
+                    break;
+                case GraphicComparison::None:
+                default:
+                    matches = 0;
+                    break;
+            }
+            break;
+        case GraphicsConditionType::None:
+        default:
+            matches = 0;
+            break;
+    }
+    return matches;
+}
+
 building_runtime *runtime_for_building(Building building, std::unique_ptr<building_runtime> &temporary_runtime)
 {
     Building owner = building.main();
@@ -132,6 +243,144 @@ void log_missing_runtime_stage_slice(const char *stage, const Building &building
 
 }
 
+void GraphicsLayer::set_path(std::string path)
+{
+    path_ = std::move(path);
+}
+
+void GraphicsLayer::set_image(std::string image)
+{
+    image_ = std::move(image);
+}
+
+void GraphicsLayer::set_option_selection(GraphicsOptionSelection selection)
+{
+    option_selection_ = selection;
+}
+
+void GraphicsLayer::set_animation_enabled(int enabled)
+{
+    animation_enabled_ = enabled ? 1 : 0;
+}
+
+void GraphicsLayer::set_stage(GraphicsLayerStage stage)
+{
+    stage_ = stage;
+}
+
+void GraphicsLayer::set_offset(int x, int y)
+{
+    x_offset_ = x;
+    y_offset_ = y;
+}
+
+GraphicsLayerOption &GraphicsLayer::add_option()
+{
+    options_.emplace_back();
+    return options_.back();
+}
+
+void GraphicsLayer::add_condition(GraphicsCondition condition)
+{
+    conditions_.push_back(std::move(condition));
+}
+
+int GraphicsLayer::has_path() const
+{
+    return !path_.empty();
+}
+
+const char *GraphicsLayer::path() const
+{
+    return path_.c_str();
+}
+
+int GraphicsLayer::has_image() const
+{
+    return !image_.empty();
+}
+
+const char *GraphicsLayer::image() const
+{
+    return image_.c_str();
+}
+
+GraphicsOptionSelection GraphicsLayer::option_selection() const
+{
+    return option_selection_;
+}
+
+int GraphicsLayer::animation_enabled() const
+{
+    return animation_enabled_;
+}
+
+GraphicsLayerStage GraphicsLayer::stage() const
+{
+    return stage_;
+}
+
+int GraphicsLayer::x_offset() const
+{
+    return x_offset_;
+}
+
+int GraphicsLayer::y_offset() const
+{
+    return y_offset_;
+}
+
+int GraphicsLayer::has_options() const
+{
+    return !options_.empty();
+}
+
+int GraphicsLayer::option_count() const
+{
+    return static_cast<int>(options_.size());
+}
+
+const GraphicsLayerOption *GraphicsLayer::option(int index) const
+{
+    if (index < 0 || static_cast<size_t>(index) >= options_.size()) {
+        return nullptr;
+    }
+    return &options_[static_cast<size_t>(index)];
+}
+
+const std::vector<GraphicsCondition> &GraphicsLayer::conditions() const
+{
+    return conditions_;
+}
+
+int GraphicsLayer::matches(const Building &building) const
+{
+    for (const GraphicsCondition &condition : conditions_) {
+        if (!graphics_condition_matches(condition, building)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+GraphicsLayer GraphicsLayer::resolved_option(unsigned char variant) const
+{
+    if (options_.empty()) {
+        return *this;
+    }
+
+    GraphicsLayer resolved = *this;
+    const GraphicsLayerOption &option = options_[variant % options_.size()];
+    resolved.options_.clear();
+    if (!option.path.empty()) {
+        resolved.set_path(option.path);
+    }
+    if (!option.image.empty()) {
+        resolved.set_image(option.image);
+    }
+    return resolved;
+}
+
 void GraphicsTarget::set_path(std::string path)
 {
     path_ = std::move(path);
@@ -156,6 +405,12 @@ GraphicsTarget &GraphicsTarget::add_option()
 {
     options_.emplace_back();
     return options_.back();
+}
+
+GraphicsLayer &GraphicsTarget::add_layer()
+{
+    layers_.emplace_back();
+    return layers_.back();
 }
 
 int GraphicsTarget::has_path() const
@@ -206,10 +461,25 @@ const GraphicsTarget *GraphicsTarget::option(int index) const
     return &options_[static_cast<size_t>(index)];
 }
 
+const std::vector<GraphicsLayer> &GraphicsTarget::layers() const
+{
+    return layers_;
+}
+
 GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
 {
+    auto inherit_layer_paths = [](GraphicsTarget &target) {
+        for (GraphicsLayer &layer : target.layers_) {
+            if (!layer.has_path()) {
+                layer.set_path(target.path_);
+            }
+        }
+    };
+
     if (options_.empty()) {
-        return *this;
+        GraphicsTarget resolved = *this;
+        inherit_layer_paths(resolved);
+        return resolved;
     }
 
     // Options are authored as partial targets. Materialize one effective target so
@@ -218,6 +488,10 @@ GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
     if (!resolved.has_path()) {
         resolved.set_path(path_);
     }
+    if (resolved.layers_.empty()) {
+        resolved.layers_ = layers_;
+    }
+    inherit_layer_paths(resolved);
     if (!animation_enabled_) {
         resolved.set_animation_enabled(0);
     }
@@ -231,87 +505,7 @@ int GraphicsVariant::matches(const Building &building) const
     }
 
     for (const GraphicsCondition &condition : conditions) {
-        int matches = 0;
-        switch (condition.type) {
-            case GraphicsConditionType::HasWorkers:
-                matches = building.worker_count();
-                break;
-            case GraphicsConditionType::Working:
-                matches = building.is_working();
-                break;
-            case GraphicsConditionType::WaterAccess:
-                matches = building.has_water_access();
-                break;
-            case GraphicsConditionType::FigureSlotOccupied:
-                switch (condition.figure_slot) {
-                    case FigureSlot::Primary:
-                        matches = building.has_primary_figure();
-                        break;
-                    case FigureSlot::Secondary:
-                        matches = building.has_secondary_figure();
-                        break;
-                    case FigureSlot::Quaternary:
-                        matches = building.has_quaternary_figure();
-                        break;
-                    case FigureSlot::None:
-                    default:
-                        matches = 0;
-                        break;
-                }
-                break;
-            case GraphicsConditionType::ResourcePositive:
-                matches = building.resource_amount(condition.resource) > 0;
-                break;
-            case GraphicsConditionType::Climate:
-                matches = scenario_property_climate() == condition.climate;
-                break;
-            case GraphicsConditionType::MonumentUpgrade:
-                matches = building.monument_upgrade_level() == condition.monument_upgrade;
-                break;
-            case GraphicsConditionType::FestivalGames:
-                matches = city_festival_games_active() == condition.festival_games;
-                break;
-            case GraphicsConditionType::Days1Positive:
-                matches = building.entertainment_days1() > 0;
-                break;
-            case GraphicsConditionType::Days1NotPositive:
-                matches = building.entertainment_days1() <= 0;
-                break;
-            case GraphicsConditionType::Days2Positive:
-                matches = building.entertainment_days2() > 0;
-                break;
-            case GraphicsConditionType::Days1OrDays2Positive:
-                matches = building.entertainment_days1() > 0 || building.entertainment_days2() > 0;
-                break;
-            case GraphicsConditionType::Desirability:
-                switch (condition.comparison) {
-                    case GraphicComparison::LessThan:
-                        matches = building.desirability() < condition.threshold;
-                        break;
-                    case GraphicComparison::LessThanOrEqual:
-                        matches = building.desirability() <= condition.threshold;
-                        break;
-                    case GraphicComparison::Equal:
-                        matches = building.desirability() == condition.threshold;
-                        break;
-                    case GraphicComparison::GreaterThan:
-                        matches = building.desirability() > condition.threshold;
-                        break;
-                    case GraphicComparison::GreaterThanOrEqual:
-                        matches = building.desirability() >= condition.threshold;
-                        break;
-                    case GraphicComparison::None:
-                    default:
-                        matches = 0;
-                        break;
-                }
-                break;
-            case GraphicsConditionType::None:
-            default:
-                matches = 0;
-                break;
-        }
-        if (!matches) {
+        if (!graphics_condition_matches(condition, building)) {
             return 0;
         }
     }
@@ -351,7 +545,7 @@ const GraphicsVariant *GraphicsDefinition::last_variant() const
 
 int GraphicsDefinition::has_path() const
 {
-    return default_target_.has_path();
+    return default_target_.has_path() || default_target_.has_options();
 }
 
 int GraphicsDefinition::has_default_node() const
@@ -372,11 +566,11 @@ const std::vector<GraphicsVariant> &GraphicsDefinition::variants() const
 const GraphicsTarget *GraphicsDefinition::resolve_target(const Building &building) const
 {
     for (const GraphicsVariant &variant : variants_) {
-        if (variant.target.has_path() && variant.matches(building)) {
+        if ((variant.target.has_path() || variant.target.has_options()) && variant.matches(building)) {
             return &variant.target;
         }
     }
-    if (default_target_.has_path()) {
+    if (default_target_.has_path() || default_target_.has_options()) {
         return &default_target_;
     }
     return nullptr;
@@ -398,6 +592,7 @@ int GraphicsDefinition::draw_footprint(Building building, const BuildingDrawCont
         }
         runtime_texture_draw(*footprint, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
     }
+    runtime->draw_cached_graphic_layers(GraphicsLayerStage::Footprint, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
 
     return 1;
 }
@@ -417,6 +612,7 @@ int GraphicsDefinition::draw_top(Building building, const BuildingDrawContext &c
     if (const RuntimeDrawSlice *top = runtime->cached_graphic_top()) {
         runtime_texture_draw(*top, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
     }
+    runtime->draw_cached_graphic_layers(GraphicsLayerStage::Top, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
 
     return 1;
 }
@@ -439,6 +635,7 @@ int GraphicsDefinition::draw_animation(Building building, const BuildingDrawCont
             runtime_texture_draw(*frame, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
         }
     }
+    runtime->draw_cached_graphic_layer_animations(ctx.grid_offset, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
 
     return 1;
 }
@@ -446,7 +643,7 @@ int GraphicsDefinition::draw_animation(Building building, const BuildingDrawCont
 unsigned char GraphicsDefinition::upgrade_level_for(const Building &building) const
 {
     for (const GraphicsVariant &variant : variants_) {
-        if (!variant.target.has_path() || !variant.matches(building)) {
+        if ((!variant.target.has_path() && !variant.target.has_options()) || !variant.matches(building)) {
             continue;
         }
 

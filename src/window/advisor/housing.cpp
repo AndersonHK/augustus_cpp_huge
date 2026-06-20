@@ -1,7 +1,6 @@
 #include "translation/translation.h"
 #include "housing.h"
 
-#include "assets/assets.h"
 #include "building/count.h"
 #include "building/building_type_api.h"
 #include "building/house.h"
@@ -24,8 +23,6 @@
 #include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27
-
-static int housing_advisor_image;
 
 static building_type housing_type_for_level(int level_id)
 {
@@ -130,15 +127,11 @@ static void draw_housing_table(void)
 
 static int draw_background(void)
 {
-    if (!housing_advisor_image) {
-        housing_advisor_image = assets_get_image_id("UI", "Housing Advisor Button");
-    }
-
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
     inner_panel_draw(24, 60, 37, 16);
 
     text_draw(translation_for_key("TR_HEADER_HOUSING"), 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    Image::from_id(housing_advisor_image).draw(10, 10);
+    ImageGroupEntryRef::from_group("UI\\Housing_Advisor_Button", "Housing Advisor Button").draw(10, 10);
 
     int x_offset = text_get_number_width(city_population(), 0, "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset += lang_text_get_width("TR_ADVISOR_TOTAL_POPULATION", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));

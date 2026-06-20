@@ -179,9 +179,9 @@ static int affect_all_button_state(void)
 static void draw_roadblock_orders_buttons(int x, int y, int focused)
 {
     if (affect_all_button_state() == ACCEPT_ALL) {
-        Image::from_id(assets_lookup_image_id(ASSET_UI_SELECTION_CHECKMARK)).draw(x + 29, y + 4);
+        ImageGroupEntryRef::from_group("UI\\Selection_Checkmark", "Selection_Checkmark").draw(x + 29, y + 4);
     } else {
-        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x + 29, y + 4);
+        ImageGroupEntryRef::from_group("UI\\Denied_Walker_Checkmark", "Denied_Walker_Checkmark").draw(x + 29, y + 4);
     }
     button_border_draw(x + 25, y, 20, 20, data.orders_focus_button_id == 1);
 }

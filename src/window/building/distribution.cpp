@@ -400,9 +400,9 @@ static void draw_accept_none_button(int x, int y, int focused, affect_all_button
 {
     button_border_draw(x, y, 20, 20, focused ? 1 : 0);
     if (state == ACCEPT_ALL) {
-        Image::from_id(assets_get_image_id("UI", "Selection_Checkmark")).draw(x + 4, y + 4);
+        ImageGroupEntryRef::from_group("UI\\Selection_Checkmark", "Selection_Checkmark").draw(x + 4, y + 4);
     } else {
-        Image::from_id(assets_get_image_id("UI", "Denied_Walker_Checkmark")).draw(x + 4, y + 4);
+        ImageGroupEntryRef::from_group("UI\\Denied_Walker_Checkmark", "Denied_Walker_Checkmark").draw(x + 4, y + 4);
     }
 }
 static void toggle_permissions_all(int param1, int param2)
@@ -954,7 +954,7 @@ void window_building_draw_primary_product_stockpiling(building_info_context *c)
     int x = c->x_offset + primary_product_producer_button_stockpiling->x + BLOCK_SIZE * c->width_blocks - 40;
     int y = c->y_offset + primary_product_producer_button_stockpiling->y + 10;
     button_border_draw(x, y, 30, 30, data.primary_product_stockpiling_id);
-        Image::from_id(assets_get_image_id("UI", "Stockpile_Sprite")).draw(x + 7, y + 6, building_stockpiling_enabled(building_get(building.id())) ? 0xfff5a46b : COLOR_MASK_NONE);
+        ImageGroupEntryRef::from_group("UI\\Stockpile_Sprite", "Stockpile_Sprite").draw(x + 7, y + 6, building_stockpiling_enabled(building_get(building.id())) ? 0xfff5a46b : COLOR_MASK_NONE);
 }
 
 static void draw_button_from_state(resource_storage_entry entry, int x, int y, resource_type resource)
@@ -980,12 +980,12 @@ static void draw_button_from_state(resource_storage_entry entry, int x, int y, r
             break;
         case BUILDING_STORAGE_STATE_MAINTAINING:
         {
-            int maintain_goods_icon_id = assets_get_image_id("UI", "Maintain_Goods_Icon_2");
-            image_width = image_get(maintain_goods_icon_id)->width + 10;
+            const ImageGroupEntryRef maintain_goods_icon = ImageGroupEntryRef::from_group("UI\\Maintain_Goods_Icon_2", "Maintain_Goods_Icon_2");
+            image_width = maintain_goods_icon.width() + 10;
             text_width = lang_text_get_width("TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING",
                  FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
             start_x = x + (210 - image_width - text_width) / 2;
-            Image::from_id(maintain_goods_icon_id).draw(start_x, y - 2, COLOR_MAINTAIN_ICON, SCALE_NONE);
+            maintain_goods_icon.draw(start_x, y - 2, COLOR_MAINTAIN_ICON, SCALE_NONE);
             // this icon needs scaling to be similar to getting goods - draw at 80% scale
             lang_text_draw("TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING",
                 start_x + image_width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));

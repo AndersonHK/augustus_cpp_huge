@@ -83,6 +83,7 @@ static struct {
     int in_progress;
     int cost_preview;
     int force_place_clear_cost;
+    int can_place;
     struct {
         int meadow;
         int rock;
@@ -280,6 +281,7 @@ static void sync_construction_type(void)
     set_required_terrain(data.tool.type);
     data.cost_preview = 0;
     data.force_place_clear_cost = 0;
+    data.can_place = 0;
     if (data.in_progress) {
         game_undo_set_build_type(data.tool.type);
     }
@@ -550,6 +552,15 @@ static int place_garden(int x_start, int y_start, int x_end, int y_end, int is_o
     }
     map_tiles_update_all_gardens();
     return items_placed;
+}
+
+static void refresh_native_tile_preview(building_type type)
+{
+    if (!building_type_attr_is_any(type, {"plaza", "gardens", "overgrown_gardens"})) {
+        return;
+    }
+    map_tiles_update_all_gardens();
+    map_tiles_update_all_plazas();
 }
 
 static int place_wall(int x_start, int y_start, int x_end, int y_end, int measure_only, int construction_mode, building_type wall_type)
@@ -829,6 +840,7 @@ void building_construction_set_type(building_type type, int setup_rotation)
     data.in_progress = 0;
     data.cost_preview = 0;
     data.force_place_clear_cost = 0;
+    data.can_place = 0;
 
     if (data.tool.type != BUILDING_NONE) {
         set_required_terrain(data.tool.type);
@@ -842,6 +854,7 @@ void building_construction_clear_type(void)
 {
     data.cost_preview = 0;
     data.force_place_clear_cost = 0;
+    data.can_place = 0;
     data.tool.clear();
     data.in_progress = 0;
     building_rotation_remove_rotation();
@@ -869,6 +882,7 @@ void building_construction_set_hover_tile(int x, int y, int grid_offset)
     data.tool.set_raw_start(x, y, grid_offset);
     sync_construction_type();
     data.tool.sync_drag_points(hotkey_get_modifiers());
+    data.can_place = 1;
 }
 
 int building_construction_cost(void)
@@ -879,6 +893,11 @@ int building_construction_cost(void)
 int building_construction_force_place_clear_cost(void)
 {
     return data.force_place_clear_cost;
+}
+
+int building_construction_can_place(void)
+{
+    return building_construction_is_land_work_type(data.tool.type) || data.can_place;
 }
 
 int building_construction_size(int *x, int *y)
@@ -987,10 +1006,12 @@ int building_construction_is_updatable(void)
 
 void building_construction_cancel(void)
 {
+    building_type type = data.tool.type;
     map_property_clear_constructing_and_deleted();
     if (data.in_progress && building_construction_is_updatable()) {
         game_undo_restore_building_state();
         game_undo_restore_map(1);
+        refresh_native_tile_preview(type);
         data.in_progress = 0;
         data.cost_preview = 0;
         data.force_place_clear_cost = 0;
@@ -1281,6 +1302,10 @@ void building_construction_place(void)
     if (!type) {
         return;
     }
+    if (!building_construction_can_place()) {
+        map_property_clear_constructing_and_deleted();
+        return;
+    }
 
     if (city_finance_out_of_money()) {
         if (building_type_attr_is(type, "well") && building_count_total(type) < 5) {
@@ -1300,6 +1325,7 @@ void building_construction_place(void)
             game_undo_restore_map(0);
         } else if (building_type_attr_is_any(type, {"plaza", "gardens", "overgrown_gardens"}) || building_is_connectable(type)) {
             game_undo_restore_map(1);
+            refresh_native_tile_preview(type);
         } else if (is_bridge_type(type)) {
             map_bridge_reset_building_length();
         } else {
@@ -1466,6 +1492,11 @@ void building_construction_place(void)
     formation_move_herds_away(x_end, y_end);
     city_finance_process_construction(placement_cost);
     game_undo_finish_build(placement_cost);
+}
+
+void building_construction_set_can_place(int can_place)
+{
+    data.can_place = can_place;
 }
 
 static void set_warning(warning_type *warning, translation_key *text_key, warning_type type, translation_key key)

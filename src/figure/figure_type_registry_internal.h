@@ -16,6 +16,7 @@ namespace figure_type_registry_impl {
 
 enum class NativeClassId {
     None,
+    LegacyAction,
     RoamingService,
     EngineerService,
     PrefectService,
@@ -73,12 +74,16 @@ struct MovementProfile {
 struct GraphicsPolicy {
     int image_group = 0;
     asset_id image_asset = ASSET_MAX_KEY;
+    std::string path_pattern;
+    std::string image_pattern;
     int image_group_offset = 0;
     int max_image_offset = 12;
     int direction_frame_stride = 8;
     int static_frame_count = 0;
     int corpse_image_group = 0;
     asset_id corpse_image_asset = ASSET_MAX_KEY;
+    std::string corpse_path_pattern;
+    std::string corpse_image_pattern;
     int corpse_image_group_offset = 96;
     CartGraphicsMode cart_mode = CartGraphicsMode::None;
     std::array<int, 8> cart_offsets_x = {};

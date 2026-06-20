@@ -22,8 +22,6 @@ public:
     int is_bound() const;
     const std::string &group_path() const;
     const std::string &entry_id() const;
-    int image_id() const;
-    const Image &image() const;
     RuntimeDrawSlice runtime_slice() const;
     RuntimeDrawSlice top_runtime_slice() const;
     int width() const;
@@ -38,7 +36,6 @@ private:
 
     std::string group_path_;
     std::string entry_id_;
-    mutable int cached_image_id_ = 0;
 };
 
 class ImageManager {

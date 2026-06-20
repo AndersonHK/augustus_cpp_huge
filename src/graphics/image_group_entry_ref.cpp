@@ -1,6 +1,5 @@
 #include "graphics/image.h"
 
-#include "assets/assets.h"
 #include "assets/image_group_entry.h"
 #include "assets/image_group_payload.h"
 #include "graphics/runtime_texture.h"
@@ -30,30 +29,6 @@ const std::string &ImageGroupEntryRef::entry_id() const
     return entry_id_;
 }
 
-int ImageGroupEntryRef::image_id() const
-{
-    if (cached_image_id_ > 0) {
-        return cached_image_id_;
-    }
-    if (group_path_.empty()) {
-        return 0;
-    }
-
-    const char *image_name = entry_id_.empty() ? nullptr : entry_id_.c_str();
-    if (!image_name && image_group_payload_load(group_path_.c_str())) {
-        if (const ImageGroupPayload *payload = image_group_payload_get(group_path_.c_str())) {
-            image_name = payload->default_image_id();
-        }
-    }
-    cached_image_id_ = assets_get_image_id_from_path_or_name(group_path_.c_str(), image_name);
-    return cached_image_id_;
-}
-
-const Image &ImageGroupEntryRef::image() const
-{
-    return Image::from_id(image_id());
-}
-
 const ImageGroupEntry *ImageGroupEntryRef::entry() const
 {
     if (group_path_.empty() || !image_group_payload_load(group_path_.c_str())) {
@@ -73,7 +48,7 @@ RuntimeDrawSlice ImageGroupEntryRef::runtime_slice() const
             return *slice;
         }
     }
-    return image().runtime_slice();
+    return RuntimeDrawSlice();
 }
 
 RuntimeDrawSlice ImageGroupEntryRef::top_runtime_slice() const
@@ -82,9 +57,6 @@ RuntimeDrawSlice ImageGroupEntryRef::top_runtime_slice() const
         if (const RuntimeDrawSlice *slice = resolved_entry->top()) {
             return *slice;
         }
-    }
-    if (const Image *top = image().top()) {
-        return top->runtime_slice();
     }
     return RuntimeDrawSlice();
 }
@@ -117,5 +89,13 @@ void ImageGroupEntryRef::draw_top(int x, int y, color_t color, float scale) cons
 
 void ImageGroupEntryRef::draw_scaled_centered(int x, int y, color_t color, int draw_scale_percent) const
 {
-    image().draw_scaled_centered(x, y, color, draw_scale_percent);
+    const RuntimeDrawSlice slice = runtime_slice();
+    if (!slice.is_valid()) {
+        return;
+    }
+
+    const float scale = 100.0f / draw_scale_percent;
+    const float scaled_x = (x + slice.width / 2.0f - (slice.width / scale) / 2.0f) * scale;
+    const float scaled_y = (y + slice.height / 2.0f - (slice.height / scale) / 2.0f) * scale;
+    runtime_texture_draw(slice, static_cast<int>(scaled_x), static_cast<int>(scaled_y), color, scale);
 }

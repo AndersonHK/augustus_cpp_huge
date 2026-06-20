@@ -11,6 +11,16 @@
     <foundation policy="shoreline" />
     <button group="water_crossings" order="30" text_key="main_strings.28.74" />
     <event_data attr="shipyard" />
+    <graphics>
+        <default>
+            <options selection="orientation">
+                <option path="Industry\Shipyard" image="Image_0000" />
+                <option path="Industry\Shipyard" image="Image_0001" />
+                <option path="Industry\Shipyard" image="Image_0002" />
+                <option path="Industry\Shipyard" image="Image_0003" />
+            </options>
+        </default>
+    </graphics>
     <labor>
         <employees count="10" />
     </labor>

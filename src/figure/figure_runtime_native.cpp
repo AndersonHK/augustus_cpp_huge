@@ -25,6 +25,7 @@
 #include "map/routing_distance.h"
 
 #include "assets/assets.h"
+#include "assets/image_group_payload.h"
 #include "building/building_record.h"
 #include "building/granary.h"
 #include "building/monument.h"
@@ -46,9 +47,12 @@
 
 
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <string>
+#include <unordered_set>
 
 namespace figure_runtime_native_impl {
 
@@ -172,6 +176,154 @@ bool is_road_history_tile(int grid_offset)
 {
     return map_terrain_is(grid_offset, TERRAIN_ROAD) ||
         map_routing_citizen_is_road(grid_offset);
+}
+
+class GenericFigureGraphics {
+public:
+    explicit GenericFigureGraphics(const figure_type_registry_impl::GraphicsPolicy &policy)
+        : policy_(policy)
+    {
+    }
+
+    int has_native_payload() const
+    {
+        return !policy_.path_pattern.empty() && !policy_.image_pattern.empty();
+    }
+
+    const RuntimeDrawSlice *slice_for(const Figure *f) const
+    {
+        if (!f || !has_native_payload()) {
+            return nullptr;
+        }
+
+        const int corpse = f->action_state == FIGURE_ACTION_149_CORPSE;
+        if (corpse && policy_.corpse_path_pattern.empty()) {
+            log_graphics_issue_once("Figure graphics corpse target is missing.", f, "", "corpse_path_pattern");
+            return nullptr;
+        }
+
+        const int frame = corpse ? figure_image_corpse_offset(const_cast<Figure *>(f)) : f->image_offset;
+        const std::string path = expand_pattern(
+            corpse ? policy_.corpse_path_pattern : policy_.path_pattern,
+            direction_suffix(f),
+            frame + 1);
+        const std::string image = expand_pattern(
+            corpse ? policy_.corpse_image_pattern : policy_.image_pattern,
+            direction_suffix(f),
+            frame + 1);
+        return resolve_slice(f, path, image);
+    }
+
+private:
+    static const char *direction_suffix(const Figure *f)
+    {
+        static constexpr const char *suffixes[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+        int dir = 0;
+        if (f) {
+            dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
+        }
+        if (dir < 0 || dir >= 8) {
+            dir = 0;
+        }
+        return suffixes[dir];
+    }
+
+    static std::string uppercase(std::string text)
+    {
+        for (char &ch : text) {
+            if (ch >= 'a' && ch <= 'z') {
+                ch = static_cast<char>(ch - 'a' + 'A');
+            }
+        }
+        return text;
+    }
+
+    static std::string frame_text(int frame)
+    {
+        char buffer[8];
+        snprintf(buffer, sizeof(buffer), "%02d", frame);
+        return buffer;
+    }
+
+    static void replace_all(std::string &text, const char *needle, const std::string &replacement)
+    {
+        size_t pos = 0;
+        const size_t needle_len = strlen(needle);
+        while ((pos = text.find(needle, pos)) != std::string::npos) {
+            text.replace(pos, needle_len, replacement);
+            pos += replacement.size();
+        }
+    }
+
+    static std::string expand_pattern(const std::string &pattern, const char *dir, int frame)
+    {
+        std::string result = pattern;
+        const std::string dir_text = dir ? dir : "";
+        replace_all(result, "{dir}", dir_text);
+        replace_all(result, "{dir_upper}", uppercase(dir_text));
+        replace_all(result, "{frame}", frame_text(frame));
+        return result;
+    }
+
+    static void log_graphics_issue_once(
+        const char *message,
+        const Figure *f,
+        const std::string &path,
+        const std::string &detail)
+    {
+        static std::unordered_set<std::string> logged;
+        char key[512];
+        snprintf(
+            key,
+            sizeof(key),
+            "%s|figure=%d|path=%s|detail=%s",
+            message ? message : "",
+            f ? f->id() : 0,
+            path.c_str(),
+            detail.c_str());
+        if (!logged.insert(key).second) {
+            return;
+        }
+        error_context_report_error(message, detail.c_str());
+    }
+
+    static const RuntimeDrawSlice *resolve_slice(const Figure *f, const std::string &path, const std::string &image)
+    {
+        if (path.empty() || image.empty()) {
+            log_graphics_issue_once("Figure graphics target is incomplete.", f, path, image);
+            return nullptr;
+        }
+        if (!image_group_payload_load(path.c_str())) {
+            log_graphics_issue_once("Figure graphics image could not be resolved.", f, path, path + " image=" + image);
+            return nullptr;
+        }
+
+        const ImageGroupPayload *payload = image_group_payload_get(path.c_str());
+        const ImageGroupEntry *entry = payload ? payload->entry_for(image.c_str()) : nullptr;
+        const RuntimeDrawSlice *slice = entry ? entry->footprint() : nullptr;
+        if (!slice || !slice->is_valid()) {
+            log_graphics_issue_once("Figure graphics image could not be resolved.", f, path, path + " image=" + image);
+            return nullptr;
+        }
+        return slice;
+    }
+
+    const figure_type_registry_impl::GraphicsPolicy &policy_;
+};
+
+int graphics_policy_has_native_payload(const figure_type_registry_impl::FigureTypeDefinition *definition)
+{
+    return definition && GenericFigureGraphics(definition->graphics_policy()).has_native_payload();
+}
+
+const RuntimeDrawSlice *graphics_policy_slice_for_figure(
+    const Figure *f,
+    const figure_type_registry_impl::FigureTypeDefinition *definition)
+{
+    if (!definition) {
+        return nullptr;
+    }
+    return GenericFigureGraphics(definition->graphics_policy()).slice_for(f);
 }
 
 int image_base_for_definition(const figure_type_registry_impl::FigureTypeDefinition *definition)
@@ -1313,13 +1465,10 @@ private:
 
     void update_image(Figure *f) const
     {
-        const int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
         if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = assets_get_image_id("Walkers", "marketbuyer_death_01") +
-                figure_image_corpse_offset(f);
+            f->image_id = corpse_image_base_for_definition(definition()) + figure_image_corpse_offset(f);
         } else {
-            f->image_id = assets_get_image_id("Walkers", "marketbuyer_ne_01") +
-                dir * 12 + f->image_offset;
+            figure_image_update(f, image_base_for_definition(definition()));
         }
     }
 };
@@ -2340,6 +2489,8 @@ std::unique_ptr<NativeFigure> make_controller(
     }
 
     switch (profile->native_class()) {
+        case figure_type_registry_impl::NativeClassId::LegacyAction:
+            return nullptr;
         case figure_type_registry_impl::NativeClassId::RoamingService:
             return std::make_unique<RoamingServiceFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::EngineerService:

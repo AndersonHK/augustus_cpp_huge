@@ -16,6 +16,7 @@
 #include "core/image.h"
 #include "core/random.h"
 #include "figure/combat.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
@@ -83,17 +84,6 @@ static int has_valid_monument_destination(Figure *f)
         f->wait_ticks = 0;
     }
     return 1;
-}
-
-static void workcamp_worker_image_update(Figure *f)
-{
-    int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Walkers", "overseer_death_01") +
-            figure_image_corpse_offset(f);
-    } else {
-        f->image_id = assets_get_image_id("Walkers", "overseer_ne_01") + dir * 12 + f->image_offset;
-    }
 }
 
 void figure_workcamp_worker_action(Figure *f)
@@ -218,7 +208,7 @@ void figure_workcamp_worker_action(Figure *f)
             break;
     }
 
-    workcamp_worker_image_update(f);
+    figure_runtime_update_graphics(f);
 }
 
 void figure_workcamp_slave_action(Figure *f)
@@ -304,14 +294,7 @@ void figure_workcamp_slave_action(Figure *f)
             break;
     }
 
-    int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Walkers", "Slave death 01") +
-            figure_image_corpse_offset(f);
-    } else {
-        f->image_id = assets_get_image_id("Walkers", "Slave NE 01") + dir * 12 +
-            f->image_offset;
-    }
+    figure_runtime_update_graphics(f);
 }
 
 static void set_architect_graphic(Figure *f, int working)
@@ -319,12 +302,12 @@ static void set_architect_graphic(Figure *f, int working)
     int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
 
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Walkers", "architect_death_01") +
+        f->image_id = assets_get_image_id("Walkers\\architect_death_01", "architect_death_01") +
             figure_image_corpse_offset(f);
     } else if (working) {
-        f->image_id = assets_get_image_id("Walkers", "Architect 01") + f->image_offset;
+        f->image_id = assets_get_image_id("Walkers\\Architect_01", "Architect 01") + f->image_offset;
     } else {
-        f->image_id = assets_get_image_id("Walkers", "architect_ne_01") + dir * 12 +
+        f->image_id = assets_get_image_id("Walkers\\architect_ne_01", "architect_ne_01") + dir * 12 +
             f->image_offset;
     }
 }

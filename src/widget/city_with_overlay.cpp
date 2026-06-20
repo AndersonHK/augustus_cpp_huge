@@ -538,7 +538,7 @@ static void draw_footprint(int x, int y, int grid_offset)
         //grid is drawn by the renderer directly at zoom > 200%
         static int grid_id = 0;
         if (!grid_id) {
-            grid_id = assets_get_image_id("UI", "Grid_Full");
+            grid_id = assets_get_image_id("UI\\Grid_Full", "Grid_Full");
         }
         Image::from_id(grid_id).draw(x, y, COLOR_GRID, scale);
     }
@@ -580,78 +580,58 @@ static void draw_overlay_column(int x, int y, int height, column_color_type colo
 static int depot_cart_image_id(resource_type resource)
 {
     if (resource == resource_vegetables()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Vegetables");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Vegetables", "Cart_Depot_Vegetables");
     } else if (resource == resource_fruit()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Fruit");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Fruit", "Cart_Depot_Fruit");
     } else if (resource == resource_meat()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Meat");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Meat", "Cart_Depot_Meat");
     } else if (resource == resource_fish()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Fish");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Fish", "Cart_Depot_Fish");
     } else if (resource == resource_vines()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Grapes");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Grapes", "Cart_Depot_Grapes");
     } else if (resource == resource_pottery()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Pottery");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Pottery", "Cart_Depot_Pottery");
     } else if (resource == resource_furniture()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Furniture");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Furniture", "Cart_Depot_Furniture");
     } else if (resource == resource_oil()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Oil");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Oil", "Cart_Depot_Oil");
     } else if (resource == resource_wine()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Wine");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Wine", "Cart_Depot_Wine");
     } else if (resource == resource_marble()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Marble");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Marble", "Cart_Depot_Marble");
     } else if (resource == resource_weapons()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Weapons");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Weapons", "Cart_Depot_Weapons");
     } else if (resource == resource_clay()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Clay");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Clay", "Cart_Depot_Clay");
     } else if (resource == resource_timber()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Timber");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Timber", "Cart_Depot_Timber");
     } else if (resource == resource_olives()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Olives");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Olives", "Cart_Depot_Olives");
     } else if (resource == resource_iron()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Iron");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Iron", "Cart_Depot_Iron");
     } else if (resource == resource_gold()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Gold");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Gold", "Cart_Depot_Gold");
     } else if (resource == resource_sand()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Sand");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Sand", "Cart_Depot_Sand");
     } else if (resource == resource_stone()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Stone");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Stone", "Cart_Depot_Stone");
     } else if (resource == resource_bricks()) {
-        return assets_get_image_id("Admin_Logistics", "Cart_Depot_Bricks");
+        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Bricks", "Cart_Depot_Bricks");
     }
-    return assets_get_image_id("Admin_Logistics", "Cart_Depot_Wheat");
+    return assets_get_image_id("Admin_Logistics\\Cart_Depot_Wheat", "Cart_Depot_Wheat");
 }
 
 static void draw_depot_resource(const Building &building, int x, int y)
 {
     const int image_id = building.worker_count() ?
         depot_cart_image_id(building.depot_order().resource_type) :
-        assets_get_image_id("Admin_Logistics", "Cart_Depot_Cat");
+        assets_get_image_id("Admin_Logistics\\Cart_Depot_Cat", "Cart_Depot_Cat");
     Image::from_id(image_id).draw(x + 11, y, COLOR_MASK_NONE, scale);
 }
 
 static void draw_permissions_flag(Building &building, int x, int y, color_t color_mask)
 {
-    if (building.has_plague()) {
-        return;
-    }
-    static int base_permission_image[8];
-    if (!base_permission_image[0]) {
-        base_permission_image[0] = 0xdeadbeef; // Invalid image ID, just to confirm the other values have been set
-        base_permission_image[1] = assets_get_image_id("UI", "Warehouse_Flag_Market");
-        base_permission_image[2] = assets_get_image_id("UI", "Warehouse_Flag_Land");
-        base_permission_image[3] = assets_get_image_id("UI", "Warehouse_Flag_Market_Land");
-        base_permission_image[4] = assets_get_image_id("UI", "Warehouse_Flag_Sea");
-        base_permission_image[5] = assets_get_image_id("UI", "Warehouse_Flag_Market_Sea");
-        base_permission_image[6] = assets_get_image_id("UI", "Warehouse_Flag_Land_Sea");
-        base_permission_image[7] = assets_get_image_id("UI", "Warehouse_Flag_All");
-    }
-    int permissions = building.blocked_storage_permission_mask();
-    if (!permissions) {
-        return;
-    }
-    Image::from_id(base_permission_image[permissions] + building.warehouse_flag_frame()).draw(x, y, color_mask, scale);
-
-    building.animate().advance_storage_flag(Image::from_id(base_permission_image[permissions]));
+    city_draw_storage_permission_flag(building, x, y, color_mask, scale);
 }
 
 static void draw_warehouse_ornaments(int x, int y, color_t color_mask)
@@ -702,9 +682,6 @@ static void draw_building_top(Building building, int x, int y, int grid_offset)
         }
         return;
     }
-    if (building.type && building.type->is_granary()) {
-        draw_granary_stores(*image_get(map_image_at(grid_offset)), building, x, y, color_mask);
-    }
     if (building.type && building.type->is_warehouse()) {
         draw_warehouse_ornaments(x, y, color_mask);
         draw_permissions_flag(building, x + 19, y - 56, color_mask);
@@ -714,6 +691,10 @@ static void draw_building_top(Building building, int x, int y, int grid_offset)
     }
 
     if (!building.draw_top({ x, y, grid_offset, color_mask, scale })) {
+        if (building.type && building.type->is_granary()) {
+            draw_granary_stores(*image_get(map_image_at(grid_offset)), building, x, y, color_mask);
+            return;
+        }
         Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
     }
 }
@@ -759,7 +740,9 @@ static void draw_top_for_building(Building building, int x, int y, int grid_offs
                 color_mask = building_construction_clear_color();
             }
             // terrain
-            Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
+            if (!city_draw_runtime_tile_top(grid_offset, x, y, color_mask, scale)) {
+                Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
+            }
         }
     }
 }

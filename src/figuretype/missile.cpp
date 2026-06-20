@@ -293,6 +293,6 @@ void figure_catapult_missile_action(Figure *f)
         f->state = FIGURE_STATE_DEAD;
     }
     int dir = (16 + f->direction - 2 * city_view_orientation()) % 16;
-    f->image_id = assets_get_image_id("Warriors", "catapult_rock_ne_01") + dir;
+    f->image_id = assets_get_image_id("Warriors\\catapult_rock_ne_01", "catapult_rock_ne_01") + dir;
 }
 

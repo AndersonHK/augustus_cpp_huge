@@ -7,6 +7,8 @@
 #include <string>
 #include <utility>
 
+class ImageGroupEntry;
+
 class tile_runtime {
 public:
     tile_runtime(
@@ -34,23 +36,25 @@ public:
         return graphics_path_.c_str();
     }
 
-    void set_plaza_image_id(const char *image_id)
+    void set_image_id(const char *image_id)
     {
-        plaza_image_id_ = image_id ? image_id : "";
+        image_id_ = image_id ? image_id : "";
     }
 
-    const char *plaza_image_id() const
+    const char *image_id() const
     {
-        return plaza_image_id_.c_str();
+        return image_id_.c_str();
     }
 
+    const ImageGroupEntry *resolve_graphic_entry() const;
     const RuntimeDrawSlice *resolve_graphic_slice() const;
+    const RuntimeDrawSlice *resolve_graphic_top_slice() const;
 
 private:
     int grid_offset_ = -1;
     const building_type_registry_impl::BuildingType *definition_ = nullptr;
     std::string graphics_path_;
-    std::string plaza_image_id_;
+    std::string image_id_;
 };
 
 namespace tile_runtime_impl {

@@ -16,8 +16,12 @@
     <event_data attr="wharf" />
     <graphics>
         <default>
-            <path value="Industry\Wharf" />
-            <image value="Image_0000" />
+            <options selection="orientation">
+                <option path="Industry\Wharf" image="Image_0000" />
+                <option path="Industry\Wharf" image="Image_0001" />
+                <option path="Industry\Wharf" image="Image_0002" />
+                <option path="Industry\Wharf" image="Image_0003" />
+            </options>
         </default>
     </graphics>
     <labor>

@@ -23,6 +23,7 @@
 
 #include "game/settings.h"
 #include "game/campaign.h"
+#include "game/mod_manager.h"
 #include "scenario/scenario.h"
 #include "platform/prefs.h"
 #include "platform/user_path.h"
@@ -50,6 +51,8 @@
 #include "sound/city.h"
 
 #include <stdio.h>
+#include <filesystem>
+#include <string>
 
 static char init_failure_message[512];
 
@@ -70,6 +73,21 @@ static void set_init_failure_message(const char *message, const char *detail)
     } else {
         snprintf(init_failure_message, sizeof(init_failure_message), "%s", message);
     }
+}
+
+static int augustus_graphics_extract_is_available()
+{
+    std::string graphics_path = mod_manager::augustus_graphics_path();
+    while (!graphics_path.empty() && (graphics_path.back() == '/' || graphics_path.back() == '\\')) {
+        graphics_path.pop_back();
+    }
+    if (graphics_path.empty()) {
+        return 0;
+    }
+
+    std::error_code error;
+    return std::filesystem::is_directory(graphics_path, error) &&
+        std::filesystem::is_regular_file(graphics_path + ".graphics_extract.stamp", error);
 }
 
 static encoding_type update_encoding(void)
@@ -185,8 +203,7 @@ int game_init(void)
     if (is_unpatched()) {
         actions |= ACTION_SHOW_MESSAGE_MISSING_PATCH;
     }
-    int missing_assets = !assets_get_image_id("Admin_Logistics", "roadblock"); // If can't find roadblocks asset, extra assets not installed properly
-    if (missing_assets) {
+    if (!augustus_graphics_extract_is_available()) {
         actions |= ACTION_SHOW_MESSAGE_MISSING_EXTRA_ASSETS;
     }
     if (config_must_configure_user_directory()) {

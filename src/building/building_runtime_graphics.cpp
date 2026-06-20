@@ -1,4 +1,5 @@
 #include "building/image.h"
+#include "building/granary.h"
 #include "building/industry.h"
 #include "map/building_tiles.h"
 
@@ -13,9 +14,9 @@
 #include "building/building_runtime_graphics.h"
 #include "building/variant.h"
 #include "core/crash_context.h"
-#include "graphics/image_group_reference.h"
 
 #include "core/image_group.h"
+#include "city/view.h"
 #include "game/resource.h"
 #include "map/terrain.h"
 #include "core/log.h"
@@ -118,7 +119,44 @@ void report_rebuild_failure(
 {
     char detail[512];
     format_rebuild_failure_detail(detail, sizeof(detail), runtime, reason, target, entry);
-    error_context_report_error("Native building graphics cache rebuild failed. Falling back to legacy rendering.", detail);
+    error_context_report_error("Native building graphics cache rebuild failed.", detail);
+}
+
+void log_image_id_failure(
+    const Building &building,
+    const char *reason,
+    const building_type_registry_impl::GraphicsTarget *target = nullptr,
+    const ImageGroupEntry *entry = nullptr)
+{
+    char detail[512];
+    snprintf(
+        detail,
+        sizeof(detail),
+        "building_attr=%s grid_offset=%d path=%s image=%s reason=%s",
+        building.type ? building.type->attr() : "unknown",
+        building.grid_offset(),
+        target && target->has_path() ? target->path() : "",
+        graphics_target_image_or_entry_id(target, entry),
+        reason ? reason : "");
+    log_info("Native building graphics image lookup failed: ", detail, 0);
+}
+
+void report_layer_rebuild_failure(
+    const building_runtime *runtime,
+    const char *reason,
+    const building_type_registry_impl::GraphicsLayer &layer,
+    const ImageGroupEntry *entry = nullptr)
+{
+    char detail[512];
+    snprintf(
+        detail,
+        sizeof(detail),
+        "building_attr=%s path=%s image=%s reason=%s",
+        building_type_attr_or_unknown(runtime),
+        layer.has_path() ? layer.path() : "",
+        layer.has_image() ? layer.image() : (entry ? entry->id().c_str() : ""),
+        reason ? reason : "");
+    error_context_report_error("Native building graphics layer cache rebuild failed.", detail);
 }
 
 int runtime_tile_sentinel_image_id()
@@ -126,43 +164,136 @@ int runtime_tile_sentinel_image_id()
     return image_group(GROUP_TERRAIN_FLAT_TILE);
 }
 
-int selected_graphics_option(const Building &building, const building_type_registry_impl::GraphicsTarget &target)
+int selected_option_for_selection(
+    const Building &building,
+    building_type_registry_impl::GraphicsOptionSelection selection,
+    int has_options)
 {
-    if (!target.has_options()) {
+    if (!has_options) {
         return 0;
     }
-    if (target.option_selection() == building_type_registry_impl::GraphicsOptionSelection::Connectable) {
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::Connectable) {
         int option = building_connectable_graphics_option(building);
         return option < 0 ? 0 : option;
+    }
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::StorageLoad) {
+        const int empty_loads = building.resource_amount(RESOURCE_NONE);
+        if (empty_loads < QUARTER_GRANARY) {
+            return 4;
+        }
+        if (empty_loads < HALF_GRANARY) {
+            return 3;
+        }
+        if (empty_loads < THREEQUARTERS_GRANARY) {
+            return 2;
+        }
+        if (empty_loads < FULL_GRANARY) {
+            return 1;
+        }
+        return 0;
+    }
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::Orientation) {
+        return (4 + building.orientation() - city_view_orientation() / 2) % 4;
     }
     int option = building_variant_get_graphics_option(building, 0);
     return option < 0 ? 0 : option;
 }
 
+int selected_option_for_layer(
+    const Building &building,
+    const building_type_registry_impl::GraphicsLayer &layer)
+{
+    return selected_option_for_selection(building, layer.option_selection(), layer.has_options());
+}
+
+void draw_shifted_runtime_slice(
+    const RuntimeDrawSlice *slice,
+    int x,
+    int y,
+    int x_offset,
+    int y_offset,
+    color_t color,
+    float scale)
+{
+    if (slice) {
+        runtime_texture_draw(*slice, x + x_offset, y + y_offset, color, scale);
+    }
+}
+
+}
+
+int building_runtime_graphics_selected_option(
+    const Building &building,
+    const building_type_registry_impl::GraphicsTarget &target)
+{
+    return selected_option_for_selection(building, target.option_selection(), target.has_options());
 }
 
 int building_runtime_graphics_image_id(const Building &building_object)
 {
     const building_type_registry_impl::BuildingType *definition = building_object.type;
-    if (!definition || !definition->has_graphic()) {
+    if (!definition || !definition->has_graphic() || definition->has_data_only_graphics()) {
         return 0;
     }
 
     const building_type_registry_impl::GraphicsTarget *target =
         building_type_registry_impl::BuildingType::resolve_graphics_target_for_image(definition, building_object);
     if (!target) {
+        log_image_id_failure(building_object, "target_selection_failed");
         return 0;
     }
 
     building_type_registry_impl::GraphicsTarget resolved_target =
-        target->resolved_option(static_cast<unsigned char>(selected_graphics_option(building_object, *target)));
+        target->resolved_option(static_cast<unsigned char>(building_runtime_graphics_selected_option(building_object, *target)));
     if (!resolved_target.has_path()) {
+        log_image_id_failure(building_object, "target_path_missing", &resolved_target);
         return 0;
     }
 
-    return graphics_image_id_for_group_reference(
-        resolved_target.path(),
-        resolved_target.has_image() ? resolved_target.image() : nullptr);
+    if (!image_group_payload_load(resolved_target.path())) {
+        log_image_id_failure(building_object, "payload_group_load_failed", &resolved_target);
+        return 0;
+    }
+    const ImageGroupPayload *payload = image_group_payload_get(resolved_target.path());
+    if (!payload) {
+        log_image_id_failure(building_object, "payload_group_handle_null", &resolved_target);
+        return 0;
+    }
+    const ImageGroupEntry *entry =
+        resolved_target.has_image() ? payload->entry_for(resolved_target.image()) : payload->default_entry();
+    if (!entry) {
+        log_image_id_failure(building_object,
+            resolved_target.has_image() ? "payload_entry_lookup_failed" : "payload_default_entry_lookup_failed",
+            &resolved_target);
+        return 0;
+    }
+    if (!entry->footprint()) {
+        log_image_id_failure(building_object, "payload_entry_footprint_missing", &resolved_target, entry);
+        return 0;
+    }
+    for (const building_type_registry_impl::GraphicsLayer &layer : resolved_target.layers()) {
+        if (!layer.matches(building_object)) {
+            continue;
+        }
+        building_type_registry_impl::GraphicsLayer resolved_layer =
+            layer.resolved_option(static_cast<unsigned char>(selected_option_for_layer(building_object, layer)));
+        if (!resolved_layer.has_path()) {
+            log_image_id_failure(building_object, "layer_path_missing", &resolved_target);
+            return 0;
+        }
+        if (!image_group_payload_load(resolved_layer.path())) {
+            log_image_id_failure(building_object, "layer_payload_group_load_failed", &resolved_target);
+            return 0;
+        }
+        const ImageGroupPayload *layer_payload = image_group_payload_get(resolved_layer.path());
+        const ImageGroupEntry *layer_entry =
+            layer_payload && resolved_layer.has_image() ? layer_payload->entry_for(resolved_layer.image()) : nullptr;
+        if (!layer_entry) {
+            log_image_id_failure(building_object, "layer_payload_entry_lookup_failed", &resolved_target);
+            return 0;
+        }
+    }
+    return runtime_tile_sentinel_image_id();
 }
 
 void building_runtime::clear_cached_graphics_bindings()
@@ -201,7 +332,7 @@ std::uint64_t building_runtime::graphics_state_signature() const
     int selected_option = -1;
     if (const building_type_registry_impl::GraphicsTarget *target = resolve_graphic_target()) {
         if (target->has_options()) {
-            selected_option = selected_graphics_option(b, *target);
+            selected_option = building_runtime_graphics_selected_option(b, *target);
         }
     }
     return b.graphics_state_signature(selected_option);
@@ -271,6 +402,41 @@ int building_runtime::resolve_graphic_binding(
     return 1;
 }
 
+static int resolve_graphic_layer_binding(
+    const building_runtime *runtime,
+    const building_type_registry_impl::GraphicsLayer &layer,
+    const ImageGroupPayload *&payload,
+    const ImageGroupEntry *&entry)
+{
+    payload = nullptr;
+    entry = nullptr;
+
+    if (!layer.has_path()) {
+        report_layer_rebuild_failure(runtime, "layer_path_missing", layer);
+        return 0;
+    }
+    if (!image_group_payload_load(layer.path())) {
+        report_layer_rebuild_failure(runtime, "payload_group_load_failed", layer);
+        return 0;
+    }
+
+    payload = image_group_payload_get(layer.path());
+    if (!payload) {
+        report_layer_rebuild_failure(runtime, "payload_group_handle_null", layer);
+        return 0;
+    }
+
+    entry = layer.has_image() ? payload->entry_for(layer.image()) : payload->default_entry();
+    if (!entry) {
+        report_layer_rebuild_failure(
+            runtime,
+            layer.has_image() ? "payload_entry_lookup_failed" : "payload_default_entry_lookup_failed",
+            layer);
+        return 0;
+    }
+    return 1;
+}
+
 // Input: one live building instance in the city animation draw stage.
 // Output: advances the native XML animation cursor at the same layer where legacy image groups tick.
 void building_runtime::advance_graphic_animation(int animation_cursor)
@@ -336,6 +502,65 @@ const RuntimeDrawSlice *building_runtime::cached_graphic_animation(int animation
 {
     rebuild_cached_animation_slice(animation_cursor);
     return graphics_cache_.animation_slice.is_valid() ? &graphics_cache_.animation_slice : nullptr;
+}
+
+void building_runtime::draw_cached_graphic_layers(
+    building_type_registry_impl::GraphicsLayerStage stage,
+    int x,
+    int y,
+    color_t color,
+    float scale)
+{
+    for (const CachedGraphicsBindings::Layer &layer : graphics_cache_.layers) {
+        if (layer.stage == building_type_registry_impl::GraphicsLayerStage::Auto) {
+            if (stage == building_type_registry_impl::GraphicsLayerStage::Footprint) {
+                draw_shifted_runtime_slice(layer.entry ? layer.entry->footprint() : nullptr,
+                    x, y, layer.x_offset, layer.y_offset, color, scale);
+            } else if (stage == building_type_registry_impl::GraphicsLayerStage::Top) {
+                draw_shifted_runtime_slice(layer.entry ? layer.entry->top() : nullptr,
+                    x, y, layer.x_offset, layer.y_offset, color, scale);
+            }
+            continue;
+        }
+        if (layer.stage != stage) {
+            continue;
+        }
+        draw_shifted_runtime_slice(layer.entry ? layer.entry->footprint() : nullptr,
+            x, y, layer.x_offset, layer.y_offset, color, scale);
+        draw_shifted_runtime_slice(layer.entry ? layer.entry->top() : nullptr,
+            x, y, layer.x_offset, layer.y_offset, color, scale);
+    }
+}
+
+void building_runtime::draw_cached_graphic_layer_animations(
+    int animation_cursor,
+    int x,
+    int y,
+    color_t color,
+    float scale)
+{
+    for (CachedGraphicsBindings::Layer &layer : graphics_cache_.layers) {
+        if (!layer.owns_animation || !layer.entry || !layer.entry->has_animation()) {
+            continue;
+        }
+        const RuntimeAnimationTrack &track = layer.entry->animation();
+        const int animation_offset = building().animate().runtime_track_offset(track, 1, animation_cursor);
+        if (animation_offset <= 0) {
+            layer.animation_slice = RuntimeDrawSlice();
+            continue;
+        }
+        const size_t frame_index = static_cast<size_t>(animation_offset - 1);
+        if (frame_index >= track.frames.size()) {
+            layer.animation_slice = RuntimeDrawSlice();
+            continue;
+        }
+
+        RuntimeDrawSlice frame_slice = track.frames[frame_index];
+        frame_slice.draw_offset_x += track.sprite_offset_x;
+        frame_slice.draw_offset_y += track.sprite_offset_y;
+        layer.animation_slice = frame_slice;
+        draw_shifted_runtime_slice(&layer.animation_slice, x, y, layer.x_offset, layer.y_offset, color, scale);
+    }
 }
 
 int building_runtime::cached_owns_graphic_animation() const
@@ -417,7 +642,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
     // Conditional graphics pick a target first; the saved variant byte only picks
     // among equivalent options inside that already-selected target.
     building_type_registry_impl::GraphicsTarget resolved_target =
-        target->resolved_option(static_cast<unsigned char>(selected_graphics_option(building(), *target)));
+        target->resolved_option(static_cast<unsigned char>(building_runtime_graphics_selected_option(building(), *target)));
 
     const ImageGroupPayload *payload = nullptr;
     const ImageGroupEntry *entry = nullptr;
@@ -436,6 +661,29 @@ void building_runtime::rebuild_cached_graphics_bindings()
         graphics_cache_.animation_payload = payload;
         graphics_cache_.animation_entry = entry;
         graphics_cache_.owns_graphic_animation = 1;
+    }
+    for (const building_type_registry_impl::GraphicsLayer &layer : resolved_target.layers()) {
+        if (!layer.matches(building())) {
+            continue;
+        }
+
+        building_type_registry_impl::GraphicsLayer resolved_layer =
+            layer.resolved_option(static_cast<unsigned char>(selected_option_for_layer(building(), layer)));
+        const ImageGroupPayload *layer_payload = nullptr;
+        const ImageGroupEntry *layer_entry = nullptr;
+        if (!resolve_graphic_layer_binding(this, resolved_layer, layer_payload, layer_entry)) {
+            return;
+        }
+
+        CachedGraphicsBindings::Layer cached_layer;
+        cached_layer.payload = layer_payload;
+        cached_layer.entry = layer_entry;
+        cached_layer.stage = resolved_layer.stage();
+        cached_layer.x_offset = resolved_layer.x_offset();
+        cached_layer.y_offset = resolved_layer.y_offset();
+        cached_layer.owns_animation =
+            resolved_layer.animation_enabled() && building().is_working() && layer_entry->has_animation();
+        graphics_cache_.layers.push_back(cached_layer);
     }
     graphics_cache_.owns_graphics = 1;
 }

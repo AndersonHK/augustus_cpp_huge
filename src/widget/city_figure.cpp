@@ -4,8 +4,10 @@
 
 #include "city/view.h"
 #include "figure/formation.h"
+#include "figure/figure_runtime_api.h"
 #include "figure/image.h"
 #include "figuretype/editor.h"
+#include "graphics/runtime_texture.h"
 #include "graphics/text.h"
 
 
@@ -288,15 +290,27 @@ static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
     }
 
 
-    const Image &img = f->is_enemy_image ? Image::enemy(f->image_id) : Image::from_id(f->image_id);
-    const image_animation *animation = img.animation();
-    *pixel_x += x_offset - (animation ? animation->sprite_offset_x : 0);
-    *pixel_y += y_offset - (animation ? animation->sprite_offset_y : 0);
+    if (figure_runtime_has_native_graphics(f)) {
+        const RuntimeDrawSlice *slice = figure_runtime_graphic_slice(f);
+        *pixel_x += x_offset - (slice ? slice->draw_offset_x : 0);
+        *pixel_y += y_offset - (slice ? slice->draw_offset_y : 0);
+    } else {
+        const Image &img = f->is_enemy_image ? Image::enemy(f->image_id) : Image::from_id(f->image_id);
+        const image_animation *animation = img.animation();
+        *pixel_x += x_offset - (animation ? animation->sprite_offset_x : 0);
+        *pixel_y += y_offset - (animation ? animation->sprite_offset_y : 0);
+    }
 }
 
 static void draw_figure(const Figure *f, int x, int y, float scale, int highlight)
 {
     color_t color_mask = get_highlight_mask(highlight);
+    if (figure_runtime_has_native_graphics(f)) {
+        if (const RuntimeDrawSlice *slice = figure_runtime_graphic_slice(f)) {
+            runtime_texture_draw(*slice, x, y, color_mask, scale);
+        }
+        return;
+    }
     if (f->cart_image_id) {
         switch (f->type) {
             case FIGURE_CART_PUSHER:

@@ -114,7 +114,7 @@ static void draw_delivery_buttons(int x, int y, Building barracks_building)
     Image::from_id(Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 104).draw(x + 7, y + 7);
 
     if (!accept_delivery) {
-        Image::from_id(assets_get_image_id("UI", "Large_Widget_Cross")).draw(x + 15, y + 15);
+        ImageGroupEntryRef::from_group("UI\\Large_Widget_Cross", "Large_Widget_Cross").draw(x + 15, y + 15);
     }
 
     button_border_draw(x, y, 52, 52, data.focus_delivery_button_id || !accept_delivery ? 1 : 0);

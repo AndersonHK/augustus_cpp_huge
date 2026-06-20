@@ -1,4 +1,4 @@
-#
+#pragma once
 
 #include "building/building_type_registry_internal.h"
 #include "building/building_type_api.h"
@@ -9,7 +9,6 @@
 #include "building/storage_type_registry.h"
 #include "building/water_access_type_id_bridge.h"
 #include "game/mod_manager.h"
-#include "graphics/image_group_reference.h"
 
 #include "building/properties.h"
 #include "game/resource.h"
@@ -152,16 +151,6 @@ const char *building_type_registry_get_button_icon_image(building_type type)
         return 0;
     }
     return definition->button().icon_image();
-}
-
-int building_type_registry_get_button_icon_image_id(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
-    if (!definition || !definition->has_button() || !definition->button().has_icon()) {
-        return 0;
-    }
-    const building_type_registry_impl::BuildButtonDefinition &button = definition->button();
-    return graphics_image_id_for_group_reference(button.icon(), button.has_icon_image() ? button.icon_image() : nullptr);
 }
 
 const char *building_type_registry_get_button_text_key(building_type type)

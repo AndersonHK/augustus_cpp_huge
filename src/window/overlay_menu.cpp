@@ -1,7 +1,6 @@
 #include "translation/translation.h"
 #include "overlay_menu.h"
 
-#include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "building/building_type.h"
 #include "building/building_type_registry_internal.h"
@@ -270,8 +269,7 @@ static void draw_menu_item(const overlay_menu_entry *entry, const int i, const i
         COLOR_MASK_NONE);
 
     if (entry->submenu != NULL) {
-        const int image_id = assets_get_image_id("UI", "Expand Menu Icon");
-        Image::from_id(image_id).draw(x + MENU_ITEM_WIDTH - 16, y + 3);
+        ImageGroupEntryRef::from_group("UI\\Expand_Menu_Icon", "Expand Menu Icon").draw(x + MENU_ITEM_WIDTH - 16, y + 3);
     }
 }
 

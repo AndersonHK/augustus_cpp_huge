@@ -11,6 +11,27 @@
     <foundation policy="land" />
     <button group="parks" order="20" text_key="main_strings.28.39" />
     <event_data attr="gardens" />
+    <tile kind="garden" />
+    <graphics>
+        <default>
+            <path value="Terrain_Maps\Garden" />
+            <options selection="stable_variant">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+            </options>
+        </default>
+        <variant role="tile_large">
+            <path value="Terrain_Maps\Garden" />
+            <options selection="stable_variant">
+                <option image="Image_0006" />
+                <option image="Image_0006" />
+                <option image="Image_0005" />
+                <option image="Image_0004" />
+            </options>
+        </variant>
+    </graphics>
     <flags fire_proof="1" venus_gt_bonus="1" />
     <labor>
         <employees count="0" />

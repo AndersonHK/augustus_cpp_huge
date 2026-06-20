@@ -63,8 +63,6 @@ int assets_get_image_id(const char *assetlist_name, const char *image_name);
 
 int assets_get_image_id_by_name(const char *image_name);
 
-int assets_get_image_id_from_path_or_name(const char *path, const char *image_name);
-
 int assets_get_external_image(const char *path, int force_reload);
 
 int assets_lookup_image_id(asset_id id);

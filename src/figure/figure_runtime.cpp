@@ -357,6 +357,8 @@ Figure *figure_runtime_create_profiled(
         case figure_type_registry_impl::NativeClassId::DepotCartPusher:
             f->action_state = FIGURE_ACTION_238_DEPOT_CART_PUSHER_INITIAL;
             break;
+        case figure_type_registry_impl::NativeClassId::LegacyAction:
+            break;
         case figure_type_registry_impl::NativeClassId::DeliveryFollower:
             break;
         case figure_type_registry_impl::NativeClassId::TransientWanderer:
@@ -396,6 +398,35 @@ int figure_runtime_execute(Figure *f)
         return 0;
     }
     return entry->controller->execute();
+}
+
+int figure_runtime_has_native_graphics(const Figure *f)
+{
+    if (!f) {
+        return 0;
+    }
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    return figure_runtime_native_impl::graphics_policy_has_native_payload(definition);
+}
+
+const RuntimeDrawSlice *figure_runtime_graphic_slice(const Figure *f)
+{
+    if (!f) {
+        return nullptr;
+    }
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    return figure_runtime_native_impl::graphics_policy_slice_for_figure(f, definition);
+}
+
+int figure_runtime_update_graphics(Figure *f)
+{
+    if (!figure_runtime_has_native_graphics(f)) {
+        return 0;
+    }
+    f->is_enemy_image = 0;
+    return figure_runtime_graphic_slice(f) ? 1 : 0;
 }
 
 int figure_runtime_choose_roaming_direction(

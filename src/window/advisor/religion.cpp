@@ -15,7 +15,6 @@
 
 #include "game/settings.h"
 
-#include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
@@ -76,7 +75,7 @@ static void draw_god_row(god_type god, int y_offset, building_type altar, buildi
     }
     int happy_bolts = city_god_happy_bolts(god);
     for (int i = 0; i < happy_bolts; i++) {
-        Image::from_id(assets_get_image_id("UI", "Happy God Icon")).draw(10 * i + width + 450, y_offset - 2);
+        ImageGroupEntryRef::from_group("UI\\Happy_God_Icon", "Happy God Icon").draw(10 * i + width + 450, y_offset - 2);
     }
 }
 

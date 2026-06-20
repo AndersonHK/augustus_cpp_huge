@@ -854,9 +854,9 @@ static void draw_city_info(const empire_city *city)
                 // if the switch trade route type button isn't hidden draw it
                 button_border_draw(data.panel.x_max - 500 + trade_city_buttons[0].x, data.y_max - 93,
                     24, 24, data.focus_city_button_id == 1);
-                int image_id = assets_get_image_id("UI", empire_object_is_sea_trade_route(city->route_id) ?
-                    "SeaWaypoint" : "LandWaypoint");
-                Image::from_id(image_id).draw(data.panel.x_max - 500 + trade_city_buttons[0].x + 3, data.y_max - 93 + 3);
+                const bool sea_route = empire_object_is_sea_trade_route(city->route_id);
+                ImageGroupEntryRef::from_group(sea_route ? "UI\\SeaWaypoint" : "UI\\LandWaypoint", sea_route ? "SeaWaypoint" : "LandWaypoint")
+                    .draw(data.panel.x_max - 500 + trade_city_buttons[0].x + 3, data.y_max - 93 + 3);
             }
             if (!trade_city_buttons[2].parameter1) {
                 // if the future trade after icon button isn't hidden draw it
