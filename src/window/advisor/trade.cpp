@@ -16,7 +16,6 @@
 #include "graphics/ui_runtime.h"
 
 
-#include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "building/monument.h"
 #include "city/buildings.h"
@@ -71,29 +70,32 @@ static generic_button resource_buttons[] = {
 static struct {
     translation_key title;
     translation_key subtitle;
-    const char *base_image_name;
     option_menu_item items[3];
     const char *wav_file;
 } policy_options[] = {
     {
         "TR_BUILDING_CARAVANSERAI_POLICY_TITLE",
         "TR_BUILDING_CARAVANSERAI_POLICY_TEXT",
-        "Trade Policy",
         {
-            { "TR_BUILDING_CARAVANSERAI_POLICY_1_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_1" },
-            { "TR_BUILDING_CARAVANSERAI_POLICY_2_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_2" },
-            { "TR_BUILDING_CARAVANSERAI_POLICY_3_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_3" }
+            { "TR_BUILDING_CARAVANSERAI_POLICY_1_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_1", 0,
+                ImageGroupEntryRef::from_group("UI\\Trade_Policy_1", "Trade Policy 1") },
+            { "TR_BUILDING_CARAVANSERAI_POLICY_2_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_2", 0,
+                ImageGroupEntryRef::from_group("UI\\Trade_Policy_2", "Trade Policy 2") },
+            { "TR_BUILDING_CARAVANSERAI_POLICY_3_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_3", 0,
+                ImageGroupEntryRef::from_group("UI\\Trade_Policy_3", "Trade Policy 3") }
         },
         "wavs/market4.wav"
     },
     {
         "TR_BUILDING_LIGHTHOUSE_POLICY_TITLE",
         "TR_BUILDING_LIGHTHOUSE_POLICY_TEXT",
-        "Sea Trade Policy",
         {
-            { "TR_BUILDING_LIGHTHOUSE_POLICY_1_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_1" },
-            { "TR_BUILDING_LIGHTHOUSE_POLICY_2_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_2" },
-            { "TR_BUILDING_LIGHTHOUSE_POLICY_3_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_3" }
+            { "TR_BUILDING_LIGHTHOUSE_POLICY_1_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_1", 0,
+                ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_1", "Sea Trade Policy 1") },
+            { "TR_BUILDING_LIGHTHOUSE_POLICY_2_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_2", 0,
+                ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_2", "Sea Trade Policy 2") },
+            { "TR_BUILDING_LIGHTHOUSE_POLICY_3_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_3", 0,
+                ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_3", "Sea Trade Policy 3") }
         },
         "wavs/dock1.wav"
     }
@@ -140,19 +142,23 @@ static int draw_background(void)
     return ADVISOR_HEIGHT;
 }
 
-static void draw_policy_button(int x, int y, int is_available, int has_focus, int active_image_id, const char *inactive_asset_name)
+static void draw_policy_button(
+    int x,
+    int y,
+    int is_available,
+    int has_focus,
+    int active_image_id,
+    const ImageGroupEntryRef &inactive_image)
 {
-    int image_id = active_image_id;
-    if (!is_available) {
-        image_id = assets_get_image_id("UI", inactive_asset_name);
-    }
-
     BorderedButtonIconSpec icon = {};
-    icon.image_id = image_id;
     icon.placement = BorderedButtonIconPlacement::ExplicitOffset;
     icon.x_offset = 6;
     icon.y_offset = 4;
+    icon.image_id = is_available ? active_image_id : 0;
     shared_ui_runtime().draw_bordered_icon_button(x, y, 40, 30, has_focus, icon);
+    if (!is_available) {
+        inactive_image.draw(x + 6, y + 4);
+    }
 }
 
 static void draw_resource_status_text(resource_type resource, int x, int y, int box_width)
@@ -272,14 +278,14 @@ static void draw_foreground(void)
         land_policy_available,
         land_policy_available && data.focus_button_id == 3,
         Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1,
-        "Land Trade Policy Off Button");
+        ImageGroupEntryRef::from_group("UI\\Land_Trade_Policy_Off_Button", "Land Trade Policy Off Button"));
     draw_policy_button(
         95,
         390,
         sea_policy_available,
         sea_policy_available && data.focus_button_id == 4,
         Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE),
-        "Sea Trade Policy Off Button");
+        ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_Off_Button", "Sea Trade Policy Off Button"));
 }
 
 static int handle_mouse(const mouse *m)
@@ -335,13 +341,6 @@ static void draw_footer_button_widgets(void)
 static void show_policy(trade_policy_type policy_type)
 {
     data.policy_type = policy_type;
-    if (!policy_options[policy_type].items[0].image_id) {
-        int base_policy_image = assets_get_image_id("UI",
-            policy_options[policy_type].base_image_name);
-        policy_options[policy_type].items[0].image_id = base_policy_image + 1;
-        policy_options[policy_type].items[1].image_id = base_policy_image + 2;
-        policy_options[policy_type].items[2].image_id = base_policy_image + 3;
-    }
     window_option_popup_show(policy_options[policy_type].title, policy_options[policy_type].subtitle,
         policy_options[policy_type].items, 3, apply_policy, city_trade_policy_get(policy_type),
         TRADE_POLICY_COST, OPTION_MENU_SMALL_ROW);

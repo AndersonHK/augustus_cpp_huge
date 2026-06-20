@@ -105,6 +105,9 @@ static ImageGroupEntry make_public_entry(
         entry.set_top_slice(resolved.top.slice);
     }
     entry.set_animation(resolved.animation);
+    if (resolved.has_sprite_offset) {
+        entry.set_sprite_offset(resolved.sprite_offset_x, resolved.sprite_offset_y);
+    }
     entry.set_split_pixels(resolved.split_pixels, resolved.split_width, resolved.split_height, resolved.top_height);
     return entry;
 }

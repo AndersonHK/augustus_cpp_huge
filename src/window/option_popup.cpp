@@ -87,6 +87,20 @@ static ImageBorder option_image_border()
     return data.row_size == OPTION_MENU_SMALL_ROW ? ImageBorder::image_medium() : ImageBorder::image_large();
 }
 
+static int option_has_image(const option_menu_item &option)
+{
+    return option.image_ref.is_bound() || option.image_id;
+}
+
+static void draw_option_image(const option_menu_item &option, int x, int y)
+{
+    if (option.image_ref.is_bound()) {
+        option.image_ref.draw(x, y);
+    } else if (option.image_id) {
+        Image::from_id(option.image_id).draw(x, y);
+    }
+}
+
 static void calculate_visible_options(void)
 {
     if (data.height == screen_height()) {
@@ -136,7 +150,7 @@ static void draw_popup_text(void)
         int text_width = data.num_options == data.visible_options ? 448 : 400;
         int text_x = 20;
 
-        if (data.options[i + scrollbar.scroll_position].image_id) {
+        if (option_has_image(data.options[i + scrollbar.scroll_position])) {
             int offset = data.row_size == OPTION_MENU_SMALL_ROW ? 128 : 160;
             text_x += offset;
             text_width -= offset;
@@ -166,8 +180,8 @@ static void draw_background(void)
         int text_width = data.num_options == data.visible_options ? 448 : 400;
         int text_x = 20;
 
-        if (data.options[i + scrollbar.scroll_position].image_id) {
-            Image::from_id(data.options[i + scrollbar.scroll_position].image_id).draw(text_x, y_offset + 42);
+        if (option_has_image(data.options[i + scrollbar.scroll_position])) {
+            draw_option_image(data.options[i + scrollbar.scroll_position], text_x, y_offset + 42);
             int offset = data.row_size == OPTION_MENU_SMALL_ROW ? 128 : 160;
             text_x += offset;
             text_width -= offset;
@@ -188,7 +202,7 @@ static void draw_foreground(void)
     graphics_in_dialog_with_size(16 * data.width_blocks, 16 * data.height_blocks);
     const ImageBorder border = option_image_border();
     for (unsigned int i = 0; i < data.visible_options; i++) {
-        if (data.options[i + scrollbar.scroll_position].image_id) {
+        if (option_has_image(data.options[i + scrollbar.scroll_position])) {
             color_t color = data.focus_button_id == i + 3 ? COLOR_BORDER_RED : COLOR_BORDER_GREEN;
             border.draw(20, buttons[i + 2].y + 2, color);
         }

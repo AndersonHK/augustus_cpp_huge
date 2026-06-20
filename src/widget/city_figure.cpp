@@ -281,7 +281,8 @@ static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
     x_offset += 29;
     y_offset += 15;
 
-    if (f->image_id >= 10000) {
+    const int has_native_graphics = figure_runtime_has_native_graphics(f);
+    if (!has_native_graphics && f->image_id >= 10000) {
         // TODO
         // Ugly hack, remove
         // Draws new walkers at their proper spots
@@ -290,10 +291,12 @@ static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
     }
 
 
-    if (figure_runtime_has_native_graphics(f)) {
-        const RuntimeDrawSlice *slice = figure_runtime_graphic_slice(f);
-        *pixel_x += x_offset - (slice ? slice->draw_offset_x : 0);
-        *pixel_y += y_offset - (slice ? slice->draw_offset_y : 0);
+    if (has_native_graphics) {
+        int sprite_offset_x = 0;
+        int sprite_offset_y = 0;
+        figure_runtime_graphic_sprite_offset(f, &sprite_offset_x, &sprite_offset_y);
+        *pixel_x += x_offset - sprite_offset_x;
+        *pixel_y += y_offset - sprite_offset_y;
     } else {
         const Image &img = f->is_enemy_image ? Image::enemy(f->image_id) : Image::from_id(f->image_id);
         const image_animation *animation = img.animation();

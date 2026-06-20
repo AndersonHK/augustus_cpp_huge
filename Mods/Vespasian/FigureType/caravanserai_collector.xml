@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="caravanserai_collector">
+    <profiles default="legacy">
+        <profile id="legacy">
+            <native class="legacy_action" />
+            <owner slot="none" building="any" state="any" />
+            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="1200" return_mode="none" />
+            <pathing mode="vanilla_roaming" />
+        </profile>
+    </profiles>
+    <graphics
+        path_pattern="Walkers\caravanserai_walker_{dir}_{frame}"
+        image_pattern="caravanserai_walker_{dir}_{frame}"
+        corpse_path_pattern="Walkers\caravanserai_walker_death_{frame}"
+        corpse_image_pattern="caravanserai_walker_death_{frame}"
+        sprite_offset_x="26"
+        sprite_offset_y="29"
+        max_image_offset="12" />
+</figure>

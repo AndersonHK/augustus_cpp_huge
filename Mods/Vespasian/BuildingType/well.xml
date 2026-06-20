@@ -10,6 +10,7 @@
     </desirability>
     <foundation policy="land" />
     <button group="water" order="30" icon="Admin_Logistics\Well" text_key="main_strings.28.92" />
+    <flags fire_proof="1" />
     <sound id="well" />
     <event_data attr="well" />
     <water_access>

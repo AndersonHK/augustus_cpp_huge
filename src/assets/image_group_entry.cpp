@@ -37,6 +37,21 @@ const RuntimeAnimationTrack &ImageGroupEntry::animation() const
     return animation_;
 }
 
+int ImageGroupEntry::has_sprite_offset() const
+{
+    return has_sprite_offset_;
+}
+
+int ImageGroupEntry::sprite_offset_x() const
+{
+    return sprite_offset_x_;
+}
+
+int ImageGroupEntry::sprite_offset_y() const
+{
+    return sprite_offset_y_;
+}
+
 int ImageGroupEntry::is_isometric() const
 {
     return is_isometric_;
@@ -91,6 +106,13 @@ void ImageGroupEntry::set_animation(RuntimeAnimationTrack animation)
     animation_ = std::move(animation);
     animation_.num_frames = static_cast<int>(animation_.frames.size());
     has_animation_ = !animation_.frames.empty();
+}
+
+void ImageGroupEntry::set_sprite_offset(int x, int y)
+{
+    sprite_offset_x_ = x;
+    sprite_offset_y_ = y;
+    has_sprite_offset_ = 1;
 }
 
 void ImageGroupEntry::set_split_pixels(std::vector<color_t> split_pixels, int split_width, int split_height, int top_height)

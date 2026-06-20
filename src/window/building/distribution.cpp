@@ -20,7 +20,6 @@
 #include "building/market.h"
 #include "figure/figure.h"
 
-#include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "building/building_record.h"
 #include "building/granary.h"
@@ -270,39 +269,52 @@ static image_button distribution_orders_buttons[] = {
 static struct {
     translation_key title;
     translation_key subtitle;
-    const char *base_image_name;
     option_menu_item items[4];
     const char *wav_file;
 } land_trade_policy = {
     "TR_BUILDING_CARAVANSERAI_POLICY_TITLE",
     "TR_BUILDING_CARAVANSERAI_POLICY_TEXT",
-    "Trade Policy",
     {
-        { "TR_BUILDING_CARAVANSERAI_NO_POLICY" },
-        { "TR_BUILDING_CARAVANSERAI_POLICY_1_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_1" },
-        { "TR_BUILDING_CARAVANSERAI_POLICY_2_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_2" },
-        { "TR_BUILDING_CARAVANSERAI_POLICY_3_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_3" }
+        { "TR_BUILDING_CARAVANSERAI_NO_POLICY", nullptr, 0,
+            ImageGroupEntryRef::from_group("UI\\Trade_Policy", "Trade Policy") },
+        { "TR_BUILDING_CARAVANSERAI_POLICY_1_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_1", 0,
+            ImageGroupEntryRef::from_group("UI\\Trade_Policy_1", "Trade Policy 1") },
+        { "TR_BUILDING_CARAVANSERAI_POLICY_2_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_2", 0,
+            ImageGroupEntryRef::from_group("UI\\Trade_Policy_2", "Trade Policy 2") },
+        { "TR_BUILDING_CARAVANSERAI_POLICY_3_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_3", 0,
+            ImageGroupEntryRef::from_group("UI\\Trade_Policy_3", "Trade Policy 3") }
     },
     "wavs/market4.wav"
 };
 static struct {
     translation_key title;
     translation_key subtitle;
-    const char *base_image_name;
     option_menu_item items[4];
     const char *wav_file;
 } sea_trade_policy = {
     "TR_BUILDING_LIGHTHOUSE_POLICY_TITLE",
     "TR_BUILDING_LIGHTHOUSE_POLICY_TEXT",
-    "Sea Trade Policy",
     {
-        { "TR_BUILDING_LIGHTHOUSE_NO_POLICY" },
-        { "TR_BUILDING_LIGHTHOUSE_POLICY_1_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_1" },
-        { "TR_BUILDING_LIGHTHOUSE_POLICY_2_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_2" },
-        { "TR_BUILDING_LIGHTHOUSE_POLICY_3_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_3" }
+        { "TR_BUILDING_LIGHTHOUSE_NO_POLICY", nullptr, 0,
+            ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy", "Sea Trade Policy") },
+        { "TR_BUILDING_LIGHTHOUSE_POLICY_1_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_1", 0,
+            ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_1", "Sea Trade Policy 1") },
+        { "TR_BUILDING_LIGHTHOUSE_POLICY_2_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_2", 0,
+            ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_2", "Sea Trade Policy 2") },
+        { "TR_BUILDING_LIGHTHOUSE_POLICY_3_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_3", 0,
+            ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_3", "Sea Trade Policy 3") }
     },
     "wavs/dock1.wav"
 };
+
+static void draw_policy_image(const option_menu_item &item, int x, int y)
+{
+    if (item.image_ref.is_bound()) {
+        item.image_ref.draw(x, y);
+    } else if (item.image_id) {
+        Image::from_id(item.image_id).draw(x, y);
+    }
+}
 
 static generic_button primary_product_producer_button_stockpiling[] = {
     {0, 0, 30, 30, button_stockpiling, 0, 0, 0}
@@ -334,33 +346,40 @@ typedef enum {
     ACCEPT_ALL = 1,
 } affect_all_button_current_state;
 
-int get_storage_permission_image(building_storage_permission_states permission)
+static ImageGroupEntryRef get_storage_permission_image_ref(building_storage_permission_states permission)
 {
     switch (permission) {
         case BUILDING_STORAGE_PERMISSION_MARKET:
-            return assets_get_image_id("Walkers", "marketbuyer_sw_01");
+            return ImageGroupEntryRef::from_group("Walkers\\marketbuyer_sw_01", "marketbuyer_sw_01");
+        case BUILDING_STORAGE_PERMISSION_BARKEEP:
+            return ImageGroupEntryRef::from_group("Walkers\\Barkeep_SW_01", "Barkeep SW 01");
+        case BUILDING_STORAGE_PERMISSION_QUARTERMASTER:
+            return ImageGroupEntryRef::from_group("Walkers\\quartermaster_sw_01", "quartermaster_sw_01");
+        case BUILDING_STORAGE_PERMISSION_WORKER:
+        case BUILDING_STORAGE_PERMISSION_WORKCAMP:
+            return ImageGroupEntryRef::from_group("Walkers\\overseer_sw_01", "overseer_sw_01");
+        case BUILDING_STORAGE_PERMISSION_CARAVANSERAI:
+            return ImageGroupEntryRef::from_group("Walkers\\caravanserai_overseer_sw_01", "caravanserai_overseer_sw_01");
+        case BUILDING_STORAGE_PERMISSION_CAESAR:
+            return ImageGroupEntryRef::from_group("Walkers\\caesar_static_sw_02", "caesar_static_sw_02");
+        default:
+            return ImageGroupEntryRef();
+    }
+}
+
+int get_storage_permission_image(building_storage_permission_states permission)
+{
+    switch (permission) {
         case BUILDING_STORAGE_PERMISSION_TRADERS:
             return Image::group(GROUP_FIGURE_TRADE_CARAVAN) + 4;
         case BUILDING_STORAGE_PERMISSION_DOCK:
             return Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE);
-        case BUILDING_STORAGE_PERMISSION_BARKEEP:
-            return assets_get_image_id("Walkers", "Barkeep SW 01");
-        case BUILDING_STORAGE_PERMISSION_QUARTERMASTER:
-            return assets_get_image_id("Walkers", "quartermaster_sw_01");
-        case BUILDING_STORAGE_PERMISSION_WORKER:
-            return assets_get_image_id("Walkers", "overseer_sw_01");
-        case BUILDING_STORAGE_PERMISSION_CARAVANSERAI:
-            return assets_get_image_id("Walkers", "caravanserai_overseer_sw_01");
         case BUILDING_STORAGE_PERMISSION_LIGHTHOUSE:
             return Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 80;
         case BUILDING_STORAGE_PERMISSION_ARMOURY:
             return Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 104;
-        case BUILDING_STORAGE_PERMISSION_WORKCAMP:
-            return assets_get_image_id("Walkers", "overseer_sw_01");
         case BUILDING_STORAGE_PERMISSION_NATIVES:
             return Image::group(GROUP_FIGURE_CARTPUSHER_CART) + 136;
-        case BUILDING_STORAGE_PERMISSION_CAESAR:
-            return assets_get_image_id("Walkers", "caesar_static_sw_02");
         default:
             return -1;
     }
@@ -476,7 +495,7 @@ static void draw_permissions_buttons(int x, int y, const Building &storage_build
     int pixel_carry = 0;
     active_permissions_count = number_of_permissions;
 
-    for (unsigned int i = 0; i < number_of_permissions; i++) {
+    for (int i = 0; i < number_of_permissions; i++) {
         building_storage_permission_states permission = building_permissions[i];
         int is_sea_trade_route = (permission == BUILDING_STORAGE_PERMISSION_DOCK);
         int permission_state = building_storage_get_permission(permission, storage_building);
@@ -499,10 +518,17 @@ static void draw_permissions_buttons(int x, int y, const Building &storage_build
         image_offset_y = (int) (is_sea_trade_route ? 16 * original_scaling_factor : 7 * original_scaling_factor);
         int scale = (int) (original_scaling_factor * 100);
 
-        Image::from_id(get_storage_permission_image(permission)).draw_scaled_centered(x + image_offset_x, y + image_offset_y, COLOR_MASK_NONE, scale);
+        ImageGroupEntryRef permission_ref = get_storage_permission_image_ref(permission);
+        if (permission_ref.is_bound()) {
+            permission_ref.draw_scaled_centered(x + image_offset_x, y + image_offset_y, COLOR_MASK_NONE, scale);
+        } else {
+            Image::from_id(get_storage_permission_image(permission)).draw_scaled_centered(x + image_offset_x, y + image_offset_y, COLOR_MASK_NONE, scale);
+        }
 
         if (!permission_state) {
-            Image::from_id(assets_get_image_id("UI", "Large_Widget_Cross")).draw_scaled_centered(x + (int) (15 * original_scaling_factor), y + (int) (15 * original_scaling_factor), COLOR_MASK_NONE, scale);
+            ImageGroupEntryRef::from_group("UI\\Large_Widget_Cross", "Large_Widget_Cross")
+                .draw_scaled_centered(x + (int) (15 * original_scaling_factor), y + (int) (15 * original_scaling_factor),
+                    COLOR_MASK_NONE, scale);
         }
 
         button_border_draw(x, y, button_width, button_width,
@@ -1843,15 +1869,6 @@ void window_building_draw_caravanserai(building_info_context *c)
             }
         }
 
-        if (!land_trade_policy.items[0].image_id) {
-            int base_policy_image = assets_get_image_id("UI",
-                land_trade_policy.base_image_name);
-            land_trade_policy.items[0].image_id = base_policy_image;
-            land_trade_policy.items[1].image_id = base_policy_image + 1;
-            land_trade_policy.items[2].image_id = base_policy_image + 2;
-            land_trade_policy.items[3].image_id = base_policy_image + 3;
-        }
-
         trade_policy policy = city_trade_policy_get(LAND_TRADE_POLICY);
 
         text_draw_multiline(translation_for(land_trade_policy.items[policy].header),
@@ -1860,7 +1877,7 @@ void window_building_draw_caravanserai(building_info_context *c)
             text_draw_multiline(translation_for(land_trade_policy.items[policy].desc),
                 c->x_offset + 160, c->y_offset + 195 + y_offset, 260, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
-        Image::from_id(land_trade_policy.items[policy].image_id).draw(c->x_offset + 32, c->y_offset + 160 + y_offset);
+        draw_policy_image(land_trade_policy.items[policy], c->x_offset + 32, c->y_offset + 160 + y_offset);
 
         inner_panel_draw(c->x_offset + 16, c->y_offset + 270 + y_offset, c->width_blocks - 2, 4);
         window_building_draw_employment(c, 274 + y_offset);
@@ -1954,15 +1971,6 @@ void window_building_draw_lighthouse(building_info_context *c)
             }
         }
 
-        if (!sea_trade_policy.items[0].image_id) {
-            int base_policy_image = assets_get_image_id("UI",
-                sea_trade_policy.base_image_name);
-            sea_trade_policy.items[0].image_id = base_policy_image;
-            sea_trade_policy.items[1].image_id = base_policy_image + 1;
-            sea_trade_policy.items[2].image_id = base_policy_image + 2;
-            sea_trade_policy.items[3].image_id = base_policy_image + 3;
-        }
-
         trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);
 
         text_draw_multiline(translation_for(sea_trade_policy.items[policy].header),
@@ -1971,7 +1979,7 @@ void window_building_draw_lighthouse(building_info_context *c)
             text_draw_multiline(translation_for(sea_trade_policy.items[policy].desc),
                 c->x_offset + 160, c->y_offset + 181, 260, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
-        Image::from_id(sea_trade_policy.items[policy].image_id).draw(c->x_offset + 32, c->y_offset + 150);
+        draw_policy_image(sea_trade_policy.items[policy], c->x_offset + 32, c->y_offset + 150);
 
         inner_panel_draw(c->x_offset + 16, c->y_offset + 270, c->width_blocks - 2, 4);
         window_building_draw_employment(c, 278);

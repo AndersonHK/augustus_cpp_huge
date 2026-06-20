@@ -104,32 +104,14 @@ static struct {
 static int big_people_image(figure_type type)
 {
     switch (type) {
-        case FIGURE_WORK_CAMP_SLAVE:
-            return assets_get_image_id("Walkers", "Slave Portrait");
-        case FIGURE_CARAVANSERAI_SUPPLIER:
-            return assets_get_image_id("Walkers", "caravanserai_overseer_portrait");
-        case FIGURE_CARAVANSERAI_COLLECTOR:
-            return assets_get_image_id("Walkers", "caravanserai_walker_portrait");
-        case FIGURE_MESS_HALL_COLLECTOR:
-        case FIGURE_MESS_HALL_FORT_SUPPLIER:
-            return assets_get_image_id("Walkers", "M Hall Portrait");
         case FIGURE_TRADE_CARAVAN_DONKEY:
         case FIGURE_TRADE_CARAVAN:
             if (scenario_property_climate() == CLIMATE_DESERT) {
                 return Image::group(GROUP_BIG_PEOPLE) + CAMEL_PORTRAIT - 1;
             }
             break;
-        case FIGURE_BARKEEP:
-        case FIGURE_BARKEEP_SUPPLIER:
-            return assets_get_image_id("Walkers", "Barkeep Portrait");
         case FIGURE_DEPOT_CART_PUSHER:
             return assets_lookup_image_id(ASSET_OX);
-        case FIGURE_WORK_CAMP_ARCHITECT:
-            return assets_get_image_id("Walkers", "architect_portrait");
-        case FIGURE_WORK_CAMP_WORKER:
-            return assets_get_image_id("Walkers", "overseer_portrait");
-        case FIGURE_MESS_HALL_SUPPLIER:
-            return assets_get_image_id("Walkers", "quartermaster_portrait");
         case FIGURE_FORT_INFANTRY:
             return assets_get_image_id("Warriors", "auxinf_portrait");
         case FIGURE_FORT_ARCHER:
@@ -140,6 +122,45 @@ static int big_people_image(figure_type type)
             break;
     }
     return Image::group(GROUP_BIG_PEOPLE) + FIGURE_TYPE_TO_BIG_FIGURE_IMAGE[type] - 1;
+}
+
+static ImageGroupEntryRef big_people_image_ref(figure_type type)
+{
+    switch (type) {
+        case FIGURE_MARKET_TRADER:
+        case FIGURE_MARKET_SUPPLIER:
+            return ImageGroupEntryRef::from_group("Walkers\\marketbuyer_portrait", "marketbuyer_portrait");
+        case FIGURE_WORK_CAMP_SLAVE:
+            return ImageGroupEntryRef::from_group("Walkers\\Slave_Portrait", "Slave Portrait");
+        case FIGURE_CARAVANSERAI_SUPPLIER:
+            return ImageGroupEntryRef::from_group("Walkers\\caravanserai_overseer_portrait", "caravanserai_overseer_portrait");
+        case FIGURE_CARAVANSERAI_COLLECTOR:
+            return ImageGroupEntryRef::from_group("Walkers\\caravanserai_walker_portrait", "caravanserai_walker_portrait");
+        case FIGURE_MESS_HALL_COLLECTOR:
+        case FIGURE_MESS_HALL_FORT_SUPPLIER:
+            return ImageGroupEntryRef::from_group("Walkers\\M_Hall_Portrait", "M Hall Portrait");
+        case FIGURE_BARKEEP:
+        case FIGURE_BARKEEP_SUPPLIER:
+            return ImageGroupEntryRef::from_group("Walkers\\Barkeep_Portrait", "Barkeep Portrait");
+        case FIGURE_WORK_CAMP_ARCHITECT:
+            return ImageGroupEntryRef::from_group("Walkers\\architect_portrait", "architect_portrait");
+        case FIGURE_WORK_CAMP_WORKER:
+            return ImageGroupEntryRef::from_group("Walkers\\overseer_portrait", "overseer_portrait");
+        case FIGURE_MESS_HALL_SUPPLIER:
+            return ImageGroupEntryRef::from_group("Walkers\\quartermaster_portrait", "quartermaster_portrait");
+        default:
+            return ImageGroupEntryRef();
+    }
+}
+
+static void draw_big_people_image(figure_type type, int x, int y)
+{
+    ImageGroupEntryRef ref = big_people_image_ref(type);
+    if (ref.is_bound()) {
+        ref.draw(x, y);
+    } else {
+        Image::from_id(big_people_image(type)).draw(x, y);
+    }
 }
 
 static figure_type figure_type_from_legacy(int type)
@@ -164,8 +185,7 @@ static void draw_trader(building_info_context *c, Figure *f)
 {
     f = get_head_of_caravan(f);
 
-    int big_people = big_people_image(figure_type_from_legacy(f->type));
-    Image::from_id(big_people).draw(c->x_offset + 28, c->y_offset + 83);
+    draw_big_people_image(figure_type_from_legacy(f->type), c->x_offset + 28, c->y_offset + 83);
     lang_text_draw(current_string_key(65, f->name), c->x_offset + 90, c->y_offset + 79, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
 
     const empire_city *city = empire_city_get(f->empire_city_id);
@@ -398,13 +418,13 @@ static void draw_enemy(building_info_context *c, Figure *f)
 
 static void draw_animal(building_info_context *c, Figure *f)
 {
-    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112);
+    draw_big_people_image(figure_type_from_legacy(f->type), c->x_offset + 28, c->y_offset + 112);
     lang_text_draw(current_string_key(64, f->type), c->x_offset + 92, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
 }
 
 static void draw_boat(building_info_context *c, Figure *f)
 {
-    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112);
+    draw_big_people_image(figure_type_from_legacy(f->type), c->x_offset + 28, c->y_offset + 112);
     lang_text_draw(current_string_key(65, f->name), c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     lang_text_draw(current_string_key(64, f->type), c->x_offset + 92, c->y_offset + 139, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
     int text_id;
@@ -437,7 +457,7 @@ static void draw_cartpusher(building_info_context *c, Figure *f)
     if (is_armoury_cart) {
         ImageGroupEntryRef::from_group("Walkers\\barracks_worker_portrait", "barracks_worker_portrait").draw(c->x_offset + 28, c->y_offset + 112);
     } else {
-        Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112);
+        draw_big_people_image(figure_type_from_legacy(f->type), c->x_offset + 28, c->y_offset + 112);
     }
     lang_text_draw(current_string_key(65, f->name), c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     int width = 0;
@@ -526,7 +546,7 @@ static int is_depot_cartpusher_recalled(Figure *f)
 
 static void draw_depot_cartpusher(building_info_context *c, Figure *f)
 {
-    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112);
+    draw_big_people_image(figure_type_from_legacy(f->type), c->x_offset + 28, c->y_offset + 112);
 
     building *depot = building_get(f->building.id());
     if (!depot) {
@@ -581,12 +601,7 @@ static void draw_depot_cartpusher(building_info_context *c, Figure *f)
 
 static void draw_supplier(building_info_context *c, Figure *f)
 {
-    if (f->type == FIGURE_MARKET_SUPPLIER) {
-        ImageGroupEntryRef::from_group("Walkers\\marketbuyer_portrait", "marketbuyer_portrait")
-            .draw(c->x_offset + 28, c->y_offset + 112);
-    } else {
-        Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112);
-    }
+    draw_big_people_image(figure_type_from_legacy(f->type), c->x_offset + 28, c->y_offset + 112);
 
     lang_text_draw(current_string_key(65, f->name), c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     int width = 0;
@@ -617,7 +632,7 @@ static void draw_supplier(building_info_context *c, Figure *f)
 
 static void draw_monument_worker(building_info_context *c, Figure *f)
 {
-    Image::from_id(big_people_image(figure_type_from_legacy(f->type))).draw(c->x_offset + 28, c->y_offset + 112);
+    draw_big_people_image(figure_type_from_legacy(f->type), c->x_offset + 28, c->y_offset + 112);
 
     lang_text_draw(current_string_key(65, f->name), c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     int relative_id = f->type - FIGURE_NEW_TYPES;
@@ -642,12 +657,12 @@ static void draw_monument_worker(building_info_context *c, Figure *f)
 
 static void draw_normal_figure(building_info_context *c, Figure *f)
 {
-    int image_id = big_people_image(figure_type_from_legacy(f->type));
     if (f->action_state == FIGURE_ACTION_74_PREFECT_GOING_TO_FIRE ||
         f->action_state == FIGURE_ACTION_75_PREFECT_AT_FIRE) {
-        image_id = Image::group(GROUP_BIG_PEOPLE) + 18;
+        Image::from_id(Image::group(GROUP_BIG_PEOPLE) + 18).draw(c->x_offset + 28, c->y_offset + 112);
+    } else {
+        draw_big_people_image(figure_type_from_legacy(f->type), c->x_offset + 28, c->y_offset + 112);
     }
-    Image::from_id(image_id).draw(c->x_offset + 28, c->y_offset + 112);
 
     lang_text_draw(current_string_key(65, f->name), c->x_offset + 90, c->y_offset + 108, FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
     if (f->type >= FIGURE_NEW_TYPES && f->type < FIGURE_TYPE_MAX) {

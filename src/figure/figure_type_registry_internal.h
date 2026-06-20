@@ -76,6 +76,13 @@ struct GraphicsPolicy {
     asset_id image_asset = ASSET_MAX_KEY;
     std::string path_pattern;
     std::string image_pattern;
+    int has_sprite_offset = 0;
+    int sprite_offset_x = 0;
+    int sprite_offset_y = 0;
+    int action_state = 0;
+    int action_min_wait_ticks = 0;
+    std::string action_path_pattern;
+    std::string action_image_pattern;
     int image_group_offset = 0;
     int max_image_offset = 12;
     int direction_frame_stride = 8;
@@ -85,6 +92,7 @@ struct GraphicsPolicy {
     std::string corpse_path_pattern;
     std::string corpse_image_pattern;
     int corpse_image_group_offset = 96;
+    int corpse_frame_count = 0;
     CartGraphicsMode cart_mode = CartGraphicsMode::None;
     std::array<int, 8> cart_offsets_x = {};
     std::array<int, 8> cart_offsets_y = {};

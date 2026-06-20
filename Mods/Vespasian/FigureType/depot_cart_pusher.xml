@@ -4,7 +4,7 @@
         <profile id="order_runner">
             <native class="depot_cart_pusher" />
             <owner slot="none" building="cart_depot" state="in_use" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="800" return_mode="none" />
+            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="1200" return_mode="none" />
             <pathing mode="depot_order_route" />
         </profile>
     </profiles>

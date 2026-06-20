@@ -186,6 +186,11 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
                     convert_to_grayscale(out_layer.surface);
                 }
                 copy_prepared_layer_metadata(raw_layer, out_layer);
+                if (resolved->has_sprite_offset) {
+                    out_layer.has_sprite_offset = 1;
+                    out_layer.sprite_offset_x = resolved->sprite_offset_x;
+                    out_layer.sprite_offset_y = resolved->sprite_offset_y;
+                }
                 return 1;
             }
             // Extracted isometric composites can reference the top half of flat footprint-only tiles.
@@ -201,6 +206,11 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
     }
 
     copy_prepared_layer_metadata(raw_layer, out_layer);
+    if (resolved->has_sprite_offset) {
+        out_layer.has_sprite_offset = 1;
+        out_layer.sprite_offset_x = resolved->sprite_offset_x;
+        out_layer.sprite_offset_y = resolved->sprite_offset_y;
+    }
     return 1;
 }
 
@@ -412,6 +422,13 @@ int resolve_animation(
     ResolvedImageEntry &out_entry)
 {
     if (!entry.animation.present) {
+        if (referenced_entry && referenced_entry->has_sprite_offset && !out_entry.has_sprite_offset) {
+            out_entry.has_sprite_offset = 1;
+            out_entry.sprite_offset_x = referenced_entry->sprite_offset_x;
+            out_entry.sprite_offset_y = referenced_entry->sprite_offset_y;
+            out_entry.animation.sprite_offset_x = referenced_entry->sprite_offset_x;
+            out_entry.animation.sprite_offset_y = referenced_entry->sprite_offset_y;
+        }
         if (referenced_entry && referenced_entry->has_animation) {
             out_entry.animation = referenced_entry->animation;
             out_entry.has_animation = referenced_entry->has_animation;
@@ -427,6 +444,9 @@ int resolve_animation(
 
     out_entry.animation.sprite_offset_x = entry.animation.metadata.sprite_offset_x;
     out_entry.animation.sprite_offset_y = entry.animation.metadata.sprite_offset_y;
+    out_entry.has_sprite_offset = 1;
+    out_entry.sprite_offset_x = entry.animation.metadata.sprite_offset_x;
+    out_entry.sprite_offset_y = entry.animation.metadata.sprite_offset_y;
     out_entry.animation.can_reverse = entry.animation.metadata.can_reverse;
     out_entry.animation.speed_id = entry.animation.metadata.speed_id;
     if (!entry.animation.explicit_frames.empty()) {
@@ -1038,6 +1058,13 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
             }
             if (canvas_height <= 0) {
                 canvas_height = transformed_layer_height(prepared_layer);
+            }
+            if (!resolved_entry.has_sprite_offset && prepared_layer.has_sprite_offset) {
+                resolved_entry.has_sprite_offset = 1;
+                resolved_entry.sprite_offset_x = prepared_layer.sprite_offset_x;
+                resolved_entry.sprite_offset_y = prepared_layer.sprite_offset_y;
+                resolved_entry.animation.sprite_offset_x = prepared_layer.sprite_offset_x;
+                resolved_entry.animation.sprite_offset_y = prepared_layer.sprite_offset_y;
             }
             prepared_layers.push_back(std::move(prepared_layer));
         }

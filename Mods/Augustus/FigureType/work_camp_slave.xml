@@ -13,5 +13,7 @@
         image_pattern="Slave {dir_upper} {frame}"
         corpse_path_pattern="Walkers\Slave_death_{frame}"
         corpse_image_pattern="Slave death {frame}"
+        sprite_offset_x="26"
+        sprite_offset_y="29"
         max_image_offset="12" />
 </figure>

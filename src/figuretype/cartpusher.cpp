@@ -11,7 +11,6 @@
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 
-#include "assets/assets.h"
 #include "building/building_type_api.h"
 #include "building/granary.h"
 #include "building/monument.h"
@@ -351,26 +350,18 @@ static void determine_cartpusher_destination_food(Figure *f, Building &source, i
     f->wait_ticks = 0;
 }
 
-static void update_image(Figure *f, const Building &source)
+static void update_image(Figure *f)
 {
     int dir = figure_image_normalize_direction(
         f->direction < 8 ? f->direction : f->previous_tile_direction);
 
-    if (building_matches(source, "armoury")) {
-        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = assets_get_image_id("Walkers\\barracks_worker_death_01", "barracks_worker_death_01") + figure_image_corpse_offset(f);
-        } else {
-            f->image_id = assets_get_image_id("Walkers\\barracks_worker_ne_01", "barracks_worker_ne_01") + dir * 12 + f->image_offset;
-        }
-    } else {
-        int base_group = f->type == FIGURE_CART_PUSHER ? GROUP_FIGURE_CARTPUSHER : GROUP_FIGURE_MIGRANT;
+    int base_group = f->type == FIGURE_CART_PUSHER ? GROUP_FIGURE_CARTPUSHER : GROUP_FIGURE_MIGRANT;
 
-        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = image_group(base_group) + figure_image_corpse_offset(f) + 96;
-            f->cart_image_id = 0;
-        } else {
-            f->image_id = image_group(base_group) + dir + 8 * f->image_offset;
-        }
+    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+        f->image_id = image_group(base_group) + figure_image_corpse_offset(f) + 96;
+        f->cart_image_id = 0;
+    } else {
+        f->image_id = image_group(base_group) + dir + 8 * f->image_offset;
     }
     if (f->cart_image_id) {
         if (resource_graphics_cart_marker_is(f->cart_image_id)) {
@@ -624,7 +615,7 @@ void figure_cartpusher_action(Figure *f)
                 figure_route_remove(f);
             }
     }
-    update_image(f, source);
+    update_image(f);
 }
 
 static void determine_granaryman_destination(Figure *f, Building &granary, int road_network_id, int remove_resources)
@@ -1127,5 +1118,5 @@ void figure_warehouseman_action(Figure *f)
             warehouseman_initial_action(f, source, road_network_id, 0);
             break;
     }
-    update_image(f, source);
+    update_image(f);
 }

@@ -112,6 +112,9 @@ struct ResolvedImageEntry {
     std::vector<std::string> animation_frame_keys;
     int has_top = 0;
     int has_animation = 0;
+    int has_sprite_offset = 0;
+    int sprite_offset_x = 0;
+    int sprite_offset_y = 0;
     std::vector<color_t> split_pixels;
     int split_width = 0;
     int split_height = 0;
@@ -124,6 +127,9 @@ struct PreparedLayer {
     RasterSurface surface;
     int x_offset = 0;
     int y_offset = 0;
+    int has_sprite_offset = 0;
+    int sprite_offset_x = 0;
+    int sprite_offset_y = 0;
     layer_invert_type invert = INVERT_NONE;
     layer_rotate_type rotate = ROTATE_NONE;
     layer_mask mask = LAYER_MASK_NONE;

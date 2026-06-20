@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="work_camp_architect">
+    <profiles default="legacy">
+        <profile id="legacy">
+            <native class="legacy_action" />
+            <owner slot="primary" building="workcamp" state="in_use" />
+            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="576" />
+            <pathing mode="vanilla_roaming" />
+        </profile>
+    </profiles>
+    <graphics
+        path_pattern="Walkers\architect_{dir}_{frame}"
+        image_pattern="architect_{dir}_{frame}"
+        corpse_path_pattern="Walkers\architect_death_{frame}"
+        corpse_image_pattern="architect_death_{frame}"
+        corpse_frame_count="5"
+        action_state="work_camp_architect_working"
+        action_min_wait_ticks="2"
+        action_path_pattern="Walkers\Architect_{frame}"
+        action_image_pattern="Architect {frame}"
+        sprite_offset_x="26"
+        sprite_offset_y="29"
+        max_image_offset="12" />
+</figure>

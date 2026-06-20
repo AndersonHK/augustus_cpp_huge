@@ -693,7 +693,6 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
     return items_placed;
 }
 
-
 static int place_reservoir_and_aqueducts(int measure_only, int x_start, int y_start,
     int x_end, int y_end, struct reservoir_info *info)
 {
@@ -1290,6 +1289,7 @@ void building_construction_offset_start_from_orientation(int *x, int *y, int siz
 void building_construction_place(void)
 {
     building_type type = building_construction_type();
+    int preview_cost = data.cost_preview;
     data.cost_preview = 0;
     data.force_place_clear_cost = 0;
     data.in_progress = 0;
@@ -1302,7 +1302,8 @@ void building_construction_place(void)
     if (!type) {
         return;
     }
-    if (!building_construction_can_place()) {
+    if (!building_construction_can_place() &&
+        (!building_construction_is_updatable() || preview_cost <= 0)) {
         map_property_clear_constructing_and_deleted();
         return;
     }

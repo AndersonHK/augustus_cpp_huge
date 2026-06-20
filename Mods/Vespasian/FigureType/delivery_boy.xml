@@ -4,7 +4,7 @@
         <profile id="follow_leader">
             <native class="delivery_follower" />
             <owner slot="none" building="any" state="any" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="800" return_mode="none" />
+            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="1200" return_mode="none" />
             <pathing mode="follow_leader" />
         </profile>
     </profiles>

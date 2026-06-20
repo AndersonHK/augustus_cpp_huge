@@ -6,7 +6,6 @@
 #include "building/building.h"
 #include "city/god.h"
 
-#include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -297,24 +296,8 @@ void figure_workcamp_slave_action(Figure *f)
     figure_runtime_update_graphics(f);
 }
 
-static void set_architect_graphic(Figure *f, int working)
-{
-    int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Walkers\\architect_death_01", "architect_death_01") +
-            figure_image_corpse_offset(f);
-    } else if (working) {
-        f->image_id = assets_get_image_id("Walkers\\Architect_01", "Architect 01") + f->image_offset;
-    } else {
-        f->image_id = assets_get_image_id("Walkers\\architect_ne_01", "architect_ne_01") + dir * 12 +
-            f->image_offset;
-    }
-}
-
 void figure_workcamp_architect_action(Figure *f)
 {
-    int working = 0;
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     building *b = building_get(f->building.id());
     building *monument;
@@ -384,7 +367,6 @@ void figure_workcamp_architect_action(Figure *f)
                     }
                 } else {
                     f->wait_ticks++;
-                    working = 1;
                 }
             } else {
                 if (f->direction == DIR_FIGURE_REROUTE) {
@@ -394,5 +376,5 @@ void figure_workcamp_architect_action(Figure *f)
             break;
     }
 
-    set_architect_graphic(f, working);
+    figure_runtime_update_graphics(f);
 }

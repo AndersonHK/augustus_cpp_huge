@@ -9,7 +9,6 @@
 #include "building/building.h"
 #include "building/market.h"
 
-#include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/granary.h"
@@ -21,6 +20,7 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "figure/figure_runtime_api.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/data.h"
@@ -345,36 +345,8 @@ void figure_supplier_action(Figure *f)
             }
             break;
     }
-    if (f->type == FIGURE_MESS_HALL_SUPPLIER) {
-        int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-        switch (f->action_state) {
-            case FIGURE_ACTION_150_ATTACK:
-                if (f->attack_image_offset < 14) {
-                    f->image_id = assets_get_image_id("Walkers", "quartermaster_f_ne_01") + dir * 6;
-                } else {
-                    f->image_id = assets_get_image_id("Walkers", "quartermaster_f_ne_01") + dir * 6 + ((f->attack_image_offset - 14) / 2);
-                }
-                break;
-            case FIGURE_ACTION_149_CORPSE:
-                f->image_id = assets_get_image_id("Walkers", "quartermaster_death_01") +
-                    figure_image_corpse_offset(f);
-                break;
-            default:
-                f->image_id = assets_get_image_id("Walkers", "quartermaster_ne_01") +
-                    dir * 12 + f->image_offset;
-                break;
-        }
-    } else if (f->type == FIGURE_PRIEST_SUPPLIER) {
+    if (f->type == FIGURE_PRIEST_SUPPLIER) {
         figure_image_update(f, image_group(GROUP_FIGURE_PRIEST));
-    } else if (f->type == FIGURE_BARKEEP_SUPPLIER) {
-        int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = assets_get_image_id("Walkers", "Barkeep death 01") +
-                figure_image_corpse_offset(f);
-        } else {
-            f->image_id = assets_get_image_id("Walkers", "Barkeep NE 01") +
-                dir * 12 + f->image_offset;
-        }
     } else if (f->type == FIGURE_LIGHTHOUSE_SUPPLIER) {
         const resource_type carried_resource = f->action_state == FIGURE_ACTION_146_SUPPLIER_RETURNING ?
             static_cast<resource_type>(f->collecting_item_id) :
@@ -397,17 +369,8 @@ void figure_supplier_action(Figure *f)
             }
             figure_image_set_cart_offset(f, dir);
         }
-    } else if (f->type == FIGURE_CARAVANSERAI_SUPPLIER) {
-        int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = assets_get_image_id("Walkers", "caravanserai_overseer_death_01") +
-                figure_image_corpse_offset(f);
-        } else {
-            f->image_id = assets_get_image_id("Walkers", "caravanserai_overseer_ne_01") +
-                dir * 12 + f->image_offset;
-        }
     } else {
-        figure_image_update(f, image_group(GROUP_FIGURE_MARKET_LADY));
+        figure_runtime_update_graphics(f);
     }
 }
 
@@ -440,32 +403,7 @@ void figure_delivery_boy_action(Figure *f)
     if (leader->is_ghost && !leader->height_adjusted_ticks) {
         f->is_ghost = 1;
     }
-    int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-
-    if (f->type == FIGURE_MESS_HALL_COLLECTOR) {
-        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = assets_get_image_id("Walkers", "M Hall death 01") +
-                figure_image_corpse_offset(f);
-        } else {
-            f->image_id = assets_get_image_id("Walkers", "M Hall NE 01") +
-                dir * 12 + f->image_offset;
-        }
-    } else if (f->type == FIGURE_CARAVANSERAI_COLLECTOR) {
-        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = assets_get_image_id("Walkers", "caravanserai_walker_death_01") + figure_image_corpse_offset(f);
-        } else {
-            f->image_id = assets_get_image_id("Walkers", "caravanserai_walker_ne_01")
-                + dir * 12 + f->image_offset;
-        }
-    } else {
-        if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-            f->image_id = image_group(GROUP_FIGURE_DELIVERY_BOY) + 96 +
-                figure_image_corpse_offset(f);
-        } else {
-            f->image_id = image_group(GROUP_FIGURE_DELIVERY_BOY) +
-                dir + 8 * f->image_offset;
-        }
-    }
+    figure_runtime_update_graphics(f);
 }
 
 void figure_fort_supplier_action(Figure *f)
@@ -513,12 +451,5 @@ void figure_fort_supplier_action(Figure *f)
             break;
     }
 
-    int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Walkers", "M Hall death 01") +
-            figure_image_corpse_offset(f);
-    } else {
-        f->image_id = assets_get_image_id("Walkers", "M Hall NE 01") +
-            dir * 12 + f->image_offset;
-    }
+    figure_runtime_update_graphics(f);
 }

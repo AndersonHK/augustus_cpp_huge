@@ -420,13 +420,30 @@ const RuntimeDrawSlice *figure_runtime_graphic_slice(const Figure *f)
     return figure_runtime_native_impl::graphics_policy_slice_for_figure(f, definition);
 }
 
-int figure_runtime_update_graphics(Figure *f)
+int figure_runtime_graphic_sprite_offset(const Figure *f, int *x, int *y)
 {
-    if (!figure_runtime_has_native_graphics(f)) {
+    if (!f) {
+        if (x) {
+            *x = 0;
+        }
+        if (y) {
+            *y = 0;
+        }
         return 0;
     }
-    f->is_enemy_image = 0;
-    return figure_runtime_graphic_slice(f) ? 1 : 0;
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    return figure_runtime_native_impl::graphics_policy_sprite_offset_for_figure(f, definition, x, y);
+}
+
+int figure_runtime_update_graphics(Figure *f)
+{
+    if (!f) {
+        return 0;
+    }
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    return figure_runtime_native_impl::graphics_policy_update_figure_image(f, definition);
 }
 
 int figure_runtime_choose_roaming_direction(

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="barkeep_supplier">
+    <profiles default="legacy">
+        <profile id="legacy">
+            <native class="legacy_action" />
+            <owner slot="secondary" building="any" state="in_use" />
+            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="800" return_mode="none" />
+            <pathing mode="vanilla_roaming" />
+        </profile>
+    </profiles>
+    <graphics
+        path_pattern="Walkers\Barkeep_{dir_upper}_{frame}"
+        image_pattern="Barkeep {dir_upper} {frame}"
+        corpse_path_pattern="Walkers\Barkeep_death_{frame}"
+        corpse_image_pattern="Barkeep death {frame}"
+        max_image_offset="12" />
+</figure>

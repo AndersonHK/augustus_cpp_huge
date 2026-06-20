@@ -1,5 +1,6 @@
 #pragma once
 
+#include "graphics/image.h"
 #include "translation/translation.h"
 
 typedef enum {
@@ -11,6 +12,7 @@ typedef struct {
     translation_key header;
     translation_key desc;
     int image_id;
+    ImageGroupEntryRef image_ref;
 } option_menu_item;
 
 void window_option_popup_show(translation_key title, translation_key subtitle, option_menu_item *options, int num_options,

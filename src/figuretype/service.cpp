@@ -19,6 +19,7 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "figure/figure_runtime_api.h"
 #include "game/time.h"
 
 #include <cstring>
@@ -264,14 +265,7 @@ void figure_tavern_action(Figure *f)
     }
     figure_image_increase_offset(f, 12);
     roamer_action(f, 1);
-    int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-    if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = assets_get_image_id("Walkers\\Barkeep_death_01", "Barkeep death 01") +
-            figure_image_corpse_offset(f);
-    } else {
-        f->image_id = assets_get_image_id("Walkers\\Barkeep_NE_01", "Barkeep NE 01") + dir * 12 +
-            f->image_offset;
-    }
+    figure_runtime_update_graphics(f);
 }
 
 static int fight_plague(Figure *f, int force)
@@ -446,7 +440,7 @@ void figure_labor_seeker_action(Figure *f)
     }
     figure_image_increase_offset(f, 12);
     roamer_action(f, 1);
-    figure_image_update(f, image_group(GROUP_FIGURE_LABOR_SEEKER));
+    figure_runtime_update_graphics(f);
 }
 
 void figure_market_trader_action(Figure *f)
@@ -461,7 +455,7 @@ void figure_market_trader_action(Figure *f)
     figure_image_increase_offset(f, 12);
 
     roamer_action(f, 1);
-    figure_image_update(f, image_group(GROUP_FIGURE_MARKET_LADY));
+    figure_runtime_update_graphics(f);
 }
 
 void figure_tax_collector_action(Figure *f)

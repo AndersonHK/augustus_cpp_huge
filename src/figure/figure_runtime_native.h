@@ -67,5 +67,13 @@ int graphics_policy_has_native_payload(const figure_type_registry_impl::FigureTy
 const RuntimeDrawSlice *graphics_policy_slice_for_figure(
     const Figure *f,
     const figure_type_registry_impl::FigureTypeDefinition *definition);
+int graphics_policy_sprite_offset_for_figure(
+    const Figure *f,
+    const figure_type_registry_impl::FigureTypeDefinition *definition,
+    int *x,
+    int *y);
+int graphics_policy_update_figure_image(
+    Figure *f,
+    const figure_type_registry_impl::FigureTypeDefinition *definition);
 
 } // namespace figure_runtime_native_impl

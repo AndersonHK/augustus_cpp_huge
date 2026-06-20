@@ -11,7 +11,6 @@
 #include "translation/translation.h"
 #include "common.h"
 
-#include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -366,22 +365,29 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     c->risk_icons.y_offset = y_offset;
 
     const building *b = building_get(c->building.id());
-    int risks_image_id = assets_lookup_image_id(ASSET_UI_RISKS);
+    static const ImageGroupEntryRef collapse_icon =
+        ImageGroupEntryRef::from_group("UI\\Risk_Widget_Collapse", "Risk_Widget_Collapse");
+    static const ImageGroupEntryRef fire_icon =
+        ImageGroupEntryRef::from_group("UI\\Risk_Widget_Fire", "Risk_Widget_Fire");
+    static const ImageGroupEntryRef health_icon =
+        ImageGroupEntryRef::from_group("UI\\Risk_Widget_Health", "Risk_Widget_Health");
+    static const ImageGroupEntryRef cross_icon =
+        ImageGroupEntryRef::from_group("UI\\Risk_Widget_Cross", "Risk_Widget_Cross");
 
     // Health risk
     if (b->house_size && b->house_population) {
         graphics_draw_inset_rect(x_offset - 28, y_offset, 24, 24,
             COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
-        Image::from_id(risks_image_id + 2).draw(x_offset - 28, y_offset, get_color_for_risk(b->sickness_level / 10), SCALE_NONE);
+        health_icon.draw(x_offset - 28, y_offset, get_color_for_risk(b->sickness_level / 10));
     }
 
     // Fire risk
     graphics_draw_inset_rect(x_offset, y_offset, 24, 24, COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
     if (b->fire_proof) {
-        Image::from_id(risks_image_id + 1).draw(x_offset, y_offset);
-        Image::from_id(risks_image_id + 3).draw(x_offset, y_offset);
+        fire_icon.draw(x_offset, y_offset);
+        cross_icon.draw(x_offset, y_offset);
     } else {
-        Image::from_id(risks_image_id + 1).draw(x_offset, y_offset, get_color_for_risk(b->fire_risk / 10), SCALE_NONE);
+        fire_icon.draw(x_offset, y_offset, get_color_for_risk(b->fire_risk / 10));
     }
 
     // Damage risk
@@ -389,10 +395,10 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
         COLOR_RISK_ICON_BORDER_DARK, COLOR_RISK_ICON_BORDER_LIGHT);
     int house_level = building_house_legacy_level(c->building);
     if (b->fire_proof || (b->house_size && house_level >= HOUSE_MIN && house_level <= HOUSE_LARGE_TENT)) {
-        Image::from_id(risks_image_id).draw(x_offset + 28, y_offset);
-        Image::from_id(risks_image_id + 3).draw(x_offset + 28, y_offset);
+        collapse_icon.draw(x_offset + 28, y_offset);
+        cross_icon.draw(x_offset + 28, y_offset);
     } else {
-        Image::from_id(risks_image_id).draw(x_offset + 28, y_offset, get_color_for_risk(b->damage_risk / 20), SCALE_NONE);
+        collapse_icon.draw(x_offset + 28, y_offset, get_color_for_risk(b->damage_risk / 20));
     }
 }
 

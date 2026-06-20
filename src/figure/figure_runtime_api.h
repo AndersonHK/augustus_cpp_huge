@@ -23,10 +23,11 @@ int figure_runtime_bind_profile(Figure *f, const char *profile_id);
 // Executes a native FigureType controller; returns zero when legacy action should handle it.
 int figure_runtime_execute(Figure *f);
 
-// Updates/draws XML-authored path-payload graphics for legacy-action figures without using image groups.
+// Updates legacy-action figures from their XML graphics policy.
 int figure_runtime_update_graphics(Figure *f);
 int figure_runtime_has_native_graphics(const Figure *f);
 const RuntimeDrawSlice *figure_runtime_graphic_slice(const Figure *f);
+int figure_runtime_graphic_sprite_offset(const Figure *f, int *x, int *y);
 
 // Lets XML pathing policies override a vanilla roaming direction at intersections.
 int figure_runtime_choose_roaming_direction(
