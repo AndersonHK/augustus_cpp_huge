@@ -379,7 +379,7 @@ static void prepare_ghost_water_access_state(
     }
 }
 
-static void prepare_ghost_building(int grid_offset, building_type type)
+static void prepare_ghost_building_with_size(int grid_offset, building_type type, int building_size)
 {
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
@@ -387,7 +387,7 @@ static void prepare_ghost_building(int grid_offset, building_type type)
     data.ghost_building.type = type;
     data.ghost_building.grid_offset = grid_offset;
     data.ghost_building.state = BUILDING_STATE_IN_USE;
-    data.ghost_building.size = static_cast<unsigned char>(ghost_building_size(type));
+    data.ghost_building.size = static_cast<unsigned char>(building_size);
     data.ghost_building.num_workers = model_get_building(type)->laborers;
     data.ghost_building.data.entertainment.days1 = 1;
     data.ghost_building.data.entertainment.days2 = 1;
@@ -433,6 +433,11 @@ static void prepare_ghost_building(int grid_offset, building_type type)
             }
         }
     }
+}
+
+static void prepare_ghost_building(int grid_offset, building_type type)
+{
+    prepare_ghost_building_with_size(grid_offset, type, ghost_building_size(type));
 }
 
 static void log_native_ghost_draw_failure(building_type type, int grid_offset)
@@ -541,6 +546,42 @@ static int draw_runtime_ghost_record(building &record, int x, int y, color_t col
     return 1;
 }
 
+static int draw_runtime_single_building(
+    building_type type,
+    int grid_offset,
+    int x,
+    int y,
+    int building_size,
+    color_t color)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_graphic()) {
+        return 0;
+    }
+    prepare_ghost_building_with_size(grid_offset, type, building_size);
+    int x_draw = 0;
+    int y_draw = 0;
+    draw_tile_view_offset(building_size, &x_draw, &y_draw);
+    return draw_runtime_ghost_record(data.ghost_building, x + x_draw, y + y_draw, color);
+}
+
+static void draw_fort_main_ghost(
+    building_type type,
+    int grid_offset,
+    int x,
+    int y,
+    int building_size,
+    color_t color)
+{
+    if (draw_runtime_single_building(type, grid_offset, x, y, building_size, color)) {
+        return;
+    }
+    if (!type_uses_native_ghost_graphics(type)) {
+        draw_building(Image::group(GROUP_BUILDING_FORT), x, y, color);
+    }
+}
+
 static void composed_part_view_offset(
     const building &part_record,
     const building_type_registry_impl::ComposedPartOffset &offset,
@@ -613,19 +654,7 @@ static int draw_runtime_regular_building(building_type type, int grid_offset, in
     if (definition->has_composition()) {
         return draw_runtime_composed_building(type, grid_offset, x, y, color);
     }
-    prepare_ghost_building(grid_offset, type);
-    Building building(data.ghost_building, definition);
-    int x_draw = 0;
-    int y_draw = 0;
-    draw_tile_view_offset(building_size, &x_draw, &y_draw);
-    x += x_draw;
-    y += y_draw;
-    if (!building.draw_footprint({ x, y, grid_offset, color, data.scale, 1 })) {
-        return 0;
-    }
-    building.draw_top({ x, y, grid_offset, color, data.scale, 1 });
-    draw_runtime_ghost_animation(building, grid_offset, x, y, color);
-    return 1;
+    return draw_runtime_single_building(type, grid_offset, x, y, building_size, color);
 }
 
 static void draw_blocked_tile(int x, int y, int grid_offset)
@@ -725,6 +754,30 @@ static void draw_regular_building(building_type type, int image_id, int x, int y
     draw_building_tiles(x, y, num_tiles, blocked_tiles);
 }
 
+static void draw_regular_building_with_runtime_graphics(
+    building_type type,
+    int image_id,
+    int x,
+    int y,
+    int grid_offset,
+    int building_size,
+    int num_tiles,
+    int *blocked_tiles)
+{
+    const int has_blocked = has_blocked_tiles(num_tiles, blocked_tiles);
+    building_construction_set_can_place(!has_blocked);
+    color_t color = has_blocked ?
+        COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
+    if (draw_runtime_regular_building(type, grid_offset, x, y, building_size, color)) {
+        draw_building_tiles(x, y, num_tiles, blocked_tiles);
+    } else if (type_uses_native_ghost_graphics(type)) {
+        log_native_ghost_draw_failure(type, grid_offset);
+        draw_building_tiles(x, y, num_tiles, blocked_tiles);
+    } else {
+        draw_regular_building(type, image_id, x, y, grid_offset, num_tiles, blocked_tiles);
+    }
+}
+
 static int get_building_image_id(int map_x, int map_y, building_type type, const building_properties *props)
 {
     int image_id;
@@ -762,18 +815,6 @@ static int get_building_image_id(int map_x, int map_y, building_type type, const
         image_id += image_offset;
     }
     return image_id;
-}
-
-static int get_new_building_image_id(int grid_offset, building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    if (!definition || !definition->has_graphic()) {
-        return 0;
-    }
-    prepare_ghost_building(grid_offset, type);
-    Building building(data.ghost_building, definition);
-    return building_runtime_graphics_image_id(building);
 }
 
 static void get_building_base_xy(int map_x, int map_y, int building_size, int *x, int *y)
@@ -1370,11 +1411,10 @@ static void draw_fort(const map_tile *tile, int x, int y, building_type type)
 
     color_t color_mask = blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
 
-    int image_id = get_new_building_image_id(tile->grid_offset, type);
     int image_id_grounds = Image::group(GROUP_BUILDING_FORT) + 1;
     if (orientation_index == 0 || orientation_index == 3) {
         // draw fort first, then ground
-        draw_building(image_id, x, y, color_mask);
+        draw_fort_main_ghost(type, grid_offset_fort, x, y, building_size_fort, color_mask);
         draw_building_tiles(x, y, num_tiles_fort, blocked_tiles_fort);
         draw_building(image_id_grounds, x_ground, y_ground, color_mask);
         draw_building_tiles(x_ground, y_ground, num_tiles_ground, blocked_tiles_ground);
@@ -1382,7 +1422,7 @@ static void draw_fort(const map_tile *tile, int x, int y, building_type type)
         // draw ground first, then fort
         draw_building(image_id_grounds, x_ground, y_ground, color_mask);
         draw_building_tiles(x_ground, y_ground, num_tiles_ground, blocked_tiles_ground);
-        draw_building(image_id, x, y, color_mask);
+        draw_fort_main_ghost(type, grid_offset_fort, x, y, building_size_fort, color_mask);
         draw_building_tiles(x, y, num_tiles_fort, blocked_tiles_fort);
     }
 }
@@ -1608,8 +1648,9 @@ static void draw_highway(const map_tile *tile, int x, int y, building_type type)
         }
     }
 
-    int image_id = get_new_building_image_id(grid_offset, type);
-    draw_regular_building(type, image_id, x, y, grid_offset, num_tiles, blocked_tiles);
+    int image_id = props->image_group > 0 ? get_building_image_id(tile->x, tile->y, type, props) : 0;
+    draw_regular_building_with_runtime_graphics(
+        type, image_id, x, y, grid_offset, props->size, num_tiles, blocked_tiles);
 }
 
 static void draw_grand_temple_neptune_range(int x, int y, int grid_offset)
@@ -1642,8 +1683,9 @@ static void draw_grand_temple_neptune(const map_tile *tile, int x, int y, buildi
         radius += 2;
     }
     city_view_foreach_tile_in_range(tile->grid_offset, props->size, radius, draw_grand_temple_neptune_range);
-    int image_id = get_new_building_image_id(tile->grid_offset, type);
-    draw_regular_building(type, image_id, x, y, tile->grid_offset, num_tiles, blocked);
+    int image_id = props->image_group > 0 ? get_building_image_id(tile->x, tile->y, type, props) : 0;
+    draw_regular_building_with_runtime_graphics(
+        type, image_id, x, y, tile->grid_offset, props->size, num_tiles, blocked);
     set_roamer_path(type, props->size, tile, data.reservoir_range.blocked);
 }
 
