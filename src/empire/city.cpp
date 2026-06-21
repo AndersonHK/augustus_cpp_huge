@@ -433,9 +433,11 @@ static int generate_trader(int city_id, empire_city *city)
 {
     const figure_type expected_type = city->is_sea_trade ? FIGURE_TRADE_SHIP : FIGURE_TRADE_CARAVAN;
     for (int i = 0; i < EMPIRE_CITY_MAX_TRADERS; i++) {
+        if (!city->trader_figure_ids[i]) {
+            continue;
+        }
         Figure *trader = Figure::get(city->trader_figure_ids[i]);
-        if (city->trader_figure_ids[i] &&
-            (trader->is_dead() || trader->type != expected_type || trader->empire_city_id != city_id)) {
+        if (trader->is_dead() || trader->type != expected_type || trader->empire_city_id != city_id) {
             city->trader_figure_ids[i] = 0;
         }
     }
@@ -498,10 +500,18 @@ void empire_city_open_trade(int city_id, int apply_cost)
     if (!city) {
         return;
     }
+    const int was_open = city->is_open;
     if (apply_cost) {
         city_finance_process_sundry(city->cost_to_open);
     }
     city->is_open = 1;
+    if (!was_open) {
+        city->trader_entry_delay = 0;
+        trade_route_reset_traded(city->route_id);
+    }
+    if (full_empire_object *object = empire_object_get_full(city->empire_object_id)) {
+        object->trade_route_open = 1;
+    }
 }
 
 void empire_city_generate_trader(void)

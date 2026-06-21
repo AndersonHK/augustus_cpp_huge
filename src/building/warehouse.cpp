@@ -32,6 +32,38 @@
 
 static void refresh_warehouse_space_graphic(Building &space);
 
+static int warehouse_resource_is_valid(resource_type resource)
+{
+    return resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT;
+}
+
+static int warehouse_space_assigned_loads(const Building &space)
+{
+    const resource_type resource = space.warehouse_resource_id();
+    return warehouse_resource_is_valid(resource) ? space.resource_amount(resource) : 0;
+}
+
+static int warehouse_space_is_empty_or_stale(const Building &space)
+{
+    const resource_type resource = space.warehouse_resource_id();
+    return !warehouse_resource_is_valid(resource) || warehouse_space_assigned_loads(space) <= 0;
+}
+
+static void clear_empty_or_invalid_warehouse_space_assignment(Building &space)
+{
+    const resource_type resource = space.warehouse_resource_id();
+    if (!warehouse_resource_is_valid(resource)) {
+        if (resource != RESOURCE_NONE) {
+            space.set_warehouse_resource_id(RESOURCE_NONE);
+        }
+        return;
+    }
+    if (space.resource_amount(resource) <= 0) {
+        space.set_resource_amount(resource, 0);
+        space.set_warehouse_resource_id(RESOURCE_NONE);
+    }
+}
+
 static building_type warehouse_type_id()
 {
     static building_type type = BUILDING_NONE;
@@ -81,11 +113,11 @@ int building_warehouse_get_space_info(const Building &warehouse)
         if (space.id() <= 0) {
             return 0;
         }
-        const resource_type stored_resource = space.warehouse_resource_id();
-        if (stored_resource) {
-            total_loads += space.resource_amount(stored_resource);
-        } else {
+        const int stored_loads = warehouse_space_assigned_loads(space);
+        if (warehouse_space_is_empty_or_stale(space)) {
             empty_spaces++;
+        } else {
+            total_loads += stored_loads;
         }
     }
     if (empty_spaces > 0) {
@@ -141,7 +173,7 @@ int building_warehouse_get_amount(const Building &warehouse, resource_type resou
         if (space.id() <= 0) {
             return 0;
         }
-        if (space.warehouse_resource_id() && space.warehouse_resource_id() == resource) {
+        if (space.warehouse_resource_id() == resource) {
             loads += space.resource_amount(resource);
         }
     }
@@ -187,7 +219,11 @@ static Building building_warehouse_find_space(const Building &warehouse, resourc
             if (!space.id()) {
                 return Building(nullptr);
             }
-            if (space.warehouse_resource_id() == resource &&
+            const resource_type stored_resource = space.warehouse_resource_id();
+            if (!warehouse_resource_is_valid(stored_resource) || stored_resource != resource) {
+                continue;
+            }
+            if (space.resource_amount(resource) > 0 &&
                 space.resource_amount(resource) < MAX_CARTLOADS_PER_SPACE) {
                 return space;
             }
@@ -200,8 +236,7 @@ static Building building_warehouse_find_space(const Building &warehouse, resourc
             if (!space.id()) {
                 return Building(nullptr);
             }
-            if ((space.warehouse_resource_id() == RESOURCE_NONE ||
-                space.warehouse_resource_id() == resource) &&
+            if ((space.warehouse_resource_id() == resource || warehouse_space_is_empty_or_stale(space)) &&
                 space.resource_amount(resource) < MAX_CARTLOADS_PER_SPACE) {
                 return space;
             }
@@ -243,8 +278,10 @@ void building_warehouse_recount_resources(Building &main)
         }
 
         resource_type resource = space.warehouse_resource_id();
-        if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
+        if (warehouse_resource_is_valid(resource) && space.resource_amount(resource) > 0) {
             main.add_resource(resource, space.resource_amount(resource));
+        } else {
+            clear_empty_or_invalid_warehouse_space_assignment(space);
         }
         refresh_warehouse_space_graphic(space);
     }
@@ -370,7 +407,12 @@ void building_warehouse_remove_resource_curse(Building &warehouse, int amount)
     for (int i = 0; i < 8 && amount > 0; i++) {
         space = space.next();
         resource_type resource = space.warehouse_resource_id();
-        if (space.id() <= 0 || space.resource_amount(resource) <= 0) {
+        if (space.id() <= 0) {
+            continue;
+        }
+        if (!warehouse_resource_is_valid(resource) || space.resource_amount(resource) <= 0) {
+            clear_empty_or_invalid_warehouse_space_assignment(space);
+            refresh_warehouse_space_graphic(space);
             continue;
         }
         if (space.resource_amount(resource) > amount) {
@@ -522,10 +564,11 @@ static int building_warehouse_max_space_for_resource(const Building &b, resource
         if (space.id() <= 0) {
             return 0;
         }
-        if (space.warehouse_resource_id() == resource) {
-            max_storable += MAX_CARTLOADS_PER_SPACE - space.resource_amount(resource);
-        }
-        if (space.warehouse_resource_id() == RESOURCE_NONE) {
+        const resource_type stored_resource = space.warehouse_resource_id();
+        const int stored_loads = warehouse_space_assigned_loads(space);
+        if (stored_resource == resource && stored_loads > 0) {
+            max_storable += MAX_CARTLOADS_PER_SPACE - stored_loads;
+        } else if (warehouse_space_is_empty_or_stale(space)) {
             max_storable += MAX_CARTLOADS_PER_SPACE;
         }
     }

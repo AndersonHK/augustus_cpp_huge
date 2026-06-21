@@ -50,6 +50,25 @@ static int building_is_granary(building *b)
     return definition && definition->is_granary();
 }
 
+static Figure *valid_trade_ship_for_dock(building *dock)
+{
+    if (!dock || !dock->data.dock.trade_ship_id) {
+        return nullptr;
+    }
+    Figure *ship = Figure::get(dock->data.dock.trade_ship_id);
+    if (!ship || ship->state != FIGURE_STATE_ALIVE || ship->type != FIGURE_TRADE_SHIP) {
+        dock->data.dock.trade_ship_id = 0;
+        return nullptr;
+    }
+    return ship;
+}
+
+static int figure_destination_building_is_in_use(Figure *f)
+{
+    building *destination = building_get(f->destination_building.id());
+    return destination && destination->state == BUILDING_STATE_IN_USE;
+}
+
 static building *first_warehouse(void)
 {
     for (int i = 1; i < building_count(); i++) {
@@ -137,6 +156,9 @@ static int store_destination_map_point(int building_id, map_point *dst)
         return 0;
     }
     building *b = building_get(building_id);
+    if (!b) {
+        return 0;
+    }
     if (building_is_granary(b)) {
         // go to center of granary
         map_point_store_result(b->x + 1, b->y + 1, dst);
@@ -150,6 +172,9 @@ static int store_destination_map_point(int building_id, map_point *dst)
 
 static int is_invalid_destination(building *b, building *dock)
 {
+    if (!b || !dock) {
+        return 1;
+    }
     Building storage(b);
     return b->state != BUILDING_STATE_IN_USE ||
         !b->has_road_access || b->distance_from_entry <= 0 ||
@@ -175,28 +200,9 @@ static int get_distance_penalty_exports(building *b, resource_type resource)
     return penalty;
 }
 
-
-static unsigned int get_closest_building_for_import(int x, int y, int city_id, building *dock,
-    map_point *dst, resource_type *import_resource)
+static unsigned int get_closest_import_storage_for_resource(int x, int y, building *dock,
+    resource_type resource, map_point *dst)
 {
-    resource_type resource = *import_resource;
-    Building dock_obj(dock);
-    if (resource == RESOURCE_NONE) {
-        int importable[RESOURCE_SLOT_COUNT];
-        importable[RESOURCE_NONE] = 0;
-        for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
-            const resource_type candidate = static_cast<resource_type>(r);
-            importable[r] = dock_obj.accepts_good(candidate) &&
-                empire_can_import_resource_from_city(city_id, candidate);
-        }
-        resource = static_cast<resource_type>(city_trade_next_docker_import_resource());
-        for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT && !importable[resource]; i++) {
-            resource = static_cast<resource_type>(city_trade_next_docker_import_resource());
-        }
-        if (!importable[resource]) {
-            return 0;
-        }
-    }
     int min_distance = INFINITE;
     int min_building_id = 0;
     for (building *b = first_warehouse(); b; b = b->next_of_type) {
@@ -236,31 +242,46 @@ static unsigned int get_closest_building_for_import(int x, int y, int city_id, b
     if (!store_destination_map_point(min_building_id, dst)) {
         return 0;
     }
-    *import_resource = resource;
     return min_building_id;
 }
 
-static int get_closest_building_for_export(int x, int y, int city_id, building *dock,
-    map_point *dst, resource_type *export_resource)
+static unsigned int get_closest_building_for_import(int x, int y, int city_id, building *dock,
+    map_point *dst, resource_type *import_resource)
 {
-    resource_type resource = *export_resource;
+    resource_type resource = *import_resource;
     Building dock_obj(dock);
-    if (resource == RESOURCE_NONE) {
-        int exportable[RESOURCE_SLOT_COUNT];
-        exportable[RESOURCE_NONE] = 0;
-        for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
-            const resource_type candidate = static_cast<resource_type>(r);
-            exportable[r] = dock_obj.accepts_good(candidate) &&
-                empire_can_export_resource_to_city(city_id, candidate);
-        }
-        resource = static_cast<resource_type>(city_trade_next_docker_export_resource());
-        for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT && !exportable[resource]; i++) {
-            resource = static_cast<resource_type>(city_trade_next_docker_export_resource());
-        }
-        if (!exportable[resource]) {
+    if (resource != RESOURCE_NONE) {
+        if (!dock_obj.accepts_good(resource) ||
+            !empire_can_import_resource_from_city(city_id, resource)) {
             return 0;
         }
+        unsigned int destination_id = get_closest_import_storage_for_resource(x, y, dock, resource, dst);
+        if (destination_id) {
+            *import_resource = resource;
+        }
+        return destination_id;
     }
+
+    resource = static_cast<resource_type>(city_trade_next_docker_import_resource());
+    for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT; i++) {
+        if (!dock_obj.accepts_good(resource) ||
+            !empire_can_import_resource_from_city(city_id, resource)) {
+            resource = static_cast<resource_type>(city_trade_next_docker_import_resource());
+            continue;
+        }
+        unsigned int destination_id = get_closest_import_storage_for_resource(x, y, dock, resource, dst);
+        if (destination_id) {
+            *import_resource = resource;
+            return destination_id;
+        }
+        resource = static_cast<resource_type>(city_trade_next_docker_import_resource());
+    }
+    return 0;
+}
+
+static unsigned int get_closest_export_storage_for_resource(int x, int y, building *dock,
+    resource_type resource, map_point *dst)
+{
     int min_distance = INFINITE;
     int min_building_id = 0;
     for (building *b = first_warehouse(); b; b = b->next_of_type) {
@@ -298,22 +319,53 @@ static int get_closest_building_for_export(int x, int y, int city_id, building *
     if (!store_destination_map_point(min_building_id, dst)) {
         return 0;
     }
-    *export_resource = resource;
     return min_building_id;
+}
+
+static int get_closest_building_for_export(int x, int y, int city_id, building *dock,
+    map_point *dst, resource_type *export_resource)
+{
+    resource_type resource = *export_resource;
+    Building dock_obj(dock);
+    if (resource != RESOURCE_NONE) {
+        if (!dock_obj.accepts_good(resource) ||
+            !empire_can_export_resource_to_city(city_id, resource)) {
+            return 0;
+        }
+        unsigned int destination_id = get_closest_export_storage_for_resource(x, y, dock, resource, dst);
+        if (destination_id) {
+            *export_resource = resource;
+        }
+        return destination_id;
+    }
+
+    resource = static_cast<resource_type>(city_trade_next_docker_export_resource());
+    for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT; i++) {
+        if (!dock_obj.accepts_good(resource) ||
+            !empire_can_export_resource_to_city(city_id, resource)) {
+            resource = static_cast<resource_type>(city_trade_next_docker_export_resource());
+            continue;
+        }
+        unsigned int destination_id = get_closest_export_storage_for_resource(x, y, dock, resource, dst);
+        if (destination_id) {
+            *export_resource = resource;
+            return destination_id;
+        }
+        resource = static_cast<resource_type>(city_trade_next_docker_export_resource());
+    }
+    return 0;
 }
 
 static int deliver_import_resource(Figure *f, building *dock)
 {
-    int ship_id = dock->data.dock.trade_ship_id;
-    if (!ship_id) {
-        return 0;
-    }
-    Figure *ship = Figure::get(ship_id);
-    if (ship->action_state != FIGURE_ACTION_112_TRADE_SHIP_MOORED || ship->loads_sold_or_carrying <= 0) {
+    Figure *ship = valid_trade_ship_for_dock(dock);
+    if (!ship || ship->action_state != FIGURE_ACTION_112_TRADE_SHIP_MOORED ||
+        ship->loads_sold_or_carrying <= 0) {
         return 0;
     }
     map_point tile;
-    resource_type resource = static_cast<resource_type>(f->resource_id);
+    resource_type resource = f->destination_building.id() ?
+        static_cast<resource_type>(f->resource_id) : RESOURCE_NONE;
     unsigned int destination_id = get_closest_building_for_import(f->x, f->y, ship->empire_city_id,
         dock, &tile, &resource);
     if (!destination_id) {
@@ -338,17 +390,13 @@ static int deliver_import_resource(Figure *f, building *dock)
 
 static int fetch_export_resource(Figure *f, building *dock, int add_to_bought)
 {
-    int ship_id = dock->data.dock.trade_ship_id;
-    if (!ship_id) {
-        return 0;
-    }
-    Figure *ship = Figure::get(ship_id);
-    if (ship->action_state != FIGURE_ACTION_112_TRADE_SHIP_MOORED ||
+    Figure *ship = valid_trade_ship_for_dock(dock);
+    if (!ship || ship->action_state != FIGURE_ACTION_112_TRADE_SHIP_MOORED ||
         (add_to_bought && ship->trader_amount_bought >= figure_trade_sea_trade_units())) {
         return 0;
     }
     map_point tile;
-    resource_type resource = static_cast<resource_type>(f->resource_id);
+    resource_type resource = add_to_bought ? RESOURCE_NONE : static_cast<resource_type>(f->resource_id);
     unsigned int destination_id = get_closest_building_for_export(f->x, f->y, ship->empire_city_id,
         dock, &tile, &resource);
     if (!destination_id) {
@@ -391,22 +439,26 @@ void figure_docker_action(Figure *f)
 
     figure_image_increase_offset(f, 12);
     f->cart_image_id = 0;
-    if (b->state != BUILDING_STATE_IN_USE) {
+    if (!b || b->state != BUILDING_STATE_IN_USE) {
         f->state = FIGURE_STATE_DEAD;
+        f->destination_building = Building(nullptr);
+        f->image_id = 0;
+        return;
     }
     Building dock(b);
     const auto *definition = dock.type;
     if (!definition || std::strcmp(definition->attr(), "dock") != 0) {
         f->state = FIGURE_STATE_DEAD;
+        f->destination_building = Building(nullptr);
+        f->image_id = 0;
+        return;
     }
     if (b->data.dock.num_ships) {
         b->data.dock.num_ships--;
     }
     if (b->data.dock.trade_ship_id) {
-        Figure *ship = Figure::get(b->data.dock.trade_ship_id);
-        if (ship->state != FIGURE_STATE_ALIVE || ship->type != FIGURE_TRADE_SHIP) {
-            b->data.dock.trade_ship_id = 0;
-        } else if (ship->action_state == FIGURE_ACTION_115_TRADE_SHIP_LEAVING) {
+        Figure *ship = valid_trade_ship_for_dock(b);
+        if (ship && ship->action_state == FIGURE_ACTION_115_TRADE_SHIP_LEAVING) {
             b->data.dock.trade_ship_id = 0;
         }
     }
@@ -493,7 +545,7 @@ void figure_docker_action(Figure *f)
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
-            if (building_get(f->destination_building.id())->state != BUILDING_STATE_IN_USE &&
+            if (!figure_destination_building_is_in_use(f) &&
                 !deliver_import_resource(f, b)) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -508,7 +560,7 @@ void figure_docker_action(Figure *f)
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
-            if (building_get(f->destination_building.id())->state != BUILDING_STATE_IN_USE &&
+            if (!figure_destination_building_is_in_use(f) &&
                 !fetch_export_resource(f, b, 0)) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -525,7 +577,7 @@ void figure_docker_action(Figure *f)
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
-            if (building_get(f->destination_building.id())->state != BUILDING_STATE_IN_USE) {
+            if (!figure_destination_building_is_in_use(f)) {
                 f->state = FIGURE_STATE_DEAD;
             }
             break;
@@ -548,15 +600,11 @@ void figure_docker_action(Figure *f)
             set_cart_graphic(f);
             f->wait_ticks++;
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(10)) {
-                int trade_city_id;
-                if (b->data.dock.trade_ship_id) {
-                    trade_city_id = Figure::get(b->data.dock.trade_ship_id)->empire_city_id;
-                } else {
-                    trade_city_id = 0;
-                }
-                if (try_import_resource(f->destination_building.id(), static_cast<resource_type>(f->resource_id),
+                Figure *ship = valid_trade_ship_for_dock(b);
+                int trade_city_id = ship ? ship->empire_city_id : 0;
+                if (ship && try_import_resource(f->destination_building.id(), static_cast<resource_type>(f->resource_id),
                     trade_city_id, f->loads_sold_or_carrying)) {
-                    int trader_id = Figure::get(b->data.dock.trade_ship_id)->trader_id;
+                    int trader_id = ship->trader_id;
                     trader_record_sold_resource(trader_id, static_cast<resource_type>(f->resource_id));
                     city_health_update_sickness_level_in_building(b->id);
                     city_health_dispatch_sickness(f);
@@ -579,23 +627,19 @@ void figure_docker_action(Figure *f)
             f->cart_image_id = image_group(GROUP_FIGURE_CARTPUSHER_CART); // empty
             f->wait_ticks++;
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(10)) {
-                int trade_city_id;
-                if (b->data.dock.trade_ship_id) {
-                    trade_city_id = Figure::get(b->data.dock.trade_ship_id)->empire_city_id;
-                } else {
-                    trade_city_id = 0;
-                }
+                Figure *ship = valid_trade_ship_for_dock(b);
+                int trade_city_id = ship ? ship->empire_city_id : 0;
                 f->action_state = FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING;
                 f->destination_x = f->source_x;
                 f->destination_y = f->source_y;
                 f->wait_ticks = 0;
-                if (try_export_resource(f->destination_building.id(), static_cast<resource_type>(f->resource_id), trade_city_id)) {
-                    int trader_id = Figure::get(b->data.dock.trade_ship_id)->trader_id;
+                if (ship && try_export_resource(f->destination_building.id(), static_cast<resource_type>(f->resource_id), trade_city_id)) {
+                    int trader_id = ship->trader_id;
                     trader_record_bought_resource(trader_id, static_cast<resource_type>(f->resource_id));
                     city_health_update_sickness_level_in_building(b->id);
                     city_health_dispatch_sickness(f);
                     f->action_state = FIGURE_ACTION_137_DOCKER_EXPORT_RETURNING;
-                } else {
+                } else if (ship) {
                     fetch_export_resource(f, b, 1);
                 }
             }

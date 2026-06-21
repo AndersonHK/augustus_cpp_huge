@@ -172,7 +172,10 @@ void figure_sink_all_ships(void)
             continue;
         }
         if (f->type == FIGURE_TRADE_SHIP) {
-            building_get(f->destination_building.id())->data.dock.trade_ship_id = 0;
+            building *dock = building_get(f->destination_building.id());
+            if (dock && dock->data.dock.trade_ship_id == (int) f->id()) {
+                dock->data.dock.trade_ship_id = 0;
+            }
         } else if (f->type == FIGURE_FISHING_BOAT) {
             FishingBoat::from(*f).sink();
             continue;
@@ -208,7 +211,10 @@ void figure_sink_half_ships(void)
             continue;
         }
         if (f->type == FIGURE_TRADE_SHIP && (trade_destroyed < (int)trade_to_destroy / 2 )) {
-            building_get(f->destination_building.id())->data.dock.trade_ship_id = 0;
+            building *dock = building_get(f->destination_building.id());
+            if (dock && dock->data.dock.trade_ship_id == (int) f->id()) {
+                dock->data.dock.trade_ship_id = 0;
+            }
             trade_destroyed++;
         } else if (f->type == FIGURE_FISHING_BOAT && (fishing_destroyed < (int)fishing_to_destroy / 2 )) {
             FishingBoat::from(*f).sink();

@@ -1763,6 +1763,11 @@ building *building_create(building_type type, int x, int y)
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
         b->accepted_goods[r] = distribution && distribution->handles_resource(r);
     }
+    if (building_obj.type && building_obj.type->attr() && !std::strcmp(building_obj.type->attr(), "dock")) {
+        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+            b->accepted_goods[r] = 1;
+        }
+    }
 
     // Exception for Venus temples which should never accept wine by default to prevent unwanted evolutions
     if (building_is_venus_temple(type)) {
@@ -2695,6 +2700,29 @@ static void building_resource_state_load_u8_values(buffer *buf, building *b)
     }
 }
 
+static int dock_has_any_accepted_goods(const building *b)
+{
+    if (!b) {
+        return 0;
+    }
+    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        if (b->accepted_goods[r]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void repair_dock_accepted_goods_if_empty(building *b)
+{
+    if (!b || !building_matches(b, "dock") || dock_has_any_accepted_goods(b)) {
+        return;
+    }
+    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        b->accepted_goods[r] = 1;
+    }
+}
+
 void building_resource_state_save(buffer *buf)
 {
     if (!buf) {
@@ -2781,6 +2809,7 @@ void building_resource_state_load(buffer *buf)
 
         building_resource_state_load_i16_values(&payload, b);
         building_resource_state_load_u8_values(&payload, b);
+        repair_dock_accepted_goods_if_empty(b);
     }
 }
 

@@ -874,6 +874,29 @@ static void migrate_accepted_goods(building *b, int permissions)
     }
 }
 
+static int dock_has_any_accepted_goods(const building *b)
+{
+    if (!b) {
+        return 0;
+    }
+    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        if (b->accepted_goods[r]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static void repair_dock_accepted_goods_if_empty(building *b)
+{
+    if (!b || !type_is(b->type, "dock") || dock_has_any_accepted_goods(b)) {
+        return;
+    }
+    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        b->accepted_goods[r] = 1;
+    }
+}
+
 int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_size, int save_version, int for_preview)
 {
     size_t record_start = buf->index;
@@ -1081,6 +1104,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
             b->accepted_goods[resource_remap(i)] = buffer_read_u8(buf);
         }
     }
+    repair_dock_accepted_goods_if_empty(b);
 
     if (building_buf_size >= BUILDING_STATE_LATRINES &&
         remaining_building_record_bytes(buf, record_start, building_buf_size) > 0) {

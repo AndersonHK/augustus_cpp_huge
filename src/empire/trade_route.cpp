@@ -22,7 +22,15 @@ static std::vector<trade_route> routes;
 
 static trade_route *route_at(int route_id)
 {
+    if (route_id < 0 || route_id >= static_cast<int>(routes.size())) {
+        return nullptr;
+    }
     return &routes[route_id];
+}
+
+static int resource_is_valid(resource_type resource)
+{
+    return resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT;
 }
 
 int trade_route_init(void)
@@ -51,6 +59,9 @@ int trade_route_is_valid(int route_id)
 void trade_route_set(int route_id, resource_type resource, int limit, int buying)
 {
     trade_route *route = route_at(route_id);
+    if (!route || !resource_is_valid(resource)) {
+        return;
+    }
     if (buying) {
         route->buys.limit[resource] = limit;
         route->buys.traded[resource] = 0;
@@ -62,37 +73,54 @@ void trade_route_set(int route_id, resource_type resource, int limit, int buying
 
 int trade_route_limit(int route_id, resource_type resource, int buying)
 {
-    return buying ? route_at(route_id)->buys.limit[resource] :
-        route_at(route_id)->sells.limit[resource];
+    trade_route *route = route_at(route_id);
+    if (!route || !resource_is_valid(resource)) {
+        return 0;
+    }
+    return buying ? route->buys.limit[resource] : route->sells.limit[resource];
 }
 
 int trade_route_traded(int route_id, resource_type resource, int buying)
 {
-    return buying ? route_at(route_id)->buys.traded[resource] :
-        route_at(route_id)->sells.traded[resource];
+    trade_route *route = route_at(route_id);
+    if (!route || !resource_is_valid(resource)) {
+        return 0;
+    }
+    return buying ? route->buys.traded[resource] : route->sells.traded[resource];
 }
 
 void trade_route_set_limit(int route_id, resource_type resource, int amount, int buying)
 {
+    trade_route *route = route_at(route_id);
+    if (!route || !resource_is_valid(resource)) {
+        return;
+    }
     if (buying) {
-        route_at(route_id)->buys.limit[resource] = amount;
+        route->buys.limit[resource] = amount;
     } else {
-        route_at(route_id)->sells.limit[resource] = amount;
+        route->sells.limit[resource] = amount;
     }
 }
 
 static route_resource *get_route_resource(int route_id, int buying)
 {
+    trade_route *route = route_at(route_id);
+    if (!route) {
+        return nullptr;
+    }
     if (buying) {
-        return &route_at(route_id)->buys;
+        return &route->buys;
     } else {
-        return &route_at(route_id)->sells;
+        return &route->sells;
     }
 }
 
 int trade_route_legacy_increase_limit(int route_id, resource_type resource, int buying)
 {
     route_resource *route = get_route_resource(route_id, buying);
+    if (!route || !resource_is_valid(resource)) {
+        return 0;
+    }
     switch (route->limit[resource]) {
         case 0: route->limit[resource] = 15; break;
         case 15: route->limit[resource] = 25; break;
@@ -104,6 +132,9 @@ int trade_route_legacy_increase_limit(int route_id, resource_type resource, int 
 int trade_route_legacy_decrease_limit(int route_id, resource_type resource, int buying)
 {
     route_resource *route = get_route_resource(route_id, buying);
+    if (!route || !resource_is_valid(resource)) {
+        return 0;
+    }
     switch (route->limit[resource]) {
         case 40: route->limit[resource] = 25; break;
         case 25: route->limit[resource] = 15; break;
@@ -114,16 +145,23 @@ int trade_route_legacy_decrease_limit(int route_id, resource_type resource, int 
 
 void trade_route_increase_traded(int route_id, resource_type resource, int buying)
 {
+    trade_route *route = route_at(route_id);
+    if (!route || !resource_is_valid(resource)) {
+        return;
+    }
     if (buying) {
-        route_at(route_id)->buys.traded[resource]++;
+        route->buys.traded[resource]++;
     } else {
-        route_at(route_id)->sells.traded[resource]++;
+        route->sells.traded[resource]++;
     }
 }
 
 void trade_route_reset_traded(int route_id)
 {
     trade_route *route = route_at(route_id);
+    if (!route) {
+        return;
+    }
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         route->buys.traded[r] = route->sells.traded[r] = 0;
     }
@@ -132,6 +170,9 @@ void trade_route_reset_traded(int route_id)
 int trade_route_limit_reached(int route_id, resource_type resource, int buying)
 {
     route_resource *route = get_route_resource(route_id, buying);
+    if (!route || !resource_is_valid(resource)) {
+        return 1;
+    }
     return route->traded[resource] >= route->limit[resource];
 }
 
@@ -160,6 +201,9 @@ void trade_routes_load_state(buffer *trade_routes)
     routes.resize(routes_to_load);
     for (int i = 0; i < routes_to_load; i++) {
         trade_route *route = route_at(i);
+        if (!route) {
+            continue;
+        }
         for (int i = 0; i < 2; i++) {
             for (int r = 0; r < resource_total_mapped(); r++) {
                 resource_type remapped = resource_remap(r);
@@ -182,6 +226,9 @@ void trade_routes_migrate_to_buys_sells(buffer *limit, buffer *traded, int versi
     routes.resize(routes_to_load);
     for (int i = 0; i < routes_to_load; i++) {
         trade_route *route = route_at(i);
+        if (!route) {
+            continue;
+        }
         int city_id = empire_city_get_for_trade_route(i);
         if (city_id < 0) {
             continue;

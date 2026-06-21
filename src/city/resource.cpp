@@ -375,12 +375,15 @@ void city_resource_calculate_warehouse_stocks(void)
         }
         if (warehouse->has_road_access) {
             b->has_road_access = warehouse->has_road_access;
-            if (b->subtype.warehouse_resource_id) {
-                int resource = b->subtype.warehouse_resource_id;
+            const int resource = b->subtype.warehouse_resource_id;
+            if (resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT && b->resources[resource] > 0) {
                 int loads = b->resources[resource];
                 city_data.resource.stored_in_warehouses[resource] += loads;
                 city_data.resource.space_in_warehouses[resource] += 4 - loads;
             } else {
+                if (resource != RESOURCE_NONE) {
+                    b->subtype.warehouse_resource_id = RESOURCE_NONE;
+                }
                 city_data.resource.space_in_warehouses[RESOURCE_NONE] += 4;
             }
         }

@@ -94,6 +94,9 @@ int building_dock_accepts_ship(Figure &ship, const Building &dock)
         return 0;
     }
     empire_city *city = empire_city_get(ship.empire_city_id);
+    if (!city) {
+        return 0;
+    }
     if (!building_dock_can_trade_with_route(city->route_id, dock)) {
         return 0;
     }
@@ -119,8 +122,12 @@ int building_dock_can_import_from_ship(const Building &dock, int ship_id)
         return 0;
     }
 
+    empire_city *city = empire_city_get(ship->empire_city_id);
+    if (!city) {
+        return 0;
+    }
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (dock.accepts_good(r)) {
+        if (dock.accepts_good(r) && city->sells_resource[r]) {
             return 1;
         }
     }
@@ -144,7 +151,7 @@ int building_dock_can_export_to_ship(const Building &dock, int ship_id)
         return 0;
     }
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (dock.accepts_good(r) && empire_can_export_resource_to_city(ship->empire_city_id, r)) {
+        if (dock.accepts_good(r) && city->buys_resource[r]) {
             return 1;
         }
     }
@@ -200,6 +207,10 @@ static void get_already_handled_goods(handled_goods *handled, int ship_id)
 
 static int all_dock_goods_already_handled(const handled_goods *handled, const Building &dock, const Figure *ship)
 {
+    empire_city *city = empire_city_get(ship->empire_city_id);
+    if (!city) {
+        return 1;
+    }
     for (int i = 0; i < handled->max_networks; i++) {
         const handled_goods_by_road_network *network = &handled->networks[i];
         if (network->road_network_id != dock.road_network_id()) {
@@ -207,8 +218,7 @@ static int all_dock_goods_already_handled(const handled_goods *handled, const Bu
         }
         // we've visited docks on this road network
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-            if (!empire_can_import_resource_from_city(ship->empire_city_id, r) &&
-                !empire_can_export_resource_to_city(ship->empire_city_id, r)) {
+            if (!city->sells_resource[r] && !city->buys_resource[r]) {
                 // the ship doesn't buy or sell this good
                 continue;
             }
@@ -424,6 +434,9 @@ Building building_dock_get_closer_free_destination(Figure &ship, ship_dock_reque
 
 int building_dock_can_trade_with_route(int route_id, const Building &dock)
 {
+    if (route_id < 0 || route_id >= 31) {
+        return 0;
+    }
     if (!dock.dock_has_accepted_route_ids()) {
         return 1;
     }
@@ -432,6 +445,9 @@ int building_dock_can_trade_with_route(int route_id, const Building &dock)
 
 void building_dock_set_can_trade_with_route(int route_id, Building &dock, int can_trade)
 {
+    if (route_id < 0 || route_id >= 31) {
+        return;
+    }
     int has_route_ids = dock.dock_has_accepted_route_ids();
     int accepted_route_ids = has_route_ids ? dock.dock_accepted_route_ids() : 0xffffffff;
     has_route_ids = 1;
