@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="30" text_key="main_strings.28.58" />
+  <button group="security" order="60" text_key="main_strings.28.58" />
     <event_data attr="gatehouse" />
     <roadblock kind="standard" />
     <flags fire_proof="1" draw_desirability_range="1" />

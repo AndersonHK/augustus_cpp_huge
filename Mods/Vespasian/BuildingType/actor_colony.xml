@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="20" icon="Health_Culture\Actor_Colony" icon_image="Image_0000" text_key="main_strings.28.36" />
+  <button group="entertainment" order="70" icon="Health_Culture\Actor_Colony" icon_image="Image_0000" text_key="main_strings.28.36" />
     <sound id="actor_colony" mute_on_enemies="true" />
     <event_data attr="actor_colony" />
     <graphics>

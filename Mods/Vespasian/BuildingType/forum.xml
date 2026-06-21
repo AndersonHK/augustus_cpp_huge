@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="administration" order="20" icon="Admin_Logistics\Forum" text_key="main_strings.28.86" />
+  <button group="administration" order="700" icon="Admin_Logistics\Forum" text_key="main_strings.28.86" />
     <sound id="forum" />
     <event_data attr="forum" />
     <graphics>

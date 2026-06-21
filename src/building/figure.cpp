@@ -30,7 +30,6 @@
 
 #include "scenario/scenario.h"
 
-#include "assets/assets.h"
 #include "building/granary.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -951,6 +950,8 @@ static void spawn_figure_wharf(building *b)
         Figure *f = Figure::get(b->data.industry.fishing_boat_id);
         if (f->state != FIGURE_STATE_ALIVE || f->type != FIGURE_FISHING_BOAT) {
             b->data.industry.fishing_boat_id = 0;
+            b->figure_spawn_delay = 0;
+            b->data.industry.has_fish = 0;
         }
     }
     map_point road;
@@ -1062,18 +1063,7 @@ static void spawn_figure_native_hut(building *b)
     if (building_matches(b, "native_hut")) {
         map_image_set(b->grid_offset, image_group(GROUP_BUILDING_NATIVE) + (map_random_get(b->grid_offset) & 1));
     } else {
-        int image_group_id;
-        switch (scenario_property_climate()) {
-            case CLIMATE_NORTHERN:
-                image_group_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01");
-                break;
-            case CLIMATE_DESERT:
-                image_group_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Southern_01", "Native_Hut_Southern_01");
-                break;
-            default:
-                image_group_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01");
-        }
-        map_image_set(b->grid_offset, image_group_id + (map_random_get(b->grid_offset) & 1));
+        map_image_set(b->grid_offset, building_image_get(b));
     }
 
     if (has_figure_of_type(b, FIGURE_INDIGENOUS_NATIVE)) {

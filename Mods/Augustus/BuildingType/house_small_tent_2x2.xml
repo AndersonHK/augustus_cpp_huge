@@ -16,6 +16,16 @@
             <path value="Aesthetics\House_Tent" />
             <image value="Image_0004" />
         </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Aesthetics\House_Tent_Northern" />
+            <image value="Image_0004" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Aesthetics\House_Tent_Desert" />
+            <image value="Image_0004" />
+        </variant>
     </graphics>
     <housing path="house_small_tent" capacity="20" evolve_to="house_large_tent_2x2" split_to="house_small_tent" />
     <spawn_group road_access="normal" delay_bands="100:0">

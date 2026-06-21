@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="50" text_key="TR_BUILDING_SMALL_STATUE_ALT" />
+  <button group="statues" order="20" text_key="TR_BUILDING_SMALL_STATUE_ALT" />
     <event_data attr="goddess_statue|small_statue_alt" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

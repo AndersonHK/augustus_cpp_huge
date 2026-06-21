@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="70" text_key="TR_BUILDING_OBELISK" />
+  <button group="statues" order="80" text_key="TR_BUILDING_OBELISK" />
     <event_data attr="obelisk" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="gov_res" order="0" icon="Admin_Logistics\Governors_House" text_key="main_strings.28.77" />
+    <button group="administration" order="30" icon="Admin_Logistics\Governors_House" text_key="main_strings.28.77" />
     <sound id="palace" mute_on_enemies="true" />
     <event_data attr="governors_house" />
     <graphics>

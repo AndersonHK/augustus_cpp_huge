@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="10" icon="Admin_Logistics\Prefecture" text_key="main_strings.28.55" />
+  <button group="security" order="40" icon="Admin_Logistics\Prefecture" text_key="main_strings.28.55" />
     <sound id="prefecture" />
     <event_data attr="prefecture" />
     <flags draw_desirability_range="1" />

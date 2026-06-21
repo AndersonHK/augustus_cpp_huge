@@ -9,7 +9,7 @@
         <range value="6" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="70" icon="Health_Culture\Tavern_OFF" text_key="TR_BUILDING_TAVERN" />
+  <button group="entertainment" order="40" icon="Health_Culture\Tavern_OFF" text_key="TR_BUILDING_TAVERN" />
     <sound id="tavern" />
     <event_data attr="tavern" />
     <distribution path="tavern" />

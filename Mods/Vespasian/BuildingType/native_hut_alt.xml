@@ -17,6 +17,16 @@
             <path value="Terrain_Maps\Native_Hut_Central_01" />
             <image value="Native_Hut_Central_01" />
         </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Terrain_Maps\Native_Hut_Northern_01" />
+            <image value="Native_Hut_Northern_01" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Terrain_Maps\Native_Hut_Southern_01" />
+            <image value="Native_Hut_Southern_01" />
+        </variant>
     </graphics>
     <labor>
         <employees count="0" />

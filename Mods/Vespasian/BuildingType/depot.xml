@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="industry" order="40" icon="Admin_Logistics\Cart_Depot_C_OFF" icon_image="Cart Depot N OFF" text_key="TR_BUILDING_DEPOT" />
+  <button group="industry" order="600" icon="Admin_Logistics\Cart_Depot_C_OFF" icon_image="Cart Depot N OFF" text_key="TR_BUILDING_DEPOT" />
     <sound id="city_depot" />
     <event_data attr="cart_depot" />
     <graphics>

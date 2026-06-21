@@ -1,6 +1,5 @@
 #include "file_editor.h"
 
-#include "assets/assets.h"
 #include "building/building.h"
 #include "building/building_type_startup_bridge.h"
 #include "building/construction.h"
@@ -182,17 +181,7 @@ int game_file_editor_load_scenario(const char *scenario_file)
 
 int game_file_editor_write_scenario(const char *scenario_file)
 {
-    int image_alt_hut;
-    switch (scenario_property_climate()) {
-        case CLIMATE_NORTHERN:
-            image_alt_hut = assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01");
-            break;
-        case CLIMATE_DESERT:
-            image_alt_hut = assets_get_image_id("Terrain_Maps\\Native_Hut_Southern_01", "Native_Hut_Southern_01");
-            break;
-        default:
-            image_alt_hut = assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01");
-    }
+    int image_alt_hut = building_image_for_text_id("native_hut_alt");
     int image_native_decoration = building_image_for_text_id("native_decoration");
     int image_native_monument = building_image_for_text_id("native_monument");
     int image_native_watchtower = building_image_for_text_id("native_watchtower");

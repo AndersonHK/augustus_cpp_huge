@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="gov_res" order="300" icon="Monuments\City_Mint_ON" text_key="TR_BUILDING_CITY_MINT" />
+  <button group="administration" order="900" icon="Monuments\City_Mint_ON" text_key="TR_BUILDING_CITY_MINT" />
     <sound id="city_mint" />
     <event_data attr="city_mint" />
     <flags fire_proof="1" />

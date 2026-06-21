@@ -9,7 +9,7 @@
         <range value="5" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="30" icon="Aesthetics\Statue" text_key="main_strings.28.43" />
+    <button group="administration" order="80" icon="Aesthetics\Statue" text_key="main_strings.28.43" />
     <sound id="aqueduct" />
     <event_data attr="large_statue" />
     <flags fire_proof="1" venus_gt_bonus="1" />

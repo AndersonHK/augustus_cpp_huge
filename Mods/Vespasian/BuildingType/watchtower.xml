@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="20" icon="Military\Watchtower_ON_01" text_key="TR_BUILDING_WATCHTOWER" />
+  <button group="security" order="30" icon="Military\Watchtower_ON_01" text_key="TR_BUILDING_WATCHTOWER" />
     <sound id="watchtower" />
     <event_data attr="watchtower" />
     <flags fire_proof="1" draw_desirability_range="1" />

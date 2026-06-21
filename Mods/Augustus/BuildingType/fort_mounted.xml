@@ -9,9 +9,19 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="120" text_key="TR_BUILDING_FORT_MOUNTED" />
+    <button group="forts" order="120" text_key="TR_BUILDING_FORT_MOUNTED" />
     <event_data attr="fort_mounted" />
     <flags fire_proof="1" draw_desirability_range="1" />
+    <graphics>
+        <default>
+            <options selection="orientation">
+                <option path="Military\Fort_Main_Central" image="Fort_Main_Central" />
+                <option path="Military\Fort_Main_Central" image="Fort_Main_North" />
+                <option path="Military\Fort_Main_Central" image="Fort_Main_Central" />
+                <option path="Military\Fort_Main_Central" image="Fort_Main_North" />
+            </options>
+        </default>
+    </graphics>
     <labor>
         <employees count="0" />
     </labor>

@@ -16,6 +16,16 @@
             <path value="Aesthetics\House_Palace_2" />
             <image value="Image_0000" />
         </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Aesthetics\House_Palace_2_Northern" />
+            <image value="Image_0000" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Aesthetics\House_Palace_2_Desert" />
+            <image value="Image_0000" />
+        </variant>
     </graphics>
     <housing path="house_large_palace" capacity="190" evolve_to="house_luxury_palace" devolve_to="house_medium_palace" />
     <spawn_group road_access="normal" delay_bands="100:0">

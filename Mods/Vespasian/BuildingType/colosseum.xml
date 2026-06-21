@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="0" icon="Health_Culture\Colosseum" text_key="main_strings.28.33" />
+  <button group="entertainment" order="50" icon="Health_Culture\Colosseum" text_key="main_strings.28.33" />
     <flags fire_proof="1" />
     <sound id="colosseum" mute_on_enemies="true" />
     <event_data attr="colosseum" />

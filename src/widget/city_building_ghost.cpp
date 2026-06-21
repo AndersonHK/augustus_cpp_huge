@@ -47,8 +47,6 @@
 #include "city/finance.h"
 #include "city/view.h"
 #include "core/config.h"
-#include "core/config.h"
-#include "core/log.h"
 #include "figure/figure.h"
 #include "figure/formation.h"
 #include "graphics/renderer.h"
@@ -64,7 +62,6 @@
 
 #include <cstdio>
 #include <cstring>
-#include <stdlib.h>
 
 // Note: If we ever end up creating larger buildings than 7 * 7, we should update this
 #define MAX_TILES (7 * 7)

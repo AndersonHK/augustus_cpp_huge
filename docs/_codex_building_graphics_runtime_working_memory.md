@@ -3,6 +3,13 @@
 Snapshot: 2026-06-05
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 
+## 2026-06-21 climate graphics checkpoint
+- House and reservoir BuildingType XML in Julius, Augustus, and Vespasian now uses normal graphics variants with `condition type="climate"` for northern and desert payloads. The default branch remains the central/temperate path.
+- Julius extraction now emits `_Northern` and `_Desert` assetlists for the climate-sensitive house groups, `House_Tent_Variants`, and `Reservoir`. `House_Tent_Northern` and `House_Tent_Desert` preserve the visible tent option ids by aliasing into the matching climate-suffixed tent variant group.
+- The standalone harness and runtime startup extraction both run central, northern, and desert main graphics before the normal central asset load. Central extraction owns the full clean and default stamp/manifest; northern and desert use separate climate manifests/stamps.
+- Clean extractor output for this checkpoint: Julius `257` XML / `9129` PNG, Augustus `3200` XML / `4088` PNG, no Vespasian graphics directory. The stricter source BuildingType ref check, including stable-option image ids across Julius/Augustus/Vespasian, reported `graphics_refs=890 button_icon_refs=209 checked_refs=1099 missing=0`.
+- Validation for this work should run `AugustusGraphicsExtractor.exe --extract-julius-first` and check for `Aesthetics\House_Tent_Northern.xml`, `Aesthetics\House_Tent_Variants_Northern.xml`, `Aesthetics\House_Tent_Desert.xml`, `Admin_Logistics\Reservoir_Northern.xml`, and `Admin_Logistics\Reservoir_Desert.xml` under `x64\Release\Mods\Julius\Graphics`.
+
 ## 2026-06-05 extraction checkpoint
 - Current durable extractor handoff: `docs/graphics_extraction_pipeline.md`.
 - The standalone clean-run harness is `AugustusGraphicsExtractor.exe`, built by `AugustusGraphicsExtractor.vcxproj` from `tools/augustus_graphics_extractor/main.cpp`.

@@ -10,7 +10,7 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="grand_temples" order="50" icon="Monuments\Venus_Complex_Off" icon_image="Venus Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_VENUS" />
+  <button group="grand_temples" order="60" icon="Monuments\Venus_Complex_Off" icon_image="Venus Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_VENUS" />
     <sound id="temple_venus" />
     <event_data attr="grand_temple_venus" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />

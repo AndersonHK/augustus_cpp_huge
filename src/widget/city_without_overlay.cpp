@@ -840,34 +840,33 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
         city_draw_bridge(x, y, draw_context.scale, grid_offset);
     } else if (building_is_fort(building.type ? building.type->type() : BUILDING_NONE)) {
         if (map_property_is_draw_tile(grid_offset)) {
-            image_id = assets_get_image_id("Military\\Fort_Jav_Flag_Central", "Fort_Jav_Flag_Central");
+            const char *flag_path = "Military\\Fort_Jav_Flag_Central";
+            const char *flag_image = "Fort_Jav_Flag_Central";
             switch (building.fort_figure_type()) {
-                case FIGURE_FORT_LEGIONARY: image_id += 2; break;
-                case FIGURE_FORT_MOUNTED: image_id += 1; break;
-                case FIGURE_FORT_JAVELIN: break;
-            }
-            switch (scenario_property_climate()) {
-                case CLIMATE_DESERT: image_id += 3; break;
-                case CLIMATE_NORTHERN: image_id += 6; break;
-                default: break;
+                case FIGURE_FORT_LEGIONARY:
+                    flag_path = "Military\\Fort_Leg_Flag_Central";
+                    flag_image = "Fort_Leg_Flag_Central";
+                    break;
+                case FIGURE_FORT_MOUNTED:
+                    flag_path = "Military\\Fort_Cav_Flag_Central";
+                    flag_image = "Fort_Cav_Flag_Central";
+                    break;
+                case FIGURE_FORT_JAVELIN:
+                    break;
             }
             if (building.fort_figure_type() == FIGURE_FORT_INFANTRY) {
-                image_id = assets_get_image_id("Military\\fort_aux_inf_flag_central", "fort_aux_inf_flag_central");
-                switch (scenario_property_climate()) {
-                    case CLIMATE_DESERT: image_id += 2; break;
-                    case CLIMATE_NORTHERN: image_id += 1; break;
-                    default: break;
-                }
+                flag_path = "Military\\fort_aux_inf_flag_central";
+                flag_image = "fort_aux_inf_flag_central";
             }
             if (building.fort_figure_type() == FIGURE_FORT_ARCHER) {
-                image_id = assets_get_image_id("Military\\fort_aux_arch_flag_central", "fort_aux_arch_flag_central");
-                switch (scenario_property_climate()) {
-                    case CLIMATE_DESERT: image_id += 2; break;
-                    case CLIMATE_NORTHERN: image_id += 1; break;
-                    default: break;
-                }
+                flag_path = "Military\\fort_aux_arch_flag_central";
+                flag_image = "fort_aux_arch_flag_central";
             }
-            Image::from_id(image_id).draw(x + 81, y + 5, draw_building_as_deleted(building) ? building_construction_clear_color() : COLOR_MASK_NONE, draw_context.scale);
+            ImageGroupEntryRef::from_group(flag_path, flag_image).draw(
+                x + 81,
+                y + 5,
+                draw_building_as_deleted(building) ? building_construction_clear_color() : COLOR_MASK_NONE,
+                draw_context.scale);
         }
     } else if (building_matches(building, "gatehouse")) {
         int xy = map_property_multi_tile_xy(grid_offset);

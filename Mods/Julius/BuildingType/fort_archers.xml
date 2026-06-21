@@ -9,7 +9,6 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="130" text_key="TR_BUILDING_FORT_ARCHERS" />
     <event_data attr="fort_archers" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <labor>

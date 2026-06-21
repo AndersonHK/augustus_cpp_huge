@@ -9,7 +9,7 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="120" text_key="TR_BUILDING_FORT_MOUNTED" />
+    <button group="forts" order="120" text_key="TR_BUILDING_FORT_MOUNTED" />
     <event_data attr="fort_mounted" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <labor>

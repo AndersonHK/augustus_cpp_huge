@@ -10,7 +10,7 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="grand_temples" order="10" icon="Monuments\Ceres_worshippers" icon_image="Ceres Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_CERES" />
+  <button group="grand_temples" order="20" icon="Monuments\Ceres_worshippers" icon_image="Ceres Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_CERES" />
     <sound id="temple_ceres" />
     <event_data attr="grand_temple_ceres" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />

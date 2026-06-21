@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="100" text_key="TR_BUILDING_DECORATIVE_COLUMN" />
+  <button group="statues" order="50" text_key="TR_BUILDING_DECORATIVE_COLUMN" />
     <event_data attr="decorative_column" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

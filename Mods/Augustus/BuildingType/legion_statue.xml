@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="90" text_key="TR_BUILDING_LEGION_STATUE" />
+  <button group="statues" order="70" text_key="TR_BUILDING_LEGION_STATUE" />
     <event_data attr="legion_statue" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

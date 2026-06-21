@@ -9,7 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="70" text_key="TR_BUILDING_MESS_HALL" />
+  <button group="security" order="100" text_key="TR_BUILDING_MESS_HALL" />
     <event_data attr="mess_hall" />
     <distribution path="mess_hall" />
     <flags draw_desirability_range="1" />

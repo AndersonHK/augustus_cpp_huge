@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="100" icon="Health_Culture\Hippodrome_1" text_key="main_strings.28.32" />
+  <button group="entertainment" order="60" icon="Health_Culture\Hippodrome_1" text_key="main_strings.28.32" />
     <flags fire_proof="1" />
     <sound id="hippodrome" mute_on_enemies="true" />
     <event_data attr="hippodrome" />

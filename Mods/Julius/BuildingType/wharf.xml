@@ -11,7 +11,7 @@
     <foundation policy="custom">
         <terrain value="water" />
     </foundation>
-    <button group="engineering" order="40" icon="Industry\Wharf" text_key="main_strings.28.76" />
+    <button group="engineering" order="80" icon="Industry\Wharf" text_key="main_strings.28.76" />
     <sound id="wharf" />
     <event_data attr="wharf" />
     <graphics>

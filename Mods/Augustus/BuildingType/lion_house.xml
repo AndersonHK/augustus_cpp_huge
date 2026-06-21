@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="50" icon="Health_Culture\Lion_House" text_key="main_strings.28.35" />
+  <button group="entertainment" order="90" icon="Health_Culture\Lion_House" text_key="main_strings.28.35" />
     <sound id="lion_pit" />
     <event_data attr="lion_house" />
     <graphics>

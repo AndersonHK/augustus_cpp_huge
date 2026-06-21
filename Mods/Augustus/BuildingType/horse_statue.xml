@@ -9,7 +9,7 @@
         <range value="5" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="80" text_key="TR_BUILDING_HORSE_STATUE" />
+  <button group="statues" order="100" text_key="TR_BUILDING_HORSE_STATUE" />
     <event_data attr="horse_statue" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

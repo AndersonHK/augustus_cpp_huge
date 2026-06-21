@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="shoreline" />
-    <button group="engineering" order="30" text_key="main_strings.28.74" />
+    <button group="engineering" order="60" text_key="main_strings.28.74" />
     <event_data attr="shipyard" />
     <graphics>
         <default>

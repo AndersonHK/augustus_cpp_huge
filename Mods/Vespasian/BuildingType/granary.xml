@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="industry" order="20" text_key="main_strings.28.71" />
+  <button group="industry" order="400" text_key="main_strings.28.71" />
     <event_data attr="granary" />
     <roadblock kind="storage" />
     <labor>

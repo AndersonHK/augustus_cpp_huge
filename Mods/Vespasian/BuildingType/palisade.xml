@@ -9,7 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="150" text_key="TR_BUILDING_PALISADE" />
+  <button group="security" order="10" text_key="TR_BUILDING_PALISADE" />
     <event_data attr="palisade" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <graphics>

@@ -9,9 +9,14 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="administration" order="90" text_key="main_strings.28.80" />
+    <button group="education" order="40" text_key="main_strings.28.80" />
     <event_data attr="mission_post" />
     <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <path value="Admin_Logistics\Mission_Post" />
+        </default>
+    </graphics>
     <labor>
         <employees count="20" />
     </labor>

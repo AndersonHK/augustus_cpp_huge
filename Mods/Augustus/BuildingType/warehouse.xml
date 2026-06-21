@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="industry" order="30" text_key="main_strings.28.72" />
+  <button group="industry" order="500" text_key="main_strings.28.72" />
     <event_data attr="warehouse" />
     <roadblock kind="storage" />
     <flags fire_proof="1" />

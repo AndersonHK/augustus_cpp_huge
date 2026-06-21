@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="110" text_key="TR_BUILDING_GLADIATOR_STATUE" />
+  <button group="statues" order="40" text_key="TR_BUILDING_GLADIATOR_STATUE" />
     <event_data attr="gladiator_statue" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

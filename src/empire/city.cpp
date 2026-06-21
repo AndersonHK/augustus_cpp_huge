@@ -17,6 +17,7 @@
 #include "empire/object.h"
 #include "empire/trade_route.h"
 #include "empire/type.h"
+#include "figure/figure.h"
 #include "figuretype/trader.h"
 #include "game/campaign.h"
 #include "game/resource.h"
@@ -430,12 +431,20 @@ void empire_city_expand_empire(void)
 
 static int generate_trader(int city_id, empire_city *city)
 {
+    const figure_type expected_type = city->is_sea_trade ? FIGURE_TRADE_SHIP : FIGURE_TRADE_CARAVAN;
+    for (int i = 0; i < EMPIRE_CITY_MAX_TRADERS; i++) {
+        Figure *trader = Figure::get(city->trader_figure_ids[i]);
+        if (city->trader_figure_ids[i] &&
+            (trader->is_dead() || trader->type != expected_type || trader->empire_city_id != city_id)) {
+            city->trader_figure_ids[i] = 0;
+        }
+    }
+
     // Check timeout before city can send another trader
     if (city->trader_entry_delay > 0) {
         city->trader_entry_delay--;
         return 0;
     }
-    city->trader_entry_delay = city->is_sea_trade ? SEA_TRADER_DELAY_DAYS : LAND_TRADER_DELAY_DAYS;
 
     // Check that we have space to trade
     int trade_potential = 0;
@@ -467,6 +476,7 @@ static int generate_trader(int city_id, empire_city *city)
             && !city_trade_has_sea_trade_problems()) {
             map_point river_entry = scenario_map_river_entry();
             city->trader_figure_ids[index] = figure_create_trade_ship(river_entry.x, river_entry.y, city_id);
+            city->trader_entry_delay = SEA_TRADER_DELAY_DAYS;
             return 1;
         }
     } else {
@@ -475,6 +485,7 @@ static int generate_trader(int city_id, empire_city *city)
             // caravan head
             const map_tile *entry = city_map_entry_point();
             city->trader_figure_ids[index] = figure_create_trade_caravan(entry->x, entry->y, city_id);
+            city->trader_entry_delay = LAND_TRADER_DELAY_DAYS;
             return 1;
         }
     }

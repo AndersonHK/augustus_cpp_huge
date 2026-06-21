@@ -2,7 +2,6 @@
 #include "building/building_record.h"
 #include "natives.h"
 
-#include "assets/assets.h"
 #include "building/building.h"
 #include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
@@ -143,14 +142,7 @@ static void determine_meeting_center(void)
 }
 
 static int native_hut_alt_get_image_id(void) {
-    switch (scenario_property_climate()) {
-        case CLIMATE_NORTHERN:
-            return assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01");
-        case CLIMATE_DESERT:
-            return assets_get_image_id("Terrain_Maps\\Native_Hut_Southern_01", "Native_Hut_Southern_01");
-        default:
-            return assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01");
-    }
+    return building_image_get_for_type(xml_type("native_hut_alt"));
 }
 
 void map_natives_init(void)
@@ -192,7 +184,7 @@ void map_natives_init(void)
             } else if (scenario_image_alt_hut != 0 && image_id == scenario_image_alt_hut + 1) {
                 type = xml_type("native_hut_alt");
                 if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_hut_alt_image + 1);
+                    map_image_set(grid_offset, native_hut_alt_image);
                 }
             } else if (scenario_image_decoration != 0 && image_id == scenario_image_decoration) {
                 type = xml_type("native_decor");
@@ -301,7 +293,7 @@ void map_natives_init_editor(void)
             } else if (scenario_image_alt_hut != 0 && image_id == scenario_image_alt_hut + 1) {
                 type = xml_type("native_hut_alt");
                 if (type != BUILDING_NONE) {
-                    map_image_set(grid_offset, native_hut_alt_image + 1);
+                    map_image_set(grid_offset, native_hut_alt_image);
                 }
             } else if (scenario_image_decoration != 0 && image_id == scenario_image_decoration) {
                 type = xml_type("native_decor");

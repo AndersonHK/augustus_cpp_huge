@@ -3,7 +3,7 @@
   <model xml_attr="fish" flags="food,inventory" />
   <trade buy="44" sell="36" />
   <graphics>
-    <cart load="single" path="Walkers\Group_097" image="Image_0696" />
+    <cart load="single" path="Walkers\Group_237" image="Image_0032" />
     <cart load="multiple" path="Walkers\Group_237" image="Image_0032" />
     <cart load="eight" path="Walkers\Group_237" image="Image_0072" />
     <storage load="1" path="Industry\Warehouse_Storage_Filled" image="Image_0060" />

@@ -9,7 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="20" text_key="main_strings.28.6" />
+  <button group="security" order="10" text_key="main_strings.28.6" />
     <event_data attr="wall" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <labor>

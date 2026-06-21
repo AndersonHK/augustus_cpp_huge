@@ -649,16 +649,18 @@ void window_building_draw_wharf(building_info_context *c)
 
     building *b = building_get(c->building.id());
 
+    Figure *boat = b->data.industry.fishing_boat_id ? Figure::get(b->data.industry.fishing_boat_id) : nullptr;
+    bool has_live_boat = boat && boat->state == FIGURE_STATE_ALIVE && boat->type == FIGURE_FISHING_BOAT;
+
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else if (city_resource_is_mothballed(resource_fish())) {
         window_building_draw_description(c, "TR_WINDOW_BUILDING_WHARF_MOTHBALLED");
-    } else if (!b->data.industry.fishing_boat_id) {
+    } else if (!has_live_boat) {
         window_building_draw_description(c, 102, 2);
     } else {
         int text_id;
-        Figure *boat = Figure::get(b->data.industry.fishing_boat_id);
-        switch (boat ? boat->action_state : 0) {
+        switch (boat->action_state) {
             case FIGURE_ACTION_191_FISHING_BOAT_GOING_TO_FISH: text_id = 3; break;
             case FIGURE_ACTION_192_FISHING_BOAT_FISHING: text_id = 4; break;
             case FIGURE_ACTION_193_FISHING_BOAT_GOING_TO_WHARF: text_id = 5; break;
@@ -671,7 +673,8 @@ void window_building_draw_wharf(building_info_context *c)
 
     int width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_WHARF_AVERAGE_CATCH",
         c->x_offset + 32, c->y_offset + 110, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    width += text_draw_number(b->data.industry.average_production_per_month, '@', "",
+    const int average_catch = has_live_boat ? b->data.industry.average_production_per_month : 0;
+    width += text_draw_number(average_catch, '@', "",
         c->x_offset + 32 + width, c->y_offset + 110, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     resource_graphics(resource_fish()).panel_icon().draw(c->x_offset + 32 + width, c->y_offset + 110);
 

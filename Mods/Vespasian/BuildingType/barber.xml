@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="health" order="40" icon="Health_Culture\Barber" icon_image="Image_0000" text_key="main_strings.28.49" />
+  <button group="health" order="10" icon="Health_Culture\Barber" icon_image="Image_0000" text_key="main_strings.28.49" />
     <sound id="barber" />
     <event_data attr="barber" />
     <graphics>

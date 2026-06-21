@@ -443,6 +443,15 @@ void building_industry_update_production(int new_day)
             }
 
             b->data.industry.has_raw_materials = 0;
+            if (is_wharf_type(b->type)) {
+                b->data.industry.progress = 0;
+                if (!b->data.industry.fishing_boat_id) {
+                    b->figure_spawn_delay = 0;
+                    b->data.industry.has_fish = 0;
+                }
+                continue;
+            }
+
             if (b->houses_covered <= 0 || b->num_workers <= 0 || b->strike_duration_days > 0) {
                 continue;
             }

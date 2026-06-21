@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="20" text_key="main_strings.28.39" />
+    <button group="engineering" order="10" text_key="main_strings.28.39" />
     <event_data attr="gardens" />
     <tile kind="garden" />
     <graphics>

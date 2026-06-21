@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="paths" order="70" text_key="TR_BUILDING_PALM_PATH" />
+  <button group="paths" order="80" text_key="TR_BUILDING_PALM_PATH" />
     <event_data attr="palm_path" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

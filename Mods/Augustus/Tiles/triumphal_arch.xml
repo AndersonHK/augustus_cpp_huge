@@ -9,7 +9,7 @@
         <range value="5" />
     </desirability>
     <foundation policy="land" />
-    <button group="statues" order="40" text_key="main_strings.28.56" />
+  <button group="administration" order="1000" text_key="main_strings.28.56" />
     <event_data attr="triumphal_arch" />
     <roadblock kind="standard" />
     <flags fire_proof="1" />

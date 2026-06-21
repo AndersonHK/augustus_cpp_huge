@@ -9,7 +9,7 @@
         <range value="6" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="210" text_key="TR_BUILDING_LARGE_MAUSOLEUM" />
+  <button group="temples" order="610" text_key="TR_BUILDING_LARGE_MAUSOLEUM" />
     <sound id="oracle" />
     <event_data attr="large_mausoleum" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />

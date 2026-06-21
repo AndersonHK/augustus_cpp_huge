@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="parks" order="290" text_key="TR_BUILDING_OVERGROWN_GARDENS" />
+    <button group="gardens" order="290" text_key="TR_BUILDING_OVERGROWN_GARDENS" />
     <event_data attr="overgrown_gardens" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

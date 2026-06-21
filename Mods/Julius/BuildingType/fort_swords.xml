@@ -9,7 +9,6 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="140" text_key="TR_BUILDING_FORT_AUXILIA_INFANTRY" />
     <event_data attr="fort_swords" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <labor>

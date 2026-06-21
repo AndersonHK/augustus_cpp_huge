@@ -782,30 +782,6 @@ static void update_native_images(int old_climate, int new_climate)
     if (old_climate == new_climate) {
         return;
     }
-    int alt_native_hut_old_image_id;
-    switch (old_climate) {
-        case CLIMATE_NORTHERN:
-            alt_native_hut_old_image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01");
-            break;
-        case CLIMATE_DESERT:
-            alt_native_hut_old_image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Southern_01", "Native_Hut_Southern_01");
-            break;
-        default:
-            alt_native_hut_old_image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01");
-    }
-
-    int alt_native_hut_new_image_id;
-    switch (new_climate) {
-        case CLIMATE_NORTHERN:
-            alt_native_hut_new_image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01");
-            break;
-        case CLIMATE_DESERT:
-            alt_native_hut_new_image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Southern_01", "Native_Hut_Southern_01");
-            break;
-        default:
-            alt_native_hut_new_image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01");
-    }
-
     static const char *native_buildings[] = {"native_decor", "native_monument", "native_watchtower", nullptr};
     for (int id = 1; id < building_count(); id++) {
         building *b = building_get(id);
@@ -813,7 +789,7 @@ static void update_native_images(int old_climate, int new_climate)
             continue;
         }
         if (building_type_attr_is(b->type, "native_hut_alt")) {
-            map_image_set(b->grid_offset, alt_native_hut_new_image_id + map_image_at(b->grid_offset) - alt_native_hut_old_image_id);
+            map_image_set(b->grid_offset, building_image_get(b));
             continue;
         }
         for (int i = 0; native_buildings[i]; i++) {

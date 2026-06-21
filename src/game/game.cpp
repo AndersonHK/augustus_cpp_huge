@@ -131,11 +131,25 @@ static int is_unpatched(void)
     return difficulty_option == help_menu || delete_game == option_menu;
 }
 
+static int load_initial_climate_graphics(void)
+{
+    if (!Image::load_climate(CLIMATE_CENTRAL, 0, 1, 1, 1)) {
+        return 0;
+    }
+    if (!Image::load_climate(CLIMATE_NORTHERN, 0, 1, 1, 1)) {
+        return 0;
+    }
+    if (!Image::load_climate(CLIMATE_DESERT, 0, 1, 1, 1)) {
+        return 0;
+    }
+    return Image::load_climate(CLIMATE_CENTRAL, 0, 1, 0, 0);
+}
+
 int game_init(void)
 {
     clear_init_failure_message();
 
-    if (!Image::load_climate(CLIMATE_CENTRAL, 0, 1, 0, 1)) {
+    if (!load_initial_climate_graphics()) {
         const char *asset_failure_reason = assets_get_failure_reason();
         if (asset_failure_reason && *asset_failure_reason) {
             set_init_failure_message("Failed to load graphics assets.", asset_failure_reason);
