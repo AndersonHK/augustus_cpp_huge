@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="shipyard">
     <identity name_key="main_strings.28.74" />
-    <model size="2" cost="100" />
+    <model size="2" cost="150" />
     <desirability>
         <value value="-8" />
         <step value="2" />
@@ -22,6 +22,12 @@
         </default>
     </graphics>
     <labor>
-        <employees count="10" />
+        <employees count="15" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
     </labor>
+    <production_methods>
+        <production_method path="fishing_boat_shipyard_timber" />
+    </production_methods>
 </building>

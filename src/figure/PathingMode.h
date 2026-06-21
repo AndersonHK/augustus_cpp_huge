@@ -48,6 +48,7 @@ extern const PathingMode FollowLeader;
 extern const PathingMode StandStill;
 extern const PathingMode TransientWander;
 extern const PathingMode DepotOrderRoute;
+extern const PathingMode WaterRoute;
 
 const PathingMode *pathing_mode_from_xml_id(const char *xml_id);
 

@@ -30,7 +30,7 @@ namespace {
 
 constexpr int kPalisadeHp = 60;
 constexpr int kBuildingHp = 10;
-constexpr int kWallHp = 200;
+constexpr int kWallHp = 600;
 constexpr int kGatehouseHp = 150;
 
 building_type runtime_type(const char *text_id)

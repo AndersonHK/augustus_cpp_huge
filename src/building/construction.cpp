@@ -176,6 +176,50 @@ static int is_bridge_type(building_type type)
     return building_type_attr_is_any(type, {"low_bridge", "ship_bridge"});
 }
 
+static void construction_requirements_snapshot(building_type type, int available[RESOURCE_SLOT_COUNT])
+{
+    for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT;
+         resource = static_cast<resource_type>(resource + 1)) {
+        if (building_type_registry_get_instant_construction_requirement(type, resource) > 0) {
+            available[resource] = city_resource_count_warehouses_amount(resource);
+        }
+    }
+}
+
+static int construction_requirements_available(building_type type, int available[RESOURCE_SLOT_COUNT])
+{
+    for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT;
+         resource = static_cast<resource_type>(resource + 1)) {
+        int amount = building_type_registry_get_instant_construction_requirement(type, resource);
+        if (amount > 0 && available[resource] < amount) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static void construction_requirements_reserve(building_type type, int available[RESOURCE_SLOT_COUNT])
+{
+    for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT;
+         resource = static_cast<resource_type>(resource + 1)) {
+        int amount = building_type_registry_get_instant_construction_requirement(type, resource);
+        if (amount > 0) {
+            available[resource] -= amount;
+        }
+    }
+}
+
+static void construction_requirements_remove(building_type type)
+{
+    for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT;
+         resource = static_cast<resource_type>(resource + 1)) {
+        int amount = building_type_registry_get_instant_construction_requirement(type, resource);
+        if (amount > 0) {
+            building_warehouses_remove_resource(resource, amount);
+        }
+    }
+}
+
 static int is_vacant_lot_type(building_type type)
 {
     building_type vacant_lot = building_type_registry_get_vacant_lot_fill_type();
@@ -565,6 +609,14 @@ static void refresh_native_tile_preview(building_type type)
 
 static int place_wall(int x_start, int y_start, int x_end, int y_end, int measure_only, int construction_mode, building_type wall_type)
 {
+    if (wall_type == BUILDING_NONE || !building_type_attr_is(wall_type, "wall")) {
+        resolve_construction_type_cache();
+        wall_type = wall_type_for_construction;
+    }
+    if (wall_type == BUILDING_NONE || !building_type_attr_is(wall_type, "wall")) {
+        return 0;
+    }
+
     if (construction_mode) {
         game_undo_restore_map(0); // map_tiles_set_wall places wall terrain, even during preview.
         //the restoration is done to go back to the terrain state before measuring.
@@ -574,25 +626,25 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
     map_grid_start_end_to_area(x_start, y_start, x_end, y_end, &x_min, &y_min, &x_max, &y_max);
 
     int items_placed = 0;
+    int available_resources[RESOURCE_SLOT_COUNT] = { 0 };
+    construction_requirements_snapshot(wall_type, available_resources);
     for (int y = y_min; y <= y_max; y++) {
         for (int x = x_min; x <= x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
             if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
+                if (!construction_requirements_available(wall_type, available_resources)) {
+                    continue;
+                }
+                construction_requirements_reserve(wall_type, available_resources);
                 items_placed++;
                 map_tiles_set_wall(x, y);
                 if (!measure_only) {
-                    if (wall_type == BUILDING_NONE || !building_type_attr_is(wall_type, "wall")) {
-                        resolve_construction_type_cache();
-                        wall_type = wall_type_for_construction;
-                    }
-                    if (wall_type == BUILDING_NONE || !building_type_attr_is(wall_type, "wall")) {
-                        return 0;
-                    }
                     building *wall = building_create(wall_type, x, y);
                     map_building_set(grid_offset, wall->id);
                     map_terrain_add(grid_offset, TERRAIN_BUILDING);
                     map_terrain_add(grid_offset, TERRAIN_WALL);
                     map_property_clear_multi_tile_xy(grid_offset);
+                    construction_requirements_remove(wall_type);
                 }
             }
         }

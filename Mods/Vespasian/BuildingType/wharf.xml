@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="wharf">
     <identity name_key="main_strings.28.76" />
-    <model size="2" cost="60" />
+    <model size="2" cost="90" />
     <desirability>
         <value value="-8" />
         <step value="2" />
@@ -25,12 +25,18 @@
         </default>
     </graphics>
     <labor>
-        <employees count="6" />
+        <employees count="10" />
         <labor_seeker>
-            <method value="houses_spawn_if_below" />
+            <method value="workforce" />
         </labor_seeker>
     </labor>
     <production_methods>
         <production_method path="fish_wharf_basic" />
     </production_methods>
+    <spawn_group road_access="normal" delay_bands="100:0,1:0">
+        <spawn mode="fishing_boat" spawn_figure="fishing_boat" spawn_source="self" capacity="1" profile="fish_fetch" />
+    </spawn_group>
+    <spawn_group road_access="normal" delay_bands="100:0,1:0">
+        <spawn mode="fishing_boat" spawn_figure="fishing_boat" spawn_source="shipyard" capacity="1" profile="fish_fetch" />
+    </spawn_group>
 </building>

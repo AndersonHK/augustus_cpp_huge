@@ -41,6 +41,7 @@ public:
     static void resolve_loaded_building_references();
 
     void remove();
+    int retarget_building(const Building &from, const Building &to);
     int is_dead() const;
     int is_enemy() const;
     int is_melee_enemy() const;

@@ -52,6 +52,11 @@ const PathingMode DepotOrderRoute(
     PathingMode::RoadRequirement::RequiresRoadMovement,
     PathingMode::ServiceEffectRequirement::NoServiceEffect,
     PathingMode::VenueTargetRequirement::NoVenueTargets);
+const PathingMode WaterRoute(
+    "water_route",
+    PathingMode::RoadRequirement::AllowsNonRoadMovement,
+    PathingMode::ServiceEffectRequirement::NoServiceEffect,
+    PathingMode::VenueTargetRequirement::NoVenueTargets);
 
 const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
 {
@@ -68,7 +73,8 @@ const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
         &FollowLeader,
         &StandStill,
         &TransientWander,
-        &DepotOrderRoute
+        &DepotOrderRoute,
+        &WaterRoute
     };
     for (const PathingMode *mode : modes) {
         if (std::strcmp(xml_id, mode->xml_id) == 0) {

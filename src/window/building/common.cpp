@@ -1,6 +1,8 @@
 #include "building/building.h"
 #include "building/house.h"
 #include "building/local_workforce.h"
+#include "building/production_method.h"
+#include "building/building_type_registry_internal.h"
 #include "city/labor.h"
 #include "game/resource_graphics.h"
 #include "graphics/graphics.h"
@@ -74,9 +76,31 @@ static int get_employment_info_text(const Building &current, const building *b, 
     int text_id;
     int local_workforce = building_local_workforce_is_workforce_building(current);
     int labor_access = building_local_workforce_access_score(current);
-    int required_workers = current.type ? current.type->required_workers() : 0;
+    int required_workers = 0;
+    int current_workers = 0;
+    int farm_part_count = 0;
+    current.for_each_part([&](Building part) {
+        building *part_record = building_get(part.id());
+        if (!part.type || !part_record) {
+            return;
+        }
+        if (part.id() == current.id()) {
+            required_workers += part.type->required_workers();
+            current_workers += part_record->num_workers;
+            return;
+        }
+        if (part.type->is_farm()) {
+            required_workers += part.type->required_workers();
+            current_workers += part_record->num_workers;
+            farm_part_count++;
+        }
+    });
+    if (!farm_part_count) {
+        required_workers = current.type ? current.type->required_workers() : 0;
+        current_workers = b->num_workers;
+    }
 
-    if (b->num_workers >= required_workers) {
+    if (current_workers >= required_workers) {
         text_id = 0;
     } else if (city_population() <= 0) {
         text_id = 16; // no people in city
@@ -120,24 +144,46 @@ static void draw_employment_details(building_info_context *c, const Building &cu
         y_offset -= 10;
     }
 
-    int laborers_needed = current.type ? current.type->required_workers() : 0;
+    int laborers_needed = 0;
+    int worker_count = 0;
+    int farm_part_count = 0;
+    current.for_each_part([&](Building part) {
+        building *part_record = building_get(part.id());
+        if (!part.type || !part_record) {
+            return;
+        }
+        if (part.id() == current.id()) {
+            laborers_needed += part.type->required_workers();
+            worker_count += part_record->num_workers;
+            return;
+        }
+        if (part.type->is_farm()) {
+            laborers_needed += part.type->required_workers();
+            worker_count += part_record->num_workers;
+            farm_part_count++;
+        }
+    });
+    if (!farm_part_count) {
+        laborers_needed = current.type ? current.type->required_workers() : 0;
+        worker_count = b->num_workers;
+    }
     if (laborers_needed) {
         if (b->state == BUILDING_STATE_MOTHBALLED) {
-            int width = lang_text_draw_amount(current_string_amount_key(8, 12, b->num_workers), b->num_workers, c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            int width = lang_text_draw_amount(current_string_amount_key(8, 12, worker_count), worker_count, c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             width += text_draw_number(laborers_needed, '(', "",
                 c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             lang_text_draw("main_strings.69.0", c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             text_draw(translation_for_key("TR_BUILDING_INFO_MOTHBALL_WARNING"),
                 c->x_offset + 70, y_offset + 26, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
         } else if (text_id) {
-            int width = lang_text_draw_amount(current_string_amount_key(8, 12, b->num_workers), b->num_workers, c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            int width = lang_text_draw_amount(current_string_amount_key(8, 12, worker_count), worker_count, c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             width += text_draw_number(laborers_needed, '(', "",
                 c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             lang_text_draw("main_strings.69.0", c->x_offset + 70 + width, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             lang_text_draw(current_string_key(69, text_id), c->x_offset + 70, y_offset + 26, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             y_offset += 6;
         } else {
-            int width = lang_text_draw_amount(current_string_amount_key(8, 12, b->num_workers), b->num_workers, c->x_offset + 60, y_offset + 16, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            int width = lang_text_draw_amount(current_string_amount_key(8, 12, worker_count), worker_count, c->x_offset + 60, y_offset + 16, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
             width += text_draw_number(laborers_needed, '(', "",
                 c->x_offset + 70 + width, y_offset + 16, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
             lang_text_draw("main_strings.69.0", c->x_offset + 70 + width, y_offset + 16, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -150,37 +196,55 @@ static void draw_employment_details(building_info_context *c, const Building &cu
 
 void window_building_draw_employment(building_info_context *c, int y_offset)
 {
-    building *b = building_get(c->building.id());
-    int text_id = get_employment_info_text(c->building, b, 1);
-    draw_employment_details(c, c->building, b, y_offset, text_id);
+    Building current = c->building.main();
+    building *b = building_get(current.id());
+    if (!b) {
+        return;
+    }
+    int text_id = get_employment_info_text(current, b, 1);
+    draw_employment_details(c, current, b, y_offset, text_id);
 }
 
 void window_building_draw_employment_without_house_cover(building_info_context *c, int y_offset)
 {
-    building *b = building_get(c->building.id());
-    int text_id = get_employment_info_text(c->building, b, 0);
-    draw_employment_details(c, c->building, b, y_offset, text_id);
+    Building current = c->building.main();
+    building *b = building_get(current.id());
+    if (!b) {
+        return;
+    }
+    int text_id = get_employment_info_text(current, b, 0);
+    draw_employment_details(c, current, b, y_offset, text_id);
+}
+
+static int description_y_offset(void)
+{
+    return font_uses_vector_runtime() ? -4 : 0;
 }
 
 void window_building_draw_description(building_info_context *c, int text_group, int text_id)
 {
-    lang_text_draw_multiline(current_string_key(text_group, text_id), c->x_offset + 32, c->y_offset + 56, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_multiline(current_string_key(text_group, text_id), c->x_offset + 32,
+        c->y_offset + 56 + description_y_offset(), BLOCK_SIZE * (c->width_blocks - 3),
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 void window_building_draw_description(building_info_context *c, translation_key key)
 {
-    lang_text_draw_multiline(key, c->x_offset + 32, c->y_offset + 56,
+    lang_text_draw_multiline(key, c->x_offset + 32, c->y_offset + 56 + description_y_offset(),
        BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 int window_building_draw_description_at(building_info_context *c, int y_offset, int text_group, int text_id)
 {
-    return lang_text_draw_multiline(current_string_key(text_group, text_id), c->x_offset + 32, c->y_offset + y_offset, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    return lang_text_draw_multiline(current_string_key(text_group, text_id), c->x_offset + 32,
+        c->y_offset + y_offset + description_y_offset(), BLOCK_SIZE * (c->width_blocks - 3),
+        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 int window_building_draw_description_at(building_info_context *c, int y_offset, translation_key key)
 {
-    return lang_text_draw_multiline(key, c->x_offset + 32, c->y_offset + y_offset,
+    return lang_text_draw_multiline(key, c->x_offset + 32,
+        c->y_offset + y_offset + description_y_offset(),
         BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
@@ -190,6 +254,221 @@ void window_building_play_sound(building_info_context *c, const char *sound_file
         sound_speech_play_file(sound_file);
         c->can_play_sound = 0;
     }
+}
+
+static int draw_production_resource_row(
+    building_info_context *c, resource_type resource, int value, int needed, int y_offset)
+{
+    const resource_data *data = resource_get_data(resource);
+    if (!data || !data->text) {
+        return 0;
+    }
+
+    const int y = c->y_offset + y_offset;
+    const int pixel_size = screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height);
+    const font_t amount_font = needed > 0 && value < needed ? FONT_NORMAL_RED : FONT_NORMAL_BLACK;
+
+    resource_graphics(resource).panel_icon().draw(c->x_offset + 32, y);
+    int width = text_draw(data->text, c->x_offset + 60, y + 4, FONT_NORMAL_BLACK, pixel_size, COLOR_MASK_NONE);
+    if (value > 0 || needed > 0) {
+        width += lang_text_draw_amount(current_string_amount_key(8, 10, value), value,
+            c->x_offset + 64 + width, y + 4, amount_font,
+            screen_ui_to_pixel(font_definition_for(amount_font)->line_height));
+    }
+    if (needed > 0) {
+        text_draw_number(needed, '(',
+            reinterpret_cast<const char *>(translation_for_key("TR_BUILDING_WINDOW_INDUSTRY_NEEDED")),
+            c->x_offset + 64 + width, y + 4, FONT_NORMAL_BLACK, pixel_size, COLOR_MASK_NONE);
+    }
+    return 20;
+}
+
+static int draw_production_resource_label(resource_type resource, int x, int y)
+{
+    const resource_data *data = resource_get_data(resource);
+    if (!data || !data->text) {
+        return 0;
+    }
+
+    const int pixel_size = screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height);
+    resource_graphics(resource).panel_icon().draw(x, y);
+    return 28 + text_draw(data->text, x + 28, y + 4, FONT_NORMAL_BLACK, pixel_size, COLOR_MASK_NONE);
+}
+
+static int resource_slot(resource_type resource)
+{
+    if (resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return -1;
+    }
+    return static_cast<int>(resource);
+}
+
+static int production_method_matches_current_output(
+    building_info_context *c, const building_type_registry_impl::ProductionMethod *method)
+{
+    if (!method || !method->has_resource_output()) {
+        return 1;
+    }
+
+    const building *record = building_get(c->building.id());
+    const resource_type output = record ? static_cast<resource_type>(record->output_resource_id) : RESOURCE_NONE;
+    return resource_slot(output) < 0 || method->output_resource() == output;
+}
+
+static int draw_production_rows_for_type(
+    building_info_context *c,
+    const building_type_registry_impl::BuildingType &type,
+    int y_offset,
+    int flags,
+    unsigned char *seen_outputs,
+    unsigned char *seen_inputs)
+{
+    int consumed_height = 0;
+    for (const building_type_registry_impl::ProductionMethod *method : type.production_methods()) {
+        if (!production_method_matches_current_output(c, method)) {
+            continue;
+        }
+        if ((flags & WINDOW_BUILDING_PRODUCTION_OUTPUTS) && method->has_resource_output()) {
+            const int output_slot = resource_slot(method->output_resource());
+            if (output_slot >= 0 && !seen_outputs[output_slot]) {
+                seen_outputs[output_slot] = 1;
+                consumed_height += draw_production_resource_row(c, method->output_resource(),
+                    0, 0, y_offset + consumed_height);
+            }
+        }
+        if (flags & WINDOW_BUILDING_PRODUCTION_INPUTS) {
+            for (const building_type_registry_impl::ProductionResourceAmount &input : method->inputs()) {
+                const int input_slot = resource_slot(input.resource);
+                if (input_slot >= 0 && !seen_inputs[input_slot]) {
+                    seen_inputs[input_slot] = 1;
+                    consumed_height += draw_production_resource_row(c, input.resource,
+                        c->building.resource_amount(input.resource), method->scaled_input_amount(input),
+                        y_offset + consumed_height);
+                }
+            }
+        }
+    }
+    return consumed_height;
+}
+
+static int draw_production_outputs_inline_for_type(
+    building_info_context *c,
+    const building_type_registry_impl::BuildingType &type,
+    int x,
+    int y,
+    unsigned char *seen_outputs)
+{
+    int consumed_width = 0;
+    for (const building_type_registry_impl::ProductionMethod *method : type.production_methods()) {
+        if (!production_method_matches_current_output(c, method) || !method->has_resource_output()) {
+            continue;
+        }
+
+        const int output_slot = resource_slot(method->output_resource());
+        if (output_slot < 0 || seen_outputs[output_slot]) {
+            continue;
+        }
+
+        seen_outputs[output_slot] = 1;
+        if (consumed_width) {
+            consumed_width += 12;
+        }
+        consumed_width += draw_production_resource_label(method->output_resource(), x + consumed_width, y);
+    }
+    return consumed_width;
+}
+
+static int has_figure_delivery_output_for_type(
+    building_info_context *c,
+    const building_type_registry_impl::BuildingType &type)
+{
+    for (const building_type_registry_impl::ProductionMethod *method : type.production_methods()) {
+        if (production_method_matches_current_output(c, method) &&
+            method->has_resource_output() && method->is_figure_delivery_output()) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int window_building_draw_production_rows(building_info_context *c, int y_offset, int flags)
+{
+    if (!c->building.type) {
+        return 0;
+    }
+
+    unsigned char seen_outputs[RESOURCE_SLOT_COUNT] = {};
+    unsigned char seen_inputs[RESOURCE_SLOT_COUNT] = {};
+    int consumed_height = draw_production_rows_for_type(
+        c, *c->building.type, y_offset, flags, seen_outputs, seen_inputs);
+
+    if (c->building.type->has_composition()) {
+        for (const building_type_registry_impl::ComposedPartDefinition &part :
+            c->building.type->composition().parts()) {
+            const building_type_registry_impl::BuildingType *part_type =
+                building_type_registry_impl::definition_for_type(part.type);
+            if (part_type) {
+                consumed_height += draw_production_rows_for_type(
+                    c, *part_type, y_offset + consumed_height, flags, seen_outputs, seen_inputs);
+            }
+        }
+    }
+    return consumed_height;
+}
+
+int window_building_draw_production_outputs_inline(building_info_context *c, int x_offset, int y_offset)
+{
+    if (!c->building.type) {
+        return 0;
+    }
+
+    unsigned char seen_outputs[RESOURCE_SLOT_COUNT] = {};
+    const int x = c->x_offset + x_offset;
+    const int y = c->y_offset + y_offset;
+    int consumed_width = draw_production_outputs_inline_for_type(c, *c->building.type, x, y, seen_outputs);
+
+    if (c->building.type->has_composition()) {
+        for (const building_type_registry_impl::ComposedPartDefinition &part :
+            c->building.type->composition().parts()) {
+            const building_type_registry_impl::BuildingType *part_type =
+                building_type_registry_impl::definition_for_type(part.type);
+            if (part_type) {
+                const int part_x = x + consumed_width + (consumed_width ? 12 : 0);
+                int part_width = draw_production_outputs_inline_for_type(
+                    c, *part_type, part_x, y, seen_outputs);
+                if (part_width) {
+                    if (consumed_width) {
+                        consumed_width += 12;
+                    }
+                    consumed_width += part_width;
+                }
+            }
+        }
+    }
+    return consumed_width;
+}
+
+int window_building_has_figure_delivery_output(building_info_context *c)
+{
+    if (!c->building.type) {
+        return 0;
+    }
+
+    if (has_figure_delivery_output_for_type(c, *c->building.type)) {
+        return 1;
+    }
+
+    if (c->building.type->has_composition()) {
+        for (const building_type_registry_impl::ComposedPartDefinition &part :
+            c->building.type->composition().parts()) {
+            const building_type_registry_impl::BuildingType *part_type =
+                building_type_registry_impl::definition_for_type(part.type);
+            if (part_type && has_figure_delivery_output_for_type(c, *part_type)) {
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 static void window_building_draw_monument_resources_needed(building_info_context *c)

@@ -4,5 +4,11 @@
     <model size="4" />
     <foundation policy="land" />
     <event_data attr="fort_ground" />
+    <graphics>
+        <default>
+            <path value="Military\Fort" />
+            <image value="Image_0001" />
+        </default>
+    </graphics>
     <flags fire_proof="1" />
 </building>

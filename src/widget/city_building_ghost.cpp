@@ -29,14 +29,12 @@
 
 #include "city_building_ghost.h"
 
-#include "assets/image_group_payload.h"
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_runtime_graphics.h"
 #include "building/building_type_registry_internal.h"
 #include "building/market.h"
 #include "core/log.h"
-#include "graphics/runtime_texture.h"
 
 
 #include "assets/assets.h"
@@ -75,12 +73,6 @@ typedef struct {
     int y;
 } tile_xy_offsets;
 
-enum farm_ghost_object {
-    FARM_GHOST_NO_DRAW,
-    FARM_GHOST_FARMHOUSE,
-    FARM_GHOST_CROP
-};
-
 enum {
     TILE_FORBIDDEN = 1,
     TILE_ALLOWED = 0,
@@ -102,29 +94,6 @@ static const int RESERVOIR_GRID_OFFSETS[4] = {
 
 static const int HIPPODROME_X_VIEW_OFFSETS[4] = { 150, 150, -150, -150 };
 static const int HIPPODROME_Y_VIEW_OFFSETS[4] = { 75, -75, -75, 75 };
-
-static const int FARM_TILES[4][9] = {
-    {
-        FARM_GHOST_FARMHOUSE, FARM_GHOST_NO_DRAW, FARM_GHOST_NO_DRAW,
-        FARM_GHOST_NO_DRAW, FARM_GHOST_CROP, FARM_GHOST_CROP,
-        FARM_GHOST_CROP, FARM_GHOST_CROP, FARM_GHOST_CROP
-    },
-    {
-        FARM_GHOST_CROP, FARM_GHOST_FARMHOUSE, FARM_GHOST_CROP,
-        FARM_GHOST_NO_DRAW, FARM_GHOST_NO_DRAW, FARM_GHOST_CROP,
-        FARM_GHOST_NO_DRAW, FARM_GHOST_CROP, FARM_GHOST_CROP
-    },
-    {
-        FARM_GHOST_CROP, FARM_GHOST_CROP, FARM_GHOST_CROP,
-        FARM_GHOST_FARMHOUSE, FARM_GHOST_CROP, FARM_GHOST_CROP,
-        FARM_GHOST_NO_DRAW, FARM_GHOST_NO_DRAW, FARM_GHOST_NO_DRAW
-    },
-    {
-        FARM_GHOST_CROP, FARM_GHOST_CROP, FARM_GHOST_FARMHOUSE,
-        FARM_GHOST_NO_DRAW, FARM_GHOST_CROP, FARM_GHOST_NO_DRAW,
-        FARM_GHOST_CROP, FARM_GHOST_NO_DRAW, FARM_GHOST_CROP
-    },
-};
 
 static struct {
     struct {
@@ -372,21 +341,30 @@ static void draw_building(int image_id, int x, int y, color_t color)
     Image::from_id(image_id).draw_isometric_top(x, y, color, data.scale);
 }
 
-static int graphics_definition_is_data_only_for_ghost(building_type type)
-{
-    return building_is_farm(type);
-}
-
 static int type_uses_native_ghost_graphics(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
-    return definition && definition->has_graphic() && !graphics_definition_is_data_only_for_ghost(type);
+    return definition && definition->has_graphic();
+}
+
+static int composed_placement_size(const building_type_registry_impl::BuildingType *definition)
+{
+    if (!definition || !definition->has_composition()) {
+        return 0;
+    }
+    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
+    return composition.footprint_width() > composition.footprint_height() ?
+        composition.footprint_width() :
+        composition.footprint_height();
 }
 
 static int ghost_building_size(building_type type)
 {
-    return is_warehouse_type(type) ? 3 : building_properties_for_type(type)->size;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    int composed_size = composed_placement_size(definition);
+    return composed_size > 0 ? composed_size : building_properties_for_type(type)->size;
 }
 
 static void prepare_ghost_water_access_state(
@@ -479,35 +457,6 @@ static void log_native_ghost_draw_failure(building_type type, int grid_offset)
     log_info("Native ghost graphics draw failed after image lookup succeeded: ", detail, 0);
 }
 
-static const ImageGroupEntry *runtime_ghost_entry(int grid_offset, building_type type, int include_data_only)
-{
-    if (!include_data_only && graphics_definition_is_data_only_for_ghost(type)) {
-        return nullptr;
-    }
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    if (!definition || !definition->has_graphic()) {
-        return nullptr;
-    }
-    prepare_ghost_building(grid_offset, type);
-    Building building(data.ghost_building, definition);
-    const building_type_registry_impl::GraphicsTarget *target =
-        definition->resolve_graphics_target(building);
-    if (!target) {
-        return nullptr;
-    }
-    building_type_registry_impl::GraphicsTarget resolved_target =
-        target->resolved_option(static_cast<unsigned char>(building_runtime_graphics_selected_option(building, *target)));
-    if (!resolved_target.has_path() || !image_group_payload_load(resolved_target.path())) {
-        return nullptr;
-    }
-    const ImageGroupPayload *payload = image_group_payload_get(resolved_target.path());
-    if (!payload) {
-        return nullptr;
-    }
-    return resolved_target.has_image() ? payload->entry_for(resolved_target.image()) : payload->default_entry();
-}
-
 static void draw_tile_view_offset(int building_size, int *x_offset, int *y_offset)
 {
     int dx = 0;
@@ -532,16 +481,6 @@ static void draw_tile_view_offset(int building_size, int *x_offset, int *y_offse
     *y_offset = Y_VIEW_OFFSET(dx, dy);
 }
 
-static void draw_runtime_payload_entry(const ImageGroupEntry &entry, int x, int y, color_t color)
-{
-    if (const RuntimeDrawSlice *footprint = entry.footprint()) {
-        runtime_texture_draw(*footprint, x, y, color, data.scale);
-    }
-    if (const RuntimeDrawSlice *top = entry.top()) {
-        runtime_texture_draw(*top, x, y, color, data.scale);
-    }
-}
-
 static void draw_runtime_ghost_animation(Building &building, int animation_cursor, int x, int y, color_t color)
 {
     const building_type type = building.type ? building.type->type() : BUILDING_NONE;
@@ -559,15 +498,120 @@ static void draw_runtime_ghost_animation(Building &building, int animation_curso
     map_sprite_animation_set(animation_cursor, saved_cursor);
 }
 
-static int draw_runtime_regular_building(building_type type, int grid_offset, int x, int y, int building_size, color_t color)
+static void prepare_composed_ghost_part(
+    building &part_record,
+    building_type type,
+    int x,
+    int y,
+    const building &main_record)
 {
-    if (graphics_definition_is_data_only_for_ghost(type)) {
+    const building_properties *props = building_properties_for_type(type);
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    part_record = {};
+    part_record.type = type;
+    part_record.state = BUILDING_STATE_IN_USE;
+    part_record.size = static_cast<unsigned char>(props ? props->size : 1);
+    const model_building *model = model_get_building(type);
+    part_record.num_workers = model ? model->laborers : 0;
+    part_record.x = static_cast<unsigned char>(x);
+    part_record.y = static_cast<unsigned char>(y);
+    part_record.grid_offset = map_grid_offset(x, y);
+    part_record.variant = main_record.variant;
+    part_record.subtype.orientation = main_record.subtype.orientation;
+    part_record.desirability = main_record.desirability;
+    part_record.data.entertainment.days1 = 1;
+    part_record.data.entertainment.days2 = 1;
+    prepare_ghost_water_access_state(definition, part_record);
+}
+
+static int draw_runtime_ghost_record(building &record, int x, int y, color_t color)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(record.type);
+    if (!definition || !definition->has_graphic()) {
         return 0;
     }
+    Building building(record, definition);
+    if (!building.draw_footprint({ x, y, record.grid_offset, color, data.scale, 1 })) {
+        return 0;
+    }
+    building.draw_top({ x, y, record.grid_offset, color, data.scale, 1 });
+    draw_runtime_ghost_animation(building, record.grid_offset, x, y, color);
+    return 1;
+}
+
+static void composed_part_view_offset(
+    const building &part_record,
+    const building_type_registry_impl::ComposedPartOffset &offset,
+    int *x,
+    int *y)
+{
+    int tile_x = X_VIEW_OFFSET(offset.x, offset.y);
+    int tile_y = Y_VIEW_OFFSET(offset.x, offset.y);
+    int size_x = 0;
+    int size_y = 0;
+    draw_tile_view_offset(part_record.size, &size_x, &size_y);
+    *x = tile_x + size_x;
+    *y = tile_y + size_y;
+}
+
+static int draw_runtime_composed_building(
+    building_type type,
+    int grid_offset,
+    int x,
+    int y,
+    color_t color)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_composition()) {
+        return 0;
+    }
+
+    prepare_ghost_building(grid_offset, type);
+    building main_record = data.ghost_building;
+    const int origin_x = main_record.x;
+    const int origin_y = main_record.y;
+    const int rotation = building_rotation_get_rotation();
+    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
+    const building_type_registry_impl::ComposedPartOffset main_offset =
+        composition.main_offset_for_rotation(rotation);
+
+    int drew_any = 0;
+    for (const building_type_registry_impl::ComposedPartDefinition &part : composition.parts()) {
+        const building_type_registry_impl::ComposedPartOffset offset = part.offset_for_rotation(rotation);
+        if (part.type == BUILDING_NONE || !offset.has_value) {
+            continue;
+        }
+        building part_record = {};
+        prepare_composed_ghost_part(part_record, part.type, origin_x + offset.x, origin_y + offset.y, main_record);
+        int x_part = 0;
+        int y_part = 0;
+        composed_part_view_offset(part_record, offset, &x_part, &y_part);
+        drew_any |= draw_runtime_ghost_record(part_record, x + x_part, y + y_part, color);
+    }
+
+    main_record.size = static_cast<unsigned char>(building_properties_for_type(type)->size);
+    main_record.x = static_cast<unsigned char>(origin_x + main_offset.x);
+    main_record.y = static_cast<unsigned char>(origin_y + main_offset.y);
+    main_record.grid_offset = map_grid_offset(main_record.x, main_record.y);
+    int x_main = 0;
+    int y_main = 0;
+    composed_part_view_offset(main_record, main_offset, &x_main, &y_main);
+    drew_any |= draw_runtime_ghost_record(main_record, x + x_main, y + y_main, color);
+    return drew_any;
+}
+
+static int draw_runtime_regular_building(building_type type, int grid_offset, int x, int y, int building_size, color_t color)
+{
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
     if (!definition || !definition->has_graphic()) {
         return 0;
+    }
+    if (definition->has_composition()) {
+        return draw_runtime_composed_building(type, grid_offset, x, y, color);
     }
     prepare_ghost_building(grid_offset, type);
     Building building(data.ghost_building, definition);
@@ -581,21 +625,6 @@ static int draw_runtime_regular_building(building_type type, int grid_offset, in
     }
     building.draw_top({ x, y, grid_offset, color, data.scale, 1 });
     draw_runtime_ghost_animation(building, grid_offset, x, y, color);
-    return 1;
-}
-
-static int draw_runtime_farmhouse(building_type type, int grid_offset, int x, int y, color_t color)
-{
-    const ImageGroupEntry *entry = runtime_ghost_entry(grid_offset, type, 1);
-    if (!entry) {
-        return 0;
-    }
-    int x_draw = 0;
-    int y_draw = 0;
-    draw_tile_view_offset(2, &x_draw, &y_draw);
-    x += x_draw;
-    y += y_draw;
-    draw_runtime_payload_entry(*entry, x, y, color);
     return 1;
 }
 
@@ -669,32 +698,6 @@ static void draw_warehouse_image(int image_id, int x, int y, color_t color)
     }
 }
 
-static void draw_farm_image(building_type type, int image_id, int x, int y, int grid_offset, color_t color)
-{
-    // Custom draw order to properly draw isometric tops
-    const int draw_order[9] = { 0, 2, 5, 1, 3, 7, 4, 6, 8 };
-    int orientation_index = city_view_orientation() / 2;
-    int crop_image = building_image_get_base_farm_crop(type);
-    for (int i = 0; i < 9; i++) {
-        int j = draw_order[i];
-        int x_offset = view_offset_x(j);
-        int y_offset = view_offset_y(j);
-        switch (FARM_TILES[orientation_index][j]) {
-            case FARM_GHOST_CROP:
-                draw_building(crop_image, x + x_offset, y + y_offset, color);
-                break;
-            case FARM_GHOST_FARMHOUSE:
-                if (!draw_runtime_farmhouse(type, grid_offset + tile_grid_offset(orientation_index, j),
-                    x + x_offset, y + y_offset, color)) {
-                    draw_building(image_id, x + x_offset, y + y_offset, color);
-                }
-                break;
-            default:
-                break;
-        }
-    }
-}
-
 static void draw_regular_building(building_type type, int image_id, int x, int y, int grid_offset,
     int num_tiles, int *blocked_tiles)
 {
@@ -702,9 +705,7 @@ static void draw_regular_building(building_type type, int image_id, int x, int y
     building_construction_set_can_place(!has_blocked);
     color_t color = has_blocked ?
         COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
-    if (building_is_farm(type)) {
-        draw_farm_image(type, image_id, x, y, grid_offset, color);
-    } else if (is_warehouse_type(type)) {
+    if (is_warehouse_type(type)) {
         draw_warehouse_image(image_id, x, y, color);
     } else if (is_granary_type(type)) {
         Image::from_id(image_id).draw_isometric_footprint(x, y, color, data.scale);
@@ -965,9 +966,7 @@ static void draw_distribution_context_overlays(const map_tile *tile, building_ty
 static void draw_default(const map_tile *tile, int x_view, int y_view, building_type type)
 {
     const building_properties *props = building_properties_for_type(type);
-    int building_size = is_warehouse_type(type) ? 3 : props->size;
-    // Warehouse is size 1 in legacy props, since only the corner tile owns the building.
-    //It's manually adjusted for sizing purposes that should affect entire 3x3 building.
+    int building_size = ghost_building_size(type);
     int image_id = 0;
 
     // check if we can place building
@@ -1698,13 +1697,11 @@ static void draw_grid_around_building(int grid_offset, int size, int orientation
 
 static void draw_partial_grid(int grid_offset, int x, int y, building_type type)
 {
-    int size = building_properties_for_type(type)->size;
+    int size = ghost_building_size(type);
     int orientation_index = city_view_orientation() / 2;
-    if (building_is_farm(type) || is_draggable_reservoir_type(type) || is_warehouse_type(type)) {
+    if (is_draggable_reservoir_type(type)) {
         size = 3;
-        if (is_draggable_reservoir_type(type)) {
-            grid_offset += RESERVOIR_GRID_OFFSETS[orientation_index];
-        }
+        grid_offset += RESERVOIR_GRID_OFFSETS[orientation_index];
     }
     draw_grid_around_building(grid_offset, size, orientation_index, x, y);
     if (building_is_fort(type)) {

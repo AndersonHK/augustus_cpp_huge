@@ -13,6 +13,7 @@
 #include "city/resource.h"
 #include "core/calc.h"
 #include "game/time.h"
+#include "map/water.h"
 #include "scenario/property.h"
 
 #include <utility>
@@ -59,6 +60,66 @@ resource_type ProductionMethod::output_resource() const
     return output_resource_;
 }
 
+int ProductionMethod::has_resource_output() const
+{
+    return output_resource_ != RESOURCE_NONE;
+}
+
+void ProductionMethod::set_output_destination(ProductionOutputDestination destination)
+{
+    output_destination_ = destination;
+}
+
+ProductionOutputDestination ProductionMethod::output_destination() const
+{
+    return output_destination_;
+}
+
+int ProductionMethod::uses_cart_output() const
+{
+    return output_destination_ == ProductionOutputDestination::Cart;
+}
+
+int ProductionMethod::outputs_to_building_storage() const
+{
+    return output_destination_ == ProductionOutputDestination::BuildingStorage;
+}
+
+int ProductionMethod::outputs_to_treasury() const
+{
+    return output_destination_ == ProductionOutputDestination::Treasury;
+}
+
+void ProductionMethod::set_output_effect(ProductionOutputEffect effect)
+{
+    output_effect_ = effect;
+}
+
+ProductionOutputEffect ProductionMethod::output_effect() const
+{
+    return output_effect_;
+}
+
+int ProductionMethod::has_effect_output() const
+{
+    return output_effect_ != ProductionOutputEffect::None;
+}
+
+int ProductionMethod::spawns_fishing_boat() const
+{
+    return output_effect_ == ProductionOutputEffect::SpawnFishingBoat;
+}
+
+void ProductionMethod::set_output_source(ProductionOutputSource source)
+{
+    output_source_ = source;
+}
+
+int ProductionMethod::is_figure_delivery_output() const
+{
+    return output_source_ == ProductionOutputSource::FigureDelivery;
+}
+
 void ProductionMethod::set_base_monthly_production(int production)
 {
     base_monthly_production_ = production;
@@ -93,6 +154,27 @@ void ProductionMethod::set_batch_size(int batch_size)
 int ProductionMethod::batch_size() const
 {
     return batch_size_;
+}
+
+void ProductionMethod::set_cart_loads(int numerator, int denominator)
+{
+    cart_load_numerator_ = numerator;
+    cart_load_denominator_ = denominator > 0 ? denominator : 1;
+}
+
+int ProductionMethod::cart_load_numerator() const
+{
+    return cart_load_numerator_ > 0 ? cart_load_numerator_ : batch_size_;
+}
+
+int ProductionMethod::cart_load_denominator() const
+{
+    return cart_load_numerator_ > 0 ? cart_load_denominator_ : 1;
+}
+
+int ProductionMethod::cart_loads_per_cycle() const
+{
+    return cart_load_numerator() / cart_load_denominator();
 }
 
 void ProductionMethod::set_treasury_cost_per_cycle(int cost)
@@ -152,11 +234,6 @@ int ProductionMethod::is_workshop() const
     return kind_ == ProductionMethodKind::Workshop;
 }
 
-int ProductionMethod::refreshes_farm_image() const
-{
-    return is_farm();
-}
-
 int ProductionMethod::uses_blessing_multiplier() const
 {
     return is_farm();
@@ -177,7 +254,7 @@ int ProductionMethod::is_disabled() const
 
 int ProductionMethod::effective_monthly_production() const
 {
-    if (output_resource_ == RESOURCE_NONE || base_monthly_production_ <= 0) {
+    if ((!has_resource_output() && !has_effect_output()) || base_monthly_production_ <= 0) {
         return 0;
     }
 
@@ -188,7 +265,7 @@ int ProductionMethod::effective_monthly_production() const
 
 int ProductionMethod::max_progress_for(const Building &building) const
 {
-    if (output_resource_ == RESOURCE_NONE) {
+    if (is_figure_delivery_output() || (!has_resource_output() && !has_effect_output())) {
         return 0;
     }
 
@@ -249,8 +326,12 @@ int ProductionMethod::can_start_cycle(const Building &building) const
     if (!has_required_inputs(building)) {
         return 0;
     }
+    if (spawns_fishing_boat() && !map_water_shipyard_can_spawn_fishing_boat(building)) {
+        return 0;
+    }
     const int output_resource = static_cast<int>(output_resource_);
-    if (!resource_is_storable(output_resource_) && record->data.industry.progress == 0 &&
+    if (has_resource_output() && uses_cart_output() && !resource_is_storable(output_resource_) &&
+        record->data.industry.progress == 0 &&
         !building_has_workshop_for_raw_material_with_room(output_resource, building.road_network_id()) &&
         !building_monument_get_monument(building.x(), building.y(), output_resource, building.road_network_id(), 0)) {
         return 0;

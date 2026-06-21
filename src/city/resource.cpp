@@ -382,8 +382,9 @@ void city_resource_determine_available(int storable_only)
     potential.resources.size = 0;
     potential.foods.size = 0;
 
+    // Upstream's trade lists stop before denarii/troops; dynamic resources use the special flag for that boundary.
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (!resource_is_storable(r)) {
+        if (!resource_is_tradeable(r) || !resource_is_storable(r)) {
             continue;
         }
         if (empire_can_produce_resource(r) || empire_can_import_resource(r)) {
@@ -402,7 +403,7 @@ void city_resource_determine_available(int storable_only)
     }
     if (!storable_only) {
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-            if (resource_is_storable(r)) {
+            if (!resource_is_tradeable(r) || resource_is_storable(r)) {
                 continue;
             }
             if (empire_can_produce_resource(r) || empire_can_import_resource(r)) {

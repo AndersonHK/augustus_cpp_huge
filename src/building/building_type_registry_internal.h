@@ -38,6 +38,7 @@ struct ParseState {
     int saw_desirability_step_size = 0;
     int saw_desirability_range = 0;
     int saw_graphic = 0;
+    int saw_composed = 0;
     int saw_construction = 0;
     int saw_construction_phase_graphics = 0;
     int saw_labor = 0;
@@ -61,6 +62,9 @@ struct ParseState {
     int parsing_graphics = 0;
     int parsing_graphics_options = 0;
     int parsing_graphics_layer = 0;
+    int parsing_composed = 0;
+    int parsing_composed_main = 0;
+    int parsing_composed_part = 0;
     int parsing_construction = 0;
     int parsing_construction_phase = 0;
     int parsing_labor = 0;
@@ -73,6 +77,7 @@ struct ParseState {
     size_t current_graphics_variant_index = 0;
     GraphicsLayer *current_graphics_layer = nullptr;
     GraphicsParseTargetScope current_graphics_target_scope = GraphicsParseTargetScope::None;
+    ComposedPartDefinition *current_composed_part = nullptr;
     LaborSeekerPolicy current_labor_seeker_policy;
     WaterAccessRequirementRule current_water_access_requirement_rule;
     WaterAccessRequirementWhere current_water_access_requirement_where = WaterAccessRequirementWhere::Footprint;

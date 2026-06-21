@@ -15,6 +15,7 @@
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
+#include "map/tiles.h"
 
 #include <initializer_list>
 #include <string_view>
@@ -50,6 +51,7 @@ static constexpr std::string_view connectable_buildings[] = {
     "garden_wall_gate",
     "panelled_garden_gate",
     "palisade",
+    "wall",
     "hedge_gate_dark",
     "hedge_gate_light",
     "palisade_gate",
@@ -547,6 +549,9 @@ int building_connectable_graphics_option(const Building &building_obj)
     if (type_attr_is(type, "colonnade")) {
         return building_connectable_get_colonnade_offset(grid_offset);
     }
+    if (type_attr_is(type, "wall")) {
+        return map_tiles_wall_image_offset(grid_offset);
+    }
     if (is_garden_wall(type)) {
         return building_connectable_get_garden_wall_offset(grid_offset);
     }
@@ -598,6 +603,7 @@ int building_connectable_num_variants(building_type type)
         "roofed_garden_wall",
         "panelled_garden_wall",
         "palisade",
+        "wall",
     })) {
         return BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES;
     }

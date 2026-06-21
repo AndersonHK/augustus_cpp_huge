@@ -33,6 +33,7 @@
 
 #include "map/tile_runtime_api.h"
 
+#include <cstring>
 
 
 #define OFFSET(x,y) (x + GRID_SIZE * y)
@@ -546,7 +547,7 @@ static int get_gatehouse_position(int grid_offset, int direction, unsigned int b
     return result;
 }
 
-static void set_wall_gatehouse_image_manually(int grid_offset)
+static int wall_gatehouse_manual_image_offset(int grid_offset)
 {
     int gatehouse_up = get_gatehouse_building_id(grid_offset + map_grid_delta(0, -1));
     int gatehouse_left = get_gatehouse_building_id(grid_offset + map_grid_delta(-1, 0));
@@ -651,9 +652,25 @@ static void set_wall_gatehouse_image_manually(int grid_offset)
             }
         }
     }
-    if (image_offset) {
-        map_image_set(grid_offset, image_group(GROUP_BUILDING_WALL) + image_offset);
+    return image_offset;
+}
+
+int map_tiles_wall_image_offset(int grid_offset)
+{
+    const terrain_image *img = map_image_context_get_wall(grid_offset);
+    int image_offset = img->group_offset + img->item_offset;
+    if (map_terrain_count_directly_adjacent_with_type(grid_offset, TERRAIN_GATEHOUSE) > 0) {
+        img = map_image_context_get_wall_gatehouse(grid_offset);
+        if (img->is_valid) {
+            image_offset = img->group_offset + img->item_offset;
+        } else {
+            int manual_offset = wall_gatehouse_manual_image_offset(grid_offset);
+            if (manual_offset) {
+                image_offset = manual_offset;
+            }
+        }
     }
+    return image_offset;
 }
 
 static void set_wall_image(int x, int y, int grid_offset)
@@ -661,20 +678,19 @@ static void set_wall_image(int x, int y, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_WALL)) {
         return;
     }
-    const terrain_image *img = map_image_context_get_wall(grid_offset);
-    map_image_set(grid_offset, image_group(GROUP_BUILDING_WALL) +
-        img->group_offset + img->item_offset);
-    map_property_set_multi_tile_size(grid_offset, 1);
-    map_property_mark_draw_tile(grid_offset);
-    if (map_terrain_count_directly_adjacent_with_type(grid_offset, TERRAIN_GATEHOUSE) > 0) {
-        img = map_image_context_get_wall_gatehouse(grid_offset);
-        if (img->is_valid) {
-            map_image_set(grid_offset, image_group(GROUP_BUILDING_WALL) +
-                img->group_offset + img->item_offset);
-        } else {
-            set_wall_gatehouse_image_manually(grid_offset);
+    int building_id = map_building_at(grid_offset);
+    if (building_id) {
+        Building wall(building_get(building_id));
+        const char *attr = wall.type ? wall.type->attr() : nullptr;
+        if (attr && !std::strcmp(attr, "wall") && wall.refresh_graphic_if_native()) {
+            map_property_set_multi_tile_size(grid_offset, 1);
+            map_property_mark_draw_tile(grid_offset);
+            return;
         }
     }
+    map_image_set(grid_offset, image_group(GROUP_BUILDING_WALL) + map_tiles_wall_image_offset(grid_offset));
+    map_property_set_multi_tile_size(grid_offset, 1);
+    map_property_mark_draw_tile(grid_offset);
 }
 
 void map_tiles_update_all_walls(void)

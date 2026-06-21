@@ -56,6 +56,7 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
+#include "building/production_method.h"
 #include "graphics/image.h"
 
 #include <cstdio>
@@ -194,6 +195,46 @@ static int building_type_attr_is_any(building_type type, std::initializer_list<c
 static int type_is_storage(const BuildingType &type_definition)
 {
     return type_definition.is_granary() || type_definition.is_warehouse();
+}
+
+static const building_type_registry_impl::ProductionMethod *farm_method_for_type(const BuildingType &type_definition)
+{
+    for (const building_type_registry_impl::ProductionMethod *method : type_definition.production_methods()) {
+        if (method && method->is_farm()) {
+            return method;
+        }
+    }
+    return nullptr;
+}
+
+static const building_type_registry_impl::ProductionMethod *farm_method_for_panel_type(const BuildingType &type_definition)
+{
+    if (const building_type_registry_impl::ProductionMethod *method = farm_method_for_type(type_definition)) {
+        return method;
+    }
+    if (!type_definition.has_composition()) {
+        return nullptr;
+    }
+    for (const building_type_registry_impl::ComposedPartDefinition &part : type_definition.composition().parts()) {
+        const BuildingType *part_type = building_type_registry_impl::definition_for_type(part.type);
+        if (part_type) {
+            if (const building_type_registry_impl::ProductionMethod *method = farm_method_for_type(*part_type)) {
+                return method;
+            }
+        }
+    }
+    return nullptr;
+}
+
+static int type_has_farm_panel(const BuildingType &type_definition)
+{
+    return farm_method_for_panel_type(type_definition) != nullptr;
+}
+
+static resource_type farm_panel_output_resource(const BuildingType &type_definition)
+{
+    const building_type_registry_impl::ProductionMethod *method = farm_method_for_panel_type(type_definition);
+    return method ? method->output_resource() : RESOURCE_NONE;
 }
 
 static int grand_temple_panel_height_blocks(const BuildingType &type_definition)
@@ -461,17 +502,17 @@ static void init(int grid_offset)
         context.type = BUILDING_INFO_BUILDING;
         building *b = selected_building;
         building_type btype = static_cast<building_type>(b->type);
-        if (building_type_attr_is(btype, "fort_ground")) {
-            context.formation_id = b->formation_id;
-            if (b->prev_part_building_id) {
-                b = building_get(b->prev_part_building_id);
+        Building selected_part(b);
+        Building main_part = selected_part.main();
+        if (main_part.id() && main_part.id() != selected_part.id()) {
+            if (building *main_record = building_get(main_part.id())) {
+                b = main_record;
                 btype = static_cast<building_type>(b->type);
             }
-        } else if (building_is_fort(btype)) {
+        }
+
+        if (building_is_fort(btype)) {
             context.formation_id = b->formation_id;
-        } else if (building_type_attr_is_any(btype, {"warehouse_space", "hippodrome"})) {
-            b = building_main(b);
-            btype = static_cast<building_type>(b->type);
         }
 
         context.building = Building(b);
@@ -508,7 +549,7 @@ static void init(int grid_offset)
         } else if (building_monument_is_unfinished_monument(b)) {
             context.has_road_access = map_has_road_access_monument_construction(b->x, b->y, b->size);
         } else {
-            context.has_road_access = map_has_road_access(b->x, b->y, b->size, 0);
+            context.has_road_access = current_building.has_road_access(nullptr);
         }
         figure_roamer_preview_reset(b->type);
         figure_roamer_preview_create(b->type, b->x, b->y);
@@ -642,8 +683,8 @@ static void draw_background(void)
         const int is_dock = std::strcmp(type_definition.attr(), "dock") == 0;
         if (building_is_house(btype)) {
             window_building_draw_house(&context);
-        } else if (type_definition.is_farm()) {
-            window_building_draw_farm(&context, building_output_resource(btype));
+        } else if (type_has_farm_panel(type_definition)) {
+            window_building_draw_farm(&context, farm_panel_output_resource(type_definition));
         } else if (building_type_attr_is(btype, "marble_quarry")) {
             window_building_draw_marble_quarry(&context);
         } else if (building_type_attr_is(btype, "iron_mine")) {
@@ -905,7 +946,7 @@ static void draw_foreground(void)
         building_type btype = static_cast<building_type>(b->type);
         const int is_dock = std::strcmp(type_definition.attr(), "dock") == 0;
 
-        if (building_is_primary_product_producer(btype)) {
+        if (building_is_primary_product_producer(btype) || type_has_farm_panel(type_definition)) {
             window_building_draw_primary_product_stockpiling(&context);
         }
 
@@ -1113,7 +1154,7 @@ static int handle_specific_building_info_mouse(const mouse *m)
             return window_building_handle_mouse_hippodrome(m, &context);
         } else if (building_type_attr_is(btype, "city_mint")) {
             return window_building_handle_mouse_city_mint(m, &context);
-        } else if (building_is_primary_product_producer(btype)) {
+        } else if (building_is_primary_product_producer(btype) || type_has_farm_panel(type_definition)) {
             return window_building_handle_mouse_primary_product_producer(m, &context);
         }
     }
@@ -1243,7 +1284,8 @@ static void get_tooltip(tooltip_context *c)
     }
 
     if (!text_id && !group_id && !translation && !precomposed_text && has_building_tooltip_context) {
-        if (building_is_farm(btype) || building_is_raw_resource_producer(btype) || building_is_workshop(btype)) {
+        if ((type_definition && type_has_farm_panel(*type_definition)) ||
+            building_is_raw_resource_producer(btype) || building_is_workshop(btype)) {
             window_building_industry_get_tooltip(&context, &translation);
         }
         if (!translation) {

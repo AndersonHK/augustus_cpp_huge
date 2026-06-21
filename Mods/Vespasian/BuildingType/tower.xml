@@ -14,5 +14,8 @@
     <flags fire_proof="1" draw_desirability_range="1" />
     <labor>
         <employees count="6" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
     </labor>
 </building>

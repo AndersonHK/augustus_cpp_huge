@@ -63,7 +63,7 @@
     <labor>
         <employees count="100" />
         <labor_seeker>
-            <method value="workforce" />
+            <method value="houses_generate_if_below" />
             <amount value="50" />
         </labor_seeker>
     </labor>

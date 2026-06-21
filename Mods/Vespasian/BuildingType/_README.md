@@ -372,23 +372,22 @@ Current supported `<labor>` child nodes:
 
 Current supported `<labor_seeker>` child nodes:
 
-- `<method value="none|houses_spawn_if_below|houses_generate_if_below|workforce" />`
+- `<method value="houses_spawn_if_below|houses_generate_if_below|workforce" />`
 - `<amount value="N" />`
 
-`<method>` is required. `<amount>` is optional and defaults to the
-building's `<employees count="N" />` value when omitted. If a labor seeker has no
-`<amount>` node, the enclosing `<labor>` node must also define `<employees>`.
+`<method>` is required whenever a `<labor_seeker>` node exists. Omit the entire
+`<labor_seeker>` node for buildings that use global-access or otherwise
+legacy-owned labor and do not send labor seekers.
 
 `method="houses_spawn_if_below"` preserves the normal vanilla labor-seeker path:
 the walker counts nearby housing into `houses_covered`, then city-wide labor
 allocation fills `num_workers`. Use an explicit `<amount>` when the coverage
-threshold should be different from the employee count.
+threshold should be different from the employee count. `<amount>` is required
+for this method.
 
 `method="houses_generate_if_below"` preserves the legacy direct-generation
-exception used by vanilla entertainment buildings.
-
-`method="none"` explicitly marks a labor-using building as having no labor
-seeker policy. It is used for global-access or otherwise legacy-owned labor.
+exception used by vanilla entertainment buildings. `<amount>` is required for
+this method.
 
 `method="workforce"` uses local workforce acquisition. The building is excluded
 from city-wide labor category allocation while global labor is disabled, and its
@@ -396,7 +395,9 @@ labor seeker targets nearby unemployed house residents instead of counting house
 coverage. Global labor overrides workforce and uses city-wide labor allocation.
 Production methods also consume this labor policy: when global labor is disabled,
 native production checks local workforce access for `method="workforce"` buildings
-instead of the legacy decaying `houses_covered` value.
+instead of the legacy decaying `houses_covered` value. `<amount>` is optional for
+this method and defaults to the building's `<employees count="N" />` value when
+omitted.
 
 Current supported `<storages>` child nodes:
 

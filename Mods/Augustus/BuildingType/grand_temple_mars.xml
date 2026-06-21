@@ -81,7 +81,8 @@
     <labor>
         <employees count="50" />
         <labor_seeker>
-            <method value="workforce" />
+            <method value="houses_spawn_if_below" />
+            <amount value="100" />
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">

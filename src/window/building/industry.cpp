@@ -27,11 +27,13 @@
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "input/mouse.h"
+#include "map/water.h"
 #include "scenario/allowed_building.h"
 #include "scenario/property.h"
 
 #include "building/building_type_registry_internal.h"
 
+#include <cstring>
 #include <stdio.h>
 
 static void set_city_mint_conversion(const generic_button *button);
@@ -46,14 +48,9 @@ static struct {
     unsigned int focus_button_id;
 } data;
 
-static building_type type_from_attr(const char *text_id)
+static int building_type_attr_is(const building_type_registry_impl::BuildingType *type, const char *attr)
 {
-    return building_type_registry_impl::type_from_attr(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == type_from_attr(text_id);
+    return type && strcmp(type->attr(), attr) == 0;
 }
 
 struct industry_text {
@@ -84,6 +81,29 @@ static int industry_text_get_width(const industry_text &text, int offset, font_t
         lang_text_get_width(current_string_key(text.legacy_group, text.legacy_offset + offset), font, pixel_size);
 }
 
+static int industry_text_draw_progress_line(
+    const industry_text &text, int pct_done, int x, int y, font_t font, int pixel_size)
+{
+    const int prefix_width = industry_text_draw(text, 2, x, y, font, pixel_size);
+    const int percentage_width = text_get_number_width(pct_done, 0, "%", font, pixel_size);
+    const int max_percentage_width = text_get_number_width(100, 0, "%", font, pixel_size);
+    text_draw_percentage(pct_done, x + prefix_width + max_percentage_width - percentage_width,
+        y, font, pixel_size);
+    industry_text_draw(text, 3, x + prefix_width + max_percentage_width, y, font, pixel_size);
+    return prefix_width + max_percentage_width + industry_text_get_width(text, 3, font, pixel_size);
+}
+
+static int industry_draw_output_with_progress_line(
+    building_info_context *c, const industry_text &text, int pct_done, int y_offset)
+{
+    const font_t font = FONT_NORMAL_BLACK;
+    const int pixel_size = screen_ui_to_pixel(font_definition_for(font)->line_height);
+    const int output_width = window_building_draw_production_outputs_inline(c, 32, y_offset - 4);
+    const int progress_x = c->x_offset + 32 + output_width + (output_width ? 16 : 0);
+    return output_width + (output_width ? 16 : 0) +
+        industry_text_draw_progress_line(text, pct_done, progress_x, c->y_offset + y_offset, font, pixel_size);
+}
+
 static void industry_text_draw_centered(
     const industry_text &text, int offset, int x, int y, int width, font_t font, int pixel_size)
 {
@@ -108,6 +128,60 @@ static int building_type_requires_water_access(building_type type)
     return definition && definition->water_access().has_requirements();
 }
 
+static int building_has_farm_production(Building building)
+{
+    return building.type && building.type->is_farm();
+}
+
+static int farm_progress_percentage(Building farm)
+{
+    int total_percentage = 0;
+    int part_count = 0;
+    farm.for_each_part([&](Building part) {
+        if (part.id() == farm.id() || !building_has_farm_production(part)) {
+            return;
+        }
+        building *record = building_get(part.id());
+        if (!record) {
+            return;
+        }
+        total_percentage += calc_percentage(record->data.industry.progress, building_industry_get_max_progress(record));
+        part_count++;
+    });
+    if (part_count > 0) {
+        return total_percentage / part_count;
+    }
+
+    building *record = building_get(farm.id());
+    return record ? calc_percentage(record->data.industry.progress, building_industry_get_max_progress(record)) : 0;
+}
+
+static int farm_efficiency(Building farm)
+{
+    int total_efficiency = 0;
+    int part_count = 0;
+    farm.for_each_part([&](Building part) {
+        if (part.id() == farm.id() || !building_has_farm_production(part)) {
+            return;
+        }
+        building *record = building_get(part.id());
+        if (!record) {
+            return;
+        }
+        const int efficiency = building_get_efficiency(record);
+        if (efficiency >= 0) {
+            total_efficiency += efficiency;
+            part_count++;
+        }
+    });
+    if (part_count > 0) {
+        return total_efficiency / part_count;
+    }
+
+    building *record = building_get(farm.id());
+    return record ? building_get_efficiency(record) : -1;
+}
+
 static void draw_farm(building_info_context *c, int help_id, const char *sound_file, int group_id,
     resource_type resource)
 {
@@ -116,51 +190,53 @@ static void draw_farm(building_info_context *c, int help_id, const char *sound_f
     window_building_play_sound(c, sound_file);
 
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    resource_graphics(resource).panel_icon().draw(c->x_offset + 10, c->y_offset + 10);
     lang_text_draw_centered(current_string_key(group_id, 0), c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     Building &current_building = c->building;
     building *b = building_get(current_building.id());
-    int pct_grown = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
-    int width = lang_text_draw(current_string_key(group_id, 2), c->x_offset + 32, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    width += text_draw_percentage(pct_grown, c->x_offset + 32 + width, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw(current_string_key(group_id, 3), c->x_offset + 32 + width, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    if (!b) {
+        return;
+    }
+    int pct_grown = farm_progress_percentage(current_building);
+    industry_draw_output_with_progress_line(c, legacy_industry_text(group_id, 0), pct_grown, 44);
+    const int production_rows_height = window_building_draw_production_rows(
+        c, 70, WINDOW_BUILDING_PRODUCTION_INPUTS);
 
-    int efficiency = building_get_efficiency(b);
+    int efficiency = farm_efficiency(current_building);
     if (efficiency < 0) {
         efficiency = 0;
     }
 
-    width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_EFFICIENCY",
-        c->x_offset + 32, c->y_offset + 70, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    text_draw_percentage(efficiency, c->x_offset + 32 + width, c->y_offset + 70,
+    int width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_EFFICIENCY",
+        c->x_offset + 32, c->y_offset + 66 + production_rows_height, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_percentage(efficiency, c->x_offset + 32 + width, c->y_offset + 66 + production_rows_height,
         efficiency >= 50 ? FONT_NORMAL_BLACK : FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(efficiency >= 50 ? FONT_NORMAL_BLACK : FONT_NORMAL_RED)->line_height));
 
     if (!c->has_road_access) {
-        window_building_draw_description_at(c, 96, 69, 25);
+        window_building_draw_description_at(c, 100 + production_rows_height, 69, 25);
     } else if (city_resource_is_mothballed(resource)) {
-        window_building_draw_description_at(c, 96, group_id, 4);
+        window_building_draw_description_at(c, 100 + production_rows_height, group_id, 4);
     } else if (b->data.industry.curse_days_left > 4) {
-        window_building_draw_description_at(c, 96, group_id, 11);
+        window_building_draw_description_at(c, 100 + production_rows_height, group_id, 11);
     } else if (current_building.worker_count() <= 0) {
-        window_building_draw_description_at(c, 96, group_id, 5);
+        window_building_draw_description_at(c, 100 + production_rows_height, group_id, 5);
     } else if (c->worker_percentage < 25) {
-        window_building_draw_description_at(c, 96, group_id, 10);
+        window_building_draw_description_at(c, 100 + production_rows_height, group_id, 10);
     } else if (c->worker_percentage < 50) {
-        window_building_draw_description_at(c, 96, group_id, 9);
+        window_building_draw_description_at(c, 100 + production_rows_height, group_id, 9);
     } else if (c->worker_percentage < 75) {
-        window_building_draw_description_at(c, 96, group_id, 8);
+        window_building_draw_description_at(c, 100 + production_rows_height, group_id, 8);
     } else if (c->worker_percentage < 100) {
-        window_building_draw_description_at(c, 96, group_id, 7);
+        window_building_draw_description_at(c, 100 + production_rows_height, group_id, 7);
     } else if (efficiency < 80) {
-        window_building_draw_description_at(c, 96, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_RAW_MATERIALS");
+        window_building_draw_description_at(c, 100 + production_rows_height, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_RAW_MATERIALS");
     } else if (c->worker_percentage >= 100) {
-        window_building_draw_description_at(c, 96, group_id, 6);
+        window_building_draw_description_at(c, 100 + production_rows_height, group_id, 6);
     }
 
-    inner_panel_draw(c->x_offset + 16, c->y_offset + 162, c->width_blocks - 2, 4);
-    window_building_draw_employment(c, 166);
-    window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 170);
+    inner_panel_draw(c->x_offset + 16, c->y_offset + 162 + production_rows_height, c->width_blocks - 2, 4);
+    window_building_draw_employment(c, 166 + production_rows_height);
+    window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 170 + production_rows_height);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 110, group_id, 1);
 }
 
@@ -196,52 +272,51 @@ static void draw_raw_material(
     window_building_play_sound(c, sound_file);
 
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    resource_graphics(resource).panel_icon().draw(c->x_offset + 10, c->y_offset + 10);
     industry_text_draw_centered(text, 0, c->x_offset, c->y_offset + 10,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     Building &current_building = c->building;
     building *b = building_get(current_building.id());
     int pct_done = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
-    int width = industry_text_draw(text, 2, c->x_offset + 32, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    width += text_draw_percentage(pct_done, c->x_offset + 32 + width, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    industry_text_draw(text, 3, c->x_offset + 32 + width, c->y_offset + 44, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    industry_draw_output_with_progress_line(c, text, pct_done, 44);
+    const int production_rows_height = window_building_draw_production_rows(
+        c, 56, WINDOW_BUILDING_PRODUCTION_INPUTS);
 
     int efficiency = building_get_efficiency(b);
     if (efficiency < 0) {
         efficiency = 0;
     }
 
-    width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_EFFICIENCY",
-        c->x_offset + 32, c->y_offset + 70, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    text_draw_percentage(efficiency, c->x_offset + 32 + width, c->y_offset + 70,
+    int width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_EFFICIENCY",
+        c->x_offset + 32, c->y_offset + 74 + production_rows_height, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_percentage(efficiency, c->x_offset + 32 + width, c->y_offset + 74 + production_rows_height,
         efficiency >= 50 ? FONT_NORMAL_BLACK : FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(efficiency >= 50 ? FONT_NORMAL_BLACK : FONT_NORMAL_RED)->line_height));
 
     if (!c->has_road_access) {
-        window_building_draw_description_at(c, 96, 69, 25);
+        window_building_draw_description_at(c, 102 + production_rows_height, 69, 25);
     } else if (b->strike_duration_days > 0) {
-        window_building_draw_description_at(c, 96, "TR_WINDOW_BUILDING_WORKSHOP_STRIKING");
+        window_building_draw_description_at(c, 102 + production_rows_height, "TR_WINDOW_BUILDING_WORKSHOP_STRIKING");
     } else if (city_resource_is_mothballed(resource)) {
-        industry_text_draw_description_at(c, 96, text, 4);
+        industry_text_draw_description_at(c, 102 + production_rows_height, text, 4);
     } else if (current_building.worker_count() <= 0) {
-        industry_text_draw_description_at(c, 96, text, 5);
+        industry_text_draw_description_at(c, 102 + production_rows_height, text, 5);
     } else if (c->worker_percentage < 25) {
-        industry_text_draw_description_at(c, 96, text, 10);
+        industry_text_draw_description_at(c, 102 + production_rows_height, text, 10);
     } else if (c->worker_percentage < 50) {
-        industry_text_draw_description_at(c, 96, text, 9);
+        industry_text_draw_description_at(c, 102 + production_rows_height, text, 9);
     } else if (c->worker_percentage < 75) {
-        industry_text_draw_description_at(c, 96, text, 8);
+        industry_text_draw_description_at(c, 102 + production_rows_height, text, 8);
     } else if (c->worker_percentage < 100) {
-        industry_text_draw_description_at(c, 96, text, 7);
+        industry_text_draw_description_at(c, 102 + production_rows_height, text, 7);
     } else if (efficiency < 80) {
-        window_building_draw_description_at(c, 96, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_RAW_MATERIALS");
+        window_building_draw_description_at(c, 102 + production_rows_height, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_RAW_MATERIALS");
     } else {
-        industry_text_draw_description_at(c, 96, text, 6);
+        industry_text_draw_description_at(c, 102 + production_rows_height, text, 6);
     }
 
-    inner_panel_draw(c->x_offset + 16, c->y_offset + 162, c->width_blocks - 2, 4);
-    window_building_draw_employment(c, 166);
-    window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 170);
+    inner_panel_draw(c->x_offset + 16, c->y_offset + 162 + production_rows_height, c->width_blocks - 2, 4);
+    window_building_draw_employment(c, 166 + production_rows_height);
+    window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 170 + production_rows_height);
     industry_text_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 110, text, 1);
 }
 
@@ -334,88 +409,57 @@ static void draw_workshop(
     window_building_play_sound(c, sound_file);
 
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    resource_graphics(resource).panel_icon().draw(c->x_offset + 10, c->y_offset + 10);
     industry_text_draw_centered(text, 0, c->x_offset, c->y_offset + 10,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     Building &current_building = c->building;
     building *b = building_get(current_building.id());
     int pct_done = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
-    int width = industry_text_draw(text, 2, c->x_offset + 32, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    width += text_draw_percentage(pct_done, c->x_offset + 32 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    industry_text_draw(text, 3, c->x_offset + 32 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    industry_draw_output_with_progress_line(c, text, pct_done, 40);
 
-    int resources_y_offset = 0;
-
-    if (!b->strike_duration_days) {
-        resource_supply_chain chain[RESOURCE_SUPPLY_CHAIN_MAX_SIZE];
-        int num_raw_materials = resource_get_supply_chain_for_good(chain, resource);
-        if (num_raw_materials > 0) {
-            width = 0;
-            for (int i = 0; i < num_raw_materials; i++) {
-                int current_width = industry_text_get_width(text, 12 + i, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-                if (current_width > width) {
-                    width = current_width;
-                }
-            }
-            for (int i = 0; i < num_raw_materials; i++) {
-                int stored = current_building.resource_amount(chain[i].raw_material);
-                font_t font = chain[i].raw_amount > stored ?
-                    FONT_NORMAL_RED : FONT_NORMAL_BLACK;
-                resource_graphics(chain[i].raw_material).panel_icon().draw(c->x_offset + 32, c->y_offset + 56 + resources_y_offset);
-                industry_text_draw(text, 12 + i,
-                    c->x_offset + 60, c->y_offset + 60 + resources_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-                int extra_width = lang_text_draw_amount(current_string_amount_key(8, 10, stored), stored, c->x_offset + 60 + width, c->y_offset + 60 + resources_y_offset, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
-                text_draw_number(chain[i].raw_amount, '(',
-                    reinterpret_cast<const char *>(translation_for_key("TR_BUILDING_WINDOW_INDUSTRY_NEEDED")),
-                    c->x_offset + 60 + width + extra_width, c->y_offset + 60 + resources_y_offset,
-                    FONT_NORMAL_BLACK,
-                    screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height),
-                    COLOR_MASK_NONE);
-                resources_y_offset += 20;
-            }
-        }
-    }
+    int resources_y_offset = b->strike_duration_days ? 0 :
+        window_building_draw_production_rows(c, 56,
+            WINDOW_BUILDING_PRODUCTION_INPUTS);
 
     int efficiency = building_get_efficiency(b);
     if (efficiency < 0) {
         efficiency = 0;
     }
 
-    width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_EFFICIENCY",
-        c->x_offset + 32, c->y_offset + 78 + resources_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    text_draw_percentage(efficiency, c->x_offset + 32 + width, c->y_offset + 78 + resources_y_offset,
+    int width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_EFFICIENCY",
+        c->x_offset + 32, c->y_offset + 74 + resources_y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw_percentage(efficiency, c->x_offset + 32 + width, c->y_offset + 74 + resources_y_offset,
         efficiency >= 50 ? FONT_NORMAL_BLACK : FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(efficiency >= 50 ? FONT_NORMAL_BLACK : FONT_NORMAL_RED)->line_height));
 
     if (!c->has_road_access) {
-        window_building_draw_description_at(c, 96 + resources_y_offset, 69, 25);
+        window_building_draw_description_at(c, 102 + resources_y_offset, 69, 25);
     } else if (b->strike_duration_days > 0) {
-        window_building_draw_description_at(c, 96 + resources_y_offset, "TR_WINDOW_BUILDING_WORKSHOP_STRIKING");
+        window_building_draw_description_at(c, 102 + resources_y_offset, "TR_WINDOW_BUILDING_WORKSHOP_STRIKING");
     } else if (city_resource_is_mothballed(resource)) {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 4);
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 4);
     } else if (no_target_for_resource(b, resource)) {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 13);
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 13);
     } else if (current_building.worker_count() <= 0) {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 5);
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 5);
     } else if (building_type_requires_water_access(b->type) && !b->has_water_access) {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 11);
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 11);
     } else if (!building_industry_has_raw_materials_for_production(b)) {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 11);
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 11);
     } else if (c->worker_percentage < 25) {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 10);
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 10);
     } else if (c->worker_percentage < 50) {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 9);
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 9);
     } else if (c->worker_percentage < 75) {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 8);
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 8);
     } else if (c->worker_percentage < 100) {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 7);
-    } else if (type_matches(static_cast<building_type>(b->type), "concrete_maker") && b->has_water_access &&
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 7);
+    } else if (building_type_attr_is(current_building.type, "concrete_maker") && b->has_water_access &&
         !water_access_runtime_building_area_has_access(b, "reservoir")) {
-        window_building_draw_description_at(c, 96 + resources_y_offset, "TR_BUILDING_CONCRETE_MAKER_IMPROVE_WATER_ACCESS");
+        window_building_draw_description_at(c, 102 + resources_y_offset, "TR_BUILDING_CONCRETE_MAKER_IMPROVE_WATER_ACCESS");
     } else if (efficiency < 70) {
-        window_building_draw_description_at(c, 96 + resources_y_offset, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_WORKSHOPS");
+        window_building_draw_description_at(c, 102 + resources_y_offset, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_WORKSHOPS");
     } else {
-        industry_text_draw_description_at(c, 96 + resources_y_offset, text, 6);
+        industry_text_draw_description_at(c, 102 + resources_y_offset, text, 6);
     }
     inner_panel_draw(c->x_offset + 16, c->y_offset + 146 + resources_y_offset, c->width_blocks - 2, 4);
     window_building_draw_employment(c, 150 + resources_y_offset);
@@ -495,9 +539,9 @@ void window_building_draw_concrete_maker(building_info_context *c)
 
 static int governor_palace_is_allowed(void)
 {
-    return scenario_allowed_building(type_from_attr("governors_house")) ||
-        scenario_allowed_building(type_from_attr("governors_villa")) ||
-        scenario_allowed_building(type_from_attr("governors_palace"));
+    return scenario_allowed_building(building_type_registry_impl::type_from_attr("governors_house")) ||
+        scenario_allowed_building(building_type_registry_impl::type_from_attr("governors_villa")) ||
+        scenario_allowed_building(building_type_registry_impl::type_from_attr("governors_palace"));
 }
 
 void window_building_draw_city_mint(building_info_context *c)
@@ -510,57 +554,56 @@ void window_building_draw_city_mint(building_info_context *c)
     if (city_mint.monument_phase() == MONUMENT_FINISHED) {
         c->advisor_button = ADVISOR_FINANCIAL;
         outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-        resource_graphics(resource_denarii()).panel_icon().draw(c->x_offset + 10, c->y_offset + 10);
 
         int pct_done = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
-        int width = lang_text_draw("TR_BUILDING_GOLD_MINE_PRODUCTION",
-            c->x_offset + 32, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        width += text_draw_percentage(pct_done, c->x_offset + 32 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        lang_text_draw("TR_BUILDING_GOLD_MINE_COMPLETE",
-            c->x_offset + 32 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        static const translation_key mint_progress_text[] = {
+            nullptr,
+            nullptr,
+            "TR_BUILDING_GOLD_MINE_PRODUCTION",
+            "TR_BUILDING_GOLD_MINE_COMPLETE",
+        };
+        industry_draw_output_with_progress_line(c, named_industry_text(mint_progress_text), pct_done, 40);
 
-        resource_graphics(resource_gold()).panel_icon().draw(c->x_offset + 32, c->y_offset + 56);
         int stored_gold = city_mint.resource_amount(resource_gold());
-        width = lang_text_draw("TR_BUILDING_CITY_MINT_STORED_GOLD",
-            c->x_offset + 60, c->y_offset + 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        lang_text_draw_amount(current_string_amount_key(8, 10, stored_gold), stored_gold, c->x_offset + 60 + width, c->y_offset + 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        const int production_rows_height = window_building_draw_production_rows(c, 64,
+            WINDOW_BUILDING_PRODUCTION_INPUTS);
 
         int efficiency = building_get_efficiency(b);
         if (efficiency < 0) {
             efficiency = 0;
         }
 
-        width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_EFFICIENCY",
-            c->x_offset + 32, c->y_offset + 98, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        text_draw_percentage(efficiency, c->x_offset + 32 + width, c->y_offset + 98,
+        int width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_EFFICIENCY",
+            c->x_offset + 32, c->y_offset + 94 + production_rows_height, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        text_draw_percentage(efficiency, c->x_offset + 32 + width, c->y_offset + 94 + production_rows_height,
             efficiency >= 50 ? FONT_NORMAL_BLACK : FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(efficiency >= 50 ? FONT_NORMAL_BLACK : FONT_NORMAL_RED)->line_height));
 
         if (!c->has_road_access) {
-            window_building_draw_description_at(c, 116, 69, 25);
-        } else if (building_count_active(type_from_attr("senate")) == 0) {
-            window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_NO_SENATE");
+            window_building_draw_description_at(c, 122 + production_rows_height, 69, 25);
+        } else if (!city_buildings_has_senate()) {
+            window_building_draw_description_at(c, 122 + production_rows_height, "TR_BUILDING_CITY_MINT_NO_SENATE");
         } else if (city_mint.worker_count() <= 0) {
-            window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_NO_EMPLOYEES");
-        } else if (stored_gold < BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN &&
-            b->output_resource_id == resource_denarii()) {
-            window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_NO_GOLD");
+            window_building_draw_description_at(c, 122 + production_rows_height, "TR_BUILDING_CITY_MINT_NO_EMPLOYEES");
+        } else if (b->output_resource_id == resource_denarii() &&
+            !city_mint.native_production_has_raw_materials()) {
+            window_building_draw_description_at(c, 122 + production_rows_height, "TR_BUILDING_CITY_MINT_NO_GOLD");
         } else if (c->worker_percentage < 25) {
-            window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_FEW_EMPLOYEES");
+            window_building_draw_description_at(c, 122 + production_rows_height, "TR_BUILDING_CITY_MINT_FEW_EMPLOYEES");
         } else if (c->worker_percentage < 50) {
-            window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_SOME_EMPLOYEES");
+            window_building_draw_description_at(c, 122 + production_rows_height, "TR_BUILDING_CITY_MINT_SOME_EMPLOYEES");
         } else if (c->worker_percentage < 75) {
-            window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_HALF_EMPLOYEES");
+            window_building_draw_description_at(c, 122 + production_rows_height, "TR_BUILDING_CITY_MINT_HALF_EMPLOYEES");
         } else if (c->worker_percentage < 100) {
-            window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_MANY_EMPLOYEES");
+            window_building_draw_description_at(c, 122 + production_rows_height, "TR_BUILDING_CITY_MINT_MANY_EMPLOYEES");
         } else if (efficiency < 70) {
-            window_building_draw_description_at(c, 116, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_WORKSHOPS");
+            window_building_draw_description_at(c, 122 + production_rows_height, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_WORKSHOPS");
         } else {
-            window_building_draw_description_at(c, 116, "TR_BUILDING_CITY_MINT_FULL_EMPLOYEES");
+            window_building_draw_description_at(c, 122 + production_rows_height, "TR_BUILDING_CITY_MINT_FULL_EMPLOYEES");
         }
 
-        inner_panel_draw(c->x_offset + 16, c->y_offset + 178, c->width_blocks - 2, 4);
-        window_building_draw_employment(c, 182);
-        window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 186);
+        inner_panel_draw(c->x_offset + 16, c->y_offset + 178 + production_rows_height, c->width_blocks - 2, 4);
+        window_building_draw_employment(c, 182 + production_rows_height);
+        window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 186 + production_rows_height);
         lang_text_draw("TR_BUILDING_CITY_MINT_CONVERT",
             c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 190, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         lang_text_draw("TR_BUILDING_CITY_MINT_GOLD_TO_DN",
@@ -601,12 +644,7 @@ void window_building_draw_city_mint_foreground(building_info_context *c)
 
 static int shipyard_boats_needed(void)
 {
-    for (const building *wharf = building_first_of_type(type_from_attr("wharf")); wharf; wharf = wharf->next_of_type) {
-        if (wharf->num_workers > 0 && !wharf->data.industry.fishing_boat_id) {
-            return 1;
-        }
-    }
-    return 0;
+    return map_water_has_wharf_for_new_fishing_boat();
 }
 
 void window_building_draw_shipyard(building_info_context *c)
@@ -621,14 +659,23 @@ void window_building_draw_shipyard(building_info_context *c)
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else {
-        int pct_done = calc_percentage(b->data.industry.progress, 160);
+        const int max_progress = building_industry_get_max_progress(b);
+        int pct_done = max_progress > 0 ? calc_percentage(b->data.industry.progress, max_progress) : 0;
         int width = lang_text_draw("main_strings.100.2", c->x_offset + 32, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         width += text_draw_percentage(pct_done, c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         lang_text_draw("main_strings.100.3", c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        if (shipyard_boats_needed()) {
-            lang_text_draw_multiline("main_strings.100.5", c->x_offset + 32, c->y_offset + 80, BLOCK_SIZE * (c->width_blocks - 6), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        const int boats_needed = shipyard_boats_needed();
+        const int inputs_height = boats_needed ?
+            window_building_draw_production_rows(c, 80, WINDOW_BUILDING_PRODUCTION_INPUTS) : 0;
+        const int text_y = 80 + inputs_height;
+        if (boats_needed) {
+            if (!building_industry_has_raw_materials_for_production(b)) {
+                window_building_draw_description_at(c, text_y, "TR_BUILDING_WINDOW_INDUSTRY_LOW_EFFICIENCY_RAW_MATERIALS");
+            } else {
+                lang_text_draw_multiline("main_strings.100.5", c->x_offset + 32, c->y_offset + text_y, BLOCK_SIZE * (c->width_blocks - 6), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            }
         } else {
-            lang_text_draw_multiline("main_strings.100.4", c->x_offset + 32, c->y_offset + 80, BLOCK_SIZE * (c->width_blocks - 6), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_multiline("main_strings.100.4", c->x_offset + 32, c->y_offset + text_y, BLOCK_SIZE * (c->width_blocks - 6), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     }
 
@@ -645,12 +692,11 @@ void window_building_draw_wharf(building_info_context *c)
     window_building_play_sound(c, "wavs/wharf.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.102.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    resource_graphics(resource_fish()).panel_icon().draw(c->x_offset + 10, c->y_offset + 10);
 
     building *b = building_get(c->building.id());
 
-    Figure *boat = b->data.industry.fishing_boat_id ? Figure::get(b->data.industry.fishing_boat_id) : nullptr;
-    bool has_live_boat = boat && boat->state == FIGURE_STATE_ALIVE && boat->type == FIGURE_FISHING_BOAT;
+    Figure *boat = map_water_wharf_live_fishing_boat(c->building);
+    bool has_live_boat = boat != nullptr;
 
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
@@ -671,16 +717,23 @@ void window_building_draw_wharf(building_info_context *c)
         window_building_draw_description(c, 102, text_id);
     }
 
-    int width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_WHARF_AVERAGE_CATCH",
-        c->x_offset + 32, c->y_offset + 110, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    const int average_catch = has_live_boat ? b->data.industry.average_production_per_month : 0;
-    width += text_draw_number(average_catch, '@', "",
-        c->x_offset + 32 + width, c->y_offset + 110, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    resource_graphics(resource_fish()).panel_icon().draw(c->x_offset + 32 + width, c->y_offset + 110);
+    int production_rows_height = 0;
+    if (window_building_has_figure_delivery_output(c)) {
+        const int output_width = window_building_draw_production_outputs_inline(c, 32, 88);
+        const int average_x = c->x_offset + 32 + output_width + (output_width ? 24 : 0);
+        int width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_WHARF_AVERAGE_CATCH",
+            average_x, c->y_offset + 92, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        const int average_catch = has_live_boat ? b->data.industry.average_production_per_month : 0;
+        text_draw_number(average_catch, '@', "",
+            average_x + width, c->y_offset + 92, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    } else {
+        production_rows_height = window_building_draw_production_rows(
+            c, 88, WINDOW_BUILDING_PRODUCTION_OUTPUTS);
+    }
 
-    inner_panel_draw(c->x_offset + 16, c->y_offset + 136, c->width_blocks - 2, 4);
-    window_building_draw_employment(c, 140);
-    window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 144);
+    inner_panel_draw(c->x_offset + 16, c->y_offset + 136 + production_rows_height, c->width_blocks - 2, 4);
+    window_building_draw_employment(c, 140 + production_rows_height);
+    window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 144 + production_rows_height);
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 110, 102, 1);
 }
 
@@ -736,7 +789,7 @@ void window_building_industry_get_tooltip(building_info_context *c, translation_
     building_type type = c->building.type ? c->building.type->type() : BUILDING_NONE;
     int needed_resources = building_get_raw_materials_for_workshop(0, type);
     int y_correction;
-    if (type_matches(type, "city_mint")) {
+    if (building_type_attr_is(c->building.type, "city_mint")) {
         y_correction = 8;
     } else if (needed_resources > 0) {
         y_correction = 8 + needed_resources * 20;

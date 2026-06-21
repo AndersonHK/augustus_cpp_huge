@@ -11,7 +11,6 @@ int building_house_has_plebeian_residents(Building house);
 int building_house_has_patrician_residents(Building house);
 
 void building_house_change_to(Building house, building_type type);
-void building_house_vacant_lot_mark_draw(int building_id);
 void building_house_change_to_vacant_lot(Building house);
 
 void building_house_merge(Building house);

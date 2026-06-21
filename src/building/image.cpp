@@ -7,7 +7,6 @@
 #include "building/building_type.h"
 #include "building/building_type_registry_internal.h"
 #include "building/connectable.h"
-#include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "building/rotation.h"
@@ -15,7 +14,6 @@
 #include "core/direction.h"
 #include "core/image.h"
 #include "core/image_group.h"
-#include "game/resource.h"
 #include "map/building.h"
 #include "map/random.h"
 #include "map/terrain.h"
@@ -237,27 +235,6 @@ static int type_handler_image(const building *b, int *image_id)
         if (type_matches(b->type, handler.text_id)) {
             *image_id = handler.image(b);
             return 1;
-        }
-    }
-    return 0;
-}
-
-int building_image_get_base_farm_crop(building_type type)
-{
-    const resource_type output = building_output_resource(type);
-    if (output == resource_wheat() || type_matches(type, "native_crops")) {
-        return image_group(GROUP_BUILDING_FARM_CROPS);
-    }
-    const resource_type crop_resources[] = {
-        resource_vegetables(),
-        resource_fruit(),
-        resource_olives(),
-        resource_vines(),
-        resource_meat(),
-    };
-    for (int i = 0; i < sizeof(crop_resources) / sizeof(crop_resources[0]); i++) {
-        if (output == crop_resources[i]) {
-            return image_group(GROUP_BUILDING_FARM_CROPS) + (i + 1) * 5;
         }
     }
     return 0;

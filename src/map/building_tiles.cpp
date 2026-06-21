@@ -2,7 +2,6 @@
 #include "building_tiles.h"
 
 #include "building/building.h"
-#include "building/industry.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
@@ -64,77 +63,6 @@ void map_building_tiles_add(unsigned int building_id, int x, int y, int size, in
     map_building_tiles_add_remove(building_id, x, y, size, image_id, terrain, TERRAIN_CLEARABLE);
 }
 
-static void set_crop_tile(unsigned int building_id, int x, int y, int dx, int dy, int crop_image_id, int growth)
-{
-    int grid_offset = map_grid_offset(x + dx, y + dy);
-    map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
-    map_terrain_add(grid_offset, TERRAIN_BUILDING);
-    map_building_set(grid_offset, building_id);
-    map_property_clear_constructing(grid_offset);
-    map_property_set_multi_tile_xy(grid_offset, dx, dy, 1);
-    map_image_set(grid_offset, crop_image_id + (growth < 4 ? growth : 4));
-}
-
-void map_building_tiles_add_farm(unsigned int building_id, int x, int y, int crop_image_id, int progress)
-{
-    if (!map_grid_is_inside(x, y, 3)) {
-        return;
-    }
-    // farmhouse
-    int x_leftmost, y_leftmost;
-    switch (city_view_orientation()) {
-        case DIR_0_TOP:
-            x_leftmost = 0;
-            y_leftmost = 1;
-            break;
-        case DIR_2_RIGHT:
-            x_leftmost = 0;
-            y_leftmost = 0;
-            break;
-        case DIR_4_BOTTOM:
-            x_leftmost = 1;
-            y_leftmost = 0;
-            break;
-        case DIR_6_LEFT:
-            x_leftmost = 1;
-            y_leftmost = 1;
-            break;
-        default:
-            return;
-    }
-    for (int dy = 0; dy < 2; dy++) {
-        for (int dx = 0; dx < 2; dx++) {
-            int grid_offset = map_grid_offset(x + dx, y + dy);
-            map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
-            map_terrain_add(grid_offset, TERRAIN_BUILDING);
-            map_building_set(grid_offset, building_id);
-            map_property_clear_constructing(grid_offset);
-            map_property_set_multi_tile_size(grid_offset, 2);
-            map_image_set(grid_offset, image_group(GROUP_BUILDING_FARM_HOUSE));
-            map_property_set_multi_tile_xy(grid_offset, dx, dy,
-                dx == x_leftmost && dy == y_leftmost);
-        }
-    }
-    int growth = progress / 5;
-    int growth_per_tile = growth / 5;
-    int growth_remaining = growth % 5;
-
-    // crop tile 1
-    set_crop_tile(building_id, x, y, 0, 2, crop_image_id, growth_per_tile + (growth_remaining-- > 0 ? 1 : 0));
-
-    // crop tile 2
-    set_crop_tile(building_id, x, y, 1, 2, crop_image_id, growth_per_tile + (growth_remaining-- > 0 ? 1 : 0));
-
-    // crop tile 3
-    set_crop_tile(building_id, x, y, 2, 2, crop_image_id, growth_per_tile + (growth_remaining-- > 0 ? 1 : 0));
-
-    // crop tile 4
-    set_crop_tile(building_id, x, y, 2, 1, crop_image_id, growth_per_tile + (growth_remaining > 0 ? 1 : 0));
-
-    // crop tile 5
-    set_crop_tile(building_id, x, y, 2, 0, crop_image_id, growth_per_tile);
-}
-
 int map_building_tiles_add_aqueduct(int x, int y)
 {
     int grid_offset = map_grid_offset(x, y);
@@ -167,10 +95,6 @@ void map_building_tiles_remove(unsigned int building_id, int x, int y)
     y = map_grid_offset_to_y(base_grid_offset);
     if (map_terrain_get(base_grid_offset) == TERRAIN_ROCK) {
         return;
-    }
-    building *b = building_get(building_id);
-    if (building_id && building_is_farm(b->type)) {
-        size = 3;
     }
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {

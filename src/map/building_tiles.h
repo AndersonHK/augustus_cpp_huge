@@ -6,8 +6,6 @@ void map_building_tiles_add_remove(unsigned int building_id, int x, int y, int s
 
 void map_building_tiles_add(unsigned int building_id, int x, int y, int size, int image_id, int terrain);
 
-void map_building_tiles_add_farm(unsigned int building_id, int x, int y, int crop_image_id, int progress);
-
 int map_building_tiles_add_aqueduct(int x, int y);
 
 void map_building_tiles_remove(unsigned int building_id, int x, int y);

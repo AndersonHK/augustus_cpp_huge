@@ -58,7 +58,10 @@ static Building building_from_runtime_id(unsigned int id)
 static resource_type output_resource(const Building &site)
 {
     const building *record = runtime_record(site);
-    return record ? static_cast<resource_type>(record->output_resource_id) : RESOURCE_NONE;
+    if (record && record->output_resource_id) {
+        return static_cast<resource_type>(record->output_resource_id);
+    }
+    return site.type ? building_output_resource(site.type->type()) : RESOURCE_NONE;
 }
 
 static int is_warehouse_storage(const Building &site)
@@ -72,15 +75,36 @@ static int is_runtime_storage(const Building &site)
         building_matches(site, "armoury");
 }
 
+static int type_has_farm_production(const building_type_registry_impl::BuildingType *type)
+{
+    if (!type) {
+        return 0;
+    }
+    if (type->is_farm()) {
+        return 1;
+    }
+    if (!type->has_composition()) {
+        return 0;
+    }
+    for (const building_type_registry_impl::ComposedPartDefinition &part : type->composition().parts()) {
+        const building_type_registry_impl::BuildingType *part_type =
+            building_type_registry_impl::definition_for_type(part.type);
+        if (part_type && part_type->is_farm()) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int is_close_delivery_food_source(const Building &site)
 {
-    return (site.type && site.type->is_farm()) ||
+    return type_has_farm_production(site.type) ||
         building_matches(site, "wharf");
 }
 
 static int is_ceres_speed_food_source(const Building &site)
 {
-    return site.type && site.type->is_farm();
+    return type_has_farm_production(site.type);
 }
 
 static int cartpusher_carries_food(Figure *f)

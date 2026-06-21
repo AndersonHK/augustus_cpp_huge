@@ -10,10 +10,15 @@
     </desirability>
     <foundation policy="land" />
   <button group="industry" order="400" text_key="main_strings.28.71" />
-    <event_data attr="granary" />
+    <event_data attr="granary" />
+
     <roadblock kind="storage" />
     <labor>
         <employees count="6" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="100" />
+        </labor_seeker>
     </labor>
     <graphics>
         <default animation="0">

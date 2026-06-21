@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <production_method>
     <kind value="farm" />
-    <output resource="wheat" production_per_month="160" />
-    <!-- Vespasian groups four legacy wheat loads into one cart to compensate for the longer month cycle. -->
-    <batch_size value="4" />
+    <output resource="wheat" production_per_month="32" />
+    <batch_size value="5" />
+    <cart_loads value="1" />
     <climate_bonuses>
         <bonus climate="northern" percent="-50" />
     </climate_bonuses>

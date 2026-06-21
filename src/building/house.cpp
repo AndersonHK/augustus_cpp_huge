@@ -11,7 +11,9 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
+#include "building/house_population.h"
 #include "building/housing_type.h"
+#include "building/local_workforce.h"
 
 #include "building/building_type_api.h"
 #include "city/population.h"
@@ -19,9 +21,11 @@
 #include "core/image.h"
 #include "game/resource.h"
 #include "map/grid.h"
-#include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
+
+#include <algorithm>
+#include <vector>
 
 #define MAX_DIR 4
 
@@ -39,15 +43,8 @@ static const struct {
     int offset;
 } EXPAND_DIRECTION_DELTA[MAX_DIR] = { {0, 0, 0}, {-1, -1, -GRID_SIZE - 1}, {-1, 0, -1}, {0, -1, -GRID_SIZE} };
 
-static struct {
-    int x;
-    int y;
-    int inventory[RESOURCE_SLOT_COUNT];
-    int sentiment;
-    int population;
-} merge_data;
-
 static int find_best_corner_for_devolve(int x, int y, int old_size, int new_size);
+static int split_blocking_houses(Building source, int x, int y, int num_tiles, int dry_run);
 
 int building_house_is_active(Building house)
 {
@@ -142,19 +139,21 @@ static int housing_level_for_type(building_type type)
     return housing ? housing->level() : -1;
 }
 
-static void set_house_legacy_level_from_type(building *house, building_type type)
+static int set_house_legacy_level_from_type(building *house, building_type type)
 {
-    int level = housing_level_for_type(type);
-    if (level >= 0) {
-        house->subtype.house_level = level;
+    if (!house) {
+        return 0;
     }
+    int level = housing_level_for_type(type);
+    house->subtype.house_level = static_cast<short>(level);
+    return level >= 0;
 }
 
-static int housing_model_size(building_type type, int fallback_size)
+static int housing_model_size(building_type type)
 {
     const auto *definition = building_type_registry_impl::definition_for_type(type);
     int size = definition ? definition->model().size() : 0;
-    return size > 0 ? size : fallback_size;
+    return size > 0 ? size : 0;
 }
 
 static building_type one_tile_medium_insula_type()
@@ -172,13 +171,12 @@ static int is_empty_vacant_lot(const building *house)
     return house && house->house_population == 0 && house->type == vacant_lot_fill_type();
 }
 
-static building_type split_type_for_house(building *house, building_type fallback_type)
+static building_type split_type_for_house(building *house)
 {
     Building house_object(house);
-    building_type split_type = house_object.type ?
+    return house_object.type ?
         house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::SplitTo) :
         BUILDING_NONE;
-    return split_type == BUILDING_NONE ? fallback_type : split_type;
 }
 
 void building_house_change_to(Building house_object, building_type type)
@@ -188,6 +186,9 @@ void building_house_change_to(Building house_object, building_type type)
         return;
     }
     int should_reseed_graphics = is_empty_vacant_lot(house);
+    if (housing_level_for_type(type) < 0) {
+        return;
+    }
     house_object.change_type(type);
     set_house_legacy_level_from_type(house, house->type);
     if (house_object.type && house_object.type->has_housing()) {
@@ -206,7 +207,7 @@ void building_house_change_to(Building house_object, building_type type)
 static void create_vacant_lot(int x, int y)
 {
     building_type type = vacant_lot_fill_type();
-    if (type == BUILDING_NONE) {
+    if (type == BUILDING_NONE || housing_level_for_type(type) < 0) {
         return;
     }
     building *b = building_create(type, x, y);
@@ -214,15 +215,6 @@ static void create_vacant_lot(int x, int y)
     set_house_legacy_level_from_type(b, type);
     b->distance_from_entry = 0;
     map_building_tiles_add(b->id, b->x, b->y, 1, building_image_get(b), TERRAIN_BUILDING);
-}
-
-void building_house_vacant_lot_mark_draw(int building_id)
-{
-    grid_slice *slice = map_grid_get_grid_slice_house(building_id, 0);
-    for (int i = 0; i < slice->size; i++) {
-        int grid_offset = slice->grid_offsets[i];
-        map_property_mark_draw_tile(grid_offset);
-    }
 }
 
 void building_house_change_to_vacant_lot(Building house_object)
@@ -233,7 +225,7 @@ void building_house_change_to_vacant_lot(Building house_object)
     }
     house->house_population = 0;
     building_type type = vacant_lot_fill_type();
-    if (type == BUILDING_NONE) {
+    if (type == BUILDING_NONE || housing_level_for_type(type) < 0) {
         return;
     }
     house_object.change_type(type);
@@ -252,108 +244,261 @@ void building_house_change_to_vacant_lot(Building house_object)
     }
 }
 
-static void prepare_for_merge(unsigned int building_id, int num_tiles)
+struct HouseMergePlan {
+    building_type type = BUILDING_NONE;
+    int x = 0;
+    int y = 0;
+    int size = 0;
+    int merged = 0;
+    unsigned int source_id = 0;
+    std::vector<unsigned int> participants;
+    int inventory[RESOURCE_SLOT_COUNT] = {};
+    int population = 0;
+    int happiness_weight = 0;
+};
+
+enum class HouseExpandMode {
+    HousesOnly,
+    ClearTerrain,
+    Gardens,
+};
+
+static Building building_at_tile(int grid_offset)
 {
-    for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        merge_data.inventory[r] = 0;
+    unsigned int building_id = map_building_at(grid_offset);
+    return building_id ? Building(building_get(building_id)) : Building(nullptr);
+}
+
+static int plan_has_participant(const HouseMergePlan &plan, unsigned int building_id)
+{
+    return std::find(plan.participants.begin(), plan.participants.end(), building_id) != plan.participants.end();
+}
+
+static void add_participant(HouseMergePlan &plan, Building house)
+{
+    if (!house.id() || plan_has_participant(plan, house.id())) {
+        return;
     }
-    merge_data.population = 0;
-    merge_data.sentiment = 0;
-    int grid_offset = map_grid_offset(merge_data.x, merge_data.y);
-    for (int i = 0; i < num_tiles; i++) {
-        int house_offset = grid_offset + HOUSE_TILE_OFFSETS[i];
-        if (map_terrain_is(house_offset, TERRAIN_BUILDING)) {
-            building *house = building_get(map_building_at(house_offset));
-            if (house->id != building_id && house->house_size) {
-                merge_data.population += house->house_population;
-                merge_data.sentiment += house->house_population * house->sentiment.house_happiness;
-                for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-                    merge_data.inventory[r] += house->resources[r];
+    plan.participants.push_back(house.id());
+    plan.population += house.house_population();
+    plan.happiness_weight += house.house_population() * house.house_happiness();
+    for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        plan.inventory[r] += house.resource_amount(r);
+    }
+}
+
+static int house_can_share_expand_footprint(Building source, Building other)
+{
+    if (!other.id()) {
+        return 0;
+    }
+    if (other.id() == source.id()) {
+        return 1;
+    }
+    return other.is_in_use() && other.has_house_size() &&
+        building_house_legacy_level(other) <= building_house_legacy_level(source);
+}
+
+static int tile_can_expand_into(Building source, int tile_offset, HouseExpandMode mode)
+{
+    if (map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
+        return house_can_share_expand_footprint(source, building_at_tile(tile_offset));
+    }
+    if (mode == HouseExpandMode::HousesOnly) {
+        return 0;
+    }
+    if (!map_terrain_is(tile_offset, TERRAIN_NOT_CLEAR)) {
+        return 1;
+    }
+    return mode == HouseExpandMode::Gardens &&
+        !config_get(CONFIG_GP_CH_HOUSES_DONT_EXPAND_INTO_GARDENS) &&
+        map_terrain_is(tile_offset, TERRAIN_GARDEN);
+}
+
+static int find_expand_origin(Building house, int num_tiles, int *out_x, int *out_y)
+{
+    const HouseExpandMode modes[] = {
+        HouseExpandMode::HousesOnly,
+        HouseExpandMode::ClearTerrain,
+        HouseExpandMode::Gardens,
+    };
+    for (HouseExpandMode mode : modes) {
+        for (int dir = 0; dir < MAX_DIR; dir++) {
+            int base_offset = EXPAND_DIRECTION_DELTA[dir].offset + house.grid_offset();
+            int ok_tiles = 0;
+            for (int i = 0; i < num_tiles; i++) {
+                if (tile_can_expand_into(house, base_offset + HOUSE_TILE_OFFSETS[i], mode)) {
+                    ok_tiles++;
                 }
-                house->house_population = 0;
-                house->state = BUILDING_STATE_DELETED_BY_GAME;
+            }
+            if (ok_tiles == num_tiles) {
+                *out_x = house.x() + EXPAND_DIRECTION_DELTA[dir].x;
+                *out_y = house.y() + EXPAND_DIRECTION_DELTA[dir].y;
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+static int tile_can_merge_into_2x2(Building source, int tile_offset)
+{
+    if (!map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
+        return 0;
+    }
+    Building other = building_at_tile(tile_offset);
+    if (other.id() == source.id()) {
+        return 1;
+    }
+    return other.is_in_use() && other.has_house_size() &&
+        building_house_legacy_level(other) == building_house_legacy_level(source) &&
+        !other.is_merged_house();
+}
+
+static int find_merge_origin(Building house, int *out_x, int *out_y)
+{
+    int valid_tiles = 0;
+    for (int i = 0; i < 4; i++) {
+        if (tile_can_merge_into_2x2(house, house.grid_offset() + HOUSE_TILE_OFFSETS[i])) {
+            valid_tiles++;
+        }
+    }
+    if (valid_tiles != 4) {
+        return 0;
+    }
+    *out_x = house.x() + EXPAND_DIRECTION_DELTA[0].x;
+    *out_y = house.y() + EXPAND_DIRECTION_DELTA[0].y;
+    return 1;
+}
+
+static int collect_house_merge_plan(Building source, building_type type, int x, int y, int size,
+    int merged, int num_tiles, HouseMergePlan *plan)
+{
+    if (!source.id() || type == BUILDING_NONE || !plan) {
+        return 0;
+    }
+    *plan = {};
+    plan->type = type;
+    plan->x = x;
+    plan->y = y;
+    plan->size = size;
+    plan->merged = merged;
+    plan->source_id = source.id();
+
+    int base_offset = map_grid_offset(x, y);
+    for (int i = 0; i < num_tiles; i++) {
+        int tile_offset = base_offset + HOUSE_TILE_OFFSETS[i];
+        if (!map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
+            continue;
+        }
+        Building participant = building_at_tile(tile_offset);
+        if (!participant.id() || !participant.is_in_use() || !participant.has_house_size()) {
+            return 0;
+        }
+        add_participant(*plan, participant);
+    }
+    if (!plan_has_participant(*plan, source.id())) {
+        add_participant(*plan, source);
+    }
+    return !plan->participants.empty();
+}
+
+static void retarget_figures_for_house_merge(const HouseMergePlan &plan, Building &replacement)
+{
+    for (unsigned int figure_id = 1; figure_id < Figure::count(); figure_id++) {
+        Figure *figure = Figure::get(figure_id);
+        if (!figure || !figure->state) {
+            continue;
+        }
+        for (unsigned int participant_id : plan.participants) {
+            Building participant(building_get(participant_id));
+            const int was_immigrant = figure->immigrant_building.id() == participant_id;
+            const int retargeted = figure->retarget_building(participant, replacement);
+            if (retargeted) {
+                if (was_immigrant && !replacement.immigrant_figure_id()) {
+                    replacement.set_immigrant_figure_id(figure->id());
+                }
+                replacement.copy_house_figure_slot_from(participant, figure->id());
             }
         }
     }
 }
 
-static void merge(building *b)
+static int apply_house_merge_plan(const HouseMergePlan &plan)
 {
-    prepare_for_merge(b->id, 4);
-
-    Building house_object(b);
-    building_type merge_type = house_object.type ?
-        house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::MergeTo) :
-        BUILDING_NONE;
-    if (merge_type != BUILDING_NONE) {
-        house_object.change_type(merge_type);
-        set_house_legacy_level_from_type(b, merge_type);
+    if (plan.type == BUILDING_NONE || !plan.source_id || plan.participants.empty() ||
+        plan.size <= 0 || housing_level_for_type(plan.type) < 0) {
+        return 0;
     }
 
-    int merged_size = house_object.type ? house_object.type->model().size() : 0;
-    b->size = b->house_size = merged_size > 0 ? merged_size : 2;
-    b->is_close_to_water = building_is_close_to_water(b);
-    merge_data.sentiment += b->house_population * b->sentiment.house_happiness;
-    b->house_population += merge_data.population;
-    if (b->house_population) {
-        b->sentiment.house_happiness = merge_data.sentiment / b->house_population;
+    Building source(building_get(plan.source_id));
+    if (!source.id()) {
+        return 0;
     }
+    Building replacement = Building::create(plan.type, plan.x, plan.y);
+    if (!replacement.id()) {
+        return 0;
+    }
+    replacement.copy_house_data_from(source);
+    if (!replacement.configure_house_replacement(plan.type, plan.x, plan.y, plan.size, plan.merged)) {
+        replacement.retire_replaced_house();
+        return 0;
+    }
+    replacement.set_house_population(plan.population);
+    replacement.set_house_happiness(plan.population ? plan.happiness_weight / plan.population : source.house_happiness());
     for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        b->resources[r] += merge_data.inventory[r];
+        replacement.set_resource_amount(r, plan.inventory[r]);
     }
-    map_building_tiles_remove(b->id, b->x, b->y);
-    b->x = merge_data.x;
-    b->y = merge_data.y;
-    b->grid_offset = map_grid_offset(b->x, b->y);
-    b->house_is_merged = 1;
-    Building refreshed_house(b);
-    add_house_tiles(refreshed_house);
-    if (config_get(CONFIG_GP_CH_HOUSING_PRE_MERGE_VACANT_LOTS)) {
-        if (is_empty_vacant_lot(b)) {
-            grid_slice *slice = map_grid_get_grid_slice_house(b->id, 0);
-            for (int i = 0; i < slice->size; i++) {
-                int offset = slice->grid_offsets[i];
-                map_property_mark_draw_tile(offset); // re-mark the tiles for redraw
-            }
-        }
-    }
+    int capacity = house_population_get_capacity(replacement);
+    replacement.set_house_population_room(std::max(0, capacity - replacement.house_population()));
 
+    retarget_figures_for_house_merge(plan, replacement);
+    for (unsigned int participant_id : plan.participants) {
+        Building participant(building_get(participant_id));
+        building_local_workforce::replace_house(participant, replacement);
+    }
+    add_house_tiles(replacement);
+    for (unsigned int participant_id : plan.participants) {
+        Building participant(building_get(participant_id));
+        participant.retire_replaced_house();
+    }
+    return 1;
 }
 
 void building_house_merge(Building house_object)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
-    if (!house) {
+    if (!house_object.id() || !house_object.has_house_size()) {
         return;
     }
-    if (house->house_is_merged) {
+    if (house_object.is_merged_house()) {
         return;
     }
     if (!config_get(CONFIG_GP_CH_ALL_HOUSES_MERGE)) {
-        if ((map_random_get(house->grid_offset) & 7) >= 5) {
+        if ((map_random_get(house_object.grid_offset()) & 7) >= 5) {
             return;
         }
     }
-    int num_house_tiles = 0;
-    for (int i = 0; i < 4; i++) {
-        int tile_offset = house->grid_offset + HOUSE_TILE_OFFSETS[i];
-        if (map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
-            building *other_house = building_get(map_building_at(tile_offset));
-            if (other_house->id == house->id) {
-                num_house_tiles++;
-            } else if (other_house->state == BUILDING_STATE_IN_USE && other_house->house_size &&
-                other_house->subtype.house_level == house->subtype.house_level &&
-                !other_house->house_is_merged) {
-                num_house_tiles++;
-            }
-        }
+    int x = 0;
+    int y = 0;
+    if (!find_merge_origin(house_object, &x, &y)) {
+        return;
     }
-    if (num_house_tiles == 4) {
-        game_undo_disable();
-        merge_data.x = house->x + EXPAND_DIRECTION_DELTA[0].x;
-        merge_data.y = house->y + EXPAND_DIRECTION_DELTA[0].y;
-        merge(house);
+    building_type merge_type = house_object.type ?
+        house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::MergeTo) :
+        BUILDING_NONE;
+    if (merge_type == BUILDING_NONE) {
+        return;
     }
+    HouseMergePlan plan;
+    int merged_size = housing_model_size(merge_type);
+    if (merged_size <= 0 || housing_level_for_type(merge_type) < 0) {
+        return;
+    }
+    if (!collect_house_merge_plan(house_object, merge_type, x, y, merged_size, 1, 4, &plan)) {
+        return;
+    }
+    game_undo_disable();
+    apply_house_merge_plan(plan);
 }
 
 int building_house_can_expand(Building house_object, int num_tiles)
@@ -362,132 +507,44 @@ int building_house_can_expand(Building house_object, int num_tiles)
     if (!house) {
         return 0;
     }
-    // merge with other houses
-    for (int dir = 0; dir < MAX_DIR; dir++) {
-        int base_offset = EXPAND_DIRECTION_DELTA[dir].offset + house->grid_offset;
-        int ok_tiles = 0;
-        for (int i = 0; i < num_tiles; i++) {
-            int tile_offset = base_offset + HOUSE_TILE_OFFSETS[i];
-            if (map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
-                building *other_house = building_get(map_building_at(tile_offset));
-                if (other_house->id == house->id) {
-                    ok_tiles++;
-                } else if (other_house->state == BUILDING_STATE_IN_USE && other_house->house_size) {
-                    if (other_house->subtype.house_level <= house->subtype.house_level) {
-                        ok_tiles++;
-                    }
-                }
-            }
-        }
-        if (ok_tiles == num_tiles) {
-            merge_data.x = house->x + EXPAND_DIRECTION_DELTA[dir].x;
-            merge_data.y = house->y + EXPAND_DIRECTION_DELTA[dir].y;
-            return 1;
-        }
-    }
-    // merge with houses and empty terrain
-    for (int dir = 0; dir < MAX_DIR; dir++) {
-        int base_offset = EXPAND_DIRECTION_DELTA[dir].offset + house->grid_offset;
-        int ok_tiles = 0;
-        for (int i = 0; i < num_tiles; i++) {
-            int tile_offset = base_offset + HOUSE_TILE_OFFSETS[i];
-            if (!map_terrain_is(tile_offset, TERRAIN_NOT_CLEAR)) {
-                ok_tiles++;
-            } else if (map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
-                building *other_house = building_get(map_building_at(tile_offset));
-                if (other_house->id == house->id) {
-                    ok_tiles++;
-                } else if (other_house->state == BUILDING_STATE_IN_USE && other_house->house_size) {
-                    if (other_house->subtype.house_level <= house->subtype.house_level) {
-                        ok_tiles++;
-                    }
-                }
-            }
-        }
-        if (ok_tiles == num_tiles) {
-            merge_data.x = house->x + EXPAND_DIRECTION_DELTA[dir].x;
-            merge_data.y = house->y + EXPAND_DIRECTION_DELTA[dir].y;
-            return 1;
-        }
-    }
-    // merge with houses, empty terrain and gardens
-    for (int dir = 0; dir < MAX_DIR; dir++) {
-        int base_offset = EXPAND_DIRECTION_DELTA[dir].offset + house->grid_offset;
-        int ok_tiles = 0;
-        for (int i = 0; i < num_tiles; i++) {
-            int tile_offset = base_offset + HOUSE_TILE_OFFSETS[i];
-            if (!map_terrain_is(tile_offset, TERRAIN_NOT_CLEAR)) {
-                ok_tiles++;
-            } else if (map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
-                building *other_house = building_get(map_building_at(tile_offset));
-                if (other_house->id == house->id) {
-                    ok_tiles++;
-                } else if (other_house->state == BUILDING_STATE_IN_USE && other_house->house_size) {
-                    if (other_house->subtype.house_level <= house->subtype.house_level) {
-                        ok_tiles++;
-                    }
-                }
-            } else if (map_terrain_is(tile_offset, TERRAIN_GARDEN) &&
-                !config_get(CONFIG_GP_CH_HOUSES_DONT_EXPAND_INTO_GARDENS)) {
-                ok_tiles++;
-            }
-        }
-        if (ok_tiles == num_tiles) {
-            merge_data.x = house->x + EXPAND_DIRECTION_DELTA[dir].x;
-            merge_data.y = house->y + EXPAND_DIRECTION_DELTA[dir].y;
-            return 1;
-        }
+    int x = 0;
+    int y = 0;
+    if (find_expand_origin(house_object, num_tiles, &x, &y)) {
+        return split_blocking_houses(house_object, x, y, num_tiles, 1);
     }
     house->data.house.no_space_to_expand = 1;
     return 0;
 }
 
-static void copy_house_data(building *house, const building *main_house)
-{
-    house->data.house.academy = main_house->data.house.academy;
-    house->data.house.amphitheater_actor = main_house->data.house.amphitheater_actor;
-    house->data.house.amphitheater_gladiator = main_house->data.house.amphitheater_gladiator;
-    house->data.house.barber = main_house->data.house.barber;
-    house->data.house.bathhouse = main_house->data.house.bathhouse;
-    house->data.house.clinic = main_house->data.house.clinic;
-    house->data.house.colosseum_gladiator = main_house->data.house.colosseum_gladiator;
-    house->data.house.colosseum_lion = main_house->data.house.colosseum_lion;
-    house->data.house.education = main_house->data.house.education;
-    house->data.house.entertainment = main_house->data.house.entertainment;
-    house->data.house.health = main_house->data.house.health;
-    house->data.house.hippodrome = main_house->data.house.hippodrome;
-    house->data.house.hospital = main_house->data.house.hospital;
-    house->data.house.library = main_house->data.house.library;
-    house->data.house.num_foods = main_house->data.house.num_foods;
-    house->data.house.num_gods = main_house->data.house.num_gods;
-    house->data.house.school = main_house->data.house.school;
-    house->data.house.temple_ceres = main_house->data.house.temple_ceres;
-    house->data.house.temple_mars = main_house->data.house.temple_mars;
-    house->data.house.temple_mercury = main_house->data.house.temple_mercury;
-    house->data.house.temple_neptune = main_house->data.house.temple_neptune;
-    house->data.house.temple_venus = main_house->data.house.temple_venus;
-    house->data.house.theater = main_house->data.house.theater;
-    house->sentiment.house_happiness = main_house->sentiment.house_happiness;
-}
-
-static void create_splitted_house_tile(building *main_house, building_type type,
+static void create_splitted_house_tile(unsigned int main_house_id, building_type type,
     int x, int y, int population, const int *inventory)
 {
-    building *house = building_create(type, x, y);
-    house->house_population = population;
-    for (int i = 0; i < RESOURCE_SLOT_COUNT; i++) {
-        house->resources[i] = inventory[i];
+    if (type == BUILDING_NONE || housing_level_for_type(type) < 0) {
+        return;
     }
-    set_house_legacy_level_from_type(house, type);
-    copy_house_data(house, main_house);
-    house->distance_from_entry = 0;
-    Building refreshed_house(house);
-    add_house_tiles(refreshed_house);
+    Building source(building_get(main_house_id));
+    if (!source.id()) {
+        return;
+    }
+    Building house = Building::create(type, x, y);
+    if (!house.id()) {
+        return;
+    }
+    house.copy_house_data_from(source);
+    house.set_house_population(population);
+    for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        house.set_resource_amount(r, inventory[r]);
+    }
+    house.set_distance_from_entry(0);
+    add_house_tiles(house);
 }
 
 static void split_size2(building *house, building_type new_type)
 {
     if (new_type == BUILDING_NONE) {
+        return;
+    }
+    if (housing_level_for_type(new_type) < 0) {
         return;
     }
     int inventory_per_tile[RESOURCE_SLOT_COUNT];
@@ -517,15 +574,19 @@ static void split_size2(building *house, building_type new_type)
     add_house_tiles(refreshed_house);
 
     // the other tiles (new buildings)
-    create_splitted_house_tile(house, house->type, house->x + 1, house->y, population_per_tile, inventory_per_tile);
-    create_splitted_house_tile(house, house->type, house->x, house->y + 1, population_per_tile, inventory_per_tile);
-    create_splitted_house_tile(house, house->type, house->x + 1, house->y + 1, population_per_tile, inventory_per_tile);
+    const unsigned int main_house_id = house->id;
+    const building_type split_type = house->type;
+    const int x = house->x;
+    const int y = house->y;
+    create_splitted_house_tile(main_house_id, split_type, x + 1, y, population_per_tile, inventory_per_tile);
+    create_splitted_house_tile(main_house_id, split_type, x, y + 1, population_per_tile, inventory_per_tile);
+    create_splitted_house_tile(main_house_id, split_type, x + 1, y + 1, population_per_tile, inventory_per_tile);
 }
 
 static void split_size3(building *house)
 {
     building_type medium_insula_type = one_tile_medium_insula_type();
-    if (medium_insula_type == BUILDING_NONE) {
+    if (medium_insula_type == BUILDING_NONE || housing_level_for_type(medium_insula_type) < 0) {
         return;
     }
     int inventory_per_tile[RESOURCE_SLOT_COUNT];
@@ -555,71 +616,105 @@ static void split_size3(building *house)
     add_house_tiles(refreshed_house);
 
     // the other tiles (new buildings)
-    create_splitted_house_tile(house, house->type, house->x, house->y + 1, population_per_tile, inventory_per_tile);
-    create_splitted_house_tile(house, house->type, house->x + 1, house->y + 1, population_per_tile, inventory_per_tile);
-    create_splitted_house_tile(house, house->type, house->x + 2, house->y + 1, population_per_tile, inventory_per_tile);
-    create_splitted_house_tile(house, house->type, house->x, house->y + 2, population_per_tile, inventory_per_tile);
-    create_splitted_house_tile(house, house->type, house->x + 1, house->y + 2, population_per_tile, inventory_per_tile);
-    create_splitted_house_tile(house, house->type, house->x + 2, house->y + 2, population_per_tile, inventory_per_tile);
+    const unsigned int main_house_id = house->id;
+    const building_type split_type = house->type;
+    const int x = house->x;
+    const int y = house->y;
+    create_splitted_house_tile(main_house_id, split_type, x, y + 1, population_per_tile, inventory_per_tile);
+    create_splitted_house_tile(main_house_id, split_type, x + 1, y + 1, population_per_tile, inventory_per_tile);
+    create_splitted_house_tile(main_house_id, split_type, x + 2, y + 1, population_per_tile, inventory_per_tile);
+    create_splitted_house_tile(main_house_id, split_type, x, y + 2, population_per_tile, inventory_per_tile);
+    create_splitted_house_tile(main_house_id, split_type, x + 1, y + 2, population_per_tile, inventory_per_tile);
+    create_splitted_house_tile(main_house_id, split_type, x + 2, y + 2, population_per_tile, inventory_per_tile);
 }
 
-static void split(building *house, int num_tiles)
+static int split_blocking_houses(Building source, int x, int y, int num_tiles, int dry_run)
 {
-    int grid_offset = map_grid_offset(merge_data.x, merge_data.y);
+    const unsigned int source_id = source.id();
+    int grid_offset = map_grid_offset(x, y);
     for (int i = 0; i < num_tiles; i++) {
         int tile_offset = grid_offset + HOUSE_TILE_OFFSETS[i];
         if (map_terrain_is(tile_offset, TERRAIN_BUILDING)) {
             building *other_house = building_get(map_building_at(tile_offset));
-            if (other_house->id != house->id && other_house->house_size) {
+            if (other_house && other_house->id != source_id && other_house->house_size) {
                 if (other_house->house_is_merged == 1) {
-                    split_size2(other_house, split_type_for_house(other_house, other_house->type));
+                    building_type split_type = split_type_for_house(other_house);
+                    if (split_type == BUILDING_NONE || housing_level_for_type(split_type) < 0) {
+                        return 0;
+                    }
+                    if (!dry_run) {
+                        split_size2(other_house, split_type);
+                    }
                 } else if (other_house->house_size == 2) {
-                    split_size2(other_house, one_tile_medium_insula_type());
+                    building_type split_type = one_tile_medium_insula_type();
+                    if (split_type == BUILDING_NONE || housing_level_for_type(split_type) < 0) {
+                        return 0;
+                    }
+                    if (!dry_run) {
+                        split_size2(other_house, split_type);
+                    }
                 } else if (other_house->house_size == 3) {
-                    split_size3(other_house);
+                    building_type split_type = one_tile_medium_insula_type();
+                    if (split_type == BUILDING_NONE || housing_level_for_type(split_type) < 0) {
+                        return 0;
+                    }
+                    if (!dry_run) {
+                        split_size3(other_house);
+                    }
                 }
             }
         }
     }
+    return 1;
 }
 
 /// Runtime-size house transitions
 
 int building_house_expand_to_type(Building house_object, building_type type)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
-    if (!house) {
+    if (!house_object.id() || !house_object.has_house_size()) {
         return 0;
     }
-    int target_size = housing_model_size(type, house->house_size);
-    if (target_size <= house->house_size) {
+    int target_size = housing_model_size(type);
+    if (target_size <= house_object.size()) {
         return 0;
     }
 
-    split(house, target_size * target_size);
-    prepare_for_merge(house->id, target_size * target_size);
-
-    building_change_type(house, type);
-    set_house_legacy_level_from_type(house, type);
-    house->size = house->house_size = target_size;
-    house->is_close_to_water = building_is_close_to_water(house);
-    house->house_is_merged = 0;
-    house->house_population += merge_data.population;
-    for (int i = 0; i < RESOURCE_SLOT_COUNT; i++) {
-        house->resources[i] += merge_data.inventory[i];
+    int x = 0;
+    int y = 0;
+    int num_tiles = target_size * target_size;
+    if (!find_expand_origin(house_object, num_tiles, &x, &y)) {
+        building *house = building_get(house_object.id());
+        if (house) {
+            house->data.house.no_space_to_expand = 1;
+        }
+        return 0;
     }
-    map_building_tiles_remove(house->id, house->x, house->y);
-    house->x = merge_data.x;
-    house->y = merge_data.y;
-    house->grid_offset = map_grid_offset(house->x, house->y);
-    Building refreshed_house(house);
-    add_house_tiles(refreshed_house);
-    return 1;
+
+    const unsigned int source_id = house_object.id();
+    if (!building_get(source_id)) {
+        return 0;
+    }
+    if (!split_blocking_houses(house_object, x, y, num_tiles, 1)) {
+        return 0;
+    }
+    if (!split_blocking_houses(house_object, x, y, num_tiles, 0)) {
+        return 0;
+    }
+    Building source(building_get(source_id));
+    HouseMergePlan plan;
+    if (!collect_house_merge_plan(source, type, x, y, target_size, 0, num_tiles, &plan)) {
+        return 0;
+    }
+    return apply_house_merge_plan(plan);
 }
 
 static void desize_house_to_type(building *house, building_type type)
 {
-    int target_size = housing_model_size(type, house->size - 1);
+    int target_size = housing_model_size(type);
+    if (target_size <= 0 || target_size >= house->size || housing_level_for_type(type) < 0) {
+        return;
+    }
 
     map_building_tiles_remove(house->id, house->x, house->y);
     int road_tile_offset = find_best_corner_for_devolve(house->x, house->y, house->size, target_size);
@@ -640,7 +735,10 @@ static void desize_house_to_type(building *house, building_type type)
 static void shrink_house_to_type(building *house, building_type type)
 {
     int old_size = house->house_size;
-    int target_size = housing_model_size(type, old_size - 1);
+    int target_size = housing_model_size(type);
+    if (target_size <= 0 || target_size >= old_size || housing_level_for_type(type) < 0) {
+        return;
+    }
     int extra_tiles = old_size * old_size - target_size * target_size;
     if (extra_tiles <= 0) {
         building_house_change_to(Building(house), type);
@@ -674,19 +772,22 @@ static void shrink_house_to_type(building *house, building_type type)
     add_house_tiles(refreshed_house);
 
     building_type extra_house_type = one_tile_medium_insula_type();
-    if (extra_house_type == BUILDING_NONE) {
+    if (extra_house_type == BUILDING_NONE || housing_level_for_type(extra_house_type) < 0) {
         return;
     }
+    const unsigned int main_house_id = house->id;
+    const int base_x = house->x;
+    const int base_y = house->y;
     for (int y = 0; y < old_size; y++) {
         for (int x = 0; x < old_size; x++) {
             if (x < target_size && y < target_size) {
                 continue;
             }
             create_splitted_house_tile(
-                house,
+                main_house_id,
                 extra_house_type,
-                house->x + x,
-                house->y + y,
+                base_x + x,
+                base_y + y,
                 population_per_tile,
                 inventory_per_tile);
         }
@@ -700,13 +801,16 @@ void building_house_devolve_to_type(Building house_object, building_type type)
         return;
     }
     int current_size = house->house_size;
-    int target_size = housing_model_size(type, current_size);
+    int target_size = housing_model_size(type);
+    int target_level = housing_level_for_type(type);
+    if (target_size <= 0 || target_level < 0) {
+        return;
+    }
 
     int current_level = building_house_legacy_level(house_object);
-    int target_level = housing_level_for_type(type);
     if (current_level == HOUSE_LARGE_INSULA && target_level == HOUSE_MEDIUM_INSULA &&
         current_size == 2 && target_size == 2) {
-        building_type split_type = split_type_for_house(house, BUILDING_NONE);
+        building_type split_type = split_type_for_house(house);
         if (split_type != BUILDING_NONE &&
             !config_get(CONFIG_GP_CH_ALL_HOUSES_MERGE) &&
             (map_random_get(house->grid_offset) & 7) >= 5) {

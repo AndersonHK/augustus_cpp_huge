@@ -314,7 +314,7 @@ static figure_type parse_figure_type_name(const char *name)
         figure_type type;
     };
 
-    static constexpr std::array<NamedFigure, 29> kFigureNames = { {
+    static constexpr std::array<NamedFigure, 30> kFigureNames = { {
         { "labor_seeker", FIGURE_LABOR_SEEKER },
         { "engineer", FIGURE_ENGINEER },
         { "prefect", FIGURE_PREFECT },
@@ -343,7 +343,8 @@ static figure_type parse_figure_type_name(const char *name)
         { "barkeep_supplier", FIGURE_BARKEEP_SUPPLIER },
         { "caravanserai_supplier", FIGURE_CARAVANSERAI_SUPPLIER },
         { "caravanserai_collector", FIGURE_CARAVANSERAI_COLLECTOR },
-        { "mess_hall_fort_supplier", FIGURE_MESS_HALL_FORT_SUPPLIER }
+        { "mess_hall_fort_supplier", FIGURE_MESS_HALL_FORT_SUPPLIER },
+        { "fishing_boat", FIGURE_FISHING_BOAT }
     } };
 
     for (const NamedFigure &entry : kFigureNames) {
@@ -393,6 +394,9 @@ static NativeClassId parse_native_class_name(const char *name)
     }
     if (xml_value::equals(name, "depot_cart_pusher")) {
         return NativeClassId::DepotCartPusher;
+    }
+    if (xml_value::equals(name, "fishing_boat")) {
+        return NativeClassId::FishingBoat;
     }
     return NativeClassId::None;
 }
@@ -491,7 +495,7 @@ static int parse_image_group_name(const char *name)
         int image_group_id;
     };
 
-    static constexpr std::array<NamedGroup, 17> kImageGroups = { {
+    static constexpr std::array<NamedGroup, 18> kImageGroups = { {
         { "labor_seeker", GROUP_FIGURE_LABOR_SEEKER },
         { "engineer", GROUP_FIGURE_ENGINEER },
         { "prefect", GROUP_FIGURE_PREFECT },
@@ -508,7 +512,8 @@ static int parse_image_group_name(const char *name)
         { "teacher_librarian", GROUP_FIGURE_TEACHER_LIBRARIAN },
         { "barber", GROUP_FIGURE_BARBER },
         { "bathhouse_worker", GROUP_FIGURE_BATHHOUSE_WORKER },
-        { "school_child", GROUP_FIGURE_SCHOOL_CHILD }
+        { "school_child", GROUP_FIGURE_SCHOOL_CHILD },
+        { "ship", GROUP_FIGURE_SHIP }
     } };
 
     for (const NamedGroup &entry : kImageGroups) {

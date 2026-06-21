@@ -43,7 +43,8 @@
     <labor>
         <employees count="8" />
         <labor_seeker>
-            <method value="houses_spawn_if_below" />
+            <method value="houses_generate_if_below" />
+            <amount value="50" />
         </labor_seeker>
     </labor>
 </building>

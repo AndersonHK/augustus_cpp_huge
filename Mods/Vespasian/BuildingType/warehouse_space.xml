@@ -4,5 +4,10 @@
     <model size="1" />
     <foundation policy="land" />
     <event_data attr="warehouse_space" />
+    <graphics>
+        <default>
+            <resource_storage />
+        </default>
+    </graphics>
     <flags fire_proof="1" />
 </building>

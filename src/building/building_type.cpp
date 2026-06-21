@@ -611,6 +611,88 @@ const std::vector<ConstructionPhase> &ConstructionDefinition::phases() const
     return phases_;
 }
 
+ComposedPartOffset ComposedPartDefinition::offset_for_rotation(int rotation) const
+{
+    int normalized_rotation = rotation % 4;
+    if (normalized_rotation < 0) {
+        normalized_rotation += 4;
+    }
+    if (offsets[normalized_rotation].has_value) {
+        return offsets[normalized_rotation];
+    }
+    for (const ComposedPartOffset &offset : offsets) {
+        if (offset.has_value) {
+            return offset;
+        }
+    }
+    return ComposedPartOffset();
+}
+
+void ComposedBuildingDefinition::set_footprint(int width, int height)
+{
+    footprint_width_ = width;
+    footprint_height_ = height;
+}
+
+void ComposedBuildingDefinition::set_main_offset(int rotation, int x, int y)
+{
+    int normalized_rotation = rotation % 4;
+    if (normalized_rotation < 0) {
+        normalized_rotation += 4;
+    }
+    main_offsets_[normalized_rotation] = { x, y, 1 };
+}
+
+ComposedPartDefinition &ComposedBuildingDefinition::add_part(std::string type_attr, std::string role)
+{
+    parts_.push_back(ComposedPartDefinition());
+    parts_.back().type_attr = std::move(type_attr);
+    parts_.back().role = std::move(role);
+    return parts_.back();
+}
+
+int ComposedBuildingDefinition::footprint_width() const
+{
+    return footprint_width_;
+}
+
+int ComposedBuildingDefinition::footprint_height() const
+{
+    return footprint_height_;
+}
+
+ComposedPartOffset ComposedBuildingDefinition::main_offset_for_rotation(int rotation) const
+{
+    int normalized_rotation = rotation % 4;
+    if (normalized_rotation < 0) {
+        normalized_rotation += 4;
+    }
+    if (main_offsets_[normalized_rotation].has_value) {
+        return main_offsets_[normalized_rotation];
+    }
+    for (const ComposedPartOffset &offset : main_offsets_) {
+        if (offset.has_value) {
+            return offset;
+        }
+    }
+    return ComposedPartOffset{ 0, 0, 1 };
+}
+
+const std::vector<ComposedPartDefinition> &ComposedBuildingDefinition::parts() const
+{
+    return parts_;
+}
+
+std::vector<ComposedPartDefinition> &ComposedBuildingDefinition::parts()
+{
+    return parts_;
+}
+
+int ComposedBuildingDefinition::has_any() const
+{
+    return footprint_width_ > 0 && footprint_height_ > 0 && !parts_.empty();
+}
+
 static bool attr_is(const std::string &attr, const char *text_id)
 {
     return attr == text_id;
@@ -934,6 +1016,29 @@ void BuildingType::add_construction_requirement(resource_type resource, int amou
     construction_.add_requirement(resource, amount);
 }
 
+void BuildingType::set_composed_footprint(int width, int height)
+{
+    composition_.set_footprint(width, height);
+}
+
+void BuildingType::set_composed_main_offset(int rotation, int x, int y)
+{
+    composition_.set_main_offset(rotation, x, y);
+}
+
+ComposedPartDefinition &BuildingType::add_composed_part(std::string type_attr, std::string role)
+{
+    return composition_.add_part(std::move(type_attr), std::move(role));
+}
+
+void BuildingType::set_composed_part_type(size_t index, building_type type)
+{
+    std::vector<ComposedPartDefinition> &parts = composition_.parts();
+    if (index < parts.size()) {
+        parts[index].type = type;
+    }
+}
+
 void BuildingType::add_spawn_policy(SpawnPolicy policy)
 {
     if (spawn_groups_.empty()) {
@@ -1036,6 +1141,13 @@ void BuildingType::add_production_method(ProductionMethod *production_method)
     const resource_type output = production_method ? production_method->output_resource() : RESOURCE_NONE;
     if (labor_category_ == LaborCategory::None && output != RESOURCE_NONE) {
         labor_category_ = resource_is_food(output) ? LaborCategory::FoodProduction : LaborCategory::IndustryCommerce;
+    }
+}
+
+void BuildingType::inherit_labor_category(LaborCategory category)
+{
+    if (labor_category_ == LaborCategory::None && category != LaborCategory::None) {
+        labor_category_ = category;
     }
 }
 
@@ -1173,6 +1285,11 @@ const ConstructionDefinition &BuildingType::construction() const
     return construction_;
 }
 
+const ComposedBuildingDefinition &BuildingType::composition() const
+{
+    return composition_;
+}
+
 ImageGroupEntryRef BuildingType::button_icon_ref() const
 {
     return has_button() ? button().icon_ref() : ImageGroupEntryRef();
@@ -1192,7 +1309,7 @@ int BuildingType::required_workers() const
 
 int BuildingType::has_data_only_graphics() const
 {
-    return building_is_farm(type_);
+    return 0;
 }
 
 int BuildingType::is_temple() const
@@ -1451,6 +1568,11 @@ int BuildingType::has_graphic() const
 int BuildingType::has_construction() const
 {
     return has_construction_;
+}
+
+int BuildingType::has_composition() const
+{
+    return composition_.has_any();
 }
 
 int BuildingType::has_phased_construction() const

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<production_method>
+    <kind value="farm" />
+    <output resource="meat" production_per_month="16" />
+    <batch_size value="5" />
+    <cart_loads value="1" />
+</production_method>

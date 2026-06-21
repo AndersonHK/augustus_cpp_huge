@@ -39,6 +39,7 @@ int access_score(const Building &building);
 int house_available_workers(Building &house);
 void reconcile_house(Building &house);
 void remove_building(Building &building);
+void replace_house(const Building &from, const Building &to);
 int spawn_acquisition(Building &workplace, const map_point *road);
 int spawn_validation(Building &workplace, const map_point *road);
 

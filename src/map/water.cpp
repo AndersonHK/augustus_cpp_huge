@@ -12,6 +12,9 @@
 #include "map/point.h"
 #include "map/property.h"
 #include "map/terrain.h"
+#include "figure/action.h"
+#include "figure/figure_runtime_api.h"
+#include "figure/route.h"
 
 #include <cstring>
 
@@ -261,19 +264,200 @@ int map_water_has_water_in_front(int x, int y, int adjust_xy, const waterside_ti
     return water_ok;
 }
 
-int map_water_get_wharf_for_new_fishing_boat(Figure *boat, map_point *tile)
+static Figure *live_fishing_boat(unsigned int id)
+{
+    if (!id) {
+        return nullptr;
+    }
+    Figure *figure = Figure::get(id);
+    return figure && figure->state == FIGURE_STATE_ALIVE && figure->type == FIGURE_FISHING_BOAT ? figure : nullptr;
+}
+
+static int live_fishing_boat_id(unsigned int id)
+{
+    return live_fishing_boat(id) ? 1 : 0;
+}
+
+static int wharf_has_boat_id(const building *wharf, unsigned int boat_id)
+{
+    return wharf && boat_id &&
+        (wharf->data.industry.fishing_boat_id == boat_id ||
+            wharf->data.industry.second_fishing_boat_id == boat_id);
+}
+
+static void clear_stale_fishing_boat_slots(building *wharf)
+{
+    if (!wharf) {
+        return;
+    }
+    if (wharf->data.industry.fishing_boat_id && !live_fishing_boat_id(wharf->data.industry.fishing_boat_id)) {
+        wharf->data.industry.fishing_boat_id = 0;
+    }
+    if (wharf->data.industry.second_fishing_boat_id && !live_fishing_boat_id(wharf->data.industry.second_fishing_boat_id)) {
+        wharf->data.industry.second_fishing_boat_id = 0;
+    }
+}
+
+static int fishing_boat_capacity(Building wharf, building_type_registry_impl::SpawnSource source)
+{
+    int capacity = 0;
+    const building_type_registry_impl::BuildingType *definition = wharf.type;
+    if (!definition) {
+        return 0;
+    }
+    for (const building_type_registry_impl::SpawnDelayGroup &group : definition->spawn_groups()) {
+        for (const building_type_registry_impl::SpawnPolicy &policy : group.policies) {
+            if (policy.mode != building_type_registry_impl::SpawnMode::FishingBoat ||
+                policy.spawn_figure != FIGURE_FISHING_BOAT) {
+                continue;
+            }
+            if (source == building_type_registry_impl::SpawnSource::None || policy.spawn_source == source) {
+                capacity += policy.capacity;
+            }
+        }
+    }
+    return capacity;
+}
+
+static int wharf_total_fishing_boat_capacity(Building wharf)
+{
+    return fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::None);
+}
+
+static int wharf_self_fishing_boat_capacity(Building wharf)
+{
+    return fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::Self);
+}
+
+static int wharf_shipyard_fishing_boat_capacity(Building wharf)
+{
+    return fishing_boat_capacity(wharf, building_type_registry_impl::SpawnSource::Shipyard);
+}
+
+static int wharf_has_shipyard_fishing_boat_room(Building wharf, int live_boats)
+{
+    const int shipyard_capacity = wharf_shipyard_fishing_boat_capacity(wharf);
+    if (shipyard_capacity <= 0) {
+        return 0;
+    }
+    if (wharf_self_fishing_boat_capacity(wharf) > 0) {
+        const building *record = building_get(wharf.id());
+        return record && !live_fishing_boat_id(record->data.industry.second_fishing_boat_id);
+    }
+    return live_boats < shipyard_capacity;
+}
+
+static int wharf_live_fishing_boat_count(building *wharf)
+{
+    clear_stale_fishing_boat_slots(wharf);
+    return live_fishing_boat_id(wharf->data.industry.fishing_boat_id) +
+        live_fishing_boat_id(wharf->data.industry.second_fishing_boat_id);
+}
+
+static void wharf_tile(Building wharf, map_point *tile)
+{
+    int dx;
+    int dy;
+    switch (wharf.orientation()) {
+        case 0: dx = 1; dy = -1; break;
+        case 1: dx = 2; dy = 1; break;
+        case 2: dx = 1; dy = 2; break;
+        default: dx = -1; dy = 1; break;
+    }
+    map_point_store_result(wharf.x() + dx, wharf.y() + dy, tile);
+}
+
+int map_water_wharf_live_fishing_boats(Building wharf)
+{
+    building *record = building_get(wharf.id());
+    return record ? wharf_live_fishing_boat_count(record) : 0;
+}
+
+Figure *map_water_wharf_live_fishing_boat(Building wharf)
+{
+    building *record = building_get(wharf.id());
+    if (!record) {
+        return nullptr;
+    }
+    clear_stale_fishing_boat_slots(record);
+    if (Figure *boat = live_fishing_boat(record->data.industry.fishing_boat_id)) {
+        return boat;
+    }
+    return live_fishing_boat(record->data.industry.second_fishing_boat_id);
+}
+
+int map_water_wharf_has_self_fishing_boat_room(Building wharf)
+{
+    building *record = building_get(wharf.id());
+    return record && wharf_self_fishing_boat_capacity(wharf) > 0 &&
+        !live_fishing_boat_id(record->data.industry.fishing_boat_id);
+}
+
+int map_water_assign_fishing_boat_to_wharf(Figure *boat, Building wharf, map_point *tile)
+{
+    building *record = building_get(wharf.id());
+    if (!boat || !record || record->state != BUILDING_STATE_IN_USE) {
+        return 0;
+    }
+    clear_stale_fishing_boat_slots(record);
+    if (!wharf_has_boat_id(record, boat->id())) {
+        const int self_capacity = wharf_self_fishing_boat_capacity(wharf);
+        const int self_boat = boat->building.id() == wharf.id();
+        if (self_capacity > 0 && self_boat && !record->data.industry.fishing_boat_id) {
+            record->data.industry.fishing_boat_id = boat->id();
+        } else if (self_capacity > 0 && !self_boat &&
+            wharf_shipyard_fishing_boat_capacity(wharf) > 0 && !record->data.industry.second_fishing_boat_id) {
+            record->data.industry.second_fishing_boat_id = boat->id();
+        } else if (self_capacity <= 0 && wharf_live_fishing_boat_count(record) < wharf_total_fishing_boat_capacity(wharf)) {
+            if (!record->data.industry.fishing_boat_id) {
+                record->data.industry.fishing_boat_id = boat->id();
+            } else if (!record->data.industry.second_fishing_boat_id) {
+                record->data.industry.second_fishing_boat_id = boat->id();
+            } else {
+                return 0;
+            }
+        } else {
+            return 0;
+        }
+    }
+    if (tile) {
+        wharf_tile(wharf, tile);
+    }
+    return record->id;
+}
+
+void map_water_clear_fishing_boat_from_wharf(Building wharf, unsigned int boat_id)
+{
+    building *record = building_get(wharf.id());
+    if (!record || !boat_id) {
+        return;
+    }
+    if (record->data.industry.fishing_boat_id == boat_id) {
+        record->data.industry.fishing_boat_id = 0;
+    }
+    if (record->data.industry.second_fishing_boat_id == boat_id) {
+        record->data.industry.second_fishing_boat_id = 0;
+    }
+}
+
+static int find_wharf_for_new_fishing_boat(Figure *boat, map_point *tile, int assign)
 {
     Building wharf(nullptr);
-    for (int i = 1; i < Building::count(); i++) {
-        Building candidate(building_get(i));
-        if (candidate.state_id() != BUILDING_STATE_IN_USE) {
-            continue;
-        }
-        const building_type_registry_impl::BuildingType *definition = candidate.type;
-        if (definition && definition->attr() && std::strcmp(definition->attr(), "wharf") == 0) {
-            building *b = building_get(candidate.id());
-            int wharf_boat_id = b->data.industry.fishing_boat_id;
-            if (!wharf_boat_id || wharf_boat_id == static_cast<int>(boat->id())) {
+    for (int pass = 0; pass < 2 && !wharf.id(); pass++) {
+        for (int i = 1; i < Building::count(); i++) {
+            Building candidate(building_get(i));
+            if (candidate.state_id() != BUILDING_STATE_IN_USE) {
+                continue;
+            }
+            const building_type_registry_impl::BuildingType *definition = candidate.type;
+            if (!definition || !definition->attr() || std::strcmp(definition->attr(), "wharf") != 0) {
+                continue;
+            }
+            building *record = building_get(candidate.id());
+            clear_stale_fishing_boat_slots(record);
+            const int live_boats = wharf_live_fishing_boat_count(record);
+            if (wharf_has_boat_id(record, boat ? boat->id() : 0) ||
+                (wharf_has_shipyard_fishing_boat_room(candidate, live_boats) && (pass == 1 || live_boats == 0))) {
                 wharf = candidate;
                 break;
             }
@@ -282,15 +466,76 @@ int map_water_get_wharf_for_new_fishing_boat(Figure *boat, map_point *tile)
     if (!wharf.id()) {
         return 0;
     }
-    int dx, dy;
-    switch (wharf.orientation()) {
-        case 0: dx = 1; dy = -1; break;
-        case 1: dx = 2; dy = 1; break;
-        case 2: dx = 1; dy = 2; break;
-        default: dx = -1; dy = 1; break;
+    if (assign) {
+        return map_water_assign_fishing_boat_to_wharf(boat, wharf, tile);
     }
-    map_point_store_result(wharf.x() + dx, wharf.y() + dy, tile);
+    wharf_tile(wharf, tile);
     return wharf.id();
+}
+
+int map_water_assign_wharf_for_new_fishing_boat(Figure *boat, map_point *tile)
+{
+    return find_wharf_for_new_fishing_boat(boat, tile, 1);
+}
+
+int map_water_has_wharf_for_new_fishing_boat(void)
+{
+    map_point tile;
+    return find_wharf_for_new_fishing_boat(nullptr, &tile, 0) != 0;
+}
+
+int map_water_shipyard_can_spawn_fishing_boat(Building shipyard)
+{
+    building *record = building_get(shipyard.id());
+    map_point tile;
+    return record && !live_fishing_boat_id(record->figure_id) &&
+        map_water_has_wharf_for_new_fishing_boat() &&
+        map_water_can_spawn_fishing_boat(shipyard.x(), shipyard.y(), shipyard.size(), &tile);
+}
+
+int map_water_spawn_fishing_boat_from_shipyard(Building shipyard)
+{
+    building *record = building_get(shipyard.id());
+    map_point boat_tile;
+    if (!record || live_fishing_boat_id(record->figure_id) ||
+        !map_water_has_wharf_for_new_fishing_boat() ||
+        !map_water_can_spawn_fishing_boat(shipyard.x(), shipyard.y(), shipyard.size(), &boat_tile)) {
+        return 0;
+    }
+    Building source = shipyard;
+    Figure *boat = figure_runtime_create_profiled(FIGURE_FISHING_BOAT, boat_tile.x, boat_tile.y, DIR_0_TOP, source, "fish_fetch");
+    if (!boat) {
+        return 0;
+    }
+    record->figure_id = boat->id();
+    return 1;
+}
+
+int map_water_spawn_fishing_boat_from_wharf(Building wharf)
+{
+    building *record = building_get(wharf.id());
+    map_point boat_tile;
+    map_point wharf_point;
+    if (!record || !map_water_wharf_has_self_fishing_boat_room(wharf) ||
+        !map_water_can_spawn_fishing_boat(wharf.x(), wharf.y(), wharf.size(), &boat_tile)) {
+        return 0;
+    }
+
+    Building source = wharf;
+    Figure *boat = figure_runtime_create_profiled(FIGURE_FISHING_BOAT, boat_tile.x, boat_tile.y, DIR_0_TOP, source, "fish_fetch");
+    if (!boat || !map_water_assign_fishing_boat_to_wharf(boat, wharf, &wharf_point)) {
+        if (boat) {
+            boat->state = FIGURE_STATE_DEAD;
+        }
+        return 0;
+    }
+    boat->action_state = FIGURE_ACTION_193_FISHING_BOAT_GOING_TO_WHARF;
+    boat->destination_x = wharf_point.x;
+    boat->destination_y = wharf_point.y;
+    boat->source_x = wharf_point.x;
+    boat->source_y = wharf_point.y;
+    figure_route_remove(boat);
+    return 1;
 }
 
 int map_water_find_alternative_fishing_boat_tile(Figure *boat, map_point *tile)

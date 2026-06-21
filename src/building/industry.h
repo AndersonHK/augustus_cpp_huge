@@ -5,8 +5,6 @@
 #include "map/point.h"
 
 
-#define BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN 20
-
 int building_is_farm(building_type type);
 int building_is_raw_resource_producer(building_type type);
 int building_is_workshop(building_type type);

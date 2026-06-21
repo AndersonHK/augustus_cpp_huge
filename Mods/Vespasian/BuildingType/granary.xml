@@ -14,6 +14,9 @@
     <roadblock kind="storage" />
     <labor>
         <employees count="6" />
+        <labor_seeker>
+            <method value="workforce" />
+        </labor_seeker>
     </labor>
     <graphics>
         <default animation="0">

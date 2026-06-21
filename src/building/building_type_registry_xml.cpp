@@ -147,7 +147,8 @@ static figure_type parse_figure_type_name(const char *name)
         { "teacher", FIGURE_TEACHER },
         { "tax_collector", FIGURE_TAX_COLLECTOR },
         { "work_camp_architect", FIGURE_WORK_CAMP_ARCHITECT },
-        { "work_camp_worker", FIGURE_WORK_CAMP_WORKER }
+        { "work_camp_worker", FIGURE_WORK_CAMP_WORKER },
+        { "fishing_boat", FIGURE_FISHING_BOAT }
     };
 
     for (size_t i = 0; i < sizeof(figure_names) / sizeof(figure_names[0]); i++) {
@@ -250,9 +251,6 @@ static RoadAccessMode parse_road_access_mode(const char *value)
 
 static LaborSeekerMethod parse_labor_seeker_method(const char *value)
 {
-    if (value && compare_text(value, "none") == 0) {
-        return LaborSeekerMethod::None;
-    }
     if (value && compare_text(value, "houses_spawn_if_below") == 0) {
         return LaborSeekerMethod::HousesSpawnIfBelow;
     }
@@ -1390,6 +1388,215 @@ static int parse_flags()
     return 1;
 }
 
+static int parse_composed_offset_attributes(const char *scope, int *out_x, int *out_y, int *out_has_offset)
+{
+    *out_x = 0;
+    *out_y = 0;
+    *out_has_offset = 0;
+    const int has_x = xml_parser_has_attribute("x");
+    const int has_y = xml_parser_has_attribute("y");
+    if (has_x != has_y) {
+        log_error("BuildingType composed offset requires both x and y", scope, 0);
+        return 0;
+    }
+    if (!has_x) {
+        return 1;
+    }
+    const char *x_text = xml_parser_get_attribute_string("x");
+    const char *y_text = xml_parser_get_attribute_string("y");
+    if (!xml_value::parse_int_strict(x_text, out_x) || !xml_value::parse_int_strict(y_text, out_y)) {
+        log_error("Unsupported BuildingType composed offset", scope, 0);
+        return 0;
+    }
+    *out_has_offset = 1;
+    return 1;
+}
+
+static int parse_composed_rotation(int *out_rotation)
+{
+    if (!xml_parser_has_attribute("rotation")) {
+        log_error("BuildingType composed offset is missing required attribute 'rotation'", 0, 0);
+        return 0;
+    }
+    const char *rotation_text = xml_parser_get_attribute_string("rotation");
+    if (!xml_value::parse_int_strict(rotation_text, out_rotation) || *out_rotation < 0 || *out_rotation > 3) {
+        log_error("Unsupported BuildingType composed offset rotation", rotation_text, 0);
+        return 0;
+    }
+    return 1;
+}
+
+static void set_all_composed_part_offsets(ComposedPartDefinition &part, int x, int y)
+{
+    for (ComposedPartOffset &offset : part.offsets) {
+        offset = { x, y, 1 };
+    }
+}
+
+static int parse_composed()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered composed definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_composed) {
+        log_error("BuildingType xml contains duplicate composed nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("footprint_width") || !xml_parser_has_attribute("footprint_height")) {
+        log_error("BuildingType composed is missing required footprint attributes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    int width = 0;
+    int height = 0;
+    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("footprint_width"), &width) ||
+        !xml_value::parse_int_strict(xml_parser_get_attribute_string("footprint_height"), &height) ||
+        width <= 0 || height <= 0) {
+        log_error("Unsupported BuildingType composed footprint", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_composed_footprint(width, height);
+    g_parse_state.saw_composed = 1;
+    g_parse_state.parsing_composed = 1;
+    return 1;
+}
+
+static void finish_composed()
+{
+    if (!g_parse_state.parsing_composed) {
+        return;
+    }
+    if (!g_parse_state.definition || g_parse_state.definition->composition().parts().empty()) {
+        log_error("BuildingType composed is missing part nodes", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.parsing_composed = 0;
+}
+
+static int parse_composed_main()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_composed || g_parse_state.parsing_composed_main ||
+        g_parse_state.parsing_composed_part) {
+        log_error("Encountered composed main outside composed node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    int x = 0;
+    int y = 0;
+    int has_offset = 0;
+    if (!parse_composed_offset_attributes(g_parse_state.definition->attr(), &x, &y, &has_offset)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_offset) {
+        for (int rotation = 0; rotation < 4; rotation++) {
+            g_parse_state.definition->set_composed_main_offset(rotation, x, y);
+        }
+    }
+    g_parse_state.parsing_composed_main = 1;
+    return 1;
+}
+
+static void finish_composed_main()
+{
+    g_parse_state.parsing_composed_main = 0;
+}
+
+static int parse_composed_part()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_composed || g_parse_state.parsing_composed_main ||
+        g_parse_state.parsing_composed_part) {
+        log_error("Encountered composed part outside composed node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("type")) {
+        log_error("BuildingType composed part is missing required attribute 'type'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    std::string type_attr = xml_value::trim_copy(xml_parser_get_attribute_string("type"));
+    std::string role = xml_parser_has_attribute("role") ?
+        xml_value::trim_copy(xml_parser_get_attribute_string("role")) :
+        std::string();
+    if (type_attr.empty()) {
+        log_error("Unsupported BuildingType composed part type", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    ComposedPartDefinition &part = g_parse_state.definition->add_composed_part(std::move(type_attr), std::move(role));
+    int x = 0;
+    int y = 0;
+    int has_offset = 0;
+    if (!parse_composed_offset_attributes(g_parse_state.definition->attr(), &x, &y, &has_offset)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_offset) {
+        set_all_composed_part_offsets(part, x, y);
+    }
+    g_parse_state.current_composed_part = &part;
+    g_parse_state.parsing_composed_part = 1;
+    return 1;
+}
+
+static void finish_composed_part()
+{
+    if (!g_parse_state.parsing_composed_part) {
+        return;
+    }
+    ComposedPartDefinition *part = g_parse_state.current_composed_part;
+    int has_offset = 0;
+    if (part) {
+        for (const ComposedPartOffset &offset : part->offsets) {
+            has_offset |= offset.has_value;
+        }
+    }
+    if (!part || !has_offset) {
+        log_error("BuildingType composed part is missing offset data", 0, 0);
+        g_parse_state.error = 1;
+    }
+    g_parse_state.current_composed_part = nullptr;
+    g_parse_state.parsing_composed_part = 0;
+}
+
+static int parse_composed_offset()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_composed ||
+        (!g_parse_state.parsing_composed_main && !g_parse_state.parsing_composed_part)) {
+        log_error("Encountered composed offset outside main/part", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    int rotation = 0;
+    int x = 0;
+    int y = 0;
+    int has_offset = 0;
+    if (!parse_composed_rotation(&rotation) ||
+        !parse_composed_offset_attributes(g_parse_state.definition->attr(), &x, &y, &has_offset) ||
+        !has_offset) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.parsing_composed_main) {
+        g_parse_state.definition->set_composed_main_offset(rotation, x, y);
+        return 1;
+    }
+    if (!g_parse_state.current_composed_part) {
+        log_error("Encountered composed offset without active part", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.current_composed_part->offsets[rotation] = { x, y, 1 };
+    return 1;
+}
+
 static int parse_graphics()
 {
     if (!g_parse_state.definition) {
@@ -1442,7 +1649,8 @@ static void finish_graphics()
         log_error("BuildingType graphics is missing required child node 'default'", 0, 0);
         g_parse_state.error = 1;
     } else if (!g_parse_state.definition->graphics().default_target().has_path() &&
-        !g_parse_state.definition->graphics().default_target().has_options()) {
+        !g_parse_state.definition->graphics().default_target().has_options() &&
+        !g_parse_state.definition->graphics().default_target().is_resource_storage()) {
         log_error("BuildingType graphics is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
@@ -1654,6 +1862,28 @@ static GraphicsTarget *current_graphics_target()
     }
 }
 
+static int parse_graphics_resource_storage()
+{
+    if (!g_parse_state.definition || !g_parse_state.parsing_graphics) {
+        log_error("Encountered graphics resource_storage outside graphics node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    GraphicsTarget *target = current_graphics_target();
+    if (!target) {
+        log_error("Encountered graphics resource_storage without an active target", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (target->has_path() || target->has_image() || target->has_options()) {
+        log_error("BuildingType graphics resource_storage cannot be combined with path/image/options", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    target->set_resource_storage(1);
+    return 1;
+}
+
 static GraphicsLayerStage parse_graphics_layer_stage(const char *text, int *valid)
 {
     *valid = 1;
@@ -1792,6 +2022,8 @@ static int parse_graphics_options()
         option_selection = GraphicsOptionSelection::StorageLoad;
     } else if (compare_text(selection, "orientation") == 0) {
         option_selection = GraphicsOptionSelection::Orientation;
+    } else if (compare_text(selection, "production_progress") == 0) {
+        option_selection = GraphicsOptionSelection::ProductionProgress;
     } else {
         log_error("Unsupported BuildingType graphics options selection", selection, 0);
         g_parse_state.error = 1;
@@ -1919,7 +2151,8 @@ static void finish_graphics_default()
         return;
     }
     if (!g_parse_state.definition->graphics().default_target().has_path() &&
-        !g_parse_state.definition->graphics().default_target().has_options()) {
+        !g_parse_state.definition->graphics().default_target().has_options() &&
+        !g_parse_state.definition->graphics().default_target().is_resource_storage()) {
         log_error("BuildingType graphics default is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
@@ -1968,7 +2201,8 @@ static void finish_graphics_variant()
     }
 
     GraphicsVariant *variant = g_parse_state.definition->last_graphics_variant();
-    if (!variant || (!variant->target.has_path() && !variant->target.has_options())) {
+    if (!variant || (!variant->target.has_path() && !variant->target.has_options() &&
+        !variant->target.is_resource_storage())) {
         log_error("BuildingType graphics variant is missing required child node 'path'", 0, 0);
         g_parse_state.error = 1;
     }
@@ -2636,21 +2870,37 @@ static void finish_labor_seeker()
         return;
     }
 
+    if (!g_parse_state.saw_labor_seeker_method) {
+        log_error("BuildingType labor_seeker is missing required child nodes", 0, 0);
+        g_parse_state.error = 1;
+        g_parse_state.parsing_labor_seeker = 0;
+        return;
+    }
+
     if (!g_parse_state.saw_labor_seeker_amount) {
-        if (g_parse_state.definition->labor().has_employee_count()) {
-            g_parse_state.current_labor_seeker_policy.amount = g_parse_state.definition->labor().employee_count();
-            g_parse_state.saw_labor_seeker_amount = 1;
-        } else {
-            log_error("BuildingType labor_seeker amount is missing and labor has no employees count", 0, 0);
-            g_parse_state.error = 1;
+        switch (g_parse_state.current_labor_seeker_policy.method) {
+            case LaborSeekerMethod::Workforce:
+                if (g_parse_state.definition->labor().has_employee_count()) {
+                    g_parse_state.current_labor_seeker_policy.amount =
+                        g_parse_state.definition->labor().employee_count();
+                    g_parse_state.saw_labor_seeker_amount = 1;
+                } else {
+                    log_error("BuildingType workforce labor_seeker amount is missing and labor has no employees count", 0, 0);
+                    g_parse_state.error = 1;
+                }
+                break;
+            case LaborSeekerMethod::HousesSpawnIfBelow:
+            case LaborSeekerMethod::HousesGenerateIfBelow:
+                log_error("BuildingType house-coverage labor_seeker is missing required amount", 0, 0);
+                g_parse_state.error = 1;
+                break;
+            case LaborSeekerMethod::None:
+            default:
+                break;
         }
     }
 
-    if (!g_parse_state.saw_labor_seeker_method ||
-        !g_parse_state.saw_labor_seeker_amount) {
-        log_error("BuildingType labor_seeker is missing required child nodes", 0, 0);
-        g_parse_state.error = 1;
-    } else {
+    if (g_parse_state.saw_labor_seeker_amount) {
         g_parse_state.definition->set_labor_seeker_policy(g_parse_state.current_labor_seeker_policy);
     }
     g_parse_state.parsing_labor_seeker = 0;
@@ -2676,8 +2926,7 @@ static int parse_labor_seeker_method_node()
 
     const char *method_text = xml_parser_get_attribute_string("value");
     g_parse_state.current_labor_seeker_policy.method = parse_labor_seeker_method(method_text);
-    if (g_parse_state.current_labor_seeker_policy.method == LaborSeekerMethod::None &&
-        (!method_text || compare_text(method_text, "none") != 0)) {
+    if (g_parse_state.current_labor_seeker_policy.method == LaborSeekerMethod::None) {
         log_error("Unsupported BuildingType labor seeker method", method_text, 0);
         g_parse_state.error = 1;
         return 0;
@@ -3110,6 +3359,8 @@ static int parse_spawn()
         policy.mode = SpawnMode::TempleNeptuneChariot;
     } else if (mode_text && compare_text(mode_text, "grand_temple_mars_recruit") == 0) {
         policy.mode = SpawnMode::GrandTempleMarsRecruit;
+    } else if (mode_text && compare_text(mode_text, "fishing_boat") == 0) {
+        policy.mode = SpawnMode::FishingBoat;
     } else {
         log_error("Unsupported BuildingType spawn mode", mode_text, 0);
         g_parse_state.error = 1;
@@ -3125,7 +3376,8 @@ static int parse_spawn()
         return 0;
     }
 
-    if (policy.mode == SpawnMode::ServiceRoamer && !xml_parser_has_attribute("spawn_figure")) {
+    if ((policy.mode == SpawnMode::ServiceRoamer || policy.mode == SpawnMode::FishingBoat) &&
+        !xml_parser_has_attribute("spawn_figure")) {
         log_error("BuildingType spawn is missing required attribute 'spawn_figure'", 0, 0);
         g_parse_state.error = 1;
         return 0;
@@ -3231,6 +3483,41 @@ static int parse_spawn()
         }
     }
 
+    if (xml_parser_has_attribute("spawn_source")) {
+        const char *source_text = xml_parser_get_attribute_string("spawn_source");
+        if (compare_text(source_text, "self") == 0) {
+            policy.spawn_source = SpawnSource::Self;
+        } else if (compare_text(source_text, "shipyard") == 0) {
+            policy.spawn_source = SpawnSource::Shipyard;
+        } else {
+            log_error("Unsupported BuildingType spawn spawn_source", source_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
+    if (xml_parser_has_attribute("capacity")) {
+        policy.capacity = xml_parser_get_attribute_int("capacity");
+        if (policy.capacity <= 0) {
+            log_error("Unsupported BuildingType spawn capacity", xml_parser_get_attribute_string("capacity"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+    if (policy.mode == SpawnMode::FishingBoat &&
+        (policy.spawn_source == SpawnSource::None || policy.capacity <= 0)) {
+        log_error("BuildingType fishing_boat spawn requires spawn_source and positive capacity",
+            xml_parser_get_attribute_string("spawn_figure"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (policy.mode == SpawnMode::FishingBoat && policy.spawn_figure != FIGURE_FISHING_BOAT) {
+        log_error("BuildingType fishing_boat spawn must use spawn_figure='fishing_boat'",
+            xml_parser_get_attribute_string("spawn_figure"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
     if (xml_parser_has_attribute("chance_source")) {
         const char *chance_source_text = xml_parser_get_attribute_string("chance_source");
         policy.chance_source = parse_spawn_chance_source(chance_source_text);
@@ -3329,6 +3616,10 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "market", parse_market, nullptr, "building", nullptr },
     { "flags", parse_flags, nullptr, "building", nullptr },
     { "water_access", parse_provider_water_access, finish_provider_water_access, "building", nullptr },
+    { "composed", parse_composed, finish_composed, "building", nullptr },
+    { "main", parse_composed_main, finish_composed_main, "composed", nullptr },
+    { "part", parse_composed_part, finish_composed_part, "composed", nullptr },
+    { "offset", parse_composed_offset, nullptr, "main|part", nullptr },
     { "graphics", parse_graphics, finish_graphics, "building|phase", nullptr },
     { "construction", parse_construction, finish_construction, "building", nullptr },
     { "phase", parse_construction_phase, finish_construction_phase, "construction", nullptr },
@@ -3342,6 +3633,7 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "variant", parse_graphics_variant, finish_graphics_variant, "graphics", nullptr },
     { "path", parse_graphics_path, nullptr, "default|variant|graphics", nullptr },
     { "image", parse_graphics_image, nullptr, "default|variant|graphics", nullptr },
+    { "resource_storage", parse_graphics_resource_storage, nullptr, "default|variant", nullptr },
     { "layer", parse_graphics_layer, finish_graphics_layer, "default|variant", nullptr },
     { "options", parse_graphics_options, finish_graphics_options, "default|variant|layer", nullptr },
     { "option", parse_graphics_option, nullptr, "options", nullptr },
@@ -3469,6 +3761,9 @@ static int validate_graphics_target_entry(
     const GraphicsTarget &target,
     const char *target_scope)
 {
+    if (target.is_resource_storage()) {
+        return 1;
+    }
     if (target.has_options()) {
         if (target.has_image()) {
             char detail[512];
@@ -3647,7 +3942,6 @@ static int validate_graphics_target_entry(
             return 0;
         }
     }
-
     return 1;
 }
 
@@ -3842,7 +4136,7 @@ static int parse_definition_buffer(const char *filename, std::vector<char> &buff
         g_parse_state.saw_culture_modules ||
         g_parse_state.saw_storages || g_parse_state.saw_production_methods || g_parse_state.saw_distribution ||
         g_parse_state.saw_housing || g_parse_state.saw_vacant_lot ||
-        g_parse_state.saw_labor || g_parse_state.saw_provider_water_access;
+        g_parse_state.saw_labor || g_parse_state.saw_provider_water_access || g_parse_state.saw_composed;
     if (!parsed || g_parse_state.error || !g_parse_state.definition ||
         !has_supported_node) {
         if (!has_supported_node) {
@@ -3916,6 +4210,206 @@ static int resolve_vacant_lot_fill_type(BuildingType &definition)
     }
 
     definition.set_vacant_lot_fill_type(target);
+    return 1;
+}
+
+static building_type resolve_building_type_reference(const std::string &text_id)
+{
+    building_type target = runtime_id_from_text(text_id.c_str());
+    if (target == BUILDING_NONE) {
+        target = find_building_type_by_attr(text_id.c_str());
+        if (target == BUILDING_NONE) {
+            target = find_legacy_building_type_by_event_attr(text_id.c_str());
+        }
+    }
+    return target;
+}
+
+static int model_size_for_definition(const BuildingType &definition)
+{
+    if (definition.has_model() && definition.model().has_size()) {
+        return definition.model().size();
+    }
+    const building_properties *properties = building_properties_for_type(definition.type());
+    return properties && properties->size > 0 ? properties->size : 1;
+}
+
+static int model_size_for_type(building_type type)
+{
+    const BuildingType *definition = definition_for_type(type);
+    if (definition) {
+        return model_size_for_definition(*definition);
+    }
+    const building_properties *properties = building_properties_for_type(type);
+    return properties && properties->size > 0 ? properties->size : 1;
+}
+
+static int append_composed_cells(
+    std::vector<int> &cells,
+    int x,
+    int y,
+    int size,
+    const char *building_attr,
+    const char *part_attr,
+    int rotation)
+{
+    for (int dy = 0; dy < size; dy++) {
+        for (int dx = 0; dx < size; dx++) {
+            const int cell = (y + dy) * 128 + x + dx;
+            for (int existing : cells) {
+                if (existing == cell) {
+                    char detail[512];
+                    snprintf(
+                        detail,
+                        sizeof(detail),
+                        "building=%s part=%s rotation=%d x=%d y=%d",
+                        building_attr ? building_attr : "",
+                        part_attr ? part_attr : "",
+                        rotation,
+                        x + dx,
+                        y + dy);
+                    error_context_report_error("BuildingType composed parts overlap.", detail);
+                    log_error("BuildingType composed parts overlap", detail, 0);
+                    return 0;
+                }
+            }
+            cells.push_back(cell);
+        }
+    }
+    return 1;
+}
+
+static void include_composed_bounds(int x, int y, int size, int *min_x, int *min_y, int *max_x, int *max_y)
+{
+    if (x < *min_x) {
+        *min_x = x;
+    }
+    if (y < *min_y) {
+        *min_y = y;
+    }
+    if (x + size > *max_x) {
+        *max_x = x + size;
+    }
+    if (y + size > *max_y) {
+        *max_y = y + size;
+    }
+}
+
+static int validate_composed_footprint_bounds(
+    const BuildingType &definition,
+    int rotation,
+    int min_x,
+    int min_y,
+    int max_x,
+    int max_y)
+{
+    const ComposedBuildingDefinition &composition = definition.composition();
+    const int allowed_width = rotation % 2 ? composition.footprint_height() : composition.footprint_width();
+    const int allowed_height = rotation % 2 ? composition.footprint_width() : composition.footprint_height();
+    const int occupied_width = max_x - min_x;
+    const int occupied_height = max_y - min_y;
+    if (occupied_width <= allowed_width && occupied_height <= allowed_height) {
+        return 1;
+    }
+
+    char detail[512];
+    snprintf(
+        detail,
+        sizeof(detail),
+        "building=%s rotation=%d occupied=%dx%d allowed=%dx%d bounds=(%d,%d)-(%d,%d)",
+        definition.attr(),
+        rotation,
+        occupied_width,
+        occupied_height,
+        allowed_width,
+        allowed_height,
+        min_x,
+        min_y,
+        max_x,
+        max_y);
+    error_context_report_error("BuildingType composed parts exceed declared footprint.", detail);
+    log_error("BuildingType composed parts exceed declared footprint", detail, 0);
+    return 0;
+}
+
+static int validate_composed_part_cells(const BuildingType &definition)
+{
+    if (!definition.has_composition()) {
+        return 1;
+    }
+
+    const ComposedBuildingDefinition &composition = definition.composition();
+    const int main_size = model_size_for_definition(definition);
+    for (int rotation = 0; rotation < 4; rotation++) {
+        std::vector<int> occupied_cells;
+        const ComposedPartOffset main_offset = composition.main_offset_for_rotation(rotation);
+        int min_x = main_offset.x;
+        int min_y = main_offset.y;
+        int max_x = main_offset.x + main_size;
+        int max_y = main_offset.y + main_size;
+        if (!append_composed_cells(occupied_cells, main_offset.x, main_offset.y, main_size,
+                definition.attr(), "main", rotation)) {
+            return 0;
+        }
+        for (const ComposedPartDefinition &part : composition.parts()) {
+            const int child_size = model_size_for_type(part.type);
+            const ComposedPartOffset part_offset = part.offset_for_rotation(rotation);
+            if (!part_offset.has_value) {
+                char detail[512];
+                snprintf(detail, sizeof(detail), "building=%s part=%s rotation=%d",
+                    definition.attr(), part.type_attr.c_str(), rotation);
+                error_context_report_error("BuildingType composed part is missing a rotation offset.", detail);
+                return 0;
+            }
+            if (!append_composed_cells(occupied_cells, part_offset.x, part_offset.y, child_size,
+                    definition.attr(), part.type_attr.c_str(), rotation)) {
+                return 0;
+            }
+            include_composed_bounds(part_offset.x, part_offset.y, child_size, &min_x, &min_y, &max_x, &max_y);
+        }
+        if (!validate_composed_footprint_bounds(definition, rotation, min_x, min_y, max_x, max_y)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+static int resolve_composed_building_references()
+{
+    ErrorContextScope error_scope("building_type_registry.resolve_composed_buildings");
+
+    for (std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition || !definition->has_composition()) {
+            continue;
+        }
+        const std::vector<ComposedPartDefinition> &parts = definition->composition().parts();
+        for (size_t i = 0; i < parts.size(); i++) {
+            const std::string &part_type_attr = parts[i].type_attr;
+            building_type part_type = resolve_building_type_reference(part_type_attr);
+            const BuildingType *part_definition = definition_for_type(part_type);
+            if (part_type == BUILDING_NONE || !part_definition) {
+                char detail[512];
+                snprintf(detail, sizeof(detail), "building=%s part=%s",
+                    definition->attr(), part_type_attr.c_str());
+                error_context_report_error("BuildingType composed part type does not exist.", detail);
+                log_error("Unable to resolve BuildingType composed part", detail, 0);
+                return 0;
+            }
+            if (part_type == definition->type() || part_definition->has_composition()) {
+                char detail[512];
+                snprintf(detail, sizeof(detail), "building=%s part=%s",
+                    definition->attr(), part_type_attr.c_str());
+                error_context_report_error("BuildingType composed recursion is not supported.", detail);
+                log_error("BuildingType composed recursion is not supported", detail, 0);
+                return 0;
+            }
+            definition->set_composed_part_type(i, part_type);
+            definition->inherit_labor_category(part_definition->labor_category());
+        }
+        if (!validate_composed_part_cells(*definition)) {
+            return 0;
+        }
+    }
     return 1;
 }
 
@@ -4084,6 +4578,10 @@ int building_type_registry_load(void)
 
     if (!resolve_housing_transitions()) {
         log_error("Unable to resolve BuildingType housing transitions", 0, 0);
+        return 0;
+    }
+    if (!resolve_composed_building_references()) {
+        log_error("Unable to resolve BuildingType composed references", 0, 0);
         return 0;
     }
     building_type_startup_bridge_apply_model_overrides();

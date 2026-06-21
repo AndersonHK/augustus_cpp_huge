@@ -504,6 +504,7 @@ static void write_type_data(buffer *buf, const building *b)
             buffer_write_i16(buf, b->data.industry.production_current_month);
         }
         buffer_write_i16(buf, b->data.industry.fishing_boat_id);
+        buffer_write_i16(buf, b->data.industry.second_fishing_boat_id);
     } else if (type_is_rubble_shell(b->type)) {
         buffer_write_u16(buf, save_id_from_runtime_type(b->data.rubble.og_type));
         buffer_write_u16(buf, b->data.rubble.og_grid_offset);
@@ -832,6 +833,11 @@ static void read_type_data(buffer *buf, building *b, int version, int save_type_
             buffer_skip(buf, 6);
         }
         b->data.industry.fishing_boat_id = buffer_read_i16(buf);
+        if ((int) (buf->index - buffer_index) + 2 <= type_data_bytes) {
+            b->data.industry.second_fishing_boat_id = buffer_read_i16(buf);
+        } else {
+            b->data.industry.second_fishing_boat_id = 0;
+        }
     } else if (type_is_rubble_shell(b->type) && version > SAVE_GAME_LAST_U16_GRIDS) {
         b->data.rubble.og_type = runtime_type_from_save_id(buffer_read_u16(buf));
         b->data.rubble.og_grid_offset = buffer_read_u16(buf);

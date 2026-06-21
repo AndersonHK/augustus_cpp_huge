@@ -74,6 +74,7 @@ enum {
 
 #include <string>
 #include <cstdint>
+#include <cstddef>
 #include <vector>
 
 namespace building_type_registry_impl {
@@ -120,7 +121,14 @@ enum class SpawnMode {
     TempleDestinationPriest,
     TempleMarsMessHallPriest,
     TempleNeptuneChariot,
-    GrandTempleMarsRecruit
+    GrandTempleMarsRecruit,
+    FishingBoat
+};
+
+enum class SpawnSource {
+    None,
+    Self,
+    Shipyard
 };
 
 enum class RoadAccessMode {
@@ -245,6 +253,8 @@ struct SpawnPolicy {
     int require_water_access = 0;
     int mark_problem_if_no_water = 0;
     int block_on_success = 0;
+    SpawnSource spawn_source = SpawnSource::None;
+    int capacity = 0;
     SpawnChanceSource chance_source = SpawnChanceSource::None;
     int chance_per_million = -1;
     int chance_divisor = 0;
@@ -520,6 +530,41 @@ struct ConstructionPhase {
     std::vector<ConstructionRequirement> requirements;
 };
 
+struct ComposedPartOffset {
+    int x = 0;
+    int y = 0;
+    int has_value = 0;
+};
+
+struct ComposedPartDefinition {
+    std::string type_attr;
+    std::string role;
+    building_type type = BUILDING_NONE;
+    ComposedPartOffset offsets[4];
+
+    ComposedPartOffset offset_for_rotation(int rotation) const;
+};
+
+class ComposedBuildingDefinition {
+public:
+    void set_footprint(int width, int height);
+    void set_main_offset(int rotation, int x, int y);
+    ComposedPartDefinition &add_part(std::string type_attr, std::string role);
+
+    int footprint_width() const;
+    int footprint_height() const;
+    ComposedPartOffset main_offset_for_rotation(int rotation) const;
+    const std::vector<ComposedPartDefinition> &parts() const;
+    std::vector<ComposedPartDefinition> &parts();
+    int has_any() const;
+
+private:
+    int footprint_width_ = 0;
+    int footprint_height_ = 0;
+    ComposedPartOffset main_offsets_[4];
+    std::vector<ComposedPartDefinition> parts_;
+};
+
 class ConstructionDefinition {
 public:
     void set_mode(ConstructionMode mode);
@@ -594,6 +639,10 @@ public:
     ConstructionPhase *last_construction_phase();
     void add_instant_construction_requirement(resource_type resource, int amount);
     void add_construction_requirement(resource_type resource, int amount);
+    void set_composed_footprint(int width, int height);
+    void set_composed_main_offset(int rotation, int x, int y);
+    ComposedPartDefinition &add_composed_part(std::string type_attr, std::string role);
+    void set_composed_part_type(size_t index, building_type type);
 
     void add_spawn_policy(SpawnPolicy policy);
     void set_labor_employee_count(int count);
@@ -611,6 +660,7 @@ public:
     void resolve_culture_module(const std::string &path, const CultureModule *culture_module);
     void add_storage_type(const StorageType *storage_type);
     void add_production_method(ProductionMethod *production_method);
+    void inherit_labor_category(LaborCategory category);
     void set_distribution(const Distribution *distribution);
     void set_housing_type(const HousingType *housing_type);
     void set_temple_religion(const Religion *religion);
@@ -635,6 +685,7 @@ public:
     const WaterAccessDefinition &water_access() const;
     const GraphicsDefinition &graphics() const;
     const ConstructionDefinition &construction() const;
+    const ComposedBuildingDefinition &composition() const;
     ImageGroupEntryRef button_icon_ref() const;
     const char *button_text_key() const;
     int required_workers() const;
@@ -685,6 +736,7 @@ public:
     int has_water_access_provider() const;
     int has_graphic() const;
     int has_construction() const;
+    int has_composition() const;
     int has_phased_construction() const;
     int has_labor() const;
     const LaborDefinition &labor() const;
@@ -732,6 +784,7 @@ private:
     GraphicsDefinition graphics_;
     ConstructionDefinition construction_;
     bool has_construction_ = false;
+    ComposedBuildingDefinition composition_;
     LaborDefinition labor_;
     std::vector<SpawnDelayGroup> spawn_groups_;
     std::vector<BuildingCultureModule> culture_modules_;

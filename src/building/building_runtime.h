@@ -4,6 +4,7 @@
 #include "building/building_fwd.h"
 #include "building/building_type.h"
 #include "figure/figure.h"
+#include "game/resource.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -99,8 +100,17 @@ private:
     int worker_percentage() const;
     int default_spawn_delay() const;
     void check_labor_problem();
+    void apply_global_labor_house_coverage(int amount);
     void generate_labor_seeker(int x, int y);
-    void spawn_labor_seeker(int x, int y, int min_houses);
+    void run_house_spawn_labor_phase(
+        const building_type_registry_impl::LaborSeekerPolicy &policy,
+        const map_point &road);
+    void run_house_generate_labor_phase(
+        const building_type_registry_impl::LaborSeekerPolicy &policy,
+        const map_point &road);
+    void run_workforce_labor_phase(
+        const building_type_registry_impl::LaborSeekerPolicy &policy,
+        const map_point &road);
     void run_labor_phase(const building_type_registry_impl::LaborDefinition &labor, const map_point &road);
     void run_labor_phase_if_defined(const map_point &road);
     int has_figure_of_type(figure_type type);
@@ -123,6 +133,8 @@ private:
     void spawn_lighthouse();
     void spawn_watchtower();
     void spawn_armoury();
+    resource_type figure_delivery_output_resource() const;
+    void spawn_figure_delivery_cart(const map_point &road);
     int resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const;
     int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
     int evaluate_condition(building_type_registry_impl::SpawnCondition condition) const;

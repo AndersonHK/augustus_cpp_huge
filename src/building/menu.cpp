@@ -241,6 +241,9 @@ static int can_get_required_resource(building_type type)
 {
     if (type_matches(type, "shipyard")) {
         return empire_can_produce_resource_naturally(resource_fish());
+    } else if (building_is_farm(type)) {
+        const resource_type output_resource = building_output_resource(type);
+        return output_resource > RESOURCE_NONE && empire_can_produce_resource_locally(output_resource);
     } else if (type_matches(type, "tavern")) {
         return empire_can_produce_resource_potentially(resource_wine()) ||
             empire_can_import_resource_potentially(resource_wine());

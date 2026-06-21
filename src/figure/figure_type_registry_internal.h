@@ -25,7 +25,8 @@ enum class NativeClassId {
     MarketSupplier,
     DeliveryFollower,
     TransientWanderer,
-    DepotCartPusher
+    DepotCartPusher,
+    FishingBoat
 };
 
 enum class CartGraphicsMode {

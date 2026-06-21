@@ -98,6 +98,7 @@ typedef struct building {
             unsigned char is_stockpiling;
             unsigned char orientation;
             unsigned int fishing_boat_id; // in line with f->id
+            unsigned int second_fishing_boat_id;
             unsigned char age_months;
             unsigned char average_production_per_month;
             short production_current_month;

@@ -13,6 +13,7 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "figuretype/fishing_boat.h"
 #include "figuretype/supplier.h"
 #include "game/resource_graphics.h"
 #include "map/building.h"
@@ -1656,6 +1657,17 @@ private:
     }
 };
 
+class FishingBoatFigure : public NativeFigure {
+public:
+    using NativeFigure::NativeFigure;
+
+    int execute() override
+    {
+        Figure *f = data_figure();
+        return f ? FishingBoat::from(*f).advance(definition()) : 0;
+    }
+};
+
 class EngineerServiceFigure : public NativeFigure {
 public:
     using NativeFigure::NativeFigure;
@@ -2618,6 +2630,8 @@ std::unique_ptr<NativeFigure> make_controller(
             return std::make_unique<TransientWandererFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::DepotCartPusher:
             return std::make_unique<DepotCartPusherFigure>(f, definition, profile);
+        case figure_type_registry_impl::NativeClassId::FishingBoat:
+            return std::make_unique<FishingBoatFigure>(f, definition, profile);
         case figure_type_registry_impl::NativeClassId::None:
         default:
             return nullptr;

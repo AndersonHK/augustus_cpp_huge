@@ -28,9 +28,13 @@
         <employees count="6" />
         <labor_seeker>
             <method value="houses_spawn_if_below" />
+            <amount value="50" />
         </labor_seeker>
     </labor>
     <production_methods>
         <production_method path="fish_wharf_basic" />
     </production_methods>
+    <spawn_group road_access="normal" delay_bands="100:0,1:0">
+        <spawn mode="fishing_boat" spawn_figure="fishing_boat" spawn_source="shipyard" capacity="1" profile="fish_fetch" />
+    </spawn_group>
 </building>

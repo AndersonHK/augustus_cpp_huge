@@ -340,7 +340,6 @@ void map_orientation_update_buildings(void)
                 map_terrain_add_roadblock_road(b->x, b->y);
             } else if (is_vacant_lot_starting_house(b)) {
                 map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
-                building_house_vacant_lot_mark_draw(i);
             }
         }
     }

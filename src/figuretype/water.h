@@ -9,8 +9,6 @@
 
 	void figure_shipwreck_action(Figure *f);
 
-	void figure_fishing_boat_action(Figure *f);
-
 	void figure_sink_all_ships(void);
 	void figure_sink_half_ships(void);
 

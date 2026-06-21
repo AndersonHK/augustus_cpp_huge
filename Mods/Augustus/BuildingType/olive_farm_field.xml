@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="olive_farm_field">
+    <identity name_key="main_strings.28.103" />
+    <model size="1" />
+    <foundation policy="land" />
+    <event_data attr="olive_farm_field" />
+    <flags fire_proof="1" />
+    <labor>
+        <employees count="1" />
+    </labor>
+    <graphics>
+        <default>
+            <path value="Industry\Farm_Crops" />
+            <options selection="production_progress">
+                <option image="Image_0015" />
+                <option image="Image_0016" />
+                <option image="Image_0017" />
+                <option image="Image_0018" />
+                <option image="Image_0019" />
+            </options>
+        </default>
+    </graphics>
+    <production_methods>
+        <production_method path="olive_farm_field_basic" />
+    </production_methods>
+</building>

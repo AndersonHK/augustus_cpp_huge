@@ -23,5 +23,12 @@
     </graphics>
     <labor>
         <employees count="10" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="50" />
+        </labor_seeker>
     </labor>
+    <production_methods>
+        <production_method path="fishing_boat_shipyard_basic" />
+    </production_methods>
 </building>

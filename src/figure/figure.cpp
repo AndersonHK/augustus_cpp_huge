@@ -8,6 +8,7 @@
 #include "core/random.h"
 #include "empire/city.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/movement.h"
 #include "figure/name.h"
 #include "figure/trader.h"
 #include "figure/visited_buildings.h"
@@ -600,6 +601,50 @@ void Figure::remove()
     const unsigned int slot = id();
     reset(slot);
     trim_dead_tail();
+}
+
+int Figure::retarget_building(const Building &from, const Building &to)
+{
+    const unsigned int from_id = from.id();
+    const unsigned int to_id = to.id();
+    if (!from_id || !to_id || from_id == to_id) {
+        return 0;
+    }
+
+    int changed = 0;
+    int destination_changed = 0;
+    if (building.id() == from_id) {
+        building = to;
+        changed = 1;
+    }
+    if (immigrant_building.id() == from_id) {
+        immigrant_building = to;
+        changed = 1;
+        destination_changed = 1;
+    }
+    if (destination_building.id() == from_id) {
+        destination_building = to;
+        changed = 1;
+        destination_changed = 1;
+    }
+    if (last_destination_id == static_cast<int>(from_id)) {
+        last_destination_id = static_cast<int>(to_id);
+        changed = 1;
+    }
+    if (destination_changed) {
+        if (to.has_cached_road_access()) {
+            destination_x = static_cast<unsigned char>(to.road_access_x());
+            destination_y = static_cast<unsigned char>(to.road_access_y());
+            destination_grid_offset = map_grid_offset(destination_x, destination_y);
+        }
+        if ((type == FIGURE_IMMIGRANT && action_state == FIGURE_ACTION_3_IMMIGRANT_ENTERING_HOUSE) ||
+            (type == FIGURE_HOMELESS && action_state == FIGURE_ACTION_9_HOMELESS_ENTERING_HOUSE)) {
+            figure_movement_set_cross_country_destination(this, to.x(), to.y());
+            destination_grid_offset = map_grid_offset(destination_x, destination_y);
+        }
+        figure_route_remove(this);
+    }
+    return changed;
 }
 
 int Figure::is_dead() const

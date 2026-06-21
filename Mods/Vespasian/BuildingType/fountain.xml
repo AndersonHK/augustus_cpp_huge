@@ -48,8 +48,5 @@
     </graphics>
     <labor>
         <employees count="4" />
-        <labor_seeker>
-            <method value="none" />
-        </labor_seeker>
     </labor>
 </building>

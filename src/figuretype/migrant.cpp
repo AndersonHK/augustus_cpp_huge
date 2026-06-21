@@ -21,10 +21,17 @@ static struct {
     time_millis last_check;
 } houses_with_room;
 
-static int house_is_valid(const Building &house, unsigned int figure_id)
+static int house_is_valid(const Building &house, const Figure &migrant)
 {
-    return house.id() && house.is_in_use() && house.has_house_size() && !house.has_plague() &&
-        house.immigrant_figure_id() == figure_id;
+    if (!house.id() || !house.is_in_use() || !house.has_house_size() || house.has_plague()) {
+        return 0;
+    }
+    if (house.immigrant_figure_id() == migrant.id()) {
+        return 1;
+    }
+    return migrant.immigrant_building.id() == house.id() &&
+        migrant.destination_building.id() == house.id() &&
+        house.house_population_room() >= migrant.migrant_num_people;
 }
 
 static void set_migrant_house(Figure &migrant, Building &house)
@@ -150,7 +157,7 @@ void figure_immigrant_action(Figure *f)
 
     f->terrain_usage = TERRAIN_USAGE_ANY;
     f->cart_image_id = 0;
-    if (!house_is_valid(house, f->id())) {
+    if (!house_is_valid(house, *f)) {
         f->state = FIGURE_STATE_DEAD;
         return;
     }
@@ -296,7 +303,7 @@ void figure_homeless_action(Figure *f)
             f->is_ghost = 0;
             figure_movement_move_ticks(f, 1);
             Building house = f->immigrant_building;
-            if (!house_is_valid(house, f->id())) {
+            if (!house_is_valid(house, *f)) {
                 figure_route_remove(f);
                 f->action_state = FIGURE_ACTION_7_HOMELESS_CREATED;
                 f->wait_ticks = game_time_scale_legacy_day_ticks(30);
@@ -315,7 +322,7 @@ void figure_homeless_action(Figure *f)
             f->use_cross_country = 1;
             f->is_ghost = 1;
             Building house = f->immigrant_building;
-            if (!house_is_valid(house, f->id())) {
+            if (!house_is_valid(house, *f)) {
                 f->state = FIGURE_STATE_DEAD;
             } else if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
                 f->state = FIGURE_STATE_DEAD;

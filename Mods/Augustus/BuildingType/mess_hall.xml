@@ -21,5 +21,9 @@
     </graphics>
     <labor>
         <employees count="10" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="100" />
+        </labor_seeker>
     </labor>
 </building>

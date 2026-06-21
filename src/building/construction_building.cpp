@@ -115,22 +115,27 @@ static building_type building_type_from_attr(const char *text_id)
     return BUILDING_NONE;
 }
 
-static building_type build_type_fort_ground()
+static const building_type_registry_impl::BuildingType *definition_for_placement_type(building_type type)
 {
-    static building_type type = BUILDING_NONE;
-    if (type == BUILDING_NONE) {
-        type = building_type_from_attr("fort_ground");
-    }
-    return type;
+    return building_type_registry_impl::definition_for_type(type);
 }
 
-static building_type build_type_warehouse_space()
+static int type_has_composition(building_type type)
 {
-    static building_type type = BUILDING_NONE;
-    if (type == BUILDING_NONE) {
-        type = building_type_from_attr("warehouse_space");
+    const building_type_registry_impl::BuildingType *definition = definition_for_placement_type(type);
+    return definition && definition->has_composition();
+}
+
+static int composition_placement_size(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition = definition_for_placement_type(type);
+    if (!definition || !definition->has_composition()) {
+        return building_properties_for_type(type)->size;
     }
-    return type;
+    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
+    return composition.footprint_width() > composition.footprint_height() ?
+        composition.footprint_width() :
+        composition.footprint_height();
 }
 
 static int build_type_clear_land_cost()
@@ -346,35 +351,6 @@ static PlaceWarningMessage build_senate_warning()
         build_type_senate());
 }
 
-static void add_fort(building_type type, building *fort)
-{
-    fort->prev_part_building_id = 0;
-    map_building_tiles_add(fort->id, fort->x, fort->y, fort->size, building_image_get(fort), TERRAIN_BUILDING);
-    fort->subtype.fort_figure_type = building_count_forts_get_figure_type_from_building(type);
-
-    // create parade ground
-    const int offsets_x[] = { 3, -1, -4, 0 };
-    const int offsets_y[] = { -1, -4, 0, 3 };
-    int id = fort->id;
-    if (build_type_fort_ground() == BUILDING_NONE) {
-        return;
-    }
-    building *ground = building_create(build_type_fort_ground(), fort->x + offsets_x[building_rotation_get_rotation()],
-        fort->y + offsets_y[building_rotation_get_rotation()]);
-    game_undo_add_building(ground);
-    fort = building_get(id);
-    ground->prev_part_building_id = fort->id;
-    fort->next_part_building_id = ground->id;
-    ground->next_part_building_id = 0;
-    map_building_tiles_add(ground->id, fort->x + offsets_x[building_rotation_get_rotation()],
-     fort->y + offsets_y[building_rotation_get_rotation()], 4, image_group(GROUP_BUILDING_FORT) + 1, TERRAIN_BUILDING);
-
-    Building fort_object(*fort);
-    Building ground_object(*ground);
-    fort_object.set_formation_id(formation_legion_create_for_fort(fort_object));
-    ground_object.set_formation_id(fort_object.formation_id());
-}
-
 int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode clear_mode, cost_calculation cost)
 {
     int total_cost = 0;
@@ -424,88 +400,6 @@ static int check_gatehouse_tiles(int grid_offset)
     return 1;
 }
 
-static void add_hippodrome(building *b)
-{
-    building *part1 = b;
-
-    int x_offset, y_offset;
-    building_rotation_get_offset_with_rotation(5, building_rotation_get_rotation(), &x_offset, &y_offset);
-    building *part2 = building_create(part1->type, part1->x + x_offset, part1->y + y_offset);
-    game_undo_add_building(part2);
-
-    building_rotation_get_offset_with_rotation(10, building_rotation_get_rotation(), &x_offset, &y_offset);
-    building *part3 = building_create(part1->type, part1->x + x_offset, part1->y + y_offset);
-    game_undo_add_building(part3);
-
-    part1->prev_part_building_id = 0;
-    part1->next_part_building_id = part2->id;
-    part2->prev_part_building_id = part1->id;
-    part2->next_part_building_id = part3->id;
-    part3->prev_part_building_id = part2->id;
-    part3->next_part_building_id = 0;
-}
-
-static int add_warehouse_space(int x, int y, int prev_id)
-{
-    if (prev_id <= 0) {
-        return 0;
-    }
-    building_type type = build_type_warehouse_space();
-    if (type == BUILDING_NONE) {
-        return prev_id;
-    }
-    building *b = building_create(type, x, y);
-    if (!b || b->id <= 0) {
-        return prev_id;
-    }
-
-    game_undo_add_building(b);
-    building *prev = building_get(prev_id);
-    b->prev_part_building_id = prev->id;
-    prev->next_part_building_id = b->id;
-    map_building_tiles_add(b->id, x, y, 1,
-        image_group(GROUP_BUILDING_WAREHOUSE_STORAGE_EMPTY), TERRAIN_BUILDING);
-    return b->id;
-}
-
-static void add_warehouse(building *b, int orientation)
-{
-    b->storage_id = building_storage_create(b->id);
-    b->prev_part_building_id = 0;
-    // assert orientation. orientation points to the tower's location (0-3), out of 4 possible corners
-    b->subtype.orientation = orientation;
-
-    int x_offset[9] = { 0, 0, 1, 1, 0, 2, 1, 2, 2 };
-    int y_offset[9] = { 0, 1, 0, 1, 2, 0, 2, 1, 2 };
-    // can skip  building_rotation_get_rotation(), set upstream
-    int tower = building_rotation_get_corner(2 * orientation);
-    map_building_tiles_add(b->id, b->x + x_offset[tower], b->y + y_offset[tower], 1,
-        image_group(GROUP_BUILDING_WAREHOUSE), TERRAIN_BUILDING);
-    map_tiles_update_area_roads(b->x + x_offset[tower], b->y + y_offset[tower], 3);
-
-    int id = b->id;
-    int prev = id;
-    for (int i = 0; i < 9; i++) {
-        if (i == tower) {
-            continue;
-        }
-        prev = add_warehouse_space(b->x + x_offset[i], b->y + y_offset[i], prev);
-    }
-
-    b = building_get(id);
-    // Adjust warehouse to tower position
-    b->x = b->x + x_offset[tower];
-    b->y = b->y + y_offset[tower];
-    b->grid_offset = map_grid_offset(b->x, b->y);
-    game_undo_adjust_building(b);
-
-    building_get(prev)->next_part_building_id = 0;
-    map_tiles_update_area_roads(b->x, b->y, 5);
-    if (!map_has_road_access_warehouse(b->x, b->y, 0)) {
-        warehouse_tower_road_access_warning().show();
-    }
-}
-
 static void add_building(building *b)
 {
     if (building_type_registry_has_construction(b->type) &&
@@ -520,6 +414,89 @@ static void add_building(building *b)
     int image_id = building_image_get(b);
     if (image_id) {
         map_building_tiles_add(b->id, b->x, b->y, b->size, image_id, TERRAIN_BUILDING);
+    }
+}
+
+static void add_composed_building(building *main_record)
+{
+    if (!main_record) {
+        return;
+    }
+    const building_type_registry_impl::BuildingType *definition = definition_for_placement_type(main_record->type);
+    if (!definition || !definition->has_composition()) {
+        add_building(main_record);
+        return;
+    }
+
+    const int rotation = building_rotation_get_rotation();
+    const int origin_x = main_record->x;
+    const int origin_y = main_record->y;
+    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
+    const building_type_registry_impl::ComposedPartOffset main_offset =
+        composition.main_offset_for_rotation(rotation);
+
+    main_record->prev_part_building_id = 0;
+    main_record->next_part_building_id = 0;
+    if (main_offset.x || main_offset.y) {
+        main_record->x = static_cast<unsigned char>(origin_x + main_offset.x);
+        main_record->y = static_cast<unsigned char>(origin_y + main_offset.y);
+        main_record->grid_offset = map_grid_offset(main_record->x, main_record->y);
+        game_undo_adjust_building(main_record);
+    }
+    add_building(main_record);
+
+    int previous_id = main_record->id;
+    for (const building_type_registry_impl::ComposedPartDefinition &part : composition.parts()) {
+        const building_type_registry_impl::ComposedPartOffset offset = part.offset_for_rotation(rotation);
+        if (part.type == BUILDING_NONE || !offset.has_value || previous_id <= 0) {
+            continue;
+        }
+
+        building *child = building_create(part.type, origin_x + offset.x, origin_y + offset.y);
+        if (!child || child->id <= 0) {
+            continue;
+        }
+        game_undo_add_building(child);
+        child->prev_part_building_id = previous_id;
+        child->next_part_building_id = 0;
+        if (building_type_attr_is(main_record->type, "hippodrome")) {
+            child->subtype.orientation = main_record->subtype.orientation;
+        }
+        child->road_network_id = main_record->road_network_id;
+        child->distance_from_entry = main_record->distance_from_entry;
+        child->road_access_x = main_record->road_access_x;
+        child->road_access_y = main_record->road_access_y;
+        child->has_road_access = main_record->has_road_access;
+        child->labor_access_score = main_record->labor_access_score;
+        child->variant = main_record->variant;
+        building_get(previous_id)->next_part_building_id = child->id;
+        add_building(child);
+        previous_id = child->id;
+    }
+}
+
+static void set_monument_phase_for_parts(building *main_record, int phase)
+{
+    for (building *part = main_record; part && part->id > 0; part = building_get(part->next_part_building_id)) {
+        building_monument_set_phase(part, phase);
+        if (!part->next_part_building_id) {
+            break;
+        }
+    }
+}
+
+static void assign_fort_formation_to_parts(building *main_record)
+{
+    if (!main_record) {
+        return;
+    }
+    Building fort_object(main_record);
+    const int formation_id = formation_legion_create_for_fort(fort_object);
+    for (Building part(main_record); part.id(); part = part.next()) {
+        part.set_formation_id(formation_id);
+        if (!part.next_part_id()) {
+            break;
+        }
     }
 }
 
@@ -565,8 +542,28 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
     } else if (building_type_attr_is(type, "colosseum")) {
         map_tiles_update_area_roads(b->x, b->y, 5);
         building_monument_set_phase(b, MONUMENT_START);
+    } else if (building_obj.type && building_obj.type->has_composition()) {
+        if (building_type_attr_is(type, "warehouse")) {
+            b->storage_id = building_storage_create(b->id);
+            b->subtype.orientation = orientation;
+        } else if (building_is_fort(type)) {
+            b->subtype.fort_figure_type = building_count_forts_get_figure_type_from_building(type);
+        } else if (building_type_attr_is(type, "hippodrome")) {
+            b->subtype.orientation = building_rotation_get_rotation();
+        }
+        add_composed_building(b);
+        if (building_type_attr_is(type, "warehouse")) {
+            map_tiles_update_area_roads(b->x, b->y, 5);
+            if (!map_has_road_access_warehouse(b->x, b->y, 0)) {
+                warehouse_tower_road_access_warning().show();
+            }
+        } else if (building_type_attr_is(type, "hippodrome")) {
+            set_monument_phase_for_parts(b, MONUMENT_START);
+        } else if (building_is_fort(type)) {
+            assign_fort_formation_to_parts(b);
+        }
     } else if (building_is_farm(type)) {
-        map_building_tiles_add_farm(b->id, b->x, b->y, building_image_get_base_farm_crop(type), 0);
+        add_building(b);
     } else if (building_type_attr_is(type, "granary")) {
         add_granary(b);
     } else if (building_obj.type &&
@@ -616,17 +613,6 @@ static void add_to_map(building_type type, building *b, int size, int orientatio
         city_buildings_build_triumphal_arch();
         building_menu_update();
         building_construction_clear_type();
-    } else if (building_type_attr_is(type, "warehouse")) {
-        add_warehouse(b, orientation);
-    } else if (building_type_attr_is(type, "hippodrome")) {
-        add_hippodrome(b);
-        building_monument_set_phase(b, MONUMENT_START);
-        building *b2 = building_get(b->next_part_building_id);
-        building_monument_set_phase(b2, MONUMENT_START);
-        building *b3 = building_get(b2->next_part_building_id);
-        building_monument_set_phase(b3, MONUMENT_START);
-    } else if (building_is_fort(type)) {
-        add_fort(type, b);
     } else if (building_type_attr_is(type, "pantheon")) {
         map_tiles_update_area_roads(b->x, b->y, 9);
         building_monument_set_phase(b, MONUMENT_START);
@@ -848,10 +834,8 @@ static int building_construction_place_building_internal(building_type type, int
     } else if (building_type_attr_is_any(type, {"reservoir", "draggable_reservoir"})) {
         terrain_mask = ~TERRAIN_AQUEDUCT;
     }
-    int size = building_properties_for_type(type)->size;
-    if (building_type_attr_is(type, "warehouse")) {
-        size = 3;
-    }
+    const int has_composition = type_has_composition(type);
+    int size = composition_placement_size(type);
     // Do not check for a figure when build a roadblock of single tile size
     // TODO: do not check for figures on tiles that are citizen passable in general
     int check_figure = building_type_attr_is(type, "roadblock") && size == 1 ? 0 : 1;
@@ -955,7 +939,7 @@ static int building_construction_place_building_internal(building_type type, int
             return 0;
         }
     } else {
-        if ((exact_coordinates || force_check) &&
+        if (!has_composition && (exact_coordinates || force_check) &&
             !tiles_are_clear_or_force_clearable(x, y, size, terrain_mask, check_figure, force_check)) {
             clear_land_needed_warning().show_when(emit_warnings);
             return 0;
@@ -966,17 +950,44 @@ static int building_construction_place_building_internal(building_type type, int
             return 0;
         }
     }
-    if (building_is_fort(type)) {
-        const int offsets_x[] = { 3, -1, -4, 0 };
-        const int offsets_y[] = { -1, -4, 0, 3 };
-        int orient_index = building_rotation_get_rotation();
-        int x_offset = offsets_x[orient_index];
-        int y_offset = offsets_y[orient_index];
-        if (!tiles_are_clear_or_force_clearable(x + x_offset, y + y_offset, 4, terrain_mask, 0, force_check)) {
-            // ignore figures on fort grounds
+    const building_type_registry_impl::BuildingType *placement_definition = definition_for_placement_type(type);
+    if (placement_definition && placement_definition->has_composition()) {
+        const building_type_registry_impl::ComposedBuildingDefinition &composition =
+            placement_definition->composition();
+        const int rotation = building_rotation_get_rotation();
+        const building_type_registry_impl::ComposedPartOffset main_offset =
+            composition.main_offset_for_rotation(rotation);
+        const int main_size = building_properties_for_type(type)->size;
+        if (!tiles_are_clear_or_force_clearable(
+                x + main_offset.x,
+                y + main_offset.y,
+                main_size,
+                terrain_mask,
+                check_figure,
+                force_check)) {
             clear_land_needed_warning().show_when(emit_warnings);
             return 0;
         }
+        for (const building_type_registry_impl::ComposedPartDefinition &part : composition.parts()) {
+            if (part.type == BUILDING_NONE) {
+                continue;
+            }
+            const building_type_registry_impl::ComposedPartOffset offset = part.offset_for_rotation(rotation);
+            const int child_size = building_properties_for_type(part.type)->size;
+            const int part_check_figure = building_is_fort(type) ? 0 : check_figure;
+            if (!tiles_are_clear_or_force_clearable(
+                    x + offset.x,
+                    y + offset.y,
+                    child_size,
+                    terrain_mask,
+                    part_check_figure,
+                    force_check)) {
+                clear_land_needed_warning().show_when(emit_warnings);
+                return 0;
+            }
+        }
+    }
+    if (building_is_fort(type)) {
         if (formation_get_num_legions_cached() >= formation_get_max_legions()) {
             max_legions_reached_warning().show_when(emit_warnings);
             return 0;
@@ -1014,17 +1025,6 @@ static int building_construction_place_building_internal(building_type type, int
     if (building_type_attr_is(type, "hippodrome")) {
         if (city_buildings_has_hippodrome()) {
             one_building_of_type_warning(type).show_when(emit_warnings);
-            return 0;
-        }
-        int x_offset_1, y_offset_1;
-        building_rotation_get_offset_with_rotation(5, building_rotation_get_rotation(), &x_offset_1, &y_offset_1);
-        int x_offset_2, y_offset_2;
-        building_rotation_get_offset_with_rotation(10, building_rotation_get_rotation(), &x_offset_2, &y_offset_2);
-        if (!tiles_are_clear_or_force_clearable(x + x_offset_1, y + y_offset_1, 5, terrain_mask, check_figure,
-                force_check) ||
-            !tiles_are_clear_or_force_clearable(x + x_offset_2, y + y_offset_2, 5, terrain_mask, check_figure,
-                force_check)) {
-            clear_land_needed_warning().show_when(emit_warnings);
             return 0;
         }
     }

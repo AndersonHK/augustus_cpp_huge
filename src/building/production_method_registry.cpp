@@ -32,6 +32,7 @@ struct ParseState {
     int saw_kind = 0;
     int saw_output = 0;
     int saw_batch_size = 0;
+    int saw_cart_loads = 0;
     int saw_treasury_cost = 0;
     int error = 0;
 };
@@ -162,6 +163,34 @@ resource_type parse_resource_type_name(const char *name)
     return resource_type_from_xml_attr(name);
 }
 
+ProductionOutputEffect parse_output_effect_name(const char *name)
+{
+    if (name && strcmp(name, "spawn_fishing_boat") == 0) {
+        return ProductionOutputEffect::SpawnFishingBoat;
+    }
+    return ProductionOutputEffect::None;
+}
+
+int parse_output_destination_name(const char *name, ProductionOutputDestination *out_destination)
+{
+    if (!name || !out_destination) {
+        return 0;
+    }
+    if (strcmp(name, "cart") == 0) {
+        *out_destination = ProductionOutputDestination::Cart;
+        return 1;
+    }
+    if (strcmp(name, "building_storage") == 0) {
+        *out_destination = ProductionOutputDestination::BuildingStorage;
+        return 1;
+    }
+    if (strcmp(name, "treasury") == 0) {
+        *out_destination = ProductionOutputDestination::Treasury;
+        return 1;
+    }
+    return 0;
+}
+
 int parse_scenario_climate_name(const char *name, scenario_climate *out_climate)
 {
     if (!name || !*name || !out_climate) {
@@ -202,6 +231,20 @@ int validate_definition(const ProductionMethod &definition, const char *filename
             definition.batch_size());
         log_error("ProductionMethod batch_size exceeds current cart load field", definition.path(), 0);
         error_context_report_error("ProductionMethod batch_size exceeds current cart load field.", detail);
+        return 0;
+    }
+    if (definition.cart_load_numerator() <= 0 || definition.cart_load_denominator() <= 0) {
+        log_error("ProductionMethod cart_loads must be positive", definition.path(), 0);
+        error_context_report_error("ProductionMethod cart_loads must be positive.", filename);
+        return 0;
+    }
+    const int integer_cart_loads = definition.cart_loads_per_cycle();
+    if (integer_cart_loads > UCHAR_MAX) {
+        char detail[512];
+        snprintf(detail, sizeof(detail), "file=%s path=%s cart_loads=%d/%d", filename, definition_path ? definition_path : "",
+            definition.cart_load_numerator(), definition.cart_load_denominator());
+        log_error("ProductionMethod cart_loads exceeds current cart load field", definition.path(), 0);
+        error_context_report_error("ProductionMethod cart_loads exceeds current cart load field.", detail);
         return 0;
     }
     if (definition.treasury_cost_per_cycle() < 0) {
@@ -288,8 +331,10 @@ int parse_output()
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("resource")) {
-        log_error("ProductionMethod output is missing required attribute 'resource'", 0, 0);
+    const int has_resource = xml_parser_has_attribute("resource");
+    const int has_effect = xml_parser_has_attribute("effect");
+    if (has_resource == has_effect) {
+        log_error("ProductionMethod output requires exactly one of 'resource' or 'effect'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -299,15 +344,57 @@ int parse_output()
         return 0;
     }
 
-    const char *resource_text = xml_parser_get_attribute_string("resource");
-    const resource_type resource = parse_resource_type_name(resource_text);
-    if (resource == RESOURCE_NONE) {
-        log_error("Unsupported ProductionMethod output resource", resource_text, 0);
-        g_parse_state.error = 1;
-        return 0;
+    if (has_resource) {
+        const char *resource_text = xml_parser_get_attribute_string("resource");
+        const resource_type resource = parse_resource_type_name(resource_text);
+        if (resource == RESOURCE_NONE) {
+            log_error("Unsupported ProductionMethod output resource", resource_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_output_resource(resource);
+        if (xml_parser_has_attribute("destination")) {
+            ProductionOutputDestination destination = ProductionOutputDestination::Cart;
+            const char *destination_text = xml_parser_get_attribute_string("destination");
+            if (!parse_output_destination_name(destination_text, &destination)) {
+                log_error("Unsupported ProductionMethod output destination", destination_text, 0);
+                g_parse_state.error = 1;
+                return 0;
+            }
+            g_parse_state.definition->set_output_destination(destination);
+        }
+        if (xml_parser_has_attribute("source")) {
+            const char *source_text = xml_parser_get_attribute_string("source");
+            if (strcmp(source_text, "worker_progress") != 0 && strcmp(source_text, "figure_delivery") != 0) {
+                log_error("Unsupported ProductionMethod output source", source_text, 0);
+                g_parse_state.error = 1;
+                return 0;
+            }
+            if (strcmp(source_text, "figure_delivery") == 0) {
+                g_parse_state.definition->set_output_source(ProductionOutputSource::FigureDelivery);
+            }
+        }
+    } else {
+        if (xml_parser_has_attribute("source")) {
+            log_error("ProductionMethod effect output cannot declare source", xml_parser_get_attribute_string("source"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        if (xml_parser_has_attribute("destination")) {
+            log_error("ProductionMethod effect output cannot declare destination", xml_parser_get_attribute_string("destination"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        const char *effect_text = xml_parser_get_attribute_string("effect");
+        const ProductionOutputEffect effect = parse_output_effect_name(effect_text);
+        if (effect == ProductionOutputEffect::None) {
+            log_error("Unsupported ProductionMethod output effect", effect_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_output_effect(effect);
     }
 
-    g_parse_state.definition->set_output_resource(resource);
     g_parse_state.definition->set_base_monthly_production(xml_parser_get_attribute_int("production_per_month"));
     g_parse_state.saw_output = 1;
     return 1;
@@ -340,6 +427,51 @@ int parse_batch_size()
 
     g_parse_state.definition->set_batch_size(batch_size);
     g_parse_state.saw_batch_size = 1;
+    return 1;
+}
+
+int parse_cart_loads()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered ProductionMethod cart_loads before root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_cart_loads) {
+        log_error("ProductionMethod xml contains duplicate cart_loads nodes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int numerator = 0;
+    int denominator = 1;
+    const int has_value = xml_parser_has_attribute("value");
+    const int has_numerator = xml_parser_has_attribute("numerator");
+    const int has_denominator = xml_parser_has_attribute("denominator");
+    if (has_value) {
+        if (has_numerator || has_denominator) {
+            log_error("ProductionMethod cart_loads cannot mix value with numerator/denominator", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        numerator = xml_parser_get_attribute_int("value");
+    } else {
+        if (!has_numerator || !has_denominator) {
+            log_error("ProductionMethod cart_loads is missing required attributes", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        numerator = xml_parser_get_attribute_int("numerator");
+        denominator = xml_parser_get_attribute_int("denominator");
+    }
+    if (numerator <= 0 || denominator <= 0) {
+        log_error("Unsupported ProductionMethod cart_loads", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_cart_loads(numerator, denominator);
+    g_parse_state.saw_cart_loads = 1;
     return 1;
 }
 
@@ -463,6 +595,7 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "kind", parse_kind, nullptr, "production_method", nullptr },
     { "output", parse_output, nullptr, "production_method", nullptr },
     { "batch_size", parse_batch_size, nullptr, "production_method", nullptr },
+    { "cart_loads", parse_cart_loads, nullptr, "production_method", nullptr },
     { "treasury_cost", parse_treasury_cost, nullptr, "production_method", nullptr },
     { "climate_bonuses", parse_climate_bonuses, nullptr, "production_method", nullptr },
     { "bonus", parse_climate_bonus, nullptr, "climate_bonuses", nullptr },

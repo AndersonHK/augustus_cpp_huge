@@ -25,6 +25,7 @@
 #include "core/calc.h"
 #include "core/image.h"
 #include "game/animation.h"
+#include "game/resource_graphics.h"
 #include "map/property.h"
 #include "map/sprite.h"
 #include "scenario/property.h"
@@ -210,7 +211,7 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
 
 building_runtime *runtime_for_building(Building building, std::unique_ptr<building_runtime> &temporary_runtime)
 {
-    Building owner = building.main();
+    Building owner = building.type && building.type->has_graphic() ? building : building.main();
     if (!owner.type) {
         return nullptr;
     }
@@ -221,6 +222,35 @@ building_runtime *runtime_for_building(Building building, std::unique_ptr<buildi
 
     temporary_runtime = std::make_unique<building_runtime>(owner);
     return temporary_runtime.get();
+}
+
+const GraphicsTarget *resolve_target_for_direct_graphics(Building building)
+{
+    return building.type ? BuildingType::resolve_graphics_target_for_image(building.type, building) : nullptr;
+}
+
+int draw_resource_storage_footprint(Building building, const BuildingDrawContext &ctx)
+{
+    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
+        return 1;
+    }
+    const resource_type resource = building.warehouse_resource_id();
+    const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? building.resource_amount(resource) : 0;
+    const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
+    resource_graphics(graphic_resource).storage_image(loads).draw(ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    return 1;
+}
+
+int draw_resource_storage_top(Building building, const BuildingDrawContext &ctx)
+{
+    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
+        return 1;
+    }
+    const resource_type resource = building.warehouse_resource_id();
+    const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? building.resource_amount(resource) : 0;
+    const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
+    resource_graphics(graphic_resource).storage_image(loads).draw_top(ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    return 1;
 }
 
 void log_missing_runtime_stage_slice(const char *stage, const Building &building)
@@ -396,6 +426,11 @@ void GraphicsTarget::set_option_selection(GraphicsOptionSelection selection)
     option_selection_ = selection;
 }
 
+void GraphicsTarget::set_resource_storage(int value)
+{
+    resource_storage_ = value ? 1 : 0;
+}
+
 void GraphicsTarget::set_animation_enabled(int enabled)
 {
     animation_enabled_ = enabled ? 1 : 0;
@@ -436,6 +471,11 @@ const char *GraphicsTarget::image() const
 GraphicsOptionSelection GraphicsTarget::option_selection() const
 {
     return option_selection_;
+}
+
+int GraphicsTarget::is_resource_storage() const
+{
+    return resource_storage_;
 }
 
 int GraphicsTarget::animation_enabled() const
@@ -545,7 +585,7 @@ const GraphicsVariant *GraphicsDefinition::last_variant() const
 
 int GraphicsDefinition::has_path() const
 {
-    return default_target_.has_path() || default_target_.has_options();
+    return default_target_.has_path() || default_target_.has_options() || default_target_.is_resource_storage();
 }
 
 int GraphicsDefinition::has_default_node() const
@@ -566,11 +606,12 @@ const std::vector<GraphicsVariant> &GraphicsDefinition::variants() const
 const GraphicsTarget *GraphicsDefinition::resolve_target(const Building &building) const
 {
     for (const GraphicsVariant &variant : variants_) {
-        if ((variant.target.has_path() || variant.target.has_options()) && variant.matches(building)) {
+        if ((variant.target.has_path() || variant.target.has_options() || variant.target.is_resource_storage()) &&
+            variant.matches(building)) {
             return &variant.target;
         }
     }
-    if (default_target_.has_path() || default_target_.has_options()) {
+    if (default_target_.has_path() || default_target_.has_options() || default_target_.is_resource_storage()) {
         return &default_target_;
     }
     return nullptr;
@@ -578,6 +619,12 @@ const GraphicsTarget *GraphicsDefinition::resolve_target(const Building &buildin
 
 int GraphicsDefinition::draw_footprint(Building building, const BuildingDrawContext &ctx) const
 {
+    if (const GraphicsTarget *target = resolve_target_for_direct_graphics(building)) {
+        if (target->is_resource_storage()) {
+            return draw_resource_storage_footprint(building, ctx);
+        }
+    }
+
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
     if (!runtime || !runtime->resolve_graphics_cache()) {
@@ -599,6 +646,12 @@ int GraphicsDefinition::draw_footprint(Building building, const BuildingDrawCont
 
 int GraphicsDefinition::draw_top(Building building, const BuildingDrawContext &ctx) const
 {
+    if (const GraphicsTarget *target = resolve_target_for_direct_graphics(building)) {
+        if (target->is_resource_storage()) {
+            return draw_resource_storage_top(building, ctx);
+        }
+    }
+
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
     if (!runtime || !runtime->resolve_graphics_cache()) {
@@ -619,6 +672,12 @@ int GraphicsDefinition::draw_top(Building building, const BuildingDrawContext &c
 
 int GraphicsDefinition::draw_animation(Building building, const BuildingDrawContext &ctx) const
 {
+    if (const GraphicsTarget *target = resolve_target_for_direct_graphics(building)) {
+        if (target->is_resource_storage()) {
+            return 1;
+        }
+    }
+
     std::unique_ptr<building_runtime> temporary_runtime;
     building_runtime *runtime = runtime_for_building(building, temporary_runtime);
     if (!runtime || !runtime->resolve_graphics_cache()) {
@@ -643,7 +702,8 @@ int GraphicsDefinition::draw_animation(Building building, const BuildingDrawCont
 unsigned char GraphicsDefinition::upgrade_level_for(const Building &building) const
 {
     for (const GraphicsVariant &variant : variants_) {
-        if ((!variant.target.has_path() && !variant.target.has_options()) || !variant.matches(building)) {
+        if ((!variant.target.has_path() && !variant.target.has_options() && !variant.target.is_resource_storage()) ||
+            !variant.matches(building)) {
             continue;
         }
 
@@ -735,7 +795,7 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
     }
     if (definition_is(definition_, "city_mint") &&
         ((building.output_resource_id == resource_denarii() &&
-            building.resources[resource_gold()] < BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN) ||
+            !Building(const_cast<::building *>(&building)).native_production_has_raw_materials()) ||
             building.num_workers <= 0 ||
             (building_count_active(runtime_type_from_attr("senate")) == 0))) {
         return 1;

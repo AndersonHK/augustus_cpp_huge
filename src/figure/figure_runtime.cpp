@@ -140,6 +140,8 @@ const char *infer_profile_id(const Figure *f)
             return "follow_leader";
         case FIGURE_DEPOT_CART_PUSHER:
             return "order_runner";
+        case FIGURE_FISHING_BOAT:
+            return "fish_fetch";
         case FIGURE_ACTOR:
         case FIGURE_GLADIATOR:
         case FIGURE_LION_TAMER:
@@ -356,6 +358,9 @@ Figure *figure_runtime_create_profiled(
             break;
         case figure_type_registry_impl::NativeClassId::DepotCartPusher:
             f->action_state = FIGURE_ACTION_238_DEPOT_CART_PUSHER_INITIAL;
+            break;
+        case figure_type_registry_impl::NativeClassId::FishingBoat:
+            f->action_state = FIGURE_ACTION_190_FISHING_BOAT_CREATED;
             break;
         case figure_type_registry_impl::NativeClassId::LegacyAction:
             break;

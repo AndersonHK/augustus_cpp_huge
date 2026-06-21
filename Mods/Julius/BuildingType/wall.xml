@@ -9,9 +9,49 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
-  <button group="security" order="10" text_key="main_strings.28.6" />
+    <button group="security" order="10" text_key="main_strings.28.6" />
     <event_data attr="wall" />
     <flags fire_proof="1" draw_desirability_range="1" />
+    <graphics>
+        <default>
+            <options selection="connectable">
+                <option path="Wall" image="Image_0000" />
+                <option path="Wall" image="Image_0001" />
+                <option path="Wall" image="Image_0002" />
+                <option path="Wall" image="Image_0003" />
+                <option path="Wall" image="Image_0004" />
+                <option path="Wall" image="Image_0005" />
+                <option path="Wall" image="Image_0006" />
+                <option path="Wall" image="Image_0007" />
+                <option path="Wall" image="Image_0008" />
+                <option path="Wall" image="Image_0009" />
+                <option path="Wall" image="Image_0010" />
+                <option path="Wall" image="Image_0011" />
+                <option path="Wall" image="Image_0012" />
+                <option path="Wall" image="Image_0013" />
+                <option path="Wall" image="Image_0014" />
+                <option path="Wall" image="Image_0015" />
+                <option path="Wall" image="Image_0016" />
+                <option path="Wall" image="Image_0017" />
+                <option path="Wall" image="Image_0018" />
+                <option path="Wall" image="Image_0019" />
+                <option path="Wall" image="Image_0020" />
+                <option path="Wall" image="Image_0021" />
+                <option path="Wall" image="Image_0022" />
+                <option path="Wall" image="Image_0023" />
+                <option path="Wall" image="Image_0024" />
+                <option path="Wall" image="Image_0025" />
+                <option path="Wall" image="Image_0026" />
+                <option path="Wall" image="Image_0027" />
+                <option path="Wall" image="Image_0028" />
+                <option path="Wall" image="Image_0029" />
+                <option path="Wall" image="Image_0030" />
+                <option path="Wall" image="Image_0031" />
+                <option path="Wall" image="Image_0032" />
+                <option path="Wall" image="Image_0033" />
+            </options>
+        </default>
+    </graphics>
     <labor>
         <employees count="0" />
     </labor>

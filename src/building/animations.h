@@ -55,7 +55,8 @@ enum class GraphicsOptionSelection {
     BuildRotation,
     Connectable,
     StorageLoad,
-    Orientation
+    Orientation,
+    ProductionProgress
 };
 
 enum class GraphicsLayerStage {
@@ -126,6 +127,7 @@ struct GraphicsTarget {
     void set_path(std::string path);
     void set_image(std::string image);
     void set_option_selection(GraphicsOptionSelection selection);
+    void set_resource_storage(int value);
     void set_animation_enabled(int enabled);
     GraphicsTarget &add_option();
     GraphicsLayer &add_layer();
@@ -136,6 +138,7 @@ struct GraphicsTarget {
     int has_image() const;
     const char *image() const;
     GraphicsOptionSelection option_selection() const;
+    int is_resource_storage() const;
     int animation_enabled() const;
     int has_options() const;
     int option_count() const;
@@ -147,6 +150,7 @@ private:
     std::string path_;
     std::string image_;
     GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
+    int resource_storage_ = 0;
     int animation_enabled_ = 1;
     std::vector<GraphicsTarget> options_;
     std::vector<GraphicsLayer> layers_;

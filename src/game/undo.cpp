@@ -1,7 +1,5 @@
 #include "building/connectable.h"
 #include "building/construction.h"
-#include "building/image.h"
-#include "building/industry.h"
 #include "building/storage.h"
 #include "figure/roamer_preview.h"
 #include "map/aqueduct.h"
@@ -24,7 +22,6 @@
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/finance.h"
-#include "core/calc.h"
 #include "core/image.h"
 #include "game/resource.h"
 #include "graphics/window.h"
@@ -257,20 +254,18 @@ static void add_building_to_terrain(building *b)
     if (b->id <= 0) {
         return;
     }
-    if (building_is_farm(b->type)) {
-        map_building_tiles_add_farm(b->id, b->x, b->y, building_image_get_base_farm_crop(b->type),
-            calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b)));
-    } else {
+    b->state = BUILDING_STATE_IN_USE;
+    if (!Building(b).refresh_graphic_if_native()) {
         int size = building_properties_for_type(b->type)->size;
         if (building_is_house(b->type) && b->house_is_merged) {
             size = 2;
         }
         map_building_tiles_add(b->id, b->x, b->y, size, 0, 0);
-        if (type_matches(b->type, "wharf")) {
-            b->data.industry.fishing_boat_id = 0;
-        }
     }
-    b->state = BUILDING_STATE_IN_USE;
+    if (type_matches(b->type, "wharf")) {
+        b->data.industry.fishing_boat_id = 0;
+        b->data.industry.second_fishing_boat_id = 0;
+    }
 }
 
 void game_undo_perform(void)

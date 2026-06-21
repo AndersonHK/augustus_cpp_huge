@@ -68,7 +68,7 @@ static FigureAction figure_action_callbacks[] = {
     figure_protestor_action,
     figure_rioter_action,
     figure_rioter_action,
-    figure_fishing_boat_action,
+    figure_retired_native_action,
     figure_market_trader_action,
     figure_priest_action,
     figure_school_child_action,

@@ -1,4 +1,5 @@
 #include "building/building_type.h"
+#include "building/housing_type.h"
 #include "building/clone.h"
 #include "building/construction.h"
 #include "building/construction_building.h"
@@ -14,7 +15,6 @@
 #include "building/variant.h"
 #include "city/culture.h"
 #include "city/warning.h"
-#include "game/resource_graphics.h"
 #include "game/undo.h"
 #include "map/bridge.h"
 #include "map/building.h"
@@ -299,6 +299,11 @@ Building Building::first_of_type(building_type type)
     return Building(building_first_of_type(type));
 }
 
+Building Building::create(building_type type, int x, int y)
+{
+    return Building(building_create(type, x, y));
+}
+
 int Building::count()
 {
     return building_count();
@@ -307,6 +312,11 @@ int Building::count()
 unsigned int Building::id() const
 {
     return record_ ? record_->id : 0;
+}
+
+const ::building *Building::record() const
+{
+    return record_;
 }
 
 Building Building::main() const
@@ -320,9 +330,26 @@ Building Building::main() const
     return Building(building_main(record_));
 }
 
+Building Building::main_part() const
+{
+    return main();
+}
+
 Building Building::next() const
 {
     return Building(record_ ? building_next(record_) : nullptr);
+}
+
+void Building::for_each_part(const std::function<void(Building)> &visitor) const
+{
+    Building part = main_part();
+    for (int guard = 0; part.id() && guard < 64; guard++) {
+        visitor(part);
+        if (!part.next_part_id()) {
+            break;
+        }
+        part = part.next();
+    }
 }
 
 Building Building::next_of_type() const
@@ -497,31 +524,11 @@ building_type_registry_impl::BuildingAnimation Building::animate()
 
 int Building::draw_footprint(const BuildingDrawContext &ctx)
 {
-    if (record_ && building_matches(record_, "warehouse_space")) {
-        const resource_type resource = warehouse_resource_id();
-        const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? resource_amount(resource) : 0;
-        const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
-        if (ctx.force_draw_tile || map_property_is_draw_tile(ctx.grid_offset)) {
-            resource_graphics(graphic_resource).storage_image(loads).draw(
-                ctx.x, ctx.y, ctx.color_mask, ctx.scale);
-        }
-        return 1;
-    }
     return building_record_requires_type_definition(record_) && type ? type->graphics().draw_footprint(*this, ctx) : 0;
 }
 
 int Building::draw_top(const BuildingDrawContext &ctx)
 {
-    if (record_ && building_matches(record_, "warehouse_space")) {
-        const resource_type resource = warehouse_resource_id();
-        const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? resource_amount(resource) : 0;
-        const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
-        if (ctx.force_draw_tile || map_property_is_draw_tile(ctx.grid_offset)) {
-            resource_graphics(graphic_resource).storage_image(loads).draw_top(
-                ctx.x, ctx.y, ctx.color_mask, ctx.scale);
-        }
-        return 1;
-    }
     return building_record_requires_type_definition(record_) && type ? type->graphics().draw_top(*this, ctx) : 0;
 }
 
@@ -593,9 +600,86 @@ int Building::has_required_workers() const
     return type && record_->num_workers >= type->required_workers();
 }
 
+static int composed_record_uses_union_road_access(const building *owner)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        owner ? building_type_registry_impl::definition_for_type(owner->type) : nullptr;
+    const char *attr = definition ? definition->attr() : nullptr;
+    return definition && definition->has_composition() &&
+        !definition->is_warehouse() &&
+        (!attr || std::strcmp(attr, "hippodrome") != 0) &&
+        !building_is_fort(owner->type);
+}
+
+static int composed_record_road_access_area(const building *owner, int *x, int *y, int *size)
+{
+    if (!owner || !x || !y || !size || !composed_record_uses_union_road_access(owner)) {
+        return 0;
+    }
+
+    int min_x = owner->x;
+    int min_y = owner->y;
+    int max_x = owner->x + owner->size;
+    int max_y = owner->y + owner->size;
+    int saw_part = 0;
+    const building *part = owner;
+    for (int guard = 0; part && guard < 64; guard++) {
+        if (part != owner) {
+            saw_part = 1;
+        }
+        if (part->x < min_x) {
+            min_x = part->x;
+        }
+        if (part->y < min_y) {
+            min_y = part->y;
+        }
+        if (part->x + part->size > max_x) {
+            max_x = part->x + part->size;
+        }
+        if (part->y + part->size > max_y) {
+            max_y = part->y + part->size;
+        }
+        if (part->next_part_building_id <= 0) {
+            break;
+        }
+        part = building_get(part->next_part_building_id);
+    }
+
+    if (!saw_part) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(owner->type);
+        const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
+        int rotation = owner->subtype.orientation % 4;
+        if (rotation < 0) {
+            rotation += 4;
+        }
+        const building_type_registry_impl::ComposedPartOffset main_offset =
+            composition.main_offset_for_rotation(rotation);
+        min_x = owner->x - main_offset.x;
+        min_y = owner->y - main_offset.y;
+        const int width = rotation % 2 ? composition.footprint_height() : composition.footprint_width();
+        const int height = rotation % 2 ? composition.footprint_width() : composition.footprint_height();
+        max_x = min_x + width;
+        max_y = min_y + height;
+    }
+
+    const int width = max_x - min_x;
+    const int height = max_y - min_y;
+    *x = min_x;
+    *y = min_y;
+    *size = width > height ? width : height;
+    return *size > 0;
+}
+
 int Building::has_road_access(map_point *road) const
 {
     building *owner = record_ ? building_main(record_) : nullptr;
+    int access_x = 0;
+    int access_y = 0;
+    int access_size = 0;
+    if (composed_record_road_access_area(owner, &access_x, &access_y, &access_size)) {
+        return map_has_road_access(access_x, access_y, access_size, road);
+    }
     return owner && map_has_road_access(owner->x, owner->y, owner->size, road);
 }
 
@@ -621,6 +705,11 @@ int Building::is_working() const
         return 0;
     }
     return 1;
+}
+
+int Building::is_merged_house() const
+{
+    return record_ ? record_->house_is_merged : 0;
 }
 
 int Building::has_primary_figure() const
@@ -662,6 +751,18 @@ void Building::set_resource_amount(resource_type resource, int amount)
 {
     if (record_ && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
         record_->resources[resource] = static_cast<short>(amount);
+    }
+}
+
+int Building::house_happiness() const
+{
+    return record_ ? record_->sentiment.house_happiness : 0;
+}
+
+void Building::set_house_happiness(int value)
+{
+    if (record_) {
+        record_->sentiment.house_happiness = static_cast<signed char>(value);
     }
 }
 
@@ -776,7 +877,15 @@ void Building::add_map_tiles(int image_id) const
             map_water_add_building(record_->id, record_->x, record_->y, record_->size, image_id);
             return;
         }
-        map_building_tiles_add(record_->id, record_->x, record_->y, record_->size, image_id, TERRAIN_BUILDING);
+        int terrain = TERRAIN_BUILDING;
+        if (attr && !std::strcmp(attr, "wall")) {
+            terrain |= TERRAIN_WALL;
+        }
+        if (type && type->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
+            type->roadblock().kind() != building_type_registry_impl::RoadblockKind::Bridge) {
+            terrain |= TERRAIN_ROAD;
+        }
+        map_building_tiles_add(record_->id, record_->x, record_->y, record_->size, image_id, terrain);
     }
 }
 
@@ -930,6 +1039,12 @@ int Building::native_production_has_produced_resource() const
     return production ? production->has_produced_resource() : 0;
 }
 
+int Building::native_production_has_completed_effect() const
+{
+    Production *production = production_runtime_impl::get_or_create_primary(*this);
+    return production ? production->has_completed_effect() : 0;
+}
+
 int Building::native_production_output_cart_loads() const
 {
     Production *production = production_runtime_impl::get_or_create_primary(*this);
@@ -998,6 +1113,92 @@ void Building::change_type(building_type type, const std::source_location &locat
             report_missing_building_type_definition(record_, location, "change_type()");
         }
     }
+}
+
+int Building::configure_house_replacement(building_type type, int x, int y, int size, int merged)
+{
+    if (!record_ || size <= 0) {
+        return 0;
+    }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    const int level = definition && definition->has_housing() ? definition->housing_type()->level() : -1;
+    if (level < 0) {
+        return 0;
+    }
+    change_type(type);
+    record_->subtype.house_level = level;
+    record_->state = BUILDING_STATE_IN_USE;
+    record_->x = static_cast<unsigned char>(x);
+    record_->y = static_cast<unsigned char>(y);
+    record_->grid_offset = map_grid_offset(x, y);
+    record_->size = record_->house_size = static_cast<unsigned char>(size);
+    record_->house_is_merged = static_cast<unsigned char>(merged);
+    record_->is_close_to_water = building_is_close_to_water(record_);
+    record_->local_workforce_assigned = 0;
+    record_->local_workforce_unemployed = 0;
+    record_->local_workforce_validation_delay = 0;
+    return 1;
+}
+
+void Building::copy_house_figure_slot_from(const Building &source, unsigned int figure_id)
+{
+    if (!record_ || !source.record_ || !figure_id) {
+        return;
+    }
+    if (source.record_->figure_id == figure_id && !record_->figure_id) {
+        record_->figure_id = figure_id;
+    } else if (source.record_->figure_id2 == figure_id && !record_->figure_id2) {
+        record_->figure_id2 = figure_id;
+    } else if (source.record_->figure_id4 == figure_id && !record_->figure_id4) {
+        record_->figure_id4 = figure_id;
+    }
+}
+
+void Building::copy_house_data_from(const Building &source)
+{
+    if (!record_ || !source.record_) {
+        return;
+    }
+    record_->data.house = source.record_->data.house;
+    record_->sentiment.house_happiness = source.record_->sentiment.house_happiness;
+    record_->distance_from_entry = source.record_->distance_from_entry;
+    record_->road_network_id = source.record_->road_network_id;
+    record_->road_access_x = source.record_->road_access_x;
+    record_->road_access_y = source.record_->road_access_y;
+    record_->has_road_access = source.record_->has_road_access;
+    record_->has_water_access = source.record_->has_water_access;
+    record_->has_well_access = source.record_->has_well_access;
+    record_->house_tax_coverage = source.record_->house_tax_coverage;
+    record_->house_tavern_wine_access = source.record_->house_tavern_wine_access;
+    record_->house_tavern_food_access = source.record_->house_tavern_food_access;
+    record_->house_arena_gladiator = source.record_->house_arena_gladiator;
+    record_->house_arena_lion = source.record_->house_arena_lion;
+    record_->has_latrines_access = source.record_->has_latrines_access;
+    record_->house_days_without_food = source.record_->house_days_without_food;
+    record_->desirability = source.record_->desirability;
+    record_->house_figure_generation_delay = source.record_->house_figure_generation_delay;
+    record_->variant = source.record_->variant;
+}
+
+void Building::retire_replaced_house()
+{
+    if (!record_) {
+        return;
+    }
+    record_->house_population = 0;
+    record_->house_population_room = 0;
+    record_->local_workforce_assigned = 0;
+    record_->local_workforce_unemployed = 0;
+    record_->local_workforce_validation_delay = 0;
+    record_->figure_id = 0;
+    record_->figure_id2 = 0;
+    record_->immigrant_figure_id = 0;
+    record_->figure_id4 = 0;
+    for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        record_->resources[r] = 0;
+    }
+    record_->state = BUILDING_STATE_DELETED_BY_GAME;
 }
 
 int Building::is_being_fumigated() const
@@ -1167,8 +1368,11 @@ building *building_first_of_type(building_type type)
 
 building *building_main(const building *b)
 {
+    if (!b) {
+        return nullptr;
+    }
     building *part = building_get(b->id);
-    for (int guard = 0; guard < 9; guard++) {
+    for (int guard = 0; guard < 64; guard++) {
         if (!part || part->prev_part_building_id <= 0) {
             return part;
         }
@@ -1180,6 +1384,276 @@ building *building_main(const building *b)
 building *building_next(building *b)
 {
     return building_get(b->next_part_building_id);
+}
+
+static int composed_record_is_live(const building *b)
+{
+    return b && b->id > 0 &&
+        (b->state == BUILDING_STATE_IN_USE ||
+            b->state == BUILDING_STATE_MOTHBALLED ||
+            b->state == BUILDING_STATE_CREATED);
+}
+
+static int normalized_composed_rotation(int rotation)
+{
+    int result = rotation % 4;
+    if (result < 0) {
+        result += 4;
+    }
+    return result;
+}
+
+static int definition_attr_is(const building_type_registry_impl::BuildingType *definition, const char *attr)
+{
+    return definition && definition->attr() && attr && std::strcmp(definition->attr(), attr) == 0;
+}
+
+static building *chain_child_after(building *previous)
+{
+    if (!previous || previous->next_part_building_id <= 0) {
+        return nullptr;
+    }
+    building *child = building_get(previous->next_part_building_id);
+    if (!composed_record_is_live(child) || child->id == previous->id) {
+        return nullptr;
+    }
+    return child;
+}
+
+static int composed_rotation_fallback(const building *main_record,
+    const building_type_registry_impl::BuildingType &definition)
+{
+    if (definition.is_warehouse() || definition_attr_is(&definition, "hippodrome")) {
+        return normalized_composed_rotation(main_record->subtype.orientation);
+    }
+    return 0;
+}
+
+static int infer_loaded_composed_rotation(building *main_record,
+    const building_type_registry_impl::BuildingType &definition)
+{
+    if (!main_record || !definition.has_composition()) {
+        return 0;
+    }
+
+    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition.composition();
+    int best_rotation = composed_rotation_fallback(main_record, definition);
+    int best_score = -1;
+
+    for (int rotation = 0; rotation < 4; rotation++) {
+        const building_type_registry_impl::ComposedPartOffset main_offset =
+            composition.main_offset_for_rotation(rotation);
+        const int origin_x = static_cast<int>(main_record->x) - main_offset.x;
+        const int origin_y = static_cast<int>(main_record->y) - main_offset.y;
+        int score = 0;
+        building *previous = main_record;
+
+        for (const building_type_registry_impl::ComposedPartDefinition &part : composition.parts()) {
+            building *child = chain_child_after(previous);
+            if (!child) {
+                break;
+            }
+
+            const building_type_registry_impl::ComposedPartOffset offset = part.offset_for_rotation(rotation);
+            if (offset.has_value &&
+                child->x == origin_x + offset.x &&
+                child->y == origin_y + offset.y) {
+                score += 4;
+            }
+            if (child->type == part.type) {
+                score += 2;
+            }
+            previous = child;
+        }
+
+        if (score > best_score) {
+            best_score = score;
+            best_rotation = rotation;
+        }
+    }
+
+    return best_score > 0 ? best_rotation : composed_rotation_fallback(main_record, definition);
+}
+
+static void initialize_loaded_composed_child(building *main_record, building *child,
+    const building_type_registry_impl::BuildingType &main_definition,
+    const building_type_registry_impl::ComposedPartDefinition &part, int was_created)
+{
+    if (!main_record || !child) {
+        return;
+    }
+    child->faction_id = main_record->faction_id;
+    child->road_network_id = main_record->road_network_id;
+    child->distance_from_entry = main_record->distance_from_entry;
+    child->road_access_x = main_record->road_access_x;
+    child->road_access_y = main_record->road_access_y;
+    child->variant = main_record->variant;
+
+    if (definition_attr_is(&main_definition, "hippodrome")) {
+        child->subtype.orientation = main_record->subtype.orientation;
+    }
+    if (building_is_fort(main_record->type)) {
+        child->formation_id = main_record->formation_id;
+    }
+    if (was_created && part.role.find("field") == 0) {
+        child->data.industry.progress = main_record->data.industry.progress;
+        child->data.industry.blessing_days_left = main_record->data.industry.blessing_days_left;
+        child->data.industry.curse_days_left = main_record->data.industry.curse_days_left;
+        child->data.industry.has_raw_materials = main_record->data.industry.has_raw_materials;
+        child->data.industry.has_fish = main_record->data.industry.has_fish;
+        child->data.industry.is_stockpiling = main_record->data.industry.is_stockpiling;
+        child->data.industry.production_current_month =
+            static_cast<short>(main_record->data.industry.production_current_month / 5);
+    }
+}
+
+static void publish_loaded_composed_record(building *record)
+{
+    if (!record || !map_grid_is_inside(record->x, record->y, record->size)) {
+        return;
+    }
+    Building building_object(record);
+    if (!building_object.refresh_graphic_if_native()) {
+        building_object.add_map_tiles(building_image_get(record));
+    }
+}
+
+static void normalize_loaded_composed_main(building *main_record,
+    const building_type_registry_impl::BuildingType &definition, int origin_x, int origin_y,
+    const building_type_registry_impl::ComposedPartOffset &main_offset)
+{
+    if (!main_record) {
+        return;
+    }
+    const building_properties *props = building_properties_for_type(main_record->type);
+    if (!props) {
+        return;
+    }
+
+    const int expected_x = origin_x + main_offset.x;
+    const int expected_y = origin_y + main_offset.y;
+    const int old_x = main_record->x;
+    const int old_y = main_record->y;
+    const int needs_republish = main_record->x != expected_x ||
+        main_record->y != expected_y ||
+        main_record->size != props->size;
+
+    if (needs_republish) {
+        map_building_tiles_remove(main_record->id, old_x, old_y);
+    }
+
+    main_record->size = props->size;
+    main_record->x = static_cast<unsigned char>(expected_x);
+    main_record->y = static_cast<unsigned char>(expected_y);
+    main_record->grid_offset = map_grid_offset(expected_x, expected_y);
+    main_record->house_size = building_type_registry_has_housing(main_record->type) ? props->size : 0;
+    main_record->output_resource_id = building_output_resource(main_record->type);
+    main_record->prev_part_building_id = 0;
+
+    if (definition.is_warehouse() && !main_record->storage_id) {
+        main_record->storage_id = building_storage_create(main_record->id);
+    }
+}
+
+static building *repair_loaded_composed_child(building *main_record, building *previous,
+    const building_type_registry_impl::BuildingType &main_definition,
+    const building_type_registry_impl::ComposedPartDefinition &part, int expected_x, int expected_y)
+{
+    const building_properties *props = part.type == BUILDING_NONE ? nullptr : building_properties_for_type(part.type);
+    if (!main_record || !previous || !props ||
+        !map_grid_is_inside(expected_x, expected_y, props->size)) {
+        return previous;
+    }
+
+    building *child = chain_child_after(previous);
+    int was_created = 0;
+    if (!child) {
+        child = building_create(part.type, expected_x, expected_y);
+        was_created = 1;
+    }
+    if (!composed_record_is_live(child)) {
+        return previous;
+    }
+
+    const int old_x = child->x;
+    const int old_y = child->y;
+    const int needs_republish = child->type != part.type ||
+        child->x != expected_x ||
+        child->y != expected_y ||
+        child->size != props->size;
+
+    if (!was_created && needs_republish) {
+        map_building_tiles_remove(child->id, old_x, old_y);
+    }
+
+    if (child->type != part.type) {
+        building_change_type(child, part.type);
+    }
+    child->size = props->size;
+    child->x = static_cast<unsigned char>(expected_x);
+    child->y = static_cast<unsigned char>(expected_y);
+    child->grid_offset = map_grid_offset(expected_x, expected_y);
+    child->house_size = 0;
+    child->output_resource_id = building_output_resource(part.type);
+    if (was_created) {
+        child->state = main_record->state;
+    } else if (child->state != BUILDING_STATE_IN_USE &&
+        child->state != BUILDING_STATE_MOTHBALLED &&
+        child->state != BUILDING_STATE_CREATED) {
+        child->state = main_record->state;
+    }
+    child->prev_part_building_id = previous->id;
+    previous->next_part_building_id = child->id;
+
+    initialize_loaded_composed_child(main_record, child, main_definition, part, was_created);
+    publish_loaded_composed_record(child);
+    return child;
+}
+
+static void repair_loaded_composed_main(building *main_record)
+{
+    if (!composed_record_is_live(main_record) || main_record->prev_part_building_id > 0) {
+        return;
+    }
+
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(main_record->type);
+    if (!definition || !definition->has_composition()) {
+        return;
+    }
+
+    const int rotation = infer_loaded_composed_rotation(main_record, *definition);
+    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
+    const building_type_registry_impl::ComposedPartOffset main_offset =
+        composition.main_offset_for_rotation(rotation);
+    const int origin_x = static_cast<int>(main_record->x) - main_offset.x;
+    const int origin_y = static_cast<int>(main_record->y) - main_offset.y;
+
+    normalize_loaded_composed_main(main_record, *definition, origin_x, origin_y, main_offset);
+    publish_loaded_composed_record(main_record);
+
+    building *previous = main_record;
+    for (const building_type_registry_impl::ComposedPartDefinition &part : composition.parts()) {
+        const building_type_registry_impl::ComposedPartOffset offset = part.offset_for_rotation(rotation);
+        if (!offset.has_value) {
+            continue;
+        }
+        previous = repair_loaded_composed_child(main_record, previous, *definition, part,
+            origin_x + offset.x, origin_y + offset.y);
+    }
+    previous->next_part_building_id = 0;
+
+    Building main_object(main_record);
+    if (main_object.type && main_object.type->is_warehouse()) {
+        building_warehouse_recount_resources(main_object);
+    }
+}
+
+void building_repair_loaded_compositions(void)
+{
+    for (size_t i = 1; i < data.buildings.size(); i++) {
+        repair_loaded_composed_main(&data.buildings[i]);
+    }
 }
 
 static void fill_adjacent_types(building *b)
@@ -1270,7 +1744,7 @@ building *building_create(building_type type, int x, int y)
     // subtype
     if (building_is_house(type)) {
         int level = building_type_registry_get_housing_level(type);
-        b->subtype.house_level = level >= 0 ? level : 0;
+        b->subtype.house_level = static_cast<short>(level);
     }
 
     b->output_resource_id = building_output_resource(type);
@@ -1848,7 +2322,7 @@ int building_is_active(const building *b)
         return b->monument.phase == MONUMENT_FINISHED;
     }
     if (building_matches(b, "wharf")) {
-        return b->num_workers > 0 && b->data.industry.fishing_boat_id;
+        return b->num_workers > 0 && map_water_wharf_live_fishing_boats(Building(const_cast<building *>(b))) > 0;
     }
     if (definition && std::strcmp(definition->attr(), "dock") == 0) {
         return b->num_workers > 0 && b->has_water_access;
@@ -1858,7 +2332,7 @@ int building_is_active(const building *b)
 
 int building_is_primary_product_producer(building_type type)
 {
-    return building_is_raw_resource_producer(type) || building_is_farm(type) || type_matches(type, "wharf");
+    return building_is_raw_resource_producer(type) || building_is_farm(type);
 }
 
 int building_is_house(building_type type)

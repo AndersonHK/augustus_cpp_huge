@@ -400,6 +400,7 @@ static void clear_savegame_pieces(void)
     savegame_data.num_pieces = 0;
     building_type_id_bridge_clear_save_table();
     water_access_type_id_bridge_clear_save_table();
+    god_id_bridge_clear_save_table();
 }
 
 static void clear_savegame_context(void)

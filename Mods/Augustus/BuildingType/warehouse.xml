@@ -10,10 +10,78 @@
     </desirability>
     <foundation policy="land" />
   <button group="industry" order="500" text_key="main_strings.28.72" />
-    <event_data attr="warehouse" />
+    <event_data attr="warehouse" />
+
     <roadblock kind="storage" />
     <flags fire_proof="1" />
     <labor>
         <employees count="6" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="100" />
+        </labor_seeker>
     </labor>
+    <graphics>
+        <default>
+            <path value="Industry\Warehouse" />
+            <image value="Image_0000" />
+            <layer path="Industry\Warehouse" image="Image_0017" stage="top" x="-4" y="-42" />
+        </default>
+    </graphics>
+    <composed footprint_width="3" footprint_height="3">
+        <main>
+            <offset rotation="0" x="0" y="0" />
+            <offset rotation="1" x="0" y="2" />
+            <offset rotation="2" x="2" y="2" />
+            <offset rotation="3" x="2" y="0" />
+        </main>
+        <part type="warehouse_space" role="space_1">
+            <offset rotation="0" x="0" y="1" />
+            <offset rotation="1" x="0" y="0" />
+            <offset rotation="2" x="0" y="0" />
+            <offset rotation="3" x="0" y="0" />
+        </part>
+        <part type="warehouse_space" role="space_2">
+            <offset rotation="0" x="1" y="0" />
+            <offset rotation="1" x="0" y="1" />
+            <offset rotation="2" x="0" y="1" />
+            <offset rotation="3" x="0" y="1" />
+        </part>
+        <part type="warehouse_space" role="space_3">
+            <offset rotation="0" x="1" y="1" />
+            <offset rotation="1" x="1" y="0" />
+            <offset rotation="2" x="1" y="0" />
+            <offset rotation="3" x="1" y="0" />
+        </part>
+        <part type="warehouse_space" role="space_4">
+            <offset rotation="0" x="0" y="2" />
+            <offset rotation="1" x="1" y="1" />
+            <offset rotation="2" x="1" y="1" />
+            <offset rotation="3" x="1" y="1" />
+        </part>
+        <part type="warehouse_space" role="space_5">
+            <offset rotation="0" x="2" y="0" />
+            <offset rotation="1" x="2" y="0" />
+            <offset rotation="2" x="0" y="2" />
+            <offset rotation="3" x="0" y="2" />
+        </part>
+        <part type="warehouse_space" role="space_6">
+            <offset rotation="0" x="1" y="2" />
+            <offset rotation="1" x="1" y="2" />
+            <offset rotation="2" x="2" y="0" />
+            <offset rotation="3" x="1" y="2" />
+        </part>
+        <part type="warehouse_space" role="space_7">
+            <offset rotation="0" x="2" y="1" />
+            <offset rotation="1" x="2" y="1" />
+            <offset rotation="2" x="1" y="2" />
+            <offset rotation="3" x="2" y="1" />
+        </part>
+        <part type="warehouse_space" role="space_8">
+            <offset rotation="0" x="2" y="2" />
+            <offset rotation="1" x="2" y="2" />
+            <offset rotation="2" x="2" y="1" />
+            <offset rotation="3" x="2" y="2" />
+        </part>
+    </composed>
 </building>

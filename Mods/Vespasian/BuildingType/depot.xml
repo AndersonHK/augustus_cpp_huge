@@ -31,8 +31,7 @@
     <labor>
         <employees count="15" />
         <labor_seeker>
-            <method value="houses_spawn_if_below" />
-            <amount value="100" />
+            <method value="workforce" />
         </labor_seeker>
     </labor>
 </building>

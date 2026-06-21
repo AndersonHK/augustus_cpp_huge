@@ -31,6 +31,7 @@ public:
     int max_progress() const;
     int efficiency() const;
     int has_produced_resource() const;
+    int has_completed_effect() const;
     int output_cart_loads() const;
     void start_new_production();
     void advance_stats();
@@ -39,6 +40,8 @@ public:
     void bless_industry();
 
 private:
+    Building context_building() const;
+    ::building *context_record() const;
     int decrement_strike_if_needed(int new_day, int *out_is_striking);
     int pending_production_for_stats() const;
     void refresh_images() const;

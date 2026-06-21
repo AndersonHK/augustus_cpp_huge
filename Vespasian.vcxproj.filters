@@ -381,6 +381,7 @@
     <ClCompile Include="src\figuretype\editor.cpp" />
     <ClCompile Include="src\figuretype\enemy.cpp" />
     <ClCompile Include="src\figuretype\entertainer.cpp" />
+    <ClCompile Include="src\figuretype\fishing_boat.cpp" />
     <ClCompile Include="src\figuretype\migrant.cpp" />
     <ClCompile Include="src\figuretype\missile.cpp" />
     <ClCompile Include="src\figuretype\native.cpp" />
@@ -918,6 +919,7 @@
     <ClInclude Include="src\figuretype\editor.h" />
     <ClInclude Include="src\figuretype\enemy.h" />
     <ClInclude Include="src\figuretype\entertainer.h" />
+    <ClInclude Include="src\figuretype\fishing_boat.h" />
     <ClInclude Include="src\figuretype\migrant.h" />
     <ClInclude Include="src\figuretype\missile.h" />
     <ClInclude Include="src\figuretype\native.h" />

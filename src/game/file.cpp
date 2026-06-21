@@ -231,6 +231,7 @@ static void initialize_scenario_data(const uint8_t *scenario_name)
     game_state_unpause();
 
     weather_reset();
+    building_repair_loaded_compositions();
     // After new city/scenario init, every live building instance is rebound to its runtime wrapper and rebuilds native
     // graphics/storage/production state.
     building_runtime_initialize_city_graphics_cache();
@@ -305,6 +306,7 @@ static void initialize_saved_game(void)
 
     map_image_context_init();
     map_image_clear();
+    building_repair_loaded_compositions();
     map_image_update_all();
 
     scenario_map_init();

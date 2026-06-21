@@ -684,6 +684,23 @@ void remove_allocations_for_building(unsigned int building_id)
     }
 }
 
+void merge_duplicate_allocations()
+{
+    for (size_t i = 0; i < g_allocations.size(); i++) {
+        WorkforceAllocation &current = g_allocations[i];
+        if (current.workers <= 0) {
+            continue;
+        }
+        for (size_t j = g_allocations.size(); j > i + 1; j--) {
+            WorkforceAllocation &other = g_allocations[j - 1];
+            if (other.workplace_id == current.workplace_id && other.house_id == current.house_id) {
+                current.workers += other.workers;
+                g_allocations.erase(g_allocations.begin() + static_cast<std::ptrdiff_t>(j - 1));
+            }
+        }
+    }
+}
+
 } // namespace
 
 void building_local_workforce_clear(void)
@@ -807,6 +824,22 @@ void remove_building(Building &target)
     record->local_workforce_assigned = 0;
     record->local_workforce_unemployed = 0;
     record->local_workforce_validation_delay = 0;
+}
+
+void replace_house(const Building &from, const Building &to)
+{
+    if (!from.id() || !to.id() || from.id() == to.id()) {
+        return;
+    }
+
+    for (WorkforceAllocation &allocation : g_allocations) {
+        if (allocation.house_id == from.id()) {
+            allocation.house_id = to.id();
+        }
+    }
+    merge_duplicate_allocations();
+    clamp_allocation_table();
+    rebuild_counters_from_allocations();
 }
 
 int spawn_acquisition(Building &workplace, const map_point *road)

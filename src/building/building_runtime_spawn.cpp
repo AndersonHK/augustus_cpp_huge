@@ -24,6 +24,7 @@
 #include "building/granary.h"
 #include "building/monument.h"
 #include "building/properties.h"
+#include "building/production_method.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/data_private.h"
@@ -36,6 +37,7 @@
 #include "game/resource.h"
 #include "game/time.h"
 #include "core/log.h"
+#include "map/water.h"
 
 #include <cstdio>
 #include <cstdint>
@@ -136,17 +138,18 @@ void building_runtime::check_labor_problem()
     }
 }
 
+void building_runtime::apply_global_labor_house_coverage(int amount)
+{
+    if (building().distance_from_entry()) {
+        record().houses_covered = 2 * amount;
+    } else {
+        record().houses_covered = 0;
+    }
+}
+
 void building_runtime::generate_labor_seeker(int x, int y)
 {
     if (city_population() <= 0) {
-        return;
-    }
-    if (config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
-        if (building().distance_from_entry()) {
-            record().houses_covered = 100;
-        } else {
-            record().houses_covered = 0;
-        }
         return;
     }
     if (record().figure_id2) {
@@ -165,16 +168,53 @@ void building_runtime::generate_labor_seeker(int x, int y)
     figure_movement_init_roaming(labor_seeker);
 }
 
-void building_runtime::spawn_labor_seeker(int x, int y, int min_houses)
+void building_runtime::run_house_spawn_labor_phase(
+    const building_type_registry_impl::LaborSeekerPolicy &policy,
+    const map_point &road)
 {
     if (config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
-        if (building().distance_from_entry()) {
-            record().houses_covered = 2 * min_houses;
-        } else {
-            record().houses_covered = 0;
+        apply_global_labor_house_coverage(policy.amount);
+        return;
+    }
+    if (building().labor_access_score() <= policy.amount) {
+        generate_labor_seeker(road.x, road.y);
+    }
+}
+
+void building_runtime::run_house_generate_labor_phase(
+    const building_type_registry_impl::LaborSeekerPolicy &policy,
+    const map_point &road)
+{
+    if (building().labor_access_score() > policy.amount) {
+        return;
+    }
+    if (config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
+        if (city_population() > 0) {
+            apply_global_labor_house_coverage(policy.amount);
         }
-    } else if (building().labor_access_score() <= min_houses) {
-        generate_labor_seeker(x, y);
+        return;
+    }
+    generate_labor_seeker(road.x, road.y);
+}
+
+void building_runtime::run_workforce_labor_phase(
+    const building_type_registry_impl::LaborSeekerPolicy &policy,
+    const map_point &road)
+{
+    if (config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
+        apply_global_labor_house_coverage(policy.amount);
+        return;
+    }
+
+    const int trigger_workers = type().required_workers();
+    const float workforce_access = building().labor_access_score();
+    Building current = building();
+    if (workforce_access < trigger_workers) {
+        if (!building_local_workforce::spawn_acquisition(current, &road) && workforce_access > 0) {
+            building_local_workforce::spawn_validation(current, &road);
+        }
+    } else {
+        building_local_workforce::spawn_validation(current, &road);
     }
 }
 
@@ -185,30 +225,15 @@ void building_runtime::run_labor_phase(const building_type_registry_impl::LaborD
     }
 
     const building_type_registry_impl::LaborSeekerPolicy &labor_policy = labor.seeker_policy();
-    if (labor_policy.method == building_type_registry_impl::LaborSeekerMethod::Workforce &&
-        !config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
-        const int trigger_workers = type().required_workers();
-        const float workforce_access = building().labor_access_score();
-        Building current = building();
-        if (workforce_access < trigger_workers) {
-            if (!building_local_workforce::spawn_acquisition(current, &road) && workforce_access > 0) {
-                building_local_workforce::spawn_validation(current, &road);
-            }
-        } else {
-            building_local_workforce::spawn_validation(current, &road);
-        }
-        return;
-    }
-
     switch (labor_policy.method) {
         case building_type_registry_impl::LaborSeekerMethod::HousesSpawnIfBelow:
-        case building_type_registry_impl::LaborSeekerMethod::Workforce:
-            spawn_labor_seeker(road.x, road.y, labor_policy.amount);
+            run_house_spawn_labor_phase(labor_policy, road);
             break;
         case building_type_registry_impl::LaborSeekerMethod::HousesGenerateIfBelow:
-            if (building().labor_access_score() <= labor_policy.amount) {
-                generate_labor_seeker(road.x, road.y);
-            }
+            run_house_generate_labor_phase(labor_policy, road);
+            break;
+        case building_type_registry_impl::LaborSeekerMethod::Workforce:
+            run_workforce_labor_phase(labor_policy, road);
             break;
         case building_type_registry_impl::LaborSeekerMethod::None:
         default:
@@ -785,6 +810,40 @@ void building_runtime::spawn_armoury()
     assign_figure_slot(target_slot, warehouseman->id());
 }
 
+resource_type building_runtime::figure_delivery_output_resource() const
+{
+    if (!definition_) {
+        return RESOURCE_NONE;
+    }
+    for (const building_type_registry_impl::ProductionMethod *method : type().production_methods()) {
+        if (method && method->is_figure_delivery_output() && method->has_resource_output()) {
+            return method->output_resource();
+        }
+    }
+    return RESOURCE_NONE;
+}
+
+void building_runtime::spawn_figure_delivery_cart(const map_point &road)
+{
+    resource_type resource = figure_delivery_output_resource();
+    if (resource == RESOURCE_NONE || record().data.industry.has_fish <= 0 ||
+        slot_has_live_figure(building_type_registry_impl::FigureSlot::Primary, FIGURE_CART_PUSHER)) {
+        return;
+    }
+
+    Figure *cart = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
+    if (!cart) {
+        return;
+    }
+    record().data.industry.has_fish--;
+    cart->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
+    cart->resource_id = resource;
+    attach_figure_to_building(cart, building());
+    record().figure_id = cart->id();
+    cart->wait_ticks = game_time_scale_legacy_day_ticks(30);
+    cart->loads_sold_or_carrying = 1;
+}
+
 int building_runtime::resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const
 {
     switch (mode) {
@@ -1005,6 +1064,9 @@ int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnP
             return spawn_temple_neptune_chariot(road);
         case building_type_registry_impl::SpawnMode::GrandTempleMarsRecruit:
             return spawn_grand_temple_mars_recruit(road);
+        case building_type_registry_impl::SpawnMode::FishingBoat:
+            return policy.spawn_source == building_type_registry_impl::SpawnSource::Self ?
+                map_water_spawn_fishing_boat_from_wharf(building()) : 0;
         case building_type_registry_impl::SpawnMode::None:
         default:
             return 0;
@@ -1113,6 +1175,13 @@ void building_runtime::spawn_figure()
         const building_type_registry_impl::SpawnDelayGroup &group = spawn_groups[i];
         if (!group.policies.empty()) {
             spawn_service_roamer_group(group, i, i == 0);
+        }
+    }
+
+    if (figure_delivery_output_resource() != RESOURCE_NONE) {
+        map_point road;
+        if (resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &road)) {
+            spawn_figure_delivery_cart(road);
         }
     }
 }

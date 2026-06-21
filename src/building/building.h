@@ -9,6 +9,7 @@
 #include "map/point.h"
 
 #include <cstdint>
+#include <functional>
 #include <source_location>
 
 namespace building_type_registry_impl {
@@ -54,11 +55,15 @@ public:
 
     static TypeRange of_type(building_type type);
     static Building first_of_type(building_type type);
+    static Building create(building_type type, int x, int y);
     static int count();
 
     unsigned int id() const;
+    const ::building *record() const;
     Building main() const;
+    Building main_part() const;
     Building next() const;
+    void for_each_part(const std::function<void(Building)> &visitor) const;
     Building next_of_type() const;
     const building_type_registry_impl::BuildingType *type = nullptr;
     int grid_offset() const;
@@ -105,6 +110,7 @@ public:
     int has_road_access(map_point *road) const;
     int has_water_access() const;
     int is_working() const;
+    int is_merged_house() const;
     int has_primary_figure() const;
     int has_secondary_figure() const;
     int has_quaternary_figure() const;
@@ -112,6 +118,8 @@ public:
     int resource_amount(resource_type resource) const;
     void add_resource(resource_type resource, int amount);
     void set_resource_amount(resource_type resource, int amount);
+    int house_happiness() const;
+    void set_house_happiness(int value);
     resource_type fetch_inventory_id() const;
     void set_fetch_inventory_id(resource_type resource);
     int accepts_good(resource_type resource) const;
@@ -120,6 +128,7 @@ public:
     void copy_accepted_goods(unsigned char *dst, int count) const;
     void set_accepted_goods(const unsigned char *src, int count);
     void set_primary_figure_id(unsigned int id);
+    void copy_house_figure_slot_from(const Building &source, unsigned int figure_id);
     int max_distance_to(int x, int y) const;
     int max_distance_to(const Building &other) const;
     int orientation() const;
@@ -154,6 +163,7 @@ public:
     int native_production_efficiency() const;
     int update_native_production(int new_day, int *out_is_striking);
     int native_production_has_produced_resource() const;
+    int native_production_has_completed_effect() const;
     int native_production_output_cart_loads() const;
     int start_native_production();
     void advance_native_production_stats();
@@ -163,6 +173,9 @@ public:
     void set_industry_stockpiling(int value);
     void set_mothballed(int value);
     void change_type(building_type type, const std::source_location &location = std::source_location::current());
+    int configure_house_replacement(building_type type, int x, int y, int size, int merged);
+    void copy_house_data_from(const Building &source);
+    void retire_replaced_house();
     int is_being_fumigated() const;
     int fumigation_frame() const;
     void set_fumigation_direction(int direction);
@@ -289,6 +302,8 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
                          buffer *sequence, buffer *corrupt_houses);
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version);
+
+void building_repair_loaded_compositions(void);
 
 void building_resource_state_save(buffer *buf);
 

@@ -50,6 +50,22 @@ Production *get_or_create(Building building, size_t method_index)
 
 Production *get_or_create_primary(Building building)
 {
+    ::building *record = building_get(building.id());
+    building_runtime *runtime = building_runtime_impl::get_or_create_instance(record);
+    if (!runtime || !runtime->definition()) {
+        return nullptr;
+    }
+
+    const std::vector<building_type_registry_impl::ProductionMethod *> &methods =
+        runtime->definition()->production_methods();
+    const resource_type selected_output = record ?
+        static_cast<resource_type>(record->output_resource_id) : RESOURCE_NONE;
+    for (size_t i = 0; i < methods.size(); i++) {
+        const building_type_registry_impl::ProductionMethod *method = methods[i];
+        if (method && method->has_resource_output() && method->output_resource() == selected_output) {
+            return get_or_create(building, i);
+        }
+    }
     return get_or_create(building, 0);
 }
 

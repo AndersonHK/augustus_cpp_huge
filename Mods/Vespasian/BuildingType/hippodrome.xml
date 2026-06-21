@@ -13,6 +13,16 @@
     <flags fire_proof="1" />
     <sound id="hippodrome" mute_on_enemies="true" />
     <event_data attr="hippodrome" />
+    <graphics>
+        <default>
+            <options selection="build_rotation">
+                <option path="Health_Culture\Hippodrome_1" image="Image_0000" />
+                <option path="Health_Culture\Hippodrome_2" image="Image_0000" />
+                <option path="Health_Culture\Hippodrome_1" image="Image_0000" />
+                <option path="Health_Culture\Hippodrome_2" image="Image_0000" />
+            </options>
+        </default>
+    </graphics>
     <culture_modules>
         <culture_module path="hippodrome" capacity="1" count="working" />
     </culture_modules>
@@ -23,4 +33,18 @@
             <amount value="50" />
         </labor_seeker>
     </labor>
+    <composed footprint_width="15" footprint_height="5">
+        <part type="hippodrome_middle" role="middle">
+            <offset rotation="0" x="5" y="0" />
+            <offset rotation="1" x="0" y="-5" />
+            <offset rotation="2" x="-5" y="0" />
+            <offset rotation="3" x="0" y="5" />
+        </part>
+        <part type="hippodrome_end" role="end">
+            <offset rotation="0" x="10" y="0" />
+            <offset rotation="1" x="0" y="-10" />
+            <offset rotation="2" x="-10" y="0" />
+            <offset rotation="3" x="0" y="10" />
+        </part>
+    </composed>
 </building>

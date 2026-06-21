@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <production_method>
     <kind value="farm" />
-    <output resource="wheat" production_per_month="160" />
+    <output resource="wheat" production_per_month="32" />
     <batch_size value="1" />
+    <cart_loads numerator="1" denominator="5" />
     <climate_bonuses>
         <bonus climate="northern" percent="-50" />
     </climate_bonuses>

@@ -8,11 +8,13 @@
 #include "building/connectable.h"
 #include "building/building_runtime_internal.h"
 #include "building/building_type_registry_internal.h"
+#include "building/production_runtime.h"
 
 #include "assets/image_group_payload.h"
 #include "building/animations.h"
 #include "building/building_runtime_graphics.h"
 #include "building/variant.h"
+#include "core/calc.h"
 #include "core/crash_context.h"
 
 #include "core/image_group.h"
@@ -167,9 +169,9 @@ int runtime_tile_sentinel_image_id()
 int selected_option_for_selection(
     const Building &building,
     building_type_registry_impl::GraphicsOptionSelection selection,
-    int has_options)
+    int option_count)
 {
-    if (!has_options) {
+    if (option_count <= 0) {
         return 0;
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::Connectable) {
@@ -192,8 +194,27 @@ int selected_option_for_selection(
         }
         return 0;
     }
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
+        int option = building.orientation() % option_count;
+        return option < 0 ? option + option_count : option;
+    }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::Orientation) {
         return (4 + building.orientation() - city_view_orientation() / 2) % 4;
+    }
+    if (selection == building_type_registry_impl::GraphicsOptionSelection::ProductionProgress) {
+        const ::building *record = building.id() ? building_get(building.id()) : building.record();
+        Production *production = building.id() ? production_runtime_impl::get_or_create_primary(building) : nullptr;
+        const int max_value = production ? production->max_progress() :
+            (building.type && !building.type->production_methods().empty() ?
+                building.type->production_methods().front()->max_progress_for(building.main()) :
+                0);
+        if (!record || max_value <= 0) {
+            return 0;
+        }
+        int percentage = calc_percentage(record->data.industry.progress, max_value);
+        percentage = calc_bound(percentage, 0, 100);
+        int option = percentage * option_count / 101;
+        return calc_bound(option, 0, option_count - 1);
     }
     int option = building_variant_get_graphics_option(building, 0);
     return option < 0 ? 0 : option;
@@ -203,7 +224,7 @@ int selected_option_for_layer(
     const Building &building,
     const building_type_registry_impl::GraphicsLayer &layer)
 {
-    return selected_option_for_selection(building, layer.option_selection(), layer.has_options());
+    return selected_option_for_selection(building, layer.option_selection(), layer.option_count());
 }
 
 void draw_shifted_runtime_slice(
@@ -226,7 +247,7 @@ int building_runtime_graphics_selected_option(
     const Building &building,
     const building_type_registry_impl::GraphicsTarget &target)
 {
-    return selected_option_for_selection(building, target.option_selection(), target.has_options());
+    return selected_option_for_selection(building, target.option_selection(), target.option_count());
 }
 
 int building_runtime_graphics_image_id(const Building &building_object)
@@ -245,6 +266,9 @@ int building_runtime_graphics_image_id(const Building &building_object)
 
     building_type_registry_impl::GraphicsTarget resolved_target =
         target->resolved_option(static_cast<unsigned char>(building_runtime_graphics_selected_option(building_object, *target)));
+    if (resolved_target.is_resource_storage()) {
+        return runtime_tile_sentinel_image_id();
+    }
     if (!resolved_target.has_path()) {
         log_image_id_failure(building_object, "target_path_missing", &resolved_target);
         return 0;

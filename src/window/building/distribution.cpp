@@ -1031,6 +1031,9 @@ static void draw_button_from_state(resource_storage_entry entry, int x, int y, r
 
 static void draw_resource_orders_buttons(int x, int y, const resource_list *list, const building_storage *storage)
 {
+    if (!list || !storage) {
+        return;
+    }
     int scrollbar_shown = scrollbar.max_scroll_position > 0;
 
     for (unsigned int i = 0; i < scrollbar.elements_in_view && i < list->size - scrollbar.scroll_position; i++) {
@@ -1069,6 +1072,9 @@ void window_building_get_tooltip_storage_orders(int *group_id, int *text_id, tra
         }
     } else if (data.resource_focus_button_id || data.partial_resource_focus_button_id) {
         const Building &building = data.building;
+        if (!building.type) {
+            return;
+        }
         const building_storage *s = building_storage_get(building.storage_id());
         // Convert 1-based focus ID to 0-based and apply scroll offset
         unsigned int index = data.resource_focus_button_id ?
@@ -1078,7 +1084,7 @@ void window_building_get_tooltip_storage_orders(int *group_id, int *text_id, tra
         const resource_list *list = stored_resources_for_type(*building.type);
 
         // Ensure valid index
-        if (index < list->size) {
+        if (s && list && index < list->size) {
             resource_type resource = list->items[index];
             const resource_storage_entry *entry = &s->resource_state[resource];
 
@@ -1167,18 +1173,27 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
 // ====================================================================================================================
 void window_building_draw_storage(building_info_context *c)
 {
-    Building &storage_building = c->building;
+    Building storage_building = c->building.main();
     building *b = building_get(storage_building.id());
+    if (!b || !storage_building.type) {
+        return;
+    }
     const auto &type = *storage_building.type;
-    building_warehouse_recount_resources(storage_building);
+    if (type.is_warehouse()) {
+        building_warehouse_recount_resources(storage_building);
+    }
     c->advisor_button = ADVISOR_TRADE;
     c->help_id = type.is_granary() ? 3 : 4;
-    data.building = c->building;
+    data.building = storage_building;
     data.showing_special_orders = 0;
     int y = c->y_offset + 25;
     // height adjustment shouldn't be handled at this level, so was moved to building_info.c
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_label_and_number_centered(lang_get_building_type_string(storage_building.type->type()), storage_building.storage_id(), "",
+    const uint8_t *title = type.has_identity() ? lang_get_string_by_key(type.identity().name_key()) : nullptr;
+    if (!title) {
+        title = reinterpret_cast<const uint8_t *>(type.attr() ? type.attr() : "");
+    }
+    text_draw_label_and_number_centered(title, storage_building.storage_id(), "",
         c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
     const char *sound = b->has_plague ? "wavs/clinic.wav"
@@ -1209,7 +1224,7 @@ void window_building_draw_storage(building_info_context *c)
         } else {
             for (int resource_id = RESOURCE_NONE + 1; resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
                 resource_type r = resource_from_int(resource_id);
-                int amount = b->resources[r];
+                int amount = building_storage_get_amount(storage_building, r);
                 if (amount <= 0) {
                     continue;
                 }
@@ -1225,7 +1240,10 @@ void window_building_draw_storage(building_info_context *c)
                 draw_resource_icon_centered(r, x, y + 5);
 
                 int width = text_draw_number(amount, '@', " ", x + 32, y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
-                text_draw(resource_get_data(r)->text, x + 32 + width, y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
+                const resource_data *res_data = resource_get_data(r);
+                if (res_data && res_data->text) {
+                    text_draw(res_data->text, x + 32 + width, y + 12, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), COLOR_MASK_NONE);
+                }
             }
 
             int width = lang_text_draw("main_strings.98.2", c->x_offset + 16, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -1233,7 +1251,7 @@ void window_building_draw_storage(building_info_context *c)
                 c->x_offset + 16 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
             width = lang_text_draw("main_strings.98.3", c->x_offset + 220, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-            int max = type.is_granary() ? b->resources[RESOURCE_NONE] : 32 - total_stored;
+            int max = type.is_granary() ? storage_building.resource_amount(RESOURCE_NONE) : 32 - total_stored;
             lang_text_draw_amount(max == 1 ? "TR_BUILDING_INFO_CARTLOAD" : "TR_BUILDING_INFO_CARTLOADS", max,
                 c->x_offset + 220 + width, c->y_offset + 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
@@ -1248,10 +1266,13 @@ void window_building_draw_storage(building_info_context *c)
     lang_text_draw_multiline(current_string_key(storage_strings_for_building(storage_building), 1), c->x_offset + 32, c->y_offset + y_offset + 180, BLOCK_SIZE * (c->width_blocks - 3), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // cartpusher state
-    Figure *f = Figure::get(b->figure_id);
+    Figure *f = b->figure_id ? Figure::get(b->figure_id) : nullptr;
     if (b->figure_id && f && f->state == FIGURE_STATE_ALIVE) {
         resource_type resource = resource_from_int(f->resource_id);
-        resource_graphics(resource != RESOURCE_NONE ? resource : resource_from_int(f->collecting_item_id)).panel_icon().draw(c->x_offset + 32, c->y_offset + y_offset + 60);
+        resource_type icon_resource = resource != RESOURCE_NONE ? resource : resource_from_int(f->collecting_item_id);
+        if (icon_resource != RESOURCE_NONE) {
+            resource_graphics(icon_resource).panel_icon().draw(c->x_offset + 32, c->y_offset + y_offset + 60);
+        }
 
         if (resource != RESOURCE_NONE) {
             if (f->action_state == FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE) {
@@ -1320,7 +1341,7 @@ static void storage_buttons_init(building_info_context *c)
 
 void window_building_draw_storage_foreground(building_info_context *c)
 {
-    Building &storage_building = c->building;
+    Building storage_building = c->building.main();
     storage_buttons_init(c);
     draw_permissions_buttons(c->x_offset, data.y_permission_buttons, storage_building, c);
     // Special orders button
@@ -1356,7 +1377,10 @@ void window_building_draw_storage_foreground(building_info_context *c)
 
 void window_building_draw_storage_orders(building_info_context *c)
 {
-    Building &building = c->building;
+    Building building = c->building.main();
+    if (!building.id() || !building.type) {
+        return;
+    }
     int group_id = storage_strings_for_building(building);
     int storage_id = building.storage_id();
     lang_fragment instructions_header[] = {
@@ -1369,7 +1393,7 @@ void window_building_draw_storage_orders(building_info_context *c)
     outer_panel_draw(c->x_offset, y_offset, 29, 28);
     lang_text_draw_sequence_centered(instructions_header, 3, c->x_offset, y_offset + 10,
          BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), COLOR_MASK_NONE);
-    if (!data.showing_special_orders || data.building.id() != c->building.id()) {
+    if (!data.showing_special_orders || data.building.id() != building.id()) {
         const resource_list *list = stored_resources_for_type(*building.type);
 
         scrollbar.x = c->x_offset + (c->width_blocks - 3) * BLOCK_SIZE;
@@ -1377,8 +1401,9 @@ void window_building_draw_storage_orders(building_info_context *c)
         scrollbar.height = 21 * BLOCK_SIZE;
         scrollbar.scrollable_width = (c->width_blocks - 2) * BLOCK_SIZE;
         scrollbar.elements_in_view = 21 * BLOCK_SIZE / 22;
-        scrollbar_init(&scrollbar, 0, list->size);
+        scrollbar_init(&scrollbar, 0, list ? list->size : 0);
 
+        data.building = building;
         data.showing_special_orders = 1;
     }
 
@@ -1389,7 +1414,10 @@ void window_building_draw_storage_orders(building_info_context *c)
 
 void window_building_draw_storage_orders_foreground(building_info_context *c)
 {
-    Building &building = c->building;
+    Building building = c->building.main();
+    if (!building.id() || !building.type) {
+        return;
+    }
     int y_offset = window_building_get_vertical_offset(c, 28);
     const building_storage *storage = building_storage_get(building.storage_id());
 
@@ -1437,7 +1465,7 @@ int window_building_handle_mouse_storage(const mouse *m, building_info_context *
         storage_image_buttons[i].focused = 0;
     }
     data.image_button_focus_id = 0;
-    data.building = c->building;
+    data.building = c->building.main();
 
     int result = 0;
     result += GenericButtonList(permission_buttons, active_permissions_count).handle_mouse(
@@ -1523,16 +1551,18 @@ void window_building_storage_get_tooltip_distribution_permissions(translation_ke
 
 int window_building_handle_mouse_storage_orders(const mouse *m, building_info_context *c)
 {
-    Building &building = c->building;
+    Building building = c->building.main();
+    if (!building.id() || !building.type) {
+        return 0;
+    }
     int y_offset = window_building_get_vertical_offset(c, 28);
-    data.building = c->building;
+    data.building = building;
     for (int i = 0; i < 2; i++) {
         distribution_orders_buttons[i].focused = 0;
     }
     const resource_list *list = stored_resources_for_type(*building.type);
 
-    unsigned int buttons_to_show = list->size < scrollbar.elements_in_view
-        ? list->size : scrollbar.elements_in_view;
+    unsigned int buttons_to_show = list ? MIN(list->size, scrollbar.elements_in_view) : 0;
 
     int x_offset = scrollbar.max_scroll_position > 0 ? 142 : 172;
     int result = 0;
@@ -1598,14 +1628,23 @@ static void toggle_resource_state(const generic_button *button, int reverse_orde
     int index = button->parameter1;
     Building &building = data.building;
     index += scrollbar.scroll_position - 1;
+    if (!building.type || index < 0) {
+        return;
+    }
     resource_type resource;
     const auto *definition = building.type;
     if (distribution_for(building) ||
         (definition && std::strcmp(definition->attr(), "dock") == 0)) {
+        if (static_cast<unsigned int>(index) >= data.stored_resources.size) {
+            return;
+        }
         resource = data.stored_resources.items[index];
         building.toggle_accepted_good(resource);
     } else {
         const resource_list *list = stored_resources_for_type(*building.type);
+        if (!list || static_cast<unsigned int>(index) >= list->size) {
+            return;
+        }
         resource = list->items[index];
         building_storage_cycle_resource_state(building.storage_id(), resource, reverse_order);
     }
@@ -1646,9 +1685,16 @@ static void toggle_partial_resource_state(const generic_button *button, int reve
     int index = button->parameter1;
     resource_type resource;
     Building &building = data.building;
+    if (!building.type) {
+        return;
+    }
     const auto &type = *building.type;
     const resource_list *list = stored_resources_for_type(type);
-    resource = list->items[index + scrollbar.scroll_position - 1];
+    index += scrollbar.scroll_position - 1;
+    if (!list || index < 0 || static_cast<unsigned int>(index) >= list->size) {
+        return;
+    }
+    resource = list->items[index];
     building_storage_cycle_partial_resource_state(building.storage_id(), resource, reverse_order);
     window_invalidate();
 }

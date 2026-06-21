@@ -186,7 +186,7 @@ static void check_road_access(building_type type, int x, int y, int size)
     } else if (type_has_attr(type, "granary") && map_has_road_access_granary(x, y, 0)) {
         has_road = 1;
     } else if (type_has_attr(type, "warehouse")) {
-        // Warehouse road access is checked in construction_building.cpp -> add_warehouse().
+        // Warehouse road access is checked after composed placement moves the tower to its XML offset.
         //TODO: a dedicated function similar as for hippodrome should be used for consistency
         has_road = 1;
     } else if (type_has_attr(type, "hippodrome") && map_has_road_access_hippodrome(x, y, 0)) {
