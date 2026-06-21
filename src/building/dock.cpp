@@ -139,8 +139,12 @@ int building_dock_can_export_to_ship(const Building &dock, int ship_id)
         return 0;
     }
 
+    empire_city *city = empire_city_get(ship->empire_city_id);
+    if (!city) {
+        return 0;
+    }
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (dock.accepts_good(r)) {
+        if (dock.accepts_good(r) && empire_can_export_resource_to_city(ship->empire_city_id, r)) {
             return 1;
         }
     }

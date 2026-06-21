@@ -82,7 +82,25 @@ int city_resource_count_food_on_granaries(resource_type food)
 
 int city_resource_count_warehouses_amount(resource_type resource)
 {
-    return city_data.resource.stored_in_warehouses[resource];
+    if (resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return 0;
+    }
+
+    int total = 0;
+    for (building *b = first_of_type("warehouse"); b; b = b->next_of_type) {
+        if (b->state != BUILDING_STATE_IN_USE) {
+            continue;
+        }
+        Building warehouse(b);
+        if (!warehouse.type || !warehouse.type->is_warehouse()) {
+            continue;
+        }
+        if (!b->has_road_access && !map_has_road_access_warehouse(b->x, b->y, 0)) {
+            continue;
+        }
+        total += building_warehouse_get_amount(warehouse, resource);
+    }
+    return total;
 }
 
 int city_resource_get_total_amount(resource_type resource, int respect_maintaining)
