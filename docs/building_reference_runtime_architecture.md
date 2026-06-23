@@ -2,6 +2,8 @@
 
 This document is the canonical target for migrating runtime building relationships away from numeric building ids and `Building::from_id`. The goal is not to cache ids more carefully. The goal is to make the runtime object graph express actual object relationships.
 
+For the broader refactor doctrine around object-owned registration, deregistration, and lifecycle cleanup, read [Object-Owned Runtime Refactor Doctrine](object_owned_runtime_refactor.md) alongside this file. Building ids, static scans, and defensive cleanup fallbacks are all symptoms of the same legacy ownership problem.
+
 ## Target State
 
 Runtime code works with `Building&` for required building parameters and cached pointers for retargetable runtime relationships.
