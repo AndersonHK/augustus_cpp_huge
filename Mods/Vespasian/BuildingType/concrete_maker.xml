@@ -43,6 +43,7 @@
     </labor>
     <storages>
         <storage path="sand_input_concrete_maker" />
+        <storage path="concrete_output_concrete_maker" />
     </storages>
     <production_methods>
         <production_method path="concrete_maker_basic" />

@@ -12,6 +12,7 @@
 #include "building/rotation.h"
 #include "building/state.h"
 #include "building/storage.h"
+#include "building/storage_runtime.h"
 #include "building/variant.h"
 #include "city/culture.h"
 #include "city/warning.h"
@@ -587,6 +588,54 @@ int Building::worker_count() const
     return record_ ? record_->num_workers : 0;
 }
 
+int Building::employment_worker_count() const
+{
+    if (!record_) {
+        return 0;
+    }
+
+    int workers = 0;
+    int farm_part_count = 0;
+    for_each_part([&](Building part) {
+        if (!part.record_) {
+            return;
+        }
+        if (part.id() == main_part().id()) {
+            workers += part.record_->num_workers;
+            return;
+        }
+        if (part.type && part.type->is_farm()) {
+            workers += part.record_->num_workers;
+            farm_part_count++;
+        }
+    });
+    return farm_part_count > 0 ? workers : record_->num_workers;
+}
+
+int Building::employment_required_workers() const
+{
+    if (!record_ || !type) {
+        return 0;
+    }
+
+    int workers = 0;
+    int farm_part_count = 0;
+    for_each_part([&](Building part) {
+        if (!part.type) {
+            return;
+        }
+        if (part.id() == main_part().id()) {
+            workers += part.type->required_workers();
+            return;
+        }
+        if (part.type->is_farm()) {
+            workers += part.type->required_workers();
+            farm_part_count++;
+        }
+    });
+    return farm_part_count > 0 ? workers : type->required_workers();
+}
+
 float Building::labor_access_score() const
 {
     return record_ ? record_->labor_access_score : 0.0f;
@@ -597,7 +646,7 @@ int Building::has_required_workers() const
     if (!record_) {
         return 0;
     }
-    return type && record_->num_workers >= type->required_workers();
+    return type && employment_worker_count() >= employment_required_workers();
 }
 
 static int composed_record_uses_union_road_access(const building *owner)
@@ -752,6 +801,107 @@ void Building::set_resource_amount(resource_type resource, int amount)
     if (record_ && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
         record_->resources[resource] = static_cast<short>(amount);
     }
+}
+
+int Building::add_storage_resource(
+    resource_type resource, int amount, building_type_registry_impl::StorageRole role)
+{
+    if (!record_ || resource == RESOURCE_NONE || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return 0;
+    }
+
+    const size_t slot_count = storage_runtime_impl::get_slot_count(record_);
+    for (size_t i = 0; i < slot_count; i++) {
+        BuildingStorage *storage = storage_runtime_impl::get_or_create(record_, i);
+        if (storage && storage->type() && storage->type()->role() == role && storage->handles_resource(resource)) {
+            return storage->add(resource, amount);
+        }
+    }
+    return 0;
+}
+
+int Building::storage_resource_amount(resource_type resource, building_type_registry_impl::StorageRole role) const
+{
+    if (!record_ || resource == RESOURCE_NONE || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return 0;
+    }
+
+    int total = 0;
+    const size_t slot_count = storage_runtime_impl::get_slot_count(record_);
+    for (size_t i = 0; i < slot_count; i++) {
+        BuildingStorage *storage = storage_runtime_impl::get_or_create(record_, i);
+        if (storage && storage->type() && storage->type()->role() == role &&
+            storage->handles_resource(resource)) {
+            total += storage->amount(resource);
+        }
+    }
+    return total;
+}
+
+int Building::input_storage_available_space(resource_type resource) const
+{
+    if (!record_ || resource == RESOURCE_NONE || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return 0;
+    }
+
+    int space = 0;
+    const size_t slot_count = storage_runtime_impl::get_slot_count(record_);
+    for (size_t i = 0; i < slot_count; i++) {
+        BuildingStorage *storage = storage_runtime_impl::get_or_create(record_, i);
+        if (storage && storage->type() && storage->type()->is_input()) {
+            space += storage->available_space(resource);
+        }
+    }
+    return space;
+}
+
+int Building::reserve_input_storage_load(resource_type resource, unsigned int figure_id)
+{
+    if (!record_ || resource == RESOURCE_NONE || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return 0;
+    }
+
+    const size_t slot_count = storage_runtime_impl::get_slot_count(record_);
+    for (size_t i = 0; i < slot_count; i++) {
+        BuildingStorage *storage = storage_runtime_impl::get_or_create(record_, i);
+        if (storage && storage->reserve_inbound_load(resource, figure_id)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void Building::release_input_storage_reservation(unsigned int figure_id)
+{
+    if (!record_ || !figure_id) {
+        return;
+    }
+
+    const size_t slot_count = storage_runtime_impl::get_slot_count(record_);
+    for (size_t i = 0; i < slot_count; i++) {
+        if (BuildingStorage *storage = storage_runtime_impl::get_or_create(record_, i)) {
+            storage->release_inbound(figure_id);
+        }
+    }
+}
+
+int Building::receive_input_storage_loads(resource_type resource, int loads, unsigned int figure_id)
+{
+    if (!record_ || resource == RESOURCE_NONE || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return 0;
+    }
+
+    const size_t slot_count = storage_runtime_impl::get_slot_count(record_);
+    for (size_t i = 0; i < slot_count; i++) {
+        BuildingStorage *storage = storage_runtime_impl::get_or_create(record_, i);
+        if (storage && storage->handles_resource(resource)) {
+            const int received = storage->receive_inbound_loads(resource, loads, figure_id);
+            if (received > 0) {
+                return received;
+            }
+        }
+    }
+    return 0;
 }
 
 int Building::house_happiness() const
@@ -1029,14 +1179,15 @@ int Building::native_production_efficiency() const
 
 int Building::update_native_production(int new_day, int *out_is_striking)
 {
-    Production *production = production_runtime_impl::get_or_create_primary(*this);
-    return production ? production->update_daily(new_day, out_is_striking) : 0;
-}
-
-int Building::native_production_has_produced_resource() const
-{
-    Production *production = production_runtime_impl::get_or_create_primary(*this);
-    return production ? production->has_produced_resource() : 0;
+    int updated = 0;
+    const size_t method_count = production_runtime_impl::get_method_count(*this);
+    for (size_t i = 0; i < method_count; i++) {
+        Production *production = production_runtime_impl::get_or_create(*this, i);
+        if (production && production->update_daily(i == 0 ? new_day : 0, i == 0 ? out_is_striking : nullptr)) {
+            updated = 1;
+        }
+    }
+    return updated;
 }
 
 int Building::native_production_has_completed_effect() const
@@ -1045,10 +1196,32 @@ int Building::native_production_has_completed_effect() const
     return production ? production->has_completed_effect() : 0;
 }
 
-int Building::native_production_output_cart_loads() const
+int Building::reserve_output_storage_loads(resource_type *out_resource, int *out_loads)
 {
-    Production *production = production_runtime_impl::get_or_create_primary(*this);
-    return production ? production->output_cart_loads() : 0;
+    if (!record_ || !type) {
+        return 0;
+    }
+
+    const size_t slot_count = storage_runtime_impl::get_slot_count(record_);
+    for (size_t i = 0; i < slot_count; i++) {
+        BuildingStorage *storage = storage_runtime_impl::get_or_create(record_, i);
+        if (!storage || !storage->type() || !storage->type()->is_output()) {
+            continue;
+        }
+        for (resource_type resource : storage->type()->resources()) {
+            const int loads = storage->remove_loads(resource, 1);
+            if (loads > 0) {
+                if (out_resource) {
+                    *out_resource = resource;
+                }
+                if (out_loads) {
+                    *out_loads = loads;
+                }
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 int Building::start_native_production()
@@ -1064,8 +1237,11 @@ int Building::start_native_production()
 
 void Building::advance_native_production_stats()
 {
-    if (Production *production = production_runtime_impl::get_or_create_primary(*this)) {
-        production->advance_stats();
+    const size_t method_count = production_runtime_impl::get_method_count(*this);
+    for (size_t i = 0; i < method_count; i++) {
+        if (Production *production = production_runtime_impl::get_or_create(*this, i)) {
+            production->advance_stats();
+        }
     }
 }
 
@@ -1487,6 +1663,10 @@ static void initialize_loaded_composed_child(building *main_record, building *ch
     child->distance_from_entry = main_record->distance_from_entry;
     child->road_access_x = main_record->road_access_x;
     child->road_access_y = main_record->road_access_y;
+    child->has_road_access = main_record->has_road_access;
+    child->houses_covered = main_record->houses_covered;
+    child->percentage_houses_covered = main_record->percentage_houses_covered;
+    child->labor_access_score = main_record->labor_access_score;
     child->variant = main_record->variant;
 
     if (definition_attr_is(&main_definition, "hippodrome")) {

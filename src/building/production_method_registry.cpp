@@ -176,10 +176,6 @@ int parse_output_destination_name(const char *name, ProductionOutputDestination 
     if (!name || !out_destination) {
         return 0;
     }
-    if (strcmp(name, "cart") == 0) {
-        *out_destination = ProductionOutputDestination::Cart;
-        return 1;
-    }
     if (strcmp(name, "building_storage") == 0) {
         *out_destination = ProductionOutputDestination::BuildingStorage;
         return 1;
@@ -354,7 +350,7 @@ int parse_output()
         }
         g_parse_state.definition->set_output_resource(resource);
         if (xml_parser_has_attribute("destination")) {
-            ProductionOutputDestination destination = ProductionOutputDestination::Cart;
+            ProductionOutputDestination destination = ProductionOutputDestination::BuildingStorage;
             const char *destination_text = xml_parser_get_attribute_string("destination");
             if (!parse_output_destination_name(destination_text, &destination)) {
                 log_error("Unsupported ProductionMethod output destination", destination_text, 0);

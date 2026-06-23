@@ -467,6 +467,8 @@ static void add_composed_building(building *main_record)
         child->road_access_x = main_record->road_access_x;
         child->road_access_y = main_record->road_access_y;
         child->has_road_access = main_record->has_road_access;
+        child->houses_covered = main_record->houses_covered;
+        child->percentage_houses_covered = main_record->percentage_houses_covered;
         child->labor_access_score = main_record->labor_access_score;
         child->variant = main_record->variant;
         building_get(previous_id)->next_part_building_id = child->id;

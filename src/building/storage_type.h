@@ -7,6 +7,12 @@
 
 namespace building_type_registry_impl {
 
+enum class StorageRole {
+    None,
+    Input,
+    Output
+};
+
 class StorageType {
 public:
     explicit StorageType(std::string path);
@@ -20,10 +26,16 @@ public:
     void set_capacity(int capacity);
     int capacity() const;
 
+    void set_role(StorageRole role);
+    StorageRole role() const;
+    int is_input() const;
+    int is_output() const;
+
 private:
     std::string path_;
     std::vector<resource_type> resources_;
     int capacity_ = 0;
+    StorageRole role_ = StorageRole::None;
 };
 
 } // namespace building_type_registry_impl

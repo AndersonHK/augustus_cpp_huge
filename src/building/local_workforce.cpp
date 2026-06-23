@@ -88,7 +88,7 @@ int required_workers(const Building &building)
     if (!building.type) {
         return 0;
     }
-    int workers = building.type->required_workers();
+    int workers = building.employment_required_workers();
     if (building.type->is_fountain() && building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
         workers /= 2;
         if (workers == 0) {

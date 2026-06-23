@@ -30,6 +30,7 @@ struct ParseState {
     std::unique_ptr<StorageType> definition;
     int saw_resource = 0;
     int saw_capacity = 0;
+    int saw_role = 0;
     int error = 0;
 };
 
@@ -178,6 +179,23 @@ int parse_root()
     if (!g_parse_state.definition) {
         g_parse_state.definition = std::make_unique<StorageType>(std::string());
     }
+    if (!xml_parser_has_attribute("role")) {
+        log_error("StorageType is missing required attribute 'role'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *role_text = xml_parser_get_attribute_string("role");
+    if (xml_parser_compare_multiple(role_text, "input")) {
+        g_parse_state.definition->set_role(StorageRole::Input);
+    } else if (xml_parser_compare_multiple(role_text, "output")) {
+        g_parse_state.definition->set_role(StorageRole::Output);
+    } else {
+        log_error("Unsupported StorageType role", role_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_role = 1;
     return 1;
 }
 
@@ -263,9 +281,13 @@ int parse_definition_file(const char *filename, const char *definition_path)
 
     const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
     xml_parser_free();
-    if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_resource) {
+    if (!parsed || g_parse_state.error || !g_parse_state.definition ||
+        !g_parse_state.saw_resource || !g_parse_state.saw_role) {
         if (!g_parse_state.saw_resource) {
             log_error("StorageType xml is missing required accepts nodes", filename, 0);
+        }
+        if (!g_parse_state.saw_role) {
+            log_error("StorageType xml is missing required role", filename, 0);
         }
 
         char detail[512];

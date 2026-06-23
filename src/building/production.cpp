@@ -34,7 +34,7 @@ int get_resource_slot_index(resource_type resource)
 
 int output_amount(const building_type_registry_impl::ProductionMethod &method)
 {
-    return resource_units_per_load() * method.cart_loads_per_cycle();
+    return (resource_units_per_load() * method.cart_load_numerator()) / method.cart_load_denominator();
 }
 
 void add_treasury_output(resource_type resource, int amount)
@@ -303,7 +303,7 @@ int Production::update_daily(int new_day, int *out_is_striking)
     if (legacy->data.industry.progress > max_value) {
         legacy->data.industry.progress = max_value;
     }
-    if (method_->has_resource_output() && !method_->uses_cart_output() &&
+    if (method_->has_resource_output() && method_->outputs_to_building_storage() &&
         legacy->data.industry.progress >= max_value) {
         start_new_production();
     }
@@ -312,27 +312,12 @@ int Production::update_daily(int new_day, int *out_is_striking)
     return 1;
 }
 
-int Production::has_produced_resource() const
-{
-    const ::building *legacy = production_record(building());
-    const int max_value = max_progress();
-    return legacy && method_ && method_->has_resource_output() && max_value > 0 &&
-        method_->uses_cart_output() &&
-        legacy->data.industry.progress >= max_value;
-}
-
 int Production::has_completed_effect() const
 {
     const ::building *legacy = production_record(building());
     const int max_value = max_progress();
     return legacy && method_ && method_->has_effect_output() && max_value > 0 &&
         legacy->data.industry.progress >= max_value;
-}
-
-int Production::output_cart_loads() const
-{
-    return method_ && method_->has_resource_output() && method_->uses_cart_output() ?
-        method_->cart_loads_per_cycle() : 0;
 }
 
 int Production::pending_production_for_stats() const
@@ -348,7 +333,8 @@ int Production::pending_production_for_stats() const
 
     int pending_production_percentage = calc_percentage(legacy->data.industry.progress, max_value);
     pending_production_percentage = calc_bound(pending_production_percentage, 0, 100);
-    return pending_production_percentage * (method_->has_resource_output() ? method_->cart_loads_per_cycle() : 0);
+    return method_->has_resource_output() ?
+        (pending_production_percentage * output_amount(*method_)) / 100 : 0;
 }
 
 void Production::start_new_production()
@@ -374,7 +360,10 @@ void Production::start_new_production()
                 return;
             }
         } else if (method_->outputs_to_building_storage()) {
-            context_building().add_resource(method_->output_resource(), output_amount(*method_));
+            if (!context_building().add_storage_resource(method_->output_resource(), output_amount(*method_),
+                building_type_registry_impl::StorageRole::Output)) {
+                return;
+            }
             ::building *output_record = context_record();
             if (!output_record) {
                 output_record = legacy;
@@ -401,7 +390,8 @@ void Production::start_new_production()
         for (const building_type_registry_impl::ProductionResourceAmount &input : method_->inputs()) {
             const int resource_slot_index = get_resource_slot_index(input.resource);
             if (resource_slot_index >= 0) {
-                context_building().add_resource(input.resource, -method_->scaled_input_amount(input));
+                context_building().add_storage_resource(input.resource, -method_->scaled_input_amount(input),
+                    building_type_registry_impl::StorageRole::Input);
             }
         }
     }

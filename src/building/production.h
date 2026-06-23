@@ -30,9 +30,7 @@ public:
     int has_raw_materials() const;
     int max_progress() const;
     int efficiency() const;
-    int has_produced_resource() const;
     int has_completed_effect() const;
-    int output_cart_loads() const;
     void start_new_production();
     void advance_stats();
     void bless_farm();

@@ -148,7 +148,8 @@ void city_labor_calculate_workers(int num_plebs, int num_patricians)
 static int should_have_workers(const Building &building, int category, int check_access)
 {
     const building_type_registry_impl::BuildingType *type = building.type;
-    if (!building.id() || !type || !type->required_workers() || category == LABOR_CATEGORY_NONE) {
+    if (!building.id() || !building.is_main_part() || !type ||
+        !building.employment_required_workers() || category == LABOR_CATEGORY_NONE) {
         return 0;
     }
     if (category == LABOR_CATEGORY_ENTERTAINMENT) {
@@ -204,7 +205,7 @@ static void calculate_workers_needed_per_category(void)
             continue;
         }
 
-        city_data.labor.categories[category - 1].workers_needed += bldg.type->required_workers();
+        city_data.labor.categories[category - 1].workers_needed += bldg.employment_required_workers();
 
         city_data.labor.categories[category - 1].total_houses_covered +=
             static_cast<int>(b->labor_access_score);
@@ -382,7 +383,7 @@ static void allocate_workers_to_water(void)
                     set_building_workers(b, workers_per_building);
                 }
             } else {
-                set_building_workers(b, bldg.type->required_workers());
+                set_building_workers(b, bldg.employment_required_workers());
             }
         }
     }
@@ -419,7 +420,7 @@ static void allocate_workers_to_non_water_buildings(void)
             continue;
         }
 
-        int required_workers = bldg.type->required_workers();
+        int required_workers = bldg.employment_required_workers();
         if (category_workers_needed[cat - 1]) {
             int num_workers = calc_adjust_with_percentage(
                 city_data.labor.categories[cat - 1].workers_allocated,
@@ -459,7 +460,7 @@ static void allocate_workers_to_non_water_buildings(void)
             continue;
         }
         if (b->percentage_houses_covered > 0 && category_workers_needed[cat - 1]) {
-            int required_workers = bldg.type->required_workers();
+            int required_workers = bldg.employment_required_workers();
             if (b->num_workers < required_workers) {
                 int needed = required_workers - b->num_workers;
                 if (needed > category_workers_needed[cat - 1]) {

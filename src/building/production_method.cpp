@@ -75,11 +75,6 @@ ProductionOutputDestination ProductionMethod::output_destination() const
     return output_destination_;
 }
 
-int ProductionMethod::uses_cart_output() const
-{
-    return output_destination_ == ProductionOutputDestination::Cart;
-}
-
 int ProductionMethod::outputs_to_building_storage() const
 {
     return output_destination_ == ProductionOutputDestination::BuildingStorage;
@@ -287,7 +282,7 @@ int ProductionMethod::has_required_inputs(const Building &building) const
         if (input.resource <= RESOURCE_NONE || input.resource >= RESOURCE_SLOT_COUNT) {
             return 0;
         }
-        if (building.resource_amount(input.resource) < scaled_input_amount(input)) {
+        if (building.storage_resource_amount(input.resource, StorageRole::Input) < scaled_input_amount(input)) {
             return 0;
         }
     }
@@ -330,12 +325,6 @@ int ProductionMethod::can_start_cycle(const Building &building) const
         return 0;
     }
     const int output_resource = static_cast<int>(output_resource_);
-    if (has_resource_output() && uses_cart_output() && !resource_is_storable(output_resource_) &&
-        record->data.industry.progress == 0 &&
-        !building_has_workshop_for_raw_material_with_room(output_resource, building.road_network_id()) &&
-        !building_monument_get_monument(building.x(), building.y(), output_resource, building.road_network_id(), 0)) {
-        return 0;
-    }
     return 1;
 }
 

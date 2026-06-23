@@ -74,8 +74,8 @@ static int building_has_required_workers_for_runtime_water(const Building &build
     if (!building.type) {
         return 0;
     }
-    const int required_workers = building.type->required_workers();
-    return required_workers <= 0 || building.worker_count() > 0;
+    const int required_workers = building.employment_required_workers();
+    return required_workers <= 0 || building.employment_worker_count() > 0;
 }
 
 building_runtime *get_city_building(::building *building_data)

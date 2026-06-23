@@ -2,6 +2,7 @@
 
 #include "building/building_fwd.h"
 #include "building/building_order.h"
+#include "building/storage_type.h"
 #include "building/building_type.h"
 #include "game/resource.h"
 
@@ -105,6 +106,8 @@ public:
     void assign_graphic_variant(int force_reseed);
     void spawn_figure();
     int worker_count() const;
+    int employment_worker_count() const;
+    int employment_required_workers() const;
     float labor_access_score() const;
     int has_required_workers() const;
     int has_road_access(map_point *road) const;
@@ -118,6 +121,13 @@ public:
     int resource_amount(resource_type resource) const;
     void add_resource(resource_type resource, int amount);
     void set_resource_amount(resource_type resource, int amount);
+    int add_storage_resource(
+        resource_type resource, int amount, building_type_registry_impl::StorageRole role);
+    int storage_resource_amount(resource_type resource, building_type_registry_impl::StorageRole role) const;
+    int input_storage_available_space(resource_type resource) const;
+    int reserve_input_storage_load(resource_type resource, unsigned int figure_id);
+    void release_input_storage_reservation(unsigned int figure_id);
+    int receive_input_storage_loads(resource_type resource, int loads, unsigned int figure_id);
     int house_happiness() const;
     void set_house_happiness(int value);
     resource_type fetch_inventory_id() const;
@@ -162,9 +172,8 @@ public:
     int native_production_max_progress() const;
     int native_production_efficiency() const;
     int update_native_production(int new_day, int *out_is_striking);
-    int native_production_has_produced_resource() const;
     int native_production_has_completed_effect() const;
-    int native_production_output_cart_loads() const;
+    int reserve_output_storage_loads(resource_type *out_resource, int *out_loads);
     int start_native_production();
     void advance_native_production_stats();
     void bless_native_farm();

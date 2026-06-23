@@ -48,6 +48,7 @@
     </labor>
     <storages>
         <storage path="gold_input_city_mint" />
+        <storage path="gold_output_city_mint" />
     </storages>
     <production_methods>
         <production_method path="city_mint_basic" />

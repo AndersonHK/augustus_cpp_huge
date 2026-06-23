@@ -155,7 +155,7 @@ static void attach_figure_to_building(Figure *f, building *b)
 
 static int worker_percentage(const Building &building)
 {
-    return calc_percentage(building.worker_count(), building.type->required_workers());
+    return calc_percentage(building.employment_worker_count(), building.employment_required_workers());
 }
 
 static void check_labor_problem(building *b)
@@ -249,7 +249,7 @@ static void run_workforce_labor_policy(building *b, int x, int y, int global_lab
 
     Building building_object(b);
     map_point road = { x, y };
-    const int trigger_workers = building_object.type ? building_object.type->required_workers() : 0;
+    const int trigger_workers = building_object.employment_required_workers();
     const int workforce_access = building_local_workforce_access_score(building_object);
     if (workforce_access < trigger_workers) {
         if (!building_local_workforce_spawn_acquisition(building_object, &road) && workforce_access > 0) {
@@ -830,7 +830,7 @@ static void spawn_figure_temple(building *b)
         Building building_object(b);
         int pct_workers = worker_percentage(building_object);
         int spawn_delay;
-        if (building_object.type->required_workers() <= 0) {
+        if (building_object.employment_required_workers() <= 0) {
             spawn_delay = game_time_scale_legacy_day_ticks(7);
         } else if (pct_workers >= 100) {
             spawn_delay = game_time_scale_legacy_day_ticks(3);
@@ -963,128 +963,6 @@ static void spawn_figure_mission_post(building *b)
     }
 }
 
-static int building_has_farm_production(Building building)
-{
-    return building.type && building.type->is_farm();
-}
-
-static int gcd_positive(int a, int b)
-{
-    if (a < 0) {
-        a = -a;
-    }
-    if (b < 0) {
-        b = -b;
-    }
-    while (b) {
-        int next = a % b;
-        a = b;
-        b = next;
-    }
-    return a ? a : 1;
-}
-
-static void add_fraction(int *numerator, int *denominator, int add_numerator, int add_denominator)
-{
-    if (!numerator || !denominator || add_numerator <= 0 || add_denominator <= 0) {
-        return;
-    }
-    const int divisor = gcd_positive(*denominator, add_denominator);
-    const int common_denominator = (*denominator / divisor) * add_denominator;
-    *numerator = (*numerator * (common_denominator / *denominator)) +
-        (add_numerator * (common_denominator / add_denominator));
-    *denominator = common_denominator;
-    const int reduced = gcd_positive(*numerator, *denominator);
-    *numerator /= reduced;
-    *denominator /= reduced;
-}
-
-static const building_type_registry_impl::ProductionMethod *farm_production_method(Building building)
-{
-    if (!building.type) {
-        return nullptr;
-    }
-    for (const building_type_registry_impl::ProductionMethod *method : building.type->production_methods()) {
-        if (method && method->is_farm() && method->has_resource_output()) {
-            return method;
-        }
-    }
-    return nullptr;
-}
-
-static int composed_farm_harvest_ready(Building main, resource_type *out_resource, int *out_cart_loads)
-{
-    int part_count = 0;
-    int ready_count = 0;
-    int numerator = 0;
-    int denominator = 1;
-    resource_type output_resource = RESOURCE_NONE;
-
-    main.for_each_part([&](Building part) {
-        if (part.id() == main.id() || !building_has_farm_production(part)) {
-            return;
-        }
-        building *record = building_get(part.id());
-        const building_type_registry_impl::ProductionMethod *method = farm_production_method(part);
-        if (!record || !method) {
-            return;
-        }
-        part_count++;
-        if (!building_industry_has_produced_resource(record)) {
-            return;
-        }
-        ready_count++;
-        if (output_resource == RESOURCE_NONE) {
-            output_resource = method->output_resource();
-        }
-        add_fraction(&numerator, &denominator, method->cart_load_numerator(), method->cart_load_denominator());
-    });
-
-    if (part_count <= 0 || ready_count != part_count || output_resource == RESOURCE_NONE ||
-        numerator <= 0 || denominator <= 0 || numerator % denominator != 0) {
-        return 0;
-    }
-    if (out_resource) {
-        *out_resource = output_resource;
-    }
-    if (out_cart_loads) {
-        *out_cart_loads = numerator / denominator;
-    }
-    return numerator / denominator > 0;
-}
-
-static void reset_composed_farm_harvest(Building main)
-{
-    main.for_each_part([&](Building part) {
-        if (part.id() == main.id() || !building_has_farm_production(part)) {
-            return;
-        }
-        building *record = building_get(part.id());
-        const building_type_registry_impl::ProductionMethod *method = farm_production_method(part);
-        if (!record || !method) {
-            return;
-        }
-        record->data.industry.progress = 0;
-        record->data.industry.has_raw_materials = 1;
-        record->data.industry.production_current_month +=
-            static_cast<short>((resource_units_per_load() * method->cart_load_numerator()) /
-                method->cart_load_denominator());
-        part.refresh_graphic_if_native();
-    });
-}
-
-static int building_has_composed_farm_production(Building main)
-{
-    int has_farm_part = 0;
-    main.for_each_part([&](Building part) {
-        if (has_farm_part || part.id() == main.id()) {
-            return;
-        }
-        has_farm_part = building_has_farm_production(part);
-    });
-    return has_farm_part;
-}
-
 static void spawn_figure_industry(building *b)
 {
     check_labor_problem(b);
@@ -1101,9 +979,8 @@ static void spawn_figure_industry(building *b)
         }
         resource_type output_resource = RESOURCE_NONE;
         int output_cart_loads = 0;
-        if (composed_farm_harvest_ready(building_obj, &output_resource, &output_cart_loads)) {
+        if (building_obj.reserve_output_storage_loads(&output_resource, &output_cart_loads)) {
             b->output_resource_id = output_resource;
-            reset_composed_farm_harvest(building_obj);
             Figure *f = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
             f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
             f->resource_id = output_resource;
@@ -1112,25 +989,6 @@ static void spawn_figure_industry(building *b)
             f->wait_ticks = game_time_scale_legacy_day_ticks(30);
             f->loads_sold_or_carrying = static_cast<unsigned char>(output_cart_loads > 0 ? output_cart_loads : 1);
             return;
-        }
-        building *output_record = nullptr;
-        if (building_industry_has_produced_resource(b)) {
-            output_record = b;
-        }
-        if (output_record) {
-            Building output_building(output_record);
-            output_cart_loads = output_building.has_native_production() ?
-                output_building.native_production_output_cart_loads() : 1;
-            output_resource = static_cast<resource_type>(output_record->output_resource_id);
-            b->output_resource_id = output_resource;
-            building_industry_start_new_production(output_record);
-            Figure *f = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
-            f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
-            f->resource_id = output_resource;
-            attach_figure_to_building(f, b);
-            b->figure_id = f->id();
-            f->wait_ticks = game_time_scale_legacy_day_ticks(30);
-            f->loads_sold_or_carrying = static_cast<unsigned char>(output_cart_loads > 0 ? output_cart_loads : 1);
         }
     }
 }
@@ -1563,8 +1421,7 @@ void building_figure_generate(void)
         if (building_uses_runtime_spawn(b)) {
             building_object.spawn_figure();
         } else if (building_is_raw_resource_producer(b->type) ||
-            building_is_farm(b->type) || building_is_workshop(b->type) ||
-            building_has_composed_farm_production(building_object)) {
+            building_is_farm(b->type) || building_is_workshop(b->type)) {
             spawn_figure_industry(b);
         } else if (building_matches_any(b, {"senate_1_unused", "forum_2_unused"})) {
             spawn_figure_senate_forum(b);

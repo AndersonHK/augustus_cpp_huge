@@ -224,6 +224,13 @@ static void validate_action_for_old_destination(Figure *f, const Building &desti
     }
 }
 
+static void release_input_storage_reservation(Figure *f)
+{
+    if (f && f->destination_building.id()) {
+        f->destination_building.release_input_storage_reservation(f->id());
+    }
+}
+
 static void set_destination(Figure *f, int action, const Building &origin, const Building &destination, int x_dst, int y_dst)
 {
     f->action_state = action;
@@ -242,6 +249,21 @@ static void set_destination_from_runtime_id(
     Figure *f, int action, const Building &origin, unsigned int destination_id, int x_dst, int y_dst)
 {
     set_destination(f, action, origin, building_from_runtime_id(destination_id), x_dst, y_dst);
+}
+
+static int set_input_storage_destination_from_runtime_id(
+    Figure *f, int action, const Building &origin, unsigned int destination_id, int x_dst, int y_dst)
+{
+    Building destination = building_from_runtime_id(destination_id);
+    const resource_type resource = static_cast<resource_type>(f->resource_id);
+    if (should_change_destination(f, origin, destination, x_dst, y_dst)) {
+        release_input_storage_reservation(f);
+    }
+    if (!destination.reserve_input_storage_load(resource, f->id())) {
+        return 0;
+    }
+    set_destination(f, action, origin, destination, x_dst, y_dst);
+    return 1;
 }
 
 static void determine_cartpusher_destination(Figure *f, Building &source, int road_network_id)
@@ -283,9 +305,8 @@ static void determine_cartpusher_destination(Figure *f, Building &source, int ro
     // priority 3: workshop for raw material
     dst_building_id = building_get_workshop_for_raw_material_with_room(f->x, f->y,
         source_output, road_network_id, &dst);
-    if (dst_building_id) {
-        set_destination_from_runtime_id(f, FIGURE_ACTION_23_CARTPUSHER_DELIVERING_TO_WORKSHOP,
-            source, dst_building_id, dst.x, dst.y);
+    if (dst_building_id && set_input_storage_destination_from_runtime_id(
+        f, FIGURE_ACTION_23_CARTPUSHER_DELIVERING_TO_WORKSHOP, source, dst_building_id, dst.x, dst.y)) {
         return;
     }
     if (!is_storable) {
@@ -514,8 +535,10 @@ void figure_cartpusher_action(Figure *f)
                 f->action_state = FIGURE_ACTION_26_CARTPUSHER_AT_WORKSHOP;
                 f->wait_ticks = 0;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
+                release_input_storage_reservation(f);
                 reroute_cartpusher(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
+                release_input_storage_reservation(f);
                 f->state = FIGURE_STATE_DEAD;
             }
             break;
@@ -589,8 +612,16 @@ void figure_cartpusher_action(Figure *f)
             f->wait_ticks++;
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(5)) {
                 Building destination = f->destination_building;
-                building_workshop_add_raw_material(runtime_record(destination), f->resource_id);
-                cartpusher_return_to_source(f, source);
+                const int delivered = building_workshop_add_raw_material(
+                    runtime_record(destination), f->resource_id, f->loads_sold_or_carrying, f->id());
+                if (delivered) {
+                    f->loads_sold_or_carrying -= delivered;
+                    cartpusher_return_to_source(f, source);
+                } else {
+                    release_input_storage_reservation(f);
+                    f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
+                    f->wait_ticks = 0;
+                }
             }
             f->image_offset = 0;
             break;
@@ -638,6 +669,9 @@ void figure_cartpusher_action(Figure *f)
             } else if (f->direction == DIR_FIGURE_REROUTE) {
                 figure_route_remove(f);
             }
+    }
+    if (f->state == FIGURE_STATE_DEAD) {
+        release_input_storage_reservation(f);
     }
     update_image(f);
 }
@@ -803,11 +837,11 @@ static void determine_warehouseman_destination(Figure *f, Building &warehouse, i
     // priority 2: raw materials to workshop
     dst_building_id = building_get_workshop_for_raw_material_with_room(f->x, f->y, f->resource_id,
         road_network_id, &dst);
-    if (dst_building_id) {
-        set_destination_from_runtime_id(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
-            warehouse, dst_building_id, dst.x, dst.y);
+    if (dst_building_id && set_input_storage_destination_from_runtime_id(
+        f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE, warehouse, dst_building_id, dst.x, dst.y)) {
         if (remove_resources) {
             if (!remove_resource_from_warehouse(f, warehouse, 1)) {
+                release_input_storage_reservation(f);
                 f->state = FIGURE_STATE_DEAD;
                 f->is_ghost = 1;
             }
@@ -868,11 +902,11 @@ static void determine_warehouseman_destination(Figure *f, Building &warehouse, i
     }
     // priority 6: raw material to well-stocked workshop
     dst_building_id = building_get_workshop_for_raw_material(f->x, f->y, f->resource_id, road_network_id, &dst);
-    if (dst_building_id) {
-        set_destination_from_runtime_id(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
-            warehouse, dst_building_id, dst.x, dst.y);
+    if (dst_building_id && set_input_storage_destination_from_runtime_id(
+        f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE, warehouse, dst_building_id, dst.x, dst.y)) {
         if (remove_resources) {
             if (!remove_resource_from_warehouse(f, warehouse, 1)) {
+                release_input_storage_reservation(f);
                 f->state = FIGURE_STATE_DEAD;
                 f->is_ghost = 1;
             }
@@ -948,8 +982,10 @@ void figure_warehouseman_action(Figure *f)
             } else if (f->direction == DIR_FIGURE_REROUTE) {
                 figure_route_remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
+                release_input_storage_reservation(f);
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->wait_ticks++ > FIGURE_REROUTE_DESTINATION_TICKS) {
+                release_input_storage_reservation(f);
                 f->action_state = FIGURE_ACTION_233_WAREHOUSEMAN_RECONSIDER_TARGET;
                 figure_warehouseman_action(f);
                 return;
@@ -973,8 +1009,9 @@ void figure_warehouseman_action(Figure *f)
                     destination.add_resource(resource_weapons(), 1);
                     f->loads_sold_or_carrying = 0; // should change to be dependant on the above call in the future
                 } else { // workshop
-                    building_workshop_add_raw_material(destination_record, f->resource_id);
-                    f->loads_sold_or_carrying = 0; // should change to be dependant on the above call in the future
+                    delivered = building_workshop_add_raw_material(
+                        destination_record, f->resource_id, f->loads_sold_or_carrying, f->id());
+                    f->loads_sold_or_carrying -= delivered;
                 }
                 if (delivered) {
                     cartpusher_return_to_source(f, source);
@@ -1141,6 +1178,9 @@ void figure_warehouseman_action(Figure *f)
         case FIGURE_ACTION_233_WAREHOUSEMAN_RECONSIDER_TARGET:
             warehouseman_initial_action(f, source, road_network_id, 0);
             break;
+    }
+    if (f->state == FIGURE_STATE_DEAD) {
+        release_input_storage_reservation(f);
     }
     update_image(f);
 }

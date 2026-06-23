@@ -27,7 +27,6 @@ enum class ProductionOutputSource {
 };
 
 enum class ProductionOutputDestination {
-    Cart,
     BuildingStorage,
     Treasury
 };
@@ -57,7 +56,6 @@ public:
 
     void set_output_destination(ProductionOutputDestination destination);
     ProductionOutputDestination output_destination() const;
-    int uses_cart_output() const;
     int outputs_to_building_storage() const;
     int outputs_to_treasury() const;
 
@@ -108,7 +106,7 @@ private:
     std::string path_;
     ProductionMethodKind kind_ = ProductionMethodKind::None;
     resource_type output_resource_ = RESOURCE_NONE;
-    ProductionOutputDestination output_destination_ = ProductionOutputDestination::Cart;
+    ProductionOutputDestination output_destination_ = ProductionOutputDestination::BuildingStorage;
     ProductionOutputEffect output_effect_ = ProductionOutputEffect::None;
     ProductionOutputSource output_source_ = ProductionOutputSource::WorkerProgress;
     int base_monthly_production_ = 0;

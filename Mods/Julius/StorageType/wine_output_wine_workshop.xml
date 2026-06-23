@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<storage_type>
+<storage_type role="output">
     <accepts resource="wine" />
-    <capacity amount="100" />
+    <capacity amount="200" />
 </storage_type>

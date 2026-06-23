@@ -104,13 +104,14 @@ void send_supplier_to_storage_destination(Figure *supplier, const Building &dest
 
 int building_runtime::worker_percentage() const
 {
-    const int required_workers = type().required_workers();
+    const Building current = building();
+    const int required_workers = current.employment_required_workers();
     if (required_workers <= 0) {
         // Houses and other zero-labor spawn owners still need their XML
         // delay bands to fire; treat them as fully staffed for delay purposes.
         return 100;
     }
-    return calc_percentage(building().worker_count(), required_workers);
+    return calc_percentage(current.employment_worker_count(), required_workers);
 }
 
 int building_runtime::default_spawn_delay() const
@@ -207,9 +208,9 @@ void building_runtime::run_workforce_labor_phase(
         return;
     }
 
-    const int trigger_workers = type().required_workers();
-    const float workforce_access = building().labor_access_score();
     Building current = building();
+    const int trigger_workers = current.employment_required_workers();
+    const float workforce_access = building().labor_access_score();
     if (workforce_access < trigger_workers) {
         if (!building_local_workforce::spawn_acquisition(current, &road) && workforce_access > 0) {
             building_local_workforce::spawn_validation(current, &road);

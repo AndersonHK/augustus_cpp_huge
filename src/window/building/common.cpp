@@ -76,29 +76,8 @@ static int get_employment_info_text(const Building &current, const building *b, 
     int text_id;
     int local_workforce = building_local_workforce_is_workforce_building(current);
     int labor_access = building_local_workforce_access_score(current);
-    int required_workers = 0;
-    int current_workers = 0;
-    int farm_part_count = 0;
-    current.for_each_part([&](Building part) {
-        building *part_record = building_get(part.id());
-        if (!part.type || !part_record) {
-            return;
-        }
-        if (part.id() == current.id()) {
-            required_workers += part.type->required_workers();
-            current_workers += part_record->num_workers;
-            return;
-        }
-        if (part.type->is_farm()) {
-            required_workers += part.type->required_workers();
-            current_workers += part_record->num_workers;
-            farm_part_count++;
-        }
-    });
-    if (!farm_part_count) {
-        required_workers = current.type ? current.type->required_workers() : 0;
-        current_workers = b->num_workers;
-    }
+    int required_workers = current.employment_required_workers();
+    int current_workers = current.employment_worker_count();
 
     if (current_workers >= required_workers) {
         text_id = 0;
@@ -144,29 +123,8 @@ static void draw_employment_details(building_info_context *c, const Building &cu
         y_offset -= 10;
     }
 
-    int laborers_needed = 0;
-    int worker_count = 0;
-    int farm_part_count = 0;
-    current.for_each_part([&](Building part) {
-        building *part_record = building_get(part.id());
-        if (!part.type || !part_record) {
-            return;
-        }
-        if (part.id() == current.id()) {
-            laborers_needed += part.type->required_workers();
-            worker_count += part_record->num_workers;
-            return;
-        }
-        if (part.type->is_farm()) {
-            laborers_needed += part.type->required_workers();
-            worker_count += part_record->num_workers;
-            farm_part_count++;
-        }
-    });
-    if (!farm_part_count) {
-        laborers_needed = current.type ? current.type->required_workers() : 0;
-        worker_count = b->num_workers;
-    }
+    int laborers_needed = current.employment_required_workers();
+    int worker_count = current.employment_worker_count();
     if (laborers_needed) {
         if (b->state == BUILDING_STATE_MOTHBALLED) {
             int width = lang_text_draw_amount(current_string_amount_key(8, 12, worker_count), worker_count, c->x_offset + 60, y_offset + 10, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
