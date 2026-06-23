@@ -172,6 +172,17 @@ int ProductionMethod::cart_loads_per_cycle() const
     return cart_load_numerator() / cart_load_denominator();
 }
 
+void ProductionMethod::set_cart_capacity(int loads)
+{
+    cart_capacity_ = loads;
+}
+
+int ProductionMethod::cart_capacity() const
+{
+    const int produced_loads = cart_loads_per_cycle();
+    return cart_capacity_ > 0 ? cart_capacity_ : (produced_loads > 0 ? produced_loads : 1);
+}
+
 void ProductionMethod::set_treasury_cost_per_cycle(int cost)
 {
     treasury_cost_per_cycle_ = cost;

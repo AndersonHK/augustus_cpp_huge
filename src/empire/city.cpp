@@ -713,7 +713,8 @@ void empire_city_update_our_fish_and_meat_production(void)
             empire_city_change_selling_of_resource(&city, resource_meat(), !NOT_SELLING);
         } else {
             building_type wharf_type = runtime_type("wharf");
-            if (wharf_type > BUILDING_NONE && scenario_allowed_building(wharf_type)) {
+            if (wharf_type > BUILDING_NONE && scenario_allowed_building(wharf_type) &&
+                scenario_map_has_fishing_points()) {
                 empire_city_change_selling_of_resource(&city, resource_fish(), !NOT_SELLING);
             }
         }

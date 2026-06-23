@@ -4,6 +4,7 @@
 
 #include "core/log.h"
 #include "scenario/allowed_building.h"
+#include "scenario/map.h"
 
 #include "building/building_type_registry_internal.h"
 
@@ -153,8 +154,11 @@ void clear_save_table()
     g_bridge.joined_meat_and_fish = false;
 }
 
-bool wharf_is_allowed()
+bool fishing_industry_is_available()
 {
+    if (!scenario_map_has_fishing_points()) {
+        return false;
+    }
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
         const building_type_registry_impl::BuildingType *definition =
             building_type_registry_impl::definition_for_type(type);
@@ -173,7 +177,7 @@ resource_type runtime_from_text_id(const char *text_id)
     }
 
     if (g_bridge.joined_meat_and_fish && std::string_view(text_id) == "meat" &&
-        wharf_is_allowed()) {
+        fishing_industry_is_available()) {
         text_id = "fish";
     }
 
@@ -189,7 +193,7 @@ resource_type runtime_from_raw_runtime_slot(int id)
     }
     if (g_bridge.joined_meat_and_fish) {
         const char *text_id = resource_text_id(runtime_id);
-        if (text_id && std::string_view(text_id) == "meat" && wharf_is_allowed()) {
+        if (text_id && std::string_view(text_id) == "meat" && fishing_industry_is_available()) {
             return runtime_from_text_id("fish");
         }
     }

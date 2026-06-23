@@ -53,6 +53,8 @@ Production throughput belongs to `Mods/<Mod>/ProductionMethod/*.xml`:
 
 The output resource identifies the produced good. `production_per_month` is the method's base monthly throughput before climate bonuses or scenario/save overrides. Resource supply-chain queries now derive their raw-material/good pairs from loaded ProductionMethod inputs and outputs instead of from a hardcoded resource table.
 
+`cart_loads` is the produced amount for a completed cycle, including fractional field output such as `numerator="1" denominator="5"`. `cart_capacity` is optional and controls how many full loads an output cart may reserve from storage; if omitted, carts default to the integer produced-load count, or one load for fractional producers.
+
 ## Save Bridge
 
 New live saves write a resource save table through `resource_id_bridge_save_table_save_state()`. The table stores save-local numeric ids plus resource text ids, then resolves those text ids against the active mod's `Resources` XML during load. Current saves use the XML `slot` as the save-local id so existing resource arrays remain stable while identity is text-backed.
@@ -105,3 +107,9 @@ Fish production now has native BuildingType/ProductionMethod metadata in Julius,
 - `Mods/<Mod>/ProductionMethod/fish_wharf_basic.xml`
 
 The fishing-boat runtime still owns the actual catch loop. The wharf production method supplies semantic producer discovery and monthly-throughput metadata so fish no longer needs a resource-owned production value.
+
+## Future Farm Field Ownership
+
+Current farms still use the composed-building model: the main farm owns the building-level labor/storage/export behavior, and its field buildings contribute their production methods into the farm's aggregate production math.
+
+The next farm slice should move fields to separately placed tile-tool buildings. A farm then acquires ownership of adjacent fields at runtime, from zero up to an XML-authored maximum. The aggregation rule stays the same but must stop assuming a fixed field count: group owned fields by their static `ProductionMethod`, then multiply that method's throughput and output by the number of owned fields using that same method. This keeps the code readable, supports future farms with arbitrary field counts, and avoids scattering one-off "five fields" assumptions through production, labor, and storage.

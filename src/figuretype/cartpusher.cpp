@@ -156,16 +156,24 @@ static int should_change_destination(
         return 1;
     }
     Building current_destination_obj = f->destination_building;
-    // Same building
-    if (current_destination_obj.id() == new_destination.id() && f->destination_x == x_dst &&
-        f->destination_y == y_dst && current_destination_obj.type == new_destination.type) {
-        return 0;
-    }
+    const int same_destination = current_destination_obj.id() == new_destination.id() &&
+        f->destination_x == x_dst &&
+        f->destination_y == y_dst &&
+        current_destination_obj.type == new_destination.type;
     switch (f->action_state) {
         case FIGURE_ACTION_21_CARTPUSHER_DELIVERING_TO_WAREHOUSE:
         case FIGURE_ACTION_22_CARTPUSHER_DELIVERING_TO_GRANARY:
         {
-            if (!building_storage_accepts_storage(current_destination_obj, static_cast<resource_type>(f->resource_id), 0)) {
+            const resource_type resource = static_cast<resource_type>(f->resource_id);
+            if (building_matches(current_destination_obj, "granary")) {
+                if (building_granary_maximum_receptible_amount(current_destination_obj, resource) <= 0) {
+                    return 1;
+                }
+            } else if (is_warehouse_storage(current_destination_obj)) {
+                if (building_warehouse_maximum_receptible_amount(current_destination_obj, resource) <= 0) {
+                    return 1;
+                }
+            } else if (!building_storage_accepts_storage(current_destination_obj, resource, 0)) {
                 return 1;
             }
             break;
@@ -176,9 +184,12 @@ static int should_change_destination(
                     new_destination.resource_amount(static_cast<resource_type>(f->resource_id)) <
                         current_destination_obj.resource_amount(static_cast<resource_type>(f->resource_id));
             }
-            if (building_matches(current_destination_obj, "granary") ||
-                building_matches(current_destination_obj, "warehouse")) {
-                if (!building_storage_accepts_storage(current_destination_obj, static_cast<resource_type>(f->resource_id), 0)) {
+            if (building_matches(current_destination_obj, "granary") || is_warehouse_storage(current_destination_obj)) {
+                const resource_type resource = static_cast<resource_type>(f->resource_id);
+                const int can_receive = building_matches(current_destination_obj, "granary") ?
+                    building_granary_maximum_receptible_amount(current_destination_obj, resource) :
+                    building_warehouse_maximum_receptible_amount(current_destination_obj, resource);
+                if (can_receive <= 0) {
                     return 1;
                 }
             }
@@ -197,6 +208,9 @@ static int should_change_destination(
             break;
         default:
             return 0;
+    }
+    if (same_destination) {
+        return 0;
     }
     int distance_current = calc_maximum_distance(current_destination_obj.x(), current_destination_obj.y(), f->x, f->y);
     int distance_new = calc_maximum_distance(x_dst, y_dst, f->x, f->y);
@@ -573,12 +587,15 @@ void figure_cartpusher_action(Figure *f)
                     cartpusher_return_to_source(f, source);
                 } else {
                     if (should_change_destination(f, source, destination, f->destination_x, f->destination_y)) {
+                        const int previous_action = f->action_state;
                         determine_cartpusher_destination(f, source, road_network_id);
+                        if (f->action_state == previous_action) {
+                            cartpusher_return_to_source(f, source);
+                        }
                         break;
                     }
                     figure_route_remove(f);
-                    f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
-                    f->wait_ticks = 0;
+                    cartpusher_return_to_source(f, source);
                 }
             }
             f->image_offset = 0;
@@ -599,11 +616,14 @@ void figure_cartpusher_action(Figure *f)
                         break;
                     }
                     if (should_change_destination(f, source, destination, f->destination_x, f->destination_y)) {
+                        const int previous_action = f->action_state;
                         determine_cartpusher_destination(f, source, road_network_id);
+                        if (f->action_state == previous_action) {
+                            cartpusher_return_to_source(f, source);
+                        }
                         break;
                     }
-                    f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
-                    determine_cartpusher_destination_food(f, source, road_network_id);
+                    cartpusher_return_to_source(f, source);
                 }
             }
             f->image_offset = 0;

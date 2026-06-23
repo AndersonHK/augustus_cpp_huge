@@ -33,6 +33,7 @@ struct ParseState {
     int saw_output = 0;
     int saw_batch_size = 0;
     int saw_cart_loads = 0;
+    int saw_cart_capacity = 0;
     int saw_treasury_cost = 0;
     int error = 0;
 };
@@ -241,6 +242,14 @@ int validate_definition(const ProductionMethod &definition, const char *filename
             definition.cart_load_numerator(), definition.cart_load_denominator());
         log_error("ProductionMethod cart_loads exceeds current cart load field", definition.path(), 0);
         error_context_report_error("ProductionMethod cart_loads exceeds current cart load field.", detail);
+        return 0;
+    }
+    if (definition.cart_capacity() <= 0 || definition.cart_capacity() > UCHAR_MAX) {
+        char detail[512];
+        snprintf(detail, sizeof(detail), "file=%s path=%s cart_capacity=%d", filename,
+            definition_path ? definition_path : "", definition.cart_capacity());
+        log_error("ProductionMethod cart_capacity exceeds current cart load field", definition.path(), 0);
+        error_context_report_error("ProductionMethod cart_capacity exceeds current cart load field.", detail);
         return 0;
     }
     if (definition.treasury_cost_per_cycle() < 0) {
@@ -471,6 +480,34 @@ int parse_cart_loads()
     return 1;
 }
 
+int parse_cart_capacity()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered ProductionMethod cart_capacity before root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_cart_capacity) {
+        log_error("ProductionMethod xml contains duplicate cart_capacity nodes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("value")) {
+        log_error("ProductionMethod cart_capacity is missing required attribute 'value'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    const int value = xml_parser_get_attribute_int("value");
+    if (value <= 0) {
+        log_error("Unsupported ProductionMethod cart_capacity", xml_parser_get_attribute_string("value"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.definition->set_cart_capacity(value);
+    g_parse_state.saw_cart_capacity = 1;
+    return 1;
+}
+
 int parse_treasury_cost()
 {
     if (!g_parse_state.definition) {
@@ -592,6 +629,7 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "output", parse_output, nullptr, "production_method", nullptr },
     { "batch_size", parse_batch_size, nullptr, "production_method", nullptr },
     { "cart_loads", parse_cart_loads, nullptr, "production_method", nullptr },
+    { "cart_capacity", parse_cart_capacity, nullptr, "production_method", nullptr },
     { "treasury_cost", parse_treasury_cost, nullptr, "production_method", nullptr },
     { "climate_bonuses", parse_climate_bonuses, nullptr, "production_method", nullptr },
     { "bonus", parse_climate_bonus, nullptr, "climate_bonuses", nullptr },

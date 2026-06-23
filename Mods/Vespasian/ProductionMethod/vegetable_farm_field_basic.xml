@@ -2,6 +2,6 @@
 <production_method>
     <kind value="farm" />
     <output resource="vegetables" production_per_month="16" />
-    <batch_size value="5" />
+    <batch_size value="1" />
     <cart_loads value="1" />
 </production_method>

@@ -79,6 +79,8 @@ public:
     int cart_load_numerator() const;
     int cart_load_denominator() const;
     int cart_loads_per_cycle() const;
+    void set_cart_capacity(int loads);
+    int cart_capacity() const;
 
     void set_treasury_cost_per_cycle(int cost);
     int treasury_cost_per_cycle() const;
@@ -114,6 +116,7 @@ private:
     int batch_size_ = 1;
     int cart_load_numerator_ = 0;
     int cart_load_denominator_ = 1;
+    int cart_capacity_ = 0;
     int treasury_cost_per_cycle_ = 0;
     std::vector<ProductionResourceAmount> inputs_;
     std::vector<ClimateProductionBonus> climate_bonuses_;

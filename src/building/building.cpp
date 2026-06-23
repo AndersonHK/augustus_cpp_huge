@@ -32,11 +32,13 @@
 #include "building/building_runtime_internal.h"
 #include "building/dock.h"
 #include "building/building_type_registry_internal.h"
+#include "building/production_method.h"
 #include "building/production_runtime.h"
 #include "core/crash_context.h"
 #include "figure/figure.h"
 #include "figure/formation_legion.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
@@ -116,6 +118,38 @@ static int original_type_matches(const building *b, const char *text_id)
 static const building_type_registry_impl::BuildingType *definition_for_type(building_type type)
 {
     return building_type_registry_impl::definition_for_type(type);
+}
+
+static int output_cart_capacity_from_methods(
+    const std::vector<building_type_registry_impl::ProductionMethod *> &methods,
+    resource_type resource)
+{
+    int capacity = 0;
+    for (const building_type_registry_impl::ProductionMethod *method : methods) {
+        if (method && method->outputs_to_building_storage() && method->output_resource() == resource) {
+            capacity = std::max(capacity, method->cart_capacity());
+        }
+    }
+    return capacity;
+}
+
+static int output_cart_capacity_for_definition(
+    const building_type_registry_impl::BuildingType *definition,
+    resource_type resource)
+{
+    if (!definition) {
+        return 1;
+    }
+
+    int capacity = output_cart_capacity_from_methods(definition->production_methods(), resource);
+    for (const building_type_registry_impl::ComposedPartDefinition &part : definition->composition().parts()) {
+        const building_type_registry_impl::BuildingType *part_definition = definition_for_type(part.type);
+        if (part_definition) {
+            capacity = std::max(capacity,
+                output_cart_capacity_from_methods(part_definition->production_methods(), resource));
+        }
+    }
+    return capacity > 0 ? capacity : 1;
 }
 
 static struct {
@@ -1209,7 +1243,8 @@ int Building::reserve_output_storage_loads(resource_type *out_resource, int *out
             continue;
         }
         for (resource_type resource : storage->type()->resources()) {
-            const int loads = storage->remove_loads(resource, 1);
+            const int capacity = output_cart_capacity_for_definition(type, resource);
+            const int loads = storage->remove_loads(resource, capacity);
             if (loads > 0) {
                 if (out_resource) {
                     *out_resource = resource;

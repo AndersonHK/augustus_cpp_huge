@@ -79,15 +79,19 @@ void scenario_map_foreach_fishing_point(void (*callback)(int x, int y))
     }
 }
 
-int scenario_map_closest_fishing_point(int x, int y, map_point *fish)
+int scenario_map_has_fishing_points(void)
 {
-    int num_fishing_spots = 0;
     for (int i = 0; i < MAX_FISH_POINTS; i++) {
         if (scenario.fishing_points[i].x > 0) {
-            num_fishing_spots++;
+            return 1;
         }
     }
-    if (num_fishing_spots <= 0) {
+    return 0;
+}
+
+int scenario_map_closest_fishing_point(int x, int y, map_point *fish)
+{
+    if (!scenario_map_has_fishing_points()) {
         return 0;
     }
     int min_dist = 10000;

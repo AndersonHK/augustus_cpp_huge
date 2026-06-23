@@ -25,6 +25,8 @@ void scenario_map_foreach_herd_point(void (*callback)(int x, int y));
 
 void scenario_map_foreach_fishing_point(void (*callback)(int x, int y));
 
+int scenario_map_has_fishing_points(void);
+
 int scenario_map_closest_fishing_point(int x, int y, map_point *fish);
 
 int scenario_map_has_flotsam(void);

@@ -195,7 +195,9 @@ int selected_option_for_selection(
         return 0;
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::BuildRotation) {
-        int option = building.orientation() % option_count;
+        int option = option_count == 4 ?
+            (building.orientation() + city_view_orientation() / 2) % option_count :
+            building.variant() % option_count;
         return option < 0 ? option + option_count : option;
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::Orientation) {
