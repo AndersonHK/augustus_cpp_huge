@@ -13,12 +13,11 @@
 #include "figure/route.h"
 #include "map/figure.h"
 
-#include <initializer_list>
-
 #include "building/building_record.h"
 #include "building/destruction.h"
 #include "core/calc.h"
 #include "core/config.h"
+#include "game/defines.h"
 #include "game/time.h"
 #include "map/grid.h"
 #include "map/property.h"
@@ -27,11 +26,6 @@
 #include "map/terrain.h"
 
 namespace {
-
-constexpr int kPalisadeHp = 60;
-constexpr int kBuildingHp = 10;
-constexpr int kWallHp = 600;
-constexpr int kGatehouseHp = 150;
 
 building_type runtime_type(const char *text_id)
 {
@@ -44,20 +38,25 @@ bool type_matches(building_type type, const char *text_id)
     return resolved != BUILDING_NONE && type == resolved;
 }
 
-bool type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
-{
-    for (const char *text_id : text_ids) {
-        if (type_matches(type, text_id)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool building_at_matches(int grid_offset, const char *text_id)
 {
     building *b = building_get(map_building_at(grid_offset));
     return b && type_matches(b->type, text_id);
+}
+
+int hit_points_for_type(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->model().has_hit_points() ?
+        definition->model().hit_points() :
+        game_defines_default_building_hit_points();
+}
+
+int hit_points_for_building_at(int grid_offset)
+{
+    building *b = building_get(map_building_at(grid_offset));
+    return b ? hit_points_for_type(b->type) : game_defines_default_building_hit_points();
 }
 
 } // namespace
@@ -249,24 +248,20 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             int max_damage = 0;
             switch (map_routing_get_destroyable(target_grid_offset)) {
                 case DESTROYABLE_BUILDING:
-                {
-                    building *b = building_get(map_building_at(target_grid_offset));
-                    max_damage = b && type_matches_any(b->type, {"palisade", "palisade_gate"}) ?
-                        kPalisadeHp : kBuildingHp;
+                    max_damage = hit_points_for_building_at(target_grid_offset);
                     break;
-                }
                 case DESTROYABLE_AQUEDUCT_GARDEN:
                     if (map_terrain_is(target_grid_offset, TERRAIN_ACCESS_RAMP | TERRAIN_RUBBLE)) {
                         cause_damage = 0;
                     } else {
-                        max_damage = kBuildingHp;
+                        max_damage = game_defines_default_building_hit_points();
                     }
                     break;
                 case DESTROYABLE_WALL:
-                    max_damage = kWallHp;
+                    max_damage = hit_points_for_building_at(target_grid_offset);
                     break;
                 case DESTROYABLE_GATEHOUSE:
-                    max_damage = kGatehouseHp;
+                    max_damage = hit_points_for_building_at(target_grid_offset);
                     break;
             }
             if (cause_damage) {

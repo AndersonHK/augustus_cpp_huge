@@ -23,6 +23,60 @@
             </options>
         </default>
     </graphics>
+    <construction mode="phased">
+        <phase index="1">
+            <graphics>
+                <options selection="build_rotation">
+                    <option path="Monuments\Circus_NESW_03" image="Circus NESW 03" />
+                    <option path="Monuments\Circus_NWSE_03" image="Circus NWSE 03" />
+                    <option path="Monuments\Circus_NESW_03" image="Circus NESW 03" />
+                    <option path="Monuments\Circus_NWSE_03" image="Circus NWSE 03" />
+                </options>
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="stone" amount="32" />
+        </phase>
+        <phase index="2">
+            <graphics>
+                <options selection="build_rotation">
+                    <option path="Monuments\Circus_NESW_13" image="Circus NESW 13" />
+                    <option path="Monuments\Circus_NWSE_13" image="Circus NWSE 13" />
+                    <option path="Monuments\Circus_NESW_13" image="Circus NESW 13" />
+                    <option path="Monuments\Circus_NWSE_13" image="Circus NWSE 13" />
+                </options>
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="16" />
+            <requirement type="concrete" amount="32" />
+        </phase>
+        <phase index="3">
+            <graphics>
+                <options selection="build_rotation">
+                    <option path="Monuments\Circus_NESW_23" image="Circus NESW 23" />
+                    <option path="Monuments\Circus_NWSE_23" image="Circus NWSE 23" />
+                    <option path="Monuments\Circus_NESW_23" image="Circus NESW 23" />
+                    <option path="Monuments\Circus_NWSE_23" image="Circus NWSE 23" />
+                </options>
+            </graphics>
+            <requirement type="architects" amount="1" />
+            <requirement type="timber" amount="16" />
+            <requirement type="stone" amount="32" />
+        </phase>
+        <phase index="4">
+            <graphics>
+                <options selection="build_rotation">
+                    <option path="Monuments\Circus_NESW_33" image="Circus NESW 33" />
+                    <option path="Monuments\Circus_NWSE_33" image="Circus NWSE 33" />
+                    <option path="Monuments\Circus_NESW_33" image="Circus NESW 33" />
+                    <option path="Monuments\Circus_NWSE_33" image="Circus NWSE 33" />
+                </options>
+            </graphics>
+            <requirement type="architects" amount="4" />
+            <requirement type="timber" amount="32" />
+            <requirement type="marble" amount="48" />
+            <requirement type="bricks" amount="32" />
+        </phase>
+    </construction>
     <culture_modules>
         <culture_module path="hippodrome" capacity="1" count="working" />
     </culture_modules>

@@ -84,13 +84,18 @@ static int industry_text_get_width(const industry_text &text, int offset, font_t
 static int industry_text_draw_progress_line(
     const industry_text &text, int pct_done, int x, int y, font_t font, int pixel_size)
 {
-    const int prefix_width = industry_text_draw(text, 2, x, y, font, pixel_size);
+    int width = text_draw(string_from_ascii("("), x, y, font, pixel_size, COLOR_MASK_NONE);
+    const int prefix_x = x + width;
+    const int prefix_width = industry_text_draw(text, 2, prefix_x, y, font, pixel_size);
     const int percentage_width = text_get_number_width(pct_done, 0, "%", font, pixel_size);
     const int max_percentage_width = text_get_number_width(100, 0, "%", font, pixel_size);
-    text_draw_percentage(pct_done, x + prefix_width + max_percentage_width - percentage_width,
+    text_draw_percentage(pct_done, prefix_x + prefix_width + max_percentage_width - percentage_width,
         y, font, pixel_size);
-    industry_text_draw(text, 3, x + prefix_width + max_percentage_width, y, font, pixel_size);
-    return prefix_width + max_percentage_width + industry_text_get_width(text, 3, font, pixel_size);
+    const int suffix_x = prefix_x + prefix_width + max_percentage_width;
+    const int suffix_width = industry_text_draw(text, 3, suffix_x, y, font, pixel_size);
+    width += prefix_width + max_percentage_width + suffix_width;
+    width += text_draw(string_from_ascii(")"), x + width, y, font, pixel_size, COLOR_MASK_NONE);
+    return width;
 }
 
 static int industry_draw_output_with_progress_line(
@@ -99,8 +104,8 @@ static int industry_draw_output_with_progress_line(
     const font_t font = FONT_NORMAL_BLACK;
     const int pixel_size = screen_ui_to_pixel(font_definition_for(font)->line_height);
     const int output_width = window_building_draw_production_outputs_inline(c, 32, y_offset - 4);
-    const int progress_x = c->x_offset + 32 + output_width + (output_width ? 16 : 0);
-    return output_width + (output_width ? 16 : 0) +
+    const int progress_x = c->x_offset + 32 + output_width + (output_width ? 4 : 0);
+    return output_width + (output_width ? 4 : 0) +
         industry_text_draw_progress_line(text, pct_done, progress_x, c->y_offset + y_offset, font, pixel_size);
 }
 
@@ -661,9 +666,9 @@ void window_building_draw_shipyard(building_info_context *c)
     } else {
         const int max_progress = building_industry_get_max_progress(b);
         int pct_done = max_progress > 0 ? calc_percentage(b->data.industry.progress, max_progress) : 0;
-        int width = lang_text_draw("main_strings.100.2", c->x_offset + 32, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        width += text_draw_percentage(pct_done, c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        lang_text_draw("main_strings.100.3", c->x_offset + 32 + width, c->y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        industry_text_draw_progress_line(legacy_industry_text(100, 0), pct_done, c->x_offset + 32,
+            c->y_offset + 56, FONT_NORMAL_BLACK,
+            screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         const int boats_needed = shipyard_boats_needed();
         const int inputs_height = boats_needed ?
             window_building_draw_production_rows(c, 80, WINDOW_BUILDING_PRODUCTION_INPUTS) : 0;
@@ -720,7 +725,7 @@ void window_building_draw_wharf(building_info_context *c)
     int production_rows_height = 0;
     if (window_building_has_figure_delivery_output(c)) {
         const int output_width = window_building_draw_production_outputs_inline(c, 32, 88);
-        const int average_x = c->x_offset + 32 + output_width + (output_width ? 24 : 0);
+        const int average_x = c->x_offset + 32 + output_width + (output_width ? 8 : 0);
         int width = lang_text_draw("TR_BUILDING_WINDOW_INDUSTRY_WHARF_AVERAGE_CATCH",
             average_x, c->y_offset + 92, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         const int average_catch = has_live_boat ? b->data.industry.average_production_per_month : 0;

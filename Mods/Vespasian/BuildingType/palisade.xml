@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="palisade">
     <identity name_key="TR_BUILDING_PALISADE" />
-    <model size="1" cost="6" />
+    <model size="1" cost="6" hp="60" />
     <desirability>
         <value value="0" />
         <step value="0" />

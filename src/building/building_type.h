@@ -286,6 +286,7 @@ class BuildModelDefinition {
 public:
     void set_size(int value);
     void set_cost(int value);
+    void set_hit_points(int value);
     void set_desirability_value(int value);
     void set_desirability_step(int value);
     void set_desirability_step_size(int value);
@@ -295,6 +296,8 @@ public:
     int size() const;
     int has_cost() const;
     int cost() const;
+    int has_hit_points() const;
+    int hit_points() const;
     int has_desirability_value() const;
     int desirability_value() const;
     int has_desirability_step() const;
@@ -310,6 +313,8 @@ private:
     int size_ = 0;
     int has_cost_ = 0;
     int cost_ = 0;
+    int has_hit_points_ = 0;
+    int hit_points_ = 0;
     int has_desirability_value_ = 0;
     int desirability_value_ = 0;
     int has_desirability_step_ = 0;
@@ -597,6 +602,7 @@ public:
     void set_identity_name_key(std::string key);
     void set_model_size(int value);
     void set_model_cost(int value);
+    void set_model_hit_points(int value);
     void set_model_desirability_value(int value);
     void set_model_desirability_step(int value);
     void set_model_desirability_step_size(int value);

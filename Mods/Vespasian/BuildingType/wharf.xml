@@ -33,6 +33,9 @@
     <production_methods>
         <production_method path="fish_wharf_basic" />
     </production_methods>
+    <storages>
+        <storage path="fish_output_wharf" />
+    </storages>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">
         <spawn mode="fishing_boat" spawn_figure="fishing_boat" spawn_source="self" capacity="1" profile="fish_fetch" />
     </spawn_group>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gatehouse">
     <identity name_key="main_strings.28.58" />
-    <model size="2" cost="100" />
+    <model size="2" cost="100" hp="150" />
     <desirability>
         <value value="-4" />
         <step value="1" />

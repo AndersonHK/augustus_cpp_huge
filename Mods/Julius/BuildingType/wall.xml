@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="wall">
     <identity name_key="main_strings.28.6" />
-    <model size="1" cost="12" />
+    <model size="1" cost="12" hp="150" />
     <desirability>
         <value value="0" />
         <step value="0" />

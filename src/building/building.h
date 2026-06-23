@@ -173,6 +173,7 @@ public:
     int native_production_efficiency() const;
     int update_native_production(int new_day, int *out_is_striking);
     int native_production_has_completed_effect() const;
+    int output_cart_capacity(resource_type resource) const;
     int reserve_output_storage_loads(resource_type *out_resource, int *out_loads);
     int start_native_production();
     void advance_native_production_stats();

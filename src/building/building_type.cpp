@@ -45,6 +45,12 @@ void BuildModelDefinition::set_cost(int value)
     cost_ = value;
 }
 
+void BuildModelDefinition::set_hit_points(int value)
+{
+    has_hit_points_ = 1;
+    hit_points_ = value;
+}
+
 void BuildModelDefinition::set_desirability_value(int value)
 {
     has_desirability_value_ = 1;
@@ -89,6 +95,16 @@ int BuildModelDefinition::cost() const
     return cost_;
 }
 
+int BuildModelDefinition::has_hit_points() const
+{
+    return has_hit_points_;
+}
+
+int BuildModelDefinition::hit_points() const
+{
+    return hit_points_;
+}
+
 int BuildModelDefinition::has_desirability_value() const
 {
     return has_desirability_value_;
@@ -131,7 +147,7 @@ int BuildModelDefinition::desirability_range() const
 
 int BuildModelDefinition::has_any() const
 {
-    return has_size_ || has_cost_ || has_desirability_value_ || has_desirability_step_ ||
+    return has_size_ || has_cost_ || has_hit_points_ || has_desirability_value_ || has_desirability_step_ ||
         has_desirability_step_size_ || has_desirability_range_;
 }
 
@@ -780,6 +796,11 @@ void BuildingType::set_model_size(int value)
 void BuildingType::set_model_cost(int value)
 {
     model_.set_cost(value);
+}
+
+void BuildingType::set_model_hit_points(int value)
+{
+    model_.set_hit_points(value);
 }
 
 void BuildingType::set_model_desirability_value(int value)
@@ -1470,7 +1491,10 @@ const GraphicsTarget *BuildingType::resolve_graphics_target(const Building &buil
 const GraphicsTarget *BuildingType::resolve_construction_graphics_target(int phase) const
 {
     const ConstructionPhase *construction_phase = construction_.phase(phase);
-    return construction_phase && construction_phase->graphics.has_path() ? &construction_phase->graphics : nullptr;
+    return construction_phase && (
+        construction_phase->graphics.has_path() ||
+        construction_phase->graphics.has_options() ||
+        construction_phase->graphics.is_resource_storage()) ? &construction_phase->graphics : nullptr;
 }
 
 const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const BuildingType *definition, const Building &building)

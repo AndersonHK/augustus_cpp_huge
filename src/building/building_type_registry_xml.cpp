@@ -748,6 +748,20 @@ static int parse_model()
         any_value = 1;
     }
 
+    if (!parse_optional_int_attribute("Unsupported BuildingType model numeric attribute", "hp", &value, &has_value)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_value) {
+        if (value <= 0) {
+            log_error("Unsupported BuildingType model hp", g_parse_state.definition->attr(), value);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_model_hit_points(value);
+        any_value = 1;
+    }
+
     if (!any_value) {
         log_error("BuildingType model is missing supported attributes", g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
@@ -1642,7 +1656,8 @@ static void finish_graphics()
 
     if (g_parse_state.current_graphics_target_scope == GraphicsParseTargetScope::ConstructionPhase) {
         ConstructionPhase *phase = g_parse_state.definition->last_construction_phase();
-        if (!phase || !phase->graphics.has_path()) {
+        if (!phase || (!phase->graphics.has_path() && !phase->graphics.has_options() &&
+            !phase->graphics.is_resource_storage())) {
             log_error("BuildingType construction phase graphics is missing required child node 'path'", 0, 0);
             g_parse_state.error = 1;
         }
@@ -1758,7 +1773,9 @@ static void finish_construction_phase()
         return;
     }
     ConstructionPhase *phase = g_parse_state.definition ? g_parse_state.definition->last_construction_phase() : nullptr;
-    if (!g_parse_state.saw_construction_phase_graphics || !phase || !phase->graphics.has_path()) {
+    if (!g_parse_state.saw_construction_phase_graphics || !phase ||
+        (!phase->graphics.has_path() && !phase->graphics.has_options() &&
+            !phase->graphics.is_resource_storage())) {
         log_error("BuildingType construction phase is missing required graphics", 0, 0);
         g_parse_state.error = 1;
     }
@@ -2005,8 +2022,9 @@ static int parse_graphics_options()
     }
     if (!g_parse_state.parsing_graphics_layer &&
         g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::Default &&
-        g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::Variant) {
-        log_error("BuildingType graphics options must appear inside default or variant", 0, 0);
+        g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::Variant &&
+        g_parse_state.current_graphics_target_scope != GraphicsParseTargetScope::ConstructionPhase) {
+        log_error("BuildingType graphics options must appear inside default, variant, or construction phase", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
@@ -3636,7 +3654,7 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "image", parse_graphics_image, nullptr, "default|variant|graphics", nullptr },
     { "resource_storage", parse_graphics_resource_storage, nullptr, "default|variant", nullptr },
     { "layer", parse_graphics_layer, finish_graphics_layer, "default|variant", nullptr },
-    { "options", parse_graphics_options, finish_graphics_options, "default|variant|layer", nullptr },
+    { "options", parse_graphics_options, finish_graphics_options, "default|variant|layer|graphics", nullptr },
     { "option", parse_graphics_option, nullptr, "options", nullptr },
     { "condition", parse_graphics_condition, nullptr, "variant|layer", nullptr },
     { "labor", parse_labor, finish_labor, "building", nullptr },

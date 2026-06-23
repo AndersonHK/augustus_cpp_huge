@@ -1179,7 +1179,8 @@ int Building::industry_is_stockpiling() const
 int Building::has_required_raw_amount_for_production(resource_type resource) const
 {
     return record_ && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ?
-        record_->resources[resource] >= building_get_required_raw_amount_for_production(record_->type, resource) :
+        storage_resource_amount(resource, building_type_registry_impl::StorageRole::Input) >=
+            building_get_required_raw_amount_for_production(record_->type, resource) :
         0;
 }
 
@@ -1230,6 +1231,11 @@ int Building::native_production_has_completed_effect() const
     return production ? production->has_completed_effect() : 0;
 }
 
+int Building::output_cart_capacity(resource_type resource) const
+{
+    return output_cart_capacity_for_definition(type, resource);
+}
+
 int Building::reserve_output_storage_loads(resource_type *out_resource, int *out_loads)
 {
     if (!record_ || !type) {
@@ -1243,7 +1249,7 @@ int Building::reserve_output_storage_loads(resource_type *out_resource, int *out
             continue;
         }
         for (resource_type resource : storage->type()->resources()) {
-            const int capacity = output_cart_capacity_for_definition(type, resource);
+            const int capacity = output_cart_capacity(resource);
             const int loads = storage->remove_loads(resource, capacity);
             if (loads > 0) {
                 if (out_resource) {

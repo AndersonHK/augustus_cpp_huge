@@ -25,6 +25,7 @@
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 
+#include <algorithm>
 #include <cstring>
 #include <initializer_list>
 #include <string_view>
@@ -1048,7 +1049,10 @@ static void spawn_figure_wharf(building *b)
             return;
         }
         if (b->figure_spawn_delay && b->data.industry.has_fish > 0) {
-            b->data.industry.has_fish--;
+            Building wharf(b);
+            const int loads = std::min(static_cast<int>(b->data.industry.has_fish),
+                wharf.output_cart_capacity(resource_fish()));
+            b->data.industry.has_fish -= loads;
             b->figure_spawn_delay = b->data.industry.has_fish > 0 ? 1 : 0;
             Figure *f = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
             f->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
@@ -1056,7 +1060,7 @@ static void spawn_figure_wharf(building *b)
             attach_figure_to_building(f, b);
             b->figure_id = f->id();
             f->wait_ticks = game_time_scale_legacy_day_ticks(30);
-            f->loads_sold_or_carrying = 1;
+            f->loads_sold_or_carrying = static_cast<unsigned char>(loads);
         }
     }
 }

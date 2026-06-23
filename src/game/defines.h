@@ -11,6 +11,7 @@ int game_defines_ticks_per_month(int month);
 int game_defines_ticks_per_year(void);
 int game_defines_is_last_day_of_month(int month, int day);
 int game_defines_is_last_day_of_year(int month, int day);
+int game_defines_default_building_hit_points(void);
 
 int game_defines_mortality_percentage(int health_bucket, int age_decennium);
 int game_defines_birth_percentage(int age_decennium);

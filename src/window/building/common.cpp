@@ -214,8 +214,56 @@ void window_building_play_sound(building_info_context *c, const char *sound_file
     }
 }
 
+static int output_storage_capacity(building_info_context *c, resource_type resource)
+{
+    if (!c->building.type) {
+        return 0;
+    }
+
+    int capacity = 0;
+    for (const building_type_registry_impl::StorageType *storage : c->building.type->storage_types()) {
+        if (storage && storage->is_output() && storage->handles_resource(resource)) {
+            capacity += storage->capacity();
+        }
+    }
+    return capacity;
+}
+
+static int draw_output_storage_amount(
+    building_info_context *c,
+    const building_type_registry_impl::ProductionMethod *method,
+    resource_type resource,
+    int x,
+    int y,
+    int pixel_size)
+{
+    const int capacity = output_storage_capacity(c, resource);
+    if (capacity <= 0) {
+        return 0;
+    }
+
+    const int amount = c->building.storage_resource_amount(
+        resource, building_type_registry_impl::StorageRole::Output);
+    const building *record = building_get(c->building.id());
+    const int max_progress = method ? method->max_progress_for(c->building) : 0;
+    const int is_full_and_complete = amount >= capacity && record && max_progress > 0 &&
+        record->data.industry.progress >= max_progress;
+    const font_t font = is_full_and_complete ? FONT_NORMAL_RED : FONT_NORMAL_BLACK;
+    lang_text_draw_amount_colored(current_string_amount_key(8, 10, amount), amount,
+        x, y, font, pixel_size, is_full_and_complete ? COLOR_MASK_RED : COLOR_MASK_NONE);
+    const int reserved_amount = amount > capacity ? amount : capacity;
+    return lang_text_get_amount_width(
+        current_string_amount_key(8, 10, reserved_amount), reserved_amount, font, pixel_size);
+}
+
 static int draw_production_resource_row(
-    building_info_context *c, resource_type resource, int value, int needed, int y_offset)
+    building_info_context *c,
+    const building_type_registry_impl::ProductionMethod *method,
+    resource_type resource,
+    int value,
+    int needed,
+    int y_offset,
+    int show_output_storage)
 {
     const resource_data *data = resource_get_data(resource);
     if (!data || !data->text) {
@@ -228,7 +276,10 @@ static int draw_production_resource_row(
 
     resource_graphics(resource).panel_icon().draw(c->x_offset + 32, y);
     int width = text_draw(data->text, c->x_offset + 60, y + 4, FONT_NORMAL_BLACK, pixel_size, COLOR_MASK_NONE);
-    if (value > 0 || needed > 0) {
+    if (show_output_storage) {
+        width += draw_output_storage_amount(c, method, resource, c->x_offset + 64 + width, y + 4,
+            screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    } else if (value > 0 || needed > 0) {
         width += lang_text_draw_amount(current_string_amount_key(8, 10, value), value,
             c->x_offset + 64 + width, y + 4, amount_font,
             screen_ui_to_pixel(font_definition_for(amount_font)->line_height));
@@ -251,6 +302,17 @@ static int draw_production_resource_label(resource_type resource, int x, int y)
     const int pixel_size = screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height);
     resource_graphics(resource).panel_icon().draw(x, y);
     return 28 + text_draw(data->text, x + 28, y + 4, FONT_NORMAL_BLACK, pixel_size, COLOR_MASK_NONE);
+}
+
+static int draw_production_output_inline(
+    building_info_context *c, const building_type_registry_impl::ProductionMethod *method, resource_type resource, int x, int y)
+{
+    int width = draw_production_resource_label(resource, x, y);
+    if (width) {
+        width += draw_output_storage_amount(c, method, resource, x + width + 4, y + 4,
+            screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    }
+    return width;
 }
 
 static int resource_slot(resource_type resource)
@@ -290,8 +352,8 @@ static int draw_production_rows_for_type(
             const int output_slot = resource_slot(method->output_resource());
             if (output_slot >= 0 && !seen_outputs[output_slot]) {
                 seen_outputs[output_slot] = 1;
-                consumed_height += draw_production_resource_row(c, method->output_resource(),
-                    0, 0, y_offset + consumed_height);
+                consumed_height += draw_production_resource_row(c, method, method->output_resource(),
+                    0, 0, y_offset + consumed_height, 1);
             }
         }
         if (flags & WINDOW_BUILDING_PRODUCTION_INPUTS) {
@@ -299,9 +361,11 @@ static int draw_production_rows_for_type(
                 const int input_slot = resource_slot(input.resource);
                 if (input_slot >= 0 && !seen_inputs[input_slot]) {
                     seen_inputs[input_slot] = 1;
-                    consumed_height += draw_production_resource_row(c, input.resource,
-                        c->building.resource_amount(input.resource), method->scaled_input_amount(input),
-                        y_offset + consumed_height);
+                    consumed_height += draw_production_resource_row(c, nullptr, input.resource,
+                        c->building.storage_resource_amount(input.resource,
+                            building_type_registry_impl::StorageRole::Input),
+                        method->scaled_input_amount(input),
+                        y_offset + consumed_height, 0);
                 }
             }
         }
@@ -331,7 +395,7 @@ static int draw_production_outputs_inline_for_type(
         if (consumed_width) {
             consumed_width += 12;
         }
-        consumed_width += draw_production_resource_label(method->output_resource(), x + consumed_width, y);
+        consumed_width += draw_production_output_inline(c, method, method->output_resource(), x + consumed_width, y);
     }
     return consumed_width;
 }

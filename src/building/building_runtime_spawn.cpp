@@ -40,6 +40,7 @@
 #include "core/log.h"
 #include "map/water.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdint>
 #include <string>
@@ -837,13 +838,15 @@ void building_runtime::spawn_figure_delivery_cart(const map_point &road)
     if (!cart) {
         return;
     }
-    record().data.industry.has_fish--;
+    const int loads = std::min(static_cast<int>(record().data.industry.has_fish),
+        building().output_cart_capacity(resource));
+    record().data.industry.has_fish -= loads;
     cart->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
     cart->resource_id = resource;
     attach_figure_to_building(cart, building());
     record().figure_id = cart->id();
     cart->wait_ticks = game_time_scale_legacy_day_ticks(30);
-    cart->loads_sold_or_carrying = 1;
+    cart->loads_sold_or_carrying = static_cast<unsigned char>(loads);
 }
 
 int building_runtime::resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const
