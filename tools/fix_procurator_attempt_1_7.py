@@ -12,7 +12,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from tools.inspect_save_trade import SaveParser, UNCOMPRESSED
 
-DEFAULT_SAVE = Path(r"D:\Games\GOG Games\Caesar 3\savegames\Procurator Attempt 1 8.svv")
+DEFAULT_SAVE = Path(r"D:\Games\GOG Games\Caesar 3\savegames\Procurator Attempt 1 11.svv")
 HIPPO_OFFSETS = {
     0: ((5, 0), (10, 0)),
     1: ((0, -5), (0, -10)),

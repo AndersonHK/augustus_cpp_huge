@@ -34,8 +34,8 @@ public:
 
     int handles_resource(resource_type resource) const;
     int amount(resource_type resource) const;
-    int reserved_inbound(resource_type resource) const;
-    int available_space(resource_type resource) const;
+    int reserved_inbound(resource_type resource);
+    int available_space(resource_type resource);
     int add(resource_type resource, int amount);
     int remove_loads(resource_type resource, int max_loads);
     int reserve_inbound_load(resource_type resource, unsigned int figure_id);
@@ -51,6 +51,8 @@ private:
 
     InboundReservation *reservation_for(unsigned int figure_id);
     void release_inbound(InboundReservation *reservation);
+    int reservation_is_current(const InboundReservation &reservation) const;
+    void prune_inbound_reservations();
 
     ::building *building_ = nullptr;
     const building_type_registry_impl::StorageType *type_ = nullptr;

@@ -4,6 +4,7 @@
 #include "building/building_runtime_internal.h"
 
 #include "building/building_record.h"
+#include "figure/figure.h"
 #include "game/resource.h"
 
 #include <algorithm>
@@ -21,8 +22,9 @@ int BuildingStorage::amount(resource_type resource) const
     return building_->resources[resource];
 }
 
-int BuildingStorage::reserved_inbound(resource_type resource) const
+int BuildingStorage::reserved_inbound(resource_type resource)
 {
+    prune_inbound_reservations();
     int total = 0;
     for (const InboundReservation &reservation : inbound_reservations_) {
         if (reservation.resource == resource) {
@@ -32,7 +34,7 @@ int BuildingStorage::reserved_inbound(resource_type resource) const
     return total;
 }
 
-int BuildingStorage::available_space(resource_type resource) const
+int BuildingStorage::available_space(resource_type resource)
 {
     if (!building_ || !handles_resource(resource)) {
         return 0;
@@ -79,6 +81,7 @@ BuildingStorage::InboundReservation *BuildingStorage::reservation_for(unsigned i
     if (!figure_id) {
         return nullptr;
     }
+    prune_inbound_reservations();
     for (InboundReservation &reservation : inbound_reservations_) {
         if (reservation.figure_id == figure_id) {
             return &reservation;
@@ -96,6 +99,38 @@ void BuildingStorage::release_inbound(InboundReservation *reservation)
     inbound_reservations_.erase(
         std::remove_if(inbound_reservations_.begin(), inbound_reservations_.end(),
             [figure_id](const InboundReservation &current) { return current.figure_id == figure_id; }),
+        inbound_reservations_.end());
+}
+
+int BuildingStorage::reservation_is_current(const InboundReservation &reservation) const
+{
+    if (!building_ || !reservation.figure_id || reservation.amount <= 0) {
+        return 0;
+    }
+
+    Figure *figure = Figure::get(reservation.figure_id);
+    if (!figure || figure->id() != reservation.figure_id || figure->is_dead() ||
+        static_cast<resource_type>(figure->resource_id) != reservation.resource ||
+        figure->destination_building.id() != building_->id) {
+        return 0;
+    }
+
+    switch (figure->action_state) {
+        case FIGURE_ACTION_23_CARTPUSHER_DELIVERING_TO_WORKSHOP:
+        case FIGURE_ACTION_26_CARTPUSHER_AT_WORKSHOP:
+        case FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE:
+        case FIGURE_ACTION_52_WAREHOUSEMAN_AT_DELIVERY_BUILDING:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+void BuildingStorage::prune_inbound_reservations()
+{
+    inbound_reservations_.erase(
+        std::remove_if(inbound_reservations_.begin(), inbound_reservations_.end(),
+            [this](const InboundReservation &reservation) { return !reservation_is_current(reservation); }),
         inbound_reservations_.end());
 }
 
