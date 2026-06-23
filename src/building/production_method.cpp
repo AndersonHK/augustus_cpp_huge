@@ -269,11 +269,9 @@ int ProductionMethod::max_progress_for(const Building &building) const
         return 0;
     }
 
-    const int base_max_progress =
-        calc_percentage(
-            GAME_TIME_DAYS_PER_MONTH * 2 * (building.type ? building.type->required_workers() : 0),
-            monthly_production);
-    return base_max_progress * batch_size_;
+    return calc_percentage(
+        GAME_TIME_DAYS_PER_MONTH * 2 * building.employment_required_workers(),
+        monthly_production);
 }
 
 int ProductionMethod::has_required_inputs(const Building &building) const

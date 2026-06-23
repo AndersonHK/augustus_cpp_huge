@@ -59,77 +59,6 @@ void add_treasury_output(resource_type resource, int amount)
     city_finance_treasury_add_miscellaneous(amount - personal_funds);
 }
 
-int worker_count_for_progress(
-    const Building &context,
-    const building_type_registry_impl::ProductionMethod &method)
-{
-    if (!method.is_farm()) {
-        return context.worker_count();
-    }
-
-    int workers = 0;
-    int farm_part_count = 0;
-    context.for_each_part([&](Building part) {
-        if (part.id() == context.id()) {
-            workers += part.worker_count();
-            return;
-        }
-        if (part.type && part.type->is_farm()) {
-            workers += part.worker_count();
-            farm_part_count++;
-        }
-    });
-    return farm_part_count > 0 ? workers : context.worker_count();
-}
-
-int required_workers_for_progress(
-    const Building &context,
-    const building_type_registry_impl::ProductionMethod &method)
-{
-    if (!method.is_farm()) {
-        return context.type ? context.type->required_workers() : 0;
-    }
-
-    int workers = 0;
-    int farm_part_count = 0;
-    context.for_each_part([&](Building part) {
-        if (!part.type) {
-            return;
-        }
-        if (part.id() == context.id()) {
-            workers += part.type->required_workers();
-            return;
-        }
-        if (part.type->is_farm()) {
-            workers += part.type->required_workers();
-            farm_part_count++;
-        }
-    });
-    return farm_part_count > 0 ? workers : (context.type ? context.type->required_workers() : 0);
-}
-
-int max_progress_for_context(
-    const Building &context,
-    const building_type_registry_impl::ProductionMethod &method)
-{
-    if (!method.is_farm()) {
-        return method.max_progress_for(context);
-    }
-    if (method.is_figure_delivery_output() || (!method.has_resource_output() && !method.has_effect_output())) {
-        return 0;
-    }
-
-    const int monthly_production = method.effective_monthly_production();
-    const int required_workers = required_workers_for_progress(context, method);
-    if (monthly_production <= 0 || required_workers <= 0) {
-        return 0;
-    }
-
-    const int base_max_progress =
-        calc_percentage(GAME_TIME_DAYS_PER_MONTH * 2 * required_workers, monthly_production);
-    return base_max_progress * method.batch_size();
-}
-
 } // namespace
 
 Production::Production(
@@ -221,7 +150,7 @@ int Production::has_raw_materials() const
 
 int Production::max_progress() const
 {
-    return production_record(building()) && method_ ? max_progress_for_context(context_building(), *method_) : 0;
+    return production_record(building()) && method_ ? method_->max_progress_for(context_building()) : 0;
 }
 
 int Production::efficiency() const
@@ -284,9 +213,9 @@ int Production::update_daily(int new_day, int *out_is_striking)
         state_record->data.industry.blessing_days_left--;
     }
 
-    int progress = worker_count_for_progress(context_building, *method_);
+    int progress = context_building.employment_worker_count();
     if (state_record->data.industry.blessing_days_left && method_->uses_blessing_multiplier()) {
-        progress += worker_count_for_progress(context_building, *method_);
+        progress += context_building.employment_worker_count();
     }
 
     if (legacy->data.industry.progress == 0 && method_->treasury_cost_per_cycle() > 0) {

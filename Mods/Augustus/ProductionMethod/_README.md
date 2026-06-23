@@ -27,14 +27,15 @@ Rules:
 - `<input>` is optional and may appear more than once
 - `amount` is authored per one legacy one-load batch
 - input costs scale by `batch_size`
-- `batch_size` changes delivery grouping, not monthly throughput
+- `cart_loads` changes completed output size
+- `batch_size` is the default completed output size when `cart_loads` is omitted
 - `treasury_cost` currently preserves gold-mine behavior by charging 600 denarii at the start of each gold production cycle
 
 Native timing uses the legacy throughput formula:
 
 - `max_progress = 100 * GAME_TIME_DAYS_PER_MONTH * 2 * laborers / effective_method_production_per_month`
-- native production then multiplies that max progress by `batch_size`
-- a completed native output cart carries `batch_size` loads
+- composed buildings use their aggregate employment requirement for the formula
+- a completed native output emits the declared `cart_loads`, or `batch_size` loads when `cart_loads` is omitted
 
 Climate bonuses adjust the method's base output throughput for native production only.
 
