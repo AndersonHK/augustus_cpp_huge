@@ -15,46 +15,4 @@
             </options>
         </default>
     </graphics>
-    <construction mode="phased">
-        <phase index="1">
-            <graphics>
-                <options selection="build_rotation">
-                    <option path="Monuments\Circus_NESW_01" image="Circus NESW 01" />
-                    <option path="Monuments\Circus_NWSE_01" image="Circus NWSE 01" />
-                    <option path="Monuments\Circus_NESW_01" image="Circus NESW 01" />
-                    <option path="Monuments\Circus_NWSE_01" image="Circus NWSE 01" />
-                </options>
-            </graphics>
-        </phase>
-        <phase index="2">
-            <graphics>
-                <options selection="build_rotation">
-                    <option path="Monuments\Circus_NESW_11" image="Circus NESW 11" />
-                    <option path="Monuments\Circus_NWSE_11" image="Circus NWSE 11" />
-                    <option path="Monuments\Circus_NESW_11" image="Circus NESW 11" />
-                    <option path="Monuments\Circus_NWSE_11" image="Circus NWSE 11" />
-                </options>
-            </graphics>
-        </phase>
-        <phase index="3">
-            <graphics>
-                <options selection="build_rotation">
-                    <option path="Monuments\Circus_NESW_21" image="Circus NESW 21" />
-                    <option path="Monuments\Circus_NWSE_21" image="Circus NWSE 21" />
-                    <option path="Monuments\Circus_NESW_21" image="Circus NESW 21" />
-                    <option path="Monuments\Circus_NWSE_21" image="Circus NWSE 21" />
-                </options>
-            </graphics>
-        </phase>
-        <phase index="4">
-            <graphics>
-                <options selection="build_rotation">
-                    <option path="Monuments\Circus_NESW_31" image="Circus NESW 31" />
-                    <option path="Monuments\Circus_NWSE_31" image="Circus NWSE 31" />
-                    <option path="Monuments\Circus_NESW_31" image="Circus NESW 31" />
-                    <option path="Monuments\Circus_NWSE_31" image="Circus NWSE 31" />
-                </options>
-            </graphics>
-        </phase>
-    </construction>
 </building>

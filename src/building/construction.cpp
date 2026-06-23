@@ -220,6 +220,18 @@ static void construction_requirements_remove(building_type type)
     }
 }
 
+static resource_type construction_missing_requirement(building_type type)
+{
+    for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT;
+         resource = static_cast<resource_type>(resource + 1)) {
+        int amount = building_type_registry_get_instant_construction_requirement(type, resource);
+        if (amount > 0 && city_resource_count_warehouses_amount(resource) < amount) {
+            return resource;
+        }
+    }
+    return RESOURCE_NONE;
+}
+
 static int is_vacant_lot_type(building_type type)
 {
     building_type vacant_lot = building_type_registry_get_vacant_lot_fill_type();
@@ -626,6 +638,7 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
     map_grid_start_end_to_area(x_start, y_start, x_end, y_end, &x_min, &y_min, &x_max, &y_max);
 
     int items_placed = 0;
+    int resource_blocked_placement = 0;
     int available_resources[RESOURCE_SLOT_COUNT] = { 0 };
     construction_requirements_snapshot(wall_type, available_resources);
     for (int y = y_min; y <= y_max; y++) {
@@ -633,6 +646,7 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
             int grid_offset = map_grid_offset(x, y);
             if (!map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
                 if (!construction_requirements_available(wall_type, available_resources)) {
+                    resource_blocked_placement = 1;
                     continue;
                 }
                 construction_requirements_reserve(wall_type, available_resources);
@@ -652,6 +666,12 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
     map_routing_update_land();
     map_routing_update_walls();
     map_tiles_update_all_walls();
+    if (!measure_only && items_placed == 0 && resource_blocked_placement) {
+        resource_type missing_resource = construction_missing_requirement(wall_type);
+        if (missing_resource != RESOURCE_NONE) {
+            building_construction_warning_show_missing_resource(missing_resource);
+        }
+    }
     return items_placed;
 }
 

@@ -99,7 +99,7 @@ static void show(warning_type warning, translation_key key)
     has_warning = 1;
 }
 
-static void show_missing_resource(resource_type resource)
+void building_construction_warning_show_missing_resource(resource_type resource)
 {
     std::string text = legacy_text(translation_for_key("TR_CITY_WARNING_TEMPLATE_MISSING_RESOURCE"));
     resource_data *data = resource_get_data(resource);
@@ -317,7 +317,7 @@ static void check_raw_material_access(building_type type)
         building_type producer = building_producer_for_resource(chain[i].raw_material);
         if (building_count_active(producer) <= 0) {
             if (city_resource_count_warehouses_amount(good) <= 0 && city_resource_count_warehouses_amount(chain[i].raw_material) <= 0) {
-                show_missing_resource(chain[i].raw_material);
+                building_construction_warning_show_missing_resource(chain[i].raw_material);
                 if (empire_can_produce_resource(chain[i].raw_material)) {
                     show_missing_producer(producer);
                 } else if (!empire_can_import_resource(chain[i].raw_material)) {
