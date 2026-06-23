@@ -43,6 +43,7 @@
 #include "core/config.h"
 #include "core/log.h"
 #include "game/resource.h"
+#include "game/resource_graphics.h"
 #include "graphics/renderer.h"
 #include "graphics/window.h"
 #include "map/figure.h"
@@ -577,56 +578,14 @@ static void draw_overlay_column(int x, int y, int height, column_color_type colo
         Image::from_id(image_id).draw(x + 5, y - 8 - capital_height - 10 * (height - 1) + 13, 0, scale);
     }
 }
-static int depot_cart_image_id(resource_type resource)
-{
-    if (resource == resource_vegetables()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Vegetables", "Cart_Depot_Vegetables");
-    } else if (resource == resource_fruit()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Fruit", "Cart_Depot_Fruit");
-    } else if (resource == resource_meat()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Meat", "Cart_Depot_Meat");
-    } else if (resource == resource_fish()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Fish", "Cart_Depot_Fish");
-    } else if (resource == resource_vines()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Grapes", "Cart_Depot_Grapes");
-    } else if (resource == resource_pottery()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Pottery", "Cart_Depot_Pottery");
-    } else if (resource == resource_furniture()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Furniture", "Cart_Depot_Furniture");
-    } else if (resource == resource_oil()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Oil", "Cart_Depot_Oil");
-    } else if (resource == resource_wine()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Wine", "Cart_Depot_Wine");
-    } else if (resource == resource_marble()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Marble", "Cart_Depot_Marble");
-    } else if (resource == resource_weapons()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Weapons", "Cart_Depot_Weapons");
-    } else if (resource == resource_clay()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Clay", "Cart_Depot_Clay");
-    } else if (resource == resource_timber()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Timber", "Cart_Depot_Timber");
-    } else if (resource == resource_olives()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Olives", "Cart_Depot_Olives");
-    } else if (resource == resource_iron()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Iron", "Cart_Depot_Iron");
-    } else if (resource == resource_gold()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Gold", "Cart_Depot_Gold");
-    } else if (resource == resource_sand()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Sand", "Cart_Depot_Sand");
-    } else if (resource == resource_stone()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Stone", "Cart_Depot_Stone");
-    } else if (resource == resource_bricks()) {
-        return assets_get_image_id("Admin_Logistics\\Cart_Depot_Bricks", "Cart_Depot_Bricks");
-    }
-    return assets_get_image_id("Admin_Logistics\\Cart_Depot_Wheat", "Cart_Depot_Wheat");
-}
-
 static void draw_depot_resource(const Building &building, int x, int y)
 {
-    const int image_id = building.worker_count() ?
-        depot_cart_image_id(building.depot_order().resource_type) :
-        assets_get_image_id("Admin_Logistics\\Cart_Depot_Cat", "Cart_Depot_Cat");
-    Image::from_id(image_id).draw(x + 11, y, COLOR_MASK_NONE, scale);
+    static const ImageGroupEntryRef cat =
+        ImageGroupEntryRef::from_group("Admin_Logistics\\Cart_Depot_Cat", "Cart_Depot_Cat");
+    const ImageGroupEntryRef &image = building.worker_count() ?
+        resource_graphics(building.depot_order().resource_type).cart_image(1) :
+        cat;
+    image.draw(x + 11, y, COLOR_MASK_NONE, scale);
 }
 
 static void draw_permissions_flag(Building &building, int x, int y, color_t color_mask)

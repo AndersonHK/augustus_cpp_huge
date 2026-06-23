@@ -1,5 +1,6 @@
 #include "city_figure.h"
 
+#include "assets/image_group_payload.h"
 #include "game/resource_graphics.h"
 
 #include "city/view.h"
@@ -9,6 +10,8 @@
 #include "figuretype/editor.h"
 #include "graphics/runtime_texture.h"
 #include "graphics/text.h"
+
+#include <cstdio>
 
 
 static color_t get_highlight_mask(int highlight_mask)
@@ -23,6 +26,178 @@ static color_t get_highlight_mask(int highlight_mask)
         default:
             return COLOR_MASK_NONE;
     }
+}
+
+static int clamp_frame(int value, int min, int max)
+{
+    if (value < min) {
+        return min;
+    }
+    if (value > max) {
+        return max;
+    }
+    return value;
+}
+
+static const char *warrior_direction_suffix(int direction)
+{
+    static constexpr const char *suffixes[] = { "ne", "e", "se", "s", "sw", "w", "nw", "n" };
+    direction = clamp_frame(direction, 0, 7);
+    return suffixes[direction];
+}
+
+static int soldier_native_direction(const Figure *f)
+{
+    const formation *m = formation_get(f->formation_id);
+    int direction = 0;
+    if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+        direction = f->attack_direction;
+    } else if (m && m->missile_fired) {
+        direction = f->direction;
+    } else if (f->action_state == FIGURE_ACTION_84_SOLDIER_AT_STANDARD && m) {
+        direction = m->direction;
+    } else if (f->direction < 8) {
+        direction = f->direction;
+    } else {
+        direction = f->previous_tile_direction;
+    }
+    return figure_image_normalize_direction(direction);
+}
+
+static int missile_native_direction(const Figure *f)
+{
+    int direction = f->direction;
+    if (direction >= 8) {
+        direction /= 2;
+    }
+    return figure_image_normalize_direction(direction);
+}
+
+static int enemy_missile_native_direction(const Figure *f)
+{
+    const formation *m = formation_get(f->formation_id);
+    int direction = 0;
+    if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+        direction = f->attack_direction;
+    } else if ((m && m->missile_fired) || f->direction < 8) {
+        direction = f->direction;
+    } else {
+        direction = f->previous_tile_direction;
+    }
+    return figure_image_normalize_direction(direction);
+}
+
+static const ImageGroupEntry *native_entry(const char *group, const char *image)
+{
+    if (!group || !image || !image_group_payload_load(group)) {
+        return nullptr;
+    }
+    const ImageGroupPayload *payload = image_group_payload_get(group);
+    return payload ? payload->entry_for(image) : nullptr;
+}
+
+static const ImageGroupEntry *native_warrior_entry(const Figure *f)
+{
+    char name[64];
+    switch (f->type) {
+        case FIGURE_FORT_INFANTRY: {
+            if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+                std::snprintf(name, sizeof(name), "auxinf_death_%02d",
+                    clamp_frame(figure_image_corpse_offset(const_cast<Figure *>(f)) + 1, 1, 8));
+            } else {
+                const char *direction = warrior_direction_suffix(soldier_native_direction(f));
+                if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+                    const int frame = f->attack_image_offset < 14 ?
+                        1 :
+                        clamp_frame(((f->attack_image_offset - 14) / 2) + 1, 1, 5);
+                    std::snprintf(name, sizeof(name), "auxinf_f_%s_%02d", direction, frame);
+                } else {
+                    std::snprintf(name, sizeof(name), "auxinf_%s_%02d", direction,
+                        clamp_frame(f->image_offset + 1, 1, 12));
+                }
+            }
+            break;
+        }
+        case FIGURE_FORT_ARCHER: {
+            if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+                std::snprintf(name, sizeof(name), "auxarch_death_%02d",
+                    clamp_frame(figure_image_corpse_offset(const_cast<Figure *>(f)) + 1, 1, 8));
+            } else {
+                const char *direction = warrior_direction_suffix(soldier_native_direction(f));
+                if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+                    const int frame = f->attack_image_offset < 14 ?
+                        1 :
+                        clamp_frame(((f->attack_image_offset - 14) / 2) + 1, 1, 5);
+                    std::snprintf(name, sizeof(name), "auxarch_fm_%s_%02d", direction, frame);
+                } else if (f->action_state == FIGURE_ACTION_84_SOLDIER_AT_STANDARD) {
+                    const int frame = clamp_frame(figure_image_missile_launcher_offset(const_cast<Figure *>(f)), 0, 4) + 1;
+                    std::snprintf(name, sizeof(name), "auxarch_fr_%s_%02d", direction, frame);
+                } else {
+                    std::snprintf(name, sizeof(name), "auxarch_%s_%02d", direction,
+                        clamp_frame(f->image_offset + 1, 1, 12));
+                }
+            }
+            break;
+        }
+        case FIGURE_ENEMY_CATAPULT: {
+            if (f->action_state == FIGURE_ACTION_149_CORPSE) {
+                std::snprintf(name, sizeof(name), "catapult_death_%02d",
+                    clamp_frame(figure_image_corpse_offset(const_cast<Figure *>(f)) + 1, 1, 8));
+            } else {
+                const char *direction = warrior_direction_suffix(enemy_missile_native_direction(f));
+                if (f->action_state == FIGURE_ACTION_151_ENEMY_INITIAL) {
+                    const int frame = clamp_frame(figure_image_missile_launcher_offset(const_cast<Figure *>(f)) + 1, 1, 8);
+                    if (frame == 1) {
+                        std::snprintf(name, sizeof(name), "catapult_fe_%s_01", direction);
+                    } else {
+                        std::snprintf(name, sizeof(name), "catapult_fr_%s_%02d", direction, frame);
+                    }
+                } else {
+                    std::snprintf(name, sizeof(name), "catapult_%s_01", direction);
+                }
+            }
+            break;
+        }
+        case FIGURE_CATAPULT_MISSILE:
+            std::snprintf(name, sizeof(name), "catapult_rock_%s_01",
+                warrior_direction_suffix(missile_native_direction(f)));
+            break;
+        default:
+            return nullptr;
+    }
+
+    char group[96];
+    std::snprintf(group, sizeof(group), "Warriors\\%s", name);
+    return native_entry(group, name);
+}
+
+static const ImageGroupEntry *native_auxiliary_standard_flag(const Figure *f)
+{
+    if (f->type != FIGURE_FORT_STANDARD) {
+        return nullptr;
+    }
+    const formation *m = formation_get(f->formation_id);
+    if (!m) {
+        return nullptr;
+    }
+    const char *prefix = nullptr;
+    if (m->figure_type == FIGURE_FORT_INFANTRY) {
+        prefix = "auxinf";
+    } else if (m->figure_type == FIGURE_FORT_ARCHER) {
+        prefix = "auxarch";
+    } else {
+        return nullptr;
+    }
+
+    char name[32];
+    if (m->is_halted) {
+        std::snprintf(name, sizeof(name), "%s_banner_0", prefix);
+    } else {
+        std::snprintf(name, sizeof(name), "%s_banner_%02d", prefix, clamp_frame(f->image_offset / 2 + 1, 1, 8));
+    }
+    char group[64];
+    std::snprintf(group, sizeof(group), "UI\\%s", name);
+    return native_entry(group, name);
 }
 
 static resource_type cart_resource_for_figure(const Figure *f)
@@ -149,15 +324,26 @@ static void draw_hippodrome_horse(const Figure *f, int x, int y, color_t color_m
 
 static void draw_fort_standard(const Figure *f, int x, int y, float scale)
 {
-    if (!formation_get(f->formation_id)->in_distant_battle) {
+    const formation *m = formation_get(f->formation_id);
+    if (m && !m->in_distant_battle) {
         // base
         Image::from_id(f->image_id).draw(x, y, COLOR_MASK_NONE, scale);
+        if (const ImageGroupEntry *native_flag = native_auxiliary_standard_flag(f)) {
+            const RuntimeDrawSlice *slice = native_flag->footprint();
+            if (slice && slice->is_valid()) {
+                runtime_texture_draw(*slice, x, y - slice->height, COLOR_MASK_NONE, scale);
+                int icon_image_id = m->legion_flag_id;
+                const Image &icon_image = Image::from_id(icon_image_id);
+                icon_image.draw(x, y - icon_image.height() - slice->height, COLOR_MASK_NONE, scale);
+            }
+            return;
+        }
         // flag
         const Image &flag_image = Image::from_id(f->cart_image_id);
         int flag_height = flag_image.height();
         flag_image.draw(x, y - flag_height, COLOR_MASK_NONE, scale);
         // top icon
-        int icon_image_id = formation_get(f->formation_id)->legion_flag_id;
+        int icon_image_id = m->legion_flag_id;
         const Image &icon_image = Image::from_id(icon_image_id);
         icon_image.draw(x, y - icon_image.height() - flag_height, COLOR_MASK_NONE, scale);
     }
@@ -281,7 +467,7 @@ static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
     x_offset += 29;
     y_offset += 15;
 
-    const int has_native_graphics = figure_runtime_has_native_graphics(f);
+    const int has_native_graphics = figure_runtime_has_native_graphics(f) || native_warrior_entry(f);
     if (!has_native_graphics && f->image_id >= 10000) {
         // TODO
         // Ugly hack, remove
@@ -294,7 +480,14 @@ static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
     if (has_native_graphics) {
         int sprite_offset_x = 0;
         int sprite_offset_y = 0;
-        figure_runtime_graphic_sprite_offset(f, &sprite_offset_x, &sprite_offset_y);
+        if (const ImageGroupEntry *native_entry = native_warrior_entry(f)) {
+            if (native_entry->has_sprite_offset()) {
+                sprite_offset_x = native_entry->sprite_offset_x();
+                sprite_offset_y = native_entry->sprite_offset_y();
+            }
+        } else {
+            figure_runtime_graphic_sprite_offset(f, &sprite_offset_x, &sprite_offset_y);
+        }
         *pixel_x += x_offset - sprite_offset_x;
         *pixel_y += y_offset - sprite_offset_y;
     } else {
@@ -308,6 +501,12 @@ static void adjust_pixel_offset(const Figure *f, int *pixel_x, int *pixel_y)
 static void draw_figure(const Figure *f, int x, int y, float scale, int highlight)
 {
     color_t color_mask = get_highlight_mask(highlight);
+    if (const ImageGroupEntry *native_entry = native_warrior_entry(f)) {
+        if (const RuntimeDrawSlice *slice = native_entry->footprint()) {
+            runtime_texture_draw(*slice, x, y, color_mask, scale);
+        }
+        return;
+    }
     if (figure_runtime_has_native_graphics(f)) {
         if (const RuntimeDrawSlice *slice = figure_runtime_graphic_slice(f)) {
             runtime_texture_draw(*slice, x, y, color_mask, scale);

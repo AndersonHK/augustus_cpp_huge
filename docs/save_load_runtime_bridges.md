@@ -320,14 +320,15 @@ The local-workforce payload is dynamic and starts with:
 2. effect count
 3. one full `GRID_SIZE * GRID_SIZE` `uint32_t` grid per saved effect id
 
-Effect ids are append-only. Removed meanings must stay reserved so old save columns do not shift. The loader receives four gates from `savegame_load_from_state()`:
+Effect ids are append-only. Removed meanings must stay reserved so old save columns do not shift. The loader receives five gates from `savegame_load_from_state()`:
 
 - `has_saved_state`
 - `has_religion_effects`
 - `has_entertainment_effects`
 - `has_market_effects`
+- `has_medicine_tax_effects`
 
-Missing payloads or missing appended effect groups start from zeroed history. Unsupported payloads reset to zero. Future extra grids are consumed so the ordinal payload remains aligned. `update_last_visit_stamp_from_history()` rebuilds the current generation counter from loaded grids.
+Missing payloads or missing appended effect groups start from zeroed history. Unsupported payloads reset to zero. Future extra grids are consumed so the ordinal payload remains aligned. Vespasian's doctor, surgeon, and tax collector smart-service effects append after `market_goods`, so older payloads simply leave those grids zeroed. `update_last_visit_stamp_from_history()` rebuilds the current generation counter from loaded grids.
 
 Road service history does not provide coverage or mutate buildings. It only gives smart service walkers recency data for path selection.
 

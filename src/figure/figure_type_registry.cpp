@@ -314,11 +314,15 @@ static figure_type parse_figure_type_name(const char *name)
         figure_type type;
     };
 
-    static constexpr std::array<NamedFigure, 30> kFigureNames = { {
+    static constexpr std::array<NamedFigure, 34> kFigureNames = { {
         { "labor_seeker", FIGURE_LABOR_SEEKER },
         { "engineer", FIGURE_ENGINEER },
         { "prefect", FIGURE_PREFECT },
         { "priest", FIGURE_PRIEST },
+        { "doctor", FIGURE_DOCTOR },
+        { "surgeon", FIGURE_SURGEON },
+        { "tax_collector", FIGURE_TAX_COLLECTOR },
+        { "missionary", FIGURE_MISSIONARY },
         { "patrician", FIGURE_PATRICIAN },
         { "beggar", FIGURE_BEGGAR },
         { "market_trader", FIGURE_MARKET_TRADER },
@@ -495,11 +499,15 @@ static int parse_image_group_name(const char *name)
         int image_group_id;
     };
 
-    static constexpr std::array<NamedGroup, 18> kImageGroups = { {
+    static constexpr std::array<NamedGroup, 22> kImageGroups = { {
         { "labor_seeker", GROUP_FIGURE_LABOR_SEEKER },
         { "engineer", GROUP_FIGURE_ENGINEER },
         { "prefect", GROUP_FIGURE_PREFECT },
         { "priest", GROUP_FIGURE_PRIEST },
+        { "doctor", GROUP_FIGURE_DOCTOR_SURGEON },
+        { "surgeon", GROUP_FIGURE_DOCTOR_SURGEON },
+        { "tax_collector", GROUP_FIGURE_TAX_COLLECTOR },
+        { "missionary", GROUP_FIGURE_MISSIONARY },
         { "patrician", GROUP_FIGURE_PATRICIAN },
         { "beggar", GROUP_FIGURE_HOMELESS },
         { "market_lady", GROUP_FIGURE_MARKET_LADY },
@@ -678,6 +686,15 @@ static road_service_effect parse_service_effect_name(const char *name)
     if (xml_value::equals(name, "market_goods")) {
         return ROAD_SERVICE_EFFECT_MARKET_GOODS;
     }
+    if (xml_value::equals(name, "doctor")) {
+        return ROAD_SERVICE_EFFECT_DOCTOR;
+    }
+    if (xml_value::equals(name, "surgeon")) {
+        return ROAD_SERVICE_EFFECT_SURGEON;
+    }
+    if (xml_value::equals(name, "tax_collector")) {
+        return ROAD_SERVICE_EFFECT_TAX_COLLECTOR;
+    }
     return ROAD_SERVICE_EFFECT_NONE;
 }
 
@@ -707,7 +724,10 @@ static bool is_known_service_effect_name(const char *name)
         xml_value::equals(name, "entertainment_colosseum_gladiator") ||
         xml_value::equals(name, "entertainment_colosseum_lion") ||
         xml_value::equals(name, "entertainment_hippodrome") ||
-        xml_value::equals(name, "market_goods");
+        xml_value::equals(name, "market_goods") ||
+        xml_value::equals(name, "doctor") ||
+        xml_value::equals(name, "surgeon") ||
+        xml_value::equals(name, "tax_collector");
 }
 
 static bool is_road_only_terrain_usage(int terrain_usage)

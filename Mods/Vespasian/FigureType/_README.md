@@ -30,14 +30,14 @@ or broader patrol/maintenance range, see
 [Roman City Facility Ratios](../../../research/roman_city_facility_ratios.md)
 and [Roman Building and Infrastructure Maintenance Needs](../../../research/roman_building_maintenance_needs.md).
 
-Current supported figure ids include `labor_seeker`, `engineer`, `prefect`, `priest`, `patrician`, `beggar`, `market_trader`, `market_supplier`, `delivery_boy`, `teacher`, `librarian`, `barber`, `bathhouse_worker`, `school_child`, `actor`, `gladiator`, `lion_tamer`, and `charioteer`.
+Current supported figure ids include `labor_seeker`, `engineer`, `prefect`, `priest`, `doctor`, `surgeon`, `tax_collector`, `missionary`, `patrician`, `beggar`, `market_trader`, `market_supplier`, `delivery_boy`, `teacher`, `librarian`, `barber`, `bathhouse_worker`, `school_child`, `actor`, `gladiator`, `lion_tamer`, and `charioteer`.
 
 Current supported native classes are `roaming_service`, `engineer_service`, `prefect_service`, `market_supplier`, `delivery_follower`, `entertainment_venue_seeker`, `entertainment_service`, and `transient_wanderer`.
 
 Current supported `<pathing>` values:
 
 - `mode="vanilla_roaming"`
-- `mode="smart_service" effect="damage_risk|fire_risk|barber|bathhouse|school|academy|library|labor|religion_ceres|religion_neptune|religion_mercury|religion_mars|religion_venus|religion_pantheon|entertainment_theater|entertainment_amphitheater_actor|entertainment_amphitheater_gladiator|entertainment_arena_gladiator|entertainment_arena_lion|entertainment_colosseum_gladiator|entertainment_colosseum_lion|entertainment_hippodrome|market_goods"`
+- `mode="smart_service" effect="damage_risk|fire_risk|barber|bathhouse|school|academy|library|labor|religion_ceres|religion_neptune|religion_mercury|religion_mars|religion_venus|religion_pantheon|entertainment_theater|entertainment_amphitheater_actor|entertainment_amphitheater_gladiator|entertainment_arena_gladiator|entertainment_arena_lion|entertainment_colosseum_gladiator|entertainment_colosseum_lion|entertainment_hippodrome|market_goods|doctor|surgeon|tax_collector"`
 - `mode="nearest_unemployed"`
 - `mode="venue_seeker"`
 - `mode="storage_fetch"`
@@ -52,6 +52,8 @@ Priests use explicit profiles such as `ceres_service`, `mars_service`, and `pant
 Entertainment training buildings spawn `venue_seeker` profiles. Venues spawn generic `entertainment_service` native profiles such as `theater_service` or `arena_service`; each profile carries its exact smart-service effect in `<pathing>`.
 
 Markets keep their existing BuildingType spawn flow for now, but the spawned figures rebind into FigureType profiles. `market_trader` uses the generic `roaming_service`; Vespasian uses `smart_service` with `market_goods`, while fallback definitions keep `vanilla_roaming`. `market_supplier` uses `native class="market_supplier"` with `pathing mode="storage_fetch"` to route to storage, reroute only to clearly better storage, create delivery followers, and return. `delivery_boy` uses `native class="delivery_follower"` with `pathing mode="follow_leader"` and follows the saved `leading_figure_id` chain.
+
+Doctor, surgeon, and tax collector profiles keep `native class="legacy_action"` because their callbacks still own plague healing or building entry/exit states. Their XML profile still owns range, graphics, and smart-service pathing; the runtime binds the profile for legacy-action walkers without taking over their action callback.
 
 Roaming access checks follow the profile movement type. A `roads` service profile considers roads and access ramps; a `roads_highway` service profile also considers highways. Use `roads_highway` only when that service should actually spread over highway networks, such as Vespasian `hippodrome_service`.
 

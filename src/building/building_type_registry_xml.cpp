@@ -138,6 +138,7 @@ static figure_type parse_figure_type_name(const char *name)
         { "charioteer", FIGURE_CHARIOTEER },
         { "librarian", FIGURE_LIBRARIAN },
         { "lion_tamer", FIGURE_LION_TAMER },
+        { "missionary", FIGURE_MISSIONARY },
         { "patrician", FIGURE_PATRICIAN },
         { "beggar", FIGURE_BEGGAR },
         { "prefect", FIGURE_PREFECT },

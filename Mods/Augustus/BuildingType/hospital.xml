@@ -30,6 +30,6 @@
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="surgeon">
         <spawn mode="service_roamer" spawn_figure="surgeon"
-            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true" />
+            action_state="roaming" direction="top" figure_slot="primary" init_roaming="true" profile="service" />
     </spawn_group>
 </building>

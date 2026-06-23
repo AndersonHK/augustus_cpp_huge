@@ -1893,7 +1893,7 @@ public:
                 break;
             case FIGURE_ACTION_76_PREFECT_GOING_TO_ENEMY:
                 f->terrain_usage = TERRAIN_USAGE_ANY;
-                if (!f->target_is_alive() && !fight_enemy(f)) {
+                if (!f->target_is_alive()) {
                     int x_road = 0;
                     int y_road = 0;
                     if (map_closest_road_within_radius(owner->x, owner->y, owner->size, 2, &x_road, &y_road)) {
@@ -1905,6 +1905,7 @@ public:
                     } else {
                         f->state = FIGURE_STATE_DEAD;
                     }
+                    break;
                 }
                 figure_movement_move_ticks_with_percentage(f, movement.roam_ticks, 20);
                 if (f->direction == DIR_FIGURE_AT_DESTINATION || f->wait_ticks++ > kRecalculateEnemyLocationTicks) {

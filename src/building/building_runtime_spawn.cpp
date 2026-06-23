@@ -6,6 +6,7 @@
 #include "figure/action.h"
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/figure_type_registry_internal.h"
 #include "map/road_access.h"
 
 #include "building/building.h"
@@ -996,6 +997,11 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
         return 0;
     }
 
+    const figure_type_registry_impl::FigureTypeProfile *profile = policy.profile.empty() ?
+        nullptr :
+        figure_type_registry_impl::profile_for(policy.spawn_figure, policy.profile.c_str());
+    const int legacy_profile = profile &&
+        profile->native_class() == figure_type_registry_impl::NativeClassId::LegacyAction;
     int spawned_any = 0;
     int spawn_count = policy.spawn_count > 0 ? policy.spawn_count : 1;
     for (int i = 0; i < spawn_count; i++) {
@@ -1013,7 +1019,7 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
         if (!spawned) {
             continue;
         }
-        if (policy.profile.empty()) {
+        if (policy.profile.empty() || legacy_profile) {
             spawned->action_state = policy.action_state;
             attach_figure_to_building(spawned, current);
         }
@@ -1021,7 +1027,7 @@ int building_runtime::create_spawned_figure(const building_type_registry_impl::S
         if (!spawned_any) {
             assign_figure_slot(policy.figure_slot, spawned->id());
         }
-        if (policy.profile.empty() && policy.init_roaming) {
+        if ((policy.profile.empty() || legacy_profile) && policy.init_roaming) {
             figure_movement_init_roaming(spawned);
         }
         spawned_any = 1;

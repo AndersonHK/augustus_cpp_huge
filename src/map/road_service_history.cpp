@@ -19,6 +19,7 @@ constexpr size_t kEffectGridCells = GRID_SIZE * GRID_SIZE;
 constexpr uint32_t kLastPreReligionEffectCount = ROAD_SERVICE_EFFECT_RELIGION_CERES;
 constexpr uint32_t kLastPreEntertainmentEffectCount = ROAD_SERVICE_EFFECT_ENTERTAINMENT_THEATER;
 constexpr uint32_t kLastPreMarketEffectCount = ROAD_SERVICE_EFFECT_MARKET_GOODS;
+constexpr uint32_t kLastPreMedicineTaxEffectCount = ROAD_SERVICE_EFFECT_DOCTOR;
 constexpr uint32_t kNeverVisitedStamp = 0;
 std::array<grid_u32, ROAD_SERVICE_EFFECT_MAX> g_history;
 uint32_t g_last_visit_stamp = 0;
@@ -129,7 +130,8 @@ void map_road_service_history_load_state(
     int has_saved_state,
     int has_religion_effects,
     int has_entertainment_effects,
-    int has_market_effects)
+    int has_market_effects,
+    int has_medicine_tax_effects)
 {
     map_road_service_history_clear();
 
@@ -157,10 +159,11 @@ void map_road_service_history_load_state(
         return;
     }
 
-    const uint32_t max_effect_count = has_market_effects ?
+    const uint32_t max_effect_count = has_medicine_tax_effects ?
         static_cast<uint32_t>(ROAD_SERVICE_EFFECT_MAX) :
-        (has_entertainment_effects ? kLastPreMarketEffectCount :
-            (has_religion_effects ? kLastPreEntertainmentEffectCount : kLastPreReligionEffectCount));
+        (has_market_effects ? kLastPreMedicineTaxEffectCount :
+            (has_entertainment_effects ? kLastPreMarketEffectCount :
+                (has_religion_effects ? kLastPreEntertainmentEffectCount : kLastPreReligionEffectCount)));
     const int effects_to_read = static_cast<int>(std::min(effect_count, max_effect_count));
     for (int effect = 1; effect < effects_to_read; effect++) {
         map_grid_load_state_u32(g_history[effect].items, buf);
@@ -168,7 +171,7 @@ void map_road_service_history_load_state(
     }
 
     // Older saves contain only the effect grids known to that save version. Any
-    // appended religion, entertainment, or market grids stay zeroed by the initial clear.
+    // appended religion, entertainment, market, medicine, or tax grids stay zeroed by the initial clear.
     // This also consumes future grids so the fixed ordinal payload stays aligned.
     for (uint32_t effect = effects_to_read; effect < effect_count; effect++) {
         for (size_t i = 0; i < kEffectGridCells; i++) {

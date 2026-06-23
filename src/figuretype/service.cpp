@@ -81,18 +81,16 @@ static void roamer_action(Figure *f, int num_ticks)
     }
 }
 
-static void culture_action(Figure *f, int group)
+static void culture_action(Figure *f)
 {
-    f->terrain_usage = TERRAIN_USAGE_ROADS;
-    f->use_cross_country = 0;
-    f->max_roam_length = 384;
+    figure_runtime_apply_profile_movement(f);
     building *b = building_get(f->building.id());
     if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
     roamer_action(f, 1);
-    figure_image_update(f, image_group(group));
+    figure_runtime_update_graphics(f);
 }
 
 void figure_destination_priest_action(Figure *f)
@@ -200,7 +198,7 @@ void figure_priest_action(Figure *f)
     if (f->destination_building.id()) {
         figure_destination_priest_action(f);
     } else {
-        culture_action(f, GROUP_FIGURE_PRIEST);
+        culture_action(f);
     }
 }
 
@@ -236,22 +234,22 @@ void figure_school_child_action(Figure *f)
 
 void figure_teacher_action(Figure *f)
 {
-    culture_action(f, GROUP_FIGURE_TEACHER_LIBRARIAN);
+    culture_action(f);
 }
 
 void figure_librarian_action(Figure *f)
 {
-    culture_action(f, GROUP_FIGURE_TEACHER_LIBRARIAN);
+    culture_action(f);
 }
 
 void figure_barber_action(Figure *f)
 {
-    culture_action(f, GROUP_FIGURE_BARBER);
+    culture_action(f);
 }
 
 void figure_bathhouse_worker_action(Figure *f)
 {
-    culture_action(f, GROUP_FIGURE_BATHHOUSE_WORKER);
+    culture_action(f);
 }
 
 void figure_tavern_action(Figure *f)
@@ -379,7 +377,7 @@ void figure_doctor_action(Figure *f)
     // special actions
     if (!fight_plague(f, 0)) {
         f->terrain_usage = TERRAIN_USAGE_ROADS;
-        culture_action(f, GROUP_FIGURE_DOCTOR_SURGEON);
+        culture_action(f);
     }
     switch (f->action_state) {
         case FIGURE_ACTION_231_DOCTOR_GOING_TO_PLAGUE:
@@ -462,9 +460,7 @@ void figure_tax_collector_action(Figure *f)
 {
     building *b = building_get(f->building.id());
 
-    f->terrain_usage = TERRAIN_USAGE_ROADS;
-    f->use_cross_country = 0;
-    f->max_roam_length = 512;
+    figure_runtime_apply_profile_movement(f);
     if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
@@ -533,5 +529,5 @@ void figure_tax_collector_action(Figure *f)
             }
             break;
     }
-    figure_image_update(f, image_group(GROUP_FIGURE_TAX_COLLECTOR));
+    figure_runtime_update_graphics(f);
 }

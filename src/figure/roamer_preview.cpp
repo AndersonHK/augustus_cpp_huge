@@ -8,6 +8,7 @@
 #include "building/rotation.h"
 #include "core/config.h"
 #include "figure/figure.h"
+#include "figure/figure_type_registry_internal.h"
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "map/grid.h"
@@ -30,22 +31,7 @@ static figure_type building_type_to_figure_type(building_type type)
 
 static int roam_length_for_figure_type(figure_type type)
 {
-    switch (type) {
-        case FIGURE_TAX_COLLECTOR:
-        case FIGURE_ACTOR:
-        case FIGURE_GLADIATOR:
-        case FIGURE_LION_TAMER:
-            return 512;
-        case FIGURE_CHARIOTEER:
-            return 1024;
-        case FIGURE_MISSIONARY:
-            return 192;
-        case FIGURE_ENGINEER:
-        case FIGURE_PREFECT:
-            return 640;
-        default:
-            return 384;
-    }
+    return figure_type_registry_impl::default_profile_for(type)->movement_profile().max_roam_length;
 }
 
 static int figure_enters_exits_building(figure_type type)

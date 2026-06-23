@@ -36,6 +36,7 @@
 #include "sound/effect.h"
 
 #include <cstdint>
+#include <exception>
 #include <limits>
 #include <memory>
 #include <string_view>
@@ -216,8 +217,7 @@ RuntimeEntry *bind_entry(Figure *f)
 
     if (!entry_matches_figure(*entry, f) ||
         entry->definition != definition ||
-        entry->profile != profile ||
-        !entry->controller) {
+        entry->profile != profile) {
         entry->data = f;
         entry->created_sequence = f->created_sequence;
         entry->definition = definition;
@@ -225,10 +225,12 @@ RuntimeEntry *bind_entry(Figure *f)
         entry->controller = figure_runtime_native_impl::make_controller(f, definition, profile);
     } else {
         entry->data = f;
-        entry->controller->set_figure(f);
+        if (entry->controller) {
+            entry->controller->set_figure(f);
+        }
     }
 
-    if (!entry->controller) {
+    if (!entry->profile) {
         *entry = RuntimeEntry();
         return nullptr;
     }
@@ -312,7 +314,8 @@ int figure_runtime_bind_profile(Figure *f, const char *profile_id)
     entry->definition = definition;
     entry->profile = profile;
     entry->controller = figure_runtime_native_impl::make_controller(f, definition, profile);
-    return entry->controller ? 1 : 0;
+    return profile->native_class() == figure_type_registry_impl::NativeClassId::LegacyAction ||
+        entry->controller ? 1 : 0;
 }
 
 Figure *figure_runtime_create_profiled(
@@ -403,6 +406,25 @@ int figure_runtime_execute(Figure *f)
         return 0;
     }
     return entry->controller->execute();
+}
+
+int figure_runtime_apply_profile_movement(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (!entry || !entry->profile) {
+        ErrorContextScope scope("FigureType profile movement");
+        error_context_report_fatal_error_dialog(
+            "Figure runtime error",
+            "Figure has no XML movement profile.",
+            "A legacy action walker attempted to read profile-owned movement data, but no FigureType profile was bound.");
+        std::terminate();
+    }
+
+    const figure_type_registry_impl::MovementProfile &movement = entry->profile->movement_profile();
+    f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+    f->use_cross_country = 0;
+    f->max_roam_length = static_cast<short>(movement.max_roam_length);
+    return 1;
 }
 
 int figure_runtime_has_native_graphics(const Figure *f)

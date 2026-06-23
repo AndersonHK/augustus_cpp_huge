@@ -39,7 +39,8 @@ static void find_minimum_road_tile(int x, int y, int size, int *min_value, int *
         if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) ||
             !building_matches(adjacent_building, "gatehouse")) {
             if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-                roadblock_type kind = Roadblock(building_get(map_building_at(grid_offset))).kind();
+                const int building_id = map_building_at(grid_offset);
+                roadblock_type kind = building_id ? Roadblock(building_get(building_id)).kind() : ROADBLOCK_NONE;
                 if (kind == ROADBLOCK_STANDARD || kind == ROADBLOCK_STORAGE) {
                     continue; // ignore non-bridge roadblocks
                 }
