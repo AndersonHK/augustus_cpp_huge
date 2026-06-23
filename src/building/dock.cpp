@@ -100,7 +100,8 @@ int building_dock_accepts_ship(Figure &ship, const Building &dock)
     if (!building_dock_can_trade_with_route(city->route_id, dock)) {
         return 0;
     }
-    for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource_type resource = resource_get_loaded(i);
         if (city->sells_resource[resource] || city->buys_resource[resource]) {
             if (dock.accepts_good(resource)) {
                 return 1;
@@ -126,7 +127,8 @@ int building_dock_can_import_from_ship(const Building &dock, int ship_id)
     if (!city) {
         return 0;
     }
-    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource_type r = resource_get_loaded(i);
         if (dock.accepts_good(r) && city->sells_resource[r]) {
             return 1;
         }
@@ -150,7 +152,8 @@ int building_dock_can_export_to_ship(const Building &dock, int ship_id)
     if (!city) {
         return 0;
     }
-    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource_type r = resource_get_loaded(i);
         if (dock.accepts_good(r) && city->buys_resource[r]) {
             return 1;
         }
@@ -197,7 +200,8 @@ static void get_already_handled_goods(handled_goods *handled, int ship_id)
 
         // assign the road network (in case this is a new one) and add the goods this dock handles
         network->road_network_id = static_cast<unsigned char>(dock.road_network_id());
-        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        for (int i = 0; i < resource_loaded_count(); i++) {
+            resource_type r = resource_get_loaded(i);
             if (dock.accepts_good(r)) {
                 network->goods[r] = 1;
             }
@@ -217,7 +221,8 @@ static int all_dock_goods_already_handled(const handled_goods *handled, const Bu
             continue;
         }
         // we've visited docks on this road network
-        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        for (int j = 0; j < resource_loaded_count(); j++) {
+            resource_type r = resource_get_loaded(j);
             if (!city->sells_resource[r] && !city->buys_resource[r]) {
                 // the ship doesn't buy or sell this good
                 continue;

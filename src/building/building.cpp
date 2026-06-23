@@ -2562,7 +2562,17 @@ static int building_resource_save_value(resource_type resource, int value)
     if (!value || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
         return 0;
     }
-    return resource == RESOURCE_NONE || resource_is_declared(resource);
+    return resource == RESOURCE_NONE || resource_is_tradeable(resource);
+}
+
+static resource_type building_resource_save_ref(resource_type resource)
+{
+    if (resource == RESOURCE_NONE) {
+        return RESOURCE_NONE;
+    }
+    return resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT && resource_is_tradeable(resource) ?
+        resource :
+        RESOURCE_NONE;
 }
 
 static int building_resource_i16_count(const short *values)
@@ -2648,19 +2658,19 @@ static void building_resource_state_write_payload(buffer *buf)
         }
 
         buffer_write_u32(buf, b->id);
-        resource_save_write_ref(buf, static_cast<resource_type>(b->output_resource_id));
-        resource_save_write_ref(buf,
+        resource_save_write_ref(buf, building_resource_save_ref(static_cast<resource_type>(b->output_resource_id)));
+        resource_save_write_ref(buf, building_resource_save_ref(
             building_matches(b, "warehouse_space") ?
                 static_cast<resource_type>(b->subtype.warehouse_resource_id) :
-                RESOURCE_NONE);
-        resource_save_write_ref(buf,
+                RESOURCE_NONE));
+        resource_save_write_ref(buf, building_resource_save_ref(
             building_uses_fetch_inventory(b) ?
                 static_cast<resource_type>(b->data.market.fetch_inventory_id) :
-                RESOURCE_NONE);
-        resource_save_write_ref(buf,
+                RESOURCE_NONE));
+        resource_save_write_ref(buf, building_resource_save_ref(
             building_matches(b, "cart_depot") ?
                 static_cast<resource_type>(b->data.depot.current_order.resource_type) :
-                RESOURCE_NONE);
+                RESOURCE_NONE));
         building_write_resource_i16_values(buf, b->resources);
         building_write_resource_u8_values(buf, b->accepted_goods);
     }

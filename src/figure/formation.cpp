@@ -263,7 +263,7 @@ formation *formation_get(int formation_id)
 
 int formation_count(void)
 {
-    return formations.size();
+    return static_cast<int>(formations.size());
 }
 
 unsigned int formation_get_selected(void)
@@ -932,7 +932,7 @@ void formation_update_all(int second_time)
 
 void formations_save_state(buffer *buf, buffer *totals)
 {
-    int buf_size = 4 + formations.size() * CURRENT_BUFFER_SIZE_PER_FORMATION;
+    const size_t buf_size = sizeof(int32_t) + formations.size() * CURRENT_BUFFER_SIZE_PER_FORMATION;
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size));
     memset(buf_data, 0, buf_size);
     buffer_init(buf, buf_data, buf_size);

@@ -33,6 +33,35 @@ static int resource_is_valid(resource_type resource)
     return resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT;
 }
 
+static resource_type remap_stored_resource_id(int save_id)
+{
+    resource_type resource = resource_remap(save_id);
+    if (resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT || !resource_is_tradeable(resource)) {
+        return RESOURCE_NONE;
+    }
+    return resource;
+}
+
+static int stored_resource_count_for_routes(const buffer *trade_routes, int route_count)
+{
+    if (!trade_routes || route_count <= 0 || trade_routes->size < sizeof(int32_t)) {
+        return 0;
+    }
+
+    const size_t payload_size = trade_routes->size - sizeof(int32_t);
+    const size_t bytes_per_resource = sizeof(int32_t) * 2;
+    const size_t resource_groups = static_cast<size_t>(route_count) * 2;
+    const size_t divisor = resource_groups * bytes_per_resource;
+    if (!divisor) {
+        return 0;
+    }
+    if (payload_size % divisor) {
+        log_error("Malformed trade route save data", 0, static_cast<int>(trade_routes->size));
+    }
+
+    return static_cast<int>(payload_size / divisor);
+}
+
 int trade_route_init(void)
 {
     routes.clear();
@@ -179,16 +208,20 @@ int trade_route_limit_reached(int route_id, resource_type resource, int buying)
 void trade_routes_save_state(buffer *trade_routes)
 {
     int route_count = static_cast<int>(routes.size());
-    int buf_size = sizeof(int32_t) * RESOURCE_SLOT_COUNT * 2 * route_count * 2;
+    int stored_resource_count = resource_total_mapped();
+    int buf_size = sizeof(int32_t) * stored_resource_count * 2 * route_count * 2;
     uint8_t *buf_data = static_cast<uint8_t *>(malloc(buf_size + sizeof(int32_t)));
     buffer_init(trade_routes, buf_data, buf_size + sizeof(int32_t));
     buffer_write_i32(trade_routes, route_count);
 
     for (trade_route &route : routes) {
         for (int i = 0; i < 2; i++) {
-            for (resource_type r = 0; r < RESOURCE_SLOT_COUNT; r++) {
-                buffer_write_i32(trade_routes, i ? route.buys.limit[r] : route.sells.limit[r]);
-                buffer_write_i32(trade_routes, i ? route.buys.traded[r] : route.sells.traded[r]);
+            for (int save_id = 0; save_id < stored_resource_count; save_id++) {
+                resource_type resource = remap_stored_resource_id(save_id);
+                buffer_write_i32(trade_routes, resource == RESOURCE_NONE ? 0 :
+                    (i ? route.buys.limit[resource] : route.sells.limit[resource]));
+                buffer_write_i32(trade_routes, resource == RESOURCE_NONE ? 0 :
+                    (i ? route.buys.traded[resource] : route.sells.traded[resource]));
             }
         }
     }
@@ -199,20 +232,26 @@ void trade_routes_load_state(buffer *trade_routes)
     int routes_to_load = buffer_read_i32(trade_routes);
     routes.clear();
     routes.resize(routes_to_load);
-    for (int i = 0; i < routes_to_load; i++) {
-        trade_route *route = route_at(i);
+    const int stored_resource_count = stored_resource_count_for_routes(trade_routes, routes_to_load);
+    for (int route_index = 0; route_index < routes_to_load; route_index++) {
+        trade_route *route = route_at(route_index);
         if (!route) {
             continue;
         }
-        for (int i = 0; i < 2; i++) {
-            for (int r = 0; r < resource_total_mapped(); r++) {
-                resource_type remapped = resource_remap(r);
-                if (i) {
-                    route->buys.limit[remapped] = buffer_read_i32(trade_routes);
-                    route->buys.traded[remapped] = buffer_read_i32(trade_routes);
+        for (int buying = 0; buying < 2; buying++) {
+            for (int save_id = 0; save_id < stored_resource_count; save_id++) {
+                resource_type remapped = remap_stored_resource_id(save_id);
+                int limit = buffer_read_i32(trade_routes);
+                int traded = buffer_read_i32(trade_routes);
+                if (remapped == RESOURCE_NONE) {
+                    continue;
+                }
+                if (buying) {
+                    route->buys.limit[remapped] = limit;
+                    route->buys.traded[remapped] = traded;
                 } else {
-                    route->sells.limit[remapped] = buffer_read_i32(trade_routes);
-                    route->sells.traded[remapped] = buffer_read_i32(trade_routes);
+                    route->sells.limit[remapped] = limit;
+                    route->sells.traded[remapped] = traded;
                 }
             }
         }

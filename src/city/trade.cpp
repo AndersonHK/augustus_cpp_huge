@@ -10,6 +10,7 @@
 #include "city/data_private.h"
 #include "empire/city.h"
 #include "figure/figure.h"
+#include "game/resource.h"
 
 void city_trade_update(void)
 {
@@ -89,26 +90,42 @@ int city_trade_has_sea_trade_problems(void)
     return city_data.trade.sea_trade_problem_duration > 0;
 }
 
+static int next_docker_resource(int *cursor)
+{
+    const int count = resource_loaded_count();
+    if (!cursor || count <= 0) {
+        return RESOURCE_NONE;
+    }
+
+    int cursor_index = -1;
+    for (int i = 0; i < count; i++) {
+        if (resource_get_loaded(i) == *cursor) {
+            cursor_index = i;
+            break;
+        }
+    }
+
+    for (int offset = 1; offset <= count; offset++) {
+        const int index = cursor_index >= 0 ? (cursor_index + offset) % count : offset - 1;
+        resource_type resource = resource_get_loaded(index);
+        if (resource_is_tradeable(resource) && resource_is_storable(resource)) {
+            *cursor = resource;
+            return resource;
+        }
+    }
+
+    *cursor = RESOURCE_NONE;
+    return RESOURCE_NONE;
+}
+
 int city_trade_next_docker_import_resource(void)
 {
-    do {
-        city_data.trade.docker_import_resource++;
-        if (city_data.trade.docker_import_resource >= RESOURCE_SLOT_COUNT) {
-            city_data.trade.docker_import_resource = (RESOURCE_NONE + 1);
-        }
-    } while (!resource_is_storable(static_cast<resource_type>(city_data.trade.docker_import_resource)));
-    return city_data.trade.docker_import_resource;
+    return next_docker_resource(&city_data.trade.docker_import_resource);
 }
 
 int city_trade_next_docker_export_resource(void)
 {
-    do {
-        city_data.trade.docker_export_resource++;
-        if (city_data.trade.docker_export_resource >= RESOURCE_SLOT_COUNT) {
-            city_data.trade.docker_export_resource = (RESOURCE_NONE + 1);
-        }
-    } while (!resource_is_storable(static_cast<resource_type>(city_data.trade.docker_export_resource)));
-    return city_data.trade.docker_export_resource;
+    return next_docker_resource(&city_data.trade.docker_export_resource);
 }
 
 int trade_caravan_count(void)

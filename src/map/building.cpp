@@ -165,7 +165,8 @@ void map_building_load_state(buffer *buildings, buffer *damage, buffer *rubble, 
 
 static int map_building_reference_is_live(unsigned int building_id)
 {
-    if (!building_id || building_id >= building_count()) {
+    const unsigned int total_buildings = static_cast<unsigned int>(building_count());
+    if (!building_id || building_id >= total_buildings) {
         return 0;
     }
     building *b = building_get(building_id);
@@ -186,6 +187,7 @@ static void clear_single_invalid_building_reference(int grid_offset)
 void map_building_remove_invalid_references(void)
 {
     int removed = 0;
+    const unsigned int total_buildings = static_cast<unsigned int>(building_count());
     for (int grid_offset = 0; grid_offset < GRID_SIZE * GRID_SIZE; grid_offset++) {
         unsigned int building_id = buildings_grid.items[grid_offset];
         if (map_building_reference_is_live(building_id)) {
@@ -198,7 +200,7 @@ void map_building_remove_invalid_references(void)
             }
             continue;
         }
-        if (building_id < building_count()) {
+        if (building_id < total_buildings) {
             int x = map_grid_offset_to_x(grid_offset);
             int y = map_grid_offset_to_y(grid_offset);
             map_building_tiles_remove(building_id, x, y);

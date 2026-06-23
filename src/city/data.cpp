@@ -60,7 +60,7 @@ static int should_save_keyed_resource_value(resource_type resource, int value, i
     if (resource == RESOURCE_NONE) {
         return !food_only;
     }
-    if (!resource_is_declared(resource)) {
+    if (!resource_is_tradeable(resource)) {
         return 0;
     }
     return !food_only || resource_is_food(resource);
@@ -169,6 +169,10 @@ static void read_keyed_i32_resource_values(buffer *buf, int *values, const char 
 static void write_resource_ref_or_legacy_id(buffer *buf, resource_type resource, int keyed_resources)
 {
     if (keyed_resources) {
+        if (resource != RESOURCE_NONE &&
+            (!is_valid_resource_slot(resource) || !resource_is_tradeable(resource))) {
+            resource = RESOURCE_NONE;
+        }
         resource_save_write_ref(buf, resource);
     } else {
         buffer_write_i32(buf, resource);

@@ -262,11 +262,13 @@ static unsigned int get_closest_building_for_import(int x, int y, int city_id, b
         return destination_id;
     }
 
-    resource = static_cast<resource_type>(city_trade_next_docker_import_resource());
-    for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT; i++) {
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource = static_cast<resource_type>(city_trade_next_docker_import_resource());
+        if (resource == RESOURCE_NONE) {
+            return 0;
+        }
         if (!dock_obj.accepts_good(resource) ||
             !empire_can_import_resource_from_city(city_id, resource)) {
-            resource = static_cast<resource_type>(city_trade_next_docker_import_resource());
             continue;
         }
         unsigned int destination_id = get_closest_import_storage_for_resource(x, y, dock, resource, dst);
@@ -274,7 +276,6 @@ static unsigned int get_closest_building_for_import(int x, int y, int city_id, b
             *import_resource = resource;
             return destination_id;
         }
-        resource = static_cast<resource_type>(city_trade_next_docker_import_resource());
     }
     return 0;
 }
@@ -339,11 +340,13 @@ static int get_closest_building_for_export(int x, int y, int city_id, building *
         return destination_id;
     }
 
-    resource = static_cast<resource_type>(city_trade_next_docker_export_resource());
-    for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT; i++) {
+    for (int i = 0; i < resource_loaded_count(); i++) {
+        resource = static_cast<resource_type>(city_trade_next_docker_export_resource());
+        if (resource == RESOURCE_NONE) {
+            return 0;
+        }
         if (!dock_obj.accepts_good(resource) ||
             !empire_can_export_resource_to_city(city_id, resource)) {
-            resource = static_cast<resource_type>(city_trade_next_docker_export_resource());
             continue;
         }
         unsigned int destination_id = get_closest_export_storage_for_resource(x, y, dock, resource, dst);
@@ -351,7 +354,6 @@ static int get_closest_building_for_export(int x, int y, int city_id, building *
             *export_resource = resource;
             return destination_id;
         }
-        resource = static_cast<resource_type>(city_trade_next_docker_export_resource());
     }
     return 0;
 }

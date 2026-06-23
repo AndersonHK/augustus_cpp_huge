@@ -94,11 +94,15 @@ void traders_save_state(buffer *buf)
         struct trader *t = &data.traders[i];
         buffer_write_i32(buf, t->bought_amount);
         buffer_write_i32(buf, t->sold_amount);
-        for (int r = 0; r < RESOURCE_SLOT_COUNT; r++) {
-            buffer_write_u8(buf, t->bought_resources[r]);
+        for (int save_id = 0; save_id < resource_total_mapped(); save_id++) {
+            resource_type resource = resource_remap(save_id);
+            buffer_write_u8(buf,
+                resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? t->bought_resources[resource] : 0);
         }
-        for (int r = 0; r < RESOURCE_SLOT_COUNT; r++) {
-            buffer_write_u8(buf, t->sold_resources[r]);
+        for (int save_id = 0; save_id < resource_total_mapped(); save_id++) {
+            resource_type resource = resource_remap(save_id);
+            buffer_write_u8(buf,
+                resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? t->sold_resources[resource] : 0);
         }
         buffer_write_i32(buf, t->bought_value);
         buffer_write_i32(buf, t->sold_value);
