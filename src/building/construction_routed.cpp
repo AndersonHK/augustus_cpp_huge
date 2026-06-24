@@ -66,6 +66,9 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
                     }
                 }
                 *items += map_tiles_set_road(x_end, y_end);
+                if (measure_only) {
+                    map_property_mark_constructing(grid_offset);
+                }
                 break;
             case ROUTED_BUILDING_AQUEDUCT:
                 *items += map_building_tiles_add_aqueduct(x_end, y_end);
@@ -75,6 +78,9 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
                 break;
             case ROUTED_BUILDING_HIGHWAY:
                 *items += map_tiles_set_highway(x_end, y_end);
+                if (measure_only) {
+                    map_property_mark_constructing(grid_offset);
+                }
                 break;
         }
         int direction = calc_general_direction(x_end, y_end, x_start, y_start);
@@ -119,6 +125,15 @@ int building_construction_place_road(int measure_only, int x_start, int y_start,
         if (!(map_routing_is_gate_transformable(end_offset)) && !map_terrain_is(end_offset, TERRAIN_AQUEDUCT)) {
             return 0;
         }
+    }
+
+    if (measure_only && start_offset == end_offset) {
+        int items_placed = map_tiles_set_road(x_start, y_start);
+        if (items_placed) {
+            map_property_mark_constructing(start_offset);
+            building_connectable_update_connections();
+        }
+        return items_placed;
     }
 
     int items_placed = 0;

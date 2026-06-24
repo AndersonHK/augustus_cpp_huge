@@ -163,6 +163,48 @@ static int is_hedge_rotation_type(building_type type)
     return is_hedge_type(type) || building_type_attr_is_any(type, {"colonnade", "palisade"});
 }
 
+static int is_draggable_building_preview_type(building_type type)
+{
+    return is_tree_type(type) ||
+        is_path_type(type) ||
+        is_alternate_small_statue_type(type) ||
+        is_hedge_type(type) ||
+        building_type_attr_is_any(type, {
+            "colonnade",
+            "garden_path",
+            "looped_garden_wall",
+            "roofed_garden_wall",
+            "panelled_garden_wall",
+            "decorative_column",
+            "palisade"
+        });
+}
+
+static int draggable_building_allows_roads(building_type type)
+{
+    return is_hedge_type(type) ||
+        building_type_attr_is_any(type, {
+            "looped_garden_wall",
+            "roofed_garden_wall",
+            "panelled_garden_wall",
+            "palisade"
+        });
+}
+
+static int draggable_building_rotation(building_type type)
+{
+    if (is_path_type(type) || is_path_rotation_type(type)) {
+        return building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
+    }
+    if (is_hedge_rotation_type(type)) {
+        return building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
+    }
+    if (is_alternate_small_statue_type(type)) {
+        return building_rotation_get_rotation() % 2;
+    }
+    return 0;
+}
+
 static int is_waterside_type(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition =
@@ -652,6 +694,9 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
                 construction_requirements_reserve(wall_type, available_resources);
                 items_placed++;
                 map_tiles_set_wall(x, y);
+                if (measure_only) {
+                    map_property_mark_constructing(grid_offset);
+                }
                 if (!measure_only) {
                     building *wall = building_create(wall_type, x, y);
                     map_building_set(grid_offset, wall->id);
@@ -698,14 +743,40 @@ static int plot_draggable_building(int x_start, int y_start, int x_end, int y_en
     }
 
     int items_placed = 0;
+    building_type gate_type = static_cast<building_type>(building_connectable_gate_type(data.tool.type));
     for (int y = y_min; y <= y_max; y++) {
         for (int x = x_min; x <= x_max; x++) {
             int grid_offset = map_grid_offset(x, y);
             if (!map_terrain_is(grid_offset, terrain)) {
                 map_property_mark_constructing(grid_offset);
                 items_placed++;
+            }
+        }
+    }
+    for (int y = y_min; y <= y_max; y++) {
+        for (int x = x_min; x <= x_max; x++) {
+            int grid_offset = map_grid_offset(x, y);
+            if (!map_property_is_constructing(grid_offset)) {
                 continue;
             }
+            building_type type = gate_type && map_terrain_is(grid_offset, TERRAIN_ROAD) ? gate_type : data.tool.type;
+            const building_type_registry_impl::BuildingType *definition =
+                building_type_registry_impl::definition_for_type(type);
+            building preview = {};
+            preview.type = type;
+            preview.state = BUILDING_STATE_IN_USE;
+            preview.size = static_cast<unsigned char>(definition ? definition->model().size() : 1);
+            preview.x = static_cast<unsigned char>(x);
+            preview.y = static_cast<unsigned char>(y);
+            preview.grid_offset = grid_offset;
+            if (building_variant_has_variants(type)) {
+                preview.variant = building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(type));
+            } else {
+                preview.subtype.orientation = draggable_building_rotation(data.tool.type);
+            }
+            map_image_set(grid_offset, building_image_get(&preview));
+            map_property_set_multi_tile_size(grid_offset, 1);
+            map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
         }
     }
     return items_placed;
@@ -935,6 +1006,11 @@ building_type building_construction_type(void)
 {
     sync_construction_type();
     return data.tool.type;
+}
+
+int building_construction_has_active_tool(void)
+{
+    return building_construction_type() != BUILDING_NONE;
 }
 
 building_type building_construction_selection_type(void)
@@ -1186,58 +1262,9 @@ void building_construction_update(int x, int y, int grid_offset)
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (is_tree_type(type)) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (is_path_type(type)) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (is_alternate_small_statue_type(type)) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (is_hedge_type(type)) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (building_type_attr_is(type, "colonnade")) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (building_type_attr_is(type, "garden_path")) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (building_type_attr_is(type, "looped_garden_wall")) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (building_type_attr_is(type, "roofed_garden_wall")) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (building_type_attr_is(type, "panelled_garden_wall")) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (building_type_attr_is(type, "decorative_column")) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 0);
-        if (items_placed >= 0) {
-            current_cost *= items_placed;
-        }
-    } else if (building_type_attr_is(type, "palisade")) {
-        int items_placed = plot_draggable_building(data.tool.start.x, data.tool.start.y, x, y, 1);
+    } else if (is_draggable_building_preview_type(type)) {
+        int items_placed = plot_draggable_building(
+            data.tool.start.x, data.tool.start.y, x, y, draggable_building_allows_roads(type));
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
@@ -1510,39 +1537,9 @@ void building_construction_place(void)
         placement_cost = info.cost;
         map_tiles_update_all_aqueducts(0);
         map_routing_update_land();
-    } else if (is_tree_type(type)) {
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, 0);
-    } else if (is_path_type(type)) {
-        int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (is_alternate_small_statue_type(type)) {
-        int rotation = building_rotation_get_rotation();
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation % 2);
-    } else if (is_hedge_type(type)) {
-        int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (building_type_attr_is(type, "colonnade")) {
-        int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (building_type_attr_is(type, "garden_path")) {
-        int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (building_type_attr_is(type, "looped_garden_wall")) {
-        int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (building_type_attr_is(type, "roofed_garden_wall")) {
-        int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (building_type_attr_is(type, "panelled_garden_wall")) {
-        int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS);
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (building_type_attr_is(type, "decorative_column")) {
-        int variant_numbers = building_variant_get_number_of_variants(type);
-        int rotation = building_rotation_get_rotation_with_limit(variant_numbers);
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
-    } else if (building_type_attr_is(type, "palisade")) {
-        int rotation = building_rotation_get_rotation_with_limit(BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES);
-        placement_cost *= place_draggable_building(x_start, y_start, x_end, y_end, type, rotation);
+    } else if (is_draggable_building_preview_type(type)) {
+        placement_cost *= place_draggable_building(
+            x_start, y_start, x_end, y_end, type, draggable_building_rotation(type));
     } else if (is_vacant_lot_type(type)) {
         placement_cost *= place_houses(0, x_start, y_start, x_end, y_end);
     } else {
@@ -1650,7 +1647,10 @@ int building_construction_draw_as_constructing(void)
 
 int building_construction_uses_custom_ghost_preview(void)
 {
-    return building_type_attr_is(building_construction_type(), "draggable_reservoir");
+    building_type type = building_construction_type();
+    return building_type_attr_is(type, "draggable_reservoir") ||
+        building_type_attr_is_any(type, {"road", "highway", "wall"}) ||
+        is_draggable_building_preview_type(type);
 }
 
 

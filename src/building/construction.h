@@ -30,6 +30,7 @@ void building_construction_toggle_auto_cycle(void);
 int building_construction_can_rotate(void);
 
 building_type building_construction_type(void);
+int building_construction_has_active_tool(void);
 
 building_type building_construction_selection_type(void);
 
@@ -67,7 +68,6 @@ int building_construction_get_start_grid_offset(void);
 
 void building_construction_reset_draw_as_constructing(void);
 int building_construction_draw_as_constructing(void);
-int building_construction_uses_custom_ghost_preview(void);
 
 int building_construction_is_land_work_type(building_type type);
 /** @brief to place a single wall tile at the given grid offset. since walls are being moved to building category,

@@ -1,8 +1,6 @@
 #include "building/building_type.h"
-#include "building/connectable.h"
 #include "building/construction.h"
 #include "building/construction_clear.h"
-#include "building/image.h"
 #include "building/industry.h"
 #include "building/rotation.h"
 #include "building/storage.h"
@@ -38,7 +36,6 @@
 #include "building/building_type_api.h"
 #include "building/granary.h"
 #include "building/monument.h"
-#include "building/properties.h"
 #include "city/buildings.h"
 #include "city/population.h"
 #include "city/ratings.h"
@@ -278,10 +275,8 @@ static void draw_footprint(int x, int y, int grid_offset)
     int image_id = map_image_at(grid_offset);
     const int use_custom_ghost_preview =
         map_property_is_constructing(grid_offset) &&
-        building_construction_uses_custom_ghost_preview() &&
         !building_construction_draw_as_constructing();
-    if (map_property_is_constructing(grid_offset) && !use_custom_ghost_preview) { //&&
-        //  !building_is_connectable(building_construction_type())) {
+    if (map_property_is_constructing(grid_offset) && !use_custom_ghost_preview) {
         image_id = Image::group(GROUP_TERRAIN_OVERLAY);
     }
     if (draw_context.advance_water_animation &&
@@ -293,7 +288,14 @@ static void draw_footprint(int x, int y, int grid_offset)
         }
         map_image_set(grid_offset, image_id);
     }
-    if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
+    if (use_custom_ghost_preview) {
+        Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw_isometric_footprint_from_draw_tile(
+            x, y, COLOR_MASK_FOOTPRINT_GHOST, draw_context.scale);
+        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(
+            x, y, COLOR_MASK_BUILDING_GHOST, draw_context.scale);
+        Image::from_id(image_id).draw_isometric_top_from_draw_tile(
+            x, y, COLOR_MASK_BUILDING_GHOST, draw_context.scale);
+    } else if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         city_draw_highway_footprint(x, y, draw_context.scale, grid_offset, color_mask);
     } else if (building_id &&
         building.draw_footprint({ x, y, grid_offset, color_mask, draw_context.scale })) {
@@ -955,25 +957,6 @@ static void deletion_draw_remaining(int x, int y, int grid_offset)
     draw_hippodrome_ornaments(x, y, grid_offset);
 }
 
-static void draw_connectable_construction_ghost(int x, int y, int grid_offset)
-{
-    if (!map_property_is_constructing(grid_offset)) {
-        return;
-    }
-    static building b;
-    b.type = static_cast<building_type>(building_construction_type());
-    if (building_connectable_gate_type(b.type) && map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-        b.type = static_cast<building_type>(building_connectable_gate_type(b.type));
-    }
-    b.grid_offset = grid_offset;
-    if (building_properties_for_type(b.type)->rotation_offset) {
-        b.subtype.orientation = building_rotation_get_rotation();
-    }
-    int image_id = building_image_get(&b);
-    Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, COLOR_MASK_BUILDING_GHOST, draw_context.scale);
-    Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, COLOR_MASK_BUILDING_GHOST, draw_context.scale);
-}
-
 static int get_highlighted_formation_id(const map_tile *tile)
 {
     if (!config_get(CONFIG_UI_HIGHLIGHT_LEGIONS)) {
@@ -1117,9 +1100,6 @@ void city_without_overlay_draw(int selected_figure_id, pixel_coordinate *figure_
         }
         if (!selected_figure_id) {
             PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST);
-            if (building_is_connectable(building_construction_type())) {
-                city_view_foreach_valid_map_tile(draw_connectable_construction_ghost);
-            }
             city_building_ghost_draw(tile);
         }
         {
