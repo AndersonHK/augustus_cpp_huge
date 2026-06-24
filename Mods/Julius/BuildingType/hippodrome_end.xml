@@ -8,10 +8,10 @@
     <graphics>
         <default>
             <options selection="build_rotation">
-                <option path="Health_Culture\Hippodrome_1" image="Image_0004" />
                 <option path="Health_Culture\Hippodrome_2" image="Image_0004" />
+                <option path="Health_Culture\Hippodrome_1" image="Image_0000" />
+                <option path="Health_Culture\Hippodrome_2" image="Image_0000" />
                 <option path="Health_Culture\Hippodrome_1" image="Image_0004" />
-                <option path="Health_Culture\Hippodrome_2" image="Image_0004" />
             </options>
         </default>
     </graphics>
