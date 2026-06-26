@@ -1,7 +1,15 @@
 # Building Graphics Runtime Working Memory
 
-Snapshot: 2026-06-05
+Snapshot: 2026-06-26 docs refresh over older building-graphics notes
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
+
+## 2026-06-26 building object surface checkpoint
+- `src/building/building.h` is the public `Building` object/class header. Do not recreate `src/building/building_object.h` or add compatibility-split object headers.
+- When a touched building-facing file needs object behavior, prefer converting the caller boundary to C++ and passing `Building`, `Building&`, or a typed owner object. Avoid adding new raw `building *` wrappers, id-to-object helpers, or C-linkage overloads beside the object path.
+- Current source still exposes `Building::draw_footprint(...)`, `Building::draw_top(...)`, and `Building::draw_animation(...)`. Those are live migration seams for the existing city renderer, not the desired final API shape.
+- The final renderer direction is a singular building-owned draw request/command path, with `BuildingType` graphics modules deciding footprint/top/animation/detail slices internally.
+- Hippodrome XML now declares finished graphics, phased construction graphics, and composed parts with rotation-aware offsets. Legacy Hippodrome image fallback still exists in `src/building/image.cpp`, so older notes saying Hippodrome had no XML mapping should be read as pre-composed-XML history, not current state.
+- Older dated sections below remain useful evidence, but later dated checkpoints and the source tree win when they disagree.
 
 ## 2026-06-21 climate graphics checkpoint
 - House and reservoir BuildingType XML in Julius, Augustus, and Vespasian now uses normal graphics variants with `condition type="climate"` for northern and desert payloads. The default branch remains the central/temperate path.
@@ -15,7 +23,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - The standalone clean-run harness is `AugustusGraphicsExtractor.exe`, built by `AugustusGraphicsExtractor.vcxproj` from `tools/augustus_graphics_extractor/main.cpp`.
 - Runtime extraction order is Julius first, Augustus second, from `src/core/image.cpp` through `RuntimeGraphicsExtractionService`. Do not move Augustus extraction back into early `src/platform/augustus.cpp` startup.
 - Clean generated output should contain `Mods\Julius\Graphics` and `Mods\Augustus\Graphics`; `Mods\Vespasian\Graphics` should be absent until Vespasian has real native graphics.
-- Current clean sample validation:
+- Historical clean sample validation at this checkpoint, superseded by the 2026-06-21 climate extraction counts above:
   - Julius: 231 XML, 8933 PNG, 8465 logical images
   - Augustus: 3200 XML, 4088 PNG, 3259 logical images
   - BuildingType graphics refs: 494 explicit path/image refs plus 152 button icon refs checked across Augustus and Vespasian BuildingType XML, 646 total, 0 missing; button `icon` values are generated graphics group keys and optional `icon_image` values pin image ids.
@@ -49,7 +57,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 ## 2026-05-04 as-is audit
 - Live BuildingType graphics now center on `src/widget/city_draw.cpp` plus `src/building/building_runtime_graphics.cpp`. Older notes that name `city_with_overlay.cpp` or `city_without_overlay.cpp` as live graphics chokepoints describe the pre-split checkpoint and should be read as historical.
 - XML-owned buildings with validated `<graphics>` data render through cached `ImageGroupPayload` `RuntimeDrawSlice` entries. `map_image` is kept as neutral tile bookkeeping for native-owned graphics, not as the authoritative image id.
-- `building_image_get()` remains a legacy compatibility path for definitions without native graphics and for still-unexpressed special cases such as Hippodrome orientation/part selection and generic watchtower rotation/variant policy.
+- `building_image_get()` remains a legacy compatibility path for definitions without native graphics and for still-retained special cases such as the Hippodrome legacy fallback handler and generic watchtower rotation/variant policy.
 - Graphics XML discovery follows the active mod list in top-to-bottom precedence via `mod_manager_get_graphics_path_at()`, then root `assets/Graphics`; named Augustus/Julius graphics helpers remain for extractors and explicit source resolution.
 - Vespasian, Augustus, and Julius native housing XML currently covers the full legacy house chain. Housing graphics variants are normal BuildingType graphics options selected by saved `building.variant`.
 
@@ -86,9 +94,9 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Added Augustus/Vespasian small temple graphics by reusing the Julius `Health_Culture\Temple_*` small-temple image entry. This is an intentional Julius asset dependency, not an Augustus backport into Julius.
 - Added Augustus/Vespasian Pantheon completed graphics and phased construction graphics. Phase requirements mirror the legacy monument resource table so the XML construction graphics do not change delivery costs.
 - Added Augustus/Vespasian Colosseum completed graphics plus phased construction graphics. A new XML graphics condition, `festival_games`, selects the Augustus naumachia, imperial games, and execution variants; the default remains the gladiator-fight image.
-- Vespasian Hippodrome still has no safe XML graphics mapping. Finished Hippodrome selection depends on building orientation and first/middle/last part, while construction graphics depend on phase plus the same orientation/part split. Leave it on legacy `building_image_get()` until the XML schema can express that target matrix.
+- Historical Hippodrome note: at this checkpoint the XML schema could not yet express finished/construction orientation plus first/middle/last-part selection. Current Hippodrome XML now declares graphics, construction graphics, and composed parts; the remaining legacy `building_image_get()` fallback is migration debt rather than the desired owner.
 - The matching legacy `building_image_get()` switch arms were removed for XML-owned mappings from this pass: actor colony, barber, brickworks, chariot maker, Colosseum, concrete maker, doctor, fountain, gladiator school, governor residence tiers, hospital, native hut, native meeting hut, native decoration, native large monument, native watchtower, Pantheon, small temples, and workcamp.
-- Farm/data-only graphics stay legacy for now, including native crops. Hippodrome also stays legacy because its correct target still depends on orientation plus first/middle/last-part selection that BuildingType graphics XML cannot express yet.
+- Farm/data-only graphics stayed legacy at this checkpoint, including native crops. The Hippodrome limitation described here has since been superseded by composed XML plus rotation-aware graphics options; the remaining legacy handler is code debt, not missing XML expressiveness.
 - Watchtower's new XML payload is not enough to retire the old generic watchtower `image.cpp` policy yet. The remaining legacy case still carries building variant plus city-view rotation offsets that the current BuildingType graphics condition set cannot express.
 
 ## 2026-05-04 BuildingType button localization correction
@@ -117,8 +125,8 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Governor residences, chariot maker, Colosseum, and Hippodrome are now enum-retained XML-owned types in `building_type_legacy_migration.cpp`; their hardcoded build-menu entries and static property rows were removed. Colosseum and Hippodrome still retain legacy spawn/construction special cases where the current XML schema does not yet express all side effects.
 - Native decoration, native monument, and native watchtower name switch cases were removed from `lang.cpp`; their XML identities use the existing `TR_BUILDING_NATIVE_*` keys. Native crops and Julius-native hut labels use legacy `main_strings.41.*` keys.
 - Julius native decoration, native monument, and native watchtower XMLs were removed after rechecking upstream Julius `src/building/type.h`: Julius stops at `BUILDING_TYPE_MAX = 115` and does not define those Augustus extension types. The matching `Terrain_Maps` payloads also do not exist under `extracted_graphics_sample/Julius/Graphics`.
-- Hippodrome still has no safe XML graphics or phased-construction payload mapping. Finished and construction graphics depend on orientation plus first/middle/last building part, which the current BuildingType graphics schema cannot express.
-- Follow-up correction: Augustus/Vespasian Colosseum and native meeting hut XML now avoid extracted assetlists with missing referenced entries. See `docs/missing_graphics_payloads.md` for the source-vs-extracted payload gaps and the fallbacks currently used.
+- Historical Hippodrome note: this was true before composed XML and rotation-aware graphics options landed. Current XML declares the Hippodrome graphics/composition shape, but legacy image fallback and attr-based behavior still need removal.
+- Follow-up correction: Augustus/Vespasian Colosseum and native meeting hut XML now avoid extracted assetlists with missing referenced entries. See `docs/archive/missing_graphics_payloads.md` for the source-vs-extracted payload gaps and the historical fallbacks used at that time.
 - Julius Colosseum was checked against upstream Julius `src/core/image_group.h`, `src/building/construction_building.c`, `src/building/properties.c`, and `src/widget/city_without_overlay.c`: the base city graphic is group 48 (`Health_Culture\Colosseum/Image_0000` in the extracted sample), the worker/show overlay remains legacy group 193 (`Health_Culture\Colosseum_Show`), and Julius does not mark the Colosseum fire-proof.
 - Follow-up Julius mismatch pass: upstream Julius marks Hippodrome fire-proof as false (`{5, 0, 213, 0}`) and Well fire-proof as true (`{1, 1, 23, 0}`), so `Mods/Julius/BuildingType/hippodrome.xml` and `well.xml` now match those flags. The Julius entertainment button order now follows upstream `menu.c`: theater, amphitheater, Colosseum, Hippodrome, gladiator school, lion house, actor colony, chariot maker; touched labels use legacy `main_strings.28.*` keys instead of placeholder `building.*.name` keys.
 - The Julius static pass also replaced remaining placeholder `building.*.name` labels in implemented Julius BuildingType XML with the corresponding legacy `main_strings.28.*` keys, corrected ad hoc button icon names to resolvable extracted Julius assetlist paths, and aligned the XML menu order for water, health, education, administration, and entertainment rows with upstream Julius `menu.c` where those rows are represented by XML buttons.
@@ -232,7 +240,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 ## Current runtime resolver scope
 - Supported BuildingType graphics are no longer a small first-pass family allowlist. Any loaded BuildingType with a validated root graphics target can render through the native payload path unless code explicitly keeps that building on a legacy special path.
 - Conditional graphics select a target from live building state; options then select among equivalent images using `building.variant`.
-- The main known legacy exceptions are still data-contract gaps such as Hippodrome orientation/part matrices and generic watchtower city-view rotation/variant handling.
+- The main known legacy exceptions are retained code gaps such as the Hippodrome legacy fallback handler and generic watchtower city-view rotation/variant handling.
 
 ## Content caveats
 - Live BuildingType XML files in `Mods/Vespasian/BuildingType` and `Mods/Augustus/BuildingType` were migrated to structured `<graphics>`.
