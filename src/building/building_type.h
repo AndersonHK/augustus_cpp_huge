@@ -939,8 +939,6 @@ public:
     int is_armoury() const;
     int is_farm() const;
     int production_is_enabled() const;
-    const GraphicsTarget *resolve_graphics_target(const Building &building) const;
-    const GraphicsTarget *resolve_construction_graphics_target(int phase) const;
     static const GraphicsTarget *resolve_graphics_target_for_image(const BuildingType *definition, const Building &building);
     int has_identity() const;
     int has_model() const;

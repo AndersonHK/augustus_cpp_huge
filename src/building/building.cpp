@@ -945,6 +945,35 @@ int Building::receive_input_storage_loads(resource_type resource, int loads, uns
     return 0;
 }
 
+int Building::reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id) const
+{
+    if (!record_ || resource == RESOURCE_NONE || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+        return 0;
+    }
+    building_runtime *runtime = runtime_instance();
+    return runtime ? runtime->reserved_legacy_storage_loads(resource, ignore_figure_id) : 0;
+}
+
+int Building::reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id)
+{
+    if (!record_ || resource == RESOURCE_NONE || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT ||
+        loads <= 0 || !figure_id) {
+        return 0;
+    }
+    building_runtime *runtime = runtime_instance();
+    return runtime ? runtime->reserve_legacy_storage_loads(resource, loads, figure_id) : 0;
+}
+
+void Building::release_legacy_storage_reservation(unsigned int figure_id)
+{
+    if (!record_ || !figure_id) {
+        return;
+    }
+    if (building_runtime *runtime = runtime_instance()) {
+        runtime->release_legacy_storage_reservation(figure_id);
+    }
+}
+
 int Building::house_happiness() const
 {
     return record_ ? record_->sentiment.house_happiness : 0;

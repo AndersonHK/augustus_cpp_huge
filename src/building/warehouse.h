@@ -35,11 +35,13 @@ int building_warehouse_get_tower_grid_offset(const Building &warehouse);
 int building_warehouse_get_amount(const Building &warehouse, resource_type resource);
 int building_warehouse_get_free_space_amount(Building &warehouse);
 int building_warehouse_get_available_amount(const Building &warehouse, resource_type resource);
-int building_warehouse_maximum_receptible_amount(Building &warehouse, resource_type resource);
+int building_warehouse_maximum_receptible_amount(
+    Building &warehouse, resource_type resource, unsigned int ignore_figure_id = 0);
 int building_warehouses_count_available_resource(resource_type resource, int respect_maintaining, int caesars_request);
 int building_warehouse_accepts_storage(Building &warehouse, resource_type resource, int *understaffed);
 int building_warehouse_add_import(Building &warehouse, resource_type resource, int amount, int trader_type);
-int building_warehouse_try_add_resource(Building &b, resource_type resource, int quantity, int respect_settings);
+int building_warehouse_try_add_resource(
+    Building &b, resource_type resource, int quantity, int respect_settings, unsigned int ignore_figure_id = 0);
 int building_warehouses_add_resource(resource_type resource, int amount, int respect_settings);
 int building_warehouse_remove_export(Building &warehouse, resource_type resource, int amount, int trader_type);
 int building_warehouse_try_remove_resource(Building &warehouse, resource_type resource, int desired_amount);

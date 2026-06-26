@@ -248,7 +248,7 @@ void figure_emigrant_action(Figure *f)
                 f->destination_x = entry->x;
                 f->destination_y = entry->y;
                 f->roam_length = 0;
-                f->progress_on_tile = 15;
+                f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
             }
             f->is_ghost = f->in_building_wait_ticks ? 1 : 0;
             break;

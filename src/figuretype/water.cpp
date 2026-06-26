@@ -111,8 +111,8 @@ void figure_flotsam_action(Figure *f)
             f->x = river_entry.x;
             f->y = river_entry.y;
             f->grid_offset = map_grid_offset(f->x, f->y);
-            f->cross_country_x = 15 * f->x;
-            f->cross_country_y = 15 * f->y;
+            f->cross_country_x = figure_movement_tile_to_cross_country(f->x);
+            f->cross_country_y = figure_movement_tile_to_cross_country(f->y);
             break;
     }
     if (f->resource_id == 0) {
@@ -151,8 +151,8 @@ void figure_shipwreck_action(Figure *f)
             f->x = tile.x;
             f->y = tile.y;
             f->grid_offset = map_grid_offset(f->x, f->y);
-            f->cross_country_x = 15 * f->x + 7;
-            f->cross_country_y = 15 * f->y + 7;
+            f->cross_country_x = figure_movement_tile_center_cross_country(f->x);
+            f->cross_country_y = figure_movement_tile_center_cross_country(f->y);
         }
         map_figure_add(f);
         f->wait_ticks = 1000;

@@ -69,6 +69,14 @@ The exact XML shape can evolve, but the important contract is:
 - C++ owns selection concepts such as direction, action state, corpse state,
   carried resource, selected highlight, and tile-progress placement.
 - XML can define logical width/height or logical scale per target/animation.
+- Authored logical dimensions should use the final renderer's fine-grained
+  integer/fixed-point unit rather than floats, so common ratios such as
+  half-size, third-size, sixth-size, 6x source art, and non-round source/logical
+  relationships stay deterministic.
+- The grain should be chosen for city-view needs, not UI convenience. A
+  transitional six-units-per-pixel bridge is acceptable while wiring requests,
+  but the final XML unit may need to be much finer so 0.5, 0.33, 6.67, and
+  similar relationships remain integer-authored.
 - XML can define sprite offset overrides where extracted metadata is missing.
 - The legacy one-line graphics node becomes a migration input, not the final
   schema.
@@ -199,6 +207,40 @@ them with named animation state.
   may set state like `walking`, `returning`, `attacking`, `corpse`, or
   `carrying_resource`; they should not calculate image ids.
 
+#### Remaining Controller-Owned Image Mutation Map
+
+The remaining `src/figure/figure_runtime_native.cpp` mutations are controller
+state, not city-draw-only fallbacks. Move these only after `FigureGraphics` can
+resolve legacy `image_group` graphics into draw requests without relying on
+`f->image_id`:
+
+- `update_legacy_graphics_policy_image_state`: legacy XML graphics fallback for
+  action/corpse/direction/image-offset state. Needs a draw-request resolver for
+  non-native `image_group` policies, including corpse base and
+  `direction_frame_stride`.
+- `RoamingServiceFigure`: service walkers and labor seekers using
+  `figure_image_update(...)`. Needs action/corpse, direction, image offset, and
+  `max_image_offset` as graphics state.
+- `TransientWandererFigure`: ownerless ambient walkers. Needs corpse state,
+  static variant selection from `static_frame_count`, direction, and image
+  offset.
+- `MarketSupplierFigure`: market supplier base/corpse animation. Needs
+  action/corpse, direction, image offset, and carried-resource/cart state before
+  the city fallback can stop reading `f->image_id`.
+- `DeliveryFollowerFigure`: delivery boy and supplier followers. Needs
+  follow/dead/corpse action state, direction, image offset, and cart/resource
+  clearing represented as graphics state rather than `cart_image_id = 0`.
+- `EngineerServiceFigure`: simple service animation. Needs action/corpse,
+  direction, and image offset as graphics state.
+- `PrefectServiceFigure`: fire, bucket, attack, corpse, and default states.
+  Needs action target (`going_to_fire`, `at_fire`, `attack`, `corpse`),
+  attack direction, image offset, attack image offset, and bucket artwork as a
+  named target/layer.
+- `EntertainmentFigureBase`: charioteer, lion tamer, gladiator, corpse, attack,
+  and cart/animal overlay cases. Needs action target, direction, image offset,
+  attack image offset, wait-tick driven lion-tamer whip state, animal/cart
+  layers, and the current gladiator frame corrections represented in data.
+
 ### Slice 5: Overlay And Cart Ownership
 
 - Move cart/resource overlays out of `city_figure.cpp` into figure graphics
@@ -213,8 +255,8 @@ them with named animation state.
 
 - Add Vespasian FigureType XML overrides for every resized figure.
 - Point each override at the same extracted pixel art initially.
-- Define logical width/height as half the source-pixel dimensions, or define an
-  equivalent logical scale field if that is the final image-group schema.
+- Define logical width/height in the final fixed-point logical-size unit, using
+  half the source-pixel dimensions as the first Vespasian validation target.
 - Validate that tile-progress offsets, busy-road offsets, carts, corpses, and
   selection coordinate reporting still line up at half logical size.
 - Do not resize the source PNGs for this slice. The point is to prove source

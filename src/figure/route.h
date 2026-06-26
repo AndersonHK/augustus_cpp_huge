@@ -3,41 +3,21 @@
 #include "building/roadblock.h"
 #include "core/buffer.h"
 #include "figure/figure.h"
+#include "figure/route_policy.h"
 #include "game/performance_tracker.h"
 #include "map/point.h"
 
 #include <optional>
-#include <vector>
 
 typedef struct building building;
 
 class Route {
 public:
-    class DistanceQuery;
-
-    enum class Surface {
-        CitizenLand,
-        CitizenRoadGarden,
-        CitizenRoadGardenHighway,
-        NonCitizenLand,
-        Walls,
-        WaterBoat,
-        WaterFlotsam,
-        ConstructionRoad,
-        ConstructionHighway,
-        ConstructionWall,
-        ConstructionAqueduct
-    };
-
     struct Request {
         map_point source = { 0, 0 };
         map_point destination = { 0, 0 };
-        const Figure *figure = nullptr;
-        const building *owner = nullptr;
-        Surface surface = Surface::CitizenLand;
-        std::optional<roadblock_permission> permission;
+        RoutePolicy policy;
         performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY;
-        int direction_limit = 4;
         int max_tiles = 0;
         int only_through_building_id = 0;
         bool require_same_road_network = false;
@@ -46,28 +26,13 @@ public:
         static Request between(
             const map_point &source,
             const map_point &destination,
-            Surface surface,
+            RoutePolicy policy,
             performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
-        static Request fromFigure(
-            const Figure &figure,
-            Surface surface,
-            performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
-    };
-
-    struct Result {
-        std::vector<map_point> path;
-        int distance = 0;
-        int distance_generation = -1;
-        bool reached = false;
-
-        explicit operator bool() const { return reached; }
     };
 
     class Planner {
     public:
         static bool canReach(const Request &request);
-        static Result route(const Request &request);
-        static DistanceQuery distancesFrom(const Request &request);
     };
 
     struct RoadResult {
@@ -141,10 +106,14 @@ public:
     static void clean();
     static void add(Figure &figure);
     static void add(Figure *figure) { if (figure) add(*figure); }
+    static bool hasReusablePath(Figure &figure);
     static void remove(Figure &figure);
     static void remove(Figure *figure) { if (figure) remove(*figure); }
     static int currentDirection(const Figure &figure);
     static void advanceTile(Figure &figure);
+    static bool calculateConstructionDistances(RoutePolicyKind kind, const map_point &source);
+    static int constructionDistanceTo(int gridOffset);
+    static bool waterCanReachAdjacentOpenWater(const map_point &source, int x, int y, int size);
     static int waterPathLength(const map_point &source, const map_point &destination, bool flotsam = false);
     static void updateAllTerrain();
     static void updateLandTerrain();

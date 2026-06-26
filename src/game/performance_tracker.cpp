@@ -70,12 +70,17 @@ static const char *ROUTE_PURPOSE_NAMES[PERFORMANCE_TRACKER_ROUTE_PURPOSE_MAX] = 
 };
 
 static const char *RENDER_METRIC_NAMES[PERFORMANCE_TRACKER_RENDER_METRIC_MAX] = {
+    "render_2d_requests",
+    "managed_image_requests",
     "submissions",
     "managed_submissions",
     "atlas_fallback_submissions",
     "silhouette_submissions",
     "texture_switches",
-    "grid_overlays"
+    "texture_misses",
+    "grid_overlays",
+    "render_tile_rows",
+    "render_tiles"
 };
 
 static thread_local performance_tracker_route_purpose current_route_purpose =

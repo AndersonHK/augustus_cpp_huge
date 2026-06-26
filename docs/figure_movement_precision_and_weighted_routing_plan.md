@@ -17,6 +17,8 @@ The game should move away from asking "is this that building or that legacy terr
 
 Normal walkers store tile progress in `Figure::progress_on_tile` and complete a tile at the hardcoded value `15`. The renderer converts that same progress value directly into pixel offsets. Cross-country walkers use separate `cross_country_x/y` coordinates that are also based on `15 * tile`.
 
+That `15` is more than a movement constant. It encodes the legacy assumption that a source-art pixel, a logical screen pixel, tile-progress math, and zoomed presentation all line up neatly. The high-resolution asset pipeline breaks that assumption: the renderer must be able to draw source art at arbitrary source resolution, preserve a separate logical size, and support fractional logical-to-physical scaling as zoom becomes continuous.
+
 The routing system has two different shapes today:
 
 - point-to-point route searches already have an ordered queue and can express variable costs, currently used for the highway bonus
@@ -26,7 +28,7 @@ Highways are therefore split between routing, movement, and drawing as a special
 
 ## Target Model
 
-Use fixed-point tile progress with a 128-unit tile. The XML-facing movement declaration should be speed, not route cost:
+Use fixed-point tile progress with a 128-unit tile as a transitional gameplay/runtime representation. The XML-facing movement declaration should be speed, not route cost:
 
 | Surface | Example speed per tick | Notes |
 | --- | ---: | --- |
@@ -36,6 +38,8 @@ Use fixed-point tile progress with a 128-unit tile. The XML-facing movement decl
 | Open land | 5/128 | Slow enough that soldiers prefer roads |
 
 These values are initial targets, not permanent constants. The final implementation should allow FigureType XML or pathing policy declarations to override them. Dijkstra should compute tile-entry cost as the inverse of this speed, for example `route_weight = kRouteWeightScale / speed`, where `kRouteWeightScale` is chosen to preserve useful integer precision.
+
+The 128-unit tile is not the final renderer contract. Movement should expose normalized progress or integer logical world coordinates to rendering, and the renderer should map those values through camera transforms. The long-term Vulkan/orthographic path should support continuous zoom and assets whose source pixels are 2x, 6x, 6.67x, or any future scale relative to their logical footprint. Any fractional-looking authored ratio should be represented in a finer integer grain, not in floats, so city-view positioning and sprite dimensions stay deterministic.
 
 The runtime bit system must serve the tile and transportation definitions, not define them. XML tile declarations should be parsed into stable tile/surface identifiers first, and any compact bitsets should be generated as an internal acceleration structure from those identifiers. This mirrors the water-access XML direction: data owns the semantic model, while bits only make repeated checks cheap.
 
@@ -95,6 +99,8 @@ The renderer should consume normalized tile progress instead of hardcoded progre
 `city_figure.cpp` currently maps progress values directly to pixel offsets. Replace those formulas with a helper that takes a progress fraction. This keeps current road-speed visuals identical while allowing slower/faster surfaces to move smoothly.
 
 Cross-country rendering should use `cross_country_x % kFigureTileProgressMax` and matching conversion helpers rather than `% 15`.
+
+The helper should return logical-space offsets in the chosen integer grain, not source-pixel offsets. The renderer then decides how those logical offsets map to physical pixels through the active camera, zoom, asset logical size, and scale filter. This is the bridge toward continuous zoom and an orthographic z-buffered renderer, where figure quads are interpolated in world/logical space rather than snapped to legacy pixel increments.
 
 ## Slice 4: Weighted Dijkstra Cost Maps
 
@@ -202,16 +208,18 @@ This is also an opportunity to make terrain-speed lookup branch-light enough to 
 - Cost precision: reciprocal route weights need enough fixed-point precision that speeds such as 5, 6, 8, and 16 produce stable route choices without making Dijkstra maps too large.
 - Surface identity migration: legacy terrain/building constants will need a bridge during migration, but new code should consume resolved surface ids from data-owned definitions.
 - Mod scale: dynamic surface definitions mean cache keys and bitsets cannot assume a fixed built-in list of transport types.
+- Renderer coupling: movement code must stop returning pixel-scale offsets. Any remaining pixel-sized movement math will become visible when assets use 6x source resolution, fractional zoom, or future continuous camera transforms.
 
 ## Recommended Order
 
 1. Introduce named constants and helpers without changing behavior.
 2. Convert rendering helpers to normalized progress while preserving 15-step output.
-3. Change normal walking to 128-unit progress with road speed matching old behavior.
-4. Migrate cross-country fields and save/load.
-5. Convert route distance fields to weighted Dijkstra.
-6. Replace highway bonus branches with terrain speed declarations and reciprocal route weights.
-7. Add XML-owned movement surface declarations and generated runtime ids/masks.
-8. Add XML surface speed declarations to FigureType/pathing policy.
-9. Remove gameplay branches that identify routes by concrete building or terrain name.
-10. Tune gardens/open land/military behavior after runtime testing.
+3. Make rendering consume logical offsets/camera transforms instead of source-pixel offsets.
+4. Change normal walking to 128-unit progress with road speed matching old behavior.
+5. Migrate cross-country fields and save/load.
+6. Convert route distance fields to weighted Dijkstra.
+7. Replace highway bonus branches with terrain speed declarations and reciprocal route weights.
+8. Add XML-owned movement surface declarations and generated runtime ids/masks.
+9. Add XML surface speed declarations to FigureType/pathing policy.
+10. Remove gameplay branches that identify routes by concrete building or terrain name.
+11. Tune gardens/open land/military behavior after runtime testing.

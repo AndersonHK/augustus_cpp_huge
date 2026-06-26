@@ -101,17 +101,6 @@ static int type_uses_native_spawn(building_type type)
     });
 }
 
-static int type_is_fort(building_type type)
-{
-    return building_type_registry_impl::type_attr_is_any(type, {
-        "fort_legionaries",
-        "fort_javelin",
-        "fort_archers",
-        "fort_swords",
-        "fort_mounted"
-    });
-}
-
 static int figure_belongs_to_building(const Figure *f, const building *b)
 {
     return f && b && f->building.id() == b->id;
@@ -1426,7 +1415,7 @@ void building_figure_generate(void)
             spawn_figure_native_meeting(b);
         } else if (b && building_type_registry_impl::type_attr_is(b->type, "native_crops")) {
             update_native_crop_progress(b);
-        } else if (type_is_fort(b->type)) {
+        } else if (building_is_fort(b->type)) {
             Building fort(*b);
             formation_legion_update_recruit_status(fort);
             spawn_figure_fort_supplier(b);

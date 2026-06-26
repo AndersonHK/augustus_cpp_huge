@@ -36,6 +36,8 @@ typedef enum {
 
 static int active_devolve_delay;
 
+static void consume_resources(building *b);
+
 static const model_house *model_for_house(Building house)
 {
     return building_house_get_model(house);
@@ -252,7 +254,7 @@ static int has_devolve_delay(building *house, evolve_status status)
     }
 }
 
-static int evolve_xml_housing(building *house, house_demands *demands)
+static int evolve_xml_housing(building *house, house_demands *demands, time_millis last_update)
 {
     Building house_object(house);
     building_type merge_to = house_object.type ?
@@ -263,7 +265,17 @@ static int evolve_xml_housing(building *house, house_demands *demands)
     if (merge_to != BUILDING_NONE && house->house_size == 1 &&
         (house->house_population > 0 ||
             (is_empty_vacant_lot && config_get(CONFIG_GP_CH_HOUSING_PRE_MERGE_VACANT_LOTS)))) {
-        building_house_merge(house_object);
+        unsigned int merged_id = building_house_merge(house_object);
+        if (merged_id) {
+            building *merged_house = building_get(merged_id);
+            if (merged_house) {
+                if (game_time_day() == 0 || (game_time_day() == 7 && merged_house->house_size > 1)) {
+                    consume_resources(merged_house);
+                }
+                merged_house->last_update = last_update;
+            }
+            return 0;
+        }
     }
 
     if (house->house_population <= 0) {
@@ -386,8 +398,11 @@ void building_house_process_evolve_and_consume_goods(void)
         building_house_check_for_corruption(house_object);
         if (!b->has_plague) {
             if (house_object.type && house_object.type->has_housing()) {
-                has_expanded |= evolve_xml_housing(b, demands);
+                has_expanded |= evolve_xml_housing(b, demands, last_update);
             }
+        }
+        if (b->state != BUILDING_STATE_IN_USE || !b->house_size) {
+            continue;
         }
         // 1x1 houses only consume half of the goods
         if (game_time_day() == 0 || (game_time_day() == 7 && b->house_size > 1)) {

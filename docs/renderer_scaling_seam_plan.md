@@ -42,7 +42,10 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
 
 6. Split source pixel dimensions from logical dimensions in image metadata:
    - image groups should be able to declare logical width and height independently from source size
-   - the render request should carry logical size explicitly
+   - logical size should be represented in a fine-grained integer unit or fixed-point format, not as authored floats
+   - choose a grain fine enough to represent common ratios such as 1/2, 1/3, 1/6, 2/3, 1/6.67, and 6x source art without awkward decimal values
+   - do not treat the current `RENDER_LOGICAL_UNITS_PER_PIXEL` bridge as the final grain; city-view graphics may need a substantially finer unit such as subpixel logical units per legacy pixel so authoring remains integer-only
+   - the render request should carry logical size explicitly in that integer/fixed-point unit
    - this supports future high-definition assets, such as a 360x360 source rendered as a 60x60 logical sprite
 
 7. Verify with pixel checks:
@@ -55,7 +58,8 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
    - follow `docs/figure_owned_native_graphics_plan.md` before authoring this data slice
    - add Vespasian FigureType XML overrides for each resized figure
    - point those overrides at the same extracted pixel art as before
-   - declare logical dimensions at half the source-pixel size, or use the equivalent image-group logical-size field once the final schema lands
+   - declare logical dimensions in the final fixed-point logical-size unit, with half-size figures as the first validation case
+   - keep all logical-size declarations as integers in the chosen fine grain, so later 1/3-size, 0.15x, or 6.67x source-to-logical relationships do not introduce floating-point drift into city rendering
    - verify that tile anchoring, sprite offsets, carts/overlays, corpses, selected-figure coordinates, and zoomed scaling still line up
 
 ## Future Slice Shape

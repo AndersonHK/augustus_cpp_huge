@@ -2,6 +2,8 @@
 
 #include "core/image.h"
 
+#include <stdint.h>
+
 
 typedef enum {
     ATLAS_FIRST,
@@ -48,6 +50,17 @@ typedef enum {
     RENDER_SCALING_POLICY_HIGH_QUALITY = 2
 } render_scaling_policy;
 
+typedef int32_t render_logical_unit;
+
+enum {
+    RENDER_LOGICAL_UNITS_PER_PIXEL = 6
+};
+
+typedef struct {
+    render_logical_unit width;
+    render_logical_unit height;
+} render_logical_size;
+
 typedef struct {
     const image *img;
     image_handle handle;
@@ -55,6 +68,7 @@ typedef struct {
     float y;
     float logical_width;
     float logical_height;
+    render_logical_size fixed_logical_size;
     color_t color;
     render_domain domain;
     render_scaling_policy scaling_policy;
@@ -74,6 +88,7 @@ typedef struct {
     float y;
     float logical_width;
     float logical_height;
+    render_logical_size fixed_logical_size;
     color_t color;
     render_domain domain;
     render_scaling_policy scaling_policy;

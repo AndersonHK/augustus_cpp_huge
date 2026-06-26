@@ -67,7 +67,8 @@ static void create_fishing_point(int x, int y)
     fish->progress_on_tile = random_byte() & 7;
     figure_movement_set_cross_country_direction(fish,
         fish->cross_country_x, fish->cross_country_y,
-        15 * fish->destination_x, 15 * fish->destination_y, 0);
+        figure_movement_tile_to_cross_country(fish->destination_x),
+        figure_movement_tile_to_cross_country(fish->destination_y), 0);
 }
 
 void figure_create_fishing_points(void)
@@ -382,8 +383,8 @@ static void set_horse_destination(Figure *f, int state)
         }
         f->x = f->destination_x;
         f->y = f->destination_y;
-        f->cross_country_x = 15 * f->x;
-        f->cross_country_y = 15 * f->y;
+        f->cross_country_x = figure_movement_tile_to_cross_country(f->x);
+        f->cross_country_y = figure_movement_tile_to_cross_country(f->y);
         f->grid_offset = map_grid_offset(f->x, f->y);
         map_figure_add(f);
     } else if (state == HORSE_RACING) {
@@ -496,8 +497,11 @@ void figure_hippodrome_horse_action(Figure *f)
                 }
                 set_horse_destination(f, HORSE_RACING);
                 f->direction = calc_general_direction(f->x, f->y, f->destination_x, f->destination_y);
-                figure_movement_set_cross_country_direction(f,
-                    f->cross_country_x, f->cross_country_y, 15 * f->destination_x, 15 * f->destination_y, 0);
+        figure_movement_set_cross_country_direction(f,
+            f->cross_country_x, f->cross_country_y,
+            figure_movement_tile_to_cross_country(f->destination_x),
+            figure_movement_tile_to_cross_country(f->destination_y),
+            0);
             }
             if (f->action_state != FIGURE_ACTION_202_HIPPODROME_HORSE_DONE) {
                 figure_movement_move_ticks_cross_country(f, f->speed_multiplier);
@@ -508,8 +512,11 @@ void figure_hippodrome_horse_action(Figure *f)
                 set_horse_destination(f, HORSE_FINISHED);
                 race_result_process();
                 f->direction = calc_general_direction(f->x, f->y, f->destination_x, f->destination_y);
-                figure_movement_set_cross_country_direction(f,
-                    f->cross_country_x, f->cross_country_y, 15 * f->destination_x, 15 * f->destination_y, 0);
+        figure_movement_set_cross_country_direction(f,
+            f->cross_country_x, f->cross_country_y,
+            figure_movement_tile_to_cross_country(f->destination_x),
+            figure_movement_tile_to_cross_country(f->destination_y),
+            0);
             }
             if (f->direction != DIR_FIGURE_AT_DESTINATION) {
                 figure_movement_move_ticks_cross_country(f, 1);

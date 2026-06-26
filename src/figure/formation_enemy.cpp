@@ -541,7 +541,7 @@ static void set_native_target_building(formation *m)
 
 static void set_figures_to_initial(const formation *m)
 {
-    for (int i = 0; i < MAX_FORMATION_FIGURES; i++) {
+    for (int i = 0; i < formation_slot_capacity(m); i++) {
         if (m->figures[i] > 0) {
             Figure *f = Figure::get(m->figures[i]);
             if (f->action_state != FIGURE_ACTION_149_CORPSE &&
@@ -559,8 +559,9 @@ int formation_enemy_move_formation_to(const formation *m, int x, int y, int *x_t
         formation_layout_position_x(m->layout, 0),
         formation_layout_position_y(m->layout, 0));
     int figure_offsets[50];
+    const int figure_count = formation_figure_count(m);
     figure_offsets[0] = 0;
-    for (int i = 1; i < m->num_figures; i++) {
+    for (int i = 1; i < figure_count; i++) {
         figure_offsets[i] = map_grid_offset(
             formation_layout_position_x(m->layout, i),
             formation_layout_position_y(m->layout, i)) - base_offset;
@@ -572,7 +573,7 @@ int formation_enemy_move_formation_to(const formation *m, int x, int y, int *x_t
         for (int yy = y_min; yy <= y_max; yy++) {
             for (int xx = x_min; xx <= x_max; xx++) {
                 int can_move = 1;
-                for (int fig = 0; fig < m->num_figures; fig++) {
+                for (int fig = 0; fig < figure_count; fig++) {
                     int grid_offset = map_grid_offset(xx, yy) + figure_offsets[fig];
                     if (!map_grid_is_valid_offset(grid_offset)) {
                         can_move = 0;
@@ -769,7 +770,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
 
 static int formation_fully_in_city(const formation *m)
 {
-    for (int n = 0; n < MAX_FORMATION_FIGURES; n++) {
+    for (int n = 0; n < formation_slot_capacity(m); n++) {
         Figure *f = Figure::get(m->figures[n]);
         if (f->state != FIGURE_STATE_DEAD && f->is_ghost) {
             return 0;
@@ -790,7 +791,7 @@ static void update_enemy_formation(formation *m, int *roman_distance)
     if (city_figures_soldiers() <= 0) {
         formation_clear_monthly_counters(m);
     }
-    for (int n = 0; n < MAX_FORMATION_FIGURES; n++) {
+    for (int n = 0; n < formation_slot_capacity(m); n++) {
         Figure *f = Figure::get(m->figures[n]);
         if (f->action_state == FIGURE_ACTION_150_ATTACK) {
             Figure *opponent = f->opponent.save_id() ? &f->opponent.get() : nullptr;
@@ -800,7 +801,7 @@ static void update_enemy_formation(formation *m, int *roman_distance)
         }
     }
     if (formation_has_low_morale(m)) {
-        for (int n = 0; n < MAX_FORMATION_FIGURES; n++) {
+        for (int n = 0; n < formation_slot_capacity(m); n++) {
             Figure *f = Figure::get(m->figures[n]);
             if (f->action_state != FIGURE_ACTION_150_ATTACK &&
                 f->action_state != FIGURE_ACTION_149_CORPSE &&

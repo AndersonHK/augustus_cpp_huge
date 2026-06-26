@@ -1022,11 +1022,11 @@ void city_without_overlay_draw(int selected_figure_id, pixel_coordinate *figure_
         }
         {
             PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED);
-            city_view_foreach_valid_render_tile_row(
-                draw_elevated_figures_render_tile,
-                draw_hippodrome_ornaments_render_tile,
-                0
-            );
+            const CityViewRenderPhase phases[] = {
+                { draw_elevated_figures_render_tile, PERFORMANCE_TRACKER_BUCKET_MAX },
+                { draw_hippodrome_ornaments_render_tile, PERFORMANCE_TRACKER_BUCKET_MAX },
+            };
+            city_view_foreach_valid_render_tile_row(phases, 2);
         }
     } else {
         PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION);

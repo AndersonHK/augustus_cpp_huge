@@ -738,6 +738,7 @@
     <ClInclude Include="src\figure\combat.h" />
     <ClInclude Include="src\figure\enemy_army.h" />
     <ClInclude Include="src\figure\figure.h" />
+    <ClInclude Include="src\figure\figure_graphics.h" />
     <ClInclude Include="src\figure\figure_runtime_api.h" />
     <ClInclude Include="src\figure\figure_runtime_native.h" />
     <ClInclude Include="src\figure\figure_type_registry.h" />
@@ -755,6 +756,7 @@
     <ClInclude Include="src\figure\properties.h" />
     <ClInclude Include="src\figure\roamer_preview.h" />
     <ClInclude Include="src\figure\route.h" />
+    <ClInclude Include="src\figure\route_policy.h" />
     <ClInclude Include="src\figure\service.h" />
     <ClInclude Include="src\figure\sound.h" />
     <ClInclude Include="src\figure\trader.h" />

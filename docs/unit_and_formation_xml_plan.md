@@ -121,6 +121,11 @@ This also creates the right place for composed state: the fort owns the formatio
 8. Bridge old saves by mapping legacy fort/soldier records into the formation declared by the fort type.
 9. Delete legacy constants that assume 16 soldiers once save migration and runtime behavior are covered.
 
+### Current Prerequisite Status
+
+- [x] Legacy runtime formation logic has formation-owned capacity helpers for active slot iteration, open/full checks, and overflow counts.
+- [ ] Fixed storage, save/load serialization, physical clearing, formation layout tables, and overflow ejection scans still intentionally use the current 16-slot storage contract until a real `FormationInstance`/save migration exists.
+
 ## Runtime Boundaries
 
 The first slice should not rewrite all combat AI. It should establish ownership and data shape:

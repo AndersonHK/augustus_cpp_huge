@@ -819,33 +819,15 @@ void city_view_load_scenario_state(buffer *camera)
 
 void city_view_foreach_valid_map_tile(map_callback *callback)
 {
-    int odd = 0;
-    int y_view = data.camera.tile.y - 8;
-    int y_graphic = data.viewport.y - 9 * HALF_TILE_HEIGHT_PIXELS - data.camera.pixel.y;
-    for (int y = 0; y < data.viewport.height_tiles + 21; y++) {
-        if (y_view >= 0 && y_view < VIEW_Y_MAX) {
-            int x_graphic = -(6 * TILE_WIDTH_PIXELS) - data.camera.pixel.x;
-            if (odd) {
-                x_graphic += data.viewport.x - HALF_TILE_WIDTH_PIXELS;
-            } else {
-                x_graphic += data.viewport.x;
+    foreach_valid_view_tile_row<visible_view_tile>(
+        [](int x, int y, int grid_offset) {
+            return visible_view_tile{ x, y, grid_offset };
+        },
+        [callback](const visible_view_tile *row_tiles, int row_count) {
+            for (int i = 0; i < row_count; i++) {
+                callback(row_tiles[i].x, row_tiles[i].y, row_tiles[i].grid_offset);
             }
-            int x_view = data.camera.tile.x - 6;
-            for (int x = 0; x < data.viewport.width_tiles + 9; x++) {
-                if (x_view >= 0 && x_view < VIEW_X_MAX) {
-                    int grid_offset = view_to_grid_offset_lookup[x_view][y_view];
-                    if (grid_offset >= 0) {
-                        callback(x_graphic, y_graphic, grid_offset);
-                    }
-                }
-                x_graphic += TILE_WIDTH_PIXELS;
-                x_view++;
-            }
-        }
-        odd = 1 - odd;
-        y_graphic += HALF_TILE_HEIGHT_PIXELS;
-        y_view++;
-    }
+        });
 }
 
 void city_view_foreach_valid_map_tile_row(map_callback *callback1, map_callback *callback2, map_callback *callback3)
@@ -873,35 +855,31 @@ void city_view_foreach_valid_map_tile_row(map_callback *callback1, map_callback 
         });
 }
 
-void city_view_foreach_valid_render_tile_row(
-    city_view_render_tile_callback *callback1,
-    city_view_render_tile_callback *callback2,
-    city_view_render_tile_callback *callback3,
-    performance_tracker_bucket bucket1,
-    performance_tracker_bucket bucket2,
-    performance_tracker_bucket bucket3)
+void city_view_foreach_valid_render_tile_row(const CityViewRenderPhase *phases, int phase_count)
 {
+    if (!phases || phase_count <= 0) {
+        return;
+    }
+
     foreach_valid_view_tile_row<CityViewRenderTile>(
         [](int x, int y, int grid_offset) {
             return CityViewRenderTile{ x, y, grid_offset, building_for_render_tile(grid_offset) };
         },
-        [callback1, callback2, callback3, bucket1, bucket2, bucket3](const CityViewRenderTile *row_tiles, int row_count) {
-            if (callback1) {
-                PerformanceTrackerScope scope(bucket1);
-                for (int i = 0; i < row_count; i++) {
-                    callback1(row_tiles[i]);
-                }
+        [phases, phase_count](const CityViewRenderTile *row_tiles, int row_count) {
+            if (row_count > 0) {
+                performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_RENDER_TILE_ROWS, 1);
+                performance_tracker_record_render_metric(
+                    PERFORMANCE_TRACKER_RENDER_METRIC_RENDER_TILES,
+                    static_cast<uint64_t>(row_count));
             }
-            if (callback2) {
-                PerformanceTrackerScope scope(bucket2);
-                for (int i = 0; i < row_count; i++) {
-                    callback2(row_tiles[i]);
+            for (int phase_index = 0; phase_index < phase_count; phase_index++) {
+                const CityViewRenderPhase &phase = phases[phase_index];
+                if (!phase.callback) {
+                    continue;
                 }
-            }
-            if (callback3) {
-                PerformanceTrackerScope scope(bucket3);
+                PerformanceTrackerScope scope(phase.bucket);
                 for (int i = 0; i < row_count; i++) {
-                    callback3(row_tiles[i]);
+                    phase.callback(row_tiles[i]);
                 }
             }
         });

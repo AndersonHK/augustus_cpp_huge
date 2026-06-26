@@ -116,7 +116,12 @@ void city_draw_main_render_tile_row(
 {
     PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ROW);
     // TODO(renderer-command-list): publish ordered RuntimeTextureDrawRequest payloads for runtime-native slices; keep legacy image calls in row order until they have an equivalent payload.
-    city_view_foreach_valid_render_tile_row(callback1, callback2, callback3, bucket1, bucket2, bucket3);
+    const CityViewRenderPhase phases[] = {
+        { callback1, bucket1 },
+        { callback2, bucket2 },
+        { callback3, bucket3 },
+    };
+    city_view_foreach_valid_render_tile_row(phases, 3);
 }
 
 void city_draw_depot_resource(const Building &building, int x, int y, float scale)

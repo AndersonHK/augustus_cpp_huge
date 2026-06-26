@@ -225,11 +225,6 @@ building_runtime *runtime_for_building(Building building, std::unique_ptr<buildi
     return temporary_runtime.get();
 }
 
-const GraphicsTarget *resolve_target_for_direct_graphics(Building building)
-{
-    return building.type ? BuildingType::resolve_graphics_target_for_image(building.type, building) : nullptr;
-}
-
 int draw_resource_storage_footprint(Building building, const BuildingDrawContext &ctx)
 {
     if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
@@ -623,7 +618,7 @@ const GraphicsTarget *GraphicsDefinition::resolve_target(const Building &buildin
 
 int GraphicsDefinition::draw_footprint(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = resolve_target_for_direct_graphics(building)) {
+    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target_for_image(building.type, building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage_footprint(building, ctx);
         }
@@ -650,7 +645,7 @@ int GraphicsDefinition::draw_footprint(Building building, const BuildingDrawCont
 
 int GraphicsDefinition::draw_top(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = resolve_target_for_direct_graphics(building)) {
+    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target_for_image(building.type, building)) {
         if (target->is_resource_storage()) {
             return draw_resource_storage_top(building, ctx);
         }
@@ -676,7 +671,7 @@ int GraphicsDefinition::draw_top(Building building, const BuildingDrawContext &c
 
 int GraphicsDefinition::draw_animation(Building building, const BuildingDrawContext &ctx) const
 {
-    if (const GraphicsTarget *target = resolve_target_for_direct_graphics(building)) {
+    if (const GraphicsTarget *target = BuildingType::resolve_graphics_target_for_image(building.type, building)) {
         if (target->is_resource_storage()) {
             return 1;
         }

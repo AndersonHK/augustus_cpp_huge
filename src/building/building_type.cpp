@@ -1955,20 +1955,6 @@ int BuildingType::production_is_enabled() const
     return 0;
 }
 
-const GraphicsTarget *BuildingType::resolve_graphics_target(const Building &building) const
-{
-    return graphics_.resolve_target(building);
-}
-
-const GraphicsTarget *BuildingType::resolve_construction_graphics_target(int phase) const
-{
-    const ConstructionPhase *construction_phase = construction_.phase(phase);
-    return construction_phase && (
-        construction_phase->graphics.has_path() ||
-        construction_phase->graphics.has_options() ||
-        construction_phase->graphics.is_resource_storage()) ? &construction_phase->graphics : nullptr;
-}
-
 const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const BuildingType *definition, const Building &building)
 {
     if (!definition || !definition->has_graphic()) {
@@ -1978,12 +1964,16 @@ const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const Buil
     if (definition->has_phased_construction() &&
         building.monument_phase() != MONUMENT_FINISHED &&
         building.monument_phase() >= MONUMENT_START) {
-        if (const GraphicsTarget *target = definition->resolve_construction_graphics_target(building.monument_phase())) {
-            return target;
+        const ConstructionPhase *construction_phase = definition->construction_.phase(building.monument_phase());
+        if (construction_phase && (
+                construction_phase->graphics.has_path() ||
+                construction_phase->graphics.has_options() ||
+                construction_phase->graphics.is_resource_storage())) {
+            return &construction_phase->graphics;
         }
     }
 
-    return definition->resolve_graphics_target(building);
+    return definition->graphics_.resolve_target(building);
 }
 
 int BuildingType::has_identity() const

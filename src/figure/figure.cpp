@@ -460,9 +460,9 @@ Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir
     f->source_x = f->destination_x = f->previous_tile_x = f->x = x;
     f->source_y = f->destination_y = f->previous_tile_y = f->y = y;
     f->grid_offset = map_grid_offset(x, y);
-    f->cross_country_x = 15 * x;
-    f->cross_country_y = 15 * y;
-    f->progress_on_tile = 15;
+    f->cross_country_x = figure_movement_tile_to_cross_country(x);
+    f->cross_country_y = figure_movement_tile_to_cross_country(y);
+    f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
     f->progress_to_next_tick = 0;
     f->dont_draw_elevated = 0;
     f->disallow_diagonal = 0;

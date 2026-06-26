@@ -378,8 +378,8 @@ void figure_tower_sentry_reroute(void)
             map_figure_delete(f);
             f->previous_tile_x = f->x = x_tile;
             f->previous_tile_y = f->y = y_tile;
-            f->cross_country_x = 15 * x_tile;
-            f->cross_country_y = 15 * y_tile;
+            f->cross_country_x = figure_movement_tile_to_cross_country(x_tile);
+            f->cross_country_y = figure_movement_tile_to_cross_country(y_tile);
             f->grid_offset = map_grid_offset(x_tile, y_tile);
             map_figure_add(f);
             f->action_state = FIGURE_ACTION_173_TOWER_SENTRY_RETURNING;

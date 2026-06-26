@@ -143,6 +143,42 @@ typedef struct {
 
 } formation;
 
+inline int formation_slot_capacity(const formation *m)
+{
+    if (!m || m->max_figures <= 0 || m->max_figures > MAX_FORMATION_FIGURES) {
+        return MAX_FORMATION_FIGURES;
+    }
+    return m->max_figures;
+}
+
+inline int formation_figure_count(const formation *m)
+{
+    if (!m || m->num_figures <= 0) {
+        return 0;
+    }
+    const int slot_capacity = formation_slot_capacity(m);
+    return m->num_figures < slot_capacity ? m->num_figures : slot_capacity;
+}
+
+inline int formation_has_open_slot(const formation *m)
+{
+    return m && m->num_figures < formation_slot_capacity(m);
+}
+
+inline int formation_is_full(const formation *m)
+{
+    return m && m->num_figures == formation_slot_capacity(m);
+}
+
+inline int formation_overflow_count(const formation *m)
+{
+    if (!m) {
+        return 0;
+    }
+    const int overflow_count = m->num_figures - formation_slot_capacity(m);
+    return overflow_count > 0 ? overflow_count : 0;
+}
+
 void formations_clear(void);
 
 void formation_clear(int formation_id);

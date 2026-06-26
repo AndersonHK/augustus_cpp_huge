@@ -37,16 +37,34 @@ int Render2DPipeline::scale_logical_size(render_domain domain, int logical_size,
     return (int) roundf(logical_size * scale);
 }
 
+static float logical_size_or_fallback(render_logical_unit fixed_size, float logical_size, int source_size)
+{
+    if (fixed_size > 0) {
+        return static_cast<float>(fixed_size) / static_cast<float>(RENDER_LOGICAL_UNITS_PER_PIXEL);
+    }
+    return logical_size > 0.0f ? logical_size : (float) source_size;
+}
+
+float Render2DPipeline::logical_width(const render_2d_request &request, const image &img) const
+{
+    return logical_size_or_fallback(request.fixed_logical_size.width, request.logical_width, img.width);
+}
+
+float Render2DPipeline::logical_height(const render_2d_request &request, const image &img) const
+{
+    return logical_size_or_fallback(request.fixed_logical_size.height, request.logical_height, img.height);
+}
+
 float Render2DPipeline::source_scale_x(const render_2d_request &request, const image &img) const
 {
-    float logical_width = request.logical_width > 0.0f ? request.logical_width : (float) img.width;
-    return logical_width > 0.0f ? img.width / logical_width : 1.0f;
+    float width = logical_width(request, img);
+    return width > 0.0f ? img.width / width : 1.0f;
 }
 
 float Render2DPipeline::source_scale_y(const render_2d_request &request, const image &img) const
 {
-    float logical_height = request.logical_height > 0.0f ? request.logical_height : (float) img.height;
-    return logical_height > 0.0f ? img.height / logical_height : 1.0f;
+    float height = logical_height(request, img);
+    return height > 0.0f ? img.height / height : 1.0f;
 }
 
 render_domain Render2DPipeline::tooltip_domain_for(render_domain domain) const

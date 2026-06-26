@@ -106,8 +106,8 @@ public:
     unsigned char roam_random_counter;
     signed char roam_turn_direction;
     signed char roam_ticks_until_next_turn;
-    short cross_country_x; // position = 15 * x + offset on tile
-    short cross_country_y; // position = 15 * y + offset on tile
+    short cross_country_x; // position = FIGURE_CROSS_COUNTRY_TILE_UNITS * x + tile offset
+    short cross_country_y; // position = FIGURE_CROSS_COUNTRY_TILE_UNITS * y + tile offset
     short cc_destination_x;
     short cc_destination_y;
     short cc_delta_x;

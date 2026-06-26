@@ -2,12 +2,9 @@
 
 #include "figure/figure_type_registry_internal.h"
 
-#include "figure/figure.h"
-#include "graphics/runtime_texture.h"
-
 #include <memory>
 
-struct FigureGraphicDrawRequest;
+class Figure;
 
 namespace figure_runtime_native_impl {
 
@@ -64,29 +61,5 @@ road_service_effect primary_service_effect_for_profile(
     const figure_type_registry_impl::FigureTypeProfile *profile);
 
 bool is_road_history_tile(int grid_offset);
-
-int warrior_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request);
-int fort_standard_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request);
-int graphics_policy_draw_request_for_figure(
-    const Figure *f,
-    const figure_type_registry_impl::FigureTypeDefinition *definition,
-    FigureGraphicDrawRequest *request);
-int depot_cart_graphic_draw_request_for_figure(
-    const Figure *f,
-    const figure_type_registry_impl::FigureTypeDefinition *definition,
-    FigureGraphicDrawRequest *request);
-int legacy_cart_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request);
-int hippodrome_horse_graphic_draw_request_for_figure(
-    const Figure *f,
-    FigureGraphicDrawRequest *request);
-int graphics_policy_update_figure_image(
-    Figure *f,
-    const figure_type_registry_impl::FigureTypeDefinition *definition);
 
 } // namespace figure_runtime_native_impl

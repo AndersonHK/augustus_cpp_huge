@@ -135,7 +135,7 @@ static int get_roaming_destination(formation *m, int distance, int *x_tile, int 
 
 static void move_animals(const formation *m, int attacking_animals)
 {
-    for (int i = 0; i < MAX_FORMATION_FIGURES; i++) {
+    for (int i = 0; i < formation_slot_capacity(m); i++) {
         if (m->figures[i] <= 0) {
             continue;
         }
@@ -167,7 +167,7 @@ static void move_animals(const formation *m, int attacking_animals)
 
 static int can_spawn_wolf(formation *m)
 {
-    if (m->num_figures < m->max_figures && m->figure_type == FIGURE_WOLF) {
+    if (formation_has_open_slot(m) && m->figure_type == FIGURE_WOLF) {
         m->herd_wolf_spawn_delay++;
         if (m->herd_wolf_spawn_delay > WOLF_SPAWN_DELAY_TICKS) {
             m->herd_wolf_spawn_delay = 0;
@@ -211,7 +211,7 @@ static void update_herd_formation(formation *m, int infinite_wolves_spawning)
         case FIGURE_WOLF:
             roam_distance = WOLF_ROAM_DISTANCE;
             roam_delay = WOLF_ROAM_DELAY;
-            for (int fig = 0; fig < MAX_FORMATION_FIGURES; fig++) {
+            for (int fig = 0; fig < formation_slot_capacity(m); fig++) {
                 int figure_id = m->figures[fig];
                 if (figure_id > 0 && Figure::get(figure_id)->action_state == FIGURE_ACTION_150_ATTACK) {
                     attacking_animals++;

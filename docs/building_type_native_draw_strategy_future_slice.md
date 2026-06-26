@@ -27,11 +27,32 @@ BuildingType graphics already has a useful normal-rendering contract:
 - default graphics target
 - variant graphics targets
 - stable graphics options
+- build-rotation, orientation, connectable, storage-load, and production-progress options
 - construction phase graphics
 - conditional graphics selection
 - payload-backed footprint, top, and animation slices
+- composed building parts, rotation offsets, and authored placement footprints
+- construction tool kinds, shoreline/open-water foundation cells, and water-access facts
 
 That is enough for many normal buildings, but not enough for every placement preview. Some cases are not simply "pick an image and draw it"; they are tool behaviors with terrain, network, composition, or multi-part placement semantics.
+
+## Current Source Audit, 2026-06-26
+
+The current branch is well past the original "future slice" baseline. The data-contract side is mostly present:
+
+- `building_type_registry_xml.cpp` parses `water_access`, `composed/main/part/offset`, `graphics/default/variant/layer/options/condition`, `construction/phase`, and `resource_storage`.
+- `building_runtime_graphics.cpp` selects graphics options for stable variants, build rotation, connectable tiles, storage load, orientation, and production progress.
+- `BuildingType::resolve_graphics_target_for_image(...)` picks construction-phase graphics before normal graphics, and `GraphicsDefinition::draw_footprint/draw_top/draw_animation(...)` consumes native runtime slices.
+- `ConstructionPlacementPlan::build()` uses composed parts and rotation-aware offsets for placement previews and desirability-range part traversal.
+- Vespasian XML already authors representative data: hippodrome phased/rotated graphics plus composed parts, warehouse composed storage spaces, farm field parts with production-progress graphics, dock/wharf/shipyard orientation graphics, reservoir/aqueduct water-access facts, and draggable reservoir/aqueduct tool declarations.
+
+The remaining work is not "add the first native strategy model"; it is to delete or collapse the compatibility draw paths that still bypass the generic data:
+
+- `city_building_ghost.cpp` still has hardcoded preview branches for draggable reservoir, aqueduct, bridge, and road/garden-gate transforms.
+- `city_with_overlay.cpp` and `city_without_overlay.cpp` still branch on farm drawing rules; `city_without_overlay.cpp` still carries a gatehouse top branch.
+- Storage is partially native, but warehouse/granary overlay ornaments and `resource_storage` direct branches are still compatibility code rather than fully generic strategy handling.
+- `animations.cpp` still logs native draw-stage fallback to legacy rendering when a runtime slice is missing.
+- `building_type_registry_xml.cpp` still accepts metadata-only BuildingType XML temporarily, so parser strictness is not yet at the final data-owned state.
 
 ## Strategy Families
 
@@ -53,23 +74,23 @@ Likely strategy families:
 
 1. **Orientation and simple variants**
 
-   Add the missing BuildingType graphics selection needed for normal oriented buildings. Migrate simple old image handlers first.
+   Status: implemented at the parser/runtime contract. XML already uses orientation, build-rotation, connectable, stable, storage-load, and production-progress option selectors. Remaining work is caller cleanup: migrate any old image handlers that still bypass an existing BuildingType graphics target.
 
 2. **Farms**
 
-   Make farm crop/farmhouse composition data-driven enough for Vespasian farm changes. This should remove farm-specific image branching from ghost and live rendering where possible.
+   Status: data side exists. Farms are authored as composed buildings with field part types, and field graphics use production-progress options. Remaining work is deletion-focused: remove or shrink farm-specific footprint/top/overlay branches while preserving the old drawable-corner behavior.
 
 3. **Storage and tile composites**
 
-   Move warehouse, granary, roadblock, plaza, gatehouse, and decorative gate logic into reusable strategy data. Keep terrain validation in construction/map code, but stop naming concrete building types in draw code.
+   Status: partial. Warehouse storage spaces and granary resource layers are authored in BuildingType data, and `resource_storage` exists. Remaining work is to genericize warehouse/granary ornaments and gatehouse/decorative-gate/road-surface drawing without losing terrain validation.
 
 4. **Multi-part previews**
 
-   Model forts and hippodrome as composed preview strategies with authored part types, offsets, sizes, and draw order.
+   Status: implemented for the representative composed-preview path. `ConstructionPlacementPlan` consumes authored parts and rotation offsets, and Vespasian hippodrome/warehouse/farm XML proves the shape. Remaining work is compatibility deletion around callers, not first-time data modeling.
 
 5. **Network and water tools**
 
-   Leave bridge length, road adjacency, aqueduct rules, reservoir dragging, and waterside terrain checks in C++. Move their selected graphics and BuildingType facts onto native strategy data.
+   Status: model facts are partially native. Tool kind, water-access, shoreline/open-water foundation, and selected graphics facts are in BuildingType XML for several water/network buildings. Remaining work is the preview renderer: bridge length, road adjacency, aqueduct rules, and reservoir dragging can stay procedural, but their selected graphics/model facts should stop living in hardcoded ghost branches.
 
 ## Non-Goals
 

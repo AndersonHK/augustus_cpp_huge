@@ -128,6 +128,9 @@ public:
     int reserve_input_storage_load(resource_type resource, unsigned int figure_id);
     void release_input_storage_reservation(unsigned int figure_id);
     int receive_input_storage_loads(resource_type resource, int loads, unsigned int figure_id);
+    int reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id = 0) const;
+    int reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id);
+    void release_legacy_storage_reservation(unsigned int figure_id);
     int house_happiness() const;
     void set_house_happiness(int value);
     void set_fetch_inventory_id(resource_type resource);

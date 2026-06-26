@@ -12,7 +12,14 @@
 
 static const int CLOUD_TILE_OFFSETS[] = { 0, 0, 0, 1, 1, 2 };
 
-static const int CLOUD_CC_OFFSETS[] = { 0, 7, 14, 7, 14, 7 };
+static constexpr int CLOUD_CC_OFFSETS[] = {
+    0,
+    FIGURE_CROSS_COUNTRY_TILE_UNITS / 2,
+    FIGURE_CROSS_COUNTRY_TILE_UNITS - 1,
+    FIGURE_CROSS_COUNTRY_TILE_UNITS / 2,
+    FIGURE_CROSS_COUNTRY_TILE_UNITS - 1,
+    FIGURE_CROSS_COUNTRY_TILE_UNITS / 2
+};
 
 static const int CLOUD_SPEED[] = {
     1, 2, 1, 3, 2, 1, 3, 2, 1, 1, 2, 1, 2, 1, 3, 1
@@ -42,8 +49,8 @@ void figure_create_explosion_cloud(int x, int y, int size, int alt_sound)
             f->destination_y += CLOUD_DIRECTION[i].y;
             figure_movement_set_cross_country_direction(f,
                 f->cross_country_x, f->cross_country_y,
-                15 * f->destination_x + cc_offset,
-                15 * f->destination_y + cc_offset, 0);
+                figure_movement_tile_to_cross_country(f->destination_x) + cc_offset,
+                figure_movement_tile_to_cross_country(f->destination_y) + cc_offset, 0);
             f->speed_multiplier = CLOUD_SPEED[i];
         }
     }
@@ -65,7 +72,8 @@ void figure_create_missile(int figure_id, int x, int y, int x_dst, int y_dst, fi
         f->destination_y = y_dst;
         figure_movement_set_cross_country_direction(
             f, f->cross_country_x, f->cross_country_y,
-            15 * x_dst, 15 * y_dst, 1);
+            figure_movement_tile_to_cross_country(x_dst),
+            figure_movement_tile_to_cross_country(y_dst), 1);
     }
 }
 

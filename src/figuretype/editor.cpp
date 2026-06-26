@@ -2,6 +2,7 @@
 
 #include "core/image.h"
 #include "figure/image.h"
+#include "figure/movement.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "scenario/editor_map.h"
@@ -52,7 +53,7 @@ void figure_editor_flag_action(Figure *f)
     f->y = point.y;
 
     f->grid_offset = map_grid_offset(f->x, f->y);
-    f->cross_country_x = 15 * f->x + 7;
-    f->cross_country_y = 15 * f->y + 7;
+    f->cross_country_x = figure_movement_tile_center_cross_country(f->x);
+    f->cross_country_y = figure_movement_tile_center_cross_country(f->y);
     map_figure_add(f);
 }

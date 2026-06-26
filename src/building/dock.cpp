@@ -20,19 +20,17 @@
 #include "map/terrain.h"
 #include "map/water.h"
 
-#include <cstring>
-#include <cstdlib>
+#include <vector>
 
 #define MAX_DISTANCE_FOR_REROUTING 50
 
 struct handled_goods_by_road_network {
-    unsigned char road_network_id;
-    int goods[RESOURCE_SLOT_COUNT];
+    unsigned char road_network_id = 0;
+    int goods[RESOURCE_SLOT_COUNT] = {};
 };
 
 struct handled_goods {
-    handled_goods_by_road_network *networks;
-    int max_networks;
+    std::vector<handled_goods_by_road_network> networks;
 };
 
 static building_type dock_type()
@@ -161,9 +159,8 @@ void building_dock_enable_resource_in_all_docks(resource_type resource)
 
 // returns a list of goods that have been "handled" (i.e. the dock allowed for it to be traded)
 // for each road network a ship has visited
-static void get_already_handled_goods(handled_goods *handled, int ship_id)
+static void get_already_handled_goods(handled_goods &handled, int ship_id)
 {
-    std::memset(handled->networks, 0, sizeof(handled_goods_by_road_network) * handled->max_networks);
     Figure *ship = Figure::get(ship_id);
 
     // loop through the docks
@@ -177,8 +174,8 @@ static void get_already_handled_goods(handled_goods *handled, int ship_id)
         // find the handled_good that is on this road network or find the next one that hasn't
         // been assigned to a road network yet
         handled_goods_by_road_network *network = nullptr;
-        for (int j = 0; j < handled->max_networks; j++) {
-            network = &handled->networks[j];
+        for (handled_goods_by_road_network &entry : handled.networks) {
+            network = &entry;
             if (!network->road_network_id ||
                 network->road_network_id == dock.road_network_id()) {
                 break;
@@ -200,15 +197,14 @@ static void get_already_handled_goods(handled_goods *handled, int ship_id)
     }
 }
 
-static int all_dock_goods_already_handled(const handled_goods *handled, const Building &dock, const Figure *ship)
+static int all_dock_goods_already_handled(const handled_goods &handled, const Building &dock, const Figure *ship)
 {
     empire_city *city = empire_city_get(ship->empire_city_id);
     if (!city) {
         return 1;
     }
-    for (int i = 0; i < handled->max_networks; i++) {
-        const handled_goods_by_road_network *network = &handled->networks[i];
-        if (network->road_network_id != dock.road_network_id()) {
+    for (const handled_goods_by_road_network &network : handled.networks) {
+        if (network.road_network_id != dock.road_network_id()) {
             continue;
         }
         // we've visited docks on this road network
@@ -218,7 +214,7 @@ static int all_dock_goods_already_handled(const handled_goods *handled, const Bu
                 // the ship doesn't buy or sell this good
                 continue;
             }
-            if (dock.accepts_good(r) && !network->goods[r]) {
+            if (dock.accepts_good(r) && !network.goods[r]) {
                 // this dock accepts a good that all previous docks on this road network did not accept
                 return 0;
             }
@@ -230,7 +226,7 @@ static int all_dock_goods_already_handled(const handled_goods *handled, const Bu
     return 0;
 }
 
-static Building get_free_destination(Figure &ship, const Building *exclude_dock, map_point *tile, const handled_goods *handled)
+static Building get_free_destination(Figure &ship, const Building *exclude_dock, map_point *tile, const handled_goods &handled)
 {
     Building importing_dock(nullptr);
     Building exporting_dock(nullptr);
@@ -272,7 +268,7 @@ static Building get_free_destination(Figure &ship, const Building *exclude_dock,
 
 
 static Building get_queue_destination(Figure &ship, const Building *exclude_dock, ship_dock_request_type request_type, map_point *tile,
-    const handled_goods *handled)
+    const handled_goods &handled)
 {
     Building importing_dock(nullptr);
     Building exporting_dock(nullptr);
@@ -347,21 +343,16 @@ Building building_dock_get_destination(Figure &ship, const Building *exclude_doc
     }
 
     handled_goods handled;
-    handled.networks = static_cast<handled_goods_by_road_network *>(malloc(sizeof(handled_goods_by_road_network) * total_docks));
-    if (!handled.networks) {
-        return Building(nullptr);
-    }
-    handled.max_networks = total_docks;
-    get_already_handled_goods(&handled, ship.id());
+    handled.networks.resize(total_docks);
+    get_already_handled_goods(handled, ship.id());
 
-    Building dock = get_free_destination(ship, exclude_dock, tile, &handled);
+    Building dock = get_free_destination(ship, exclude_dock, tile, handled);
     if (!dock.id()) {
-        dock = get_queue_destination(ship, exclude_dock, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, tile, &handled);
+        dock = get_queue_destination(ship, exclude_dock, SHIP_DOCK_REQUEST_2_FIRST_QUEUE, tile, handled);
         if (!dock.id()) {
-            dock = get_queue_destination(ship, exclude_dock, SHIP_DOCK_REQUEST_4_SECOND_QUEUE, tile, &handled);
+            dock = get_queue_destination(ship, exclude_dock, SHIP_DOCK_REQUEST_4_SECOND_QUEUE, tile, handled);
         }
     }
-    free(handled.networks);
     return dock;
 }
 

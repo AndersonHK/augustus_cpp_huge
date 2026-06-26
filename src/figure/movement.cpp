@@ -285,15 +285,15 @@ static void walk_ticks(Figure *f, int num_ticks, int roaming_enabled)
     while (num_ticks > 0) {
         num_ticks--;
         f->progress_on_tile++;
-        if (f->progress_on_tile < 15) {
+        if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
             if (f->faction_id != FIGURE_FACTION_ROAMER_PREVIEW) {
                 figure_runtime_record_road_service_visit(f);
                 figure_service_provide_coverage(f);
             }
-            f->progress_on_tile = 15;
-            if (f->routing_path_id <= 0) {
+            f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
+            if (!Route::hasReusablePath(*f)) {
                 Route::add(f);
             }
             set_next_route_tile_direction(f);
@@ -319,7 +319,7 @@ void figure_movement_init_roaming(Figure *f)
     if (!b) {
         return;
     }
-    f->progress_on_tile = 15;
+    f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
     f->roam_choose_destination = 0;
     f->roam_ticks_until_next_turn = -1;
     f->roam_turn_direction = 2;
@@ -510,10 +510,10 @@ void figure_movement_move_ticks_tower_sentry(Figure *f, int num_ticks)
     while (num_ticks > 0) {
         num_ticks--;
         f->progress_on_tile++;
-        if (f->progress_on_tile < 15) {
+        if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
-            f->progress_on_tile = 15;
+            f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
         }
     }
 }
@@ -530,10 +530,10 @@ void figure_movement_follow_ticks(Figure *f, int num_ticks)
     while (num_ticks > 0) {
         num_ticks--;
         f->progress_on_tile++;
-        if (f->progress_on_tile < 15) {
+        if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
-            f->progress_on_tile = 15;
+            f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
             f->direction = calc_general_direction(f->x, f->y,
                 leader->previous_tile_x, leader->previous_tile_y);
             if (f->direction >= 8) {
@@ -571,10 +571,10 @@ void figure_movement_follow_ticks_with_percentage(Figure *f, int num_ticks, int 
     while (num_ticks > 0) {
         num_ticks--;
         f->progress_on_tile++;
-        if (f->progress_on_tile < 15) {
+        if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
-            f->progress_on_tile = 15;
+            f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
             f->direction = calc_general_direction(f->x, f->y,
                 leader->previous_tile_x, leader->previous_tile_y);
             if (f->direction >= 8) {
@@ -609,10 +609,10 @@ void figure_movement_roam_ticks(Figure *f, int num_ticks)
     while (num_ticks > 0) {
         num_ticks--;
         f->progress_on_tile++;
-        if (f->progress_on_tile < 15) {
+        if (!figure_movement_tile_progress_complete(f->progress_on_tile)) {
             advance_tick(f);
         } else {
-            f->progress_on_tile = 15;
+            f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
             f->roam_random_counter++;
             int came_from_direction = (f->previous_tile_direction + 4) % 8;
             if (f->faction_id != FIGURE_FACTION_ROAMER_PREVIEW) {
@@ -730,7 +730,7 @@ void figure_movement_advance_attack(Figure *f)
 
 void figure_movement_set_cross_country_direction(Figure *f, int x_src, int y_src, int x_dst, int y_dst, int is_missile)
 {
-    // all x/y are in 1/15th of a tile
+    // all x/y are in FIGURE_CROSS_COUNTRY_TILE_UNITS per tile
     f->cc_destination_x = x_dst;
     f->cc_destination_y = y_dst;
     f->cc_delta_x = (x_src > x_dst) ? (x_src - x_dst) : (x_dst - x_src);
@@ -772,7 +772,7 @@ void figure_movement_set_cross_country_destination(Figure *f, int x_dst, int y_d
     f->destination_y = y_dst;
     figure_movement_set_cross_country_direction(
         f, f->cross_country_x, f->cross_country_y,
-        15 * x_dst, 15 * y_dst, 0);
+        figure_movement_tile_to_cross_country(x_dst), figure_movement_tile_to_cross_country(y_dst), 0);
 }
 
 static void cross_country_update_delta(Figure *f)
@@ -847,8 +847,8 @@ int figure_movement_move_ticks_cross_country(Figure *f, int num_ticks)
         }
         cross_country_advance(f);
     }
-    f->x = f->cross_country_x / 15;
-    f->y = f->cross_country_y / 15;
+    f->x = figure_movement_cross_country_to_tile(f->cross_country_x);
+    f->y = figure_movement_cross_country_to_tile(f->cross_country_y);
     f->grid_offset = map_grid_offset(f->x, f->y);
     if (map_terrain_is(f->grid_offset, TERRAIN_BUILDING)) {
         f->in_building_wait_ticks = 8;
@@ -863,14 +863,19 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
 {
     int height = 0;
     Figure *f = Figure::get(0); // abuse unused figure 0 as scratch
-    f->cross_country_x = 15 * x_src;
-    f->cross_country_y = 15 * y_src;
+    f->cross_country_x = figure_movement_tile_to_cross_country(x_src);
+    f->cross_country_y = figure_movement_tile_to_cross_country(y_src);
     const int source_grid_offset = map_grid_offset(x_src, y_src);
     if (map_terrain_is(source_grid_offset, TERRAIN_WALL_OR_GATEHOUSE) ||
         building_at_matches(source_grid_offset, "watchtower")) {
         height = 6;
     }
-    figure_movement_set_cross_country_direction(f, 15 * x_src, 15 * y_src, 15 * x_dst, 15 * y_dst, 0);
+    figure_movement_set_cross_country_direction(f,
+        figure_movement_tile_to_cross_country(x_src),
+        figure_movement_tile_to_cross_country(y_src),
+        figure_movement_tile_to_cross_country(x_dst),
+        figure_movement_tile_to_cross_country(y_dst),
+        0);
 
     constexpr int kMissilePathGuardLimit = 1000;
     for (int guard = 0; guard < kMissilePathGuardLimit; guard++) {
@@ -880,8 +885,8 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
             }
             cross_country_advance(f);
         }
-        f->x = f->cross_country_x / 15;
-        f->y = f->cross_country_y / 15;
+        f->x = figure_movement_cross_country_to_tile(f->cross_country_x);
+        f->y = figure_movement_cross_country_to_tile(f->cross_country_y);
         if (height) {
             height--;
         } else {

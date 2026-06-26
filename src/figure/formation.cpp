@@ -316,7 +316,7 @@ int formation_update_halted_state(formation *m)
 {
     int all_figures_idle = 1;
 
-    for (int i = 0; i < m->num_figures; i++) {
+    for (int i = 0; i < formation_figure_count(m); i++) {
         int figure_id = m->figures[i];
         if (figure_id) {
             const Figure *f = Figure::get(figure_id);
@@ -736,7 +736,7 @@ int formation_legion_count_alive_soldiers(int formation_id)
 {
     formation *m = formation_get(formation_id);
     int alive_soldiers = 0;
-    for (int i = 0; i < m->num_figures; i++) {
+    for (int i = 0; i < formation_figure_count(m); i++) {
         if (m->figures[i]) {
             Figure *f = Figure::get(m->figures[i]);
             if (!f->is_dead()) {
@@ -770,7 +770,8 @@ static int add_figure(int formation_id, int figure_id, int deployed, int damage,
     if (deployed) {
         f->is_at_fort = 0;
     }
-    for (int fig = 0; fig < MAX_FORMATION_FIGURES; fig++) {
+    const int slot_capacity = formation_slot_capacity(f);
+    for (int fig = 0; fig < slot_capacity; fig++) {
         if (!f->figures[fig]) {
             f->figures[fig] = figure_id;
             return fig;
@@ -779,7 +780,7 @@ static int add_figure(int formation_id, int figure_id, int deployed, int damage,
 
     // The rest of the code can happen on large invasions
     // Try to balance the remaining soldiers evenly instead of stacking them all on one tile
-    return figure_id % MAX_FORMATION_FIGURES;
+    return figure_id % slot_capacity;
 }
 
 void formation_move_herds_away(int x, int y)

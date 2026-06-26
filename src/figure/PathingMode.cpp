@@ -101,7 +101,30 @@ PathingMode::TerrainAccess PathingMode::terrainFromLegacyUsage(int terrain_usage
 
 bool PathingMode::terrainRequiresRoads(const TerrainAccess &terrain)
 {
-    return terrain.requires_roads || terrain.prefers_roads;
+    return terrain.usesRoadAccess();
+}
+
+RoutePolicy PathingMode::routePolicyForTerrain(
+    const TerrainAccess &terrain,
+    std::optional<roadblock_permission> permission,
+    RouteNeighborhood neighborhood)
+{
+    RoutePolicy policy;
+    policy.permission = permission;
+    policy.neighborhood = terrain.wall_grid ? RouteNeighborhood::FourWay : neighborhood;
+
+    if (terrain.wall_grid) {
+        policy.kind = RoutePolicyKind::Walls;
+    } else if (terrain.enemy_land || terrain.animal_land) {
+        policy.kind = RoutePolicyKind::NonCitizenLand;
+    } else if (terrain.usesRoadAccess()) {
+        policy.kind = terrain.allows_highways ?
+            RoutePolicyKind::CitizenRoadGardenHighway :
+            RoutePolicyKind::CitizenRoadGarden;
+    } else {
+        policy.kind = RoutePolicyKind::CitizenLand;
+    }
+    return policy;
 }
 
 int PathingMode::citizenIsPassable(int grid_offset)

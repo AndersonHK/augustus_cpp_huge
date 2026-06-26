@@ -48,6 +48,9 @@ public:
     int owns_graphic_animation();
     int owns_native_storage() const;
     int owns_native_production() const;
+    int reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id = 0);
+    int reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id);
+    void release_legacy_storage_reservation(unsigned int figure_id);
 
     Building building() const;
 
@@ -81,6 +84,12 @@ private:
         int dirty = 1;
         int resolved = 0;
         std::uint64_t signature = 0;
+    };
+
+    struct LegacyStorageReservation {
+        unsigned int figure_id = 0;
+        resource_type resource = RESOURCE_NONE;
+        int loads = 0;
     };
 
     void refresh_runtime_state();
@@ -139,6 +148,9 @@ private:
     int evaluate_delay(const std::vector<building_type_registry_impl::DelayBand> &delay_bands) const;
     int evaluate_condition(building_type_registry_impl::SpawnCondition condition) const;
     int evaluate_spawn_chance(const building_type_registry_impl::SpawnPolicy &policy);
+    LegacyStorageReservation *legacy_storage_reservation_for(unsigned int figure_id);
+    int legacy_storage_reservation_is_current(const LegacyStorageReservation &reservation) const;
+    void prune_legacy_storage_reservations();
     int should_apply_graphic_for_timing(
         const building_type_registry_impl::SpawnDelayGroup &group,
         building_type_registry_impl::GraphicTiming timing) const;
@@ -170,5 +182,6 @@ private:
     ::building *record_ = nullptr;
     const building_type_registry_impl::BuildingType *definition_ = nullptr;
     std::vector<unsigned char> spawn_delay_counters_;
+    std::vector<LegacyStorageReservation> legacy_storage_reservations_;
     CachedGraphicsBindings graphics_cache_;
 };

@@ -21,10 +21,13 @@ int building_granary_get_amount(const Building &b, resource_type resource);
 int building_granary_get_free_space_amount(const Building &b);
 int building_granary_count_available_resource(const Building &b, resource_type resource, int respect_maintaining);
 int building_granaries_count_available_resource(resource_type resource, int respect_maintaining, int caesars_request);
-int building_granary_maximum_receptible_amount(const Building &b, resource_type resource);
+int building_granary_maximum_receptible_amount(
+    const Building &b, resource_type resource, unsigned int ignore_figure_id = 0);
 int building_granary_accepts_storage(const Building &b, resource_type resource, int *understaffed);
 int building_granary_add_import(Building &granary, resource_type resource, int amount, int trader_type);
-int building_granary_try_add_resource(Building &granary, resource_type resource, int amount, int is_produced, int respect_settings);
+int building_granary_try_add_resource(
+    Building &granary, resource_type resource, int amount, int is_produced, int respect_settings,
+    unsigned int ignore_figure_id = 0);
 int building_granaries_add_resource(resource_type resource, int amount, int respect_settings);
 int building_granary_remove_export(Building &granary, resource_type resource, int amount, int trader_type);
 int building_granary_try_remove_resource(Building &granary, resource_type resource, int desired_amount);

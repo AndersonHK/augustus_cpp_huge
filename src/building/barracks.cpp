@@ -217,7 +217,7 @@ int Barracks::create_soldier(int x, int y)
         } else {
             f->action_state = FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT;
         }
-        if (m->num_figures == MAX_FORMATION_FIGURES - 1) {
+        if (m->num_figures == formation_slot_capacity(m) - 1) {
             m->legion_recruit_type = LEGION_RECRUIT_NONE;
         }
     }

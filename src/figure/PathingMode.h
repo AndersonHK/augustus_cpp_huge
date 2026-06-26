@@ -1,5 +1,6 @@
 #pragma once
 
+#include "figure/route_policy.h"
 #include "figure/type.h"
 #include "map/road_service_history.h"
 
@@ -30,6 +31,22 @@ public:
         bool enemy_land = false;
         bool wall_grid = false;
         bool animal_land = false;
+
+        bool usesRoadAccess() const
+        {
+            return requires_roads || prefers_roads;
+        }
+
+        bool operator==(const TerrainAccess &other) const
+        {
+            return legacy_usage == other.legacy_usage &&
+                requires_roads == other.requires_roads &&
+                prefers_roads == other.prefers_roads &&
+                allows_highways == other.allows_highways &&
+                enemy_land == other.enemy_land &&
+                wall_grid == other.wall_grid &&
+                animal_land == other.animal_land;
+        }
     };
 
     constexpr PathingMode(
@@ -53,6 +70,10 @@ public:
 
     static TerrainAccess terrainFromLegacyUsage(int terrain_usage);
     static bool terrainRequiresRoads(const TerrainAccess &terrain);
+    static RoutePolicy routePolicyForTerrain(
+        const TerrainAccess &terrain,
+        std::optional<roadblock_permission> permission = std::nullopt,
+        RouteNeighborhood neighborhood = RouteNeighborhood::FourWay);
     static int citizenIsPassable(int grid_offset);
     static int citizenIsRoad(int grid_offset);
     static int citizenIsRoadLike(int grid_offset);

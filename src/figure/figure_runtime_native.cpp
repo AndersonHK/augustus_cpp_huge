@@ -11,6 +11,7 @@
 #include "city/view.h"
 #include "figure/action.h"
 #include "figure/combat.h"
+#include "figure/figure_graphics.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/formation.h"
 #include "figure/image.h"
@@ -656,7 +657,7 @@ private:
     const figure_type_registry_impl::GraphicsPolicy &policy_;
 };
 
-int warrior_graphic_draw_request_for_figure(
+static int warrior_graphic_draw_request_for_figure(
     const Figure *f,
     FigureGraphicDrawRequest *request)
 {
@@ -681,7 +682,7 @@ int warrior_graphic_draw_request_for_figure(
     return 1;
 }
 
-int fort_standard_graphic_draw_request_for_figure(
+static int fort_standard_graphic_draw_request_for_figure(
     const Figure *f,
     FigureGraphicDrawRequest *request)
 {
@@ -717,7 +718,7 @@ int fort_standard_graphic_draw_request_for_figure(
     return 1;
 }
 
-int graphics_policy_draw_request_for_figure(
+static int graphics_policy_draw_request_for_figure(
     const Figure *f,
     const figure_type_registry_impl::FigureTypeDefinition *definition,
     FigureGraphicDrawRequest *request)
@@ -758,18 +759,19 @@ int corpse_image_base_for_definition(const figure_type_registry_impl::FigureType
     return image_base_for_definition(definition) + 96;
 }
 
-int graphics_policy_update_figure_image(
-    Figure *f,
+static bool update_legacy_graphics_policy_image_state(
+    Figure &figure,
     const figure_type_registry_impl::FigureTypeDefinition *definition)
 {
-    if (!f || !definition) {
-        return 0;
+    if (!definition) {
+        return false;
     }
 
+    Figure *f = &figure;
     f->is_enemy_image = 0;
     if (GenericFigureGraphics(definition->graphics_policy()).has_native_payload()) {
         FigureGraphicDrawRequest request;
-        return graphics_policy_draw_request_for_figure(f, definition, &request) && request.has_base_slice();
+        return graphics_policy_draw_request_for_figure(f, definition, &request) && request.base_slice.is_valid();
     }
 
     const figure_type_registry_impl::GraphicsPolicy &graphics = definition->graphics_policy();
@@ -784,7 +786,7 @@ int graphics_policy_update_figure_image(
             figure_image_direction(f) +
             graphics.direction_frame_stride * f->image_offset;
     }
-    return 1;
+    return true;
 }
 
 class RoamingServiceFigure : public NativeFigure {
@@ -984,7 +986,7 @@ private:
         f->previous_tile_x = f->x;
         f->previous_tile_y = f->y;
         f->previous_tile_direction = f->direction;
-        f->progress_on_tile = 15;
+        f->progress_on_tile = FIGURE_TILE_PROGRESS_MAX;
         f->roam_length = 0;
         f->roam_choose_destination = 0;
         f->roam_random_counter = 0;
@@ -1061,7 +1063,7 @@ public:
             set_base_request_image(
                 request,
                 corpse_image_base_for_definition(&definition_) + figure_image_corpse_offset(const_cast<Figure *>(&f)));
-            return request.has_base_slice();
+            return request.base_slice.is_valid();
         }
 
         set_base_request_image(
@@ -1069,7 +1071,7 @@ public:
             image_base_for_definition(&definition_) + dir * graphics.direction_frame_stride + f.image_offset);
 
         if (!has_cart_layer(f)) {
-            return request.has_base_slice();
+            return request.base_slice.is_valid();
         }
 
         const int cart_dir = (dir + 4) % 8;
@@ -1085,7 +1087,7 @@ public:
         }
         cart_layer.draw_before_base = cart_layer.y_offset < 0;
         request.add_layer(cart_layer);
-        return request.has_base_slice();
+        return request.base_slice.is_valid();
     }
 
 private:
@@ -1139,7 +1141,7 @@ private:
     const figure_type_registry_impl::FigureTypeDefinition &definition_;
 };
 
-int depot_cart_graphic_draw_request_for_figure(
+static int depot_cart_graphic_draw_request_for_figure(
     const Figure *f,
     const figure_type_registry_impl::FigureTypeDefinition *definition,
     FigureGraphicDrawRequest *request)
@@ -1157,7 +1159,7 @@ int depot_cart_graphic_draw_request_for_figure(
     return DepotCartGraphics(*definition).draw_request_for(*f, *request);
 }
 
-int legacy_cart_graphic_draw_request_for_figure(
+static int legacy_cart_graphic_draw_request_for_figure(
     const Figure *f,
     FigureGraphicDrawRequest *request)
 {
@@ -1176,10 +1178,10 @@ int legacy_cart_graphic_draw_request_for_figure(
     cart_layer.y_offset = f->y_offset_cart;
     cart_layer.draw_before_base = f->y_offset_cart < 0;
     request->add_layer(cart_layer);
-    return request->has_base_slice();
+    return request->base_slice.is_valid();
 }
 
-int hippodrome_horse_graphic_draw_request_for_figure(
+static int hippodrome_horse_graphic_draw_request_for_figure(
     const Figure *f,
     FigureGraphicDrawRequest *request)
 {
@@ -1208,7 +1210,7 @@ int hippodrome_horse_graphic_draw_request_for_figure(
 
     request->add_layer(base_layer);
     request->add_layer(cart_layer);
-    return request->has_layers();
+    return request->layer_count > 0;
 }
 
 class DepotStorageEndpoint {
@@ -1337,6 +1339,7 @@ public:
     {
         return order_.src_storage_id != 0 &&
             order_.dst_storage_id != 0 &&
+            order_.src_storage_id != order_.dst_storage_id &&
             resource() != RESOURCE_NONE;
     }
 
@@ -3054,3 +3057,34 @@ std::unique_ptr<NativeFigure> make_controller(
 }
 
 } // namespace figure_runtime_native_impl
+
+bool FigureGraphics::resolve(FigureGraphicDrawRequest &request) const
+{
+    const Figure *f = &figure_;
+    if (figure_runtime_native_impl::warrior_graphic_draw_request_for_figure(f, &request)) {
+        return true;
+    }
+    if (figure_runtime_native_impl::fort_standard_graphic_draw_request_for_figure(f, &request)) {
+        return true;
+    }
+
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    if (figure_runtime_native_impl::depot_cart_graphic_draw_request_for_figure(f, definition, &request)) {
+        return true;
+    }
+    if (figure_runtime_native_impl::graphics_policy_draw_request_for_figure(f, definition, &request)) {
+        return true;
+    }
+    if (figure_runtime_native_impl::hippodrome_horse_graphic_draw_request_for_figure(f, &request)) {
+        return true;
+    }
+    return figure_runtime_native_impl::legacy_cart_graphic_draw_request_for_figure(f, &request) != 0;
+}
+
+bool FigureGraphics::update_legacy_image_state(Figure &figure)
+{
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(figure.type));
+    return figure_runtime_native_impl::update_legacy_graphics_policy_image_state(figure, definition);
+}

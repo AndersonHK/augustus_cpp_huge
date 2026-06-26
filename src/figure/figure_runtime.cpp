@@ -5,6 +5,7 @@
 #include "city/festival.h"
 #include "figure/action.h"
 #include "figure/figure.h"
+#include "figure/figure_graphics.h"
 #include "map/building.h"
 #include "map/road_access.h"
 
@@ -285,7 +286,7 @@ void figure_runtime_on_created(Figure *f)
     bind_entry(f);
 }
 
-int figure_runtime_bind_profile(Figure *f, const char *profile_id)
+static int figure_runtime_bind_profile(Figure *f, const char *profile_id)
 {
     if (!f || !f->id()) {
         return 0;
@@ -431,43 +432,12 @@ const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Fi
     return entry && entry->profile ? &entry->profile->pathing_policy() : nullptr;
 }
 
-int figure_runtime_graphic_draw_request(const Figure *f, FigureGraphicDrawRequest *request)
-{
-    if (request) {
-        *request = {};
-    }
-    if (!f || !request) {
-        return 0;
-    }
-    if (figure_runtime_native_impl::warrior_graphic_draw_request_for_figure(f, request)) {
-        return 1;
-    }
-    if (figure_runtime_native_impl::fort_standard_graphic_draw_request_for_figure(f, request)) {
-        return 1;
-    }
-
-    const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    if (figure_runtime_native_impl::depot_cart_graphic_draw_request_for_figure(f, definition, request)) {
-        return 1;
-    }
-    if (figure_runtime_native_impl::graphics_policy_draw_request_for_figure(f, definition, request)) {
-        return 1;
-    }
-    if (figure_runtime_native_impl::hippodrome_horse_graphic_draw_request_for_figure(f, request)) {
-        return 1;
-    }
-    return figure_runtime_native_impl::legacy_cart_graphic_draw_request_for_figure(f, request);
-}
-
 int figure_runtime_update_graphics(Figure *f)
 {
     if (!f) {
         return 0;
     }
-    const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    return figure_runtime_native_impl::graphics_policy_update_figure_image(f, definition);
+    return FigureGraphics::update_legacy_image_state(*f) ? 1 : 0;
 }
 
 int figure_runtime_choose_roaming_direction(

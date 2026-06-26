@@ -736,8 +736,7 @@ static int place_reservoir_and_aqueducts(
     }
     {
         PerformanceTrackerRouteScope route_scope(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
-        performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
-        if (!map_routing_calculate_distances_for_building(ROUTED_BUILDING_AQUEDUCT, x_start, y_start)) {
+        if (!Route::calculateConstructionDistances(RoutePolicyKind::ConstructionAqueduct, { x_start, y_start })) {
             return 0;
         }
     }
@@ -933,25 +932,25 @@ void building_construction_start(int x, int y, int grid_offset)
         const building_type_registry_impl::ConstructionToolDefinition &tool = construction_tool_for_type(data.tool.type);
         PerformanceTrackerRouteScope route_scope(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
         if (tool.is_road()) {
-            performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
-            can_start = map_routing_calculate_distances_for_building(
-                ROUTED_BUILDING_ROAD, data.tool.start.x, data.tool.start.y);
+            can_start = Route::calculateConstructionDistances(
+                RoutePolicyKind::ConstructionRoad,
+                { data.tool.start.x, data.tool.start.y });
         } else if (tool.is_aqueduct()) {
-            performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
-            can_start = map_routing_calculate_distances_for_building(
-                ROUTED_BUILDING_AQUEDUCT, data.tool.start.x, data.tool.start.y);
+            can_start = Route::calculateConstructionDistances(
+                RoutePolicyKind::ConstructionAqueduct,
+                { data.tool.start.x, data.tool.start.y });
         } else if (tool.is_draggable_reservoir()) {
             performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
             can_start = map_routing_calculate_distances_for_building(
                 ROUTED_BUILDING_DRAGGABLE_RESERVOIR, data.tool.start.x, data.tool.start.y);
         } else if (tool.is_wall()) {
-            performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
-            can_start = map_routing_calculate_distances_for_building(
-                ROUTED_BUILDING_WALL, data.tool.start.x, data.tool.start.y);
+            can_start = Route::calculateConstructionDistances(
+                RoutePolicyKind::ConstructionWall,
+                { data.tool.start.x, data.tool.start.y });
         } else if (tool.is_highway()) {
-            performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
-            can_start = map_routing_calculate_distances_for_building(
-                ROUTED_BUILDING_HIGHWAY, data.tool.start.x, data.tool.start.y);
+            can_start = Route::calculateConstructionDistances(
+                RoutePolicyKind::ConstructionHighway,
+                { data.tool.start.x, data.tool.start.y });
         }
         if (!can_start) {
             building_construction_cancel();

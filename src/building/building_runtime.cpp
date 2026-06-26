@@ -136,6 +136,98 @@ int building_runtime::owns_native_production() const
     return definition() && type().has_native_production();
 }
 
+building_runtime::LegacyStorageReservation *building_runtime::legacy_storage_reservation_for(unsigned int figure_id)
+{
+    if (!figure_id) {
+        return nullptr;
+    }
+    prune_legacy_storage_reservations();
+    for (LegacyStorageReservation &reservation : legacy_storage_reservations_) {
+        if (reservation.figure_id == figure_id) {
+            return &reservation;
+        }
+    }
+    return nullptr;
+}
+
+int building_runtime::legacy_storage_reservation_is_current(const LegacyStorageReservation &reservation) const
+{
+    if (!record_ || !reservation.figure_id || reservation.resource == RESOURCE_NONE || reservation.loads <= 0) {
+        return 0;
+    }
+
+    Figure *figure = Figure::get(reservation.figure_id);
+    if (!figure || figure->id() != reservation.figure_id || figure->is_dead() ||
+        figure->destination_building.id() != record_->id ||
+        static_cast<resource_type>(figure->resource_id) != reservation.resource ||
+        figure->loads_sold_or_carrying <= 0) {
+        return 0;
+    }
+
+    switch (figure->action_state) {
+        case FIGURE_ACTION_21_CARTPUSHER_DELIVERING_TO_WAREHOUSE:
+        case FIGURE_ACTION_22_CARTPUSHER_DELIVERING_TO_GRANARY:
+        case FIGURE_ACTION_24_CARTPUSHER_AT_WAREHOUSE:
+        case FIGURE_ACTION_25_CARTPUSHER_AT_GRANARY:
+        case FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE:
+        case FIGURE_ACTION_52_WAREHOUSEMAN_AT_DELIVERY_BUILDING:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+void building_runtime::prune_legacy_storage_reservations()
+{
+    legacy_storage_reservations_.erase(
+        std::remove_if(legacy_storage_reservations_.begin(), legacy_storage_reservations_.end(),
+            [this](const LegacyStorageReservation &reservation) {
+                return !legacy_storage_reservation_is_current(reservation);
+            }),
+        legacy_storage_reservations_.end());
+}
+
+int building_runtime::reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id)
+{
+    prune_legacy_storage_reservations();
+    int total = 0;
+    for (const LegacyStorageReservation &reservation : legacy_storage_reservations_) {
+        if (reservation.figure_id != ignore_figure_id && reservation.resource == resource) {
+            total += reservation.loads;
+        }
+    }
+    return total;
+}
+
+int building_runtime::reserve_legacy_storage_loads(resource_type resource, int loads, unsigned int figure_id)
+{
+    if (!record_ || !figure_id || resource == RESOURCE_NONE || loads <= 0) {
+        return 0;
+    }
+
+    if (LegacyStorageReservation *existing = legacy_storage_reservation_for(figure_id)) {
+        existing->resource = resource;
+        existing->loads = loads;
+        return 1;
+    }
+
+    legacy_storage_reservations_.push_back({ figure_id, resource, loads });
+    return 1;
+}
+
+void building_runtime::release_legacy_storage_reservation(unsigned int figure_id)
+{
+    if (!figure_id) {
+        return;
+    }
+    legacy_storage_reservations_.erase(
+        std::remove_if(legacy_storage_reservations_.begin(), legacy_storage_reservations_.end(),
+            [figure_id](const LegacyStorageReservation &reservation) {
+                return reservation.figure_id == figure_id;
+            }),
+        legacy_storage_reservations_.end());
+}
+
 void building_runtime_reset(void)
 {
     building_runtime_impl::g_runtime_instances.clear();

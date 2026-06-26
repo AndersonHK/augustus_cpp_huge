@@ -293,14 +293,16 @@ void building_warehouse_recount_resources(Building &main)
     main.set_resource_amount(RESOURCE_NONE, BUILDING_STORAGE_QUANTITY_MAX - total_loads);
 }
 
-int building_warehouse_try_add_resource(Building &b, resource_type resource, int quantity, int respect_settings)
+int building_warehouse_try_add_resource(
+    Building &b, resource_type resource, int quantity, int respect_settings, unsigned int ignore_figure_id)
 {
     Building warehouse = warehouse_main_for_storage(b);
     if (warehouse.id() <= 0 || quantity <= 0 || !resource) {
         return 0;
     }
     signed short max_acceptable = respect_settings ?
-        building_warehouse_maximum_receptible_amount(warehouse, resource) : building_warehouse_get_free_space_amount(warehouse);
+        building_warehouse_maximum_receptible_amount(warehouse, resource, ignore_figure_id) :
+        building_warehouse_get_free_space_amount(warehouse);
     if (!max_acceptable) {
         return 0;
     }
@@ -575,7 +577,8 @@ static int building_warehouse_max_space_for_resource(const Building &b, resource
     return max_storable;
 }
 
-int building_warehouse_maximum_receptible_amount(Building &warehouse, resource_type resource)
+int building_warehouse_maximum_receptible_amount(
+    Building &warehouse, resource_type resource, unsigned int ignore_figure_id)
 {
     Building main = warehouse_main_for_storage(warehouse);
     if (!main.id()) {
@@ -589,15 +592,18 @@ int building_warehouse_maximum_receptible_amount(Building &warehouse, resource_t
     if (building_storage_get_state(main, resource, 1) == BUILDING_STORAGE_STATE_NOT_ACCEPTING) {
         return 0; // early check for relative state
     }
-    unsigned char max_allowed = get_acceptable_quantity(main, resource);
-    unsigned char current_amount = building_warehouse_get_amount(main, resource);
-    unsigned char remaining_allowed = (max_allowed > current_amount) ? (max_allowed - current_amount) : 0;
+    const int max_allowed = get_acceptable_quantity(main, resource);
+    const int current_amount = building_warehouse_get_amount(main, resource);
+    const int reserved_inbound = main.reserved_legacy_storage_loads(resource, ignore_figure_id);
+    const int remaining_allowed = (max_allowed > current_amount + reserved_inbound) ?
+        (max_allowed - current_amount - reserved_inbound) : 0;
 
-    unsigned char resource_space_limit = building_warehouse_max_space_for_resource(main, resource); // max by tile layout
-    unsigned char free_space_overall = (unsigned char) main.resource_amount(RESOURCE_NONE); // total free space
+    const int resource_space_limit = building_warehouse_max_space_for_resource(main, resource); // max by tile layout
+    const int free_space_overall = main.resource_amount(RESOURCE_NONE); // total free space
+    const int free_space_after_reserved = MAX(0, free_space_overall - reserved_inbound);
 
-    unsigned char available_space = MIN(free_space_overall, resource_space_limit); // tile storage and free space
-    unsigned char max_receptible = MIN(remaining_allowed, available_space);
+    const int available_space = MIN(free_space_after_reserved, resource_space_limit); // tile storage and free space
+    const int max_receptible = MIN(remaining_allowed, available_space);
     // Max the building is allowed to receive, considering all limits
     // allowed remaining is the amount that can be added to the warehouse considering set limit and current storage
 
@@ -896,10 +902,11 @@ int building_warehouse_determine_worker_task(Building &warehouse, int *resource)
     }
     // deliver raw materials to workshops
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        const building_storage_state state = building_storage_get_state(warehouse, r, 1);
         if (warehouse.resource_amount(r) <= 0 || !resource_is_raw_material(r) || city_resource_is_stockpiled(r) ||
-             building_storage_get_state(warehouse, r, 1) == BUILDING_STORAGE_STATE_MAINTAINING ||
+             state == BUILDING_STORAGE_STATE_GETTING || state == BUILDING_STORAGE_STATE_MAINTAINING ||
              !building_has_workshop_for_raw_material_with_room(r, warehouse.road_network_id())) {
-            continue; // skip if no resource, not raw material,maintaining, stockpiled or no workshop
+            continue; // skip if no resource, not raw material, held by policy, stockpiled or no workshop
         }
         *resource = r;
         return WAREHOUSE_TASK_DELIVERING;
@@ -907,9 +914,10 @@ int building_warehouse_determine_worker_task(Building &warehouse, int *resource)
     // deliver food to granaries
     unsigned char delivering_food = 0;
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        const building_storage_state state = building_storage_get_state(warehouse, r, 1);
         if (warehouse.resource_amount(r) <= 0 || !resource_is_food(r) || city_resource_is_stockpiled(r) ||
-            building_storage_get_state(warehouse, r, 1) == BUILDING_STORAGE_STATE_MAINTAINING) {
-            continue; // skip if no resource, not food,maintaining, stockpiled 
+            state == BUILDING_STORAGE_STATE_GETTING || state == BUILDING_STORAGE_STATE_MAINTAINING) {
+            continue; // skip if no resource, not food, held by policy, or stockpiled
         }
         if (building_granary_get_granary_needing_food(warehouse, r, 1).id()) {
             *resource = r;
