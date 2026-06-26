@@ -50,6 +50,14 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
    - sample expected shared edges for black, transparent, or unmatched pixels
    - keep screenshots for visual regression comparisons at the problematic zoom levels
 
+8. Add Vespasian half-size FigureType graphics after figure graphics ownership lands:
+   - prerequisite: figures must own native graphics like buildings do, with the game loop asking the `Figure` object for a resolved draw request instead of reconstructing image ids from type/action branches
+   - follow `docs/figure_owned_native_graphics_plan.md` before authoring this data slice
+   - add Vespasian FigureType XML overrides for each resized figure
+   - point those overrides at the same extracted pixel art as before
+   - declare logical dimensions at half the source-pixel size, or use the equivalent image-group logical-size field once the final schema lands
+   - verify that tile anchoring, sprite offsets, carts/overlays, corpses, selected-figure coordinates, and zoomed scaling still line up
+
 ## Future Slice Shape
 
 The likely clean slice is:
@@ -59,3 +67,5 @@ The likely clean slice is:
 3. Add atlas gutters as a short-term safety net.
 4. Move terrain and water graphics out of `ATLAS_MAIN` and into managed image resources.
 5. Add explicit logical dimensions to image group XML and render requests.
+6. Move figures to native-owned graphics.
+7. Add Vespasian half-size FigureType logical-size overrides using the same source art.

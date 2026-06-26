@@ -11,7 +11,7 @@ This note maps the native walker pathing work so future sessions can find the ru
 - `src/figure/figure_runtime_native.h/.cpp` owns native controller classes, venue ranking, and controller factory dispatch.
 - `src/building/building_runtime.cpp` creates profiled native figures for BuildingType spawns.
 - `src/building/local_workforce.h/.cpp` owns local workforce targeting and save data.
-- `src/map/routing_distance.h/.cpp` wraps routing-grid distance checks for walker destination selection.
+- `src/figure/route.h/.cpp` wraps routing-grid distance checks for walker destination selection.
 - `src/map/road_service_history.h/.cpp` owns per-road, per-effect visit stamps.
 - `src/game/file_io.cpp` saves and loads road service history.
 - `src/game/save_version.h` records save-version boundaries.
