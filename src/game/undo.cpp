@@ -27,7 +27,7 @@
 #include "graphics/window.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
 
@@ -334,8 +334,8 @@ void game_undo_perform(void)
         }
         building_update_state();
     }
-    map_routing_update_land();
-    map_routing_update_walls();
+    Route::updateLandTerrain();
+    Route::updateWallTerrain();
     figure_roamer_preview_reset(building_construction_type());
     data.num_buildings = 0;
 }

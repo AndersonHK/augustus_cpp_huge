@@ -15,7 +15,6 @@
 #include "figure/figure_runtime_native.h"
 #include "figure/figure_type_registry_internal.h"
 #include "map/road_service_history.h"
-#include "map/routing_distance.h"
 
 #include "building/building_record.h"
 #include "core/buffer.h"
@@ -30,7 +29,6 @@
 #include "figure/route.h"
 #include "game/time.h"
 #include "map/grid.h"
-#include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "scenario/gladiator_revolt.h"
 #include "sound/effect.h"
@@ -421,10 +419,16 @@ int figure_runtime_apply_profile_movement(Figure *f)
     }
 
     const figure_type_registry_impl::MovementProfile &movement = entry->profile->movement_profile();
-    f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+    f->terrain_usage = static_cast<unsigned char>(entry->profile->pathing_policy().terrain.legacy_usage);
     f->use_cross_country = 0;
     f->max_roam_length = static_cast<short>(movement.max_roam_length);
     return 1;
+}
+
+const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    return entry && entry->profile ? &entry->profile->pathing_policy() : nullptr;
 }
 
 int figure_runtime_has_native_graphics(const Figure *f)

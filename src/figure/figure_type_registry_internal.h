@@ -5,7 +5,6 @@
 #include "figure/type.h"
 
 #include "figure/PathingMode.h"
-#include "map/road_service_history.h"
 
 #include <array>
 #include <memory>
@@ -66,7 +65,6 @@ struct OwnerBinding {
 };
 
 struct MovementProfile {
-    int terrain_usage = TERRAIN_USAGE_ANY;
     int roam_ticks = 1;
     int max_roam_length = 0;
     ReturnMode return_mode = ReturnMode::ReturnToOwnerRoad;
@@ -100,11 +98,6 @@ struct GraphicsPolicy {
     int cart_high_load_threshold = 0;
     int cart_high_load_y_adjust = 0;
     int cart_direction_3_y_adjust = 0;
-};
-
-struct PathingPolicy {
-    const PathingMode *mode = &VanillaRoaming;
-    road_service_effect effect = ROAD_SERVICE_EFFECT_NONE;
 };
 
 struct EntertainmentVenueTarget {

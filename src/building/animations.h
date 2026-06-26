@@ -203,6 +203,7 @@ public:
 private:
     building &record();
     const building &record() const;
+    const building &state_record() const;
 
     int legacy_gate_offset(int animation_cursor, int *offset) const;
     int advance_wine_workshop_offset(int animation_cursor, int max_frame, int clamp_to_available) const;
@@ -211,6 +212,8 @@ private:
 
     ::building *record_;
     const BuildingType *definition_;
+    ::building *state_record_;
+    const BuildingType *state_definition_;
 };
 
 }

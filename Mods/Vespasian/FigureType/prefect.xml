@@ -4,8 +4,8 @@
         <profile id="service">
             <native class="prefect_service" />
             <owner slot="primary" building="prefecture" state="in_use" />
-            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="960" return_mode="return_to_owner_road" />
-            <pathing mode="smart_service" effect="fire_risk" />
+            <movement roam_ticks="1" max_roam_length="960" return_mode="return_to_owner_road" />
+            <pathing mode="smart_service" terrain="roads" effect="fire_risk" />
         </profile>
     </profiles>
     <graphics image_group="prefect" max_image_offset="12" />

@@ -52,7 +52,7 @@
 #include "map/point.h"
 #include "map/property.h"
 #include "map/routing.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 #include "scenario/allowed_building.h"
 
@@ -457,7 +457,7 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
         if (needs_road_warning) {
             city_warning_show_translated(WARNING_HOUSE_TOO_FAR_FROM_ROAD);
         }
-        map_routing_update_land();
+        Route::updateLandTerrain();
         window_invalidate();
     }
     return items_placed;
@@ -577,8 +577,8 @@ static int place_wall(int x_start, int y_start, int x_end, int y_end, int measur
             }
         }
     }
-    map_routing_update_land();
-    map_routing_update_walls();
+    Route::updateLandTerrain();
+    Route::updateWallTerrain();
     map_tiles_update_all_walls();
     if (!measure_only && items_placed == 0 && resource_blocked_placement) {
         resource_type missing_resource = construction_missing_requirement(wall_type);
@@ -675,7 +675,7 @@ static int place_draggable_building(int x_start, int y_start, int x_end, int y_e
         }
     }
 
-    map_routing_update_land();
+    Route::updateLandTerrain();
     return items_placed;
 }
 
@@ -1245,7 +1245,7 @@ void building_construction_place(void)
     } else if (is_area_tile_type(type)) {
         placement_cost *= place_area_tile(x_start, y_start, x_end, y_end, type);
         if (area_tile_updates_land_routing(type)) {
-            map_routing_update_land();
+            Route::updateLandTerrain();
         }
     } else if (building_type_registry_impl::type_is_bridge(type)) {
         int length = map_bridge_add(x_end, y_end, building_type_registry_impl::type_is_ship_bridge(type));
@@ -1262,7 +1262,7 @@ void building_construction_place(void)
         }
         placement_cost = cost;
         map_tiles_update_all_aqueducts(0);
-        map_routing_update_land();
+        Route::updateLandTerrain();
     } else if (tool.is_draggable_reservoir()) {
         struct reservoir_info info;
         building_type reservoir_type = type;
@@ -1304,7 +1304,7 @@ void building_construction_place(void)
         }
         placement_cost = info.cost;
         map_tiles_update_all_aqueducts(0);
-        map_routing_update_land();
+        Route::updateLandTerrain();
     } else if (tool.is_draggable_building()) {
         placement_cost *= place_draggable_building(
             x_start,

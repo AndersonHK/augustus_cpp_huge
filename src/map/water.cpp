@@ -543,7 +543,7 @@ int map_water_spawn_fishing_boat_from_wharf(Building wharf)
     boat->destination_y = wharf_point.y;
     boat->source_x = wharf_point.x;
     boat->source_y = wharf_point.y;
-    figure_route_remove(boat);
+    Route::remove(boat);
     return 1;
 }
 

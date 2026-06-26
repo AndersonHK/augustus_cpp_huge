@@ -26,7 +26,7 @@
 #include "graphics/window.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 
 #include <string.h>
@@ -256,9 +256,9 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
         map_tiles_update_region_aqueducts(x_min - 3, y_min - 3, x_max + 3, y_max + 3);
     }
     if (!measure_only) {
-        map_routing_update_land();
-        map_routing_update_walls();
-        map_routing_update_water();
+        Route::updateLandTerrain();
+        Route::updateWallTerrain();
+        Route::updateWaterTerrain();
         building_update_state(); // the update of b state is needed to determine the right images for walls/palisades
         map_tiles_update_area_walls(x_min, y_min, radius + 1);
         building_connectable_update_connections();
@@ -411,7 +411,7 @@ static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int
     if (!measure_only && items_cleared) {
         map_tiles_update_region_empty_land(x_min, y_min, x_max, y_max);
         map_tiles_update_region_meadow(x_min, y_min, x_max, y_max);
-        map_routing_update_land();
+        Route::updateLandTerrain();
         building_type clear_trees = building_type_registry_impl::type_from_attr("clear_trees");
         if (clear_trees != BUILDING_NONE) {
             figure_roamer_preview_reset(clear_trees);

@@ -1,9 +1,9 @@
 #include "road_network.h"
 
 #include "city/map.h"
+#include "figure/PathingMode.h"
 #include "map/data.h"
 #include "map/grid.h"
-#include "map/routing_terrain.h"
 #include "map/terrain.h"
 
 #include <string.h>
@@ -44,11 +44,11 @@ static int mark_road_network(int grid_offset, uint8_t network_id)
         next_offset = -1;
         for (int i = 0; i < 4; i++) {
             int new_offset = grid_offset + ADJACENT_OFFSETS[i];
-            if (map_routing_citizen_is_passable(new_offset) && !network.items[new_offset]) {
+            if (figure_type_registry_impl::PathingMode::citizenIsPassable(new_offset) && !network.items[new_offset]) {
                 if (
-                    map_routing_citizen_is_road(new_offset) ||
+                    figure_type_registry_impl::PathingMode::citizenIsRoad(new_offset) ||
                     map_terrain_is(new_offset, TERRAIN_ACCESS_RAMP) ||
-                    map_routing_citizen_is_highway(new_offset)
+                    figure_type_registry_impl::PathingMode::citizenIsHighway(new_offset)
                 ) {
                     network.items[new_offset] = network_id;
                     size++;

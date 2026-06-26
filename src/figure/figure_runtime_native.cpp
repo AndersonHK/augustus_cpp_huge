@@ -12,6 +12,7 @@
 #include "figure/combat.h"
 #include "figure/image.h"
 #include "figure/movement.h"
+#include "figure/PathingMode.h"
 #include "figure/route.h"
 #include "figuretype/fishing_boat.h"
 #include "figuretype/supplier.h"
@@ -23,7 +24,6 @@
 #include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
-#include "map/routing_distance.h"
 
 #include "assets/assets.h"
 #include "assets/image_group_payload.h"
@@ -41,7 +41,6 @@
 #include "map/data.h"
 #include "map/grid.h"
 #include "map/routing.h"
-#include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "scenario/gladiator_revolt.h"
 #include "sound/effect.h"
@@ -176,7 +175,7 @@ road_service_effect primary_service_effect_for_profile(
 bool is_road_history_tile(int grid_offset)
 {
     return map_terrain_is(grid_offset, TERRAIN_ROAD) ||
-        map_routing_citizen_is_road(grid_offset);
+        figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset);
 }
 
 class GenericFigureGraphics {
@@ -494,7 +493,7 @@ public:
         const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
         const figure_type_registry_impl::GraphicsPolicy &graphics = definition()->graphics_policy();
 
-        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, graphics.max_image_offset);
@@ -541,7 +540,7 @@ public:
                             f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
                             f->destination_x = x_road;
                             f->destination_y = y_road;
-                            figure_route_remove(f);
+                            Route::remove(f);
                             f->roam_length = 0;
                         } else {
                             f->state = FIGURE_STATE_DEAD;
@@ -599,7 +598,7 @@ public:
         const figure_type_registry_impl::GraphicsPolicy &graphics = definition()->graphics_policy();
 
         f->cart_image_id = 0;
-        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, graphics.max_image_offset);
@@ -653,7 +652,7 @@ private:
     {
         // Buggy transient saves may already contain a roaming route. Preserve
         // the current tile, but discard destination state so the policy is idle.
-        figure_route_remove(f);
+        Route::remove(f);
         f->routing_path_current_tile = 0;
         f->routing_path_length = 0;
         f->destination_x = f->x;
@@ -1051,7 +1050,7 @@ private:
         f.destination_x = road_access.x;
         f.destination_y = road_access.y;
         f.action_state = action_state;
-        figure_route_remove(&f);
+        Route::remove(&f);
         graphics_.refresh_cart_for_carried_resource(f);
         return true;
     }
@@ -1168,7 +1167,7 @@ private:
     void start_order(Figure &f, building &depot)
     {
         graphics_.refresh_cart_for_carried_resource(f);
-        if (!map_routing_citizen_is_passable(f.grid_offset)) {
+        if (!figure_type_registry_impl::PathingMode::citizenIsPassable(f.grid_offset)) {
             f.state = FIGURE_STATE_DEAD;
         }
 
@@ -1205,7 +1204,7 @@ private:
                 f.action_state = FIGURE_ACTION_244_DEPOT_CART_PUSHER_CANCEL_ORDER;
                 f.wait_ticks = 0;
             } else if (f.direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(&f);
+                Route::remove(&f);
                 f.wait_ticks = 0;
             }
         } else {
@@ -1278,7 +1277,7 @@ private:
             f.action_state = FIGURE_ACTION_238_DEPOT_CART_PUSHER_INITIAL;
             f.state = FIGURE_STATE_DEAD;
         } else if (f.direction == DIR_FIGURE_REROUTE) {
-            figure_route_remove(&f);
+            Route::remove(&f);
             f.wait_ticks = 0;
         }
     }
@@ -1327,7 +1326,7 @@ public:
         }
 
         const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
-        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
@@ -1443,7 +1442,7 @@ private:
 
     static int change_destination(Figure *f, building *destination)
     {
-        figure_route_remove(f);
+        Route::remove(f);
         f->destination_building = Building(destination);
         if (!destination) {
             return 0;
@@ -1550,7 +1549,7 @@ private:
             f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
             f->destination_x = f->source_x;
             f->destination_y = f->source_y;
-            figure_route_remove(f);
+            Route::remove(f);
         } else if (f->wait_ticks++ > FIGURE_REROUTE_DESTINATION_TICKS) {
             f->wait_ticks = 0;
             if (!recalculate_destination(f)) {
@@ -1558,7 +1557,7 @@ private:
                 f->collecting_item_id = RESOURCE_NONE;
                 f->destination_x = f->source_x;
                 f->destination_y = f->source_y;
-                figure_route_remove(f);
+                Route::remove(f);
             }
         }
     }
@@ -1569,7 +1568,7 @@ private:
         if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
             f->state = FIGURE_STATE_DEAD;
         } else if (f->direction == DIR_FIGURE_REROUTE) {
-            figure_route_remove(f);
+            Route::remove(f);
         }
     }
 
@@ -1596,7 +1595,7 @@ public:
 
         const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
         f->is_ghost = 0;
-        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
@@ -1687,7 +1686,7 @@ public:
         }
 
         const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
-        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
@@ -1738,7 +1737,7 @@ public:
                         f->action_state = FIGURE_ACTION_63_ENGINEER_RETURNING;
                         f->destination_x = x_road;
                         f->destination_y = y_road;
-                        figure_route_remove(f);
+                        Route::remove(f);
                     } else {
                         f->state = FIGURE_STATE_DEAD;
                     }
@@ -1792,7 +1791,7 @@ public:
         }
 
         const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
-        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
@@ -1847,7 +1846,7 @@ public:
                         f->action_state = FIGURE_ACTION_73_PREFECT_RETURNING;
                         f->destination_x = x_road;
                         f->destination_y = y_road;
-                        figure_route_remove(f);
+                        Route::remove(f);
                     } else {
                         f->state = FIGURE_STATE_DEAD;
                     }
@@ -1871,7 +1870,7 @@ public:
                 figure_movement_move_ticks(f, movement.roam_ticks);
                 if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                     f->action_state = FIGURE_ACTION_75_PREFECT_AT_FIRE;
-                    figure_route_remove(f);
+                    Route::remove(f);
                     f->roam_length = 0;
                     f->wait_ticks = game_time_scale_legacy_day_ticks(50);
                 } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
@@ -1884,7 +1883,7 @@ public:
                         f->destination_x = x_road;
                         f->destination_y = y_road;
                         f->wait_ticks = 0;
-                        figure_route_remove(f);
+                        Route::remove(f);
                     }
                 }
                 break;
@@ -1900,7 +1899,7 @@ public:
                         f->action_state = FIGURE_ACTION_73_PREFECT_RETURNING;
                         f->destination_x = x_road;
                         f->destination_y = y_road;
-                        figure_route_remove(f);
+                        Route::remove(f);
                         f->roam_length = 0;
                     } else {
                         f->state = FIGURE_STATE_DEAD;
@@ -1913,7 +1912,7 @@ public:
                     f->destination_x = target->x;
                     f->destination_y = target->y;
                     f->wait_ticks = 0;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -2003,7 +2002,7 @@ private:
             f->target_figure.retarget(*enemy);
             enemy->targeted_by_figure.retarget(*f);
             f->target_figure_created_sequence = enemy->created_sequence;
-            figure_route_remove(f);
+            Route::remove(f);
             return true;
         }
         f->wait_ticks_next_target = 0;
@@ -2054,7 +2053,7 @@ private:
             f->destination_x = ruin->road_access_x;
             f->destination_y = ruin->road_access_y;
             f->destination_building = Building(ruin);
-            figure_route_remove(f);
+            Route::remove(f);
             ruin->figure_id4 = f->id();
             return true;
         }
@@ -2089,7 +2088,7 @@ private:
                     f->action_state = FIGURE_ACTION_73_PREFECT_RETURNING;
                     f->destination_x = x_road;
                     f->destination_y = y_road;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -2323,7 +2322,7 @@ protected:
             f->target_figure.retarget(*enemy);
             enemy->targeted_by_figure.retarget(*f);
             f->target_figure_created_sequence = enemy->created_sequence;
-            figure_route_remove(f);
+            Route::remove(f);
             return true;
         }
         f->wait_ticks_next_target = 0;
@@ -2351,7 +2350,7 @@ public:
 
         const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
         f->cart_image_id = image_group(GROUP_FIGURE_CARTPUSHER_CART);
-        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
@@ -2364,7 +2363,7 @@ public:
             (f->action_state == FIGURE_ACTION_94_ENTERTAINER_ROAMING ||
                 f->action_state == FIGURE_ACTION_95_ENTERTAINER_RETURNING)) {
             f->type = FIGURE_ENEMY54_GLADIATOR;
-            figure_route_remove(f);
+            Route::remove(f);
             f->roam_length = 0;
             f->action_state = FIGURE_ACTION_158_NATIVE_CREATED;
             return 1;
@@ -2389,7 +2388,7 @@ public:
                         f->action_state = FIGURE_ACTION_95_ENTERTAINER_RETURNING;
                         f->destination_x = x_road;
                         f->destination_y = y_road;
-                        figure_route_remove(f);
+                        Route::remove(f);
                     } else {
                         f->state = FIGURE_STATE_DEAD;
                     }
@@ -2414,7 +2413,7 @@ public:
                     Figure *target = &f->target_figure.get();
                     f->destination_x = target->x;
                     f->destination_y = target->y;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -2448,7 +2447,7 @@ public:
 
         const figure_type_registry_impl::MovementProfile &movement = profile()->movement_profile();
         f->cart_image_id = image_group(GROUP_FIGURE_CARTPUSHER_CART);
-        f->terrain_usage = static_cast<unsigned char>(movement.terrain_usage);
+        f->terrain_usage = static_cast<unsigned char>(profile()->pathing_policy().terrain.legacy_usage);
         f->use_cross_country = 0;
         f->max_roam_length = static_cast<short>(movement.max_roam_length);
         figure_image_increase_offset(f, definition()->graphics_policy().max_image_offset);
@@ -2456,7 +2455,7 @@ public:
         if (scenario_gladiator_revolt_is_in_progress() && f->type == FIGURE_GLADIATOR &&
             (f->action_state == FIGURE_ACTION_92_ENTERTAINER_GOING_TO_VENUE)) {
             f->type = FIGURE_ENEMY54_GLADIATOR;
-            figure_route_remove(f);
+            Route::remove(f);
             f->roam_length = 0;
             f->action_state = FIGURE_ACTION_158_NATIVE_CREATED;
             return 1;
@@ -2508,7 +2507,7 @@ public:
                     update_show_for_arrival(f);
                     f->state = FIGURE_STATE_DEAD;
                 } else if (f->direction == DIR_FIGURE_REROUTE) {
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else if (f->direction == DIR_FIGURE_LOST) {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -2543,8 +2542,8 @@ private:
 
     bool choose_destination(Figure *f) const
     {
-        const map_point source_road = { f->x, f->y };
-        if (!routing_distance::prepare_from_road(source_road)) {
+        const Route::DistanceQuery route_query = Route::DistanceQuery::fromFigure(*f);
+        if (!route_query) {
             return false;
         }
 
@@ -2563,13 +2562,13 @@ private:
                     continue;
                 }
 
-                const routing_distance::BuildingRoadResult route =
-                    routing_distance::find_access_road_to_building(
-                        venue,
+                const Route::RoadResult route =
+                    route_query.findAccessRoad(
+                        *venue,
                         2,
                         profile()->movement_profile().max_roam_length,
-                        1);
-                if (!route.reachable) {
+                        true);
+    if (!route) {
                     continue;
                 }
 
@@ -2596,7 +2595,7 @@ private:
         f->destination_x = best.road.x;
         f->destination_y = best.road.y;
         f->roam_length = 0;
-        figure_route_remove(f);
+        Route::remove(f);
         return true;
     }
 };

@@ -93,8 +93,7 @@ static const building_type_registry_impl::BuildingType *building_type_definition
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *definition = building.type;
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
+    return building.matches(text_id);
 }
 
 static struct {
@@ -374,7 +373,8 @@ static void draw_hippodrome_spectators(const Building &building, int x, int y, c
 
 static void draw_entertainment_spectators(const Building &building, int x, int y, color_t color_mask)
 {
-    if (building_matches(building, "hippodrome") && building.main().worker_count() > 0
+    Building owner = building.composition_owner();
+    if (owner.matches("hippodrome") && owner.worker_count() > 0
         && city_entertainment_hippodrome_has_race()) {
         draw_hippodrome_spectators(building, x, y, color_mask);
     }
@@ -897,7 +897,7 @@ static void draw_hippodrome_ornaments_for_building(Building building, int x, int
 {
     int image_id = map_image_at(grid_offset);
     const image *img = image_get(image_id);
-    if (img->animation && map_property_is_draw_tile(grid_offset) && building_matches(building, "hippodrome")) {
+    if (img->animation && map_property_is_draw_tile(grid_offset) && building.composition_owner().matches("hippodrome")) {
         int top_height = img->top ? img->top->original.height : 0;
         Image::from_id(image_id + 1).draw(
             x + img->animation->sprite_offset_x,

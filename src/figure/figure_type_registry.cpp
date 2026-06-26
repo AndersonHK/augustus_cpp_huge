@@ -730,12 +730,6 @@ static bool is_known_service_effect_name(const char *name)
         xml_value::equals(name, "tax_collector");
 }
 
-static bool is_road_only_terrain_usage(int terrain_usage)
-{
-    return terrain_usage == TERRAIN_USAGE_ROADS ||
-        terrain_usage == TERRAIN_USAGE_ROADS_HIGHWAY;
-}
-
 static EntertainmentShowSlot parse_show_slot_name(const char *name)
 {
     if (xml_value::equals(name, "days1")) {
@@ -962,8 +956,7 @@ static int parse_movement_node()
         log_error("FigureType profile contains duplicate movement nodes", profile->id(), 0);
         return 0;
     }
-    if (!xml_parser_has_attribute("terrain_usage") ||
-        !xml_parser_has_attribute("roam_ticks") ||
+    if (!xml_parser_has_attribute("roam_ticks") ||
         !xml_parser_has_attribute("max_roam_length")) {
         g_parse_state.error = true;
         log_error("FigureType movement node is missing required attributes", 0, 0);
@@ -971,17 +964,6 @@ static int parse_movement_node()
     }
 
     MovementProfile movement_profile;
-    movement_profile.terrain_usage = parse_terrain_usage_name(xml_parser_get_attribute_string("terrain_usage"));
-    if (movement_profile.terrain_usage < 0) {
-        g_parse_state.error = true;
-        log_error("FigureType movement node has an invalid terrain_usage", xml_parser_get_attribute_string("terrain_usage"), 0);
-        return 0;
-    }
-    if (movement_profile.terrain_usage > std::numeric_limits<unsigned char>::max()) {
-        g_parse_state.error = true;
-        log_error("FigureType movement node terrain_usage exceeds figure storage range", 0, 0);
-        return 0;
-    }
     movement_profile.roam_ticks = xml_parser_get_attribute_int("roam_ticks");
     movement_profile.max_roam_length = xml_parser_get_attribute_int("max_roam_length");
     if (movement_profile.roam_ticks <= 0 || movement_profile.max_roam_length <= 0) {
@@ -1255,9 +1237,9 @@ static int parse_pathing_node()
         log_error("FigureType profile contains duplicate pathing nodes", profile->id(), 0);
         return 0;
     }
-    if (!xml_parser_has_attribute("mode")) {
+    if (!xml_parser_has_attribute("mode") || !xml_parser_has_attribute("terrain")) {
         g_parse_state.error = true;
-        log_error("FigureType pathing node is missing required attribute 'mode'", 0, 0);
+        log_error("FigureType pathing node is missing required attributes", 0, 0);
         return 0;
     }
     const PathingMode *mode = pathing_mode_from_xml_id(xml_parser_get_attribute_string("mode"));
@@ -1275,6 +1257,13 @@ static int parse_pathing_node()
 
     PathingPolicy pathing_policy;
     pathing_policy.mode = mode;
+    const int terrain_usage = parse_terrain_usage_name(xml_parser_get_attribute_string("terrain"));
+    if (terrain_usage < 0) {
+        g_parse_state.error = true;
+        log_error("FigureType pathing node has an invalid terrain", xml_parser_get_attribute_string("terrain"), 0);
+        return 0;
+    }
+    pathing_policy.terrain = PathingMode::terrainFromLegacyUsage(terrain_usage);
     const char *effect_text = xml_parser_get_attribute_string("effect");
     pathing_policy.effect = parse_service_effect_name(effect_text);
 
@@ -1288,11 +1277,10 @@ static int parse_pathing_node()
         }
     }
     if (pathing_policy.mode->requires_road &&
-        (!g_parse_state.saw_profile_movement ||
-            !is_road_only_terrain_usage(profile->movement_profile().terrain_usage))) {
+        !PathingMode::terrainRequiresRoads(pathing_policy.terrain)) {
         g_parse_state.error = true;
         error_context_report_error(
-            "FigureType pathing requires terrain_usage roads or roads_highway",
+            "FigureType pathing requires road-capable terrain",
             profile->id());
         return 0;
     }

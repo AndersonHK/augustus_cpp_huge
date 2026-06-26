@@ -4,8 +4,8 @@
         <profile id="legacy">
             <native class="legacy_action" />
             <owner slot="primary" building="workcamp" state="in_use" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="576" />
-            <pathing mode="vanilla_roaming" />
+            <movement roam_ticks="1" max_roam_length="576" />
+            <pathing mode="vanilla_roaming" terrain="roads_highway" />
         </profile>
     </profiles>
     <graphics

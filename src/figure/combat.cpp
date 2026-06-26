@@ -67,7 +67,7 @@ static void resume_activity_after_attack(Figure *f)
     f->opponent.clear();
     f->attacker1.clear();
     f->attacker2.clear();
-    figure_route_remove(f);
+    Route::remove(f);
 }
 
 static void hit_opponent(Figure *f)

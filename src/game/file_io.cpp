@@ -1059,7 +1059,7 @@ static void savegame_load_from_state(savegame_state *state, savegame_version_t v
     map_desirability_load_state(state->desirability_grid);
     map_elevation_load_state(state->elevation_grid);
     Figure::load_state(state->figures, state->figure_sequence, version);
-    figure_route_load_state(state->route_figures, state->route_paths, version);
+    Route::loadState(state->route_figures, state->route_paths, version);
     formations_load_state(state->formations, state->formation_totals, version);
 
     city_data_load_state(state->city_data, state->city_graph_order, state->city_entry_exit_xy,
@@ -1211,7 +1211,7 @@ static void savegame_save_to_state(savegame_state *state)
     map_elevation_save_state(state->elevation_grid);
 
     Figure::save_state(state->figures, state->figure_sequence);
-    figure_route_save_state(state->route_figures, state->route_paths);
+    Route::saveState(state->route_figures, state->route_paths);
     formations_save_state(state->formations, state->formation_totals);
 
     city_data_save_state(state->city_data,

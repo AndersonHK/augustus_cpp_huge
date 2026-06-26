@@ -191,7 +191,7 @@ void figure_immigrant_action(Figure *f)
                     figure_movement_set_cross_country_destination(f, house.x(), house.y());
                     f->roam_length = 0;
                     break;
-                case DIR_FIGURE_REROUTE: figure_route_remove(f); break;
+                case DIR_FIGURE_REROUTE: Route::remove(f); break;
                 case DIR_FIGURE_LOST:
                     house.set_immigrant_figure_id(0);
                     house.set_distance_from_entry(0);
@@ -304,7 +304,7 @@ void figure_homeless_action(Figure *f)
             figure_movement_move_ticks(f, 1);
             Building house = f->immigrant_building;
             if (!house_is_valid(house, *f)) {
-                figure_route_remove(f);
+                Route::remove(f);
                 f->action_state = FIGURE_ACTION_7_HOMELESS_CREATED;
                 f->wait_ticks = game_time_scale_legacy_day_ticks(30);
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
@@ -338,7 +338,7 @@ void figure_homeless_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             }
             f->wait_ticks++;
             if (f->wait_ticks > FIGURE_REROUTE_DESTINATION_TICKS) {
@@ -348,7 +348,7 @@ void figure_homeless_action(Figure *f)
                 if (house.id() &&
                     map_closest_road_within_radius(house.x(), house.y(), house.size(), 2, &x_road, &y_road)) {
                     send_homeless_to_house(*f, house, x_road, y_road);
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;

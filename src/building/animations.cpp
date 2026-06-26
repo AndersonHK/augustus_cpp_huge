@@ -100,27 +100,28 @@ int normalized_animation_frame(int animation_cursor, const RuntimeAnimationTrack
 
 int graphics_condition_matches(const GraphicsCondition &condition, const Building &building)
 {
+    const Building state = building.composition_owner();
     int matches = 0;
     switch (condition.type) {
         case GraphicsConditionType::HasWorkers:
-            matches = building.worker_count();
+            matches = state.worker_count();
             break;
         case GraphicsConditionType::Working:
-            matches = building.is_working();
+            matches = state.is_working();
             break;
         case GraphicsConditionType::WaterAccess:
-            matches = building.has_water_access();
+            matches = state.has_water_access();
             break;
         case GraphicsConditionType::FigureSlotOccupied:
             switch (condition.figure_slot) {
                 case FigureSlot::Primary:
-                    matches = building.has_primary_figure();
+                    matches = state.has_primary_figure();
                     break;
                 case FigureSlot::Secondary:
-                    matches = building.has_secondary_figure();
+                    matches = state.has_secondary_figure();
                     break;
                 case FigureSlot::Quaternary:
-                    matches = building.has_quaternary_figure();
+                    matches = state.has_quaternary_figure();
                     break;
                 case FigureSlot::None:
                 default:
@@ -129,11 +130,11 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
             }
             break;
         case GraphicsConditionType::ResourcePositive:
-            matches = building.resource_amount(condition.resource) > 0;
+            matches = state.resource_amount(condition.resource) > 0;
             break;
         case GraphicsConditionType::ResourceAmount:
         {
-            const int amount = building.resource_amount(condition.resource);
+            const int amount = state.resource_amount(condition.resource);
             switch (condition.comparison) {
                 case GraphicComparison::LessThan:
                     matches = amount < condition.threshold;
@@ -161,39 +162,39 @@ int graphics_condition_matches(const GraphicsCondition &condition, const Buildin
             matches = scenario_property_climate() == condition.climate;
             break;
         case GraphicsConditionType::MonumentUpgrade:
-            matches = building.monument_upgrade_level() == condition.monument_upgrade;
+            matches = state.monument_upgrade_level() == condition.monument_upgrade;
             break;
         case GraphicsConditionType::FestivalGames:
             matches = city_festival_games_active() == condition.festival_games;
             break;
         case GraphicsConditionType::Days1Positive:
-            matches = building.entertainment_days1() > 0;
+            matches = state.entertainment_days1() > 0;
             break;
         case GraphicsConditionType::Days1NotPositive:
-            matches = building.entertainment_days1() <= 0;
+            matches = state.entertainment_days1() <= 0;
             break;
         case GraphicsConditionType::Days2Positive:
-            matches = building.entertainment_days2() > 0;
+            matches = state.entertainment_days2() > 0;
             break;
         case GraphicsConditionType::Days1OrDays2Positive:
-            matches = building.entertainment_days1() > 0 || building.entertainment_days2() > 0;
+            matches = state.entertainment_days1() > 0 || state.entertainment_days2() > 0;
             break;
         case GraphicsConditionType::Desirability:
             switch (condition.comparison) {
                 case GraphicComparison::LessThan:
-                    matches = building.desirability() < condition.threshold;
+                    matches = state.desirability() < condition.threshold;
                     break;
                 case GraphicComparison::LessThanOrEqual:
-                    matches = building.desirability() <= condition.threshold;
+                    matches = state.desirability() <= condition.threshold;
                     break;
                 case GraphicComparison::Equal:
-                    matches = building.desirability() == condition.threshold;
+                    matches = state.desirability() == condition.threshold;
                     break;
                 case GraphicComparison::GreaterThan:
-                    matches = building.desirability() > condition.threshold;
+                    matches = state.desirability() > condition.threshold;
                     break;
                 case GraphicComparison::GreaterThanOrEqual:
-                    matches = building.desirability() >= condition.threshold;
+                    matches = state.desirability() >= condition.threshold;
                     break;
                 case GraphicComparison::None:
                 default:
@@ -723,7 +724,14 @@ unsigned char GraphicsDefinition::upgrade_level_for(const Building &building) co
 BuildingAnimation::BuildingAnimation(Building building)
     : record_(building.record_)
     , definition_(building.type)
+    , state_record_(building.record_)
+    , state_definition_(building.type)
 {
+    Building owner = building.composition_owner();
+    if (owner.id()) {
+        state_record_ = owner.record_;
+        state_definition_ = owner.type ? owner.type : definition_;
+    }
 }
 
 building &BuildingAnimation::record()
@@ -736,15 +744,21 @@ const building &BuildingAnimation::record() const
     return *record_;
 }
 
+const building &BuildingAnimation::state_record() const
+{
+    return *state_record_;
+}
+
 int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) const
 {
-    const building &building = record();
+    const building &building = state_record();
+    const BuildingType *definition = state_definition_;
 
     *offset = 0;
     // These gates deliberately mirror the old animation decisions: XML-authored
     // animations and legacy image animations must both pause for the same runtime
     // building states, otherwise placing a migrated graphic changes gameplay cues.
-    if (definition_ && definition_->water_access().has_requirements() && !building.has_water_access) {
+    if (definition && definition->water_access().has_requirements() && !building.has_water_access) {
         return 1;
     }
     if (building_is_workshop(building.type)) {
@@ -753,22 +767,22 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
             return 1;
         }
     }
-    if (definition_is(definition_, "concrete_maker")) {
+    if (definition_is(definition, "concrete_maker")) {
         if (building.data.industry.progress == 0) {
             return 1;
         }
     }
     static const char *worker_paused_service_posts[] = { "prefecture", "engineers_post" };
-    if (definition_is_any(definition_, worker_paused_service_posts, 2) && building.num_workers <= 0) {
+    if (definition_is_any(definition, worker_paused_service_posts, 2) && building.num_workers <= 0) {
         return 1;
     }
-    if (definition_ && definition_->has_market() && building.num_workers <= 0) {
+    if (definition && definition->has_market() && building.num_workers <= 0) {
         return 1;
     }
-    if (definition_ && definition_->is_warehouse() && building.num_workers < model_get_building(building.type)->laborers) {
+    if (definition && definition->is_warehouse() && building.num_workers < model_get_building(building.type)->laborers) {
         return 1;
     }
-    if (definition_ && std::strcmp(definition_->attr(), "dock") == 0 && building.data.dock.num_ships <= 0) {
+    if (definition && std::strcmp(definition->attr(), "dock") == 0 && building.data.dock.num_ships <= 0) {
         map_sprite_animation_set(animation_cursor, 1);
         *offset = 1;
         return 1;
@@ -777,26 +791,26 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
         (building.num_workers <= 0 || building.strike_duration_days > 0)) {
         return 1;
     }
-    if (definition_is(definition_, "gladiator_school")) {
+    if (definition_is(definition, "gladiator_school")) {
         if (building.num_workers <= 0) {
             map_sprite_animation_set(animation_cursor, 1);
             *offset = 1;
             return 1;
         }
-    } else if (((definition_ && definition_->is_theater()) ||
-        definition_is(definition_, "chariot_maker")) &&
-        !definition_is(definition_, "hippodrome") && building.num_workers <= 0) {
+    } else if (((definition && definition->is_theater()) ||
+        definition_is(definition, "chariot_maker")) &&
+        !definition_is(definition, "hippodrome") && building.num_workers <= 0) {
         return 1;
     }
-    if (definition_ && definition_->is_granary() && building.num_workers < model_get_building(building.type)->laborers) {
+    if (definition && definition->is_granary() && building.num_workers < model_get_building(building.type)->laborers) {
         return 1;
     }
     if (building_monument_is_monument(&building) &&
-        (!(definition_ && definition_->is_oracle()) && !definition_is(definition_, "nymphaeum") &&
+        (!(definition && definition->is_oracle()) && !definition_is(definition, "nymphaeum") &&
             (building.num_workers <= 0 || building.monument.phase != MONUMENT_FINISHED))) {
         return 1;
     }
-    if (definition_is(definition_, "city_mint") &&
+    if (definition_is(definition, "city_mint") &&
         ((building.output_resource_id == resource_denarii() &&
             !Building(const_cast<::building *>(&building)).native_production_has_raw_materials()) ||
             building.num_workers <= 0 ||
@@ -804,23 +818,23 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
         return 1;
     }
     static const char *worker_paused_buildings[] = { "architect_guild", "mess_hall", "arena" };
-    if (definition_is_any(definition_, worker_paused_buildings, 3) && building.num_workers <= 0) {
+    if (definition_is_any(definition, worker_paused_buildings, 3) && building.num_workers <= 0) {
         return 1;
     }
-    if (definition_is(definition_, "tavern") &&
-        (building.num_workers <= 0 || !has_first_distribution_resource(building, definition_))) {
+    if (definition_is(definition, "tavern") &&
+        (building.num_workers <= 0 || !has_first_distribution_resource(building, definition))) {
         return 1;
     }
-    if (definition_is(definition_, "watchtower") && (building.num_workers <= 0 || !building.figure_id4)) {
+    if (definition_is(definition, "watchtower") && (building.num_workers <= 0 || !building.figure_id4)) {
         return 1;
     }
-    if (definition_is(definition_, "cart_depot") && building.num_workers <= 0) {
+    if (definition_is(definition, "cart_depot") && building.num_workers <= 0) {
         return 1;
     }
-    if (definition_ && definition_->is_armoury() && building.num_workers <= 0) {
+    if (definition && definition->is_armoury() && building.num_workers <= 0) {
         return 1;
     }
-    if (definition_is(definition_, "amphitheater") && building.num_workers <= 0) {
+    if (definition_is(definition, "amphitheater") && building.num_workers <= 0) {
         return 1;
     }
     return 0;

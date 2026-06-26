@@ -7,6 +7,7 @@
 #include "building/construction.h"
 #include "building/properties.h"
 #include "building/roadblock.h"
+#include "figure/PathingMode.h"
 #include "game/undo.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
@@ -14,7 +15,7 @@
 #include "map/property.h"
 #include "map/road_aqueduct.h"
 #include "map/routing.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
 #include "graphics/window.h"
@@ -50,7 +51,7 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
         switch (type) {
             default:
             case ROUTED_BUILDING_ROAD:
-                if (!measure_only && map_routing_is_gate_transformable(grid_offset)) {
+                if (!measure_only && figure_type_registry_impl::PathingMode::gateIsTransformable(grid_offset)) {
                     building *gate_record = building_get(map_building_at(grid_offset));
                     Building gate(gate_record);
                     building_type gate_type = static_cast<building_type>(
@@ -112,12 +113,12 @@ int building_construction_place_road(int measure_only, int x_start, int y_start,
         TERRAIN_SHRUB | TERRAIN_GARDEN | TERRAIN_ELEVATION |
         TERRAIN_RUBBLE | TERRAIN_BUILDING | TERRAIN_WALL;
     if (map_terrain_is(start_offset, forbidden_terrain_mask)) {
-        if (!(map_routing_is_gate_transformable(start_offset)) && !map_terrain_is(start_offset, TERRAIN_AQUEDUCT)) {
+        if (!(figure_type_registry_impl::PathingMode::gateIsTransformable(start_offset)) && !map_terrain_is(start_offset, TERRAIN_AQUEDUCT)) {
             return 0;
         }
     }
     if (map_terrain_is(end_offset, forbidden_terrain_mask)) {
-        if (!(map_routing_is_gate_transformable(end_offset)) && !map_terrain_is(end_offset, TERRAIN_AQUEDUCT)) {
+        if (!(figure_type_registry_impl::PathingMode::gateIsTransformable(end_offset)) && !map_terrain_is(end_offset, TERRAIN_AQUEDUCT)) {
             return 0;
         }
     }
@@ -126,7 +127,7 @@ int building_construction_place_road(int measure_only, int x_start, int y_start,
     if (map_routing_calculate_distances_for_building(ROUTED_BUILDING_ROAD, x_start, y_start) &&
             place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_ROAD, &items_placed, measure_only)) {
         if (!measure_only) {
-            map_routing_update_land();
+            Route::updateLandTerrain();
             building_connectable_update_connections();
             window_invalidate();
         } else {
@@ -157,7 +158,7 @@ int building_construction_place_highway(int measure_only, int x_start, int y_sta
         place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_HIGHWAY, &items_placed, measure_only)) {
         map_tiles_update_all_plazas();
         if (!measure_only) {
-            map_routing_update_land();
+            Route::updateLandTerrain();
             window_invalidate();
         }
     }

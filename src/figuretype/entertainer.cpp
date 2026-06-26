@@ -338,7 +338,7 @@ static int fight_enemy(Figure *f)
         f->target_figure.retarget(*enemy);
         enemy->targeted_by_figure.retarget(*f);
         f->target_figure_created_sequence = enemy->created_sequence;
-        figure_route_remove(f);
+        Route::remove(f);
         return 1;
     }
     f->wait_ticks_next_target = 0;
@@ -361,7 +361,7 @@ void figure_entertainer_action(Figure *f)
             f->action_state == FIGURE_ACTION_94_ENTERTAINER_ROAMING ||
             f->action_state == FIGURE_ACTION_95_ENTERTAINER_RETURNING) {
             f->type = FIGURE_ENEMY54_GLADIATOR;
-            figure_route_remove(f);
+            Route::remove(f);
             f->roam_length = 0;
             f->action_state = FIGURE_ACTION_158_NATIVE_CREATED;
             return;
@@ -432,7 +432,7 @@ void figure_entertainer_action(Figure *f)
                 update_shows(f);
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -447,7 +447,7 @@ void figure_entertainer_action(Figure *f)
                     f->action_state = FIGURE_ACTION_95_ENTERTAINER_RETURNING;
                     f->destination_x = x_road;
                     f->destination_y = y_road;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -474,7 +474,7 @@ void figure_entertainer_action(Figure *f)
                     Figure *target = &f->target_figure.get();
                     f->destination_x = target->x;
                     f->destination_y = target->y;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -541,7 +541,7 @@ void figure_tourist_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }

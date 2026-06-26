@@ -27,7 +27,6 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "scenario/map.h"
 

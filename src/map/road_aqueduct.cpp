@@ -7,11 +7,11 @@
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
+#include "figure/PathingMode.h"
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/image.h"
 #include "map/routing.h"
-#include "map/routing_terrain.h"
 #include "map/terrain.h"
 
 #include <cstring>
@@ -162,7 +162,7 @@ static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
         } else {
             Building current(b);
             if (current.type && current.type->is_granary()) {
-                if (map_routing_citizen_is_road(grid_offset)) {
+                if (figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset)) {
                     is_road = 1;
                 }
             }

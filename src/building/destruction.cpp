@@ -22,7 +22,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 #include "sound/effect.h"
 
@@ -157,7 +157,7 @@ static void destroy_on_fire(building *b, int plagued)
         ruin->data.rubble.og_orientation = og_orientation;
     }
     if (waterside_building) {
-        map_routing_update_water();
+        Route::updateWaterTerrain();
     }
 }
 
@@ -293,7 +293,7 @@ int building_destroy_first_of_type(building_type type)
         int grid_offset = b->grid_offset;
         game_undo_disable();
         building_destroy_by_collapse(b);
-        map_routing_update_land();
+        Route::updateLandTerrain();
         return grid_offset;
     }
     return 0;
@@ -316,7 +316,7 @@ void building_destroy_last_placed(void)
         city_message_post(1, MESSAGE_ROAD_TO_ROME_BLOCKED, 0, last_building->grid_offset);
         game_undo_disable();
         building_destroy_by_collapse(last_building);
-        map_routing_update_land();
+        Route::updateLandTerrain();
     }
 }
 
@@ -370,6 +370,6 @@ void building_destroy_by_enemy(int x, int y, int grid_offset)
     figure_tower_sentry_reroute();
     map_tiles_update_area_walls(x, y, 3);
     map_tiles_update_region_aqueducts(x - 3, y - 3, x + 3, y + 3);
-    map_routing_update_land();
-    map_routing_update_walls();
+    Route::updateLandTerrain();
+    Route::updateWallTerrain();
 }

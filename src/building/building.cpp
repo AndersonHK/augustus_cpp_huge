@@ -72,7 +72,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 
 #define WATER_DESIRABILITY_RANGE 3
@@ -375,6 +375,12 @@ Building Building::main_part() const
     return main();
 }
 
+Building Building::composition_owner() const
+{
+    Building owner = main_part();
+    return owner.id() ? owner : *this;
+}
+
 Building Building::next() const
 {
     return Building(record_ ? building_next(record_) : nullptr);
@@ -395,6 +401,11 @@ void Building::for_each_part(const std::function<void(Building)> &visitor) const
 Building Building::next_of_type() const
 {
     return Building(record_ ? record_->next_of_type : nullptr);
+}
+
+int Building::matches(const char *text_id) const
+{
+    return type && text_id && type->attr() && std::strcmp(type->attr(), text_id) == 0;
 }
 
 int Building::grid_offset() const
@@ -2482,7 +2493,7 @@ void building_update_state(void)
         map_tiles_update_all_aqueducts(0);
     }
     if (land_recalc) {
-        map_routing_update_land();
+        Route::updateLandTerrain();
     }
     if (road_recalc) {
         map_tiles_update_all_roads();

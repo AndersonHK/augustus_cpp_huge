@@ -1,12 +1,13 @@
 #include "figure/figure.h"
 #include "building/building_record.h"
-#include "routing_terrain.h"
 
 #include "building/building.h"
 #include "building/building_type_registry_internal.h"
+#include "building/destruction.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "core/image.h"
+#include "figure/route.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/data.h"
@@ -19,7 +20,7 @@
 
 #include <cstring>
 
-static void map_routing_update_land_noncitizen(void);
+static void update_land_terrain_noncitizen(void);
 
 static int type_matches(building_type type, const char *text_id)
 {
@@ -90,17 +91,17 @@ static int is_native_blocker(building_type type)
     return type_matches_any(type, types, sizeof(types) / sizeof(types[0]));
 }
 
-void map_routing_update_all(void)
+void Route::updateAllTerrain(void)
 {
-    map_routing_update_land();
-    map_routing_update_water();
-    map_routing_update_walls();
+    Route::updateLandTerrain();
+    Route::updateWaterTerrain();
+    Route::updateWallTerrain();
 }
 
-void map_routing_update_land(void)
+void Route::updateLandTerrain(void)
 {
-    map_routing_update_land_citizen();
-    map_routing_update_land_noncitizen();
+    Route::updateCitizenLandTerrain();
+    update_land_terrain_noncitizen();
 }
 
 static int get_land_type_citizen_building(int grid_offset)
@@ -158,7 +159,7 @@ static int get_land_type_citizen_aqueduct(int grid_offset)
     }
 }
 
-void map_routing_update_land_citizen(void)
+void Route::updateCitizenLandTerrain(void)
 {
     map_grid_init_i8(terrain_land_citizen.items, -1);
     int grid_offset = map_data.start_offset;
@@ -220,7 +221,7 @@ static int get_land_type_noncitizen(int grid_offset)
     return type;
 }
 
-static void map_routing_update_land_noncitizen(void)
+static void update_land_terrain_noncitizen(void)
 {
     map_grid_init_i8(terrain_land_noncitizen.items, -1);
     int grid_offset = map_data.start_offset;
@@ -258,7 +259,7 @@ static int is_surrounded_by_water(int grid_offset)
         map_terrain_is(grid_offset + map_grid_delta(0, 1), TERRAIN_WATER);
 }
 
-void map_routing_update_water(void)
+void Route::updateWaterTerrain(void)
 {
     map_grid_init_i8(terrain_water.items, -1);
     int grid_offset = map_data.start_offset;
@@ -322,7 +323,7 @@ static int count_adjacent_wall_tiles(int grid_offset)
     return adjacent;
 }
 
-void map_routing_update_walls(void)
+void Route::updateWallTerrain(void)
 {
     map_grid_init_i8(terrain_walls.items, -1);
     int grid_offset = map_data.start_offset;
@@ -343,7 +344,7 @@ void map_routing_update_walls(void)
     }
 }
 
-int map_routing_is_wall_passable(int grid_offset)
+int Route::wallIsPassable(int grid_offset)
 {
     return terrain_walls.items[grid_offset] == WALL_0_PASSABLE;
 }
@@ -356,7 +357,7 @@ static int wall_tile_in_radius(int x, int y, int radius, int *x_wall, int *y_wal
 
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
-            if (map_routing_is_wall_passable(map_grid_offset(xx, yy))) {
+            if (Route::wallIsPassable(map_grid_offset(xx, yy))) {
                 *x_wall = xx;
                 *y_wall = yy;
                 return 1;
@@ -366,7 +367,7 @@ static int wall_tile_in_radius(int x, int y, int radius, int *x_wall, int *y_wal
     return 0;
 }
 
-int map_routing_wall_tile_in_radius(int x, int y, int radius, int *x_wall, int *y_wall)
+int Route::findWallTileInRadius(int x, int y, int radius, int *x_wall, int *y_wall)
 {
     for (int i = 1; i <= radius; i++) {
         if (wall_tile_in_radius(x, y, i, x_wall, y_wall)) {
@@ -376,45 +377,13 @@ int map_routing_wall_tile_in_radius(int x, int y, int radius, int *x_wall, int *
     return 0;
 }
 
-int map_routing_citizen_is_passable(int grid_offset)
-{
-    return terrain_land_citizen.items[grid_offset] >= CITIZEN_0_ROAD &&
-        terrain_land_citizen.items[grid_offset] <= CITIZEN_2_PASSABLE_TERRAIN;
-}
-
-int map_routing_citizen_is_road(int grid_offset)
-{
-    return terrain_land_citizen.items[grid_offset] == CITIZEN_0_ROAD;
-}
-
-int map_routing_citizen_is_highway(int grid_offset)
-{
-    return terrain_land_citizen.items[grid_offset] == CITIZEN_1_HIGHWAY;
-}
-
-int map_routing_citizen_is_passable_terrain(int grid_offset)
-{
-    return terrain_land_citizen.items[grid_offset] == CITIZEN_2_PASSABLE_TERRAIN;
-}
-
-int map_routing_is_gate_transformable(int grid_offset)
-{
-    return terrain_land_citizen.items[grid_offset] == GATE_0_TRANSFORMABLE ||
-        terrain_land_noncitizen.items[grid_offset] == GATE_0_TRANSFORMABLE;
-}
-
-int map_routing_noncitizen_is_passable(int grid_offset)
-{
-    return terrain_land_noncitizen.items[grid_offset] >= NONCITIZEN_0_PASSABLE;
-}
-
-int map_routing_is_destroyable(int grid_offset)
+int building_destroyable_at(int grid_offset)
 {
     return terrain_land_noncitizen.items[grid_offset] > NONCITIZEN_0_PASSABLE &&
         terrain_land_noncitizen.items[grid_offset] != NONCITIZEN_5_FORT;
 }
 
-int map_routing_get_destroyable(int grid_offset)
+destroyable_tile_type building_destroyable_type_at(int grid_offset)
 {
     switch (terrain_land_noncitizen.items[grid_offset]) {
         case NONCITIZEN_1_BUILDING:

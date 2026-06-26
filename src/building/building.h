@@ -63,10 +63,12 @@ public:
     const ::building *record() const;
     Building main() const;
     Building main_part() const;
+    Building composition_owner() const;
     Building next() const;
     void for_each_part(const std::function<void(Building)> &visitor) const;
     Building next_of_type() const;
     const building_type_registry_impl::BuildingType *type = nullptr;
+    int matches(const char *text_id) const;
     int grid_offset() const;
     int x() const;
     int y() const;

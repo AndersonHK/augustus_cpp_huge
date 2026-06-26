@@ -185,7 +185,7 @@ void figure_workcamp_worker_action(Figure *f)
                 }
                 figure_movement_set_cross_country_destination(f, dst.x, dst.y);
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             }
             break;
 
@@ -201,7 +201,7 @@ void figure_workcamp_worker_action(Figure *f)
                 f->state = FIGURE_STATE_DEAD;
             } else {
                 if (f->direction == DIR_FIGURE_REROUTE) {
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;
@@ -269,7 +269,7 @@ void figure_workcamp_slave_action(Figure *f)
                 f->wait_ticks = game_time_scale_legacy_day_ticks(VALID_MONUMENT_RECHECK_TICKS);
                 figure_movement_set_cross_country_destination(f, dst.x, dst.y);
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             }
             break;
 
@@ -287,7 +287,7 @@ void figure_workcamp_slave_action(Figure *f)
                 f->state = FIGURE_STATE_DEAD;
             } else {
                 if (f->direction == DIR_FIGURE_REROUTE) {
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;
@@ -349,7 +349,7 @@ void figure_workcamp_architect_action(Figure *f)
                     figure_movement_set_cross_country_destination(f, dst.x, dst.y);
                     f->wait_ticks = 1;
                 } else if (f->direction == DIR_FIGURE_REROUTE) {
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;
@@ -370,7 +370,7 @@ void figure_workcamp_architect_action(Figure *f)
                 }
             } else {
                 if (f->direction == DIR_FIGURE_REROUTE) {
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;

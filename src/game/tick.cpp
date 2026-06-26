@@ -57,7 +57,7 @@
 #include "game/tutorial.h"
 #include "map/desirability.h"
 #include "map/road_network.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "scenario/demand_change.h"
 #include "scenario/distant_battle.h"
 #include "scenario/emperor_change.h"
@@ -105,7 +105,7 @@ static void advance_month(void)
     map_tiles_update_all_roads();
     map_tiles_update_all_highways();
     map_tiles_update_all_water();
-    map_routing_update_land_citizen();
+    Route::updateCitizenLandTerrain();
     city_message_sort_and_compact();
 
     if (game_time_advance_month()) {

@@ -43,7 +43,6 @@
 #include "figure/visited_buildings.h"
 #include "game/time.h"
 #include "map/routing.h"
-#include "map/routing_path.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
 
@@ -559,7 +558,7 @@ void figure_trade_caravan_action(Figure *f)
                     f->action_state = FIGURE_ACTION_102_TRADE_CARAVAN_TRADING;
                     break;
                 case DIR_FIGURE_REROUTE:
-                    figure_route_remove(f);
+                    Route::remove(f);
                     break;
                 case DIR_FIGURE_LOST:
                     f->state = FIGURE_STATE_DEAD;
@@ -617,7 +616,7 @@ void figure_trade_caravan_action(Figure *f)
                     f->state = FIGURE_STATE_DEAD;
                     break;
                 case DIR_FIGURE_REROUTE:
-                    figure_route_remove(f);
+                    Route::remove(f);
                     break;
                 case DIR_FIGURE_LOST:
                     f->state = FIGURE_STATE_DEAD;
@@ -689,7 +688,7 @@ void figure_native_trader_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_163_NATIVE_TRADER_AT_STORAGE;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
                 f->is_ghost = 1;
@@ -703,7 +702,7 @@ void figure_native_trader_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             }
             break;
         case FIGURE_ACTION_162_NATIVE_TRADER_CREATED:
@@ -891,7 +890,7 @@ void figure_trade_ship_action(Figure *f)
                 f->action_state = FIGURE_ACTION_114_TRADE_SHIP_ANCHORED;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
                 f->wait_ticks = 0;
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->wait_ticks = 0;
                 f->state = FIGURE_STATE_DEAD;
@@ -905,7 +904,7 @@ void figure_trade_ship_action(Figure *f)
                     f->destination_building = dock;
                     f->destination_x = tile.x;
                     f->destination_y = tile.y;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
                 if ((dock = building_dock_get_closer_free_destination(*f,
                     SHIP_DOCK_REQUEST_2_FIRST_QUEUE, &tile)).id()) {
@@ -913,7 +912,7 @@ void figure_trade_ship_action(Figure *f)
                     f->destination_building = dock;
                     f->destination_x = tile.x;
                     f->destination_y = tile.y;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else if (!building_dock_is_working(f->destination_building) ||
                     !building_dock_accepts_ship(*f, f->destination_building)) {
                     if ((dock = building_dock_get_destination(*f, nullptr, &tile)).id()) {
@@ -921,7 +920,7 @@ void figure_trade_ship_action(Figure *f)
                         f->destination_building = dock;
                         f->destination_x = tile.x;
                         f->destination_y = tile.y;
-                        figure_route_remove(f);
+                        Route::remove(f);
                     }
                 }
             }
@@ -997,7 +996,7 @@ void figure_trade_ship_action(Figure *f)
                     f->state = FIGURE_STATE_DEAD;
                 }
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
                 if (!city_message_get_category_count(MESSAGE_CAT_BLOCKED_DOCK)) {
@@ -1067,7 +1066,7 @@ void figure_trade_ship_action(Figure *f)
                 f->action_state = FIGURE_ACTION_110_TRADE_SHIP_CREATED;
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -1182,11 +1181,9 @@ int figure_trader_ship_get_distance_to_dock(const Figure *ship, unsigned int doc
         return ship->routing_path_length - ship->routing_path_current_tile;
     }
     Building dock(building_get(dock_id));
-    map_routing_calculate_distances_water_boat(ship->x, ship->y);
     map_point tile;
     building_dock_get_ship_request_tile(dock, SHIP_DOCK_REQUEST_1_DOCKING, &tile);
-    int path_length = map_routing_get_path_on_water(0, tile.x, tile.y, 0);
-    return path_length;
+    return Route::waterPathLength({ ship->x, ship->y }, tile);
 }
 
 int figure_trader_ship_other_ship_closer_to_dock(unsigned int dock_id, int distance)

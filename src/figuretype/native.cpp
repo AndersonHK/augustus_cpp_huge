@@ -78,7 +78,7 @@ void figure_indigenous_native_action(Figure *f)
                         native_attack_last_played = now;
                     }
                 }
-                figure_route_remove(f);
+                Route::remove(f);
             }
             break;
         case FIGURE_ACTION_159_NATIVE_ATTACKING:

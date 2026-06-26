@@ -178,7 +178,7 @@ void figure_sheep_action(Figure *f)
                 f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
                 f->wait_ticks = f->id() & 0x1f;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             }
             break;
     }
@@ -230,7 +230,7 @@ void figure_wolf_action(Figure *f)
                 f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
                 f->wait_ticks = f->id() & 0x1f;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             }
             break;
         case FIGURE_ACTION_199_WOLF_ATTACKING:
@@ -244,14 +244,14 @@ void figure_wolf_action(Figure *f)
                     f->target_figure.retarget(*target);
                     target->targeted_by_figure.retarget(*f);
                     f->target_figure_created_sequence = target->created_sequence;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->direction = f->previous_tile_direction;
                     f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
                     f->wait_ticks = f->id() & 0x1f;
                 }
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->direction = f->previous_tile_direction;
                 f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
@@ -334,7 +334,7 @@ void figure_zebra_action(Figure *f)
                 f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
                 f->wait_ticks = f->id() & 0x1f;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             }
             break;
     }

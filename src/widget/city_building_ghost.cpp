@@ -47,13 +47,13 @@
 #include "core/config.h"
 #include "figure/figure.h"
 #include "figure/formation.h"
+#include "figure/PathingMode.h"
 #include "graphics/renderer.h"
 #include "input/scroll.h"
 #include "map/data.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/routing_terrain.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
 
@@ -817,7 +817,7 @@ static void draw_road(const map_tile *tile, int x, int y)
         } else {
             blocked = 1;
         }
-    } else if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && map_routing_is_gate_transformable(grid_offset)) {
+    } else if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && figure_type_registry_impl::PathingMode::gateIsTransformable(grid_offset)) {
         image_id = building_image_get_garden_gate_image(grid_offset);
     } else if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR)) {
         blocked = 1;

@@ -62,7 +62,7 @@ void FishingBoat::go_to_wharf(const map_point &tile)
     destination_y = tile.y;
     source_x = tile.x;
     source_y = tile.y;
-    figure_route_remove(this);
+    Route::remove(this);
 }
 
 int FishingBoat::ensure_wharf_assignment()
@@ -139,7 +139,7 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
             if (direction == DIR_FIGURE_AT_DESTINATION) {
                 map_point tile;
                 if (map_water_find_alternative_fishing_boat_tile(this, &tile)) {
-                    figure_route_remove(this);
+                    Route::remove(this);
                     destination_x = tile.x;
                     destination_y = tile.y;
                     direction = previous_tile_direction;
@@ -161,7 +161,7 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
                 action_state = FIGURE_ACTION_195_FISHING_BOAT_RETURNING_WITH_FISH;
                 destination_x = source_x;
                 destination_y = source_y;
-                figure_route_remove(this);
+                Route::remove(this);
             }
             break;
 
@@ -172,7 +172,7 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
                 action_state = FIGURE_ACTION_194_FISHING_BOAT_AT_WHARF;
                 wait_ticks = 0;
             } else if (direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(this);
+                Route::remove(this);
             } else if (direction == DIR_FIGURE_LOST) {
                 city_message_post_with_message_delay(MESSAGE_CAT_FISHING_BLOCKED, 1, MESSAGE_FISHING_BOAT_BLOCKED, 12);
                 state = FIGURE_STATE_DEAD;
@@ -193,7 +193,7 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
                         action_state = FIGURE_ACTION_191_FISHING_BOAT_GOING_TO_FISH;
                         destination_x = tile.x;
                         destination_y = tile.y;
-                        figure_route_remove(this);
+                        Route::remove(this);
                     }
                 }
             }
@@ -210,7 +210,7 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
                 owner->data.industry.has_fish++;
                 owner->data.industry.production_current_month += 100;
             } else if (direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(this);
+                Route::remove(this);
             } else if (direction == DIR_FIGURE_LOST) {
                 state = FIGURE_STATE_DEAD;
             }

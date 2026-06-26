@@ -204,7 +204,7 @@ static int take_resource_from_warehouse(Figure *f, int warehouse_id, int max_amo
 
 static int change_market_supplier_destination(Figure *f, int dst_building_id)
 {
-    figure_route_remove(f);
+    Route::remove(f);
     f->destination_building = Building(building_get(dst_building_id));
     building *b_dst = building_get(dst_building_id);
     map_point road = { 0 };
@@ -321,7 +321,7 @@ void figure_supplier_action(Figure *f)
                 f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
                 f->destination_x = f->source_x;
                 f->destination_y = f->source_y;
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->type == FIGURE_MARKET_SUPPLIER && f->wait_ticks++ > FIGURE_REROUTE_DESTINATION_TICKS) {
                 f->wait_ticks = 0;
                 if (!recalculate_market_supplier_destination(f)) {
@@ -329,7 +329,7 @@ void figure_supplier_action(Figure *f)
                     f->collecting_item_id = RESOURCE_NONE;
                     f->destination_x = f->source_x;
                     f->destination_y = f->source_y;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;
@@ -341,7 +341,7 @@ void figure_supplier_action(Figure *f)
                 }
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             }
             break;
     }
@@ -432,7 +432,7 @@ void figure_fort_supplier_action(Figure *f)
                 f->destination_y = f->source_y;
                 f->wait_ticks = game_time_scale_legacy_day_ticks(20);
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -443,7 +443,7 @@ void figure_fort_supplier_action(Figure *f)
             } else {
                 figure_movement_move_ticks(f, 1);
                 if (f->direction == DIR_FIGURE_REROUTE) {
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
                     f->state = FIGURE_STATE_DEAD;
                 }

@@ -11,7 +11,7 @@
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/figure_type_registry_internal.h"
-#include "map/routing_distance.h"
+#include "figure/route.h"
 
 #include "building/building_record.h"
 #include "city/population.h"
@@ -22,8 +22,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
-
-void figure_route_remove(Figure *f);
 
 namespace {
 
@@ -379,7 +377,9 @@ int find_nearest_reachable_house_with_unemployed(const map_point *road, map_poin
         return 0;
     }
 
-    if (!routing_distance::prepare_from_road(*road)) {
+    const Route::DistanceQuery route_query =
+        Route::DistanceQuery::fromRoad(*road, PERMISSION_LABOR_SEEKER);
+    if (!route_query) {
         return 0;
     }
 
@@ -397,9 +397,8 @@ int find_nearest_reachable_house_with_unemployed(const map_point *road, map_poin
             continue;
         }
 
-        const routing_distance::BuildingRoadResult route =
-            routing_distance::find_access_road_to_building(house, 2, max_distance, 1);
-        if (!route.reachable) {
+        const Route::RoadResult route = route_query.findAccessRoad(*house, 2, max_distance, true);
+        if (!route) {
             continue;
         }
 
@@ -433,15 +432,17 @@ int find_nearest_assigned_source(Building &workplace, const map_point *road, map
         return 0;
     }
 
-    if (!routing_distance::prepare_from_road(*road)) {
+    const Route::DistanceQuery route_query =
+        Route::DistanceQuery::fromRoad(*road, PERMISSION_LABOR_SEEKER);
+    if (!route_query) {
         return 0;
     }
 
     const int max_roam_length = labor_seeker_max_roam_length();
     int best_house_id = 0;
     int best_distance = 0x7fffffff;
-    int house_id_to_release = 0;
     map_point best_road = { 0, 0 };
+    std::vector<int> house_ids_to_release;
     for (const WorkforceAllocation &allocation : g_allocations) {
         if (allocation.workplace_id != workplace.id() || allocation.workers <= 0) {
             continue;
@@ -449,18 +450,13 @@ int find_nearest_assigned_source(Building &workplace, const map_point *road, map
 
         building *house = building_get(allocation.house_id);
         if (!is_live_building(house) || !house->house_size) {
-            if (!house_id_to_release) {
-                house_id_to_release = allocation.house_id;
-            }
+            house_ids_to_release.push_back(allocation.house_id);
             continue;
         }
 
-        const routing_distance::BuildingRoadResult route =
-            routing_distance::find_access_road_to_building(house, 2, max_roam_length, 1);
-        if (!route.reachable) {
-            if (!house_id_to_release) {
-                house_id_to_release = allocation.house_id;
-            }
+        const Route::RoadResult route = route_query.findAccessRoad(*house, 2, max_roam_length, true);
+        if (!route) {
+            house_ids_to_release.push_back(allocation.house_id);
             continue;
         }
 
@@ -471,9 +467,8 @@ int find_nearest_assigned_source(Building &workplace, const map_point *road, map
         }
     }
 
-    if (house_id_to_release) {
-        release_workplace_source(workplace.id(), house_id_to_release);
-        return 0;
+    for (int house_id : house_ids_to_release) {
+        release_workplace_source(workplace.id(), house_id);
     }
 
     if (!best_house_id) {
@@ -497,13 +492,27 @@ int prepare_labor_seeker_target(Figure *f)
     if (f->destination_building.id()) {
         Building house = f->destination_building;
         if (is_live_building(house) && house.has_house_size()) {
-            if (f->collecting_item_id == kLaborSeekerTripValidate) {
-                return 1;
-            }
-            refresh_house_unemployed(house);
-            building *house_record = building_get(house.id());
-            if (house_record && house_record->local_workforce_unemployed > 0) {
-                return 1;
+            const map_point source_road = { f->x, f->y };
+            const map_point target_road = { f->destination_x, f->destination_y };
+            const Route::DistanceQuery route_query =
+                Route::DistanceQuery::fromRoad(source_road, PERMISSION_LABOR_SEEKER);
+            const int target_is_reachable =
+                route_query &&
+                static_cast<bool>(route_query.findRoad(target_road, remaining_roam_length(f)));
+            if (!target_is_reachable) {
+                if (f->collecting_item_id == kLaborSeekerTripValidate) {
+                    release_workplace_source(workplace.id(), house.id());
+                }
+                f->destination_building = Building(nullptr);
+            } else {
+                if (f->collecting_item_id == kLaborSeekerTripValidate) {
+                    return 1;
+                }
+                refresh_house_unemployed(house);
+                building *house_record = building_get(house.id());
+                if (house_record && house_record->local_workforce_unemployed > 0) {
+                    return 1;
+                }
             }
         } else if (f->collecting_item_id == kLaborSeekerTripValidate) {
             release_workplace_source(workplace.id(), f->destination_building.id());
@@ -526,7 +535,7 @@ int prepare_labor_seeker_target(Figure *f)
     f->destination_building = Building(building_get(house_id));
     f->destination_x = static_cast<unsigned char>(target_road.x);
     f->destination_y = static_cast<unsigned char>(target_road.y);
-    figure_route_remove(f);
+    Route::remove(f);
     return 1;
 }
 
@@ -604,7 +613,7 @@ int retarget_labor_seeker_to_unemployed(Figure *f)
     f->destination_x = static_cast<unsigned char>(target_road.x);
     f->destination_y = static_cast<unsigned char>(target_road.y);
     f->collecting_item_id = kLaborSeekerTripAcquire;
-    figure_route_remove(f);
+    Route::remove(f);
     return 1;
 }
 

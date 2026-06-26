@@ -155,7 +155,7 @@ static void move_animals(const formation *m, int attacking_animals)
                 f->target_figure.retarget(*target);
                 target->targeted_by_figure.retarget(*f);
                 f->target_figure_created_sequence = target->created_sequence;
-                figure_route_remove(f);
+                Route::remove(f);
             } else {
                 f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
             }

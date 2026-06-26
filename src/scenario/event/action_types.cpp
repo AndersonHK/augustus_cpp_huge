@@ -32,7 +32,7 @@
 #include "map/building.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
 #include "scenario/allowed_building.h"
@@ -779,7 +779,7 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
     }
 
     map_tiles_update_all();
-    map_routing_update_all();
+    Route::updateAllTerrain();
 
     return 1;
 }

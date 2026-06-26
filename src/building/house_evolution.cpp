@@ -22,7 +22,7 @@
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/grid.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 
 #define DEVOLVE_DELAY 2
@@ -396,7 +396,7 @@ void building_house_process_evolve_and_consume_goods(void)
         b->last_update = last_update;
     }
     if (has_expanded) {
-        map_routing_update_land();
+        Route::updateLandTerrain();
     }
 }
 

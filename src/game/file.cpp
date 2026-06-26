@@ -62,7 +62,6 @@
 #include "map/property.h"
 #include "map/random.h"
 #include "map/road_network.h"
-#include "map/routing_terrain.h"
 #include "map/soldier_strength.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
@@ -139,7 +138,7 @@ static void clear_scenario_data(void)
     figure_name_init();
     formations_clear();
     building_monument_initialize_deliveries();
-    figure_route_clear_all();
+    Route::clearAll();
     figure_visited_buildings_init();
     scenario_events_clear();
     custom_messages_clear_all();
@@ -197,7 +196,7 @@ static void initialize_scenario_data(const uint8_t *scenario_name)
     figure_create_flotsam();
     figure_visited_buildings_init();
 
-    map_routing_update_all();
+    Route::updateAllTerrain();
 
     scenario_map_init_entry_exit();
 
@@ -313,12 +312,12 @@ static void initialize_saved_game(void)
 
     city_view_init();
 
-    map_routing_update_all();
+    Route::updateAllTerrain();
 
     map_orientation_update_buildings();
-    figure_route_clean();
+    Route::clean();
     map_road_network_update();
-    map_routing_update_land();
+    Route::updateLandTerrain();
     building_maintenance_check_rome_access();
     building_granaries_calculate_stocks();
     building_menu_update();

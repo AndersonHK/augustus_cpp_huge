@@ -44,7 +44,7 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/routing.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
 
@@ -592,8 +592,8 @@ static void add_to_map(
         add_building(b);
     }
     refresh_placed_tile_regions(placement);
-    map_routing_update_land();
-    map_routing_update_walls();
+    Route::updateLandTerrain();
+    Route::updateWallTerrain();
 }
 
 int building_construction_is_granary_cross_tile(int tile_no)
@@ -634,7 +634,7 @@ int building_construction_fill_vacant_lots(grid_slice *area)
     }
     if (items_placed > 0) {
         building_construction_warning_check_food_stocks(vacant_lot_type);
-        map_routing_update_land();
+        Route::updateLandTerrain();
     }
     return items_placed;
 }

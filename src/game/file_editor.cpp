@@ -39,7 +39,6 @@
 #include "map/property.h"
 #include "map/random.h"
 #include "map/road_network.h"
-#include "map/routing_terrain.h"
 #include "map/soldier_strength.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
@@ -79,7 +78,7 @@ void game_file_editor_clear_data(void)
     enemy_armies_clear();
     figure_name_init();
     formations_clear();
-    figure_route_clear_all();
+    Route::clearAll();
     traders_clear();
     game_time_init(2098);
     scenario_invasion_clear();
@@ -150,7 +149,7 @@ static void prepare_map_for_editing(void)
     map_tiles_update_all_aqueducts(0);
     widget_map_editor_custom_earthquake_request_refresh();
     map_natives_init_editor();
-    map_routing_update_all();
+    Route::updateAllTerrain();
 
     scenario_editor_set_as_saved();
 

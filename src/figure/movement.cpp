@@ -10,6 +10,7 @@
 #include "building/roadblock.h"
 #include "figure/combat.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/PathingMode.h"
 #include "figure/route.h"
 #include "map/figure.h"
 
@@ -22,7 +23,6 @@
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/routing_terrain.h"
 #include "map/terrain.h"
 
 namespace {
@@ -179,9 +179,9 @@ static void set_next_route_tile_direction(Figure *f)
 {
     if (f->routing_path_id > 0) {
         if (f->routing_path_current_tile < f->routing_path_length) {
-            f->direction = figure_route_get_current_direction(f->routing_path_id);
+            f->direction = Route::currentDirection(*f);
         } else {
-            figure_route_remove(f);
+            Route::remove(f);
             f->direction = DIR_FIGURE_AT_DESTINATION;
         }
     } else { // should be at destination
@@ -203,12 +203,12 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             f->direction = DIR_FIGURE_REROUTE;
         }
     } else if (f->terrain_usage == TERRAIN_USAGE_ENEMY) {
-        if (!map_routing_noncitizen_is_passable(target_grid_offset)) {
+        if (!figure_type_registry_impl::PathingMode::noncitizenIsPassable(target_grid_offset)) {
             f->direction = DIR_FIGURE_REROUTE;
-        } else if (map_routing_is_destroyable(target_grid_offset)) {
+        } else if (building_destroyable_at(target_grid_offset)) {
             int cause_damage = 1;
             int max_damage = 0;
-            switch (map_routing_get_destroyable(target_grid_offset)) {
+            switch (building_destroyable_type_at(target_grid_offset)) {
                 case DESTROYABLE_BUILDING:
                     max_damage = hit_points_for_building_at(target_grid_offset);
                     break;
@@ -235,7 +235,7 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             }
         }
     } else if (f->terrain_usage == TERRAIN_USAGE_WALLS) {
-        if (!map_routing_is_wall_passable(target_grid_offset)) {
+        if (!Route::wallIsPassable(target_grid_offset)) {
             f->direction = DIR_FIGURE_REROUTE;
         }
     } else if (map_terrain_is(target_grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP)) {
@@ -255,8 +255,8 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             }
         }
     } else if (map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
-        if ((map_routing_citizen_is_passable_terrain(target_grid_offset) ||
-            (map_routing_citizen_is_road(target_grid_offset) && !roaming_enabled))) {
+        if ((figure_type_registry_impl::PathingMode::citizenIsPassableTerrain(target_grid_offset) ||
+            (figure_type_registry_impl::PathingMode::citizenIsRoad(target_grid_offset) && !roaming_enabled))) {
             return; // passable terrain - no reroute
         }
         building *b = building_get(map_building_at(target_grid_offset));
@@ -294,7 +294,7 @@ static void walk_ticks(Figure *f, int num_ticks, int roaming_enabled)
             }
             f->progress_on_tile = 15;
             if (f->routing_path_id <= 0) {
-                figure_route_add(f);
+                Route::add(f);
             }
             set_next_route_tile_direction(f);
             advance_route_tile(f, roaming_enabled);
@@ -302,7 +302,7 @@ static void walk_ticks(Figure *f, int num_ticks, int roaming_enabled)
                 break;
             }
             f->routing_path_current_tile++;
-            figure_route_advance_tile(f->routing_path_id);
+        Route::advanceTile(*f);
             f->previous_tile_direction = f->direction;
             f->progress_on_tile = 0;
             move_to_next_tile(f);
@@ -389,12 +389,12 @@ static bool is_valid_road_for_roaming(const Figure *f, int grid_offset, roadbloc
     // across the internal cross when it connects to at least two exits.
     Building building_obj(b);
     if (building_obj.type && building_obj.type->is_granary()) {
-        return map_routing_citizen_is_road(grid_offset) &&
+        return figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset) &&
             map_road_get_granary_inner_road_tiles_count(b) >= 3;
     }
     if (building_obj.type && building_obj.type->is_warehouse()) {
-        return map_routing_citizen_is_passable_terrain(grid_offset) ||
-            map_routing_citizen_is_road(grid_offset);
+        return figure_type_registry_impl::PathingMode::citizenIsPassableTerrain(grid_offset) ||
+            figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset);
     }
     return false;
 }
@@ -709,7 +709,7 @@ void figure_movement_roam_ticks(Figure *f, int num_ticks)
                     f, road_tiles, came_from_direction, f->direction);
             }
             f->routing_path_current_tile++;
-            figure_route_advance_tile(f->routing_path_id);
+            Route::advanceTile(*f);
             f->previous_tile_direction = f->direction;
             f->progress_on_tile = 0;
             move_to_next_tile(f);

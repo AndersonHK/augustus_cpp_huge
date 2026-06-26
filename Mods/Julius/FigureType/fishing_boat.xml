@@ -4,8 +4,8 @@
         <profile id="fish_fetch">
             <native class="fishing_boat" />
             <owner slot="none" building="any" state="any" />
-            <movement terrain_usage="any" roam_ticks="1" max_roam_length="800" return_mode="none" />
-            <pathing mode="water_route" />
+            <movement roam_ticks="1" max_roam_length="800" return_mode="none" />
+            <pathing mode="water_route" terrain="any" />
         </profile>
     </profiles>
     <graphics image_group="ship" base_image_offset="8" max_image_offset="12" />

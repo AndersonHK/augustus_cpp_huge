@@ -4,8 +4,8 @@
         <profile id="service">
             <native class="legacy_action" />
             <owner slot="primary" building="hospital" state="in_use" />
-            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="576" return_mode="return_to_owner_road" />
-            <pathing mode="smart_service" effect="surgeon" />
+            <movement roam_ticks="1" max_roam_length="576" return_mode="return_to_owner_road" />
+            <pathing mode="smart_service" terrain="roads" effect="surgeon" />
         </profile>
     </profiles>
     <graphics image_group="surgeon" max_image_offset="12" />

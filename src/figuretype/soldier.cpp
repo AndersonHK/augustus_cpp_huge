@@ -183,7 +183,7 @@ static int find_mop_up_target(Figure *f)
             f->action_state = FIGURE_ACTION_84_SOLDIER_AT_STANDARD;
             f->image_offset = 0;
         }
-        figure_route_remove(f);
+        Route::remove(f);
     }
     return target_id;
 }
@@ -378,7 +378,7 @@ void figure_soldier_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_80_SOLDIER_AT_REST;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -391,7 +391,7 @@ void figure_soldier_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             }
             break;
         case FIGURE_ACTION_83_SOLDIER_GOING_TO_STANDARD:
@@ -409,7 +409,7 @@ void figure_soldier_action(Figure *f)
                 f->action_state = FIGURE_ACTION_84_SOLDIER_AT_STANDARD;
                 f->image_offset = 0;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->alternative_location_index++;
                 if (f->alternative_location_index > 168) {
@@ -456,7 +456,7 @@ void figure_soldier_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -469,7 +469,7 @@ void figure_soldier_action(Figure *f)
                     Figure &target = f->target_figure.get();
                     f->destination_x = target.x;
                     f->destination_y = target.y;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                     f->action_state = FIGURE_ACTION_84_SOLDIER_AT_STANDARD;
                     f->target_figure.clear();
@@ -486,9 +486,9 @@ void figure_soldier_action(Figure *f)
                 figure_movement_move_ticks_with_percentage(f, speed_factor, speed_factor_percentage);
                 if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                     f->action_state = FIGURE_ACTION_89_SOLDIER_AT_DISTANT_BATTLE;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else if (f->direction == DIR_FIGURE_REROUTE) {
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else if (f->direction == DIR_FIGURE_LOST) {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -505,7 +505,7 @@ void figure_soldier_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_80_SOLDIER_AT_REST;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }

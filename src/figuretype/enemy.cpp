@@ -23,7 +23,7 @@ static void enemy_initial(Figure *f, formation *m)
 {
     map_figure_update(f);
     f->image_offset = 0;
-    figure_route_remove(f);
+    Route::remove(f);
     f->wait_ticks--;
     if (f->wait_ticks <= 0) {
         if (f->is_ghost && f->index_in_formation == 0 && (unsigned int) m->figures[0] == f->id()) {
@@ -107,7 +107,7 @@ static void enemy_marching(Figure *f, const formation *m)
             return;
         }
         f->destination_building = Building(building_get(m->destination_building_id));
-        figure_route_remove(f);
+        Route::remove(f);
     }
     figure_movement_move_ticks(f, f->speed_multiplier);
     if (f->direction == DIR_FIGURE_AT_DESTINATION ||
@@ -147,7 +147,7 @@ static void enemy_fighting(Figure *f, const formation *m)
             f->target_figure.retarget(*target);
             f->target_figure_created_sequence = target->created_sequence;
             target->targeted_by_figure.retarget(*f);
-            figure_route_remove(f);
+            Route::remove(f);
         }
     }
     if (target_id > 0) {
@@ -156,7 +156,7 @@ static void enemy_fighting(Figure *f, const formation *m)
             Figure *target = &f->target_figure.get();
             f->destination_x = target->x;
             f->destination_y = target->y;
-            figure_route_remove(f);
+            Route::remove(f);
         } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
             f->action_state = FIGURE_ACTION_151_ENEMY_INITIAL;
             f->target_figure.clear();
@@ -607,7 +607,7 @@ void figure_enemy_gladiator_action(Figure *f)
                     f->destination_x = x_tile;
                     f->destination_y = y_tile;
                     f->destination_building = Building(building_get(building_id));
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
                 }

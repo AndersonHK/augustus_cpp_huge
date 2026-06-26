@@ -53,8 +53,6 @@
 #include "map/terrain.h"
 #include "widget/city_overlay.h"
 
-#include <cstring>
-
 static const city_overlay *overlay = 0;
 static float scale = SCALE_NONE;
 static unsigned int city_roamer_preview_selected_building_id = ((unsigned int) -1); //NO_POSITION default
@@ -64,8 +62,7 @@ static unsigned int city_roamer_preview_selected_building_id = ((unsigned int) -
 
 static int building_matches(const Building &building, const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *definition = building.type;
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
+    return building.matches(text_id);
 }
 
 static const int ADJACENT_OFFSETS[2][4][7] = {

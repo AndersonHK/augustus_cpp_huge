@@ -380,7 +380,7 @@ static int deliver_import_resource(Figure *f, building *dock)
         f->action_state = FIGURE_ACTION_135_DOCKER_IMPORT_GOING_TO_STORAGE;
     }
     if (f->destination_building.id() != destination_id) {
-        figure_route_remove(f);
+        Route::remove(f);
     }
     f->destination_building = Building(building_get(destination_id));
     f->wait_ticks = 0;
@@ -408,7 +408,7 @@ static int fetch_export_resource(Figure *f, building *dock, int add_to_bought)
         ship->trader_amount_bought++;
     }
     if (f->destination_building.id() != destination_id) {
-        figure_route_remove(f);
+        Route::remove(f);
     }
     f->destination_building = Building(building_get(destination_id));
     f->action_state = FIGURE_ACTION_136_DOCKER_EXPORT_GOING_TO_STORAGE;
@@ -543,7 +543,7 @@ void figure_docker_action(Figure *f)
                 f->action_state = FIGURE_ACTION_139_DOCKER_IMPORT_AT_STORAGE;
                 f->wait_ticks = 0;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -558,7 +558,7 @@ void figure_docker_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_140_DOCKER_EXPORT_AT_STORAGE;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -575,7 +575,7 @@ void figure_docker_action(Figure *f)
                 f->action_state = FIGURE_ACTION_134_DOCKER_EXPORT_QUEUE;
                 f->wait_ticks = 0;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -593,7 +593,7 @@ void figure_docker_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 set_docker_as_idle(f);
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }

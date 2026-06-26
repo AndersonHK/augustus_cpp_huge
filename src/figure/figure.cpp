@@ -10,6 +10,7 @@
 #include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
 #include "figure/name.h"
+#include "figure/route.h"
 #include "figure/trader.h"
 #include "figure/visited_buildings.h"
 #include "game/resource.h"
@@ -22,8 +23,6 @@
 #include <cstdlib>
 #include <memory>
 #include <vector>
-
-void figure_route_remove(Figure *f);
 
 namespace {
 
@@ -594,7 +593,7 @@ void Figure::remove()
         immigrant->immigrant_figure_id = 0;
     }
     figure_visited_buildings_remove_list(last_visited_index);
-    figure_route_remove(this);
+    Route::remove(this);
     map_figure_delete(this);
     figure_runtime_on_deleted(this);
 
@@ -642,7 +641,7 @@ int Figure::retarget_building(const Building &from, const Building &to)
             figure_movement_set_cross_country_destination(this, to.x(), to.y());
             destination_grid_offset = map_grid_offset(destination_x, destination_y);
         }
-        figure_route_remove(this);
+        Route::remove(this);
     }
     return changed;
 }

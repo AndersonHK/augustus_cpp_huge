@@ -15,7 +15,7 @@
 #include "map/data.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
 #include "scenario/data.h"
@@ -137,8 +137,8 @@ static void advance_earthquake_to_tile(int x, int y)
     map_tiles_update_all_highways();
     map_tiles_update_all_plazas();
 
-    map_routing_update_land();
-    map_routing_update_walls();
+    Route::updateLandTerrain();
+    Route::updateWallTerrain();
 
     figure_create_explosion_cloud(x, y, 1, 0);
 }

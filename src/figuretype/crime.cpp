@@ -368,10 +368,10 @@ void figure_rioter_action(Figure *f)
                     f->destination_y = y_tile;
                     f->destination_building = Building(building_get(target_building_id));
                     f->collecting_item_id = resource;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;
@@ -388,11 +388,11 @@ void figure_rioter_action(Figure *f)
                     f->destination_x = x_tile;
                     f->destination_y = y_tile;
                     f->destination_building = Building(building_get(building_id));
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->type = FIGURE_CRIMINAL;
                     f->action_state = FIGURE_ACTION_120_RIOTER_CREATED;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
@@ -436,7 +436,7 @@ void figure_robber_action(Figure *f)
                     f->destination_building = Building(building_get(target_building_id));
                     f->collecting_item_id = resource;
                     f->action_state = FIGURE_ACTION_229_CRIMINAL_GOING_TO_ROB;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -450,7 +450,7 @@ void figure_robber_action(Figure *f)
                 figure_crime_steal_money(f);
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -484,10 +484,10 @@ void figure_looter_action(Figure *f)
 
                 if (target_building_id) {
                     f->action_state = FIGURE_ACTION_228_CRIMINAL_GOING_TO_LOOT;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;
@@ -499,7 +499,7 @@ void figure_looter_action(Figure *f)
                 loot_storage(f, static_cast<resource_type>(f->collecting_item_id), f->destination_building.id());
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }

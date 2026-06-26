@@ -27,7 +27,7 @@
 #include "map/data.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
 
 #include <cstring>
@@ -114,7 +114,7 @@ void map_orientation_change(int quarter_turns)
     for (int i = 0; i < abs(quarter_turns); i++) {
         map_bridge_update_after_rotate(bridge_counter_clockwise);
     }
-    map_routing_update_walls();
+    Route::updateWallTerrain();
 
     map_natives_check_land(0);
 

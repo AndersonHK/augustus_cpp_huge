@@ -361,7 +361,13 @@ std::uint64_t building_runtime::graphics_state_signature() const
             selected_option = building_runtime_graphics_selected_option(b, *target);
         }
     }
-    return b.graphics_state_signature(selected_option);
+    std::uint64_t signature = b.graphics_state_signature(selected_option);
+    const Building owner = b.composition_owner();
+    if (owner.id() && owner.id() != b.id()) {
+        signature ^= owner.graphics_state_signature(-1);
+        signature *= 1099511628211ull;
+    }
+    return signature;
 }
 
 const building_type_registry_impl::GraphicsTarget *building_runtime::resolve_graphic_target() const
@@ -681,9 +687,12 @@ void building_runtime::rebuild_cached_graphics_bindings()
         return;
     }
 
+    const Building animation_owner = building().composition_owner();
+    const int animation_owner_is_working = animation_owner.id() && animation_owner.is_working();
+
     graphics_cache_.base_payload = payload;
     graphics_cache_.base_entry = entry;
-    if (resolved_target.animation_enabled() && building().is_working() && entry->has_animation()) {
+    if (resolved_target.animation_enabled() && animation_owner_is_working && entry->has_animation()) {
         graphics_cache_.animation_payload = payload;
         graphics_cache_.animation_entry = entry;
         graphics_cache_.owns_graphic_animation = 1;
@@ -708,7 +717,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
         cached_layer.x_offset = resolved_layer.x_offset();
         cached_layer.y_offset = resolved_layer.y_offset();
         cached_layer.owns_animation =
-            resolved_layer.animation_enabled() && building().is_working() && layer_entry->has_animation();
+            resolved_layer.animation_enabled() && animation_owner_is_working && layer_entry->has_animation();
         graphics_cache_.layers.push_back(cached_layer);
     }
     graphics_cache_.owns_graphics = 1;

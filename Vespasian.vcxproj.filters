@@ -504,8 +504,6 @@
     <ClCompile Include="src\map\road_service_history.cpp" />
     <ClCompile Include="src\map\routing.cpp" />
     <ClCompile Include="src\map\routing_data.cpp" />
-    <ClCompile Include="src\map\routing_distance.cpp" />
-    <ClCompile Include="src\map\routing_path.cpp" />
     <ClCompile Include="src\map\routing_terrain.cpp" />
     <ClCompile Include="src\map\soldier_strength.cpp" />
     <ClCompile Include="src\map\sprite.cpp" />
@@ -1050,9 +1048,6 @@
     <ClInclude Include="src\map\road_service_history.h" />
     <ClInclude Include="src\map\routing.h" />
     <ClInclude Include="src\map\routing_data.h" />
-    <ClInclude Include="src\map\routing_distance.h" />
-    <ClInclude Include="src\map\routing_path.h" />
-    <ClInclude Include="src\map\routing_terrain.h" />
     <ClInclude Include="src\map\soldier_strength.h" />
     <ClInclude Include="src\map\sprite.h" />
     <ClInclude Include="src\map\terrain.h" />

@@ -16,7 +16,7 @@
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
@@ -277,8 +277,8 @@ int map_bridge_add(int x, int y, int is_ship_bridge)
     }
 
 
-    map_routing_update_land();
-    map_routing_update_water();
+    Route::updateLandTerrain();
+    Route::updateWaterTerrain();
     map_tiles_update_region_water(x, y, map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset));
     return bridge.length;
 }

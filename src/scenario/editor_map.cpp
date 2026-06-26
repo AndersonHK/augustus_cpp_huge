@@ -1,7 +1,7 @@
 #include "editor_map.h"
 
 #include "figuretype/water.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "scenario/data.h"
 #include "scenario/editor.h"
 
@@ -22,7 +22,7 @@ void scenario_editor_set_exit_point(int x, int y)
 static void update_river(void)
 {
     figure_create_flotsam();
-    map_routing_update_water();
+    Route::updateWaterTerrain();
 }
 
 void scenario_editor_set_river_entry_point(int x, int y)

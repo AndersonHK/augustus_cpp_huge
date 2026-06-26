@@ -43,6 +43,7 @@ static const int HIGHWAY_DIRECTIONS[] = {
 };
 
 static map_routing_distance_grid distance;
+static int distance_generation;
 
 static struct {
     int total_routes_calculated;
@@ -68,6 +69,8 @@ static struct {
     roadblock_permission roadblock_permission;
 } state;
 
+static int citizen_can_enter_roadblock(int grid_offset);
+
 static int building_matches(building *b, const char *text_id)
 {
     if (!b) {
@@ -92,8 +95,14 @@ const map_routing_distance_grid *map_routing_get_distance_grid(void)
     return &distance;
 }
 
+int map_routing_distance_generation(void)
+{
+    return distance_generation;
+}
+
 static void clear_data(void)
 {
+    distance_generation++;
     reset_fighting_status();
     map_grid_clear_i16(distance.possible.items);
     map_grid_clear_i16(distance.determined.items);
@@ -288,10 +297,27 @@ static int callback_calc_distance(int next_offset, int dist, int direction)
     return 1;
 }
 
+static int callback_calc_distance_road_garden(int next_offset, int dist, int direction)
+{
+    if ((terrain_land_citizen.items[next_offset] == CITIZEN_0_ROAD ||
+         terrain_land_citizen.items[next_offset] == CITIZEN_2_PASSABLE_TERRAIN) &&
+        citizen_can_enter_roadblock(next_offset)) {
+        enqueue(next_offset, dist);
+    }
+    return 1;
+}
+
 void map_routing_calculate_distances(int x, int y)
 {
     ++stats.total_routes_calculated;
     route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_calc_distance, 0);
+}
+
+void map_routing_calculate_distances_road_garden(int x, int y, roadblock_permission permission)
+{
+    state.roadblock_permission = permission;
+    ++stats.total_routes_calculated;
+    route_queue_all_from(map_grid_offset(x, y), DIRECTIONS_NO_DIAGONALS, callback_calc_distance_road_garden, 0);
 }
 
 static int callback_calc_distance_water_boat(int next_offset, int dist, int direction)

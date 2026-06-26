@@ -18,7 +18,7 @@
 #include "figure/figure.h"
 #include "map/grid.h"
 #include "map/road_access.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "scenario/property.h"
 #include "sound/effect.h"
 
@@ -708,7 +708,7 @@ void building_granary_warehouse_curse(int big)
             max_building.grid_offset());
         building_destroy_by_fire(building_get(max_building.id()));
         sound_effect_play(SOUND_EFFECT_EXPLOSION);
-        map_routing_update_land();
+        Route::updateLandTerrain();
     } else {
         if (is_warehouse_building(max_building)) {
             building_warehouse_remove_resource_curse(max_building, CURSE_LOADS);

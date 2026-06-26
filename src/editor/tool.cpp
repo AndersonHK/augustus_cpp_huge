@@ -15,7 +15,7 @@
 #include "map/image_context.h"
 #include "map/property.h"
 #include "map/routing.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/tiles.h"
 #include "map/terrain.h"
 #include "scenario/editor.h"
@@ -157,7 +157,7 @@ void editor_tool_start_use(const map_tile *tile)
         if (road_type > BUILDING_NONE) {
             game_undo_start_build(road_type);
         }
-        map_routing_update_land();
+        Route::updateLandTerrain();
     }
 }
 

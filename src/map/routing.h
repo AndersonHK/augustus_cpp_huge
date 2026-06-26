@@ -22,8 +22,10 @@ struct map_routing_distance_grid {
 };
 
 const map_routing_distance_grid *map_routing_get_distance_grid(void);
+int map_routing_distance_generation(void);
 
 void map_routing_calculate_distances(int x, int y);
+void map_routing_calculate_distances_road_garden(int x, int y, roadblock_permission permission);
 void map_routing_calculate_distances_water_boat(int x, int y);
 void map_routing_calculate_distances_water_flotsam(int x, int y);
 

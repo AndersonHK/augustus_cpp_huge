@@ -18,7 +18,6 @@
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/road_access.h"
-#include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "sound/effect.h"
 
@@ -167,7 +166,7 @@ static int tower_sentry_init_patrol(Building &tower, int *x_tile, int *y_tile)
     }
     map_grid_bound(&x, &y);
 
-    if (map_routing_wall_tile_in_radius(x, y, 6, x_tile, y_tile)) {
+    if (Route::findWallTileInRadius(x, y, 6, x_tile, y_tile)) {
         b->figure_roam_direction += 2;
         if (b->figure_roam_direction > 6) {
             b->figure_roam_direction = 0;
@@ -189,7 +188,7 @@ static int tower_sentry_init_patrol(Building &tower, int *x_tile, int *y_tile)
             case DIR_6_LEFT: x -= 3; break;
         }
         map_grid_bound(&x, &y);
-        if (map_routing_wall_tile_in_radius(x, y, 6, x_tile, y_tile)) {
+        if (Route::findWallTileInRadius(x, y, 6, x_tile, y_tile)) {
             return 1;
         }
     }
@@ -277,7 +276,7 @@ void figure_tower_sentry_action(Figure *f)
                     f->action_state = FIGURE_ACTION_171_TOWER_SENTRY_PATROLLING;
                     f->destination_x = x_tile;
                     f->destination_y = y_tile;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -289,7 +288,7 @@ void figure_tower_sentry_action(Figure *f)
                 f->action_state = FIGURE_ACTION_173_TOWER_SENTRY_RETURNING;
                 f->destination_x = f->source_x;
                 f->destination_y = f->source_y;
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                 f->action_state = FIGURE_ACTION_170_TOWER_SENTRY_AT_REST;
             }
@@ -309,7 +308,7 @@ void figure_tower_sentry_action(Figure *f)
                     f->action_state = FIGURE_ACTION_173_TOWER_SENTRY_RETURNING;
                     f->destination_x = f->source_x;
                     f->destination_y = f->source_y;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;
@@ -332,7 +331,7 @@ void figure_tower_sentry_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 if (tower.type && tower.type->is_watchtower()) {
                     figure_watchtower_archer_spawn(tower);
-                    figure_route_remove(f);
+                    Route::remove(f);
                     f->state = FIGURE_STATE_DEAD;
                 } else { // if Tower
                     map_figure_delete(f);
@@ -341,7 +340,7 @@ void figure_tower_sentry_action(Figure *f)
                     f->grid_offset = map_grid_offset(f->x, f->y);
                     map_figure_add(f);
                     f->action_state = FIGURE_ACTION_170_TOWER_SENTRY_AT_REST;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
@@ -364,7 +363,7 @@ void figure_tower_sentry_reroute(void)
 {
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (f->type != FIGURE_TOWER_SENTRY || map_routing_is_wall_passable(f->grid_offset)) {
+        if (f->type != FIGURE_TOWER_SENTRY || Route::wallIsPassable(f->grid_offset)) {
             continue;
         }
         if (f->action_state == FIGURE_ACTION_174_TOWER_SENTRY_GOING_TO_TOWER ||
@@ -373,8 +372,8 @@ void figure_tower_sentry_reroute(void)
         }
         // tower sentry got off wall due to rotation
         int x_tile, y_tile;
-        if (map_routing_wall_tile_in_radius(f->x, f->y, 2, &x_tile, &y_tile)) {
-            figure_route_remove(f);
+        if (Route::findWallTileInRadius(f->x, f->y, 2, &x_tile, &y_tile)) {
+            Route::remove(f);
             f->progress_on_tile = 0;
             map_figure_delete(f);
             f->previous_tile_x = f->x = x_tile;
@@ -399,7 +398,7 @@ void figure_tower_sentry_reroute(void)
             f->grid_offset = map_grid_offset(f->x, f->y);
             map_figure_add(f);
             f->action_state = FIGURE_ACTION_170_TOWER_SENTRY_AT_REST;
-            figure_route_remove(f);
+            Route::remove(f);
         }
     }
 }
@@ -462,7 +461,7 @@ void figure_watchman_action(Figure *f)
                     f->action_state = FIGURE_ACTION_222_WATCHMAN_RETURNING;
                     f->destination_x = x_road;
                     f->destination_y = y_road;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
                 }

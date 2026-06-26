@@ -17,6 +17,7 @@
 #include "city/warning.h"
 #include "core/calc.h"
 #include "core/random.h"
+#include "figure/route.h"
 #include "figuretype/migrant.h"
 #include "game/state.h"
 #include "game/tutorial.h"
@@ -28,7 +29,6 @@
 #include "map/road_access.h"
 #include "map/road_network.h"
 #include "map/routing.h"
-#include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
 #include "scenario/property.h"
@@ -201,7 +201,7 @@ void building_maintenance_update_burning_ruins(void)
         }
     }
     if (recalculate_terrain) {
-        map_routing_update_land();
+        Route::updateLandTerrain();
     }
 }
 
@@ -323,23 +323,22 @@ void building_maintenance_check_fire_collapse(void)
     }
 
     if (recalculate_terrain) {
-        map_routing_update_land();
+        Route::updateLandTerrain();
     }
 }
 
 void building_maintenance_check_rome_access(void)
 {
     const map_tile *entry_point = city_map_entry_point();
-    map_routing_calculate_distances(entry_point->x, entry_point->y);
+    const Route::DistanceQuery entry_route =
+        Route::DistanceQuery::fromPoint({ entry_point->x, entry_point->y });
     int problem_grid_offset = 0;
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
         if (b->state != BUILDING_STATE_IN_USE) {
             continue;
         }
-        int road_grid_offset = -1;
-        int x_road = 0;
-        int y_road = 0;
+        Route::RoadResult road_access;
         b->distance_from_entry = 0;
         if (b->prev_part_building_id > 0) {
             building *main_building = building_main(b);
@@ -354,6 +353,8 @@ void building_maintenance_check_rome_access(void)
             continue;
         }
         if (b->house_size) {
+            int x_road = 0;
+            int y_road = 0;
             if (!map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
                 // no road: eject people
                 b->house_unreachable_ticks++;
@@ -367,13 +368,15 @@ void building_maintenance_check_rome_access(void)
                     b->state = BUILDING_STATE_UNDO;
                 }
             } else {
-                int distance = map_routing_distance(map_grid_offset(x_road, y_road));
-                if (distance) {
+                Route::RoadResult route = entry_route.findRoad({ x_road, y_road });
+                if (route) {
                     // reachable from rome
-                    b->distance_from_entry = distance;
+                    b->distance_from_entry = route.distance;
                     b->house_unreachable_ticks = 0;
-                } else if (map_closest_reachable_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
-                    b->distance_from_entry = map_routing_distance(map_grid_offset(x_road, y_road));
+                } else if ((route = entry_route.findReachableRoad(b->x, b->y, b->size, 2))) {
+                    x_road = route.road.x;
+                    y_road = route.road.y;
+                    b->distance_from_entry = route.distance;
                     b->house_unreachable_ticks = 0;
                 } else {
                     // no reachable road in radius
@@ -393,41 +396,38 @@ void building_maintenance_check_rome_access(void)
         } else if (type_matches(b->type, "granary")) {
             map_point road_acces_point;
             if (map_has_road_access_granary(b->x, b->y, &road_acces_point)) {
-                road_grid_offset = map_grid_offset(road_acces_point.x, road_acces_point.y);
+                road_access = entry_route.findRoad(road_acces_point);
             }
         } else if (type_matches(b->type, "warehouse")) {
             map_point road_acces_point;
             if (map_has_road_access_warehouse(b->x, b->y, &road_acces_point)) {
-                road_grid_offset = map_grid_offset(road_acces_point.x, road_acces_point.y);
+                road_access = entry_route.findRoad(road_acces_point);
             }
         } else {
             int access_x = 0;
             int access_y = 0;
             int access_size = 0;
             if (composed_main_road_access_area(b, &access_x, &access_y, &access_size)) {
-                road_grid_offset = map_road_to_largest_network(access_x, access_y, access_size, &x_road, &y_road);
+                road_access = entry_route.findRoadToLargestNetwork(access_x, access_y, access_size);
             } else if (type_matches(b->type, "hippodrome")) {
                 int rotated = b->subtype.orientation != 0;
-                road_grid_offset = map_road_to_largest_network_hippodrome(b->x, b->y, &x_road, &y_road, rotated);
+                road_access = entry_route.findHippodromeRoadToLargestNetwork(b->x, b->y, rotated);
             } else if (building_monument_is_unfinished_monument(b)) {
-                road_grid_offset = map_road_to_largest_network_monument_construction(b->x, b->y, b->size, &x_road, &y_road);
+                road_access = entry_route.findMonumentConstructionRoadToLargestNetwork(b->x, b->y, b->size);
             } else if (building_is_fort(b->type)) {
-                road_grid_offset = map_road_to_largest_network(b->x, b->y, b->size, &x_road, &y_road);
-                if (road_grid_offset < 0) {
-                    int reachable = map_closest_reachable_spot_within_radius(b->x, b->y, b->size, 1, &x_road, &y_road);
-                    if (reachable) {
-                        road_grid_offset = map_grid_offset(x_road, y_road);
-                    }
+                road_access = entry_route.findRoadToLargestNetwork(b->x, b->y, b->size);
+                if (!road_access) {
+                    road_access = entry_route.findReachableTile(b->x, b->y, b->size, 1);
                 }
             } else {
-                road_grid_offset = map_road_to_largest_network(b->x, b->y, b->size, &x_road, &y_road);
+                road_access = entry_route.findRoadToLargestNetwork(b->x, b->y, b->size);
             }
         }
-        if (road_grid_offset >= 0) {
-            b->road_network_id = map_road_network_get(road_grid_offset);
-            b->distance_from_entry = map_routing_distance(road_grid_offset);
-            b->road_access_x = x_road;
-            b->road_access_y = y_road;
+        if (road_access) {
+            b->road_network_id = map_road_network_get(road_access.grid_offset);
+            b->distance_from_entry = road_access.distance;
+            b->road_access_x = road_access.road.x;
+            b->road_access_y = road_access.road.y;
         }
         if (!is_storage_road_access_type(b->type) && b->house_unreachable_ticks == 0) {
             b->has_road_access = b->distance_from_entry > 0;
@@ -435,7 +435,7 @@ void building_maintenance_check_rome_access(void)
     }
     const map_tile *exit_point = city_map_exit_point();
 
-    if (!map_routing_distance(exit_point->grid_offset)) {
+    if (!entry_route.distanceTo(exit_point->grid_offset)) {
         // no route through city
         if (city_population() <= 0) {
             return;
@@ -449,17 +449,16 @@ void building_maintenance_check_rome_access(void)
         for (int i = 0; i < 15; i++) {
             map_routing_delete_first_wall_or_aqueduct(entry_point->x, entry_point->y);
             map_routing_delete_first_wall_or_aqueduct(exit_point->x, exit_point->y);
-            map_routing_calculate_distances(entry_point->x, entry_point->y);
 
             map_tiles_update_all_walls();
             map_tiles_update_all_aqueducts(0);
             map_tiles_update_all_empty_land();
             map_tiles_update_all_meadow();
 
-            map_routing_update_land();
-            map_routing_update_walls();
+            Route::updateLandTerrain();
+            Route::updateWallTerrain();
 
-            if (map_routing_distance(exit_point->grid_offset)) {
+            if (entry_route.distanceTo(exit_point->grid_offset)) {
                 city_message_post(1, MESSAGE_ROAD_TO_ROME_OBSTRUCTED, 0, 0);
                 game_undo_disable();
                 return;

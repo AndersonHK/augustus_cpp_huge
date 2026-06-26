@@ -63,7 +63,7 @@ static void roamer_action(Figure *f, int num_ticks)
                     f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
                     f->destination_x = x;
                     f->destination_y = y;
-                    figure_route_remove(f);
+                    Route::remove(f);
                     f->roam_length = 0;
                 } else {
                     f->state = FIGURE_STATE_DEAD;
@@ -170,7 +170,7 @@ void figure_destination_priest_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -181,7 +181,7 @@ void figure_destination_priest_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
-                figure_route_remove(f);
+                Route::remove(f);
             } else if (f->direction == DIR_FIGURE_LOST) {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -332,7 +332,7 @@ static int fight_plague(Figure *f, int force)
         f->destination_x = building_with_plague->road_access_x;
         f->destination_y = building_with_plague->road_access_y;
         f->destination_building = Building(building_get(building_with_plague_id));
-        figure_route_remove(f);
+        Route::remove(f);
         building_with_plague->figure_id4 = f->id();
         return 1;
     }
@@ -362,7 +362,7 @@ static void heal_plague(Figure *f)
                 f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
                 f->destination_x = x_road;
                 f->destination_y = y_road;
-                figure_route_remove(f);
+                Route::remove(f);
             } else {
                 f->state = FIGURE_STATE_DEAD;
             }
@@ -385,7 +385,7 @@ void figure_doctor_action(Figure *f)
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 f->action_state = FIGURE_ACTION_232_DOCTOR_AT_PLAGUE;
-                figure_route_remove(f);
+                Route::remove(f);
                 f->roam_length = 0;
                 f->wait_ticks = game_time_scale_legacy_day_ticks(50);
             } else if (f->direction == DIR_FIGURE_REROUTE || f->direction == DIR_FIGURE_LOST) {
@@ -397,7 +397,7 @@ void figure_doctor_action(Figure *f)
                     f->destination_x = x_road;
                     f->destination_y = y_road;
                     f->wait_ticks = 0;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
             break;
@@ -511,7 +511,7 @@ void figure_tax_collector_action(Figure *f)
                     f->action_state = FIGURE_ACTION_43_TAX_COLLECTOR_RETURNING;
                     f->destination_x = x_road;
                     f->destination_y = y_road;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 } else {
                     f->state = FIGURE_STATE_DEAD;
                 }

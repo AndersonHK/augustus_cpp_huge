@@ -4,8 +4,8 @@
         <profile id="storage_fetch">
             <native class="market_supplier" />
             <owner slot="secondary" building="market" state="in_use" />
-            <movement terrain_usage="roads_highway" roam_ticks="1" max_roam_length="1200" return_mode="none" />
-            <pathing mode="storage_fetch" />
+            <movement roam_ticks="1" max_roam_length="1200" return_mode="none" />
+            <pathing mode="storage_fetch" terrain="roads_highway" />
         </profile>
     </profiles>
     <graphics

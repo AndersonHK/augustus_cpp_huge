@@ -120,8 +120,8 @@ static int prepare_to_move(formation *m)
 
 void formation_legion_move_to(formation *m, const map_tile *tile)
 {
-    map_routing_calculate_distances(m->x_home, m->y_home);
-    if (map_routing_distance(tile->grid_offset) <= 0) {
+    const Route::DistanceQuery route = Route::DistanceQuery::fromPoint({ m->x_home, m->y_home });
+    if (!route.distanceTo(tile->grid_offset)) {
         return; // unable to route there
     }
     if (tile->x == m->x_home && tile->y == m->y_home) {
@@ -161,15 +161,15 @@ void formation_legion_move_to(formation *m, const map_tile *tile)
         if (prepare_to_move(m)) {
             f->alternative_location_index = 0;
             f->action_state = FIGURE_ACTION_83_SOLDIER_GOING_TO_STANDARD;
-            figure_route_remove(f);
+            Route::remove(f);
         }
     }
 }
 
 void formation_legion_return_home(formation *m)
 {
-    map_routing_calculate_distances(m->x_home, m->y_home);
-    if (map_routing_distance(map_grid_offset(m->x, m->y)) <= 0) {
+    const Route::DistanceQuery route = Route::DistanceQuery::fromPoint({ m->x_home, m->y_home });
+    if (!route.distanceTo(map_grid_offset(m->x, m->y))) {
         return; // unable to route home
     }
     if (m->cursed_by_mars) {
@@ -185,7 +185,7 @@ void formation_legion_return_home(formation *m)
         }
         if (prepare_to_move(m)) {
             f->action_state = FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT;
-            figure_route_remove(f);
+            Route::remove(f);
             f->formation_at_rest = 1;
         }
     }
@@ -400,7 +400,7 @@ void formation_legion_update(void)
                     f->action_state != FIGURE_ACTION_149_CORPSE &&
                     f->action_state != FIGURE_ACTION_148_FLEEING) {
                     f->action_state = FIGURE_ACTION_148_FLEEING;
-                    figure_route_remove(f);
+                    Route::remove(f);
                 }
             }
         } else if (m->layout == FORMATION_MOP_UP) {

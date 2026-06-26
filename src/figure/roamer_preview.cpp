@@ -163,10 +163,10 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
             }
             figure_movement_roam_ticks(&roamer, 1);
         }
-        figure_route_remove(&roamer);
+        Route::remove(&roamer);
         figure_movement_roam_ticks(&roamer, 1);
         if (!should_return || !has_closest_road) {
-            figure_route_remove(&roamer);
+            Route::remove(&roamer);
             continue;
         }
         roamer.destination_x = x_road;
@@ -179,7 +179,7 @@ void figure_roamer_preview_create(building_type b_type, int x, int y)
             roamer.progress_on_tile = 15;
             figure_movement_move_ticks(&roamer, 1);
         }
-        figure_route_remove(&roamer);
+        Route::remove(&roamer);
         if (roamer.direction == DIR_FIGURE_AT_DESTINATION) {
             int tile_type = data.travelled_tiles.items[roamer.grid_offset];
             data.travelled_tiles.items[roamer.grid_offset] = tile_type < FIGURE_ROAMER_PREVIEW_EXIT_TILE ?
