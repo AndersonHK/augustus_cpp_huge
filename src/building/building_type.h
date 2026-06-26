@@ -75,6 +75,7 @@ enum {
 #include <string>
 #include <cstdint>
 #include <cstddef>
+#include <string_view>
 #include <vector>
 
 namespace building_type_registry_impl {
@@ -426,6 +427,7 @@ public:
     int requires_open_water() const;
     int required_terrain() const;
     int has_cells() const;
+    int has_water_requirement() const;
     const std::vector<FoundationCellDefinition> &cells() const;
 
 private:
@@ -885,6 +887,7 @@ public:
 
     building_type type() const;
     const char *attr() const;
+    bool attr_is(std::string_view attr) const;
     const IdentityDefinition &identity() const;
     const BuildModelDefinition &model() const;
     const FoundationDefinition &foundation() const;

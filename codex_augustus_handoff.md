@@ -165,10 +165,11 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Config / filter status
 - Config persistence now lives in `Vespasian.ini`, with legacy fallback reads from `augustus.ini`.
-- `CONFIG_UI_SCALE_FILTER` exists and currently supports:
+- `CONFIG_SCALE_FILTER` exists as `scale_filter` and currently supports:
   - auto
   - nearest
   - linear
+  - best
 - The setting is already respected by the request-based 2D pipeline and related SDL texture/filter handling.
 - `CONFIG_DEBUG` exists as `debug=0/1` in `Vespasian.ini`; it currently gates transient zoom percentage warnings.
 - City zoom start/reset/display bounds are UI-scale-relative while the stored city scale remains raw renderer/world scale.

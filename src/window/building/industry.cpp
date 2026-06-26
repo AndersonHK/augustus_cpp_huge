@@ -33,7 +33,6 @@
 
 #include "building/building_type_registry_internal.h"
 
-#include <cstring>
 #include <stdio.h>
 
 static void set_city_mint_conversion(const generic_button *button);
@@ -47,11 +46,6 @@ static struct {
     Building city_mint = Building(nullptr);
     unsigned int focus_button_id;
 } data;
-
-static int building_type_attr_is(const building_type_registry_impl::BuildingType *type, const char *attr)
-{
-    return type && strcmp(type->attr(), attr) == 0;
-}
 
 struct industry_text {
     int legacy_group = 0;
@@ -458,7 +452,7 @@ static void draw_workshop(
         industry_text_draw_description_at(c, 102 + resources_y_offset, text, 8);
     } else if (c->worker_percentage < 100) {
         industry_text_draw_description_at(c, 102 + resources_y_offset, text, 7);
-    } else if (building_type_attr_is(current_building.type, "concrete_maker") && b->has_water_access &&
+    } else if (current_building.type && current_building.type->attr_is("concrete_maker") && b->has_water_access &&
         !water_access_runtime_building_area_has_access(b, "reservoir")) {
         window_building_draw_description_at(c, 102 + resources_y_offset, "TR_BUILDING_CONCRETE_MAKER_IMPROVE_WATER_ACCESS");
     } else if (efficiency < 70) {
@@ -794,7 +788,7 @@ void window_building_industry_get_tooltip(building_info_context *c, translation_
     building_type type = c->building.type ? c->building.type->type() : BUILDING_NONE;
     int needed_resources = building_get_raw_materials_for_workshop(0, type);
     int y_correction;
-    if (building_type_attr_is(c->building.type, "city_mint")) {
+    if (c->building.type && c->building.type->attr_is("city_mint")) {
         y_correction = 8;
     } else if (needed_resources > 0) {
         y_correction = 8 + needed_resources * 20;

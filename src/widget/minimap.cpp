@@ -22,9 +22,7 @@
 #include "map/terrain.h"
 
 
-#include <initializer_list>
 #include <stdlib.h>
-#include <string.h>
 
 enum {
     FIGURE_COLOR_NONE = 0,
@@ -57,23 +55,6 @@ typedef struct {
     tile_color center;
 } building_tile_color;
 static void get_viewport(int *x, int *y, int *width, int *height);
-
-static int building_type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && strcmp(definition->attr(), text_id) == 0;
-}
-
-static int building_type_attr_is_any(building_type type, std::initializer_list<const char *> text_ids)
-{
-    for (const char *text_id : text_ids) {
-        if (building_type_attr_is(type, text_id)) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 static minimap_functions default_functions = {
     scenario_property_climate,
@@ -368,18 +349,19 @@ static int draw_figure(int x_view, int y_view, int grid_offset)
 
 static int building_is_industry(building_type type)
 {
-    return building_is_raw_resource_producer(type) || building_is_workshop(type) || building_type_attr_is(type, "wharf");
+    return building_is_raw_resource_producer(type) || building_is_workshop(type) ||
+        building_type_registry_impl::type_attr_is(type, "wharf");
 }
 
 static int building_is_military(building_type type)
 {
-    return building_is_fort(type) || building_type_attr_is_any(type,
+    return building_is_fort(type) || building_type_registry_impl::type_attr_is_any(type,
         {"fort_ground", "barracks", "military_academy", "mess_hall", "tower", "watchtower", "gatehouse", "palisade_gate"});
 }
 
 static int building_is_aesthetic(building_type type)
 {
-    return building_type_attr_is_any(type,
+    return building_type_registry_impl::type_attr_is_any(type,
         {"small_pond", "large_pond", "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree",
             "palm_tree", "date_tree", "pine_path", "fir_path", "oak_path", "elm_path", "fig_path", "plum_path",
             "palm_path", "date_path", "pavilion", "goddess_statue", "senator_statue", "obelisk", "triumphal_arch", "horse_statue",
@@ -390,7 +372,7 @@ static int building_is_aesthetic(building_type type)
 
 static int building_is_water_structure(const building_type_registry_impl::BuildingType &type)
 {
-    return type.is_well() || type.is_fountain() || strcmp(type.attr(), "reservoir") == 0;
+    return type.is_well() || type.is_fountain() || type.attr_is("reservoir");
 }
 
 static void draw_building(int x_offset, int y_offset, int grid_offset)
@@ -407,7 +389,7 @@ static void draw_building(int x_offset, int y_offset, int grid_offset)
         building *b = building_id ? data.functions->building(building_id) : nullptr;
 
         // Palisades are drawn like walls
-        if (b && building_type_attr_is(b->type, "palisade")) {
+        if (b && building_type_registry_impl::type_attr_is(b->type, "palisade")) {
             draw_tile(x_offset, y_offset, &minimap_colors.wall);
             return;
         }

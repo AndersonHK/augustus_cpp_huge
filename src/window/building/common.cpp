@@ -74,8 +74,8 @@ int window_building_get_vertical_offset(building_info_context *c, int new_window
 static int get_employment_info_text(const Building &current, const building *b, int consider_house_covering)
 {
     int text_id;
-    int local_workforce = building_local_workforce_is_workforce_building(current);
-    int labor_access = building_local_workforce_access_score(current);
+    int local_workforce = building_local_workforce::is_workforce_building(current);
+    int labor_access = building_local_workforce::access_score(current);
     int required_workers = current.employment_required_workers();
     int current_workers = current.employment_worker_count();
 

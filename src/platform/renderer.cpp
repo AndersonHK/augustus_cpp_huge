@@ -147,7 +147,7 @@ static struct {
     float city_scale;
     render_domain active_render_domain;
     int should_correct_texture_offset;
-    int disable_linear_filter;
+    int auto_force_nearest_filter;
 } data = {};
 
 static render_state tooltip_render_state;
@@ -271,33 +271,51 @@ static int is_pixel_domain(render_domain domain)
         || domain == RENDER_DOMAIN_SNAPSHOT_PIXEL;
 }
 
-static int should_use_linear_scale_filter(void)
+static image_filter configured_scale_filter(void)
 {
-    switch (config_get(CONFIG_UI_SCALE_FILTER)) {
-        case CONFIG_UI_SCALE_FILTER_NEAREST:
-            return 0;
-        case CONFIG_UI_SCALE_FILTER_LINEAR:
-            return 1;
-        case CONFIG_UI_SCALE_FILTER_AUTO:
+    switch (config_get(CONFIG_SCALE_FILTER)) {
+        case CONFIG_SCALE_FILTER_NEAREST:
+            return IMAGE_FILTER_NEAREST;
+        case CONFIG_SCALE_FILTER_LINEAR:
+            return IMAGE_FILTER_LINEAR;
+        case CONFIG_SCALE_FILTER_BEST:
+            return IMAGE_FILTER_BEST;
+        case CONFIG_SCALE_FILTER_AUTO:
         default:
             break;
     }
 #ifndef __APPLE__
-    return (platform_screen_get_scale() % 100) != 0;
+    return (platform_screen_get_scale() % 100) != 0 ? IMAGE_FILTER_LINEAR : IMAGE_FILTER_NEAREST;
 #else
-    return 1;
+    return IMAGE_FILTER_LINEAR;
 #endif
 }
 
 static const char *configured_scale_quality_hint(void)
 {
-    return should_use_linear_scale_filter() ? "linear" : "nearest";
+    switch (configured_scale_filter()) {
+        case IMAGE_FILTER_LINEAR:
+            return "linear";
+        case IMAGE_FILTER_BEST:
+            return "best";
+        case IMAGE_FILTER_NEAREST:
+        default:
+            return "nearest";
+    }
 }
 
 #ifdef USE_TEXTURE_SCALE_MODE
 static SDL_ScaleMode configured_scale_mode(void)
 {
-    return should_use_linear_scale_filter() ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;
+    switch (configured_scale_filter()) {
+        case IMAGE_FILTER_LINEAR:
+            return SDL_ScaleModeLinear;
+        case IMAGE_FILTER_BEST:
+            return SDL_ScaleModeBest;
+        case IMAGE_FILTER_NEAREST:
+        default:
+            return SDL_ScaleModeNearest;
+    }
 }
 #endif
 
@@ -738,7 +756,20 @@ static SDL_Texture *get_texture(int texture_id)
 
 static SDL_Texture *get_silhouette_texture(const image *img);
 
-static void set_texture_color_and_filter(SDL_Texture *texture, color_t color, int use_linear_filter)
+static SDL_ScaleMode scale_mode_for_filter(image_filter filter)
+{
+    switch (filter) {
+        case IMAGE_FILTER_LINEAR:
+            return SDL_ScaleModeLinear;
+        case IMAGE_FILTER_BEST:
+            return SDL_ScaleModeBest;
+        case IMAGE_FILTER_NEAREST:
+        default:
+            return SDL_ScaleModeNearest;
+    }
+}
+
+static void set_texture_color_and_filter(SDL_Texture *texture, color_t color, image_filter filter)
 {
     if (!color) {
         color = COLOR_MASK_NONE;
@@ -757,7 +788,7 @@ static void set_texture_color_and_filter(SDL_Texture *texture, color_t color, in
     SDL_ScaleMode current_scale_mode;
     SDL_GetTextureScaleMode(texture, &current_scale_mode);
 
-    SDL_ScaleMode desired_scale_mode = use_linear_filter ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;
+    SDL_ScaleMode desired_scale_mode = scale_mode_for_filter(filter);
     if (current_scale_mode != desired_scale_mode) {
         SDL_SetTextureScaleMode(texture, desired_scale_mode);
     }
@@ -794,9 +825,9 @@ static void draw_texture_request(const render_2d_request *request, SDL_Texture *
     float source_scale_y = g_render_2d_pipeline.source_scale_y(*request, *img);
     float logical_width = request_logical_width(request, img);
     float logical_height = request_logical_height(request, img);
-    int use_linear_filter = g_render_2d_pipeline.should_use_linear_filter(
-        *request, *img, data.city_scale, data.disable_linear_filter);
-    set_texture_color_and_filter(texture, request->color, use_linear_filter);
+    image_filter filter = g_render_2d_pipeline.scale_filter(
+        *request, *img, data.city_scale, data.auto_force_nearest_filter);
+    set_texture_color_and_filter(texture, request->color, filter);
     const image_handle handle = request_image_handle(request);
     const int uses_managed_texture = handle > 0 && get_managed_texture(handle) == texture;
 
@@ -1163,7 +1194,7 @@ static int save_to_texture_for_domain(render_domain domain, int texture_id, int 
         }
 #ifdef USE_TEXTURE_SCALE_MODE
         if (HAS_TEXTURE_SCALE_MODE) {
-            SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest);
+            SDL_SetTextureScaleMode(texture, configured_scale_mode());
         }
 #endif
     } else {
@@ -1352,7 +1383,7 @@ static SDL_Texture *get_silhouette_texture(const image *img)
     SDL_Rect src_coords = { img && img->resource_handle ? 0 : img->atlas.x_offset,
         img && img->resource_handle ? 0 : img->atlas.y_offset, img->width, img->height };
 
-    set_texture_color_and_filter(original_texture, 0, 0);
+    set_texture_color_and_filter(original_texture, 0, IMAGE_FILTER_NEAREST);
 
     SDL_RenderCopy(data.renderer, original_texture, &src_coords, 0);
 
@@ -1432,9 +1463,9 @@ static void draw_custom_texture(custom_image_type type, int x, int y, float scal
             create_blend_texture(type);
         }
     }
-    data.disable_linear_filter = disable_filtering;
+    data.auto_force_nearest_filter = disable_filtering;
     draw_texture(&data.custom_textures[type].img, x, y, 0, scale);
-    data.disable_linear_filter = 0;
+    data.auto_force_nearest_filter = 0;
 }
 
 static void release_image_resource(image *img)

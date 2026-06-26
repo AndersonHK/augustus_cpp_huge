@@ -59,32 +59,34 @@ render_domain Render2DPipeline::snapshot_domain_for(render_domain domain) const
     return is_pixel_domain(domain) ? RENDER_DOMAIN_SNAPSHOT_PIXEL : RENDER_DOMAIN_SNAPSHOT_UI;
 }
 
-int Render2DPipeline::should_use_linear_filter(
+image_filter Render2DPipeline::scale_filter(
     const render_2d_request &request,
     const image &img,
     float city_scale,
-    int disable_linear_filter) const
+    int auto_force_nearest_filter) const
 {
-    if (disable_linear_filter) {
-        return 0;
-    }
-
-    switch (request.scaling_policy) {
-        case RENDER_SCALING_POLICY_PIXEL_ART:
-            return 0;
-        case RENDER_SCALING_POLICY_HIGH_QUALITY:
-            return 1;
-        case RENDER_SCALING_POLICY_AUTO:
+    switch (config_get(CONFIG_SCALE_FILTER)) {
+        case CONFIG_SCALE_FILTER_NEAREST:
+            return IMAGE_FILTER_NEAREST;
+        case CONFIG_SCALE_FILTER_LINEAR:
+            return IMAGE_FILTER_LINEAR;
+        case CONFIG_SCALE_FILTER_BEST:
+            return IMAGE_FILTER_BEST;
+        case CONFIG_SCALE_FILTER_AUTO:
         default:
             break;
     }
 
-    switch (config_get(CONFIG_UI_SCALE_FILTER)) {
-        case CONFIG_UI_SCALE_FILTER_NEAREST:
-            return 0;
-        case CONFIG_UI_SCALE_FILTER_LINEAR:
-            return 1;
-        case CONFIG_UI_SCALE_FILTER_AUTO:
+    if (auto_force_nearest_filter) {
+        return IMAGE_FILTER_NEAREST;
+    }
+
+    switch (request.scaling_policy) {
+        case RENDER_SCALING_POLICY_PIXEL_ART:
+            return IMAGE_FILTER_NEAREST;
+        case RENDER_SCALING_POLICY_HIGH_QUALITY:
+            return IMAGE_FILTER_BEST;
+        case RENDER_SCALING_POLICY_AUTO:
         default:
             break;
     }
@@ -95,16 +97,16 @@ int Render2DPipeline::should_use_linear_filter(
     float rounded_y = roundf(scale_y);
 
     if (scale_x > 1.0f || scale_y > 1.0f) {
-        return 1;
+        return IMAGE_FILTER_LINEAR;
     }
 
     if (fabsf(scale_x - rounded_x) < 0.001f && fabsf(scale_y - rounded_y) < 0.001f) {
-        return 0;
+        return IMAGE_FILTER_NEAREST;
     }
 
     if (fabsf(scale_x - city_scale) < 0.001f && fabsf(scale_y - city_scale) < 0.001f) {
-        return 0;
+        return IMAGE_FILTER_NEAREST;
     }
 
-    return 1;
+    return IMAGE_FILTER_LINEAR;
 }

@@ -1,6 +1,5 @@
 #include "building/building.h"
 #include "building/building_type.h"
-#include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/lighthouse.h"
 #include "building/monument.h"
@@ -13,8 +12,6 @@
 
 #define MIN_PRICE 1
 
-#include <string_view>
-
 struct trade_price {
     int32_t buy;
     int32_t sell;
@@ -22,17 +19,11 @@ struct trade_price {
 
 static struct trade_price prices[RESOURCE_SLOT_COUNT];
 
-static int building_type_attr_is(const Building &building, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *type = building.type;
-    return type && std::string_view(type->attr()) == attr;
-}
-
 static Building first_building(const char *text_id)
 {
     for (int id = 1; id < Building::count(); id++) {
         Building building(building_get(id));
-        if (building_type_attr_is(building, text_id)) {
+        if (building.type && building.type->attr_is(text_id)) {
             return building;
         }
     }

@@ -6,18 +6,13 @@
 
 #include <string_view>
 
-static int building_type_attr_is(const Building &building, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *type = building.type;
-    return type && std::string_view(type->attr()) == attr;
-}
-
 static void accumulate_venue_shows(std::string_view attr, int no_show_weight, int has_second_show,
     int *shows, int *no_shows_weighted)
 {
     for (int id = 1; id < building_count(); id++) {
         building *b = building_get(id);
-        if (!b || b->state != BUILDING_STATE_IN_USE || !building_type_attr_is(Building(b), attr)) {
+        Building building(b);
+        if (!b || b->state != BUILDING_STATE_IN_USE || !building.type || !building.type->attr_is(attr)) {
             continue;
         }
         if (b->data.entertainment.days1) {

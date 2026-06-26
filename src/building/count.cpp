@@ -23,24 +23,14 @@
 #include <string_view>
 #include <vector>
 
-static building_type type_from_attr(std::string_view attr)
-{
-    return building_type_registry_impl::type_from_attr(attr);
-}
-
-static int type_matches_attr(building_type type, std::string_view attr)
-{
-    return type == type_from_attr(attr);
-}
-
 static int is_any_type(building_type type)
 {
-    return type == BUILDING_NONE || type_matches_attr(type, "any");
+    return type == BUILDING_NONE || building_type_registry_impl::type_attr_is(type, "any");
 }
 
 static int is_fort_menu_type(building_type type)
 {
-    return type_matches_attr(type, "fort");
+    return building_type_registry_impl::type_attr_is(type, "fort");
 }
 
 static constexpr std::string_view building_set_workshops[] = {
@@ -311,7 +301,7 @@ static int count_all_types_in_set(int active_only, std::span<const std::string_v
 {
     int total = 0;
     for (std::string_view attr : set) {
-        building_type type = type_from_attr(attr);
+        building_type type = building_type_registry_impl::type_from_attr(attr);
         if (type != BUILDING_NONE) {
             total += building_count_with_active_check(type, active_only);
         }
@@ -323,7 +313,7 @@ static int count_all_types_in_set_in_area(std::span<const std::string_view> set,
 {
     int total = 0;
     for (std::string_view attr : set) {
-        building_type type = type_from_attr(attr);
+        building_type type = building_type_registry_impl::type_from_attr(attr);
         if (type != BUILDING_NONE) {
             total += building_count_in_area(type, minx, miny, maxx, maxy);
         }
@@ -478,7 +468,7 @@ figure_type building_count_forts_get_figure_type_from_building(building_type typ
         {"fort_archers", FIGURE_FORT_ARCHER},
     };
     for (const fort_figure_type &entry : fort_figure_types) {
-        if (type_matches_attr(type, entry.text_id)) {
+        if (building_type_registry_impl::type_attr_is(type, entry.text_id)) {
             return entry.figure;
         }
     }
@@ -489,7 +479,7 @@ int building_count_forts(int active_only)
 {
     int total = 0;
     for (std::string_view attr : all_fort_types) {
-        building_type type = type_from_attr(attr);
+        building_type type = building_type_registry_impl::type_from_attr(attr);
         if (type != BUILDING_NONE) {
             total += count_forts_per_type(type, active_only);
         }
@@ -560,7 +550,8 @@ int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int s
             if (!b) {
                 continue;
             }
-            if (type_matches_attr(b->type, ship ? "ship_bridge" : "low_bridge") && map_is_bridge(grid_offset)) {
+            if (building_type_registry_impl::type_attr_is(b->type, ship ? "ship_bridge" : "low_bridge") &&
+                map_is_bridge(grid_offset)) {
                 int found = 0;
                 for (unsigned int bridge_id : bridge_ids) {
                     if (bridge_id == b->id) {

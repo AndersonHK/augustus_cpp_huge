@@ -889,6 +889,7 @@
     "TR_CITY_WARNING_TEMPLATE_MISSING_RESOURCE": "This building needs <resource>",
     "TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER": "Build a <building-type>",
     "TR_CITY_WARNING_TEMPLATE_ONE_BUILDING_OF_TYPE": "Only one <building-type> can be built",
+    "TR_CITY_WARNING_TEMPLATE_MAX_BUILDING_COUNT_REACHED": "The <building-type> limit of <max-count> has been reached",
     "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_RESOURCE": "<building-type> needs <resource>",
     "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_MATERIALS": "<building-type> needs materials",
     "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_BUILDING": "<building-type> needs <required-building>",

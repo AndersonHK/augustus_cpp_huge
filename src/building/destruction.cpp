@@ -27,52 +27,14 @@
 #include "sound/effect.h"
 
 #include <string.h>
-#include <cstring>
 
 static building_type burning_ruin_type()
 {
     static building_type burning_ruin = BUILDING_NONE;
-    if (burning_ruin != BUILDING_NONE) {
-        return burning_ruin;
+    if (burning_ruin == BUILDING_NONE) {
+        burning_ruin = building_type_registry_impl::type_from_attr("burning_ruin");
     }
-    for (building_type type = 1; type < BUILDING_TYPE_MAX; ++type) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (definition && std::strcmp(definition->attr(), "burning_ruin") == 0) {
-            burning_ruin = type;
-            return burning_ruin;
-        }
-    }
-    return BUILDING_NONE;
-}
-
-static int is_bridge_type(const building *b)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
-    if (!definition) {
-        return 0;
-    }
-    const char *attr = definition->attr();
-    return std::strcmp(attr, "low_bridge") == 0 || std::strcmp(attr, "ship_bridge") == 0;
-}
-
-static int is_waterside_building_type(const building *b)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
-    if (!definition) {
-        return 0;
-    }
-    const char *attr = definition->attr();
-    return std::strcmp(attr, "dock") == 0 || std::strcmp(attr, "wharf") == 0 || std::strcmp(attr, "shipyard") == 0;
-}
-
-static int building_type_attr_is(const building *b, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
-    return definition && std::strcmp(definition->attr(), attr) == 0;
+    return burning_ruin;
 }
 
 enum {
@@ -88,11 +50,11 @@ static void destroy_without_rubble(building *b)
     game_undo_disable();
     city_culture_remove_building_module_capacity(b);
     Building building_object(*b);
-    building_local_workforce_remove_building(building_object);
+    building_local_workforce::remove_building(building_object);
     if (b->house_size && b->house_population) {
         city_population_remove_home_removed(b->house_population);
     }
-    if (is_bridge_type(b)) {
+    if (building_type_registry_impl::type_is_bridge(b->type)) {
         map_bridge_remove(b->grid_offset, 0);
     }
     building_clear_related_data(b);
@@ -106,7 +68,7 @@ static void destroy_on_fire(building *b, int plagued)
     game_undo_disable();
     city_culture_remove_building_module_capacity(b);
     Building building_object(*b);
-    building_local_workforce_remove_building(building_object);
+    building_local_workforce::remove_building(building_object);
     b->fire_risk = 0;
     b->damage_risk = 0;
     if (b->house_size && b->house_population) {
@@ -132,7 +94,7 @@ static void destroy_on_fire(building *b, int plagued)
     }
 
     int waterside_building = 0;
-    if (is_waterside_building_type(b)) {
+    if (building_type_registry_impl::type_has_water_foundation(b->type)) {
         waterside_building = 1;
     }
     int num_tiles;
@@ -273,9 +235,9 @@ void building_destroy_by_collapse(building *b)
 {
     city_culture_remove_building_module_capacity(b);
     Building building_object(*b);
-    building_local_workforce_remove_building(building_object);
+    building_local_workforce::remove_building(building_object);
     b->state = BUILDING_STATE_RUBBLE;
-    if (building_type_attr_is(b, "tower")) {
+    if (building_type_registry_impl::type_attr_is(b->type, "tower")) {
         figure_kill_tower_sentries_in_building(b);
     }
     set_rubble_grid_info_for_all_parts(b);
@@ -295,7 +257,7 @@ void building_destroy_by_earthquake(building *b)
 {
     city_culture_remove_building_module_capacity(b);
     Building building_object(*b);
-    building_local_workforce_remove_building(building_object);
+    building_local_workforce::remove_building(building_object);
     int grid_offset = b->grid_offset; // save before destroying building
     int size = b->size;
     b->state = BUILDING_STATE_DELETED_BY_GAME;

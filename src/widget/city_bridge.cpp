@@ -10,15 +10,6 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
-static int building_type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
-}
-
 void city_draw_bridge(int x, int y, float scale, int grid_offset)
 {
     if (!map_terrain_is(grid_offset, TERRAIN_WATER)) {
@@ -29,7 +20,8 @@ void city_draw_bridge(int x, int y, float scale, int grid_offset)
         return;
     }
     color_t color_mask = 0;
-    if (map_property_is_deleted(grid_offset) && !building_type_attr_is(building_construction_type(), "clear_trees")) {
+    if (map_property_is_deleted(grid_offset) &&
+        !building_type_registry_impl::type_attr_is(building_construction_type(), "clear_trees")) {
         color_mask = COLOR_MASK_RED;
     }
     city_draw_bridge_tile(x, y, scale, map_sprite_bridge_at(grid_offset), color_mask);

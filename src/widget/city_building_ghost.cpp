@@ -98,48 +98,6 @@ static struct {
     .scale = SCALE_NONE
 };
 
-static int is_bridge_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->roadblock().is_bridge();
-}
-
-static int is_ship_bridge_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->roadblock().is_ship_bridge();
-}
-
-static int is_waterside_definition(const building_type_registry_impl::BuildingType &definition)
-{
-    if (!definition.has_foundation()) {
-        return 0;
-    }
-    const building_type_registry_impl::FoundationDefinition &foundation = definition.foundation();
-    if (foundation.policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline ||
-        foundation.policy_type() == building_type_registry_impl::FoundationPolicy::Water) {
-        return 1;
-    }
-    for (const building_type_registry_impl::FoundationCellDefinition &cell : foundation.cells()) {
-        if (cell.requirement == building_type_registry_impl::FoundationCellRequirement::Water) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int is_waterside_type(building_type type)
-{
-    return is_waterside_definition(*building_type_registry_impl::definition_for_type(type));
-}
-
-static int is_bridge_definition(const building_type_registry_impl::BuildingType &definition)
-{
-    return definition.roadblock().is_bridge();
-}
-
 static inline int view_offset_x(int index)
 {
     return X_VIEW_OFFSET(data.offsets[0][index].x, data.offsets[0][index].y);
@@ -507,12 +465,13 @@ static building make_plan_ghost_record(
 static void draw_plan_tiles(
     const building_construction::ConstructionPlacementPart &part,
     int x,
-    int y)
+    int y,
+    int show_blocked_tiles)
 {
     for (const building_construction::ConstructionPlacementTile &tile : part.tiles) {
         const int tile_x = x + X_VIEW_OFFSET(tile.dx, tile.dy);
         const int tile_y = y + Y_VIEW_OFFSET(tile.dx, tile.dy);
-        if (tile.state == building_construction::PlacementTileState::Forbidden) {
+        if (show_blocked_tiles && tile.state == building_construction::PlacementTileState::Forbidden) {
             Image::blend_footprint_color(tile_x, tile_y, COLOR_MASK_RED, data.scale);
         } else {
             Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).
@@ -527,7 +486,8 @@ static void draw_plan_part(
     int x_view,
     int y_view,
     const building_type_registry_impl::BuildingType &root_definition,
-    color_t color)
+    color_t color,
+    int show_blocked_tiles)
 {
     int x_size_offset = 0;
     int y_size_offset = 0;
@@ -538,7 +498,7 @@ static void draw_plan_part(
     const int draw_y = tile_y + y_size_offset;
     building record = make_plan_ghost_record(plan, part, root_definition);
     draw_runtime_ghost_record(*part.definition, record, draw_x, draw_y, color);
-    draw_plan_tiles(part, tile_x, tile_y);
+    draw_plan_tiles(part, tile_x, tile_y, show_blocked_tiles);
 }
 
 static const building_type_registry_impl::BuildingType &effective_ghost_definition(
@@ -572,7 +532,7 @@ static void draw_default(
     const int plan_blocked = !plan.can_place();
     const int construction_blocked = !assessment.can_place;
     const int blocked = city_finance_out_of_money() || construction_blocked || plan_blocked;
-    const int global_blocked = city_finance_out_of_money() || (construction_blocked && !plan_blocked);
+    const int global_blocked = city_finance_out_of_money() || assessment.global_blocked;
     building_construction_set_can_place(!blocked);
 
     const color_t color = global_blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
@@ -580,7 +540,7 @@ static void draw_default(
     draw_grand_temple_neptune_context_overlay(tile, definition, plan.placement_size(), blocked);
     draw_distribution_context_overlays(tile, definition, plan.placement_size());
     for (const building_construction::ConstructionPlacementPart &part : plan.parts()) {
-        draw_plan_part(plan, part, x_view, y_view, definition, color);
+        draw_plan_part(plan, part, x_view, y_view, definition, color, !global_blocked);
     }
 
     set_roamer_path(type, plan.placement_size(), tile, blocked);
@@ -783,7 +743,7 @@ static void draw_bridge(const map_tile *tile, int x, int y, building_type type)
         dir += 8;
     }
     int blocked = 0;
-    int is_ship_bridge = is_ship_bridge_type(type);
+    int is_ship_bridge = building_type_registry_impl::type_is_ship_bridge(type);
     if (is_ship_bridge && length < 5) {
         blocked = 1;
     } else if (!end_grid_offset) {
@@ -898,11 +858,6 @@ int city_building_ghost_mark_deleting(const map_tile *tile)
     return 1;
 }
 
-static int is_water_building(void)
-{
-    return is_bridge_type(data.ghost_building.type) || is_waterside_type(data.ghost_building.type);
-}
-
 static void draw_grid_tile(int x, int y, int grid_offset)
 {
     static int image_id = 0;
@@ -911,7 +866,9 @@ static void draw_grid_tile(int x, int y, int grid_offset)
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING) || map_terrain_is(grid_offset, TERRAIN_ROCK) ||
         map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP) || map_terrain_is(grid_offset, TERRAIN_ELEVATION) ||
-        (map_terrain_is(grid_offset, TERRAIN_WATER) && !is_water_building())) {
+        (map_terrain_is(grid_offset, TERRAIN_WATER) &&
+            !building_type_registry_impl::type_is_bridge(data.ghost_building.type) &&
+            !building_type_registry_impl::type_has_water_foundation(data.ghost_building.type))) {
         return;
     }
     Image::from_id(image_id).draw(x, y, COLOR_GRID, data.scale);
@@ -1051,7 +1008,7 @@ void city_building_ghost_draw(const map_tile *tile)
         draw_partial_grid(tile->grid_offset, x, y, *definition);
     }
 
-    if (is_bridge_definition(*definition)) {
+    if (definition->roadblock().is_bridge()) {
         draw_bridge(tile, x, y, type);
         return;
     }

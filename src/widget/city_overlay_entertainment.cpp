@@ -7,64 +7,49 @@
 #include "building/building_type_api.h"
 #include "game/state.h"
 
-#include <cstring>
-
-static int building_type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
-}
-
-static int building_type_attr_is(const Building &building, const char *text_id)
-{
-    return building.type && std::strcmp(building.type->attr(), text_id) == 0;
-}
-
 static int show_building_entertainment(const building *b)
 {
     const Building building(const_cast<struct building *>(b));
-    return
-        building_type_attr_is(building, "actor_colony") || (building.type && building.type->is_theater()) ||
-        building_type_attr_is(building, "gladiator_school") || building_type_attr_is(building, "amphitheater") ||
-        building_type_attr_is(building, "lion_house") || building_type_attr_is(building, "colosseum") ||
-        building_type_attr_is(building, "chariot_maker") || building_type_attr_is(building, "hippodrome") ||
-        building_type_attr_is(building, "tavern") || building_type_attr_is(building, "arena");
+    const building_type_registry_impl::BuildingType *type = building.type;
+    return type && (
+        type->attr_is("actor_colony") || type->is_theater() ||
+        type->attr_is("gladiator_school") || type->attr_is("amphitheater") ||
+        type->attr_is("lion_house") || type->attr_is("colosseum") ||
+        type->attr_is("chariot_maker") || type->attr_is("hippodrome") ||
+        type->attr_is("tavern") || type->attr_is("arena"));
 }
 
 static int show_building_theater(const building *b)
 {
     const Building building(const_cast<struct building *>(b));
-    return building_type_attr_is(building, "actor_colony") || (building.type && building.type->is_theater());
+    const building_type_registry_impl::BuildingType *type = building.type;
+    return type && (type->attr_is("actor_colony") || type->is_theater());
 }
 
 static int show_building_amphitheater(const building *b)
 {
-    return building_type_attr_is(b->type, "actor_colony")
-        || building_type_attr_is(b->type, "gladiator_school")
-        || building_type_attr_is(b->type, "amphitheater");
+    return building_type_registry_impl::type_attr_is_any(
+        b->type, {"actor_colony", "gladiator_school", "amphitheater"});
 }
 
 static int show_building_arena(const building *b)
 {
-    return building_type_attr_is(b->type, "gladiator_school") || building_type_attr_is(b->type, "lion_house") ||
-        building_type_attr_is(b->type, "arena");
+    return building_type_registry_impl::type_attr_is_any(b->type, {"gladiator_school", "lion_house", "arena"});
 }
 
 static int show_building_colosseum(const building *b)
 {
-    return building_type_attr_is(b->type, "gladiator_school") || building_type_attr_is(b->type, "lion_house") ||
-        building_type_attr_is(b->type, "colosseum");
+    return building_type_registry_impl::type_attr_is_any(b->type, {"gladiator_school", "lion_house", "colosseum"});
 }
 
 static int show_building_hippodrome(const building *b)
 {
-    return building_type_attr_is(b->type, "chariot_maker") || building_type_attr_is(b->type, "hippodrome");
+    return building_type_registry_impl::type_attr_is_any(b->type, {"chariot_maker", "hippodrome"});
 }
 
 static int show_building_tavern(const building *b)
 {
-    return building_type_attr_is(b->type, "tavern");
+    return building_type_registry_impl::type_attr_is(b->type, "tavern");
 }
 
 static Building get_entertainment_building(const Figure &f)
@@ -102,7 +87,8 @@ static int show_figure_theater(const Figure *f)
 static int show_figure_amphitheater(const Figure *f)
 {
     if (f->type == FIGURE_ACTOR || f->type == FIGURE_GLADIATOR) {
-        return building_type_attr_is(get_entertainment_building(*f), "amphitheater");
+        const Building building = get_entertainment_building(*f);
+        return building.type && building.type->attr_is("amphitheater");
     }
     return 0;
 }
@@ -110,7 +96,8 @@ static int show_figure_amphitheater(const Figure *f)
 static int show_figure_arena(const Figure *f)
 {
     if (f->type == FIGURE_GLADIATOR || f->type == FIGURE_LION_TAMER) {
-        return building_type_attr_is(get_entertainment_building(*f), "arena");
+        const Building building = get_entertainment_building(*f);
+        return building.type && building.type->attr_is("arena");
     } 
     return 0;
 }
@@ -118,7 +105,8 @@ static int show_figure_arena(const Figure *f)
 static int show_figure_colosseum(const Figure *f)
 {
     if (f->type == FIGURE_GLADIATOR || f->type == FIGURE_LION_TAMER) {
-        return building_type_attr_is(get_entertainment_building(*f), "colosseum");
+        const Building building = get_entertainment_building(*f);
+        return building.type && building.type->attr_is("colosseum");
     }
     return 0;
 }

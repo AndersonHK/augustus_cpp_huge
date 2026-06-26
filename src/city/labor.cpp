@@ -327,7 +327,7 @@ static void set_building_worker_weight(void)
         if (cat == LABOR_CATEGORY_NONE) {
             continue;
         }
-        if (cat == LABOR_CATEGORY_WATER && !building_local_workforce_is_workforce_building(bldg)) {
+        if (cat == LABOR_CATEGORY_WATER && !building_local_workforce::is_workforce_building(bldg)) {
             b->percentage_houses_covered = water_per_10k_per_building;
         } else {
             b->percentage_houses_covered = 0;

@@ -8,7 +8,6 @@
 #include "core/image_group.h"
 #include "core/log.h"
 #include "map/grid.h"
-#include "map/tile_runtime_api.h"
 
 #include <cstdio>
 #include <cstring>

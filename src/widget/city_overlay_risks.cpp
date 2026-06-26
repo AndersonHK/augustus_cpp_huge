@@ -21,8 +21,6 @@
 #include "map/random.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
 enum crime_level {
     NO_CRIME = 0,
     MINOR_CRIME = 1,
@@ -32,23 +30,6 @@ enum crime_level {
     LARGE_CRIME = 5,
     RAMPANT_CRIME = 6,
 };
-
-static int building_type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
-}
-
-static int building_type_attr_is_any(building_type type, const char *a, const char *b)
-{
-    return building_type_attr_is(type, a) || building_type_attr_is(type, b);
-}
-
-static int building_type_attr_is_any(building_type type, const char *a, const char *b, const char *c, const char *d)
-{
-    return building_type_attr_is_any(type, a, b) || building_type_attr_is_any(type, c, d);
-}
 
 static int is_problem_cartpusher(int figure_id)
 {
@@ -89,13 +70,14 @@ void city_overlay_problems_prepare_building(building *b)
         } else if (!building_industry_has_raw_materials_for_production(b)) {
             b->show_on_problem_overlay = 1;
         }
-    } else if (((type && type->is_theater()) ||
-        building_type_attr_is_any(b->type, "amphitheater", "arena", "colosseum", "hippodrome")) &&
+    } else if (((type && type->is_theater()) || building_type_registry_impl::type_attr_is_any(
+            b->type, {"amphitheater", "arena", "colosseum", "hippodrome"})) &&
         !b->data.entertainment.days1) {
         b->show_on_problem_overlay = 1;
-    } else if (building_type_attr_is_any(b->type, "arena", "colosseum") && !b->data.entertainment.days2) {
+    } else if (building_type_registry_impl::type_attr_is_any(b->type, {"arena", "colosseum"}) &&
+        !b->data.entertainment.days2) {
         b->show_on_problem_overlay = 1;
-    } else if (building_type_attr_is(b->type, "cart_depot") &&
+    } else if (building_type_registry_impl::type_attr_is(b->type, "cart_depot") &&
         (!b->data.depot.current_order.src_storage_id ||
          !b->data.depot.current_order.dst_storage_id)) {
         b->show_on_problem_overlay = 1;
@@ -114,12 +96,12 @@ void city_overlay_problems_prepare_building(building *b)
 
 static int show_building_fire_crime(const building *b)
 {
-    return building_type_attr_is_any(b->type, "prefecture", "burning_ruin");
+    return building_type_registry_impl::type_attr_is_any(b->type, {"prefecture", "burning_ruin"});
 }
 
 static int show_building_damage(const building *b)
 {
-    return building_type_attr_is_any(b->type, "engineers_post", "architect_guild");
+    return building_type_registry_impl::type_attr_is_any(b->type, {"engineers_post", "architect_guild"});
 }
 
 static int show_building_problems(const building *b)
@@ -129,8 +111,10 @@ static int show_building_problems(const building *b)
 
 static int show_building_native(const building *b)
 {
-    return building_type_attr_is_any(b->type, "native_hut", "native_hut_alt", "native_meeting", "mission_post") ||
-        building_type_attr_is_any(b->type, "native_crops", "native_decor", "native_monument", "native_watchtower");
+    return building_type_registry_impl::type_attr_is_any(
+            b->type, {"native_hut", "native_hut_alt", "native_meeting", "mission_post"}) ||
+        building_type_registry_impl::type_attr_is_any(
+            b->type, {"native_crops", "native_decor", "native_monument", "native_watchtower"});
 }
 
 static int draw_footprint_enemy(int x, int y, float scale, int grid_offset)
@@ -165,10 +149,12 @@ static int draw_top_enemy(int x, int y, float scale, int grid_offset)
 
 static int show_building_enemy(const building *b)
 {
-    return building_type_attr_is_any(b->type, "prefecture", "watchtower", "tower", "fort_ground") ||
+    return building_type_registry_impl::type_attr_is_any(
+            b->type, {"prefecture", "watchtower", "tower", "fort_ground"}) ||
         building_is_fort(b->type) ||
-        building_type_attr_is_any(b->type, "barracks", "military_academy", "gatehouse", "palisade_gate") ||
-        building_type_attr_is(b->type, "palisade");
+        building_type_registry_impl::type_attr_is_any(
+            b->type, {"barracks", "military_academy", "gatehouse", "palisade_gate"}) ||
+        building_type_registry_impl::type_attr_is(b->type, "palisade");
 }
 
 static int show_figure_fire(const Figure *f)
@@ -363,7 +349,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
     } else if (type && type->is_theater() && !b->data.entertainment.days1) {
         c->text_group = 72;
         return 5;
-    } else if (building_type_attr_is(b->type, "amphitheater")) {
+    } else if (building_type_registry_impl::type_attr_is(b->type, "amphitheater")) {
         if (!b->data.entertainment.days1) {
             c->text_group = 71;
             return 7;
@@ -371,7 +357,7 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
             c->text_group = 71;
             return 9;
         }
-    } else if (building_type_attr_is_any(b->type, "arena", "colosseum")) {
+    } else if (building_type_registry_impl::type_attr_is_any(b->type, {"arena", "colosseum"})) {
         if (!b->data.entertainment.days1) {
             c->text_group = 74;
             return 7;
@@ -379,10 +365,10 @@ static int get_tooltip_problems(tooltip_context *c, const building *b)
             c->text_group = 74;
             return 9;
         }
-    } else if (building_type_attr_is(b->type, "hippodrome") && !b->data.entertainment.days1) {
+    } else if (building_type_registry_impl::type_attr_is(b->type, "hippodrome") && !b->data.entertainment.days1) {
         c->text_group = 73;
         return 5;
-    } else if (building_type_attr_is(b->type, "cart_depot") &&
+    } else if (building_type_registry_impl::type_attr_is(b->type, "cart_depot") &&
         (!b->data.depot.current_order.src_storage_id ||
          !b->data.depot.current_order.dst_storage_id)) {
         c->translation_key = "TR_TOOLTIP_OVERLAY_PROBLEMS_DEPOT_NO_INSTRUCTIONS";

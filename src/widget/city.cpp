@@ -48,16 +48,7 @@
 #include "sound/speech.h"
 #include "sound/effect.h"
 
-#include <cstring>
-
 #define NO_POSITION ((unsigned int)-1)
-
-static int building_type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
-}
 
 static struct {
     map_tile current_tile;
@@ -387,8 +378,7 @@ static void build_move(const map_tile *tile)
 static void build_end(void)
 {
     if (building_construction_in_progress()) {
-        if (building_construction_type() != static_cast<building_type>(BUILDING_NONE) &&
-            building_construction_can_place()) {
+        if (building_construction_type() != static_cast<building_type>(BUILDING_NONE)) {
             sound_effect_play(static_cast<sound_effect_type>(SOUND_EFFECT_BUILD));
         }
         building_construction_place();
@@ -602,7 +592,7 @@ static void handle_first_touch(map_tile *tile)
     }
 
     int size = building_properties_for_type(type)->size;
-    if (building_type_attr_is(type, "warehouse")) {
+    if (building_type_registry_impl::type_attr_is(type, "warehouse")) {
         size = 3;
     }
 
@@ -833,7 +823,7 @@ void widget_city_get_tooltip(tooltip_context *c)
     // regular tooltips
     if (overlay == static_cast<int>(OVERLAY_NONE) && building_id) {
         Building building(building_get(building_id));
-        if (building.type && building_type_attr_is(building.type->type(), "senate")) {
+        if (building.type && building.type->attr_is("senate")) {
             c->type = static_cast<tooltip_type>(TOOLTIP_SENATE);
             c->high_priority = 1;
             return;

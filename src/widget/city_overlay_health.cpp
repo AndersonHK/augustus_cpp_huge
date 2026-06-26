@@ -9,41 +9,37 @@
 #include "figure/figure.h"
 #include "game/state.h"
 
-#include <cstring>
-
-static int building_type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
-}
-
 static int show_building_health(const building *b)
 {
-    return building_type_attr_is(b->type, "hospital") || building_type_attr_is(b->type, "doctor") ||
-           building_type_attr_is(b->type, "barber") || building_type_attr_is(b->type, "bathhouse") ||
-           building_type_attr_is(b->type, "small_mausoleum") || building_type_attr_is(b->type, "large_mausoleum") ||
-           building_type_attr_is(b->type, "latrines");
+    return building_type_registry_impl::type_attr_is_any(b->type, {
+        "hospital",
+        "doctor",
+        "barber",
+        "bathhouse",
+        "small_mausoleum",
+        "large_mausoleum",
+        "latrines"
+    });
 }
 
 static int show_building_barber(const building *b)
 {
-    return building_type_attr_is(b->type, "barber");
+    return building_type_registry_impl::type_attr_is(b->type, "barber");
 }
 
 static int show_building_bathhouse(const building *b)
 {
-    return building_type_attr_is(b->type, "bathhouse");
+    return building_type_registry_impl::type_attr_is(b->type, "bathhouse");
 }
 
 static int show_building_clinic(const building *b)
 {
-    return building_type_attr_is(b->type, "doctor");
+    return building_type_registry_impl::type_attr_is(b->type, "doctor");
 }
 
 static int show_building_hospital(const building *b)
 {
-    return building_type_attr_is(b->type, "hospital");
+    return building_type_registry_impl::type_attr_is(b->type, "hospital");
 }
 
 static int show_building_sickness(const building *b)
@@ -230,8 +226,7 @@ static int get_tooltip_sickness(tooltip_context *c, const building *b)
 {
     const Building current_building(const_cast<building *>(b));
     if (building_is_house(b->type) ||
-        (current_building.type && current_building.type->attr() &&
-            std::strcmp(current_building.type->attr(), "dock") == 0) ||
+        (current_building.type && current_building.type->attr_is("dock")) ||
         (current_building.type && current_building.type->is_warehouse()) ||
         (current_building.type && current_building.type->is_granary())) {
         if (b->sickness_level < 1) {

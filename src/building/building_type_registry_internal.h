@@ -4,6 +4,7 @@
 #include "building/building_type_api.h"
 
 #include <array>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -94,6 +95,14 @@ extern ParseState g_parse_state;
 int directory_exists(const char *path);
 const BuildingType *definition_for_type(building_type type);
 building_type type_from_attr(std::string_view attr);
+int type_attr_is(building_type type, std::string_view attr);
+int type_attr_is_any(building_type type, std::initializer_list<std::string_view> attrs);
+int type_attr_is_any(building_type type, const char *const *attrs, int count);
+int type_is_bridge(building_type type);
+int type_is_ship_bridge(building_type type);
+int type_is_wall_foundation(building_type type);
+int type_is_wall_gate(building_type type);
+int type_has_water_foundation(building_type type);
 building_type type_from_roadblock_bridge(RoadblockBridgeType bridge_type);
 building_type runtime_id_from_text(const char *text_id);
 void refresh_building_type_path();

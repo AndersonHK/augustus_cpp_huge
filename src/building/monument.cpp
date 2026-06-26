@@ -26,9 +26,7 @@
 #include "scenario/property.h"
 
 #include <algorithm>
-#include <cstring>
 #include <cstdlib>
-#include <initializer_list>
 #include <string>
 #include <vector>
 
@@ -121,38 +119,6 @@ static const monument_type city_mint = {
 
 #undef RESOURCE_ROW
 
-static building_type type_from_attr(const char *attr)
-{
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
-
-static int type_matches(building_type type, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
-
-static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
-{
-    for (const char *text_id : text_ids) {
-        if (type_matches(type, text_id)) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int building_matches(const building *b, const char *text_id)
-{
-    return b && type_matches(b->type, text_id);
-}
-
 static const char *GRAND_TEMPLE_TEXT_IDS[] = {
     "grand_temple_ceres",
     "grand_temple_neptune",
@@ -170,25 +136,25 @@ static int type_is_grand_temple(building_type type)
 
 static const monument_type *legacy_monument_type(building_type type)
 {
-    if (type_matches(type, "pantheon")) {
+    if (building_type_registry_impl::type_attr_is(type, "pantheon")) {
         return &pantheon;
     }
-    if (type_matches(type, "colosseum")) {
+    if (building_type_registry_impl::type_attr_is(type, "colosseum")) {
         return &colosseum;
     }
-    if (type_matches(type, "hippodrome")) {
+    if (building_type_registry_impl::type_attr_is(type, "hippodrome")) {
         return &hippodrome;
     }
-    if (type_matches(type, "nymphaeum")) {
+    if (building_type_registry_impl::type_attr_is(type, "nymphaeum")) {
         return &nymphaeum;
     }
-    if (type_matches(type, "large_mausoleum")) {
+    if (building_type_registry_impl::type_attr_is(type, "large_mausoleum")) {
         return &large_mausoleum;
     }
-    if (type_matches(type, "small_mausoleum")) {
+    if (building_type_registry_impl::type_attr_is(type, "small_mausoleum")) {
         return &small_mausoleum;
     }
-    if (type_matches(type, "city_mint")) {
+    if (building_type_registry_impl::type_attr_is(type, "city_mint")) {
         return &city_mint;
     }
     return nullptr;
@@ -326,12 +292,12 @@ int building_monument_text_id_is_monument(const char *text_id)
     }
     ensure_monument_text_ids();
     for (const std::string &monument_text_id : MONUMENT_TEXT_IDS) {
-        if (std::strcmp(text_id, monument_text_id.c_str()) == 0) {
+        if (monument_text_id == text_id) {
             return 1;
         }
     }
 
-    building_type type = type_from_attr(text_id);
+    building_type type = building_type_registry_impl::type_from_attr(text_id);
     return monument_type_for(type) != nullptr;
 }
 
@@ -357,7 +323,7 @@ int building_monument_deliver_resource(building *b, int resource)
 
 int building_monument_access_point(building *b, map_point *dst)
 {
-    if (b->size < 3 || building_matches(b, "hippodrome")) {
+    if (b->size < 3 || (b && building_type_registry_impl::type_attr_is(b->type, "hippodrome"))) {
         dst->x = b->x;
         dst->y = b->y;
         return 1;
@@ -416,7 +382,9 @@ int building_monument_add_module(building *b, int module)
 {
     if (!building_monument_is_monument(b) ||
         b->monument.phase != MONUMENT_FINISHED ||
-        (b->monument.upgrades && !building_matches(b, "caravanserai") && !building_matches(b, "lighthouse"))) {
+        (b->monument.upgrades &&
+            !(b && building_type_registry_impl::type_attr_is(b->type, "caravanserai")) &&
+            !(b && building_type_registry_impl::type_attr_is(b->type, "lighthouse")))) {
         return 0;
     }
     b->monument.upgrades = module;
@@ -430,7 +398,7 @@ int building_monument_add_module(building *b, int module)
 
 int building_monument_is_limited(building_type type)
 {
-    return type_is_grand_temple(type) || type_matches_any(type, {
+    return type_is_grand_temple(type) || building_type_registry_impl::type_attr_is_any(type, {
         "pantheon",
         "lighthouse",
         "caravanserai",
@@ -661,15 +629,15 @@ int building_monument_progress(building *b)
     if (b->monument.phase == MONUMENT_FINISHED) {
         if (building_monument_is_grand_temple(b->type)) {
             city_message_post(1, MESSAGE_GRAND_TEMPLE_COMPLETE, 0, b->grid_offset);
-        } else if (building_matches(b, "pantheon")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "pantheon")) {
             city_message_post(1, MESSAGE_PANTHEON_COMPLETE, 0, b->grid_offset);
-        } else if (building_matches(b, "lighthouse")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "lighthouse")) {
             city_message_post(1, MESSAGE_LIGHTHOUSE_COMPLETE, 0, b->grid_offset);
-        } else if (building_matches(b, "colosseum")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "colosseum")) {
             city_message_post(1, MESSAGE_COLOSSEUM_COMPLETE, 0, b->grid_offset);
-        } else if (building_matches(b, "hippodrome")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "hippodrome")) {
             city_message_post(1, MESSAGE_HIPPODROME_COMPLETE, 0, b->grid_offset);
-        } else if (building_matches(b, "caravanserai")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "caravanserai")) {
             city_message_post(1, MESSAGE_CARAVANSERAI_COMPLETE, 0, b->grid_offset);
         }
     }
@@ -884,14 +852,15 @@ int building_monument_gt_module_is_active(int module)
     if (temple_index < 0 || temple_index >= static_cast<int>(sizeof(GRAND_TEMPLE_TEXT_IDS) / sizeof(GRAND_TEMPLE_TEXT_IDS[0]))) {
         return 0;
     }
-    building_type temple_type = type_from_attr(GRAND_TEMPLE_TEXT_IDS[temple_index]);
+    building_type temple_type = building_type_registry_impl::type_from_attr(GRAND_TEMPLE_TEXT_IDS[temple_index]);
 
     return building_monument_module_type(temple_type) == module_num;
 }
 
 int building_monument_pantheon_module_is_active(int module)
 {
-    return building_monument_module_type(type_from_attr("pantheon")) == (module - (PANTHEON_MODULE_1_DESTINATION_PRIESTS - 1));
+    return building_monument_module_type(building_type_registry_impl::type_from_attr("pantheon")) ==
+        (module - (PANTHEON_MODULE_1_DESTINATION_PRIESTS - 1));
 }
 
 static void delivery_save(buffer *buf, monument_delivery *delivery)

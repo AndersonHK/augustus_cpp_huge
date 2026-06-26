@@ -108,35 +108,6 @@ static const building_type_registry_impl::ConstructionToolDefinition &constructi
     return definition ? definition->tool() : empty_tool;
 }
 
-static int is_bridge_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->roadblock().is_bridge();
-}
-
-static int is_ship_bridge_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->roadblock().is_ship_bridge();
-}
-
-static int is_wall_foundation_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition &&
-        definition->foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Wall;
-}
-
-static int is_wall_gate_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->roadblock().is_wall_gate();
-}
-
 static int draggable_tool_rotation(
     building_type type,
     const building_type_registry_impl::ConstructionToolDefinition &tool)
@@ -250,7 +221,7 @@ static void set_required_terrain(building_type type)
         return;
     }
 
-    data.required_terrain.wall = is_wall_foundation_type(type);
+    data.required_terrain.wall = building_type_registry_impl::type_is_wall_foundation(type);
 }
 
 static void sync_construction_type(void)
@@ -280,8 +251,10 @@ static int is_area_tile_type(building_type type);
 
 static int building_type_allows_force_place(building_type type)
 {
-    if (type == BUILDING_NONE || is_vacant_lot_type(type) || is_area_tile_type(type) || is_bridge_type(type) ||
-        is_wall_foundation_type(type) || is_wall_gate_type(type) ||
+    if (type == BUILDING_NONE || is_vacant_lot_type(type) || is_area_tile_type(type) ||
+        building_type_registry_impl::type_is_bridge(type) ||
+        building_type_registry_impl::type_is_wall_foundation(type) ||
+        building_type_registry_impl::type_is_wall_gate(type) ||
         construction_tool_for_type(type).has_any()) {
         return 0;
     }
@@ -1086,7 +1059,7 @@ void building_construction_update(int x, int y, int grid_offset)
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
-    } else if (is_bridge_type(type)) {
+    } else if (building_type_registry_impl::type_is_bridge(type)) {
         int length = map_bridge_building_length();
         if (length > 1) {
             current_cost *= length;
@@ -1197,6 +1170,17 @@ void building_construction_place(void)
     }
     if (!building_construction_can_place() &&
         (!building_construction_is_updatable() || preview_cost <= 0)) {
+        const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type);
+        if (definition && !construction_tool_for_type(type).has_any() && !is_vacant_lot_type(type) &&
+            !is_area_tile_type(type) && !building_type_registry_impl::type_is_bridge(type)) {
+            const int placement_rules_passed = building_construction_show_placement_warning(
+                *definition, x_end, y_end, 0, building_construction_force_place_active());
+            if (placement_rules_passed && city_finance_out_of_money() &&
+                !building_type_allows_out_of_money_construction(type)) {
+                city_warning_show_translated(WARNING_OUT_OF_MONEY);
+            }
+        }
         map_property_clear_constructing_and_deleted();
         return;
     }
@@ -1217,7 +1201,7 @@ void building_construction_place(void)
             building_type_registry_impl::definition_for_type(type)->has_tile()) || building_is_connectable(type)) {
             game_undo_restore_map(1);
             refresh_native_tile_preview(type);
-        } else if (is_bridge_type(type)) {
+        } else if (building_type_registry_impl::type_is_bridge(type)) {
             map_bridge_reset_building_length();
         } else {
             map_property_clear_constructing_and_deleted();
@@ -1263,8 +1247,8 @@ void building_construction_place(void)
         if (area_tile_updates_land_routing(type)) {
             map_routing_update_land();
         }
-    } else if (is_bridge_type(type)) {
-        int length = map_bridge_add(x_end, y_end, is_ship_bridge_type(type));
+    } else if (building_type_registry_impl::type_is_bridge(type)) {
+        int length = map_bridge_add(x_end, y_end, building_type_registry_impl::type_is_ship_bridge(type));
         if (length <= 1) {
             city_warning_show_translated(WARNING_SHORE_NEEDED);
             return;

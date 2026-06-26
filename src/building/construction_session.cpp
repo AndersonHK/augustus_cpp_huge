@@ -7,13 +7,6 @@
 
 #include "map/grid.h"
 
-static int is_bridge_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->roadblock().is_bridge();
-}
-
 void ConstructionToolSession::clear()
 {
     type = BUILDING_NONE;
@@ -49,7 +42,7 @@ building_type ConstructionToolSession::resolve_type(key_modifier_type modifiers,
     if (!building_tool_mode_handles_selection(selected_type)) {
         return selected_type;
     }
-    if (construction_in_progress && is_bridge_type(type)) {
+    if (construction_in_progress && building_type_registry_impl::type_is_bridge(type)) {
         return type;
     }
     const map_tile &hover_tile = raw_end.grid_offset ? raw_end : raw_start;
@@ -90,7 +83,7 @@ void ConstructionToolSession::sync_drag_points(key_modifier_type modifiers)
     int end_x = raw_end_x;
     int end_y = raw_end_y;
 
-    if (is_bridge_type(type)) {
+    if (building_type_registry_impl::type_is_bridge(type)) {
         start_x = raw_end_x;
         start_y = raw_end_y;
         end_x = raw_end_x;

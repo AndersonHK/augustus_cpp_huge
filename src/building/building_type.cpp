@@ -216,6 +216,20 @@ int FoundationDefinition::has_cells() const
     return !cells_.empty();
 }
 
+int FoundationDefinition::has_water_requirement() const
+{
+    if (policy_type_ == FoundationPolicy::Shoreline || policy_type_ == FoundationPolicy::Water ||
+        policy_requirement_ == FoundationCellRequirement::Water) {
+        return 1;
+    }
+    for (const FoundationCellDefinition &cell : cells_) {
+        if (cell.requirement == FoundationCellRequirement::Water) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
 const std::vector<FoundationCellDefinition> &FoundationDefinition::cells() const
 {
     return cells_;
@@ -1666,6 +1680,11 @@ building_type BuildingType::type() const
 const char *BuildingType::attr() const
 {
     return attr_.c_str();
+}
+
+bool BuildingType::attr_is(std::string_view attr) const
+{
+    return attr_ == attr;
 }
 
 const IdentityDefinition &BuildingType::identity() const

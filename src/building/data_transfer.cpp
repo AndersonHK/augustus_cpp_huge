@@ -10,8 +10,6 @@
 #include "city/warning.h"
 
 #include <cstring>
-#include <string.h>
-#include <string_view>
 
 typedef struct {
     building_data_type data_type;
@@ -27,23 +25,6 @@ typedef struct {
 static transfer_data data;
 static transfer_data backup_data;
 
-static int type_attr_is(building_type type, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::string_view(definition->attr()) == attr;
-}
-
-static int type_is_any(building_type type, const char *const *text_ids, size_t count)
-{
-    for (size_t i = 0; i < count; i++) {
-        if (type_attr_is(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 static int type_is_roadblock_transfer(building_type type)
 {
     static const char *const roadblock_types[] = {
@@ -57,7 +38,8 @@ static int type_is_roadblock_transfer(building_type type)
         "gatehouse",
         "triumphal_arch"
     };
-    return type_is_any(type, roadblock_types, sizeof(roadblock_types) / sizeof(roadblock_types[0]));
+    return building_type_registry_impl::type_attr_is_any(
+        type, roadblock_types, sizeof(roadblock_types) / sizeof(roadblock_types[0]));
 }
 
 static int type_is_primary_product_producer(building_type type)
@@ -69,9 +51,9 @@ static int type_is_primary_product_producer(building_type type)
 void building_data_transfer_clear(int backup)
 {
     if (backup) {
-        memset(&backup_data, 0, sizeof(backup_data));
+        std::memset(&backup_data, 0, sizeof(backup_data));
     } else {
-        memset(&data, 0, sizeof(data));
+        std::memset(&data, 0, sizeof(data));
     }
 }
 void building_data_transfer_backup(void)
@@ -87,7 +69,7 @@ void building_data_transfer_restore(void)
 void building_data_transfer_restore_and_clear_backup(void)
 {
     data = backup_data;
-    memset(&backup_data, 0, sizeof(backup_data));
+    std::memset(&backup_data, 0, sizeof(backup_data));
 }
 
 static int can_transfer_to(const Building &target, int supress_warnings)
@@ -119,7 +101,7 @@ int building_data_transfer_copy(building *b, int supress_warnings)
 {
     Building source(b);
     building_type copy_type = source.type ? source.type->type() : BUILDING_NONE;
-    if (type_attr_is(copy_type, "burning_ruin")) {
+    if (building_type_registry_impl::type_attr_is(copy_type, "burning_ruin")) {
         copy_type = b ? static_cast<building_type>(b->data.rubble.og_type) : BUILDING_NONE;
     }
     building_data_type data_type = building_data_transfer_data_type_from_building_type(copy_type);
@@ -130,7 +112,7 @@ int building_data_transfer_copy(building *b, int supress_warnings)
         }
         return 0;
     } else {
-        memset(&data, 0, sizeof(data));
+        std::memset(&data, 0, sizeof(data));
         data.data_type = data_type;
     }
 
@@ -230,24 +212,22 @@ building_data_type building_data_transfer_data_type_from_building_type(building_
         return DATA_TYPE_RAW_RESOURCE_PRODUCER;
     }
 
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    if (definition && std::string_view(definition->attr()) == "dock") {
+    if (building_type_registry_impl::type_attr_is(type, "dock")) {
         return DATA_TYPE_DOCK;
     }
-    if (type_attr_is(type, "granary")) {
+    if (building_type_registry_impl::type_attr_is(type, "granary")) {
         return DATA_TYPE_GRANARY;
     }
-    if (type_attr_is(type, "warehouse") || type_attr_is(type, "warehouse_space")) {
+    if (building_type_registry_impl::type_attr_is_any(type, {"warehouse", "warehouse_space"})) {
         return DATA_TYPE_WAREHOUSE;
     }
-    if (type_attr_is(type, "market")) {
+    if (building_type_registry_impl::type_attr_is(type, "market")) {
         return DATA_TYPE_MARKET;
     }
-    if (type_attr_is(type, "tavern")) {
+    if (building_type_registry_impl::type_attr_is(type, "tavern")) {
         return DATA_TYPE_TAVERN;
     }
-    if (type_attr_is(type, "cart_depot")) {
+    if (building_type_registry_impl::type_attr_is(type, "cart_depot")) {
         return DATA_TYPE_DEPOT;
     }
     return DATA_TYPE_NOT_SUPPORTED;

@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
 #include <string_view>
 #include <vector>
 
@@ -32,23 +31,6 @@ static std::array<std::vector<menu_entry>, BUILD_MENU_MAX> menu_entries;
 
 static int menu_catalog_built = 0;
 static int changed = 1;
-
-static building_type type_from_attr(const char *attr)
-{
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
-
-static int type_matches(building_type type, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
 
 struct submenu_expander_mapping {
     build_menu_group submenu;
@@ -76,7 +58,7 @@ static building_type submenu_expander_type(int submenu)
 {
     for (const submenu_expander_mapping &mapping : SUBMENU_EXPANDERS) {
         if (mapping.submenu == submenu) {
-            return type_from_attr(mapping.text_id);
+            return building_type_registry_impl::type_from_attr(mapping.text_id);
         }
     }
     return BUILDING_NONE;
@@ -146,8 +128,8 @@ static void add_menu_entry(build_menu_group submenu, building_type type, int ord
 
 static building_type menu_tool_type_for_definition(building_type type)
 {
-    if (type_matches(type, "reservoir")) {
-        return type_from_attr("draggable_reservoir");
+    if (building_type_registry_impl::type_attr_is(type, "reservoir")) {
+        return building_type_registry_impl::type_from_attr("draggable_reservoir");
     }
     return type;
 }
@@ -216,7 +198,7 @@ static void enable_house(int *enabled, building_type menu_building_type)
 
 static void enable_clear(int *enabled, building_type menu_building_type)
 {
-    if (type_matches(menu_building_type, "clear_land")) {
+    if (building_type_registry_impl::type_attr_is(menu_building_type, "clear_land")) {
         *enabled = 1;
     }
 }
@@ -239,20 +221,20 @@ static int is_building_type_allowed(building_type type);
 
 static int can_get_required_resource(building_type type)
 {
-    if (type_matches(type, "shipyard")) {
+    if (building_type_registry_impl::type_attr_is(type, "shipyard")) {
         return empire_can_produce_resource_naturally(resource_fish());
     } else if (building_is_farm(type)) {
         const resource_type output_resource = building_output_resource(type);
         return output_resource > RESOURCE_NONE && empire_can_produce_resource_locally(output_resource);
-    } else if (type_matches(type, "tavern")) {
+    } else if (building_type_registry_impl::type_attr_is(type, "tavern")) {
         return empire_can_produce_resource_potentially(resource_wine()) ||
             empire_can_import_resource_potentially(resource_wine());
-    } else if (type_matches(type, "lighthouse")) {
+    } else if (building_type_registry_impl::type_attr_is(type, "lighthouse")) {
         return (empire_can_produce_resource_potentially(resource_timber()) ||
             empire_can_import_resource_potentially(resource_timber())) &&
             building_monument_has_required_resources_to_build(type);
-    } else if (type_matches(type, "city_mint")) {
-        building_type senate = type_from_attr("senate");
+    } else if (building_type_registry_impl::type_attr_is(type, "city_mint")) {
+        building_type senate = building_type_registry_impl::type_from_attr("senate");
         return senate != BUILDING_NONE && is_building_type_allowed(senate) &&
             building_monument_has_required_resources_to_build(type);
     }
@@ -272,7 +254,9 @@ static void enable_if_allowed(int *enabled, building_type menu_building_type, bu
     if (menu_building_type != type) {
         return;
     }
-    if (type_matches(type, "small_temples") || type_matches(type, "large_temples") || type_matches(type, "fort")) {
+    if (building_type_registry_impl::type_attr_is(type, "small_temples") ||
+        building_type_registry_impl::type_attr_is(type, "large_temples") ||
+        building_type_registry_impl::type_attr_is(type, "fort")) {
         *enabled = 1;
         enable_cycling_temples_if_allowed(type);
     } else {
@@ -282,7 +266,7 @@ static void enable_if_allowed(int *enabled, building_type menu_building_type, bu
 
 static void enable_if_allowed(int *enabled, building_type menu_building_type, const char *type_text_id)
 {
-    enable_if_allowed(enabled, menu_building_type, type_from_attr(type_text_id));
+    enable_if_allowed(enabled, menu_building_type, building_type_registry_impl::type_from_attr(type_text_id));
 }
 
 static void enable_submenu_entries_if_allowed(int *enabled, building_type type, int submenu)
@@ -350,7 +334,8 @@ static void enable_normal(int *enabled, building_type type)
         enable_if_allowed(enabled, type, current_type);
     }
 
-    if (type_matches(type, "triumphal_arch") && !city_buildings_triumphal_arch_available()) {
+    if (building_type_registry_impl::type_attr_is(type, "triumphal_arch") &&
+        !city_buildings_triumphal_arch_available()) {
         *enabled = 0;
     }
 }
@@ -517,12 +502,12 @@ void building_menu_update(void)
             }
         }
     }
-    enable_cycling_temples_if_allowed(type_from_attr("small_temples"));
-    enable_cycling_temples_if_allowed(type_from_attr("large_temples"));
-    enable_cycling_temples_if_allowed(type_from_attr("shrines"));
-    enable_cycling_temples_if_allowed(type_from_attr("trees"));
-    enable_cycling_temples_if_allowed(type_from_attr("paths"));
-    enable_cycling_temples_if_allowed(type_from_attr("all_gardens"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("small_temples"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("large_temples"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("shrines"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("trees"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("paths"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("all_gardens"));
     changed = 1;
 }
 
@@ -625,7 +610,7 @@ int building_menu_is_submenu(build_menu_group menu)
 int building_menu_get_submenu_for_type(building_type type)
 {
     for (const submenu_expander_mapping &mapping : SUBMENU_EXPANDERS) {
-        if (type_matches(type, mapping.text_id)) {
+        if (building_type_registry_impl::type_attr_is(type, mapping.text_id)) {
             return mapping.submenu;
         }
     }

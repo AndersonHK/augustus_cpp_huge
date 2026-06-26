@@ -26,9 +26,6 @@
 #include "figure/figure_runtime_api.h"
 
 #include <algorithm>
-#include <cstring>
-#include <initializer_list>
-#include <string_view>
 
 #include "scenario/scenario.h"
 
@@ -49,33 +46,6 @@
 #include "map/desirability.h"
 #include "map/random.h"
 #include "map/terrain.h"
-
-static int type_attr_is(building_type type, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::string_view(definition->attr()) == attr;
-}
-
-static int type_attr_is_any(building_type type, std::initializer_list<const char *> text_ids)
-{
-    for (const char *text_id : text_ids) {
-        if (type_attr_is(type, text_id)) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int building_matches(const building *b, const char *text_id)
-{
-    return b && type_attr_is(b->type, text_id);
-}
-
-static int building_matches_any(const building *b, std::initializer_list<const char *> text_ids)
-{
-    return b && type_attr_is_any(b->type, text_ids);
-}
 
 static Building working_pantheon()
 {
@@ -100,7 +70,7 @@ static int type_is_basic_temple(building_type type)
 
 static int type_uses_native_spawn(building_type type)
 {
-    return type_attr_is_any(type, {
+    return building_type_registry_impl::type_attr_is_any(type, {
         "engineers_post",
         "prefecture",
         "actor_colony",
@@ -133,7 +103,7 @@ static int type_uses_native_spawn(building_type type)
 
 static int type_is_fort(building_type type)
 {
-    return type_attr_is_any(type, {
+    return building_type_registry_impl::type_attr_is_any(type, {
         "fort_legionaries",
         "fort_javelin",
         "fort_archers",
@@ -162,13 +132,13 @@ static int worker_percentage(const Building &building)
 static void check_labor_problem(building *b)
 {
     Building building_object(b);
-    if (building_local_workforce_is_workforce_building(building_object)) {
-        if (building_local_workforce_access_score(building_object) <= 0) {
+    if (building_local_workforce::is_workforce_building(building_object)) {
+        if (building_local_workforce::access_score(building_object) <= 0) {
             b->show_on_problem_overlay = 2;
         }
         return;
     }
-    if (building_local_workforce_access_score(building_object) <= 0) {
+    if (building_local_workforce::access_score(building_object) <= 0) {
         b->show_on_problem_overlay = 2;
     }
 }
@@ -222,14 +192,14 @@ static void run_house_spawn_labor_policy(building *b, int x, int y, int amount)
         return;
     }
 
-    if (building_local_workforce_access_score(Building(b)) <= amount) {
+    if (building_local_workforce::access_score(Building(b)) <= amount) {
         generate_labor_seeker(b, x, y);
     }
 }
 
 static void run_house_generate_labor_policy(building *b, int x, int y, int amount)
 {
-    if (building_local_workforce_access_score(Building(b)) > amount) {
+    if (building_local_workforce::access_score(Building(b)) > amount) {
         return;
     }
     if (config_get(CONFIG_GP_CH_GLOBAL_LABOUR)) {
@@ -251,13 +221,13 @@ static void run_workforce_labor_policy(building *b, int x, int y, int global_lab
     Building building_object(b);
     map_point road = { x, y };
     const int trigger_workers = building_object.employment_required_workers();
-    const int workforce_access = building_local_workforce_access_score(building_object);
+    const int workforce_access = building_local_workforce::access_score(building_object);
     if (workforce_access < trigger_workers) {
-        if (!building_local_workforce_spawn_acquisition(building_object, &road) && workforce_access > 0) {
-            building_local_workforce_spawn_validation(building_object, &road);
+        if (!building_local_workforce::spawn_acquisition(building_object, &road) && workforce_access > 0) {
+            building_local_workforce::spawn_validation(building_object, &road);
         }
     } else {
-        building_local_workforce_spawn_validation(building_object, &road);
+        building_local_workforce::spawn_validation(building_object, &road);
     }
 }
 
@@ -538,13 +508,13 @@ static void spawn_figure_colosseum(building *b)
             attach_figure_to_building(f, b);
             b->figure_id = f->id();
             figure_movement_init_roaming(f);
-            if (building_matches(b, "colosseum") && city_games_executions_active()) {
+            if (b && building_type_registry_impl::type_attr_is(b->type, "colosseum") && city_games_executions_active()) {
                 f = Figure::create(FIGURE_LION_TAMER, road.x, road.y, DIR_0_TOP);
                 f->action_state = FIGURE_ACTION_230_LION_TAMERS_HUNTING_ENEMIES;
                 f = Figure::create(FIGURE_LION_TAMER, road.x, road.y, DIR_0_TOP);
                 f->action_state = FIGURE_ACTION_230_LION_TAMERS_HUNTING_ENEMIES;
             }
-            if (building_matches(b, "colosseum") &&
+            if (b && building_type_registry_impl::type_attr_is(b->type, "colosseum") &&
                 (b->data.entertainment.days1 > 0 || b->data.entertainment.days2 > 0)) {
                 if (city_entertainment_show_message_colosseum()) {
                     city_message_post(1, MESSAGE_COLOSSEUM_WORKING_NEW, 0, 0);
@@ -895,7 +865,8 @@ static void spawn_figure_temple(building *b)
         }
 
         // Pantheon Module 1 Bonus
-        if (!building_matches(b, "pantheon") && !b->figure_id4 && building_monument_pantheon_module_is_active(PANTHEON_MODULE_1_DESTINATION_PRIESTS)) {
+        if (!(b && building_type_registry_impl::type_attr_is(b->type, "pantheon")) && !b->figure_id4 &&
+            building_monument_pantheon_module_is_active(PANTHEON_MODULE_1_DESTINATION_PRIESTS)) {
             Figure *f = Figure::create(FIGURE_PRIEST, road.x, road.y, DIR_4_BOTTOM);
             Building pantheon = working_pantheon();
             b->figure_id4 = f->id();
@@ -908,10 +879,10 @@ static void spawn_figure_temple(building *b)
 
 static void spawn_figure_senate_forum(building *b)
 {
-    if (building_matches(b, "senate")) {
+    if (b && building_type_registry_impl::type_attr_is(b->type, "senate")) {
         Building(b).refresh_graphic();
     }
-    if (building_matches(b, "forum")) {
+    if (b && building_type_registry_impl::type_attr_is(b->type, "forum")) {
         Building(b).refresh_graphic();
     }
     check_labor_problem(b);
@@ -1129,7 +1100,7 @@ static void spawn_figure_dock(building *b)
 
 static void spawn_figure_native_hut(building *b)
 {
-    if (building_matches(b, "native_hut")) {
+    if (b && building_type_registry_impl::type_attr_is(b->type, "native_hut")) {
         map_image_set(b->grid_offset, image_group(GROUP_BUILDING_NATIVE) + (map_random_get(b->grid_offset) & 1));
     } else {
         map_image_set(b->grid_offset, building_image_get(b));
@@ -1391,7 +1362,7 @@ static int building_uses_runtime_spawn(const building *b)
     if (definition && !definition->spawn_groups().empty()) {
         return 1;
     }
-    if (building_matches_any(b, {"senate", "forum"})) {
+    if (b && building_type_registry_impl::type_attr_is_any(b->type, {"senate", "forum"})) {
         return 1;
     }
     if (type_is_basic_temple(b->type)) {
@@ -1427,47 +1398,47 @@ void building_figure_generate(void)
         } else if (building_is_raw_resource_producer(b->type) ||
             building_is_farm(b->type) || building_is_workshop(b->type)) {
             spawn_figure_industry(b);
-        } else if (building_matches_any(b, {"senate_1_unused", "forum_2_unused"})) {
+        } else if (b && building_type_registry_impl::type_attr_is_any(b->type, {"senate_1_unused", "forum_2_unused"})) {
             spawn_figure_senate_forum(b);
         } else if (building_object.type->is_warehouse()) {
             spawn_figure_warehouse(b);
         } else if (building_object.type->is_granary()) {
             spawn_figure_granary(b);
-        } else if (building_matches(b, "tower")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "tower")) {
             spawn_figure_tower(b);
-        } else if (building_matches(b, "hippodrome")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "hippodrome")) {
             spawn_figure_hippodrome(b);
-        } else if (building_matches(b, "colosseum")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "colosseum")) {
             spawn_figure_colosseum(b);
-        } else if (building_matches(b, "market")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "market")) {
             spawn_figure_market(b);
-        } else if (building_matches(b, "mission_post")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "mission_post")) {
             spawn_figure_mission_post(b);
-        } else if (std::strcmp(building_object.type->attr(), "dock") == 0) {
+        } else if (building_object.type->attr_is("dock")) {
             spawn_figure_dock(b);
-        } else if (building_matches(b, "wharf")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "wharf")) {
             spawn_figure_wharf(b);
-        } else if (building_matches(b, "shipyard")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "shipyard")) {
             spawn_figure_shipyard(b);
-        } else if (building_matches_any(b, {"native_hut", "native_hut_alt"})) {
+        } else if (b && building_type_registry_impl::type_attr_is_any(b->type, {"native_hut", "native_hut_alt"})) {
             spawn_figure_native_hut(b);
-        } else if (building_matches(b, "native_meeting")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "native_meeting")) {
             spawn_figure_native_meeting(b);
-        } else if (building_matches(b, "native_crops")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "native_crops")) {
             update_native_crop_progress(b);
         } else if (type_is_fort(b->type)) {
             Building fort(*b);
             formation_legion_update_recruit_status(fort);
             spawn_figure_fort_supplier(b);
-        } else if (building_matches(b, "barracks")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "barracks")) {
             spawn_figure_barracks(b);
-        } else if (building_matches(b, "military_academy")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "military_academy")) {
             spawn_figure_military_academy(b);
         } else if (building_object.type->is_mess_hall()) {
             spawn_figure_mess_hall(b);
-        } else if (building_matches(b, "tavern")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "tavern")) {
             spawn_figure_tavern(b);
-        } else if (building_matches(b, "cart_depot")) {
+        } else if (b && building_type_registry_impl::type_attr_is(b->type, "cart_depot")) {
             spawn_figure_depot(b);
         }
     }

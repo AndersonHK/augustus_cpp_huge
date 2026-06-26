@@ -187,7 +187,7 @@ Resource motive:
 - `src/core/config.cpp`
   - `Vespasian.ini`
   - legacy fallback reads from `augustus.ini`
-  - `CONFIG_UI_SCALE_FILTER`
+  - `CONFIG_SCALE_FILTER` / `scale_filter`
   - `CONFIG_DEBUG` / `debug`, currently used to gate zoom percentage warnings
 - City zoom stores raw renderer scale, but player-facing start/reset/display percentages are adjusted by UI scale; displayed interactive bounds are `33%` to `300%`, capped by map size.
 

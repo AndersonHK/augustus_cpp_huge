@@ -80,7 +80,7 @@ static void draw_population_info(building_info_context *c, int y_offset)
             text_x + width, text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     }
     width = text_draw_number(
-        building_local_workforce_house_available_workers(c->building), '@', " ", text_x, workers_text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+            building_local_workforce::house_available_workers(c->building), '@', " ", text_x, workers_text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
     text_draw(string_from_ascii("available workers"), text_x + width, workers_text_y, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
 }
 

@@ -17,7 +17,6 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-#include <initializer_list>
 #include <string_view>
 
 #define MAX_TILES 8
@@ -56,28 +55,6 @@ static constexpr std::string_view connectable_buildings[] = {
     "hedge_gate_light",
     "palisade_gate",
 };
-
-static int type_attr_is(building_type type, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::string_view(definition->attr()) == attr;
-}
-
-static building_type type_from_attr(std::string_view attr)
-{
-    return building_type_registry_impl::type_from_attr(attr);
-}
-
-static int type_matches_any(building_type type, std::initializer_list<std::string_view> attrs)
-{
-    for (std::string_view attr : attrs) {
-        if (type_attr_is(type, attr)) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 // 0 = no match
 // 1 = match
@@ -208,8 +185,8 @@ int building_connectable_gate_type(building_type type)
         {"palisade", "palisade_gate"},
     };
     for (const gate_mapping &mapping : mappings) {
-        if (type_attr_is(type, mapping.wall)) {
-            return type_from_attr(mapping.gate);
+        if (building_type_registry_impl::type_attr_is(type, mapping.wall)) {
+            return building_type_registry_impl::type_from_attr(mapping.gate);
         }
     }
     return 0;
@@ -250,7 +227,7 @@ static int get_image_offset(int group, int tiles[MAX_TILES], int rotation, int t
 
 static int is_hedge_wall_or_gate(building_type type)
 {
-    return type_matches_any(type, {
+    return building_type_registry_impl::type_attr_is_any(type, {
         "hedge_dark",
         "hedge_gate_dark",
         "hedge_light",
@@ -260,7 +237,7 @@ static int is_hedge_wall_or_gate(building_type type)
 
 static int is_hedge_wall(building_type type)
 {
-    return type_matches_any(type, {"hedge_dark", "hedge_light"});
+    return building_type_registry_impl::type_attr_is_any(type, {"hedge_dark", "hedge_light"});
 }
 
 int building_connectable_get_hedge_offset(int grid_offset)
@@ -329,8 +306,9 @@ int building_connectable_get_colonnade_offset(int grid_offset)
         }
         Building b(building_get(map_building_at(offset)));
         building_type type = b.type ? b.type->type() : BUILDING_NONE;
-        if (type_attr_is(type, "colonnade") ||
-            (map_property_is_constructing(offset) && type_attr_is(building_construction_type(), "colonnade"))) {
+        if (building_type_registry_impl::type_attr_is(type, "colonnade") ||
+            (map_property_is_constructing(offset) &&
+                building_type_registry_impl::type_attr_is(building_construction_type(), "colonnade"))) {
             tiles[i] = 1;
         }
     }
@@ -346,7 +324,7 @@ int building_connectable_get_colonnade_offset(int grid_offset)
 
 static int is_garden_path(building_type type)
 {
-    return type_matches_any(type, {
+    return building_type_registry_impl::type_attr_is_any(type, {
         "date_path",
         "elm_path",
         "fig_path",
@@ -361,7 +339,7 @@ static int is_garden_path(building_type type)
 
 static int is_garden_wall_or_gate(building_type type)
 {
-    return type_matches_any(type, {
+    return building_type_registry_impl::type_attr_is_any(type, {
         "looped_garden_wall",
         "roofed_garden_wall",
         "garden_wall_gate",
@@ -373,7 +351,7 @@ static int is_garden_wall_or_gate(building_type type)
 
 static int is_garden_wall(building_type type)
 {
-    return type_matches_any(type, {
+    return building_type_registry_impl::type_attr_is_any(type, {
         "looped_garden_wall",
         "roofed_garden_wall",
         "panelled_garden_wall",
@@ -461,12 +439,12 @@ int building_connectable_get_garden_gate_offset(int grid_offset)
 
 static int is_palisade_wall_or_gate(building_type type)
 {
-    return type_matches_any(type, {"palisade", "palisade_gate"});
+    return building_type_registry_impl::type_attr_is_any(type, {"palisade", "palisade_gate"});
 }
 
 static int is_palisade_wall(building_type type)
 {
-    return type_attr_is(type, "palisade");
+    return building_type_registry_impl::type_attr_is(type, "palisade");
 }
 
 int building_connectable_get_palisade_offset(int grid_offset)
@@ -546,10 +524,10 @@ int building_connectable_graphics_option(const Building &building_obj)
     if (is_hedge_wall(type)) {
         return building_connectable_get_hedge_offset(grid_offset);
     }
-    if (type_attr_is(type, "colonnade")) {
+    if (building_type_registry_impl::type_attr_is(type, "colonnade")) {
         return building_connectable_get_colonnade_offset(grid_offset);
     }
-    if (type_attr_is(type, "wall")) {
+    if (building_type_registry_impl::type_attr_is(type, "wall")) {
         return map_tiles_wall_image_offset(grid_offset);
     }
     if (is_garden_wall(type)) {
@@ -562,7 +540,8 @@ int building_connectable_graphics_option(const Building &building_obj)
         if (intersection_option >= 0) {
             return intersection_option;
         }
-        int context = type_attr_is(type, "garden_path") ? CONTEXT_GARDEN_TREELESS_PATH : CONTEXT_GARDEN_TREE_PATH;
+        int context = building_type_registry_impl::type_attr_is(type, "garden_path") ?
+            CONTEXT_GARDEN_TREELESS_PATH : CONTEXT_GARDEN_TREE_PATH;
         return dense_path_graphics_option(building_connectable_get_garden_path_offset(grid_offset, context));
     }
     if (is_garden_wall_or_gate(type)) {
@@ -574,7 +553,7 @@ int building_connectable_graphics_option(const Building &building_obj)
     if (is_palisade_wall(type)) {
         return building_connectable_get_palisade_offset(grid_offset);
     }
-    if (type_attr_is(type, "palisade_gate")) {
+    if (building_type_registry_impl::type_attr_is(type, "palisade_gate")) {
         return dense_gate_graphics_option(building_connectable_get_palisade_gate_offset(grid_offset));
     }
     return 0;
@@ -583,7 +562,7 @@ int building_connectable_graphics_option(const Building &building_obj)
 int building_is_connectable(building_type type)
 {
     for (std::string_view attr : connectable_buildings) {
-        if (type_attr_is(type, attr)) {
+        if (building_type_registry_impl::type_attr_is(type, attr)) {
             return 1;
         }
     }
@@ -595,7 +574,7 @@ int building_connectable_num_variants(building_type type)
     if (!building_is_connectable(type)) {
         return 0;
     }
-    if (type_matches_any(type, {
+    if (building_type_registry_impl::type_attr_is_any(type, {
         "hedge_dark",
         "hedge_light",
         "colonnade",
@@ -634,7 +613,7 @@ void building_connectable_update_connections_for_type(building_type type)
 void building_connectable_update_connections(void)
 {
     for (std::string_view attr : connectable_buildings) {
-        building_type type = type_from_attr(attr);
+        building_type type = building_type_registry_impl::type_from_attr(attr);
         if (type != BUILDING_NONE) {
             building_connectable_update_connections_for_type(type);
         }

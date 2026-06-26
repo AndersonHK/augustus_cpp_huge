@@ -17,8 +17,6 @@
 #include "map/terrain.h"
 #include "scenario/property.h"
 
-#include <cstring>
-
 #define MAX_TILES 16
 
 static const int X_VIEW_OFFSETS[MAX_TILES] = { 0, -30, 30, 0, -60, 60, -30, 30, 0, -90, 90, -60, 60, -30, 30, 0 };
@@ -26,28 +24,9 @@ static const int Y_VIEW_OFFSETS[MAX_TILES] = { 0, 15, 15, 30, 30, 30, 45, 45, 60
 
 static float scale = SCALE_NONE;
 
-static const building_type_registry_impl::BuildingType *building_type_definition_from_attr(const char *text_id)
-{
-    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
-        building_type_registry_impl::g_building_types) {
-        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
-            return definition.get();
-        }
-    }
-    return nullptr;
-}
-
 static building_type building_type_from_attr(const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *definition = building_type_definition_from_attr(text_id);
-    return definition ? definition->type() : BUILDING_NONE;
-}
-
-static int building_type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 static void offset_to_view_offset(int dx, int dy, int *view_dx, int *view_dy)
@@ -106,9 +85,9 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
         }
     } else {
         int image_id;
-        if (building_type_attr_is(type, "native_crops")) {
+        if (building_type_registry_impl::type_attr_is(type, "native_crops")) {
             image_id = Image::group(GROUP_EDITOR_BUILDING_CROPS);
-        } else if (building_type_attr_is(type, "native_hut_alt")) {
+        } else if (building_type_registry_impl::type_attr_is(type, "native_hut_alt")) {
             switch (scenario_property_climate()) {
                 case CLIMATE_NORTHERN:
                     image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Northern_01", "Native_Hut_Northern_01");
@@ -119,8 +98,8 @@ static void draw_building(const map_tile *tile, int x_view, int y_view, building
                 default:
                     image_id = assets_get_image_id("Terrain_Maps\\Native_Hut_Central_01", "Native_Hut_Central_01");
             };
-        } else if (building_type_attr_is(type, "native_decor") || building_type_attr_is(type, "native_monument") ||
-            building_type_attr_is(type, "native_watchtower")) {
+        } else if (building_type_registry_impl::type_attr_is_any(
+            type, {"native_decor", "native_monument", "native_watchtower"})) {
             image_id = building_image_get_for_type(type);
         } else if (props->image_group <= 0) {
             image_id = building_image_get_for_type(type);

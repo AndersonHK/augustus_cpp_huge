@@ -21,6 +21,7 @@ typedef enum {
 struct building_construction_assessment {
     building_construction::ConstructionPlacementPlan placement;
     int can_place = 0;
+    int global_blocked = 0;
     int clear_cost = 0;
 };
 
@@ -35,6 +36,12 @@ struct building_construction_assessment {
 */
 int building_construction_place_building(building_type type, int x, int y, int exact_coordinates);
 building_construction_assessment building_construction_assess_placement(
+    const building_type_registry_impl::BuildingType &definition,
+    int x,
+    int y,
+    int exact_coordinates,
+    int force_place);
+int building_construction_show_placement_warning(
     const building_type_registry_impl::BuildingType &definition,
     int x,
     int y,

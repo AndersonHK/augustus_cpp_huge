@@ -6,34 +6,24 @@
 #include "building/building_type_api.h"
 #include "game/state.h"
 
-#include <cstring>
-
-static int building_type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
-}
-
 static int show_building_education(const building *b)
 {
-    return building_type_attr_is(b->type, "school") || building_type_attr_is(b->type, "library") ||
-        building_type_attr_is(b->type, "academy");
+    return building_type_registry_impl::type_attr_is_any(b->type, {"school", "library", "academy"});
 }
 
 static int show_building_school(const building *b)
 {
-    return building_type_attr_is(b->type, "school");
+    return building_type_registry_impl::type_attr_is(b->type, "school");
 }
 
 static int show_building_library(const building *b)
 {
-    return building_type_attr_is(b->type, "library");
+    return building_type_registry_impl::type_attr_is(b->type, "library");
 }
 
 static int show_building_academy(const building *b)
 {
-    return building_type_attr_is(b->type, "academy");
+    return building_type_registry_impl::type_attr_is(b->type, "academy");
 }
 
 static int is_figure_type(const Figure *f, figure_type type)

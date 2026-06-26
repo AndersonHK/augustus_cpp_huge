@@ -2,16 +2,7 @@
 #include "government.h"
 
 #include "building/building.h"
-#include "building/building_type_registry_internal.h"
 #include "city/finance.h"
-
-#include <string_view>
-
-static int building_type_attr_is(const Building &building, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *type = building.type;
-    return type && std::string_view(type->attr()) == attr;
-}
 
 void building_government_distribute_treasury(void)
 {
@@ -23,9 +14,9 @@ void building_government_distribute_treasury(void)
         if (!building.is_in_use() || building_main(b) != b) {
             continue;
         }
-        if (building_type_attr_is(building, "forum")) {
+        if (building.type && building.type->attr_is("forum")) {
             units++;
-        } else if (building_type_attr_is(building, "senate")) {
+        } else if (building.type && building.type->attr_is("senate")) {
             units += 8;
             senate = b;
         }
@@ -47,7 +38,8 @@ void building_government_distribute_treasury(void)
 
     for (int id = 1; id < building_count(); id++) {
         building *b = building_get(id);
-        if (!building_type_attr_is(Building(b), "forum")) {
+        Building building(b);
+        if (!building.type || !building.type->attr_is("forum")) {
             continue;
         }
         if (b->state != BUILDING_STATE_IN_USE || b->house_size || b->num_workers <= 0) {

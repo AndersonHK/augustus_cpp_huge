@@ -284,7 +284,7 @@ void game_tick_run(void)
     }
     random_generate_next();
     game_undo_reduce_time_available();
-    building_local_workforce_refresh_access_scores();
+    building_local_workforce::refresh_access_scores();
     advance_tick();
     figure_action_handle();
     scenario_earthquake_process();

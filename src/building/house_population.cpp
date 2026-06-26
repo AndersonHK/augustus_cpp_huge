@@ -68,7 +68,7 @@ int house_population_remove_from_city(int num_people)
             ++removed;
             --b->house_population;
             Building house(b);
-            building_local_workforce_reconcile_house(house);
+            building_local_workforce::reconcile_house(house);
             buildings_without_removal = 0;
         } else {
             buildings_without_removal++;
@@ -256,11 +256,11 @@ void house_population_evict_overcrowded(void)
         migrant_create_homeless(house, num_people_to_evict);
         if (num_people_to_evict < b->house_population) {
             b->house_population -= num_people_to_evict;
-            building_local_workforce_reconcile_house(house);
+            building_local_workforce::reconcile_house(house);
         } else {
             // house has been removed
             b->house_population = 0;
-            building_local_workforce_reconcile_house(house);
+            building_local_workforce::reconcile_house(house);
             b->state = BUILDING_STATE_UNDO;
         }
     }

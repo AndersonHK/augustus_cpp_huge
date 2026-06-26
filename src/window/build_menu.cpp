@@ -33,7 +33,6 @@
 #include <building/industry.h>
 
 #include <cstddef>
-#include <cstring>
 #include <vector>
 
 #define MENU_X_OFFSET 298
@@ -59,26 +58,13 @@ static uint8_t tooltip_text[TOOLTIP_TEXT_LENGTH];
 
 static const building_type_registry_impl::BuildingType *building_type_definition_from_attr(const char *text_id)
 {
-    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
-        building_type_registry_impl::g_building_types) {
-        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
-            return definition.get();
-        }
-    }
-    return nullptr;
+    return building_type_registry_impl::definition_for_type(
+        building_type_registry_impl::type_from_attr(text_id));
 }
 
 static building_type building_type_from_attr(const char *text_id)
 {
-    const building_type_registry_impl::BuildingType *definition = building_type_definition_from_attr(text_id);
-    return definition ? definition->type() : BUILDING_NONE;
-}
-
-static int building_type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
+    return building_type_registry_impl::type_from_attr(text_id);
 }
 
 class BuildMenuButton {
@@ -311,12 +297,14 @@ static int get_sidebar_x_offset(void)
 
 static int is_auto_cycle_button(build_menu_group submenu, building_type type)
 {
-    return (building_type_attr_is(type, "small_temples") && submenu == BUILD_MENU_SMALL_TEMPLES) ||
-        (building_type_attr_is(type, "large_temples") && submenu == BUILD_MENU_LARGE_TEMPLES) ||
-        (building_type_attr_is(type, "shrines") && submenu == BUILD_MENU_SHRINES) ||
-        (building_type_attr_is(type, "trees") && submenu == BUILD_MENU_TREES) ||
-        (building_type_attr_is(type, "paths") && submenu == BUILD_MENU_PATHS) ||
-        (building_type_attr_is(type, "all_gardens") && submenu == BUILD_MENU_GARDENS);
+    return (building_type_registry_impl::type_attr_is(type, "small_temples") &&
+            submenu == BUILD_MENU_SMALL_TEMPLES) ||
+        (building_type_registry_impl::type_attr_is(type, "large_temples") &&
+            submenu == BUILD_MENU_LARGE_TEMPLES) ||
+        (building_type_registry_impl::type_attr_is(type, "shrines") && submenu == BUILD_MENU_SHRINES) ||
+        (building_type_registry_impl::type_attr_is(type, "trees") && submenu == BUILD_MENU_TREES) ||
+        (building_type_registry_impl::type_attr_is(type, "paths") && submenu == BUILD_MENU_PATHS) ||
+        (building_type_registry_impl::type_attr_is(type, "all_gardens") && submenu == BUILD_MENU_GARDENS);
 }
 
 // Costs share the right-side status column with auto-cycle text, so center the composed money string there.
@@ -361,7 +349,7 @@ static void draw_resource_icon_scaled(const ImageGroupEntryRef &image, int x, in
 
 building_type BuildMenuButton::cost_type() const
 {
-    if (building_type_attr_is(building, "draggable_reservoir")) {
+    if (building_type_registry_impl::type_attr_is(building, "draggable_reservoir")) {
         return building_type_from_attr("reservoir");
     }
     return building;

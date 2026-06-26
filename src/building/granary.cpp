@@ -22,8 +22,6 @@
 #include "scenario/property.h"
 #include "sound/effect.h"
 
-#include <cstring>
-
 #define MAX_GRANARIES 100
 #define CURSE_LOADS BUILDING_STORAGE_QUANTITY_MAX / 2
 #define INFINITE 10000
@@ -32,24 +30,14 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-static building_type type_from_attr(const char *attr)
-{
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
-
 static building_type granary_type()
 {
-    return type_from_attr("granary");
+    return building_type_registry_impl::type_from_attr("granary");
 }
 
 static building_type warehouse_type()
 {
-    return type_from_attr("warehouse");
+    return building_type_registry_impl::type_from_attr("warehouse");
 }
 
 static int is_granary_building(const Building &b)

@@ -60,6 +60,64 @@ building_type type_from_attr(std::string_view attr)
     return BUILDING_NONE;
 }
 
+int type_attr_is(building_type type, std::string_view attr)
+{
+    const BuildingType *definition = definition_for_type(type);
+    return definition && definition->attr_is(attr) ? 1 : 0;
+}
+
+int type_attr_is_any(building_type type, std::initializer_list<std::string_view> attrs)
+{
+    for (std::string_view attr : attrs) {
+        if (type_attr_is(type, attr)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int type_attr_is_any(building_type type, const char *const *attrs, int count)
+{
+    for (int i = 0; i < count; i++) {
+        if (attrs[i] && type_attr_is(type, attrs[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int type_is_bridge(building_type type)
+{
+    const BuildingType *definition = definition_for_type(type);
+    return definition && definition->roadblock().is_bridge() ? 1 : 0;
+}
+
+int type_is_ship_bridge(building_type type)
+{
+    const BuildingType *definition = definition_for_type(type);
+    return definition && definition->roadblock().is_ship_bridge() ? 1 : 0;
+}
+
+int type_is_wall_foundation(building_type type)
+{
+    const BuildingType *definition = definition_for_type(type);
+    return definition &&
+        definition->foundation().policy_type() == FoundationPolicy::Wall ? 1 : 0;
+}
+
+int type_is_wall_gate(building_type type)
+{
+    const BuildingType *definition = definition_for_type(type);
+    return definition && definition->roadblock().is_wall_gate() ? 1 : 0;
+}
+
+int type_has_water_foundation(building_type type)
+{
+    const BuildingType *definition = definition_for_type(type);
+    return definition && definition->has_foundation() &&
+        definition->foundation().has_water_requirement() ? 1 : 0;
+}
+
 building_type type_from_roadblock_bridge(RoadblockBridgeType bridge_type)
 {
     if (bridge_type == RoadblockBridgeType::None) {

@@ -263,6 +263,11 @@ void release_workplace_source(unsigned int workplace_id, unsigned int house_id)
 
     building *house = building_get(house_id);
     refresh_house_unemployed(house);
+    building *workplace_record = building_get(workplace_id);
+    if (is_live_building(workplace_record)) {
+        Building workplace(*workplace_record);
+        refresh_access_score(workplace);
+    }
 }
 
 void retire_labor_seeker(Figure *f)
@@ -791,6 +796,11 @@ int is_workforce_building(const Building &building)
     return uses_active_workforce(building);
 }
 
+void refresh_access_scores(void)
+{
+    ::refresh_access_scores();
+}
+
 void refresh_access_score(Building &building)
 {
     ::refresh_access_score(building);
@@ -806,6 +816,14 @@ int house_available_workers(Building &house)
     refresh_house_unemployed(house);
     building *record = building_get(house.id());
     return std::max<int>(0, record ? record->local_workforce_unemployed : 0);
+}
+
+int labor_seeker_is_workforce(const Figure *f)
+{
+    if (!f || f->type != FIGURE_LABOR_SEEKER) {
+        return 0;
+    }
+    return uses_active_workforce(f->building);
 }
 
 void reconcile_house(Building &house)
@@ -852,7 +870,15 @@ int spawn_acquisition(Building &workplace, const map_point *road)
         return 0;
     }
 
-    return create_labor_seeker(workplace, road, nullptr, 0, kLaborSeekerTripAcquire);
+    map_point target_road = { 0, 0 };
+    const int house_id = find_nearest_reachable_house_with_unemployed(
+        road,
+        &target_road,
+        labor_seeker_max_roam_length());
+    if (!house_id) {
+        return 0;
+    }
+    return create_labor_seeker(workplace, road, &target_road, house_id, kLaborSeekerTripAcquire);
 }
 
 int spawn_validation(Building &workplace, const map_point *road)
@@ -887,87 +913,29 @@ int spawn_validation(Building &workplace, const map_point *road)
     return create_labor_seeker(workplace, road, &target_road, house_id, kLaborSeekerTripValidate);
 }
 
-} // namespace building_local_workforce
-
-int building_local_workforce_is_workforce_building(const Building &building)
+int prepare_labor_seeker_target(Figure *f)
 {
-    return building_local_workforce::is_workforce_building(building);
+    return ::prepare_labor_seeker_target(f);
 }
 
-void building_local_workforce_refresh_access_score(Building &building)
+void labor_seeker_arrived(Figure *f)
 {
-    building_local_workforce::refresh_access_score(building);
+    ::handle_arrival(f);
 }
 
-void building_local_workforce_refresh_access_scores(void)
-{
-    refresh_access_scores();
-}
-
-int building_local_workforce_access_score(const Building &building)
-{
-    return building_local_workforce::access_score(building);
-}
-
-int building_local_workforce_house_available_workers(Building &house)
-{
-    return building_local_workforce::house_available_workers(house);
-}
-
-int building_local_workforce_labor_seeker_is_workforce(const Figure *f)
-{
-    if (!f || f->type != FIGURE_LABOR_SEEKER) {
-        return 0;
-    }
-    return uses_active_workforce(f->building);
-}
-
-void building_local_workforce_reconcile_house(Building &house)
-{
-    building_local_workforce::reconcile_house(house);
-}
-
-void building_local_workforce_remove_building(Building &building)
-{
-    building_local_workforce::remove_building(building);
-}
-
-int building_local_workforce_spawn_acquisition(Building &workplace, const map_point *road)
-{
-    return building_local_workforce::spawn_acquisition(workplace, road);
-}
-
-int building_local_workforce_spawn_validation(Building &workplace, const map_point *road)
-{
-    return building_local_workforce::spawn_validation(workplace, road);
-}
-
-int building_local_workforce_prepare_labor_seeker_target(Figure *f)
-{
-    return prepare_labor_seeker_target(f);
-}
-
-void building_local_workforce_labor_seeker_arrived(Figure *f)
-{
-    handle_arrival(f);
-}
-
-void building_local_workforce_labor_seeker_failed(Figure *f)
+void labor_seeker_failed(Figure *f)
 {
     if (!f) {
         return;
     }
     if (f->collecting_item_id == kLaborSeekerTripValidate) {
-        release_workplace_source(f->building.id(), f->destination_building.id());
+        ::release_workplace_source(f->building.id(), f->destination_building.id());
     }
     f->destination_building = Building(nullptr);
-    if (retarget_labor_seeker_to_unemployed(f)) {
+    if (::retarget_labor_seeker_to_unemployed(f)) {
         return;
     }
-    retire_labor_seeker(f);
+    ::retire_labor_seeker(f);
 }
 
-void building_local_workforce_cancel_labor_seeker(Figure *f)
-{
-    retire_labor_seeker(f);
-}
+} // namespace building_local_workforce

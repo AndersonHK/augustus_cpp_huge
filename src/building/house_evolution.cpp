@@ -25,8 +25,6 @@
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
 #define DEVOLVE_DELAY 2
 #define DEVOLVE_DELAY_WITH_VENUS 20
 
@@ -41,16 +39,6 @@ static int active_devolve_delay;
 static const model_house *model_for_house(Building house)
 {
     return building_house_get_model(house);
-}
-
-static building_type type_from_attr(const char *attr)
-{
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
 }
 
 static const model_house *model_for_house_requirements(building *house, int for_upgrade, int with_bonus, int *out_level)
@@ -757,9 +745,9 @@ static building_type get_building_type_at_tile(Building house_object, int x, int
     unsigned int building_id = (unsigned int) map_building_at(grid_offset);
     if (building_id <= 0) {
         if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
-            return type_from_attr("highway");
+            return building_type_registry_impl::type_from_attr("highway");
         } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
-            return type_from_attr("draggable_reservoir");
+            return building_type_registry_impl::type_from_attr("draggable_reservoir");
         } else {
             return BUILDING_NONE;
         }

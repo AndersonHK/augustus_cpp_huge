@@ -37,8 +37,6 @@
 #include "map/grid.h"
 #include "scenario/property.h"
 
-#include <cstring>
-
 #define MAX_LOOTING_DISTANCE 120
 
 static const int CRIMINAL_OFFSETS[] = {
@@ -50,17 +48,10 @@ typedef struct {
     resource_type resource;
 } looter_destination;
 
-static int building_type_attr_is(building_type type, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
-
 static int type_matches_any(building_type type, const char * const *attrs)
 {
     for (int i = 0; attrs[i]; i++) {
-        if (building_type_attr_is(type, attrs[i])) {
+        if (building_type_registry_impl::type_attr_is(type, attrs[i])) {
             return 1;
         }
     }

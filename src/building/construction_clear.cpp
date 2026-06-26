@@ -30,7 +30,6 @@
 #include "map/terrain.h"
 
 #include <string.h>
-#include <string_view>
 
 static struct {
     int x_start;
@@ -50,28 +49,6 @@ static struct {
 static int repair_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end, int *buildings_count);
 static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end);
 
-static building_type type_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
-
-static int type_attr_is(building_type type, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::string_view(definition->attr()) == attr;
-}
-
-static int type_attr_is_any(building_type type, const char *const *text_ids, int count)
-{
-    for (int i = 0; i < count; i++) {
-        if (type_attr_is(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 static building *get_deletable_building(int grid_offset)
 {
     int building_id = map_building_at(grid_offset);
@@ -89,7 +66,8 @@ static building *get_deletable_building(int grid_offset)
         "native_decor",
         "native_watchtower",
     };
-    if (type_attr_is_any(b->type, protected_types, sizeof(protected_types) / sizeof(protected_types[0]))) {
+    if (building_type_registry_impl::type_attr_is_any(
+        b->type, protected_types, sizeof(protected_types) / sizeof(protected_types[0]))) {
         return 0;
     }
     if (b->state == BUILDING_STATE_DELETED_BY_PLAYER || b->is_deleted) {
@@ -146,7 +124,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                 if (!b) {
                     continue;
                 }
-                if (type_attr_is(b->type, "fort_ground") || building_is_fort(b->type)) {
+                if (building_type_registry_impl::type_attr_is(b->type, "fort_ground") || building_is_fort(b->type)) {
                     if (!measure_only && confirm.fort_confirmed != 1) {
                         continue;
                     }
@@ -169,14 +147,14 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     b->figure_id = homeless->id();
                 }
                 if (b->state != BUILDING_STATE_DELETED_BY_PLAYER) {
-                    if (type_attr_is(b->type, "shipyard") && b->figure_id) {
+                    if (building_type_registry_impl::type_attr_is(b->type, "shipyard") && b->figure_id) {
                         Figure *f = Figure::get(b->figure_id);
                         f->state = FIGURE_STATE_DEAD;
                     }
                     items_placed++;
                     game_undo_add_building(b);
                 }
-                building_local_workforce_remove_building(building_obj);
+                building_local_workforce::remove_building(building_obj);
                 city_culture_remove_building_module_capacity(b);
                 b->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 b->is_deleted = 1;
@@ -188,7 +166,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     space = building_get(space->prev_part_building_id);
                     game_undo_add_building(space);
                     Building space_obj(space);
-                    building_local_workforce_remove_building(space_obj);
+                    building_local_workforce::remove_building(space_obj);
                     city_culture_remove_building_module_capacity(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
@@ -200,7 +178,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     }
                     game_undo_add_building(space);
                     Building space_obj(space);
-                    building_local_workforce_remove_building(space_obj);
+                    building_local_workforce::remove_building(space_obj);
                     city_culture_remove_building_module_capacity(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
@@ -235,7 +213,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                             map_building_set_rubble_grid_building_id(grid_offset, 0, 1); // remove rubble marker
 
                             if (rubble_building->state == BUILDING_STATE_RUBBLE ||
-                                    type_attr_is(rubble_building->type, "burning_ruin")) {
+                                    building_type_registry_impl::type_attr_is(rubble_building->type, "burning_ruin")) {
                                 int ruins_left = map_building_ruins_left(rubble_id);
                                 if (!ruins_left) { //dont remove buildings until their last rubble is gone
                                     city_culture_remove_building_module_capacity(rubble_building);
@@ -284,7 +262,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
         building_update_state(); // the update of b state is needed to determine the right images for walls/palisades
         map_tiles_update_area_walls(x_min, y_min, radius + 1);
         building_connectable_update_connections();
-        building_type clear_land = type_from_attr("clear_land");
+        building_type clear_land = building_type_registry_impl::type_from_attr("clear_land");
         if (clear_land != BUILDING_NONE) {
             figure_roamer_preview_reset(clear_land);
         }
@@ -357,7 +335,7 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
             int building_id = map_building_at(grid_offset);
             if (building_id) {
                 building *b = building_get(building_id);
-                if (building_is_fort(b->type) || type_attr_is(b->type, "fort_ground")) {
+                if (building_is_fort(b->type) || building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
                     ask_confirm_fort = 1;
                 }
                 if (building_monument_is_monument(b)) {
@@ -395,11 +373,11 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
 color_t building_construction_clear_color(void)
 {
     building_type construction_type = building_construction_type();
-    if (type_attr_is(construction_type, "clear_land")) {
+    if (building_type_registry_impl::type_attr_is(construction_type, "clear_land")) {
         return COLOR_MASK_RED;
-    } else if (type_attr_is(construction_type, "clear_trees")) {
+    } else if (building_type_registry_impl::type_attr_is(construction_type, "clear_trees")) {
         return COLOR_MASK_YELLOW_RANGE;
-    } else if (type_attr_is(construction_type, "repair_land")) {
+    } else if (building_type_registry_impl::type_attr_is(construction_type, "repair_land")) {
         return COLOR_MASK_GREEN;
     }
     return COLOR_MASK_NONE;
@@ -434,7 +412,7 @@ static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int
         map_tiles_update_region_empty_land(x_min, y_min, x_max, y_max);
         map_tiles_update_region_meadow(x_min, y_min, x_max, y_max);
         map_routing_update_land();
-        building_type clear_trees = type_from_attr("clear_trees");
+        building_type clear_trees = building_type_registry_impl::type_from_attr("clear_trees");
         if (clear_trees != BUILDING_NONE) {
             figure_roamer_preview_reset(clear_trees);
         }
@@ -474,7 +452,7 @@ static int repair_land_confirmed(int measure_only, int x_start, int y_start, int
         if (building_id) {
             building *b = building_get(building_id);
             if (building_can_repair(b)) {
-                if (type_attr_is(b->type, "warehouse_space")) { // swap the b pointer for the main warehouse building
+                if (building_type_registry_impl::type_attr_is(b->type, "warehouse_space")) {
                     b = building_get(map_building_rubble_building_id(b->data.rubble.og_grid_offset));
                 }
                 if (!was_building_counted(b->id, repairable_buildings)) {
@@ -489,7 +467,7 @@ static int repair_land_confirmed(int measure_only, int x_start, int y_start, int
             } else {
                 if (building_monument_is_limited(b->type)) {
                     city_warning_show(WARNING_REPAIR_MONUMENT, translation_for_key("TR_WARNING_CANT_REPAIR_MONUMENTS"));
-                } else if (type_attr_is(b->type, "aqueduct")) {
+                } else if (building_type_registry_impl::type_attr_is(b->type, "aqueduct")) {
                     city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for_key("TR_WARNING_CANT_REPAIR_AQUEDUCTS"));
                 } else {
                     city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));

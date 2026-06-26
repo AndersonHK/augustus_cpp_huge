@@ -763,15 +763,6 @@ static int bootstrap_runtime_graphics_extraction_after_climate(
     return service.bootstrapAfterClimateLoad(climate, ExtractorOptions(false, true)).succeeded() ? 1 : 0;
 }
 
-#ifndef AUGUSTUS_GRAPHICS_EXTRACTOR
-static int building_type_attr_is(building_type type, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::string_view(definition->attr()) == attr;
-}
-#endif
-
 static void update_native_images(int old_climate, int new_climate)
 {
 #ifdef AUGUSTUS_GRAPHICS_EXTRACTOR
@@ -788,12 +779,12 @@ static void update_native_images(int old_climate, int new_climate)
         if (!b || b->state == BUILDING_STATE_UNUSED) {
             continue;
         }
-        if (building_type_attr_is(b->type, "native_hut_alt")) {
+        if (building_type_registry_impl::type_attr_is(b->type, "native_hut_alt")) {
             map_image_set(b->grid_offset, building_image_get(b));
             continue;
         }
         for (int i = 0; native_buildings[i]; i++) {
-            if (building_type_attr_is(b->type, native_buildings[i])) {
+            if (building_type_registry_impl::type_attr_is(b->type, native_buildings[i])) {
                 map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get_for_type(b->type), TERRAIN_BUILDING);
                 break;
             }

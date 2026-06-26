@@ -29,7 +29,8 @@ typedef enum {
 
 typedef enum {
     IMAGE_FILTER_NEAREST = 0,
-    IMAGE_FILTER_LINEAR = 1
+    IMAGE_FILTER_LINEAR = 1,
+    IMAGE_FILTER_BEST = 2
 } image_filter;
 
 typedef enum {

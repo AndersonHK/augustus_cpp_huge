@@ -15,8 +15,6 @@
 #include "core/time.h"
 #include "map/grid.h"
 
-#include <cstring>
-
 #define MAX_ROTATION 3
 
 static struct {
@@ -25,23 +23,6 @@ static struct {
     int road_orientation;
     uint8_t rotation_text[100];
 } data = { 0, 0, 1 };
-
-static int type_attr_is(building_type type, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
-
-static int type_attr_is_any(building_type type, const char *const *attrs, int count)
-{
-    for (int i = 0; i < count; i++) {
-        if (type_attr_is(type, attrs[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 static int get_num_rotations(building_type type)
 {
@@ -60,11 +41,11 @@ static int get_num_rotations(building_type type)
     if (building_properties_for_type(type)->rotation_offset) {
         return 2;
     }
-    if (type_attr_is(type, "shrines")) {
+    if (building_type_registry_impl::type_attr_is(type, "shrines")) {
         return 10;
     }
     static const char *temple_menus[] = { "large_temples", "small_temples" };
-    if (type_attr_is_any(type, temple_menus, 2)) {
+    if (building_type_registry_impl::type_attr_is_any(type, temple_menus, 2)) {
         return 5;
     }
     static const char *four_rotation_types[] = {
@@ -75,11 +56,11 @@ static int get_num_rotations(building_type type)
         "fort_archers",
         "warehouse"
     };
-    if (type_attr_is_any(type, four_rotation_types, 6)) {
+    if (building_type_registry_impl::type_attr_is_any(type, four_rotation_types, 6)) {
         return 4;
     }
     static const char *two_rotation_types[] = { "hippodrome", "gatehouse", "triumphal_arch" };
-    return type_attr_is_any(type, two_rotation_types, 3) ? 2 : 0;
+    return building_type_registry_impl::type_attr_is_any(type, two_rotation_types, 3) ? 2 : 0;
 }
 
 static void update_rotation_message(void)
@@ -282,5 +263,5 @@ int building_rotation_type_has_rotations(building_type type)
         "gatehouse",
         "triumphal_arch"
     };
-    return type_attr_is_any(type, rotating_types, 9);
+    return building_type_registry_impl::type_attr_is_any(type, rotating_types, 9);
 }

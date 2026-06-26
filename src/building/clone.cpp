@@ -12,39 +12,6 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
-static const building_type_registry_impl::BuildingType *definition_for_type(building_type type)
-{
-    return building_type_registry_impl::definition_for_type(type);
-}
-
-static int type_attr_is(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
-    return definition && definition->attr() && std::strcmp(definition->attr(), text_id) == 0;
-}
-
-static int type_attr_is_any(building_type type, const char *const *text_ids, int count)
-{
-    for (int i = 0; i < count; i++) {
-        if (type_attr_is(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static building_type building_type_from_attr(const char *text_id)
-{
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (definition && definition->attr() && std::strcmp(definition->attr(), text_id) == 0) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
-
 static building_type clone_target_for_gate(building_type type)
 {
     struct gate_clone_mapping {
@@ -60,8 +27,8 @@ static building_type clone_target_for_gate(building_type type)
         {"palisade_gate", "palisade"},
     };
     for (const gate_clone_mapping &mapping : mappings) {
-        if (type_attr_is(type, mapping.gate)) {
-            return building_type_from_attr(mapping.wall);
+        if (building_type_registry_impl::type_attr_is(type, mapping.gate)) {
+            return building_type_registry_impl::type_from_attr(mapping.wall);
         }
     }
     return BUILDING_NONE;
@@ -82,8 +49,8 @@ static building_type get_clone_type_from_building(const Building *b, building_ty
         return building_type_registry_get_vacant_lot_fill_type();
     }
 
-    if (type_attr_is(clone_type, "reservoir")) {
-        return building_type_from_attr("draggable_reservoir");
+    if (building_type_registry_impl::type_attr_is(clone_type, "reservoir")) {
+        return building_type_registry_impl::type_from_attr("draggable_reservoir");
     }
 
     static const char *const native_text_ids[] = {
@@ -95,11 +62,12 @@ static building_type get_clone_type_from_building(const Building *b, building_ty
         "native_monument",
         "native_watchtower",
     };
-    if (type_attr_is_any(clone_type, native_text_ids, sizeof(native_text_ids) / sizeof(native_text_ids[0]))) {
+    if (building_type_registry_impl::type_attr_is_any(
+        clone_type, native_text_ids, sizeof(native_text_ids) / sizeof(native_text_ids[0]))) {
         return BUILDING_NONE;
     }
 
-    if (type_attr_is(clone_type, "burning_ruin")) {
+    if (building_type_registry_impl::type_attr_is(clone_type, "burning_ruin")) {
         if (b && b->id()) {
             building *before_fire = building_get(map_building_rubble_building_id(b->grid_offset()));
             building_type type = before_fire ?
@@ -159,23 +127,24 @@ building_type building_clone_type_from_grid_offset(int grid_offset)
             building_clone_type_from_building_type(static_cast<building_type>(old_building->data.rubble.og_type)) :
             BUILDING_NONE;
     } else if (terrain & TERRAIN_AQUEDUCT) {
-        return building_type_from_attr("aqueduct");
+        return building_type_registry_impl::type_from_attr("aqueduct");
     } else if (terrain & TERRAIN_WALL) {
-        return building_type_from_attr("wall");
+        return building_type_registry_impl::type_from_attr("wall");
     } else if (terrain & TERRAIN_GARDEN) {
         return map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) ?
-            building_type_from_attr("overgrown_gardens") : building_type_from_attr("gardens");
+            building_type_registry_impl::type_from_attr("overgrown_gardens") :
+            building_type_registry_impl::type_from_attr("gardens");
     } else if (terrain & TERRAIN_ROAD) {
         if (terrain & TERRAIN_WATER) {
             return building_type_registry_impl::type_from_roadblock_bridge(map_sprite_bridge_at(grid_offset) > 6 ?
                 building_type_registry_impl::RoadblockBridgeType::Ship :
                 building_type_registry_impl::RoadblockBridgeType::Low);
         } else if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-            return building_type_from_attr("plaza");
+            return building_type_registry_impl::type_from_attr("plaza");
         }
-        return building_type_from_attr("road");
+        return building_type_registry_impl::type_from_attr("road");
     } else if (terrain & TERRAIN_HIGHWAY) {
-        return building_type_from_attr("highway");
+        return building_type_registry_impl::type_from_attr("highway");
     }
 
     return BUILDING_NONE;
