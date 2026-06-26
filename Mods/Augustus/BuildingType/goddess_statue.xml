@@ -9,6 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land" rotation="pair" />
   <button group="statues" order="20" text_key="TR_BUILDING_SMALL_STATUE_ALT" />
     <event_data attr="goddess_statue|small_statue_alt" />
     <flags fire_proof="1" venus_gt_bonus="1" />

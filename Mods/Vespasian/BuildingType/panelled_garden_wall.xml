@@ -9,6 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land_or_road" rotation="path" />
     <button group="parks" order="260" text_key="TR_BUILDING_PANELLED_GARDEN_WALL" />
     <event_data attr="panelled_garden_wall" />
     <flags fire_proof="1" venus_gt_bonus="1" />

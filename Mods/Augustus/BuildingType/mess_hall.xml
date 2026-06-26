@@ -9,6 +9,7 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
+    <construction max_count="1" />
   <button group="security" order="100" text_key="TR_BUILDING_MESS_HALL" />
     <event_data attr="mess_hall" />
     <distribution path="mess_hall" />

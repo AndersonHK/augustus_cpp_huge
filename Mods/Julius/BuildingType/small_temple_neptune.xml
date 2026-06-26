@@ -11,6 +11,7 @@
     </desirability>
     <foundation policy="land" />
     <button group="small_temples" order="20" icon="Health_Culture\Temple_Neptune" text_key="TR_BUILDING_SMALL_TEMPLE_NEPTUNE_NAME" />
+    <cycle group="small_temples" order="20" steps="1" />
     <sound id="temple_neptune" />
     <event_data attr="small_temple_neptune" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />

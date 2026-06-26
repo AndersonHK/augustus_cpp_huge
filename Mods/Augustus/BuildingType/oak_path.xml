@@ -9,7 +9,9 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land" rotation="path" />
   <button group="paths" order="40" text_key="TR_BUILDING_OAK_PATH" />
+    <cycle group="garden_paths" order="60" steps="2" />
     <event_data attr="oak_path" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

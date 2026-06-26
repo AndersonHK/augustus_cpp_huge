@@ -417,20 +417,6 @@ static void foreach_map_tile_in_region(
     }
 }
 
-static building_type_registry_impl::TileRefreshBehavior refresh_behavior_for_kind(
-    building_type_registry_impl::TileKind kind)
-{
-    switch (kind) {
-        case building_type_registry_impl::TileKind::Garden:
-            return building_type_registry_impl::TileRefreshBehavior::Garden;
-        case building_type_registry_impl::TileKind::Plaza:
-        case building_type_registry_impl::TileKind::Roadblock:
-            return building_type_registry_impl::TileRefreshBehavior::Plaza;
-        default:
-            return building_type_registry_impl::TileRefreshBehavior::None;
-    }
-}
-
 static void update_all_tile_refresh_behavior(building_type_registry_impl::TileRefreshBehavior behavior)
 {
     switch (behavior) {
@@ -480,21 +466,6 @@ void map_tiles_update_region_tile(
     const building_type_registry_impl::TileDefinition &tile)
 {
     update_region_tile_refresh_behavior(x_min, y_min, x_max, y_max, tile.refresh_behavior());
-}
-
-void map_tiles_update_all_tile_kind(building_type_registry_impl::TileKind kind)
-{
-    update_all_tile_refresh_behavior(refresh_behavior_for_kind(kind));
-}
-
-void map_tiles_update_region_tile_kind(
-    int x_min,
-    int y_min,
-    int x_max,
-    int y_max,
-    building_type_registry_impl::TileKind kind)
-{
-    update_region_tile_refresh_behavior(x_min, y_min, x_max, y_max, refresh_behavior_for_kind(kind));
 }
 
 static int get_gatehouse_building_id(int grid_offset)
@@ -992,12 +963,14 @@ static void set_highway_image(int x, int y, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_HIGHWAY) || map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         return;
     }
+    int option_count = tile_runtime_role_option_count("highway", "tile_base");
+    int option_index = option_count > 0 ? map_random_get(grid_offset) % option_count : 0;
+    int base_image_id = tile_runtime_set_role_image_id(grid_offset, "highway", "tile_base", option_index);
     if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
         const terrain_image *img = map_image_context_get_aqueduct(grid_offset, 0);
         set_aqueduct_image(grid_offset, 0, img);
     } else {
-        int highway_base = assets_lookup_image_id(ASSET_HIGHWAY_BASE_START);
-        map_image_set(grid_offset, highway_base);
+        map_image_set(grid_offset, base_image_id);
     }
     map_property_set_multi_tile_size(grid_offset, 1);
     map_property_mark_draw_tile(grid_offset);

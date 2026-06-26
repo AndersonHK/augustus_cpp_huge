@@ -8,7 +8,7 @@
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation policy="road_or_land" />
     <button group="parks" order="240" text_key="TR_BUILDING_HEDGE_GATE_DARK" />
     <event_data attr="hedge_gate_dark" />
     <roadblock kind="standard" />

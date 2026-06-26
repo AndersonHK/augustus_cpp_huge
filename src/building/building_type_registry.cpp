@@ -60,6 +60,20 @@ building_type type_from_attr(std::string_view attr)
     return BUILDING_NONE;
 }
 
+building_type type_from_roadblock_bridge(RoadblockBridgeType bridge_type)
+{
+    if (bridge_type == RoadblockBridgeType::None) {
+        return BUILDING_NONE;
+    }
+
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (definition && definition->roadblock().bridge_type() == bridge_type) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
+}
+
 void clear_xml_runtime_property_fields()
 {
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {

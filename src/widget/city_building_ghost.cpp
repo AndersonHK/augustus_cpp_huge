@@ -7,6 +7,7 @@
 #include "building/industry.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
+#include "building/religion.h"
 #include "building/variant.h"
 #include "building/water_access_runtime.h"
 #include "figure/roamer_preview.h"
@@ -21,7 +22,6 @@
 #include "map/orientation.h"
 #include "map/road_aqueduct.h"
 #include "map/tiles.h"
-#include "map/water.h"
 #include "map/water_supply.h"
 #include "widget/city.h"
 #include "widget/city_bridge.h"
@@ -32,6 +32,7 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/construction_plan.h"
+#include "building/construction_routed.h"
 #include "building/building_type_registry_internal.h"
 #include "building/market.h"
 
@@ -49,15 +50,12 @@
 #include "graphics/renderer.h"
 #include "input/scroll.h"
 #include "map/data.h"
-#include "map/desirability.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/routing_terrain.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
-
-#include <cstring>
 
 // Note: If we ever end up creating larger buildings than 7 * 7, we should update this
 #define MAX_TILES (7 * 7)
@@ -100,65 +98,18 @@ static struct {
     .scale = SCALE_NONE
 };
 
-static const building_type_registry_impl::BuildingType *building_type_definition_from_attr(const char *text_id)
-{
-    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
-        building_type_registry_impl::g_building_types) {
-        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
-            return definition.get();
-        }
-    }
-    return nullptr;
-}
-
-static building_type building_type_from_attr(const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition = building_type_definition_from_attr(text_id);
-    return definition ? definition->type() : BUILDING_NONE;
-}
-
-static int building_type_attr_is(building_type type, const char *text_id)
+static int is_bridge_type(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(type);
-    return definition && std::strcmp(definition->attr(), text_id) == 0;
-}
-
-static int building_type_attr_is_any(building_type type, const char *const *text_ids, int text_id_count)
-{
-    for (int i = 0; i < text_id_count; ++i) {
-        if (building_type_attr_is(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int is_plaza_type(building_type type)
-{
-    return building_type_attr_is(type, "plaza");
-}
-
-static int is_roadblock_type(building_type type)
-{
-    return building_type_attr_is(type, "roadblock");
-}
-
-static int is_bridge_type(building_type type)
-{
-    return building_type_attr_is(type, "low_bridge") || building_type_attr_is(type, "ship_bridge");
+    return definition && definition->roadblock().is_bridge();
 }
 
 static int is_ship_bridge_type(building_type type)
 {
-    return building_type_attr_is(type, "ship_bridge");
-}
-
-static int definition_foundation_policy_is(
-    const building_type_registry_impl::BuildingType &definition,
-    const char *policy)
-{
-    return definition.foundation().has_policy() && std::strcmp(definition.foundation().policy(), policy) == 0;
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->roadblock().is_ship_bridge();
 }
 
 static int is_waterside_definition(const building_type_registry_impl::BuildingType &definition)
@@ -167,8 +118,8 @@ static int is_waterside_definition(const building_type_registry_impl::BuildingTy
         return 0;
     }
     const building_type_registry_impl::FoundationDefinition &foundation = definition.foundation();
-    if (definition_foundation_policy_is(definition, "shoreline") ||
-        definition_foundation_policy_is(definition, "water")) {
+    if (foundation.policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline ||
+        foundation.policy_type() == building_type_registry_impl::FoundationPolicy::Water) {
         return 1;
     }
     for (const building_type_registry_impl::FoundationCellDefinition &cell : foundation.cells()) {
@@ -184,32 +135,9 @@ static int is_waterside_type(building_type type)
     return is_waterside_definition(*building_type_registry_impl::definition_for_type(type));
 }
 
-static int is_definition_attr(const building_type_registry_impl::BuildingType &definition, const char *text_id)
-{
-    return std::strcmp(definition.attr(), text_id) == 0;
-}
-
 static int is_bridge_definition(const building_type_registry_impl::BuildingType &definition)
 {
-    return definition.roadblock().kind() == building_type_registry_impl::RoadblockKind::Bridge;
-}
-
-static int is_road_surface_type(building_type type)
-{
-    static const char *const text_ids[] = {
-        "plaza",
-        "roadblock",
-        "garden_wall_gate",
-        "panelled_garden_gate",
-        "looped_garden_gate",
-        "hedge_gate_dark",
-        "hedge_gate_light",
-        "palisade_gate",
-        "gatehouse",
-        "triumphal_arch"
-    };
-    return building_type_attr_is_any(type, text_ids, sizeof(text_ids) / sizeof(text_ids[0])) ||
-        is_bridge_type(type);
+    return definition.roadblock().is_bridge();
 }
 
 static inline int view_offset_x(int index)
@@ -238,44 +166,6 @@ static int is_reservoir_side_connection_tile(int tile_no)
         tile_no == 7;
 }
 
-static int force_place_can_clear_terrain(int terrain)
-{
-    return terrain && !(terrain & ~(TERRAIN_TREE | TERRAIN_SHRUB | TERRAIN_ROAD));
-}
-
-static int is_blocked_for_building(int grid_offset, int building_size, int *blocked_tiles, int check_figures)
-{
-    int orientation_index = city_view_orientation() / 2;
-    int blocked = 0;
-    int num_tiles = building_size * building_size;
-    int force_place_active = building_construction_force_place_active();
-    for (int i = 0; i < num_tiles; i++) {
-        int tile_offset = grid_offset + tile_grid_offset(orientation_index, i);
-        int tile_blocked = 0;
-        int blocked_terrain = map_terrain_get(tile_offset) & TERRAIN_NOT_CLEAR;
-        if (blocked_terrain && (!force_place_active || !force_place_can_clear_terrain(blocked_terrain))) {
-            tile_blocked = 1;
-        }
-        if (map_has_figure_at(tile_offset)) {
-            tile_blocked = check_figures || force_place_active;
-            figure_animal_try_nudge_at(grid_offset, tile_offset, building_size);
-        }
-        blocked_tiles[i] = tile_blocked;
-        blocked += tile_blocked;
-    }
-    return blocked;
-}
-
-static int has_blocked_tiles(int num_tiles, int *blocked_tiles)
-{
-    for (int i = 0; i < num_tiles; i++) {
-        if (blocked_tiles[i] != TILE_ALLOWED) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 static void draw_building_tiles(int x, int y, int num_tiles, int *blocked_tiles)
 {
     for (int i = 0; i < num_tiles; i++) {
@@ -296,23 +186,6 @@ static void draw_building(int image_id, int x, int y, color_t color)
     Image::from_id(image_id).draw_isometric_top(x, y, color, data.scale);
 }
 
-static int composed_placement_size(const building_type_registry_impl::BuildingType &definition)
-{
-    if (!definition.has_composition()) {
-        return 0;
-    }
-    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition.composition();
-    return composition.footprint_width() > composition.footprint_height() ?
-        composition.footprint_width() :
-        composition.footprint_height();
-}
-
-static int ghost_building_size(const building_type_registry_impl::BuildingType &definition)
-{
-    int composed_size = composed_placement_size(definition);
-    return composed_size > 0 ? composed_size : building_properties_for_type(definition.type())->size;
-}
-
 static void prepare_ghost_water_access_state(
     const building_type_registry_impl::BuildingType &definition,
     building &ghost)
@@ -320,69 +193,6 @@ static void prepare_ghost_water_access_state(
     if (definition.water_access().has_requirements() || definition.has_water_access_provider()) {
         ghost.has_water_access = static_cast<unsigned char>(water_access_runtime_building_has_required_access(&ghost));
     }
-}
-
-static void prepare_ghost_building_with_size(
-    int grid_offset,
-    const building_type_registry_impl::BuildingType &definition,
-    int building_size)
-{
-    const building_type type = definition.type();
-    data.ghost_building = {};
-    data.ghost_building.type = type;
-    data.ghost_building.grid_offset = grid_offset;
-    data.ghost_building.state = BUILDING_STATE_IN_USE;
-    data.ghost_building.size = static_cast<unsigned char>(building_size);
-    data.ghost_building.num_workers = model_get_building(type)->laborers;
-    data.ghost_building.data.entertainment.days1 = 1;
-    data.ghost_building.data.entertainment.days2 = 1;
-    if (definition.is_granary()) {
-        data.ghost_building.resources[RESOURCE_NONE] = FULL_GRANARY;
-    }
-
-    int building_x = map_grid_offset_to_x(grid_offset);
-    int building_y = map_grid_offset_to_y(grid_offset);
-    building_construction_offset_start_from_orientation(&building_x, &building_y, data.ghost_building.size);
-    if (map_grid_is_inside(building_x, building_y, data.ghost_building.size)) {
-        data.ghost_building.x = static_cast<unsigned char>(building_x);
-        data.ghost_building.y = static_cast<unsigned char>(building_y);
-        int desirability = map_desirability_get_max(building_x, building_y, data.ghost_building.size);
-        if (desirability > 127) {
-            desirability = 127;
-        } else if (desirability < -128) {
-            desirability = -128;
-        }
-        data.ghost_building.desirability = static_cast<signed char>(desirability);
-        prepare_ghost_water_access_state(definition, data.ghost_building);
-    }
-
-    if (building_variant_has_variants(type)) {
-        data.ghost_building.variant = building_rotation_get_rotation_with_limit(
-            building_variant_get_number_of_variants(type));
-    } else {
-        data.ghost_building.variant = 0;
-    }
-    if (building_properties_for_type(type)->rotation_offset) {
-        data.ghost_building.subtype.orientation = building_rotation_get_rotation();
-    } else {
-        data.ghost_building.subtype.orientation = 0;
-    }
-    if (is_waterside_definition(definition)) {
-        int waterside_orientation_abs = -1;
-        map_water_determine_orientation(building_x, building_y, data.ghost_building.size, 0,
-            &waterside_orientation_abs, 0, 0, 0);
-        if (waterside_orientation_abs >= 0) {
-            data.ghost_building.subtype.orientation = static_cast<short>(waterside_orientation_abs);
-            if (definition_foundation_policy_is(definition, "shoreline")) {
-                data.ghost_building.data.dock.orientation = static_cast<signed char>(waterside_orientation_abs);
-            }
-        }
-    }
-}
-
-static void prepare_ghost_building(int grid_offset, const building_type_registry_impl::BuildingType &definition)
-{
-    prepare_ghost_building_with_size(grid_offset, definition, ghost_building_size(definition));
 }
 
 static void draw_tile_view_offset(int building_size, int *x_offset, int *y_offset)
@@ -439,120 +249,6 @@ static void draw_runtime_ghost_record(
     draw_runtime_ghost_animation(building, record.grid_offset, x, y, color);
 }
 
-static void prepare_composed_ghost_part(
-    building &part_record,
-    const building_type_registry_impl::BuildingType &definition,
-    int x,
-    int y,
-    const building &main_record)
-{
-    const building_type type = definition.type();
-    const building_properties *props = building_properties_for_type(type);
-    part_record = {};
-    part_record.type = type;
-    part_record.state = BUILDING_STATE_IN_USE;
-    part_record.size = static_cast<unsigned char>(props ? props->size : 1);
-    const model_building *model = model_get_building(type);
-    part_record.num_workers = model ? model->laborers : 0;
-    part_record.x = static_cast<unsigned char>(x);
-    part_record.y = static_cast<unsigned char>(y);
-    part_record.grid_offset = map_grid_offset(x, y);
-    part_record.variant = main_record.variant;
-    part_record.subtype.orientation = main_record.subtype.orientation;
-    part_record.desirability = main_record.desirability;
-    part_record.data.entertainment.days1 = 1;
-    part_record.data.entertainment.days2 = 1;
-    prepare_ghost_water_access_state(definition, part_record);
-}
-
-static void draw_runtime_single_building(
-    const building_type_registry_impl::BuildingType &definition,
-    int grid_offset,
-    int x,
-    int y,
-    int building_size,
-    color_t color)
-{
-    prepare_ghost_building_with_size(grid_offset, definition, building_size);
-    int x_draw = 0;
-    int y_draw = 0;
-    draw_tile_view_offset(building_size, &x_draw, &y_draw);
-    draw_runtime_ghost_record(definition, data.ghost_building, x + x_draw, y + y_draw, color);
-}
-
-static void composed_part_view_offset(
-    const building &part_record,
-    const building_type_registry_impl::ComposedPartOffset &offset,
-    int *x,
-    int *y)
-{
-    int tile_x = X_VIEW_OFFSET(offset.x, offset.y);
-    int tile_y = Y_VIEW_OFFSET(offset.x, offset.y);
-    int size_x = 0;
-    int size_y = 0;
-    draw_tile_view_offset(part_record.size, &size_x, &size_y);
-    *x = tile_x + size_x;
-    *y = tile_y + size_y;
-}
-
-static void draw_runtime_composed_building(
-    const building_type_registry_impl::BuildingType &definition,
-    int grid_offset,
-    int x,
-    int y,
-    color_t color)
-{
-    const building_type type = definition.type();
-    prepare_ghost_building(grid_offset, definition);
-    building main_record = data.ghost_building;
-    const int origin_x = main_record.x;
-    const int origin_y = main_record.y;
-    const int rotation = building_rotation_get_rotation();
-    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition.composition();
-    const building_type_registry_impl::ComposedPartOffset main_offset =
-        composition.main_offset_for_rotation(rotation);
-
-    for (const building_type_registry_impl::ComposedPartDefinition &part : composition.parts()) {
-        const building_type_registry_impl::ComposedPartOffset offset = part.offset_for_rotation(rotation);
-        if (part.type == BUILDING_NONE || !offset.has_value) {
-            continue;
-        }
-        const building_type_registry_impl::BuildingType &part_definition =
-            *building_type_registry_impl::definition_for_type(part.type);
-        building part_record = {};
-        prepare_composed_ghost_part(
-            part_record, part_definition, origin_x + offset.x, origin_y + offset.y, main_record);
-        int x_part = 0;
-        int y_part = 0;
-        composed_part_view_offset(part_record, offset, &x_part, &y_part);
-        draw_runtime_ghost_record(part_definition, part_record, x + x_part, y + y_part, color);
-    }
-
-    main_record.size = static_cast<unsigned char>(building_properties_for_type(type)->size);
-    main_record.x = static_cast<unsigned char>(origin_x + main_offset.x);
-    main_record.y = static_cast<unsigned char>(origin_y + main_offset.y);
-    main_record.grid_offset = map_grid_offset(main_record.x, main_record.y);
-    int x_main = 0;
-    int y_main = 0;
-    composed_part_view_offset(main_record, main_offset, &x_main, &y_main);
-    draw_runtime_ghost_record(definition, main_record, x + x_main, y + y_main, color);
-}
-
-static void draw_runtime_regular_building(
-    const building_type_registry_impl::BuildingType &definition,
-    int grid_offset,
-    int x,
-    int y,
-    int building_size,
-    color_t color)
-{
-    if (definition.has_composition()) {
-        draw_runtime_composed_building(definition, grid_offset, x, y, color);
-        return;
-    }
-    draw_runtime_single_building(definition, grid_offset, x, y, building_size, color);
-}
-
 static void draw_blocked_tile(int x, int y, int grid_offset)
 {
     Image::blend_footprint_color(x, y, COLOR_MASK_RED, data.scale);
@@ -604,23 +300,6 @@ void city_building_ghost_draw_aqueduct_range(int x, int y, int grid_offset)
 void city_building_ghost_draw_latrines_range(int x, int y, int grid_offset)
 {
     Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, COLOR_MASK_DARK_GREEN & ALPHA_FONT_SEMI_TRANSPARENT, data.scale);
-}
-
-static void draw_runtime_building_with_tiles(
-    const building_type_registry_impl::BuildingType &definition,
-    int x,
-    int y,
-    int grid_offset,
-    int building_size,
-    int num_tiles,
-    int *blocked_tiles)
-{
-    const int has_blocked = has_blocked_tiles(num_tiles, blocked_tiles);
-    building_construction_set_can_place(!has_blocked);
-    color_t color = has_blocked ?
-        COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
-    draw_runtime_regular_building(definition, grid_offset, x, y, building_size, color);
-    draw_building_tiles(x, y, num_tiles, blocked_tiles);
 }
 
 static void get_building_base_xy(int map_x, int map_y, int building_size, int *x, int *y)
@@ -765,6 +444,29 @@ static void draw_distribution_context_overlays(
     }
 }
 
+static void draw_grand_temple_neptune_range(int x, int y, int grid_offset)
+{
+    color_t color_mask = data.reservoir_range.blocked ? COLOR_MASK_GRAY : COLOR_MASK_BLUE;
+    draw_water_range_overlay(x, y, color_mask);
+}
+
+static void draw_grand_temple_neptune_context_overlay(
+    const map_tile *tile,
+    const building_type_registry_impl::BuildingType &definition,
+    int building_size,
+    int blocked)
+{
+    if (!definition.is_temple(GOD_NEPTUNE, building_type_registry_impl::ReligionTier::Grand)) {
+        return;
+    }
+    data.reservoir_range.blocked = blocked;
+    int radius = map_water_supply_reservoir_radius();
+    if (!building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
+        radius += 2;
+    }
+    city_view_foreach_tile_in_range(tile->grid_offset, building_size, radius, draw_grand_temple_neptune_range);
+}
+
 static building make_plan_ghost_record(
     const building_construction::ConstructionPlacementPlan &plan,
     const building_construction::ConstructionPlacementPart &part,
@@ -791,8 +493,7 @@ static building make_plan_ghost_record(
             building_rotation_get_rotation_with_limit(building_variant_get_number_of_variants(root_definition.type()));
     }
     if (plan.waterside_orientation_absolute() >= 0 &&
-        part_definition.foundation().has_policy() &&
-        std::strcmp(part_definition.foundation().policy(), "shoreline") == 0) {
+        part_definition.foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline) {
         record.subtype.orientation = static_cast<short>(plan.waterside_orientation_absolute());
         record.data.dock.orientation = static_cast<signed char>(plan.waterside_orientation_absolute());
     } else if (building_rotation_type_has_rotations(root_definition.type()) ||
@@ -806,13 +507,12 @@ static building make_plan_ghost_record(
 static void draw_plan_tiles(
     const building_construction::ConstructionPlacementPart &part,
     int x,
-    int y,
-    int global_blocked)
+    int y)
 {
     for (const building_construction::ConstructionPlacementTile &tile : part.tiles) {
         const int tile_x = x + X_VIEW_OFFSET(tile.dx, tile.dy);
         const int tile_y = y + Y_VIEW_OFFSET(tile.dx, tile.dy);
-        if (global_blocked || tile.state == building_construction::PlacementTileState::Forbidden) {
+        if (tile.state == building_construction::PlacementTileState::Forbidden) {
             Image::blend_footprint_color(tile_x, tile_y, COLOR_MASK_RED, data.scale);
         } else {
             Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).
@@ -827,8 +527,7 @@ static void draw_plan_part(
     int x_view,
     int y_view,
     const building_type_registry_impl::BuildingType &root_definition,
-    color_t color,
-    int global_blocked)
+    color_t color)
 {
     int x_size_offset = 0;
     int y_size_offset = 0;
@@ -839,7 +538,7 @@ static void draw_plan_part(
     const int draw_y = tile_y + y_size_offset;
     building record = make_plan_ghost_record(plan, part, root_definition);
     draw_runtime_ghost_record(*part.definition, record, draw_x, draw_y, color);
-    draw_plan_tiles(part, tile_x, tile_y, global_blocked);
+    draw_plan_tiles(part, tile_x, tile_y);
 }
 
 static const building_type_registry_impl::BuildingType &effective_ghost_definition(
@@ -864,23 +563,24 @@ static void draw_default(
     const building_type type = definition.type();
 
     const int force_place_active = building_construction_force_place_active();
-    building_construction::ConstructionPlacementPlan plan(definition, tile->x, tile->y, 0, force_place_active);
-
-    int force_place_clear_cost = 0;
-    const int construction_allows = force_place_active ?
-        building_construction_force_place_assess(type, tile->x, tile->y, 0, &force_place_clear_cost) :
-        building_construction_assess_building(type, tile->x, tile->y, 0);
-    if (force_place_active && construction_allows) {
-        building_construction_set_force_place_clear_cost(force_place_clear_cost);
+    building_construction_assessment assessment =
+        building_construction_assess_placement(definition, tile->x, tile->y, 0, force_place_active);
+    const building_construction::ConstructionPlacementPlan &plan = assessment.placement;
+    if (force_place_active && assessment.can_place) {
+        building_construction_set_force_place_clear_cost(assessment.clear_cost);
     }
-    const int blocked = city_finance_out_of_money() || !construction_allows || !plan.can_place();
+    const int plan_blocked = !plan.can_place();
+    const int construction_blocked = !assessment.can_place;
+    const int blocked = city_finance_out_of_money() || construction_blocked || plan_blocked;
+    const int global_blocked = city_finance_out_of_money() || (construction_blocked && !plan_blocked);
     building_construction_set_can_place(!blocked);
 
-    const color_t color = blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
+    const color_t color = global_blocked ? COLOR_MASK_BUILDING_GHOST_RED : COLOR_MASK_BUILDING_GHOST;
     draw_water_access_context_overlays(tile, definition);
+    draw_grand_temple_neptune_context_overlay(tile, definition, plan.placement_size(), blocked);
     draw_distribution_context_overlays(tile, definition, plan.placement_size());
     for (const building_construction::ConstructionPlacementPart &part : plan.parts()) {
-        draw_plan_part(plan, part, x_view, y_view, definition, color, blocked);
+        draw_plan_part(plan, part, x_view, y_view, definition, color);
     }
 
     set_roamer_path(type, plan.placement_size(), tile, blocked);
@@ -1041,23 +741,9 @@ static void draw_aqueduct(const map_tile *tile, int x, int y, building_type type
     int blocked = city_finance_out_of_money();
     if (!blocked) {
         if (building_construction_in_progress()) {
-            if (!building_construction_cost()) {
-                blocked = 1;
-            }
+            blocked = !building_construction_can_place() || !building_construction_cost();
         } else {
-            if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-                blocked = !map_is_straight_road_for_aqueduct(grid_offset);
-                if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-                    blocked = 1;
-                }
-                if (map_terrain_count_directly_adjacent_with_types(grid_offset, TERRAIN_ROAD | TERRAIN_AQUEDUCT)) {
-                    blocked = 1;
-                }
-            } else if (!map_can_place_aqueduct_on_highway(grid_offset, 0)) {
-                blocked = 1;
-            } else if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR ^ TERRAIN_HIGHWAY)) {
-                blocked = 1;
-            }
+            blocked = !building_construction_can_place_aqueduct_endpoint(grid_offset);
         }
     }
     int image_id = Image::group(GROUP_BUILDING_AQUEDUCT);
@@ -1192,77 +878,6 @@ static void draw_road(const map_tile *tile, int x, int y)
     }
 }
 
-static void draw_highway(
-    const map_tile *tile,
-    int x,
-    int y,
-    const building_type_registry_impl::BuildingType &definition)
-{
-    const building_type type = definition.type();
-    const building_properties *props = building_properties_for_type(type);
-
-    // check if we can place building
-    int grid_offset = tile->grid_offset;
-    int fully_blocked = city_finance_out_of_money();
-
-    int num_tiles = props->size * props->size;
-    int blocked_tiles[MAX_TILES];
-    int orientation_index = city_view_orientation() / 2;
-
-    for (int i = 0; i < num_tiles; i++) {
-        int tile_offset = grid_offset + tile_grid_offset(orientation_index, i);
-        int terrain = map_terrain_get(tile_offset);
-        int has_forbidden_terrain = terrain & TERRAIN_NOT_CLEAR & ~TERRAIN_HIGHWAY & ~TERRAIN_ROAD;
-        if (fully_blocked || (has_forbidden_terrain && !(terrain & TERRAIN_AQUEDUCT)) ||
-            !map_can_place_highway_under_aqueduct(tile_offset, 0)) {
-            blocked_tiles[i] = 1;
-        } else {
-            blocked_tiles[i] = 0;
-        }
-    }
-
-    draw_runtime_building_with_tiles(definition, x, y, grid_offset, props->size, num_tiles, blocked_tiles);
-}
-
-static void draw_grand_temple_neptune_range(int x, int y, int grid_offset)
-{
-    color_t color_mask = data.reservoir_range.blocked ? COLOR_MASK_GRAY : COLOR_MASK_BLUE;
-    draw_water_range_overlay(x, y, color_mask);
-}
-
-static void draw_grand_temple_neptune(
-    const map_tile *tile,
-    int x,
-    int y,
-    const building_type_registry_impl::BuildingType &definition)
-{
-    const building_type type = definition.type();
-    const building_properties *props = building_properties_for_type(type);
-    int num_tiles = props->size * props->size;
-    int blocked[MAX_TILES];
-    int blocked_state = 0;
-    if (city_finance_out_of_money()) {
-        blocked_state = 1;
-        for (int i = 0; i < num_tiles; ++i) {
-            blocked[i] = 1;
-        }
-    } else {
-        blocked_state = is_blocked_for_building(tile->grid_offset, props->size, blocked, 1);
-    }
-    if (blocked_state) {
-        Image::blend_footprint_color(x, y, COLOR_MASK_RED, data.scale);
-    }
-    data.reservoir_range.blocked = has_blocked_tiles(num_tiles, blocked);
-    int radius = map_water_supply_reservoir_radius();
-    // need to add 2 for the bonus the Neptune GT will add
-    if (!building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
-        radius += 2;
-    }
-    city_view_foreach_tile_in_range(tile->grid_offset, props->size, radius, draw_grand_temple_neptune_range);
-    draw_runtime_building_with_tiles(definition, x, y, tile->grid_offset, props->size, num_tiles, blocked);
-    set_roamer_path(type, props->size, tile, data.reservoir_range.blocked);
-}
-
 int city_building_ghost_mark_deleting(const map_tile *tile)
 {
     building_type construction_type = building_construction_type();
@@ -1318,7 +933,7 @@ static void draw_partial_grid(
     const building_type_registry_impl::BuildingType &definition)
 {
     const building_type type = definition.type();
-    if (is_definition_attr(definition, "draggable_reservoir")) {
+    if (definition.tool().is_draggable_reservoir()) {
         int size = 3;
         int orientation_index = city_view_orientation() / 2;
         grid_offset += RESERVOIR_GRID_OFFSETS[orientation_index];
@@ -1395,7 +1010,7 @@ void city_building_ghost_draw(const map_tile *tile)
     const building_properties *props = building_properties_for_type(type);
     if (config_get(CONFIG_UI_SHOW_DESIRABILITY_RANGE_ALL) ||
         (config_get(CONFIG_UI_SHOW_DESIRABILITY_RANGE) && definition->flags().draw_desirability_range())) {
-        const int is_draggable_reservoir = is_definition_attr(*definition, "draggable_reservoir");
+        const int is_draggable_reservoir = definition->tool().is_draggable_reservoir();
         int building_size = (is_draggable_reservoir || definition->is_warehouse()) ? 3 : props->size;
 
         if (is_draggable_reservoir) {
@@ -1441,16 +1056,12 @@ void city_building_ghost_draw(const map_tile *tile)
         return;
     }
 
-    if (is_definition_attr(*definition, "draggable_reservoir")) {
+    if (definition->tool().is_draggable_reservoir()) {
         draw_draggable_reservoir(tile, x, y, type);
-    } else if (is_definition_attr(*definition, "aqueduct")) {
+    } else if (definition->tool().is_aqueduct()) {
         draw_aqueduct(tile, x, y, type);
-    } else if (is_definition_attr(*definition, "road")) {
+    } else if (definition->tool().is_road()) {
         draw_road(tile, x, y);
-    } else if (is_definition_attr(*definition, "highway")) {
-        draw_highway(tile, x, y, *definition);
-    } else if (is_definition_attr(*definition, "grand_temple_neptune")) {
-        draw_grand_temple_neptune(tile, x, y, *definition);
     } else {
         draw_default(tile, x, y, *definition);
     }

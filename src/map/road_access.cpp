@@ -17,16 +17,13 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-#include <cstring>
-
-static int building_matches(building *b, const char *text_id)
+static int building_is_wall_gate(building *b)
 {
     if (!b) {
         return 0;
     }
     Building current(b);
-    const building_type_registry_impl::BuildingType *definition = current.type;
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
+    return current.type && current.type->roadblock().is_wall_gate();
 }
 
 static void find_minimum_road_tile(int x, int y, int size, int *min_value, int *min_grid_offset)
@@ -37,7 +34,7 @@ static void find_minimum_road_tile(int x, int y, int size, int *min_value, int *
         building *adjacent_building = map_terrain_is(grid_offset, TERRAIN_BUILDING) ?
             building_get(map_building_at(grid_offset)) : nullptr;
         if (!map_terrain_is(grid_offset, TERRAIN_BUILDING) ||
-            !building_matches(adjacent_building, "gatehouse")) {
+            !building_is_wall_gate(adjacent_building)) {
             if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
                 const int building_id = map_building_at(grid_offset);
                 roadblock_type kind = building_id ? Roadblock(building_get(building_id)).kind() : ROADBLOCK_NONE;

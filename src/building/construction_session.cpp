@@ -5,20 +5,13 @@
 #include "building/construction_session.h"
 #include "building/tool_mode.h"
 
-#include <string_view>
-
 #include "map/grid.h"
-
-static int type_attr_is(building_type type, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && std::string_view(definition->attr()) == attr;
-}
 
 static int is_bridge_type(building_type type)
 {
-    return type_attr_is(type, "low_bridge") || type_attr_is(type, "ship_bridge");
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->roadblock().is_bridge();
 }
 
 void ConstructionToolSession::clear()

@@ -9,6 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
+    <tool kind="aqueduct" />
     <button group="water" order="20" text_key="main_strings.28.8" />
     <event_data attr="aqueduct" />
     <flags fire_proof="1" />

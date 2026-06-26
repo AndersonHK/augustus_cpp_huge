@@ -118,24 +118,25 @@ Small building example:
 
 Current supported `<foundation>` attributes:
 
-- `policy="land|road|water|shoreline|aqueduct|custom"` stores the placement/foundation policy key for the next construction pass
+- `policy="land|road|road_or_land|road_or_wall_or_land|wall|water|shoreline|aqueduct|custom"` stores the placement/foundation policy key for the next construction pass
 - `open_water="true|false"` requires the footprint to connect to open navigable water after the shoreline check; use this for shoreline buildings that must be reachable by ships
 
 Current supported `<foundation>` child nodes:
 
 - `<terrain value="meadow|rock|tree|water|wall|distant_water" />`
-- `<cell x="0" y="0" terrain="land|clear|water|road|wall|aqueduct|any" />`
+- `<cell x="0" y="0" terrain="land|clear|water|road|road_or_land|road_or_wall_or_land|wall|aqueduct|any" />`
 - `<cell rotation="0|1|2|3" x="0" y="0" terrain="..." />`
 
 Foundation terrain rules:
 
 - `<terrain>` may appear zero or more times
 - terrain requirements feed the existing placement warning/check path
-- use `rock` for quarry/mine placement, `tree` for timber yards, `water` for clay pits, and `distant_water` for sand pits
+- use `meadow` for farms, `rock` for quarry/mine placement, `tree` for timber yards, `water` for clay pits, and `distant_water` for sand pits or lighthouses
 - `<cell>` may appear zero or more times and declares a per-footprint tile requirement in local building coordinates
 - `rotation` is optional; omit it for all rotations or set it to `0..3` for rotation-specific shoreline or composed-footprint cells
-- cells not listed by XML inherit the foundation policy: `land/custom` require clear land, `road` requires road, `water` requires water, `shoreline` requires a water edge and clear land elsewhere
-- shoreline buildings register their placed footprint with the water map and save their shoreline orientation from the shared construction placement plan
+- cells not listed by XML inherit the foundation policy: `land/custom/shoreline` require clear land, `road` requires road, `road_or_land` allows clear land, road, highway, and valid highway-under-aqueduct tiles, `road_or_wall_or_land` also allows wall tiles, `wall` requires wall, `water` requires water
+- shoreline buildings select their waterside orientation from adjacent water, register their placed footprint with the water map, and save their shoreline orientation from the shared construction placement plan; water footprint cells must be declared explicitly with `<cell ... terrain="water" />`
+- `policy="wall"` declares a wall-mounted structure: construction requires the wall footprint, replaces the underlying wall terrain with the placed building terrain, and refreshes surrounding wall images through the shared placement path
 
 Current supported `<composed>` attributes:
 
@@ -167,16 +168,37 @@ Current supported `<button>` attributes:
 
 Roads, highways, roadblocks, and bridges are smart-tool special cases. They must not declare `<button>` nodes because the tool-mode sidebar owns those buttons directly.
 
+Current supported `<cycle>` attributes:
+
+- `group="key"` declares that this BuildingType participates in a construction selection cycle with other BuildingTypes using the same group key
+- `order="N"` sorts members inside the cycle; construction skips members disallowed by the scenario
+- `steps="N"` declares how many construction-cycle key presses are needed before advancing to the next member; use this for graphics whose rotation key also changes orientation before changing type
+
+Construction cycles are loaded entirely from BuildingType XML. Do not add hardcoded type-name arrays for new cycle groups.
+
+Current supported `<tool>` attributes:
+
+- `kind="clear_land|clear_trees|repair_land|road|highway|wall|roadblock|aqueduct|draggable_reservoir|draggable_building"` declares construction-tool behavior used by construction, ghost rendering, and special tool previews without inferring behavior from the BuildingType name
+- `drag_terrain="land|land_or_road"` is required for `kind="draggable_building"` and declares whether drag placement may transform road tiles into gate variants
+- `rotation="none|path|hedge|variant|pair"` is required for `kind="draggable_building"` and declares how the placed building stores orientation or variant state
+
 Current supported `<roadblock>` attributes:
 
 - `kind="standard|storage|bridge"` stores the roadblock category used by roadblock routing and permissions
+- `bridge_type="low|ship"` is required when `kind="bridge"` and declares the bridge placement/sprite variant without relying on the building type name
+- `passage="wall_gate|center_road"` is optional for `kind="standard"` and declares multi-tile pass-through terrain behavior such as wall gates or center-road arches
 
 Current supported `<tile>` attributes:
 
 - `kind="..."` marks a BuildingType as tile-backed data and stores the tile kind key from XML
-- `refresh="none|garden|plaza|roadblock"` is optional and declares which dirty-region image refresh family to run; if omitted, known kinds default to `garden` or `plaza` refresh behavior
+- `refresh="none|garden|plaza"` is optional and declares which dirty-region image refresh family to run; omit it only for tile-backed tools that never dirty-refresh through the tile system
+- `placement="none|garden|plaza"` is optional and declares area-drag placement effects for tile-backed tools; omit it for tiles that are placed through ordinary building/tool construction
+- `overgrown="true|false"` marks garden placement with the overgrown tile state used by overgrown gardens
 
-Tile-backed BuildingTypes use the normal root-level `<graphics>` block. Do not add a tile-specific graphics node. For plaza-like tiles, the default graphics target supplies single-tile images and a `<variant role="tile_large">` target supplies two-by-two plaza images.
+Tile-backed BuildingTypes use the normal root-level `<graphics>` block. Do not add a tile-specific graphics node. For plaza-like tiles, the default graphics target supplies single-tile images and a `<variant role="tile_large">` target supplies two-by-two plaza images. Other tile-backed tools may declare named graphics roles for their live rendering path, such as highway `tile_base` and `tile_barrier`.
+Area-drag tile tools such as gardens and plazas declare both their foundation policy and tile `placement`, so shared ghost validation and final construction agree on which map cells are legal.
+Construction refreshes each placed tile-backed part through its declared tile refresh behavior, so new tile-backed BuildingTypes should not need construction-side branches.
+Single-tile roadblock tiles use their declared `foundation policy="road"` for placement and are treated as passable road tools during shared foundation validation, so walkers standing on the road do not create a separate construction branch.
 
 Current supported `<temple>` attributes:
 
@@ -308,7 +330,7 @@ Current supported `<graphics>` child nodes:
 
 - `<default> ... </default>`
 - `<variant> ... </variant>`
-- `<variant role="tile_large"> ... </variant>`
+- `<variant role="..."> ... </variant>`
 - `<options selection="stable_variant"> ... </options>`
 - `<option image="..." />`
 - `<option path="..." image="..." />`
@@ -348,7 +370,7 @@ Structured `<graphics>` rules:
 
 - `<default>` is required
 - `<variant>` entries are checked in XML order
-- `<variant role="tile_large">` is reserved for tile-backed large-plaza graphics and is not considered by normal building rendering
+- `<variant role="...">` declares named graphics used by tile/runtime renderers and is not considered by normal building rendering when the role is tile-only metadata
 - all `<condition>` nodes inside one `<variant>` must match
 - the first matching variant wins
 - the `<default>` target is used when no variant matches
@@ -379,6 +401,10 @@ Current supported `<construction>` attributes and child nodes:
 - `mode="instant"` may contain direct `<requirement>` nodes for placement-time resource costs; money cost stays in `<model cost="N" />`
 - `mode="phased"` starts the building at `MONUMENT_START`
 - `road_update_radius="N"` updates nearby roads when the phased monument is placed
+- `free_when_broke_limit="N"` allows placement while out of money until total city count for that BuildingType reaches `N`
+- `max_count="N"` blocks placement once the city already has `N` active/created/mothballed buildings of that BuildingType
+- `max_count_unless_config="multiple_barracks"` disables `max_count` while that gameplay config is enabled
+- `requires_building="building_attr"` blocks placement until the referenced BuildingType exists in the city
 - `<phase index="N"> ... </phase>` defines one construction phase
 - `<phase><graphics> ... </graphics></phase>` uses direct `<path>` and optional `<image>` target nodes; phase graphics do not currently support `<default>`, `<variant>`, or `<options>`
 - `<requirement type="architects|stone|timber|concrete|marble|bricks|gold|iron" amount="N" />` declares phase delivery requirements

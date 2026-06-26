@@ -8,10 +8,10 @@
         <step_size value="3" />
         <range value="5" />
     </desirability>
-    <foundation policy="land" />
+    <foundation policy="road_or_land" />
   <button group="administration" order="1000" text_key="main_strings.28.56" />
     <event_data attr="triumphal_arch" />
-    <roadblock kind="standard" />
+    <roadblock kind="standard" passage="center_road" />
     <flags fire_proof="1" />
     <labor>
         <employees count="0" />

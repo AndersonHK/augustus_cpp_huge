@@ -11,6 +11,7 @@
     </desirability>
     <foundation policy="land" />
     <button group="shrines" order="40" text_key="TR_BUILDING_SHRINE_MARS" />
+    <cycle group="shrines" order="40" steps="2" />
     <event_data attr="shrine_mars" />
     <flags draw_desirability_range="1" venus_gt_bonus="1" />
     <culture_modules>

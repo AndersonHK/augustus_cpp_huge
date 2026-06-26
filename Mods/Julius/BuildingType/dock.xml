@@ -8,7 +8,20 @@
         <step_size value="2" />
         <range value="3" />
     </desirability>
-    <foundation policy="shoreline" />
+    <foundation policy="shoreline">
+        <cell rotation="0" x="0" y="0" terrain="water" />
+        <cell rotation="0" x="1" y="0" terrain="water" />
+        <cell rotation="0" x="2" y="0" terrain="water" />
+        <cell rotation="1" x="2" y="0" terrain="water" />
+        <cell rotation="1" x="2" y="1" terrain="water" />
+        <cell rotation="1" x="2" y="2" terrain="water" />
+        <cell rotation="2" x="0" y="2" terrain="water" />
+        <cell rotation="2" x="1" y="2" terrain="water" />
+        <cell rotation="2" x="2" y="2" terrain="water" />
+        <cell rotation="3" x="0" y="0" terrain="water" />
+        <cell rotation="3" x="0" y="1" terrain="water" />
+        <cell rotation="3" x="0" y="2" terrain="water" />
+    </foundation>
     <button group="engineering" order="70" text_key="main_strings.28.75" />
     <event_data attr="dock" />
     <graphics>

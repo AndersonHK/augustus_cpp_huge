@@ -26,6 +26,15 @@ static int building_matches(building *b, const char *text_id)
     return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
 }
 
+static int building_is_wall_gate(building *b)
+{
+    if (!b) {
+        return 0;
+    }
+    Building current(b);
+    return current.type && current.type->roadblock().is_wall_gate();
+}
+
 struct terrain_image_context {
     const unsigned char tiles[MAX_TILES];
     const unsigned char offset_for_orientation[4];
@@ -436,7 +445,7 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
         int offset = grid_offset + map_grid_direction_delta(i);
         if (map_terrain_is(offset, TERRAIN_GATEHOUSE)) {
             building *b = building_get(map_building_at(offset));
-            if (building_matches(b, "gatehouse") &&
+            if (building_is_wall_gate(b) &&
                 b->subtype.orientation == 1 + ((i / 2) & 1)) { // 1,2,1,2
                 tiles[i] = 1;
             }

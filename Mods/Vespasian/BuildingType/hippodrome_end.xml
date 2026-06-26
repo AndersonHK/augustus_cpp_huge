@@ -15,7 +15,7 @@
             </options>
         </default>
     </graphics>
-    <construction mode="phased">
+    <construction mode="phased" max_count="1">
         <phase index="1">
             <graphics>
                 <options selection="build_rotation">

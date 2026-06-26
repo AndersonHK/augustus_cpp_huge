@@ -14,4 +14,5 @@ int tile_runtime_plaza_single_option_count(void);
 int tile_runtime_plaza_large_option_count(void);
 int tile_runtime_plaza_single_map_image_id(int index);
 int tile_runtime_plaza_large_map_image_id(int index);
-
+int tile_runtime_role_option_count(const char *tile_kind, const char *role);
+int tile_runtime_set_role_image_id(int grid_offset, const char *tile_kind, const char *role, int option_index);

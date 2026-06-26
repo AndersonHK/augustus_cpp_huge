@@ -27,6 +27,8 @@ struct ParseState {
     int saw_button = 0;
     int saw_roadblock = 0;
     int saw_tile = 0;
+    int saw_tool = 0;
+    int saw_cycle = 0;
     int saw_temple = 0;
     int saw_sound = 0;
     int saw_event_data = 0;
@@ -92,6 +94,7 @@ extern ParseState g_parse_state;
 int directory_exists(const char *path);
 const BuildingType *definition_for_type(building_type type);
 building_type type_from_attr(std::string_view attr);
+building_type type_from_roadblock_bridge(RoadblockBridgeType bridge_type);
 building_type runtime_id_from_text(const char *text_id);
 void refresh_building_type_path();
 void clear_xml_runtime_property_fields();

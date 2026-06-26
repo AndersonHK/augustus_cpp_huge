@@ -606,6 +606,9 @@ const std::vector<GraphicsVariant> &GraphicsDefinition::variants() const
 const GraphicsTarget *GraphicsDefinition::resolve_target(const Building &building) const
 {
     for (const GraphicsVariant &variant : variants_) {
+        if (!variant.role.empty()) {
+            continue;
+        }
         if ((variant.target.has_path() || variant.target.has_options() || variant.target.is_resource_storage()) &&
             variant.matches(building)) {
             return &variant.target;

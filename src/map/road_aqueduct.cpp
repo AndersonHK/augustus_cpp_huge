@@ -32,6 +32,15 @@ static int building_at_matches(int grid_offset, const char *text_id)
     return building_id && building_matches(building_get(building_id), text_id);
 }
 
+static int building_is_wall_gate(building *b)
+{
+    if (!b) {
+        return 0;
+    }
+    Building current(b);
+    return current.type && current.type->roadblock().is_wall_gate();
+}
+
 int map_can_place_road_under_aqueduct(int grid_offset)
 {
     int image_id = map_image_at(grid_offset) - image_group(GROUP_BUILDING_AQUEDUCT);
@@ -146,7 +155,7 @@ static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
     int is_road = map_terrain_is(grid_offset, TERRAIN_ROAD) ? 1 : 0;
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         building *b = building_get(map_building_at(grid_offset));
-        if (building_matches(b, "gatehouse")) {
+        if (building_is_wall_gate(b)) {
             if (b->subtype.orientation == gate_orientation) {
                 is_road = 1;
             }

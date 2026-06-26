@@ -143,6 +143,18 @@ enum class RoadblockKind {
     Bridge
 };
 
+enum class RoadblockBridgeType {
+    None,
+    Low,
+    Ship
+};
+
+enum class RoadblockPassageType {
+    None,
+    WallGate,
+    CenterRoad
+};
+
 enum class TileKind {
     None,
     Garden,
@@ -154,6 +166,44 @@ enum class TileRefreshBehavior {
     None,
     Garden,
     Plaza
+};
+
+enum class TilePlacementBehavior {
+    None,
+    Garden,
+    Plaza
+};
+
+enum class ConstructionConfigFlag {
+    None,
+    MultipleBarracks
+};
+
+enum class ConstructionToolKind {
+    None,
+    ClearLand,
+    ClearTrees,
+    RepairLand,
+    Road,
+    Highway,
+    Wall,
+    Roadblock,
+    Aqueduct,
+    DraggableReservoir,
+    DraggableBuilding
+};
+
+enum class ConstructionDragTerrain {
+    Land,
+    LandOrRoad
+};
+
+enum class ConstructionDragRotation {
+    None,
+    Path,
+    Hedge,
+    Variant,
+    Pair
 };
 
 enum class LaborSeekerMethod {
@@ -229,10 +279,25 @@ enum FoundationTerrainRequirement {
     FoundationTerrainDistantWater = 1 << 5
 };
 
+enum class FoundationPolicy {
+    None,
+    Land,
+    Road,
+    RoadOrLand,
+    RoadWallOrLand,
+    Wall,
+    Water,
+    Shoreline,
+    Aqueduct,
+    Custom
+};
+
 enum class FoundationCellRequirement {
     Land,
     Water,
     Road,
+    RoadOrLand,
+    RoadWallOrLand,
     Wall,
     Aqueduct,
     Any
@@ -349,13 +414,15 @@ private:
 
 class FoundationDefinition {
 public:
-    void set_policy(std::string policy);
+    void set_policy(std::string policy, FoundationPolicy type, FoundationCellRequirement requirement);
     void set_requires_open_water(int value);
     void add_required_terrain(int flags);
     void add_cell(int x, int y, int rotation, FoundationCellRequirement requirement);
 
     int has_policy() const;
     const char *policy() const;
+    FoundationPolicy policy_type() const;
+    FoundationCellRequirement policy_requirement() const;
     int requires_open_water() const;
     int required_terrain() const;
     int has_cells() const;
@@ -363,6 +430,8 @@ public:
 
 private:
     std::string policy_;
+    FoundationPolicy policy_type_ = FoundationPolicy::None;
+    FoundationCellRequirement policy_requirement_ = FoundationCellRequirement::Land;
     int requires_open_water_ = 0;
     int required_terrain_ = 0;
     std::vector<FoundationCellDefinition> cells_;
@@ -401,12 +470,22 @@ private:
 class RoadblockDefinition {
 public:
     void set_kind(RoadblockKind kind);
+    void set_bridge_type(RoadblockBridgeType type);
+    void set_passage_type(RoadblockPassageType type);
 
     RoadblockKind kind() const;
+    RoadblockBridgeType bridge_type() const;
+    RoadblockPassageType passage_type() const;
+    int is_bridge() const;
+    int is_ship_bridge() const;
+    int is_wall_gate() const;
+    int has_center_road_passage() const;
     int has_any() const;
 
 private:
     RoadblockKind kind_ = RoadblockKind::None;
+    RoadblockBridgeType bridge_type_ = RoadblockBridgeType::None;
+    RoadblockPassageType passage_type_ = RoadblockPassageType::None;
 };
 
 class TileDefinition {
@@ -414,16 +493,71 @@ public:
     void set_kind(TileKind kind);
     void set_kind_key(std::string key);
     void set_refresh_behavior(TileRefreshBehavior behavior);
+    void set_placement_behavior(TilePlacementBehavior behavior);
+    void set_overgrown(int value);
 
     TileKind kind() const;
     const char *kind_key() const;
     TileRefreshBehavior refresh_behavior() const;
+    TilePlacementBehavior placement_behavior() const;
+    int is_area_placement() const;
+    int updates_land_routing() const;
+    int overgrown() const;
     int has_any() const;
 
 private:
     TileKind kind_ = TileKind::None;
     std::string kind_key_;
     TileRefreshBehavior refresh_behavior_ = TileRefreshBehavior::None;
+    TilePlacementBehavior placement_behavior_ = TilePlacementBehavior::None;
+    int overgrown_ = 0;
+};
+
+class ConstructionToolDefinition {
+public:
+    void set_kind(ConstructionToolKind kind);
+    void set_drag_terrain(ConstructionDragTerrain terrain);
+    void set_drag_rotation(ConstructionDragRotation rotation);
+
+    ConstructionToolKind kind() const;
+    ConstructionDragTerrain drag_terrain() const;
+    ConstructionDragRotation drag_rotation() const;
+    int has_any() const;
+    int is_clear_land() const;
+    int is_clear_trees() const;
+    int is_repair_land() const;
+    int is_land_work() const;
+    int is_road() const;
+    int is_highway() const;
+    int is_wall() const;
+    int is_roadblock() const;
+    int is_aqueduct() const;
+    int is_draggable_reservoir() const;
+    int is_draggable_building() const;
+    int draggable_allows_roads() const;
+
+private:
+    ConstructionToolKind kind_ = ConstructionToolKind::None;
+    ConstructionDragTerrain drag_terrain_ = ConstructionDragTerrain::Land;
+    ConstructionDragRotation drag_rotation_ = ConstructionDragRotation::None;
+};
+
+class ConstructionCycleDefinition {
+public:
+    void set_group(std::string group);
+    void set_order(int order);
+    void set_steps(int steps);
+
+    int has_group() const;
+    const char *group() const;
+    int order() const;
+    int steps() const;
+    int has_any() const;
+
+private:
+    std::string group_;
+    int order_ = 0;
+    int steps_ = 1;
 };
 
 class SoundDefinition {
@@ -612,6 +746,11 @@ class ConstructionDefinition {
 public:
     void set_mode(ConstructionMode mode);
     void set_road_update_radius(int radius);
+    void set_free_when_broke_limit(int limit);
+    void set_max_count(int limit);
+    void set_max_count_unless_config(ConstructionConfigFlag flag);
+    void set_required_building_reference(std::string type_attr);
+    void set_required_building_type(building_type type);
     ConstructionPhase &add_phase(int index);
     ConstructionPhase *last_phase();
     const ConstructionPhase *phase(int index) const;
@@ -621,6 +760,11 @@ public:
     ConstructionMode mode() const;
     int is_phased() const;
     int road_update_radius() const;
+    int free_when_broke_limit() const;
+    int max_count() const;
+    ConstructionConfigFlag max_count_unless_config() const;
+    const std::string &required_building_reference() const;
+    building_type required_building_type() const;
     int phase_count() const;
     int instant_requirement_amount(resource_type resource) const;
     int requirement_amount(resource_type resource, int phase) const;
@@ -629,6 +773,11 @@ public:
 private:
     ConstructionMode mode_ = ConstructionMode::Instant;
     int road_update_radius_ = 0;
+    int free_when_broke_limit_ = 0;
+    int max_count_ = 0;
+    ConstructionConfigFlag max_count_unless_config_ = ConstructionConfigFlag::None;
+    std::string required_building_reference_;
+    building_type required_building_type_ = BUILDING_NONE;
     std::vector<ConstructionRequirement> instant_requirements_;
     std::vector<ConstructionPhase> phases_;
 };
@@ -645,7 +794,10 @@ public:
     void set_model_desirability_step(int value);
     void set_model_desirability_step_size(int value);
     void set_model_desirability_range(int value);
-    void set_foundation_policy(std::string policy);
+    void set_foundation_policy(
+        std::string policy,
+        FoundationPolicy type,
+        FoundationCellRequirement requirement);
     void set_foundation_requires_open_water(int value);
     void add_foundation_required_terrain(int flags);
     void add_foundation_cell(int x, int y, int rotation, FoundationCellRequirement requirement);
@@ -656,9 +808,19 @@ public:
     void set_button_text_key(std::string key);
     void add_button(BuildButtonDefinition button);
     void set_roadblock_kind(RoadblockKind kind);
+    void set_roadblock_bridge_type(RoadblockBridgeType type);
+    void set_roadblock_passage_type(RoadblockPassageType type);
     void set_tile_kind(TileKind kind);
     void set_tile_kind_key(std::string key);
     void set_tile_refresh_behavior(TileRefreshBehavior behavior);
+    void set_tile_placement_behavior(TilePlacementBehavior behavior);
+    void set_tile_overgrown(int value);
+    void set_tool_kind(ConstructionToolKind kind);
+    void set_tool_drag_terrain(ConstructionDragTerrain terrain);
+    void set_tool_drag_rotation(ConstructionDragRotation rotation);
+    void set_cycle_group(std::string group);
+    void set_cycle_order(int order);
+    void set_cycle_steps(int steps);
     void set_temple_religion_reference(std::string path);
     void set_sound_id(int sound);
     void set_sound_mute_on_enemies(int value);
@@ -682,6 +844,11 @@ public:
     void add_graphics_variant_condition(GraphicsCondition condition);
     void set_construction_mode(ConstructionMode mode);
     void set_construction_road_update_radius(int radius);
+    void set_construction_free_when_broke_limit(int limit);
+    void set_construction_max_count(int limit);
+    void set_construction_max_count_unless_config(ConstructionConfigFlag flag);
+    void set_construction_required_building_reference(std::string type_attr);
+    void set_construction_required_building_type(building_type type);
     void clear_construction();
     ConstructionPhase &add_construction_phase(int index);
     ConstructionPhase *last_construction_phase();
@@ -726,6 +893,8 @@ public:
     const RoadblockDefinition &roadblock() const;
     LaborCategory labor_category() const;
     const TileDefinition &tile() const;
+    const ConstructionToolDefinition &tool() const;
+    const ConstructionCycleDefinition &cycle() const;
     const Religion *religion() const;
     const SoundDefinition &sound() const;
     const EventDataDefinition &event_data() const;
@@ -777,6 +946,7 @@ public:
     int has_button() const;
     int has_roadblock() const;
     int has_tile() const;
+    int has_cycle() const;
     int has_temple() const;
     int has_sound() const;
     int has_event_data() const;
@@ -823,6 +993,8 @@ private:
     RoadblockDefinition roadblock_;
     LaborCategory labor_category_ = LaborCategory::None;
     TileDefinition tile_;
+    ConstructionToolDefinition tool_;
+    ConstructionCycleDefinition cycle_;
     std::string religion_reference_path_;
     const Religion *religion_ = nullptr;
     SoundDefinition sound_;

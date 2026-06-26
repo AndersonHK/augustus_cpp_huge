@@ -121,44 +121,6 @@ static void set_target_height_bridge(Figure *f)
     f->target_height = map_bridge_height(f->grid_offset);
 }
 
-static roadblock_permission get_permission_for_figure_type(Figure *f)
-{
-    switch (f->type) {
-        case FIGURE_ENGINEER:
-        case FIGURE_PREFECT:
-            return PERMISSION_MAINTENANCE;
-        case FIGURE_PRIEST:
-            return PERMISSION_PRIEST;
-        case FIGURE_MARKET_TRADER:
-            return PERMISSION_MARKET;
-        case FIGURE_GLADIATOR:
-        case FIGURE_CHARIOTEER:
-        case FIGURE_ACTOR:
-        case FIGURE_LION_TAMER:
-        case FIGURE_BARKEEP:
-            return PERMISSION_ENTERTAINER;
-        case FIGURE_SURGEON:
-        case FIGURE_DOCTOR:
-        case FIGURE_BARBER:
-        case FIGURE_BATHHOUSE_WORKER:
-            return PERMISSION_MEDICINE;
-        case FIGURE_SCHOOL_CHILD:
-        case FIGURE_TEACHER:
-        case FIGURE_LIBRARIAN:
-            return PERMISSION_EDUCATION;
-        case FIGURE_TAX_COLLECTOR:
-            return PERMISSION_TAX_COLLECTOR;
-        case FIGURE_LABOR_SEEKER:
-            return PERMISSION_LABOR_SEEKER;
-        case FIGURE_MISSIONARY:
-            return PERMISSION_MISSIONARY;
-        case FIGURE_WATCHMAN:
-            return PERMISSION_WATCHMAN;
-        default:
-            return PERMISSION_NONE;
-    }
-}
-
 static void move_to_next_tile(Figure *f)
 {
     int old_x = f->x;
@@ -277,18 +239,17 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             f->direction = DIR_FIGURE_REROUTE;
         }
     } else if (map_terrain_is(target_grid_offset, TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP)) {
-        if (roaming_enabled && map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
+        if (map_terrain_is(target_grid_offset, TERRAIN_BUILDING)) {
             building *b = building_get(map_building_at(target_grid_offset));
             Building building_obj(b);
-            if (b && building_obj.type && building_obj.type->is_granary()) {
+            if (roaming_enabled && b && building_obj.type && building_obj.type->is_granary()) {
                 if (map_road_get_granary_inner_road_tiles_count(b) < 3) {
                     f->direction = DIR_FIGURE_REROUTE; // do not roam into dead-end granaries
                 }
             }
-            if (Roadblock(b).kind() != ROADBLOCK_NONE) {
-                // do not allow roaming through roadblock without permissions
-                roadblock_permission permission = get_permission_for_figure_type(f);
-                if (!Roadblock(b).has_permission(permission)) {
+            Roadblock roadblock(b);
+            if (roadblock.kind() != ROADBLOCK_NONE) {
+                if (!roadblock.allows(*f)) {
                     f->direction = DIR_FIGURE_REROUTE;
                 }
             }
@@ -299,9 +260,9 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             return; // passable terrain - no reroute
         }
         building *b = building_get(map_building_at(target_grid_offset));
-        if (Roadblock(b).kind() != ROADBLOCK_NONE && roaming_enabled) { //only block roaming
-            roadblock_permission permission = get_permission_for_figure_type(f);
-            if (!Roadblock(b).has_permission(permission)) {
+        Roadblock roadblock(b);
+        if (roadblock.kind() != ROADBLOCK_NONE) {
+            if (!roadblock.allows(*f)) {
                 f->direction = DIR_FIGURE_REROUTE;
             }
         } else {
@@ -663,7 +624,7 @@ void figure_movement_roam_ticks(Figure *f, int num_ticks)
                 }
             }
             int road_tiles[8];
-            roadblock_permission permission = get_permission_for_figure_type(f);
+            roadblock_permission permission = Roadblock::permission_for(*f);
             int adjacent_road_tiles = get_adjacent_road_tiles_for_roaming(f, f->grid_offset, road_tiles, permission);
             if (adjacent_road_tiles == 3 &&
                 get_diagonal_road_tiles_for_roaming(f, f->grid_offset, road_tiles, permission) >= 5) {

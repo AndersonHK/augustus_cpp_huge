@@ -9,6 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
+    <construction max_count="1" max_count_unless_config="multiple_barracks" />
   <button group="security" order="90" text_key="main_strings.28.95" />
     <event_data attr="barracks" />
     <flags draw_desirability_range="1" />

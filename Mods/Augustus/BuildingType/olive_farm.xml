@@ -8,7 +8,9 @@
         <step_size value="1" />
         <range value="2" />
     </desirability>
-    <foundation policy="land" />
+    <foundation policy="land">
+        <terrain value="meadow" />
+    </foundation>
     <button group="farms" order="40" icon="Industry\Farm_House" text_key="main_strings.28.103" />
     <sound id="olive_farm" />
     <event_data attr="olive_farm" />

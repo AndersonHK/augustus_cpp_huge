@@ -151,9 +151,14 @@ int BuildModelDefinition::has_any() const
         has_desirability_step_size_ || has_desirability_range_;
 }
 
-void FoundationDefinition::set_policy(std::string policy)
+void FoundationDefinition::set_policy(
+    std::string policy,
+    FoundationPolicy type,
+    FoundationCellRequirement requirement)
 {
     policy_ = std::move(policy);
+    policy_type_ = type;
+    policy_requirement_ = requirement;
 }
 
 void FoundationDefinition::set_requires_open_water(int value)
@@ -184,6 +189,16 @@ int FoundationDefinition::has_policy() const
 const char *FoundationDefinition::policy() const
 {
     return policy_.c_str();
+}
+
+FoundationPolicy FoundationDefinition::policy_type() const
+{
+    return policy_type_;
+}
+
+FoundationCellRequirement FoundationDefinition::policy_requirement() const
+{
+    return policy_requirement_;
 }
 
 int FoundationDefinition::requires_open_water() const
@@ -298,11 +313,54 @@ int BuildButtonDefinition::has_any() const
 void RoadblockDefinition::set_kind(RoadblockKind kind)
 {
     kind_ = kind;
+    if (kind != RoadblockKind::Bridge) {
+        bridge_type_ = RoadblockBridgeType::None;
+    }
+}
+
+void RoadblockDefinition::set_bridge_type(RoadblockBridgeType type)
+{
+    bridge_type_ = type;
+}
+
+void RoadblockDefinition::set_passage_type(RoadblockPassageType type)
+{
+    passage_type_ = type;
 }
 
 RoadblockKind RoadblockDefinition::kind() const
 {
     return kind_;
+}
+
+RoadblockBridgeType RoadblockDefinition::bridge_type() const
+{
+    return bridge_type_;
+}
+
+RoadblockPassageType RoadblockDefinition::passage_type() const
+{
+    return passage_type_;
+}
+
+int RoadblockDefinition::is_bridge() const
+{
+    return kind_ == RoadblockKind::Bridge;
+}
+
+int RoadblockDefinition::is_ship_bridge() const
+{
+    return bridge_type_ == RoadblockBridgeType::Ship;
+}
+
+int RoadblockDefinition::is_wall_gate() const
+{
+    return passage_type_ == RoadblockPassageType::WallGate;
+}
+
+int RoadblockDefinition::has_center_road_passage() const
+{
+    return passage_type_ == RoadblockPassageType::CenterRoad;
 }
 
 int RoadblockDefinition::has_any() const
@@ -313,34 +371,6 @@ int RoadblockDefinition::has_any() const
 void TileDefinition::set_kind(TileKind kind)
 {
     kind_ = kind;
-    if (kind_key_.empty()) {
-        switch (kind) {
-            case TileKind::Garden:
-                kind_key_ = "garden";
-                break;
-            case TileKind::Plaza:
-                kind_key_ = "plaza";
-                break;
-            case TileKind::Roadblock:
-                kind_key_ = "roadblock";
-                break;
-            default:
-                break;
-        }
-    }
-    if (refresh_behavior_ == TileRefreshBehavior::None) {
-        switch (kind) {
-            case TileKind::Garden:
-                refresh_behavior_ = TileRefreshBehavior::Garden;
-                break;
-            case TileKind::Plaza:
-            case TileKind::Roadblock:
-                refresh_behavior_ = TileRefreshBehavior::Plaza;
-                break;
-            default:
-                break;
-        }
-    }
 }
 
 void TileDefinition::set_kind_key(std::string key)
@@ -351,6 +381,16 @@ void TileDefinition::set_kind_key(std::string key)
 void TileDefinition::set_refresh_behavior(TileRefreshBehavior behavior)
 {
     refresh_behavior_ = behavior;
+}
+
+void TileDefinition::set_placement_behavior(TilePlacementBehavior behavior)
+{
+    placement_behavior_ = behavior;
+}
+
+void TileDefinition::set_overgrown(int value)
+{
+    overgrown_ = value ? 1 : 0;
 }
 
 TileKind TileDefinition::kind() const
@@ -368,10 +408,166 @@ TileRefreshBehavior TileDefinition::refresh_behavior() const
     return refresh_behavior_;
 }
 
+TilePlacementBehavior TileDefinition::placement_behavior() const
+{
+    return placement_behavior_;
+}
+
+int TileDefinition::is_area_placement() const
+{
+    return placement_behavior_ != TilePlacementBehavior::None;
+}
+
+int TileDefinition::updates_land_routing() const
+{
+    return placement_behavior_ == TilePlacementBehavior::Garden;
+}
+
+int TileDefinition::overgrown() const
+{
+    return overgrown_;
+}
+
 int TileDefinition::has_any() const
 {
     return kind_ != TileKind::None || !kind_key_.empty() ||
-        refresh_behavior_ != TileRefreshBehavior::None;
+        refresh_behavior_ != TileRefreshBehavior::None ||
+        placement_behavior_ != TilePlacementBehavior::None || overgrown_;
+}
+
+void ConstructionToolDefinition::set_kind(ConstructionToolKind kind)
+{
+    kind_ = kind;
+}
+
+void ConstructionToolDefinition::set_drag_terrain(ConstructionDragTerrain terrain)
+{
+    drag_terrain_ = terrain;
+}
+
+void ConstructionToolDefinition::set_drag_rotation(ConstructionDragRotation rotation)
+{
+    drag_rotation_ = rotation;
+}
+
+ConstructionToolKind ConstructionToolDefinition::kind() const
+{
+    return kind_;
+}
+
+ConstructionDragTerrain ConstructionToolDefinition::drag_terrain() const
+{
+    return drag_terrain_;
+}
+
+ConstructionDragRotation ConstructionToolDefinition::drag_rotation() const
+{
+    return drag_rotation_;
+}
+
+int ConstructionToolDefinition::has_any() const
+{
+    return kind_ != ConstructionToolKind::None;
+}
+
+int ConstructionToolDefinition::is_clear_land() const
+{
+    return kind_ == ConstructionToolKind::ClearLand;
+}
+
+int ConstructionToolDefinition::is_clear_trees() const
+{
+    return kind_ == ConstructionToolKind::ClearTrees;
+}
+
+int ConstructionToolDefinition::is_repair_land() const
+{
+    return kind_ == ConstructionToolKind::RepairLand;
+}
+
+int ConstructionToolDefinition::is_land_work() const
+{
+    return is_clear_land() || is_clear_trees() || is_repair_land();
+}
+
+int ConstructionToolDefinition::is_road() const
+{
+    return kind_ == ConstructionToolKind::Road;
+}
+
+int ConstructionToolDefinition::is_highway() const
+{
+    return kind_ == ConstructionToolKind::Highway;
+}
+
+int ConstructionToolDefinition::is_wall() const
+{
+    return kind_ == ConstructionToolKind::Wall;
+}
+
+int ConstructionToolDefinition::is_roadblock() const
+{
+    return kind_ == ConstructionToolKind::Roadblock;
+}
+
+int ConstructionToolDefinition::is_aqueduct() const
+{
+    return kind_ == ConstructionToolKind::Aqueduct;
+}
+
+int ConstructionToolDefinition::is_draggable_reservoir() const
+{
+    return kind_ == ConstructionToolKind::DraggableReservoir;
+}
+
+int ConstructionToolDefinition::is_draggable_building() const
+{
+    return kind_ == ConstructionToolKind::DraggableBuilding;
+}
+
+int ConstructionToolDefinition::draggable_allows_roads() const
+{
+    return drag_terrain_ == ConstructionDragTerrain::LandOrRoad;
+}
+
+void ConstructionCycleDefinition::set_group(std::string group)
+{
+    group_ = std::move(group);
+}
+
+void ConstructionCycleDefinition::set_order(int order)
+{
+    order_ = order;
+}
+
+void ConstructionCycleDefinition::set_steps(int steps)
+{
+    steps_ = steps;
+}
+
+int ConstructionCycleDefinition::has_group() const
+{
+    return !group_.empty();
+}
+
+const char *ConstructionCycleDefinition::group() const
+{
+    return group_.c_str();
+}
+
+int ConstructionCycleDefinition::order() const
+{
+    return order_;
+}
+
+int ConstructionCycleDefinition::steps() const
+{
+    return steps_;
+}
+
+int ConstructionCycleDefinition::has_any() const
+{
+    return has_group();
 }
 
 void SoundDefinition::set_city_sound(int sound)
@@ -622,6 +818,31 @@ void ConstructionDefinition::set_road_update_radius(int radius)
     road_update_radius_ = radius;
 }
 
+void ConstructionDefinition::set_free_when_broke_limit(int limit)
+{
+    free_when_broke_limit_ = limit;
+}
+
+void ConstructionDefinition::set_max_count(int limit)
+{
+    max_count_ = limit;
+}
+
+void ConstructionDefinition::set_max_count_unless_config(ConstructionConfigFlag flag)
+{
+    max_count_unless_config_ = flag;
+}
+
+void ConstructionDefinition::set_required_building_reference(std::string type_attr)
+{
+    required_building_reference_ = std::move(type_attr);
+}
+
+void ConstructionDefinition::set_required_building_type(building_type type)
+{
+    required_building_type_ = type;
+}
+
 ConstructionPhase &ConstructionDefinition::add_phase(int index)
 {
     phases_.push_back(ConstructionPhase());
@@ -670,6 +891,31 @@ int ConstructionDefinition::is_phased() const
 int ConstructionDefinition::road_update_radius() const
 {
     return road_update_radius_;
+}
+
+int ConstructionDefinition::free_when_broke_limit() const
+{
+    return free_when_broke_limit_;
+}
+
+int ConstructionDefinition::max_count() const
+{
+    return max_count_;
+}
+
+ConstructionConfigFlag ConstructionDefinition::max_count_unless_config() const
+{
+    return max_count_unless_config_;
+}
+
+const std::string &ConstructionDefinition::required_building_reference() const
+{
+    return required_building_reference_;
+}
+
+building_type ConstructionDefinition::required_building_type() const
+{
+    return required_building_type_;
 }
 
 int ConstructionDefinition::phase_count() const
@@ -912,9 +1158,12 @@ void BuildingType::set_model_desirability_range(int value)
     model_.set_desirability_range(value);
 }
 
-void BuildingType::set_foundation_policy(std::string policy)
+void BuildingType::set_foundation_policy(
+    std::string policy,
+    FoundationPolicy type,
+    FoundationCellRequirement requirement)
 {
-    foundation_.set_policy(std::move(policy));
+    foundation_.set_policy(std::move(policy), type, requirement);
 }
 
 void BuildingType::set_foundation_requires_open_water(int value)
@@ -982,6 +1231,16 @@ void BuildingType::set_roadblock_kind(RoadblockKind kind)
     roadblock_.set_kind(kind);
 }
 
+void BuildingType::set_roadblock_bridge_type(RoadblockBridgeType type)
+{
+    roadblock_.set_bridge_type(type);
+}
+
+void BuildingType::set_roadblock_passage_type(RoadblockPassageType type)
+{
+    roadblock_.set_passage_type(type);
+}
+
 void BuildingType::set_tile_kind(TileKind kind)
 {
     tile_.set_kind(kind);
@@ -995,6 +1254,46 @@ void BuildingType::set_tile_kind_key(std::string key)
 void BuildingType::set_tile_refresh_behavior(TileRefreshBehavior behavior)
 {
     tile_.set_refresh_behavior(behavior);
+}
+
+void BuildingType::set_tile_placement_behavior(TilePlacementBehavior behavior)
+{
+    tile_.set_placement_behavior(behavior);
+}
+
+void BuildingType::set_tile_overgrown(int value)
+{
+    tile_.set_overgrown(value);
+}
+
+void BuildingType::set_tool_kind(ConstructionToolKind kind)
+{
+    tool_.set_kind(kind);
+}
+
+void BuildingType::set_tool_drag_terrain(ConstructionDragTerrain terrain)
+{
+    tool_.set_drag_terrain(terrain);
+}
+
+void BuildingType::set_tool_drag_rotation(ConstructionDragRotation rotation)
+{
+    tool_.set_drag_rotation(rotation);
+}
+
+void BuildingType::set_cycle_group(std::string group)
+{
+    cycle_.set_group(std::move(group));
+}
+
+void BuildingType::set_cycle_order(int order)
+{
+    cycle_.set_order(order);
+}
+
+void BuildingType::set_cycle_steps(int steps)
+{
+    cycle_.set_steps(steps);
 }
 
 void BuildingType::set_temple_religion_reference(std::string path)
@@ -1115,6 +1414,36 @@ void BuildingType::set_construction_road_update_radius(int radius)
 {
     has_construction_ = true;
     construction_.set_road_update_radius(radius);
+}
+
+void BuildingType::set_construction_free_when_broke_limit(int limit)
+{
+    has_construction_ = true;
+    construction_.set_free_when_broke_limit(limit);
+}
+
+void BuildingType::set_construction_max_count(int limit)
+{
+    has_construction_ = true;
+    construction_.set_max_count(limit);
+}
+
+void BuildingType::set_construction_max_count_unless_config(ConstructionConfigFlag flag)
+{
+    has_construction_ = true;
+    construction_.set_max_count_unless_config(flag);
+}
+
+void BuildingType::set_construction_required_building_reference(std::string type_attr)
+{
+    has_construction_ = true;
+    construction_.set_required_building_reference(std::move(type_attr));
+}
+
+void BuildingType::set_construction_required_building_type(building_type type)
+{
+    has_construction_ = true;
+    construction_.set_required_building_type(type);
 }
 
 void BuildingType::clear_construction()
@@ -1378,6 +1707,16 @@ LaborCategory BuildingType::labor_category() const
 const TileDefinition &BuildingType::tile() const
 {
     return tile_;
+}
+
+const ConstructionToolDefinition &BuildingType::tool() const
+{
+    return tool_;
+}
+
+const ConstructionCycleDefinition &BuildingType::cycle() const
+{
+    return cycle_;
 }
 
 const Religion *BuildingType::religion() const
@@ -1667,6 +2006,11 @@ int BuildingType::has_roadblock() const
 int BuildingType::has_tile() const
 {
     return tile_.has_any();
+}
+
+int BuildingType::has_cycle() const
+{
+    return cycle_.has_any();
 }
 
 int BuildingType::has_temple() const

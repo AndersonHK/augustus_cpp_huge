@@ -167,10 +167,9 @@ building_type building_clone_type_from_grid_offset(int grid_offset)
             building_type_from_attr("overgrown_gardens") : building_type_from_attr("gardens");
     } else if (terrain & TERRAIN_ROAD) {
         if (terrain & TERRAIN_WATER) {
-            if (map_sprite_bridge_at(grid_offset) > 6) {
-                return building_type_from_attr("ship_bridge");
-            }
-            return building_type_from_attr("low_bridge");
+            return building_type_registry_impl::type_from_roadblock_bridge(map_sprite_bridge_at(grid_offset) > 6 ?
+                building_type_registry_impl::RoadblockBridgeType::Ship :
+                building_type_registry_impl::RoadblockBridgeType::Low);
         } else if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
             return building_type_from_attr("plaza");
         }

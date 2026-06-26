@@ -10,8 +10,9 @@
     </desirability>
     <foundation policy="land" />
     <button group="engineering" order="10" text_key="main_strings.28.39" />
+    <cycle group="gardens" order="10" steps="1" />
     <event_data attr="gardens" />
-    <tile kind="garden" />
+    <tile kind="garden" refresh="garden" placement="garden" />
     <graphics>
         <default>
             <path value="Terrain_Maps\Garden" />

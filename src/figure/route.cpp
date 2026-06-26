@@ -1,5 +1,6 @@
 #include "route.h"
 
+#include "building/roadblock.h"
 #include "core/log.h"
 #include "game/save_version.h"
 #include "map/routing.h"
@@ -134,6 +135,7 @@ void figure_route_add(Figure *f)
     } else {
         // land figure
         int can_travel;
+        roadblock_permission permission = Roadblock::permission_for(*f);
         switch (f->terrain_usage) {
             case TERRAIN_USAGE_ENEMY:
                 // check to see if we can reach our destination by going around the city walls
@@ -158,31 +160,31 @@ void figure_route_add(Figure *f)
                 break;
             case TERRAIN_USAGE_PREFER_ROADS:
                 can_travel = map_routing_citizen_can_travel_over_road_garden(f->x, f->y,
-                    f->destination_x, f->destination_y, direction_limit);
+                    f->destination_x, f->destination_y, direction_limit, permission);
                 if (!can_travel) {
                     can_travel = map_routing_citizen_can_travel_over_land(f->x, f->y,
-                        f->destination_x, f->destination_y, direction_limit);
+                        f->destination_x, f->destination_y, direction_limit, permission);
                 }
                 break;
             case TERRAIN_USAGE_ROADS:
                 can_travel = map_routing_citizen_can_travel_over_road_garden(f->x, f->y,
-                    f->destination_x, f->destination_y, direction_limit);
+                    f->destination_x, f->destination_y, direction_limit, permission);
                 break;
             case TERRAIN_USAGE_PREFER_ROADS_HIGHWAY:
                 can_travel = map_routing_citizen_can_travel_over_road_garden_highway(f->x, f->y,
-                    f->destination_x, f->destination_y, direction_limit);
+                    f->destination_x, f->destination_y, direction_limit, permission);
                 if (!can_travel) {
                     can_travel = map_routing_citizen_can_travel_over_land(f->x, f->y,
-                        f->destination_x, f->destination_y, direction_limit);
+                        f->destination_x, f->destination_y, direction_limit, permission);
                 }
                 break;
             case TERRAIN_USAGE_ROADS_HIGHWAY:
                 can_travel = map_routing_citizen_can_travel_over_road_garden_highway(f->x, f->y,
-                    f->destination_x, f->destination_y, direction_limit);
+                    f->destination_x, f->destination_y, direction_limit, permission);
                 break;
             default:
                 can_travel = map_routing_citizen_can_travel_over_land(f->x, f->y,
-                    f->destination_x, f->destination_y, direction_limit);
+                    f->destination_x, f->destination_y, direction_limit, permission);
                 break;
         }
         if (can_travel) {

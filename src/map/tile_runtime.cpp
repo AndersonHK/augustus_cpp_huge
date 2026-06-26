@@ -92,6 +92,21 @@ static const building_type_registry_impl::BuildingType *find_tile_definition(bui
     return nullptr;
 }
 
+static const building_type_registry_impl::BuildingType *find_tile_definition(const char *kind_key)
+{
+    if (!kind_key || !*kind_key) {
+        return nullptr;
+    }
+
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (definition && strcmp(definition->tile().kind_key(), kind_key) == 0) {
+            return definition.get();
+        }
+    }
+    return nullptr;
+}
+
 static const building_type_registry_impl::GraphicsVariant *graphics_variant_for_role(
     const building_type_registry_impl::BuildingType &definition,
     const char *role)
@@ -205,6 +220,25 @@ static building_type_registry_impl::GraphicsTarget resolved_target_at(
     int option_index)
 {
     return target.has_options() ? target.resolved_option(static_cast<unsigned char>(option_index)) : target;
+}
+
+static const ImageGroupEntry *target_entry_at(
+    const building_type_registry_impl::GraphicsTarget &target,
+    int option_index)
+{
+    if (option_index < 0 ||
+        (target.has_options() && option_index >= target.option_count()) ||
+        (!target.has_options() && option_index != 0)) {
+        return nullptr;
+    }
+
+    building_type_registry_impl::GraphicsTarget resolved = resolved_target_at(target, option_index);
+    if (!resolved.has_path() || !resolved.has_image() || !image_group_payload_load(resolved.path())) {
+        return nullptr;
+    }
+
+    const ImageGroupPayload *payload = image_group_payload_get(resolved.path());
+    return payload ? payload->entry_for(resolved.image()) : nullptr;
 }
 
 static int bind_target_option(
@@ -506,6 +540,40 @@ int tile_runtime_plaza_large_map_image_id(int index)
     return variant ? tile_runtime_impl::target_map_image_id_at(variant->target, index) : 0;
 }
 
+int tile_runtime_role_option_count(const char *tile_kind, const char *role)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        tile_runtime_impl::find_tile_definition(tile_kind);
+    const building_type_registry_impl::GraphicsVariant *variant =
+        definition ? tile_runtime_impl::graphics_variant_for_role(*definition, role) : nullptr;
+    return variant ? tile_runtime_impl::target_option_count(variant->target) : 0;
+}
+
+int tile_runtime_set_role_image_id(int grid_offset, const char *tile_kind, const char *role, int option_index)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        tile_runtime_impl::find_tile_definition(tile_kind);
+    if (!definition || !definition->has_graphic()) {
+        log_tile_graphics_issue_once("Tile graphics definition is missing.", grid_offset, "", tile_kind);
+        tile_runtime_clear(grid_offset);
+        return 0;
+    }
+
+    const building_type_registry_impl::GraphicsVariant *variant =
+        tile_runtime_impl::graphics_variant_for_role(*definition, role);
+    if (!variant) {
+        log_tile_graphics_issue_once("Tile graphics role is missing.", grid_offset, definition->attr(), role);
+        tile_runtime_clear(grid_offset);
+        return 0;
+    }
+
+    int image_id = tile_runtime_impl::bind_target_option(grid_offset, *definition, variant->target, option_index);
+    if (!image_id) {
+        tile_runtime_clear(grid_offset);
+    }
+    return image_id;
+}
+
 const RuntimeDrawSlice *tile_runtime_get_graphic_footprint_slice(int grid_offset)
 {
     if (tile_runtime *instance = tile_runtime_impl::get_instance(grid_offset)) {
@@ -520,6 +588,16 @@ const RuntimeDrawSlice *tile_runtime_get_graphic_top_slice(int grid_offset)
         return instance->resolve_graphic_top_slice();
     }
     return nullptr;
+}
+
+const RuntimeDrawSlice *tile_runtime_get_role_footprint_slice(const char *tile_kind, const char *role, int option_index)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        tile_runtime_impl::find_tile_definition(tile_kind);
+    const building_type_registry_impl::GraphicsVariant *variant =
+        definition ? tile_runtime_impl::graphics_variant_for_role(*definition, role) : nullptr;
+    const ImageGroupEntry *entry = variant ? tile_runtime_impl::target_entry_at(variant->target, option_index) : nullptr;
+    return entry ? entry->footprint() : nullptr;
 }
 
 int tile_runtime_has_graphic(int grid_offset)

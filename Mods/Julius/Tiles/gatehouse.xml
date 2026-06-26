@@ -8,10 +8,10 @@
         <step_size value="1" />
         <range value="3" />
     </desirability>
-    <foundation policy="land" />
+    <foundation policy="road_or_wall_or_land" />
   <button group="security" order="30" text_key="main_strings.28.58" />
     <event_data attr="gatehouse" />
-    <roadblock kind="standard" />
+    <roadblock kind="standard" passage="wall_gate" />
     <flags fire_proof="1" draw_desirability_range="1" />
     <labor>
         <employees count="0" />

@@ -9,7 +9,9 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land" rotation="none" />
     <button group="trees" order="80" text_key="TR_BUILDING_DATE_TREE" />
+    <cycle group="ornamental_trees" order="10" steps="1" />
     <event_data attr="date_tree" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>

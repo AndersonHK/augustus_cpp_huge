@@ -9,6 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land" rotation="variant" />
   <button group="statues" order="50" text_key="TR_BUILDING_DECORATIVE_COLUMN" />
     <event_data attr="decorative_column" />
     <flags fire_proof="1" venus_gt_bonus="1" />

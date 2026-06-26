@@ -52,6 +52,7 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <utility>
 
 struct PlaceWarningMessage {
     warning_type type = WARNING_NONE;
@@ -118,6 +119,15 @@ static int building_definition_attr_is_any(
     return 0;
 }
 
+static int building_type_roadblock_passage_is(
+    building_type type,
+    building_type_registry_impl::RoadblockPassageType passage)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->roadblock().passage_type() == passage;
+}
+
 static building_type building_type_from_attr(const char *text_id)
 {
     if (!text_id) {
@@ -139,27 +149,14 @@ static const building_type_registry_impl::BuildingType *definition_for_placement
     return building_type_registry_impl::definition_for_type(type);
 }
 
-static int foundation_policy_is(const building_type_registry_impl::BuildingType &definition, const char *policy)
-{
-    return definition.foundation().has_policy() && policy &&
-        std::strcmp(definition.foundation().policy(), policy) == 0;
-}
-
 static int building_registers_water_footprint(const building_type_registry_impl::BuildingType &definition)
 {
-    return foundation_policy_is(definition, "shoreline");
+    return definition.foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline;
 }
 
-static int composition_placement_size(building_type type)
+static int building_uses_wall_foundation(const building_type_registry_impl::BuildingType &definition)
 {
-    const building_type_registry_impl::BuildingType *definition = definition_for_placement_type(type);
-    if (!definition || !definition->has_composition()) {
-        return building_properties_for_type(type)->size;
-    }
-    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
-    return composition.footprint_width() > composition.footprint_height() ?
-        composition.footprint_width() :
-        composition.footprint_height();
+    return definition.foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Wall;
 }
 
 static int build_type_clear_land_cost()
@@ -210,16 +207,13 @@ static int type_is_basic_venus_temple(const building_type_registry_impl::Buildin
         type.is_temple(GOD_VENUS, building_type_registry_impl::ReligionTier::Large);
 }
 
-static int building_has_roadblock_placement_surface(
-    const building_type_registry_impl::BuildingType &definition)
+static int building_is_single_tile_roadblock(
+    const building_type_registry_impl::BuildingType &definition,
+    int size)
 {
-    return definition.roadblock().kind() == building_type_registry_impl::RoadblockKind::Standard ||
-        definition.roadblock().kind() == building_type_registry_impl::RoadblockKind::Bridge;
-}
-
-static int building_is_roadblock_tile(const building_type_registry_impl::BuildingType &definition)
-{
-    return definition.tile().kind() == building_type_registry_impl::TileKind::Roadblock;
+    return size == 1 &&
+        definition.roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
+        definition.roadblock().kind() != building_type_registry_impl::RoadblockKind::Bridge;
 }
 
 static int is_statue_with_orientation_type(building_type type)
@@ -350,16 +344,16 @@ static PlaceWarningMessage one_building_of_type_warning(building_type building)
     return warning_from_template(WARNING_ONE_BUILDING_OF_TYPE, "TR_CITY_WARNING_TEMPLATE_ONE_BUILDING_OF_TYPE", building);
 }
 
-static PlaceWarningMessage city_mint_needs_senate_warning()
+static PlaceWarningMessage building_requires_building_warning(building_type building, building_type required_building)
 {
     return warning_from_template(WARNING_SENATE_NEEDED, "TR_CITY_WARNING_TEMPLATE_BUILDING_NEEDS_BUILDING",
-        build_type_city_mint(), build_type_senate());
+        building, required_building);
 }
 
-static PlaceWarningMessage build_senate_warning()
+static PlaceWarningMessage build_required_building_warning(building_type required_building)
 {
     return warning_from_template(WARNING_BUILD_SENATE, "TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER",
-        build_type_senate());
+        required_building);
 }
 
 int building_construction_prepare_terrain(grid_slice *grid_slice, clear_mode clear_mode, cost_calculation cost)
@@ -425,6 +419,28 @@ static void add_building(building *b)
     int image_id = building_image_get(b);
     if (image_id) {
         map_building_tiles_add(b->id, b->x, b->y, b->size, image_id, TERRAIN_BUILDING);
+    }
+}
+
+static void register_single_tile_building_terrain(building *b, int terrain)
+{
+    int grid_offset = map_grid_offset(b->x, b->y);
+    map_terrain_remove(grid_offset, TERRAIN_CLEARABLE);
+    map_terrain_add(grid_offset, terrain);
+    map_building_set(grid_offset, b->id);
+    map_property_clear_constructing(grid_offset);
+    map_property_set_multi_tile_size(grid_offset, 1);
+    map_property_set_multi_tile_xy(grid_offset, 0, 0, 1);
+}
+
+static void refresh_placed_tile_regions(const building_construction::ConstructionPlacementPlan &placement)
+{
+    for (const building_construction::ConstructionPlacementPart &part : placement.parts()) {
+        if (!part.definition->has_tile()) {
+            continue;
+        }
+        map_tiles_update_region_tile(part.x, part.y, part.x + part.size - 1, part.y + part.size - 1,
+            part.definition->tile());
     }
 }
 
@@ -608,21 +624,21 @@ static void add_to_map(
     } else if (building_definition_attr_is_any(definition, {"large_mausoleum", "nymphaeum"})) {
         map_tiles_update_area_roads(b->x, b->y, 5);
         building_monument_set_phase(b, MONUMENT_START);
-    } else if (building_is_roadblock_tile(definition)) {
+    } else if (building_is_single_tile_roadblock(definition, size)) {
         add_building(b);
+        register_single_tile_building_terrain(b, TERRAIN_BUILDING);
         map_terrain_add_roadblock_road(b->x, b->y);
         map_tiles_update_area_roads(b->x, b->y, 5);
-        map_tiles_update_all_plazas();
     } else if (building_registers_water_footprint(definition)) {
         b->subtype.orientation = waterside_orientation_abs;
         b->data.dock.orientation = waterside_orientation_abs;
         map_water_add_building(b->id, b->x, b->y, size);
-    } else if (building_definition_attr_is(definition, "tower")) {
+    } else if (building_uses_wall_foundation(definition)) {
         map_terrain_remove_with_radius(b->x, b->y, 2, 0, TERRAIN_WALL);
         map_building_tiles_add(b->id, b->x, b->y, size, building_image_get(b),
             TERRAIN_BUILDING | TERRAIN_GATEHOUSE);
         map_tiles_update_area_walls(b->x, b->y, 5);
-    } else if (building_definition_attr_is(definition, "gatehouse")) {
+    } else if (definition.roadblock().is_wall_gate()) {
         b->subtype.orientation = orientation;
         map_building_tiles_add_remove(b->id, b->x, b->y, size,
             building_image_get(b), TERRAIN_BUILDING | TERRAIN_GATEHOUSE, TERRAIN_CLEARABLE & ~TERRAIN_HIGHWAY);
@@ -632,7 +648,7 @@ static void add_to_map(
         map_tiles_update_area_highways(b->x, b->y, 3);
         map_tiles_update_all_plazas();
         map_tiles_update_area_walls(b->x, b->y, 5);
-    } else if (building_definition_attr_is(definition, "triumphal_arch")) {
+    } else if (definition.roadblock().has_center_road_passage()) {
         b->subtype.orientation = orientation;
         add_building(b);
         map_orientation_update_buildings();
@@ -664,6 +680,7 @@ static void add_to_map(
     } else {
         add_building(b);
     }
+    refresh_placed_tile_regions(placement);
     map_routing_update_land();
     map_routing_update_walls();
 }
@@ -732,6 +749,41 @@ static int instant_building_has_required_resources(building_type type, int emit_
             building_needs_resource_warning(type, resource).show_when(emit_warnings);
             return 0;
         }
+    }
+    return 1;
+}
+
+static int construction_config_flag_enabled(building_type_registry_impl::ConstructionConfigFlag flag)
+{
+    switch (flag) {
+        case building_type_registry_impl::ConstructionConfigFlag::MultipleBarracks:
+            return config_get(CONFIG_GP_CH_MULTIPLE_BARRACKS);
+        case building_type_registry_impl::ConstructionConfigFlag::None:
+        default:
+            return 0;
+    }
+}
+
+static int construction_rules_allow_placement(
+    const building_type_registry_impl::BuildingType &definition,
+    int emit_warnings)
+{
+    const building_type type = definition.type();
+    const building_type_registry_impl::ConstructionDefinition &construction =
+        definition.construction();
+    const int max_count = construction.max_count();
+    if (max_count > 0 &&
+        !construction_config_flag_enabled(construction.max_count_unless_config()) &&
+        building_count_total(type) >= max_count) {
+        one_building_of_type_warning(type).show_when(emit_warnings);
+        return 0;
+    }
+
+    const building_type required_building = construction.required_building_type();
+    if (required_building != BUILDING_NONE && building_count_total(required_building) <= 0) {
+        building_requires_building_warning(type, required_building).show_when(emit_warnings);
+        build_required_building_warning(required_building).show_when(emit_warnings);
+        return 0;
     }
     return 1;
 }
@@ -854,64 +906,62 @@ static void force_place_clear_offsets(force_place_check *check)
     map_tiles_update_all_plazas();
 }
 
-static int building_construction_place_building_internal(building_type type, int x, int y,
-    int exact_coordinates, force_place_check *force_check, int emit_warnings, int place_building)
+static int initial_building_orientation(
+    const building_type_registry_impl::BuildingType &definition,
+    int x,
+    int y)
 {
     int grid_offset = map_grid_offset(x, y);
-    const building_type_registry_impl::BuildingType &definition = *definition_for_placement_type(type);
-
-    int terrain_mask = TERRAIN_ALL;
-    if (building_has_roadblock_placement_surface(definition) ||
-        (config_get(CONFIG_GP_CH_WAREHOUSES_GRANARIES_OVER_ROAD_PLACEMENT) &&
-        (definition.is_granary() || definition.is_warehouse()))) {
-        terrain_mask = building_definition_attr_is(definition, "gatehouse") ? ~TERRAIN_WALL & ~TERRAIN_ROAD &
-            ~TERRAIN_HIGHWAY & ~TERRAIN_BUILDING : ~TERRAIN_ROAD & ~TERRAIN_HIGHWAY;
-        //allow building gatehouses over walls and roads, other non-bridge roadblocks over roads and highways
-    } else if (building_definition_attr_is(definition, "tower")) {
-        terrain_mask = ~TERRAIN_WALL & ~TERRAIN_BUILDING;
-    } else if (building_definition_attr_is_any(definition, {"reservoir", "draggable_reservoir"})) {
-        terrain_mask = ~TERRAIN_AQUEDUCT;
-    }
-    int size = composition_placement_size(type);
-    // Do not check for a figure when build a roadblock of single tile size
-    // TODO: do not check for figures on tiles that are citizen passable in general
-    int check_figure = building_is_roadblock_tile(definition) && size == 1 ? 0 : 1;
     int building_orientation = 0;
-    if (building_definition_attr_is(definition, "gatehouse") || definition.is_warehouse()) {
+    if (definition.roadblock().is_wall_gate() || definition.is_warehouse()) {
         //check if there's a preset orientation from old building
         building *old_b = building_main(building_get(map_building_rubble_building_id(grid_offset)));
-        if (old_b && building_type_attr_is_any(old_b->type, {"gatehouse", "warehouse", "warehouse_space"})) {
+        if (old_b && (building_type_roadblock_passage_is(
+                old_b->type,
+                building_type_registry_impl::RoadblockPassageType::WallGate) ||
+                building_type_attr_is_any(old_b->type, {"warehouse", "warehouse_space"}))) {
             building_orientation = old_b->subtype.orientation;
-        } else if (building_definition_attr_is(definition, "gatehouse")) {
+        } else if (definition.roadblock().is_wall_gate()) {
             building_orientation = map_orientation_for_gatehouse(x, y);
         } else if (definition.is_warehouse()) {
             building_orientation = building_rotation_get_rotation();
         }
-    } else if (building_definition_attr_is(definition, "triumphal_arch")) {
+    } else if (definition.roadblock().has_center_road_passage()) {
         building_orientation = map_orientation_for_triumphal_arch(x, y);
     }
-    if (!exact_coordinates) {
-        building_construction_offset_start_from_orientation(&x, &y, size);
-    }
+    return building_orientation;
+}
+
+static int building_construction_validate_placement_plan(
+    const building_construction::ConstructionPlacementPlan &placement,
+    force_place_check *force_check,
+    int emit_warnings,
+    int *building_orientation)
+{
+    const building_type type = placement.type();
+    const building_type_registry_impl::BuildingType &definition = placement.definition();
+    const int x = placement.origin_x();
+    const int y = placement.origin_y();
+    const int grid_offset = map_grid_offset(placement.cursor_x(), placement.cursor_y());
+    const int size = placement.placement_size();
+
     // extra checks
-    if (building_definition_attr_is(definition, "tower")) {
-        if (!map_terrain_all_tiles_in_radius_are(x, y, size, 0, TERRAIN_WALL)) {
-            clear_land_needed_warning().show_when(emit_warnings);
-            return 0;
-        }
+    if (building_uses_wall_foundation(definition)) {
         if (!map_terrain_all_tiles_in_radius_are(x, y, 2, 0, TERRAIN_BUILDING)) {
             wall_needed_warning().show_when(emit_warnings);
             return 0;
         }
-        if (!building_orientation) {
-            building_orientation = building_rotation_get_rotation() + 1;
-            if (building_orientation > 4) {
-                building_orientation = 1;
+        if (!*building_orientation) {
+            *building_orientation = building_rotation_get_rotation() + 1;
+            if (*building_orientation > 4) {
+                *building_orientation = 1;
             }
         }
     }
-    if (building_definition_attr_is(definition, "gatehouse")) {
-        if (!tiles_are_clear_or_force_clearable(x, y, size, terrain_mask, check_figure, force_check)) {
+    if (definition.roadblock().is_wall_gate()) {
+        constexpr int gatehouse_disallowed_terrain =
+            ~TERRAIN_WALL & ~TERRAIN_ROAD & ~TERRAIN_HIGHWAY & ~TERRAIN_BUILDING;
+        if (!tiles_are_clear_or_force_clearable(x, y, size, gatehouse_disallowed_terrain, 1, force_check)) {
             clear_land_needed_warning().show_when(emit_warnings);
             return 0;
         }
@@ -919,39 +969,23 @@ static int building_construction_place_building_internal(building_type type, int
             clear_land_needed_warning().show_when(emit_warnings);
             return 0;
         }
-        if (!building_orientation) {
+        if (!*building_orientation) {
             if (building_rotation_get_road_orientation() == 1) {
-                building_orientation = 1;
+                *building_orientation = 1;
             } else {
-                building_orientation = 2;
+                *building_orientation = 2;
             }
         }
     }
-    if (building_is_roadblock_tile(definition)) {
-        if (map_tiles_are_clear(x, y, size, TERRAIN_ROAD, check_figure)) {
-            return 0;
-        }
-    }
-    if (building_definition_attr_is(definition, "triumphal_arch")) {
-        if (!tiles_are_clear_or_force_clearable(x, y, size, terrain_mask, check_figure, force_check)) {
-            clear_land_needed_warning().show_when(emit_warnings);
-            return 0;
-        }
-        if (!building_orientation) {
+    if (definition.roadblock().has_center_road_passage()) {
+        if (!*building_orientation) {
             if (building_rotation_get_road_orientation() == 1) {
-                building_orientation = 1;
+                *building_orientation = 1;
             } else {
-                building_orientation = 2;
+                *building_orientation = 2;
             }
         }
     }
-    building_construction::ConstructionPlacementPlan placement(
-        definition,
-        x,
-        y,
-        1,
-        force_check && force_check->active);
-    size = placement.placement_size();
     if (!placement.can_place()) {
         if (placement.has_open_water_failure()) {
             dock_open_water_needed_warning().show_when(emit_warnings);
@@ -987,9 +1021,7 @@ static int building_construction_place_building_internal(building_type type, int
     if (!instant_building_has_required_resources(type, emit_warnings)) {
         return 0;
     }
-
-    if (building_monument_get_id(type) && !building_monument_type_is_mini_monument(type)) {
-        one_building_of_type_warning(type).show_when(emit_warnings);
+    if (!construction_rules_allow_placement(definition, emit_warnings)) {
         return 0;
     }
 
@@ -998,53 +1030,27 @@ static int building_construction_place_building_internal(building_type type, int
         max_grand_temples_warning().show_when(emit_warnings);
         return 0;
     }
-    if (building_definition_attr_is(definition, "colosseum")) {
-        if (building_count_total(type)) {
-            one_building_of_type_warning(type).show_when(emit_warnings);
-            return 0;
-        }
-    }
-    if (definition.is_hippodrome()) {
-        if (city_buildings_has_hippodrome()) {
-            one_building_of_type_warning(type).show_when(emit_warnings);
-            return 0;
-        }
-    }
-    if (building_definition_attr_is(definition, "senate") && city_buildings_has_senate()) {
-        one_building_of_type_warning(type).show_when(emit_warnings);
-        return 0;
-    }
-    if (building_definition_attr_is(definition, "city_mint")) {
-        if (city_buildings_has_city_mint()) {
-            one_building_of_type_warning(type).show_when(emit_warnings);
-            return 0;
-        }
-        if (!city_buildings_has_senate()) {
-            city_mint_needs_senate_warning().show_when(emit_warnings);
-            build_senate_warning().show_when(emit_warnings);
-            return 0;
-        }
-    }
-    if (definition.is_lighthouse() && city_buildings_has_lighthouse()) {
-        one_building_of_type_warning(type).show_when(emit_warnings);
-        return 0;
-    }
-    if (definition.is_caravanserai() && city_buildings_has_caravanserai()) {
-        one_building_of_type_warning(type).show_when(emit_warnings);
-        return 0;
-    }
-    if (building_definition_attr_is(definition, "barracks") &&
-        city_buildings_has_barracks() &&
-        !config_get(CONFIG_GP_CH_MULTIPLE_BARRACKS)) {
-        one_building_of_type_warning(type).show_when(emit_warnings);
-        return 0;
-    }
-    if (definition.is_mess_hall() && city_buildings_has_mess_hall()) {
-        one_building_of_type_warning(type).show_when(emit_warnings);
-        return 0;
-    }
     if (emit_warnings) {
         building_construction_warning_check_all(type, x, y, size);
+    }
+    return 1;
+}
+
+static int building_construction_place_building_internal(building_type type, int x, int y,
+    int exact_coordinates, force_place_check *force_check, int emit_warnings, int place_building)
+{
+    const building_type_registry_impl::BuildingType &definition = *definition_for_placement_type(type);
+    int building_orientation = initial_building_orientation(definition, x, y);
+    building_construction::ConstructionPlacementPlan placement(
+        definition,
+        x,
+        y,
+        exact_coordinates,
+        force_check && force_check->active);
+
+    if (!building_construction_validate_placement_plan(
+        placement, force_check, emit_warnings, &building_orientation)) {
+        return 0;
     }
 
     if (!place_building) {
@@ -1055,7 +1061,7 @@ static int building_construction_place_building_internal(building_type type, int
 
     // phew, checks done!
     building *b;
-    b = building_create(type, x, y);
+    b = building_create(type, placement.origin_x(), placement.origin_y());
 
     game_undo_add_building(b);
     if (b->id <= 0) {
@@ -1072,19 +1078,24 @@ int building_construction_place_building(building_type type, int x, int y, int e
     return building_construction_place_building_internal(type, x, y, exact_coordinates, 0, 1, 1);
 }
 
-int building_construction_assess_building(building_type type, int x, int y, int exact_coordinates)
+building_construction_assessment building_construction_assess_placement(
+    const building_type_registry_impl::BuildingType &definition,
+    int x,
+    int y,
+    int exact_coordinates,
+    int force_place)
 {
-    return building_construction_place_building_internal(type, x, y, exact_coordinates, 0, 0, 0);
-}
-
-int building_construction_force_place_assess(building_type type, int x, int y, int exact_coordinates, int *clear_cost)
-{
-    force_place_check check = { 1, 0, 0, 0, { 0 } };
-    int success = building_construction_place_building_internal(type, x, y, exact_coordinates, &check, 0, 0);
-    if (clear_cost) {
-        *clear_cost = success ? check.clear_cost : 0;
-    }
-    return success;
+    force_place_check check = { force_place ? 1 : 0, 0, 0, 0, { 0 } };
+    int building_orientation = initial_building_orientation(definition, x, y);
+    building_construction::ConstructionPlacementPlan placement(
+        definition,
+        x,
+        y,
+        exact_coordinates,
+        check.active);
+    const int can_place = building_construction_validate_placement_plan(
+        placement, &check, 0, &building_orientation);
+    return {std::move(placement), can_place, can_place ? check.clear_cost : 0};
 }
 
 int building_construction_force_place_building(building_type type, int x, int y, int exact_coordinates, int *clear_cost)

@@ -10,7 +10,7 @@
     </desirability>
     <foundation policy="custom" />
     <event_data attr="ship_bridge" />
-    <roadblock kind="bridge" />
+    <roadblock kind="bridge" bridge_type="ship" />
     <flags fire_proof="1" />
     <labor>
         <employees count="0" />

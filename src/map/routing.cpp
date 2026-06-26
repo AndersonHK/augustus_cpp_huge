@@ -4,6 +4,7 @@
 #include "building/building.h"
 #include "building/building_type.h"
 #include "building/connectable.h"
+#include "building/roadblock.h"
 #include "core/time.h"
 #include "figure/figure.h"
 #include "map/building.h"
@@ -64,6 +65,7 @@ static struct {
 static struct {
     int through_building_id;
     int dest_building_id;
+    roadblock_permission roadblock_permission;
 } state;
 
 static int building_matches(building *b, const char *text_id)
@@ -564,16 +566,30 @@ static inline int has_fighting_enemy(int grid_offset)
     return fighting_data.status.items[grid_offset] & 2;
 }
 
+static int citizen_can_enter_roadblock(int grid_offset)
+{
+    if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+        return 1;
+    }
+
+    Roadblock roadblock(building_get(map_building_at(grid_offset)));
+    return roadblock.kind() == ROADBLOCK_NONE || roadblock.has_permission(state.roadblock_permission);
+}
+
 static int callback_travel_citizen_land(int offset, int next_offset, int direction)
 {
-    if (terrain_land_citizen.items[next_offset] >= 0 && !has_fighting_friendly(next_offset)) {
+    if (terrain_land_citizen.items[next_offset] >= 0 &&
+        citizen_can_enter_roadblock(next_offset) &&
+        !has_fighting_friendly(next_offset)) {
         return 1;
     }
     return 0;
 }
 
-int map_routing_citizen_can_travel_over_land(int src_x, int src_y, int dst_x, int dst_y, int num_directions)
+int map_routing_citizen_can_travel_over_land(
+    int src_x, int src_y, int dst_x, int dst_y, int num_directions, roadblock_permission permission)
 {
+    state.roadblock_permission = permission;
     ++stats.total_routes_calculated;
     route_queue_from_to(src_x, src_y, dst_x, dst_y, num_directions, 0, callback_travel_citizen_land);
     return distance.determined.items[map_grid_offset(dst_x, dst_y)] != 0;
@@ -583,16 +599,24 @@ static int callback_travel_citizen_road_garden(int offset, int next_offset, int 
 {
     if (terrain_land_citizen.items[next_offset] == CITIZEN_0_ROAD ||
         terrain_land_citizen.items[next_offset] == CITIZEN_2_PASSABLE_TERRAIN) {
+        if (!citizen_can_enter_roadblock(next_offset)) {
+            return 0;
+        }
         return 1;
     }
     return 0;
 }
 
-int map_routing_citizen_can_travel_over_road_garden(int src_x, int src_y, int dst_x, int dst_y, int num_directions)
+int map_routing_citizen_can_travel_over_road_garden(
+    int src_x, int src_y, int dst_x, int dst_y, int num_directions, roadblock_permission permission)
 {
+    state.roadblock_permission = permission;
     int dst_offset = map_grid_offset(dst_x, dst_y);
     if (terrain_land_citizen.items[dst_offset] != CITIZEN_0_ROAD &&
         terrain_land_citizen.items[dst_offset] != CITIZEN_2_PASSABLE_TERRAIN) {
+        return 0;
+    }
+    if (!citizen_can_enter_roadblock(dst_offset)) {
         return 0;
     }
     ++stats.total_routes_calculated;
@@ -603,17 +627,23 @@ int map_routing_citizen_can_travel_over_road_garden(int src_x, int src_y, int ds
 static int callback_travel_citizen_road_garden_highway(int offset, int next_offset, int direction)
 {
     if (terrain_land_citizen.items[next_offset] >= CITIZEN_0_ROAD &&
-        terrain_land_citizen.items[next_offset] <= CITIZEN_2_PASSABLE_TERRAIN) {
+        terrain_land_citizen.items[next_offset] <= CITIZEN_2_PASSABLE_TERRAIN &&
+        citizen_can_enter_roadblock(next_offset)) {
         return 1;
     }
     return 0;
 }
 
-int map_routing_citizen_can_travel_over_road_garden_highway(int src_x, int src_y, int dst_x, int dst_y, int num_directions)
+int map_routing_citizen_can_travel_over_road_garden_highway(
+    int src_x, int src_y, int dst_x, int dst_y, int num_directions, roadblock_permission permission)
 {
+    state.roadblock_permission = permission;
     int dst_offset = map_grid_offset(dst_x, dst_y);
     if (terrain_land_citizen.items[dst_offset] < CITIZEN_0_ROAD ||
         terrain_land_citizen.items[dst_offset] > CITIZEN_2_PASSABLE_TERRAIN) {
+        return 0;
+    }
+    if (!citizen_can_enter_roadblock(dst_offset)) {
         return 0;
     }
     ++stats.total_routes_calculated;

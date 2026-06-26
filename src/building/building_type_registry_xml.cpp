@@ -863,6 +863,10 @@ static int parse_desirability_range()
         &BuildingType::set_model_desirability_range);
 }
 
+static FoundationCellRequirement parse_foundation_cell_requirement(const char *value, int *ok);
+static FoundationPolicy parse_foundation_policy(const char *value, int *ok);
+static FoundationCellRequirement foundation_policy_requirement(FoundationPolicy policy);
+
 static int parse_foundation()
 {
     if (!g_parse_state.definition) {
@@ -888,7 +892,16 @@ static int parse_foundation()
         return 0;
     }
 
-    g_parse_state.definition->set_foundation_policy(std::move(policy));
+    int ok = 0;
+    FoundationPolicy policy_type = parse_foundation_policy(policy.c_str(), &ok);
+    if (!ok) {
+        log_error("Unsupported BuildingType foundation policy", policy.c_str(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    FoundationCellRequirement requirement = foundation_policy_requirement(policy_type);
+
+    g_parse_state.definition->set_foundation_policy(std::move(policy), policy_type, requirement);
     if (xml_parser_has_attribute("open_water")) {
         int requires_open_water = 0;
         if (!xml_value::parse_bool(xml_parser_get_attribute_string("open_water"), &requires_open_water)) {
@@ -951,6 +964,12 @@ static FoundationCellRequirement parse_foundation_cell_requirement(const char *v
     if (compare_text(value, "road") == 0) {
         return FoundationCellRequirement::Road;
     }
+    if (compare_text(value, "road_or_land") == 0) {
+        return FoundationCellRequirement::RoadOrLand;
+    }
+    if (compare_text(value, "road_or_wall_or_land") == 0) {
+        return FoundationCellRequirement::RoadWallOrLand;
+    }
     if (compare_text(value, "wall") == 0) {
         return FoundationCellRequirement::Wall;
     }
@@ -962,6 +981,60 @@ static FoundationCellRequirement parse_foundation_cell_requirement(const char *v
     }
     *ok = 0;
     return FoundationCellRequirement::Land;
+}
+
+static FoundationPolicy parse_foundation_policy(const char *value, int *ok)
+{
+    *ok = 1;
+    if (compare_text(value, "land") == 0) {
+        return FoundationPolicy::Land;
+    }
+    if (compare_text(value, "road") == 0) {
+        return FoundationPolicy::Road;
+    }
+    if (compare_text(value, "road_or_land") == 0) {
+        return FoundationPolicy::RoadOrLand;
+    }
+    if (compare_text(value, "road_or_wall_or_land") == 0) {
+        return FoundationPolicy::RoadWallOrLand;
+    }
+    if (compare_text(value, "wall") == 0) {
+        return FoundationPolicy::Wall;
+    }
+    if (compare_text(value, "water") == 0) {
+        return FoundationPolicy::Water;
+    }
+    if (compare_text(value, "shoreline") == 0) {
+        return FoundationPolicy::Shoreline;
+    }
+    if (compare_text(value, "aqueduct") == 0) {
+        return FoundationPolicy::Aqueduct;
+    }
+    if (compare_text(value, "custom") == 0) {
+        return FoundationPolicy::Custom;
+    }
+    *ok = 0;
+    return FoundationPolicy::None;
+}
+
+static FoundationCellRequirement foundation_policy_requirement(FoundationPolicy policy)
+{
+    switch (policy) {
+        case FoundationPolicy::Water:
+            return FoundationCellRequirement::Water;
+        case FoundationPolicy::Road:
+            return FoundationCellRequirement::Road;
+        case FoundationPolicy::RoadOrLand:
+            return FoundationCellRequirement::RoadOrLand;
+        case FoundationPolicy::RoadWallOrLand:
+            return FoundationCellRequirement::RoadWallOrLand;
+        case FoundationPolicy::Wall:
+            return FoundationCellRequirement::Wall;
+        case FoundationPolicy::Aqueduct:
+            return FoundationCellRequirement::Aqueduct;
+        default:
+            return FoundationCellRequirement::Land;
+    }
 }
 
 static int parse_foundation_cell()
@@ -1093,6 +1166,58 @@ static int parse_button()
     return 1;
 }
 
+static int parse_cycle()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered cycle definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_cycle) {
+        log_error("BuildingType xml contains duplicate cycle nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("group") || !xml_parser_has_attribute("order")) {
+        log_error("BuildingType cycle requires group and order", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    std::string group = xml_value::trim_copy(xml_parser_get_attribute_string("group"));
+    if (group.empty()) {
+        log_error("Unsupported BuildingType cycle group", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int order = 0;
+    int has_order = 0;
+    if (!parse_optional_int_attribute("Unsupported BuildingType cycle order", "order", &order, &has_order) ||
+        !has_order || order < 0) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int steps = 1;
+    int has_steps = 0;
+    if (!parse_optional_int_attribute("Unsupported BuildingType cycle steps", "steps", &steps, &has_steps)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_steps && steps <= 0) {
+        log_error("Unsupported BuildingType cycle steps", g_parse_state.definition->attr(), steps);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_cycle_group(std::move(group));
+    g_parse_state.definition->set_cycle_order(order);
+    g_parse_state.definition->set_cycle_steps(steps);
+    g_parse_state.saw_cycle = 1;
+    return 1;
+}
+
 static RoadblockKind parse_roadblock_kind(const char *text)
 {
     if (compare_text(text, "standard") == 0) {
@@ -1105,6 +1230,28 @@ static RoadblockKind parse_roadblock_kind(const char *text)
         return RoadblockKind::Bridge;
     }
     return RoadblockKind::None;
+}
+
+static RoadblockBridgeType parse_roadblock_bridge_type(const char *text)
+{
+    if (compare_text(text, "low") == 0) {
+        return RoadblockBridgeType::Low;
+    }
+    if (compare_text(text, "ship") == 0) {
+        return RoadblockBridgeType::Ship;
+    }
+    return RoadblockBridgeType::None;
+}
+
+static RoadblockPassageType parse_roadblock_passage_type(const char *text)
+{
+    if (compare_text(text, "wall_gate") == 0) {
+        return RoadblockPassageType::WallGate;
+    }
+    if (compare_text(text, "center_road") == 0) {
+        return RoadblockPassageType::CenterRoad;
+    }
+    return RoadblockPassageType::None;
 }
 
 static int parse_roadblock()
@@ -1133,7 +1280,45 @@ static int parse_roadblock()
         return 0;
     }
 
+    RoadblockBridgeType bridge_type = RoadblockBridgeType::None;
+    if (kind == RoadblockKind::Bridge) {
+        if (!xml_parser_has_attribute("bridge_type")) {
+            log_error("Bridge roadblock is missing required attribute 'bridge_type'", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        const char *bridge_type_text = xml_parser_get_attribute_string("bridge_type");
+        bridge_type = parse_roadblock_bridge_type(bridge_type_text);
+        if (bridge_type == RoadblockBridgeType::None) {
+            log_error("Unsupported bridge roadblock type", bridge_type_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    } else if (xml_parser_has_attribute("bridge_type")) {
+        log_error("Only bridge roadblocks may define 'bridge_type'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    RoadblockPassageType passage_type = RoadblockPassageType::None;
+    if (xml_parser_has_attribute("passage")) {
+        if (kind != RoadblockKind::Standard) {
+            log_error("Only standard roadblocks may define 'passage'", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        const char *passage_text = xml_parser_get_attribute_string("passage");
+        passage_type = parse_roadblock_passage_type(passage_text);
+        if (passage_type == RoadblockPassageType::None) {
+            log_error("Unsupported roadblock passage type", passage_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
     g_parse_state.definition->set_roadblock_kind(kind);
+    g_parse_state.definition->set_roadblock_bridge_type(bridge_type);
+    g_parse_state.definition->set_roadblock_passage_type(passage_type);
     g_parse_state.saw_roadblock = 1;
     return 1;
 }
@@ -1161,11 +1346,27 @@ static TileRefreshBehavior parse_tile_refresh_behavior(const char *text, int *ok
     if (compare_text(text, "garden") == 0) {
         return TileRefreshBehavior::Garden;
     }
-    if (compare_text(text, "plaza") == 0 || compare_text(text, "roadblock") == 0) {
+    if (compare_text(text, "plaza") == 0) {
         return TileRefreshBehavior::Plaza;
     }
     *ok = 0;
     return TileRefreshBehavior::None;
+}
+
+static TilePlacementBehavior parse_tile_placement_behavior(const char *text, int *ok)
+{
+    *ok = 1;
+    if (compare_text(text, "none") == 0) {
+        return TilePlacementBehavior::None;
+    }
+    if (compare_text(text, "garden") == 0) {
+        return TilePlacementBehavior::Garden;
+    }
+    if (compare_text(text, "plaza") == 0) {
+        return TilePlacementBehavior::Plaza;
+    }
+    *ok = 0;
+    return TilePlacementBehavior::None;
 }
 
 static int parse_tile()
@@ -1209,8 +1410,154 @@ static int parse_tile()
         }
         g_parse_state.definition->set_tile_refresh_behavior(behavior);
     }
+    if (xml_parser_has_attribute("placement")) {
+        int ok = 0;
+        TilePlacementBehavior behavior =
+            parse_tile_placement_behavior(xml_parser_get_attribute_string("placement"), &ok);
+        if (!ok) {
+            log_error("Unsupported BuildingType tile placement behavior",
+                xml_parser_get_attribute_string("placement"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_tile_placement_behavior(behavior);
+    }
+    if (xml_parser_has_attribute("overgrown")) {
+        int overgrown = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("overgrown"), &overgrown)) {
+            log_error("BuildingType tile overgrown attribute must be true or false",
+                g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_tile_overgrown(overgrown);
+    }
     g_parse_state.saw_tile = 1;
     g_parse_state.parsing_tile = 1;
+    return 1;
+}
+
+static ConstructionToolKind parse_tool_kind(const char *text)
+{
+    if (compare_text(text, "clear_land") == 0) {
+        return ConstructionToolKind::ClearLand;
+    }
+    if (compare_text(text, "clear_trees") == 0) {
+        return ConstructionToolKind::ClearTrees;
+    }
+    if (compare_text(text, "repair_land") == 0) {
+        return ConstructionToolKind::RepairLand;
+    }
+    if (compare_text(text, "road") == 0) {
+        return ConstructionToolKind::Road;
+    }
+    if (compare_text(text, "highway") == 0) {
+        return ConstructionToolKind::Highway;
+    }
+    if (compare_text(text, "wall") == 0) {
+        return ConstructionToolKind::Wall;
+    }
+    if (compare_text(text, "roadblock") == 0) {
+        return ConstructionToolKind::Roadblock;
+    }
+    if (compare_text(text, "aqueduct") == 0) {
+        return ConstructionToolKind::Aqueduct;
+    }
+    if (compare_text(text, "draggable_reservoir") == 0) {
+        return ConstructionToolKind::DraggableReservoir;
+    }
+    if (compare_text(text, "draggable_building") == 0) {
+        return ConstructionToolKind::DraggableBuilding;
+    }
+    return ConstructionToolKind::None;
+}
+
+static ConstructionDragTerrain parse_tool_drag_terrain(const char *text)
+{
+    if (compare_text(text, "land") == 0) {
+        return ConstructionDragTerrain::Land;
+    }
+    if (compare_text(text, "land_or_road") == 0) {
+        return ConstructionDragTerrain::LandOrRoad;
+    }
+    return ConstructionDragTerrain::Land;
+}
+
+static ConstructionDragRotation parse_tool_drag_rotation(const char *text)
+{
+    if (compare_text(text, "none") == 0) {
+        return ConstructionDragRotation::None;
+    }
+    if (compare_text(text, "path") == 0) {
+        return ConstructionDragRotation::Path;
+    }
+    if (compare_text(text, "hedge") == 0) {
+        return ConstructionDragRotation::Hedge;
+    }
+    if (compare_text(text, "variant") == 0) {
+        return ConstructionDragRotation::Variant;
+    }
+    if (compare_text(text, "pair") == 0) {
+        return ConstructionDragRotation::Pair;
+    }
+    return ConstructionDragRotation::None;
+}
+
+static int parse_tool()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered tool definition before building root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_tool) {
+        log_error("BuildingType xml contains duplicate tool nodes", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("kind")) {
+        log_error("BuildingType tool is missing required attribute 'kind'", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *kind_text = xml_parser_get_attribute_string("kind");
+    ConstructionToolKind kind = parse_tool_kind(kind_text);
+    if (kind == ConstructionToolKind::None) {
+        log_error("Unsupported BuildingType tool kind", kind_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_tool_kind(kind);
+    if (kind == ConstructionToolKind::DraggableBuilding) {
+        if (!xml_parser_has_attribute("drag_terrain") || !xml_parser_has_attribute("rotation")) {
+            log_error("Draggable BuildingType tool requires drag_terrain and rotation", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        const char *terrain_text = xml_parser_get_attribute_string("drag_terrain");
+        const char *rotation_text = xml_parser_get_attribute_string("rotation");
+        ConstructionDragTerrain terrain = parse_tool_drag_terrain(terrain_text);
+        if (terrain == ConstructionDragTerrain::Land && compare_text(terrain_text, "land") != 0) {
+            log_error("Unsupported draggable BuildingType tool terrain", terrain_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        ConstructionDragRotation rotation = parse_tool_drag_rotation(rotation_text);
+        if (rotation == ConstructionDragRotation::None && compare_text(rotation_text, "none") != 0) {
+            log_error("Unsupported draggable BuildingType tool rotation", rotation_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_tool_drag_terrain(terrain);
+        g_parse_state.definition->set_tool_drag_rotation(rotation);
+    } else if (xml_parser_has_attribute("drag_terrain") || xml_parser_has_attribute("rotation")) {
+        log_error("Only draggable BuildingType tools may define drag_terrain or rotation", g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_tool = 1;
     return 1;
 }
 
@@ -1771,6 +2118,17 @@ static int parse_graphics()
 
 static resource_type parse_construction_requirement_type_name(const char *name);
 
+static ConstructionConfigFlag parse_construction_config_flag(const char *text)
+{
+    if (compare_text(text, "none") == 0) {
+        return ConstructionConfigFlag::None;
+    }
+    if (compare_text(text, "multiple_barracks") == 0) {
+        return ConstructionConfigFlag::MultipleBarracks;
+    }
+    return ConstructionConfigFlag::None;
+}
+
 static void finish_graphics()
 {
     if (!g_parse_state.parsing_graphics) {
@@ -1838,6 +2196,78 @@ static int parse_construction()
             return 0;
         }
         g_parse_state.definition->set_construction_road_update_radius(radius);
+    }
+
+    int free_when_broke_limit = 0;
+    int has_free_when_broke_limit = 0;
+    if (!parse_optional_int_attribute(
+            "Unsupported BuildingType construction numeric attribute",
+            "free_when_broke_limit",
+            &free_when_broke_limit,
+            &has_free_when_broke_limit)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_free_when_broke_limit) {
+        if (free_when_broke_limit < 0) {
+            log_error(
+                "Unsupported BuildingType construction free_when_broke_limit",
+                g_parse_state.definition->attr(),
+                free_when_broke_limit);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_construction_free_when_broke_limit(
+            free_when_broke_limit);
+    }
+
+    int max_count = 0;
+    int has_max_count = 0;
+    if (!parse_optional_int_attribute(
+            "Unsupported BuildingType construction numeric attribute",
+            "max_count",
+            &max_count,
+            &has_max_count)) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (has_max_count) {
+        if (max_count < 1) {
+            log_error("Unsupported BuildingType construction max_count",
+                g_parse_state.definition->attr(), max_count);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_construction_max_count(max_count);
+    }
+    if (xml_parser_has_attribute("max_count_unless_config")) {
+        if (!has_max_count) {
+            log_error("BuildingType construction max_count_unless_config requires max_count",
+                g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        const char *config_text = xml_parser_get_attribute_string("max_count_unless_config");
+        ConstructionConfigFlag flag = parse_construction_config_flag(config_text);
+        if (flag == ConstructionConfigFlag::None && compare_text(config_text, "none") != 0) {
+            log_error("Unsupported BuildingType construction max_count_unless_config",
+                config_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_construction_max_count_unless_config(flag);
+    }
+    if (xml_parser_has_attribute("requires_building")) {
+        std::string type_attr = xml_value::trim_copy(
+            xml_parser_get_attribute_string("requires_building"));
+        if (type_attr.empty()) {
+            log_error("Unsupported BuildingType construction requires_building",
+                xml_parser_get_attribute_string("requires_building"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_construction_required_building_reference(
+            std::move(type_attr));
     }
 
     g_parse_state.saw_construction = 1;
@@ -2320,10 +2750,7 @@ static int parse_graphics_variant()
     }
     if (xml_parser_has_attribute("role")) {
         std::string role = xml_value::trim_copy(xml_parser_get_attribute_string("role"));
-        if (role.empty() ||
-            (compare_text(role.c_str(), "tile_large") != 0 &&
-                compare_text(role.c_str(), "overgrown") != 0 &&
-                compare_text(role.c_str(), "overgrown_large") != 0)) {
+        if (role.empty()) {
             log_error("Unsupported BuildingType graphics variant role", xml_parser_get_attribute_string("role"), 0);
             g_parse_state.error = 1;
             return 0;
@@ -3751,8 +4178,10 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "cell", parse_foundation_cell, nullptr, "foundation", nullptr },
     { "button", parse_button, nullptr, "building", nullptr },
     { "menu", parse_button, nullptr, "building", nullptr },
+    { "cycle", parse_cycle, nullptr, "building", nullptr },
     { "roadblock", parse_roadblock, nullptr, "building", nullptr },
     { "tile", parse_tile, finish_tile, "building", nullptr },
+    { "tool", parse_tool, nullptr, "building", nullptr },
     { "temple", parse_temple, nullptr, "building", nullptr },
     { "sound", parse_sound, nullptr, "building", nullptr },
     { "event_data", parse_event_data, nullptr, "building", nullptr },
@@ -4272,7 +4701,8 @@ static int parse_definition_buffer(const char *filename, std::vector<char> &buff
     // This must tighten again once metadata, graphics, placement, and runtime behavior are all XML-owned.
     // Live bad XML should fail at load time instead of quietly registering incomplete building definitions.
     int has_supported_node = g_parse_state.saw_identity || g_parse_state.saw_model || g_parse_state.saw_foundation ||
-        g_parse_state.saw_button || g_parse_state.saw_roadblock || g_parse_state.saw_tile ||
+        g_parse_state.saw_button || g_parse_state.saw_cycle || g_parse_state.saw_roadblock ||
+        g_parse_state.saw_tile || g_parse_state.saw_tool ||
         g_parse_state.saw_temple || g_parse_state.saw_sound || g_parse_state.saw_event_data ||
         g_parse_state.saw_market || g_parse_state.saw_flags || g_parse_state.saw_desirability || g_parse_state.saw_graphic ||
         g_parse_state.saw_construction || g_parse_state.saw_spawn ||
@@ -4366,6 +4796,35 @@ static building_type resolve_building_type_reference(const std::string &text_id)
         }
     }
     return target;
+}
+
+static int resolve_construction_references()
+{
+    ErrorContextScope error_scope("building_type_registry.resolve_construction_references");
+
+    for (std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (!definition || !definition->has_construction()) {
+            continue;
+        }
+        const std::string &required_building =
+            definition->construction().required_building_reference();
+        if (required_building.empty()) {
+            continue;
+        }
+        building_type type = resolve_building_type_reference(required_building);
+        if (type == BUILDING_NONE || !definition_for_type(type)) {
+            char detail[512];
+            snprintf(detail, sizeof(detail), "building=%s requires_building=%s",
+                definition->attr(), required_building.c_str());
+            error_context_report_error(
+                "BuildingType construction required building does not exist.", detail);
+            log_error("Unable to resolve BuildingType construction required building",
+                detail, 0);
+            return 0;
+        }
+        definition->set_construction_required_building_type(type);
+    }
+    return 1;
 }
 
 static int model_size_for_definition(const BuildingType &definition)
@@ -4721,6 +5180,10 @@ int building_type_registry_load(void)
 
     if (!resolve_housing_transitions()) {
         log_error("Unable to resolve BuildingType housing transitions", 0, 0);
+        return 0;
+    }
+    if (!resolve_construction_references()) {
+        log_error("Unable to resolve BuildingType construction references", 0, 0);
         return 0;
     }
     if (!resolve_composed_building_references()) {

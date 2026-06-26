@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/buffer.h"
+#include "building/roadblock.h"
 #include "map/grid.h"
 
 
@@ -32,9 +33,12 @@ void map_routing_delete_first_wall_or_aqueduct(int x, int y);
 
 int map_routing_distance(int grid_offset);
 
-int map_routing_citizen_can_travel_over_land(int src_x, int src_y, int dst_x, int dst_y, int num_directions);
-int map_routing_citizen_can_travel_over_road_garden(int src_x, int src_y, int dst_x, int dst_y, int num_directions);
-int map_routing_citizen_can_travel_over_road_garden_highway(int src_x, int src_y, int dst_x, int dst_y, int num_directions);
+int map_routing_citizen_can_travel_over_land(
+    int src_x, int src_y, int dst_x, int dst_y, int num_directions, roadblock_permission permission);
+int map_routing_citizen_can_travel_over_road_garden(
+    int src_x, int src_y, int dst_x, int dst_y, int num_directions, roadblock_permission permission);
+int map_routing_citizen_can_travel_over_road_garden_highway(
+    int src_x, int src_y, int dst_x, int dst_y, int num_directions, roadblock_permission permission);
 int map_routing_can_travel_over_walls(int src_x, int src_y, int dst_x, int dst_y, int num_directions);
 
 int map_routing_noncitizen_can_travel_over_land(

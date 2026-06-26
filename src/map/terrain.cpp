@@ -620,7 +620,9 @@ void map_terrain_migrate_old_bridges(void)
                     : map_grid_delta(0, dir);
 
                 int is_ship_bridge = map_sprite_bridge_at(start) > 6 ? 1 : 0;
-                building_type bridge_type = building_type_from_definition_attr(is_ship_bridge ? "ship_bridge" : "low_bridge");
+                building_type bridge_type = building_type_registry_impl::type_from_roadblock_bridge(is_ship_bridge ?
+                    building_type_registry_impl::RoadblockBridgeType::Ship :
+                    building_type_registry_impl::RoadblockBridgeType::Low);
                 if (bridge_type == BUILDING_NONE) {
                     continue;
                 }

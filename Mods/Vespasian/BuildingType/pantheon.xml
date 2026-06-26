@@ -33,7 +33,7 @@
             <image value="Pantheon Module2" />
         </variant>
     </graphics>
-    <construction mode="phased" road_update_radius="9">
+    <construction mode="phased" road_update_radius="9" max_count="1">
         <phase index="1">
             <graphics>
                 <path value="Environment\Group_206" />

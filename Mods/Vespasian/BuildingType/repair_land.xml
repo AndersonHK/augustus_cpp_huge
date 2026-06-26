@@ -9,6 +9,7 @@
         <range value="0" />
     </desirability>
     <button group="tools" order="20" text_key="TR_BUILDING_LAND_REPAIR" />
+    <tool kind="repair_land" />
     <event_data attr="repair_land" />
     <labor>
         <employees count="0" />

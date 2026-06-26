@@ -298,11 +298,13 @@ void map_orientation_update_buildings(void)
             continue;
         }
         building_type type = b->type;
-        if (type_matches(type, "gatehouse")) {
+        Building current(b);
+        const auto *definition = current.type;
+        if (definition && definition->roadblock().is_wall_gate()) {
             map_building_tiles_add_remove(i, b->x, b->y, b->size, building_image_get(b),
                 TERRAIN_GATEHOUSE | TERRAIN_BUILDING, TERRAIN_CLEARABLE & ~TERRAIN_HIGHWAY);
             map_terrain_add_gatehouse_roads(b->x, b->y, 0);
-        } else if (type_matches(type, "triumphal_arch")) {
+        } else if (definition && definition->roadblock().has_center_road_passage()) {
             map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
             map_terrain_add_triumphal_arch_roads(b->x, b->y, b->subtype.orientation);
         } else if (type_matches(type, "hippodrome")) {
@@ -325,8 +327,6 @@ void map_orientation_update_buildings(void)
                 "large_mausoleum",
                 "decorative_column",
             };
-            Building current(b);
-            const auto *definition = current.type;
             if ((definition && std::strcmp(definition->attr(), "dock") == 0) ||
                 type_matches_any(type, water_buildings, sizeof(water_buildings) / sizeof(water_buildings[0]))) {
                 map_water_add_building(i, b->x, b->y, b->size);

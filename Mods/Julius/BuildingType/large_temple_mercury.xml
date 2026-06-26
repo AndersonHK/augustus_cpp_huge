@@ -11,6 +11,7 @@
     </desirability>
     <foundation policy="land" />
     <button group="large_temples" order="30" icon="Health_Culture\Temple_Mercury" text_key="main_strings.28.67" />
+    <cycle group="large_temples" order="30" steps="1" />
     <sound id="temple_mercury" />
     <event_data attr="large_temple_mercury" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />

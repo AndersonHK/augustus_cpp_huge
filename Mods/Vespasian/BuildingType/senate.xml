@@ -9,6 +9,7 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
+    <construction max_count="1" />
   <button group="administration" order="800" icon="Admin_Logistics\Senate" text_key="main_strings.28.85" />
     <sound id="senate" />
     <event_data attr="senate" />

@@ -90,21 +90,6 @@ static int is_native_blocker(building_type type)
     return type_matches_any(type, types, sizeof(types) / sizeof(types[0]));
 }
 
-static int is_roadblock_like_passable(building_type type)
-{
-    static const char *const types[] = {
-        "roofed_garden_wall_gate",
-        "looped_garden_gate",
-        "panelled_garden_gate",
-        "roadblock",
-        "hedge_gate_dark",
-        "hedge_gate_light",
-        "ship_bridge",
-        "low_bridge",
-    };
-    return type_matches_any(type, types, sizeof(types) / sizeof(types[0]));
-}
-
 void map_routing_update_all(void)
 {
     map_routing_update_land();
@@ -126,7 +111,7 @@ static int get_land_type_citizen_building(int grid_offset)
     Building current(b);
     if (current.type && current.type->is_warehouse()) {
         type = CITIZEN_0_ROAD;
-    } else if (type_matches(b->type, "gatehouse")) {
+    } else if (current.type && current.type->roadblock().is_wall_gate()) {
         if (terrain & TERRAIN_HIGHWAY) {
             type = CITIZEN_1_HIGHWAY;
         } else {
@@ -224,8 +209,7 @@ static int get_land_type_noncitizen(int grid_offset)
         if (is_granary_cross_tile(grid_offset)) { // granary cross always passable
             type = NONCITIZEN_0_PASSABLE;
         }
-    } else if ((current.type && current.type->has_roadblock()) ||
-        is_roadblock_like_passable(b->type) || building_type_is_bridge(b->type)) {
+    } else if (current.type && current.type->has_roadblock()) {
         type = NONCITIZEN_0_PASSABLE;
     } else if (is_transformable_gate_wall(b->type)) {
         // colonnade can be enabled if we add a gate variant

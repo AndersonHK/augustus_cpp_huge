@@ -17,6 +17,49 @@ int Roadblock::has_permission(roadblock_permission permission) const
     return exceptions() & permission_bit;
 }
 
+roadblock_permission Roadblock::permission_for(const Figure &figure)
+{
+    switch (figure.type) {
+        case FIGURE_ENGINEER:
+        case FIGURE_PREFECT:
+            return PERMISSION_MAINTENANCE;
+        case FIGURE_PRIEST:
+            return PERMISSION_PRIEST;
+        case FIGURE_MARKET_TRADER:
+            return PERMISSION_MARKET;
+        case FIGURE_GLADIATOR:
+        case FIGURE_CHARIOTEER:
+        case FIGURE_ACTOR:
+        case FIGURE_LION_TAMER:
+        case FIGURE_BARKEEP:
+            return PERMISSION_ENTERTAINER;
+        case FIGURE_SURGEON:
+        case FIGURE_DOCTOR:
+        case FIGURE_BARBER:
+        case FIGURE_BATHHOUSE_WORKER:
+            return PERMISSION_MEDICINE;
+        case FIGURE_SCHOOL_CHILD:
+        case FIGURE_TEACHER:
+        case FIGURE_LIBRARIAN:
+            return PERMISSION_EDUCATION;
+        case FIGURE_TAX_COLLECTOR:
+            return PERMISSION_TAX_COLLECTOR;
+        case FIGURE_LABOR_SEEKER:
+            return PERMISSION_LABOR_SEEKER;
+        case FIGURE_MISSIONARY:
+            return PERMISSION_MISSIONARY;
+        case FIGURE_WATCHMAN:
+            return PERMISSION_WATCHMAN;
+        default:
+            return PERMISSION_NONE;
+    }
+}
+
+int Roadblock::allows(const Figure &figure) const
+{
+    return has_permission(permission_for(figure));
+}
+
 static roadblock_type roadblock_kind_from_definition(building_type_registry_impl::RoadblockKind kind)
 {
     switch (kind) {

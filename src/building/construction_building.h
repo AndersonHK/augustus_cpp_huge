@@ -1,6 +1,7 @@
 #pragma once
 
 #include "building/building_type.h"
+#include "building/construction_plan.h"
 #include "map/grid.h"
 
 
@@ -16,6 +17,13 @@ typedef enum {
     COST_MEASURE = 0, // measure cost only, do not perform operation
     COST_PROCESS = 1 // perform operation for a cost
 }cost_calculation;
+
+struct building_construction_assessment {
+    building_construction::ConstructionPlacementPlan placement;
+    int can_place = 0;
+    int clear_cost = 0;
+};
+
 /**
  * @brief Places a building of the specified type at the given coordinates
  * CAREFUL: x and y are offset depending on city orientation, can cause problems with exact coordinates given
@@ -26,8 +34,12 @@ typedef enum {
  * @param exact_coordinates If 1, x and y are used as exact coordinates without any offset adjustments
 */
 int building_construction_place_building(building_type type, int x, int y, int exact_coordinates);
-int building_construction_assess_building(building_type type, int x, int y, int exact_coordinates);
-int building_construction_force_place_assess(building_type type, int x, int y, int exact_coordinates, int *clear_cost);
+building_construction_assessment building_construction_assess_placement(
+    const building_type_registry_impl::BuildingType &definition,
+    int x,
+    int y,
+    int exact_coordinates,
+    int force_place);
 int building_construction_force_place_building(building_type type, int x, int y, int exact_coordinates, int *clear_cost);
 int building_construction_is_granary_cross_tile(int tile_no);
 int building_construction_is_warehouse_corner(int tile_no);

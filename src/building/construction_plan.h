@@ -46,6 +46,8 @@ public:
         int force_place);
 
     int can_place() const;
+    building_type type() const;
+    const building_type_registry_impl::BuildingType &definition() const;
     int has_shoreline_failure() const;
     int has_open_water_failure() const;
     int clear_cost() const;

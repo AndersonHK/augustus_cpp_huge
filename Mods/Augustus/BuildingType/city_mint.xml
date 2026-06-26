@@ -19,7 +19,7 @@
             <image value="City_Mint_ON" />
         </default>
     </graphics>
-    <construction mode="phased" road_update_radius="5">
+    <construction mode="phased" road_update_radius="5" max_count="1" requires_building="senate">
         <phase index="1">
             <graphics>
                 <path value="Monuments\City_Mint_Construction_01" />

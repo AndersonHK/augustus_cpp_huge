@@ -1,14 +1,17 @@
 #include "building/building.h"
-#include "figure/figure.h"
 #include "building/building_record.h"
+#include "figure/figure.h"
 #include "graphics/image.h"
+#include "graphics/runtime_texture.h"
 #include "map/aqueduct.h"
 #include "map/building.h"
+#include "map/tile_runtime_api.h"
+#include "map/tile_runtime_graphics.h"
 #include "map/tiles.h"
 
+#include "city_draw.h"
 #include "city_draw_highway.h"
 
-#include "assets/assets.h"
 #include "city/view.h"
 #include "map/grid.h"
 #include "map/random.h"
@@ -54,6 +57,14 @@ static int is_highway_access(int grid_offset, int direction_index)
     return 0;
 }
 
+static void draw_highway_role(const char *role, int option_index, int x, int y, float scale, color_t color_mask)
+{
+    const RuntimeDrawSlice *slice = tile_runtime_get_role_footprint_slice("highway", role, option_index);
+    if (slice && slice->is_valid()) {
+        runtime_texture_draw(*slice, x, y, color_mask, scale);
+    }
+}
+
 static void draw_barrier_image(int grid_offset, int direction_index, int x, int y, float scale, color_t color_mask)
 {
     int direction = highway_barrier_direction_offsets[direction_index];
@@ -78,15 +89,16 @@ static void draw_barrier_image(int grid_offset, int direction_index, int x, int 
         // increment by 4 to get the corner image
         barrier_offset += 4;
     }
-    int barrier_image_id = assets_lookup_image_id(ASSET_HIGHWAY_BARRIER_START) + barrier_offset;
-    Image::from_id(barrier_image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
+    draw_highway_role("tile_barrier", barrier_offset, x, y, scale, color_mask);
 }
 
 void city_draw_highway_footprint(int x, int y, float scale, int grid_offset, color_t color_mask)
 {
-    int random_offset = map_random_get(grid_offset) & 15;
-    int base_image_id = assets_lookup_image_id(ASSET_HIGHWAY_BASE_START) + random_offset;
-    Image::from_id(base_image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, scale);
+    if (!city_draw_runtime_tile_footprint(grid_offset, x, y, color_mask, scale)) {
+        int option_count = tile_runtime_role_option_count("highway", "tile_base");
+        int option_index = option_count > 0 ? map_random_get(grid_offset) % option_count : 0;
+        draw_highway_role("tile_base", option_index, x, y, scale, color_mask);
+    }
     draw_barrier_image(grid_offset, 1, x, y, scale, color_mask);
     draw_barrier_image(grid_offset, 2, x, y, scale, color_mask);
     if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {

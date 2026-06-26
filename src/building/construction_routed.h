@@ -8,6 +8,8 @@ int building_construction_place_road(int measure_only, int x_start, int y_start,
 
 int building_construction_place_highway(int measure_only, int x_start, int y_start, int x_end, int y_end);
 
+int building_construction_can_place_aqueduct_endpoint(int grid_offset);
+
 int building_construction_place_aqueduct(
     building_type aqueduct_type, int x_start, int y_start, int x_end, int y_end, int *cost);
 

@@ -9,6 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land" rotation="hedge" />
     <button group="parks" order="180" text_key="TR_BUILDING_COLONNADE" />
     <event_data attr="colonnade" />
     <flags fire_proof="1" venus_gt_bonus="1" />

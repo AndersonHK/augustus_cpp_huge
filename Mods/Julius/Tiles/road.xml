@@ -9,6 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
+    <tool kind="road" />
     <event_data attr="road" />
     <labor>
         <employees count="0" />

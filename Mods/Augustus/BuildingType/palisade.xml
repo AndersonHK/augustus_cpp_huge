@@ -9,6 +9,7 @@
         <range value="0" />
     </desirability>
     <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land_or_road" rotation="hedge" />
   <button group="security" order="10" text_key="TR_BUILDING_PALISADE" />
     <event_data attr="palisade" />
     <flags fire_proof="1" draw_desirability_range="1" />

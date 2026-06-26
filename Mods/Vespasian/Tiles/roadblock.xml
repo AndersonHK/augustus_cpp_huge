@@ -9,9 +9,10 @@
         <range value="0" />
     </desirability>
     <foundation policy="road" />
+    <tool kind="roadblock" />
     <event_data attr="roadblock" />
     <roadblock kind="standard" />
-    <tile kind="roadblock" />
+    <tile kind="roadblock" refresh="plaza" />
     <graphics>
         <default>
             <path value="Admin_Logistics\roadblock" />

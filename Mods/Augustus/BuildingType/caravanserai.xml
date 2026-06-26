@@ -47,7 +47,7 @@
             <image value="Caravanserai_N_OFF" />
         </variant>
     </graphics>
-    <construction mode="phased" road_update_radius="4">
+    <construction mode="phased" road_update_radius="4" max_count="1">
         <phase index="1">
             <graphics>
                 <path value="Environment\Group_206" />

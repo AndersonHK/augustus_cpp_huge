@@ -120,17 +120,9 @@ static const building_type_registry_impl::BuildingType *definition_for_type(buil
     return building_type_registry_impl::definition_for_type(type);
 }
 
-static int definition_foundation_policy_is(
-    const building_type_registry_impl::BuildingType *definition,
-    const char *policy)
-{
-    return definition && definition->foundation().has_policy() && policy &&
-        std::strcmp(definition->foundation().policy(), policy) == 0;
-}
-
 static int definition_registers_water_footprint(const building_type_registry_impl::BuildingType *definition)
 {
-    return definition_foundation_policy_is(definition, "shoreline");
+    return definition && definition->foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline;
 }
 
 static int output_cart_capacity_from_methods(

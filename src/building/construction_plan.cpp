@@ -6,11 +6,11 @@
 #include "building/building_type_registry_internal.h"
 #include "map/figure.h"
 #include "map/grid.h"
+#include "map/road_aqueduct.h"
 #include "map/terrain.h"
 #include "map/water.h"
 
 #include <algorithm>
-#include <cstring>
 
 namespace building_construction {
 
@@ -21,12 +21,6 @@ using building_type_registry_impl::FoundationDefinition;
 namespace {
 
 constexpr int FORCE_PLACE_CLEARABLE_TERRAIN = TERRAIN_TREE | TERRAIN_SHRUB | TERRAIN_ROAD;
-
-int foundation_policy_is(const building_type_registry_impl::BuildingType *definition, const char *policy)
-{
-    return definition && definition->foundation().has_policy() &&
-        std::strcmp(definition->foundation().policy(), policy) == 0;
-}
 
 int type_size(const building_type_registry_impl::BuildingType *definition, building_type type)
 {
@@ -63,44 +57,18 @@ int force_place_can_clear_terrain(int terrain)
     return terrain && !(terrain & ~FORCE_PLACE_CLEARABLE_TERRAIN);
 }
 
-FoundationCellRequirement default_requirement_for_policy(const char *policy)
-{
-    if (!policy) {
-        return FoundationCellRequirement::Land;
-    }
-    if (std::strcmp(policy, "water") == 0) {
-        return FoundationCellRequirement::Water;
-    }
-    if (std::strcmp(policy, "road") == 0) {
-        return FoundationCellRequirement::Road;
-    }
-    if (std::strcmp(policy, "wall") == 0) {
-        return FoundationCellRequirement::Wall;
-    }
-    if (std::strcmp(policy, "aqueduct") == 0) {
-        return FoundationCellRequirement::Aqueduct;
-    }
-    if (std::strcmp(policy, "any") == 0) {
-        return FoundationCellRequirement::Any;
-    }
-    return FoundationCellRequirement::Land;
-}
-
-int shoreline_tile_is_water(int size, int rotation, int dx, int dy)
-{
-    const int edge = size - 1;
-    switch (rotation) {
-        case 0: return dy == 0;
-        case 1: return dx == edge;
-        case 2: return dy == edge;
-        case 3: return dx == 0;
-        default: return 0;
-    }
-}
-
 int terrain_has_blocking_bits_for_water(int terrain)
 {
     return terrain & (TERRAIN_ROCK | TERRAIN_ROAD | TERRAIN_BUILDING);
+}
+
+int placement_part_checks_figures(const building_type_registry_impl::BuildingType &definition, int size)
+{
+    const building_type_registry_impl::TileDefinition &tile = definition.tile();
+    if (size == 1 && tile.refresh_behavior() == building_type_registry_impl::TileRefreshBehavior::Plaza) {
+        return 0;
+    }
+    return 1;
 }
 
 } // namespace
@@ -145,6 +113,16 @@ ConstructionPlacementPlan::ConstructionPlacementPlan(
 int ConstructionPlacementPlan::can_place() const
 {
     return !blocked_;
+}
+
+building_type ConstructionPlacementPlan::type() const
+{
+    return type_;
+}
+
+const building_type_registry_impl::BuildingType &ConstructionPlacementPlan::definition() const
+{
+    return *definition_;
 }
 
 int ConstructionPlacementPlan::has_shoreline_failure() const
@@ -262,9 +240,7 @@ void ConstructionPlacementPlan::validate_part(ConstructionPlacementPart &part)
         blocked_ = 1;
     }
 
-    const int check_figures =
-        !(part.definition->tile().refresh_behavior() == building_type_registry_impl::TileRefreshBehavior::Plaza &&
-            part.size == 1);
+    const int check_figures = placement_part_checks_figures(*part.definition, part.size);
     for (int dy = 0; dy < part.size; dy++) {
         for (int dx = 0; dx < part.size; dx++) {
             ConstructionPlacementTile tile;
@@ -285,7 +261,7 @@ void ConstructionPlacementPlan::validate_part(ConstructionPlacementPart &part)
 
 int ConstructionPlacementPlan::select_foundation_rotation(const ConstructionPlacementPart &part)
 {
-    if (!foundation_policy_is(part.definition, "shoreline")) {
+    if (part.definition->foundation().policy_type() != building_type_registry_impl::FoundationPolicy::Shoreline) {
         return building_rotation_get_rotation();
     }
 
@@ -326,13 +302,7 @@ FoundationCellRequirement ConstructionPlacementPlan::requirement_for_tile(
         }
     }
 
-    if (foundation_policy_is(part.definition, "shoreline")) {
-        return shoreline_tile_is_water(part.size, part.foundation_rotation, dx, dy) ?
-            FoundationCellRequirement::Water :
-            FoundationCellRequirement::Land;
-    }
-
-    return default_requirement_for_policy(foundation.has_policy() ? foundation.policy() : nullptr);
+    return foundation.policy_requirement();
 }
 
 PlacementTileState ConstructionPlacementPlan::validate_tile(
@@ -358,6 +328,36 @@ PlacementTileState ConstructionPlacementPlan::validate_tile(
             return (terrain & TERRAIN_ROAD) && !(terrain & TERRAIN_BUILDING) ?
                 PlacementTileState::Allowed :
                 PlacementTileState::Forbidden;
+        case FoundationCellRequirement::RoadOrLand:
+            if (terrain & TERRAIN_AQUEDUCT) {
+                return map_can_place_highway_under_aqueduct(tile.grid_offset, 0) ?
+                    PlacementTileState::Allowed :
+                    PlacementTileState::Forbidden;
+            }
+            blocked_terrain = terrain & TERRAIN_NOT_CLEAR & ~TERRAIN_ROAD & ~TERRAIN_HIGHWAY;
+            if (!blocked_terrain) {
+                return PlacementTileState::Allowed;
+            }
+            if (force_place_ && force_place_can_clear_terrain(blocked_terrain)) {
+                tile.force_cleared = 1;
+                add_force_clear_offset(tile.grid_offset);
+                return PlacementTileState::Allowed;
+            }
+            return PlacementTileState::Forbidden;
+        case FoundationCellRequirement::RoadWallOrLand:
+            if (terrain & TERRAIN_WALL) {
+                return PlacementTileState::Allowed;
+            }
+            blocked_terrain = terrain & TERRAIN_NOT_CLEAR & ~TERRAIN_ROAD & ~TERRAIN_HIGHWAY;
+            if (!blocked_terrain) {
+                return PlacementTileState::Allowed;
+            }
+            if (force_place_ && force_place_can_clear_terrain(blocked_terrain)) {
+                tile.force_cleared = 1;
+                add_force_clear_offset(tile.grid_offset);
+                return PlacementTileState::Allowed;
+            }
+            return PlacementTileState::Forbidden;
         case FoundationCellRequirement::Wall:
             return (terrain & TERRAIN_WALL) ? PlacementTileState::Allowed : PlacementTileState::Forbidden;
         case FoundationCellRequirement::Aqueduct:

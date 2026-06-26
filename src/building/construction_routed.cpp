@@ -12,6 +12,7 @@
 #include "map/building_tiles.h"
 #include "map/grid.h"
 #include "map/property.h"
+#include "map/road_aqueduct.h"
 #include "map/routing.h"
 #include "map/routing_terrain.h"
 #include "map/terrain.h"
@@ -163,6 +164,19 @@ int building_construction_place_highway(int measure_only, int x_start, int y_sta
     return items_placed;
 }
 
+int building_construction_can_place_aqueduct_endpoint(int grid_offset)
+{
+    if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
+        return map_is_straight_road_for_aqueduct(grid_offset) &&
+            !map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset) &&
+            !map_terrain_count_directly_adjacent_with_types(grid_offset, TERRAIN_ROAD | TERRAIN_AQUEDUCT);
+    }
+    if (!map_can_place_aqueduct_on_highway(grid_offset, 0)) {
+        return 0;
+    }
+    return !map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR) || map_terrain_is(grid_offset, TERRAIN_HIGHWAY);
+}
+
 int building_construction_place_aqueduct(
     building_type aqueduct_type, int x_start, int y_start, int x_end, int y_end, int *cost)
 {
@@ -174,31 +188,8 @@ int building_construction_place_aqueduct(
     }
     int item_cost = model->cost;
     *cost = 0;
-    int blocked = 0;
-    int grid_offset = map_grid_offset(x_start, y_start);
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-        if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-            blocked = 1;
-        }
-        if (map_terrain_count_directly_adjacent_with_types(grid_offset, TERRAIN_ROAD | TERRAIN_AQUEDUCT)) {
-            blocked = 1;
-        }
-    } else if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR) && !map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
-        blocked = 1;
-    }
-    grid_offset = map_grid_offset(x_end, y_end);
-    if (map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-        if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-            blocked = 1;
-        }
-        if (map_terrain_count_directly_adjacent_with_types(grid_offset, TERRAIN_ROAD | TERRAIN_AQUEDUCT)) {
-            blocked = 1;
-        }
-
-    } else if (map_terrain_is(grid_offset, TERRAIN_NOT_CLEAR) && !map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
-        blocked = 1;
-    }
-    if (blocked) {
+    if (!building_construction_can_place_aqueduct_endpoint(map_grid_offset(x_start, y_start)) ||
+        !building_construction_can_place_aqueduct_endpoint(map_grid_offset(x_end, y_end))) {
         return 0;
     }
     if (!map_routing_calculate_distances_for_building(ROUTED_BUILDING_AQUEDUCT, x_start, y_start)) {

@@ -8,7 +8,7 @@
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation policy="road_or_land" />
     <button group="parks" order="280" text_key="TR_BUILDING_LOOPED_GARDEN_WALL_GATE" />
     <event_data attr="looped_garden_gate" />
     <roadblock kind="standard" />
