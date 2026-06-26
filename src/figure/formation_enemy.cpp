@@ -19,7 +19,6 @@
 #include "figure/route.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/routing.h"
 #include "map/soldier_strength.h"
 #include "map/terrain.h"
 
@@ -92,6 +91,39 @@ static const TargetSpec RIOTER_ATTACK_PRIORITY[] = {
     TARGET_HOUSING_AT_OR_ABOVE(HOUSE_LARGE_VILLA),
     TARGET_END()
 };
+
+static int find_reachable_soldier_strength(
+    const Route::TerrainQuery &route,
+    int x,
+    int y,
+    int radius,
+    int *out_x,
+    int *out_y)
+{
+    int x_min, y_min, x_max, y_max;
+    map_grid_get_area(x, y, 1, radius, &x_min, &y_min, &x_max, &y_max);
+
+    int max_value = 0;
+    int max_tile_x = 0;
+    int max_tile_y = 0;
+    for (int yy = y_min; yy <= y_max; yy++) {
+        for (int xx = x_min; xx <= x_max; xx++) {
+            const int grid_offset = map_grid_offset(xx, yy);
+            const int strength = map_soldier_strength_get(grid_offset);
+            if (route.canReach(grid_offset) && strength > max_value) {
+                max_value = strength;
+                max_tile_x = xx;
+                max_tile_y = yy;
+            }
+        }
+    }
+    if (max_value > 0) {
+        *out_x = max_tile_x;
+        *out_y = max_tile_y;
+        return 1;
+    }
+    return 0;
+}
 
 #define NUM_LAYOUT_FORMATIONS 40
 static const int LAYOUT_ORIENTATION_OFFSETS[13][4][NUM_LAYOUT_FORMATIONS] = {
@@ -791,11 +823,12 @@ static void update_enemy_formation(formation *m, int *roman_distance)
         army->home_y = m->y_home;
         army->layout = m->layout;
         *roman_distance = 0;
-        Route::TerrainQuery::enemyLandFrom({ m->x_home, m->y_home }, 300, 100000);
+        const Route::TerrainQuery enemy_route =
+            Route::TerrainQuery::enemyLandFrom({ m->x_home, m->y_home }, 300, 100000);
         int x_tile, y_tile;
-        if (map_soldier_strength_get_max(m->x_home, m->y_home, 16, &x_tile, &y_tile)) {
+        if (find_reachable_soldier_strength(enemy_route, m->x_home, m->y_home, 16, &x_tile, &y_tile)) {
             *roman_distance = 1;
-        } else if (map_soldier_strength_get_max(m->x_home, m->y_home, 32, &x_tile, &y_tile)) {
+        } else if (find_reachable_soldier_strength(enemy_route, m->x_home, m->y_home, 32, &x_tile, &y_tile)) {
             *roman_distance = 2;
         }
         if (army->ignore_roman_soldiers) {

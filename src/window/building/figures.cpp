@@ -127,9 +127,6 @@ static int big_people_image(figure_type type)
 static ImageGroupEntryRef big_people_image_ref(figure_type type)
 {
     switch (type) {
-        case FIGURE_MARKET_TRADER:
-        case FIGURE_MARKET_SUPPLIER:
-            return ImageGroupEntryRef::from_group("Walkers\\marketbuyer_portrait", "marketbuyer_portrait");
         case FIGURE_WORK_CAMP_SLAVE:
             return ImageGroupEntryRef::from_group("Walkers\\Slave_Portrait", "Slave Portrait");
         case FIGURE_CARAVANSERAI_SUPPLIER:

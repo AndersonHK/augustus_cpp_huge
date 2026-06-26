@@ -7,6 +7,7 @@
 #include "map/image.h"
 #include "map/image_context.h"
 #include "widget/city_figure.h"
+#include "widget/city_draw.h"
 #include "widget/map_editor_pause_menu.h"
 #include "widget/map_editor_tool.h"
 #include "window/editor/empire.h"
@@ -22,7 +23,6 @@
 #include "game/resource_id_bridge.h"
 #include "input/zoom.h"
 
-#include "assets/assets.h"
 #include "core/config.h"
 #include "core/string.h"
 #include "graphics/color.h"
@@ -126,13 +126,8 @@ static void draw_footprint(int x, int y, int grid_offset)
     }
     Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale);
 
-    if (config_get(static_cast<config_key>(CONFIG_UI_SHOW_GRID)) && draw_context.scale <= 2.0f) {
-        //grid is drawn by the renderer directly at zoom > 200%
-        static int grid_id = 0;
-        if (!grid_id) {
-            grid_id = assets_get_image_id("UI\\Grid_Full", "Grid_Full");
-        }
-        Image::from_id(grid_id).draw(x, y, COLOR_GRID, draw_context.scale);
+    if (config_get(static_cast<config_key>(CONFIG_UI_SHOW_GRID))) {
+        city_draw_grid_overlay(x, y, draw_context.scale);
     }
 }
 

@@ -25,6 +25,7 @@
 
 #include "building/construction_session.h"
 #include "figure/figure.h"
+#include "game/performance_tracker.h"
 #include "translation/translation.h"
 
 #include <algorithm>
@@ -733,8 +734,12 @@ static int place_reservoir_and_aqueducts(
         }
         return 1;
     }
-    if (!map_routing_calculate_distances_for_building(ROUTED_BUILDING_AQUEDUCT, x_start, y_start)) {
-        return 0;
+    {
+        PerformanceTrackerRouteScope route_scope(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
+        performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
+        if (!map_routing_calculate_distances_for_building(ROUTED_BUILDING_AQUEDUCT, x_start, y_start)) {
+            return 0;
+        }
     }
     int terrain_mask = TERRAIN_NOT_CLEAR & ~TERRAIN_AQUEDUCT & ~TERRAIN_BUILDING;
     if (info->place_reservoir_at_start != PLACE_RESERVOIR_NO) {
@@ -926,19 +931,25 @@ void building_construction_start(int x, int y, int grid_offset)
         data.in_progress = 1;
         int can_start = 1;
         const building_type_registry_impl::ConstructionToolDefinition &tool = construction_tool_for_type(data.tool.type);
+        PerformanceTrackerRouteScope route_scope(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
         if (tool.is_road()) {
+            performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
             can_start = map_routing_calculate_distances_for_building(
                 ROUTED_BUILDING_ROAD, data.tool.start.x, data.tool.start.y);
         } else if (tool.is_aqueduct()) {
+            performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
             can_start = map_routing_calculate_distances_for_building(
                 ROUTED_BUILDING_AQUEDUCT, data.tool.start.x, data.tool.start.y);
         } else if (tool.is_draggable_reservoir()) {
+            performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
             can_start = map_routing_calculate_distances_for_building(
                 ROUTED_BUILDING_DRAGGABLE_RESERVOIR, data.tool.start.x, data.tool.start.y);
         } else if (tool.is_wall()) {
+            performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
             can_start = map_routing_calculate_distances_for_building(
                 ROUTED_BUILDING_WALL, data.tool.start.x, data.tool.start.y);
         } else if (tool.is_highway()) {
+            performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
             can_start = map_routing_calculate_distances_for_building(
                 ROUTED_BUILDING_HIGHWAY, data.tool.start.x, data.tool.start.y);
         }

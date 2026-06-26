@@ -94,14 +94,46 @@ static const building_type_registry_impl::Distribution *distribution_for(const B
     return building.type ? building.type->distribution() : nullptr;
 }
 
+static int is_dock(const Building &building)
+{
+    return building.type && std::strcmp(building.type->attr(), "dock") == 0;
+}
+
+static const resource_list *dock_order_resources()
+{
+    return city_resource_get_potential();
+}
+
 static int distribution_accepts_nothing(const Building &building)
 {
+    if (is_dock(building)) {
+        const resource_list *resources = dock_order_resources();
+        if (!resources) {
+            return 1;
+        }
+        for (unsigned int i = 0; i < resources->size; i++) {
+            if (building.accepts_good(resources->items[i])) {
+                return 0;
+            }
+        }
+        return 1;
+    }
     const building_type_registry_impl::Distribution *distribution = distribution_for(building);
     return distribution ? distribution->accepts_nothing(building) : 1;
 }
 
 static void set_distribution_acceptance(Building &building, int value)
 {
+    if (is_dock(building)) {
+        const resource_list *resources = dock_order_resources();
+        if (!resources) {
+            return;
+        }
+        for (unsigned int i = 0; i < resources->size; i++) {
+            building.set_accepted_good(resources->items[i], value);
+        }
+        return;
+    }
     if (const building_type_registry_impl::Distribution *distribution = distribution_for(building)) {
         distribution->set_acceptance(building, value);
     }
@@ -810,6 +842,16 @@ static void set_distributed_resources(const Building &building)
         data.stored_resources.items[i] = RESOURCE_NONE;
     }
     data.stored_resources.size = 0;
+    if (is_dock(building)) {
+        const resource_list *list = dock_order_resources();
+        if (!list) {
+            return;
+        }
+        for (unsigned int i = 0; i < list->size && data.stored_resources.size < RESOURCE_SLOT_COUNT; i++) {
+            data.stored_resources.items[data.stored_resources.size++] = list->items[i];
+        }
+        return;
+    }
     const building_type_registry_impl::Distribution *distribution = distribution_for(building);
     if (!distribution) {
         return;

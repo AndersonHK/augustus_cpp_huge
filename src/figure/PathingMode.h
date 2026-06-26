@@ -3,8 +3,6 @@
 #include "figure/type.h"
 #include "map/road_service_history.h"
 
-class Figure;
-
 namespace figure_type_registry_impl {
 
 class PathingMode {
@@ -53,13 +51,11 @@ public:
     bool requires_service_effect;
     bool requires_venue_targets;
 
-    int canTravel(const ::Figure &figure, int direction_limit, const TerrainAccess &terrain) const;
-    int pathDirectionLimit(int default_direction_limit, const TerrainAccess &terrain) const;
-
     static TerrainAccess terrainFromLegacyUsage(int terrain_usage);
     static bool terrainRequiresRoads(const TerrainAccess &terrain);
     static int citizenIsPassable(int grid_offset);
     static int citizenIsRoad(int grid_offset);
+    static int citizenIsRoadLike(int grid_offset);
     static int citizenIsHighway(int grid_offset);
     static int citizenIsPassableTerrain(int grid_offset);
     static int gateIsTransformable(int grid_offset);

@@ -15,12 +15,12 @@
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/image.h"
+#include "widget/city_draw.h"
 #include "widget/city_draw_highway.h"
 
 #include "city_overlay_other.h"
 
 
-#include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_api.h"
 #include "building/monument.h"
@@ -737,13 +737,8 @@ static int draw_footprint_water(int x, int y, float scale, int grid_offset)
         Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     }
     if (config_get(CONFIG_UI_SHOW_GRID) && map_property_is_draw_tile(grid_offset)
-                                    && !map_building_at(grid_offset) && scale <= 2.0f) {
-        //grid is drawn by the renderer directly at zoom > 200%
-        static int grid_id = 0;
-        if (!grid_id) {
-            grid_id = assets_get_image_id("UI\\Grid_Full", "Grid_Full");
-        }
-        Image::from_id(grid_id).draw(x, y, COLOR_GRID, scale);
+                                    && !map_building_at(grid_offset)) {
+        city_draw_grid_overlay(x, y, scale);
     }
     return 1;
 }

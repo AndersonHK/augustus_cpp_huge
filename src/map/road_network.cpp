@@ -4,7 +4,6 @@
 #include "figure/PathingMode.h"
 #include "map/data.h"
 #include "map/grid.h"
-#include "map/terrain.h"
 
 #include <string.h>
 
@@ -45,11 +44,8 @@ static int mark_road_network(int grid_offset, uint8_t network_id)
         for (int i = 0; i < 4; i++) {
             int new_offset = grid_offset + ADJACENT_OFFSETS[i];
             if (figure_type_registry_impl::PathingMode::citizenIsPassable(new_offset) && !network.items[new_offset]) {
-                if (
-                    figure_type_registry_impl::PathingMode::citizenIsRoad(new_offset) ||
-                    map_terrain_is(new_offset, TERRAIN_ACCESS_RAMP) ||
-                    figure_type_registry_impl::PathingMode::citizenIsHighway(new_offset)
-                ) {
+                if (figure_type_registry_impl::PathingMode::citizenIsRoadLike(new_offset) ||
+                    figure_type_registry_impl::PathingMode::citizenIsHighway(new_offset)) {
                     network.items[new_offset] = network_id;
                     size++;
                     if (next_offset == -1) {
@@ -85,7 +81,7 @@ void map_road_network_update(void)
     int grid_offset = map_data.start_offset;
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
-            if (map_terrain_is(grid_offset, TERRAIN_ROAD) && !network.items[grid_offset]) {
+            if (figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset) && !network.items[grid_offset]) {
                 int size = mark_road_network(grid_offset, network_id);
                 city_map_add_to_largest_road_networks(network_id, size);
                 network_id++;

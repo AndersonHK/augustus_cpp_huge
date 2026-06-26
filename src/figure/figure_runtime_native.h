@@ -7,6 +7,8 @@
 
 #include <memory>
 
+struct FigureGraphicDrawRequest;
+
 namespace figure_runtime_native_impl {
 
 class NativeFigure {
@@ -63,15 +65,26 @@ road_service_effect primary_service_effect_for_profile(
 
 bool is_road_history_tile(int grid_offset);
 
-int graphics_policy_has_native_payload(const figure_type_registry_impl::FigureTypeDefinition *definition);
-const RuntimeDrawSlice *graphics_policy_slice_for_figure(
+int warrior_graphic_draw_request_for_figure(
     const Figure *f,
-    const figure_type_registry_impl::FigureTypeDefinition *definition);
-int graphics_policy_sprite_offset_for_figure(
+    FigureGraphicDrawRequest *request);
+int fort_standard_graphic_draw_request_for_figure(
+    const Figure *f,
+    FigureGraphicDrawRequest *request);
+int graphics_policy_draw_request_for_figure(
     const Figure *f,
     const figure_type_registry_impl::FigureTypeDefinition *definition,
-    int *x,
-    int *y);
+    FigureGraphicDrawRequest *request);
+int depot_cart_graphic_draw_request_for_figure(
+    const Figure *f,
+    const figure_type_registry_impl::FigureTypeDefinition *definition,
+    FigureGraphicDrawRequest *request);
+int legacy_cart_graphic_draw_request_for_figure(
+    const Figure *f,
+    FigureGraphicDrawRequest *request);
+int hippodrome_horse_graphic_draw_request_for_figure(
+    const Figure *f,
+    FigureGraphicDrawRequest *request);
 int graphics_policy_update_figure_image(
     Figure *f,
     const figure_type_registry_impl::FigureTypeDefinition *definition);

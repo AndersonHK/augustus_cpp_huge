@@ -2,8 +2,6 @@
 
 #include "map/point.h"
 
-#include <vector>
-
 typedef struct building building;
 
 struct road_access_area {
@@ -18,10 +16,27 @@ struct road_access_candidate {
     int network_index = 0;
 };
 
-std::vector<road_access_candidate> map_road_access_candidates(
-    const std::vector<road_access_area> &areas);
-std::vector<road_access_area> map_road_access_hippodrome_areas(int x, int y, int rotation);
-std::vector<road_access_area> map_road_access_monument_construction_areas(int x, int y, int size);
+class RoadAccessCandidateVisitor {
+public:
+    virtual ~RoadAccessCandidateVisitor() = default;
+    virtual void visit(const road_access_candidate &candidate) = 0;
+};
+
+void map_road_access_visit_candidates(
+    const road_access_area *areas,
+    int area_count,
+    RoadAccessCandidateVisitor &visitor);
+void map_road_access_visit_candidates(int x, int y, int size, RoadAccessCandidateVisitor &visitor);
+void map_road_access_visit_hippodrome_candidates(
+    int x,
+    int y,
+    int rotation,
+    RoadAccessCandidateVisitor &visitor);
+void map_road_access_visit_monument_construction_candidates(
+    int x,
+    int y,
+    int size,
+    RoadAccessCandidateVisitor &visitor);
 
 int map_has_road_access(int x, int y, int size, map_point *road);
 

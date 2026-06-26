@@ -431,40 +431,33 @@ const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Fi
     return entry && entry->profile ? &entry->profile->pathing_policy() : nullptr;
 }
 
-int figure_runtime_has_native_graphics(const Figure *f)
+int figure_runtime_graphic_draw_request(const Figure *f, FigureGraphicDrawRequest *request)
 {
-    if (!f) {
+    if (request) {
+        *request = {};
+    }
+    if (!f || !request) {
         return 0;
     }
-    const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    return figure_runtime_native_impl::graphics_policy_has_native_payload(definition);
-}
-
-const RuntimeDrawSlice *figure_runtime_graphic_slice(const Figure *f)
-{
-    if (!f) {
-        return nullptr;
+    if (figure_runtime_native_impl::warrior_graphic_draw_request_for_figure(f, request)) {
+        return 1;
     }
-    const figure_type_registry_impl::FigureTypeDefinition *definition =
-        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    return figure_runtime_native_impl::graphics_policy_slice_for_figure(f, definition);
-}
-
-int figure_runtime_graphic_sprite_offset(const Figure *f, int *x, int *y)
-{
-    if (!f) {
-        if (x) {
-            *x = 0;
-        }
-        if (y) {
-            *y = 0;
-        }
-        return 0;
+    if (figure_runtime_native_impl::fort_standard_graphic_draw_request_for_figure(f, request)) {
+        return 1;
     }
+
     const figure_type_registry_impl::FigureTypeDefinition *definition =
         figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
-    return figure_runtime_native_impl::graphics_policy_sprite_offset_for_figure(f, definition, x, y);
+    if (figure_runtime_native_impl::depot_cart_graphic_draw_request_for_figure(f, definition, request)) {
+        return 1;
+    }
+    if (figure_runtime_native_impl::graphics_policy_draw_request_for_figure(f, definition, request)) {
+        return 1;
+    }
+    if (figure_runtime_native_impl::hippodrome_horse_graphic_draw_request_for_figure(f, request)) {
+        return 1;
+    }
+    return figure_runtime_native_impl::legacy_cart_graphic_draw_request_for_figure(f, request);
 }
 
 int figure_runtime_update_graphics(Figure *f)

@@ -57,6 +57,15 @@ CityBuilder reference:
 - `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\City Builder\VulkanRendererSupport.h`
 - `C:\Users\imper\Documents\GitHub\City-Builder-Cplusplus-Project - 2026\City Builder\RendererPayload.h`
 
+Platform target:
+- The long-term Vespasian target should be modern Vulkan-capable hardware across
+  Windows, Linux, macOS, Android, and iOS where the platform stack can support
+  it. The new renderer, thread pool, resource lifetime model, and asset pipeline
+  should stay behind portable abstractions instead of baking in Windows-specific
+  APIs. It is acceptable to stop fitting legacy low-power targets such as PS
+  Vita or the original Switch, but the architecture should not make future
+  desktop and mobile ports harder by assuming one OS at the foundation.
+
 The important transferable lessons from that renderer are:
 - simulation publishes immutable snapshots; rendering does not read mutable simulation buffers
 - persistent scene data lives in VRAM; per-frame uploads send only compact typed deltas

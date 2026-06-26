@@ -45,6 +45,42 @@ static const char *BUCKET_NAMES[PERFORMANCE_TRACKER_BUCKET_MAX] = {
     "city_draw_clouds"
 };
 
+static const char *ROUTE_METRIC_NAMES[PERFORMANCE_TRACKER_ROUTE_METRIC_MAX] = {
+    "requests",
+    "plans",
+    "cost_maps",
+    "cache_hits",
+    "cache_misses",
+    "pruned_by_network",
+    "pruned_by_current_path",
+    "failed",
+    "async_jobs"
+};
+
+static const char *ROUTE_PURPOSE_NAMES[PERFORMANCE_TRACKER_ROUTE_PURPOSE_MAX] = {
+    "movement",
+    "distance_query",
+    "local_workforce",
+    "venue",
+    "storage",
+    "construction",
+    "water",
+    "wall",
+    "debug"
+};
+
+static const char *RENDER_METRIC_NAMES[PERFORMANCE_TRACKER_RENDER_METRIC_MAX] = {
+    "submissions",
+    "managed_submissions",
+    "atlas_fallback_submissions",
+    "silhouette_submissions",
+    "texture_switches",
+    "grid_overlays"
+};
+
+static thread_local performance_tracker_route_purpose current_route_purpose =
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_DEBUG;
+
 static struct {
     int enabled;
     FILE *log_file;
@@ -58,6 +94,8 @@ static struct {
     uint64_t target_ticks_x1000;
     uint64_t speed_wait_ms;
     uint64_t zero_tick_frames;
+    uint64_t route_counters[PERFORMANCE_TRACKER_ROUTE_METRIC_MAX][PERFORMANCE_TRACKER_ROUTE_PURPOSE_MAX];
+    uint64_t render_counters[PERFORMANCE_TRACKER_RENDER_METRIC_MAX];
 } data;
 
 static double counter_to_ms(uint64_t counter)
@@ -76,6 +114,8 @@ static double target_ticks(void)
 static void reset_sample(uint64_t now)
 {
     memset(data.counters, 0, sizeof(data.counters));
+    memset(data.route_counters, 0, sizeof(data.route_counters));
+    memset(data.render_counters, 0, sizeof(data.render_counters));
     data.sample_start = now;
     data.frames = 0;
     data.actual_ticks = 0;
@@ -125,6 +165,43 @@ static void flush_sample(uint64_t now)
     }
     if (!wrote_bucket) {
         fprintf(data.log_file, "none");
+    }
+    int wrote_render_metric = 0;
+    for (int metric = 0; metric < PERFORMANCE_TRACKER_RENDER_METRIC_MAX; metric++) {
+        if (!data.render_counters[metric]) {
+            continue;
+        }
+        if (!wrote_render_metric) {
+            fprintf(data.log_file, " render_metrics=");
+        }
+        fprintf(data.log_file, "%s%s=%llu",
+            wrote_render_metric ? "," : "",
+            RENDER_METRIC_NAMES[metric],
+            static_cast<unsigned long long>(data.render_counters[metric]));
+        wrote_render_metric = 1;
+    }
+    int wrote_route_metric = 0;
+    for (int metric = 0; metric < PERFORMANCE_TRACKER_ROUTE_METRIC_MAX; metric++) {
+        int wrote_purpose = 0;
+        for (int purpose = 0; purpose < PERFORMANCE_TRACKER_ROUTE_PURPOSE_MAX; purpose++) {
+            if (!data.route_counters[metric][purpose]) {
+                continue;
+            }
+            if (!wrote_route_metric) {
+                fprintf(data.log_file, " route_metrics=");
+            }
+            if (!wrote_purpose) {
+                fprintf(data.log_file, "%s%s:", wrote_route_metric ? ";" : "", ROUTE_METRIC_NAMES[metric]);
+            }
+            fprintf(data.log_file, "%s%s=%llu",
+                wrote_purpose ? "," : "",
+                ROUTE_PURPOSE_NAMES[purpose],
+                static_cast<unsigned long long>(data.route_counters[metric][purpose]));
+            wrote_purpose = 1;
+        }
+        if (wrote_purpose) {
+            wrote_route_metric = 1;
+        }
     }
     fprintf(data.log_file, "\n");
     fflush(data.log_file);
@@ -216,6 +293,50 @@ void performance_tracker_record_speed_wait(uint64_t elapsed_ms)
     data.speed_wait_ms += elapsed_ms;
 }
 
+void performance_tracker_record_route_metric(
+    performance_tracker_route_metric metric,
+    performance_tracker_route_purpose purpose,
+    uint64_t amount)
+{
+    if (!data.enabled ||
+        metric < 0 ||
+        metric >= PERFORMANCE_TRACKER_ROUTE_METRIC_MAX ||
+        purpose < 0 ||
+        purpose >= PERFORMANCE_TRACKER_ROUTE_PURPOSE_MAX ||
+        amount == 0) {
+        return;
+    }
+    data.route_counters[metric][purpose] += amount;
+}
+
+void performance_tracker_record_route_plan(performance_tracker_route_purpose purpose)
+{
+    performance_tracker_record_route_metric(
+        PERFORMANCE_TRACKER_ROUTE_METRIC_REQUESTS,
+        purpose,
+        1);
+    performance_tracker_record_route_metric(
+        PERFORMANCE_TRACKER_ROUTE_METRIC_PLANS,
+        purpose,
+        1);
+}
+
+performance_tracker_route_purpose performance_tracker_current_route_purpose(void)
+{
+    return current_route_purpose;
+}
+
+void performance_tracker_record_render_metric(performance_tracker_render_metric metric, uint64_t amount)
+{
+    if (!data.enabled ||
+        metric < 0 ||
+        metric >= PERFORMANCE_TRACKER_RENDER_METRIC_MAX ||
+        amount == 0) {
+        return;
+    }
+    data.render_counters[metric] += amount;
+}
+
 PerformanceTrackerScope::PerformanceTrackerScope(performance_tracker_bucket bucket)
     : bucket_(bucket), start_(0), active_(0)
 {
@@ -232,4 +353,17 @@ PerformanceTrackerScope::~PerformanceTrackerScope()
         return;
     }
     data.counters[bucket_] += SDL_GetPerformanceCounter() - start_;
+}
+
+PerformanceTrackerRouteScope::PerformanceTrackerRouteScope(performance_tracker_route_purpose purpose)
+    : previous_(current_route_purpose)
+{
+    if (purpose >= 0 && purpose < PERFORMANCE_TRACKER_ROUTE_PURPOSE_MAX) {
+        current_route_purpose = purpose;
+    }
+}
+
+PerformanceTrackerRouteScope::~PerformanceTrackerRouteScope()
+{
+    current_route_purpose = previous_;
 }

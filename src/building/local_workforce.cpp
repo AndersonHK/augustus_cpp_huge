@@ -378,7 +378,10 @@ int find_nearest_reachable_house_with_unemployed(const map_point *road, map_poin
     }
 
     const Route::DistanceQuery route_query =
-        Route::DistanceQuery::fromRoad(*road, PERMISSION_LABOR_SEEKER);
+        Route::DistanceQuery::fromRoad(
+            *road,
+            PERMISSION_LABOR_SEEKER,
+            PERFORMANCE_TRACKER_ROUTE_PURPOSE_LOCAL_WORKFORCE);
     if (!route_query) {
         return 0;
     }
@@ -433,7 +436,10 @@ int find_nearest_assigned_source(Building &workplace, const map_point *road, map
     }
 
     const Route::DistanceQuery route_query =
-        Route::DistanceQuery::fromRoad(*road, PERMISSION_LABOR_SEEKER);
+        Route::DistanceQuery::fromRoad(
+            *road,
+            PERMISSION_LABOR_SEEKER,
+            PERFORMANCE_TRACKER_ROUTE_PURPOSE_LOCAL_WORKFORCE);
     if (!route_query) {
         return 0;
     }
@@ -494,11 +500,15 @@ int prepare_labor_seeker_target(Figure *f)
         if (is_live_building(house) && house.has_house_size()) {
             const map_point source_road = { f->x, f->y };
             const map_point target_road = { f->destination_x, f->destination_y };
-            const Route::DistanceQuery route_query =
-                Route::DistanceQuery::fromRoad(source_road, PERMISSION_LABOR_SEEKER);
-            const int target_is_reachable =
-                route_query &&
-                static_cast<bool>(route_query.findRoad(target_road, remaining_roam_length(f)));
+            Route::Request reachability = Route::Request::between(
+                source_road,
+                target_road,
+                Route::Surface::CitizenRoadGarden,
+                PERFORMANCE_TRACKER_ROUTE_PURPOSE_LOCAL_WORKFORCE);
+            reachability.permission = PERMISSION_LABOR_SEEKER;
+            reachability.max_tiles = remaining_roam_length(f);
+            reachability.require_same_road_network = true;
+            const int target_is_reachable = Route::Planner::canReach(reachability);
             if (!target_is_reachable) {
                 if (f->collecting_item_id == kLaborSeekerTripValidate) {
                     release_workplace_source(workplace.id(), house.id());

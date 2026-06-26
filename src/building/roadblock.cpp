@@ -5,14 +5,25 @@
 #include "building/building_record.h"
 #include "building/building_type.h"
 
+static int permission_is_roadblock_managed(roadblock_permission permission)
+{
+    return permission != PERMISSION_NONE;
+}
+
 void Roadblock::toggle_permission(roadblock_permission permission)
 {
+    if (!permission_is_roadblock_managed(permission)) {
+        return;
+    }
     int permission_bit = 1 << permission;
     set_exceptions(exceptions() ^ permission_bit);
 }
 
 int Roadblock::has_permission(roadblock_permission permission) const
 {
+    if (!permission_is_roadblock_managed(permission)) {
+        return 1;
+    }
     int permission_bit = 1 << permission;
     return exceptions() & permission_bit;
 }

@@ -166,11 +166,11 @@ void Route::updateCitizenLandTerrain(void)
     for (int y = 0; y < map_data.height; y++, grid_offset += map_data.border_size) {
         for (int x = 0; x < map_data.width; x++, grid_offset++) {
             int terrain = map_terrain_get(grid_offset);
-            if (terrain & TERRAIN_ROAD) {
+            if (terrain & (TERRAIN_ROAD | TERRAIN_ACCESS_RAMP)) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_0_ROAD;
             } else if (terrain & TERRAIN_HIGHWAY) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_1_HIGHWAY;
-            } else if (terrain & (TERRAIN_RUBBLE | TERRAIN_ACCESS_RAMP | TERRAIN_GARDEN)) {
+            } else if (terrain & (TERRAIN_RUBBLE | TERRAIN_GARDEN)) {
                 terrain_land_citizen.items[grid_offset] = CITIZEN_2_PASSABLE_TERRAIN;
             } else if (terrain & (TERRAIN_BUILDING | TERRAIN_GATEHOUSE)) {
                 if (!map_building_at(grid_offset)) {
@@ -232,11 +232,11 @@ static void update_land_terrain_noncitizen(void)
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_4_GATEHOUSE;
             } else if (terrain & TERRAIN_BUILDING) {
                 terrain_land_noncitizen.items[grid_offset] = get_land_type_noncitizen(grid_offset);
-            } else if (terrain & TERRAIN_ROAD) {
+            } else if (terrain & (TERRAIN_ROAD | TERRAIN_ACCESS_RAMP)) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
             } else if (terrain & TERRAIN_HIGHWAY) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_0_PASSABLE;
-            } else if (terrain & (TERRAIN_GARDEN | TERRAIN_ACCESS_RAMP | TERRAIN_RUBBLE)) {
+            } else if (terrain & (TERRAIN_GARDEN | TERRAIN_RUBBLE)) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_2_CLEARABLE;
             } else if (terrain & TERRAIN_AQUEDUCT) {
                 terrain_land_noncitizen.items[grid_offset] = NONCITIZEN_2_CLEARABLE;

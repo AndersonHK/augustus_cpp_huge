@@ -370,14 +370,9 @@ Building Building::main() const
     return Building(building_main(record_));
 }
 
-Building Building::main_part() const
-{
-    return main();
-}
-
 Building Building::composition_owner() const
 {
-    Building owner = main_part();
+    Building owner = main();
     return owner.id() ? owner : *this;
 }
 
@@ -388,7 +383,7 @@ Building Building::next() const
 
 void Building::for_each_part(const std::function<void(Building)> &visitor) const
 {
-    Building part = main_part();
+    Building part = main();
     for (int guard = 0; part.id() && guard < 64; guard++) {
         visitor(part);
         if (!part.next_part_id()) {
@@ -510,11 +505,6 @@ int Building::has_plague() const
 int Building::has_cached_road_access() const
 {
     return record_ && record_->has_road_access;
-}
-
-int Building::is_close_to_water() const
-{
-    return record_ ? building_is_close_to_water(record_) : 0;
 }
 
 int Building::has_house_size() const
@@ -646,11 +636,12 @@ int Building::employment_worker_count() const
 
     int workers = 0;
     int farm_part_count = 0;
+    const unsigned int owner_id = main().id();
     for_each_part([&](Building part) {
         if (!part.record_) {
             return;
         }
-        if (part.id() == main_part().id()) {
+        if (part.id() == owner_id) {
             workers += part.record_->num_workers;
             return;
         }
@@ -670,11 +661,12 @@ int Building::employment_required_workers() const
 
     int workers = 0;
     int farm_part_count = 0;
+    const unsigned int owner_id = main().id();
     for_each_part([&](Building part) {
         if (!part.type) {
             return;
         }
-        if (part.id() == main_part().id()) {
+        if (part.id() == owner_id) {
             workers += part.type->required_workers();
             return;
         }
@@ -965,11 +957,6 @@ void Building::set_house_happiness(int value)
     }
 }
 
-resource_type Building::fetch_inventory_id() const
-{
-    return record_ ? static_cast<resource_type>(record_->data.market.fetch_inventory_id) : RESOURCE_NONE;
-}
-
 void Building::set_fetch_inventory_id(resource_type resource)
 {
     if (record_) {
@@ -1202,11 +1189,6 @@ int Building::has_required_raw_amount_for_production(resource_type resource) con
 int Building::has_native_production() const
 {
     return production_runtime_impl::get_or_create_primary(*this) ? 1 : 0;
-}
-
-int Building::native_production_method_count() const
-{
-    return static_cast<int>(production_runtime_impl::get_method_count(*this));
 }
 
 int Building::native_production_has_raw_materials() const

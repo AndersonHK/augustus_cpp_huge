@@ -117,6 +117,24 @@ static_cleanup_for_possible_bad_record_state(...)
 
 Public fields may remain temporarily during migration, but the direction is toward private data with explicit methods that preserve invariants.
 
+## Semantic Modules Over Event Attrs
+
+`<event_data attr="...">` is a compatibility crutch, not a semantic contract. It exists to keep legacy event ids, old save bridges, and unported systems alive while the XML model grows. New runtime behavior should not compare `event_data attr` strings such as `academy`, `dock`, or `warehouse` to decide what a building is.
+
+Building identity should come from higher-level declarations:
+
+- `<kind>` for broad classification such as `housing`, `industry`, `service`, `storage`, `military`, `culture`, or `infrastructure`.
+- Dedicated modules for real behavior, such as distribution, storage, production, labor, water access, religion, formation ownership, roadblock permissions, and construction policies.
+- Typed runtime registration for systems that need to iterate a category quickly.
+
+If a system still needs `event_data attr` to select behavior, treat that as evidence that the system is missing a module, policy, typed list, or object method. Do not promote those attrs into another layer of string-matched building logic. The migration sequence should be:
+
+1. Identify the behavior hidden behind the attr comparison.
+2. Add or extend the correct XML-owned module for that behavior.
+3. Resolve the module once at load/startup into typed runtime data.
+4. Change callers to ask the object/module for behavior.
+5. Leave `event_data attr` only for legacy event/save compatibility until that compatibility path can be removed.
+
 ## Save/Load Boundary
 
 Ids are bridge data, not runtime ownership.

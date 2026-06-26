@@ -160,7 +160,7 @@ static void move_to_next_tile(Figure *f)
     if (f->faction_id != FIGURE_FACTION_ROAMER_PREVIEW) {
         map_figure_add(f);
     }
-    if (map_terrain_is(f->grid_offset, TERRAIN_ROAD)) {
+    if (map_terrain_is(f->grid_offset, TERRAIN_ROAD | TERRAIN_ACCESS_RAMP)) {
         f->is_on_road = 1;
         if (map_terrain_is(f->grid_offset, TERRAIN_WATER)) { // bridge
             set_target_height_bridge(f);

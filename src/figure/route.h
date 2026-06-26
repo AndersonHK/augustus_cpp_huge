@@ -3,16 +3,73 @@
 #include "building/roadblock.h"
 #include "core/buffer.h"
 #include "figure/figure.h"
+#include "game/performance_tracker.h"
 #include "map/point.h"
 
 #include <optional>
 #include <vector>
 
 typedef struct building building;
-struct road_access_area;
 
 class Route {
 public:
+    class DistanceQuery;
+
+    enum class Surface {
+        CitizenLand,
+        CitizenRoadGarden,
+        CitizenRoadGardenHighway,
+        NonCitizenLand,
+        Walls,
+        WaterBoat,
+        WaterFlotsam,
+        ConstructionRoad,
+        ConstructionHighway,
+        ConstructionWall,
+        ConstructionAqueduct
+    };
+
+    struct Request {
+        map_point source = { 0, 0 };
+        map_point destination = { 0, 0 };
+        const Figure *figure = nullptr;
+        const building *owner = nullptr;
+        Surface surface = Surface::CitizenLand;
+        std::optional<roadblock_permission> permission;
+        performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY;
+        int direction_limit = 4;
+        int max_tiles = 0;
+        int only_through_building_id = 0;
+        bool require_same_road_network = false;
+        bool has_destination = false;
+
+        static Request between(
+            const map_point &source,
+            const map_point &destination,
+            Surface surface,
+            performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
+        static Request fromFigure(
+            const Figure &figure,
+            Surface surface,
+            performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
+    };
+
+    struct Result {
+        std::vector<map_point> path;
+        int distance = 0;
+        int distance_generation = -1;
+        bool reached = false;
+
+        explicit operator bool() const { return reached; }
+    };
+
+    class Planner {
+    public:
+        static bool canReach(const Request &request);
+        static Result route(const Request &request);
+        static DistanceQuery distancesFrom(const Request &request);
+    };
+
     struct RoadResult {
         int distance = 0;
         int grid_offset = 0;
@@ -23,9 +80,17 @@ public:
 
     class DistanceQuery {
     public:
-        static DistanceQuery fromRoad(const map_point &road, std::optional<roadblock_permission> permission = std::nullopt);
-        static DistanceQuery fromPoint(const map_point &point, std::optional<roadblock_permission> permission = std::nullopt);
-        static DistanceQuery fromFigure(const Figure &figure);
+        static DistanceQuery fromRoad(
+            const map_point &road,
+            std::optional<roadblock_permission> permission = std::nullopt,
+            performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
+        static DistanceQuery fromPoint(
+            const map_point &point,
+            std::optional<roadblock_permission> permission = std::nullopt,
+            performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
+        static DistanceQuery fromFigure(
+            const Figure &figure,
+            performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
 
         explicit operator bool() const { return valid_; }
 
@@ -39,18 +104,21 @@ public:
         RoadResult findAccessRoad(const building &target, int radius, int maxDistance = 0, bool requireSameNetwork = false) const;
 
     private:
-        DistanceQuery(const map_point &source, int sourceNetwork, std::optional<roadblock_permission> permission, bool valid);
+        DistanceQuery(
+            const map_point &source,
+            int sourceNetwork,
+            std::optional<roadblock_permission> permission,
+            performance_tracker_route_purpose purpose,
+            bool valid);
 
         void seedDistanceGrid() const;
         int distanceFor(const RoadResult &candidate, int maxDistance) const;
         RoadResult findReachableAreaTile(int x, int y, int size, int radius, int maxDistance, bool requireRoad) const;
-        RoadResult bestRoadToLargestNetwork(
-            const std::vector<road_access_area> &areas,
-            bool fallback_to_shortest_distance) const;
 
         map_point source_ = { 0, 0 };
         int sourceNetwork_ = 0;
         std::optional<roadblock_permission> permission_;
+        performance_tracker_route_purpose purpose_ = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY;
         bool valid_ = false;
         mutable int distanceGridGeneration_ = -1;
     };

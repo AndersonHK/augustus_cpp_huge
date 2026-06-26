@@ -62,7 +62,6 @@ public:
     unsigned int id() const;
     const ::building *record() const;
     Building main() const;
-    Building main_part() const;
     Building composition_owner() const;
     Building next() const;
     void for_each_part(const std::function<void(Building)> &visitor) const;
@@ -89,7 +88,6 @@ public:
     int is_mothballed() const;
     int has_plague() const;
     int has_cached_road_access() const;
-    int is_close_to_water() const;
     int has_house_size() const;
     int house_population() const;
     void set_house_population(int value);
@@ -132,7 +130,6 @@ public:
     int receive_input_storage_loads(resource_type resource, int loads, unsigned int figure_id);
     int house_happiness() const;
     void set_house_happiness(int value);
-    resource_type fetch_inventory_id() const;
     void set_fetch_inventory_id(resource_type resource);
     int accepts_good(resource_type resource) const;
     void set_accepted_good(resource_type resource, int value);
@@ -169,7 +166,6 @@ public:
     int industry_is_stockpiling() const;
     int has_required_raw_amount_for_production(resource_type resource) const;
     int has_native_production() const;
-    int native_production_method_count() const;
     int native_production_has_raw_materials() const;
     int native_production_max_progress() const;
     int native_production_efficiency() const;

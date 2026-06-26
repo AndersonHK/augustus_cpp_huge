@@ -17,8 +17,6 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-#include <vector>
-
 static int building_is_wall_gate(building *b)
 {
     if (!b) {
@@ -28,91 +26,155 @@ static int building_is_wall_gate(building *b)
     return current.type && current.type->roadblock().is_wall_gate();
 }
 
-std::vector<road_access_candidate> map_road_access_candidates(
-    const std::vector<road_access_area> &areas)
+static int terrain_is_road_like(int grid_offset)
 {
-    std::vector<road_access_candidate> candidates;
-    for (const road_access_area &area : areas) {
-        int base_offset = map_grid_offset(area.origin.x, area.origin.y);
-        for (const int *tile_delta = map_grid_adjacent_offsets(area.size); *tile_delta; tile_delta++) {
-            const int grid_offset = base_offset + *tile_delta;
-            building *adjacent_building = map_terrain_is(grid_offset, TERRAIN_BUILDING) ?
-                building_get(map_building_at(grid_offset)) : nullptr;
-            if (map_terrain_is(grid_offset, TERRAIN_BUILDING) &&
-                building_is_wall_gate(adjacent_building)) {
-                continue;
-            }
-            if (!map_terrain_is(grid_offset, TERRAIN_ROAD)) {
-                continue;
-            }
-
-            const int building_id = map_building_at(grid_offset);
-            roadblock_type kind = building_id ? Roadblock(building_get(building_id)).kind() : ROADBLOCK_NONE;
-            if (kind == ROADBLOCK_STANDARD || kind == ROADBLOCK_STORAGE) {
-                continue; // ignore non-bridge roadblocks
-            }
-
-            const int network_id = map_road_network_get(grid_offset);
-            candidates.push_back({
-                grid_offset,
-                { map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset) },
-                network_id,
-                city_map_road_network_index(network_id)
-            });
-        }
-    }
-    return candidates;
+    // Building road access ignores highways. Figure roaming has figure-specific
+    // terrain checks in movement.cpp so roads_highway profiles can opt in.
+    return map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_ACCESS_RAMP) ? 1 : 0;
 }
 
-std::vector<road_access_area> map_road_access_hippodrome_areas(int x, int y, int rotation)
+static int candidate_for_road_access_tile(int grid_offset, road_access_candidate *candidate)
 {
-    std::vector<road_access_area> areas = { { { x, y }, 5 } };
-    int x_offset = 0;
-    int y_offset = 0;
-    building_rotation_get_offset_with_rotation(5, rotation, &x_offset, &y_offset);
-    areas.push_back({ { x + x_offset, y + y_offset }, 5 });
-    building_rotation_get_offset_with_rotation(10, rotation, &x_offset, &y_offset);
-    areas.push_back({ { x + x_offset, y + y_offset }, 5 });
-    return areas;
-}
-
-std::vector<road_access_area> map_road_access_monument_construction_areas(int x, int y, int size)
-{
-    if (size < 3) {
-        return { { { x, y }, size } };
+    building *adjacent_building = map_terrain_is(grid_offset, TERRAIN_BUILDING) ?
+        building_get(map_building_at(grid_offset)) : nullptr;
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) &&
+        building_is_wall_gate(adjacent_building)) {
+        return 0;
     }
-
-    const int half_size = size / 2;
-    std::vector<road_access_area> areas = {
-        { { x + half_size, y + size - 1 }, 1 },
-        { { x + size - 1, y + half_size }, 1 },
-        { { x + half_size, y }, 1 },
-        { { x, y + half_size }, 1 }
-    };
-    if (size % 2 != 0) {
-        areas.push_back({ { x + 1, y + size - 1 }, 1 });
-        areas.push_back({ { x + size - 1, y + 1 }, 1 });
-        areas.push_back({ { x + 1, y }, 1 });
-        areas.push_back({ { x, y + 1 }, 1 });
-    }
-    return areas;
-}
-
-static int store_best_road_access(const std::vector<road_access_area> &areas, map_point *road)
-{
-    const std::vector<road_access_candidate> candidates = map_road_access_candidates(areas);
-    if (candidates.empty()) {
+    if (!terrain_is_road_like(grid_offset)) {
         return 0;
     }
 
-    const road_access_candidate *best = &candidates.front();
-    for (const road_access_candidate &candidate : candidates) {
-        if (candidate.network_index < best->network_index) {
-            best = &candidate;
+    const int building_id = map_building_at(grid_offset);
+    roadblock_type kind = building_id ? Roadblock(building_get(building_id)).kind() : ROADBLOCK_NONE;
+    if (kind == ROADBLOCK_STANDARD || kind == ROADBLOCK_STORAGE) {
+        return 0; // ignore non-bridge roadblocks
+    }
+
+    if (candidate) {
+        const int network_id = map_road_network_get(grid_offset);
+        *candidate = {
+            grid_offset,
+            { map_grid_offset_to_x(grid_offset), map_grid_offset_to_y(grid_offset) },
+            network_id,
+            city_map_road_network_index(network_id)
+        };
+    }
+    return 1;
+}
+
+void map_road_access_visit_candidates(
+    const road_access_area *areas,
+    int area_count,
+    RoadAccessCandidateVisitor &visitor)
+{
+    if (!areas || area_count <= 0) {
+        return;
+    }
+    for (int i = 0; i < area_count; i++) {
+        const road_access_area &area = areas[i];
+        int base_offset = map_grid_offset(area.origin.x, area.origin.y);
+        for (const int *tile_delta = map_grid_adjacent_offsets(area.size); *tile_delta; tile_delta++) {
+            const int grid_offset = base_offset + *tile_delta;
+            road_access_candidate candidate;
+            if (candidate_for_road_access_tile(grid_offset, &candidate)) {
+                visitor.visit(candidate);
+            }
         }
     }
+}
+
+void map_road_access_visit_candidates(int x, int y, int size, RoadAccessCandidateVisitor &visitor)
+{
+    const road_access_area area = { { x, y }, size };
+    map_road_access_visit_candidates(&area, 1, visitor);
+}
+
+static int fill_hippodrome_areas(road_access_area *areas, int x, int y, int rotation)
+{
+    areas[0] = { { x, y }, 5 };
+    int x_offset = 0;
+    int y_offset = 0;
+    building_rotation_get_offset_with_rotation(5, rotation, &x_offset, &y_offset);
+    areas[1] = { { x + x_offset, y + y_offset }, 5 };
+    building_rotation_get_offset_with_rotation(10, rotation, &x_offset, &y_offset);
+    areas[2] = { { x + x_offset, y + y_offset }, 5 };
+    return 3;
+}
+
+void map_road_access_visit_hippodrome_candidates(
+    int x,
+    int y,
+    int rotation,
+    RoadAccessCandidateVisitor &visitor)
+{
+    road_access_area areas[3];
+    const int area_count = fill_hippodrome_areas(areas, x, y, rotation);
+    map_road_access_visit_candidates(areas, area_count, visitor);
+}
+
+static int fill_monument_construction_areas(road_access_area *areas, int x, int y, int size)
+{
+    if (size < 3) {
+        areas[0] = { { x, y }, size };
+        return 1;
+    }
+
+    const int half_size = size / 2;
+    int area_count = 0;
+    areas[area_count++] = { { x + half_size, y + size - 1 }, 1 };
+    areas[area_count++] = { { x + size - 1, y + half_size }, 1 };
+    areas[area_count++] = { { x + half_size, y }, 1 };
+    areas[area_count++] = { { x, y + half_size }, 1 };
+    if (size % 2 != 0) {
+        areas[area_count++] = { { x + 1, y + size - 1 }, 1 };
+        areas[area_count++] = { { x + size - 1, y + 1 }, 1 };
+        areas[area_count++] = { { x + 1, y }, 1 };
+        areas[area_count++] = { { x, y + 1 }, 1 };
+    }
+    return area_count;
+}
+
+void map_road_access_visit_monument_construction_candidates(
+    int x,
+    int y,
+    int size,
+    RoadAccessCandidateVisitor &visitor)
+{
+    road_access_area areas[8];
+    const int area_count = fill_monument_construction_areas(areas, x, y, size);
+    map_road_access_visit_candidates(areas, area_count, visitor);
+}
+
+class BestRoadAccessVisitor : public RoadAccessCandidateVisitor {
+public:
+    void visit(const road_access_candidate &candidate) override
+    {
+        if (!found_ || candidate.network_index < candidate_.network_index) {
+            candidate_ = candidate;
+            found_ = 1;
+        }
+    }
+
+    int found() const { return found_; }
+    const road_access_candidate &candidate() const { return candidate_; }
+
+private:
+    road_access_candidate candidate_;
+    int found_ = 0;
+};
+
+template <typename VisitCandidates>
+static int store_best_road_access(const VisitCandidates &visit_candidates, map_point *road)
+{
+    BestRoadAccessVisitor best;
+    visit_candidates(best);
+    if (!best.found()) {
+        return 0;
+    }
+
     if (road) {
-        map_point_store_result(best->road.x, best->road.y, road);
+        map_point_store_result(best.candidate().road.x, best.candidate().road.y, road);
     }
     return 1;
 }
@@ -215,12 +277,20 @@ int map_has_road_access_rotation(int rotation, int x, int y, int size, map_point
         default:
             break;
     }
-    return store_best_road_access({ { { x, y }, size } }, road);
+    return store_best_road_access(
+        [x, y, size](RoadAccessCandidateVisitor &visitor) {
+            map_road_access_visit_candidates(x, y, size, visitor);
+        },
+        road);
 }
 
 int map_has_road_access_hippodrome_rotation(int x, int y, map_point *road, int rotation)
 {
-    return store_best_road_access(map_road_access_hippodrome_areas(x, y, rotation), road);
+    return store_best_road_access(
+        [x, y, rotation](RoadAccessCandidateVisitor &visitor) {
+            map_road_access_visit_hippodrome_candidates(x, y, rotation, visitor);
+        },
+        road);
 }
 
 int map_has_road_access_hippodrome(int x, int y, map_point *road)
@@ -266,7 +336,11 @@ int map_has_road_access_granary(int x, int y, map_point *road)
 
 int map_has_road_access_monument_construction(int x, int y, int size)
 {
-    return store_best_road_access(map_road_access_monument_construction_areas(x, y, size), nullptr);
+    return store_best_road_access(
+        [x, y, size](RoadAccessCandidateVisitor &visitor) {
+            map_road_access_visit_monument_construction_candidates(x, y, size, visitor);
+        },
+        nullptr);
 }
 
 static int road_within_radius(int x, int y, int size, int radius, int *x_road, int *y_road)
@@ -276,7 +350,7 @@ static int road_within_radius(int x, int y, int size, int radius, int *x_road, i
 
     for (int yy = y_min; yy <= y_max; yy++) {
         for (int xx = x_min; xx <= x_max; xx++) {
-            if (map_terrain_is(map_grid_offset(xx, yy), TERRAIN_ROAD)) {
+            if (terrain_is_road_like(map_grid_offset(xx, yy))) {
                 // Don't spawn walkers on roadblocks
                 if (Roadblock(building_get(map_building_at(map_grid_offset(xx, yy)))).kind() != ROADBLOCK_NONE) {
                     continue;
@@ -300,13 +374,6 @@ int map_closest_road_within_radius(int x, int y, int size, int radius, int *x_ro
         }
     }
     return 0;
-}
-
-static int terrain_is_road_like(int grid_offset)
-{
-    // Building road access ignores highways. Figure roaming has figure-specific
-    // terrain checks in movement.cpp so roads_highway profiles can opt in.
-    return map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_ACCESS_RAMP) ? 1 : 0;
 }
 
 int map_road_get_granary_inner_road_tiles_count(building *b)

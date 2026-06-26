@@ -7,6 +7,7 @@
 #include "building/roadblock.h"
 #include "core/time.h"
 #include "figure/figure.h"
+#include "game/performance_tracker.h"
 #include "map/building.h"
 #include "map/figure.h"
 #include "map/grid.h"
@@ -108,6 +109,14 @@ static void clear_data(void)
     map_grid_clear_i16(distance.determined.items);
     queue.head = 0;
     queue.tail = 0;
+}
+
+static void record_cost_map_generation(void)
+{
+    performance_tracker_record_route_metric(
+        PERFORMANCE_TRACKER_ROUTE_METRIC_COST_MAPS,
+        performance_tracker_current_route_purpose(),
+        1);
 }
 
 static inline void enqueue(int next_offset, int dist)
@@ -228,6 +237,7 @@ static void route_queue_from_to(int src_x, int src_y, int dst_x, int dst_y, int 
     int (*callback)(int offset, int next_offset, int direction))
 {
     clear_data();
+    record_cost_map_generation();
     distance.dst_x = dst_x;
     distance.dst_y = dst_y;
     int dest = map_grid_offset(dst_x, dst_y);
@@ -259,6 +269,7 @@ static void route_queue_all_from(int source, max_directions directions,
     int (*callback)(int next_offset, int dist, int direction), int is_boat)
 {
     clear_data();
+    record_cost_map_generation();
     map_grid_clear_u8(water_drag.items);
     enqueue(source, 1);
     int tiles = 0;
@@ -408,7 +419,7 @@ static int callback_calc_distance_build_road(int next_offset, int dist, int dire
                 blocked = 1;
             }
             break;
-        case CITIZEN_2_PASSABLE_TERRAIN: // rubble, garden, access ramp
+        case CITIZEN_2_PASSABLE_TERRAIN: // rubble, garden
         case CITIZEN_N1_BLOCKED: // non-empty land
             blocked = 1;
             break;
@@ -434,7 +445,7 @@ static int callback_calc_distance_build_aqueduct(int next_offset, int dist, int 
     int blocked = 0;
     switch (terrain_land_citizen.items[next_offset]) {
         case CITIZEN_N3_AQUEDUCT:
-        case CITIZEN_2_PASSABLE_TERRAIN: // rubble, garden, access ramp
+        case CITIZEN_2_PASSABLE_TERRAIN: // rubble, garden
         case CITIZEN_N1_BLOCKED: // non-empty land
             blocked = 1;
             break;
@@ -478,7 +489,7 @@ static int can_place_initial_road_or_aqueduct(int grid_offset, int is_aqueduct)
         }
         return 0;
     } else if (terrain_land_citizen.items[grid_offset] == CITIZEN_2_PASSABLE_TERRAIN) {
-        // rubble, access ramp, garden
+        // rubble, garden
         return 0;
     } else if (terrain_land_citizen.items[grid_offset] == CITIZEN_N3_AQUEDUCT) {
         if (is_aqueduct) {

@@ -77,7 +77,24 @@ static struct {
 
 static void draw_priority_buttons(int x, int y, unsigned int buttons, Building building)
 {
-    int base_priority_image_id = assets_get_image_id("UI", "Barracks_Priority_Legionaries_OFF");
+    static constexpr const char *PRIORITY_IMAGE_GROUPS[] = {
+        "UI\\Barracks_Priority_Legionaries_OFF",
+        "UI\\Barracks_Priority_Javelin_OFF",
+        "UI\\Barracks_Priority_Mounted_OFF",
+        "UI\\Legion_Banner_Base",
+        "UI\\Legion_Banner_Base",
+        "UI\\Legion_Banner_Base",
+        "UI\\Legion_Banner_Base",
+    };
+    static constexpr const char *PRIORITY_IMAGE_NAMES[][2] = {
+        {"Barracks_Priority_Legionaries_OFF", "Barracks_Priority_Legionaries_ON"},
+        {"Barracks_Priority_Javelin_OFF", "Barracks_Priority_Javelin_ON"},
+        {"Barracks_Priority_Mounted_OFF", "Barracks_Priority_Mounted_ON"},
+        {"Barracks_Priority_Auxinf_OFF", "Barracks_Priority_Auxinf_ON"},
+        {"Barracks_Priority_Auxarch_OFF", "Barracks_Priority_Auxarch_ON"},
+        {"Barracks_Priority_Tower_OFF", "Barracks_Priority_Tower_ON"},
+        {"Barracks_Priority_Watchtower_OFF", "Barracks_Priority_Watchtower_ON"},
+    };
     data.building = building;
 
     for (unsigned int i = 0; i < buttons; i++) {
@@ -95,7 +112,8 @@ static void draw_priority_buttons(int x, int y, unsigned int buttons, Building b
         if (has_focus || priority == i) {
             button_border_draw(x_adj - 3, y_adj - 3, 46, 46, 1);
         }
-        Image::from_id(base_priority_image_id + i * 2 + (i == priority ? 1 : 0)).draw(x_adj, y_adj);
+        const int state = i == priority ? 1 : 0;
+        ImageGroupEntryRef::from_group(PRIORITY_IMAGE_GROUPS[i], PRIORITY_IMAGE_NAMES[i][state]).draw(x_adj, y_adj);
     }
 }
 

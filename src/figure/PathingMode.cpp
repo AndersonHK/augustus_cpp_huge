@@ -1,9 +1,7 @@
 #include "figure/PathingMode.h"
 
-#include "building/roadblock.h"
-#include "figure/figure.h"
-#include "map/routing.h"
 #include "map/routing_data.h"
+#include "map/terrain.h"
 
 #include <cstring>
 
@@ -106,81 +104,6 @@ bool PathingMode::terrainRequiresRoads(const TerrainAccess &terrain)
     return terrain.requires_roads || terrain.prefers_roads;
 }
 
-int PathingMode::canTravel(const Figure &figure, int direction_limit, const TerrainAccess &terrain) const
-{
-    const roadblock_permission permission = Roadblock::permission_for(figure);
-    if (terrain.enemy_land) {
-        int can_travel = map_routing_noncitizen_can_travel_over_land(
-            figure.x,
-            figure.y,
-            figure.destination_x,
-            figure.destination_y,
-            direction_limit,
-            figure.destination_building.id(),
-            5000);
-        if (!can_travel) {
-            can_travel = map_routing_noncitizen_can_travel_over_land(
-                figure.x,
-                figure.y,
-                figure.destination_x,
-                figure.destination_y,
-                direction_limit,
-                0,
-                25000);
-        }
-        return can_travel ? can_travel : map_routing_noncitizen_can_travel_through_everything(
-            figure.x,
-            figure.y,
-            figure.destination_x,
-            figure.destination_y,
-            direction_limit);
-    }
-
-    if (terrain.wall_grid) {
-        return map_routing_can_travel_over_walls(
-            figure.x,
-            figure.y,
-            figure.destination_x,
-            figure.destination_y,
-            4);
-    }
-
-    if (terrain.animal_land) {
-        return map_routing_noncitizen_can_travel_over_land(
-            figure.x,
-            figure.y,
-            figure.destination_x,
-            figure.destination_y,
-            direction_limit,
-            -1,
-            5000);
-    }
-
-    if (terrain.requires_roads || terrain.prefers_roads) {
-        const int can_travel_roads = terrain.allows_highways ?
-            map_routing_citizen_can_travel_over_road_garden_highway(
-                figure.x, figure.y, figure.destination_x, figure.destination_y, direction_limit, permission) :
-            map_routing_citizen_can_travel_over_road_garden(
-                figure.x, figure.y, figure.destination_x, figure.destination_y, direction_limit, permission);
-        if (can_travel_roads || terrain.requires_roads) {
-            return can_travel_roads;
-        }
-    }
-
-    return map_routing_citizen_can_travel_over_land(
-        figure.x,
-        figure.y,
-        figure.destination_x,
-        figure.destination_y,
-        direction_limit,
-        permission);
-}
-
-int PathingMode::pathDirectionLimit(int default_direction_limit, const TerrainAccess &terrain) const
-{
-    return terrain.wall_grid ? 4 : default_direction_limit;
-}
-
 int PathingMode::citizenIsPassable(int grid_offset)
 {
     return terrain_land_citizen.items[grid_offset] >= CITIZEN_0_ROAD &&
@@ -190,6 +113,11 @@ int PathingMode::citizenIsPassable(int grid_offset)
 int PathingMode::citizenIsRoad(int grid_offset)
 {
     return terrain_land_citizen.items[grid_offset] == CITIZEN_0_ROAD;
+}
+
+int PathingMode::citizenIsRoadLike(int grid_offset)
+{
+    return citizenIsRoad(grid_offset) || map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP);
 }
 
 int PathingMode::citizenIsHighway(int grid_offset)

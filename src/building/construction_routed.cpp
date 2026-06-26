@@ -8,6 +8,7 @@
 #include "building/properties.h"
 #include "building/roadblock.h"
 #include "figure/PathingMode.h"
+#include "game/performance_tracker.h"
 #include "game/undo.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
@@ -104,6 +105,7 @@ static int place_routed_building(int x_start, int y_start, int x_end, int y_end,
 
 int building_construction_place_road(int measure_only, int x_start, int y_start, int x_end, int y_end)
 {
+    PerformanceTrackerRouteScope route_scope(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
     game_undo_restore_map(0);
 
     int start_offset = map_grid_offset(x_start, y_start);
@@ -124,6 +126,7 @@ int building_construction_place_road(int measure_only, int x_start, int y_start,
     }
 
     int items_placed = 0;
+    performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
     if (map_routing_calculate_distances_for_building(ROUTED_BUILDING_ROAD, x_start, y_start) &&
             place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_ROAD, &items_placed, measure_only)) {
         if (!measure_only) {
@@ -139,6 +142,7 @@ int building_construction_place_road(int measure_only, int x_start, int y_start,
 
 int building_construction_place_highway(int measure_only, int x_start, int y_start, int x_end, int y_end)
 {
+    PerformanceTrackerRouteScope route_scope(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
     game_undo_restore_map(0);
     int start_offset = map_grid_offset(x_start, y_start);
     int end_offset = map_grid_offset(x_end, y_end);
@@ -154,6 +158,7 @@ int building_construction_place_highway(int measure_only, int x_start, int y_sta
     }
 
     int items_placed = 0;
+    performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
     if (map_routing_calculate_distances_for_building(ROUTED_BUILDING_HIGHWAY, x_start, y_start) &&
         place_routed_building(x_start, y_start, x_end, y_end, ROUTED_BUILDING_HIGHWAY, &items_placed, measure_only)) {
         map_tiles_update_all_plazas();
@@ -181,6 +186,7 @@ int building_construction_can_place_aqueduct_endpoint(int grid_offset)
 int building_construction_place_aqueduct(
     building_type aqueduct_type, int x_start, int y_start, int x_end, int y_end, int *cost)
 {
+    PerformanceTrackerRouteScope route_scope(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
     game_undo_restore_map(0);
 
     const model_building *model = model_get_building(aqueduct_type);
@@ -193,6 +199,7 @@ int building_construction_place_aqueduct(
         !building_construction_can_place_aqueduct_endpoint(map_grid_offset(x_end, y_end))) {
         return 0;
     }
+    performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
     if (!map_routing_calculate_distances_for_building(ROUTED_BUILDING_AQUEDUCT, x_start, y_start)) {
         return 0;
     }
