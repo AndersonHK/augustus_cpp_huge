@@ -595,12 +595,13 @@ int building_warehouse_maximum_receptible_amount(
     const int max_allowed = get_acceptable_quantity(main, resource);
     const int current_amount = building_warehouse_get_amount(main, resource);
     const int reserved_inbound = main.reserved_legacy_storage_loads(resource, ignore_figure_id);
+    const int reserved_inbound_total = main.reserved_legacy_storage_loads(RESOURCE_NONE, ignore_figure_id);
     const int remaining_allowed = (max_allowed > current_amount + reserved_inbound) ?
         (max_allowed - current_amount - reserved_inbound) : 0;
 
     const int resource_space_limit = building_warehouse_max_space_for_resource(main, resource); // max by tile layout
     const int free_space_overall = main.resource_amount(RESOURCE_NONE); // total free space
-    const int free_space_after_reserved = MAX(0, free_space_overall - reserved_inbound);
+    const int free_space_after_reserved = MAX(0, free_space_overall - reserved_inbound_total);
 
     const int available_space = MIN(free_space_after_reserved, resource_space_limit); // tile storage and free space
     const int max_receptible = MIN(remaining_allowed, available_space);

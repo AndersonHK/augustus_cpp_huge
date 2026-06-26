@@ -319,13 +319,14 @@ int building_granary_maximum_receptible_amount(
     int max_accepted_amount = s->resource_state[resource].quantity; // max player-set limit
     const int current_stored = b.resource_amount(resource); // already stored
     const int reserved_inbound = b.reserved_legacy_storage_loads(resource, ignore_figure_id);
+    const int reserved_inbound_total = b.reserved_legacy_storage_loads(RESOURCE_NONE, ignore_figure_id);
     int remaining_for_resource = max_accepted_amount - current_stored - reserved_inbound;
 
     if (remaining_for_resource <= 0) {
         return 0;
     }
 
-    int free_space_overall = MAX(0, b.resource_amount(RESOURCE_NONE) - reserved_inbound); // general free slots
+    int free_space_overall = MAX(0, b.resource_amount(RESOURCE_NONE) - reserved_inbound_total); // general free slots
     int final_capacity = MIN(remaining_for_resource, free_space_overall);
     return final_capacity > 0 ? final_capacity : 0;
 }

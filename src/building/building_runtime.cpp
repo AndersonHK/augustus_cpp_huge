@@ -44,6 +44,7 @@
 #include "map/terrain.h"
 #include "core/log.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdint>
 #include <string>
@@ -192,7 +193,8 @@ int building_runtime::reserved_legacy_storage_loads(resource_type resource, unsi
     prune_legacy_storage_reservations();
     int total = 0;
     for (const LegacyStorageReservation &reservation : legacy_storage_reservations_) {
-        if (reservation.figure_id != ignore_figure_id && reservation.resource == resource) {
+        if (reservation.figure_id != ignore_figure_id &&
+            (resource == RESOURCE_NONE || reservation.resource == resource)) {
             total += reservation.loads;
         }
     }

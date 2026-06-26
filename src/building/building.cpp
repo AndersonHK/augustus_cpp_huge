@@ -947,7 +947,7 @@ int Building::receive_input_storage_loads(resource_type resource, int loads, uns
 
 int Building::reserved_legacy_storage_loads(resource_type resource, unsigned int ignore_figure_id) const
 {
-    if (!record_ || resource == RESOURCE_NONE || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
+    if (!record_ || resource < RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT) {
         return 0;
     }
     building_runtime *runtime = runtime_instance();
