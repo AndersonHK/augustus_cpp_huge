@@ -11,6 +11,7 @@
     <foundation policy="land" />
     <button group="gardens" order="290" text_key="TR_BUILDING_OVERGROWN_GARDENS" />
     <event_data attr="overgrown_gardens" />
+    <tile kind="garden" />
     <flags fire_proof="1" venus_gt_bonus="1" />
     <graphics>
         <default>

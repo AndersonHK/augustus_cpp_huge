@@ -2,6 +2,7 @@
 #include "building/building_type_registry_internal.h"
 #include "building/connectable.h"
 #include "building/construction_building.h"
+#include "building/construction_plan.h"
 #include "building/construction_clear.h"
 #include "building/construction_routed.h"
 #include "building/construction_warning.h"
@@ -163,14 +164,6 @@ static int is_hedge_rotation_type(building_type type)
     return is_hedge_type(type) || building_type_attr_is_any(type, {"colonnade", "palisade"});
 }
 
-static int is_waterside_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return (definition && std::strcmp(definition->attr(), "dock") == 0) ||
-        building_type_attr_is_any(type, {"shipyard", "wharf"});
-}
-
 static int is_bridge_type(building_type type)
 {
     return building_type_attr_is_any(type, {"low_bridge", "ship_bridge"});
@@ -237,9 +230,6 @@ static int is_vacant_lot_type(building_type type)
     building_type vacant_lot = building_type_registry_get_vacant_lot_fill_type();
     return vacant_lot != BUILDING_NONE && type == vacant_lot;
 }
-
-static const int FORT_X_OFFSET[4][4] = { {3,4,4,3},{-1,0,0,-1},{-4,-3,-3,4},{0,1,1,0} };
-static const int FORT_Y_OFFSET[4][4] = { {-1,-1,0,0},{-4,-4,-3,-3},{0,0,1,1},{3,3,4,4} };
 
 static const struct cycle building_cycles[] = {
     { 5, 1, { "small_temple_ceres", "small_temple_neptune", "small_temple_mercury",
@@ -560,7 +550,29 @@ static int place_houses(int measure_only, int x_start, int y_start, int x_end, i
     return items_placed;
 }
 
-static int place_plaza(int x_start, int y_start, int x_end, int y_end)
+static const building_type_registry_impl::TileDefinition *tile_definition_for_type(building_type type)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->has_tile() ? &definition->tile() : nullptr;
+}
+
+static void update_region_for_tile_type(
+    int x_min,
+    int y_min,
+    int x_max,
+    int y_max,
+    building_type type,
+    building_type_registry_impl::TileKind fallback_kind)
+{
+    if (const building_type_registry_impl::TileDefinition *tile = tile_definition_for_type(type)) {
+        map_tiles_update_region_tile(x_min, y_min, x_max, y_max, *tile);
+    } else {
+        map_tiles_update_region_tile_kind(x_min, y_min, x_max, y_max, fallback_kind);
+    }
+}
+
+static int place_plaza(int x_start, int y_start, int x_end, int y_end, building_type type)
 {
     int x_min, y_min, x_max, y_max;
     map_grid_start_end_to_area(x_start, y_start, x_end, y_end, &x_min, &y_min, &x_max, &y_max);
@@ -582,11 +594,11 @@ static int place_plaza(int x_start, int y_start, int x_end, int y_end)
             }
         }
     }
-    map_tiles_update_all_plazas();
+    update_region_for_tile_type(x_min, y_min, x_max, y_max, type, building_type_registry_impl::TileKind::Plaza);
     return items_placed;
 }
 
-static int place_garden(int x_start, int y_start, int x_end, int y_end, int is_overgrown_garden)
+static int place_garden(int x_start, int y_start, int x_end, int y_end, building_type type, int is_overgrown_garden)
 {
     game_undo_restore_map(1);
 
@@ -606,17 +618,18 @@ static int place_garden(int x_start, int y_start, int x_end, int y_end, int is_o
             }
         }
     }
-    map_tiles_update_all_gardens();
+    update_region_for_tile_type(x_min, y_min, x_max, y_max, type, building_type_registry_impl::TileKind::Garden);
     return items_placed;
 }
 
 static void refresh_native_tile_preview(building_type type)
 {
-    if (!building_type_attr_is_any(type, {"plaza", "gardens", "overgrown_gardens"})) {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_tile()) {
         return;
     }
-    map_tiles_update_all_gardens();
-    map_tiles_update_all_plazas();
+    map_tiles_update_all_tile(definition->tile());
 }
 
 static int place_wall(int x_start, int y_start, int x_end, int y_end, int measure_only, int construction_mode, building_type wall_type)
@@ -1172,17 +1185,17 @@ void building_construction_update(int x, int y, int grid_offset)
             current_cost /= 4; // Highway special case: cost is 100dn per 2x2 tiles, so it's 1/4 the price per tile
         }
     } else if (building_type_attr_is(type, "plaza")) {
-        int items_placed = place_plaza(data.tool.start.x, data.tool.start.y, x, y);
+        int items_placed = place_plaza(data.tool.start.x, data.tool.start.y, x, y, type);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
     } else if (building_type_attr_is(type, "gardens")) {
-        int items_placed = place_garden(data.tool.start.x, data.tool.start.y, x, y, 0);
+        int items_placed = place_garden(data.tool.start.x, data.tool.start.y, x, y, type, 0);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
     } else if (building_type_attr_is(type, "overgrown_gardens")) {
-        int items_placed = place_garden(data.tool.start.x, data.tool.start.y, x, y, 1);
+        int items_placed = place_garden(data.tool.start.x, data.tool.start.y, x, y, type, 1);
         if (items_placed >= 0) {
             current_cost *= items_placed;
         }
@@ -1266,48 +1279,15 @@ void building_construction_update(int x, int y, int grid_offset)
             data.force_place_clear_cost = clear_cost;
             current_cost = model_get_building(type)->cost;
         }
-    } else if (building_type_attr_is(type, "gatehouse")) {
-        mark_construction(x, y, 2, ~TERRAIN_ROAD, 0);
-    } else if (building_type_attr_is(type, "roadblock")) {
-        // Don't show the footprint for roadblocks
-    } else if (building_type_attr_is(type, "triumphal_arch")) {
-        mark_construction(x, y, 3, ~TERRAIN_ROAD, 0);
-    } else if (building_type_attr_is(type, "warehouse")) {
-        mark_construction(x, y, 3, TERRAIN_ALL, 0);
-    } else if (building_is_fort(type)) {
-        if (formation_get_num_legions_cached() < formation_get_max_legions()) {
-            int rotation = building_rotation_get_rotation();
-            int orientation = city_view_orientation() / 2;
-            int x_offset = FORT_X_OFFSET[rotation][orientation];
-            int y_offset = FORT_Y_OFFSET[rotation][orientation];
-            if (map_building_tiles_are_clear(x, y, 3, TERRAIN_ALL) &&
-                map_building_tiles_are_clear(x + x_offset, y + y_offset, 4, TERRAIN_ALL) &&
-                city_buildings_has_mess_hall()) {
-                mark_construction(x, y, 3, TERRAIN_ALL, 0);
-            }
-        }
-    } else if (building_type_attr_is(type, "hippodrome")) {
-        int x_offset_1, y_offset_1;
-        building_rotation_get_offset_with_rotation(5, building_rotation_get_rotation(), &x_offset_1, &y_offset_1);
-        int x_offset_2, y_offset_2;
-        building_rotation_get_offset_with_rotation(10, building_rotation_get_rotation(), &x_offset_2, &y_offset_2);
-        if (map_building_tiles_are_clear(x, y, 5, TERRAIN_ALL) &&
-            map_building_tiles_are_clear(x + x_offset_1, y + y_offset_1, 5, TERRAIN_ALL) &&
-            map_building_tiles_are_clear(x + x_offset_2, y + y_offset_2, 5, TERRAIN_ALL) &&
-            !city_buildings_has_hippodrome()) {
-            mark_construction(x, y, 5, TERRAIN_ALL, 0);
-        }
-    } else if (is_waterside_type(type)) {
-        if (!map_water_determine_orientation(x, y, building_properties_for_type(type)->size, 1, 0, 0, 1, 0)) {
-            data.draw_as_constructing = 1;
-        }
-    } if (data.required_terrain.meadow || data.required_terrain.rock || data.required_terrain.tree ||
-        data.required_terrain.water || data.required_terrain.wall || data.required_terrain.distant_water) {
-        // never mark as constructing
     } else {
-        if (should_mark_for_construction(type)) {
-            int size = building_properties_for_type(type)->size;
-            mark_construction(x, y, size, TERRAIN_ALL, 0);
+        data.can_place = building_construction_assess_building(type, x, y, 0);
+        if (!data.required_terrain.meadow && !data.required_terrain.rock && !data.required_terrain.tree &&
+            !data.required_terrain.water && !data.required_terrain.wall && !data.required_terrain.distant_water &&
+            should_mark_for_construction(type) && data.can_place) {
+            building_construction::ConstructionPlacementPlan plan(type, x, y, 0, 0);
+            for (const building_construction::ConstructionPlacementPart &part : plan.parts()) {
+                mark_construction(part.x, part.y, part.size, TERRAIN_ALL, 1);
+            }
         }
     }
     data.cost_preview = current_cost;
@@ -1396,7 +1376,8 @@ void building_construction_place(void)
     if (!building_type_attr_is_any(type, {"clear_land", "clear_trees"}) && enemy_figure_type != FIGURE_NONE) {
         if (building_type_attr_is_any(type, {"wall", "road", "aqueduct", "highway"})) {
             game_undo_restore_map(0);
-        } else if (building_type_attr_is_any(type, {"plaza", "gardens", "overgrown_gardens"}) || building_is_connectable(type)) {
+        } else if ((building_type_registry_has_definition(type) &&
+            building_type_registry_impl::definition_for_type(type)->has_tile()) || building_is_connectable(type)) {
             game_undo_restore_map(1);
             refresh_native_tile_preview(type);
         } else if (is_bridge_type(type)) {
@@ -1441,12 +1422,12 @@ void building_construction_place(void)
         placement_cost *= building_construction_place_highway(0, x_start, y_start, x_end, y_end);
         placement_cost /= 4; // Highway special case: cost is 100dn per 2x2 tiles, so it's 1/4 the price per tile
     } else if (building_type_attr_is(type, "plaza")) {
-        placement_cost *= place_plaza(x_start, y_start, x_end, y_end);
+        placement_cost *= place_plaza(x_start, y_start, x_end, y_end, type);
     } else if (building_type_attr_is(type, "gardens")) {
-        placement_cost *= place_garden(x_start, y_start, x_end, y_end, 0);
+        placement_cost *= place_garden(x_start, y_start, x_end, y_end, type, 0);
         map_routing_update_land();
     } else if (building_type_attr_is(type, "overgrown_gardens")) {
-        placement_cost *= place_garden(x_start, y_start, x_end, y_end, 1);
+        placement_cost *= place_garden(x_start, y_start, x_end, y_end, type, 1);
         map_routing_update_land();
     } else if (building_type_attr_is(type, "low_bridge")) {
         int length = map_bridge_add(x_end, y_end, 0);

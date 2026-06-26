@@ -8,9 +8,7 @@
         <step_size value="2" />
         <range value="3" />
     </desirability>
-    <foundation policy="custom">
-        <terrain value="water" />
-    </foundation>
+    <foundation policy="shoreline" />
     <button group="engineering" order="40" icon="Industry\Wharf" text_key="main_strings.28.76" />
     <sound id="wharf" />
     <event_data attr="wharf" />

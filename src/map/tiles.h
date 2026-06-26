@@ -1,5 +1,6 @@
 #pragma once
 
+#include "building/building_type.h"
 
 void map_tiles_update_all_rocks(void);
 
@@ -9,6 +10,12 @@ void map_tiles_update_region_shrub(int x_min, int y_min, int x_max, int y_max);
 void map_tiles_update_all_gardens(void);
 
 void map_tiles_update_all_plazas(void);
+void map_tiles_update_all_tile(const building_type_registry_impl::TileDefinition &tile);
+void map_tiles_update_region_tile(int x_min, int y_min, int x_max, int y_max,
+    const building_type_registry_impl::TileDefinition &tile);
+void map_tiles_update_all_tile_kind(building_type_registry_impl::TileKind kind);
+void map_tiles_update_region_tile_kind(int x_min, int y_min, int x_max, int y_max,
+    building_type_registry_impl::TileKind kind);
 
 void map_tiles_update_all_walls(void);
 void map_tiles_update_area_walls(int x, int y, int size);

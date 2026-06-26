@@ -150,6 +150,12 @@ enum class TileKind {
     Roadblock
 };
 
+enum class TileRefreshBehavior {
+    None,
+    Garden,
+    Plaza
+};
+
 enum class LaborSeekerMethod {
     None,
     HousesSpawnIfBelow,
@@ -221,6 +227,22 @@ enum FoundationTerrainRequirement {
     FoundationTerrainWater = 1 << 3,
     FoundationTerrainWall = 1 << 4,
     FoundationTerrainDistantWater = 1 << 5
+};
+
+enum class FoundationCellRequirement {
+    Land,
+    Water,
+    Road,
+    Wall,
+    Aqueduct,
+    Any
+};
+
+struct FoundationCellDefinition {
+    int x = 0;
+    int y = 0;
+    int rotation = -1;
+    FoundationCellRequirement requirement = FoundationCellRequirement::Land;
 };
 
 struct LaborSeekerPolicy {
@@ -328,15 +350,22 @@ private:
 class FoundationDefinition {
 public:
     void set_policy(std::string policy);
+    void set_requires_open_water(int value);
     void add_required_terrain(int flags);
+    void add_cell(int x, int y, int rotation, FoundationCellRequirement requirement);
 
     int has_policy() const;
     const char *policy() const;
+    int requires_open_water() const;
     int required_terrain() const;
+    int has_cells() const;
+    const std::vector<FoundationCellDefinition> &cells() const;
 
 private:
     std::string policy_;
+    int requires_open_water_ = 0;
     int required_terrain_ = 0;
+    std::vector<FoundationCellDefinition> cells_;
 };
 
 class BuildButtonDefinition {
@@ -383,12 +412,18 @@ private:
 class TileDefinition {
 public:
     void set_kind(TileKind kind);
+    void set_kind_key(std::string key);
+    void set_refresh_behavior(TileRefreshBehavior behavior);
 
     TileKind kind() const;
+    const char *kind_key() const;
+    TileRefreshBehavior refresh_behavior() const;
     int has_any() const;
 
 private:
     TileKind kind_ = TileKind::None;
+    std::string kind_key_;
+    TileRefreshBehavior refresh_behavior_ = TileRefreshBehavior::None;
 };
 
 class SoundDefinition {
@@ -553,11 +588,13 @@ struct ComposedPartDefinition {
 class ComposedBuildingDefinition {
 public:
     void set_footprint(int width, int height);
+    void set_child_inherits_orientation(int value);
     void set_main_offset(int rotation, int x, int y);
     ComposedPartDefinition &add_part(std::string type_attr, std::string role);
 
     int footprint_width() const;
     int footprint_height() const;
+    int child_inherits_orientation() const;
     ComposedPartOffset main_offset_for_rotation(int rotation) const;
     const std::vector<ComposedPartDefinition> &parts() const;
     std::vector<ComposedPartDefinition> &parts();
@@ -566,6 +603,7 @@ public:
 private:
     int footprint_width_ = 0;
     int footprint_height_ = 0;
+    int child_inherits_orientation_ = 0;
     ComposedPartOffset main_offsets_[4];
     std::vector<ComposedPartDefinition> parts_;
 };
@@ -608,7 +646,9 @@ public:
     void set_model_desirability_step_size(int value);
     void set_model_desirability_range(int value);
     void set_foundation_policy(std::string policy);
+    void set_foundation_requires_open_water(int value);
     void add_foundation_required_terrain(int flags);
+    void add_foundation_cell(int x, int y, int rotation, FoundationCellRequirement requirement);
     void set_button_group(std::string group);
     void set_button_order(int order);
     void set_button_icon(std::string icon);
@@ -617,6 +657,8 @@ public:
     void add_button(BuildButtonDefinition button);
     void set_roadblock_kind(RoadblockKind kind);
     void set_tile_kind(TileKind kind);
+    void set_tile_kind_key(std::string key);
+    void set_tile_refresh_behavior(TileRefreshBehavior behavior);
     void set_temple_religion_reference(std::string path);
     void set_sound_id(int sound);
     void set_sound_mute_on_enemies(int value);
@@ -646,6 +688,7 @@ public:
     void add_instant_construction_requirement(resource_type resource, int amount);
     void add_construction_requirement(resource_type resource, int amount);
     void set_composed_footprint(int width, int height);
+    void set_composed_child_inherits_orientation(int value);
     void set_composed_main_offset(int rotation, int x, int y);
     ComposedPartDefinition &add_composed_part(std::string type_attr, std::string role);
     void set_composed_part_type(size_t index, building_type type);

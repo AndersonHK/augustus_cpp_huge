@@ -87,7 +87,7 @@
             <amount value="50" />
         </labor_seeker>
     </labor>
-    <composed footprint_width="15" footprint_height="5">
+    <composed footprint_width="15" footprint_height="5" inherit_orientation="true">
         <part type="hippodrome_middle" role="middle">
             <offset rotation="0" x="5" y="0" />
             <offset rotation="1" x="0" y="-5" />

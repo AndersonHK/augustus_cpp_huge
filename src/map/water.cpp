@@ -11,7 +11,9 @@
 #include "map/image.h"
 #include "map/point.h"
 #include "map/property.h"
+#include "map/routing.h"
 #include "map/terrain.h"
+#include "scenario/map.h"
 #include "figure/action.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/route.h"
@@ -262,6 +264,13 @@ int map_water_has_water_in_front(int x, int y, int adjust_xy, const waterside_ti
         }
     }
     return water_ok;
+}
+
+int map_water_is_connected_to_open_water(int x, int y, int size)
+{
+    map_point river_entry = scenario_map_river_entry();
+    map_routing_calculate_distances_water_boat(river_entry.x, river_entry.y);
+    return map_terrain_is_adjacent_to_open_water(x, y, size);
 }
 
 static Figure *live_fishing_boat(unsigned int id)

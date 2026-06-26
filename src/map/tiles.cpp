@@ -396,6 +396,107 @@ void map_tiles_update_all_plazas(void)
     foreach_map_tile(set_plaza_image);
 }
 
+static void foreach_map_tile_in_region(
+    int x_min,
+    int y_min,
+    int x_max,
+    int y_max,
+    void (*callback)(int, int, int))
+{
+    int map_width = 0;
+    int map_height = 0;
+    map_grid_size(&map_width, &map_height);
+    if (x_min < 0) { x_min = 0; }
+    if (y_min < 0) { y_min = 0; }
+    if (x_max >= map_width) { x_max = map_width - 1; }
+    if (y_max >= map_height) { y_max = map_height - 1; }
+    for (int y = y_min; y <= y_max; y++) {
+        for (int x = x_min; x <= x_max; x++) {
+            callback(x, y, map_grid_offset(x, y));
+        }
+    }
+}
+
+static building_type_registry_impl::TileRefreshBehavior refresh_behavior_for_kind(
+    building_type_registry_impl::TileKind kind)
+{
+    switch (kind) {
+        case building_type_registry_impl::TileKind::Garden:
+            return building_type_registry_impl::TileRefreshBehavior::Garden;
+        case building_type_registry_impl::TileKind::Plaza:
+        case building_type_registry_impl::TileKind::Roadblock:
+            return building_type_registry_impl::TileRefreshBehavior::Plaza;
+        default:
+            return building_type_registry_impl::TileRefreshBehavior::None;
+    }
+}
+
+static void update_all_tile_refresh_behavior(building_type_registry_impl::TileRefreshBehavior behavior)
+{
+    switch (behavior) {
+        case building_type_registry_impl::TileRefreshBehavior::Garden:
+            map_tiles_update_all_gardens();
+            break;
+        case building_type_registry_impl::TileRefreshBehavior::Plaza:
+            map_tiles_update_all_plazas();
+            break;
+        default:
+            break;
+    }
+}
+
+static void update_region_tile_refresh_behavior(
+    int x_min,
+    int y_min,
+    int x_max,
+    int y_max,
+    building_type_registry_impl::TileRefreshBehavior behavior)
+{
+    switch (behavior) {
+        case building_type_registry_impl::TileRefreshBehavior::Garden:
+            foreach_map_tile_in_region(x_min - 1, y_min - 1, x_max + 1, y_max + 1, clear_garden_image);
+            foreach_map_tile_in_region(x_min - 1, y_min - 1, x_max + 1, y_max + 1, set_garden_image);
+            break;
+        case building_type_registry_impl::TileRefreshBehavior::Plaza:
+            foreach_map_tile_in_region(x_min - 1, y_min - 1, x_max + 1, y_max + 1, remove_plaza_below_building);
+            foreach_map_tile_in_region(x_min - 1, y_min - 1, x_max + 1, y_max + 1, clear_plaza_image);
+            foreach_map_tile_in_region(x_min - 1, y_min - 1, x_max + 1, y_max + 1, set_plaza_image);
+            break;
+        default:
+            break;
+    }
+}
+
+void map_tiles_update_all_tile(const building_type_registry_impl::TileDefinition &tile)
+{
+    update_all_tile_refresh_behavior(tile.refresh_behavior());
+}
+
+void map_tiles_update_region_tile(
+    int x_min,
+    int y_min,
+    int x_max,
+    int y_max,
+    const building_type_registry_impl::TileDefinition &tile)
+{
+    update_region_tile_refresh_behavior(x_min, y_min, x_max, y_max, tile.refresh_behavior());
+}
+
+void map_tiles_update_all_tile_kind(building_type_registry_impl::TileKind kind)
+{
+    update_all_tile_refresh_behavior(refresh_behavior_for_kind(kind));
+}
+
+void map_tiles_update_region_tile_kind(
+    int x_min,
+    int y_min,
+    int x_max,
+    int y_max,
+    building_type_registry_impl::TileKind kind)
+{
+    update_region_tile_refresh_behavior(x_min, y_min, x_max, y_max, refresh_behavior_for_kind(kind));
+}
+
 static int get_gatehouse_building_id(int grid_offset)
 {
     if (map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {

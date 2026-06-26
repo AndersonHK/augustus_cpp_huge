@@ -889,6 +889,15 @@ static int parse_foundation()
     }
 
     g_parse_state.definition->set_foundation_policy(std::move(policy));
+    if (xml_parser_has_attribute("open_water")) {
+        int requires_open_water = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("open_water"), &requires_open_water)) {
+            log_error("Unsupported BuildingType foundation open_water flag", g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_foundation_requires_open_water(requires_open_water);
+    }
     g_parse_state.saw_foundation = 1;
     return 1;
 }
@@ -927,6 +936,80 @@ static int parse_foundation_terrain()
     }
 
     g_parse_state.definition->add_foundation_required_terrain(flags);
+    return 1;
+}
+
+static FoundationCellRequirement parse_foundation_cell_requirement(const char *value, int *ok)
+{
+    *ok = 1;
+    if (compare_text(value, "land") == 0 || compare_text(value, "clear") == 0) {
+        return FoundationCellRequirement::Land;
+    }
+    if (compare_text(value, "water") == 0) {
+        return FoundationCellRequirement::Water;
+    }
+    if (compare_text(value, "road") == 0) {
+        return FoundationCellRequirement::Road;
+    }
+    if (compare_text(value, "wall") == 0) {
+        return FoundationCellRequirement::Wall;
+    }
+    if (compare_text(value, "aqueduct") == 0) {
+        return FoundationCellRequirement::Aqueduct;
+    }
+    if (compare_text(value, "any") == 0) {
+        return FoundationCellRequirement::Any;
+    }
+    *ok = 0;
+    return FoundationCellRequirement::Land;
+}
+
+static int parse_foundation_cell()
+{
+    if (!g_parse_state.definition || !g_parse_state.saw_foundation) {
+        log_error("Encountered foundation cell outside foundation node", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("x") || !xml_parser_has_attribute("y") ||
+        !xml_parser_has_attribute("terrain")) {
+        log_error("BuildingType foundation cell is missing required x, y, or terrain attribute",
+            g_parse_state.definition->attr(), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int x = 0;
+    int y = 0;
+    int has_value = 0;
+    if (!parse_optional_int_attribute("BuildingType foundation cell", "x", &x, &has_value) || !has_value ||
+        !parse_optional_int_attribute("BuildingType foundation cell", "y", &y, &has_value) || !has_value) {
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int rotation = -1;
+    if (xml_parser_has_attribute("rotation")) {
+        if (!parse_optional_int_attribute("BuildingType foundation cell", "rotation", &rotation, &has_value) ||
+            !has_value || rotation < 0 || rotation > 3) {
+            log_error("BuildingType foundation cell rotation must be 0, 1, 2, or 3",
+                g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+    }
+
+    int ok = 0;
+    FoundationCellRequirement requirement =
+        parse_foundation_cell_requirement(xml_parser_get_attribute_string("terrain"), &ok);
+    if (!ok) {
+        log_error("Unsupported BuildingType foundation cell terrain",
+            xml_parser_get_attribute_string("terrain"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->add_foundation_cell(x, y, rotation, requirement);
     return 1;
 }
 
@@ -1069,6 +1152,22 @@ static TileKind parse_tile_kind(const char *text)
     return TileKind::None;
 }
 
+static TileRefreshBehavior parse_tile_refresh_behavior(const char *text, int *ok)
+{
+    *ok = 1;
+    if (compare_text(text, "none") == 0) {
+        return TileRefreshBehavior::None;
+    }
+    if (compare_text(text, "garden") == 0) {
+        return TileRefreshBehavior::Garden;
+    }
+    if (compare_text(text, "plaza") == 0 || compare_text(text, "roadblock") == 0) {
+        return TileRefreshBehavior::Plaza;
+    }
+    *ok = 0;
+    return TileRefreshBehavior::None;
+}
+
 static int parse_tile()
 {
     if (!g_parse_state.definition) {
@@ -1087,15 +1186,29 @@ static int parse_tile()
         return 0;
     }
 
-    const char *kind_text = xml_parser_get_attribute_string("kind");
-    TileKind kind = parse_tile_kind(kind_text);
-    if (kind == TileKind::None) {
-        log_error("Unsupported BuildingType tile kind", kind_text, 0);
+    std::string kind_key = xml_value::trim_copy(xml_parser_get_attribute_string("kind"));
+    if (kind_key.empty()) {
+        log_error("BuildingType tile kind is empty", g_parse_state.definition->attr(), 0);
         g_parse_state.error = 1;
         return 0;
     }
+    const char *kind_text = kind_key.c_str();
+    TileKind kind = parse_tile_kind(kind_text);
 
+    g_parse_state.definition->set_tile_kind_key(std::move(kind_key));
     g_parse_state.definition->set_tile_kind(kind);
+    if (xml_parser_has_attribute("refresh")) {
+        int ok = 0;
+        TileRefreshBehavior behavior =
+            parse_tile_refresh_behavior(xml_parser_get_attribute_string("refresh"), &ok);
+        if (!ok) {
+            log_error("Unsupported BuildingType tile refresh behavior",
+                xml_parser_get_attribute_string("refresh"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_tile_refresh_behavior(behavior);
+    }
     g_parse_state.saw_tile = 1;
     g_parse_state.parsing_tile = 1;
     return 1;
@@ -1476,6 +1589,16 @@ static int parse_composed()
     }
 
     g_parse_state.definition->set_composed_footprint(width, height);
+    if (xml_parser_has_attribute("inherit_orientation")) {
+        int inherit_orientation = 0;
+        if (!xml_value::parse_bool(xml_parser_get_attribute_string("inherit_orientation"), &inherit_orientation)) {
+            log_error("Unsupported BuildingType composed inherit_orientation flag",
+                g_parse_state.definition->attr(), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_composed_child_inherits_orientation(inherit_orientation);
+    }
     g_parse_state.saw_composed = 1;
     g_parse_state.parsing_composed = 1;
     return 1;
@@ -3625,6 +3748,7 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "range", parse_desirability_range, nullptr, "desirability", nullptr },
     { "foundation", parse_foundation, nullptr, "building", nullptr },
     { "terrain", parse_foundation_terrain, nullptr, "foundation", nullptr },
+    { "cell", parse_foundation_cell, nullptr, "foundation", nullptr },
     { "button", parse_button, nullptr, "building", nullptr },
     { "menu", parse_button, nullptr, "building", nullptr },
     { "roadblock", parse_roadblock, nullptr, "building", nullptr },

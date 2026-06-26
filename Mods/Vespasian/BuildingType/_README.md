@@ -119,16 +119,41 @@ Small building example:
 Current supported `<foundation>` attributes:
 
 - `policy="land|road|water|shoreline|aqueduct|custom"` stores the placement/foundation policy key for the next construction pass
+- `open_water="true|false"` requires the footprint to connect to open navigable water after the shoreline check; use this for shoreline buildings that must be reachable by ships
 
 Current supported `<foundation>` child nodes:
 
 - `<terrain value="meadow|rock|tree|water|wall|distant_water" />`
+- `<cell x="0" y="0" terrain="land|clear|water|road|wall|aqueduct|any" />`
+- `<cell rotation="0|1|2|3" x="0" y="0" terrain="..." />`
 
 Foundation terrain rules:
 
 - `<terrain>` may appear zero or more times
 - terrain requirements feed the existing placement warning/check path
 - use `rock` for quarry/mine placement, `tree` for timber yards, `water` for clay pits, and `distant_water` for sand pits
+- `<cell>` may appear zero or more times and declares a per-footprint tile requirement in local building coordinates
+- `rotation` is optional; omit it for all rotations or set it to `0..3` for rotation-specific shoreline or composed-footprint cells
+- cells not listed by XML inherit the foundation policy: `land/custom` require clear land, `road` requires road, `water` requires water, `shoreline` requires a water edge and clear land elsewhere
+- shoreline buildings register their placed footprint with the water map and save their shoreline orientation from the shared construction placement plan
+
+Current supported `<composed>` attributes:
+
+- `footprint_width="N"` and `footprint_height="N"` declare the full placement footprint used by construction and ghost previews
+- `inherit_orientation="true|false"` is optional; use it only when child records must copy the main record orientation byte
+
+Current supported `<composed>` child nodes:
+
+- `<main x="0" y="0" />` optionally declares the main building record offset inside the composed footprint
+- `<main><offset rotation="0|1|2|3" x="0" y="0" /></main>` declares rotation-specific main offsets
+- `<part type="building_attr" role="..." x="0" y="0" />` declares a child building part offset for all rotations
+- `<part type="building_attr" role="..."><offset rotation="0|1|2|3" x="0" y="0" /></part>` declares rotation-specific child offsets
+
+Composition rules:
+
+- construction validation, ghost previews, and live placement all consume the same composed part offsets
+- part `type` references another BuildingType `attr`; recursive composed parts are rejected
+- `role` is optional runtime metadata for specialized repair paths, such as farm fields
 
 Current supported `<button>` attributes:
 
@@ -148,9 +173,10 @@ Current supported `<roadblock>` attributes:
 
 Current supported `<tile>` attributes:
 
-- `kind="plaza"` marks a BuildingType as tile-backed plaza data
+- `kind="..."` marks a BuildingType as tile-backed data and stores the tile kind key from XML
+- `refresh="none|garden|plaza|roadblock"` is optional and declares which dirty-region image refresh family to run; if omitted, known kinds default to `garden` or `plaza` refresh behavior
 
-Tile-backed BuildingTypes use the normal root-level `<graphics>` block. Do not add a tile-specific graphics node. For plaza, the default graphics target supplies single-tile images and a `<variant role="tile_large">` target supplies two-by-two plaza images.
+Tile-backed BuildingTypes use the normal root-level `<graphics>` block. Do not add a tile-specific graphics node. For plaza-like tiles, the default graphics target supplies single-tile images and a `<variant role="tile_large">` target supplies two-by-two plaza images.
 
 Current supported `<temple>` attributes:
 

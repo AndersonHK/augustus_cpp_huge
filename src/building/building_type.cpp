@@ -156,9 +156,24 @@ void FoundationDefinition::set_policy(std::string policy)
     policy_ = std::move(policy);
 }
 
+void FoundationDefinition::set_requires_open_water(int value)
+{
+    requires_open_water_ = value ? 1 : 0;
+}
+
 void FoundationDefinition::add_required_terrain(int flags)
 {
     required_terrain_ |= flags;
+}
+
+void FoundationDefinition::add_cell(int x, int y, int rotation, FoundationCellRequirement requirement)
+{
+    FoundationCellDefinition cell;
+    cell.x = x;
+    cell.y = y;
+    cell.rotation = rotation;
+    cell.requirement = requirement;
+    cells_.push_back(cell);
 }
 
 int FoundationDefinition::has_policy() const
@@ -171,9 +186,24 @@ const char *FoundationDefinition::policy() const
     return policy_.c_str();
 }
 
+int FoundationDefinition::requires_open_water() const
+{
+    return requires_open_water_;
+}
+
 int FoundationDefinition::required_terrain() const
 {
     return required_terrain_;
+}
+
+int FoundationDefinition::has_cells() const
+{
+    return !cells_.empty();
+}
+
+const std::vector<FoundationCellDefinition> &FoundationDefinition::cells() const
+{
+    return cells_;
 }
 
 void BuildButtonDefinition::set_group(std::string group)
@@ -283,6 +313,44 @@ int RoadblockDefinition::has_any() const
 void TileDefinition::set_kind(TileKind kind)
 {
     kind_ = kind;
+    if (kind_key_.empty()) {
+        switch (kind) {
+            case TileKind::Garden:
+                kind_key_ = "garden";
+                break;
+            case TileKind::Plaza:
+                kind_key_ = "plaza";
+                break;
+            case TileKind::Roadblock:
+                kind_key_ = "roadblock";
+                break;
+            default:
+                break;
+        }
+    }
+    if (refresh_behavior_ == TileRefreshBehavior::None) {
+        switch (kind) {
+            case TileKind::Garden:
+                refresh_behavior_ = TileRefreshBehavior::Garden;
+                break;
+            case TileKind::Plaza:
+            case TileKind::Roadblock:
+                refresh_behavior_ = TileRefreshBehavior::Plaza;
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+void TileDefinition::set_kind_key(std::string key)
+{
+    kind_key_ = std::move(key);
+}
+
+void TileDefinition::set_refresh_behavior(TileRefreshBehavior behavior)
+{
+    refresh_behavior_ = behavior;
 }
 
 TileKind TileDefinition::kind() const
@@ -290,9 +358,20 @@ TileKind TileDefinition::kind() const
     return kind_;
 }
 
+const char *TileDefinition::kind_key() const
+{
+    return kind_key_.c_str();
+}
+
+TileRefreshBehavior TileDefinition::refresh_behavior() const
+{
+    return refresh_behavior_;
+}
+
 int TileDefinition::has_any() const
 {
-    return kind_ != TileKind::None;
+    return kind_ != TileKind::None || !kind_key_.empty() ||
+        refresh_behavior_ != TileRefreshBehavior::None;
 }
 
 void SoundDefinition::set_city_sound(int sound)
@@ -650,6 +729,11 @@ void ComposedBuildingDefinition::set_footprint(int width, int height)
     footprint_height_ = height;
 }
 
+void ComposedBuildingDefinition::set_child_inherits_orientation(int value)
+{
+    child_inherits_orientation_ = value ? 1 : 0;
+}
+
 void ComposedBuildingDefinition::set_main_offset(int rotation, int x, int y)
 {
     int normalized_rotation = rotation % 4;
@@ -675,6 +759,11 @@ int ComposedBuildingDefinition::footprint_width() const
 int ComposedBuildingDefinition::footprint_height() const
 {
     return footprint_height_;
+}
+
+int ComposedBuildingDefinition::child_inherits_orientation() const
+{
+    return child_inherits_orientation_;
 }
 
 ComposedPartOffset ComposedBuildingDefinition::main_offset_for_rotation(int rotation) const
@@ -828,9 +917,19 @@ void BuildingType::set_foundation_policy(std::string policy)
     foundation_.set_policy(std::move(policy));
 }
 
+void BuildingType::set_foundation_requires_open_water(int value)
+{
+    foundation_.set_requires_open_water(value);
+}
+
 void BuildingType::add_foundation_required_terrain(int flags)
 {
     foundation_.add_required_terrain(flags);
+}
+
+void BuildingType::add_foundation_cell(int x, int y, int rotation, FoundationCellRequirement requirement)
+{
+    foundation_.add_cell(x, y, rotation, requirement);
 }
 
 void BuildingType::set_button_group(std::string group)
@@ -886,6 +985,16 @@ void BuildingType::set_roadblock_kind(RoadblockKind kind)
 void BuildingType::set_tile_kind(TileKind kind)
 {
     tile_.set_kind(kind);
+}
+
+void BuildingType::set_tile_kind_key(std::string key)
+{
+    tile_.set_kind_key(std::move(key));
+}
+
+void BuildingType::set_tile_refresh_behavior(TileRefreshBehavior behavior)
+{
+    tile_.set_refresh_behavior(behavior);
 }
 
 void BuildingType::set_temple_religion_reference(std::string path)
@@ -1040,6 +1149,11 @@ void BuildingType::add_construction_requirement(resource_type resource, int amou
 void BuildingType::set_composed_footprint(int width, int height)
 {
     composition_.set_footprint(width, height);
+}
+
+void BuildingType::set_composed_child_inherits_orientation(int value)
+{
+    composition_.set_child_inherits_orientation(value);
 }
 
 void BuildingType::set_composed_main_offset(int rotation, int x, int y)
@@ -1526,7 +1640,8 @@ int BuildingType::has_model() const
 
 int BuildingType::has_foundation() const
 {
-    return foundation_.has_policy() || foundation_.required_terrain() != 0;
+    return foundation_.has_policy() || foundation_.requires_open_water() ||
+        foundation_.required_terrain() != 0 || foundation_.has_cells();
 }
 
 int BuildingType::foundation_required_terrain() const

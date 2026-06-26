@@ -120,6 +120,19 @@ static const building_type_registry_impl::BuildingType *definition_for_type(buil
     return building_type_registry_impl::definition_for_type(type);
 }
 
+static int definition_foundation_policy_is(
+    const building_type_registry_impl::BuildingType *definition,
+    const char *policy)
+{
+    return definition && definition->foundation().has_policy() && policy &&
+        std::strcmp(definition->foundation().policy(), policy) == 0;
+}
+
+static int definition_registers_water_footprint(const building_type_registry_impl::BuildingType *definition)
+{
+    return definition_foundation_policy_is(definition, "shoreline");
+}
+
 static int output_cart_capacity_from_methods(
     const std::vector<building_type_registry_impl::ProductionMethod *> &methods,
     resource_type resource)
@@ -687,10 +700,9 @@ static int composed_record_uses_union_road_access(const building *owner)
 {
     const building_type_registry_impl::BuildingType *definition =
         owner ? building_type_registry_impl::definition_for_type(owner->type) : nullptr;
-    const char *attr = definition ? definition->attr() : nullptr;
     return definition && definition->has_composition() &&
         !definition->is_warehouse() &&
-        (!attr || std::strcmp(attr, "hippodrome") != 0) &&
+        !definition->composition().child_inherits_orientation() &&
         !building_is_fort(owner->type);
 }
 
@@ -1057,7 +1069,7 @@ void Building::add_map_tiles(int image_id) const
 {
     if (record_) {
         const char *attr = type ? type->attr() : nullptr;
-        if (attr && (!std::strcmp(attr, "dock") || !std::strcmp(attr, "shipyard") || !std::strcmp(attr, "wharf"))) {
+        if (definition_registers_water_footprint(type)) {
             map_water_add_building(record_->id, record_->x, record_->y, record_->size, image_id);
             return;
         }
@@ -1620,11 +1632,6 @@ static int normalized_composed_rotation(int rotation)
     return result;
 }
 
-static int definition_attr_is(const building_type_registry_impl::BuildingType *definition, const char *attr)
-{
-    return definition && definition->attr() && attr && std::strcmp(definition->attr(), attr) == 0;
-}
-
 static building *chain_child_after(building *previous)
 {
     if (!previous || previous->next_part_building_id <= 0) {
@@ -1640,7 +1647,7 @@ static building *chain_child_after(building *previous)
 static int composed_rotation_fallback(const building *main_record,
     const building_type_registry_impl::BuildingType &definition)
 {
-    if (definition.is_warehouse() || definition_attr_is(&definition, "hippodrome")) {
+    if (definition.is_warehouse() || definition.composition().child_inherits_orientation()) {
         return normalized_composed_rotation(main_record->subtype.orientation);
     }
     return 0;
@@ -1710,7 +1717,7 @@ static void initialize_loaded_composed_child(building *main_record, building *ch
     child->labor_access_score = main_record->labor_access_score;
     child->variant = main_record->variant;
 
-    if (definition_attr_is(&main_definition, "hippodrome")) {
+    if (main_definition.composition().child_inherits_orientation()) {
         child->subtype.orientation = main_record->subtype.orientation;
     }
     if (building_is_fort(main_record->type)) {
@@ -1995,7 +2002,8 @@ building *building_create(building_type type, int x, int y)
         b->accepted_goods[resource_wine()] = 0;
     }
 
-    if ((building_obj.type && building_obj.type->is_warehouse()) || type_matches(type, "hippodrome")) {
+    if (building_obj.type &&
+        (building_obj.type->is_warehouse() || building_obj.type->composition().child_inherits_orientation())) {
         b->subtype.orientation = building_rotation_get_rotation();
     }
 

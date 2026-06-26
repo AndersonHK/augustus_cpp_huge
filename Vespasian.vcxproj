@@ -60,6 +60,7 @@
     <ClCompile Include="src\building\construction.cpp" />
     <ClCompile Include="src\building\construction_session.cpp" />
     <ClCompile Include="src\building\construction_building.cpp" />
+    <ClCompile Include="src\building\construction_plan.cpp" />
     <ClCompile Include="src\building\construction_clear.cpp" />
     <ClCompile Include="src\building\construction_routed.cpp" />
     <ClCompile Include="src\building\construction_warning.cpp" />
@@ -586,6 +587,7 @@
     <ClInclude Include="src\building\construction.h" />
     <ClInclude Include="src\building\construction_session.h" />
     <ClInclude Include="src\building\construction_building.h" />
+    <ClInclude Include="src\building\construction_plan.h" />
     <ClInclude Include="src\building\construction_clear.h" />
     <ClInclude Include="src\building\tool_mode.h" />
     <ClInclude Include="src\building\construction_routed.h" />

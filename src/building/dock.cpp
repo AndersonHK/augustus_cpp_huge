@@ -16,10 +16,9 @@
 #include "game/resource.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/routing.h"
 #include "map/routing_data.h"
 #include "map/terrain.h"
-#include "scenario/map.h"
+#include "map/water.h"
 
 #include <cstring>
 #include <cstdlib>
@@ -64,11 +63,9 @@ int building_dock_count_idle_dockers(const Building &dock)
 
 void building_dock_update_open_water_access(void)
 {
-    map_point river_entry = scenario_map_river_entry();
-    map_routing_calculate_distances_water_boat(river_entry.x, river_entry.y);
     for (Building b : Building::of_type(dock_type())) {
         if (b.is_in_use() && !b.has_house_size()) {
-            if (map_terrain_is_adjacent_to_open_water(b.x(), b.y(), 3)) {
+            if (map_water_is_connected_to_open_water(b.x(), b.y(), b.size())) {
                 b.set_has_water_access(1);
             } else {
                 b.set_has_water_access(0);
@@ -79,13 +76,7 @@ void building_dock_update_open_water_access(void)
 
 int building_dock_is_connected_to_open_water(int x, int y)
 {
-    map_point river_entry = scenario_map_river_entry();
-    map_routing_calculate_distances_water_boat(river_entry.x, river_entry.y);
-    if (map_terrain_is_adjacent_to_open_water(x, y, 3)) {
-        return 1;
-    } else {
-        return 0;
-    }
+    return map_water_is_connected_to_open_water(x, y, 3);
 }
 
 int building_dock_accepts_ship(Figure &ship, const Building &dock)

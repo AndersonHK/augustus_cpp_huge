@@ -26,6 +26,7 @@ typedef enum {
  * @param exact_coordinates If 1, x and y are used as exact coordinates without any offset adjustments
 */
 int building_construction_place_building(building_type type, int x, int y, int exact_coordinates);
+int building_construction_assess_building(building_type type, int x, int y, int exact_coordinates);
 int building_construction_force_place_assess(building_type type, int x, int y, int exact_coordinates, int *clear_cost);
 int building_construction_force_place_building(building_type type, int x, int y, int exact_coordinates, int *clear_cost);
 int building_construction_is_granary_cross_tile(int tile_no);

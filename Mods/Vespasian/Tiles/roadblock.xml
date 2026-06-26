@@ -8,7 +8,7 @@
         <step_size value="0" />
         <range value="0" />
     </desirability>
-    <foundation policy="land" />
+    <foundation policy="road" />
     <event_data attr="roadblock" />
     <roadblock kind="standard" />
     <tile kind="roadblock" />
