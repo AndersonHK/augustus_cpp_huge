@@ -1,29 +1,37 @@
-#include "widget/map_editor.h"
-
-#include "city/view.h"
-#include "input/zoom.h"
-
-extern "C" {
-#include "assets/assets.h"
 #include "city/warning.h"
-#include "core/config.h"
-#include "core/lang.h"
-#include "core/string.h"
-#include "editor/editor.h"
+#include "translation/translation.h"
 #include "editor/tool.h"
-#include "graphics/color.h"
-#include "graphics/complex_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/menu.h"
+#include "map/image.h"
+#include "map/image_context.h"
+#include "widget/city_figure.h"
+#include "widget/city_draw.h"
+#include "widget/map_editor_pause_menu.h"
+#include "widget/map_editor_tool.h"
+#include "window/editor/empire.h"
+
+#include "editor/editor.h"
+#include "graphics/complex_button.h"
+#include <array>
+
+#include "widget/map_editor.h"
+
+#include "city/view.h"
+#include "game/resource.h"
+#include "game/resource_id_bridge.h"
+#include "input/zoom.h"
+
+#include "core/config.h"
+#include "core/string.h"
+#include "graphics/color.h"
 #include "graphics/renderer.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
 #include "input/scroll.h"
 #include "map/figure.h"
 #include "map/grid.h"
-#include "map/image.h"
-#include "map/image_context.h"
 #include "map/point.h"
 #include "map/property.h"
 #include "map/terrain.h"
@@ -32,12 +40,6 @@ extern "C" {
 #include "scenario/event/controller.h"
 #include "sound/city.h"
 #include "sound/effect.h"
-#include "translation/translation.h"
-#include "widget/city_figure.h"
-#include "widget/map_editor_pause_menu.h"
-#include "widget/map_editor_tool.h"
-#include "window/editor/empire.h"
-}
 
 #include <cstdio>
 #include <cstring>
@@ -73,7 +75,7 @@ static void init_draw_context(void)
         draw_context.last_water_animation_time = now;
         draw_context.advance_water_animation = 1;
     }
-    draw_context.image_id_water_first = image_group(static_cast<int>(GROUP_TERRAIN_WATER));
+    draw_context.image_id_water_first = Image::group(static_cast<int>(GROUP_TERRAIN_WATER));
     draw_context.image_id_water_last = 5 + draw_context.image_id_water_first;
     draw_context.scale = city_view_get_scale() / 100.0f;
 }
@@ -122,15 +124,10 @@ static void draw_footprint(int x, int y, int grid_offset)
     if (event_tiles[grid_offset][0] != -1) {
         color_mask = complex_button_basic_colors((event_tiles[grid_offset][0] % 10) + 1);
     }
-    image_draw_isometric_footprint_from_draw_tile(image_id, x, y, color_mask, draw_context.scale);
+    Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, color_mask, draw_context.scale);
 
-    if (config_get(static_cast<config_key>(CONFIG_UI_SHOW_GRID)) && draw_context.scale <= 2.0f) {
-        //grid is drawn by the renderer directly at zoom > 200%
-        static int grid_id = 0;
-        if (!grid_id) {
-            grid_id = assets_get_image_id("UI", "Grid_Full");
-        }
-        image_draw(grid_id, x, y, COLOR_GRID, draw_context.scale);
+    if (config_get(static_cast<config_key>(CONFIG_UI_SHOW_GRID))) {
+        city_draw_grid_overlay(x, y, draw_context.scale);
     }
 }
 
@@ -146,8 +143,8 @@ static void draw_custom_earthquake(int x, int y, int grid_offset)
             images[grid_offset] = *map_image_context_get_future_earthquake(grid_offset);
         }
         if (images[grid_offset].is_valid) {
-            image_draw_isometric_footprint_from_draw_tile(image_group(static_cast<int>(GROUP_TERRAIN_EARTHQUAKE)) +
-                images[grid_offset].group_offset + images[grid_offset].item_offset, x, y, ALPHA_MASK_CUSTOM_EARTHQUAKE, draw_context.scale);
+            Image::from_id(Image::group(static_cast<int>(GROUP_TERRAIN_EARTHQUAKE)) +
+                images[grid_offset].group_offset + images[grid_offset].item_offset).draw_isometric_footprint_from_draw_tile(x, y, ALPHA_MASK_CUSTOM_EARTHQUAKE, draw_context.scale);
         }
     }
 }
@@ -162,14 +159,14 @@ static void draw_top(int x, int y, int grid_offset)
     if (event_tiles[grid_offset][0] != -1) {
         color_mask = complex_button_basic_colors((event_tiles[grid_offset][0] % 10) + 1);
     }
-    image_draw_isometric_top_from_draw_tile(image_id, x, y, color_mask, draw_context.scale);
+    Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, color_mask, draw_context.scale);
 }
 
 static void draw_flags(int x, int y, int grid_offset)
 {
     int figure_id = map_figure_at(grid_offset);
     while (figure_id) {
-        figure *f = figure_get(figure_id);
+        Figure *f = Figure::get(figure_id);
         if (!f->is_ghost) {
             city_draw_figure(f, x, y, draw_context.scale, 0);
         }
@@ -184,15 +181,14 @@ static void display_zoom_warning(int zoom)
     }
     zoom = city_view_scale_to_display_percentage(zoom);
     static uint8_t zoom_string[100];
-    static int warning_id;
     if (!*zoom_string) {
-        uint8_t *cursor = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM), zoom_string, 100);
+        uint8_t *cursor = string_copy(lang_get_string("TR_ZOOM"), zoom_string, 100);
         string_copy(string_from_ascii(" "), cursor, (int) (cursor - zoom_string));
     }
-    int position = string_length(lang_get_string(CUSTOM_TRANSLATION, TR_ZOOM)) + 1;
+    int position = string_length(lang_get_string("TR_ZOOM")) + 1;
     position += string_from_int(zoom_string + position, zoom, 0);
     string_copy(string_from_ascii("%"), zoom_string + position, 100 - position);
-    warning_id = city_warning_show_custom(zoom_string, warning_id);
+    city_warning_show(WARNING_ZOOM, zoom_string);
 }
 
 static void update_zoom_level(void)
@@ -483,9 +479,9 @@ void widget_map_editor_handle_input(const mouse *m, const hotkeys *h)
     
     if (h->show_empire_map) {
         if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE) {
-            resource_set_mapping(static_cast<resource_version_t>(RESOURCE_CURRENT_VERSION));
+            resource_set_mapping(static_cast<resource_version_t>(resource_id_bridge_current_version()));
         } else {
-            resource_set_mapping(static_cast<resource_version_t>(RESOURCE_ORIGINAL_VERSION));
+            resource_set_mapping(static_cast<resource_version_t>(resource_id_bridge_original_version()));
         }
         window_editor_empire_show();
         return;

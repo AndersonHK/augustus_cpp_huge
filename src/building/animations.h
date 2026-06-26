@@ -1,15 +1,16 @@
 #pragma once
 
-extern "C" {
 #include "game/resource.h"
-}
+#include "graphics/color.h"
 
 #include <string>
 #include <vector>
 
-struct building;
-struct image;
+class Image;
+class Building;
+struct BuildingDrawContext;
 struct RuntimeAnimationTrack;
+typedef struct building building;
 
 namespace building_type_registry_impl {
 
@@ -38,6 +39,7 @@ enum class GraphicsConditionType {
     WaterAccess,
     FigureSlotOccupied,
     ResourcePositive,
+    ResourceAmount,
     Climate,
     MonumentUpgrade,
     FestivalGames,
@@ -48,26 +50,20 @@ enum class GraphicsConditionType {
     Days1OrDays2Positive
 };
 
-// A graphics target is either one direct path/image pair or a set of equivalent
-// options that materialize into one direct target after stable variant selection.
-struct GraphicsTarget {
-    void set_path(std::string path);
-    void set_image(std::string image);
-    GraphicsTarget &add_option();
+enum class GraphicsOptionSelection {
+    StableVariant,
+    BuildRotation,
+    Connectable,
+    StorageLoad,
+    Orientation,
+    ProductionProgress
+};
 
-    int has_path() const;
-    const char *path() const;
-
-    int has_image() const;
-    const char *image() const;
-    int has_options() const;
-    int option_count() const;
-    GraphicsTarget resolved_option(unsigned char variant) const;
-
-private:
-    std::string path_;
-    std::string image_;
-    std::vector<GraphicsTarget> options_;
+enum class GraphicsLayerStage {
+    Auto,
+    Footprint,
+    Top,
+    Animation
 };
 
 struct GraphicsCondition {
@@ -79,15 +75,93 @@ struct GraphicsCondition {
     int climate = 0;
     int monument_upgrade = 0;
     int festival_games = 0;
+};
 
-    int matches(const ::building &building) const;
+struct GraphicsLayerOption {
+    std::string path;
+    std::string image;
+};
+
+struct GraphicsLayer {
+    void set_path(std::string path);
+    void set_image(std::string image);
+    void set_option_selection(GraphicsOptionSelection selection);
+    void set_animation_enabled(int enabled);
+    void set_stage(GraphicsLayerStage stage);
+    void set_offset(int x, int y);
+    GraphicsLayerOption &add_option();
+    void add_condition(GraphicsCondition condition);
+
+    int has_path() const;
+    const char *path() const;
+
+    int has_image() const;
+    const char *image() const;
+    GraphicsOptionSelection option_selection() const;
+    int animation_enabled() const;
+    GraphicsLayerStage stage() const;
+    int x_offset() const;
+    int y_offset() const;
+    int has_options() const;
+    int option_count() const;
+    const GraphicsLayerOption *option(int index) const;
+    const std::vector<GraphicsCondition> &conditions() const;
+    int matches(const Building &building) const;
+    GraphicsLayer resolved_option(unsigned char variant) const;
+
+private:
+    std::string path_;
+    std::string image_;
+    GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
+    int animation_enabled_ = 1;
+    GraphicsLayerStage stage_ = GraphicsLayerStage::Auto;
+    int x_offset_ = 0;
+    int y_offset_ = 0;
+    std::vector<GraphicsLayerOption> options_;
+    std::vector<GraphicsCondition> conditions_;
+};
+
+// A graphics target is either one direct path/image pair or a set of equivalent
+// options that materialize into one direct target after stable variant selection.
+struct GraphicsTarget {
+    void set_path(std::string path);
+    void set_image(std::string image);
+    void set_option_selection(GraphicsOptionSelection selection);
+    void set_resource_storage(int value);
+    void set_animation_enabled(int enabled);
+    GraphicsTarget &add_option();
+    GraphicsLayer &add_layer();
+
+    int has_path() const;
+    const char *path() const;
+
+    int has_image() const;
+    const char *image() const;
+    GraphicsOptionSelection option_selection() const;
+    int is_resource_storage() const;
+    int animation_enabled() const;
+    int has_options() const;
+    int option_count() const;
+    const GraphicsTarget *option(int index) const;
+    const std::vector<GraphicsLayer> &layers() const;
+    GraphicsTarget resolved_option(unsigned char variant) const;
+
+private:
+    std::string path_;
+    std::string image_;
+    GraphicsOptionSelection option_selection_ = GraphicsOptionSelection::StableVariant;
+    int resource_storage_ = 0;
+    int animation_enabled_ = 1;
+    std::vector<GraphicsTarget> options_;
+    std::vector<GraphicsLayer> layers_;
 };
 
 struct GraphicsVariant {
     GraphicsTarget target;
     std::vector<GraphicsCondition> conditions;
+    std::string role;
 
-    int matches(const ::building &building) const;
+    int matches(const Building &building) const;
 };
 
 class GraphicsDefinition {
@@ -103,8 +177,11 @@ public:
     int has_default_node() const;
     int has_variants() const;
     const std::vector<GraphicsVariant> &variants() const;
-    const GraphicsTarget *resolve_target(const ::building &building) const;
-    unsigned char upgrade_level_for(const ::building &building) const;
+    const GraphicsTarget *resolve_target(const Building &building) const;
+    int draw_footprint(Building building, const BuildingDrawContext &ctx) const;
+    int draw_top(Building building, const BuildingDrawContext &ctx) const;
+    int draw_animation(Building building, const BuildingDrawContext &ctx) const;
+    unsigned char upgrade_level_for(const Building &building) const;
 
 private:
     GraphicsTarget default_target_;
@@ -116,23 +193,27 @@ private:
 // object what frame should draw; the object owns legacy cursor quirks.
 class BuildingAnimation {
 public:
-    explicit BuildingAnimation(::building &building);
-    BuildingAnimation(::building &building, const BuildingType *definition);
+    explicit BuildingAnimation(Building building);
 
     int runtime_track_offset(const ::RuntimeAnimationTrack &track, int should_advance, int animation_cursor);
-    int legacy_offset(int image_id, int animation_cursor);
-    int legacy_offset_for_image(const ::image *img, int animation_cursor);
-    int advance_storage_flag(int image_id);
+    int offset_for(const Image &image, int animation_cursor);
+    int advance_storage_flag(const Image &image);
     int advance_fumigation();
 
 private:
-    int gated_offset(int animation_cursor, int *offset) const;
+    building &record();
+    const building &record() const;
+    const building &state_record() const;
+
+    int legacy_gate_offset(int animation_cursor, int *offset) const;
     int advance_wine_workshop_offset(int animation_cursor, int max_frame, int clamp_to_available) const;
     int advance_reversible_offset(int animation_cursor, int max_frame) const;
-    int advance_looping_offset(int animation_cursor, int max_frame) const;
+    int advance_looping_offset(int animation_cursor, int max_frame);
 
-    ::building &building_;
+    ::building *record_;
     const BuildingType *definition_;
+    ::building *state_record_;
+    const BuildingType *state_definition_;
 };
 
 }

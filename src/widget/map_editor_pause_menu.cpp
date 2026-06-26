@@ -1,32 +1,32 @@
-extern "C" {
-#include "map_editor_pause_menu.h"
-
 #include "game/file.h"
 #include "game/game.h"
-#include "game/undo.h"
 #include "game/state.h"
+#include "game/undo.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "widget/top_menu_editor.h"
+#include "window/city.h"
+#include "window/config.h"
+#include "window/editor/attributes.h"
+#include "window/file_dialog.h"
+#include "window/main_menu.h"
+#include "window/mission_briefing.h"
+
+#include "map_editor_pause_menu.h"
+
+#include "window/editor/map.h"
+#include "translation/translation.h"
+#include "window/popup_dialog.h"
+#include "scenario/scenario.h"
+
 #include "graphics/text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-#include "scenario/scenario.h"
-#include "translation/translation.h"
-#include "window/config.h"
-#include "window/editor/attributes.h"
-#include "window/editor/map.h"
-#include "window/file_dialog.h"
-#include "window/popup_dialog.h"
-#include "window/city.h"
-#include "window/main_menu.h"
-#include "window/mission_briefing.h"
-}
 
-#include "widget/top_menu_editor.h"
 
 #define MAX_BUTTONS 7
 
@@ -63,14 +63,14 @@ static void draw_foreground(void)
         large_label_draw(buttons[i].x, buttons[i].y, buttons[i].width / 16, focus_button_id == i + 1 ? 1 : 0);
     }
 
-    text_draw_centered(translation_for(TR_LABEL_PAUSE_MENU), 192, 58, 192, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    lang_text_draw_centered(13, 5, 192, 106, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(7, 1, 192, 146, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(7, 2, 192, 186, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(7, 3, 192, 226, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    text_draw_centered(translation_for(TR_MAP_EDITOR_OPTIONS), 192, 266, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-    lang_text_draw_centered(1, 7, 192, 306, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(7, 4, 192, 346, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    text_draw_centered(translation_for_key("TR_LABEL_PAUSE_MENU"), 192, 58, 192, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    lang_text_draw_centered("main_strings.13.5", 192, 106, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.7.1", 192, 146, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.7.2", 192, 186, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.7.3", 192, 226, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    text_draw_centered(translation_for_key("TR_MAP_EDITOR_OPTIONS"), 192, 266, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+    lang_text_draw_centered("main_strings.1.7", 192, 306, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.7.4", 192, 346, 192, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     graphics_reset_dialog();
 }
@@ -124,7 +124,7 @@ static void button_click(const generic_button *button)
     } else if (type == 6) {
         window_config_show(CONFIG_FIRST_PAGE, 0, 0);
     } else if (type == 7) {
-        window_popup_dialog_show_confirmation(translation_for(TR_BUTTON_BACK_TO_MAIN_MENU), 0, 0, main_menu_confirmed); 
+        window_popup_dialog_show_confirmation(translation_for_key("TR_BUTTON_BACK_TO_MAIN_MENU"), 0, 0, main_menu_confirmed); 
     }
 }
 

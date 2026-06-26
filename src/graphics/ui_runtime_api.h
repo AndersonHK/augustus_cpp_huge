@@ -5,9 +5,6 @@
 #include "graphics/scrollbar.h"
 #include "graphics/ui_constants.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void button_none(int param1, int param2);
 
@@ -51,6 +48,3 @@ void ui_runtime_draw_slider(int x, int y, int width_pixels, int min_value, int m
 int ui_runtime_save_to_image(int image_id, int x, int y, int width, int height);
 void ui_runtime_draw_from_image(int image_id, int x, int y);
 
-#ifdef __cplusplus
-}
-#endif

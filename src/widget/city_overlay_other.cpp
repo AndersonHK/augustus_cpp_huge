@@ -1,42 +1,43 @@
-extern "C" {
-#include "city_overlay_other.h"
-
-#include "assets/assets.h"
+#include "building/animations.h"
+#include "translation/translation.h"
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/house.h"
 #include "building/industry.h"
-#include "building/monument.h"
-#include "building/properties.h"
 #include "building/roadblock.h"
 #include "building/rotation.h"
 #include "building/storage.h"
+#include "building/building_type_registry_internal.h"
 #include "building/water_access_runtime.h"
-#include "city/constants.h"
-#include "city/finance.h"
-#include "core/calc.h"
-#include "core/config.h"
-#include "core/lang.h"
-#include "core/string.h"
-#include "game/resource.h"
 #include "game/state.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/runtime_overlay_images.h"
-#include "graphics/text.h"
 #include "map/bridge.h"
 #include "map/building.h"
-#include "map/desirability.h"
 #include "map/image.h"
+#include "widget/city_draw.h"
+#include "widget/city_draw_highway.h"
+
+#include "city_overlay_other.h"
+
+
+#include "building/building_record.h"
+#include "building/building_type_api.h"
+#include "building/monument.h"
+#include "building/properties.h"
+#include "city/constants.h"
+#include "city/finance.h"
+#include "core/calc.h"
+#include "core/config.h"
+#include "core/string.h"
+#include "game/resource.h"
+#include "graphics/text.h"
+#include "map/desirability.h"
 #include "map/property.h"
 #include "map/random.h"
 #include "map/terrain.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-#include "widget/city_draw_highway.h"
-}
 
-#include "building/animations.h"
 #include <stdio.h>
 
 #define TOOLTIP_WITH_PREFIX_MAX_LENGTH 128
@@ -44,10 +45,14 @@ extern "C" {
 
 static void draw_storage_ids(int x, int y, float scale, int grid_offset);
 
-static int legacy_animation_offset(building *b, int image_id, int grid_offset)
+static Building building_from_record(const building *b)
 {
-    building_type_registry_impl::BuildingAnimation animation(*b);
-    return animation.legacy_offset(image_id, grid_offset);
+    return Building(const_cast<building *>(b));
+}
+
+static int animation_offset(Building &building, int image_id, int grid_offset)
+{
+    return building.animate().offset_for(Image::from_id(image_id), grid_offset);
 }
 
 static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *message)
@@ -60,39 +65,76 @@ static const uint8_t *prefix_value_to_tooltip_text(int value, const uint8_t *mes
     return text;
 }
 
+static translation_key house_sentiment_key_for_happiness(int happiness)
+{
+    static const translation_key keys[] = {
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_3",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_4",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_5",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_6",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_7",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_8",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_9",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_10",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_11",
+        "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_12",
+    };
+    int index = happiness > 0 ? happiness / 10 + 1 : 0;
+    if (index < 0) {
+        index = 0;
+    } else if (index >= static_cast<int>(sizeof(keys) / sizeof(keys[0]))) {
+        index = static_cast<int>(sizeof(keys) / sizeof(keys[0])) - 1;
+    }
+    return keys[index];
+}
+
+static translation_key efficiency_key_for_value(int efficiency)
+{
+    if (efficiency == 0) {
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_0";
+    } else if (efficiency < 25) {
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_1";
+    } else if (efficiency < 50) {
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_2";
+    } else if (efficiency < 80) {
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_3";
+    } else if (efficiency < 95) {
+        return "TR_TOOLTIP_OVERLAY_EFFICIENCY_4";
+    }
+    return "TR_TOOLTIP_OVERLAY_EFFICIENCY_5";
+}
+
 static int show_building_religion(const building *b)
 {
-    return
-        b->type == BUILDING_ORACLE || b->type == BUILDING_LARARIUM || b->type == BUILDING_SMALL_TEMPLE_CERES ||
-        b->type == BUILDING_SMALL_TEMPLE_NEPTUNE || b->type == BUILDING_SMALL_TEMPLE_MERCURY ||
-        b->type == BUILDING_SMALL_TEMPLE_MARS || b->type == BUILDING_SMALL_TEMPLE_VENUS ||
-        b->type == BUILDING_LARGE_TEMPLE_CERES || b->type == BUILDING_LARGE_TEMPLE_NEPTUNE ||
-        b->type == BUILDING_LARGE_TEMPLE_MERCURY || b->type == BUILDING_LARGE_TEMPLE_MARS ||
-        b->type == BUILDING_SMALL_MAUSOLEUM || b->type == BUILDING_LARGE_MAUSOLEUM ||
-        b->type == BUILDING_LARGE_TEMPLE_VENUS || b->type == BUILDING_GRAND_TEMPLE_CERES ||
-        b->type == BUILDING_GRAND_TEMPLE_NEPTUNE || b->type == BUILDING_GRAND_TEMPLE_MERCURY ||
-        b->type == BUILDING_GRAND_TEMPLE_MARS || b->type == BUILDING_GRAND_TEMPLE_VENUS ||
-        b->type == BUILDING_PANTHEON || b->type == BUILDING_NYMPHAEUM ||
-        b->type == BUILDING_SHRINE_CERES || b->type == BUILDING_SHRINE_MARS ||
-        b->type == BUILDING_SHRINE_MERCURY || b->type == BUILDING_SHRINE_VENUS ||
-        b->type == BUILDING_SHRINE_NEPTUNE;
+    const Building building = building_from_record(b);
+    return (building.type && building.type->is_temple()) ||
+        building_type_registry_impl::type_attr_is_any(
+            b->type, {"oracle", "lararium", "small_mausoleum", "large_mausoleum", "nymphaeum"});
 }
 
 static int show_building_food_stocks(const building *b)
 {
-    return b->type == BUILDING_MARKET || b->type == BUILDING_WHARF || b->type == BUILDING_GRANARY ||
-        b->type == BUILDING_CARAVANSERAI || b->type == BUILDING_MESS_HALL;
+    const Building building = building_from_record(b);
+    const auto *type = building.type;
+    return building_type_registry_impl::type_attr_is_any(b->type, {"market", "wharf"}) ||
+        (type && type->is_granary()) ||
+        (type && type->is_caravanserai()) || (type && type->is_mess_hall());
 }
 
 static int show_building_tax_income(const building *b)
 {
-    return b->type == BUILDING_FORUM || b->type == BUILDING_SENATE;
+    return building_type_registry_impl::type_attr_is_any(b->type, {"forum", "senate"});
 }
 
 static int show_building_water(const building *b)
 {
-    return b->type == BUILDING_WELL || b->type == BUILDING_FOUNTAIN || b->type == BUILDING_RESERVOIR ||
-        (b->type == BUILDING_GRAND_TEMPLE_NEPTUNE && building_monument_gt_module_is_active(NEPTUNE_MODULE_2_CAPACITY_AND_WATER));
+    const Building building = building_from_record(b);
+    return (building.type && building.type->is_well()) ||
+        building_type_registry_impl::type_attr_is_any(b->type, {"fountain", "reservoir"}) ||
+        (building_type_registry_impl::type_attr_is(b->type, "grand_temple_neptune") &&
+            building_monument_gt_module_is_active(NEPTUNE_MODULE_2_CAPACITY_AND_WATER));
 }
 
 static int show_building_sentiment(const building *b)
@@ -102,7 +144,7 @@ static int show_building_sentiment(const building *b)
 
 static int show_building_roads(const building *b)
 {
-    return building_type_is_roadblock(b->type);
+    return Roadblock(const_cast<building *>(b)).kind() != ROADBLOCK_NONE;
 }
 
 static int draw_top_roads(int x, int y, float scale, int grid_offset)
@@ -113,23 +155,20 @@ static int draw_top_roads(int x, int y, float scale, int grid_offset)
     if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         return 0;
     }
-    building *b = building_get(map_building_at(grid_offset));
-    if (b->type != BUILDING_TRIUMPHAL_ARCH) {
+    Building building(building_get(map_building_at(grid_offset)));
+    if (!building.type || !building.type->attr_is("triumphal_arch")) {
         return 0;
     }
     int image_id = map_image_at(grid_offset);
-    image_draw_isometric_top_from_draw_tile(image_id, x, y, COLOR_MASK_NONE, scale);
+    Image::from_id(image_id).draw_isometric_top_from_draw_tile(x, y, COLOR_MASK_NONE, scale);
     const image *img = image_get(image_id);
-    int animation_offset = legacy_animation_offset(b, image_id, grid_offset);
-    if (animation_offset > 0) {
+    int frame_offset = animation_offset(building, image_id, grid_offset);
+    if (frame_offset > 0) {
         int y_offset = img->top ? img->top->original.height - FOOTPRINT_HALF_HEIGHT : 0;
-        if (animation_offset > img->animation->num_sprites) {
-            animation_offset = img->animation->num_sprites;
+        if (frame_offset > img->animation->num_sprites) {
+            frame_offset = img->animation->num_sprites;
         }
-        image_draw(image_id + img->animation->start_offset + animation_offset,
-            x + img->animation->sprite_offset_x,
-            y + img->animation->sprite_offset_y - y_offset,
-            COLOR_MASK_NONE, scale);
+        Image::from_id(image_id + img->animation->start_offset + frame_offset).draw(x + img->animation->sprite_offset_x, y + img->animation->sprite_offset_y - y_offset, COLOR_MASK_NONE, scale);
     }
     return 1;
 }
@@ -141,17 +180,25 @@ static int show_building_mothball(const building *b)
 
 static int show_building_logistics(const building *b)
 {
-    return b->type == BUILDING_WAREHOUSE || b->type == BUILDING_WAREHOUSE_SPACE ||
-        b->type == BUILDING_GRANARY || b->type == BUILDING_DOCK ||
-        b->type == BUILDING_DEPOT || b->type == BUILDING_LIGHTHOUSE ||
-        b->type == BUILDING_ARMOURY;
+    const Building building = building_from_record(b);
+    const auto *type = building.type;
+    const auto *definition = building.type;
+    const int is_dock = definition && definition->attr_is("dock");
+    return (type && type->is_warehouse()) ||
+        building_type_registry_impl::type_attr_is(b->type, "warehouse_space") ||
+        (type && type->is_granary()) || is_dock ||
+        building_type_registry_impl::type_attr_is(b->type, "cart_depot") ||
+        (type && type->is_lighthouse()) || (type && type->is_armoury());
 }
 
 static int show_building_storages(const building *b)
 {
     b = building_main(b);
+    const Building building = building_from_record(b);
+    const auto *definition = building.type;
     return (b->storage_id > 0 && building_storage_get(b->storage_id))
-        || b->type == BUILDING_DEPOT || b->type == BUILDING_DOCK;
+        || building_type_registry_impl::type_attr_is(b->type, "cart_depot")
+        || (definition && definition->attr_is("dock"));
 }
 
 static int show_building_none(const building *b)
@@ -160,17 +207,17 @@ static int show_building_none(const building *b)
 }
 
 
-static int show_figure_religion(const figure *f)
+static int show_figure_religion(const Figure *f)
 {
     return f->type == FIGURE_PRIEST || f->type == FIGURE_PRIEST_SUPPLIER;
 }
 
-static int show_figure_efficiency(const figure *f)
+static int show_figure_efficiency(const Figure *f)
 {
     return f->type == FIGURE_CART_PUSHER || f->type == FIGURE_LABOR_SEEKER;
 }
 
-static int show_figure_food_stocks(const figure *f)
+static int show_figure_food_stocks(const Figure *f)
 {
     switch (f->type) {
         case FIGURE_MARKET_SUPPLIER:
@@ -189,20 +236,19 @@ static int show_figure_food_stocks(const figure *f)
 
         case FIGURE_WAREHOUSEMAN:
         {
-            building *b = building_get(f->building_id);
-            return b->type == BUILDING_GRANARY;
+            return f->building.id() && f->building.type && f->building.type->is_granary();
         }
         default:
             return 0;
     }
 }
 
-static int show_figure_tax_income(const figure *f)
+static int show_figure_tax_income(const Figure *f)
 {
     return f->type == FIGURE_TAX_COLLECTOR;
 }
 
-static int show_figure_logistics(const figure *f)
+static int show_figure_logistics(const Figure *f)
 {
     switch (f->type) {
         case FIGURE_CART_PUSHER:
@@ -221,12 +267,12 @@ static int show_figure_logistics(const figure *f)
     }
 }
 
-static int show_figure_employment(const figure *f)
+static int show_figure_employment(const Figure *f)
 {
     return f->type == FIGURE_LABOR_SEEKER;
 }
 
-static int show_figure_none(const figure *f)
+static int show_figure_none(const Figure *f)
 {
     return 0;
 }
@@ -247,13 +293,13 @@ static int get_column_height_efficiency(const building *b)
 
 static int get_column_height_food_stocks(const building *b)
 {
-    const model_house *house_model = building_house_get_model(b);
+    const model_house *house_model = building_house_get_model(Building(const_cast<building *>(b)));
     if (b->house_size && house_model && house_model->food_types) {
         int pop = b->house_population;
         int stocks = 0;
-        for (int resource = RESOURCE_MIN_FOOD; resource < RESOURCE_MAX_FOOD; resource++) {
+        for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             const resource_type r = static_cast<resource_type>(resource);
-            if (resource_is_inventory(r)) {
+            if (resource_is_food(r)) {
                 stocks += b->resources[r];
             }
         }
@@ -290,7 +336,8 @@ static int get_column_height_tax_income(const building *b)
 
 static int get_column_height_employment(const building *b)
 {
-    int full_staff = building_get_laborers(b->type);
+    const Building building = building_from_record(b);
+    int full_staff = building.type ? building.type->required_workers() : 0;
     int pct_staff = calc_percentage(b->num_workers, full_staff);
 
     int height = 100 - pct_staff;
@@ -316,7 +363,7 @@ static void add_god(tooltip_context *c, int god_id)
 static int get_tooltip_religion(tooltip_context *c, const building *b)
 {
     if (b->house_pantheon_access) {
-        c->translation_key = TR_TOOLTIP_OVERLAY_PANTHEON_ACCESS;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_PANTHEON_ACCESS";
         return 0;
     }
 
@@ -360,21 +407,7 @@ static int get_tooltip_efficiency(tooltip_context *c, const building *b)
     if (efficiency == -1) {
         return 0;
     }
-    int key;
-    if (efficiency == 0) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_0;
-    } else if (efficiency < 25) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_1;
-    } else if (efficiency < 50) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_2;
-    } else if (efficiency < 80) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_3;
-    } else if (efficiency < 95) {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_4;
-    } else {
-        key = TR_TOOLTIP_OVERLAY_EFFICIENCY_5;
-    }
-    c->precomposed_text = prefix_value_to_tooltip_text(efficiency, translation_for(static_cast<translation_key>(key)));
+    c->precomposed_text = prefix_value_to_tooltip_text(efficiency, translation_for(efficiency_key_for_value(efficiency)));
     return 1;
 }
 
@@ -383,14 +416,14 @@ static int get_tooltip_food_stocks(tooltip_context *c, const building *b)
     if (b->house_population <= 0) {
         return 0;
     }
-    const model_house *house_model = building_house_get_model(b);
+    const model_house *house_model = building_house_get_model(Building(const_cast<building *>(b)));
     if (!house_model || !house_model->food_types) {
         return 104;
     } else {
         int stocks_present = 0;
-        for (int resource = RESOURCE_MIN_FOOD; resource < RESOURCE_MAX_FOOD; resource++) {
+        for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             const resource_type r = static_cast<resource_type>(resource);
-            if (resource_is_inventory(r)) {
+            if (resource_is_food(r)) {
                 stocks_present += b->resources[r];
             }
         }
@@ -426,26 +459,27 @@ static int get_tooltip_tax_income(tooltip_context *c, const building *b)
 
 static int get_tooltip_employment(tooltip_context *c, const building *b)
 {
-    int full = building_get_laborers(b->type);
+    const Building building = building_from_record(b);
+    int full = building.type ? building.type->required_workers() : 0;
     int missing = full - b->num_workers;
 
     if (full >= 1) {
         if (missing == 0) {
-            c->translation_key = TR_TOOLTIP_OVERLAY_EMPLOYMENT_FULL;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_EMPLOYMENT_FULL";
         } else if (missing <= 1) {
             c->has_numeric_prefix = 1;
             c->numeric_prefix = missing;
-            c->translation_key = TR_TOOLTIP_OVERLAY_EMPLOYMENT_MISSING_1;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_EMPLOYMENT_MISSING_1";
             return 1;
         } else if (missing >= 2 && b->state == BUILDING_STATE_MOTHBALLED) {
             c->has_numeric_prefix = 1;
             c->numeric_prefix = missing;
-            c->translation_key = TR_TOOLTIP_OVERLAY_EMPLOYMENT_MOTHBALL;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_EMPLOYMENT_MOTHBALL";
             return 1;
         } else {
             c->has_numeric_prefix = 1;
             c->numeric_prefix = missing;
-            c->translation_key = TR_TOOLTIP_OVERLAY_EMPLOYMENT_MISSING_2;
+            c->translation_key = "TR_TOOLTIP_OVERLAY_EMPLOYMENT_MISSING_2";
             return 1;
         }
     }
@@ -482,11 +516,11 @@ static int get_tooltip_desirability(tooltip_context *c, int grid_offset)
     }
     const uint8_t *text;
     if (desirability < 0) {
-        text = lang_get_string(66, 91);
+        text = lang_get_string("main_strings.66.91");
     } else if (desirability == 0) {
-        text = lang_get_string(66, 92);
+        text = lang_get_string("main_strings.66.92");
     } else {
-        text = lang_get_string(66, 93);
+        text = lang_get_string("main_strings.66.93");
     }
     c->precomposed_text = prefix_value_to_tooltip_text(desirability, text);
     return 1;
@@ -501,27 +535,33 @@ static int get_tooltip_depot_orders(tooltip_context *c, int grid_offset)
 {
     int building_id = map_building_at(grid_offset);
     building *b = building_get(building_id);
-    if (b->type == BUILDING_DEPOT) {
+    if (building_type_registry_impl::type_attr_is(b->type, "cart_depot")) {
         static uint8_t result[256];
         order depot_order = b->data.depot.current_order;
-        int condition_type = TR_ORDER_CONDITION_NEVER + depot_order.condition.condition_type;
-        const uint8_t *order_string = lang_get_string(CUSTOM_TRANSLATION, condition_type);
-        const uint8_t *moving_resource = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_DEPOT_MOVED);
+        static const translation_key condition_texts[] = {
+            "TR_ORDER_CONDITION_NEVER",
+            "TR_ORDER_CONDITION_ALWAYS",
+            "TR_ORDER_CONDITION_SOURCE_HAS_MORE_THAN",
+            "TR_ORDER_CONDITION_DESTINATION_HAS_LESS_THAN",
+        };
+        int condition_type = depot_order.condition.condition_type;
+        const uint8_t *order_string = lang_get_string(condition_texts[condition_type]);
+        const uint8_t *moving_resource = lang_get_string("TR_TOOLTIP_DEPOT_MOVED");
         const uint8_t *resource_name = resource_get_data(depot_order.resource_type)->text;
         char threshold_str[16] = "\n";
-        if (condition_type > TR_ORDER_CONDITION_ALWAYS) {
+        if (condition_type > 1) {
             snprintf(threshold_str, sizeof(threshold_str), " %d", depot_order.condition.threshold);
         }
         building *b_src = building_get(depot_order.src_storage_id);
         building *b_dst = building_get(depot_order.dst_storage_id);
 
-        const uint8_t *src_type = lang_get_string(28, b_src->type);
-        const uint8_t *dst_type = lang_get_string(28, b_dst->type);
+        const uint8_t *src_type = lang_get_building_type_string(b_src->type);
+        const uint8_t *dst_type = lang_get_building_type_string(b_dst->type);
         char src_info[64];
         char dst_info[64];
         snprintf(src_info, sizeof(src_info), "%s %d", (const char *) src_type, b_src->storage_id);
         snprintf(dst_info, sizeof(dst_info), "%s %d", (const char *) dst_type, b_dst->storage_id);
-        const uint8_t *direction_arrow = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_DEPOT_ORDER_TO);
+        const uint8_t *direction_arrow = lang_get_string("TR_TOOLTIP_DEPOT_ORDER_TO");
 
         snprintf((char *) result, sizeof(result),
             "%s %s\n"
@@ -545,7 +585,7 @@ static int get_tooltip_levy(tooltip_context *c, const building *b)
     if (levy > 0) {
         c->has_numeric_prefix = 1;
         c->numeric_prefix = levy;
-        c->translation_key = TR_TOOLTIP_OVERLAY_LEVY;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_LEVY";
         return 1;
     }
     return 0;
@@ -559,7 +599,7 @@ static int get_offset_tooltip_levy(tooltip_context *c, int grid_offset)
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY)) {
         c->has_numeric_prefix = 1;
         c->numeric_prefix = 1;
-        c->translation_key = TR_TOOLTIP_OVERLAY_LEVY_PER_TILE;
+        c->translation_key = "TR_TOOLTIP_OVERLAY_LEVY_PER_TILE";
         return 1;
     }
     return 0;
@@ -576,12 +616,8 @@ static int get_tooltip_sentiment(tooltip_context *c, int grid_offset)
         return 0;
     }
     int happiness = b->sentiment.house_happiness;
-    int sentiment_text_id = TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1;
-    if (happiness > 0) {
-        sentiment_text_id = happiness / 10 + TR_BUILDING_WINDOW_HOUSE_SENTIMENT_2;
-    }
     c->precomposed_text = prefix_value_to_tooltip_text(
-        happiness, translation_for(static_cast<translation_key>(sentiment_text_id)));
+        happiness, translation_for(house_sentiment_key_for_happiness(happiness)));
     return 1;
 }
 
@@ -682,32 +718,27 @@ static int draw_footprint_water(int x, int y, float scale, int grid_offset)
     if (map_is_bridge(grid_offset)) {
         int water_image = map_image_at(grid_offset);  // Get the water image for the bridge
         if (!water_image) {
-            water_image = image_group(GROUP_TERRAIN_WATER);  // fallback - first image in water group
+            water_image = Image::group(GROUP_TERRAIN_WATER);  // fallback - first image in water group
         }
-        image_draw_isometric_footprint_from_draw_tile(water_image, x, y, 0, scale);
+        Image::from_id(water_image).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     }
     int is_building = map_terrain_is(grid_offset, TERRAIN_BUILDING);
     if (map_terrain_is(grid_offset, TERRAIN_HIGHWAY) && !map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {
         city_draw_highway_footprint(x, y, scale, grid_offset, COLOR_MASK_NONE);
     } else if (map_terrain_is(grid_offset, terrain_on_water_overlay()) && !is_building) {
-        image_draw_isometric_footprint_from_draw_tile(map_image_at(grid_offset), x, y, 0, scale);
+        Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     } else if (map_terrain_is(grid_offset, TERRAIN_WALL)) {
         // display grass
-        int image_id = image_group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7);
-        image_draw_isometric_footprint_from_draw_tile(image_id, x, y, 0, scale);
+        int image_id = Image::group(GROUP_TERRAIN_GRASS_1) + (map_random_get(grid_offset) & 7);
+        Image::from_id(image_id).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     } else if (is_building) {
         city_with_overlay_draw_building_footprint(x, y, grid_offset, 0);
     } else {
-        image_draw_isometric_footprint_from_draw_tile(map_image_at(grid_offset), x, y, 0, scale);
+        Image::from_id(map_image_at(grid_offset)).draw_isometric_footprint_from_draw_tile(x, y, 0, scale);
     }
     if (config_get(CONFIG_UI_SHOW_GRID) && map_property_is_draw_tile(grid_offset)
-                                    && !map_building_at(grid_offset) && scale <= 2.0f) {
-        //grid is drawn by the renderer directly at zoom > 200%
-        static int grid_id = 0;
-        if (!grid_id) {
-            grid_id = assets_get_image_id("UI", "Grid_Full");
-        }
-        image_draw(grid_id, x, y, COLOR_GRID, scale);
+                                    && !map_building_at(grid_offset)) {
+        city_draw_grid_overlay(x, y, scale);
     }
     return 1;
 }
@@ -739,7 +770,7 @@ static void draw_water_runtime_overlay(int x, int y, float scale, int grid_offse
 
     const image *overlay = runtime_overlay_image_get(RUNTIME_OVERLAY_IMAGE_WATER_RANGE);
     if (overlay) {
-        image_draw_image(overlay, x, y, color, scale);
+        Image::from_legacy(*(overlay)).draw(x, y, color, scale);
     }
 }
 
@@ -754,7 +785,7 @@ static int draw_top_water(int x, int y, float scale, int grid_offset)
             if (map_property_is_deleted(grid_offset) && map_property_multi_tile_size(grid_offset) == 1) {
                 color_mask = COLOR_MASK_RED;
             }
-            image_draw_isometric_top_from_draw_tile(map_image_at(grid_offset), x, y, color_mask, scale);
+            Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, scale);
         }
     } else if (map_building_at(grid_offset)) {
         city_with_overlay_draw_building_top(x, y, grid_offset);
@@ -795,13 +826,13 @@ static void blend_color_to_footprint(int x, int y, int size, color_t color, floa
 
     for (int step = 1; step <= total_steps; step++) {
         if (tiles % 2) {
-            image_draw(image_group(GROUP_TERRAIN_FLAT_TILE), x, y, color, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y, color, scale);
         }
         int y_offset = 15 + 15 * (tiles % 2);
 
         for (int i = 1; i <= tiles / 2; i++) {
-            image_draw(image_group(GROUP_TERRAIN_FLAT_TILE), x, y - y_offset, color, scale);
-            image_draw(image_group(GROUP_TERRAIN_FLAT_TILE), x, y + y_offset, color, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y - y_offset, color, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_FLAT_TILE)).draw(x, y + y_offset, color, scale);
             y_offset += 30;
         }
         x += 30;
@@ -839,7 +870,7 @@ static int draw_sentiment_top(int x, int y, float scale, int grid_offset)
     if (map_property_is_draw_tile(grid_offset)) {
         city_with_overlay_draw_building_top(x, y, grid_offset);
         color_t color = get_color_for_percentage(b->sentiment.house_happiness);
-        image_draw_set_isometric_top_from_draw_tile(map_image_at(grid_offset), x, y, color, scale);
+        Image::from_id(map_image_at(grid_offset)).draw_set_isometric_top_from_draw_tile(x, y, color, scale);
     }
     return 1;
 }
@@ -907,7 +938,7 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
             color_t desirability_color = get_color_for_percentage(get_desirability_image_offset(b->desirability) * 10);
             blend_color_to_footprint(x, y, b->house_size, desirability_color, scale);
             city_with_overlay_draw_building_top(x, y, grid_offset);
-            image_draw_set_isometric_top_from_draw_tile(map_image_at(grid_offset), x, y, desirability_color, scale);
+            Image::from_id(map_image_at(grid_offset)).draw_set_isometric_top_from_draw_tile(x, y, desirability_color, scale);
         }
     } else {
         int desirability;
@@ -919,10 +950,8 @@ static void draw_desirability_graph(int x, int y, float scale, int grid_offset)
         }
         if (desirability) {
             int offset = get_desirability_image_offset(desirability);
-            image_draw_isometric_footprint_from_draw_tile(image_group(GROUP_TERRAIN_DESIRABILITY) + offset, x, y,
-                ALPHA_FONT_SEMI_TRANSPARENT, scale);
-            image_draw_isometric_top_from_draw_tile(image_group(GROUP_TERRAIN_DESIRABILITY) + offset, x, y,
-                ALPHA_FONT_SEMI_TRANSPARENT, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_DESIRABILITY) + offset).draw_isometric_footprint_from_draw_tile(x, y, ALPHA_FONT_SEMI_TRANSPARENT, scale);
+            Image::from_id(Image::group(GROUP_TERRAIN_DESIRABILITY) + offset).draw_isometric_top_from_draw_tile(x, y, ALPHA_FONT_SEMI_TRANSPARENT, scale);
         }
     }
 }
@@ -1025,10 +1054,12 @@ static void draw_storage_ids(int x, int y, float scale, int grid_offset)
     int text_width = text_get_width(number, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
     int box_width = text_width + 10;
     int box_height = 22;
-    if (b->type == BUILDING_GRANARY) {
+    const Building building = building_from_record(b);
+    const auto *type = building.type;
+    if (type && type->is_granary()) {
         x += 90;
         y += 15;
-    } else if (b->type == BUILDING_WAREHOUSE) {
+    } else if (type && type->is_warehouse()) {
         switch (building_rotation_get_building_orientation(b->subtype.orientation)) {
             case 6:
                 x -= 30;

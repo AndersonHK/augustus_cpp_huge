@@ -3,10 +3,8 @@
 #include "assets/graphics_extractor_common.h"
 #include "core/legacy_image_extractor.h"
 
-extern "C" {
-#include "core/dir.h"
 #include "core/file.h"
-}
+#include "core/dir.h"
 
 #include <algorithm>
 #include <cstdlib>

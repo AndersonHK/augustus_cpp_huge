@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="grand_temple_mars">
     <identity name_key="TR_BUILDING_GRAND_TEMPLE_MARS" />
+    <temple religion="grand_temple_mars" />
     <model size="7" cost="2500" />
     <desirability>
         <value value="20" />
@@ -9,10 +10,13 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="grand_temples" order="40" icon="Monuments\Mars_Complex_Off" icon_image="Mars Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_MARS" />
+  <button group="grand_temples" order="50" icon="Monuments\Mars_Complex_Off" icon_image="Mars Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_MARS" />
     <sound id="temple_mars" />
     <event_data attr="grand_temple_mars" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="temple_active" capacity="5000" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Monuments\Mars_Complex_Off" />
@@ -29,7 +33,7 @@
             <image value="Mars Complex Module2" />
         </variant>
     </graphics>
-    <construction mode="phased" road_update_radius="9">
+    <construction mode="phased" road_update_radius="9" max_count="1">
         <phase index="1">
             <graphics>
                 <path value="Environment\Group_206" />
@@ -77,7 +81,8 @@
     <labor>
         <employees count="50" />
         <labor_seeker>
-            <method value="workforce" />
+            <method value="houses_spawn_if_below" />
+            <amount value="100" />
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:0,1:0">

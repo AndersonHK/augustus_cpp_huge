@@ -1,14 +1,15 @@
+#
+
+#include "building/building_record.h"
 #include "building/production_method_registry.h"
 
 #include "core/crash_context.h"
+#include "game/mod_manager.h"
 
-extern "C" {
-#include "core/dir.h"
 #include "core/file.h"
+#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
-}
 
 #include <cstdio>
 #include <cstdlib>
@@ -31,6 +32,8 @@ struct ParseState {
     int saw_kind = 0;
     int saw_output = 0;
     int saw_batch_size = 0;
+    int saw_cart_loads = 0;
+    int saw_cart_capacity = 0;
     int saw_treasury_cost = 0;
     int error = 0;
 };
@@ -158,21 +161,31 @@ resource_type parse_resource_type_name(const char *name)
         return RESOURCE_NONE;
     }
 
-    const std::string normalized_name = trim_copy(name);
-    if (normalized_name.empty()) {
-        return RESOURCE_NONE;
-    }
+    return resource_type_from_xml_attr(name);
+}
 
-    for (resource_type type = RESOURCE_MIN; type < RESOURCE_MAX; type = static_cast<resource_type>(type + 1)) {
-        resource_data *data = resource_get_data(type);
-        if (!data || !data->xml_attr_name) {
-            continue;
-        }
-        if (xml_parser_compare_multiple(data->xml_attr_name, normalized_name.c_str())) {
-            return type;
-        }
+ProductionOutputEffect parse_output_effect_name(const char *name)
+{
+    if (name && strcmp(name, "spawn_fishing_boat") == 0) {
+        return ProductionOutputEffect::SpawnFishingBoat;
     }
-    return RESOURCE_NONE;
+    return ProductionOutputEffect::None;
+}
+
+int parse_output_destination_name(const char *name, ProductionOutputDestination *out_destination)
+{
+    if (!name || !out_destination) {
+        return 0;
+    }
+    if (strcmp(name, "building_storage") == 0) {
+        *out_destination = ProductionOutputDestination::BuildingStorage;
+        return 1;
+    }
+    if (strcmp(name, "treasury") == 0) {
+        *out_destination = ProductionOutputDestination::Treasury;
+        return 1;
+    }
+    return 0;
 }
 
 int parse_scenario_climate_name(const char *name, scenario_climate *out_climate)
@@ -217,19 +230,41 @@ int validate_definition(const ProductionMethod &definition, const char *filename
         error_context_report_error("ProductionMethod batch_size exceeds current cart load field.", detail);
         return 0;
     }
+    if (definition.cart_load_numerator() <= 0 || definition.cart_load_denominator() <= 0) {
+        log_error("ProductionMethod cart_loads must be positive", definition.path(), 0);
+        error_context_report_error("ProductionMethod cart_loads must be positive.", filename);
+        return 0;
+    }
+    const int integer_cart_loads = definition.cart_loads_per_cycle();
+    if (integer_cart_loads > UCHAR_MAX) {
+        char detail[512];
+        snprintf(detail, sizeof(detail), "file=%s path=%s cart_loads=%d/%d", filename, definition_path ? definition_path : "",
+            definition.cart_load_numerator(), definition.cart_load_denominator());
+        log_error("ProductionMethod cart_loads exceeds current cart load field", definition.path(), 0);
+        error_context_report_error("ProductionMethod cart_loads exceeds current cart load field.", detail);
+        return 0;
+    }
+    if (definition.cart_capacity() <= 0 || definition.cart_capacity() > UCHAR_MAX) {
+        char detail[512];
+        snprintf(detail, sizeof(detail), "file=%s path=%s cart_capacity=%d", filename,
+            definition_path ? definition_path : "", definition.cart_capacity());
+        log_error("ProductionMethod cart_capacity exceeds current cart load field", definition.path(), 0);
+        error_context_report_error("ProductionMethod cart_capacity exceeds current cart load field.", detail);
+        return 0;
+    }
     if (definition.treasury_cost_per_cycle() < 0) {
         log_error("ProductionMethod treasury_cost must be non-negative", definition.path(), 0);
         error_context_report_error("ProductionMethod treasury_cost must be non-negative.", filename);
         return 0;
     }
 
-    const int base_output_production = resource_base_production_per_month(definition.output_resource());
+    const int base_output_production = definition.base_monthly_production();
     if (base_output_production <= 0) {
         char detail[512];
-        snprintf(detail, sizeof(detail), "file=%s path=%s output_resource=%d", filename, definition_path ? definition_path : "",
-            definition.output_resource());
-        log_error("ProductionMethod output resource has invalid base production", definition.path(), 0);
-        error_context_report_error("ProductionMethod output resource has invalid base production.", detail);
+        snprintf(detail, sizeof(detail), "file=%s path=%s output_resource=%d production_per_month=%d", filename,
+            definition_path ? definition_path : "", definition.output_resource(), base_output_production);
+        log_error("ProductionMethod output has invalid production_per_month", definition.path(), 0);
+        error_context_report_error("ProductionMethod output has invalid production_per_month.", detail);
         return 0;
     }
 
@@ -301,21 +336,71 @@ int parse_output()
         g_parse_state.error = 1;
         return 0;
     }
-    if (!xml_parser_has_attribute("resource")) {
-        log_error("ProductionMethod output is missing required attribute 'resource'", 0, 0);
+    const int has_resource = xml_parser_has_attribute("resource");
+    const int has_effect = xml_parser_has_attribute("effect");
+    if (has_resource == has_effect) {
+        log_error("ProductionMethod output requires exactly one of 'resource' or 'effect'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("production_per_month")) {
+        log_error("ProductionMethod output is missing required attribute 'production_per_month'", 0, 0);
         g_parse_state.error = 1;
         return 0;
     }
 
-    const char *resource_text = xml_parser_get_attribute_string("resource");
-    const resource_type resource = parse_resource_type_name(resource_text);
-    if (resource == RESOURCE_NONE) {
-        log_error("Unsupported ProductionMethod output resource", resource_text, 0);
-        g_parse_state.error = 1;
-        return 0;
+    if (has_resource) {
+        const char *resource_text = xml_parser_get_attribute_string("resource");
+        const resource_type resource = parse_resource_type_name(resource_text);
+        if (resource == RESOURCE_NONE) {
+            log_error("Unsupported ProductionMethod output resource", resource_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_output_resource(resource);
+        if (xml_parser_has_attribute("destination")) {
+            ProductionOutputDestination destination = ProductionOutputDestination::BuildingStorage;
+            const char *destination_text = xml_parser_get_attribute_string("destination");
+            if (!parse_output_destination_name(destination_text, &destination)) {
+                log_error("Unsupported ProductionMethod output destination", destination_text, 0);
+                g_parse_state.error = 1;
+                return 0;
+            }
+            g_parse_state.definition->set_output_destination(destination);
+        }
+        if (xml_parser_has_attribute("source")) {
+            const char *source_text = xml_parser_get_attribute_string("source");
+            if (strcmp(source_text, "worker_progress") != 0 && strcmp(source_text, "figure_delivery") != 0) {
+                log_error("Unsupported ProductionMethod output source", source_text, 0);
+                g_parse_state.error = 1;
+                return 0;
+            }
+            if (strcmp(source_text, "figure_delivery") == 0) {
+                g_parse_state.definition->set_output_source(ProductionOutputSource::FigureDelivery);
+            }
+        }
+    } else {
+        if (xml_parser_has_attribute("source")) {
+            log_error("ProductionMethod effect output cannot declare source", xml_parser_get_attribute_string("source"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        if (xml_parser_has_attribute("destination")) {
+            log_error("ProductionMethod effect output cannot declare destination", xml_parser_get_attribute_string("destination"), 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        const char *effect_text = xml_parser_get_attribute_string("effect");
+        const ProductionOutputEffect effect = parse_output_effect_name(effect_text);
+        if (effect == ProductionOutputEffect::None) {
+            log_error("Unsupported ProductionMethod output effect", effect_text, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        g_parse_state.definition->set_output_effect(effect);
     }
 
-    g_parse_state.definition->set_output_resource(resource);
+    g_parse_state.definition->set_base_monthly_production(xml_parser_get_attribute_int("production_per_month"));
     g_parse_state.saw_output = 1;
     return 1;
 }
@@ -347,6 +432,79 @@ int parse_batch_size()
 
     g_parse_state.definition->set_batch_size(batch_size);
     g_parse_state.saw_batch_size = 1;
+    return 1;
+}
+
+int parse_cart_loads()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered ProductionMethod cart_loads before root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_cart_loads) {
+        log_error("ProductionMethod xml contains duplicate cart_loads nodes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    int numerator = 0;
+    int denominator = 1;
+    const int has_value = xml_parser_has_attribute("value");
+    const int has_numerator = xml_parser_has_attribute("numerator");
+    const int has_denominator = xml_parser_has_attribute("denominator");
+    if (has_value) {
+        if (has_numerator || has_denominator) {
+            log_error("ProductionMethod cart_loads cannot mix value with numerator/denominator", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        numerator = xml_parser_get_attribute_int("value");
+    } else {
+        if (!has_numerator || !has_denominator) {
+            log_error("ProductionMethod cart_loads is missing required attributes", 0, 0);
+            g_parse_state.error = 1;
+            return 0;
+        }
+        numerator = xml_parser_get_attribute_int("numerator");
+        denominator = xml_parser_get_attribute_int("denominator");
+    }
+    if (numerator <= 0 || denominator <= 0) {
+        log_error("Unsupported ProductionMethod cart_loads", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    g_parse_state.definition->set_cart_loads(numerator, denominator);
+    g_parse_state.saw_cart_loads = 1;
+    return 1;
+}
+
+int parse_cart_capacity()
+{
+    if (!g_parse_state.definition) {
+        log_error("Encountered ProductionMethod cart_capacity before root", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (g_parse_state.saw_cart_capacity) {
+        log_error("ProductionMethod xml contains duplicate cart_capacity nodes", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    if (!xml_parser_has_attribute("value")) {
+        log_error("ProductionMethod cart_capacity is missing required attribute 'value'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    const int value = xml_parser_get_attribute_int("value");
+    if (value <= 0) {
+        log_error("Unsupported ProductionMethod cart_capacity", xml_parser_get_attribute_string("value"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.definition->set_cart_capacity(value);
+    g_parse_state.saw_cart_capacity = 1;
     return 1;
 }
 
@@ -470,6 +628,8 @@ const xml_parser_element XML_ELEMENTS[] = {
     { "kind", parse_kind, nullptr, "production_method", nullptr },
     { "output", parse_output, nullptr, "production_method", nullptr },
     { "batch_size", parse_batch_size, nullptr, "production_method", nullptr },
+    { "cart_loads", parse_cart_loads, nullptr, "production_method", nullptr },
+    { "cart_capacity", parse_cart_capacity, nullptr, "production_method", nullptr },
     { "treasury_cost", parse_treasury_cost, nullptr, "production_method", nullptr },
     { "climate_bonuses", parse_climate_bonuses, nullptr, "production_method", nullptr },
     { "bonus", parse_climate_bonus, nullptr, "climate_bonuses", nullptr },
@@ -521,22 +681,79 @@ int parse_definition_file(const char *filename, const char *definition_path)
 
 } // namespace
 
-const ProductionMethod *find_production_method_definition(const char *path)
+ProductionMethod *find_production_method_definition(const char *path)
 {
     const std::string normalized = normalize_definition_path(path);
     const auto found = g_production_methods.find(normalized);
     return found != g_production_methods.end() ? found->second.get() : nullptr;
 }
 
+int production_per_month_for_resource(resource_type resource)
+{
+    for (const auto &entry : g_production_methods) {
+        const ProductionMethod *method = entry.second.get();
+        if (method && method->output_resource() == resource) {
+            return method->base_monthly_production();
+        }
+    }
+    return 0;
+}
+
+int default_production_per_month_for_resource(resource_type resource)
+{
+    for (const auto &entry : g_production_methods) {
+        const ProductionMethod *method = entry.second.get();
+        if (method && method->output_resource() == resource) {
+            return method->default_base_monthly_production();
+        }
+    }
+    return 0;
+}
+
+int set_production_per_month_for_resource(resource_type resource, int production)
+{
+    int changed = 0;
+    for (const auto &entry : g_production_methods) {
+        ProductionMethod *method = entry.second.get();
+        if (method && method->output_resource() == resource) {
+            method->override_base_monthly_production(production);
+            changed = 1;
+        }
+    }
+    return changed;
+}
+
+int adjust_production_per_month_for_resource(resource_type resource, int delta)
+{
+    int changed = 0;
+    for (const auto &entry : g_production_methods) {
+        ProductionMethod *method = entry.second.get();
+        if (method && method->output_resource() == resource) {
+            method->override_base_monthly_production(method->base_monthly_production() + delta);
+            changed = 1;
+        }
+    }
+    return changed;
+}
+
+void reset_production_overrides()
+{
+    for (const auto &entry : g_production_methods) {
+        if (entry.second) {
+            entry.second->reset_base_monthly_production_override();
+        }
+    }
+}
+
 } // namespace building_type_registry_impl
 
-extern "C" const char *production_method_registry_get_production_method_path(void)
+const char *production_method_registry_get_production_method_path(void)
 {
-    building_type_registry_impl::g_production_method_path = std::string(mod_manager_get_mod_path()) + "ProductionMethod/";
+    building_type_registry_impl::g_production_method_path = mod_manager::mod_path() + "ProductionMethod/";
     return building_type_registry_impl::g_production_method_path.c_str();
 }
 
-extern "C" int production_method_registry_load(void)
+int production_method_registry_load(void)
 {
     using namespace building_type_registry_impl;
 
@@ -562,4 +779,87 @@ extern "C" int production_method_registry_load(void)
     }
 
     return 1;
+}
+
+int production_method_registry_production_per_month_for_resource(resource_type resource)
+{
+    return building_type_registry_impl::production_per_month_for_resource(resource);
+}
+
+int production_method_registry_default_production_per_month_for_resource(resource_type resource)
+{
+    return building_type_registry_impl::default_production_per_month_for_resource(resource);
+}
+
+int production_method_registry_set_production_per_month_for_resource(resource_type resource, int production)
+{
+    return building_type_registry_impl::set_production_per_month_for_resource(resource, production);
+}
+
+int production_method_registry_adjust_production_per_month_for_resource(resource_type resource, int delta)
+{
+    return building_type_registry_impl::adjust_production_per_month_for_resource(resource, delta);
+}
+
+void production_method_registry_reset_production_overrides(void)
+{
+    building_type_registry_impl::reset_production_overrides();
+}
+
+int production_method_registry_supply_chain_for_good(
+    resource_supply_chain *chain,
+    resource_type good,
+    int max_entries)
+{
+    using namespace building_type_registry_impl;
+
+    int count = 0;
+    for (const auto &entry : g_production_methods) {
+        const ProductionMethod *method = entry.second.get();
+        if (!method || method->output_resource() != good) {
+            continue;
+        }
+        for (const ProductionResourceAmount &input : method->inputs()) {
+            if (!resource_is_declared(input.resource)) {
+                continue;
+            }
+            if (chain) {
+                if (count >= max_entries) {
+                    continue;
+                }
+                chain[count] = { input.amount, input.resource, good };
+            }
+            count++;
+        }
+    }
+    return count;
+}
+
+int production_method_registry_supply_chain_for_raw_material(
+    resource_supply_chain *chain,
+    resource_type raw_material,
+    int max_entries)
+{
+    using namespace building_type_registry_impl;
+
+    int count = 0;
+    for (const auto &entry : g_production_methods) {
+        const ProductionMethod *method = entry.second.get();
+        if (!method || !resource_is_declared(method->output_resource())) {
+            continue;
+        }
+        for (const ProductionResourceAmount &input : method->inputs()) {
+            if (input.resource != raw_material) {
+                continue;
+            }
+            if (chain) {
+                if (count >= max_entries) {
+                    continue;
+                }
+                chain[count] = { input.amount, raw_material, method->output_resource() };
+            }
+            count++;
+        }
+    }
+    return count;
 }

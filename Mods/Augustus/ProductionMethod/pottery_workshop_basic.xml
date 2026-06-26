@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <production_method>
     <kind value="workshop" />
-    <output resource="pottery" />
+    <output resource="pottery" production_per_month="40" />
     <batch_size value="1" />
     <input resource="clay" amount="100" />
 </production_method>

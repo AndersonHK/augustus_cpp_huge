@@ -3,6 +3,7 @@
 #include "core/buffer.h"
 #include "scenario/data.h"
 
+
 void scenario_settings_init(void);
 
 void scenario_settings_init_mission(void);
@@ -30,3 +31,4 @@ void scenario_settings_save_state(
 
 void scenario_settings_load_state(
     buffer *part1, buffer *part2, buffer *part3, buffer *player_name, buffer *scenario_name, buffer *campaign_name);
+

@@ -1,22 +1,22 @@
-extern "C" {
-#include "win_criteria.h"
-
-#include "core/string.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/attributes.h"
+#include "window/numeric_input.h"
+
+#include "win_criteria.h"
+
+#include "window/editor/map.h"
+
+#include "core/string.h"
+#include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/criteria.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-#include "window/editor/attributes.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-}
 
 enum {
     RATING_CULTURE,
@@ -68,74 +68,67 @@ static void draw_foreground(void)
 
     outer_panel_draw(16, 32, 38, 26);
 
-    lang_text_draw(44, 48, 35, 48, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    lang_text_draw_centered(13, 3, 16, 424, 608, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.48", 35, 48, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 16, 424, 608, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     int is_open_play = scenario_is_open_play();
     int reset_favor = scenario_reset_favor_monthly();
     // advanced feature: open play
-    lang_text_draw(44, 107, 35, 101, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.107", 35, 101, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(316, 92, 80, 30, focus_button_id == 15);
     if (is_open_play) {
-        lang_text_draw_multiline(CUSTOM_TRANSLATION, TR_EDITOR_RESET_FAVOR_MONTHLY, 416, 96, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_multiline("TR_EDITOR_RESET_FAVOR_MONTHLY", 416, 96, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         button_border_draw(516, 98, 24, 24, focus_button_id == 16); //checkbox
         if (reset_favor) {
             text_draw(string_from_ascii("x"), 525, 105, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
     }
 
-    lang_text_draw_centered(18, is_open_play, 316, 101, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, is_open_play), 316, 101, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 50, 35, 141, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.50", 35, 141, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(316, 132, 80, 30, focus_button_id == 1);
-    lang_text_draw_centered(18, is_open_play ? 0 : scenario_criteria_culture_enabled(),
-        316, 141, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, is_open_play ? 0 : scenario_criteria_culture_enabled()), 316, 141, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(416, 132, 180, 30, focus_button_id == 2);
     text_draw_number_centered(scenario_criteria_culture(), 416, 141, 180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 51, 35, 181, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.51", 35, 181, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(316, 172, 80, 30, focus_button_id == 3);
-    lang_text_draw_centered(18, is_open_play ? 0 : scenario_criteria_prosperity_enabled(),
-        316, 181, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, is_open_play ? 0 : scenario_criteria_prosperity_enabled()), 316, 181, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(416, 172, 180, 30, focus_button_id == 4);
     text_draw_number_centered(scenario_criteria_prosperity(), 416, 181, 180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 52, 35, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.52", 35, 221, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(316, 212, 80, 30, focus_button_id == 5);
-    lang_text_draw_centered(18, is_open_play ? 0 : scenario_criteria_peace_enabled(),
-        316, 221, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, is_open_play ? 0 : scenario_criteria_peace_enabled()), 316, 221, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(416, 212, 180, 30, focus_button_id == 6);
     text_draw_number_centered(scenario_criteria_peace(), 416, 221, 180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 53, 35, 261, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.53", 35, 261, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(316, 252, 80, 30, focus_button_id == 7);
-    lang_text_draw_centered(18, is_open_play ? 0 : scenario_criteria_favor_enabled(),
-        316, 261, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, is_open_play ? 0 : scenario_criteria_favor_enabled()), 316, 261, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(416, 252, 180, 30, focus_button_id == 8);
     text_draw_number_centered(scenario_criteria_favor(), 416, 261, 180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 54, 35, 301, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.54", 35, 301, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(316, 292, 80, 30, focus_button_id == 9);
-    lang_text_draw_centered(18, is_open_play ? 0 : scenario_criteria_time_limit_enabled(),
-        316, 301, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, is_open_play ? 0 : scenario_criteria_time_limit_enabled()), 316, 301, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(416, 292, 180, 30, focus_button_id == 10);
     int width = text_draw_number(scenario_criteria_time_limit_years(), '+', " ", 436, 301, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     lang_text_draw_year(scenario_property_start_year() + scenario_criteria_time_limit_years(),
         446 + width, 301, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 55, 35, 341, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.55", 35, 341, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(316, 332, 80, 30, focus_button_id == 11);
-    lang_text_draw_centered(18, is_open_play ? 0 : scenario_criteria_survival_enabled(),
-        316, 341, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, is_open_play ? 0 : scenario_criteria_survival_enabled()), 316, 341, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(416, 332, 180, 30, focus_button_id == 12);
     width = text_draw_number(scenario_criteria_survival_years(), '+', " ", 436, 341, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     lang_text_draw_year(scenario_property_start_year() + scenario_criteria_survival_years(),
         446 + width, 341, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 56, 35, 381, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.56", 35, 381, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(316, 372, 80, 30, focus_button_id == 13);
-    lang_text_draw_centered(18, is_open_play ? 0 : scenario_criteria_population_enabled(),
-        316, 381, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, is_open_play ? 0 : scenario_criteria_population_enabled()), 316, 381, 80, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(416, 372, 180, 30, focus_button_id == 14);
     text_draw_number_centered(scenario_criteria_population(), 416, 381, 180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 

@@ -74,7 +74,7 @@ This ledger tracks the current hand-port batch from upstream `Augustus` into the
 
 | Upstream commit line | Disposition | Notes |
 | --- | --- | --- |
-| `13bd31bd5` / `67a31e13b` / `de30858d9` / `05b216998` / `e5bac7466` / `31bf244d1` | `not ported` | Emscripten/CMake/GitHub Actions maintenance. Vespasian's current local workflow is the root Visual Studio/MSBuild project, so these should not be replayed unless the web/CMake workflow is deliberately revived. |
+| `13bd31bd5` / `67a31e13b` / `de30858d9` / `05b216998` / `e5bac7466` / `31bf244d1` | `not ported` | Emscripten/external build/GitHub Actions maintenance. Vespasian's current local workflow is the root Visual Studio/MSBuild project, so these should not be replayed unless the web/external build workflow is deliberately revived. |
 | `dd2bc36ea` | `not ported` | Upstream warning cleanup is not directly applicable to the fork's current rubble-window code path; current code still uses the draw cursor for burning-ruin text. |
 | `d37698495` | `no-op/local equivalent` | Whitespace-only empire object cleanup. The branch already rewrote this area while applying the empire object size/safety fixes. |
 

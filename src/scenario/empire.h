@@ -1,5 +1,6 @@
 #pragma once
 
+
 #define SCENARIO_CUSTOM_EMPIRE 99
 
 int scenario_empire_id(void);

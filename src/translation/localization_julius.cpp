@@ -349,7 +349,10 @@ void delete_manifest_files(const std::string &manifest_path)
             line.pop_back();
         }
         if (!line.empty()) {
-            file_remove(line.c_str());
+            const bool is_json_locale = line.size() >= 5 && line.substr(line.size() - 5) == ".json";
+            if (!is_json_locale) {
+                file_remove(line.c_str());
+            }
         }
         start = end + 1;
     }
@@ -363,6 +366,60 @@ void write_manifest_file(const std::string &manifest_path, const std::vector<std
         contents += "\r\n";
     }
     write_text_file(manifest_path, contents);
+}
+
+bool is_json_locale_path(const std::string &path)
+{
+    return path.size() >= 5 && path.substr(path.size() - 5) == ".json";
+}
+
+bool generated_locale_json_is_complete(const std::string &path)
+{
+    locale_catalog catalog;
+    std::string error;
+    return merge_locale_json(path, catalog, error) && catalog.has_main_strings && catalog.has_main_messages;
+}
+
+bool generated_manifest_paths_are_complete(const std::vector<std::string> &paths)
+{
+    bool saw_locale = false;
+    for (const std::string &path : paths) {
+        if (!is_json_locale_path(path)) {
+            continue;
+        }
+        saw_locale = true;
+        if (!generated_locale_json_is_complete(path)) {
+            return false;
+        }
+    }
+    return saw_locale;
+}
+
+bool generated_manifest_is_complete(const std::string &manifest_path)
+{
+    std::string contents;
+    if (!read_text_file(manifest_path, contents)) {
+        return false;
+    }
+
+    std::vector<std::string> paths;
+    size_t start = 0;
+    while (start < contents.size()) {
+        size_t end = contents.find('\n', start);
+        if (end == std::string::npos) {
+            end = contents.size();
+        }
+        std::string line = contents.substr(start, end - start);
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (!line.empty()) {
+            paths.push_back(std::move(line));
+        }
+        start = end + 1;
+    }
+
+    return generated_manifest_paths_are_complete(paths);
 }
 
 bool build_julius_expected_stamp(std::string &stamp)
@@ -502,20 +559,9 @@ bool write_julius_locale_json(const std::string &source_directory, std::vector<s
 
         void add_legacy_slot(int is_editor, int group, int index, const std::string &value)
         {
-            const char *mapped_key = legacy_project_key_name_for_slot(is_editor, group, index);
-            const std::string fallback_key = (is_editor ? "editor_strings." : "main_strings.") +
+            const std::string key = (is_editor ? "editor_strings." : "main_strings.") +
                 std::to_string(group) + "." + std::to_string(index);
-            if (!mapped_key || !*mapped_key) {
-                add_key(fallback_key, value);
-                return;
-            }
-
-            const auto existing = values.find(mapped_key);
-            if (existing == values.end() || existing->second == value) {
-                add_key(mapped_key, value);
-            } else {
-                add_key(fallback_key, value);
-            }
+            add_key(key, value);
         }
     };
 
@@ -527,6 +573,28 @@ bool write_julius_locale_json(const std::string &source_directory, std::vector<s
                 if (!value.empty()) {
                     writer.add_legacy_slot(is_editor, group_pair.first, static_cast<int>(index), value);
                 }
+            }
+        }
+    };
+
+    auto collect_existing_project_keys = [](project_key_writer &writer, const std::string &path) {
+        std::string contents;
+        if (!read_text_file(path, contents)) {
+            return;
+        }
+        json_value root;
+        std::string error;
+        json_parser parser(contents);
+        if (!parser.parse(root, error) || root.type != json_type::object) {
+            return;
+        }
+        const auto project_keys = root.object_value.find("project_keys");
+        if (project_keys == root.object_value.end() || project_keys->second.type != json_type::object) {
+            return;
+        }
+        for (const auto &entry : project_keys->second.object_value) {
+            if (entry.second.type == json_type::string) {
+                writer.add_key(entry.first, entry.second.string_value);
             }
         }
     };
@@ -614,7 +682,9 @@ bool write_julius_locale_json(const std::string &source_directory, std::vector<s
         output += "}";
     };
 
+    const std::string output_path = append_path_component(make_julius_localization_root(), std::string(locale_code) + ".json");
     project_key_writer project_keys;
+    collect_existing_project_keys(project_keys, output_path);
     collect_group_project_keys(project_keys, 0, main_strings);
     collect_group_project_keys(project_keys, 1, editor_strings);
     const std::map<int, std::vector<localized_text>> empty_groups;
@@ -636,7 +706,6 @@ bool write_julius_locale_json(const std::string &source_directory, std::vector<s
     json_write_indent(output, 1); json_write_escaped_string(output, "project_keys"); output += ": "; write_project_keys(output, project_keys); output += "\r\n";
     output += "}\r\n";
 
-    const std::string output_path = append_path_component(make_julius_localization_root(), std::string(locale_code) + ".json");
     if (!write_text_file(output_path, output)) {
         return false;
     }
@@ -654,7 +723,7 @@ bool bootstrap_julius_localization()
 
     std::string current_stamp;
     read_text_file(make_julius_stamp_path(), current_stamp);
-    if (current_stamp == expected_stamp) {
+    if (current_stamp == expected_stamp && generated_manifest_is_complete(make_julius_manifest_path())) {
         return true;
     }
 
@@ -665,6 +734,9 @@ bool bootstrap_julius_localization()
     list_directory_contents(".", TYPE_DIR, nullptr, subdirectories);
     for (const std::string &entry : subdirectories) {
         write_julius_locale_json(entry, manifest_paths);
+    }
+    if (!generated_manifest_paths_are_complete(manifest_paths)) {
+        return false;
     }
     write_manifest_file(make_julius_manifest_path(), manifest_paths);
     return write_text_file(make_julius_stamp_path(), expected_stamp);

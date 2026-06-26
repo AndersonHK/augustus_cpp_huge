@@ -3,10 +3,17 @@
 Snapshot: 2026-06-05
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 
+## 2026-06-21 climate graphics checkpoint
+- House and reservoir BuildingType XML in Julius, Augustus, and Vespasian now uses normal graphics variants with `condition type="climate"` for northern and desert payloads. The default branch remains the central/temperate path.
+- Julius extraction now emits `_Northern` and `_Desert` assetlists for the climate-sensitive house groups, `House_Tent_Variants`, and `Reservoir`. `House_Tent_Northern` and `House_Tent_Desert` preserve the visible tent option ids by aliasing into the matching climate-suffixed tent variant group.
+- The standalone harness and runtime startup extraction both run central, northern, and desert main graphics before the normal central asset load. Central extraction owns the full clean and default stamp/manifest; northern and desert use separate climate manifests/stamps.
+- Clean extractor output for this checkpoint: Julius `257` XML / `9129` PNG, Augustus `3200` XML / `4088` PNG, no Vespasian graphics directory. The stricter source BuildingType ref check, including stable-option image ids across Julius/Augustus/Vespasian, reported `graphics_refs=890 button_icon_refs=209 checked_refs=1099 missing=0`.
+- Validation for this work should run `AugustusGraphicsExtractor.exe --extract-julius-first` and check for `Aesthetics\House_Tent_Northern.xml`, `Aesthetics\House_Tent_Variants_Northern.xml`, `Aesthetics\House_Tent_Desert.xml`, `Admin_Logistics\Reservoir_Northern.xml`, and `Admin_Logistics\Reservoir_Desert.xml` under `x64\Release\Mods\Julius\Graphics`.
+
 ## 2026-06-05 extraction checkpoint
 - Current durable extractor handoff: `docs/graphics_extraction_pipeline.md`.
 - The standalone clean-run harness is `AugustusGraphicsExtractor.exe`, built by `AugustusGraphicsExtractor.vcxproj` from `tools/augustus_graphics_extractor/main.cpp`.
-- Runtime extraction order is Julius first, Augustus second, from the C++-compiled `src/core/image.c` through `RuntimeGraphicsExtractionService`. Do not move Augustus extraction back into early `src/platform/augustus.cpp` startup.
+- Runtime extraction order is Julius first, Augustus second, from `src/core/image.cpp` through `RuntimeGraphicsExtractionService`. Do not move Augustus extraction back into early `src/platform/augustus.cpp` startup.
 - Clean generated output should contain `Mods\Julius\Graphics` and `Mods\Augustus\Graphics`; `Mods\Vespasian\Graphics` should be absent until Vespasian has real native graphics.
 - Current clean sample validation:
   - Julius: 231 XML, 8933 PNG, 8465 logical images
@@ -15,20 +22,28 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - Julius `Aesthetics\House_Tent` intentionally exposes `Image_0000..Image_0005`. `Image_0001..Image_0005` are full-image aliases to `Aesthetics\House_Tent_Variants`, preserving legacy BuildingType option refs after the Julius group table split.
 - Colosseum runtime fallback notes from May are stale. Current BuildingType XML uses generated `Health_Culture\Colosseum` entries directly.
 
+## 2026-06-05 Building object runtime trace
+- `src/building/building.h` owns the C++ `Building` object. New C++ traces should pass `Building` immediately and keep raw `building *` records at old C subsystem boundaries only until those boundaries are converted.
+- City view footprint/top/animation stages now call `Building::draw_footprint(...)`, `draw_top(...)`, and `draw_animation(...)`. `src/widget/city_with_overlay.cpp` and `src/widget/city_without_overlay.cpp` use `Building` for deleted/selected/hovered state, storage permission flags, depot cart imagery, granary store overlays, and native runtime draw dispatch. Raw records remain there only for legacy overlay callback tables and still-unconverted plague/fort/gate/ornament helpers.
+- `building_runtime` now owns a `Building` and resolves its `BuildingType` through that object. The runtime graphics/spawn path should use `building().type()` or the private `type()` helper for decisions, not `record().type`, `b->type`, or registry helpers that take `building_type`.
+- `BuildingType` now exposes the small set of predicates and metadata needed by this trace, including required workers, button icon/text refs, data-only graphics, temple/storage destination checks, and the remaining hardcoded spawn-owner checks. Add future behavior here or on `Building`, not as new global accessors.
+- Current explicit legacy handoffs are visible as raw `building *` arguments into still-C systems such as overlay callbacks, local workforce, storage destination selection, monument helpers, barracks recruitment, armoury demand, plague drawing, fort flags, and gatehouse ornaments. Pull the next trace by converting one of those callees to C++ and passing `Building` onward.
+- `building_runtime::data` remains a transitional public reference for code not yet migrated inside the runtime class. Prefer `record()`/`building()` in runtime implementation and do not add new consumers of `data`.
+
 ## 2026-05-11 current graphics/animation checkpoint
-- Native BuildingType graphics now use `building_runtime_graphics.cpp` for target resolution, stable-option selection, and cached `RuntimeDrawSlice` binding. The renderer-facing accessors are still `graphic_footprint()`, `graphic_top()`, and `graphic_animation(animation_cursor)`.
+- Native BuildingType graphics now use `building_runtime_graphics.cpp` for target resolution, stable-option selection, and cached `RuntimeDrawSlice` binding. City view code asks the `Building` object to draw the active footprint/top/animation stage; `GraphicsDefinition` then reads the cached slices from `building_runtime`.
 - Animation frame policy now lives in `src/building/animations.h/.cpp` as `BuildingAnimation`. This object owns frame cursor normalization, legacy animation gates, wine-workshop progress frames, reversible animation high-bit handling, looping animation, storage-yard flags, and fumigation animation.
 - The old `src/building/animation.*` facade has been removed. Legacy overlay/non-native C++ draw paths instantiate `BuildingAnimation` directly; this keeps animation policy in the concept object instead of behind another C wrapper.
 - Live native animation call chain:
-  - `src/widget/city_draw.cpp::city_draw_runtime_building_animation()`
-  - `building_runtime_advance_graphic_animation(b, grid_offset)`
+  - `src/widget/city_with_overlay.cpp` or `src/widget/city_without_overlay.cpp`
+  - `Building::draw_animation({ x, y, grid_offset, color_mask, scale })`
+  - `GraphicsDefinition::draw_animation(building, context)`
   - `building_runtime::advance_graphic_animation(grid_offset)`
   - `BuildingAnimation::runtime_track_offset(track, should_advance=1, grid_offset)`
-  - `building_runtime_get_graphic_animation_slice(b, grid_offset)`
   - `building_runtime::graphic_animation(grid_offset)`
   - `BuildingAnimation::runtime_track_offset(track, should_advance=0, grid_offset)`
 - `advance_graphic_animation()` is the tick. `graphic_animation()` reads and materializes the current frame slice; it must not secretly advance the animation.
-- Placement ghosts use the same generic BuildingType renderer for XML-owned graphics. `city_building_ghost.cpp` saves/restores the map sprite animation byte because the ghost preview reuses the hovered grid offset as a temporary cursor without owning real map state.
+- Placement ghosts use the same generic BuildingType renderer for XML-owned graphics. `city_building_ghost.cpp` passes `force_draw_tile` in `BuildingDrawContext` and saves/restores the map sprite animation byte because the ghost preview reuses the hovered grid offset as a temporary cursor without owning real map state.
 - Water-driven graphics now depend on generic BuildingType water rules and projected building state. See `docs/water_access_runtime.md` for the provider/consumer mask simulation that feeds `has_water_access` and related compatibility mirrors.
 
 ## 2026-05-04 as-is audit
@@ -52,13 +67,13 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - XML `BuildingType.graphics` entries now render as `ImageGroupPayload` entries, not as legacy integer image groups.
 - `building_image_get()` is legacy-only; it must not load an XML payload and squeeze the selected image back through `assets_get_image_id_from_path_or_name`.
 - Runtime-owned buildings still populate terrain/building/multitile map bookkeeping, but `map_image` receives a neutral flat-tile sentinel while `city_draw` reads footprint/top/animation from cached `RuntimeDrawSlice` payload data.
-- `building_runtime_apply_graphic_if_native()` means "the XML runtime handled map-tile graphics ownership"; callers that get true should not immediately overwrite the tile with `building_image_get()`.
-- Native housing uses the same runtime graphics ownership as other XML BuildingTypes. House-specific image lookup must not coerce generated house graphics into a legacy image id; native houses install their sentinel/cache through `building_runtime_apply_graphic_if_native()` and are excluded from the legacy house image switch.
+- `Building::refresh_graphic_if_native()` means "the XML runtime handled map-tile graphics ownership"; callers that get true should not immediately overwrite the tile with `building_image_get()`.
+- Native housing uses the same runtime graphics ownership as other XML BuildingTypes. House-specific image lookup must not coerce generated house graphics into a legacy image id; native houses install their sentinel/cache through `Building::refresh_graphic_if_native()` and are excluded from the legacy house image switch.
 - Vespasian, Augustus, and Julius native housing chains now route every house level through BuildingType graphics, from tents through luxury palace. The legacy house image table remains only for non-native/compatibility house definitions; native houses must render through the normal runtime BuildingType payload path.
 - Pottery workshops are no longer treated as graphics-data-only; their XML `Industry\Pottery_Workshop` payload is the live renderer path.
 - Runtime animation frames normalize an active XML animation to frame 1 when the saved sprite cursor is empty, so ON states that use an OFF base plus animation overlay do not flash the OFF image between animation ticks.
 - Payload animation frame materialization now reconstructs each explicit or implicit frame as a full `PART_BOTH` raster payload before runtime drawing. Bare XML frame references no longer reuse only the referenced entry footprint, which preserves top/full overlay content for animated XML buildings.
-- Native XML animations now advance explicitly from `city_draw_runtime_building_animation()`, the same city animation layer that drives legacy image animations through `BuildingAnimation`. `graphic_animation()` reads the current cursor and returns the already-selected payload frame instead of secretly owning the tick.
+- Native XML animations now advance explicitly from `Building::draw_animation(...)`, the same city animation layer that drives legacy image animations through `BuildingAnimation`. `graphic_animation()` reads the current cursor and returns the already-selected payload frame instead of secretly owning the tick.
 - Native XML animations use the caller-provided draw-stage animation cursor instead of `building.grid_offset`. This keeps the cursor transient like legacy rendering until BuildingType migration is far enough along to consider a saved building cursor field.
 - Well placement ghosts keep their bespoke water-range behavior, but now try the XML payload ghost renderer before falling back to `building_image_get_for_type()`. Well XML also uses the same legacy string-key bridge format as Theater (`main_strings.28.92`) so dynamic ids do not fall through to an invalid legacy string index in the build menu.
 - Augustus/Vespasian small and large pond XML now owns the legacy climate/water matrix: central/northern maps use the north payloads, desert maps use the south payloads, and water access selects the animated ON entries. The redundant `BUILDING_SMALL_POND` and `BUILDING_LARGE_POND` image.cpp switch arms were removed.
@@ -142,7 +157,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 ## Current Runtime Shape
 - Live city building rendering routes through `building_runtime` plus `ImageGroupPayload` when a `BuildingType` owns validated graphics.
 - `building_runtime_graphics.cpp` resolves conditional targets, applies stable options with `building.variant`, and caches footprint/top/animation `RuntimeDrawSlice` entries.
-- `city_draw.cpp` is the shared live-city draw seam for native building footprints, tops, and animation overlays.
+- `Building::draw_footprint(...)`, `draw_top(...)`, and `draw_animation(...)` are the live-city draw seams for native building footprints, tops, and animation overlays. `city_draw.cpp` now only keeps the native tile footprint bridge.
 - Legacy `building_image_get()` and legacy `map_image` ids remain compatibility paths for buildings without native graphics and special cases that the XML condition set cannot yet express.
 - Placement ghosts and editor previews are mixed: several XML-owned ghosts now try the runtime path first, but the whole placement/editor surface is not yet fully native.
 
@@ -197,12 +212,12 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - parser now expects structured `<graphics>` with `<default>`, optional conditional `<variant>`, target `<path>`, optional `<image>`, and optional stable `<options>`.
 - `src/building/building_runtime.h/.cpp` and `src/building/building_runtime_graphics.cpp`
   - runtime now resolves new-path building images, assigns stable graphics variants, and still maintains legacy compatibility state.
-- `src/widget/city_draw.cpp`
-  - live city drawing asks native runtime-owned buildings for payload-backed footprint/top/animation slices before legacy tile-id rendering.
+- `src/building/building.h/.cpp` and `src/building/animations.h/.cpp`
+  - live city drawing asks `Building::draw_footprint(...)`, `draw_top(...)`, and `draw_animation(...)` for payload-backed footprint/top/animation slices before legacy tile-id rendering.
 - `src/assets/image_group_payload.h/.cpp`
   - path-keyed group manager now exposes default-image lookup, caches failed loads, stores implicit animation metadata/frame keys plus footprint/top composition data, and clones whole-image aliases including top/animation
-- `src/core/image_payload.h/.cpp`
-  - payload-backed `image` compatibility view already exists
+- `src/graphics/image.h/.cpp`
+  - manager-owned `Image` objects now expose the temporary legacy `image` compatibility view where still needed
 - `src/graphics/image.cpp`
   - now has pointer-based isometric helpers for direct `const image *` draws and a generic pointer draw helper for payload-backed animation frames
 - `src/building/image.cpp`

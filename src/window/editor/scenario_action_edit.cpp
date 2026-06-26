@@ -1,38 +1,38 @@
-extern "C" {
-#include "scenario_action_edit.h"
-
-#include "core/string.h"
 #include "editor/tool.h"
-#include "game/resource.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "scenario/event/parameter_city.h"
+#include "scenario/event/parameter_data.h"
+#include "widget/map_editor.h"
+#include "window/editor/custom_variables.h"
+#include "window/editor/requests.h"
+#include "window/editor/select_city_by_type.h"
+#include "window/editor/select_custom_message.h"
+#include "window/editor/select_scenario_action_type.h"
+#include "window/editor/select_special_attribute_mapping.h"
+#include "window/numeric_input.h"
+#include "window/select_list.h"
+
+#include "scenario_action_edit.h"
+
+#include "widget/input_box.h"
+#include "window/editor/allowed_buildings.h"
+#include "window/editor/map.h"
+#include "window/editor/select_city_trade_route.h"
+#include "window/text_input.h"
+
+#include "core/string.h"
+#include "game/resource.h"
+#include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "map/grid.h"
 #include "scenario/event/action_handler.h"
 #include "scenario/event/controller.h"
 #include "scenario/event/formula.h"
-#include "scenario/event/parameter_data.h"
-#include "scenario/event/parameter_city.h"
-#include "widget/input_box.h"
-#include "widget/map_editor.h"
-#include "window/editor/allowed_buildings.h"
-#include "window/editor/custom_variables.h"
-#include "window/editor/map.h"
-#include "window/editor/requests.h"
-#include "window/editor/select_scenario_action_type.h"
-#include "window/editor/select_city_by_type.h"
-#include "window/editor/select_city_trade_route.h"
-#include "window/editor/select_custom_message.h"
-#include "window/editor/select_special_attribute_mapping.h"
-#include "window/numeric_input.h"
-#include "window/select_list.h"
-#include "window/text_input.h"
-}
 
 #define BUTTON_LEFT_PADDING 32
 #define BUTTON_WIDTH 608
@@ -116,7 +116,7 @@ static translation_key get_resolved_parameter_key(xml_data_attribute_t *param_at
         city_property_info_t info = city_property_get_param_info(city_property);
         int param_index = param_number - 3;
         if (param_index < info.count) {// Return the translation key if this parameter is needed
-            return static_cast<translation_key>(info.param_keys[param_index]);
+            return info.param_keys[param_index];
         }
     }
     // Fallback to the original key if resolution fails
@@ -139,7 +139,7 @@ static void draw_foreground(void)
         large_label_draw(buttons[i].x, buttons[i].y, buttons[i].width / 16, data.focus_button_id == i + 1 ? 1 : 0);
     }
 
-    text_draw_centered(translation_for(TR_EDITOR_DELETE), 288, 40, 80, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
+    text_draw_centered(translation_for_key("TR_EDITOR_DELETE"), 288, 40, 80, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
 
     text_draw_centered(translation_for(data.xml_info->xml_attr.key), 32, 72, BUTTON_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
 
@@ -208,7 +208,7 @@ static void draw_foreground(void)
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
     }
 
-    lang_text_draw_centered(13, 3, 32, 32 + 16 * 20, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 32, 32 + 16 * 20, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
@@ -374,13 +374,13 @@ static void set_resource_value(int value)
 
 static void resource_selection(const generic_button *button)
 {
-    static const uint8_t *resource_texts[RESOURCE_MAX];
-    for (int resource_id = RESOURCE_MIN_FOOD; resource_id < RESOURCE_MAX; resource_id++) {
+    static const uint8_t *resource_texts[RESOURCE_SLOT_COUNT];
+    for (int resource_id = (RESOURCE_NONE + 1); resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
         resource_type resource = static_cast<resource_type>(resource_id);
         resource_texts[resource - 1] = resource_get_data(resource)->text;
     }
     window_select_list_show_text(screen_dialog_offset_x(), screen_dialog_offset_y(), button,
-        resource_texts, RESOURCE_MAX - 1, set_resource_value);
+        resource_texts, RESOURCE_SLOT_COUNT - 1, set_resource_value);
 }
 
 static void custom_message_selection(void)

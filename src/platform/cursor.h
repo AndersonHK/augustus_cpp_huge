@@ -2,9 +2,6 @@
 
 #include "input/cursor.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Gets the current cursor shape
@@ -36,6 +33,3 @@ void platform_cursor_force_software_mode(void);
  */
 int platform_cursor_is_software(void);
 
-#ifdef __cplusplus
-}
-#endif

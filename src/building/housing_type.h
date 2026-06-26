@@ -1,8 +1,6 @@
 #pragma once
 
-extern "C" {
 #include "building/properties.h"
-}
 
 #include <string>
 
@@ -19,6 +17,9 @@ public:
     explicit HousingType(std::string path);
 
     const char *path() const;
+
+    void set_level(int level);
+    int level() const;
 
     void set_resident_class(HousingResidentClass resident_class);
     HousingResidentClass resident_class() const;
@@ -44,6 +45,7 @@ public:
 
 private:
     std::string path_;
+    int level_ = -1;
     HousingResidentClass resident_class_ = HousingResidentClass::None;
     model_house model_ = {};
 };

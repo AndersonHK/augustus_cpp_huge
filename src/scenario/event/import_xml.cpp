@@ -1,9 +1,19 @@
-extern "C" {
 #include "import_xml.h"
+#include "translation/translation.h"
+#include "scenario/event/event.h"
+#include "scenario/event/parameter_city.h"
+#include "scenario/event/parameter_data.h"
+#include "window/plain_message_dialog.h"
 
-#include "core/encoding.h"
+#include "window/editor/select_city_trade_route.h"
+#include <array>
+#include <vector>
+
+#include "building/building_type_startup_bridge.h"
 #include "core/file.h"
-#include "core/lang.h"
+
+#include "building/building_type_api.h"
+#include "core/encoding.h"
 #include "core/log.h"
 #include "core/string.h"
 #include "core/xml_parser.h"
@@ -13,12 +23,6 @@ extern "C" {
 #include "scenario/custom_variable.h"
 #include "scenario/event/controller.h"
 #include "scenario/event/data.h"
-#include "scenario/event/event.h"
-#include "scenario/event/parameter_city.h"
-#include "scenario/event/parameter_data.h"
-#include "window/plain_message_dialog.h"
-#include "window/editor/select_city_trade_route.h"
-}
 
 #include <math.h>
 #include <stdio.h>
@@ -266,17 +270,17 @@ static int xml_import_start_event(void)
 
 static void xml_import_end_event(void)
 {
-    if (data.current_event->condition_groups.size == 0) {
-        array_advance(data.current_event->condition_groups);
+    if (scenario_event_condition_group_count(data.current_event) == 0) {
+        scenario_event_condition_group_add(data.current_event);
     }
 }
 
 static scenario_condition_group_t *get_first_group(void)
 {
-    if (data.current_event->condition_groups.size == 0) {
-        return array_advance(data.current_event->condition_groups);
+    if (scenario_event_condition_group_count(data.current_event) == 0) {
+        return scenario_event_condition_group_add(data.current_event);
     }
-    return array_item(data.current_event->condition_groups, 0);
+    return scenario_event_condition_group_get(data.current_event, 0);
 }
 
 static int xml_import_start_group(void)
@@ -297,7 +301,7 @@ static int xml_import_start_group(void)
     if (type == FULFILLMENT_TYPE_ALL) {
         data.current_group = get_first_group();
     } else {
-        array_new_item_after_index(data.current_event->condition_groups, 1, data.current_group);
+        data.current_group = scenario_event_condition_group_add_after(data.current_event, 1);
     }
     return data.current_group != 0;
 }
@@ -446,7 +450,7 @@ static void xml_import_log_error(const char *msg)
     log_error("Error while import scenario events from XML. ", data.error_message, 0);
     log_error("Line:", 0, data.error_line_number);
 
-    string_copy(translation_for(TR_EDITOR_IMPORT_LINE), data.error_line_number_text, 50);
+    string_copy(translation_for_key("TR_EDITOR_IMPORT_LINE"), data.error_line_number_text, 50);
     int length = string_length(data.error_line_number_text);
 
     uint8_t number_as_text[15];
@@ -454,7 +458,7 @@ static void xml_import_log_error(const char *msg)
     string_copy(number_as_text, data.error_line_number_text + length, 50);
 
     window_plain_message_dialog_show_with_extra(
-        TR_EDITOR_UNABLE_TO_LOAD_EVENTS_TITLE, TR_EDITOR_CHECK_LOG_MESSAGE,
+        "TR_EDITOR_UNABLE_TO_LOAD_EVENTS_TITLE", "TR_EDITOR_CHECK_LOG_MESSAGE",
         string_from_ascii(data.error_message),
         data.error_line_number_text);
 }
@@ -575,16 +579,19 @@ static int xml_import_special_parse_building_counting(xml_data_attribute_t *attr
         return 0;
     }
 
-    switch (found->value) {
-        case BUILDING_CLEAR_LAND:
-        case BUILDING_REPAIR_LAND:
-        case BUILDING_CLEAR_TREES:
-        case BUILDING_DISTRIBUTION_CENTER_UNUSED:
-        case BUILDING_BURNING_RUIN:
+    static const char *const not_countable[] = {
+        "clear_land",
+        "repair_land",
+        "clear_trees",
+        "distribution_center_unused",
+        "burning_ruin",
+    };
+    for (int i = 0; i < (int) (sizeof(not_countable) / sizeof(not_countable[0])); i++) {
+        building_type type = building_type_startup_bridge_runtime_id_from_text(not_countable[i]);
+        if (type != BUILDING_NONE && found->value == type) {
             xml_import_log_error("I cannot count that.");
             return 0;
-        default:
-            break;
+        }
     }
 
     *target = found->value;
@@ -634,7 +641,7 @@ static int xml_import_special_parse_resource(xml_data_attribute_t *attr, int *ta
     }
 
     const char *value = xml_parser_get_attribute_string(attr->name);
-    for (int i = RESOURCE_MIN; i < RESOURCE_MAX; i++) {
+    for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT; i++) {
         resource_type type = static_cast<resource_type>(i);
         const char *resource_name = resource_get_data(type)->xml_attr_name;
         if (xml_parser_compare_multiple(resource_name, value)) {
@@ -837,51 +844,41 @@ static int parse_xml(char *buf, int buffer_length)
     return data.success;
 }
 
-static char *file_to_buffer(const char *filename, int *output_length)
+static std::vector<char> file_to_buffer(const char *filename)
 {
     FILE *file = file_open(filename, "r");
     if (!file) {
         log_error("Error opening event file", filename, 0);
-        return 0;
+        return {};
     }
     fseek(file, 0, SEEK_END);
     int size = ftell(file);
     rewind(file);
 
-    char *buf = (char *) malloc(size);
-    if (!buf) {
-        log_error("Error opening event file", filename, 0);
-        file_close(file);
-        return 0;
-    }
-    memset(buf, 0, size);
-    if (!buf) {
+    std::vector<char> buf(size);
+    if (buf.empty() && size > 0) {
         log_error("Unable to allocate buffer to read XML file", filename, 0);
-        free(buf);
         file_close(file);
-        return 0;
+        return {};
     }
-    *output_length = (int) fread(buf, 1, size, file);
-    if (*output_length > size) {
+    int output_length = static_cast<int>(fread(buf.data(), 1, size, file));
+    if (output_length > size) {
         log_error("Unable to read file into buffer", filename, 0);
-        free(buf);
         file_close(file);
-        *output_length = 0;
-        return 0;
+        return {};
     }
+    buf.resize(output_length);
     file_close(file);
     return buf;
 }
 
 int scenario_events_xml_parse_file(const char *filename)
 {
-    int output_length = 0;
-    char *xml_contents = file_to_buffer(filename, &output_length);
-    if (!xml_contents) {
+    std::vector<char> xml_contents = file_to_buffer(filename);
+    if (xml_contents.empty()) {
         return 0;
     }
-    int success = parse_xml(xml_contents, output_length);
-    free(xml_contents);
+    int success = parse_xml(xml_contents.data(), static_cast<int>(xml_contents.size()));
     if (!success) {
         log_error("Error parsing file", filename, 0);
         scenario_events_clear();

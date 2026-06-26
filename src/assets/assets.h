@@ -2,9 +2,6 @@
 
 #include "core/image.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define ASSETS_IMAGE_PATH "Graphics"
 
@@ -66,8 +63,6 @@ int assets_get_image_id(const char *assetlist_name, const char *image_name);
 
 int assets_get_image_id_by_name(const char *image_name);
 
-int assets_get_image_id_from_path_or_name(const char *path, const char *image_name);
-
 int assets_get_external_image(const char *path, int force_reload);
 
 int assets_lookup_image_id(asset_id id);
@@ -79,6 +74,3 @@ const image *assets_get_font_image(int letter_id);
 void assets_load_unpacked_asset(int image_id);
 const char *assets_get_failure_reason(void);
 
-#ifdef __cplusplus
-}
-#endif

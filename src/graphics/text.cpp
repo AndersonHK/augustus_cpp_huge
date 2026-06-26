@@ -1,17 +1,17 @@
+#include "graphics/graphics.h"
+#include "translation/translation.h"
+#include "graphics/image.h"
+
 #include "text.h"
 #include "font_vector_runtime.h"
 #include "text_runtime_internal.h"
 
-extern "C" {
 #include "core/encoding.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/locale.h"
 #include "core/string.h"
 #include "core/time.h"
-#include "graphics/graphics.h"
-#include "graphics/image.h"
-}
+
 
 #include <string.h>
 #include <string>
@@ -656,7 +656,7 @@ int text_draw(const uint8_t *str, int x, int y, font_t font, int pixel_size, col
                 width = def->space_width;
             } else {
                 int height = def->image_y_offset(*str, font_image_height_for_letter(def, letter_id), def->line_height);
-                image_draw_letter(def->font, letter_id, current_x, y - height, color, SCALE_NONE);
+                Image::letter(letter_id).draw_letter(def->font, current_x, y - height, color, SCALE_NONE);
                 width = def->letter_spacing + font_image_width_for_letter(def, letter_id);
             }
             if (input_cursor.capture && input_cursor.position == input_cursor.cursor_position) {
@@ -761,7 +761,7 @@ int text_draw_number(int value, char prefix, const char *postfix, int x, int y, 
                 width = def->space_width;
             } else {
                 int height = def->image_y_offset(*str, font_image_height_for_letter(def, letter_id), def->line_height);
-                image_draw_letter(def->font, letter_id, current_x, y - height, color, SCALE_NONE);
+                Image::letter(letter_id).draw_letter(def->font, current_x, y - height, color, SCALE_NONE);
                 width = def->letter_spacing + font_image_width_for_letter(def, letter_id);
             }
 
@@ -875,7 +875,7 @@ void text_draw_number_finances(int value, int x, int y, font_t font, int pixel_s
                 }
                 int logical_width = font_image_width_for_letter(def, letter_id);
                 int height = def->image_y_offset(*str, font_image_height_for_letter(def, letter_id), def->line_height);
-                image_draw_letter(def->font, letter_id, current_x + (number_width - logical_width) / 2, y - height, color, SCALE_NONE);
+                Image::letter(letter_id).draw_letter(def->font, current_x + (number_width - logical_width) / 2, y - height, color, SCALE_NONE);
             }
             current_x -= number_width;
         }
@@ -890,7 +890,7 @@ int text_draw_money(int value, int x_offset, int y_offset, font_t font, int pixe
 {
     const uint8_t *postfix;
     if (locale_translate_money_dn()) {
-        postfix = lang_get_string(6, 0);
+        postfix = lang_get_string("main_strings.6.0");
     } else {
         postfix = string_from_ascii("Dn");
     }
@@ -910,7 +910,7 @@ void text_draw_with_money(const uint8_t *text, int value, const char *prefix, co
     offset += number_to_string(offset, value, 0, " ");
     const uint8_t *money_postfix;
     if (locale_translate_money_dn()) {
-        money_postfix = lang_get_string(6, 0);
+        money_postfix = lang_get_string("main_strings.6.0");
     } else {
         money_postfix = string_from_ascii("Dn");
     }

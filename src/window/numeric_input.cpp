@@ -1,19 +1,19 @@
-extern "C" {
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+
 #include "numeric_input.h"
+
 
 #include "core/string.h"
 #include "game/system.h"
 #include "graphics/color.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "input/keyboard.h"
 #include "sound/effect.h"
-}
 
 #include <limits.h>
 
@@ -162,8 +162,7 @@ static void draw_foreground(void)
     }
 
     graphics_draw_rect(data.x + 51, data.y + 171, 56, 25, data.focus_button_id == 12 ? COLOR_FONT_BLUE : COLOR_BLACK);
-    lang_text_draw_centered_colored(44, 16, data.x + 52, data.y + 177, 55, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
-            data.focus_button_id == 12 ? COLOR_FONT_BLUE : COLOR_BLACK);
+    lang_text_draw_centered_colored("main_strings.44.16", data.x + 52, data.y + 177, 55, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.focus_button_id == 12 ? COLOR_FONT_BLUE : COLOR_BLACK);
 
     if (data.focus_button_id == 13) {
         graphics_fill_rect(data.x + 21, data.y + 201, 25, 25, COLOR_RED);
@@ -174,8 +173,7 @@ static void draw_foreground(void)
     text_draw_centered(string_from_ascii("X"), data.x + 22, data.y + 207, 25, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
         data.focus_button_id == 13 ? COLOR_WHITE : COLOR_RED);
     graphics_draw_rect(data.x + 51, data.y + 201, 56, 25, data.focus_button_id == 14 ? COLOR_FONT_BLUE : COLOR_BLACK);
-    lang_text_draw_centered_colored(44, 17, data.x + 52, data.y + 207, 55, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
-            data.focus_button_id == 14 ? COLOR_FONT_BLUE : COLOR_BLACK);
+    lang_text_draw_centered_colored("main_strings.44.17", data.x + 52, data.y + 207, 55, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.focus_button_id == 14 ? COLOR_FONT_BLUE : COLOR_BLACK);
 }
 
 static int click_outside_window(const mouse *m)

@@ -2,9 +2,6 @@
 
 #include "graphics/color.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void screen_set_dialog_offset(int width, int height);
 
@@ -34,6 +31,3 @@ int screen_dialog_offset_x(void);
 
 int screen_dialog_offset_y(void);
 
-#ifdef __cplusplus
-}
-#endif

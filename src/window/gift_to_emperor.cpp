@@ -1,18 +1,19 @@
-extern "C" {
-#include "window/gift_to_emperor.h"
-
-#include "city/emperor.h"
-#include "game/resource.h"
-#include "graphics/ui_runtime_api.h"
+#include "game/resource_graphics.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+
+#include "window/gift_to_emperor.h"
+
+#include "window/advisors.h"
+
+#include "city/emperor.h"
+#include "game/resource.h"
+#include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/advisors.h"
-}
 
 static void button_set_gift(const generic_button *button);
 static void button_send_gift(const generic_button *button);
@@ -40,11 +41,11 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(96, 144, 30, 15);
-    image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, 112, 160, COLOR_MASK_NONE, SCALE_NONE);
-    lang_text_draw_centered(52, 69, 144, 160, 416, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    resource_graphics(resource_denarii()).panel_icon().draw(112, 160);
+    lang_text_draw_centered("main_strings.52.69", 144, 160, 416, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    int width = lang_text_draw(52, 50, 144, 304, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_amount(8, 4, city_emperor_months_since_gift(), 144 + width, 304, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int width = lang_text_draw("main_strings.52.50", 144, 304, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_amount(current_string_amount_key(8, 4, city_emperor_months_since_gift()), city_emperor_months_since_gift(), 144 + width, 304, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
@@ -60,21 +61,21 @@ static void draw_foreground(void)
         if (current_gift == GIFT_MODEST) {
             button_border_draw(120, 211, 428, 24, 1);
         }
-        lang_text_draw(52, 63, 128, 218, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.52.63", 128, 218, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         font_t font = focus_button_id == 1 ? FONT_NORMAL_RED : FONT_NORMAL_WHITE;
-        int width = lang_text_draw(52, 51 + gift->id, 224, 218, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+        int width = lang_text_draw(current_string_key(52, 51 + gift->id), 224, 218, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         text_draw_money(gift->cost, 224 + width, 218, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     } else {
-        lang_text_draw_multiline(52, 70, 160, 224, 352, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_multiline("main_strings.52.70", 160, 224, 352, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
     if (city_emperor_can_send_gift(GIFT_GENEROUS)) {
         const emperor_gift *gift = city_emperor_get_gift(GIFT_GENEROUS);
         if (current_gift == GIFT_GENEROUS) {
             button_border_draw(120, 231, 428, 24, 1);
         }
-        lang_text_draw(52, 64, 128, 238, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.52.64", 128, 238, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         font_t font = focus_button_id == 2 ? FONT_NORMAL_RED : FONT_NORMAL_WHITE;
-        int width = lang_text_draw(52, 55 + gift->id, 224, 238, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+        int width = lang_text_draw(current_string_key(52, 55 + gift->id), 224, 238, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         text_draw_money(gift->cost, 224 + width, 238, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     }
     if (city_emperor_can_send_gift(GIFT_LAVISH)) {
@@ -82,18 +83,18 @@ static void draw_foreground(void)
         if (current_gift == GIFT_LAVISH) {
             button_border_draw(120, 251, 428, 24, 1);
         }
-        lang_text_draw(52, 65, 128, 258, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.52.65", 128, 258, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         font_t font = focus_button_id == 3 ? FONT_NORMAL_RED : FONT_NORMAL_WHITE;
-        int width = lang_text_draw(52, 59 + gift->id, 224, 258, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+        int width = lang_text_draw(current_string_key(52, 59 + gift->id), 224, 258, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         text_draw_money(gift->cost, 224 + width, 258, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     }
     // can give at least one type
     if (city_emperor_can_send_gift(GIFT_MODEST)) {
         button_border_draw(118, 336, 260, 20, focus_button_id == 4);
-        lang_text_draw_centered(52, 66 + city_emperor_selected_gift_size(), 118, 341, 260, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered(current_string_key(52, 66 + city_emperor_selected_gift_size()), 118, 341, 260, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
     button_border_draw(400, 336, 160, 20, focus_button_id == 5);
-    lang_text_draw_centered(13, 4, 400, 341, 160, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.4", 400, 341, 160, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

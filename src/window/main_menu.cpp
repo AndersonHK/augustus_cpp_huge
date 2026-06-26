@@ -1,34 +1,33 @@
-extern "C" {
-#include "main_menu.h"
-
-#include "assets/assets.h"
-#include "core/calc.h"
-#include "core/config.h"
-#include "core/string.h"
-#include "editor/editor.h"
-#include "game/campaign.h"
 #include "game/game.h"
-#include "game/system.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
-#include "graphics/image_button.h"
 #include "graphics/lang_text.h"
+#include "graphics/weather.h"
+#include "window/cck_selection.h"
+#include "window/config.h"
+#include "window/file_dialog.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_campaign.h"
+
+#include "main_menu.h"
+
+#include "editor/editor.h"
+#include "window/editor/map.h"
+#include "window/video.h"
+#include "window/popup_dialog.h"
+#include "game/campaign.h"
+
+#include "core/calc.h"
+#include "core/config.h"
+#include "core/string.h"
+#include "game/system.h"
+#include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/screen.h"
-#include "graphics/weather.h"
 #include "graphics/window.h"
 #include "sound/music.h"
-#include "window/cck_selection.h"
-#include "window/config.h"
-#include "window/editor/map.h"
-#include "window/file_dialog.h"
-#include "window/plain_message_dialog.h"
-#include "window/popup_dialog.h"
-#include "window/select_campaign.h"
-#include "window/video.h"
-}
 
 #define MAX_BUTTONS 6
 
@@ -36,7 +35,7 @@ static void button_click(const generic_button *button);
 
 static struct {
     unsigned int focus_button_id;
-    int logo_image_id;
+    ImageGroupEntryRef logo;
 } data;
 
 static generic_button buttons[] = {
@@ -67,15 +66,15 @@ static void draw_background(void)
 {
     graphics_reset_dialog();
     graphics_reset_clip_rectangle();
-    image_draw_fullscreen_background(image_group(GROUP_INTERMEZZO_BACKGROUND));
+    Image::from_id(Image::group(GROUP_INTERMEZZO_BACKGROUND)).draw_fullscreen_background();
 
     if (!window_is(WINDOW_FILE_DIALOG)) {
         graphics_in_dialog();
         outer_panel_draw(162, 32, 20, 22);
-        if (!data.logo_image_id) {
-            data.logo_image_id = assets_get_image_id("UI", "Main Menu Banner");
+        if (!data.logo.is_bound()) {
+            data.logo = ImageGroupEntryRef::from_group("UI\\Main_Menu_Banner", "Main Menu Banner");
         }
-        image_draw(data.logo_image_id, 176, 50, COLOR_MASK_NONE, SCALE_NONE);
+        data.logo.draw(176, 50);
         graphics_reset_dialog();
         draw_version_string();
     }
@@ -90,12 +89,12 @@ static void draw_foreground(void)
             data.focus_button_id == i + 1 ? 1 : 0);
     }
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_MAIN_MENU_SELECT_CAMPAIGN, 192, 137, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(30, 2, 192, 177, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(30, 3, 192, 217, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(9, 8, 192, 257, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(2, 0, 192, 297, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
-    lang_text_draw_centered(30, 5, 192, 337, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("TR_MAIN_MENU_SELECT_CAMPAIGN", 192, 137, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.30.2", 192, 177, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.30.3", 192, 217, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.9.8", 192, 257, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.2.0", 192, 297, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.30.5", 192, 337, 256, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     graphics_reset_dialog();
 }
@@ -139,7 +138,7 @@ static void button_click(const generic_button *button)
     } else if (type == 4) {
         if (!editor_is_present() || !game_init_editor()) {
             window_plain_message_dialog_show(
-                TR_NO_EDITOR_TITLE, TR_NO_EDITOR_MESSAGE, 1);
+                "TR_NO_EDITOR_TITLE", "TR_NO_EDITOR_MESSAGE", 1);
         } else {
             if (config_get(CONFIG_UI_SHOW_INTRO_VIDEO)) window_video_show("map_intro.smk", window_editor_map_show);
             sound_music_play_editor();

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="road">
+    <identity name_key="main_strings.28.5" />
+    <model size="1" cost="4" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
+    <foundation policy="land" />
+    <tool kind="road" />
+    <event_data attr="road" />
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="mess_hall_fort_supplier">
+    <profiles default="legacy">
+        <profile id="legacy">
+            <native class="legacy_action" />
+            <owner slot="none" building="any" state="any" />
+            <movement roam_ticks="1" max_roam_length="1200" return_mode="none" />
+            <pathing mode="vanilla_roaming" terrain="roads_highway" />
+        </profile>
+    </profiles>
+    <graphics
+        path_pattern="Walkers\M_Hall_{dir_upper}_{frame}"
+        image_pattern="M Hall {dir_upper} {frame}"
+        corpse_path_pattern="Walkers\M_Hall_death_{frame}"
+        corpse_image_pattern="M Hall death {frame}"
+        sprite_offset_x="26"
+        sprite_offset_y="29"
+        max_image_offset="12" />
+</figure>

@@ -1,18 +1,18 @@
-extern "C" {
-#include "labor.h"
-
-#include "city/finance.h"
 #include "city/labor.h"
-#include "core/calc.h"
 #include "graphics/arrow_button.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
+#include "window/labor_priority.h"
+
+#include "labor.h"
+
+
+#include "city/finance.h"
+#include "core/calc.h"
+#include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "window/labor_priority.h"
-}
 
 #define ADVISOR_HEIGHT 26
 
@@ -42,33 +42,33 @@ static unsigned int arrow_button_focus;
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS), 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS)).draw(10, 10);
 
-    lang_text_draw(50, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));   // Labor Allocation
+    lang_text_draw("main_strings.50.0", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));   // Labor Allocation
 
     // table headers
-    lang_text_draw_centered(50, 21, 32, 56, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));  // Priority
-    lang_text_draw(50, 22, 172, 56, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Sector
-    lang_text_draw_centered(50, 23, 383, 56, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Need
-    lang_text_draw_centered(50, 24, 483, 56, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Have
+    lang_text_draw_centered("main_strings.50.21", 32, 56, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));  // Priority
+    lang_text_draw("main_strings.50.22", 172, 56, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Sector
+    lang_text_draw_centered("main_strings.50.23", 383, 56, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Need
+    lang_text_draw_centered("main_strings.50.24", 483, 56, 100, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Have
 
     // xx employed, yy unemployed
     int width = text_draw_number(city_labor_workers_employed(), '@', " ", 32, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    width += lang_text_draw(50, 12, 32 + width, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    width += lang_text_draw("main_strings.50.12", 32 + width, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     width += text_draw_number(city_labor_workers_unemployed(), '@', " ", 50 + width, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    width += lang_text_draw(50, 13, 50 + width, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    width += lang_text_draw("main_strings.50.13", 50 + width, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number(city_labor_unemployment_percentage(), '@', "%)", 50 + width, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     // wages panel
     inner_panel_draw(64, 350, 32, 2);
-    lang_text_draw(50, 14, 70, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw("main_strings.50.14", 70, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     width = text_draw_number(city_labor_wages(), '@', " ", 230, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-    width += lang_text_draw(50, 15, 230 + width, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    width += lang_text_draw(50, 18, 230 + width, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    width += lang_text_draw("main_strings.50.15", 230 + width, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    width += lang_text_draw("main_strings.50.18", 230 + width, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number(city_labor_wages_rome(), '@', " )", 230 + width, 359, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     // estimated wages
-    width = lang_text_draw(50, 19, 64, 390, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    width = lang_text_draw("main_strings.50.19", 64, 390, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_money(city_finance_estimated_wages(), 64 + width, 390, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     return ADVISOR_HEIGHT;
@@ -86,10 +86,10 @@ static void draw_foreground(void)
         button_border_draw(40, 77 + 25 * i, 560, 22, focus);
         const labor_category_data *cat = city_labor_category(i);
         if (cat->priority) {
-            image_draw(image_group(GROUP_LABOR_PRIORITY_LOCK), 70, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(Image::group(GROUP_LABOR_PRIORITY_LOCK)).draw(70, y_offset - 2);
             text_draw_number(cat->priority, '@', " ", 90, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         }
-        lang_text_draw(50, i + 1, 170, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw(current_string_key(50, i + 1), 170, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         text_draw_number(cat->workers_needed, '@', " ", 410, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         font_t font = FONT_NORMAL_WHITE;
         if (cat->workers_needed != cat->workers_allocated) {

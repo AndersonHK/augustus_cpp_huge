@@ -3,6 +3,7 @@
 #include "core/buffer.h"
 #include "figure/type.h"
 
+
 /**
  * @file
  * Figure name generation
@@ -32,3 +33,4 @@ void figure_name_save_state(buffer *buf);
  * @param buf Buffer to load from
  */
 void figure_name_load_state(buffer *buf);
+

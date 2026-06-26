@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<religion>
+    <god path="mercury" />
+    <tier value="grand" />
+    <capacity amount="5000" />
+    <presentation sound="wavs/temple_comm.wav" name_key="TR_BUILDING_GRAND_TEMPLE_MERCURY_DESC" bonus_key="TR_BUILDING_GRAND_TEMPLE_MERCURY_BONUS_DESC" quote_key="TR_BUILDING_MERCURY_TEMPLE_QUOTE" banner_group="UI\Merc_L_Banner" banner_image="Merc L Banner" content_y_offset="0" height_blocks="40" module_key="mercury" />
+</religion>

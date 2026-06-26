@@ -1,19 +1,21 @@
+#
+
+#include "building/building_record.h"
 #include "building/housing_type_registry.h"
 
 #include "core/crash_context.h"
 #include "core/xml_value.h"
 #include "building/water_access_type.h"
+#include "game/mod_manager.h"
 
-extern "C" {
-#include "core/dir.h"
 #include "core/file.h"
+#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
-}
 
 #include <cstdio>
 #include <cstring>
+#include <algorithm>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -36,35 +38,9 @@ struct ParseState {
     int error = 0;
 };
 
-struct LegacyHouseTextId {
-    const char *text_id;
-    int level;
-};
-
-const LegacyHouseTextId LEGACY_HOUSE_TEXT_IDS[] = {
-    {"house_small_tent", HOUSE_SMALL_TENT},
-    {"house_large_tent", HOUSE_LARGE_TENT},
-    {"house_small_shack", HOUSE_SMALL_SHACK},
-    {"house_large_shack", HOUSE_LARGE_SHACK},
-    {"house_small_hovel", HOUSE_SMALL_HOVEL},
-    {"house_large_hovel", HOUSE_LARGE_HOVEL},
-    {"house_small_casa", HOUSE_SMALL_CASA},
-    {"house_large_casa", HOUSE_LARGE_CASA},
-    {"house_small_insula", HOUSE_SMALL_INSULA},
-    {"house_medium_insula", HOUSE_MEDIUM_INSULA},
-    {"house_large_insula", HOUSE_LARGE_INSULA},
-    {"house_grand_insula", HOUSE_GRAND_INSULA},
-    {"house_small_villa", HOUSE_SMALL_VILLA},
-    {"house_medium_villa", HOUSE_MEDIUM_VILLA},
-    {"house_large_villa", HOUSE_LARGE_VILLA},
-    {"house_grand_villa", HOUSE_GRAND_VILLA},
-    {"house_small_palace", HOUSE_SMALL_PALACE},
-    {"house_medium_palace", HOUSE_MEDIUM_PALACE},
-    {"house_large_palace", HOUSE_LARGE_PALACE},
-    {"house_luxury_palace", HOUSE_LUXURY_PALACE}
-};
-
 std::unordered_map<std::string, std::unique_ptr<HousingType>> g_housing_types;
+std::unordered_map<int, const HousingType *> g_housing_types_by_level;
+std::vector<int> g_housing_levels;
 ParseState g_parse_state;
 
 int compare_text(const char *left, const char *right)
@@ -226,6 +202,11 @@ int parse_root()
         g_parse_state.error = 1;
         return 0;
     }
+    if (!xml_parser_has_attribute("level")) {
+        log_error("HousingType xml is missing required attribute 'level'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
 
     std::string path = normalize_definition_path(xml_parser_get_attribute_string("type"));
     if (path.empty()) {
@@ -233,7 +214,15 @@ int parse_root()
         g_parse_state.error = 1;
         return 0;
     }
+
+    int level = -1;
+    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("level"), &level) || level < 0) {
+        log_error("Unsupported HousingType level", xml_parser_get_attribute_string("level"), 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
     g_parse_state.definition = std::make_unique<HousingType>(std::move(path));
+    g_parse_state.definition->set_level(level);
     return 1;
 }
 
@@ -415,7 +404,16 @@ int parse_definition_file(const char *filename, const char *definition_path)
         error_context_report_error("Duplicate HousingType definition path.", filename);
         return 0;
     }
+    const int level = g_parse_state.definition->level();
+    if (g_housing_types_by_level.find(level) != g_housing_types_by_level.end()) {
+        log_error("Duplicate HousingType level", key.c_str(), level);
+        error_context_report_error("Duplicate HousingType level.", filename);
+        return 0;
+    }
 
+    HousingType *definition = g_parse_state.definition.get();
+    g_housing_types_by_level.emplace(level, definition);
+    g_housing_levels.push_back(level);
     g_housing_types.emplace(key, std::move(g_parse_state.definition));
     return 1;
 }
@@ -439,44 +437,44 @@ const HousingType *find_housing_type_definition(const char *path)
     return found != g_housing_types.end() ? found->second.get() : nullptr;
 }
 
-int housing_type_legacy_level_for_text_id(const char *text_id, int *out_level)
+const HousingType *find_housing_type_definition_for_building_path(const char *path)
 {
-    const std::string base = compatibility_base_text_id(text_id);
-    for (const LegacyHouseTextId &entry : LEGACY_HOUSE_TEXT_IDS) {
-        if (base == entry.text_id) {
-            if (out_level) {
-                *out_level = entry.level;
-            }
-            return 1;
-        }
-    }
-    return 0;
+    const std::string base = compatibility_base_text_id(path);
+    return find_housing_type_definition(base.c_str());
 }
 
-const char *housing_type_text_id_for_legacy_level(int level)
+const HousingType *find_housing_type_definition_for_level(int level)
 {
-    for (const LegacyHouseTextId &entry : LEGACY_HOUSE_TEXT_IDS) {
-        if (entry.level == level) {
-            return entry.text_id;
-        }
-    }
-    return nullptr;
+    const auto found = g_housing_types_by_level.find(level);
+    return found != g_housing_types_by_level.end() ? found->second : nullptr;
+}
+
+int housing_type_level_count()
+{
+    return static_cast<int>(g_housing_levels.size());
+}
+
+int housing_type_level_at(int index)
+{
+    return index >= 0 && index < static_cast<int>(g_housing_levels.size()) ? g_housing_levels[index] : -1;
 }
 
 } // namespace building_type_registry_impl
 
-extern "C" const char *housing_type_registry_get_housing_type_path(void)
+const char *housing_type_registry_get_housing_type_path(void)
 {
-    building_type_registry_impl::g_housing_type_path = std::string(mod_manager_get_mod_path()) + "HousingType/";
+    building_type_registry_impl::g_housing_type_path = mod_manager::mod_path() + "HousingType/";
     return building_type_registry_impl::g_housing_type_path.c_str();
 }
 
-extern "C" int housing_type_registry_load(void)
+int housing_type_registry_load(void)
 {
     using namespace building_type_registry_impl;
 
     housing_type_registry_get_housing_type_path();
     g_housing_types.clear();
+    g_housing_types_by_level.clear();
+    g_housing_levels.clear();
 
     const dir_listing *files = dir_find_files_with_extension(g_housing_type_path.c_str(), "xml");
     if (!files || files->num_files <= 0) {
@@ -496,10 +494,6 @@ extern "C" int housing_type_registry_load(void)
         }
     }
 
+    std::sort(g_housing_levels.begin(), g_housing_levels.end());
     return 1;
-}
-
-extern "C" int housing_type_registry_text_id_has_legacy_house_level(const char *text_id)
-{
-    return building_type_registry_impl::housing_type_legacy_level_for_text_id(text_id, nullptr);
 }

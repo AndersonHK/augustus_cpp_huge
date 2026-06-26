@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="gladiator_school">
-    <identity name_key="building.gladiator_school.name" />
+    <identity name_key="main_strings.28.34" />
     <model size="3" cost="75" />
     <desirability>
         <value value="-3" />
@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="40" icon="Health_Culture\Gladiator_School" icon_image="Image_0000" text_key="building.gladiator_school.name" />
+  <button group="entertainment" order="80" icon="Health_Culture\Gladiator_School" icon_image="Image_0000" text_key="main_strings.28.34" />
     <sound id="gladiator_school" mute_on_enemies="true" />
     <event_data attr="gladiator_school" />
     <graphics>

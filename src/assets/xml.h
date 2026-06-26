@@ -1,15 +1,11 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     XML_ASSET_SOURCE_AUTO = 0,
     XML_ASSET_SOURCE_MOD = 1,
-    XML_ASSET_SOURCE_ROOT = 2,
-    XML_ASSET_SOURCE_AUGUSTUS = 3,
-    XML_ASSET_SOURCE_JULIUS = 4
+    XML_ASSET_SOURCE_AUGUSTUS = 2,
+    XML_ASSET_SOURCE_JULIUS = 3
 } xml_asset_source;
 
 void xml_init(void);
@@ -23,7 +19,4 @@ int xml_resolve_group_image_path(char *full_path, const char *group_name, xml_as
 void xml_get_full_image_path(char *full_path, const char *image_file_name);
 void xml_get_full_group_image_path(char *full_path, const char *group_name);
 
-#ifdef __cplusplus
-}
-#endif
 

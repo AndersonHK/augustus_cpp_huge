@@ -3,12 +3,13 @@
 #include "city/constants.h"
 #include "game/resource.h"
 
+
 #define FOOD_PER_SOLDIER_MONTHLY 4
 #define FOOD_PER_LAND_ROUTE_MONTHLY 30
 
 typedef struct {
     unsigned int size;
-    resource_type items[RESOURCE_MAX];
+    resource_type items[RESOURCE_SLOT_COUNT];
 } resource_list;
 
 typedef enum {
@@ -80,3 +81,4 @@ resource_type city_resource_ceres_temple_food(void);
 void city_resource_calculate_food_stocks_and_supply_wheat(void);
 
 void city_resource_consume_food(void);
+

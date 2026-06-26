@@ -1,5 +1,6 @@
 #pragma once
 
+
 enum {
     OVERLAY_NONE = 0,
     OVERLAY_WATER = 2,
@@ -87,3 +88,4 @@ void game_state_reset_overlay(void);
 void game_state_toggle_overlay(void);
 
 void game_state_set_overlay(int overlay);
+

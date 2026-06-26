@@ -1,5 +1,6 @@
 #pragma once
 
+
 /**
  * Clears city/scenario memory not applicable to editing scenarios
  */
@@ -24,3 +25,4 @@ int game_file_editor_load_scenario(const char *scenario_file);
  * @return Boolean true on success, false on failure
  */
 int game_file_editor_write_scenario(const char *scenario_file);
+

@@ -1,25 +1,25 @@
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+
 #include "rich_text.h"
 #include "font_vector_runtime.h"
 #include "text_runtime_internal.h"
+#include "game/campaign.h"
+#include "graphics/window.h"
 
-extern "C" {
+#include "core/file.h"
 #include "assets/assets.h"
 #include "core/calc.h"
 #include "core/encoding.h"
-#include "core/file.h"
 #include "core/image.h"
 #include "core/image_group.h"
 #include "core/locale.h"
 #include "core/string.h"
-#include "game/campaign.h"
-#include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/scrollbar.h"
-#include "graphics/window.h"
 #include "graphics/screen.h"
-}
+
 
 #include <stdlib.h>
 #include <string.h>
@@ -522,7 +522,7 @@ static void draw_line(const uint8_t *str, const font_definition *font, int x, in
                 const image *img = image_letter(letter_id);
                 if (!measure_only) {
                     int height = def->image_y_offset(*str, img->height + img->y_offset, def->line_height);
-                    image_draw_letter(def->font, letter_id, x, y - height, color, SCALE_NONE);
+                    Image::letter(letter_id).draw_letter(def->font, x, y - height, color, SCALE_NONE);
                 }
                 x += img->original.width + def->letter_spacing;
             }
@@ -681,7 +681,7 @@ int rich_text_parse_image_id(const uint8_t **position, int default_image_group, 
                     }
                 }
             }
-            image_id += image_group(custom_group) - 1;
+            image_id += Image::group(custom_group) - 1;
         }
     }
     *position = cursor;
@@ -884,11 +884,9 @@ static int draw_text(const uint8_t *text, int x_offset, int y_offset,
                     int image_offset_x = x_offset + (box_width - img->original.width) / 2 - 4;
                     if (line < height_lines + scrollbar.scroll_position) {
                         if (line >= scrollbar.scroll_position) {
-                            image_draw(image_id, image_offset_x, y + 8, COLOR_MASK_NONE, SCALE_NONE);
+                            Image::from_id(image_id).draw(image_offset_x, y + 8);
                         } else {
-                            image_draw(image_id, image_offset_x,
-                                y + 8 - data.line_height * (scrollbar.scroll_position - line),
-                                COLOR_MASK_NONE, SCALE_NONE);
+                            Image::from_id(image_id).draw(image_offset_x, y + 8 - data.line_height * (scrollbar.scroll_position - line));
                         }
                     }
                     image_id = 0;

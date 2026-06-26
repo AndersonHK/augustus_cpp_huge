@@ -9,9 +9,11 @@
         <range value="6" />
     </desirability>
     <foundation policy="land" />
-    <button group="industry" order="30" icon="Admin_Logistics\Market" text_key="main_strings.28.70" />
+  <button group="industry" order="300" icon="Admin_Logistics\Market" text_key="main_strings.28.70" />
     <sound id="market" />
     <event_data attr="market" />
+    <market max_distance="40" max_food_stock="600" />
+    <distribution path="market" />
     <graphics>
         <default>
             <path value="Admin_Logistics\Market" />
@@ -27,6 +29,7 @@
         <employees count="5" />
         <labor_seeker>
             <method value="houses_spawn_if_below" />
+            <amount value="50" />
         </labor_seeker>
     </labor>
 </building>

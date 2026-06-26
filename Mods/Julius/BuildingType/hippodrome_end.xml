@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="hippodrome_end">
+    <identity name_key="main_strings.28.32" />
+    <model size="5" />
+    <foundation policy="land" />
+    <event_data attr="hippodrome_end" />
+    <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <options selection="build_rotation">
+                <option path="Health_Culture\Hippodrome_2" image="Image_0004" />
+                <option path="Health_Culture\Hippodrome_1" image="Image_0000" />
+                <option path="Health_Culture\Hippodrome_2" image="Image_0000" />
+                <option path="Health_Culture\Hippodrome_1" image="Image_0004" />
+            </options>
+        </default>
+    </graphics>
+</building>

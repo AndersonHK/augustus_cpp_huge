@@ -1,24 +1,25 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "translation/translation.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_list.h"
+
 #include "edit_request.h"
+
+#include "window/editor/map.h"
 
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-#include "window/plain_message_dialog.h"
-#include "window/select_list.h"
-}
 
 enum {
     AMOUNT_MIN = 0,
@@ -64,7 +65,7 @@ static struct {
     unsigned int bottom_button_focus_id;
     int is_new_request;
     int repeat_type;
-    resource_type avaialble_resources[RESOURCE_MAX];
+    resource_type avaialble_resources[RESOURCE_SLOT_COUNT];
     int section_title_width;
     const uint8_t *errors[MAX_POSSIBLE_ERRORS];
 } data;
@@ -99,23 +100,24 @@ static const struct {
     translation_key title;
     int height;
 } sections[] = {
-    {TR_EDITOR_REQUEST_DATE, 34 },
-    {TR_EDITOR_REQUEST_RESOURCE, 34 },
-    {TR_EDITOR_REQUEST_AMOUNT, 34 },
-    {TR_EDITOR_REQUEST_DEADLINE, 34 },
-    {TR_EDITOR_FAVOUR_EXTENSION_MONTHS, 34 },
-    {TR_EDITOR_REQUEST_FAVOR_GAINED, 34 },
-    {TR_EDITOR_FAVOUR_DISFAVOR, 34 },
-    {TR_EDITOR_FAVOUR_IGNORED, 34 },
-    {TR_EDITOR_REPEAT, 90 },
-    {TR_EDITOR_REPEAT_FREQUENCY, 34 }
+    {"TR_EDITOR_REQUEST_DATE", 34 },
+    {"TR_EDITOR_REQUEST_RESOURCE", 34 },
+    {"TR_EDITOR_REQUEST_AMOUNT", 34 },
+    {"TR_EDITOR_REQUEST_DEADLINE", 34 },
+    {"TR_EDITOR_FAVOUR_EXTENSION_MONTHS", 34 },
+    {"TR_EDITOR_REQUEST_FAVOR_GAINED", 34 },
+    {"TR_EDITOR_FAVOUR_DISFAVOR", 34 },
+    {"TR_EDITOR_FAVOUR_IGNORED", 34 },
+    {"TR_EDITOR_REPEAT", 90 },
+    {"TR_EDITOR_REPEAT_FREQUENCY", 34 }
 };
 
 static int get_largest_section_title_width(void)
 {
     int largest_width = 0;
     for (size_t i = 0; i < NUMBER_OF_SECTIONS; i++) {
-        int width = lang_text_get_width(CUSTOM_TRANSLATION, sections[i].title, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        int width = lang_text_get_width(
+            sections[i].title, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (width > largest_width) {
             largest_width = width;
         }
@@ -162,13 +164,13 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, BASE_Y_OFFSET, 40, 30);
-    lang_text_draw_centered(44, 21, 14, BASE_Y_OFFSET + 14, 580, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.44.21", 14, BASE_Y_OFFSET + 14, 580, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     int y_offset = BASE_Y_OFFSET + 52;
 
     // Section names
     for (size_t i = 0; i < NUMBER_OF_SECTIONS; i++) {
-        lang_text_draw_right_aligned(CUSTOM_TRANSLATION, sections[i].title, 26, y_offset + 3,
+        lang_text_draw_right_aligned(sections[i].title, 26, y_offset + 3,
             data.section_title_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         y_offset += sections[i].height;
     }
@@ -191,22 +193,21 @@ static void draw_background(void)
 
     // Amount
     btn = &request_buttons[2];
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, x_offset, BASE_Y_OFFSET + btn->y + 9,
+    lang_text_draw("TR_EDITOR_BETWEEN", x_offset, BASE_Y_OFFSET + btn->y + 9,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number_centered(data.request.amount.min, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_AND, x_offset + btn->x + btn->width,
+    lang_text_draw_centered("TR_EDITOR_AND", x_offset + btn->x + btn->width,
         BASE_Y_OFFSET + btn->y + 9, btn[1].x - (btn->x + btn->width), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     btn = &request_buttons[3];
     text_draw_number_centered(data.request.amount.max, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_UNITS, x_offset + btn->x + btn->width + 10,
+    lang_text_draw("TR_EDITOR_UNITS", x_offset + btn->x + btn->width + 10,
         BASE_Y_OFFSET + btn->y + 9, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Deadline
     btn = &request_buttons[4];
-    lang_text_draw_amount_centered(8, 8, data.request.deadline_years, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
-        btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_amount_centered(current_string_amount_key(8, 8, data.request.deadline_years), data.request.deadline_years, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Extension months
     btn = &request_buttons[5];
@@ -234,23 +235,23 @@ static void draw_background(void)
 
     // Never repeat
     btn = &request_buttons[9];
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_DO_NOT_REPEAT, x_offset + btn->x + 30,
+    lang_text_draw("TR_EDITOR_DO_NOT_REPEAT", x_offset + btn->x + 30,
         BASE_Y_OFFSET + btn->y + 5, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat forever
     btn = &request_buttons[10];
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FOREVER, x_offset + btn->x + 30,
+    lang_text_draw("TR_EDITOR_REPEAT_FOREVER", x_offset + btn->x + 30,
         BASE_Y_OFFSET + btn->y + 5, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat N times
     btn = &request_buttons[12];
     if (data.request.repeat.times == 0 || data.request.repeat.times > 2) {
-        text_draw_label_and_number_centered(lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TEXT),
+        text_draw_label_and_number_centered(lang_get_string("TR_EDITOR_REPEAT_TEXT"),
             data.request.repeat.times,
-            (const char *) lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES),
+            (const char *) lang_get_string("TR_EDITOR_REPEAT_TIMES"),
             x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_ONCE + data.request.repeat.times - 1,
+        lang_text_draw_centered(data.request.repeat.times == 1 ? "TR_EDITOR_REPEAT_ONCE" : "TR_EDITOR_REPEAT_TWICE",
             x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
@@ -259,26 +260,24 @@ static void draw_background(void)
     color_t enabled_color = data.repeat_type == REQUEST_REPEAT_NEVER ? COLOR_FONT_LIGHT_GRAY : COLOR_MASK_NONE;
 
     btn = &request_buttons[13];
-    lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, x_offset, BASE_Y_OFFSET + btn->y + 9,
+    lang_text_draw_colored("TR_EDITOR_BETWEEN", x_offset, BASE_Y_OFFSET + btn->y + 9,
         enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     text_draw_number_centered_colored(data.request.repeat.interval.min, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
         btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
-    lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_AND, x_offset + btn->x + btn->width,
+    lang_text_draw_centered_colored("TR_EDITOR_AND", x_offset + btn->x + btn->width,
         BASE_Y_OFFSET + btn->y + 9, btn[1].x - (btn->x + btn->width), enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     btn = &request_buttons[14];
     text_draw_number_centered_colored(data.request.repeat.interval.max, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 7,
         btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
-    lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY_YEARS, x_offset + btn->x + btn->width + 10,
+    lang_text_draw_colored("TR_EDITOR_REPEAT_FREQUENCY_YEARS", x_offset + btn->x + btn->width + 10,
         BASE_Y_OFFSET + btn->y + 9, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
 
     // Bottom button labels
-    lang_text_draw_centered_colored(44, 25, bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 7,
-        bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_request ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_CANCEL, bottom_buttons[1].x,
+    lang_text_draw_centered_colored("main_strings.44.25", bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 7, bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_request ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
+    lang_text_draw_centered("TR_BUTTON_CANCEL", bottom_buttons[1].x,
         BASE_Y_OFFSET + bottom_buttons[1].y + 7, bottom_buttons[1].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(18, 3, bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 7,
-        bottom_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.18.3", bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 7, bottom_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
@@ -369,7 +368,7 @@ static void button_amount(const generic_button *button)
 
     int max_amount = 999;
     int max_digits = 3;
-    if (data.request.resource == RESOURCE_DENARII) {
+    if (data.request.resource == resource_denarii()) {
         max_amount = 30000;
         max_digits = 5;
     }
@@ -380,7 +379,7 @@ static void button_amount(const generic_button *button)
 static void set_resource(int value)
 {
     data.request.resource = data.avaialble_resources[value];
-    if (data.request.resource != RESOURCE_DENARII) {
+    if (data.request.resource != resource_denarii()) {
         if (data.request.amount.min > 999) {
             data.request.amount.min = 999;
         }
@@ -392,12 +391,12 @@ static void set_resource(int value)
 
 static void button_resource(const generic_button *button)
 {
-    static const uint8_t *resource_texts[RESOURCE_MAX + RESOURCE_TOTAL_SPECIAL];
+    static const uint8_t *resource_texts[RESOURCE_SLOT_COUNT];
     static int total_resources = 0;
     if (!total_resources) {
-        for (int resource_id = RESOURCE_NONE; resource_id < RESOURCE_MAX + RESOURCE_TOTAL_SPECIAL; resource_id++) {
-            resource_type resource = static_cast<resource_type>(resource_id);
-            if ((!resource_is_storable(resource) && resource < RESOURCE_MAX) || resource == RESOURCE_TROOPS) {
+        for (int i = 0; i < resource_loaded_count(); i++) {
+            resource_type resource = resource_get_loaded(i);
+            if ((!resource_is_storable(resource) && !resource_is_special(resource)) || resource == resource_troops()) {
                 continue;
             }
             resource_texts[total_resources] = resource_get_data(resource)->text;
@@ -541,13 +540,13 @@ static unsigned int validate(void)
     }
 
     if (data.request.resource == RESOURCE_NONE) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_NO_RESOURCE);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_NO_RESOURCE");
     }
     if (data.request.amount.min <= 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_NO_AMOUNT);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_NO_AMOUNT");
     }
     if (data.request.deadline_years == 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_SET_DEADLINE);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_SET_DEADLINE");
     }
 
     return num_errors;
@@ -557,7 +556,7 @@ static void button_save(const generic_button *button)
 {
     unsigned int num_errors = validate();
     if (num_errors) {
-        window_plain_message_dialog_show_text_list(TR_EDITOR_FORM_ERRORS_FOUND, TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS,
+        window_plain_message_dialog_show_text_list("TR_EDITOR_FORM_ERRORS_FOUND", "TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS",
             data.errors, num_errors);
         return;
     }

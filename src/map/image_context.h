@@ -1,5 +1,6 @@
 #pragma once
 
+
 typedef struct {
     int is_valid;
     int group_offset;
@@ -20,3 +21,4 @@ const terrain_image *map_image_context_get_wall_gatehouse(int grid_offset);
 const terrain_image *map_image_context_get_dirt_road(int grid_offset);
 const terrain_image *map_image_context_get_paved_road(int grid_offset);
 const terrain_image *map_image_context_get_aqueduct(int grid_offset, int include_construction);
+

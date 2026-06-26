@@ -36,6 +36,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Main implementation notes live in:
   - `docs/walker_pathing_runtime.md`
   - `docs/water_access_runtime.md`
+  - `docs/resource_runtime.md`
   - `docs/_codex_building_graphics_runtime_working_memory.md`
   - `Mods/Vespasian/FigureType/_README.md`
   - `Mods/Vespasian/BuildingType/_README.md`
@@ -74,7 +75,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Julius and Augustus extraction are parallel problems with shared helper code, not one monolithic extractor:
   - Julius is stable and atlas-table driven.
   - Augustus is dynamic and packaged under the game folder `assets\Graphics`.
-  - Runtime extraction runs Julius first from `src/core/image.c` through `runtime_graphics_extraction_bootstrap_after_climate(...)`, then Augustus through `RuntimeGraphicsExtractionService`.
+  - Runtime extraction runs Julius first from `src/core/image.cpp` through `runtime_graphics_extraction_bootstrap_after_climate(...)`, then Augustus through `RuntimeGraphicsExtractionService`.
   - The standalone `AugustusGraphicsExtractor.exe` can run from the repo and accepts `--extract-julius-first`, `--game-root`, `--source-graphics`, `--output`, and `--julius-graphics`.
 - A clean generated Release stack should contain `Mods\Julius\Graphics` and `Mods\Augustus\Graphics`, but no `Mods\Vespasian\Graphics`.
 - Current clean sample extraction baseline:
@@ -85,9 +86,9 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - Julius footprint exports now trim bottom transparent padding and preserve logical placement through XML metadata
   - Augustus active building variants now inherit local `group="this"` footprint/top parts instead of collapsing to footprint-only
 - Julius `Aesthetics\House_Tent` intentionally exposes `Image_0000..Image_0005`; `Image_0001..Image_0005` are compatibility aliases into `Aesthetics\House_Tent_Variants`, because the legacy table splits those tent variants through unnamed group id 18.
-- Native building footprint rendering still routes through `src/widget/city_draw.cpp`, and native-owned buildings only submit their whole-building footprint on the owning draw tile.
+- Native building footprint/top/animation rendering now routes through `Building::draw_footprint(...)`, `draw_top(...)`, and `draw_animation(...)`; native-owned buildings only submit their whole-building footprint on the owning draw tile. `src/widget/city_draw.cpp` only keeps the tile runtime footprint bridge.
 - The temporary runtime footprint crop/offset compensation was removed from `src/assets/image_group_payload_materialize.cpp`; extractor output is now the sole source of truth for the corrected placement.
-- Native building animations now tick through `city_draw_runtime_building_animation()` -> `building_runtime_advance_graphic_animation()` -> `building_runtime::advance_graphic_animation()` -> `BuildingAnimation::runtime_track_offset()`. `graphic_animation()` only reads the selected frame slice.
+- Native building animations now tick through `Building::draw_animation(...)` -> `GraphicsDefinition::draw_animation(...)` -> `building_runtime::advance_graphic_animation()` -> `BuildingAnimation::runtime_track_offset()`. `graphic_animation()` only reads the selected frame slice.
 - Placement ghosts use the same generic BuildingType renderer for XML-owned buildings. They save/restore the map sprite animation byte because the ghost cursor reuses the hovered grid offset without owning real map state.
 
 ## Renderer / display status
@@ -151,7 +152,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 ## Critical startup failure doctrine now wired
 - `src/assets/assets.cpp`
   - retains startup failure reasons for critical asset load failures
-- `src/core/image.c`
+- `src/core/image.cpp`
   - propagates asset-init failure upward
 - `src/game/game.c`
   - retains a user-facing init failure message
@@ -164,10 +165,11 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Config / filter status
 - Config persistence now lives in `Vespasian.ini`, with legacy fallback reads from `augustus.ini`.
-- `CONFIG_UI_SCALE_FILTER` exists and currently supports:
+- `CONFIG_SCALE_FILTER` exists as `scale_filter` and currently supports:
   - auto
   - nearest
   - linear
+  - best
 - The setting is already respected by the request-based 2D pipeline and related SDL texture/filter handling.
 - `CONFIG_DEBUG` exists as `debug=0/1` in `Vespasian.ini`; it currently gates transient zoom percentage warnings.
 - City zoom start/reset/display bounds are UI-scale-relative while the stored city scale remains raw renderer/world scale.

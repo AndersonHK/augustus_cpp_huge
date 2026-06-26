@@ -1,215 +1,209 @@
 #pragma once
 
-#include "building/type.h"
-#include "core/buffer.h"
-#include "core/time.h"
+#include "building/building_fwd.h"
+#include "building/building_order.h"
+#include "building/storage_type.h"
+#include "building/building_type.h"
 #include "game/resource.h"
+
+#include "graphics/color.h"
+#include "map/point.h"
+
+#include <cstdint>
+#include <functional>
+#include <source_location>
+
+namespace building_type_registry_impl {
+class BuildingAnimation;
+}
+
+class building_runtime;
+
+class Building {
+    friend class building_runtime;
+    friend class building_type_registry_impl::BuildingAnimation;
+
+public:
+    class TypeRange {
+    public:
+        class iterator {
+        public:
+            explicit iterator(::building *record);
+            Building operator*() const;
+            iterator &operator++();
+            bool operator!=(const iterator &other) const;
+
+        private:
+            ::building *record_ = nullptr;
+        };
+
+        iterator begin() const;
+        iterator end() const;
+
+    private:
+        friend class Building;
+        explicit TypeRange(building_type type);
+
+        building_type type_ = BUILDING_NONE;
+    };
+
+    explicit Building(::building *record, const std::source_location &location = std::source_location::current());
+    explicit Building(::building &record, const std::source_location &location = std::source_location::current());
+    Building(::building *record, const building_type_registry_impl::BuildingType *type_definition,
+        const std::source_location &location = std::source_location::current());
+    Building(::building &record, const building_type_registry_impl::BuildingType *type_definition,
+        const std::source_location &location = std::source_location::current());
+
+    static TypeRange of_type(building_type type);
+    static Building first_of_type(building_type type);
+    static Building create(building_type type, int x, int y);
+    static int count();
+
+    unsigned int id() const;
+    const ::building *record() const;
+    Building main() const;
+    Building composition_owner() const;
+    Building next() const;
+    void for_each_part(const std::function<void(Building)> &visitor) const;
+    Building next_of_type() const;
+    const building_type_registry_impl::BuildingType *type = nullptr;
+    int matches(const char *text_id) const;
+    int grid_offset() const;
+    int x() const;
+    int y() const;
+    int size() const;
+    int previous_part_id() const;
+    int next_part_id() const;
+    int is_main_part() const;
+    int road_network_id() const;
+    int distance_from_entry() const;
+    void set_distance_from_entry(int value);
+    int road_access_x() const;
+    int road_access_y() const;
+    int state_id() const;
+    int formation_id() const;
+    void set_formation_id(int formation_id);
+    int is_deleted() const;
+    int is_in_use() const;
+    int is_mothballed() const;
+    int has_plague() const;
+    int has_cached_road_access() const;
+    int has_house_size() const;
+    int house_population() const;
+    void set_house_population(int value);
+    int house_population_room() const;
+    void set_house_population_room(int value);
+    unsigned int immigrant_figure_id() const;
+    void set_immigrant_figure_id(unsigned int id);
+    int house_figure_generation_delay() const;
+    building_runtime *runtime_instance() const;
+    building_type_registry_impl::BuildingAnimation animate();
+    int draw_footprint(const BuildingDrawContext &ctx);
+    int draw_top(const BuildingDrawContext &ctx);
+    int draw_animation(const BuildingDrawContext &ctx);
+    void refresh_graphic();
+    int refresh_graphic_if_native();
+    void assign_graphic_variant(int force_reseed);
+    void spawn_figure();
+    int worker_count() const;
+    int employment_worker_count() const;
+    int employment_required_workers() const;
+    float labor_access_score() const;
+    int has_required_workers() const;
+    int has_road_access(map_point *road) const;
+    int has_water_access() const;
+    int is_working() const;
+    int is_merged_house() const;
+    int has_primary_figure() const;
+    int has_secondary_figure() const;
+    int has_quaternary_figure() const;
+    unsigned int distribution_cartpusher_id(int index) const;
+    int resource_amount(resource_type resource) const;
+    void add_resource(resource_type resource, int amount);
+    void set_resource_amount(resource_type resource, int amount);
+    int add_storage_resource(
+        resource_type resource, int amount, building_type_registry_impl::StorageRole role);
+    int storage_resource_amount(resource_type resource, building_type_registry_impl::StorageRole role) const;
+    int input_storage_available_space(resource_type resource) const;
+    int reserve_input_storage_load(resource_type resource, unsigned int figure_id);
+    void release_input_storage_reservation(unsigned int figure_id);
+    int receive_input_storage_loads(resource_type resource, int loads, unsigned int figure_id);
+    int house_happiness() const;
+    void set_house_happiness(int value);
+    void set_fetch_inventory_id(resource_type resource);
+    int accepts_good(resource_type resource) const;
+    void set_accepted_good(resource_type resource, int value);
+    void toggle_accepted_good(resource_type resource);
+    void copy_accepted_goods(unsigned char *dst, int count) const;
+    void set_accepted_goods(const unsigned char *src, int count);
+    void set_primary_figure_id(unsigned int id);
+    void copy_house_figure_slot_from(const Building &source, unsigned int figure_id);
+    int max_distance_to(int x, int y) const;
+    int max_distance_to(const Building &other) const;
+    int orientation() const;
+    void set_orientation(int orientation);
+    int variant() const;
+    void set_variant(int variant);
+    int image_id() const;
+    void add_map_tiles(int image_id) const;
+    int storage_id() const;
+    void set_storage_id(int storage_id);
+    int blocked_storage_permission_mask() const;
+    int warehouse_flag_frame() const;
+    resource_type warehouse_resource_id() const;
+    void set_warehouse_resource_id(resource_type resource);
+    int loads_stored() const;
+    int industry_has_raw_materials() const;
+    int dock_has_accepted_route_ids() const;
+    int dock_accepted_route_ids() const;
+    int dock_trade_ship_id() const;
+    int dock_orientation() const;
+    int dock_idle_worker_count() const;
+    void set_has_water_access(int value);
+    void set_dock_accepted_route_ids(int has_route_ids, int route_ids);
+    const order &depot_order() const;
+    void set_depot_order(const order &value);
+    int industry_is_stockpiling() const;
+    int has_required_raw_amount_for_production(resource_type resource) const;
+    int has_native_production() const;
+    int native_production_has_raw_materials() const;
+    int native_production_max_progress() const;
+    int native_production_efficiency() const;
+    int update_native_production(int new_day, int *out_is_striking);
+    int native_production_has_completed_effect() const;
+    int output_cart_capacity(resource_type resource) const;
+    int reserve_output_storage_loads(resource_type *out_resource, int *out_loads);
+    int start_native_production();
+    void advance_native_production_stats();
+    void bless_native_farm();
+    void curse_native_farm(int big_curse);
+    void bless_native_industry();
+    void set_industry_stockpiling(int value);
+    void set_mothballed(int value);
+    void change_type(building_type type, const std::source_location &location = std::source_location::current());
+    int configure_house_replacement(building_type type, int x, int y, int size, int merged);
+    void copy_house_data_from(const Building &source);
+    void retire_replaced_house();
+    int is_being_fumigated() const;
+    int fumigation_frame() const;
+    void set_fumigation_direction(int direction);
+    int fort_figure_type() const;
+    int is_unfinished_monument() const;
+    int monument_upgrade_level() const;
+    int monument_phase() const;
+    int monument_secondary_frame() const;
+    int entertainment_days1() const;
+    int entertainment_days2() const;
+    int desirability() const;
+    std::uint64_t graphics_state_signature(int selected_graphics_option) const;
+
+private:
+    ::building *record_ = nullptr;
+};
+
+
+#include "core/buffer.h"
 #include "translation/translation.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef enum order_condition_type {
-    ORDER_CONDITION_NEVER = 0,
-    ORDER_CONDITION_ALWAYS,
-    ORDER_CONDITION_SOURCE_HAS_MORE_THAN,
-    ORDER_CONDITION_DESTINATION_HAS_LESS_THAN
-} order_condition_type;
-
-typedef struct order {
-    resource_type resource_type;
-    unsigned int src_storage_id; //this is actually building_id, not storage_id
-    unsigned int dst_storage_id; //this is actually building_id, not storage_id
-    struct {
-        order_condition_type condition_type;
-        int threshold;
-    } condition;
-} order;
-
-typedef struct building {
-    unsigned int id;
-
-    struct building *prev_of_type;
-    struct building *next_of_type;
-
-    time_millis last_update;
-
-    unsigned char state;
-    unsigned char faction_id;
-    unsigned char unknown_value;
-    unsigned char size;
-    unsigned char house_is_merged;
-    unsigned char house_size;
-    unsigned char x; //these are not grid coordinates but image coordinates
-    unsigned char y;
-    short grid_offset;
-    building_type type;
-    union {
-        short house_level;
-        short warehouse_resource_id;
-        short orientation; // rotation of the building, in number of turns. Used for statues, warehouses, etc.
-        short fort_figure_type;
-        short native_meeting_center_id;
-        short barracks_priority;
-    } subtype;
-    unsigned char road_network_id;
-    unsigned short created_sequence;
-    short houses_covered;
-    short percentage_houses_covered;
-    short house_population;
-    short local_workforce_assigned;
-    short local_workforce_unemployed;
-    short house_population_room;
-    short distance_from_entry;
-    short house_highest_population;
-    short house_unreachable_ticks;
-    unsigned char road_access_x;
-    unsigned char road_access_y;
-    unsigned int figure_id;
-    unsigned int figure_id2; // labor seeker or market supplier
-    unsigned int immigrant_figure_id;
-    unsigned int figure_id4; // tower ballista, burning ruin prefect, doctor healing plague
-    unsigned char figure_spawn_delay;
-    unsigned char local_workforce_validation_delay;
-    unsigned char days_since_offering;
-    unsigned char figure_roam_direction;
-    unsigned char has_water_access;
-    short prev_part_building_id;
-    short next_part_building_id;
-    unsigned char house_sentiment_message;
-    unsigned char has_well_access;
-    short num_workers;
-    unsigned char labor_category;
-    unsigned char output_resource_id;
-    unsigned char has_road_access;
-    unsigned char house_criminal_active;
-    short damage_risk;
-    short fire_risk;
-    short fire_duration;
-    unsigned char fire_proof; // cannot catch fire or collapse
-    unsigned char house_figure_generation_delay;
-    unsigned char house_tax_coverage;
-    unsigned char house_pantheon_access;
-    short formation_id;
-    signed char monthly_levy;
-    struct {
-        struct {
-            short queued_docker_id;
-            unsigned char num_ships;
-            signed char orientation;
-            short trade_ship_id;
-            unsigned char has_accepted_route_ids;
-            int accepted_route_ids;
-        } dock;
-        struct {
-            unsigned int cartpusher_ids[3]; //changed from short to match f->id
-        } distribution;
-        struct {
-            unsigned char fetch_inventory_id;
-            unsigned char is_mess_hall;
-        } market;
-        struct {
-            short progress;
-            unsigned char blessing_days_left;
-            unsigned char curse_days_left;
-            unsigned char has_raw_materials;
-            unsigned char has_fish;
-            unsigned char is_stockpiling;
-            unsigned char orientation;
-            unsigned int fishing_boat_id; // in line with f->id
-            unsigned char age_months;
-            unsigned char average_production_per_month;
-            short production_current_month;
-        } industry;
-        struct {
-            unsigned char num_shows;
-            unsigned char days1;
-            unsigned char days2;
-            unsigned char play;
-        } entertainment;
-        struct {
-            unsigned char theater;
-            unsigned char amphitheater_actor;
-            unsigned char amphitheater_gladiator;
-            unsigned char colosseum_gladiator;
-            unsigned char colosseum_lion;
-            unsigned char hippodrome;
-            unsigned char school;
-            unsigned char library;
-            unsigned char academy;
-            unsigned char barber;
-            unsigned char clinic;
-            unsigned char bathhouse;
-            unsigned char hospital;
-            unsigned char temple_ceres;
-            unsigned char temple_neptune;
-            unsigned char temple_mercury;
-            unsigned char temple_mars;
-            unsigned char temple_venus;
-            unsigned char no_space_to_expand;
-            unsigned char num_foods;
-            unsigned char entertainment;
-            unsigned char education;
-            unsigned char health;
-            unsigned char num_gods;
-            unsigned char devolve_delay;
-            unsigned char evolve_text_id;
-        } house;
-        struct {
-            unsigned short og_type;
-            unsigned short og_grid_offset;
-            unsigned char og_size;
-            unsigned char og_orientation;
-        } rubble;
-        struct {
-            unsigned short exceptions;
-        } roadblock;
-        struct {
-            short flag_frame;
-        } warehouse;
-        struct {
-            order current_order;
-        } depot;
-    } data;
-    struct {
-        int upgrades;
-        short progress;
-        short phase;
-        short secondary_frame;
-    } monument;
-    int tax_income_or_storage;
-    unsigned char house_days_without_food;
-    unsigned char has_plague;
-    signed char desirability;
-    unsigned char is_deleted;
-    unsigned char is_close_to_water;
-    unsigned char storage_id; //player-visible ID of the storage building, e.g. Granary 7, Warehouse 33
-    union {
-        signed char house_happiness;
-        signed char native_anger;
-    } sentiment;
-    unsigned char show_on_problem_overlay;
-    unsigned char house_tavern_wine_access;
-    unsigned char house_tavern_food_access;
-    unsigned char house_arena_gladiator;
-    unsigned char house_arena_lion;
-    unsigned char is_tourism_venue;
-    unsigned char tourism_disabled;
-    unsigned char tourism_income;
-    unsigned char tourism_income_this_year;
-    unsigned char variant;
-    unsigned char upgrade_level;
-    unsigned char strike_duration_days;
-    unsigned char sickness_level;
-    unsigned char sickness_duration;
-    unsigned char sickness_doctor_cure;
-    unsigned char fumigation_frame;
-    unsigned char fumigation_direction;
-    unsigned char has_latrines_access;
-    short resources[RESOURCE_MAX];
-    unsigned char accepted_goods[RESOURCE_MAX];
-} building;
 
 building *building_get(unsigned int id);
 
@@ -317,6 +311,8 @@ void building_save_state(buffer *buf, buffer *highest_id, buffer *highest_id_eve
 
 void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, int save_version);
 
-#ifdef __cplusplus
-}
-#endif
+void building_repair_loaded_compositions(void);
+
+void building_resource_state_save(buffer *buf);
+
+void building_resource_state_load(buffer *buf);

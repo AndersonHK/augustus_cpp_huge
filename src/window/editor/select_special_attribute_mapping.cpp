@@ -1,21 +1,23 @@
-extern "C" {
-#include "select_special_attribute_mapping.h"
-
-#include "core/lang.h"
-#include "core/string.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "scenario/event/parameter_data.h"
+#include "window/numeric_input.h"
+
+#include "select_special_attribute_mapping.h"
+
+#include "building/building_type_startup_bridge.h"
+#include "window/editor/map.h"
+
+#include "building/building_type_api.h"
+#include "core/string.h"
+#include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "scenario/event/parameter_data.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-}
 
 #define MAX_BUTTONS 13
 #define BUTTON_LEFT_PADDING 32
@@ -59,6 +61,17 @@ static struct {
     special_attribute_mapping_t *list[MAX_VISIBLE_ROWS];
 } data;
 
+static building_type runtime_type(const char *text_id)
+{
+    return text_id ? building_type_startup_bridge_runtime_id_from_text(text_id) : BUILDING_NONE;
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
 static void populate_list(int offset)
 {
     if (data.list_size - offset < MAX_VISIBLE_ROWS) {
@@ -77,14 +90,14 @@ static void populate_list(int offset)
 
 static const uint8_t *get_allowed_building_name(building_type type)
 {
-    if (type == BUILDING_HOUSE_VACANT_LOT) {
-        return lang_get_string(68, 20);
+    if (type == building_type_registry_get_vacant_lot_fill_type()) {
+        return lang_get_string("main_strings.68.20");
     }
-    if (type == BUILDING_CLEAR_LAND) {
-        return lang_get_string(68, 21);
+    if (type_matches(type, "clear_land")) {
+        return lang_get_string("main_strings.68.21");
     }
-    if (type == BUILDING_REPAIR_LAND) {
-        return lang_get_string(CUSTOM_TRANSLATION, TR_BUILDING_LAND_REPAIR);
+    if (type_matches(type, "repair_land")) {
+        return lang_get_string("TR_BUILDING_LAND_REPAIR");
     }
     return lang_get_building_type_string(type);
 }
@@ -95,14 +108,14 @@ static const uint8_t *get_display_string(special_attribute_mapping_t *entry)
         case PARAMETER_TYPE_BUILDING:
         case PARAMETER_TYPE_BUILDING_COUNTING:
         case PARAMETER_TYPE_MODEL:
-            if (entry->key == TR_PARAMETER_VALUE_DYNAMIC_RESOLVE) {
+            if (entry->key == "TR_PARAMETER_VALUE_DYNAMIC_RESOLVE") {
                 return lang_get_building_type_string(static_cast<building_type>(entry->value));
             } else {
                 return translation_for(entry->key);
             }
             break;
         case PARAMETER_TYPE_ALLOWED_BUILDING:
-            if (entry->key == TR_PARAMETER_VALUE_DYNAMIC_RESOLVE) {
+            if (entry->key == "TR_PARAMETER_VALUE_DYNAMIC_RESOLVE") {
                 return get_allowed_building_name(static_cast<building_type>(entry->value));
             } else {
                 return translation_for(entry->key);
@@ -173,7 +186,7 @@ static void draw_foreground(void)
         y_offset += DETAILS_ROW_HEIGHT;
     }
 
-    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();

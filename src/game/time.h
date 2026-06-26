@@ -2,9 +2,6 @@
 
 #include "core/buffer.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * @file
@@ -94,6 +91,3 @@ void game_time_load_state(buffer *buf);
 
 void game_time_load_basic_info(buffer *buf, int *month, int *year);
 
-#ifdef __cplusplus
-}
-#endif

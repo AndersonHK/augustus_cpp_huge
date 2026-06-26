@@ -1,23 +1,23 @@
-extern "C" {
-#include "message.h"
-
 #include "city/warning.h"
+#include "translation/translation.h"
+#include "message.h"
+#include "window/message_dialog.h"
+
+#include "core/file.h"
+#include "game/settings.h"
+
 #include "core/config.h"
 #include "core/encoding.h"
-#include "core/file.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "core/time.h"
 #include "figure/formation.h"
 #include "game/resource.h"
-#include "game/settings.h"
+#include "game/resource_id_bridge.h"
 #include "game/time.h"
 #include "graphics/window.h"
 #include "scenario/request.h"
+#include "scenario/custom_messages.h"
 #include "sound/effect.h"
-#include "translation/translation.h"
-#include "window/message_dialog.h"
-}
 
 #define MAX_MESSAGES 1000
 #define MAX_QUEUE 20
@@ -59,65 +59,54 @@ static struct {
 
 static int should_play_sound = 1;
 
-static int is_empty_text(const uint8_t *text)
-{
-    return !text || !text[0];
-}
-
 static const lang_message *message_for_type(city_message_type message_type)
 {
     return lang_get_message(city_message_get_text_id(message_type));
 }
 
-static int is_blessing_message(city_message_type message_type)
+static const lang_message *custom_message_for_id(int custom_message_id)
 {
-    switch (message_type) {
-        case MESSAGE_BLESSING_FROM_CERES:
-        case MESSAGE_BLESSING_FROM_NEPTUNE:
-        case MESSAGE_BLESSING_FROM_MERCURY:
-        case MESSAGE_BLESSING_FROM_MARS:
-        case MESSAGE_BLESSING_FROM_VENUS:
-        case MESSAGE_BLESSING_FROM_MERCURY_ALTERNATE:
-        case MESSAGE_BLESSING_FROM_NEPTUNE_ALTERNATE:
-        case MESSAGE_BLESSING_FROM_VENUS_ALTERNATE:
-            return 1;
-        default:
-            return 0;
+    static lang_message message = {};
+    message = {};
+    message.type = TYPE_MESSAGE;
+    message.message_type = MESSAGE_TYPE_CUSTOM;
+    message.x = 0;
+    message.y = 64;
+    message.width_blocks = 40;
+    message.height_blocks = 30;
+    message.title.x = 0;
+    message.title.y = 0;
+    message.subtitle.x = 16;
+    message.subtitle.y = 48;
+    message.urgent = 0;
+
+    custom_message_t *custom_message = custom_messages_get(custom_message_id);
+    if (!custom_message) {
+        message.title.text = translation_for_key("TR_ACTION_TYPE_A_MESSAGE");
+        return &message;
     }
+
+    message.title.text = custom_messages_get_title(custom_message);
+    message.subtitle.text = custom_messages_get_subtitle(custom_message);
+    message.content.text = custom_messages_get_text(custom_message);
+    message.video.text = custom_messages_get_video(custom_message);
+    return &message;
 }
 
-static const uint8_t *blessing_alert_title_fallback(city_message_type message_type)
+const lang_message *city_message_get_lang_message_for(int message_type, int custom_message_id)
 {
-    switch (message_type) {
-        case MESSAGE_BLESSING_FROM_CERES:
-            return translation_for(TR_PARAMETER_VALUE_MESSAGE_BLESSING_FROM_CERES);
-        case MESSAGE_BLESSING_FROM_NEPTUNE:
-        case MESSAGE_BLESSING_FROM_NEPTUNE_ALTERNATE:
-            return translation_for(TR_CITY_MESSAGE_TITLE_NEPTUNE_BLESSING);
-        case MESSAGE_BLESSING_FROM_MERCURY:
-        case MESSAGE_BLESSING_FROM_MERCURY_ALTERNATE:
-            return translation_for(TR_CITY_MESSAGE_TITLE_MERCURY_BLESSING);
-        case MESSAGE_BLESSING_FROM_MARS:
-            return translation_for(TR_PARAMETER_VALUE_MESSAGE_BLESSING_FROM_MARS);
-        case MESSAGE_BLESSING_FROM_VENUS:
-        case MESSAGE_BLESSING_FROM_VENUS_ALTERNATE:
-            return translation_for(TR_CITY_MESSAGE_TITLE_VENUS_BLESSING);
-        default:
-            return 0;
+    if (message_type == MESSAGE_CUSTOM_MESSAGE) {
+        return custom_message_for_id(custom_message_id);
     }
+    return message_for_type(static_cast<city_message_type>(message_type));
 }
 
-// Simple alert notifications only need a title, but blessing messages have
-// Augustus-added slots that should never surface as blank text if cache data drifts.
-static const uint8_t *alert_title_for_message(city_message_type message_type, const lang_message *msg)
+const lang_message *city_message_get_lang_message(const city_message *message)
 {
-    if (msg && !is_empty_text(msg->title.text)) {
-        return msg->title.text;
+    if (!message || !message->message_type) {
+        return nullptr;
     }
-    if (!is_blessing_message(message_type)) {
-        return msg ? msg->title.text : 0;
-    }
-    return blessing_alert_title_fallback(message_type);
+    return city_message_get_lang_message_for(message->message_type, message->param1);
 }
 
 void city_message_init_scenario(void)
@@ -221,26 +210,21 @@ static void show_message_popup(int message_id)
     city_message *msg = &data.messages[message_id];
     data.consecutive_message_delay = 5;
     msg->is_read = 1;
-    if (msg->message_type != MESSAGE_CUSTOM_MESSAGE) {
-        const city_message_type message_type = static_cast<city_message_type>(msg->message_type);
-        const int text_id = city_message_get_text_id(message_type);
-        const lang_message *lang_msg = message_for_type(message_type);
-        if (!has_video(lang_msg)) {
-            play_sound(lang_msg);
-        }
-        if (msg->message_type == MESSAGE_REQUEST_CAN_COMPLY && msg->param1) {
-            // param1 = request id
-            const scenario_request *request = scenario_request_get(msg->param1);
-            if (request->can_comply_dialog_shown == 1 || request->state > 2) { // dispatched or ignored
-                return;  // nothing to show
-            }
-        }
-        window_message_dialog_show_city_message(text_id,
-            msg->year, msg->month, msg->param1, msg->param2,
-            city_message_get_advisor(message_type), 1);
-    } else {
-        window_message_dialog_show_custom_message(msg->param1, msg->year, msg->month);
+    const city_message_type message_type = static_cast<city_message_type>(msg->message_type);
+    const lang_message *lang_msg = city_message_get_lang_message(msg);
+    if (msg->message_type != MESSAGE_CUSTOM_MESSAGE && lang_msg && !has_video(lang_msg)) {
+        play_sound(lang_msg);
     }
+    if (msg->message_type == MESSAGE_REQUEST_CAN_COMPLY && msg->param1) {
+        // param1 = request id
+        const scenario_request *request = scenario_request_get(msg->param1);
+        if (request->can_comply_dialog_shown == 1 || request->state > 2) { // dispatched or ignored
+            return;  // nothing to show
+        }
+    }
+    window_message_dialog_show_city_message(msg->message_type,
+        msg->year, msg->month, msg->param1, msg->param2,
+        msg->message_type == MESSAGE_CUSTOM_MESSAGE ? MESSAGE_ADVISOR_NONE : city_message_get_advisor(message_type), 1);
 }
 
 void city_message_disable_sound_for_next_message(void)
@@ -277,8 +261,8 @@ void city_message_post(int use_popup, int message_type, int param1, int param2)
     msg->sequence = ++data.next_message_sequence;
 
     const city_message_type typed_message_type = static_cast<city_message_type>(message_type);
-    const lang_message *lang_msg = message_for_type(typed_message_type);
-    const lang_message_type lang_msg_type = lang_msg->message_type;
+    const lang_message *lang_msg = city_message_get_lang_message(msg);
+    const lang_message_type lang_msg_type = lang_msg ? lang_msg->message_type : MESSAGE_TYPE_CUSTOM;
     if (lang_msg_type == MESSAGE_TYPE_DISASTER || lang_msg_type == MESSAGE_TYPE_INVASION) {
         data.problem_count = 1;
         window_invalidate();
@@ -287,7 +271,7 @@ void city_message_post(int use_popup, int message_type, int param1, int param2)
     // Since custom messages are scenario specific, don't show them as simple alerts at the top
     // Also, beware: should we change this behavior, the below code will crash
     if (message_type != MESSAGE_CUSTOM_MESSAGE && config_get(CONFIG_UI_MESSAGE_ALERTS)) {
-        city_warning_show_custom(alert_title_for_message(typed_message_type, lang_msg), NEW_WARNING_SLOT);
+        city_warning_show(WARNING_MESSAGE_ALERT, lang_msg ? lang_msg->title.text : 0);
         use_popup = 0;
     }
     if (is_invasion_message(typed_message_type) && setting_game_speed() > 70) {
@@ -665,9 +649,8 @@ int city_message_next_problem_area_grid_offset(void)
     for (int i = 0; i < 999; i++) {
         city_message *msg = &data.messages[i];
         if (msg->message_type && msg->year >= game_time_year() - 1) {
-            const city_message_type message_type = static_cast<city_message_type>(msg->message_type);
-            const lang_message *lang_msg = message_for_type(message_type);
-            lang_message_type lang_msg_type = lang_msg->message_type;
+            const lang_message *lang_msg = city_message_get_lang_message(msg);
+            lang_message_type lang_msg_type = lang_msg ? lang_msg->message_type : MESSAGE_TYPE_GENERAL;
             if (has_problem_area(msg, lang_msg_type)) {
                 data.problem_count++;
             }
@@ -685,9 +668,8 @@ int city_message_next_problem_area_grid_offset(void)
     for (int i = 0; i < 999; i++) {
         city_message *msg = &data.messages[i];
         if (msg->message_type && msg->year >= current_year - 1) {
-            const city_message_type message_type = static_cast<city_message_type>(msg->message_type);
-            const lang_message *lang_msg = message_for_type(message_type);
-            lang_message_type lang_msg_type = lang_msg->message_type;
+            const lang_message *lang_msg = city_message_get_lang_message(msg);
+            lang_message_type lang_msg_type = lang_msg ? lang_msg->message_type : MESSAGE_TYPE_GENERAL;
             if (has_problem_area(msg, lang_msg_type)) {
                 index++;
                 if (data.problem_index < index) {

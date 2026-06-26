@@ -1,7 +1,6 @@
-extern "C" {
-#include "aqueduct.h"
+#include "map/aqueduct.h"
+
 #include "map/grid.h"
-}
 
 #define WATER_ACCESS_OFFSET 7
 #define IMAGE_MASK 0x7f

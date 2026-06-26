@@ -1,21 +1,22 @@
-extern "C" {
-#include "set_salary.h"
-
-#include "city/emperor.h"
-#include "city/finance.h"
-#include "city/ratings.h"
 #include "city/victory.h"
-#include "game/resource.h"
-#include "graphics/ui_runtime_api.h"
+#include "game/resource_graphics.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+
+#include "set_salary.h"
+
+#include "window/advisors.h"
+
+#include "city/emperor.h"
+#include "city/finance.h"
+#include "city/ratings.h"
+#include "game/resource.h"
+#include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/advisors.h"
-}
 
 #define MIN_DIALOG_WIDTH 384
 
@@ -41,7 +42,7 @@ static unsigned int focus_button_id;
 
 static int get_dialog_width(void)
 {
-    int dialog_width = 16 + lang_text_get_width(52, 15, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    int dialog_width = 16 + lang_text_get_width("main_strings.52.15", FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     if (dialog_width < MIN_DIALOG_WIDTH) {
         dialog_width = MIN_DIALOG_WIDTH;
     }
@@ -59,28 +60,28 @@ static void draw_foreground(void)
     int dialog_width = get_dialog_width();
     int dialog_x = 128 - (dialog_width - MIN_DIALOG_WIDTH) / 2;
     outer_panel_draw(dialog_x, 32, dialog_width / BLOCK_SIZE, 25);
-    image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, dialog_x + 10, 42, COLOR_MASK_NONE, SCALE_NONE);
-    lang_text_draw_centered(52, 15, dialog_x + 25, 48, dialog_width - 64, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    resource_graphics(resource_denarii()).panel_icon().draw(dialog_x + 10, 42);
+    lang_text_draw_centered("main_strings.52.15", dialog_x + 25, 48, dialog_width - 64, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     inner_panel_draw(144, 80, 22, 15);
 
     for (unsigned int rank = 0; rank < 11; rank++) {
         font_t font = focus_button_id == rank + 2 ? FONT_NORMAL_RED : FONT_NORMAL_WHITE;
-        int width = lang_text_draw(52, rank + 4, 176, 90 + 20 * rank, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+        int width = lang_text_draw(current_string_key(52, rank + 4), 176, 90 + 20 * rank, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
         text_draw_money(city_emperor_salary_for_rank(rank), 176 + width, 90 + 20 * rank, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     }
 
     if (!city_victory_has_won()) {
         if (city_emperor_salary_rank() <= city_emperor_rank()) {
-            lang_text_draw_multiline(52, 76, 152, 336, 336, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_multiline("main_strings.52.76", 152, 336, 336, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
-            lang_text_draw_multiline(52, 71, 152, 336, 336, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_multiline("main_strings.52.71", 152, 336, 336, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
     } else {
-        lang_text_draw_multiline(52, 77, 150, 336, 340, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_multiline("main_strings.52.77", 150, 336, 340, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
     button_border_draw(240, 395, 160, 20, focus_button_id == 1);
-    lang_text_draw_centered(13, 4, 176, 400, 288, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.4", 176, 400, 288, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }

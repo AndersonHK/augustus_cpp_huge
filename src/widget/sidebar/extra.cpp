@@ -1,11 +1,25 @@
-extern "C" {
+#include "city/labor.h"
+#include "translation/translation.h"
+#include "game/resource_graphics.h"
+#include "game/state.h"
+#include "graphics/arrow_button.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/menu.h"
+#include "window/advisor/imperial.h"
+#include "window/empire.h"
+
 #include "extra.h"
 
-#include "assets/assets.h"
+#include "window/popup_dialog.h"
+#include "city/god.h"
+
+#include "game/settings.h"
+
 #include "city/figures.h"
 #include "city/finance.h"
-#include "city/gods.h"
-#include "city/labor.h"
 #include "city/military.h"
 #include "city/population.h"
 #include "city/ratings.h"
@@ -13,32 +27,18 @@ extern "C" {
 #include "city/resource.h"
 #include "core/config.h"
 #include "core/image_group.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "figure/formation_legion.h"
 #include "game/resource.h"
-#include "game/settings.h"
-#include "game/state.h"
-#include "graphics/arrow_button.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
-#include "graphics/menu.h"
 #include "graphics/text.h"
 #include "scenario/criteria.h"
 #include "scenario/invasion.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-#include "translation/translation.h"
-#include "window/advisor/imperial.h"
-#include "window/empire.h"
-#include "window/popup_dialog.h"
-}
 
-#include <stdlib.h>
+#include <algorithm>
 
 #define EXTRA_INFO_LINE_SPACE 16
 #define EXTRA_INFO_VERTICAL_PADDING 8
@@ -63,7 +63,7 @@ static arrow_button arrow_buttons_speed[] = {
 };
 
 static image_button play_paused_button = {
-    108, 29, 39, 26, IB_NORMAL, 0, 0, button_toggle_play_paused, button_none, 0, 0, 1, "UI", "Pause Button"
+    108, 29, 39, 26, IB_NORMAL, 0, 0, button_toggle_play_paused, button_none, 0, 0, 1, "UI\\Pause_Button", "Pause Button"
 };
 
 static generic_button buttons_emperor_requests[] = {
@@ -75,20 +75,21 @@ static generic_button buttons_emperor_requests[] = {
 };
 
 static const char *play_pause_button_image_names[] = { "Pause Button", "Play Button" };
+static const char *play_pause_button_asset_paths[] = { "UI\\Pause_Button", "UI\\Play_Button" };
 
-typedef struct {
+struct objective {
     int value;
     int target;
-} objective;
+};
 
-typedef struct {
+struct request {
     int index;
     int resource;
     int amount;
     int available;
     int time;
     int stockpiled;
-} request;
+};
 
 static struct {
     int x_offset;
@@ -115,8 +116,8 @@ static struct {
         int angry;
     } gods;
     int next_invasion;
-    unsigned int visible_requests;
-    unsigned int active_requests;
+    int visible_requests;
+    int active_requests;
     int troop_requests;
     int objectives_y_offset;
     int request_buttons_y_offset;
@@ -130,11 +131,6 @@ static int count_active_requests(void)
 {
     int count = city_request_has_troop_request() + scenario_request_count_visible();
     return count > MAX_REQUESTS_TO_DISPLAY ? MAX_REQUESTS_TO_DISPLAY : count;
-}
-
-static int sort_requests(const void *va, const void *vb)
-{
-    return ((request *) va)->time - ((request *) vb)->time;
 }
 
 static sidebar_extra_display calculate_displayable_info(sidebar_extra_display info_to_display, int available_height)
@@ -213,7 +209,7 @@ static int calculate_extra_info_height(int available_height)
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) {
         height += EXTRA_INFO_HEIGHT_REQUESTS_MIN;
-        unsigned int num_requests = count_active_requests();
+        int num_requests = count_active_requests();
         data.visible_requests = 1;
         while (data.visible_requests < num_requests) {
             if (height + EXTRA_INFO_HEIGHT_REQUESTS_PANEL > available_height) {
@@ -261,7 +257,7 @@ static void set_extra_info_objectives(void)
 static int count_happy_gods(void)
 {
     int happy_gods = 0;
-    for (int god = 0; god < MAX_GODS; god++) {
+    for (int god = 0; god < city_gods_count(); god++) {
         if (city_god_happy_bolts(god) > 0) {
             happy_gods++;
         }
@@ -320,11 +316,11 @@ static int update_extra_info(int is_background)
         changed |= update_extra_info_value(count_angry_gods(), &data.gods.angry);
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) {
-        int new_requests = update_extra_info_value(count_active_requests(), (int *) &data.active_requests);
+        int new_requests = update_extra_info_value(count_active_requests(), &data.active_requests);
         new_requests |= update_extra_info_value(city_request_has_troop_request(), &data.troop_requests);
 
         if (data.troop_requests) {
-            changed |= update_extra_info_value(RESOURCE_TROOPS, &data.requests[0].resource);
+            changed |= update_extra_info_value(resource_troops(), &data.requests[0].resource);
             changed |= update_extra_info_value(city_military_months_until_distant_battle(), &data.requests[0].time);
             changed |= update_extra_info_value(city_military_distant_battle_enemy_strength(), &data.requests[0].amount);
             changed |= update_extra_info_value(city_military_empire_service_legions(), &data.requests[0].available);
@@ -344,7 +340,7 @@ static int update_extra_info(int is_background)
             }
             changed |= update_extra_info_value(r->months_to_comply, &slot->time);
             changed |= update_extra_info_value(r->amount.requested, &slot->amount);
-            if (r->resource == RESOURCE_DENARII) {
+            if (r->resource == resource_denarii()) {
                 changed |= update_extra_info_value(city_finance_treasury(), &slot->available);
             } else {
                 changed |= update_extra_info_value(city_resource_get_amount_including_granaries(
@@ -355,7 +351,10 @@ static int update_extra_info(int is_background)
                 &slot->stockpiled);
         }
         if (new_requests || must_resort) {
-            qsort(data.requests + data.troop_requests, other_requests, sizeof(request), sort_requests);
+            request *first = data.requests + data.troop_requests;
+            std::sort(first, first + other_requests, [](const request &a, const request &b) {
+                return a.time < b.time;
+            });
             changed = 1;
         }
     }
@@ -381,7 +380,7 @@ static int draw_extra_info_objective(
         // Exception for Chinese: the string for "population" includes the hotkey " (6)"
         // To fix that: cut the string off at the '('
         uint8_t tmp[100];
-        string_copy(lang_get_string(text_group, text_id), tmp, 100);
+        string_copy(lang_get_string(current_string_key(text_group, text_id)), tmp, 100);
         for (int i = 0; i < 100 && tmp[i]; i++) {
             if (tmp[i] == '(') {
                 tmp[i] = 0;
@@ -390,7 +389,7 @@ static int draw_extra_info_objective(
         }
         text_draw(tmp, x_offset + 11, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else {
-        lang_text_draw(text_group, text_id, x_offset + 11, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw(current_string_key(text_group, text_id), x_offset + 11, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
     font_t font = obj->value >= obj->target ? FONT_NORMAL_GREEN : FONT_NORMAL_RED;
     int width = text_draw_number(obj->value, '@', "", x_offset + 11, y_offset + EXTRA_INFO_LINE_SPACE, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
@@ -409,13 +408,40 @@ static int get_text_offset_for_force_size(int force_size)
     }
 }
 
+static translation_key request_force_key(int force_size)
+{
+    static const translation_key keys[] = {
+        "TR_SIDEBAR_EXTRA_REQUESTS_SMALL_FORCE",
+        "TR_SIDEBAR_EXTRA_REQUESTS_AVERAGE_FORCE",
+        "TR_SIDEBAR_EXTRA_REQUESTS_LARGE_FORCE",
+    };
+    return keys[get_text_offset_for_force_size(force_size)];
+}
+
+static translation_key invasion_status_key(int next_invasion)
+{
+    static const translation_key keys[] = {
+        "TR_SIDEBAR_EXTRA_INVASION_UNDERWAY",
+        "TR_SIDEBAR_EXTRA_NO_INVASIONS",
+        "TR_SIDEBAR_EXTRA_INVASION_IMMINENT",
+        "TR_SIDEBAR_EXTRA_ENEMIES_CLOSING",
+        "TR_SIDEBAR_EXTRA_ENEMIES_DISTANT",
+    };
+    if (next_invasion < 0) {
+        next_invasion = 0;
+    } else if (next_invasion >= static_cast<int>(sizeof(keys) / sizeof(keys[0]))) {
+        next_invasion = static_cast<int>(sizeof(keys) / sizeof(keys[0])) - 1;
+    }
+    return keys[next_invasion];
+}
+
 static void draw_request_action_label(unsigned int slot, int button_y_offset)
 {
     const request *r = &data.requests[slot];
     font_t color = FONT_NORMAL_GREEN;
-    const uint8_t *label = translation_for(TR_SIDEBAR_EXTRA_REQUESTS_SEND);
+    const uint8_t *label = translation_for_key("TR_SIDEBAR_EXTRA_REQUESTS_SEND");
 
-    if (r->resource != RESOURCE_TROOPS) {
+    if (r->resource != resource_troops()) {
         int request_index = data.requests[slot].index;
         if (city_request_has_troop_request() && slot != 0) {
             request_index++;
@@ -426,11 +452,11 @@ static void draw_request_action_label(unsigned int slot, int button_y_offset)
             return;
         }
 
-        if (r->resource == RESOURCE_DENARII) {
+        if (r->resource == resource_denarii()) {
             color = status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES ? FONT_NORMAL_RED : FONT_NORMAL_GREEN;
         } else if (status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES) {
             label = translation_for(city_resource_is_stockpiled(static_cast<resource_type>(r->resource)) ?
-                TR_SIDEBAR_EXTRA_REQUESTS_UNSTOCK : TR_SIDEBAR_EXTRA_REQUESTS_STOCK);
+                "TR_SIDEBAR_EXTRA_REQUESTS_UNSTOCK" : "TR_SIDEBAR_EXTRA_REQUESTS_STOCK");
         }
     }
 
@@ -443,7 +469,7 @@ static int draw_request_buttons(int y_offset)
 
     y_offset += EXTRA_INFO_VERTICAL_PADDING;
 
-    for (unsigned int i = 0; i < data.visible_requests; i++) {
+    for (int i = 0; i < data.visible_requests; i++) {
         const request *r = &data.requests[i];
         int base_button_y_offset = i * EXTRA_INFO_HEIGHT_REQUESTS_PANEL;
 
@@ -453,54 +479,48 @@ static int draw_request_buttons(int y_offset)
             buttons_emperor_requests[i].y = base_button_y_offset + 9;
             buttons_emperor_requests[i].height = 30;
 
-            text_draw_centered(translation_for(TR_SIDEBAR_EXTRA_REQUESTS_VIEW_ALL),
+            text_draw_centered(translation_for_key("TR_SIDEBAR_EXTRA_REQUESTS_VIEW_ALL"),
                 data.x_offset, y_offset + 11, data.width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             break;
         }
         buttons_emperor_requests[i].y = base_button_y_offset + 28;
         buttons_emperor_requests[i].height = 20;
         int width = data.x_offset + 10;
-        if (r->resource == RESOURCE_TROOPS) {
-            int image_id = resource_get_data(RESOURCE_WEAPONS)->image.icon;
-            const image *img = image_get(image_id);
-            int image_y_offset = (EXTRA_INFO_LINE_SPACE - img->height) / 2;
+        if (r->resource == resource_troops()) {
+            const ImageGroupEntryRef &request_icon = resource_graphics(resource_weapons()).panel_icon();
+            int image_y_offset = (EXTRA_INFO_LINE_SPACE - request_icon.height()) / 2;
 
-            image_draw(image_id, width, y_offset + image_y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+            request_icon.draw(width, y_offset + image_y_offset - 2);
 
-            int force_text_offset = get_text_offset_for_force_size(r->amount);
-
-            text_draw_ellipsized(translation_for(
-                    static_cast<translation_key>(TR_SIDEBAR_EXTRA_REQUESTS_SMALL_FORCE + force_text_offset)),
+            text_draw_ellipsized(translation_for(request_force_key(r->amount)),
                 data.x_offset + 32, y_offset - 7, data.width - 34, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
 
-            lang_text_draw_amount(8, 4, r->time, data.x_offset + 26, y_offset + 6,
+            lang_text_draw_amount(current_string_amount_key(8, 4, r->time), r->time, data.x_offset + 26, y_offset + 6,
                 r->time <= REQUEST_MONTHS_LEFT_FOR_RED_WARNING ? FONT_NORMAL_RED : FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(r->time <= REQUEST_MONTHS_LEFT_FOR_RED_WARNING ? FONT_NORMAL_RED : FONT_NORMAL_GREEN)->line_height));
 
             draw_request_action_label(i, y_offset + 20);
         } else {
             resource_type resource = static_cast<resource_type>(r->resource);
-            int image_id = resource_get_data(resource)->image.icon;
-            const image *img = image_get(image_id);
-            int image_y_offset = (EXTRA_INFO_LINE_SPACE - img->height) / 2;
+            const ImageGroupEntryRef &request_icon = resource_graphics(resource).panel_icon();
+            int image_y_offset = (EXTRA_INFO_LINE_SPACE - request_icon.height()) / 2;
 
-            image_draw(image_id, width, y_offset + image_y_offset, COLOR_MASK_NONE, SCALE_NONE);
+            request_icon.draw(width, y_offset + image_y_offset);
 
-            width += img->width + 6;
+            width += request_icon.width() + 6;
             int request_index = data.requests[i].index;
             if (city_request_has_troop_request() && i != 0) {
                 request_index++;
             }
 
             int status = city_request_get_status(request_index);
-            if (r->resource != RESOURCE_DENARII) {
+            if (r->resource != resource_denarii()) {
                 int is_stockpiled = city_resource_is_stockpiled(resource);
                 int enough_resource = 0;
                 // button text
                 if (status) {
                     if (status == CITY_REQUEST_STATUS_NOT_ENOUGH_RESOURCES) {
                         if (is_stockpiled) {
-                            image_draw(assets_get_image_id("UI", "Store Icon"),
-                                data.x_offset + 5, y_offset + 10, COLOR_MASK_NONE, SCALE_NONE);
+                            ImageGroupEntryRef::from_group("UI\\Store_Icon", "Store Icon").draw(data.x_offset + 5, y_offset + 10);
                         }
                     } else {
                         enough_resource = 1;
@@ -525,8 +545,7 @@ static int draw_request_buttons(int y_offset)
             // request time left
             width += text_draw(string_from_ascii(","), width, y_offset + 2, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             width += text_draw_number(r->time, 0, "", width, y_offset + 2, font_color, screen_ui_to_pixel(font_definition_for(font_color)->line_height), 0);
-            lang_text_draw_ellipsized(8, 4 + (r->time != 1), width, y_offset + 2,
-                data.width - (width - data.x_offset) - 4, font_color, screen_ui_to_pixel(font_definition_for(font_color)->line_height));
+            lang_text_draw_ellipsized(current_string_key(8, 4 + (r->time != 1)), width, y_offset + 2, data.width - (width - data.x_offset) - 4, font_color, screen_ui_to_pixel(font_definition_for(font_color)->line_height));
         }
         y_offset += EXTRA_INFO_HEIGHT_REQUESTS_PANEL;
     }
@@ -546,7 +565,7 @@ static void draw_extra_info_panel(void)
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_GAME_SPEED) {
         y_offset += EXTRA_INFO_VERTICAL_PADDING;
 
-        lang_text_draw(45, 2, data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.45.2", data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         y_offset += EXTRA_INFO_LINE_SPACE + EXTRA_INFO_VERTICAL_PADDING;
 
         text_draw_percentage(data.game_speed, data.x_offset + 60, y_offset - 2, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
@@ -557,7 +576,7 @@ static void draw_extra_info_panel(void)
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_UNEMPLOYMENT) {
         y_offset += EXTRA_INFO_VERTICAL_PADDING;
 
-        lang_text_draw(68, 148, data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.68.148", data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         y_offset += EXTRA_INFO_LINE_SPACE;
 
         int text_width = text_draw_percentage(data.unemployment.percentage,
@@ -571,14 +590,13 @@ static void draw_extra_info_panel(void)
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_INVASIONS) {
         y_offset += EXTRA_INFO_VERTICAL_PADDING;
 
-        text_draw(translation_for(TR_SIDEBAR_EXTRA_INVASIONS), data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_SIDEBAR_EXTRA_INVASIONS"), data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
         y_offset += EXTRA_INFO_VERTICAL_PADDING * 2 + 4;
 
         font_t font_type = data.next_invasion == 0 || data.next_invasion == 2 ? FONT_NORMAL_RED : FONT_NORMAL_GREEN;
 
-        text_draw_centered(translation_for(
-                static_cast<translation_key>(TR_SIDEBAR_EXTRA_INVASION_UNDERWAY + data.next_invasion)),
+        text_draw_centered(translation_for(invasion_status_key(data.next_invasion)),
             data.x_offset + 2, y_offset, data.width - 4, font_type, screen_ui_to_pixel(font_definition_for(font_type)->line_height), 0);
 
         y_offset += EXTRA_INFO_LINE_SPACE + 4;
@@ -587,19 +605,15 @@ static void draw_extra_info_panel(void)
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_GODS) {
         y_offset += EXTRA_INFO_VERTICAL_PADDING;
 
-        text_draw(translation_for(TR_SIDEBAR_EXTRA_GODS), data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_SIDEBAR_EXTRA_GODS"), data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         y_offset += EXTRA_INFO_LINE_SPACE + EXTRA_INFO_VERTICAL_PADDING;
 
         font_t font_type = data.gods.angry > 0 ? FONT_NORMAL_RED : FONT_NORMAL_GREEN;
         int width = text_draw_number(data.gods.angry, 0, "", data.x_offset + 42, y_offset + 2, font_type, screen_ui_to_pixel(font_definition_for(font_type)->line_height), 0);
-        image_draw(image_group(GROUP_GOD_BOLT), data.x_offset + 42 + width, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(GROUP_GOD_BOLT)).draw(data.x_offset + 42 + width, y_offset - 2);
 
-        static int happy_image_id;
-        if (!happy_image_id) {
-            happy_image_id = assets_get_image_id("UI", "Happy God Icon");
-        }
         width = text_draw_number(data.gods.happy, 0, "", data.x_offset + 82, y_offset + 2, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-        image_draw(happy_image_id, data.x_offset + 82 + width, y_offset - 2, COLOR_MASK_NONE, SCALE_NONE);
+        ImageGroupEntryRef::from_group("UI\\Happy_God_Icon", "Happy God Icon").draw(data.x_offset + 82 + width, y_offset - 2);
 
         y_offset += EXTRA_INFO_VERTICAL_PADDING * 2;
     }
@@ -618,13 +632,12 @@ static void draw_extra_info_panel(void)
 
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS) {
         y_offset += EXTRA_INFO_VERTICAL_PADDING + 4;
-        lang_text_draw(44, 40, data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.44.40", data.x_offset + 10, y_offset, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         y_offset += EXTRA_INFO_VERTICAL_PADDING * 3 - 4;
         data.request_buttons_y_offset = y_offset;
 
         if (data.active_requests == 0) {
-            lang_text_draw_centered(44, 19, data.x_offset, y_offset + EXTRA_INFO_VERTICAL_PADDING + 4,
-                data.width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            lang_text_draw_centered("main_strings.44.19", data.x_offset, y_offset + EXTRA_INFO_VERTICAL_PADDING + 4, data.width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             y_offset += EXTRA_INFO_HEIGHT_REQUESTS_PANEL;
         } else {
             y_offset += draw_request_buttons(y_offset);
@@ -658,18 +671,19 @@ static void draw_extra_info_buttons(void)
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_GAME_SPEED) {
         if (!play_paused_button.pressed) {
+            play_paused_button.assetlist_name = play_pause_button_asset_paths[game_state_is_paused()];
             play_paused_button.image_name = play_pause_button_image_names[game_state_is_paused()];
         }
         arrow_buttons_draw(data.x_offset, data.y_offset, arrow_buttons_speed, 2);
         image_buttons_draw(data.x_offset, data.y_offset, &play_paused_button, 1);
     }
     if (data.info_to_display & SIDEBAR_EXTRA_DISPLAY_REQUESTS && data.active_requests) {
-        for (unsigned int i = 0; i < data.visible_requests; i++) {
+        for (int i = 0; i < data.visible_requests; i++) {
             int button_y_offset = data.request_buttons_y_offset + buttons_emperor_requests[i].y;
             button_border_draw(data.x_offset + 2, button_y_offset, data.width - 4,
                 buttons_emperor_requests[i].height, i == data.focused_request_button_id - 1);
             if (buttons_emperor_requests[i].height == 30) {
-                text_draw_centered(translation_for(TR_SIDEBAR_EXTRA_REQUESTS_VIEW_ALL),
+                text_draw_centered(translation_for_key("TR_SIDEBAR_EXTRA_REQUESTS_VIEW_ALL"),
                     data.x_offset, button_y_offset + 10, data.width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else {
                 draw_request_action_label(i, button_y_offset);
@@ -792,7 +806,7 @@ static void confirm_send_goods(int accepted, int checked)
 static void button_handle_request(const generic_button *button)
 {
     int index = button->parameter1;
-    if (data.active_requests > data.visible_requests && index == (int) data.visible_requests - 1) {
+    if (data.active_requests > data.visible_requests && index == data.visible_requests - 1) {
         window_advisors_show_advisor(ADVISOR_IMPERIAL);
         return;
     }
@@ -824,17 +838,17 @@ static void button_handle_request(const generic_button *button)
                     ~CITY_REQUEST_STATUS_RESOURCES_FROM_GRANARY;
                 if (status & CITY_REQUEST_STATUS_RESOURCES_FROM_GRANARY) {
                     window_popup_dialog_show_confirmation(
-                        translation_for(TR_ADVISOR_DISPATCHING_FOOD_FROM_GRANARIES_TITLE),
-                        translation_for(TR_ADVISOR_DISPATCHING_FOOD_FROM_GRANARIES_TEXT),
+                        translation_for_key("TR_ADVISOR_DISPATCHING_FOOD_FROM_GRANARIES_TITLE"),
+                        translation_for_key("TR_ADVISOR_DISPATCHING_FOOD_FROM_GRANARIES_TEXT"),
                         city_resource_is_stockpiled(static_cast<resource_type>(r->resource)) ?
-                            translation_for(TR_ADVISOR_KEEP_STOCKPILING) : 0,
+                            translation_for_key("TR_ADVISOR_KEEP_STOCKPILING") : 0,
                         confirm_send_goods);
                 } else {
                     window_popup_dialog_show_confirmation(
-                        lang_get_string(5, POPUP_DIALOG_SEND_GOODS),
-                        lang_get_string(5, POPUP_DIALOG_SEND_GOODS + 1),
+                        lang_get_string(current_string_key(5, POPUP_DIALOG_SEND_GOODS)),
+                        lang_get_string(current_string_key(5, POPUP_DIALOG_SEND_GOODS + 1)),
                         city_resource_is_stockpiled(static_cast<resource_type>(r->resource)) ?
-                            translation_for(TR_ADVISOR_KEEP_STOCKPILING) : 0,
+                            translation_for_key("TR_ADVISOR_KEEP_STOCKPILING") : 0,
                         confirm_send_goods);
                 }
                 break;

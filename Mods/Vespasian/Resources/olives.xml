@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource id="olives" slot="8" name_key="main_strings.23.4">
+  <model xml_attr="olives" flags="storable" />
+  <trade buy="42" sell="34" />
+  <graphics>
+    <cart load="single" path="Walkers\Group_097" image="Image_0032" />
+    <cart load="multiple" path="Walkers\Group_250" image="Image_0000" />
+    <cart load="eight" path="Walkers\Group_250" image="Image_0000" />
+    <storage load="1" path="Industry\Warehouse_Storage_Filled" image="Image_0012" />
+    <storage load="2" path="Industry\Warehouse_Storage_Filled" image="Image_0013" />
+    <storage load="3" path="Industry\Warehouse_Storage_Filled" image="Image_0014" />
+    <storage load="4" path="Industry\Warehouse_Storage_Filled" image="Image_0015" />
+    <panel_icon path="UI\Resource_Icons" image="Image_0004" />
+    <empire_icon path="PaperMap\Empire_Resources" image="Image_0004" />
+    <editor_icon path="UI\Resource_Icons" image="Image_0004" />
+    <editor_empire_icon path="PaperMap\Empire_Resources" image="Image_0004" />
+  </graphics>
+</resource>

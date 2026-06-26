@@ -2,7 +2,6 @@
 
 #include "core/buffer.h"
 #include "game/resource.h"
-
 /**
  * @file
  * Trade figure extra info

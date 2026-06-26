@@ -2,23 +2,24 @@
 
 #include "core/buffer.h"
 
-typedef enum {
+
+enum message_media_text_blob_version {
     MESSAGE_MEDIA_TEXT_BLOB_VERSION = 1,
 
     MESSAGE_MEDIA_TEXT_BLOB_VERSION_NONE = 0,
     MESSAGE_MEDIA_TEXT_BLOB_VERSION_INITIAL = 1,
-} message_media_text_blob_version;
+};
 
-typedef struct {
+struct text_blob_string_t {
     size_t id;
     int in_use;
     size_t index;
     size_t offset;
     size_t length;
     uint8_t *text;
-} text_blob_string_t;
+};
 
-typedef struct {
+struct message_media_text_blob_t {
     size_t size;
     size_t entry_count;
     text_blob_string_t *text_entries;
@@ -28,7 +29,7 @@ typedef struct {
     size_t max_size_text_blob;
 
     size_t highest_id;
-} message_media_text_blob_t;
+};
 
 message_media_text_blob_t *message_media_text_get_data(void);
 

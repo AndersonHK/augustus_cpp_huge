@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<production_method>
+    <kind value="workshop" />
+    <output resource="fish" production_per_month="100" source="figure_delivery" />
+    <batch_size value="1" />
+    <cart_capacity value="2" />
+</production_method>

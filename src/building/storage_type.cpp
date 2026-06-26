@@ -1,3 +1,4 @@
+#include "building/building_record.h"
 #include "building/storage_type.h"
 
 #include <utility>
@@ -42,6 +43,26 @@ void StorageType::set_capacity(int capacity)
 int StorageType::capacity() const
 {
     return capacity_;
+}
+
+void StorageType::set_role(StorageRole role)
+{
+    role_ = role;
+}
+
+StorageRole StorageType::role() const
+{
+    return role_;
+}
+
+int StorageType::is_input() const
+{
+    return role_ == StorageRole::Input;
+}
+
+int StorageType::is_output() const
+{
+    return role_ == StorageRole::Output;
 }
 
 } // namespace building_type_registry_impl

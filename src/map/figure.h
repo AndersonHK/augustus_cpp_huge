@@ -1,8 +1,9 @@
 #pragma once
 
 #include "core/buffer.h"
-#include "figure/figure.h"
+#include "figure/properties.h"
 #include "map/grid.h"
+class Figure;
 
 /**
  * Returns the first figure at the given offset
@@ -24,7 +25,7 @@ int map_has_figure_at(int grid_offset);
  * @param category The categories to be checked for e.g. FIGURE_CATEGORY_HOSTILE | FIGURE_CATEGORY_NATIVE
  * @return 1 if there's a figure of category on grid_offset else 0
  */
-int map_has_figure_category_at(int grid_offset, figure_category category);
+int map_has_figure_category_at(int grid_offset, figure_category_mask category);
 
 /**
  * Calls map_has_figure_category_at for every tile in the given slice
@@ -32,7 +33,7 @@ int map_has_figure_category_at(int grid_offset, figure_category category);
  * @param category The categories to be checked for
  * @return 1 if there is a figure of category in the slice, otherwise 0
  */
-int map_has_figure_category_in_area(grid_slice *slice, figure_category category);
+int map_has_figure_category_in_area(grid_slice *slice, figure_category_mask category);
 
 /**
  * Counts the figures of a given category at a given grid_offset
@@ -40,7 +41,7 @@ int map_has_figure_category_in_area(grid_slice *slice, figure_category category)
  * @param category The categories to be checked for
  * @return Count of figures of category on grid_offset
  */
-int map_count_figures_category_at(int grid_offset, figure_category category);
+int map_count_figures_category_at(int grid_offset, figure_category_mask category);
 
 /**
  * Calls map_count_figures_category_at for every tile in the given slice
@@ -48,31 +49,21 @@ int map_count_figures_category_at(int grid_offset, figure_category category);
  * @param category The categories to be checked for
  * @return Count of figures of category in the slice
  */
-int map_count_figures_category_in_area(grid_slice *slice, figure_category category);
+int map_count_figures_category_in_area(grid_slice *slice, figure_category_mask category);
 
 /**
  * Kills all figures of a given category at a given grid_offset
  * @param grid_offset Map offset
  * @param category The categories to be checked for
  */
-void map_kill_figures_category_at(int grid_offset, figure_category category);
+void map_kill_figures_category_at(int grid_offset, figure_category_mask category);
 
 /**
  * Calls map_kill_figures_category_at for every tile in the given slice
  * @param slice The grid slice to process
  * @param category The categories to be checked for
  */
-void map_kill_figures_category_in_area(grid_slice *slice, figure_category category);
-
-void map_figure_add(figure *f);
-
-void map_figure_update(figure *f);
-
-void map_figure_delete(figure *f);
-
-int map_figure_foreach_until(int grid_offset, int (*callback)(figure *f));
-
-void map_figure_foreach(int grid_offset, void (*callback)(figure *f));
+void map_kill_figures_category_in_area(grid_slice *slice, figure_category_mask category);
 
 /**
  * Clears the map
@@ -82,3 +73,13 @@ void map_figure_clear(void);
 void map_figure_save_state(buffer *buf);
 
 void map_figure_load_state(buffer *buf);
+
+void map_figure_add(Figure *f);
+
+void map_figure_update(Figure *f);
+
+void map_figure_delete(Figure *f);
+
+int map_figure_foreach_until(int grid_offset, int (*callback)(Figure *f));
+
+void map_figure_foreach(int grid_offset, void (*callback)(Figure *f));

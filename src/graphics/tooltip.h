@@ -2,12 +2,10 @@
 
 #include "graphics/renderer.h"
 #include "input/mouse.h"
+#include "translation/translation.h"
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define TOOLTIP_MAX_EXTRA_VALUES 5
 
@@ -37,7 +35,7 @@ typedef struct {
     int num_extra_values;
     int extra_value_text_groups[TOOLTIP_MAX_EXTRA_VALUES];
     int extra_value_text_ids[TOOLTIP_MAX_EXTRA_VALUES];
-    int translation_key;
+    translation_key translation_key;
     int num_extra_texts;
     tooltip_extra_text_type extra_text_type;
     int extra_text_groups[TOOLTIP_MAX_EXTRA_VALUES];
@@ -47,6 +45,3 @@ typedef struct {
 
 void tooltip_handle(const mouse *m, void (*func)(tooltip_context *));
 
-#ifdef __cplusplus
-}
-#endif

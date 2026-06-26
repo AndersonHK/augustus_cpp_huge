@@ -1,16 +1,16 @@
-#include "city/population.h"
-
-extern "C" {
 #include "building/building.h"
 #include "building/count.h"
 #include "building/house.h"
 #include "building/house_population.h"
+#include "game/defines.h"
+
+#include "city/population.h"
+
+#include "building/building_record.h"
 #include "city/data_private.h"
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/random.h"
-#include "game/defines.h"
-}
 
 int city_population(void)
 {
@@ -373,7 +373,7 @@ static int calculate_people_per_house_type(void)
             continue;
         }
         int pop = b->house_population;
-        int legacy_level = building_house_legacy_level(b);
+        int legacy_level = building_house_legacy_level(Building(b));
         total += pop;
         if (legacy_level >= HOUSE_MIN && legacy_level <= HOUSE_LARGE_TENT) {
             city_data.population.people_in_tents += pop;
@@ -384,7 +384,7 @@ static int calculate_people_per_house_type(void)
         if (legacy_level >= HOUSE_LARGE_INSULA) {
             city_data.population.people_in_large_insula_and_above += pop;
         }
-        if (building_house_has_patrician_residents(b)) {
+        if (building_house_has_patrician_residents(Building(b))) {
             city_data.population.people_in_villas_palaces += pop;
         }
     }

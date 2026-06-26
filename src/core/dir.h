@@ -5,9 +5,6 @@
 #define CAMPAIGNS_DIR_NAME "campaigns"
 #define CAMPAIGNS_DIRECTORY "***" CAMPAIGNS_DIR_NAME "***"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * @file
@@ -41,7 +38,7 @@ enum {
  * File information
  */
 typedef struct {
-    char *name; /**< Filenames in UTF-8 encoding */
+    const char *name; /**< Filenames in UTF-8 encoding */
     unsigned int modified_time; /**< Timestamp */
 } dir_entry;
 
@@ -114,6 +111,3 @@ const char *dir_get_file_at_location(const char *filepath, int location);
  */
 const char *dir_append_location(const char *filename, int location);
 
-#ifdef __cplusplus
-}
-#endif

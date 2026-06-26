@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="clay_pit">
-    <identity name_key="building.clay_pit.name" />
+    <identity name_key="main_strings.28.109" />
     <model size="2" cost="40" />
     <desirability>
         <value value="-3" />
@@ -11,7 +11,7 @@
     <foundation policy="custom">
         <terrain value="water" />
     </foundation>
-    <button group="raw_materials" order="10" icon="Industry\Clay_Pit" text_key="building.clay_pit.name" />
+    <button group="raw_materials" order="10" icon="Industry\Clay_Pit" text_key="main_strings.28.109" />
     <sound id="clay_pit" />
     <event_data attr="clay_pit" />
     <graphics>
@@ -24,6 +24,7 @@
         <employees count="10" />
         <labor_seeker>
             <method value="houses_spawn_if_below" />
+            <amount value="50" />
         </labor_seeker>
     </labor>
     <storages>

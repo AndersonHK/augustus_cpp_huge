@@ -1,9 +1,10 @@
 #pragma once
 
 #include "core/buffer.h"
-#include "building/type.h"
+#include "building/building_type.h"
 #include "figure/type.h"
 #include "game/resource.h"
+
 
 /**
  * @file
@@ -124,3 +125,4 @@ int building_count_terrain(int terrain, int (*condition)(int));
 
 int building_count_bridges(int ship);
 int building_count_bridges_in_area(int minx, int miny, int maxx, int maxy, int ship);
+

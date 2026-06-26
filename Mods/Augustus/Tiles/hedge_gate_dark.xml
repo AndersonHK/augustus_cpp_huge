@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="hedge_gate_dark">
+    <identity name_key="TR_BUILDING_HEDGE_GATE_DARK" />
+    <model size="1" cost="12" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
+    <foundation policy="road_or_land" />
+    <button group="parks" order="240" text_key="TR_BUILDING_HEDGE_GATE_DARK" />
+    <event_data attr="hedge_gate_dark" />
+    <roadblock kind="standard" />
+    <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <options selection="connectable">
+                <option path="Aesthetics\D_Hedge_Gate" image="D Hedge Gate" />
+                <option path="Aesthetics\D_Hedge_Gate_R" image="D Hedge Gate R" />
+            </options>
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

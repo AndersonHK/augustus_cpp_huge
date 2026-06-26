@@ -1,26 +1,27 @@
-extern "C" {
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/attributes.h"
+#include "window/editor/edit_request.h"
+
 #include "requests.h"
+
+#include "window/editor/map.h"
+#include "graphics/grid_box.h"
+#include "scenario/data.h"
 
 #include "core/image_group_editor.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/image.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "scenario/data.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
 #include "scenario/request.h"
-#include "window/editor/attributes.h"
-#include "window/editor/edit_request.h"
-#include "window/editor/map.h"
-}
 
 static void button_edit_request(const grid_box_item *item);
 static void button_new_request(const generic_button *button);
@@ -108,25 +109,25 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 0, 40, 30);
-    lang_text_draw(44, 14, 20, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw("main_strings.44.14", 20, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_DATE, 15, 50, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Request date:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_RESOURCE, 150, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Resource:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_AMOUNT, 235, 50, 80, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Amount:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REQUEST_DEADLINE, 310, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Deadline:
-    lang_text_draw_centered(53, 4, 390, 50, 90, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Favor
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY2, 465, 30, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Repeat frequency
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES2, 480, 50, 45, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Times:
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY_YEARS2, 525, 50, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Years:
+    lang_text_draw_centered("TR_EDITOR_REQUEST_DATE", 15, 50, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Request date:
+    lang_text_draw_centered("TR_EDITOR_REQUEST_RESOURCE", 150, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Resource:
+    lang_text_draw_centered("TR_EDITOR_REQUEST_AMOUNT", 235, 50, 80, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Amount:
+    lang_text_draw_centered("TR_EDITOR_REQUEST_DEADLINE", 310, 50, 70, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Deadline:
+    lang_text_draw_centered("main_strings.53.4", 390, 50, 90, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Favor
+    lang_text_draw_centered("TR_EDITOR_REPEAT_FREQUENCY2", 465, 30, 120, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Repeat frequency
+    lang_text_draw_centered("TR_EDITOR_REPEAT_TIMES2", 480, 50, 45, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Times:
+    lang_text_draw_centered("TR_EDITOR_REPEAT_FREQUENCY_YEARS2", 525, 50, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height)); // Years:
 
     if (!data.requests_in_use) {
-        lang_text_draw_centered(44, 19, 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw_centered("main_strings.44.19", 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     }
 
     if (!data.on_select) {
-        lang_text_draw_centered(13, 3, 0, 456, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        lang_text_draw_multiline(152, 1, 20, 380, 600, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NEW_REQUEST, new_request_button.x + 8,
+        lang_text_draw_centered("main_strings.13.3", 0, 456, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_multiline("main_strings.152.1", 20, 380, 600, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered("TR_EDITOR_NEW_REQUEST", new_request_button.x + 8,
             new_request_button.y + 8, new_request_button.width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
@@ -142,11 +143,10 @@ static void draw_request_button(const grid_box_item *item)
     text_draw_number(request->year, '+', " ", item->x + 5, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     lang_text_draw_year(scenario_property_start_year() + request->year, item->x + 40, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    int image_id = resource_get_data(static_cast<resource_type>(request->resource))->image.editor.icon;
-    const image *img = image_get(image_id);
-    int base_width = (25 - img->original.width) / 2;   //centering resource icon
-    int base_height = (item->height - img->original.height) / 2;
-    image_draw(image_id, 150 + base_width, item->y + base_height, COLOR_MASK_NONE, SCALE_NONE);
+    const ImageGroupEntryRef &icon = resource_graphics(static_cast<resource_type>(request->resource)).editor_icon();
+    int base_width = (25 - icon.width()) / 2;
+    int base_height = (item->height - icon.height()) / 2;
+    icon.draw(150 + base_width, item->y + base_height);
     text_draw(resource_get_data(static_cast<resource_type>(request->resource))->text, 180, item->y + 7,
         FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
 

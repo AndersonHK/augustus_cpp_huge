@@ -6,7 +6,6 @@
 #include <stdint.h>
 #include <stddef.h>
 
-#ifdef __cplusplus
 #include <string>
 #include <utility>
 
@@ -100,4 +99,3 @@ public:
 };
 
 } // namespace vespasian::graphics::extraction
-#endif

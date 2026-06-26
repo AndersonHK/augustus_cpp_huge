@@ -1,12 +1,9 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
 #include "city/resource.h"
 #include "core/buffer.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 // MODEL DATA
 
@@ -101,7 +98,7 @@ typedef struct {
     } custom_asset;
     struct {
         const char *attr;
-        int key;
+        const char *key;
         int cannot_count;
     } event_data;
     model_building building_model_data;
@@ -118,6 +115,3 @@ void building_properties_apply_xml_draw_desirability_range(building_type type, i
 void building_properties_apply_xml_venus_gt_bonus(building_type type, int venus_gt_bonus);
 const building_properties *building_properties_for_type(building_type type);
 
-#ifdef __cplusplus
-}
-#endif

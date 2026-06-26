@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * @file
@@ -23,8 +20,6 @@ extern "C" {
  * @param param_int Extra info (integer)
  */
 void log_info(const char *msg, const char *param_str, int param_int);
-void log_set_debug_enabled(int enabled);
-int log_is_debug_enabled(void);
 
 /**
  * Logs a warning message.
@@ -42,11 +37,11 @@ void log_warning(const char *msg, const char *param_str, int param_int);
  */
 void log_error(const char *msg, const char *param_str, int param_int);
 
+
+bool log_is_debug_enabled();
+void log_set_debug_enabled(bool enabled);
+
 /**
  * Logs the repeated messages, saying how many times it was repeated
  */
-void log_repeated_messages(void);
-
-#ifdef __cplusplus
-}
-#endif
+void log_repeated_messages();

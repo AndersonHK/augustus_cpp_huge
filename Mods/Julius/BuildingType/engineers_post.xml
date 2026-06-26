@@ -9,7 +9,7 @@
         <range value="1" />
     </desirability>
     <foundation policy="land" />
-    <button group="engineering" order="10" icon="Admin_Logistics\Engineers_Post" text_key="main_strings.28.81" />
+    <button group="engineering" order="30" icon="Admin_Logistics\Engineers_Post" text_key="main_strings.28.81" />
     <sound id="engineers_post" />
     <event_data attr="engineers_post" />
     <flags fire_proof="1" />

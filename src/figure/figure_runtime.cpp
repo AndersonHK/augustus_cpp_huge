@@ -1,48 +1,49 @@
+#include "building/building.h"
+#include "building/list.h"
+#include "building/local_workforce.h"
+#include "building/maintenance.h"
+#include "city/festival.h"
+#include "figure/action.h"
+#include "figure/figure.h"
+#include "map/building.h"
+#include "map/road_access.h"
+
 #include "figure/figure_runtime_api.h"
 
+#include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
 #include "figure/figure_runtime_native.h"
 #include "figure/figure_type_registry_internal.h"
 #include "map/road_service_history.h"
-#include "map/routing_distance.h"
 
-extern "C" {
-#include "building/list.h"
-#include "building/local_workforce.h"
-#include "building/maintenance.h"
-#include "building/building.h"
+#include "building/building_record.h"
 #include "core/buffer.h"
 #include "building/monument.h"
-#include "city/festival.h"
 #include "city/figures.h"
 #include "core/calc.h"
 #include "core/image.h"
-#include "figure/action.h"
 #include "figure/combat.h"
 #include "figure/enemy_army.h"
-#include "figure/figure.h"
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "game/time.h"
-#include "map/building.h"
 #include "map/grid.h"
-#include "map/road_access.h"
-#include "map/routing_terrain.h"
 #include "map/terrain.h"
 #include "scenario/gladiator_revolt.h"
 #include "sound/effect.h"
-}
 
 #include <cstdint>
+#include <exception>
 #include <limits>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 namespace {
 
 struct RuntimeEntry {
-    figure *data = nullptr;
+    Figure *data = nullptr;
     unsigned short created_sequence = 0;
     const figure_type_registry_impl::FigureTypeDefinition *definition = nullptr;
     const figure_type_registry_impl::FigureTypeProfile *profile = nullptr;
@@ -70,49 +71,50 @@ void clear_entry(unsigned int id)
     g_runtime_entries[id] = RuntimeEntry();
 }
 
-int entry_matches_figure(const RuntimeEntry &entry, const figure *f)
+int entry_matches_figure(const RuntimeEntry &entry, const Figure *f)
 {
     return entry.data == f && entry.created_sequence == f->created_sequence;
 }
 
-const char *profile_id_for_priest_owner(const figure *f)
+bool type_matches(const building_type_registry_impl::BuildingType *type, const char *text_id)
 {
-    const building *owner = f ? building_get(f->building_id) : nullptr;
-    if (!owner) {
+    return type && std::string_view(type->attr()) == text_id;
+}
+
+const char *profile_id_for_priest_owner(const Figure *f)
+{
+    if (!f || !f->building.id()) {
         return nullptr;
     }
 
     // Legacy saves do not persist XML profile bindings. Priest recovery keeps
     // the old temple-to-god mapping, then the recovered profile owns the effect.
-    switch (owner->type) {
-        case BUILDING_SMALL_TEMPLE_CERES:
-        case BUILDING_LARGE_TEMPLE_CERES:
-        case BUILDING_GRAND_TEMPLE_CERES:
-            return "ceres_service";
-        case BUILDING_SMALL_TEMPLE_NEPTUNE:
-        case BUILDING_LARGE_TEMPLE_NEPTUNE:
-        case BUILDING_GRAND_TEMPLE_NEPTUNE:
-            return "neptune_service";
-        case BUILDING_SMALL_TEMPLE_MERCURY:
-        case BUILDING_LARGE_TEMPLE_MERCURY:
-        case BUILDING_GRAND_TEMPLE_MERCURY:
-            return "mercury_service";
-        case BUILDING_SMALL_TEMPLE_MARS:
-        case BUILDING_LARGE_TEMPLE_MARS:
-        case BUILDING_GRAND_TEMPLE_MARS:
-            return "mars_service";
-        case BUILDING_SMALL_TEMPLE_VENUS:
-        case BUILDING_LARGE_TEMPLE_VENUS:
-        case BUILDING_GRAND_TEMPLE_VENUS:
-            return "venus_service";
-        case BUILDING_PANTHEON:
-            return "pantheon_service";
-        default:
-            return nullptr;
+    const building_type_registry_impl::BuildingType *type = f->building.type;
+    if (!type) {
+        return nullptr;
     }
+    if (type->is_pantheon()) {
+        return "pantheon_service";
+    }
+    if (type->is_ceres_temple()) {
+        return "ceres_service";
+    }
+    if (type->is_neptune_temple()) {
+        return "neptune_service";
+    }
+    if (type->is_mercury_temple()) {
+        return "mercury_service";
+    }
+    if (type->is_mars_temple()) {
+        return "mars_service";
+    }
+    if (type->is_venus_temple()) {
+        return "venus_service";
+    }
+    return nullptr;
 }
 
-const char *infer_profile_id(const figure *f)
+const char *infer_profile_id(const Figure *f)
 {
     if (!f) {
         return nullptr;
@@ -135,6 +137,10 @@ const char *infer_profile_id(const figure *f)
             return "storage_fetch";
         case FIGURE_DELIVERY_BOY:
             return "follow_leader";
+        case FIGURE_DEPOT_CART_PUSHER:
+            return "order_runner";
+        case FIGURE_FISHING_BOAT:
+            return "fish_fetch";
         case FIGURE_ACTOR:
         case FIGURE_GLADIATOR:
         case FIGURE_LION_TAMER:
@@ -146,24 +152,24 @@ const char *infer_profile_id(const figure *f)
                     return "venue_seeker";
                 case FIGURE_ACTION_94_ENTERTAINER_ROAMING:
                 case FIGURE_ACTION_95_ENTERTAINER_RETURNING: {
-                    const building *owner = building_get(f->building_id);
-                    if (!owner) {
+                    if (!f->building.id()) {
                         return nullptr;
                     }
+                    const building_type_registry_impl::BuildingType *building_type = f->building.type;
                     if (f->type == FIGURE_ACTOR) {
-                        return owner->type == BUILDING_AMPHITHEATER ? "amphitheater_service" : "theater_service";
+                        return type_matches(building_type, "amphitheater") ? "amphitheater_service" : "theater_service";
                     }
                     if (f->type == FIGURE_GLADIATOR) {
-                        if (owner->type == BUILDING_ARENA) {
+                        if (type_matches(building_type, "arena")) {
                             return "arena_service";
                         }
-                        if (owner->type == BUILDING_COLOSSEUM) {
+                        if (type_matches(building_type, "colosseum")) {
                             return "colosseum_service";
                         }
                         return "amphitheater_service";
                     }
                     if (f->type == FIGURE_LION_TAMER) {
-                        return owner->type == BUILDING_COLOSSEUM ? "colosseum_service" : "arena_service";
+                        return type_matches(building_type, "colosseum") ? "colosseum_service" : "arena_service";
                     }
                     if (f->type == FIGURE_CHARIOTEER) {
                         return "hippodrome_service";
@@ -178,16 +184,16 @@ const char *infer_profile_id(const figure *f)
     }
 }
 
-RuntimeEntry *bind_entry(figure *f)
+RuntimeEntry *bind_entry(Figure *f)
 {
     // Save files and legacy spawners only persist figure fields, not the
     // XML profile pointer. Rebinding lazily here lets loaded figures recover
     // their controller the first tick they execute.
-    if (!f || !f->id) {
+    if (!f || !f->id()) {
         return nullptr;
     }
 
-    RuntimeEntry *entry = entry_for_id(f->id);
+    RuntimeEntry *entry = entry_for_id(f->id());
     if (!entry) {
         return nullptr;
     }
@@ -209,8 +215,7 @@ RuntimeEntry *bind_entry(figure *f)
 
     if (!entry_matches_figure(*entry, f) ||
         entry->definition != definition ||
-        entry->profile != profile ||
-        !entry->controller) {
+        entry->profile != profile) {
         entry->data = f;
         entry->created_sequence = f->created_sequence;
         entry->definition = definition;
@@ -218,10 +223,12 @@ RuntimeEntry *bind_entry(figure *f)
         entry->controller = figure_runtime_native_impl::make_controller(f, definition, profile);
     } else {
         entry->data = f;
-        entry->controller->set_figure(f);
+        if (entry->controller) {
+            entry->controller->set_figure(f);
+        }
     }
 
-    if (!entry->controller) {
+    if (!entry->profile) {
         *entry = RuntimeEntry();
         return nullptr;
     }
@@ -246,17 +253,17 @@ void record_service_history(road_service_effect effect, int grid_offset)
 
 } // namespace
 
-extern "C" void figure_runtime_reset(void)
+void figure_runtime_reset()
 {
     g_runtime_entries.clear();
 }
 
-extern "C" void figure_runtime_initialize_city(void)
+void figure_runtime_initialize_city()
 {
     figure_runtime_reset();
 
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
         if (!f || !f->state) {
             continue;
         }
@@ -264,13 +271,13 @@ extern "C" void figure_runtime_initialize_city(void)
     }
 }
 
-extern "C" void figure_runtime_on_created(figure *f)
+void figure_runtime_on_created(Figure *f)
 {
-    if (!f || !f->id) {
+    if (!f || !f->id()) {
         return;
     }
 
-    RuntimeEntry *entry = entry_for_id(f->id);
+    RuntimeEntry *entry = entry_for_id(f->id());
     if (!entry) {
         return;
     }
@@ -278,9 +285,9 @@ extern "C" void figure_runtime_on_created(figure *f)
     bind_entry(f);
 }
 
-extern "C" int figure_runtime_bind_profile(figure *f, const char *profile_id)
+int figure_runtime_bind_profile(Figure *f, const char *profile_id)
 {
-    if (!f || !f->id) {
+    if (!f || !f->id()) {
         return 0;
     }
 
@@ -295,7 +302,7 @@ extern "C" int figure_runtime_bind_profile(figure *f, const char *profile_id)
         return 0;
     }
 
-    RuntimeEntry *entry = entry_for_id(f->id);
+    RuntimeEntry *entry = entry_for_id(f->id());
     if (!entry) {
         return 0;
     }
@@ -305,15 +312,16 @@ extern "C" int figure_runtime_bind_profile(figure *f, const char *profile_id)
     entry->definition = definition;
     entry->profile = profile;
     entry->controller = figure_runtime_native_impl::make_controller(f, definition, profile);
-    return entry->controller ? 1 : 0;
+    return profile->native_class() == figure_type_registry_impl::NativeClassId::LegacyAction ||
+        entry->controller ? 1 : 0;
 }
 
-extern "C" figure *figure_runtime_create_profiled(
+Figure *figure_runtime_create_profiled(
     figure_type type,
     int x,
     int y,
     direction_type dir,
-    unsigned int building_id,
+    Building &building,
     const char *profile_id)
 {
     const figure_type_registry_impl::FigureTypeProfile *profile =
@@ -324,12 +332,12 @@ extern "C" figure *figure_runtime_create_profiled(
         return nullptr;
     }
 
-    figure *f = figure_create(type, x, y, dir);
+    Figure *f = Figure::create(type, x, y, dir);
     if (!f) {
         return nullptr;
     }
 
-    f->building_id = building_id;
+    f->building = building;
     // The profile owns the lifecycle; these legacy action states remain the
     // save-compatible storage used to rebind the same profile after load.
     switch (profile->native_class()) {
@@ -348,6 +356,14 @@ extern "C" figure *figure_runtime_create_profiled(
             break;
         case figure_type_registry_impl::NativeClassId::MarketSupplier:
             f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
+            break;
+        case figure_type_registry_impl::NativeClassId::DepotCartPusher:
+            f->action_state = FIGURE_ACTION_238_DEPOT_CART_PUSHER_INITIAL;
+            break;
+        case figure_type_registry_impl::NativeClassId::FishingBoat:
+            f->action_state = FIGURE_ACTION_190_FISHING_BOAT_CREATED;
+            break;
+        case figure_type_registry_impl::NativeClassId::LegacyAction:
             break;
         case figure_type_registry_impl::NativeClassId::DeliveryFollower:
             break;
@@ -373,15 +389,15 @@ extern "C" figure *figure_runtime_create_profiled(
     return f;
 }
 
-extern "C" void figure_runtime_on_deleted(figure *f)
+void figure_runtime_on_deleted(Figure *f)
 {
     if (!f) {
         return;
     }
-    clear_entry(f->id);
+    clear_entry(f->id());
 }
 
-extern "C" int figure_runtime_execute(figure *f)
+int figure_runtime_execute(Figure *f)
 {
     RuntimeEntry *entry = bind_entry(f);
     if (!entry || !entry->controller) {
@@ -390,8 +406,72 @@ extern "C" int figure_runtime_execute(figure *f)
     return entry->controller->execute();
 }
 
-extern "C" int figure_runtime_choose_roaming_direction(
-    figure *f,
+int figure_runtime_apply_profile_movement(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    if (!entry || !entry->profile) {
+        ErrorContextScope scope("FigureType profile movement");
+        error_context_report_fatal_error_dialog(
+            "Figure runtime error",
+            "Figure has no XML movement profile.",
+            "A legacy action walker attempted to read profile-owned movement data, but no FigureType profile was bound.");
+        std::terminate();
+    }
+
+    const figure_type_registry_impl::MovementProfile &movement = entry->profile->movement_profile();
+    f->terrain_usage = static_cast<unsigned char>(entry->profile->pathing_policy().terrain.legacy_usage);
+    f->use_cross_country = 0;
+    f->max_roam_length = static_cast<short>(movement.max_roam_length);
+    return 1;
+}
+
+const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Figure *f)
+{
+    RuntimeEntry *entry = bind_entry(f);
+    return entry && entry->profile ? &entry->profile->pathing_policy() : nullptr;
+}
+
+int figure_runtime_graphic_draw_request(const Figure *f, FigureGraphicDrawRequest *request)
+{
+    if (request) {
+        *request = {};
+    }
+    if (!f || !request) {
+        return 0;
+    }
+    if (figure_runtime_native_impl::warrior_graphic_draw_request_for_figure(f, request)) {
+        return 1;
+    }
+    if (figure_runtime_native_impl::fort_standard_graphic_draw_request_for_figure(f, request)) {
+        return 1;
+    }
+
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    if (figure_runtime_native_impl::depot_cart_graphic_draw_request_for_figure(f, definition, request)) {
+        return 1;
+    }
+    if (figure_runtime_native_impl::graphics_policy_draw_request_for_figure(f, definition, request)) {
+        return 1;
+    }
+    if (figure_runtime_native_impl::hippodrome_horse_graphic_draw_request_for_figure(f, request)) {
+        return 1;
+    }
+    return figure_runtime_native_impl::legacy_cart_graphic_draw_request_for_figure(f, request);
+}
+
+int figure_runtime_update_graphics(Figure *f)
+{
+    if (!f) {
+        return 0;
+    }
+    const figure_type_registry_impl::FigureTypeDefinition *definition =
+        figure_type_registry_impl::definition_for(static_cast<figure_type>(f->type));
+    return figure_runtime_native_impl::graphics_policy_update_figure_image(f, definition);
+}
+
+int figure_runtime_choose_roaming_direction(
+    Figure *f,
     const int *road_tiles,
     int came_from_direction,
     int vanilla_direction)
@@ -444,7 +524,7 @@ extern "C" int figure_runtime_choose_roaming_direction(
     return best_direction;
 }
 
-extern "C" void figure_runtime_record_road_service_visit(figure *f)
+void figure_runtime_record_road_service_visit(Figure *f)
 {
     // Recording is pathing telemetry only. Coverage/risk systems still use the
     // existing service callbacks; this history only informs future road choices.

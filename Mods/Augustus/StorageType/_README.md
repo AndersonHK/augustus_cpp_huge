@@ -12,15 +12,18 @@ Prefer descriptive names that include both the resource and the owning building 
 
 Current supported nodes:
 
+- `<storage_type role="input|output">`
 - `<accepts resource="..." />`
 - `<capacity amount="N" />`
 
 Rules:
 
+- `role` is required; input storage receives delivery carts and feeds production inputs, output storage receives production output and dispatches export carts
 - `<accepts>` may appear one or more times
 - `resource` must use the existing resource xml names
 - `<capacity>` is optional
 - `amount` is stored as raw resource units
+- one full cartload is 100 raw resource units; fractional farm output can be stored below a full load, but carts reserve and move only whole loads
 
 The current native vertical slice uses StorageType as shared authored metadata for native building-owned storage slots.
 Implemented production storage definitions now cover native farms, ordinary one-output workshops, and raw-material producers: clay, timber, iron, marble, gold, stone, and sand where the mod supports those resources.

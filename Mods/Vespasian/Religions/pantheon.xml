@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<religion>
+    <god path="all" />
+    <tier value="grand" />
+    <capacity amount="1500" />
+    <presentation sound="wavs/oracle.wav" name_key="TR_BUILDING_PANTHEON_DESC" bonus_key="TR_BUILDING_PANTHEON_BONUS_DESC" quote_key="TR_BUILDING_PANTHEON_QUOTE" banner_group="UI\Panth_L_Banner" banner_image="Panth L Banner" content_y_offset="0" height_blocks="40" module_key="pantheon" />
+</religion>

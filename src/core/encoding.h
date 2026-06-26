@@ -4,9 +4,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Encoding type
@@ -94,6 +91,3 @@ void encoding_utf16_to_utf8(const uint16_t *input, char *output);
  */
 void encoding_utf8_to_utf16(const char *input, uint16_t *output);
 
-#ifdef __cplusplus
-}
-#endif

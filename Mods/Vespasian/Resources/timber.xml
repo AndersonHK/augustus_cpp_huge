@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource id="timber" slot="7" name_key="main_strings.23.10">
+  <model xml_attr="timber|wood" flags="storable" />
+  <trade buy="50" sell="35" />
+  <graphics>
+    <cart load="single" path="Walkers\Group_097" image="Image_0080" />
+    <cart load="multiple" path="Walkers\Group_250" image="Image_0040" />
+    <cart load="eight" path="Walkers\Group_250" image="Image_0040" />
+    <storage load="1" path="Industry\Warehouse_Storage_Filled" image="Image_0036" />
+    <storage load="2" path="Industry\Warehouse_Storage_Filled" image="Image_0037" />
+    <storage load="3" path="Industry\Warehouse_Storage_Filled" image="Image_0038" />
+    <storage load="4" path="Industry\Warehouse_Storage_Filled" image="Image_0039" />
+    <panel_icon path="UI\Resource_Icons" image="Image_0010" />
+    <empire_icon path="PaperMap\Empire_Resources" image="Image_0010" />
+    <editor_icon path="UI\Resource_Icons" image="Image_0010" />
+    <editor_empire_icon path="PaperMap\Empire_Resources" image="Image_0010" />
+  </graphics>
+</resource>

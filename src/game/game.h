@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int game_pre_init(void);
 
@@ -23,6 +20,3 @@ void game_exit_editor(void);
 
 void game_exit(void);
 
-#ifdef __cplusplus
-}
-#endif

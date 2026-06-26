@@ -1,11 +1,8 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "core/buffer.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 enum {
     SOUND_DIRECTION_LEFT = 0,
@@ -111,6 +108,3 @@ void sound_city_progress_ambient(void);
 
 void sound_city_play(void);
 
-#ifdef __cplusplus
-}
-#endif

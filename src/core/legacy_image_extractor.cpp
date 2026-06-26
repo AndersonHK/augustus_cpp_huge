@@ -1,13 +1,13 @@
+#
+
 #include "core/legacy_image_extractor.h"
 
 #include "assets/graphics_extractor_common.h"
+#include "game/mod_manager.h"
 
-extern "C" {
 #include "core/file.h"
 #include "core/log.h"
-#include "game/mod_manager.h"
 #include "platform/file_manager.h"
-}
 
 #include "spng/spng.h"
 
@@ -21,7 +21,7 @@ extern "C" {
 
 namespace {
 
-constexpr char kExtractionStampPrefix[] = "legacy_extract_v8:";
+constexpr char kExtractionStampPrefix[] = "legacy_extract_v10:";
 class LegacyFamily {
 public:
     const char *folder_name;
@@ -60,6 +60,12 @@ constexpr LegacyFamily kEnvironment { "Environment" };
 
 constexpr int kLegacyHouseTentVariantsGroup = 18;
 
+enum class LegacyClimateFlavor {
+    central,
+    northern,
+    desert
+};
+
 std::vector<LegacyGroupRange> g_extracted_group_ranges;
 
 using graphics_extractor::append_attribute;
@@ -94,6 +100,67 @@ static std::string make_source_stem(const char *source_name)
     }
     stem = sanitize_component(stem.c_str());
     return stem.empty() ? std::string("legacy") : stem;
+}
+
+static LegacyClimateFlavor climate_flavor_from_source(const char *source_name)
+{
+    const std::string stem = make_source_stem(source_name);
+    if (stem == "c3_north" || stem == "c3map_north") {
+        return LegacyClimateFlavor::northern;
+    }
+    if (stem == "c3_south" || stem == "c3map_south") {
+        return LegacyClimateFlavor::desert;
+    }
+    return LegacyClimateFlavor::central;
+}
+
+static const char *climate_flavor_suffix(LegacyClimateFlavor flavor)
+{
+    switch (flavor) {
+        case LegacyClimateFlavor::northern: return "_Northern";
+        case LegacyClimateFlavor::desert: return "_Desert";
+        default: return "";
+    }
+}
+
+static const char *climate_flavor_manifest_token(LegacyClimateFlavor flavor)
+{
+    switch (flavor) {
+        case LegacyClimateFlavor::northern: return "_northern";
+        case LegacyClimateFlavor::desert: return "_desert";
+        default: return "";
+    }
+}
+
+static bool is_house_or_house_variant_group(int group_id)
+{
+    switch (group_id) {
+        case kLegacyHouseTentVariantsGroup:
+        case GROUP_BUILDING_HOUSE_TENT:
+        case GROUP_BUILDING_HOUSE_SHACK:
+        case GROUP_BUILDING_HOUSE_HOVEL:
+        case GROUP_BUILDING_HOUSE_CASA:
+        case GROUP_BUILDING_HOUSE_INSULA_1:
+        case GROUP_BUILDING_HOUSE_INSULA_2:
+        case GROUP_BUILDING_HOUSE_VILLA_1:
+        case GROUP_BUILDING_HOUSE_VILLA_2:
+        case GROUP_BUILDING_HOUSE_PALACE_1:
+        case GROUP_BUILDING_HOUSE_PALACE_2:
+        case GROUP_BUILDING_HOUSE_VACANT_LOT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static bool is_climate_sensitive_group(int group_id)
+{
+    return group_id == GROUP_BUILDING_RESERVOIR || is_house_or_house_variant_group(group_id);
+}
+
+static bool should_export_group_for_climate(int group_id, LegacyClimateFlavor flavor)
+{
+    return flavor == LegacyClimateFlavor::central || is_climate_sensitive_group(group_id);
 }
 
 static std::string make_unknown_group_folder_name(int group_id)
@@ -304,7 +371,7 @@ static std::string make_group_folder_name(int group_id)
 
 static std::string make_family_root_directory(const LegacyFamily &family)
 {
-    return std::string(mod_manager_get_julius_graphics_path()) + family.folder_name;
+    return mod_manager::julius_graphics_path() + family.folder_name;
 }
 
 static std::string make_group_directory(const LegacyFamily &family, int group_id)
@@ -312,9 +379,28 @@ static std::string make_group_directory(const LegacyFamily &family, int group_id
     return make_family_root_directory(family) + "/" + make_group_folder_name(group_id);
 }
 
+static std::string make_group_folder_name(const LegacyFamily &, int group_id, LegacyClimateFlavor flavor)
+{
+    std::string folder_name = make_group_folder_name(group_id);
+    if (flavor != LegacyClimateFlavor::central && is_climate_sensitive_group(group_id)) {
+        folder_name += climate_flavor_suffix(flavor);
+    }
+    return folder_name;
+}
+
+static std::string make_group_directory(const LegacyFamily &family, int group_id, LegacyClimateFlavor flavor)
+{
+    return make_family_root_directory(family) + "/" + make_group_folder_name(family, group_id, flavor);
+}
+
 static std::string make_group_assetlist_name(const LegacyFamily &family, int group_id)
 {
     return std::string(family.folder_name) + "\\" + make_group_folder_name(group_id);
+}
+
+static std::string make_group_assetlist_name(const LegacyFamily &family, int group_id, LegacyClimateFlavor flavor)
+{
+    return std::string(family.folder_name) + "\\" + make_group_folder_name(family, group_id, flavor);
 }
 
 static std::string make_group_xml_path(const LegacyFamily &family, int group_id)
@@ -322,14 +408,21 @@ static std::string make_group_xml_path(const LegacyFamily &family, int group_id)
     return make_family_root_directory(family) + "/" + make_group_folder_name(group_id) + ".xml";
 }
 
-static std::string make_stamp_path(void)
+static std::string make_group_xml_path(const LegacyFamily &family, int group_id, LegacyClimateFlavor flavor)
 {
-    return without_trailing_separator(mod_manager_get_julius_graphics_path()) + ".legacy_extract.stamp";
+    return make_family_root_directory(family) + "/" + make_group_folder_name(family, group_id, flavor) + ".xml";
 }
 
-static std::string make_manifest_path(void)
+static std::string make_stamp_path(LegacyClimateFlavor flavor)
 {
-    return without_trailing_separator(mod_manager_get_julius_graphics_path()) + ".legacy_extract.manifest";
+    return without_trailing_separator(mod_manager::julius_graphics_path().c_str()) +
+        ".legacy_extract" + climate_flavor_manifest_token(flavor) + ".stamp";
+}
+
+static std::string make_manifest_path(LegacyClimateFlavor flavor)
+{
+    return without_trailing_separator(mod_manager::julius_graphics_path().c_str()) +
+        ".legacy_extract" + climate_flavor_manifest_token(flavor) + ".manifest";
 }
 
 static void hash_stamp_bytes(uint64_t &hash, const void *data, size_t size)
@@ -525,11 +618,11 @@ static const LegacyGroupRange *find_range_for_absolute_image(
     return nullptr;
 }
 
-static std::vector<std::string> read_manifest_entries(void)
+static std::vector<std::string> read_manifest_entries(LegacyClimateFlavor flavor)
 {
     std::vector<std::string> entries;
     std::string contents;
-    if (!read_text_file(make_manifest_path(), contents) || contents.empty()) {
+    if (!read_text_file(make_manifest_path(flavor), contents) || contents.empty()) {
         return entries;
     }
 
@@ -551,19 +644,19 @@ static std::vector<std::string> read_manifest_entries(void)
     return entries;
 }
 
-static bool write_manifest_entries(const std::vector<std::string> &entries)
+static bool write_manifest_entries(LegacyClimateFlavor flavor, const std::vector<std::string> &entries)
 {
     std::string manifest;
     for (const std::string &entry : entries) {
         manifest += entry;
         manifest += "\n";
     }
-    return write_text_file(make_manifest_path(), manifest);
+    return write_text_file(make_manifest_path(flavor), manifest);
 }
 
-static void clear_existing_output(void)
+static void clear_existing_output(LegacyClimateFlavor flavor)
 {
-    std::vector<std::string> entries = read_manifest_entries();
+    std::vector<std::string> entries = read_manifest_entries(flavor);
     for (auto it = entries.rbegin(); it != entries.rend(); ++it) {
         if (it->size() < 3 || (*it)[1] != '|') {
             continue;
@@ -576,8 +669,15 @@ static void clear_existing_output(void)
             platform_file_manager_remove_file(path);
         }
     }
-    platform_file_manager_remove_file(make_manifest_path().c_str());
-    platform_file_manager_remove_file(make_stamp_path().c_str());
+    platform_file_manager_remove_file(make_manifest_path(flavor).c_str());
+    platform_file_manager_remove_file(make_stamp_path(flavor).c_str());
+}
+
+static void clear_all_existing_output(void)
+{
+    clear_existing_output(LegacyClimateFlavor::desert);
+    clear_existing_output(LegacyClimateFlavor::northern);
+    clear_existing_output(LegacyClimateFlavor::central);
 }
 
 static const LegacyFamily &family_for_building_group(int group_id)
@@ -1242,7 +1342,8 @@ static void append_compatibility_aliases(
     const image *images,
     const LegacyGroupRange &range,
     const std::vector<LegacyGroupRange> &ranges,
-    std::unordered_set<int> &exported_local_indices)
+    std::unordered_set<int> &exported_local_indices,
+    LegacyClimateFlavor climate_flavor)
 {
     const int visible_image_count = compatibility_visible_image_count(range.group_id);
     if (visible_image_count <= 0) {
@@ -1266,11 +1367,66 @@ static void append_compatibility_aliases(
         }
 
         const LegacyFamily &target_family = family_for_group(target_range->group_id);
-        const std::string target_group = make_group_assetlist_name(target_family, target_range->group_id);
+        const std::string target_group =
+            make_group_assetlist_name(target_family, target_range->group_id, climate_flavor);
         const std::string target_image = make_generated_image_id(absolute_image_id - target_range->first_image_id);
         append_full_image_alias_xml(xml, exported_images, make_generated_image_id(legacy_offset), target_group, target_image, img);
         exported_local_indices.insert(legacy_offset);
     }
+}
+
+static void append_granary_empty_animation_alias(
+    std::string &xml,
+    int &exported_images,
+    const image *base_image,
+    const std::unordered_set<int> &exported_local_indices)
+{
+    if (!base_image || !base_image->animation || exported_local_indices.find(0) == exported_local_indices.end()) {
+        return;
+    }
+    for (int frame = 6; frame <= 12; frame++) {
+        if (exported_local_indices.find(frame) == exported_local_indices.end()) {
+            return;
+        }
+    }
+
+    append_indent(xml, 1);
+    xml += "<image";
+    append_attribute(xml, "id", "Granary_Empty");
+    append_attribute(xml, "group", "this");
+    append_attribute(xml, "image", "Image_0000");
+    xml += ">\n";
+
+    append_indent(xml, 2);
+    xml += "<animation";
+    append_attribute(xml, "frames", 7);
+    if (base_image->animation->speed_id > 0) {
+        append_attribute(xml, "speed", base_image->animation->speed_id);
+    }
+    if (base_image->animation->can_reverse) {
+        append_attribute(xml, "reversible", "true");
+    }
+    if (base_image->animation->sprite_offset_x != 0) {
+        append_attribute(xml, "x", base_image->animation->sprite_offset_x);
+    }
+    if (base_image->animation->sprite_offset_y != 0) {
+        append_attribute(xml, "y", base_image->animation->sprite_offset_y);
+    }
+    xml += ">\n";
+
+    for (int frame = 6; frame <= 12; frame++) {
+        append_indent(xml, 3);
+        xml += "<frame";
+        append_attribute(xml, "group", "this");
+        append_attribute(xml, "image", make_generated_image_id(frame));
+        xml += "/>\n";
+    }
+
+    append_indent(xml, 2);
+    xml += "</animation>\n";
+    append_indent(xml, 1);
+    xml += "</image>\n";
+    exported_images++;
 }
 
 static bool export_group(
@@ -1279,13 +1435,14 @@ static bool export_group(
     const LegacyGroupRange &range,
     const image_atlas_data *atlas_data,
     std::vector<std::string> &manifest_entries,
-    ExtractionStats &stats)
+    ExtractionStats &stats,
+    LegacyClimateFlavor climate_flavor)
 {
     const LegacyFamily &family = family_for_group(range.group_id);
-    const std::string group_directory = make_group_directory(family, range.group_id);
+    const std::string group_directory = make_group_directory(family, range.group_id, climate_flavor);
 
-    const std::string assetlist_name = make_group_assetlist_name(family, range.group_id);
-    const std::string xml_path = make_group_xml_path(family, range.group_id);
+    const std::string assetlist_name = make_group_assetlist_name(family, range.group_id, climate_flavor);
+    const std::string xml_path = make_group_xml_path(family, range.group_id, climate_flavor);
 
     std::string xml = "<?xml version=\"1.0\"?>\n<!DOCTYPE assetlist>\n<assetlist";
     append_attribute(xml, "name", assetlist_name);
@@ -1361,7 +1518,10 @@ static bool export_group(
         exported_local_indices.insert(local_index);
     }
 
-    append_compatibility_aliases(xml, exported_images, images, range, ranges, exported_local_indices);
+    append_compatibility_aliases(xml, exported_images, images, range, ranges, exported_local_indices, climate_flavor);
+    if (range.group_id == GROUP_BUILDING_GRANARY) {
+        append_granary_empty_animation_alias(xml, exported_images, &images[range.first_image_id], exported_local_indices);
+    }
 
     xml += "</assetlist>\n";
     if (exported_images <= 0) {
@@ -1388,12 +1548,14 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
         return JuliusExtractionReport();
     }
 
+    const LegacyClimateFlavor climate_flavor = climate_flavor_from_source(climate.source_name());
+
     const std::vector<LegacyGroupRange> ranges =
         build_group_ranges(climate.group_image_ids(), climate.group_count(), climate.image_count());
     g_extracted_group_ranges = ranges;
 
     std::string existing_stamp;
-    const int has_existing_stamp = read_text_file(make_stamp_path(), existing_stamp);
+    const int has_existing_stamp = read_text_file(make_stamp_path(climate_flavor), existing_stamp);
     const std::string expected_stamp = make_stamp_contents(
         climate.images(),
         climate.image_count(),
@@ -1416,24 +1578,31 @@ JuliusExtractionReport JuliusExtractor::extract(const LegacyClimateAtlas &climat
     }
 
     log_info("Starting Julius legacy graphics extraction", climate.source_name(), 0);
-    clear_existing_output();
+    if (climate_flavor == LegacyClimateFlavor::central) {
+        clear_all_existing_output();
+    } else {
+        clear_existing_output(climate_flavor);
+    }
 
     std::vector<std::string> manifest_entries;
     ExtractionStats stats;
     for (const LegacyGroupRange &range : ranges) {
-        if (!export_group(climate.images(), ranges, range, climate.atlas_data(), manifest_entries, stats)) {
+        if (!should_export_group_for_climate(range.group_id, climate_flavor)) {
+            continue;
+        }
+        if (!export_group(climate.images(), ranges, range, climate.atlas_data(), manifest_entries, stats, climate_flavor)) {
             log_error("Julius graphics extraction failed", climate.source_name(), 0);
             return JuliusExtractionReport();
         }
     }
 
-    ensure_directory(mod_manager_get_julius_graphics_path());
-    if (!write_manifest_entries(manifest_entries)) {
-        log_error("Failed to write Julius extraction manifest", make_manifest_path().c_str(), 0);
+    ensure_directory(mod_manager::julius_graphics_path().c_str());
+    if (!write_manifest_entries(climate_flavor, manifest_entries)) {
+        log_error("Failed to write Julius extraction manifest", make_manifest_path(climate_flavor).c_str(), 0);
         return JuliusExtractionReport();
     }
-    if (!write_text_file(make_stamp_path(), expected_stamp)) {
-        log_error("Failed to write Julius extraction stamp", make_stamp_path().c_str(), 0);
+    if (!write_text_file(make_stamp_path(climate_flavor), expected_stamp)) {
+        log_error("Failed to write Julius extraction stamp", make_stamp_path(climate_flavor).c_str(), 0);
         return JuliusExtractionReport();
     }
 

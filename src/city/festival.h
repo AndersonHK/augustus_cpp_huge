@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "city/resource.h"
 #include "translation/translation.h"

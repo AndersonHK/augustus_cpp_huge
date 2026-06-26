@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 void scenario_emperor_change_init(void);
 
 void scenario_emperor_change_process(void);

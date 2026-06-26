@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource id="sand" slot="13" name_key="TR_RESOURCE_SAND">
+  <model xml_attr="sand" flags="storable" />
+  <trade buy="30" sell="24" />
+  <graphics>
+    <cart load="single" path="Industry\Sand_Cart_NE" image="Sand_Cart_NE" />
+    <cart load="multiple" path="Industry\Sand_Cart_Getting_NE" image="Sand_Cart_Getting_NE" />
+    <cart load="eight" path="Industry\Sand_Cart_Getting_NE" image="Sand_Cart_Getting_NE" />
+    <storage load="1" path="Industry\Warehouse_Sand_01" image="Warehouse_Sand_01" />
+    <storage load="2" path="Industry\Warehouse_Sand_02" image="Warehouse_Sand_02" />
+    <storage load="3" path="Industry\Warehouse_Sand_03" image="Warehouse_Sand_03" />
+    <storage load="4" path="Industry\Warehouse_Sand_04" image="Warehouse_Sand_04" />
+    <panel_icon path="UI\Panelling_Sand_01" image="Panelling_Sand_01" />
+    <empire_icon path="UI\Panelling_Sand_02" image="Panelling_Sand_02" />
+    <editor_icon path="UI\Panelling_Sand_01" image="Panelling_Sand_01" />
+    <editor_empire_icon path="UI\Panelling_Sand_02" image="Panelling_Sand_02" />
+  </graphics>
+</resource>

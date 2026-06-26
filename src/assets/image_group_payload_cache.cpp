@@ -1,6 +1,6 @@
 #include "assets/image_group_payload_internal.h"
 
-#include "core/image_payload.h"
+#include "graphics/image.h"
 
 namespace image_group_payload_internal {
 
@@ -115,14 +115,14 @@ const ResolvedImageEntry *find_resolved_entry(const std::string &group_key, xml_
 void release_resolved_entry_resources(const ResolvedImageEntry &entry)
 {
     if (!entry.footprint.texture_key.empty()) {
-        image_payload_release_key(entry.footprint.texture_key.c_str());
+        image_manager().release(entry.footprint.texture_key);
     }
     if (!entry.top.texture_key.empty()) {
-        image_payload_release_key(entry.top.texture_key.c_str());
+        image_manager().release(entry.top.texture_key);
     }
     for (const std::string &frame_key : entry.animation_frame_keys) {
         if (!frame_key.empty()) {
-            image_payload_release_key(frame_key.c_str());
+            image_manager().release(frame_key);
         }
     }
 }

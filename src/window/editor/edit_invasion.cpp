@@ -1,25 +1,25 @@
-extern "C" {
-#include "edit_invasion.h"
-
-#include "core/lang.h"
-#include "core/string.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_list.h"
+
+#include "edit_invasion.h"
+
+#include "window/editor/map.h"
+
+#include "core/string.h"
+#include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/editor.h"
 #include "scenario/invasion.h"
 #include "scenario/property.h"
 #include "scenario/types.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-#include "window/plain_message_dialog.h"
-#include "window/select_list.h"
-}
 
 enum {
     AMOUNT_MIN = 0,
@@ -95,28 +95,29 @@ static const struct {
     translation_key title;
     int height;
 } sections[] = {
-    { TR_EDITOR_INVASION_DATE, 38 },
-    { TR_EDITOR_INVASION_SIZE, 38 },
-    { TR_EDITOR_INVASION_ENEMY_TYPE, 38 },
-    { TR_EDITOR_INVASION_FROM, 38 },
-    { TR_EDITOR_INVASION_ATTACK_PRIORITY, 38 },
-    { TR_EDITOR_REPEAT, 98 },
-    { TR_EDITOR_REPEAT_FREQUENCY, 38 }
+    { "TR_EDITOR_INVASION_DATE", 38 },
+    { "TR_EDITOR_INVASION_SIZE", 38 },
+    { "TR_EDITOR_INVASION_ENEMY_TYPE", 38 },
+    { "TR_EDITOR_INVASION_FROM", 38 },
+    { "TR_EDITOR_INVASION_ATTACK_PRIORITY", 38 },
+    { "TR_EDITOR_REPEAT", 98 },
+    { "TR_EDITOR_REPEAT_FREQUENCY", 38 }
 };
 
 static const translation_key invasion_type_strings[] = {
-    TR_SELECT_NONE,
-    TR_PARAMETER_VALUE_INVASION_TYPE_NATIVES,
-    TR_PARAMETER_VALUE_INVASION_TYPE_ENEMY_ARMY,
-    TR_PARAMETER_VALUE_INVASION_TYPE_CAESAR,
-    TR_PARAMETER_VALUE_MESSAGE_DISTANT_BATTLE,
+    "TR_SELECT_NONE",
+    "TR_PARAMETER_VALUE_INVASION_TYPE_NATIVES",
+    "TR_PARAMETER_VALUE_INVASION_TYPE_ENEMY_ARMY",
+    "TR_PARAMETER_VALUE_INVASION_TYPE_CAESAR",
+    "TR_PARAMETER_VALUE_MESSAGE_DISTANT_BATTLE",
 };
 
 static int get_largest_section_title_width(void)
 {
     int largest_width = 0;
     for (size_t i = 0; i < NUMBER_OF_SECTIONS; i++) {
-        int width = lang_text_get_width(CUSTOM_TRANSLATION, sections[i].title, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        int width = lang_text_get_width(
+            sections[i].title, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         if (width > largest_width) {
             largest_width = width;
         }
@@ -171,13 +172,13 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(16, BASE_Y_OFFSET, 38, 26);
-    lang_text_draw_centered(44, 22, 16, BASE_Y_OFFSET + 14, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.44.22", 16, BASE_Y_OFFSET + 14, 608, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     int y_offset = BASE_Y_OFFSET + 58;
 
     // Section names
     for (size_t i = 0; i < NUMBER_OF_SECTIONS; i++) {
-        lang_text_draw_right_aligned(CUSTOM_TRANSLATION, sections[i].title, 56, y_offset,
+        lang_text_draw_right_aligned(sections[i].title, 56, y_offset,
             data.section_title_width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         y_offset += sections[i].height;
     }
@@ -194,21 +195,21 @@ static void draw_background(void)
 
     // Invasion size text
     btn = &edit_buttons[1];
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, x_offset, BASE_Y_OFFSET + btn->y + 6,
+    lang_text_draw("TR_EDITOR_BETWEEN", x_offset, BASE_Y_OFFSET + btn->y + 6,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number_centered(data.invasion.amount.min, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_AND, x_offset + btn->x + btn->width,
+    lang_text_draw_centered("TR_EDITOR_AND", x_offset + btn->x + btn->width,
         BASE_Y_OFFSET + btn->y + 6, btn[1].x - (btn->x + btn->width), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     btn = &edit_buttons[2];
     text_draw_number_centered(data.invasion.amount.max, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_UNITS, x_offset + btn->x + btn->width + 10,
+    lang_text_draw("TR_EDITOR_UNITS", x_offset + btn->x + btn->width + 10,
         BASE_Y_OFFSET + btn->y + 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Invasion type text
     btn = &edit_buttons[3];
-    text_draw_centered(lang_get_string(CUSTOM_TRANSLATION, invasion_type_strings[data.invasion.type]),
+    text_draw_centered(lang_get_string(invasion_type_strings[data.invasion.type]),
         x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
     font_t enabled_font = (data.invasion.type == INVASION_TYPE_DISTANT_BATTLE ||
@@ -219,13 +220,11 @@ static void draw_background(void)
 
     // Invasion from text
     btn = &edit_buttons[4];
-    lang_text_draw_centered_colored(35, data.invasion.from, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width,
-        enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
+    lang_text_draw_centered_colored(current_string_key(35, data.invasion.from), x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
     // Invasion priority text
     btn = &edit_buttons[5];
-    lang_text_draw_centered_colored(36, data.invasion.attack_type, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6,
-        btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
+    lang_text_draw_centered_colored(current_string_key(36, data.invasion.attack_type), x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
     // Repeat type selected checkbox
     btn = &edit_buttons[6 + data.repeat_type];
@@ -233,23 +232,23 @@ static void draw_background(void)
 
     // Never repeat
     btn = &edit_buttons[6];
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_DO_NOT_REPEAT, x_offset + btn->x + 30,
+    lang_text_draw("TR_EDITOR_DO_NOT_REPEAT", x_offset + btn->x + 30,
         BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat forever
     btn = &edit_buttons[7];
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FOREVER, x_offset + btn->x + 30,
+    lang_text_draw("TR_EDITOR_REPEAT_FOREVER", x_offset + btn->x + 30,
         BASE_Y_OFFSET + btn->y + 3, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     // Repeat N times
     btn = &edit_buttons[9];
     if (data.invasion.repeat.times == 0 || data.invasion.repeat.times > 2) {
-        text_draw_label_and_number_centered(lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TEXT),
+        text_draw_label_and_number_centered(lang_get_string("TR_EDITOR_REPEAT_TEXT"),
             data.invasion.repeat.times,
-            (const char *) lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_TIMES),
+            (const char *) lang_get_string("TR_EDITOR_REPEAT_TIMES"),
             x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_ONCE + data.invasion.repeat.times - 1,
+        lang_text_draw_centered(data.invasion.repeat.times == 1 ? "TR_EDITOR_REPEAT_ONCE" : "TR_EDITOR_REPEAT_TWICE",
             x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6, btn->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
@@ -258,25 +257,23 @@ static void draw_background(void)
     enabled_color = data.repeat_type == INVASION_REPEAT_NEVER ? COLOR_FONT_LIGHT_GRAY : COLOR_MASK_NONE;
 
     btn = &edit_buttons[10];
-    lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_BETWEEN, x_offset, BASE_Y_OFFSET + btn->y + 6,
+    lang_text_draw_colored("TR_EDITOR_BETWEEN", x_offset, BASE_Y_OFFSET + btn->y + 6,
         enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     text_draw_number_centered_colored(data.invasion.repeat.interval.min, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6,
         btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
-    lang_text_draw_centered_colored(CUSTOM_TRANSLATION, TR_EDITOR_AND, x_offset + btn->x + btn->width,
+    lang_text_draw_centered_colored("TR_EDITOR_AND", x_offset + btn->x + btn->width,
         BASE_Y_OFFSET + btn->y + 6, btn[1].x - (btn->x + btn->width), enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
     btn = &edit_buttons[11];
     text_draw_number_centered_colored(data.invasion.repeat.interval.max, x_offset + btn->x, BASE_Y_OFFSET + btn->y + 6,
         btn->width, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
-    lang_text_draw_colored(CUSTOM_TRANSLATION, TR_EDITOR_REPEAT_FREQUENCY_YEARS, x_offset + btn->x + btn->width + 10,
+    lang_text_draw_colored("TR_EDITOR_REPEAT_FREQUENCY_YEARS", x_offset + btn->x + btn->width + 10,
         BASE_Y_OFFSET + btn->y + 6, enabled_font, screen_ui_to_pixel(font_definition_for(enabled_font)->line_height), enabled_color);
 
     // Bottom button labels
-    lang_text_draw_centered_colored(44, 26, bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 6,
-        bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_invasion ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_CANCEL, bottom_buttons[1].x, BASE_Y_OFFSET + bottom_buttons[1].y + 6, bottom_buttons[1].width,
+    lang_text_draw_centered_colored("main_strings.44.26", bottom_buttons[0].x, BASE_Y_OFFSET + bottom_buttons[0].y + 6, bottom_buttons[0].width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_invasion ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
+    lang_text_draw_centered("TR_BUTTON_CANCEL", bottom_buttons[1].x, BASE_Y_OFFSET + bottom_buttons[1].y + 6, bottom_buttons[1].width,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(18, 3, bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 6, bottom_buttons[2].width,
-        FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.18.3", bottom_buttons[2].x, BASE_Y_OFFSET + bottom_buttons[2].y + 6, bottom_buttons[2].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
@@ -387,7 +384,7 @@ static void button_type(const generic_button *button)
 
     static const uint8_t *invasion_type_labels[5];
     for (int i = 0; i < 5; i++) {
-        invasion_type_labels[i] = lang_get_string(CUSTOM_TRANSLATION, invasion_type_strings[i]);
+        invasion_type_labels[i] = lang_get_string(invasion_type_strings[i]);
     }
 
     window_select_list_show_text(x_offset, y_offset, button, invasion_type_labels, 5, set_type);
@@ -506,13 +503,13 @@ static unsigned int validate(void)
     }
 
     if (data.invasion.type == INVASION_TYPE_NONE) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_INVASION_NO_TYPE);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_INVASION_NO_TYPE");
     }
     if (data.invasion.amount.min <= 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_INVASION_NO_SOLDIERS);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_INVASION_NO_SOLDIERS");
     }
     if (data.invasion.year == 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_INVASION_SET_YEAR);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_INVASION_SET_YEAR");
     }
 
     return num_errors;
@@ -522,7 +519,7 @@ static void button_save(const generic_button *button)
 {
     unsigned int num_errors = validate();
     if (num_errors) {
-        window_plain_message_dialog_show_text_list(TR_EDITOR_FORM_ERRORS_FOUND, TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS,
+        window_plain_message_dialog_show_text_list("TR_EDITOR_FORM_ERRORS_FOUND", "TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS",
             data.errors, num_errors);
         return;
     }

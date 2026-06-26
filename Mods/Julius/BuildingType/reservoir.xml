@@ -9,7 +9,6 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="water" order="10" icon="Admin_Logistics\Reservoir" text_key="main_strings.28.90" />
     <sound id="reservoir" />
     <event_data attr="reservoir" />
     <flags fire_proof="1" />
@@ -33,11 +32,16 @@
         <default>
             <path value="Admin_Logistics\Reservoir" />
         </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Admin_Logistics\Reservoir_Northern" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Admin_Logistics\Reservoir_Desert" />
+        </variant>
     </graphics>
     <labor>
         <employees count="0" />
-        <labor_seeker>
-            <method value="none" />
-        </labor_seeker>
     </labor>
 </building>

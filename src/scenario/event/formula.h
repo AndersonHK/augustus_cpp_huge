@@ -4,6 +4,7 @@
 
 #include <stddef.h>
 
+
 /**
  * @brief Evaluate a mathematical formula string with floating-point precision.
  *
@@ -36,3 +37,4 @@ int scenario_event_formula_check(scenario_formula_t *formula);
 
 int scenario_event_formula_is_static(unsigned int id);
 int scenario_event_formula_is_error(unsigned int id);
+

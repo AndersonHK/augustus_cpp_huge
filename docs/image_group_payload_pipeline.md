@@ -21,9 +21,26 @@ For generated graphics extraction details, see `docs/graphics_extraction_pipelin
    - footprint/top managed payload keys for rendering
    - animation frame payload keys and runtime slices
 
-4. Payload Facade
+4. Image Manager / Group Bridge
    Input: resolved entries for one merged group.
-   Output: one `ImageGroupPayload` exposing the legacy-shaped `image` contract used by runtime drawing.
+   Output: manager-owned `Image` objects and runtime slices exposed through image-group entry references. The current lower-level image-group payload code is a bridge while image-group itself is being moved to a class.
+
+## Caller Surface
+
+Runtime callers should use `ImageGroupEntryRef` when they mean "this named image definition from this group." The value stores:
+
+- logical group path
+- optional entry id
+- cached resolved image id only as an internal implementation detail
+
+Its normal public surface is:
+
+- `draw(x, y, color = COLOR_MASK_NONE, scale = SCALE_NONE)`
+- `width()` / `height()`
+- `runtime_slice()`
+- `image()` when the loaded `Image` object is genuinely needed
+
+Icons, resource panel art, button art, stateful button images, warehouse stack art, cart loads, and similar UI images should all use this generic reference. Do not add a special `Icon` class unless a future control has behavior beyond selecting and drawing an image-group entry.
 
 ## Source Priority
 

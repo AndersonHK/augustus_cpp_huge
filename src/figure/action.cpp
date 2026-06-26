@@ -1,38 +1,36 @@
-#include "figure/action.h"
-
-extern "C" {
 #include "city/entertainment.h"
-#include "city/figures.h"
-#include "figure/figure.h"
-#include "figure/figure_runtime_api.h"
 #include "figuretype/animal.h"
 #include "figuretype/cartpusher.h"
 #include "figuretype/crime.h"
-#include "figuretype/depot.h"
 #include "figuretype/docker.h"
+#include "figuretype/entertainer.h"
 #include "figuretype/editor.h"
 #include "figuretype/enemy.h"
-#include "figuretype/entertainer.h"
-#include "figuretype/maintenance.h"
 #include "figuretype/migrant.h"
 #include "figuretype/missile.h"
 #include "figuretype/native.h"
 #include "figuretype/service.h"
-#include "figuretype/soldier.h"
 #include "figuretype/supplier.h"
 #include "figuretype/trader.h"
 #include "figuretype/wall.h"
 #include "figuretype/water.h"
 #include "figuretype/workcamp.h"
-}
+
+#include "figure/action.h"
+#include "figure/figure.h"
+#include "figure/figure_runtime_api.h"
+#include "game/performance_tracker.h"
+#include "figuretype/soldier.h"
+
+#include "city/figures.h"
 
 
-static void figure_nobody_action(figure *f)
+static void figure_nobody_action(Figure *f)
 {
     (void) f;
 }
 
-static void figure_retired_native_action(figure *f)
+static void figure_retired_native_action(Figure *f)
 {
     // These enum slots are now owned by FigureType controllers. If runtime
     // binding fails, remove the figure instead of falling through to stale C.
@@ -42,7 +40,9 @@ static void figure_retired_native_action(figure *f)
 }
 
 // Indices intentionally match figure_type enum values.
-static void (*figure_action_callbacks[])(figure *f) = {
+using FigureAction = void (*)(Figure *f);
+
+static FigureAction figure_action_callbacks[] = {
     figure_nobody_action, //0
     figure_immigrant_action,
     figure_emigrant_action,
@@ -51,9 +51,9 @@ static void (*figure_action_callbacks[])(figure *f) = {
     figure_labor_seeker_action,
     figure_explosion_cloud_action,
     figure_tax_collector_action,
-    figure_engineer_action,
+    figure_retired_native_action,
     figure_warehouseman_action,
-    figure_prefect_action, //10
+    figure_retired_native_action, //10
     figure_soldier_action,
     figure_soldier_action,
     figure_soldier_action,
@@ -68,7 +68,7 @@ static void (*figure_action_callbacks[])(figure *f) = {
     figure_protestor_action,
     figure_rioter_action,
     figure_rioter_action,
-    figure_fishing_boat_action,
+    figure_retired_native_action,
     figure_market_trader_action,
     figure_priest_action,
     figure_school_child_action,
@@ -78,7 +78,7 @@ static void (*figure_action_callbacks[])(figure *f) = {
     figure_bathhouse_worker_action,
     figure_doctor_action,
     figure_doctor_action,
-    figure_worker_action,
+    figure_retired_native_action,
     figure_editor_flag_action,
     figure_flotsam_action,
     figure_docker_action,
@@ -134,7 +134,7 @@ static void (*figure_action_callbacks[])(figure *f) = {
     figure_delivery_boy_action,
     figure_supplier_action,
     figure_fort_supplier_action, // 90
-    figure_depot_cartpusher_action,
+    figure_retired_native_action,
     figure_soldier_action,
     figure_retired_native_action,
     figure_soldier_action,
@@ -144,26 +144,25 @@ static void (*figure_action_callbacks[])(figure *f) = {
 
 void figure_action_handle(void)
 {
+    PerformanceTrackerScope scope(PERFORMANCE_TRACKER_BUCKET_FIGURE);
     city_figures_reset();
     city_entertainment_set_hippodrome_has_race(0);
-    for (unsigned int i = 1; i < figure_count(); i++) {
-        figure *f = figure_get(i);
-        if (f->state) {
-            if (f->targeted_by_figure_id) {
-                figure *attacker = figure_get(f->targeted_by_figure_id);
-                if (attacker->state != FIGURE_STATE_ALIVE) {
-                    f->targeted_by_figure_id = 0;
-                }
-                if (attacker->target_figure_id != i) {
-                    f->targeted_by_figure_id = 0;
-                }
+    for (unsigned int i = 1; i < Figure::count(); i++) {
+        Figure *f = Figure::get(i);
+        if (!f || !f->state) {
+            continue;
+        }
+        if (f->targeted_by_figure.save_id()) {
+            Figure &attacker = f->targeted_by_figure.get();
+            if (attacker.state != FIGURE_STATE_ALIVE || attacker.target_figure.save_id() != i) {
+                f->targeted_by_figure.clear();
             }
-            if (!figure_runtime_execute(f)) {
-                figure_action_callbacks[f->type](f);
-            }
-            if (f->state == FIGURE_STATE_DEAD) {
-                figure_delete(f);
-            }
+        }
+        if (!figure_runtime_execute(f)) {
+            figure_action_callbacks[f->type](f);
+        }
+        if (f->state == FIGURE_STATE_DEAD) {
+            f->remove();
         }
     }
 }

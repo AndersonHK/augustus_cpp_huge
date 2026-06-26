@@ -1,41 +1,45 @@
-extern "C" {
+#include "empire/editor.h"
+#include "translation/translation.h"
+#include "empire/empire.h"
+#include "empire/export_xml.h"
+#include "empire/import_xml.h"
+#include "game/resource_graphics.h"
+#include "graphics/arrow_button.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/empire_properties.h"
+#include "window/empire.h"
+#include "window/file_dialog.h"
+#include "window/numeric_input.h"
+#include "window/select_list.h"
+
 #include "empire.h"
+
+#include "window/editor/map.h"
+#include "window/text_input.h"
+#include "game/resource_id_bridge.h"
+
+#include "scenario/data.h"
 
 #include "assets/assets.h"
 #include "core/image_group_editor.h"
 #include "core/string.h"
 #include "empire/city.h"
-#include "empire/editor.h"
-#include "empire/empire.h"
-#include "empire/export_xml.h"
-#include "empire/import_xml.h"
 #include "empire/object.h"
 #include "empire/trade_route.h"
 #include "empire/type.h"
-#include "graphics/arrow_button.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "input/mouse.h"
 #include "input/scroll.h"
-#include "scenario/data.h"
 #include "scenario/editor.h"
 #include "scenario/empire.h"
-#include "window/editor/empire_properties.h"
-#include "window/editor/map.h"
-#include "window/empire.h"
-#include "window/file_dialog.h"
-#include "window/numeric_input.h"
-#include "window/select_list.h"
-#include "window/text_input.h"
-}
 
 #include <math.h>
 #include <stdio.h>
@@ -49,6 +53,85 @@ extern "C" {
 
 #define RESOURCE_ICON_WIDTH 26 //resource icon width in px
 #define RESOURCE_ICON_HEIGHT 26
+
+static const translation_key EMPIRE_TOOL_KEYS[] = {
+    "TR_EMPIRE_TOOL_OUR_CITY",
+    "TR_EMPIRE_TOOL_TRADE_CITY",
+    "TR_EMPIRE_TOOL_ROMAN_CITY",
+    "TR_EMPIRE_TOOL_VULNERABLE_CITY",
+    "TR_EMPIRE_TOOL_FUTURE_TRADE_CITY",
+    "TR_EMPIRE_TOOL_DISTANT_CITY",
+    "TR_EMPIRE_TOOL_BORDER",
+    "TR_EMPIRE_TOOL_BATTLE",
+    "TR_EMPIRE_TOOL_DISTANT_BABARIAN",
+    "TR_EMPIRE_TOOL_DISTANT_LEGION",
+    "TR_EMPIRE_TOOL_LAND_ROUTE",
+    "TR_EMPIRE_TOOL_SEA_ROUTE"
+};
+
+static const translation_key EMPIRE_CITY_ICON_KEYS[] = {
+    "TR_EMPIRE_CITY_ICON_DEFAULT",
+    "TR_EMPIRE_CITY_ICON_CONSTRUCTION",
+    "TR_EMPIRE_CITY_ICON_DISTANT_TOWN",
+    "TR_EMPIRE_CITY_ICON_DISTANT_VILLAGE",
+    "TR_EMPIRE_CITY_ICON_RESOURCE_FOOD",
+    "TR_EMPIRE_CITY_ICON_RESOURCE_GOODS",
+    "TR_EMPIRE_CITY_ICON_RESOURCE_SEA",
+    "TR_EMPIRE_CITY_ICON_TRADE_TOWN",
+    "TR_EMPIRE_CITY_ICON_ROMAN_TOWN",
+    "TR_EMPIRE_CITY_ICON_TRADE_VILLAGE",
+    "TR_EMPIRE_CITY_ICON_ROMAN_VILLAGE",
+    "TR_EMPIRE_CITY_ICON_ROMAN_CAPITAL",
+    "TR_EMPIRE_CITY_ICON_TRADE_SEA",
+    "TR_EMPIRE_CITY_ICON_TRADE_LAND",
+    "TR_EMPIRE_CITY_ICON_OUR_CITY",
+    "TR_EMPIRE_CITY_ICON_TRADE_CITY",
+    "TR_EMPIRE_CITY_ICON_ROMAN_CITY",
+    "TR_EMPIRE_CITY_ICON_DISTANT_CITY",
+    "TR_EMPIRE_CITY_ICON_TOWER"
+};
+
+static const translation_key EMPIRE_ORNAMENT_KEYS[] = {
+    "TR_EMPIRE_ORNAMENT_STONEHENGE",
+    "TR_EMPIRE_ORNAMENT_GALLIC_WHEAT",
+    "TR_EMPIRE_ORNAMENT_THE_PYRENEES",
+    "TR_EMPIRE_ORNAMENT_IBERIAN_AQUEDUCT",
+    "TR_EMPIRE_ORNAMENT_TRIUMPHAL_ARCH",
+    "TR_EMPIRE_ORNAMENT_WEST_DESERT_WHEAT",
+    "TR_EMPIRE_ORNAMENT_LIGHTHOUSE_ALEXANDRIA",
+    "TR_EMPIRE_ORNAMENT_WEST_DESERT_PALMS",
+    "TR_EMPIRE_ORNAMENT_TRADE_SHIP",
+    "TR_EMPIRE_ORNAMENT_WATERSIDE_PALMS",
+    "TR_EMPIRE_ORNAMENT_THE_COLOSSEUM",
+    "TR_EMPIRE_ORNAMENT_THE_ALPS",
+    "TR_EMPIRE_ORNAMENT_ROMAN_TREE",
+    "TR_EMPIRE_ORNAMENT_GREEK_MOUNTAINS",
+    "TR_EMPIRE_ORNAMENT_THE_PARTHENON",
+    "TR_EMPIRE_ORNAMENT_THE_PYRAMIDS",
+    "TR_EMPIRE_ORNAMENT_HAGIA_SOPHIA",
+    "TR_EMPIRE_ORNAMENT_EAST_DESERT_PALMS",
+    "TR_EMPIRE_ORNAMENT_EAST_DESERT_WHEAT",
+    "TR_EMPIRE_ORNAMENT_TRADE_CAMEL",
+    "TR_EMPIRE_ORNAMENT_MOUNT_ETNA",
+    "TR_EMPIRE_ORNAMENT_COLOSSUS_RHODES",
+    "TR_EMPIRE_ORNAMENT_THE_TEMPLE",
+    "TR_EMPIRE_ORNAMENT_IRELAND"
+};
+
+static translation_key empire_tool_key(int tool)
+{
+    return EMPIRE_TOOL_KEYS[tool];
+}
+
+static translation_key empire_city_icon_key(int icon)
+{
+    return EMPIRE_CITY_ICON_KEYS[icon];
+}
+
+static translation_key empire_ornament_key(int ornament_id)
+{
+    return EMPIRE_ORNAMENT_KEYS[ornament_id];
+}
 
 typedef struct {
     int x;
@@ -133,15 +216,15 @@ static generic_button set_order_button[] = {
     {0, 27, 48, 24, 0, button_set_index}
 };
 
-static resource_button sell_buttons[RESOURCE_MAX] = { 0 };
-static resource_button buy_buttons[RESOURCE_MAX] = { 0 };
+static resource_button sell_buttons[RESOURCE_SLOT_COUNT] = { 0 };
+static resource_button buy_buttons[RESOURCE_SLOT_COUNT] = { 0 };
 
 static struct {
     unsigned int selected_button;
     int selected_city;
     int add_to_buying;
     resource_type selected_resource;
-    resource_type available_resources[RESOURCE_MAX];
+    resource_type available_resources[RESOURCE_SLOT_COUNT];
     int x_min, x_max, y_min, y_max;
     int x_draw_offset, y_draw_offset;
     unsigned int focus_button_id;
@@ -177,8 +260,8 @@ static void image_buttons_init(void)
 
 static void update_button(int button, int x)
 {
-    int width = lang_text_get_width(CUSTOM_TRANSLATION, data.button_is_preview ?
-        TR_EDITOR_EMPIRE_TOOL : TR_EDITOR_CURRENT_ICON, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    int width = lang_text_get_width(data.button_is_preview ? "TR_EDITOR_EMPIRE_TOOL" : "TR_EDITOR_CURRENT_ICON",
+        FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     generic_buttons[button].parameter1 = !(data.panel.x_min + x + 150 + width + 96 < data.panel.x_max);
 }
 
@@ -260,7 +343,7 @@ void set_battles_shown(int show)
 
 static void draw_paneling(void)
 {
-    int image_base = image_group(GROUP_EDITOR_EMPIRE_PANELS);
+    int image_base = Image::group(GROUP_EDITOR_EMPIRE_PANELS);
     int bottom_panel_is_larger = data.x_min != data.panel.x_min;
     int vertical_y_limit = bottom_panel_is_larger ? data.y_max - 120 : data.y_max;
 
@@ -269,52 +352,52 @@ static void draw_paneling(void)
 
     // bottom panel background
     for (int x = data.panel.x_min; x < data.panel.x_max; x += 70) {
-        image_draw(image_base + 3, x, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 3, x, data.y_max - 120, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 3, x, data.y_max - 80, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 3, x, data.y_max - 40, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 160);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 120);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 80);
+        Image::from_id(image_base + 3).draw(x, data.y_max - 40);
     }
 
     // horizontal bar borders
     for (int x = data.panel.x_min; x < data.panel.x_max; x += 86) {
-        image_draw(image_base + 1, x, data.y_max - 10, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 1, x, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 1, x, data.y_max - 16, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_max - 10);
+        Image::from_id(image_base + 1).draw(x, data.y_max - 160);
+        Image::from_id(image_base + 1).draw(x, data.y_max - 16);
     }
 
     // extra vertical bar borders
     if (bottom_panel_is_larger) {
         for (int y = vertical_y_limit + 16; y < data.y_max; y += 86) {
-            image_draw(image_base, data.panel.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
-            image_draw(image_base, data.panel.x_max - 16, y, COLOR_MASK_NONE, SCALE_NONE);
+            Image::from_id(image_base).draw(data.panel.x_min, y);
+            Image::from_id(image_base).draw(data.panel.x_max - 16, y);
         }
     }
 
     graphics_set_clip_rectangle(data.x_min, data.y_min, data.x_max - data.x_min, vertical_y_limit - data.y_min);
 
     for (int x = data.x_min; x < data.x_max; x += 86) {
-        image_draw(image_base + 1, x, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 1).draw(x, data.y_min);
     }
 
     // vertical bar borders
     for (int y = data.y_min + 16; y < vertical_y_limit; y += 86) {
-        image_draw(image_base, data.x_min, y, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base, data.x_max - 16, y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base).draw(data.x_min, y);
+        Image::from_id(image_base).draw(data.x_max - 16, y);
     }
 
     graphics_reset_clip_rectangle();
 
     // crossbars
-    image_draw(image_base + 2, data.x_min, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.x_min, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.panel.x_min, data.y_max - 16, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.x_max - 16, data.y_min, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.x_max - 16, data.y_max - 160, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_base + 2, data.panel.x_max - 16, data.y_max - 16, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_base + 2).draw(data.x_min, data.y_min);
+    Image::from_id(image_base + 2).draw(data.x_min, data.y_max - 160);
+    Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - 16);
+    Image::from_id(image_base + 2).draw(data.x_max - 16, data.y_min);
+    Image::from_id(image_base + 2).draw(data.x_max - 16, data.y_max - 160);
+    Image::from_id(image_base + 2).draw(data.panel.x_max - 16, data.y_max - 16);
 
     if (bottom_panel_is_larger) {
-        image_draw(image_base + 2, data.panel.x_min, data.y_max - 120, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_base + 2, data.panel.x_max - 16, data.y_max - 120, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + 2).draw(data.panel.x_min, data.y_max - 120);
+        Image::from_id(image_base + 2).draw(data.panel.x_max - 16, data.y_max - 120);
     }
 }
 
@@ -347,11 +430,11 @@ static int get_preview_image_group(empire_tool tool) {
     }
 }
 
-static int get_preview_translation_key(int tool_or_icon) {
+static translation_key get_preview_translation_key(int tool_or_icon) {
     if (data.button_is_preview) {
-        return TR_EMPIRE_TOOL_OUR_CITY + tool_or_icon;
+        return empire_tool_key(tool_or_icon);
     } else {
-        return TR_EMPIRE_CITY_ICON_DEFAULT + tool_or_icon;
+        return empire_city_icon_key(tool_or_icon);
     }
 }
 
@@ -382,7 +465,7 @@ static int draw_preview_image(int x, int y, int center, color_t color_mask, int 
         image_id = empire_city_get_icon_image_id(obj->empire_city_icon);
     } else {
         if (empire_editor_get_moving_ornament_id() < 0) {
-            image_id = image_group(preview_image_group);
+            image_id = Image::group(preview_image_group);
             if (preview_image_group == GROUP_EMPIRE_TRADE_LAND) {
                 image_id = assets_get_image_id("UI", "LandWaypoint");
             } else if (preview_image_group == GROUP_EMPIRE_TRADE_SEA) {
@@ -399,10 +482,9 @@ static int draw_preview_image(int x, int y, int center, color_t color_mask, int 
     const image *img = image_get(image_id);
     int x_offset = x + (center - img->width) / 2;
     int y_offset = y + (center - img->height) / 2;
-    image_draw(image_id, x_offset, y_offset, color_mask, SCALE_NONE);
+    Image::from_id(image_id).draw(x_offset, y_offset, color_mask, SCALE_NONE);
     if (img->animation && img->animation->speed_id) {
-        image_draw(image_id + 1, x_offset + img->animation->sprite_offset_x,
-            y_offset + img->animation->sprite_offset_y, color_mask, SCALE_NONE);
+        Image::from_id(image_id + 1).draw(x_offset + img->animation->sprite_offset_x, y_offset + img->animation->sprite_offset_y, color_mask, SCALE_NONE);
     }
     if (draw_borders) {
         graphics_draw_rect(x_offset, y_offset, img->width, img->height, COLOR_BLACK);
@@ -414,7 +496,7 @@ static void draw_background(void)
 {
     update_screen_size();
     if (data.x_min || data.y_min) {
-        image_draw_blurred_fullscreen(image_group(GROUP_EDITOR_EMPIRE_MAP), 3);
+        Image::from_id(Image::group(GROUP_EDITOR_EMPIRE_MAP)).draw_blurred_fullscreen(3);
         graphics_shade_rect(0, 0, screen_width(), screen_height(), 7);
     }
     draw_paneling();
@@ -481,19 +563,16 @@ static void draw_empire_object(const empire_object *obj)
             image_id = assets_lookup_image_id(ASSET_FIRST_ORNAMENT) - 1 - image_id;
         }
     }
-    image_draw(image_id, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y);
     const image *img = image_get(image_id);
     if (img->animation && img->animation->speed_id) {
         int new_animation = empire_object_update_animation(obj, image_id);
-        image_draw(image_id + new_animation,
-            data.x_draw_offset + x + img->animation->sprite_offset_x,
-            data.y_draw_offset + y + img->animation->sprite_offset_y,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id + new_animation).draw(data.x_draw_offset + x + img->animation->sprite_offset_x, data.y_draw_offset + y + img->animation->sprite_offset_y);
     }
     // Manually fix the Hagia Sophia
     if (obj->image_id == 3372) {
         image_id = assets_lookup_image_id(ASSET_HAGIA_SOPHIA_FIX);
-        image_draw(image_id, data.x_draw_offset + x, data.y_draw_offset + y, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(data.x_draw_offset + x, data.y_draw_offset + y);
     }
 }
 
@@ -562,7 +641,7 @@ static void draw_coordinates(void)
     empire_restore_coordinates(&x_coord, &y_coord);
 
     show_coords(data.x_min + 20, data.y_min + 20,
-        lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_CURRENT_COORDS), x_coord, y_coord);
+        lang_get_string("TR_EDITOR_CURRENT_COORDS"), x_coord, y_coord);
     if (!(m->left.is_down && !is_outside_map(m->x, m->y))) {
         draw_preview_image(m->x, m->y, 0, ALPHA_FONT_SEMI_TRANSPARENT, 0, 0);
     }
@@ -572,7 +651,7 @@ static void draw_coordinates(void)
         y_coord = data.coordinates.y + data.y_draw_offset;
         empire_transform_coordinates(&x_coord, &y_coord);
         show_coords(data.x_min + 20, data.y_min + 50,
-            lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_SELECTED_COORDS),
+            lang_get_string("TR_EDITOR_SELECTED_COORDS"),
                 data.coordinates.x, data.coordinates.y);
         if (!draw_preview_image(x_coord, y_coord, 0, ALPHA_FONT_SEMI_TRANSPARENT, 1, 0)) {
             graphics_draw_rect(x_coord - 3, y_coord - 3, 7, 7, COLOR_BLACK);
@@ -598,8 +677,7 @@ static void draw_map(void)
     data.x_draw_offset = data.x_min + 16;
     data.y_draw_offset = data.y_min + 16;
     empire_adjust_scroll(&data.x_draw_offset, &data.y_draw_offset);
-    image_draw(empire_get_image_id(), data.x_draw_offset, data.y_draw_offset,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(empire_get_image_id()).draw(data.x_draw_offset, data.y_draw_offset);
     
     if (data.resource_pulse_start == 0) {
         data.resource_pulse_start = time_get_millis();
@@ -621,13 +699,12 @@ static void draw_map(void)
 static int draw_resource(resource_type resource, int trade_max, int x_offset, int y_offset, int is_highlighted)
 {
     graphics_draw_inset_rect(x_offset, y_offset, RESOURCE_ICON_WIDTH, RESOURCE_ICON_HEIGHT, COLOR_INSET_DARK, COLOR_INSET_LIGHT);
-    image_draw(resource_get_data(resource)->image.editor.empire, x_offset + 1, y_offset + 1,
-        COLOR_MASK_NONE, SCALE_NONE);
+    resource_graphics(resource).editor_empire_icon().draw(x_offset + 1, y_offset + 1);
     if (is_highlighted) {
         time_millis elapsed = time_get_millis() - data.resource_pulse_start;
         float time_seconds = elapsed / 1000.0f; // Convert to seconds
         float pulse = sinf(time_seconds * 1.0f * 3.14f); // 1 full cycle per second
-        int alpha = 96 + (int) (pulse * 64); // Range: 32Ã¢â‚¬â€œ160
+        int alpha = 96 + (int) (pulse * 64); // Range: 32ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ160
         graphics_tint_rect(x_offset, y_offset, RESOURCE_ICON_WIDTH - 1, RESOURCE_ICON_HEIGHT - 1,
             COLOR_MASK_DARK_PINK, alpha);
     }
@@ -658,19 +735,19 @@ static void draw_city_info(const empire_city *city)
     switch (city->type) {
         case EMPIRE_CITY_DISTANT_ROMAN:
         case EMPIRE_CITY_VULNERABLE_ROMAN:
-            lang_text_draw(47, 12, x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            lang_text_draw("main_strings.47.12", x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             break;
         case EMPIRE_CITY_DISTANT_FOREIGN:
         case EMPIRE_CITY_FUTURE_ROMAN:
-            lang_text_draw(47, 0, x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            lang_text_draw("main_strings.47.0", x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             break;
         case EMPIRE_CITY_OURS:
         {
             add_resource_buttons[0].dont_draw = 0;
             add_resource_buttons[1].dont_draw = 1;
-            width += lang_text_draw(47, 1, x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            width += lang_text_draw("main_strings.47.1", x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             int resource_x_offset = x_offset + 30 + width;
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
                 resource_type resource = static_cast<resource_type>(r);
                 if (empire_object_city_sells_resource(city->empire_object_id, resource)) {
                     if (resource_x_offset + etc_width + 32 + 8 + 39 >= data.panel.x_max - 280) {
@@ -701,14 +778,14 @@ static void draw_city_info(const empire_city *city)
             trade_city_buttons[2].parameter1 = city->type != EMPIRE_CITY_FUTURE_TRADE;
             trade_city_buttons[1].parameter1 = 0;
             trade_city_buttons[1].x = 44 * (city->type != EMPIRE_CITY_FUTURE_TRADE);
-            int text_width = lang_text_draw(47, 5, x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            int text_width = lang_text_draw("main_strings.47.5", x_offset + 20 + width, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             width += text_width;
             int resource_x_offset = x_offset + 30 + width;
             if (resource_x_offset + etc_width + 32 + 8 + 39 >= data.panel.x_max - 500) {
                 // if even the add resource button doesn't fit hide the redraw trade route button so it can be shown
                 top_buttons[2].parameter1 = 1;
             }
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
                 resource_type resource = static_cast<resource_type>(r);
                 if (empire_object_city_sells_resource(city->empire_object_id, resource)) {
                     int max_trade = trade_route_limit(city->route_id, resource, 0);
@@ -733,7 +810,7 @@ static void draw_city_info(const empire_city *city)
             if (data.object_coords_x >= resource_x_offset) {
                 coords_bonus = data.object_coords_x - resource_x_offset;
             }
-            text_width = lang_text_draw(47, 4, resource_x_offset + coords_bonus, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            text_width = lang_text_draw("main_strings.47.4", resource_x_offset + coords_bonus, y_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             width = width_after_name + text_width + coords_bonus;
             resource_x_offset = x_offset + 30 + width;
             if (resource_x_offset + etc_width + 32 + 8 + 39 >= data.panel.x_max - 360) {
@@ -742,7 +819,7 @@ static void draw_city_info(const empire_city *city)
                 trade_city_buttons[2].parameter1 = 1;
                 trade_city_buttons[1].parameter1 = 1;
             }
-            for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+            for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
                 resource_type resource = static_cast<resource_type>(r);
                 if (empire_object_city_buys_resource(city->empire_object_id, resource)) {
                     int max_trade = trade_route_limit(city->route_id, resource, 1);
@@ -769,7 +846,7 @@ static void draw_city_info(const empire_city *city)
             if (!top_buttons[2].parameter1) {
                 // only if the redraw route button should be drawn (not hidden due to lack of space) draw it 
                 button_border_draw(data.panel.x_max - 500, data.y_max - 133, 120, 24, data.focus_top_button_id == 3);
-                lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EMPIRE_DRAW_TRADE_ROUTE,
+                lang_text_draw_centered("TR_EMPIRE_DRAW_TRADE_ROUTE",
                     data.panel.x_max - 500, data.y_max - 126, 120, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             }
             
@@ -777,10 +854,9 @@ static void draw_city_info(const empire_city *city)
                 // if the switch trade route type button isn't hidden draw it
                 button_border_draw(data.panel.x_max - 500 + trade_city_buttons[0].x, data.y_max - 93,
                     24, 24, data.focus_city_button_id == 1);
-                int image_id = assets_get_image_id("UI", empire_object_is_sea_trade_route(city->route_id) ?
-                    "SeaWaypoint" : "LandWaypoint");
-                image_draw(image_id, data.panel.x_max - 500 + trade_city_buttons[0].x + 3,
-                    data.y_max - 93 + 3, COLOR_MASK_NONE, SCALE_NONE);
+                const bool sea_route = empire_object_is_sea_trade_route(city->route_id);
+                ImageGroupEntryRef::from_group(sea_route ? "UI\\SeaWaypoint" : "UI\\LandWaypoint", sea_route ? "SeaWaypoint" : "LandWaypoint")
+                    .draw(data.panel.x_max - 500 + trade_city_buttons[0].x + 3, data.y_max - 93 + 3);
             }
             if (!trade_city_buttons[2].parameter1) {
                 // if the future trade after icon button isn't hidden draw it
@@ -790,13 +866,10 @@ static void draw_city_info(const empire_city *city)
                 int image_id = empire_city_get_icon_image_id(obj->future_trade_after_icon);
                 if (image_id > 0) {
                     float scale = obj->width > obj->height ? obj->width : obj->height / 24.0f;
-                    image_draw(image_id, (int) ((data.panel.x_max - 500 + trade_city_buttons[2].x) * scale),
-                        (int) ((data.y_max - 93) * scale), COLOR_MASK_NONE, scale);
+                    Image::from_id(image_id).draw((int) ((data.panel.x_max - 500 + trade_city_buttons[2].x) * scale), (int) ((data.y_max - 93) * scale), COLOR_MASK_NONE, scale);
                     const image *img = image_get(image_id);
                     if (img->animation && img->animation->speed_id) {
-                        image_draw(image_id + obj->animation_index,
-                        (int) ((data.panel.x_max - 500 + trade_city_buttons[2].x + img->animation->sprite_offset_x / 2) * scale),
-                        (int) ((data.y_max - 93 + img->animation->sprite_offset_y / 2) * scale), COLOR_MASK_NONE, scale);
+                        Image::from_id(image_id + obj->animation_index).draw((int) ((data.panel.x_max - 500 + trade_city_buttons[2].x + img->animation->sprite_offset_x / 2) * scale), (int) ((data.y_max - 93 + img->animation->sprite_offset_y / 2) * scale), COLOR_MASK_NONE, scale);
                     }
                 }
             }
@@ -805,7 +878,7 @@ static void draw_city_info(const empire_city *city)
                 button_border_draw(data.panel.x_max - 500 + trade_city_buttons[1].x, data.y_max - 93,
                     120, 24, data.focus_city_button_id == 2);
                 const uint8_t cost_text[32] = "";
-                snprintf((char *)cost_text, 32, "%i %s", city->cost_to_open, lang_get_string(6, 0));
+                snprintf((char *)cost_text, 32, "%i %s", city->cost_to_open, lang_get_string("main_strings.6.0"));
                 text_draw_centered(cost_text, data.panel.x_max - 500 + trade_city_buttons[1].x, data.y_max - 85,
                     120, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
             }
@@ -834,8 +907,8 @@ static void draw_object_info(void)
         if (!data.show_battle_objects) {
             return;
         }
-        int width = lang_text_draw(CUSTOM_TRANSLATION, is_battle_icon ? TR_EMPIRE_TOOL_BATTLE :
-            TR_EMPIRE_TOOL_DISTANT_BABARIAN, data.panel.x_min + 28, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        int width = lang_text_draw(is_battle_icon ? "TR_EMPIRE_TOOL_BATTLE" : "TR_EMPIRE_TOOL_DISTANT_BABARIAN",
+            data.panel.x_min + 28, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         width += text_draw_number(is_battle_icon ? obj->invasion_years : obj->distant_battle_travel_months, '\0', NULL,
             data.panel.x_min + 28 + width, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
         if (is_battle_icon) {
@@ -847,7 +920,7 @@ static void draw_object_info(void)
             arrow_buttons_draw(data.panel.x_min, data.y_max - 160, order_buttons, 2);
             width += 2 * 24 + 4;
         }
-        width += lang_text_draw(CUSTOM_TRANSLATION, is_battle_icon ? TR_EMPIRE_BATTLE_PARENT : TR_EMPIRE_ROUTE_PARENT,
+        width += lang_text_draw(is_battle_icon ? "TR_EMPIRE_BATTLE_PARENT" : "TR_EMPIRE_ROUTE_PARENT",
             data.panel.x_min + 28 + width, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         text_draw_number(is_battle_icon ? obj->invasion_path_id : empire_object_get_latest_distant_battle(
             obj->type == EMPIRE_OBJECT_ENEMY_ARMY), '\0', NULL, data.panel.x_min + 28 + width, data.y_max - 125,
@@ -860,13 +933,13 @@ static void draw_object_info(void)
         text_draw(coords_string, data.panel.x_min + 28, data.y_max - 85, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
     image_buttons_draw(0, 0, all_empire_tools_button, 1);
     button_border_draw(data.panel.x_max - 220, data.y_max - 133, 120, 24, data.focus_top_button_id == 1);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EMPIRE_DELETE_OBJECT,
+    lang_text_draw_centered("TR_EMPIRE_DELETE_OBJECT",
         data.panel.x_max - 220, data.y_max - 126, 120, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     button_border_draw(data.panel.x_max - 360, data.y_max - 133, 120, 24, data.focus_top_button_id == 2);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EMPIRE_MOVE_OBJECT,
+    lang_text_draw_centered("TR_EMPIRE_MOVE_OBJECT",
         data.panel.x_max - 360, data.y_max - 126, 120, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     if (obj->type == EMPIRE_OBJECT_BORDER_EDGE) {
-        int width = lang_text_draw(CUSTOM_TRANSLATION, TR_EMPIRE_EDGE_INDEX, data.panel.x_min + 28,
+        int width = lang_text_draw("TR_EMPIRE_EDGE_INDEX", data.panel.x_min + 28,
             data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         width += text_draw_number(obj->order_index, '\0', NULL, data.panel.x_min + 28 + width, data.y_max - 125,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
@@ -878,7 +951,7 @@ static void draw_object_info(void)
         arrow_buttons_draw(data.panel.x_min, data.y_max - 160, order_buttons, 2);
     }
     if (obj->type == EMPIRE_OBJECT_TRADE_WAYPOINT) {
-        int width = lang_text_draw(CUSTOM_TRANSLATION, TR_EMPIRE_WAYPOINT_INDEX, data.panel.x_min + 28,
+        int width = lang_text_draw("TR_EMPIRE_WAYPOINT_INDEX", data.panel.x_min + 28,
             data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         width += text_draw_number(obj->order_index, '\0', NULL, data.panel.x_min + 28 + width, data.y_max - 125,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
@@ -889,7 +962,7 @@ static void draw_object_info(void)
         order_buttons[1].parameter2 = 1;
         arrow_buttons_draw(data.panel.x_min, data.y_max - 160, order_buttons, 2);
         width += 2 * 24 + 4;
-        width += lang_text_draw(CUSTOM_TRANSLATION, TR_EMPIRE_ROUTE_PARENT, data.panel.x_min + 28 + width,
+        width += lang_text_draw("TR_EMPIRE_ROUTE_PARENT", data.panel.x_min + 28 + width,
             data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         empire_city *route_city = empire_city_get(empire_city_get_for_object(obj->parent_object_id - 1));
         text_draw(empire_city_get_name(route_city), data.panel.x_min + 28 + width, data.y_max - 125,
@@ -897,8 +970,9 @@ static void draw_object_info(void)
     }
     if (obj->type == EMPIRE_OBJECT_ORNAMENT) {
         int ornament_id = empire_object_ornament_id_get(obj->image_id);
-        translation_key key = static_cast<translation_key>(TR_EMPIRE_ORNAMENT_STONEHENGE + ornament_id);
-        lang_text_draw(CUSTOM_TRANSLATION, key, data.panel.x_min + 28, data.y_max - 125, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        text_draw(translation_for(empire_ornament_key(ornament_id)),
+            data.panel.x_min + 28, data.y_max - 125, FONT_NORMAL_GREEN,
+            screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
 }
 
@@ -926,48 +1000,47 @@ static void draw_panel_buttons(const empire_city *city)
     if (city) {
         draw_city_info(city);
     } else {
-        lang_text_draw_centered(150, scenario_empire_id(),
-            data.panel.x_min, data.y_max - 85, data.x_max - data.x_min, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_centered(current_string_key(150, scenario_empire_id()), data.panel.x_min, data.y_max - 85, data.x_max - data.x_min, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
-    lang_text_draw(151, scenario_empire_id(), data.panel.x_min + 220, data.y_max - 45, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw(current_string_key(151, scenario_empire_id()), data.panel.x_min + 220, data.y_max - 45, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     
     if (empire_selected_object() && scenario.empire.id == SCENARIO_CUSTOM_EMPIRE) {
         draw_object_info();
     }
 
     button_border_draw(data.panel.x_min + x_offset, data.y_max - 52, 100, 24, data.focus_button_id == 1);
-    lang_text_draw_centered(44, 7, data.panel.x_min + x_offset, data.y_max - 45, 100, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.44.7", data.panel.x_min + x_offset, data.y_max - 45, 100, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     if (scenario.empire.id == SCENARIO_CUSTOM_EMPIRE) {
         button_border_draw(data.panel.x_min + 144, data.y_max - 52, 150, 24, data.focus_button_id == 2);
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_TOGGLE_INVASIONS,
+        lang_text_draw_centered("TR_EDITOR_TOGGLE_INVASIONS",
             data.panel.x_min + 144, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
         button_border_draw(data.panel.x_min + 314, data.y_max - 52, 150, 24, data.focus_button_id == 3);
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EMPIRE_TOGGLE_EDGES,
+        lang_text_draw_centered("TR_EMPIRE_TOGGLE_EDGES",
             data.panel.x_min + 314, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
-        int width = lang_text_get_width(CUSTOM_TRANSLATION, data.button_is_preview ?
-            TR_EDITOR_EMPIRE_TOOL : TR_EDITOR_CURRENT_ICON, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        int width = lang_text_get_width(data.button_is_preview ? "TR_EDITOR_EMPIRE_TOOL" : "TR_EDITOR_CURRENT_ICON",
+            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         if (!generic_buttons[3].parameter1) {
             button_border_draw(data.panel.x_min + 484, data.y_max - 52, 150, 24, data.focus_button_id == 4);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_REFRESH_EMPIRE,
+            lang_text_draw_centered("TR_EDITOR_REFRESH_EMPIRE",
                 data.panel.x_min + 484, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
 
         if (!generic_buttons[4].parameter1) {
             button_border_draw(data.panel.x_min + 654, data.y_max - 52, 150, 24, data.focus_button_id == 5);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_EMPIRE_EXPORT,
+            lang_text_draw_centered("TR_EDITOR_EMPIRE_EXPORT",
                 data.panel.x_min + 654, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
         if (!generic_buttons[5].parameter1) {
             button_border_draw(data.panel.x_min + 824, data.y_max - 52, 150, 24, data.focus_button_id == 6);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_EMPIRE_IMPORT,
+            lang_text_draw_centered("TR_EDITOR_EMPIRE_IMPORT",
                 data.panel.x_min + 824, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
         if (!generic_buttons[6].parameter1) {
             button_border_draw(data.panel.x_min + 994, data.y_max - 52, 150, 24, data.focus_button_id == 7);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_EMPIRE_PROPERTIES,
+            lang_text_draw_centered("TR_EDITOR_EMPIRE_PROPERTIES",
                 data.panel.x_min + 994, data.y_max - 45, 150, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         }
 
@@ -975,13 +1048,14 @@ static void draw_panel_buttons(const empire_city *city)
             generic_buttons[7].x = data.panel.x_max - 96 - width - 12 - 20;
             generic_buttons[7].width = width + 8;
             button_border_draw(generic_buttons[7].x + 20, data.y_max - 92, width + 8, 24, data.focus_button_id == 8);
-            lang_text_draw_centered(CUSTOM_TRANSLATION, data.button_is_preview ? TR_EDITOR_EMPIRE_TOOL : TR_EDITOR_CURRENT_ICON,
+            lang_text_draw_centered(data.button_is_preview ? "TR_EDITOR_EMPIRE_TOOL" : "TR_EDITOR_CURRENT_ICON",
                 generic_buttons[7].x + 20, data.y_max - 85, width + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
             empire_city_icon_type icon = empire_selected_object() ?
                 static_cast<empire_city_icon_type>(empire_object_get(empire_selected_object() - 1)->empire_city_icon) :
                 EMPIRE_CITY_ICON_DEFAULT;
-            lang_text_draw_centered(CUSTOM_TRANSLATION, get_preview_translation_key(data.button_is_preview ? empire_editor_get_tool() : icon),
-                generic_buttons[7].x + 20, data.y_max - 45, width + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+            text_draw_centered(translation_for(get_preview_translation_key(data.button_is_preview ? empire_editor_get_tool() : icon)),
+                generic_buttons[7].x + 20, data.y_max - 45, width + 8, FONT_NORMAL_GREEN,
+                screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         }
 
         button_border_draw(data.panel.x_max - 92, data.y_max - 100, 72, 72, data.preview_button_focused);
@@ -1139,7 +1213,7 @@ static void handle_input(const mouse *m, const hotkeys *h)
         return;
     }
     for (int i = 0; i < 2; i++) {
-        for (int r = RESOURCE_NONE; r < RESOURCE_MAX; r++) {
+        for (int r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r++) {
             resource_type resource = static_cast<resource_type>(r);
             resource_button *btn = i ? &buy_buttons[r] : &sell_buttons[r];
             if (m->x >= btn->x && m->x < btn->x + RESOURCE_ICON_WIDTH &&
@@ -1298,10 +1372,10 @@ static void add_resource(int value)
 static void button_add_resource(int param1, int param2)
 {
     data.add_to_buying = param1;
-    static const uint8_t *resource_texts[RESOURCE_MAX];
+    static const uint8_t *resource_texts[RESOURCE_SLOT_COUNT];
     static int total_resources = 0;
     if (!total_resources) {
-        for (int r = RESOURCE_NONE; r < RESOURCE_MAX; r++) {
+        for (int r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r++) {
             resource_type resource = static_cast<resource_type>(r);
             if (!resource_is_storable(resource)) {
                 continue;
@@ -1390,7 +1464,7 @@ static void button_import_xml(const generic_button *button)
     }
     empire_editor_clear_trade_route_data();
     empire_editor_move_object_stop();
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     window_file_dialog_show(FILE_TYPE_EMPIRE, FILE_DIALOG_LOAD);
 }
 
@@ -1488,7 +1562,7 @@ static void button_after_icon(const generic_button *button)
     static const uint8_t *icon_texts[EMPIRE_CITY_ICON_TOWER + 1];
     static int total_icons = EMPIRE_CITY_ICON_DEFAULT;
     for ( ; total_icons <= EMPIRE_CITY_ICON_TOWER; total_icons++) {
-        icon_texts[total_icons] = translation_for(static_cast<translation_key>(TR_EMPIRE_CITY_ICON_DEFAULT + total_icons));
+        icon_texts[total_icons] = translation_for(empire_city_icon_key(total_icons));
     }
     window_select_list_show_text((data.x_min + data.x_max) / 2 - 100, ((data.y_min + data.y_max) -
         (20 * total_icons + 24)) / 2, NULL, icon_texts, total_icons, set_after_icon);
@@ -1503,7 +1577,7 @@ static void button_route_type(const generic_button *button)
     city->is_sea_trade = !city->is_sea_trade;
     empire_object *route_obj = empire_object_get(city->empire_object_id + 1);
     route_obj->type = city->is_sea_trade ? EMPIRE_OBJECT_SEA_TRADE_ROUTE : EMPIRE_OBJECT_LAND_TRADE_ROUTE;
-    route_obj->image_id = image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + !city->is_sea_trade;
+    route_obj->image_id = Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + !city->is_sea_trade;
 }
 
 static void set_opening_cost(int value)
@@ -1529,7 +1603,7 @@ static void button_empire_tools(int param1, int param2)
 {
     static const uint8_t *tool_texts[EMPIRE_TOOL_MAX];
     for (int tool = EMPIRE_TOOL_MIN; tool < EMPIRE_TOOL_MAX; tool++) {
-        tool_texts[tool] = translation_for(static_cast<translation_key>(TR_EMPIRE_TOOL_OUR_CITY + tool));
+        tool_texts[tool] = translation_for(empire_tool_key(tool));
     }
     window_select_list_show_text((data.x_min + data.x_max) / 2 - 100, ((data.y_min + data.y_max) -
         (20 * EMPIRE_TOOL_MAX + 24)) / 2, NULL, tool_texts, EMPIRE_TOOL_MAX, set_tool);
@@ -1557,10 +1631,9 @@ static int image_button_tooltips(tooltip_context *c)
         }
         if (btn->x_offset <= m->x && btn->x_offset + btn->width > m->x &&
             btn->y_offset <= m->y && btn->y_offset + btn->height > m->y) {
-            c->text_group = CUSTOM_TRANSLATION;
-            c->text_id = !i ? TR_EMPIRE_TOOLTIP_EDIT_NAME : TR_EMPIRE_TOOLTIP_ADD_RESOURCE;
+            c->translation_key = !i ? "TR_EMPIRE_TOOLTIP_EDIT_NAME" : "TR_EMPIRE_TOOLTIP_ADD_RESOURCE";
             if (i == 3) {
-                c->text_id = TR_EMPIRE_TOOLTIP_SHOW_TOOLS;
+                c->translation_key = "TR_EMPIRE_TOOLTIP_SHOW_TOOLS";
             }
             c->type = TOOLTIP_BUTTON;
             return 1;
@@ -1582,17 +1655,15 @@ static int generic_button_tooltips(tooltip_context *c)
             btn->y + data.y_max - 93 <= m->y && btn->y + data.y_max - 93 + btn->height > m->y) {
             switch (i) {
                 case 0:
-                    c->text_group = CUSTOM_TRANSLATION;
-                    c->text_id = TR_EMPIRE_TOOLTIP_ROUTE_TYPE;
+                    c->translation_key = "TR_EMPIRE_TOOLTIP_ROUTE_TYPE";
                     break;
                 case 1:
-                    c->text_group = CUSTOM_TRANSLATION;
-                    c->text_id = TR_EMPIRE_TOOLTIP_ROUTE_COST;
+                    c->translation_key = "TR_EMPIRE_TOOLTIP_ROUTE_COST";
                     break;
                 case 2:
                 {
-                    const uint8_t *raw_text = translation_for(TR_EMPIRE_TOOLTIP_AFTER_ICON);
-                    const uint8_t *icon_text = translation_for(static_cast<translation_key>(TR_EMPIRE_CITY_ICON_DEFAULT + empire_object_get(
+                    const uint8_t *raw_text = translation_for_key("TR_EMPIRE_TOOLTIP_AFTER_ICON");
+                    const uint8_t *icon_text = translation_for(empire_city_icon_key(empire_object_get(
                         empire_city_get(data.selected_city)->empire_object_id)->future_trade_after_icon));
                     static char formatted_text[512];
                     snprintf(formatted_text, sizeof(formatted_text), "%s %s", raw_text, icon_text);

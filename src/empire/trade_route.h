@@ -3,6 +3,7 @@
 #include "core/buffer.h"
 #include "game/resource.h"
 
+
 typedef enum {
     RESOURCE_BUYS = -1,
     RESOURCE_SELLS = 1,
@@ -54,3 +55,4 @@ void trade_routes_save_state(buffer *trade_routes);
 void trade_routes_load_state(buffer *trade_routes);
 
 void trade_routes_migrate_to_buys_sells(buffer *limit, buffer *traded, int version);
+

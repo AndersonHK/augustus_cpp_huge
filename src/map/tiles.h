@@ -1,8 +1,6 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "building/building_type.h"
 
 void map_tiles_update_all_rocks(void);
 
@@ -12,9 +10,13 @@ void map_tiles_update_region_shrub(int x_min, int y_min, int x_max, int y_max);
 void map_tiles_update_all_gardens(void);
 
 void map_tiles_update_all_plazas(void);
+void map_tiles_update_all_tile(const building_type_registry_impl::TileDefinition &tile);
+void map_tiles_update_region_tile(int x_min, int y_min, int x_max, int y_max,
+    const building_type_registry_impl::TileDefinition &tile);
 
 void map_tiles_update_all_walls(void);
 void map_tiles_update_area_walls(int x, int y, int size);
+int map_tiles_wall_image_offset(int grid_offset);
 int map_tiles_set_wall(int x, int y);
 int map_tiles_is_adjacent_to_building_type(int grid_offset, int building_type, int diagonals_included);
 int map_tiles_is_paved_road(int grid_offset);
@@ -60,6 +62,3 @@ void map_tiles_remove_entry_exit_flags(void);
 
 void map_tiles_update_all(void);
 
-#ifdef __cplusplus
-}
-#endif

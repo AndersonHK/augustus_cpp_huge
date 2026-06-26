@@ -1,12 +1,10 @@
 #pragma once
 
-#include "graphics/runtime_texture.h"
+#include "building/animations.h"
 
-struct building;
+class Building;
 
-const RuntimeDrawSlice *building_runtime_get_graphic_footprint_slice(building *b);
-const RuntimeDrawSlice *building_runtime_get_graphic_top_slice(building *b);
-const RuntimeDrawSlice *building_runtime_get_graphic_animation_slice(building *b, int animation_cursor);
-int building_runtime_advance_graphic_animation(building *b, int animation_cursor);
-int building_runtime_owns_graphics(building *b);
-int building_runtime_owns_graphic_animation(building *b);
+int building_runtime_graphics_selected_option(
+    const Building &building,
+    const building_type_registry_impl::GraphicsTarget &target);
+int building_runtime_graphics_image_id(const Building &building);

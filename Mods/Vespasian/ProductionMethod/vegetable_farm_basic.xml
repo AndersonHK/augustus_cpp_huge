@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<production_method>
-    <kind value="farm" />
-    <output resource="vegetables" />
-    <batch_size value="4" />
-</production_method>

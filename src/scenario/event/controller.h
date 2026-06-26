@@ -3,6 +3,7 @@
 #include "core/buffer.h"
 #include "scenario/event/data.h"
 
+
 typedef enum {
     SCENARIO_EVENTS_VERSION = 1,
 
@@ -40,3 +41,4 @@ void scenario_events_assign_parent_event_ids(void);
 void scenario_events_fetch_event_tiles_to_editor(void);
 
 void scenario_events_migrate_to_grid_slices(void);
+

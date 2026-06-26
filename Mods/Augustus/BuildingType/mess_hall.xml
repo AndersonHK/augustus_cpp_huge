@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="mess_hall">
+    <identity name_key="TR_BUILDING_MESS_HALL" />
+    <model size="3" cost="100" />
+    <desirability>
+        <value value="-8" />
+        <step value="1" />
+        <step_size value="2" />
+        <range value="4" />
+    </desirability>
+    <foundation policy="land" />
+    <construction max_count="1" />
+  <button group="security" order="100" text_key="TR_BUILDING_MESS_HALL" />
+    <event_data attr="mess_hall" />
+    <distribution path="mess_hall" />
+    <flags draw_desirability_range="1" />
+    <graphics>
+        <default>
+            <path value="Military\Mess_OFF_Central" />
+            <image value="Mess OFF Central" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="10" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="100" />
+        </labor_seeker>
+    </labor>
+</building>

@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 #define MAX_ORIGINAL_PRICE_CHANGES 20
 
 typedef struct {
@@ -40,3 +41,4 @@ void scenario_price_change_save_state(buffer *buf);
 void scenario_price_change_load_state(buffer *buf);
 
 void scenario_price_change_load_state_old_version(buffer *buf);
+

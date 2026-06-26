@@ -1,4 +1,4 @@
-﻿#include "assets/image_group_payload.h"
+#include "assets/image_group_payload.h"
 #include "assets/image_group_payload_internal.h"
 
 #include "core/crash_context.h"
@@ -105,6 +105,9 @@ static ImageGroupEntry make_public_entry(
         entry.set_top_slice(resolved.top.slice);
     }
     entry.set_animation(resolved.animation);
+    if (resolved.has_sprite_offset) {
+        entry.set_sprite_offset(resolved.sprite_offset_x, resolved.sprite_offset_y);
+    }
     entry.set_split_pixels(resolved.split_pixels, resolved.split_width, resolved.split_height, resolved.top_height);
     return entry;
 }
@@ -172,7 +175,7 @@ int image_group_payload_load(const char *path_key)
     return 1;
 }
 
-extern "C" void image_group_payload_clear_all(void)
+void image_group_payload_clear_all(void)
 {
     image_group_payload_internal::clear_all_cached_payload_state();
 }

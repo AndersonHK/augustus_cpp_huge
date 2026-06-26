@@ -1,5 +1,8 @@
 #include "figure/PathingMode.h"
 
+#include "map/routing_data.h"
+#include "map/terrain.h"
+
 #include <cstring>
 
 namespace figure_type_registry_impl {
@@ -47,6 +50,96 @@ const PathingMode TransientWander(
     PathingMode::RoadRequirement::RequiresRoadMovement,
     PathingMode::ServiceEffectRequirement::NoServiceEffect,
     PathingMode::VenueTargetRequirement::NoVenueTargets);
+const PathingMode DepotOrderRoute(
+    "depot_order_route",
+    PathingMode::RoadRequirement::RequiresRoadMovement,
+    PathingMode::ServiceEffectRequirement::NoServiceEffect,
+    PathingMode::VenueTargetRequirement::NoVenueTargets);
+const PathingMode WaterRoute(
+    "water_route",
+    PathingMode::RoadRequirement::AllowsNonRoadMovement,
+    PathingMode::ServiceEffectRequirement::NoServiceEffect,
+    PathingMode::VenueTargetRequirement::NoVenueTargets);
+
+PathingMode::TerrainAccess PathingMode::terrainFromLegacyUsage(int terrain_usage)
+{
+    TerrainAccess terrain;
+    terrain.legacy_usage = terrain_usage;
+    switch (terrain_usage) {
+        case TERRAIN_USAGE_ENEMY:
+            terrain.enemy_land = true;
+            break;
+        case TERRAIN_USAGE_WALLS:
+            terrain.wall_grid = true;
+            break;
+        case TERRAIN_USAGE_ANIMAL:
+            terrain.animal_land = true;
+            break;
+        case TERRAIN_USAGE_PREFER_ROADS:
+            terrain.prefers_roads = true;
+            terrain.requires_roads = false;
+            break;
+        case TERRAIN_USAGE_ROADS:
+            terrain.requires_roads = true;
+            break;
+        case TERRAIN_USAGE_PREFER_ROADS_HIGHWAY:
+            terrain.prefers_roads = true;
+            terrain.requires_roads = false;
+            terrain.allows_highways = true;
+            break;
+        case TERRAIN_USAGE_ROADS_HIGHWAY:
+            terrain.requires_roads = true;
+            terrain.allows_highways = true;
+            break;
+        case TERRAIN_USAGE_ANY:
+        default:
+            terrain.legacy_usage = TERRAIN_USAGE_ANY;
+            break;
+    }
+    return terrain;
+}
+
+bool PathingMode::terrainRequiresRoads(const TerrainAccess &terrain)
+{
+    return terrain.requires_roads || terrain.prefers_roads;
+}
+
+int PathingMode::citizenIsPassable(int grid_offset)
+{
+    return terrain_land_citizen.items[grid_offset] >= CITIZEN_0_ROAD &&
+        terrain_land_citizen.items[grid_offset] <= CITIZEN_2_PASSABLE_TERRAIN;
+}
+
+int PathingMode::citizenIsRoad(int grid_offset)
+{
+    return terrain_land_citizen.items[grid_offset] == CITIZEN_0_ROAD;
+}
+
+int PathingMode::citizenIsRoadLike(int grid_offset)
+{
+    return citizenIsRoad(grid_offset) || map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP);
+}
+
+int PathingMode::citizenIsHighway(int grid_offset)
+{
+    return terrain_land_citizen.items[grid_offset] == CITIZEN_1_HIGHWAY;
+}
+
+int PathingMode::citizenIsPassableTerrain(int grid_offset)
+{
+    return terrain_land_citizen.items[grid_offset] == CITIZEN_2_PASSABLE_TERRAIN;
+}
+
+int PathingMode::gateIsTransformable(int grid_offset)
+{
+    return terrain_land_citizen.items[grid_offset] == GATE_0_TRANSFORMABLE ||
+        terrain_land_noncitizen.items[grid_offset] == GATE_0_TRANSFORMABLE;
+}
+
+int PathingMode::noncitizenIsPassable(int grid_offset)
+{
+    return terrain_land_noncitizen.items[grid_offset] >= NONCITIZEN_0_PASSABLE;
+}
 
 const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
 {
@@ -62,7 +155,9 @@ const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
         &StorageFetch,
         &FollowLeader,
         &StandStill,
-        &TransientWander
+        &TransientWander,
+        &DepotOrderRoute,
+        &WaterRoute
     };
     for (const PathingMode *mode : modes) {
         if (std::strcmp(xml_id, mode->xml_id) == 0) {

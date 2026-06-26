@@ -1,12 +1,13 @@
 #pragma once
-#include "building/type.h"
+#include "building/building_type.h"
 #include "map/grid.h"
+
 
 int map_bridge_building_length(void);
 
 int building_type_is_bridge(building_type type);
-//technically should be elsewhere, but this is the best place for now, to centralise bridge logic since it's an exemption. 
-//similarly to roadblocks, which also have a building_type check in roadblock.c
+//technically should be elsewhere, but this is the best place for now, to centralise bridge logic since it's an exemption.
+//similarly to roadblocks, which also have a building_type check in roadblock.cpp
 void map_bridge_reset_building_length(void);
 
 int map_bridge_calculate_length_direction(int x, int y, int *length, int *direction, grid_slice *blocking_tiles);

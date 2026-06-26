@@ -1,8 +1,6 @@
-#pragma once
+﻿#pragma once
 
 #include "core/buffer.h"
-
-
 int map_aqueduct_has_water_access_at(int grid_offset);
 int map_aqueduct_image_at(int grid_offset);
 
@@ -24,3 +22,4 @@ void map_aqueduct_restore(void);
 void map_aqueduct_save_state(buffer *buf, buffer *backup);
 
 void map_aqueduct_load_state(buffer *buf, buffer *backup);
+

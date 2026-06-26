@@ -1,3 +1,19 @@
+#include "game/file.h"
+#include "translation/translation.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/rich_text.h"
+#include "window/city.h"
+#include "window/intermezzo.h"
+#include "window/main_menu.h"
+#include "window/mission_list.h"
+#include "window/mission_selection.h"
+#include "window/plain_message_dialog.h"
+
+#include "window/mission_briefing.h"
+
+#include "window/video.h"
 #include "graphics/declarative_window.h"
 #include "graphics/ui_runtime.h"
 
@@ -5,24 +21,17 @@
 #include <cstdio>
 #include <memory>
 
-extern "C" {
-#include "window/mission_briefing.h"
+#include "game/settings.h"
+#include "game/campaign.h"
+#include "scenario/scenario.h"
 
 #include "city/mission.h"
 #include "core/config.h"
 #include "core/encoding.h"
 #include "core/image_group.h"
-#include "core/lang.h"
-#include "game/campaign.h"
-#include "game/file.h"
 #include "game/mission.h"
-#include "game/settings.h"
 #include "game/tutorial.h"
-#include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
-#include "graphics/rich_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/ui_runtime_api.h"
@@ -31,19 +40,9 @@ extern "C" {
 #include "scenario/criteria.h"
 #include "scenario/event/controller.h"
 #include "scenario/property.h"
-#include "scenario/scenario.h"
 #include "sound/device.h"
 #include "sound/music.h"
 #include "sound/speech.h"
-#include "translation/translation.h"
-#include "window/city.h"
-#include "window/intermezzo.h"
-#include "window/main_menu.h"
-#include "window/mission_list.h"
-#include "window/mission_selection.h"
-#include "window/plain_message_dialog.h"
-#include "window/video.h"
-}
 
 namespace {
 
@@ -291,7 +290,7 @@ private:
         const int y = label->resolved_y(dialog_height(), definition().base_height());
         const int pixel_size =
             screen_ui_to_pixel(font_definition_for(label->font)->line_height + label->font_size_delta);
-        text_draw(lang_get_string(group, text_id), x, y, label->font, pixel_size, label->color);
+        text_draw(lang_get_string(current_string_key(group, text_id)), x, y, label->font, pixel_size, label->color);
     }
 
     void draw_objective(const char *id, const MissionObjective &objective) const
@@ -309,7 +308,7 @@ private:
         const int pixel_size =
             screen_ui_to_pixel(font_definition_for(box->font)->line_height + box->font_size_delta);
         const int width = text_draw(
-            lang_get_string(62, objective.label_text_id), text_x, text_y, box->font, pixel_size, box->color);
+            lang_get_string(current_string_key(62, objective.label_text_id)), text_x, text_y, box->font, pixel_size, box->color);
         text_draw_number(objective.value, '@', " ", text_x + width, text_y, box->font, pixel_size, box->color);
     }
 
@@ -325,7 +324,7 @@ private:
         const int pixel_size =
             screen_ui_to_pixel(font_definition_for(box->font)->line_height + box->font_size_delta);
         text_draw(
-            lang_get_string(62, text_id), x + box->padding_x, y + box->padding_y, box->font, pixel_size, box->color);
+            lang_get_string(current_string_key(62, text_id)), x + box->padding_x, y + box->padding_y, box->font, pixel_size, box->color);
     }
 
     void draw_objective_box(const DeclarativeWidgetDefinition &box, int x, int y) const
@@ -554,12 +553,12 @@ static void draw_background_image(void)
             }
         }
         if (!image_id) {
-            image_id = image_group(GROUP_INTERMEZZO_BACKGROUND) + 2 * (scenario_campaign_mission() % 11) + 2;
+            image_id = Image::group(GROUP_INTERMEZZO_BACKGROUND) + 2 * (scenario_campaign_mission() % 11) + 2;
         }
         data.background_image_id = image_id;
     }
 
-    image_draw_fullscreen_background(data.background_image_id);
+    Image::from_id(data.background_image_id).draw_fullscreen_background();
 }
 
 static void get_briefing_texts(const uint8_t **title, const uint8_t **subtitle, const uint8_t **content)
@@ -598,8 +597,8 @@ static void draw_background(void)
             setting_clear_personal_savings();
             scenario_settings_init();
             scenario_set_campaign_rank(2);
-            window_plain_message_dialog_show(TR_WINDOW_CAMPAIGN_MISSION_FAILED_TO_LOAD_TITLE,
-                TR_WINDOW_CAMPAIGN_MISSION_FAILED_TO_LOAD_TEXT, 0);
+            window_plain_message_dialog_show("TR_WINDOW_CAMPAIGN_MISSION_FAILED_TO_LOAD_TITLE",
+                "TR_WINDOW_CAMPAIGN_MISSION_FAILED_TO_LOAD_TEXT", 0);
             return;
         }
         data.file_loaded = 1;
@@ -704,7 +703,6 @@ static void show(void)
 
 } // namespace
 
-extern "C" {
 
 void window_mission_briefing_show(void)
 {
@@ -732,4 +730,3 @@ void window_mission_briefing_show_from_scenario_selection(void)
     game_campaign_is_original() ? window_intermezzo_show(INTERMEZZO_MISSION_BRIEFING, show) : show();
 }
 
-} // extern "C"

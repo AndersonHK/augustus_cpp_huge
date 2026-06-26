@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="plum_tree">
+    <identity name_key="TR_BUILDING_PLUM_TREE" />
+    <model size="1" cost="12" />
+    <desirability>
+        <value value="3" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land" rotation="none" />
+    <button group="trees" order="60" text_key="TR_BUILDING_PLUM_TREE" />
+    <cycle group="ornamental_trees" order="80" steps="1" />
+    <event_data attr="plum_tree" />
+    <flags fire_proof="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\ornamental_plum" />
+            <image value="ornamental plum" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

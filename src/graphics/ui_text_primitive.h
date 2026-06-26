@@ -3,12 +3,14 @@
 #include "graphics/color.h"
 #include "graphics/font.h"
 #include "graphics/ui_primitive.h"
+#include "translation/translation.h"
 
 #include <stdint.h>
 
 enum class UiTextContentType {
     None,
     Language,
+    TranslationKey,
     Raw,
     Number,
     Amount,
@@ -25,6 +27,7 @@ struct UiTextSpec {
     UiTextAlignment alignment = UiTextAlignment::Left;
     int text_group = 0;
     int text_id = 0;
+    translation_key text_key;
     const uint8_t *raw_text = nullptr;
     int value = 0;
     char prefix = '\0';

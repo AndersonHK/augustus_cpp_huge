@@ -1,14 +1,16 @@
-extern "C" {
+#
+
 #include "select_list.h"
+
+#include "graphics/lang_text.h"
+#include "input/input.h"
+
 
 #include "graphics/ui_runtime_api.h"
 #include "graphics/color.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-}
 
 #define MAX_ITEMS_PER_LIST 20
 #define BASE_LIST_WIDTH 200
@@ -166,8 +168,7 @@ static void draw_item(int item_id, int x, int y, int selected)
 {
     color_t color = selected ? COLOR_FONT_BLUE : COLOR_BLACK;
     if (data.mode == MODE_GROUP) {
-        lang_text_draw_centered_colored(data.group, item_id, data.x + x, data.y + y, data.width,
-            FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
+        lang_text_draw_centered_colored(current_string_key(data.group, item_id), data.x + x, data.y + y, data.width, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);
     } else {
         if (data.width == BASE_LIST_WIDTH) {
             text_draw_centered(data.items[item_id], data.x + x, data.y + y, BASE_LIST_WIDTH, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), color);

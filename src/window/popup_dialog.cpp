@@ -1,20 +1,18 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "translation/translation.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+
 #include "popup_dialog.h"
 
 #include "core/image_group.h"
-#include "core/lang.h"
 #include "core/string.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
 #include "graphics/image_button.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "translation/translation.h"
-}
 
 #define GROUP 5
 
@@ -62,7 +60,7 @@ static int init(const uint8_t *custom_title, const uint8_t *custom_text,
     data.checkbox_text = checkbox_text;
     data.checked = 0;
     if (!data.custom_text) {
-        data.custom_text = lang_get_string(PROCEED_GROUP, PROCEED_TEXT);
+        data.custom_text = lang_get_string(current_string_key(PROCEED_GROUP, PROCEED_TEXT));
     }
     if (data.checkbox_text) {
         data.checkbox_start_width = 80 + (480 - text_get_width(data.checkbox_text, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 30) / 2;
@@ -101,7 +99,7 @@ static void draw_foreground(void)
     if (data.has_buttons) {
         image_buttons_draw(80, data.checkbox_text ? 110 : 90, buttons, 2);
     } else {
-        lang_text_draw_centered(13, 1, 80, 208, 480, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered("main_strings.13.1", 80, 208, 480, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
     graphics_reset_dialog();
 }
@@ -155,7 +153,7 @@ static void confirm(void)
 void window_popup_dialog_show(popup_dialog_type type,
     void (*close_func)(int accepted, int checked), int has_ok_cancel_buttons)
 {
-    if (init(lang_get_string(GROUP, type), lang_get_string(GROUP, type + 1), 0, close_func, has_ok_cancel_buttons)) {
+    if (init(lang_get_string(current_string_key(GROUP, type)), lang_get_string(current_string_key(GROUP, type + 1)), 0, close_func, has_ok_cancel_buttons)) {
         window_type window = {
             WINDOW_POPUP_DIALOG,
             draw_background,

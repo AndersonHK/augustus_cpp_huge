@@ -1,8 +1,10 @@
 #pragma once
 
 #include "core/buffer.h"
+#include "game/resource.h"
 
-#define REQUESTS_DEFAULT_RESOURCE RESOURCE_DENARII
+
+#define REQUESTS_DEFAULT_RESOURCE resource_denarii()
 #define REQUESTS_DEFAULT_AMOUNT_MIN 1
 #define REQUESTS_DEFAULT_AMOUNT_MAX 1
 #define REQUESTS_DEFAULT_DEADLINE_YEARS 2
@@ -98,3 +100,4 @@ void scenario_request_save_state(buffer *list);
 void scenario_request_load_state(buffer *list, int version);
 
 void scenario_request_load_state_old_version(buffer *list, requests_old_state_sections section);
+

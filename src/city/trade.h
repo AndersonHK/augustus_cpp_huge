@@ -1,5 +1,6 @@
 #pragma once
 
+
 void city_trade_update(void);
 
 void city_trade_add_land_trade_route(void);
@@ -18,3 +19,4 @@ int city_trade_next_docker_import_resource(void);
 int city_trade_next_docker_export_resource(void);
 
 int trade_caravan_count(void);
+

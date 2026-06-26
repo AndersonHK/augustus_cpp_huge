@@ -6,7 +6,7 @@
 
 typedef struct {
     int text_id;
-    int translation_key;
+    translation_key translation_key;
     const uint8_t *precomposed_text;
 } advisor_tooltip_result;
 

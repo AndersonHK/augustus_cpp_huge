@@ -1,20 +1,21 @@
-extern "C" {
-#include "window/donate_to_city.h"
-
-#include "city/emperor.h"
-#include "core/calc.h"
-#include "game/resource.h"
+#include "game/resource_graphics.h"
 #include "graphics/arrow_button.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+
+#include "window/donate_to_city.h"
+
+#include "window/advisors.h"
+
+#include "city/emperor.h"
+#include "core/calc.h"
+#include "game/resource.h"
+#include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/advisors.h"
-}
 
 static void button_increase_amount(const generic_button *button);
 static void button_donate(const generic_button *button);
@@ -47,10 +48,10 @@ static void draw_button_labels(void)
     text_draw_number_centered(500, 204, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(2000, 284, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number_centered(5000, 364, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw_centered(52, 19, 444, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw_centered("main_strings.52.19", 444, 221, 64, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
-    lang_text_draw_centered(13, 4, 336, 288, 160, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_centered(52, 18, 144, 288, 160, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.4", 336, 288, 160, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.52.18", 144, 288, 160, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void draw_background(void)
@@ -60,12 +61,12 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(64, 160, 32, 10);
-    image_draw(resource_get_data(RESOURCE_DENARII)->image.icon, 80, 176, COLOR_MASK_NONE, SCALE_NONE);
-    lang_text_draw_centered(52, 16, 112, 176, 448, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    resource_graphics(resource_denarii()).panel_icon().draw(80, 176);
+    lang_text_draw_centered("main_strings.52.16", 112, 176, 448, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     inner_panel_draw(112, 208, 26, 4);
 
-    int width = lang_text_draw(52, 17, 128, 248, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    int width = lang_text_draw("main_strings.52.17", 128, 248, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     int button_start = 128 + width + 10;
     if (button_start < 240) {

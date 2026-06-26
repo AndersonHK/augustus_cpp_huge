@@ -1,27 +1,19 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "building/building.h"
 
 void map_building_tiles_add_remove(unsigned int building_id, int x, int y, int size, int image_id, int terrain_to_add, int terrain_to_remove);
 
 void map_building_tiles_add(unsigned int building_id, int x, int y, int size, int image_id, int terrain);
 
-void map_building_tiles_add_farm(unsigned int building_id, int x, int y, int crop_image_id, int progress);
-
 int map_building_tiles_add_aqueduct(int x, int y);
 
 void map_building_tiles_remove(unsigned int building_id, int x, int y);
 
-void map_building_tiles_set_rubble(unsigned int building_id, int x, int y, int size);
+void map_building_tiles_set_rubble(const Building *building, int x, int y, int size);
 
 void map_building_tiles_mark_deleting(int grid_offset);
 
 int map_building_tiles_mark_construction(int x, int y, int size, int terrain, int absolute_xy);
 
 int map_building_tiles_are_clear(int x, int y, int size, int terrain);
-
-#ifdef __cplusplus
-}
-#endif

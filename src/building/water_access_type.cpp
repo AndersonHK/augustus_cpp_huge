@@ -1,15 +1,16 @@
+#
+
+#include "building/building_record.h"
 #include "building/water_access_type.h"
 
 #include "core/crash_context.h"
 #include "core/xml_value.h"
+#include "game/mod_manager.h"
 
-extern "C" {
-#include "core/dir.h"
 #include "core/file.h"
+#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
-}
 
 #include <array>
 #include <cstdio>
@@ -224,11 +225,11 @@ const std::vector<std::unique_ptr<WaterAccessType>> &water_access_types(void)
 
 } // namespace building_type_registry_impl
 
-extern "C" int water_access_type_registry_load(void)
+int water_access_type_registry_load(void)
 {
     using namespace building_type_registry_impl;
 
-    g_water_access_type_path = std::string(mod_manager_get_mod_path()) + "WaterAccessType/";
+    g_water_access_type_path = mod_manager::mod_path() + "WaterAccessType/";
     g_water_access_types.clear();
     g_water_access_by_number.fill(nullptr);
     g_defined_mask = 0;
@@ -250,19 +251,19 @@ extern "C" int water_access_type_registry_load(void)
     return 1;
 }
 
-extern "C" const char *water_access_type_text_from_number_id(uint8_t number_id)
+const char *water_access_type_text_from_number_id(uint8_t number_id)
 {
     const building_type_registry_impl::WaterAccessType *definition =
         building_type_registry_impl::water_access_type_from_number_id(number_id);
     return definition ? definition->text_id() : nullptr;
 }
 
-extern "C" uint8_t water_access_type_mask_from_text_id(const char *text_id)
+uint8_t water_access_type_mask_from_text_id(const char *text_id)
 {
     return building_type_registry_impl::water_access_mask_from_text(text_id);
 }
 
-extern "C" uint8_t water_access_type_defined_mask_c(void)
+uint8_t water_access_type_defined_mask_c(void)
 {
     return building_type_registry_impl::water_access_defined_mask();
 }

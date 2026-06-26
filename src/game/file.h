@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+
 enum {
     FILE_LOAD_SUCCESS = 1,
     FILE_LOAD_DOES_NOT_EXIST = 0,
@@ -55,3 +56,4 @@ int game_file_delete_saved_game(const char *filename);
 void game_file_write_mission_saved_game(void);
 
 void game_file_show_loaded_save_mod_mismatch_warning(void);
+

@@ -12,9 +12,10 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - `x64/`, `.vs/`, local output folders - local build state only
 
 ## Build/project facts
-- There is no active root-CMake workflow to center normal work around.
+- The active local build workflow is the root Visual Studio/MSBuild project.
 - The Visual Studio solution/project at repo root is the build path that matters.
 - `res/augustus.rc` is part of the project and provides the executable icon/resource wiring.
+- Runtime performance tracker contract: `docs/performance_tracker_runtime.md`; `debug_performance_tracker` enables the `vespasian-performance.log` sidecar next to `augustus-log.txt`.
 
 ## Upstream lineage and source references
 - Julius is the base project repository: https://github.com/bvschaik/julius
@@ -107,7 +108,7 @@ Important architectural note:
   - retained critical failure reason
 - `src/assets/xml.cpp`
   - XML-driven asset definitions
-- `src/core/image.c`
+- `src/core/image.cpp`
   - bridges legacy image ids to asset-backed images
 
 ### Canonical extractor / building graphics seams
@@ -135,9 +136,11 @@ Important architectural note:
 - `src/assets/image_group_payload_materialize.cpp`
   - runtime composition/materialization seam for extracted graphics
   - no longer carries the temporary runtime footprint crop/offset workaround; extractor output now defines placement semantics
-- `src/widget/city_draw.cpp`
-  - native building footprint/top/animation draw seam
+- `src/building/building.h` / `src/building/building.cpp`
+  - `Building::draw_footprint(...)`, `draw_top(...)`, and `draw_animation(...)` are the native building footprint/top/animation draw seams
   - native whole-building footprints now draw on the owning draw tile only
+- `src/widget/city_draw.cpp`
+  - native terrain-tile footprint bridge only; building draw stages now enter through `Building`
 - `src/building/building_runtime_graphics.cpp`
   - resolves BuildingType graphics targets, stable options, and cached `RuntimeDrawSlice` bindings
   - delegates animation frame policy to `BuildingAnimation`
@@ -156,12 +159,35 @@ Doctrine:
 - optional missing overrides should warn/fallback
 - broken critical assets/data should fail at load with a retained reason
 
+## Resource runtime map
+- `docs/resource_runtime.md`
+  - current resource XML contract, graphics ownership, and producer/warning responsibility split
+- `Mods/<Mod>/Resources/*.xml`
+  - selected-mod complete resource definitions
+- `src/game/resource.cpp`
+  - parses resource XML into `resource_data` defaults
+- `src/game/resource_id_bridge.cpp`
+  - save-local resource id table plus legacy raw-id migration maps for old saves
+- `src/game/resource_graphics.h`
+- `src/game/resource_graphics.cpp`
+  - `ResourceGraphics` exposes semantic `ImageGroupEntryRef` handles for carts, warehouse stacks, panel icons, empire icons, and editor icons
+- `src/building/industry.cpp`
+  - owns production/resource inference through `building_output_resource(...)` and `building_producer_for_resource(...)`
+- `src/building/construction_warning.c`
+  - gameplay trigger for construction warnings; derives missing-resource and missing-producer warning templates after resources/buildings/production are loaded
+
+Resource motive:
+- resources own text id, numeric slot, locale key, and model/trade values
+- resources do not own producer buildings, industry menu names, or warning templates
+- live saves persist save-local resource ids through text ids; legacy raw numeric resource maps live only in the resource id bridge
+- C++ callers should use `resource_graphics(resource).panel_icon().draw(...)` instead of reaching through `resource_data` image fields or raw image ids
+
 ## Config / settings map
 - `src/core/config.h`
 - `src/core/config.cpp`
   - `Vespasian.ini`
   - legacy fallback reads from `augustus.ini`
-  - `CONFIG_UI_SCALE_FILTER`
+  - `CONFIG_SCALE_FILTER` / `scale_filter`
   - `CONFIG_DEBUG` / `debug`, currently used to gate zoom percentage warnings
 - City zoom stores raw renderer scale, but player-facing start/reset/display percentages are adjusted by UI scale; displayed interactive bounds are `33%` to `300%`, capped by map size.
 
@@ -176,7 +202,7 @@ Doctrine:
 - `src/game/save_version.h`
   - save and scenario version gates; update when persisted layout or behavior changes
 - Key save-backed runtime payloads currently include building records, figure records/routes, building type save tables, road service history, and local workforce allocations.
-- The current save also has a water access type save table. It persists save-local ids as text ids, then resolves them against the active mod's `WaterAccessType` XML so runtime numeric ids can remain mod-defined.
+- The current save also has resource and water access type save tables. They persist save-local ids as text ids, then resolve them against active `Resources` and `WaterAccessType` XML so runtime numeric ids can remain mod-defined.
 
 ## Water access runtime map
 - `Mods/<Mod>/WaterAccessType/*.xml`

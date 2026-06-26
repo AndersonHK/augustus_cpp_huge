@@ -1,25 +1,25 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "translation/translation.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+
 #include "select_city_by_type.h"
 
-#include "core/lang.h"
+#include "window/editor/map.h"
+
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/type.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-}
 
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 
 #define MAX_BUTTONS 14
 #define BUTTON_LEFT_PADDING 32
@@ -100,11 +100,11 @@ static void close(void)
 static void id_list_mem_handling(int city_array_size)
 {
     if (!data.valid_city_ids_size) {
-        data.valid_city_ids = static_cast<int *>(malloc(INITIAL_ID_LIST_SIZE * sizeof(int)));
+        data.valid_city_ids = static_cast<int *>(std::malloc(INITIAL_ID_LIST_SIZE * sizeof(int)));
         data.valid_city_ids_size = INITIAL_ID_LIST_SIZE;
     }
     if (city_array_size > data.valid_city_ids_size) {
-        data.valid_city_ids = (int *) realloc(data.valid_city_ids, city_array_size * sizeof(int));
+        data.valid_city_ids = static_cast<int *>(std::realloc(data.valid_city_ids, city_array_size * sizeof(int)));
         data.valid_city_ids_size = city_array_size;
     }
 
@@ -159,7 +159,7 @@ static void draw_foreground(void)
         y_offset += DETAILS_ROW_HEIGHT;
     }
 
-    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();

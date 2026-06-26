@@ -1,6 +1,7 @@
 #pragma once
 
 #include "map/grid.h"
+
 // if a tile is passable, it gets value > 0
 // if a tile is blocked, it gets value < 0
 // the exact value is used to determine what type of passable/blocked tile it is
@@ -36,3 +37,4 @@ extern grid_i8 terrain_land_citizen;
 extern grid_i8 terrain_land_noncitizen;
 extern grid_i8 terrain_water;
 extern grid_i8 terrain_walls;
+

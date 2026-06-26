@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 void map_desirability_clear(void);
 
 void map_desirability_update(void);
@@ -13,3 +14,4 @@ int map_desirability_get_max(int x, int y, int size);
 void map_desirability_save_state(buffer *buf);
 
 void map_desirability_load_state(buffer *buf);
+

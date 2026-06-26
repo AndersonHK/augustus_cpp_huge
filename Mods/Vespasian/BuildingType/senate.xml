@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="senate">
-    <identity name_key="building.senate.name" />
+    <identity name_key="main_strings.28.85" />
     <model size="5" cost="400" />
     <desirability>
         <value value="8" />
@@ -9,7 +9,8 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="administration" order="10" icon="Admin_Logistics\Senate" text_key="building.senate.name" />
+    <construction max_count="1" />
+  <button group="administration" order="800" icon="Admin_Logistics\Senate" text_key="main_strings.28.85" />
     <sound id="senate" />
     <event_data attr="senate" />
     <graphics>
@@ -30,6 +31,6 @@
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:15,25:29,1:44" existing_figure="tax_collector">
         <spawn mode="service_roamer" spawn_figure="tax_collector"
             action_state="tax_collector_created" direction="top" figure_slot="primary" spawn_count="1"
-            graphic_timing="on_spawn_entry" condition="always" block_on_success="true" />
+            graphic_timing="on_spawn_entry" condition="always" block_on_success="true" profile="service" />
     </spawn_group>
 </building>

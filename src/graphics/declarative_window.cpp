@@ -1,3 +1,5 @@
+#
+
 #include "graphics/declarative_window.h"
 
 #include "core/crash_context.h"
@@ -13,11 +15,9 @@
 #include <utility>
 #include <vector>
 
-extern "C" {
 #include "core/file.h"
-#include "core/xml_parser.h"
 #include "game/mod_manager.h"
-}
+#include "core/xml_parser.h"
 
 namespace {
 
@@ -543,7 +543,7 @@ int declarative_window_registry_load(void)
     g_failure_reason.clear();
 
     char filename[FILE_NAME_MAX];
-    snprintf(filename, sizeof(filename), "%s%s", mod_manager_get_mod_path(), kMissionBriefingPath);
+    snprintf(filename, sizeof(filename), "%s%s", mod_manager::mod_path().c_str(), kMissionBriefingPath);
     if (!parse_definition_file(filename)) {
         return 0;
     }

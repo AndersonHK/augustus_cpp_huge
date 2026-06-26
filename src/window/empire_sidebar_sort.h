@@ -73,8 +73,6 @@ int window_empire_sidebar_sort_get_sorting_button_count(void);
 const sorting_button *window_empire_sidebar_sort_get_sorting_button(int index);
 
 // Button drawing functions
-void window_empire_sidebar_sort_draw_simple_button(int x, int y, int width, int height, int is_focused, int group1, int number1,
-    int group2, int number2, int button_type, int image_id);
 void window_empire_sidebar_sort_draw_sorting_arrow_button(int button_x, int button_y, int button_width, int button_height);
 void window_empire_sidebar_sort_draw_expanding_buttons(int sidebar_x_min, int sidebar_y_min, int sidebar_width, int has_scrollbar);
 

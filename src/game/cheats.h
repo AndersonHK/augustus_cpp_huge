@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+
 #define MAX_COMMAND_SIZE 64
 
 void game_cheat_activate(void);
@@ -30,3 +31,4 @@ int game_cheat_disabled_invasions(void);
 void game_cheat_show_custom_events(uint8_t *args);
 
 void game_cheat_show_editor(uint8_t *args);
+

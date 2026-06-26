@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 /*
  * @brief A structure that holds info about a xml export element.
  */
@@ -80,3 +81,4 @@ void xml_exporter_close_element(void);
  * @brief Adds a LF+CR (new line) to the buffer.
  */
 void xml_exporter_newline(void);
+

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "map/point.h"
+
 
 #define FIGURE_ROAMER_PREVIEW_MAX_PASSAGES 8
 #define FIGURE_ROAMER_PREVIEW_ENTRY_TILE 9
@@ -13,3 +14,4 @@ void figure_roamer_preview_create_all_for_building_type(building_type type);
 void figure_roamer_preview_reset(building_type type);
 void figure_roamer_preview_reset_building_types(void);
 int figure_roamer_preview_get_frequency(int grid_offset);
+

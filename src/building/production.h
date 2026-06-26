@@ -1,26 +1,20 @@
 #pragma once
 
+#include "building/building_fwd.h"
 #include "building/production_method.h"
-
-extern "C" {
-#include "building/building.h"
-}
 
 #include <cstddef>
 
+namespace building_type_registry_impl {
+class BuildingType;
+}
+
 class Production {
 public:
-    Production(::building *building, const building_type_registry_impl::ProductionMethod *method, size_t method_index)
-        : building_(building)
-        , method_(method)
-        , method_index_(method_index)
-    {
-    }
+    Production(const Building &building, const building_type_registry_impl::ProductionMethod *method, size_t method_index);
 
-    ::building *building() const
-    {
-        return building_;
-    }
+    Building building() const;
+    unsigned int building_id() const;
 
     const building_type_registry_impl::ProductionMethod *method() const
     {
@@ -36,8 +30,7 @@ public:
     int has_raw_materials() const;
     int max_progress() const;
     int efficiency() const;
-    int has_produced_resource() const;
-    int output_cart_loads() const;
+    int has_completed_effect() const;
     void start_new_production();
     void advance_stats();
     void bless_farm();
@@ -45,11 +38,14 @@ public:
     void bless_industry();
 
 private:
+    Building context_building() const;
+    ::building *context_record() const;
     int decrement_strike_if_needed(int new_day, int *out_is_striking);
     int pending_production_for_stats() const;
     void refresh_images() const;
 
-    ::building *building_ = nullptr;
+    ::building *record_ = nullptr;
+    const building_type_registry_impl::BuildingType *definition_ = nullptr;
     const building_type_registry_impl::ProductionMethod *method_ = nullptr;
     size_t method_index_ = 0;
 };

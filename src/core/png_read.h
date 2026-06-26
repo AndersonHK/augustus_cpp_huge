@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+
 int png_load_from_file(const char *path, int is_asset);
 int png_load_from_buffer(const uint8_t *buffer, size_t length);
 
@@ -14,3 +15,4 @@ int png_read(color_t *pixels, int src_x, int src_y, int width, int height,
 	int dst_x, int dst_y, int dst_row_width, int rotate);
 
 void png_unload(void);
+

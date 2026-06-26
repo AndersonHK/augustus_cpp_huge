@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="pavilion">
+    <identity name_key="TR_BUILDING_BLUE_PAVILION" />
+    <model size="1" cost="12" />
+    <desirability>
+        <value value="3" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <button group="parks" order="100" text_key="TR_BUILDING_BLUE_PAVILION" />
+    <event_data attr="pavilion" />
+    <flags fire_proof="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <path value="Aesthetics\pavilion_blue" />
+            <options selection="stable_variant">
+                <option image="pavilion blue" />
+                <option image="pavilion red" />
+                <option image="pavilion orange" />
+                <option image="pavilion yellow" />
+                <option image="pavilion green" />
+                <option image="pavilion purple" />
+            </options>
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

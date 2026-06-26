@@ -1,8 +1,11 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_type.h"
 #include "core/buffer.h"
+#include "figure/figure.h"
 #include "game/resource.h"
+
+class Building;
 
 /**
  * @file
@@ -66,7 +69,7 @@ typedef enum {
  */
 typedef struct {
     int empty_all;
-    resource_storage_entry resource_state[RESOURCE_MAX];
+    resource_storage_entry resource_state[RESOURCE_SLOT_COUNT];
     int permissions;
 } building_storage;
 
@@ -76,6 +79,12 @@ typedef struct {
     int building_id;
     building_storage storage;
 } data_storage;
+
+typedef struct {
+    int needed;
+    unsigned int building_id;
+    int min_distance;
+} resource_storage_info;
 
 /**
  * Clear and reset all building storages
@@ -131,7 +140,7 @@ int building_storage_get_array_size(void);
  * @param amount Amount to add
  * @param is_produced flag for food going to granaries
  */
-int building_storage_try_add_resource(building *b, int resource, int amount, int is_produced);
+int building_storage_try_add_resource(Building &b, int resource, int amount, int is_produced);
 
 /**
  * Gets an entry from the data storage array.
@@ -153,7 +162,7 @@ const building_storage *building_storage_get(int storage_id);
  * @param relative If 1, returns state relative to the amount in the building, otherwise return raw state
  * @return Read-only storage state
  */
-building_storage_state building_storage_get_state(building *b, int resource, int relative);
+building_storage_state building_storage_get_state(const Building &b, int resource, int relative);
 
 /**
  * Sets values of a building storage to that of another building storage
@@ -166,12 +175,12 @@ void building_storage_set_data(int storage_id, building_storage new_data);
  * Cycles through the storage to return resource with highest count (skips RESOURCE_NONE)
  * @param b building to check
  */
-resource_type building_storage_get_highest_quantity_resource(building *b);
+resource_type building_storage_get_highest_quantity_resource(Building &b);
 
 /**
  * TODO: header
  */
-int building_storage_summary_tooltip(building *b, char *tooltip_text, int max_length, storage_summary_style style);
+int building_storage_summary_tooltip(const Building &b, char *tooltip_text, int max_length, storage_summary_style style);
 
 /**
  * Cycles the resource state for the storage
@@ -201,7 +210,7 @@ void building_storage_accept_none(int storage_id);
  * @param understaffed Pointer to int that will be set to 1 if the building is understaffed, otherwise 0
  * @return 1 if it does, 0 if it does not
  */
-int building_storage_accepts_storage(building *b, resource_type resource, int *understaffed);
+int building_storage_accepts_storage(Building &b, resource_type resource, int *understaffed);
 
 /**
  * Sets all goods to 'accepting'
@@ -239,7 +248,7 @@ void building_storage_reset_building_ids(void);
  * @param resource_id Resource id
  * @return Max amount that can be stored, 0 if it does not accept the resource at all.
  */
-int building_storage_resource_max_storable(building *b, resource_type resource_id);
+int building_storage_resource_max_storable(const Building &b, resource_type resource_id);
 
 /**
  * Save data
@@ -267,15 +276,16 @@ int building_storage_count_stored_resource_types(int building_id);
  * @param b building to check
  * @param resource Resource id to check
  */
-int building_storage_get_storage_state_quantity(building *b, resource_type resource);
+int building_storage_get_storage_state_quantity(const Building &b, resource_type resource);
 /**
  * returns the amount currently stored in the building for a given resource. Works for granaries and warehouses.
  * @param b building to check
  * @param resource Resource id to check
  */
-int building_storage_get_amount(building *b, resource_type resource);
+int building_storage_get_amount(const Building &b, resource_type resource);
 
-void building_storage_toggle_permission(building_storage_permission_states p, building *b);
-int building_storage_get_permission(building_storage_permission_states p, building *b);
-void building_storage_set_permission(building_storage_permission_states p, building *b, int enable);
+void building_storage_toggle_permission(building_storage_permission_states p, Building &b);
+int building_storage_get_permission(building_storage_permission_states p, const Building &b);
+void building_storage_set_permission(building_storage_permission_states p, Building &b, int enable);
 building_storage_permission_states building_storage_get_permission_from_building_type(building_type type);
+

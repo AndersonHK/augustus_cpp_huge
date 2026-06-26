@@ -1,12 +1,18 @@
-extern "C" {
+#include "map/bridge.h"
 #include "tool_mode.h"
+
+#include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
+#include "building/building_type_api.h"
 #include "city/view.h"
 #include "core/direction.h"
-}
+#include "map/terrain.h"
 
 #include <array>
 
 namespace {
+
+using building_type_registry_impl::ConstructionToolKind;
 
 enum class ToolTargetBehavior {
     DragArea,
@@ -14,21 +20,38 @@ enum class ToolTargetBehavior {
 };
 
 struct ToolModeDefinition {
-    building_type resolved_type;
+    ConstructionToolKind kind;
     key_modifier_type modifier;
     int footprint_size;
     ToolTargetBehavior target_behavior;
 };
 
+static building_type type_from_tool_kind(ConstructionToolKind kind)
+{
+    for (const auto &definition : building_type_registry_impl::g_building_types) {
+        if (definition && definition->tool().kind() == kind) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
+}
+
+static bool type_matches_tool(building_type type, ConstructionToolKind kind)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->tool().kind() == kind;
+}
+
 class ModeSwitchTool {
 public:
     ModeSwitchTool(
-        building_type selection_type,
+        ConstructionToolKind selection_kind,
         bool is_drag_tool,
-        std::array<building_type, 3> compatibility_aliases,
+        std::array<ConstructionToolKind, 3> compatibility_aliases,
         ToolModeDefinition default_mode,
         std::array<ToolModeDefinition, 2> modes)
-        : selection_type_(selection_type),
+        : selection_kind_(selection_kind),
           is_drag_tool_(is_drag_tool),
           compatibility_aliases_(compatibility_aliases),
           default_mode_(default_mode),
@@ -38,11 +61,11 @@ public:
 
     bool handles_requested_type(building_type requested_type) const
     {
-        if (requested_type == selection_type_) {
+        if (type_matches_tool(requested_type, selection_kind_)) {
             return true;
         }
-        for (building_type alias : compatibility_aliases_) {
-            if (alias == requested_type) {
+        for (ConstructionToolKind alias : compatibility_aliases_) {
+            if (type_matches_tool(requested_type, alias)) {
                 return true;
             }
         }
@@ -51,12 +74,12 @@ public:
 
     bool handles_selection(building_type selection_type) const
     {
-        return selection_type_ == selection_type;
+        return type_matches_tool(selection_type, selection_kind_);
     }
 
     building_type selection_type() const
     {
-        return selection_type_;
+        return type_from_tool_kind(selection_kind_);
     }
 
     bool is_drag_tool() const
@@ -66,7 +89,22 @@ public:
 
     building_type resolve(building_type compatibility_alias_type, key_modifier_type modifiers) const
     {
-        return resolve_definition(compatibility_alias_type, modifiers).resolved_type;
+        return type_from_tool_kind(resolve_definition(compatibility_alias_type, modifiers).kind);
+    }
+
+    building_type resolve_for_tile(
+        building_type compatibility_alias_type,
+        key_modifier_type modifiers,
+        int x,
+        int y,
+        int grid_offset,
+        int construction_in_progress) const
+    {
+        building_type bridge_type = resolve_bridge_hover_type(modifiers, x, y, grid_offset, construction_in_progress);
+        if (bridge_type != BUILDING_NONE) {
+            return bridge_type;
+        }
+        return resolve(compatibility_alias_type, modifiers);
     }
 
     void resolve_drag_points(
@@ -101,11 +139,11 @@ public:
 private:
     const ToolModeDefinition *find_definition_for_type(building_type type) const
     {
-        if (default_mode_.resolved_type == type) {
+        if (type_matches_tool(type, default_mode_.kind)) {
             return &default_mode_;
         }
         for (const ToolModeDefinition &mode : modes_) {
-            if (mode.resolved_type == type) {
+            if (type_matches_tool(type, mode.kind)) {
                 return &mode;
             }
         }
@@ -126,6 +164,30 @@ private:
             }
         }
         return default_mode_;
+    }
+
+    building_type resolve_bridge_hover_type(
+        key_modifier_type modifiers,
+        int x,
+        int y,
+        int grid_offset,
+        int construction_in_progress) const
+    {
+        if (construction_in_progress || !grid_offset || selection_kind_ != ConstructionToolKind::Road) {
+            return BUILDING_NONE;
+        }
+        if (!map_terrain_is(grid_offset, TERRAIN_WATER)) {
+            return BUILDING_NONE;
+        }
+
+        int length = 0;
+        int direction = 0;
+        grid_slice blocking_tiles = {};
+        map_bridge_calculate_length_direction(x, y, &length, &direction, &blocking_tiles);
+
+        return building_type_registry_impl::type_from_roadblock_bridge((modifiers & KEY_MOD_SHIFT) ?
+            building_type_registry_impl::RoadblockBridgeType::Ship :
+            building_type_registry_impl::RoadblockBridgeType::Low);
     }
 
     static void apply_footprint_offset(int *x, int *y, int footprint_size)
@@ -150,31 +212,31 @@ private:
         }
     }
 
-    building_type selection_type_;
+    ConstructionToolKind selection_kind_;
     bool is_drag_tool_;
-    std::array<building_type, 3> compatibility_aliases_;
+    std::array<ConstructionToolKind, 3> compatibility_aliases_;
     ToolModeDefinition default_mode_;
     std::array<ToolModeDefinition, 2> modes_;
 };
 
 const ModeSwitchTool CLEAR_TOOL(
-    BUILDING_CLEAR_LAND,
+    ConstructionToolKind::ClearLand,
     true,
-    { { BUILDING_CLEAR_LAND, BUILDING_REPAIR_LAND, BUILDING_CLEAR_TREES } },
-    ToolModeDefinition{ BUILDING_CLEAR_LAND, KEY_MOD_NONE, 1, ToolTargetBehavior::DragArea },
+    { { ConstructionToolKind::ClearLand, ConstructionToolKind::RepairLand, ConstructionToolKind::ClearTrees } },
+    ToolModeDefinition{ ConstructionToolKind::ClearLand, KEY_MOD_NONE, 1, ToolTargetBehavior::DragArea },
     { {
-        ToolModeDefinition{ BUILDING_REPAIR_LAND, KEY_MOD_CTRL, 1, ToolTargetBehavior::DragArea },
-        ToolModeDefinition{ BUILDING_CLEAR_TREES, KEY_MOD_SHIFT, 1, ToolTargetBehavior::DragArea },
+        ToolModeDefinition{ ConstructionToolKind::RepairLand, KEY_MOD_CTRL, 1, ToolTargetBehavior::DragArea },
+        ToolModeDefinition{ ConstructionToolKind::ClearTrees, KEY_MOD_SHIFT, 1, ToolTargetBehavior::DragArea },
     } });
 
 const ModeSwitchTool ROAD_TOOL(
-    BUILDING_ROAD,
+    ConstructionToolKind::Road,
     true,
-    { { BUILDING_ROAD, BUILDING_HIGHWAY, BUILDING_ROADBLOCK } },
-    ToolModeDefinition{ BUILDING_ROAD, KEY_MOD_NONE, 1, ToolTargetBehavior::DragArea },
+    { { ConstructionToolKind::Road, ConstructionToolKind::Highway, ConstructionToolKind::Roadblock } },
+    ToolModeDefinition{ ConstructionToolKind::Road, KEY_MOD_NONE, 1, ToolTargetBehavior::DragArea },
     { {
-        ToolModeDefinition{ BUILDING_ROADBLOCK, KEY_MOD_CTRL, 1, ToolTargetBehavior::SingleTarget },
-        ToolModeDefinition{ BUILDING_HIGHWAY, KEY_MOD_SHIFT, 2, ToolTargetBehavior::DragArea },
+        ToolModeDefinition{ ConstructionToolKind::Roadblock, KEY_MOD_CTRL, 1, ToolTargetBehavior::SingleTarget },
+        ToolModeDefinition{ ConstructionToolKind::Highway, KEY_MOD_SHIFT, 2, ToolTargetBehavior::DragArea },
     } });
 
 const std::array<const ModeSwitchTool *, 2> MODE_SWITCH_TOOLS = { { &CLEAR_TOOL, &ROAD_TOOL } };
@@ -201,17 +263,17 @@ const ModeSwitchTool *find_tool_for_selection(building_type selection_type)
 
 } // namespace
 
-extern "C" int building_tool_mode_handles_requested_type(building_type requested_type)
+int building_tool_mode_handles_requested_type(building_type requested_type)
 {
     return find_tool_for_requested_type(requested_type) != nullptr;
 }
 
-extern "C" int building_tool_mode_handles_selection(building_type selection_type)
+int building_tool_mode_handles_selection(building_type selection_type)
 {
     return find_tool_for_selection(selection_type) != nullptr;
 }
 
-extern "C" building_type building_tool_mode_selection_type(building_type requested_type)
+building_type building_tool_mode_selection_type(building_type requested_type)
 {
     const ModeSwitchTool *tool = find_tool_for_requested_type(requested_type);
     if (!tool) {
@@ -220,13 +282,13 @@ extern "C" building_type building_tool_mode_selection_type(building_type request
     return tool->selection_type();
 }
 
-extern "C" int building_tool_mode_is_drag_tool(building_type selection_type)
+int building_tool_mode_is_drag_tool(building_type selection_type)
 {
     const ModeSwitchTool *tool = find_tool_for_selection(selection_type);
     return tool && tool->is_drag_tool();
 }
 
-extern "C" building_type building_tool_mode_resolve(
+building_type building_tool_mode_resolve(
     building_type selection_type,
     building_type compatibility_alias_type,
     key_modifier_type modifiers)
@@ -238,7 +300,29 @@ extern "C" building_type building_tool_mode_resolve(
     return tool->resolve(compatibility_alias_type, modifiers);
 }
 
-extern "C" void building_tool_mode_resolve_drag_points(
+building_type building_tool_mode_resolve_for_tile(
+    building_type selection_type,
+    building_type compatibility_alias_type,
+    key_modifier_type modifiers,
+    int x,
+    int y,
+    int grid_offset,
+    int construction_in_progress)
+{
+    const ModeSwitchTool *tool = find_tool_for_selection(selection_type);
+    if (!tool) {
+        return selection_type;
+    }
+    return tool->resolve_for_tile(
+        compatibility_alias_type,
+        modifiers,
+        x,
+        y,
+        grid_offset,
+        construction_in_progress);
+}
+
+void building_tool_mode_resolve_drag_points(
     building_type selection_type,
     building_type compatibility_alias_type,
     key_modifier_type modifiers,

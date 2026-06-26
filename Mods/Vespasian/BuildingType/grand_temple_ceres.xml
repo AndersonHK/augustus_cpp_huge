@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="grand_temple_ceres">
     <identity name_key="TR_BUILDING_GRAND_TEMPLE_CERES" />
+    <temple religion="grand_temple_ceres" />
     <model size="7" cost="2500" />
     <desirability>
         <value value="20" />
@@ -9,10 +10,13 @@
         <range value="8" />
     </desirability>
     <foundation policy="land" />
-    <button group="grand_temples" order="10" icon="Monuments\Ceres_worshippers" icon_image="Ceres Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_CERES" />
+  <button group="grand_temples" order="20" icon="Monuments\Ceres_worshippers" icon_image="Ceres Complex On" text_key="TR_BUILDING_GRAND_TEMPLE_CERES" />
     <sound id="temple_ceres" />
     <event_data attr="grand_temple_ceres" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="temple_active" capacity="5000" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Monuments\Ceres_worshippers" />
@@ -29,7 +33,7 @@
             <image value="Ceres Complex Module2" />
         </variant>
     </graphics>
-    <construction mode="phased" road_update_radius="9">
+    <construction mode="phased" road_update_radius="9" max_count="1">
         <phase index="1">
             <graphics>
                 <path value="Environment\Group_206" />

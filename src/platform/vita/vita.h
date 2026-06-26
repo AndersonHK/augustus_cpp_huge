@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #ifdef __vita__
 
@@ -28,6 +25,3 @@ void platform_hide_virtual_keyboard(void);
 
 #endif // __vita__
 
-#ifdef __cplusplus
-}
-#endif

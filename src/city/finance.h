@@ -1,6 +1,7 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
+
 
 #define SMALL_TEMPLE_LEVY_MONTHLY 4
 #define FORT_LEVY_MONTHLY 8
@@ -14,21 +15,6 @@
 #define LARGE_TEMPLE_LEVY_MONTHLY 8
 #define SMALL_MAUSOLEUM_LEVY_MONTHLY 2
 #define HIGHWAY_LEVY_MONTHLY 1
-
-#define BUILDINGS_WITH_LEVIES 26
-#define BUILDINGS_WITH_TOURISM 12
-
-typedef struct {
-    int type;
-    int amount;
-} building_levy_for_type;
-
-typedef struct {
-    int type;
-    int income_modifier;
-    int coverage;
-    int count;
-} tourism_for_type;
 
 int city_finance_treasury(void);
 
@@ -111,3 +97,4 @@ const finance_overview *city_finance_overview_last_year(void);
 const finance_overview *city_finance_overview_this_year(void);
 
 int city_finance_spawn_tourist(void);
+

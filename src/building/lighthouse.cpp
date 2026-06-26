@@ -1,69 +1,88 @@
-extern "C" {
+#include "building/building.h"
 #include "lighthouse.h"
 
 #include "assets/assets.h"
 #include "building/distribution.h"
 #include "building/image.h"
 #include "building/monument.h"
-#include "building/building_runtime_api.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
+#include "building/building_type.h"
 #include "city/trade_policy.h"
 #include "core/calc.h"
 #include "map/building_tiles.h"
 #include "map/terrain.h"
-}
 
 #define INFINITE 10000
-#define MAX_TIMBER 500
 #define TIMBER_CONSUMPTION 20
 #define TIMBER_LOW 100
 
-int building_lighthouse_enough_timber(building *lighthouse)
+static building_type lighthouse_type()
 {
-    return lighthouse->resources[RESOURCE_TIMBER] > TIMBER_LOW;
+    return building_type_registry_impl::type_from_attr("lighthouse");
 }
 
-int building_lighthouse_get_storage_destination(building *lighthouse)
+int building_lighthouse_enough_timber(Building lighthouse)
 {
-    if (lighthouse->resources[RESOURCE_TIMBER] >= MAX_TIMBER) {
-        return 0;
+    return lighthouse.resource_amount(resource_timber()) > TIMBER_LOW;
+}
+
+Building building_lighthouse_get_storage_destination(Building lighthouse)
+{
+    const building_type_registry_impl::Distribution *distribution =
+        lighthouse.type ? lighthouse.type->distribution() : nullptr;
+    if (!distribution) {
+        return Building(nullptr);
     }
 
-    resource_storage_info info[RESOURCE_MAX] = { 0 };
-    info[RESOURCE_TIMBER].needed = 1;
-    if (!building_distribution_get_resource_storages_for_building(info, lighthouse, INFINITE)) {
-        return 0;
+    resource_storage_info info[RESOURCE_SLOT_COUNT] = { 0 };
+    if (!distribution->needed_resources_for(lighthouse, info) ||
+        !distribution->find_sources_for_building(info, lighthouse, INFINITE)) {
+        return Building(nullptr);
     }
 
-    return info[RESOURCE_TIMBER].building_id;
+    resource_type resource = distribution->fetch_resource(lighthouse, info, 0, 0, 1);
+    if (resource == RESOURCE_NONE) {
+        return Building(nullptr);
+    }
+    lighthouse.set_fetch_inventory_id(resource);
+    return Building(building_get(info[resource].building_id));
 }
 
 int building_lighthouse_is_fully_functional(void)
 {
-    if (!building_monument_working(BUILDING_LIGHTHOUSE)) {
+    const building_type type = lighthouse_type();
+    if (!building_monument_working(type)) {
         return 0;
     }
 
-    return building_lighthouse_enough_timber(building_first_of_type(BUILDING_LIGHTHOUSE));
+    return building_lighthouse_enough_timber(Building::first_of_type(type));
 }
 
-static void set_lighthouse_graphic(building *b)
+static void set_lighthouse_graphic(Building lighthouse)
 {
-    if (b->state != BUILDING_STATE_IN_USE) {
+    if (!lighthouse.is_in_use()) {
         return;
     }
-    if (building_type_registry_has_phased_construction(b->type)) {
-        building_runtime_apply_graphic(b);
+    if (lighthouse.type && lighthouse.type->has_phased_construction()) {
+        lighthouse.refresh_graphic();
     } else {
-        map_building_tiles_add(b->id, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
+        map_building_tiles_add(
+            lighthouse.id(),
+            lighthouse.x(),
+            lighthouse.y(),
+            lighthouse.size(),
+            building_image_get(building_get(lighthouse.id())),
+            TERRAIN_BUILDING);
     }
 }
 
 void building_lighthouse_consume_timber(void)
 {
-    if (building_monument_working(BUILDING_LIGHTHOUSE)) {
-        building *b = building_get(building_find(BUILDING_LIGHTHOUSE));
-        if (b->resources[RESOURCE_TIMBER] > 0) {
+    const building_type type = lighthouse_type();
+    if (building_monument_working(type)) {
+        Building lighthouse = Building::first_of_type(type);
+        int timber = lighthouse.resource_amount(resource_timber());
+        if (timber > 0) {
             trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);
             int consume = TIMBER_CONSUMPTION;
 
@@ -71,12 +90,8 @@ void building_lighthouse_consume_timber(void)
                 consume = calc_adjust_with_percentage(consume, 100 + POLICY_3_MALUS_PERCENT);
             }
 
-            if (b->resources[RESOURCE_TIMBER] - consume < 0) {
-                b->resources[RESOURCE_TIMBER] = 0;
-            } else {
-                b->resources[RESOURCE_TIMBER] -= consume;
-            }
+            lighthouse.set_resource_amount(resource_timber(), timber - consume < 0 ? 0 : timber - consume);
         }
-        set_lighthouse_graphic(b);
+        set_lighthouse_graphic(lighthouse);
     }
 }

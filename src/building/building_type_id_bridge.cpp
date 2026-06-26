@@ -1,14 +1,14 @@
+#include <array>
+
+#include "building/building_record.h"
 #include "building/building_type_id_bridge.h"
 
+#include "building/building_type_api.h"
 #include "building/building_type_legacy_migration.h"
 #include "building/building_type_registry_internal.h"
-#include "building/housing_type_registry.h"
 
-extern "C" {
 #include "core/log.h"
-}
 
-#include <array>
 #include <cctype>
 #include <cstdint>
 #include <limits>
@@ -21,6 +21,36 @@ extern "C" {
 namespace {
 
 constexpr int SAVE_TABLE_VERSION = 1;
+constexpr uint16_t LEGACY_BUILDING_HOUSE_SMALL_TENT = 10;
+constexpr uint16_t LEGACY_BUILDING_HOUSE_LUXURY_PALACE = 29;
+
+struct LegacyHouseTextId {
+    uint16_t save_id;
+    const char *text_id;
+};
+
+constexpr LegacyHouseTextId LEGACY_HOUSE_TEXT_IDS[] = {
+    {10, "house_small_tent"},
+    {11, "house_large_tent"},
+    {12, "house_small_shack"},
+    {13, "house_large_shack"},
+    {14, "house_small_hovel"},
+    {15, "house_large_hovel"},
+    {16, "house_small_casa"},
+    {17, "house_large_casa"},
+    {18, "house_small_insula"},
+    {19, "house_medium_insula"},
+    {20, "house_large_insula"},
+    {21, "house_grand_insula"},
+    {22, "house_small_villa"},
+    {23, "house_medium_villa"},
+    {24, "house_large_villa"},
+    {25, "house_grand_villa"},
+    {26, "house_small_palace"},
+    {27, "house_medium_palace"},
+    {28, "house_large_palace"},
+    {29, "house_luxury_palace"}
+};
 
 struct BridgeState {
     std::unordered_map<std::string, uint16_t> text_to_runtime;
@@ -56,10 +86,28 @@ void register_text_id(building_type runtime_id, const std::string &text_id)
     }
 
     uint16_t runtime = static_cast<uint16_t>(runtime_id);
+    auto existing = g_bridge.text_to_runtime.find(text_id);
+    if (existing != g_bridge.text_to_runtime.end()) {
+        building_type existing_runtime = static_cast<building_type>(existing->second);
+        if (building_type_registry_impl::definition_for_type(existing_runtime) &&
+            !building_type_registry_impl::definition_for_type(runtime_id)) {
+            return;
+        }
+    }
     if (g_bridge.runtime_to_text[runtime].empty()) {
         g_bridge.runtime_to_text[runtime] = text_id;
     }
     g_bridge.text_to_runtime[text_id] = runtime;
+}
+
+building_type active_registry_runtime_from_text(const char *text_id)
+{
+    building_type runtime_id = building_type_registry_impl::runtime_id_from_text(text_id);
+    if (runtime_id != BUILDING_NONE && building_type_registry_impl::definition_for_type(runtime_id)) {
+        register_text_id(runtime_id, text_id);
+        return runtime_id;
+    }
+    return BUILDING_NONE;
 }
 
 void register_attr_tokens(building_type runtime_id, const char *attr)
@@ -108,6 +156,58 @@ int active_definition_has_text_id(const char *text_id)
     return 0;
 }
 
+const char *legacy_house_text_id_for_raw_save_id(uint16_t save_id)
+{
+    for (const LegacyHouseTextId &entry : LEGACY_HOUSE_TEXT_IDS) {
+        if (entry.save_id == save_id) {
+            return entry.text_id;
+        }
+    }
+    return nullptr;
+}
+
+int is_legacy_house_text_id(const char *text_id)
+{
+    if (!text_id || !*text_id) {
+        return 0;
+    }
+    for (const LegacyHouseTextId &entry : LEGACY_HOUSE_TEXT_IDS) {
+        if (std::string_view(entry.text_id) == text_id) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int is_vacant_lot_alias(const char *text_id)
+{
+    return text_id && (std::string_view(text_id) == "vacant_lot" ||
+        std::string_view(text_id) == "house_vacant_lot");
+}
+
+int is_pavilion_alias(const char *text_id)
+{
+    if (!text_id) {
+        return 0;
+    }
+    std::string_view id(text_id);
+    return id == "pavilion_blue" ||
+        id == "pavilion_red" ||
+        id == "pavilion_orange" ||
+        id == "pavilion_yellow" ||
+        id == "pavilion_green";
+}
+
+building_type vacant_lot_alias_runtime()
+{
+    return building_type_registry_get_vacant_lot_fill_type();
+}
+
+building_type pavilion_alias_runtime()
+{
+    return active_registry_runtime_from_text("pavilion");
+}
+
 void ensure_runtime_table()
 {
     if (g_bridge.runtime_ready) {
@@ -124,8 +224,7 @@ void ensure_runtime_table()
         if (building_type_legacy_migration_text_id_is_xml_owned(legacy_text_id)) {
             continue;
         }
-        if (housing_type_registry_text_id_has_legacy_house_level(legacy_text_id) &&
-            active_definition_has_text_id(legacy_text_id)) {
+        if (is_legacy_house_text_id(legacy_text_id) && active_definition_has_text_id(legacy_text_id)) {
             continue;
         }
         register_text_id(static_cast<building_type>(id), legacy_text_id ? legacy_text_id : "");
@@ -189,8 +288,8 @@ int save_id_has_explicit_mapping(uint16_t save_id)
 
 const char *legacy_text_from_raw_save_id(uint16_t save_id)
 {
-    if (save_id > BUILDING_HOUSE_SMALL_TENT && save_id <= BUILDING_HOUSE_LUXURY_PALACE) {
-        return building_type_registry_impl::housing_type_text_id_for_legacy_level(save_id - BUILDING_HOUSE_SMALL_TENT);
+    if (save_id >= LEGACY_BUILDING_HOUSE_SMALL_TENT && save_id <= LEGACY_BUILDING_HOUSE_LUXURY_PALACE) {
+        return legacy_house_text_id_for_raw_save_id(save_id);
     }
     return save_id < BUILDING_TYPE_MAX ? building_type_legacy_migration_text_id_for_enum(save_id) : 0;
 }
@@ -205,10 +304,10 @@ void load_legacy_save_table()
     ensure_runtime_table();
     clear_save_table();
 
-    for (uint16_t legacy_id = 1; legacy_id < BUILDING_TYPE_MAX; ++legacy_id) {
-        const char *text_id = building_type_legacy_migration_text_id_for_enum(legacy_id);
+    for (uint16_t save_id = 1; save_id < BUILDING_TYPE_MAX; ++save_id) {
+        const char *text_id = legacy_text_from_raw_save_id(save_id);
         building_type runtime_id = building_type_id_bridge_runtime_from_text(text_id);
-        append_save_id_mapping(legacy_id, runtime_id, runtime_id == BUILDING_NONE && text_id && *text_id, text_id);
+        append_save_id_mapping(save_id, runtime_id, runtime_id == BUILDING_NONE && text_id && *text_id, text_id);
     }
 
     g_bridge.save_table_ready = true;
@@ -216,38 +315,64 @@ void load_legacy_save_table()
 
 }
 
-extern "C" void building_type_id_bridge_reset_for_runtime(void)
+void building_type_id_bridge_reset_for_runtime(void)
 {
     g_bridge.runtime_ready = false;
     g_bridge.save_table_ready = false;
+    clear_save_table();
     ensure_runtime_table();
 }
 
-extern "C" const char *building_type_id_bridge_text_from_runtime(building_type runtime_id)
+void building_type_id_bridge_clear_save_table(void)
+{
+    clear_save_table();
+    g_bridge.save_table_ready = false;
+}
+
+const char *building_type_id_bridge_text_from_runtime(building_type runtime_id)
 {
     ensure_runtime_table();
-    if (runtime_id <= BUILDING_NONE || runtime_id >= BUILDING_TYPE_MAX ||
-        g_bridge.runtime_to_text[static_cast<uint16_t>(runtime_id)].empty()) {
+    if (runtime_id <= BUILDING_NONE || runtime_id >= BUILDING_TYPE_MAX) {
+        return 0;
+    }
+    if (g_bridge.runtime_to_text[static_cast<uint16_t>(runtime_id)].empty()) {
+        if (const building_type_registry_impl::BuildingType *definition =
+                building_type_registry_impl::definition_for_type(runtime_id)) {
+            register_text_id(runtime_id, definition->attr());
+        }
+    }
+    if (g_bridge.runtime_to_text[static_cast<uint16_t>(runtime_id)].empty()) {
         return 0;
     }
     return g_bridge.runtime_to_text[static_cast<uint16_t>(runtime_id)].c_str();
 }
 
-extern "C" building_type building_type_id_bridge_runtime_from_text(const char *text_id)
+building_type building_type_id_bridge_runtime_from_text(const char *text_id)
 {
     ensure_runtime_table();
     if (!text_id || !*text_id) {
         return BUILDING_NONE;
     }
+    if (is_vacant_lot_alias(text_id)) {
+        return vacant_lot_alias_runtime();
+    }
+    if (is_pavilion_alias(text_id)) {
+        return pavilion_alias_runtime();
+    }
 
     auto found = g_bridge.text_to_runtime.find(text_id);
-    if (found == g_bridge.text_to_runtime.end()) {
-        return BUILDING_NONE;
+    if (found != g_bridge.text_to_runtime.end()) {
+        building_type runtime_id = static_cast<building_type>(found->second);
+        if (building_type_registry_impl::definition_for_type(runtime_id) ||
+            !active_definition_has_text_id(text_id)) {
+            return runtime_id;
+        }
     }
-    return static_cast<building_type>(found->second);
+
+    return active_registry_runtime_from_text(text_id);
 }
 
-extern "C" void building_type_id_bridge_prepare_new_save_table(void)
+void building_type_id_bridge_prepare_new_save_table(void)
 {
     ensure_runtime_table();
     clear_save_table();
@@ -264,7 +389,7 @@ extern "C" void building_type_id_bridge_prepare_new_save_table(void)
     g_bridge.save_table_ready = true;
 }
 
-extern "C" void building_type_id_bridge_save_table_save_state(buffer *buf)
+void building_type_id_bridge_save_table_save_state(buffer *buf)
 {
     if (!buf) {
         return;
@@ -303,7 +428,7 @@ extern "C" void building_type_id_bridge_save_table_save_state(buffer *buf)
     }
 }
 
-extern "C" void building_type_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
+void building_type_id_bridge_save_table_load_state(buffer *buf, int has_save_table)
 {
     if (!has_save_table || !buf || !buf->size) {
         load_legacy_save_table();
@@ -347,7 +472,7 @@ extern "C" void building_type_id_bridge_save_table_load_state(buffer *buf, int h
     g_bridge.save_table_ready = true;
 }
 
-extern "C" uint16_t building_type_id_bridge_save_id_from_runtime(building_type runtime_id)
+uint16_t building_type_id_bridge_save_id_from_runtime(building_type runtime_id)
 {
     ensure_save_table();
     if (runtime_id <= BUILDING_NONE || runtime_id >= BUILDING_TYPE_MAX) {
@@ -356,16 +481,28 @@ extern "C" uint16_t building_type_id_bridge_save_id_from_runtime(building_type r
     return g_bridge.runtime_to_save[static_cast<uint16_t>(runtime_id)];
 }
 
-extern "C" building_type building_type_id_bridge_runtime_from_save_id(uint16_t save_id)
+building_type building_type_id_bridge_runtime_from_save_id(uint16_t save_id)
 {
     ensure_save_table();
     if (save_id_has_explicit_mapping(save_id)) {
-        return g_bridge.save_to_runtime[static_cast<size_t>(save_id)];
+        size_t index = static_cast<size_t>(save_id);
+        building_type runtime_id = g_bridge.save_to_runtime[index];
+        if ((runtime_id == BUILDING_NONE || !building_type_registry_impl::definition_for_type(runtime_id)) &&
+            index < g_bridge.save_to_text.size() && !g_bridge.save_to_text[index].empty()) {
+            std::string text_id = g_bridge.save_to_text[index];
+            building_type refreshed_runtime_id = building_type_id_bridge_runtime_from_text(text_id.c_str());
+            if (refreshed_runtime_id != BUILDING_NONE &&
+                building_type_registry_impl::definition_for_type(refreshed_runtime_id)) {
+                append_save_id_mapping(save_id, refreshed_runtime_id, false, text_id.c_str());
+                runtime_id = refreshed_runtime_id;
+            }
+        }
+        return runtime_id;
     }
     return legacy_runtime_from_raw_save_id(save_id);
 }
 
-extern "C" const char *building_type_id_bridge_text_from_save_id(uint16_t save_id)
+const char *building_type_id_bridge_text_from_save_id(uint16_t save_id)
 {
     ensure_save_table();
     if (save_id_has_explicit_mapping(save_id) &&
@@ -383,14 +520,19 @@ extern "C" const char *building_type_id_bridge_text_from_save_id(uint16_t save_i
     return building_type_id_bridge_text_from_runtime(runtime_id);
 }
 
-extern "C" int building_type_id_bridge_save_id_is_missing(uint16_t save_id)
+int building_type_id_bridge_save_id_is_missing(uint16_t save_id)
 {
     ensure_save_table();
     if (save_id == 0) {
         return 0;
     }
     if (save_id_has_explicit_mapping(save_id)) {
-        return g_bridge.save_id_missing[static_cast<size_t>(save_id)] ? 1 : 0;
+        building_type runtime_id = building_type_id_bridge_runtime_from_save_id(save_id);
+        if (g_bridge.save_id_missing[static_cast<size_t>(save_id)]) {
+            return 1;
+        }
+        return runtime_id == BUILDING_NONE || !building_type_registry_impl::definition_for_type(runtime_id) ? 1 : 0;
     }
-    return legacy_runtime_from_raw_save_id(save_id) == BUILDING_NONE ? 1 : 0;
+    building_type runtime_id = legacy_runtime_from_raw_save_id(save_id);
+    return runtime_id == BUILDING_NONE || !building_type_registry_impl::definition_for_type(runtime_id) ? 1 : 0;
 }

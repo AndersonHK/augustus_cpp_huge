@@ -128,8 +128,9 @@ static const char *ini_keys[] = {
     "ui_wt_weather_duration",
     "gameplay_change_granary_do_not_allow_walkers",
     "gameplay_change_warehouse_do_not_allow_walkers",
-    "ui_scale_filter",
-    "debug"
+    "scale_filter",
+    "debug",
+    "debug_performance_tracker"
 };
 
 static const char *ini_string_keys[] = {
@@ -254,11 +255,52 @@ static int default_values[CONFIG_MAX_ENTRIES] = {
     1,
     0,
     0,
-    static_cast<int>(CONFIG_UI_SCALE_FILTER_AUTO),
+    static_cast<int>(CONFIG_SCALE_FILTER_AUTO),
+    0,
     0
 };
 
 static const char default_string_values[CONFIG_STRING_MAX_ENTRIES][CONFIG_STRING_VALUE_MAX] = { 0 };
+
+static int parse_scale_filter_value(const char *value)
+{
+    if (strcmp(value, "nearest") == 0) {
+        return CONFIG_SCALE_FILTER_NEAREST;
+    }
+    if (strcmp(value, "linear") == 0) {
+        return CONFIG_SCALE_FILTER_LINEAR;
+    }
+    if (strcmp(value, "best") == 0) {
+        return CONFIG_SCALE_FILTER_BEST;
+    }
+    if (strcmp(value, "auto") == 0) {
+        return CONFIG_SCALE_FILTER_AUTO;
+    }
+    return atoi(value);
+}
+
+static int parse_config_value(config_key key, const char *value)
+{
+    if (key == CONFIG_SCALE_FILTER) {
+        return parse_scale_filter_value(value);
+    }
+    return atoi(value);
+}
+
+static const char *scale_filter_value_name(int value)
+{
+    switch (value) {
+        case CONFIG_SCALE_FILTER_NEAREST:
+            return "nearest";
+        case CONFIG_SCALE_FILTER_LINEAR:
+            return "linear";
+        case CONFIG_SCALE_FILTER_BEST:
+            return "best";
+        case CONFIG_SCALE_FILTER_AUTO:
+        default:
+            return "auto";
+    }
+}
 
 static const char *config_get_load_file_name(void)
 {
@@ -341,7 +383,7 @@ void config_load(void)
             *equals = 0;
             for (int i = 0; i < CONFIG_MAX_ENTRIES; i++) {
                 if (strcmp(ini_keys[i], line) == 0) {
-                    int value = atoi(&equals[1]);
+                    int value = parse_config_value(static_cast<config_key>(i), &equals[1]);
                     if (log_is_debug_enabled()) {
                         log_info("Config key", ini_keys[i], value);
                     }
@@ -386,7 +428,11 @@ void config_save(void)
         return;
     }
     for (int i = 0; i < CONFIG_MAX_ENTRIES; i++) {
-        fprintf(fp, "%s=%d\n", ini_keys[i], values[i]);
+        if (i == CONFIG_SCALE_FILTER) {
+            fprintf(fp, "%s=%s\n", ini_keys[i], scale_filter_value_name(values[i]));
+        } else {
+            fprintf(fp, "%s=%d\n", ini_keys[i], values[i]);
+        }
     }
     for (int i = 0; i < CONFIG_STRING_MAX_ENTRIES; i++) {
         fprintf(fp, "%s=%s\n", ini_string_keys[i], string_values[i]);

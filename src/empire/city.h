@@ -4,6 +4,7 @@
 #include "empire/type.h"
 #include "game/resource.h"
 
+
 #define EMPIRE_CITY_MAX_TRADERS 3
 
 typedef struct {
@@ -12,8 +13,8 @@ typedef struct {
     int name_id;
     int route_id;
     int is_open;
-    int buys_resource[RESOURCE_MAX];
-    int sells_resource[RESOURCE_MAX];
+    int buys_resource[RESOURCE_SLOT_COUNT];
+    int sells_resource[RESOURCE_SLOT_COUNT];
     unsigned int cost_to_open;
     int trader_entry_delay;
     int empire_object_id;
@@ -111,3 +112,4 @@ int empire_city_get_array_size(void);
 int empire_city_get_icon_image_id(empire_city_icon_type type);
 
 int empire_city_get_at(int x, int y, const uint8_t *name);
+

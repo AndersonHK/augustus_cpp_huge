@@ -1,20 +1,20 @@
+#include "assets/image.h"
+#include "assets/group.h"
+#include "game/mod_manager.h"
+
 #include "xml.h"
 
-extern "C" {
+#include "core/file.h"
 #include "assets/assets.h"
-#include "assets/group.h"
-#include "assets/image.h"
 #include "core/calc.h"
 #include "core/dir.h"
-#include "core/file.h"
 #include "core/log.h"
 #include "core/png_read.h"
 #include "core/string.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
 #include "graphics/renderer.h"
-}
 
+#include <string>
 #include <string.h>
 
 #define XML_BUFFER_SIZE 1024
@@ -50,24 +50,19 @@ static const xml_parser_element xml_elements[XML_TOTAL_ELEMENTS] = {
 static const char *INVERT_VALUES[3] = { "horizontal", "vertical", "both" };
 static const char *ROTATE_VALUES[3] = { "90", "180", "270" };
 
-static int append_root_graphics_path(char *full_path, const char *relative_path)
-{
-    return snprintf(full_path, FILE_NAME_MAX, ASSETS_DIRECTORY "/" ASSETS_IMAGE_PATH "/%s", relative_path) < FILE_NAME_MAX;
-}
-
 static int append_mod_graphics_path(char *full_path, const char *relative_path)
 {
-    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager_get_graphics_path(), relative_path) < FILE_NAME_MAX;
+    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager::graphics_path().c_str(), relative_path) < FILE_NAME_MAX;
 }
 
 static int append_augustus_graphics_path(char *full_path, const char *relative_path)
 {
-    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager_get_augustus_graphics_path(), relative_path) < FILE_NAME_MAX;
+    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager::augustus_graphics_path().c_str(), relative_path) < FILE_NAME_MAX;
 }
 
 static int append_julius_graphics_path(char *full_path, const char *relative_path)
 {
-    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager_get_julius_graphics_path(), relative_path) < FILE_NAME_MAX;
+    return snprintf(full_path, FILE_NAME_MAX, "%s%s", mod_manager::julius_graphics_path().c_str(), relative_path) < FILE_NAME_MAX;
 }
 
 static int append_graphics_path_for_source(char *full_path, const char *relative_path, xml_asset_source source)
@@ -79,8 +74,6 @@ static int append_graphics_path_for_source(char *full_path, const char *relative
             return append_augustus_graphics_path(full_path, relative_path);
         case XML_ASSET_SOURCE_JULIUS:
             return append_julius_graphics_path(full_path, relative_path);
-        case XML_ASSET_SOURCE_ROOT:
-            return append_root_graphics_path(full_path, relative_path);
         case XML_ASSET_SOURCE_AUTO:
         default:
             return append_mod_graphics_path(full_path, relative_path);
@@ -123,11 +116,11 @@ static xml_asset_source source_for_mod_index(int index, int top_index)
     if (index == top_index) {
         return XML_ASSET_SOURCE_MOD;
     }
-    const char *name = mod_manager_get_mod_name_at(index);
-    if (ascii_equals_ignore_case(name, "Augustus")) {
+    const std::string &name = mod_manager::mod_names().at(index);
+    if (ascii_equals_ignore_case(name.c_str(), "Augustus")) {
         return XML_ASSET_SOURCE_AUGUSTUS;
     }
-    if (ascii_equals_ignore_case(name, "Julius")) {
+    if (ascii_equals_ignore_case(name.c_str(), "Julius")) {
         return XML_ASSET_SOURCE_JULIUS;
     }
     return XML_ASSET_SOURCE_AUTO;
@@ -136,7 +129,7 @@ static xml_asset_source source_for_mod_index(int index, int top_index)
 static int collect_graphics_source_priority(xml_asset_source *sources, int max_sources)
 {
     int count = 0;
-    const int mod_count = mod_manager_get_mod_count();
+    const int mod_count = static_cast<int>(mod_manager::graphics_paths().size());
     const int top_index = mod_count - 1;
     for (int i = top_index; i >= 0 && count < max_sources; i--) {
         const xml_asset_source source = source_for_mod_index(i, top_index);
@@ -144,9 +137,6 @@ static int collect_graphics_source_priority(xml_asset_source *sources, int max_s
             continue;
         }
         sources[count++] = source;
-    }
-    if (count < max_sources) {
-        sources[count++] = XML_ASSET_SOURCE_ROOT;
     }
     return count;
 }

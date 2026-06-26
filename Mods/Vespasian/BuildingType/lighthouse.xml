@@ -8,10 +8,13 @@
         <step_size value="-1" />
         <range value="4" />
     </desirability>
-    <foundation policy="land" />
+    <foundation policy="land">
+        <terrain value="distant_water" />
+    </foundation>
     <button group="engineering" order="40" icon="Monuments\Lighthouse_OFF" text_key="TR_BUILDING_LIGHTHOUSE" />
     <sound id="lighthouse" />
     <event_data attr="lighthouse" />
+    <distribution path="lighthouse" />
     <flags fire_proof="1" />
     <graphics>
         <default>
@@ -25,7 +28,7 @@
             <image value="Lighthouse ON" />
         </variant>
     </graphics>
-    <construction mode="phased" road_update_radius="5">
+    <construction mode="phased" road_update_radius="5" max_count="1">
         <phase index="1">
             <graphics>
                 <path value="Environment\Group_206" />

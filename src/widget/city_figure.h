@@ -9,6 +9,6 @@ enum {
     FIGURE_HIGHLIGHT_GREEN = 2,
 };
 
-void city_draw_figure(const figure *f, int x, int y, float scale, int highlight);
+void city_draw_figure(const Figure *f, int x, int y, float scale, int highlight);
 
-void city_draw_selected_figure(const figure *f, int x, int y, float scale, pixel_coordinate *coord);
+void city_draw_selected_figure(const Figure *f, int x, int y, float scale, pixel_coordinate *coord);

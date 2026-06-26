@@ -1,13 +1,13 @@
+#
+
 #include "game/defines.h"
 #include "game/time.h"
 #include "core/crash_context.h"
+#include "game/mod_manager.h"
 
-extern "C" {
 #include "core/file.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
-}
 
 #include <array>
 #include <climits>
@@ -26,6 +26,7 @@ constexpr const char *kActiveMortalityTableId = "default";
 constexpr const char *kActiveBirthTableId = "default";
 constexpr int kHealthBuckets = 11;
 constexpr int kAgeDecennia = 10;
+constexpr int kDefaultBuildingHitPoints = 10;
 
 struct CalendarDefinition {
     int ticks_per_day = 50;
@@ -59,6 +60,8 @@ struct DefinesDocument {
     std::unordered_map<std::string, CalendarDefinition> calendars;
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
     std::unordered_map<std::string, BirthDefinition> birth_tables;
+    int has_default_building_hit_points = 0;
+    int default_building_hit_points = kDefaultBuildingHitPoints;
 };
 
 struct DefinesParseState {
@@ -81,6 +84,7 @@ DefinesParseState g_parse_state;
 CalendarDefinition g_active_calendar;
 MortalityDefinition g_active_mortality;
 BirthDefinition g_active_birth;
+int g_default_building_hit_points = kDefaultBuildingHitPoints;
 std::string g_failure_reason;
 
 static void set_failure_reason(const char *message, const char *detail = nullptr)
@@ -193,6 +197,25 @@ static int parse_defines_root()
     }
 
     g_parse_state.saw_root = 1;
+    return 1;
+}
+
+static int parse_combat()
+{
+    if (!xml_parser_has_attribute("default_building_hit_points")) {
+        report_parse_error("combat node is missing required attribute 'default_building_hit_points'");
+        return 0;
+    }
+
+    const char *hit_points_text = xml_parser_get_attribute_string("default_building_hit_points");
+    int hit_points = 0;
+    if (!hit_points_text || !parse_int_strict(hit_points_text, &hit_points) || hit_points <= 0) {
+        report_parse_error("combat node has an invalid default_building_hit_points", hit_points_text);
+        return 0;
+    }
+
+    g_parse_state.document.has_default_building_hit_points = 1;
+    g_parse_state.document.default_building_hit_points = hit_points;
     return 1;
 }
 
@@ -435,6 +458,7 @@ static int parse_birth_age_decennia()
 
 static const xml_parser_element XML_ELEMENTS[] = {
     { "defines", parse_defines_root, nullptr, nullptr, nullptr },
+    { "combat", parse_combat, nullptr, "defines", nullptr },
     { "calendar", parse_calendar, finish_calendar, "defines", nullptr },
     { "month_days", parse_month_days, nullptr, "calendar", nullptr },
     { "mortality_table", parse_mortality_table, finish_mortality_table, "defines", nullptr },
@@ -514,8 +538,12 @@ static void merge_document(
     const DefinesDocument &source,
     std::unordered_map<std::string, CalendarDefinition> &calendars,
     std::unordered_map<std::string, MortalityDefinition> &mortality_tables,
-    std::unordered_map<std::string, BirthDefinition> &birth_tables)
+    std::unordered_map<std::string, BirthDefinition> &birth_tables,
+    int &default_building_hit_points)
 {
+    if (source.has_default_building_hit_points) {
+        default_building_hit_points = source.default_building_hit_points;
+    }
     for (const auto &entry : source.calendars) {
         calendars[entry.first] = entry.second;
     }
@@ -532,17 +560,16 @@ static int load_and_merge_defines()
     std::unordered_map<std::string, CalendarDefinition> calendars;
     std::unordered_map<std::string, MortalityDefinition> mortality_tables;
     std::unordered_map<std::string, BirthDefinition> birth_tables;
+    int default_building_hit_points = kDefaultBuildingHitPoints;
 
-    const int mod_count = mod_manager_get_mod_count();
-    for (int i = 0; i < mod_count; i++) {
-        const char *mod_path = mod_manager_get_mod_path_at(i);
-        if (!mod_path || !*mod_path) {
+    for (const std::string &mod_path : mod_manager::mod_paths()) {
+        if (mod_path.empty()) {
             continue;
         }
 
         char full_path[FILE_NAME_MAX] = { 0 };
-        if (snprintf(full_path, FILE_NAME_MAX, "%sdefines.xml", mod_path) >= FILE_NAME_MAX) {
-            set_failure_reason("Defines path is too long.", mod_path);
+        if (snprintf(full_path, FILE_NAME_MAX, "%sdefines.xml", mod_path.c_str()) >= FILE_NAME_MAX) {
+            set_failure_reason("Defines path is too long.", mod_path.c_str());
             return 0;
         }
 
@@ -555,7 +582,7 @@ static int load_and_merge_defines()
             return 0;
         }
 
-        merge_document(document, calendars, mortality_tables, birth_tables);
+        merge_document(document, calendars, mortality_tables, birth_tables, default_building_hit_points);
     }
 
     const auto calendar_it = calendars.find(kActiveCalendarId);
@@ -579,6 +606,7 @@ static int load_and_merge_defines()
     g_active_calendar = calendar_it->second;
     g_active_mortality = mortality_it->second;
     g_active_birth = birth_it->second;
+    g_default_building_hit_points = default_building_hit_points;
     return 1;
 }
 
@@ -593,23 +621,23 @@ static int days_before_month(int month)
 
 } // namespace
 
-extern "C" int game_defines_load(void)
+int game_defines_load(void)
 {
     g_failure_reason.clear();
     return load_and_merge_defines();
 }
 
-extern "C" const char *game_defines_get_failure_reason(void)
+const char *game_defines_get_failure_reason(void)
 {
     return g_failure_reason.c_str();
 }
 
-extern "C" int game_defines_ticks_per_day(void)
+int game_defines_ticks_per_day(void)
 {
     return g_active_calendar.ticks_per_day;
 }
 
-extern "C" int game_defines_days_in_month(int month)
+int game_defines_days_in_month(int month)
 {
     if (month < 0 || month >= GAME_TIME_MONTHS_PER_YEAR) {
         return 0;
@@ -617,33 +645,38 @@ extern "C" int game_defines_days_in_month(int month)
     return g_active_calendar.month_days[static_cast<size_t>(month)];
 }
 
-extern "C" int game_defines_days_per_year(void)
+int game_defines_days_per_year(void)
 {
     return days_before_month(GAME_TIME_MONTHS_PER_YEAR);
 }
 
-extern "C" int game_defines_ticks_per_month(int month)
+int game_defines_ticks_per_month(int month)
 {
     return game_defines_ticks_per_day() * game_defines_days_in_month(month);
 }
 
-extern "C" int game_defines_ticks_per_year(void)
+int game_defines_ticks_per_year(void)
 {
     return game_defines_ticks_per_day() * game_defines_days_per_year();
 }
 
-extern "C" int game_defines_is_last_day_of_month(int month, int day)
+int game_defines_is_last_day_of_month(int month, int day)
 {
     const int days_in_month = game_defines_days_in_month(month);
     return days_in_month > 0 && day == days_in_month - 1;
 }
 
-extern "C" int game_defines_is_last_day_of_year(int month, int day)
+int game_defines_is_last_day_of_year(int month, int day)
 {
     return month == GAME_TIME_MONTHS_PER_YEAR - 1 && game_defines_is_last_day_of_month(month, day);
 }
 
-extern "C" int game_defines_mortality_percentage(int health_bucket, int age_decennium)
+int game_defines_default_building_hit_points(void)
+{
+    return g_default_building_hit_points;
+}
+
+int game_defines_mortality_percentage(int health_bucket, int age_decennium)
 {
     if (health_bucket < 0) {
         health_bucket = 0;
@@ -658,7 +691,7 @@ extern "C" int game_defines_mortality_percentage(int health_bucket, int age_dece
     return g_active_mortality.values[static_cast<size_t>(health_bucket)][static_cast<size_t>(age_decennium)];
 }
 
-extern "C" int game_defines_birth_percentage(int age_decennium)
+int game_defines_birth_percentage(int age_decennium)
 {
     if (age_decennium < 0 || age_decennium >= kAgeDecennia) {
         return 0;

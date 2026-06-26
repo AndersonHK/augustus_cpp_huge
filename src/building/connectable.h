@@ -1,6 +1,10 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
+
+class Building;
+
+
 
 #define BUILDING_CONNECTABLE_ROTATION_LIMIT_HEDGES 3
 #define BUILDING_CONNECTABLE_ROTATION_LIMIT_PATHS 2
@@ -34,3 +38,6 @@ int building_connectable_num_variants(building_type type);
 
 void building_connectable_update_connections(void);
 void building_connectable_update_connections_for_type(building_type type);
+
+
+int building_connectable_graphics_option(const Building &building);

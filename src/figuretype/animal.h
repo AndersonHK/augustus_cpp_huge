@@ -2,19 +2,20 @@
 
 #include "figure/figure.h"
 
+
 void figure_create_fishing_points(void);
 
 void figure_create_herds(void);
 
-void figure_seagulls_action(figure *f);
+void figure_seagulls_action(Figure *f);
 
-void figure_sheep_action(figure *f);
+void figure_sheep_action(Figure *f);
 
-void figure_wolf_action(figure *f);
+void figure_wolf_action(Figure *f);
 
-void figure_zebra_action(figure *f);
+void figure_zebra_action(Figure *f);
 
-void figure_hippodrome_horse_action(figure *f);
+void figure_hippodrome_horse_action(Figure *f);
 
 void figure_hippodrome_horse_reroute(void);
 

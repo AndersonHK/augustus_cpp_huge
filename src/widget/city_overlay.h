@@ -1,6 +1,6 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "figure/figure.h"
 #include "graphics/tooltip.h"
 
@@ -17,7 +17,7 @@ typedef struct {
     int type;
     column_color_type column_type;
     int (*show_building)(const building *b);
-    int (*show_figure)(const figure *f);
+    int (*show_figure)(const Figure *f);
     int (*get_column_height)(const building *b);
     int (*get_tooltip_for_grid_offset)(tooltip_context *c, int grid_offset);
     int (*get_tooltip_for_building)(tooltip_context *c, const building *b);

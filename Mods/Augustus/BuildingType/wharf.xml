@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="wharf">
+    <identity name_key="main_strings.28.76" />
+    <model size="2" cost="60" />
+    <desirability>
+        <value value="-8" />
+        <step value="2" />
+        <step_size value="2" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="custom">
+        <terrain value="water" />
+    </foundation>
+    <button group="engineering" order="40" icon="Industry\Wharf" text_key="main_strings.28.76" />
+    <sound id="wharf" />
+    <event_data attr="wharf" />
+    <graphics>
+        <default>
+            <options selection="orientation">
+                <option path="Industry\Wharf" image="Image_0000" />
+                <option path="Industry\Wharf" image="Image_0001" />
+                <option path="Industry\Wharf" image="Image_0002" />
+                <option path="Industry\Wharf" image="Image_0003" />
+            </options>
+        </default>
+    </graphics>
+    <labor>
+        <employees count="6" />
+        <labor_seeker>
+            <method value="houses_spawn_if_below" />
+            <amount value="50" />
+        </labor_seeker>
+    </labor>
+    <production_methods>
+        <production_method path="fish_wharf_basic" />
+    </production_methods>
+    <storages>
+        <storage path="fish_output_wharf" />
+    </storages>
+    <spawn_group road_access="normal" delay_bands="100:0,1:0">
+        <spawn mode="fishing_boat" spawn_figure="fishing_boat" spawn_source="shipyard" capacity="1" profile="fish_fetch" />
+    </spawn_group>
+</building>

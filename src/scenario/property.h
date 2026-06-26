@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+
 typedef enum {
     CLIMATE_CENTRAL = 0,
     CLIMATE_NORTHERN = 1,
@@ -71,3 +72,4 @@ int scenario_intro_message(void);
 int scenario_victory_message(void);
 
 void scenario_change_climate(scenario_climate climate);
+

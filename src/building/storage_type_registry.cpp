@@ -1,14 +1,15 @@
+#
+
+#include "building/building_record.h"
 #include "building/storage_type_registry.h"
 
 #include "core/crash_context.h"
+#include "game/mod_manager.h"
 
-extern "C" {
-#include "core/dir.h"
 #include "core/file.h"
+#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
-#include "game/mod_manager.h"
-}
 
 #include <cstdio>
 #include <cstdlib>
@@ -29,6 +30,7 @@ struct ParseState {
     std::unique_ptr<StorageType> definition;
     int saw_resource = 0;
     int saw_capacity = 0;
+    int saw_role = 0;
     int error = 0;
 };
 
@@ -160,7 +162,7 @@ resource_type parse_resource_type_name(const char *name)
         return RESOURCE_NONE;
     }
 
-    for (resource_type type = RESOURCE_MIN; type < RESOURCE_MAX; type = static_cast<resource_type>(type + 1)) {
+    for (resource_type type = (RESOURCE_NONE + 1); type < RESOURCE_SLOT_COUNT; type = static_cast<resource_type>(type + 1)) {
         resource_data *data = resource_get_data(type);
         if (!data || !data->xml_attr_name) {
             continue;
@@ -177,6 +179,23 @@ int parse_root()
     if (!g_parse_state.definition) {
         g_parse_state.definition = std::make_unique<StorageType>(std::string());
     }
+    if (!xml_parser_has_attribute("role")) {
+        log_error("StorageType is missing required attribute 'role'", 0, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+
+    const char *role_text = xml_parser_get_attribute_string("role");
+    if (xml_parser_compare_multiple(role_text, "input")) {
+        g_parse_state.definition->set_role(StorageRole::Input);
+    } else if (xml_parser_compare_multiple(role_text, "output")) {
+        g_parse_state.definition->set_role(StorageRole::Output);
+    } else {
+        log_error("Unsupported StorageType role", role_text, 0);
+        g_parse_state.error = 1;
+        return 0;
+    }
+    g_parse_state.saw_role = 1;
     return 1;
 }
 
@@ -262,9 +281,13 @@ int parse_definition_file(const char *filename, const char *definition_path)
 
     const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
     xml_parser_free();
-    if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_resource) {
+    if (!parsed || g_parse_state.error || !g_parse_state.definition ||
+        !g_parse_state.saw_resource || !g_parse_state.saw_role) {
         if (!g_parse_state.saw_resource) {
             log_error("StorageType xml is missing required accepts nodes", filename, 0);
+        }
+        if (!g_parse_state.saw_role) {
+            log_error("StorageType xml is missing required role", filename, 0);
         }
 
         char detail[512];
@@ -297,13 +320,13 @@ const StorageType *find_storage_type_definition(const char *path)
 
 } // namespace building_type_registry_impl
 
-extern "C" const char *storage_type_registry_get_storage_type_path(void)
+const char *storage_type_registry_get_storage_type_path(void)
 {
-    building_type_registry_impl::g_storage_type_path = std::string(mod_manager_get_mod_path()) + "StorageType/";
+    building_type_registry_impl::g_storage_type_path = mod_manager::mod_path() + "StorageType/";
     return building_type_registry_impl::g_storage_type_path.c_str();
 }
 
-extern "C" int storage_type_registry_load(void)
+int storage_type_registry_load(void)
 {
     using namespace building_type_registry_impl;
 

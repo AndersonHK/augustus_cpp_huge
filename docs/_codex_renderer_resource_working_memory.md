@@ -3,6 +3,16 @@
 Snapshot: 2026-06-05
 Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 
+## 2026-06-05 image object and resource graphics pass
+- The former separate image payload/data helper layers are no longer public runtime types.
+- `Image` in `src/graphics/image.h/.cpp` is the manager-owned renderable image object. It owns the runtime handle plus image metadata and exposes draw/runtime-slice methods with default `COLOR_MASK_NONE` and `SCALE_NONE` arguments.
+- `ImageGroupEntryRef` is the semantic handle for "this entry from this image group." It stores a group path plus optional entry id, resolves to the manager-owned `Image`, and exposes `draw(...)`, dimensions, and runtime slices.
+- Do not introduce a bespoke `Icon` class for resource/building/button imagery. Existing XML already expresses those visuals as image group paths plus optional entry ids, so callers should store/use `ImageGroupEntryRef`.
+- Resource imagery now lives in `ResourceGraphics` (`src/game/resource_graphics.h/.cpp`), loaded from `Mods/<Mod>/Resources/*.xml`.
+- Resources no longer expose image id fields or producer/industry fields. Production ownership is inferred from building production methods through `building_output_resource(...)` and `building_producer_for_resource(...)`.
+- Border composition moved out of `Image` and into `ImageBorder`, a UI composition primitive that owns explicit image-group segment references instead of relying on neighboring image ids.
+- The upcoming image-group class pass should be able to absorb `ImageGroupEntryRef` naturally: callers already speak in group path + entry id terms rather than raw legacy image ids.
+
 ## 2026-06-05 graphics extractor split and harness
 - Current durable extractor handoff: `docs/graphics_extraction_pipeline.md`.
 - Historical notes below that describe Augustus as a copied fallback mirror, a mostly heuristic scaffolding pass, or a bootstrap launched directly from `src/platform/augustus.cpp` are stale.
@@ -13,7 +23,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - Augustus numeric legacy references resolve through `src/assets/augustus_julius_template_resolver.cpp`.
   - The standalone harness lives in `tools/augustus_graphics_extractor/main.cpp` and builds as `AugustusGraphicsExtractor.exe`.
 - Runtime order:
-  - `src/core/image.c` loads the Julius climate atlas and runs Julius extraction first.
+  - `src/core/image.cpp` loads the Julius climate atlas and runs Julius extraction first.
   - After Julius atlas decoding, `image_load_climate(..., extract_legacy_graphics = 1)` constructs `RuntimeGraphicsExtractionService` directly from the C++-compiled image loader.
   - `src/platform/augustus.cpp` only prepares directories and should not run Augustus extraction early.
 - Clean generated output currently means:
@@ -57,10 +67,10 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - `src/platform/renderer.cpp`
   - current 2D draw path still samples atlas sub-rects from `img->atlas.*`
   - linear filtering is enabled depending on scale/filter config
-- `src/core/image.c`
+- `src/core/image.cpp`
   - main climate, enemy, and font images are still decoded then packed into renderer atlases
   - atlas buffers are also used as source pixel data for XML/layer composition
-- `src/assets/image.c`
+- `src/assets/image.cpp`
   - XML/composed assets are packed into extra-asset atlases or treated as unpacked extras
   - reference translation currently copies atlas metadata from referenced images
 - `src/assets/assets.cpp`
@@ -68,7 +78,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - `src/assets/xml.cpp`
   - current path resolution is mod/root oriented only
 - `src/platform/augustus.cpp`
-  - prepares runtime folders, but graphics extraction order now belongs to `src/core/image.c`
+  - prepares runtime folders, but graphics extraction order now belongs to `src/core/image.cpp`
 
 ## Current implementation direction
 - Introduce per-image runtime resource handles alongside legacy `image` metadata.
@@ -99,12 +109,12 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - legacy requests now populate `request.handle`
 - `src/graphics/ui_primitives.cpp`
   - UI requests now populate `request.handle`
-- `src/assets/image.c`
+- `src/assets/image.cpp`
   - reference translation now copies `resource_handle`
   - unload path now releases image resources
   - helper functions added for uploading cropped/atlas-backed image resources
   - packed and unpacked extra assets now begin uploading runtime image resources
-- `src/core/image.c`
+- `src/core/image.cpp`
   - reload paths now release image resources for main/enemy/font images
   - atlas conversion paths now upload runtime image resources after decode/packing
 - `src/game/mod_manager.h/.cpp`
@@ -135,8 +145,8 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - `src/platform/augustus.cpp`
   - `src/assets/xml.cpp`
   - `src/assets/assets.cpp`
-  - `src/core/image_payload.h`
-  - `src/core/image_payload.cpp`
+  - `src/graphics/image.h`
+  - `src/graphics/image.cpp`
 - Important restated architectural rule from the user:
   - the new image system must become the real core
   - legacy `image` access is allowed as a compatibility view, not as the authoritative model
@@ -145,16 +155,13 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - C++ runtime object owns behavior
   - legacy `::building &data` remains attached and publicly reachable during migration
   - this is the pattern to mirror for images
-- Current `ImagePayload` is still too thin:
-  - it started as mostly a keyed handle/refcount table
-  - user requested the actual image object be split into its own class and then imported by payload
-  - current direction is now:
-    - standalone `ImageData` class owns image-facing metadata/resolution and embedded legacy view
-    - `ImagePayload` owns key/handle/refcount plus an `ImageData`
-    - legacy `image` structs point at payload through opaque `resource_payload`
+- Current `Image` direction:
+  - `Image` is the authoritative manager-owned image object
+  - it owns key, handle, refcount, dimensions, offsets, crop/original dimensions, and image-facing metadata directly
+  - legacy `image` structs point at the owning `Image` through opaque `resource_payload` only as a bridge
 - Important implementation correction:
-  - `image_payload_register` must adopt freshly uploaded renderer handles
-  - do not release the handle before transferring ownership into the payload
+  - `image_manager().register_image(...)` must adopt freshly uploaded renderer handles
+  - do not release the handle before transferring ownership into the manager-owned `Image`
 - Current renderer still violates the final plan in specific ways:
   - `draw_image_request` still falls back to `get_texture(request->img->atlas.id)` if no managed texture exists
   - `draw_texture_request` still uses `img->atlas.x_offset` / `img->atlas.y_offset` for source rects when atlas fallback is active
@@ -177,14 +184,14 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - Julius extraction produces canonical fallback graphics content under `Mods/Julius/Graphics`
   - Augustus extraction produces canonical fallback graphics content under `Mods/Augustus/Graphics`
 - New direct-source happy path now added:
-  - `image_payload_load_png(image*, path_key, file_path)` loads a PNG directly into a payload-managed renderer resource
-  - `asset_image_load_all()` now detects simple non-isometric single-layer XML/mod images and routes them through that direct payload path before atlas packing
-  - those direct assets use the resolved PNG path as the payload key
+  - `image_manager().load_png(...)` loads a PNG directly into a manager-owned renderer resource
+  - `asset_image_load_all()` now detects simple non-isometric single-layer XML/mod images and routes them through that direct image path before atlas packing
+  - those direct assets use the resolved PNG path as the image key
   - complex/composed/isometric assets still fall back to the older composition + atlas-assisted path for now
 - Julius extraction is now being implemented as a separate C++ module:
   - `src/core/legacy_image_extractor.h`
   - `src/core/legacy_image_extractor.cpp`
-  - hooked from `src/core/image.c` immediately after `convert_images()` and `make_plain_fonts_white()` for the main climate atlas
+  - hooked from `src/core/image.cpp` immediately after `convert_images()` and `make_plain_fonts_white()` for the main climate atlas
 - Important user correction during extraction work:
   - do not dump legacy output into a generic `Graphics/Extracted/...` tree
   - extracted Julius art should be split into normal top-level graphics families and look comparable to `res/assets/Graphics`
@@ -226,9 +233,9 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - do not classify groups by loose numeric ranges, because the legacy enum space interleaves unrelated categories
   - classification must be explicit per known building/figure group
 - Near-term implementation direction after this refresh:
-  1. Evolve `ImagePayload` from keyed handle table into the authoritative runtime image object with metadata ownership.
+  1. Keep `Image` as the authoritative runtime image object with metadata ownership.
   2. Attach legacy `image` structs to that runtime object in the same spirit as `building_runtime`.
-  3. Move renderer draw submission and metadata lookup to the payload/handle path first, leaving atlas fallback only as temporary coexistence debt.
+  3. Move renderer draw submission and metadata lookup to the image/handle path first, leaving atlas fallback only as temporary coexistence debt.
   4. Then push the same ownership model into XML assets, legacy climate/font/enemy loads, and external images.
   5. After that, remove more atlas-based draw assumptions and revisit UI seam behavior on top of the cleaner resource core.
 
@@ -246,8 +253,8 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 4. Revisit UI primitives
    - keep explicit container/border/fill composition
    - stabilize shared snapped edges where needed after renderer path is changed
-5. Move toward the intended path-keyed payload core
-   - introduce an actual C++ image payload/container keyed by canonical path
+5. Move toward the intended path-keyed image core
+   - keep the C++ `Image` manager keyed by canonical path
    - keep legacy `image` access as an attached compatibility view rather than the authoritative core
 
 ## Latest known compile issue
@@ -295,12 +302,12 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - New importer path:
   - `src/assets/image_group_payload.h/.cpp`
   - `src/assets/image_group_entry.h/.cpp`
-  - `ImageGroupPayload` is the path-keyed XML-group manager above image payloads
-  - `ImageGroupEntry` is a separate class holding one group image relationship, mirroring the earlier `ImageData` / `ImagePayload` split
+  - `ImageGroupPayload` is the temporary path-keyed XML-group manager above manager-owned images
+  - `ImageGroupEntry` is a separate bridge for one group image relationship until the later image-group class refactor
   - importer behavior currently:
     - resolve logical key to the winning XML path and winning source
     - parse the assetlist with a dedicated parser instead of reusing the old flat asset registry
-    - load `src` PNGs into `ImagePayload` using logical image keys like `Military\Barracks\Image_0000`
+    - load `src` PNGs into manager-owned images using logical image keys like `Military\Barracks\Image_0000`
     - support group/image references by recursively loading referenced image groups and retaining the referenced image payload keys
 - Important caveat:
   - the new importer exists as a parallel happy path, but it is not yet hooked into building definitions or other gameplay callers
@@ -321,7 +328,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - folder families should match the Julius/canonical layout shape, not a generic copied root atlas set
 - Historical implementation change at that point:
   - new module `src/assets/augustus_asset_extractor.h/.cpp`
-  - `src/core/image.c` called the then-current Augustus bootstrap after Julius extraction instead of copying `assets\Graphics`; current code compiles that file as C++ and calls `RuntimeGraphicsExtractionService` directly
+  - `src/core/image.cpp` called the then-current Augustus bootstrap after Julius extraction instead of copying `assets\Graphics`; current code compiles that file as C++ and calls `RuntimeGraphicsExtractionService` directly
   - the new extractor:
     - fingerprints top-level Augustus source XML/PNG files using names + modified times with metadata version in the stamp prefix
     - clears/rebuilds `Mods/Augustus/Graphics`

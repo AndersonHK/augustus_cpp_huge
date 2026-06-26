@@ -1,19 +1,20 @@
-extern "C" {
-#include "build_menu.h"
-
-#include "city/view.h"
 #include "editor/tool.h"
 #include "graphics/generic_button.h"
 #include "graphics/lang_text.h"
+#include "graphics/text.h"
+#include "input/input.h"
+#include "widget/map_editor.h"
+#include "widget/sidebar/editor.h"
+
+#include "build_menu.h"
+
+#include "window/editor/map.h"
+#include "translation/translation.h"
+
+#include "city/view.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "translation/translation.h"
-#include "widget/map_editor.h"
-#include "widget/sidebar/editor.h"
-#include "window/editor/map.h"
-}
 
 #define MENU_X_OFFSET 170
 #define MENU_Y_OFFSET 110
@@ -47,17 +48,28 @@ static const int Y_MENU_OFFSETS[16] = {
 };
 
 #define MAX_ITEMS_PER_MENU 15
-static const int MENU_TYPES[MENU_NUM_ITEMS][MAX_ITEMS_PER_MENU] = {
+struct editor_build_menu_item {
+    int legacy_text_id = -1;
+    translation_key text_key;
+
+    editor_build_menu_item() = default;
+    editor_build_menu_item(int text_id) : legacy_text_id(text_id) {}
+    editor_build_menu_item(const char *key) : text_key(key) {}
+    editor_build_menu_item(translation_key key) : text_key(key) {}
+    bool is_sentinel() const { return legacy_text_id < 0 && !text_key; }
+};
+
+static const editor_build_menu_item MENU_TYPES[MENU_NUM_ITEMS][MAX_ITEMS_PER_MENU] = {
     {0, 1, 2, 3, 4, -1},
     {5, 6, -1},
     {7, 8, 9, -1},
     {10, 11, 12, 13, 14, 15, 16, 17, -1},
     {18, 19, -1},
-    {20, TR_EDITOR_SCENARIO_BUILDING_NATIVE_HUT_ALT, 21, 22,
-    TR_EDITOR_SCENARIO_BUILDING_NATIVE_DECORATION, TR_EDITOR_SCENARIO_BUILDING_NATIVE_MONUMENT,
-    TR_EDITOR_SCENARIO_BUILDING_NATIVE_WATCHTOWER, TR_EDITOR_RUBBLE,-1},
+    {20, "TR_EDITOR_SCENARIO_BUILDING_NATIVE_HUT_ALT", 21, 22,
+    "TR_EDITOR_SCENARIO_BUILDING_NATIVE_DECORATION", "TR_EDITOR_SCENARIO_BUILDING_NATIVE_MONUMENT",
+    "TR_EDITOR_SCENARIO_BUILDING_NATIVE_WATCHTOWER", "TR_EDITOR_RUBBLE",-1},
     {23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, -1},
-    {TR_EDITOR_TOOL_EARTHQUAKE_POINT, TR_EDITOR_TOOL_EARTHQUAKE_CUSTOM, TR_EDITOR_TOOL_EARTHQUAKE_REMOVE, -1},
+    {"TR_EDITOR_TOOL_EARTHQUAKE_POINT", "TR_EDITOR_TOOL_EARTHQUAKE_CUSTOM", "TR_EDITOR_TOOL_EARTHQUAKE_REMOVE", -1},
 };
 
 static struct {
@@ -70,7 +82,7 @@ static struct {
 static int count_items(int submenu)
 {
     int count = 0;
-    for (unsigned int i = 0; i < MAX_ITEMS_PER_MENU && MENU_TYPES[submenu][i] >= 0; i++) {
+    for (unsigned int i = 0; i < MAX_ITEMS_PER_MENU && !MENU_TYPES[submenu][i].is_sentinel(); i++) {
         count++;
     }
     return count;
@@ -101,9 +113,14 @@ static void draw_menu_buttons(void)
     for (unsigned int i = 0; i < data.num_items; i++) {
         label_draw(x_offset - MENU_X_OFFSET, data.y_offset + MENU_Y_OFFSET + MENU_ITEM_HEIGHT * i, 10,
             data.focus_button_id == i + 1 ? 1 : 2);
-        lang_text_draw_centered(48, MENU_TYPES[data.selected_submenu][i], x_offset - MENU_X_OFFSET,
-            data.y_offset + MENU_Y_OFFSET + 3 + MENU_ITEM_HEIGHT * i,
-            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        const editor_build_menu_item &item = MENU_TYPES[data.selected_submenu][i];
+        if (item.text_key) {
+            text_draw_centered(translation_for(item.text_key), x_offset - MENU_X_OFFSET,
+                data.y_offset + MENU_Y_OFFSET + 3 + MENU_ITEM_HEIGHT * i,
+                MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        } else {
+            lang_text_draw_centered(current_string_key(48, item.legacy_text_id), x_offset - MENU_X_OFFSET, data.y_offset + MENU_Y_OFFSET + 3 + MENU_ITEM_HEIGHT * i, MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        }
     }
 }
 

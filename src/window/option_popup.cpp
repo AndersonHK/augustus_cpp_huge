@@ -1,22 +1,20 @@
+#include "translation/translation.h"
+#include "window/option_popup.h"
 #include "graphics/ui_runtime.h"
 
-extern "C" {
-#include "window/option_popup.h"
 
-#include "assets/assets.h"
 #include "core/image_group.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "input/input.h"
-#include "translation/translation.h"
-}
+#include "graphics/image_border.h"
+#include "graphics/image.h"
 
 #define CANCEL_BUTTON 0
 #define CONFIRM_BUTTON 1
@@ -24,7 +22,6 @@ extern "C" {
 #define START_Y_OFFSET 88
 
 static const int Y_OFFSET_PER_OPTION[2] = { 112, 144 };
-static int border_image_ids[2];
 
 static void on_scroll(void);
 
@@ -41,8 +38,8 @@ static generic_button buttons[] = {
 static scrollbar_type scrollbar = { 420, START_Y_OFFSET + 40, 0, 400, 0, on_scroll, 0, 4 };
 
 static struct {
-    int title;
-    int subtitle;
+    translation_key title;
+    translation_key subtitle;
     option_menu_item *options;
     unsigned int num_options;
     int width_blocks;
@@ -58,7 +55,7 @@ static struct {
     option_menu_row_size row_size;
 } data;
 
-static int init(int title, int subtitle, option_menu_item *options, int num_options,
+static int init(translation_key title, translation_key subtitle, option_menu_item *options, int num_options,
     void (*close_func)(int selection), int original_option, int price, option_menu_row_size row_size)
 {
     if (window_is(WINDOW_POPUP_DIALOG)) {
@@ -82,11 +79,26 @@ static int init(int title, int subtitle, option_menu_item *options, int num_opti
         buttons[i + 2].height = Y_OFFSET_PER_OPTION[data.row_size] - 16;
     }
 
-    if (!border_image_ids[0]) {
-        border_image_ids[0] = assets_get_image_id("UI", "Image Border Medium");
-        border_image_ids[1] = assets_get_image_id("UI", "Image Border Large");
-    }
     return 1;
+}
+
+static ImageBorder option_image_border()
+{
+    return data.row_size == OPTION_MENU_SMALL_ROW ? ImageBorder::image_medium() : ImageBorder::image_large();
+}
+
+static int option_has_image(const option_menu_item &option)
+{
+    return option.image_ref.is_bound() || option.image_id;
+}
+
+static void draw_option_image(const option_menu_item &option, int x, int y)
+{
+    if (option.image_ref.is_bound()) {
+        option.image_ref.draw(x, y);
+    } else if (option.image_id) {
+        Image::from_id(option.image_id).draw(x, y);
+    }
 }
 
 static void calculate_visible_options(void)
@@ -117,19 +129,19 @@ static void draw_apply_button(int x, int y, int box_width)
     font_t font = data.selected_option != data.original_option ? FONT_NORMAL_BLACK : FONT_NORMAL_PLAIN;
     color_t color = data.selected_option != data.original_option ? 0 : COLOR_FONT_LIGHT_GRAY;
     if (!data.price) {
-        text_draw_centered(translation_for(TR_OPTION_MENU_APPLY), x, y, box_width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
+        text_draw_centered(translation_for_key("TR_OPTION_MENU_APPLY"), x, y, box_width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     } else {
-        text_draw_with_money(translation_for(TR_OPTION_MENU_APPLY), data.price, " (", ")",
+        text_draw_with_money(translation_for_key("TR_OPTION_MENU_APPLY"), data.price, " (", ")",
             x, y, box_width, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
     }
 }
 
 static void draw_popup_text(void)
 {
-    text_draw_centered(translation_for(static_cast<translation_key>(data.title)), 0, 20, 480, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    text_draw_multiline(translation_for(static_cast<translation_key>(data.subtitle)), 20, 60, 440, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw_centered(translation_for(data.title), 0, 20, 480, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_multiline(translation_for(data.subtitle), 20, 60, 440, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     if (data.price) {
-        text_draw_with_money(translation_for(TR_OPTION_MENU_COST), data.price, " ", ".",
+        text_draw_with_money(translation_for_key("TR_OPTION_MENU_COST"), data.price, " ", ".",
             20, 110, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     }
 
@@ -138,15 +150,15 @@ static void draw_popup_text(void)
         int text_width = data.num_options == data.visible_options ? 448 : 400;
         int text_x = 20;
 
-        if (data.options[i + scrollbar.scroll_position].image_id) {
+        if (option_has_image(data.options[i + scrollbar.scroll_position])) {
             int offset = data.row_size == OPTION_MENU_SMALL_ROW ? 128 : 160;
             text_x += offset;
             text_width -= offset;
         }
-        text_draw_multiline(translation_for(static_cast<translation_key>(data.options[i + scrollbar.scroll_position].header)),
+        text_draw_multiline(translation_for(data.options[i + scrollbar.scroll_position].header),
             text_x, y_offset + 49, text_width - 8, 0,
             data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK)->line_height), 0);
-        text_draw_multiline(translation_for(static_cast<translation_key>(data.options[i + scrollbar.scroll_position].desc)),
+        text_draw_multiline(translation_for(data.options[i + scrollbar.scroll_position].desc),
             text_x, y_offset + 69, text_width - 8, 0,
             data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(data.selected_option == i + scrollbar.scroll_position + 1 ? FONT_NORMAL_WHITE : FONT_NORMAL_BLACK)->line_height), 0);
 
@@ -168,9 +180,8 @@ static void draw_background(void)
         int text_width = data.num_options == data.visible_options ? 448 : 400;
         int text_x = 20;
 
-        if (data.options[i + scrollbar.scroll_position].image_id) {
-            image_draw(data.options[i + scrollbar.scroll_position].image_id, text_x, y_offset + 42,
-                COLOR_MASK_NONE, SCALE_NONE);
+        if (option_has_image(data.options[i + scrollbar.scroll_position])) {
+            draw_option_image(data.options[i + scrollbar.scroll_position], text_x, y_offset + 42);
             int offset = data.row_size == OPTION_MENU_SMALL_ROW ? 128 : 160;
             text_x += offset;
             text_width -= offset;
@@ -189,10 +200,11 @@ static void draw_background(void)
 static void draw_foreground(void)
 {
     graphics_in_dialog_with_size(16 * data.width_blocks, 16 * data.height_blocks);
+    const ImageBorder border = option_image_border();
     for (unsigned int i = 0; i < data.visible_options; i++) {
-        if (data.options[i + scrollbar.scroll_position].image_id) {
+        if (option_has_image(data.options[i + scrollbar.scroll_position])) {
             color_t color = data.focus_button_id == i + 3 ? COLOR_BORDER_RED : COLOR_BORDER_GREEN;
-            image_draw_border(border_image_ids[data.row_size], 20, buttons[i + 2].y + 2, color);
+            border.draw(20, buttons[i + 2].y + 2, color);
         }
     }
 
@@ -202,8 +214,7 @@ static void draw_foreground(void)
         data.focus_button_id == 2 && data.selected_option != data.original_option);
 
     draw_popup_text();
-    lang_text_draw_centered(13, 4, 40, buttons[0].y + 4,
-        180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.4", 40, buttons[0].y + 4, 180, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     draw_apply_button(260, buttons[1].y + 4, 180);
 
     if (data.num_options > data.visible_options) {
@@ -261,7 +272,7 @@ static void button_select_option(const generic_button *button)
     }
 }
 
-extern "C" void window_option_popup_show(int title, int subtitle, option_menu_item *options, int num_options,
+void window_option_popup_show(translation_key title, translation_key subtitle, option_menu_item *options, int num_options,
     void (*close_func)(int selection), int current_option, int price, option_menu_row_size row_size)
 {
     if (init(title, subtitle, options, num_options, close_func, current_option, price, row_size)) {

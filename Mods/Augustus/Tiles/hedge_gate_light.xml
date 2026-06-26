@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="hedge_gate_light">
+    <identity name_key="TR_BUILDING_HEDGE_GATE_LIGHT" />
+    <model size="1" cost="12" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
+    <foundation policy="road_or_land" />
+    <button group="parks" order="250" text_key="TR_BUILDING_HEDGE_GATE_LIGHT" />
+    <event_data attr="hedge_gate_light" />
+    <roadblock kind="standard" />
+    <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <options selection="connectable">
+                <option path="Aesthetics\L_Hedge_Gate" image="L Hedge Gate" />
+                <option path="Aesthetics\L_Hedge_Gate_R" image="L Hedge Gate R" />
+            </options>
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

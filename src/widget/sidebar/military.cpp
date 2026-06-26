@@ -1,33 +1,35 @@
-extern "C" {
-#include "military.h"
-
-#include "assets/assets.h"
 #include "building/count.h"
-#include "city/view.h"
-#include "core/calc.h"
-#include "figure/formation.h"
-#include "figure/formation_legion.h"
+#include "city/buildings.h"
 #include "graphics/arrow_button.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
-#include "graphics/image_button.h"
 #include "graphics/lang_text.h"
+#include "widget/minimap.h"
+#include "widget/sidebar/city.h"
+#include "widget/sidebar/common.h"
+#include "widget/sidebar/extra.h"
+#include "window/city.h"
+#include "window/military_menu.h"
+
+#include "military.h"
+
+#include "widget/sidebar/slide.h"
+#include "window/building/military.h"
+
+#include "assets/assets.h"
+#include "building/building_type_api.h"
+#include "city/view.h"
+#include "core/calc.h"
+#include "figure/formation.h"
+#include "figure/formation_legion.h"
+#include "graphics/image_button.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "map/grid.h"
 #include "sound/speech.h"
-#include "widget/minimap.h"
-#include "widget/sidebar/city.h"
-#include "widget/sidebar/common.h"
-#include "widget/sidebar/extra.h"
-#include "widget/sidebar/slide.h"
-#include "window/building/military.h"
-#include "window/city.h"
-#include "window/military_menu.h"
-}
 
 
 #define LAYOUTS_PER_LEGION 5
@@ -187,8 +189,7 @@ static void draw_layout_buttons(int x, int y, int background, const formation *m
         const generic_button *btn = &button_offsets[i - start_formation];
 
         if (background) {
-            image_draw(image_group(GROUP_FORT_FORMATIONS) + offsets[i], (x + btn->x + 3) * 2, (y + btn->y + 3) * 2,
-                COLOR_MASK_NONE, 2.0f);
+            Image::from_id(Image::group(GROUP_FORT_FORMATIONS) + offsets[i]).draw((x + btn->x + 3) * 2, (y + btn->y + 3) * 2, COLOR_MASK_NONE, 2.0f);
         } else {
             int is_selected_formation = m->layout == IMAGE_OFFSETS_TO_FORMATION[offsets[i]];
             int is_button_focused = i == data.inner_buttons_focus_id - 1 + start_formation;
@@ -220,16 +221,16 @@ int widget_sidebar_military_get_standard_image(int legion_id)
 {
     switch (legion_id) {
         case 0: return 0; // No standard for non-legion formations;
-        case 1:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS + 0);
-        case 2:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 1;
-        case 3:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 2;
-        case 4:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 3;
-        case 5:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 4;
-        case 6:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 5;
-        case 7:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 6;
-        case 8:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 7;
-        case 9:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 8;
-        case 10:  return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 9;
+        case 1:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS + 0);
+        case 2:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 1;
+        case 3:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 2;
+        case 4:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 3;
+        case 5:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 4;
+        case 6:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 5;
+        case 7:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 6;
+        case 8:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 7;
+        case 9:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 8;
+        case 10:  return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS) + 9;
         case 11: return assets_get_image_id("UI", "11Legion_Elephants");
         case 12: return assets_get_image_id("UI", "12Legion_Thunder_Bolts");
         case 13: return assets_get_image_id("UI", "13Legion_Bulls");
@@ -240,7 +241,7 @@ int widget_sidebar_military_get_standard_image(int legion_id)
         case 18: return assets_get_image_id("UI", "18Legion_Camels");
         case 19: return assets_get_image_id("UI", "19Legion_Dolphins");
         case 20: return assets_get_image_id("UI", "20Legion_Sea_Goats");
-        default: return image_group(GROUP_FIGURE_FORT_STANDARD_ICONS + 9);
+        default: return Image::group(GROUP_FIGURE_FORT_STANDARD_ICONS + 9);
     }
 }
 
@@ -254,8 +255,28 @@ int widget_sidebar_military_get_legion_name_id(int legion_id)
     if (legion_id <= 10) {
         return legion_id - 1; // old index was 0-based, now 1-based
     } else {
-        return TR_BUILDING_FORT_STANDARD_ELEPHANTS + legion_id - 11;
+        return legion_id - 11;
     }
+}
+
+const uint8_t *widget_sidebar_military_get_legion_name_text(int group, int id)
+{
+    static const translation_key extra_legion_names[] = {
+        "TR_BUILDING_FORT_STANDARD_ELEPHANTS",
+        "TR_BUILDING_FORT_STANDARD_THUNDER_BOLTS",
+        "TR_BUILDING_FORT_STANDARD_BULLS",
+        "TR_BUILDING_FORT_STANDARD_CENTAURS",
+        "TR_BUILDING_FORT_STANDARD_OCTOPI",
+        "TR_BUILDING_FORT_STANDARD_BEARS",
+        "TR_BUILDING_FORT_STANDARD_SCORPIONS",
+        "TR_BUILDING_FORT_STANDARD_CAMELS",
+        "TR_BUILDING_FORT_STANDARD_DOLPHINS",
+        "TR_BUILDING_FORT_STANDARD_SEA_GOATS",
+    };
+    if (group == 10000 && id >= 0 && id < static_cast<int>(sizeof(extra_legion_names) / sizeof(extra_legion_names[0]))) {
+        return translation_for(extra_legion_names[id]);
+    }
+    return lang_get_string(current_string_key(group, id));
 }
 
 static void clear_focus_buttons(void)
@@ -295,24 +316,23 @@ static void draw_military_info_text(int x_offset, int y_offset)
     const image *formation_image = image_get(formation_image_id);
 
     // Legion name
-    image_draw(formation_image_id,
-        x_offset + (CONTENT_WIDTH - formation_image->width - formation_image->x_offset) / 2, y_offset + 12,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_image_id).draw(x_offset + (CONTENT_WIDTH - formation_image->width - formation_image->x_offset) / 2, y_offset + 12);
 
-    lang_text_draw_centered(m->legion_name_group, m->legion_name_id, x_offset, y_offset + 40, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    text_draw_centered(widget_sidebar_military_get_legion_name_text(m->legion_name_group, m->legion_name_id),
+        x_offset, y_offset + 40, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     // Number of soldiers
     int width = text_draw_number(m->num_figures, '@', " ", x_offset, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     if (m->figure_type == FIGURE_FORT_INFANTRY) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_MILITARY_INFANTRY), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_MILITARY_INFANTRY"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (m->figure_type == FIGURE_FORT_ARCHER) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_MILITARY_ARCHER), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_MILITARY_ARCHER"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (m->figure_type == FIGURE_FORT_LEGIONARY) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_LEGIONARIES), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_LEGIONARIES"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (m->figure_type == FIGURE_FORT_JAVELIN) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_JAVELIN), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_JAVELIN"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (m->figure_type == FIGURE_FORT_MOUNTED) {
-        text_draw(translation_for(TR_WINDOW_ADVISOR_MOUNTED), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+        text_draw(translation_for_key("TR_WINDOW_ADVISOR_MOUNTED"), x_offset + width, y_offset + 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     }
     // No soldiers
     if (!m->num_figures) {
@@ -320,27 +340,27 @@ static void draw_military_info_text(int x_offset, int y_offset)
         if (m->cursed_by_mars) {
             group_id = 89;
             text_id = 1;
-        } else if (building_count_active(BUILDING_BARRACKS)) {
+        } else if (city_buildings_has_barracks()) {
             group_id = 138;
             text_id = 10;
         } else {
             group_id = 138;
             text_id = 11;
         }
-        lang_text_draw_multiline(group_id, text_id, x_offset, y_offset + 80, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_multiline(current_string_key(group_id, text_id), x_offset, y_offset + 80, CONTENT_WIDTH, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         clear_legion_info(legion);
         return;
     }
 
     int ellipsized_width = CONTENT_WIDTH + CONTENT_PADDING / 2;
     // Morale
-    lang_text_draw_ellipsized(138, 36, x_offset, y_offset + 80, ellipsized_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw_ellipsized(138, 37 + m->morale / 5, x_offset + 4, y_offset + 98,
+    lang_text_draw_ellipsized("main_strings.138.36", x_offset, y_offset + 80, ellipsized_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw_ellipsized(current_string_key(138, 37 + m->morale / 5), x_offset + 4, y_offset + 98,
         ellipsized_width, m->morale < 13 ? FONT_NORMAL_RED : FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(m->morale < 13 ? FONT_NORMAL_RED : FONT_NORMAL_GREEN)->line_height));
 
     // Health
-    lang_text_draw_ellipsized(138, 24, x_offset, y_offset + 120, ellipsized_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-    lang_text_draw_ellipsized(138, get_health_text_id(legion->health), x_offset + 4, y_offset + 138,
+    lang_text_draw_ellipsized("main_strings.138.24", x_offset, y_offset + 120, ellipsized_width, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    lang_text_draw_ellipsized(current_string_key(138, get_health_text_id(legion->health)), x_offset + 4, y_offset + 138,
         ellipsized_width, legion->health < 55 ? FONT_NORMAL_GREEN : FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(legion->health < 55 ? FONT_NORMAL_GREEN : FONT_NORMAL_RED)->line_height));
 }
 
@@ -353,21 +373,19 @@ static void draw_military_info_buttons(int x_offset, int y_offset)
     // Formation layout
     draw_layout_buttons(x_offset, y_offset + Y_OFFSET_LAYOUT_BUTTONS, 1, m);
 
-    int formation_options_image = image_group(GROUP_FORT_ICONS);
+    int formation_options_image = Image::group(GROUP_FORT_ICONS);
 
     // Go to legion button
     const generic_button *btn = buttons_bottom;
-    image_draw(formation_options_image, x_offset + btn->x + 3, y_offset + 260, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_options_image).draw(x_offset + btn->x + 3, y_offset + 260);
 
     // Return to fort button
     ++btn;
-    image_draw(formation_options_image + 1 + m->is_at_fort, x_offset + btn->x + 3, y_offset + 260,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_options_image + 1 + m->is_at_fort).draw(x_offset + btn->x + 3, y_offset + 260);
 
     // Empire service button
     ++btn;
-    image_draw(formation_options_image + 4 - m->empire_service, x_offset + btn->x + 3, y_offset + 260,
-        COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(formation_options_image + 4 - m->empire_service).draw(x_offset + btn->x + 3, y_offset + 260);
 }
 
 static void draw_military_panel_background(int x_offset)
@@ -403,9 +421,9 @@ static void draw_legion_buttons(int x_offset, int y_offset)
 
 static void draw_background(int x_offset)
 {
-    image_draw(image_group(GROUP_SIDE_PANEL) + 1, x_offset, 24, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_SIDE_PANEL) + 1).draw(x_offset, 24);
     image_buttons_draw(x_offset, 24, buttons_title_close, 2);
-    lang_text_draw_centered(61, 5, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.61.5", x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     widget_minimap_update(0);
     widget_minimap_draw_decorated(x_offset + 8, 59, MINIMAP_WIDTH, MINIMAP_HEIGHT);
     draw_military_panel_background(x_offset);
@@ -446,7 +464,7 @@ static void draw_foreground(int x_offset)
 {
     widget_minimap_draw_decorated(x_offset + 8, 59, MINIMAP_WIDTH, MINIMAP_HEIGHT);
     image_buttons_draw(x_offset, 24, buttons_title_close, 2);
-    lang_text_draw_centered(61, 5, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("main_strings.61.5", x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     draw_military_panel_foreground(x_offset);
     sidebar_extra_draw_foreground();
 }

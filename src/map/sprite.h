@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 /**
  * @file
  * Grid to store bridge/animation sprites.
@@ -29,3 +30,4 @@ void map_sprite_restore(void);
 void map_sprite_save_state(buffer *buf, buffer *backup);
 
 void map_sprite_load_state(buffer *buf, buffer *backup);
+

@@ -1,6 +1,7 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
+
 
 typedef enum {
     SELECTED_RATING_NONE = 0,
@@ -21,7 +22,10 @@ int city_rating_explanation_for(selected_rating rating);
 
 void city_ratings_reduce_prosperity_after_bailout(void);
 
-void city_ratings_peace_building_destroyed(building_type type);
+
+class Building;
+void city_ratings_peace_building_destroyed(const Building &building);
+
 
 void city_ratings_peace_record_criminal(void);
 
@@ -52,3 +56,4 @@ void city_ratings_update_explanations(void);
 void city_ratings_update(int is_yearly_update, int is_monthly_update);
 
 int city_ratings_prosperity_max(void);
+

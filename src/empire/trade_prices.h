@@ -3,6 +3,7 @@
 #include "core/buffer.h"
 #include "game/resource.h"
 
+
 /**
  * @file
  * Trade prices.
@@ -86,3 +87,4 @@ void trade_prices_save_state(buffer *buf);
  * @param buf Buffer
  */
 void trade_prices_load_state(buffer *buf);
+

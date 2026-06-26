@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="all_gardens">
+    <identity name_key="main_strings.28.39" />
+    <button group="administration" order="0" text_key="main_strings.28.39" />
+    <button group="gardens" order="0" text_key="main_strings.28.39" />
+    <event_data attr="all_gardens" />
+</building>

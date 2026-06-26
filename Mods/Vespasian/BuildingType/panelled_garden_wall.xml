@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="panelled_garden_wall">
+    <identity name_key="TR_BUILDING_PANELLED_GARDEN_WALL" />
+    <model size="1" cost="12" />
+    <desirability>
+        <value value="3" />
+        <step value="1" />
+        <step_size value="-1" />
+        <range value="3" />
+    </desirability>
+    <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land_or_road" rotation="path" />
+    <button group="parks" order="260" text_key="TR_BUILDING_PANELLED_GARDEN_WALL" />
+    <event_data attr="panelled_garden_wall" />
+    <flags fire_proof="1" venus_gt_bonus="1" />
+    <graphics>
+        <default>
+            <options selection="connectable">
+                <option path="Aesthetics\Garden_Wall_C_01" image="Garden_Wall_C_01" />
+                <option path="Aesthetics\Garden_Wall_C_01" image="Garden_Wall_C_02" />
+                <option path="Aesthetics\Garden_Wall_C_03" image="Garden_Wall_C_03" />
+                <option path="Aesthetics\Garden_Wall_C_01" image="Garden_Wall_C_04" />
+                <option path="Aesthetics\Garden_Wall_C_05" image="Garden_Wall_C_05" />
+                <option path="Aesthetics\Garden_Wall_C_01" image="Garden_Wall_C_06" />
+                <option path="Aesthetics\Garden_Wall_C_01" image="Garden_Wall_C_07" />
+                <option path="Aesthetics\Garden_Wall_C_01" image="Garden_Wall_C_08" />
+                <option path="Aesthetics\Garden_Wall_C_01" image="Garden_Wall_C_09" />
+                <option path="Aesthetics\Garden_Wall_C_01" image="Garden_Wall_C_10" />
+                <option path="Aesthetics\Garden_Wall_C_01" image="Garden_Wall_C_11" />
+            </options>
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

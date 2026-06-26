@@ -1,57 +1,58 @@
+#include "game/file.h"
+#include "translation/translation.h"
+#include "game/file_editor.h"
+#include "game/state.h"
+#include "game/tick.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/runtime_overlay_images.h"
+#include "window/logo.h"
+#include "window/main_menu.h"
+
+#include "core/hotkey_config.h"
+#include "editor/editor.h"
+#include "window/editor/map.h"
 #include "game.h"
 
 #include "building/building_type_registry.h"
-#include "core/image_payload.h"
+#include "building/building_runtime.h"
 #include "figure/figure_type_registry.h"
 #include "game/defines.h"
+#include "game/performance_tracker.h"
 #include "graphics/declarative_window.h"
 
-extern "C" {
+#include "game/settings.h"
+#include "game/campaign.h"
+#include "game/mod_manager.h"
+#include "scenario/scenario.h"
+#include "platform/prefs.h"
+#include "platform/user_path.h"
+#include "sound/system.h"
 #include "assets/assets.h"
 #include "assets/image_group_payload_api.h"
 #include "building/properties.h"
-#include "building/building_runtime_api.h"
 #include "city/view.h"
 #include "core/config.h"
-#include "core/hotkey_config.h"
 #include "core/image.h"
-#include "core/lang.h"
 #include "core/locale.h"
 #include "core/log.h"
 #include "core/random.h"
 #include "core/string.h"
-#include "editor/editor.h"
 #include "figure/type.h"
 #include "game/animation.h"
-#include "game/campaign.h"
-#include "game/file.h"
-#include "game/file_editor.h"
-#include "game/settings.h"
 #include "game/speed.h"
-#include "game/state.h"
-#include "game/tick.h"
 #include "graphics/font.h"
-#include "graphics/graphics.h"
-#include "graphics/runtime_overlay_images.h"
 #include "graphics/text.h"
 #include "graphics/video.h"
 #include "graphics/window.h"
 #include "map/tile_runtime_api.h"
-#include "map/tile_type_registry.h"
 #include "platform/file_manager.h"
-#include "platform/prefs.h"
-#include "platform/user_path.h"
 #include "scenario/property.h"
-#include "scenario/scenario.h"
 #include "sound/city.h"
-#include "sound/system.h"
-#include "translation/translation.h"
-#include "window/editor/map.h"
-#include "window/logo.h"
-#include "window/main_menu.h"
-}
 
 #include <stdio.h>
+#include <filesystem>
+#include <string>
 
 static char init_failure_message[512];
 
@@ -74,6 +75,21 @@ static void set_init_failure_message(const char *message, const char *detail)
     }
 }
 
+static int augustus_graphics_extract_is_available()
+{
+    std::string graphics_path = mod_manager::augustus_graphics_path();
+    while (!graphics_path.empty() && (graphics_path.back() == '/' || graphics_path.back() == '\\')) {
+        graphics_path.pop_back();
+    }
+    if (graphics_path.empty()) {
+        return 0;
+    }
+
+    std::error_code error;
+    return std::filesystem::is_directory(graphics_path, error) &&
+        std::filesystem::is_regular_file(graphics_path + ".graphics_extract.stamp", error);
+}
+
 static encoding_type update_encoding(void)
 {
     language_type language = locale_determine_language();
@@ -88,6 +104,7 @@ int game_pre_init(void)
 {
     settings_load();
     config_load();
+    performance_tracker_init(config_get(CONFIG_DEBUG_PERFORMANCE_TRACKER));
     hotkey_config_load();
     scenario_settings_init();
     game_campaign_clear();
@@ -104,21 +121,35 @@ int game_pre_init(void)
 
 static int is_unpatched(void)
 {
-    const uint8_t *delete_game = lang_get_string(1, 6);
-    const uint8_t *option_menu = lang_get_string(2, 0);
-    const uint8_t *difficulty_option = lang_get_string(2, 6);
-    const uint8_t *help_menu = lang_get_string(3, 0);
+    const uint8_t *delete_game = lang_get_string("main_strings.1.6");
+    const uint8_t *option_menu = lang_get_string("main_strings.2.0");
+    const uint8_t *difficulty_option = lang_get_string("main_strings.2.6");
+    const uint8_t *help_menu = lang_get_string("main_strings.3.0");
     // Without patch, the difficulty option string does not exist and
     // getting it "falls through" to the next text group, or, for some
     // languages (pt_BR): delete game falls through to option menu
     return difficulty_option == help_menu || delete_game == option_menu;
 }
 
+static int load_initial_climate_graphics(void)
+{
+    if (!Image::load_climate(CLIMATE_CENTRAL, 0, 1, 1, 1)) {
+        return 0;
+    }
+    if (!Image::load_climate(CLIMATE_NORTHERN, 0, 1, 1, 1)) {
+        return 0;
+    }
+    if (!Image::load_climate(CLIMATE_DESERT, 0, 1, 1, 1)) {
+        return 0;
+    }
+    return Image::load_climate(CLIMATE_CENTRAL, 0, 1, 0, 0);
+}
+
 int game_init(void)
 {
     clear_init_failure_message();
 
-    if (!image_load_climate(CLIMATE_CENTRAL, 0, 1, 0, 1)) {
+    if (!load_initial_climate_graphics()) {
         const char *asset_failure_reason = assets_get_failure_reason();
         if (asset_failure_reason && *asset_failure_reason) {
             set_init_failure_message("Failed to load graphics assets.", asset_failure_reason);
@@ -128,13 +159,13 @@ int game_init(void)
         errlog("unable to load main graphics");
         return 0;
     }
-    if (!image_load_enemy(ENEMY_0_BARBARIAN)) {
+    if (!Image::load_enemy_graphics(ENEMY_0_BARBARIAN)) {
         set_init_failure_message("Failed to load enemy graphics.", 0);
         errlog("unable to load enemy graphics");
         return 0;
     }
     int missing_fonts = 0;
-    if (!image_load_fonts(encoding_get())) {
+    if (!Image::load_fonts(encoding_get())) {
         set_init_failure_message("Failed to load the selected language font graphics.", 0);
         errlog("unable to load font graphics");
         if (encoding_get() == ENCODING_KOREAN || encoding_get() == ENCODING_JAPANESE) {
@@ -175,11 +206,6 @@ int game_init(void)
         errlog("unable to load FigureType xml definitions");
         return 0;
     }
-    if (!tile_type_registry_load()) {
-        set_init_failure_message("Failed to load Tile definitions.", 0);
-        errlog("unable to load Tile xml definitions");
-        return 0;
-    }
     building_runtime_reset();
     load_augustus_messages();
     sound_system_init();
@@ -191,8 +217,7 @@ int game_init(void)
     if (is_unpatched()) {
         actions |= ACTION_SHOW_MESSAGE_MISSING_PATCH;
     }
-    int missing_assets = !assets_get_image_id("Admin_Logistics", "roadblock"); // If can't find roadblocks asset, extra assets not installed properly
-    if (missing_assets) {
+    if (!augustus_graphics_extract_is_available()) {
         actions |= ACTION_SHOW_MESSAGE_MISSING_EXTRA_ASSETS;
     }
     if (config_must_configure_user_directory()) {
@@ -230,7 +255,7 @@ static int reload_language(int is_editor, int reload_images)
         load_augustus_messages();
     }
 
-    if (!image_load_fonts(encoding)) {
+    if (!Image::load_fonts(encoding)) {
         errlog("unable to load font graphics");
         return 0;
     }
@@ -238,7 +263,7 @@ static int reload_language(int is_editor, int reload_images)
         errlog("unable to load mod font pack");
         return 0;
     }
-    if (!image_load_climate(scenario_property_climate(), is_editor, reload_images, 0, 0)) {
+    if (!Image::load_climate(scenario_property_climate(), is_editor, reload_images, 0, 0)) {
         errlog("unable to load main graphics");
         return 0;
     }
@@ -284,14 +309,20 @@ void game_run(void)
 {
     game_animation_update();
     int num_ticks = game_speed_get_elapsed_ticks();
+    int processed_ticks = 0;
     for (int i = 0; i < num_ticks; i++) {
-        game_tick_run();
-        game_file_write_mission_saved_game();
+        {
+            PerformanceTrackerScope tick_scope(PERFORMANCE_TRACKER_BUCKET_TICK);
+            game_tick_run();
+            game_file_write_mission_saved_game();
+        }
+        processed_ticks++;
 
         if (window_is_invalid()) {
             break;
         }
     }
+    performance_tracker_record_ticks_processed(processed_ticks);
 }
 
 void game_draw(void)
@@ -319,11 +350,12 @@ void game_exit(void)
     tile_runtime_reset();
     image_group_payload_clear_all();
     runtime_overlay_images_reset();
-    image_payload_clear_all();
+    image_manager().clear();
     font_reset_mod_font_pack();
 
     video_shutdown();
     settings_save();
     config_save();
+    performance_tracker_shutdown();
     sound_system_shutdown();
 }

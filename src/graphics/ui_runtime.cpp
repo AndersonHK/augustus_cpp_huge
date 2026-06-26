@@ -28,7 +28,7 @@ void SharedUiRuntime::draw_button_border(
     int has_focus,
     color_t color)
 {
-    BorderedButtonWidget(primitives_, x, y, width_pixels, height_pixels, has_focus, color).draw();
+    BorderedButtonWidget(primitives_, x, y, width_pixels, height_pixels, has_focus, color, BorderedButtonFillStyle::Transparent).draw();
 }
 
 void SharedUiRuntime::draw_one_row_button_border(
@@ -156,7 +156,6 @@ void SharedUiRuntime::draw_saved_region(int image_id, int x, int y)
     UiSavedRegionPrimitive(primitives_, image_id, x, y, 0, 0).draw();
 }
 
-extern "C" {
 
 void button_none(int param1, int param2)
 {
@@ -298,4 +297,3 @@ void ui_runtime_draw_from_image(int image_id, int x, int y)
     shared_ui_runtime().draw_saved_region(image_id, x, y);
 }
 
-} // extern "C"

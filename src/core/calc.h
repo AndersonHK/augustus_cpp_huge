@@ -4,9 +4,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * @file
@@ -115,6 +112,3 @@ double calc_bound_double(double value, double min, double max);
  */
 int calc_absolute_decrement(int value, int *step);
 
-#ifdef __cplusplus
-}
-#endif

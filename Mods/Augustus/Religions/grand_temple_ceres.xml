@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<religion>
+    <god path="ceres" />
+    <tier value="grand" />
+    <capacity amount="5000" />
+    <presentation sound="wavs/temple_farm.wav" name_key="TR_BUILDING_GRAND_TEMPLE_CERES_DESC" bonus_key="TR_BUILDING_GRAND_TEMPLE_CERES_BONUS_DESC" quote_key="TR_BUILDING_CERES_TEMPLE_QUOTE" banner_group="UI\Ceres_L_Banner" banner_image="Ceres L Banner" content_y_offset="0" height_blocks="40" module_key="ceres" />
+</religion>

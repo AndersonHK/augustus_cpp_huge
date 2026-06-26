@@ -1,41 +1,75 @@
-extern "C" {
-#include "empire_properties.h"
-
-#include "assets/assets.h"
-#include "core/hotkey_config.h"
-#include "core/image.h"
-#include "core/image_group.h"
-#include "core/image_group_editor.h"
-#include "core/string.h"
-#include "editor/editor.h"
 #include "empire/editor.h"
+#include "translation/translation.h"
 #include "empire/empire.h"
-#include "empire/object.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
-#include "graphics/text.h"
-#include "graphics/window.h"
-#include "input/hotkey.h"
 #include "input/input.h"
-#include "input/mouse.h"
-#include "scenario/empire.h"
-#include "scenario/data.h"
-#include "translation/translation.h"
-#include "window/hotkey_config.h"
 #include "window/config.h"
 #include "window/editor/empire.h"
 #include "window/file_dialog.h"
 #include "window/numeric_input.h"
 #include "window/select_list.h"
-}
+
+#include "empire_properties.h"
+
+#include "core/hotkey_config.h"
+#include "editor/editor.h"
+#include "window/hotkey_config.h"
+#include "game/resource_id_bridge.h"
+
+#include "scenario/data.h"
+
+#include "assets/assets.h"
+#include "core/image.h"
+#include "core/image_group.h"
+#include "core/image_group_editor.h"
+#include "core/string.h"
+#include "empire/object.h"
+#include "graphics/ui_runtime_api.h"
+#include "graphics/text.h"
+#include "graphics/window.h"
+#include "input/hotkey.h"
+#include "input/mouse.h"
+#include "scenario/empire.h"
 
 static struct {
     unsigned int focus_button_id;
     int listed_ornaments[TOTAL_ORNAMENTS];
 } data;
+
+static const translation_key EMPIRE_ORNAMENT_KEYS[] = {
+    "TR_EMPIRE_ORNAMENT_STONEHENGE",
+    "TR_EMPIRE_ORNAMENT_GALLIC_WHEAT",
+    "TR_EMPIRE_ORNAMENT_THE_PYRENEES",
+    "TR_EMPIRE_ORNAMENT_IBERIAN_AQUEDUCT",
+    "TR_EMPIRE_ORNAMENT_TRIUMPHAL_ARCH",
+    "TR_EMPIRE_ORNAMENT_WEST_DESERT_WHEAT",
+    "TR_EMPIRE_ORNAMENT_LIGHTHOUSE_ALEXANDRIA",
+    "TR_EMPIRE_ORNAMENT_WEST_DESERT_PALMS",
+    "TR_EMPIRE_ORNAMENT_TRADE_SHIP",
+    "TR_EMPIRE_ORNAMENT_WATERSIDE_PALMS",
+    "TR_EMPIRE_ORNAMENT_THE_COLOSSEUM",
+    "TR_EMPIRE_ORNAMENT_THE_ALPS",
+    "TR_EMPIRE_ORNAMENT_ROMAN_TREE",
+    "TR_EMPIRE_ORNAMENT_GREEK_MOUNTAINS",
+    "TR_EMPIRE_ORNAMENT_THE_PARTHENON",
+    "TR_EMPIRE_ORNAMENT_THE_PYRAMIDS",
+    "TR_EMPIRE_ORNAMENT_HAGIA_SOPHIA",
+    "TR_EMPIRE_ORNAMENT_EAST_DESERT_PALMS",
+    "TR_EMPIRE_ORNAMENT_EAST_DESERT_WHEAT",
+    "TR_EMPIRE_ORNAMENT_TRADE_CAMEL",
+    "TR_EMPIRE_ORNAMENT_MOUNT_ETNA",
+    "TR_EMPIRE_ORNAMENT_COLOSSUS_RHODES",
+    "TR_EMPIRE_ORNAMENT_THE_TEMPLE",
+    "TR_EMPIRE_ORNAMENT_IRELAND"
+};
+
+static translation_key empire_ornament_key(int ornament_id)
+{
+    return EMPIRE_ORNAMENT_KEYS[ornament_id];
+}
 
 static void button_select_image(const generic_button *button);
 static void button_default_image(const generic_button *button);
@@ -139,14 +173,14 @@ static void default_cities_list_box_draw_item(const list_box_item *item)
     font_t font = item->is_selected ? FONT_NORMAL_WHITE : FONT_NORMAL_GREEN;
     const uint8_t display_text[256] = "Roma";
     const default_city *city = &default_cities[item->index];
-    color_t color = empire_city_get_at(city->x, city->y, lang_get_string(21, city->name_id)) ? COLOR_FONT_GRAY : COLOR_MASK_NONE;
-    snprintf((char *)display_text, 256, "%s: %i, %i", (char *)lang_get_string(21, city->name_id), city->x, city->y);
+    color_t color = empire_city_get_at(city->x, city->y, lang_get_string(current_string_key(21, city->name_id))) ? COLOR_FONT_GRAY : COLOR_MASK_NONE;
+    snprintf((char *)display_text, 256, "%s: %i, %i", (char *)lang_get_string(current_string_key(21, city->name_id)), city->x, city->y);
     text_draw_ellipsized(display_text, item->x + 5, item->y + 4, item->width - 10, font, screen_ui_to_pixel(font_definition_for(font)->line_height), color);
 }
 
 static void add_city(const default_city *city)
 {
-    if (empire_city_get_at(city->x, city->y, lang_get_string(21, city->name_id))) {
+    if (empire_city_get_at(city->x, city->y, lang_get_string(current_string_key(21, city->name_id)))) {
         return;
     }
     full_empire_object *full = empire_object_get_new();
@@ -189,12 +223,24 @@ static void draw_background(void)
 static void draw_foreground(void)
 {
     graphics_in_dialog();
+    static const translation_key button_texts[] = {
+        "TR_EDITOR_EMPIRE_PROPERTIES_SELECT_IAMGE",
+        "TR_EDITOR_EMPIRE_PROPERTIES_DEFAULT_IAMGE",
+        "TR_EDITOR_EMPIRE_PROPERTIES_BORDER_DENSITY",
+        "TR_EDITOR_EMPIRE_PROPERTIES_NEW_PATH",
+        "TR_EDITOR_EMPIRE_PROPERTIES_ADD_ORNAMENT",
+        "TR_EDITOR_EMPIRE_PROPERTIES_ALL_ORNAMENTS",
+        "TR_EDITOR_EMPIRE_PROPERTIES_IRELAND",
+        "TR_EDITOR_EMPIRE_PROPERTIES_ALL_CITIES",
+        "TR_EDITOR_EMPIRE_PROPERTIES_SETTINGS",
+        "TR_EDITOR_EMPIRE_PROPERTIES_HOTKEYS",
+    };
     
     for (int i = 0; i < NUM_GENERIC_BUTTONS; i++) {
         font_t font = !(EMPIRE_IS_DEFAULT_IMAGE) && i >= 4 && i <= 7 ? FONT_NORMAL_RED : FONT_NORMAL_BLACK;
         button_border_draw(generic_buttons[i].x, generic_buttons[i].y, generic_buttons[i].width,
             generic_buttons[i].height, data.focus_button_id == i + 1 && (i >= 4 && i <= 7 ? EMPIRE_IS_DEFAULT_IMAGE : 1));
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_EMPIRE_PROPERTIES_SELECT_IAMGE + i, generic_buttons[i].x,
+        lang_text_draw_centered(button_texts[i], generic_buttons[i].x,
             generic_buttons[i].y + 8, generic_buttons[i].width, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     }
     if (EMPIRE_IS_DEFAULT_IMAGE) {
@@ -234,7 +280,7 @@ static void button_select_image(const generic_button *button)
 static void button_default_image(const generic_button *button)
 {
     scenario.empire.id = SCENARIO_CUSTOM_EMPIRE;
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     empire_clear();
     empire_object_clear();
     empire_object_init_cities(SCENARIO_CUSTOM_EMPIRE);
@@ -273,8 +319,7 @@ static void button_add_ornament(const generic_button *button)
         if (empire_object_get_ornament(empire_object_ornament_image_id_get(ornament_id))) {
             continue;
         }
-        ornament_texts[ornament_count] = translation_for(
-            static_cast<translation_key>(TR_EMPIRE_ORNAMENT_STONEHENGE + ornament_id));
+        ornament_texts[ornament_count] = translation_for(empire_ornament_key(ornament_id));
         data.listed_ornaments[ornament_count] = ornament_id;
         ornament_count++;
     }
@@ -332,7 +377,7 @@ static void button_empire_settings(const generic_button *button)
 
 static void button_hotkeys(const generic_button *button)
 {
-    window_hotkey_config_show(get_position_for_widget(TR_HOTKEY_HEADER_EDITOR));
+    window_hotkey_config_show(get_position_for_widget("TR_HOTKEY_HEADER_EDITOR"));
 }
 
 void window_empire_properties_show(void)

@@ -9,9 +9,10 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="industry" order="50" icon="Monuments\Caravanserai_C_OFF" text_key="TR_BUILDING_CARAVANSERAI" />
+  <button group="industry" order="700" icon="Monuments\Caravanserai_C_OFF" text_key="TR_BUILDING_CARAVANSERAI" />
     <sound id="caravanserai" />
     <event_data attr="caravanserai" />
+    <distribution path="caravanserai" />
     <flags fire_proof="1" />
     <graphics>
         <default>
@@ -46,7 +47,7 @@
             <image value="Caravanserai_N_OFF" />
         </variant>
     </graphics>
-    <construction mode="phased" road_update_radius="4">
+    <construction mode="phased" road_update_radius="4" max_count="1">
         <phase index="1">
             <graphics>
                 <path value="Environment\Group_206" />

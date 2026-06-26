@@ -1,18 +1,18 @@
+#
+
 #include "assets/augustus_asset_extractor.h"
 
 #include "assets/augustus_julius_template_resolver.h"
 #include "assets/graphics_extractor_common.h"
 #include "core/crash_context.h"
+#include "game/mod_manager.h"
 
-extern "C" {
-#include "assets/assets.h"
-#include "core/dir.h"
 #include "core/file.h"
 #include "core/log.h"
-#include "core/png_read.h"
-#include "game/mod_manager.h"
 #include "platform/file_manager.h"
-}
+#include "assets/assets.h"
+#include "core/dir.h"
+#include "core/png_read.h"
 
 #include "spng/spng.h"
 
@@ -20,6 +20,7 @@ extern "C" {
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <numeric>
 #include <string>
 #include <unordered_map>
@@ -392,8 +393,8 @@ static void hash_int64(uint64_t &hash, uint64_t value)
 static std::string make_runtime_source_graphics_path(void)
 {
     char path[FILE_NAME_MAX];
-    const char *asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET, 0);
-    if (!append_path_component(path, sizeof(path), asset_root, ASSETS_IMAGE_PATH)) {
+    const std::string asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET);
+    if (!append_path_component(path, sizeof(path), asset_root.c_str(), ASSETS_IMAGE_PATH)) {
         return {};
     }
     return path;
@@ -402,6 +403,12 @@ static std::string make_runtime_source_graphics_path(void)
 static std::string make_stamp_path(const ResolvedExtractionPaths &paths)
 {
     return without_trailing_separator(paths.output_graphics_path) + ".graphics_extract.stamp";
+}
+
+static bool augustus_extracted_output_is_present(const ResolvedExtractionPaths &paths)
+{
+    std::error_code error;
+    return std::filesystem::is_directory(paths.output_graphics_path, error);
 }
 
 static bool resolve_extraction_paths(
@@ -413,16 +420,9 @@ static bool resolve_extraction_paths(
     }
 
     paths.source_graphics_path = make_runtime_source_graphics_path();
-    paths.output_graphics_path = ensure_trailing_separator(mod_manager_get_augustus_graphics_path());
-    paths.julius_graphics_path = ensure_trailing_separator(mod_manager_get_julius_graphics_path());
+    paths.output_graphics_path = ensure_trailing_separator(mod_manager::augustus_graphics_path().c_str());
+    paths.julius_graphics_path = ensure_trailing_separator(mod_manager::julius_graphics_path().c_str());
     return !paths.source_graphics_path.empty() && !paths.output_graphics_path.empty();
-}
-
-static int stop_on_first_entry(const char *name, long modified_time)
-{
-    (void) name;
-    (void) modified_time;
-    return LIST_MATCH;
 }
 
 bool AugustusExtractionRun::build_expected_stamp(std::string &stamp) const
@@ -1835,9 +1835,8 @@ bool AugustusExtractionRun::run()
     std::string existing_stamp;
     const bool has_existing_stamp = write_stamp_ && read_text_file(stamp_path, existing_stamp);
     const bool has_current_stamp = write_stamp_ && has_existing_stamp && existing_stamp == expected_stamp;
-    if (!force_ && has_current_stamp &&
-        platform_file_manager_list_directory_contents(
-            graphics_root.c_str(), TYPE_DIR | TYPE_FILE, 0, stop_on_first_entry) == LIST_MATCH) {
+    const bool has_extracted_output = augustus_extracted_output_is_present(paths_);
+    if (!force_ && has_current_stamp && has_extracted_output) {
         return true;
     }
 
@@ -1848,7 +1847,7 @@ bool AugustusExtractionRun::run()
     } else if (!has_current_stamp) {
         log_info("Bootstrapping Augustus graphics because the source fingerprint or XML metadata version changed", 0, 0);
     } else {
-        log_info("Bootstrapping Augustus graphics because the fallback directory is missing or empty", 0, 0);
+        log_info("Bootstrapping Augustus graphics because the extracted graphics output is missing or incomplete", 0, 0);
     }
 
     platform_file_manager_remove_directory(graphics_root.c_str());

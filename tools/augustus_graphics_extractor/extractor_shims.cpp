@@ -1,18 +1,14 @@
 #include "core/crash_context.h"
 #include "core/dir.h"
 #include "core/file.h"
-#include "core/image_payload.h"
 #include "core/log.h"
 #include "assets/assets.h"
-#include "building/type.h"
+#include "building/building_type.h"
 #include "game/mod_manager.h"
 #include "graphics/font.h"
 #include "graphics/renderer.h"
 #include "graphics/runtime_overlay_images.h"
-
-extern "C" {
 #include "platform/file_manager.h"
-}
 
 #include <algorithm>
 #include <cctype>
@@ -253,28 +249,28 @@ font_definition g_stub_font = {};
 
 } // namespace
 
-extern "C" void augustus_graphics_extractor_shims_set_game_root(const char *path)
+void augustus_graphics_extractor_shims_set_game_root(const char *path)
 {
     if (path && *path) {
         g_game_root = std::filesystem::absolute(std::filesystem::path(path));
     }
 }
 
-extern "C" void augustus_graphics_extractor_shims_set_augustus_graphics_path(const char *path)
+void augustus_graphics_extractor_shims_set_augustus_graphics_path(const char *path)
 {
     if (path && *path) {
         g_augustus_graphics_path = with_trailing_separator(std::filesystem::absolute(std::filesystem::path(path)).string());
     }
 }
 
-extern "C" void augustus_graphics_extractor_shims_set_julius_graphics_path(const char *path)
+void augustus_graphics_extractor_shims_set_julius_graphics_path(const char *path)
 {
     if (path && *path) {
         g_julius_graphics_path = with_trailing_separator(std::filesystem::absolute(std::filesystem::path(path)).string());
     }
 }
 
-extern "C" void augustus_graphics_extractor_shims_install_renderer(void)
+void augustus_graphics_extractor_shims_install_renderer(void)
 {
     g_renderer.get_max_image_size = renderer_get_max_image_size;
     g_renderer.prepare_image_atlas = renderer_prepare_image_atlas;
@@ -288,7 +284,7 @@ extern "C" void augustus_graphics_extractor_shims_install_renderer(void)
     graphics_renderer_set_interface(&g_renderer);
 }
 
-extern "C" int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
+int assets_init(int force_reload, color_t **main_images, int *main_image_widths)
 {
     (void) force_reload;
     (void) main_images;
@@ -296,79 +292,86 @@ extern "C" int assets_init(int force_reload, color_t **main_images, int *main_im
     return 1;
 }
 
-extern "C" int assets_get_image_id(const char *assetlist_name, const char *image_name)
+int assets_get_image_id(const char *assetlist_name, const char *image_name)
 {
     (void) assetlist_name;
     (void) image_name;
     return 0;
 }
 
-extern "C" const image *assets_get_image(int image_id)
+const image *assets_get_image(int image_id)
 {
     (void) image_id;
     return &g_stub_image;
 }
 
-extern "C" const image *assets_get_font_image(int letter_id)
+const image *assets_get_font_image(int letter_id)
 {
     (void) letter_id;
     return &g_stub_image;
 }
 
-extern "C" const font_definition *font_definition_for(font_t font)
+const font_definition *font_definition_for(font_t font)
 {
     (void) font;
     return &g_stub_font;
 }
 
-extern "C" const char *image_payload_register(image *img, const char *path_key)
+void assets_load_unpacked_asset(int image_id)
 {
-    (void) img;
-    return path_key;
+    (void) image_id;
 }
 
-extern "C" void image_payload_release(image *img)
+int screen_width(void)
 {
-    if (img) {
-        img->resource_key = nullptr;
-        img->resource_payload = nullptr;
-    }
+    return 640;
 }
 
-extern "C" int runtime_overlay_images_init_or_reload(void)
+int screen_height(void)
+{
+    return 480;
+}
+
+int runtime_overlay_images_init_or_reload(void)
 {
     return 1;
 }
 
-extern "C" void runtime_overlay_images_reset(void)
+void runtime_overlay_images_reset(void)
 {
 }
 
-extern "C" building *building_first_of_type(building_type type)
+building *building_first_of_type(building_type type)
 {
     (void) type;
     return nullptr;
 }
 
-extern "C" int building_image_get_for_type(building_type type)
+building_type building_type_registry_runtime_id_from_text(const char *text_id)
+{
+    (void) text_id;
+    return BUILDING_NONE;
+}
+
+int building_image_get_for_type(building_type type)
 {
     (void) type;
     return 0;
 }
 
-extern "C" unsigned int map_image_at(int grid_offset)
+unsigned int map_image_at(int grid_offset)
 {
     (void) grid_offset;
     return 0;
 }
 
-extern "C" void map_image_set(int grid_offset, int image_id)
+void map_image_set(int grid_offset, int image_id)
 {
     (void) grid_offset;
     (void) image_id;
 }
 
-extern "C" void map_building_tiles_add(unsigned int building_id, int x, int y, int size, int image_id, int terrain)
+void map_building_tiles_add(unsigned int building_id, int x, int y, int size, int image_id, int terrain)
 {
     (void) building_id;
     (void) x;
@@ -378,36 +381,36 @@ extern "C" void map_building_tiles_add(unsigned int building_id, int x, int y, i
     (void) terrain;
 }
 
-extern "C" void log_info(const char *msg, const char *param_str, int param_int)
+void log_info(const char *msg, const char *param_str, int param_int)
 {
     log_line("Info", msg, param_str, param_int);
 }
 
-extern "C" void log_set_debug_enabled(int enabled)
+void log_set_debug_enabled(bool enabled)
 {
     g_debug_enabled = enabled ? 1 : 0;
 }
 
-extern "C" int log_is_debug_enabled(void)
+bool log_is_debug_enabled()
 {
-    return g_debug_enabled;
+    return g_debug_enabled != 0;
 }
 
-extern "C" void log_warning(const char *msg, const char *param_str, int param_int)
+void log_warning(const char *msg, const char *param_str, int param_int)
 {
     log_line("Warning", msg, param_str, param_int);
 }
 
-extern "C" void log_error(const char *msg, const char *param_str, int param_int)
+void log_error(const char *msg, const char *param_str, int param_int)
 {
     log_line("Error", msg, param_str, param_int);
 }
 
-extern "C" void log_repeated_messages(void)
+void log_repeated_messages()
 {
 }
 
-extern "C" FILE *file_open(const char *filename, const char *mode)
+FILE *file_open(const char *filename, const char *mode)
 {
     if (!filename) {
         return nullptr;
@@ -416,23 +419,23 @@ extern "C" FILE *file_open(const char *filename, const char *mode)
     return std::fopen(path.string().c_str(), mode);
 }
 
-extern "C" FILE *file_open_asset(const char *asset, const char *mode)
+FILE *file_open_asset(const char *asset, const char *mode)
 {
     const std::filesystem::path path = std::filesystem::path(asset_root()) / (asset ? asset : "");
     return std::fopen(path.string().c_str(), mode);
 }
 
-extern "C" int file_close(FILE *stream)
+int file_close(FILE *stream)
 {
     return std::fclose(stream) == 0;
 }
 
-extern "C" int file_has_extension(const char *filename, const char *extension)
+int file_has_extension(const char *filename, const char *extension)
 {
     return has_extension(std::filesystem::path(filename ? filename : ""), extension) ? 1 : 0;
 }
 
-extern "C" void file_change_extension(char *filename, const char *new_extension)
+void file_change_extension(char *filename, const char *new_extension)
 {
     if (!filename || !new_extension || !*new_extension) {
         return;
@@ -443,7 +446,7 @@ extern "C" void file_change_extension(char *filename, const char *new_extension)
     }
 }
 
-extern "C" void file_append_extension(char *filename, const char *extension, size_t length)
+void file_append_extension(char *filename, const char *extension, size_t length)
 {
     if (!filename || !extension || !*extension) {
         return;
@@ -455,7 +458,7 @@ extern "C" void file_append_extension(char *filename, const char *extension, siz
     std::snprintf(filename + current_length, length - current_length, ".%s", extension);
 }
 
-extern "C" void file_remove_extension(char *filename)
+void file_remove_extension(char *filename)
 {
     if (!filename) {
         return;
@@ -466,7 +469,7 @@ extern "C" void file_remove_extension(char *filename)
     }
 }
 
-extern "C" const char *file_remove_path(const char *filename)
+const char *file_remove_path(const char *filename)
 {
     if (!filename) {
         return "";
@@ -477,19 +480,19 @@ extern "C" const char *file_remove_path(const char *filename)
     return separator == filename ? filename : separator + 1;
 }
 
-extern "C" int file_exists(const char *filename, int localizable)
+int file_exists(const char *filename, int localizable)
 {
     (void) localizable;
     return std::filesystem::exists(resolve_asset_marker_path(filename)) ? 1 : 0;
 }
 
-extern "C" int file_remove(const char *filename)
+int file_remove(const char *filename)
 {
     std::error_code error;
     return std::filesystem::remove(resolve_asset_marker_path(filename), error) ? 1 : 0;
 }
 
-extern "C" const dir_listing *dir_find_files_with_extension(const char *dir, const char *extension)
+const dir_listing *dir_find_files_with_extension(const char *dir, const char *extension)
 {
     g_listing.entries.clear();
     g_listing.names.clear();
@@ -531,27 +534,29 @@ extern "C" const dir_listing *dir_find_files_with_extension(const char *dir, con
     return &g_listing.listing;
 }
 
-extern "C" const dir_listing *dir_find_files_with_extension_at_location(int location, const char *extension)
+const dir_listing *dir_find_files_with_extension_at_location(int location, const char *extension)
 {
-    return dir_find_files_with_extension(platform_file_manager_get_directory_for_location(location, nullptr), extension);
+    const std::string directory = platform_file_manager_get_directory_for_location(location);
+    return dir_find_files_with_extension(directory.c_str(), extension);
 }
 
-extern "C" const dir_listing *dir_append_files_with_extension(const char *extension)
+const dir_listing *dir_append_files_with_extension(const char *extension)
 {
     return dir_find_files_with_extension(".", extension);
 }
 
-extern "C" const dir_listing *dir_find_all_subdirectories(const char *dir)
+const dir_listing *dir_find_all_subdirectories(const char *dir)
 {
     return dir_find_files_with_extension(dir, nullptr);
 }
 
-extern "C" const dir_listing *dir_find_all_subdirectories_at_location(int location)
+const dir_listing *dir_find_all_subdirectories_at_location(int location)
 {
-    return dir_find_all_subdirectories(platform_file_manager_get_directory_for_location(location, nullptr));
+    const std::string directory = platform_file_manager_get_directory_for_location(location);
+    return dir_find_all_subdirectories(directory.c_str());
 }
 
-extern "C" const char *dir_get_file(const char *filepath, int localizable)
+const char *dir_get_file(const char *filepath, int localizable)
 {
     (void) localizable;
     static std::string resolved;
@@ -563,23 +568,23 @@ extern "C" const char *dir_get_file(const char *filepath, int localizable)
     return resolved.c_str();
 }
 
-extern "C" const char *dir_get_file_at_location(const char *filepath, int location)
+const char *dir_get_file_at_location(const char *filepath, int location)
 {
     static std::string resolved;
-    resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location, nullptr)) /
+    resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location)) /
         (filepath ? filepath : "")).string();
     return std::filesystem::exists(resolved) ? resolved.c_str() : nullptr;
 }
 
-extern "C" const char *dir_append_location(const char *filename, int location)
+const char *dir_append_location(const char *filename, int location)
 {
     static std::string resolved;
-    resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location, nullptr)) /
+    resolved = (std::filesystem::path(platform_file_manager_get_directory_for_location(location)) /
         (filename ? filename : "")).string();
     return resolved.c_str();
 }
 
-extern "C" int platform_file_manager_set_base_path(const char *path)
+int platform_file_manager_set_base_path(const char *path)
 {
     if (!path || !*path) {
         return 0;
@@ -589,19 +594,16 @@ extern "C" int platform_file_manager_set_base_path(const char *path)
     return error ? 0 : 1;
 }
 
-extern "C" const char *platform_file_manager_get_directory_for_location(int location, const char *user_directory)
+std::string platform_file_manager_get_directory_for_location(int location, const char *user_directory)
 {
     (void) user_directory;
-    static std::string path;
     if (location == PATH_LOCATION_ASSET) {
-        path = asset_root();
-    } else {
-        path = std::filesystem::current_path().string();
+        return asset_root();
     }
-    return path.c_str();
+    return std::filesystem::current_path().string();
 }
 
-extern "C" int platform_file_manager_is_directory_writeable(const char *directory)
+int platform_file_manager_is_directory_writeable(const char *directory)
 {
     std::error_code error;
     const std::filesystem::path path = directory && *directory ? directory : ".";
@@ -609,7 +611,7 @@ extern "C" int platform_file_manager_is_directory_writeable(const char *director
     return error ? 0 : 1;
 }
 
-extern "C" int platform_file_manager_list_directory_contents(
+int platform_file_manager_list_directory_contents(
     const char *dir,
     int type,
     const char *extension,
@@ -642,12 +644,12 @@ extern "C" int platform_file_manager_list_directory_contents(
     return match;
 }
 
-extern "C" int platform_file_manager_should_case_correct_file(void)
+int platform_file_manager_should_case_correct_file(void)
 {
     return 0;
 }
 
-extern "C" int platform_file_manager_filename_contains(const char *filename, const char *expression)
+int platform_file_manager_filename_contains(const char *filename, const char *expression)
 {
     if (!filename || !expression) {
         return 0;
@@ -655,7 +657,7 @@ extern "C" int platform_file_manager_filename_contains(const char *filename, con
     return std::string(filename).find(expression) != std::string::npos ? 1 : 0;
 }
 
-extern "C" int platform_file_manager_compare_filename(const char *a, const char *b)
+int platform_file_manager_compare_filename(const char *a, const char *b)
 {
     std::string left = a ? a : "";
     std::string right = b ? b : "";
@@ -668,7 +670,7 @@ extern "C" int platform_file_manager_compare_filename(const char *a, const char 
     return left < right ? -1 : (left > right ? 1 : 0);
 }
 
-extern "C" int platform_file_manager_compare_filename_prefix(const char *filename, const char *prefix, int prefix_len)
+int platform_file_manager_compare_filename_prefix(const char *filename, const char *prefix, int prefix_len)
 {
     std::string left = filename ? filename : "";
     std::string right = prefix ? prefix : "";
@@ -681,27 +683,27 @@ extern "C" int platform_file_manager_compare_filename_prefix(const char *filenam
     return platform_file_manager_compare_filename(left.c_str(), right.c_str());
 }
 
-extern "C" FILE *platform_file_manager_open_file(const char *filename, const char *mode)
+FILE *platform_file_manager_open_file(const char *filename, const char *mode)
 {
     return std::fopen(resolve_asset_marker_path(filename).string().c_str(), mode);
 }
 
-extern "C" FILE *platform_file_manager_open_asset(const char *asset, const char *mode)
+FILE *platform_file_manager_open_asset(const char *asset, const char *mode)
 {
     return file_open_asset(asset, mode);
 }
 
-extern "C" int platform_file_manager_close_file(FILE *stream)
+int platform_file_manager_close_file(FILE *stream)
 {
     return std::fclose(stream) == 0;
 }
 
-extern "C" int platform_file_manager_remove_file(const char *filename)
+int platform_file_manager_remove_file(const char *filename)
 {
     return file_remove(filename);
 }
 
-extern "C" int platform_file_manager_create_directory(const char *name, const char *location, int overwrite)
+int platform_file_manager_create_directory(const char *name, const char *location, int overwrite)
 {
     (void) overwrite;
     std::error_code error;
@@ -713,7 +715,7 @@ extern "C" int platform_file_manager_create_directory(const char *name, const ch
     return error ? 0 : 1;
 }
 
-extern "C" int platform_file_manager_copy_file(const char *src, const char *dst)
+int platform_file_manager_copy_file(const char *src, const char *dst)
 {
     std::error_code error;
     std::filesystem::copy_file(resolve_asset_marker_path(src), resolve_asset_marker_path(dst),
@@ -721,7 +723,7 @@ extern "C" int platform_file_manager_copy_file(const char *src, const char *dst)
     return error ? 0 : 1;
 }
 
-extern "C" int platform_file_manager_copy_directory(const char *src, const char *dst, int overwrite_files)
+int platform_file_manager_copy_directory(const char *src, const char *dst, int overwrite_files)
 {
     std::error_code error;
     const auto options = overwrite_files ? std::filesystem::copy_options::overwrite_existing :
@@ -731,86 +733,87 @@ extern "C" int platform_file_manager_copy_directory(const char *src, const char 
     return error ? 0 : 1;
 }
 
-extern "C" int platform_file_manager_remove_directory(const char *path)
+int platform_file_manager_remove_directory(const char *path)
 {
     std::error_code error;
     std::filesystem::remove_all(resolve_asset_marker_path(path), error);
     return error ? 0 : 1;
 }
 
-extern "C" void mod_manager_set_mod_name(const char *mod_name)
+namespace mod_manager {
+
+void set_mod_name(std::string_view mod_name)
 {
     (void) mod_name;
 }
 
-extern "C" int mod_manager_load_mod_list(void)
+bool load_mod_list()
 {
-    return 1;
+    return true;
 }
 
-extern "C" const char *mod_manager_get_failure_reason(void)
+const std::string &failure_reason()
 {
-    return "";
+    static const std::string value;
+    return value;
 }
 
-extern "C" const char *mod_manager_get_mod_name(void)
+const std::string &mod_name()
 {
-    return "Augustus";
+    static const std::string value = "Augustus";
+    return value;
 }
 
-extern "C" const char *mod_manager_get_mod_path(void)
+const std::string &mod_path()
 {
-    return "Mods/Augustus/";
+    static const std::string value = "Mods/Augustus/";
+    return value;
 }
 
-extern "C" const char *mod_manager_get_graphics_path(void)
+const std::string &graphics_path()
 {
-    return "Mods/Augustus/Graphics/";
+    return g_augustus_graphics_path;
 }
 
-extern "C" const char *mod_manager_get_augustus_graphics_path(void)
+const std::string &augustus_graphics_path()
 {
-    return g_augustus_graphics_path.c_str();
+    return g_augustus_graphics_path;
 }
 
-extern "C" const char *mod_manager_get_julius_graphics_path(void)
+const std::string &julius_graphics_path()
 {
-    return g_julius_graphics_path.c_str();
+    return g_julius_graphics_path;
 }
 
-extern "C" int mod_manager_get_mod_count(void)
+const std::vector<std::string> &mod_names()
 {
-    return 2;
+    static const std::vector<std::string> values = { "Julius", "Augustus" };
+    return values;
 }
 
-extern "C" const char *mod_manager_get_mod_name_at(int index)
+const std::vector<std::string> &mod_paths()
 {
-    static const char *names[] = { "Julius", "Augustus" };
-    return index >= 0 && index < 2 ? names[index] : nullptr;
+    static const std::vector<std::string> values = { "Mods/Julius/", "Mods/Augustus/" };
+    return values;
 }
 
-extern "C" const char *mod_manager_get_mod_path_at(int index)
+const std::vector<std::string> &graphics_paths()
 {
-    static const char *paths[] = { "Mods/Julius/", "Mods/Augustus/" };
-    return index >= 0 && index < 2 ? paths[index] : nullptr;
+    static std::vector<std::string> values;
+    values = { g_julius_graphics_path, g_augustus_graphics_path };
+    return values;
 }
 
-extern "C" const char *mod_manager_get_graphics_path_at(int index)
+bool validate_mod_path()
 {
-    static std::string paths[2];
-    paths[0] = g_julius_graphics_path;
-    paths[1] = g_augustus_graphics_path;
-    return index >= 0 && index < 2 ? paths[index].c_str() : nullptr;
+    return true;
 }
 
-extern "C" int mod_manager_validate_mod_path(void)
+bool validate_graphics_path()
 {
-    return 1;
+    return true;
 }
 
-extern "C" int mod_manager_validate_graphics_path(void)
-{
-    return 1;
 }
 
 CrashContextScope::CrashContextScope(
@@ -840,11 +843,11 @@ void CrashContextScope::set_callback(crash_context_log_callback callback, void *
     (void) userdata;
 }
 
-extern "C" void crash_context_clear(void)
+void crash_context_clear(void)
 {
 }
 
-extern "C" int crash_context_push_scope(
+int crash_context_push_scope(
     const char *stage,
     const char *context,
     crash_context_log_callback callback,
@@ -857,68 +860,68 @@ extern "C" int crash_context_push_scope(
     return 1;
 }
 
-extern "C" void crash_context_pop_scope(int token)
+void crash_context_pop_scope(int token)
 {
     (void) token;
 }
 
-extern "C" void crash_context_update_scope_context(int token, const char *context)
+void crash_context_update_scope_context(int token, const char *context)
 {
     (void) token;
     (void) context;
 }
 
-extern "C" void crash_context_update_scope_callback(int token, crash_context_log_callback callback, void *userdata)
+void crash_context_update_scope_callback(int token, crash_context_log_callback callback, void *userdata)
 {
     (void) token;
     (void) callback;
     (void) userdata;
 }
 
-extern "C" void crash_context_set_stage(const char *stage, const char *context)
+void crash_context_set_stage(const char *stage, const char *context)
 {
     (void) stage;
     (void) context;
 }
 
-extern "C" void crash_context_log_current(void)
+void crash_context_log_current(void)
 {
 }
 
-extern "C" void error_context_log_current(void)
+void error_context_log_current(void)
 {
 }
 
-extern "C" void error_context_flush_report_counts(void)
+void error_context_flush_report_counts(void)
 {
 }
 
-extern "C" void error_context_report_info(const char *message, const char *detail)
+void error_context_report_info(const char *message, const char *detail)
 {
     log_info(message, detail, 0);
 }
 
-extern "C" void error_context_report_warning(const char *message, const char *detail)
+void error_context_report_warning(const char *message, const char *detail)
 {
     log_warning(message, detail, 0);
 }
 
-extern "C" void error_context_report_error(const char *message, const char *detail)
+void error_context_report_error(const char *message, const char *detail)
 {
     log_error(message, detail, 0);
 }
 
-extern "C" void error_context_report_fatal_error_dialog(const char *title, const char *message, const char *detail)
+void error_context_report_fatal_error_dialog(const char *title, const char *message, const char *detail)
 {
     log_error(title ? title : message, detail, 0);
 }
 
-extern "C" void crash_context_report_error(const char *message, const char *detail)
+void crash_context_report_error(const char *message, const char *detail)
 {
     log_error(message, detail, 0);
 }
 
-extern "C" void crash_context_report_error_dialog(const char *title, const char *message, const char *detail)
+void crash_context_report_error_dialog(const char *title, const char *message, const char *detail)
 {
     log_error(title ? title : message, detail, 0);
 }

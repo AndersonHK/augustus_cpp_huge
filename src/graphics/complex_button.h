@@ -1,7 +1,8 @@
 #pragma once
 
 #include "graphics/tooltip.h"
-#include "graphics/image.h"
+#include "graphics/color.h"
+#include "graphics/font.h"
 #include "graphics/lang_text.h"
 #include "input/mouse.h"
 

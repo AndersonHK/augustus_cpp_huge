@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="warehouse_space">
+    <identity name_key="main_strings.28.73" />
+    <model size="1" />
+    <foundation policy="land" />
+    <event_data attr="warehouse_space" />
+    <graphics>
+        <default>
+            <resource_storage />
+        </default>
+    </graphics>
+    <flags fire_proof="1" />
+</building>

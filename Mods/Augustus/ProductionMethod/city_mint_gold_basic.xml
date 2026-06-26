@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<production_method>
+    <kind value="workshop" />
+    <output resource="gold" production_per_month="20" destination="building_storage" />
+    <batch_size value="1" />
+    <treasury_cost amount="600" />
+</production_method>

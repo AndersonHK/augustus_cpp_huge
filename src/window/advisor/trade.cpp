@@ -1,34 +1,34 @@
-#include "graphics/ui_runtime.h"
+#include "game/resource_graphics.h"
+#include "building/building_type_registry_internal.h"
+#include "translation/translation.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "window/empire.h"
+#include "window/resource_settings.h"
+#include "window/trade_prices.h"
 
-extern "C" {
 #include "trade.h"
 
-#include "assets/assets.h"
-#include "building/caravanserai.h"
+#include "graphics/grid_box.h"
+#include "window/option_popup.h"
+#include "graphics/ui_runtime.h"
+
+
+#include "building/building_type_api.h"
 #include "building/monument.h"
 #include "city/buildings.h"
 #include "city/finance.h"
 #include "city/resource.h"
 #include "city/trade_policy.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "empire/city.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/image.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "sound/speech.h"
-#include "translation/translation.h"
-#include "window/empire.h"
-#include "window/option_popup.h"
-#include "window/resource_settings.h"
-#include "window/trade_prices.h"
-}
 
 #include <string.h>
 
@@ -68,31 +68,34 @@ static generic_button resource_buttons[] = {
 };
 
 static struct {
-    int title;
-    int subtitle;
-    const char *base_image_name;
+    translation_key title;
+    translation_key subtitle;
     option_menu_item items[3];
     const char *wav_file;
 } policy_options[] = {
     {
-        TR_BUILDING_CARAVANSERAI_POLICY_TITLE,
-        TR_BUILDING_CARAVANSERAI_POLICY_TEXT,
-        "Trade Policy",
+        "TR_BUILDING_CARAVANSERAI_POLICY_TITLE",
+        "TR_BUILDING_CARAVANSERAI_POLICY_TEXT",
         {
-            { TR_BUILDING_CARAVANSERAI_POLICY_1_TITLE, TR_BUILDING_CARAVANSERAI_POLICY_1 },
-            { TR_BUILDING_CARAVANSERAI_POLICY_2_TITLE, TR_BUILDING_CARAVANSERAI_POLICY_2 },
-            { TR_BUILDING_CARAVANSERAI_POLICY_3_TITLE, TR_BUILDING_CARAVANSERAI_POLICY_3 }
+            { "TR_BUILDING_CARAVANSERAI_POLICY_1_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_1", 0,
+                ImageGroupEntryRef::from_group("UI\\Trade_Policy_1", "Trade Policy 1") },
+            { "TR_BUILDING_CARAVANSERAI_POLICY_2_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_2", 0,
+                ImageGroupEntryRef::from_group("UI\\Trade_Policy_2", "Trade Policy 2") },
+            { "TR_BUILDING_CARAVANSERAI_POLICY_3_TITLE", "TR_BUILDING_CARAVANSERAI_POLICY_3", 0,
+                ImageGroupEntryRef::from_group("UI\\Trade_Policy_3", "Trade Policy 3") }
         },
         "wavs/market4.wav"
     },
     {
-        TR_BUILDING_LIGHTHOUSE_POLICY_TITLE,
-        TR_BUILDING_LIGHTHOUSE_POLICY_TEXT,
-        "Sea Trade Policy",
+        "TR_BUILDING_LIGHTHOUSE_POLICY_TITLE",
+        "TR_BUILDING_LIGHTHOUSE_POLICY_TEXT",
         {
-            { TR_BUILDING_LIGHTHOUSE_POLICY_1_TITLE, TR_BUILDING_LIGHTHOUSE_POLICY_1 },
-            { TR_BUILDING_LIGHTHOUSE_POLICY_2_TITLE, TR_BUILDING_LIGHTHOUSE_POLICY_2 },
-            { TR_BUILDING_LIGHTHOUSE_POLICY_3_TITLE, TR_BUILDING_LIGHTHOUSE_POLICY_3 }
+            { "TR_BUILDING_LIGHTHOUSE_POLICY_1_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_1", 0,
+                ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_1", "Sea Trade Policy 1") },
+            { "TR_BUILDING_LIGHTHOUSE_POLICY_2_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_2", 0,
+                ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_2", "Sea Trade Policy 2") },
+            { "TR_BUILDING_LIGHTHOUSE_POLICY_3_TITLE", "TR_BUILDING_LIGHTHOUSE_POLICY_3", 0,
+                ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_3", "Sea Trade Policy 3") }
         },
         "wavs/dock1.wav"
     }
@@ -103,6 +106,18 @@ static struct {
     resource_list list;
     trade_policy_type policy_type;
 } data;
+
+static building_type type_from_attr(const char *text_id)
+{
+    building_type type = building_type_registry_impl::type_from_attr(text_id);
+    return type > BUILDING_NONE ? type : BUILDING_NONE;
+}
+
+static int monument_working(const char *text_id)
+{
+    building_type type = type_from_attr(text_id);
+    return type > BUILDING_NONE && building_monument_working(type);
+}
 
 static void init(void)
 {
@@ -116,36 +131,40 @@ static void init(void)
 static int draw_background(void)
 {
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 4, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 4).draw(10, 10);
 
-    lang_text_draw(54, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    int width = lang_text_get_width(54, 1, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw(54, 1, 575 - width, 38, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.54.0", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    int width = lang_text_get_width("main_strings.54.1", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.54.1", 575 - width, 38, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     grid_box_request_refresh(&resource_grid);
 
     return ADVISOR_HEIGHT;
 }
 
-static void draw_policy_button(int x, int y, int is_available, int has_focus, int active_image_id, const char *inactive_asset_name)
+static void draw_policy_button(
+    int x,
+    int y,
+    int is_available,
+    int has_focus,
+    int active_image_id,
+    const ImageGroupEntryRef &inactive_image)
 {
-    int image_id = active_image_id;
-    if (!is_available) {
-        image_id = assets_get_image_id("UI", inactive_asset_name);
-    }
-
     BorderedButtonIconSpec icon = {};
-    icon.image_id = image_id;
     icon.placement = BorderedButtonIconPlacement::ExplicitOffset;
     icon.x_offset = 6;
     icon.y_offset = 4;
+    icon.image_id = is_available ? active_image_id : 0;
     shared_ui_runtime().draw_bordered_icon_button(x, y, 40, 30, has_focus, icon);
+    if (!is_available) {
+        inactive_image.draw(x + 6, y + 4);
+    }
 }
 
 static void draw_resource_status_text(resource_type resource, int x, int y, int box_width)
 {
     if (!resource_is_storable(resource)) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_ADVISOR_TRADE_RESOURCE_NOT_STORABLE,
+        lang_text_draw_centered("TR_ADVISOR_TRADE_RESOURCE_NOT_STORABLE",
             x, y + 10, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         return;
     }
@@ -159,7 +178,7 @@ static void draw_resource_status_text(resource_type resource, int x, int y, int 
 
     if (trade_flags_potential == TRADE_STATUS_NONE) {
         if (city_resource_is_stockpiled(resource)) {
-            lang_text_draw_centered(54, 3, x, y + 10, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+            lang_text_draw_centered("main_strings.54.3", x, y + 10, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         }
         return;
     }
@@ -181,18 +200,18 @@ static void draw_resource_status_text(resource_type resource, int x, int y, int 
     }
 
     if (trade_status & TRADE_STATUS_IMPORT) {
-        int width = (box_width - 20 - lang_text_get_width(54, 5, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height))) / 2;
-        width += lang_text_draw(54, 5, x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        int width = (box_width - 20 - lang_text_get_width("main_strings.54.5", FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height))) / 2;
+        width += lang_text_draw("main_strings.54.5", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         int import_limit = city_resource_import_over(resource);
         if (import_limit > 0) {
             text_draw_number(import_limit, 0, " ", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         } else {
-            text_draw(translation_for(TR_ADVISOR_TRADE_MAX), x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+            text_draw(translation_for_key("TR_ADVISOR_TRADE_MAX"), x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         }
     } else if (trade_flags & TRADE_STATUS_IMPORT) {
-        text_draw_centered(translation_for(TR_ADVISOR_TRADE_IMPORTABLE), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_ADVISOR_TRADE_IMPORTABLE"), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else if (trade_flags_potential & TRADE_STATUS_IMPORT) {
-        text_draw_centered(translation_for(TR_ADVISOR_OPEN_TO_IMPORT), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_ADVISOR_OPEN_TO_IMPORT"), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
 
     if (two_lines) {
@@ -200,27 +219,26 @@ static void draw_resource_status_text(resource_type resource, int x, int y, int 
     }
 
     if (city_resource_is_stockpiled(resource)) {
-        lang_text_draw_centered(54, 3, x, y, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+        lang_text_draw_centered("main_strings.54.3", x, y, box_width, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
     } else if (trade_status & TRADE_STATUS_EXPORT) {
-        int width = (box_width - 15 - lang_text_get_width(54, 6, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height))) / 2;
-        width += lang_text_draw(54, 6, x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        int width = (box_width - 15 - lang_text_get_width("main_strings.54.6", FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height))) / 2;
+        width += lang_text_draw("main_strings.54.6", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         text_draw_number(city_resource_export_over(resource), 0, " ", x + width, y, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     } else if (trade_flags & TRADE_STATUS_EXPORT) {
-        text_draw_centered(translation_for(TR_ADVISOR_TRADE_EXPORTABLE), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_ADVISOR_TRADE_EXPORTABLE"), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else if (trade_flags_potential & TRADE_STATUS_EXPORT) {
-        text_draw_centered(translation_for(TR_ADVISOR_OPEN_TO_EXPORT), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+        text_draw_centered(translation_for_key("TR_ADVISOR_OPEN_TO_EXPORT"), x, y, box_width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
 }
 
 static void draw_resource_info(const grid_box_item *item)
 {
     resource_type resource = data.list.items[item->index];
-    int image_id = resource_get_data(resource)->image.icon;
-    const image *img = image_get(image_id);
-    int image_x = (40 - img->original.width) / 2;
-    int image_y = (item->height - img->original.height) / 2;
-    image_draw(image_id, item->x + image_x, item->y + image_y, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_id, item->x + item->width - 40 + image_x, item->y + image_y, COLOR_MASK_NONE, SCALE_NONE);
+    const ImageGroupEntryRef &icon = resource_graphics(resource).panel_icon();
+    int image_x = (40 - icon.width()) / 2;
+    int image_y = (item->height - icon.height()) / 2;
+    icon.draw(item->x + image_x, item->y + image_y);
+    icon.draw(item->x + item->width - 40 + image_x, item->y + image_y);
 
     if (item->is_focused) {
         button_border_draw(item->x + 40, item->y - 2, item->width - 80, item->height, 1);
@@ -233,10 +251,10 @@ static void draw_resource_info(const grid_box_item *item)
         }
         text_draw_number_centered(amount, item->x + 130, item->y + 15, 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else {
-        lang_text_draw_centered(56, 2, item->x + 130, item->y + 15, 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_centered("main_strings.56.2", item->x + 130, item->y + 15, 60, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
     if (city_resource_is_mothballed(resource)) {
-        lang_text_draw_centered(18, 5, item->x + 160, item->y + 15, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_centered("main_strings.18.5", item->x + 160, item->y + 15, 100, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
     draw_resource_status_text(resource, item->x + 176, item->y + 5, item->width - 206);
 
@@ -252,22 +270,22 @@ static void draw_foreground(void)
 
     draw_footer_button_widgets();
 
-    int land_policy_available = building_monument_working(BUILDING_CARAVANSERAI);
-    int sea_policy_available = building_monument_working(BUILDING_LIGHTHOUSE);
+    int land_policy_available = monument_working("caravanserai");
+    int sea_policy_available = monument_working("lighthouse");
     draw_policy_button(
         45,
         390,
         land_policy_available,
         land_policy_available && data.focus_button_id == 3,
-        image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1,
-        "Land Trade Policy Off Button");
+        Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE) + 1,
+        ImageGroupEntryRef::from_group("UI\\Land_Trade_Policy_Off_Button", "Land Trade Policy Off Button"));
     draw_policy_button(
         95,
         390,
         sea_policy_available,
         sea_policy_available && data.focus_button_id == 4,
-        image_group(GROUP_EMPIRE_TRADE_ROUTE_TYPE),
-        "Sea Trade Policy Off Button");
+        Image::group(GROUP_EMPIRE_TRADE_ROUTE_TYPE),
+        ImageGroupEntryRef::from_group("UI\\Sea_Trade_Policy_Off_Button", "Sea Trade Policy Off Button"));
 }
 
 static int handle_mouse(const mouse *m)
@@ -323,13 +341,6 @@ static void draw_footer_button_widgets(void)
 static void show_policy(trade_policy_type policy_type)
 {
     data.policy_type = policy_type;
-    if (!policy_options[policy_type].items[0].image_id) {
-        int base_policy_image = assets_get_image_id("UI",
-            policy_options[policy_type].base_image_name);
-        policy_options[policy_type].items[0].image_id = base_policy_image + 1;
-        policy_options[policy_type].items[1].image_id = base_policy_image + 2;
-        policy_options[policy_type].items[2].image_id = base_policy_image + 3;
-    }
     window_option_popup_show(policy_options[policy_type].title, policy_options[policy_type].subtitle,
         policy_options[policy_type].items, 3, apply_policy, city_trade_policy_get(policy_type),
         TRADE_POLICY_COST, OPTION_MENU_SMALL_ROW);
@@ -348,8 +359,8 @@ static void button_empire(const generic_button *button)
 static void button_policy(const generic_button *button)
 {
     const trade_policy_type policy_type = static_cast<trade_policy_type>(button->parameter1);
-    if ((policy_type == LAND_TRADE_POLICY && !building_monument_working(BUILDING_CARAVANSERAI)) ||
-        (policy_type == SEA_TRADE_POLICY && !building_monument_working(BUILDING_LIGHTHOUSE))) {
+    if ((policy_type == LAND_TRADE_POLICY && !monument_working("caravanserai")) ||
+        (policy_type == SEA_TRADE_POLICY && !monument_working("lighthouse"))) {
         return;
     }
     show_policy(policy_type);
@@ -364,18 +375,18 @@ static void write_resource_storage_tooltip(tooltip_context *c, resource_type res
 {
     static uint8_t tooltip_resource_info[200];
     int amount_warehouse = city_resource_count_warehouses_amount(resource);
-    int amount_granary = city_resource_count_food_on_granaries(resource) / RESOURCE_ONE_LOAD;
+    int amount_granary = city_resource_count_food_on_granaries(resource) / resource_units_per_load();
     uint8_t *text = tooltip_resource_info;
     text += string_from_int(text, amount_warehouse, 0);
     *text = ' ';
     text++;
-    text = string_copy(lang_get_string(52, 43), text, 200 - (int) (text - tooltip_resource_info));
+    text = string_copy(lang_get_string("main_strings.52.43"), text, 200 - (int) (text - tooltip_resource_info));
     *text = '\n';
     text++;
     text += string_from_int(text, amount_granary, 0);
     *text = ' ';
     text++;
-    text = string_copy(translation_for(TR_ADVISOR_FROM_GRANARIES), text, 200 - (int) (text - tooltip_resource_info));
+    text = string_copy(translation_for_key("TR_ADVISOR_FROM_GRANARIES"), text, 200 - (int) (text - tooltip_resource_info));
     c->precomposed_text = tooltip_resource_info;
 }
 
@@ -396,16 +407,16 @@ static void get_tooltip_text(advisor_tooltip_result *r)
     } else if (data.focus_button_id == 2) {
         r->text_id = 41;
     } else if (data.focus_button_id == 3) {
-        if (building_monument_working(BUILDING_CARAVANSERAI)) {
-            r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY;
+        if (monument_working("caravanserai")) {
+            r->translation_key = "TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY";
         } else {
-            r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY_REQUIRED;
+            r->translation_key = "TR_TOOLTIP_ADVISOR_TRADE_LAND_POLICY_REQUIRED";
         }
     } else if (data.focus_button_id == 4) {
-        if (building_monument_working(BUILDING_LIGHTHOUSE)) {
-            r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY;
+        if (monument_working("lighthouse")) {
+            r->translation_key = "TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY";
         } else {
-            r->translation_key = TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY_REQUIRED;
+            r->translation_key = "TR_TOOLTIP_ADVISOR_TRADE_SEA_POLICY_REQUIRED";
         }
     } else {
         tooltip_context c = { 0 };

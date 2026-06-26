@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 enum {
     EDGE_X0Y0 = 0,
     EDGE_X1Y0 = 1,
@@ -65,3 +66,4 @@ void map_property_restore(void);
 void map_property_save_state(buffer *bitfields, buffer *edge);
 void map_property_load_state(buffer *bitfields, buffer *edge);
 void map_property_load_state_u8(buffer *bitfields, buffer *edge);
+

@@ -1,9 +1,10 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "figure/figure.h"
 #include "input/mouse.h"
 #include "scenario/property.h"
+
 
 typedef struct {
     scenario_climate(*climate)(void);
@@ -13,7 +14,7 @@ typedef struct {
         int (*height)(void);
     } map;
     struct {
-        int (*figure)(int grid_offset, int (*callback)(figure *f));
+        int (*figure)(int grid_offset, int (*callback)(Figure *f));
         int (*terrain)(int grid_offset);
         unsigned int (*building_id)(int grid_offset);
         int (*is_draw_tile)(int grid_offset);

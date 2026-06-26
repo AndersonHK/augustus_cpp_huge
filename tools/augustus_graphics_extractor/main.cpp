@@ -6,10 +6,10 @@
 #include <iostream>
 #include <string>
 
-extern "C" void augustus_graphics_extractor_shims_set_game_root(const char *path);
-extern "C" void augustus_graphics_extractor_shims_set_augustus_graphics_path(const char *path);
-extern "C" void augustus_graphics_extractor_shims_set_julius_graphics_path(const char *path);
-extern "C" void augustus_graphics_extractor_shims_install_renderer(void);
+void augustus_graphics_extractor_shims_set_game_root(const char *path);
+void augustus_graphics_extractor_shims_set_augustus_graphics_path(const char *path);
+void augustus_graphics_extractor_shims_set_julius_graphics_path(const char *path);
+void augustus_graphics_extractor_shims_install_renderer(void);
 
 namespace {
 
@@ -166,6 +166,17 @@ private:
 
 } // namespace
 
+static bool extract_julius_climate(int climate_id, const char *label)
+{
+    std::cout << "Extracting Julius " << label << " graphics through image_load_climate.\n";
+    if (image_load_climate(climate_id, 0, 1, 1, 1)) {
+        return true;
+    }
+
+    std::cerr << "Julius " << label << " graphics extraction failed.\n";
+    return false;
+}
+
 int main(int argc, char **argv)
 {
     HarnessCli cli;
@@ -186,10 +197,10 @@ int main(int argc, char **argv)
     augustus_graphics_extractor_shims_set_julius_graphics_path(cli.julius_graphics().c_str());
 
     if (cli.extract_julius_first()) {
-        std::cout << "Extracting Julius graphics first through image_load_climate.\n";
         augustus_graphics_extractor_shims_install_renderer();
-        if (!image_load_climate(CLIMATE_CENTRAL, 0, 1, 1, 1)) {
-            std::cerr << "Julius graphics extraction failed.\n";
+        if (!extract_julius_climate(CLIMATE_CENTRAL, "central") ||
+            !extract_julius_climate(CLIMATE_NORTHERN, "northern") ||
+            !extract_julius_climate(CLIMATE_DESERT, "desert")) {
             return 1;
         }
     }

@@ -1,12 +1,10 @@
 #include "font.h"
 #include "font_vector_runtime.h"
 
-extern "C" {
 #include "assets/assets.h"
 #include "core/encoding_japanese.h"
 #include "core/encoding_trad_chinese.h"
 #include "core/image.h"
-}
 
 static int image_y_offset_none(uint8_t c, int image_height, int line_height);
 static int image_y_offset_default(uint8_t c, int image_height, int line_height);

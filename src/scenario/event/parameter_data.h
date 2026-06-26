@@ -1,6 +1,6 @@
 #pragma once
 
-#include "building/type.h"
+#include "building/building_type.h"
 #include "city/message.h"
 #include "game/settings.h"
 #include "scenario/data.h"
@@ -86,9 +86,28 @@ typedef struct {
     translation_key key;
 } special_attribute_mapping_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+typedef enum {
+    SCENARIO_BUILDING_RUBBLE = -1,
+    SCENARIO_BUILDING_MENU_FARMS = -1000,
+    SCENARIO_BUILDING_MENU_RAW_MATERIALS,
+    SCENARIO_BUILDING_MENU_WORKSHOPS,
+    SCENARIO_BUILDING_MENU_SMALL_TEMPLES,
+    SCENARIO_BUILDING_MENU_LARGE_TEMPLES,
+    SCENARIO_BUILDING_MENU_GRAND_TEMPLES,
+    SCENARIO_BUILDING_MENU_TREES,
+    SCENARIO_BUILDING_MENU_PATHS,
+    SCENARIO_BUILDING_MENU_PARKS,
+    SCENARIO_BUILDING_ANY,
+    SCENARIO_BUILDING_ROAD,
+    SCENARIO_BUILDING_HIGHWAY,
+    SCENARIO_BUILDING_PLAZA,
+    SCENARIO_BUILDING_GARDENS,
+    SCENARIO_BUILDING_OVERGROWN_GARDENS,
+    SCENARIO_BUILDING_LOW_BRIDGE,
+    SCENARIO_BUILDING_SHIP_BRIDGE,
+    SCENARIO_BUILDING_MENU_FORT
+} scenario_building_parameter;
+
 
 scenario_condition_data_t *scenario_events_parameter_data_get_conditions_xml_attributes(condition_types type);
 scenario_condition_data_t *scenario_events_parameter_data_get_conditions_xml_attributes_alphabetical(int index);
@@ -140,6 +159,3 @@ void scenario_events_parameter_data_get_display_string_for_condition(const scena
  */
 parameter_type scenario_events_parameter_data_resolve_flexible_type(const scenario_action_t *action, int param_number);
 
-#ifdef __cplusplus
-}
-#endif

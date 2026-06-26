@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="iron_mine">
-    <identity name_key="building.iron_mine.name" />
+    <identity name_key="main_strings.28.107" />
     <model size="2" cost="50" />
     <desirability>
         <value value="-6" />
@@ -11,7 +11,7 @@
     <foundation policy="custom">
         <terrain value="rock" />
     </foundation>
-    <button group="raw_materials" order="30" icon="Industry\Iron_Mine" text_key="building.iron_mine.name" />
+    <button group="raw_materials" order="30" icon="Industry\Iron_Mine" text_key="main_strings.28.107" />
     <sound id="iron_mine" />
     <event_data attr="iron_mine" />
     <graphics>
@@ -24,6 +24,7 @@
         <employees count="10" />
         <labor_seeker>
             <method value="houses_spawn_if_below" />
+            <amount value="50" />
         </labor_seeker>
     </labor>
     <storages>

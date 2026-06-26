@@ -9,9 +9,13 @@
         <range value="6" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="70" icon="Health_Culture\Tavern_OFF" text_key="TR_BUILDING_TAVERN" />
+  <button group="entertainment" order="40" icon="Health_Culture\Tavern_OFF" text_key="TR_BUILDING_TAVERN" />
     <sound id="tavern" />
     <event_data attr="tavern" />
+    <distribution path="tavern" />
+    <culture_modules>
+        <culture_module path="tavern" capacity="1000" upgrade_bonus="500" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Tavern_OFF" />
@@ -39,7 +43,8 @@
     <labor>
         <employees count="8" />
         <labor_seeker>
-            <method value="houses_spawn_if_below" />
+            <method value="houses_generate_if_below" />
+            <amount value="50" />
         </labor_seeker>
     </labor>
 </building>

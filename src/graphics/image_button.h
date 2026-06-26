@@ -4,9 +4,6 @@
 
 #include "core/time.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void button_none(int param1, int param2);
 
@@ -45,6 +42,3 @@ void image_buttons_draw(int x, int y, image_button *buttons, unsigned int num_bu
 int image_buttons_handle_mouse(
     const mouse *m, int x, int y, image_button *buttons, unsigned int num_buttons, unsigned int *focus_button_id);
 
-#ifdef __cplusplus
-}
-#endif

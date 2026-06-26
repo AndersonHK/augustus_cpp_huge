@@ -9,7 +9,7 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="200" icon="Industry\Chariot_Maker" text_key="main_strings.28.37" />
+  <button group="entertainment" order="100" icon="Industry\Chariot_Maker" text_key="main_strings.28.37" />
     <sound id="chariot_maker" mute_on_enemies="true" />
     <event_data attr="chariot_maker" />
     <graphics>

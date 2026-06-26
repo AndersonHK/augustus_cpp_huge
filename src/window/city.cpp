@@ -1,65 +1,107 @@
-extern "C" {
-#include "city.h"
-
+#include "building/building_type.h"
+#include "translation/translation.h"
 #include "building/clone.h"
 #include "building/construction.h"
 #include "building/data_transfer.h"
+#include "../building/industry.h"
+#include "building/rotation.h"
+#include "building/variant.h"
+#include "city/victory.h"
+#include "city/warning.h"
+#include "figure/roamer_preview.h"
+#include "game/orientation.h"
+#include "game/state.h"
+#include "game/undo.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/weather.h"
+#include "map/building.h"
+#include "widget/city.h"
+#include "widget/city_with_overlay.h"
+#include "widget/sidebar/city.h"
+#include "widget/sidebar/extra.h"
+#include "widget/sidebar/military.h"
+#include "widget/top_menu.h"
+#include "window/building_info.h"
+#include "window/empire.h"
+#include "window/file_dialog.h"
+
+#include "city.h"
+
+#include "graphics/complex_button.h"
+#include "window/message_list.h"
+#include "window/overlay_menu.h"
+#include "window/advisors.h"
+#include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
+
+#include "game/settings.h"
+
+#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/rotation.h"
-#include "building/type.h"
-#include "building/variant.h"
 #include "city/message.h"
-#include "city/victory.h"
 #include "city/view.h"
-#include "city/warning.h"
 #include "core/config.h"
 #include "core/string.h"
 #include "figure/formation.h"
 #include "figure/formation_legion.h"
-#include "figure/roamer_preview.h"
-#include "game/orientation.h"
-#include "game/settings.h"
-#include "game/state.h"
 #include "game/time.h"
-#include "game/undo.h"
-#include "graphics/complex_button.h"
-#include "graphics/graphics.h"
-#include "graphics/image.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
-#include "graphics/weather.h"
 #include "graphics/window.h"
 #include "map/bookmark.h"
-#include "map/building.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/terrain.h"
 #include "scenario/allowed_building.h"
 #include "scenario/criteria.h"
 #include "scenario/custom_variable.h"
-#include "widget/city.h"
-#include "widget/city_with_overlay.h"
-#include "widget/top_menu.h"
-#include "widget/sidebar/city.h"
-#include "widget/sidebar/extra.h"
-#include "widget/sidebar/military.h"
-#include "window/advisors.h"
-#include "window/building_info.h"
-#include "window/empire.h"
-#include "window/file_dialog.h"
-#include "window/message_list.h"
-#include "window/overlay_menu.h"
-}
+
+
+#include <cstring>
+#include <initializer_list>
 
 #define TOPLEFT_MESSAGES_X 5
 #define TOPLEFT_MESSAGES_Y_SPACING 24
 
-static int mothball_warning_id;
 static int time_left_label_shown;
+
+static building_type building_type_from_attr(const char *text_id)
+{
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
+}
+
+static void create_roamer_preview_for_building_attr(const char *text_id)
+{
+    figure_roamer_preview_create_all_for_building_type(building_type_from_attr(text_id));
+}
+
+static bool building_type_attr_is(const building_type_registry_impl::BuildingType &type, const char *text_id)
+{
+    return type.attr() && std::strcmp(type.attr(), text_id) == 0;
+}
+
+static bool building_type_attr_is_any(const building_type_registry_impl::BuildingType &type,
+    std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (building_type_attr_is(type, text_id)) {
+            return true;
+        }
+    }
+    return false;
+}
 
 
 
@@ -139,7 +181,7 @@ static int is_same_mapping(const hotkey_mapping *current, const hotkey_mapping *
 
 static const uint8_t *get_paused_text(void)
 {
-    const uint8_t *pause_string = lang_get_string(13, 2);
+    const uint8_t *pause_string = lang_get_string("main_strings.13.2");
     static uint8_t proper_hotkey_pause_string[300];
     static hotkey_mapping pause_key_mapping;
     const hotkey_mapping *new_mapping = hotkey_for_action(HOTKEY_TOGGLE_PAUSE, 0);
@@ -232,17 +274,17 @@ static void draw_time_left(void)
         const font_t font = FONT_NORMAL_WHITE;
 
         // Precompose the prefix text (translated): "Time left until defeat/victory: "
-        const int label_id = scenario_criteria_time_limit_enabled()
-            ? TR_CONDITION_TEXT_TIME_LEFT_UNTIL_DEFEAT
-            : TR_CONDITION_TEXT_TIME_LEFT_UNTIL_VICTORY;
-        const uint8_t *label_str = lang_get_string(CUSTOM_TRANSLATION, label_id);
+        const translation_key label_id = scenario_criteria_time_limit_enabled()
+            ? "TR_CONDITION_TEXT_TIME_LEFT_UNTIL_DEFEAT"
+            : "TR_CONDITION_TEXT_TIME_LEFT_UNTIL_VICTORY";
+        const uint8_t *label_str = lang_get_string(label_id);
 
         lang_fragment frags[5] = {
             {.type = LANG_FRAG_TEXT, .text = label_str },
-            {.type = LANG_FRAG_NUMBER, .text_group = CUSTOM_TRANSLATION, .number = years_left },
-            {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_REPEAT_FREQUENCY_YEARS},
-            {.type = LANG_FRAG_NUMBER, .text_group = CUSTOM_TRANSLATION, .number = months_left},
-            {.type = LANG_FRAG_LABEL, .text_group = CUSTOM_TRANSLATION, .text_id = TR_EDITOR_REPEAT_FREQUENCY_MONTHS}
+            {.type = LANG_FRAG_NUMBER, .number = years_left },
+            {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_REPEAT_FREQUENCY_YEARS"},
+            {.type = LANG_FRAG_NUMBER, .number = months_left},
+            {.type = LANG_FRAG_LABEL, .text_key = "TR_EDITOR_REPEAT_FREQUENCY_MONTHS"}
         };
         draw_topleft_label_with_fragments(fps_offset + TOPLEFT_MESSAGES_X, 25, frags, 5, font, COLOR_MASK_NONE);
     }
@@ -250,7 +292,7 @@ static void draw_time_left(void)
 
 void label_draw_masked(int x, int y, int width_blocks, int type, color_t color)
 {
-    int image_base = image_group(GROUP_PANEL_BUTTON);
+    int image_base = Image::group(GROUP_PANEL_BUTTON);
     for (int i = 0; i < width_blocks; i++) {
         int image_id;
         if (i == 0) {
@@ -260,7 +302,7 @@ void label_draw_masked(int x, int y, int width_blocks, int type, color_t color)
         } else {
             image_id = 3 * type + 42;
         }
-        image_draw(image_base + image_id, x + BLOCK_SIZE * i, y, color, SCALE_NONE);
+        Image::from_id(image_base + image_id).draw(x + BLOCK_SIZE * i, y, color, SCALE_NONE);
     }
 }
 
@@ -286,7 +328,7 @@ static void draw_speedrun_info(void)
     if (config_get(CONFIG_UI_SHOW_SPEEDRUN_INFO)) {
         int s_height = screen_height();
         large_label_draw(0, s_height - 25, 10, 0);
-        lang_text_draw_centered(153, setting_difficulty() + 1, 4, s_height - 18, 150, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw_centered(current_string_key(153, setting_difficulty() + 1), 4, s_height - 18, 150, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     }
 }
 
@@ -340,60 +382,60 @@ static void show_roamers_for_overlay(int overlay)
     switch (overlay) {
         case OVERLAY_FIRE:
         case OVERLAY_CRIME:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_PREFECTURE);
+            create_roamer_preview_for_building_attr("prefecture");
             break;
         case OVERLAY_DAMAGE:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_ENGINEERS_POST);
+            create_roamer_preview_for_building_attr("engineers_post");
             break;
         case OVERLAY_TAVERN:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_TAVERN);
+            create_roamer_preview_for_building_attr("tavern");
             break;
         case OVERLAY_THEATER:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_THEATER);
+            create_roamer_preview_for_building_attr("theater");
             break;
         case OVERLAY_AMPHITHEATER:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_AMPHITHEATER);
+            create_roamer_preview_for_building_attr("amphitheater");
             break;
         case OVERLAY_ARENA:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_ARENA);
+            create_roamer_preview_for_building_attr("arena");
             break;
         case OVERLAY_COLOSSEUM:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_COLOSSEUM);
+            create_roamer_preview_for_building_attr("colosseum");
             break;
         case OVERLAY_HIPPODROME:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_HIPPODROME);
+            create_roamer_preview_for_building_attr("hippodrome");
             break;
         case OVERLAY_SCHOOL:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_SCHOOL);
+            create_roamer_preview_for_building_attr("school");
             break;
         case OVERLAY_LIBRARY:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_LIBRARY);
+            create_roamer_preview_for_building_attr("library");
             break;
         case OVERLAY_ACADEMY:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_ACADEMY);
+            create_roamer_preview_for_building_attr("academy");
             break;
         case OVERLAY_BARBER:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_BARBER);
+            create_roamer_preview_for_building_attr("barber");
             break;
         case OVERLAY_BATHHOUSE:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_BATHHOUSE);
+            create_roamer_preview_for_building_attr("bathhouse");
             break;
         case OVERLAY_CLINIC:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_DOCTOR);
+            create_roamer_preview_for_building_attr("doctor");
             break;
         case OVERLAY_HOSPITAL:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_HOSPITAL);
+            create_roamer_preview_for_building_attr("hospital");
             break;
         case OVERLAY_TAX_INCOME:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_FORUM);
-            figure_roamer_preview_create_all_for_building_type(BUILDING_SENATE);
+            create_roamer_preview_for_building_attr("forum");
+            create_roamer_preview_for_building_attr("senate");
             break;
         case OVERLAY_FOOD_STOCKS:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_MARKET);
+            create_roamer_preview_for_building_attr("market");
             break;
         case OVERLAY_SICKNESS:
-            figure_roamer_preview_create_all_for_building_type(BUILDING_DOCTOR);
-            figure_roamer_preview_create_all_for_building_type(BUILDING_HOSPITAL);
+            create_roamer_preview_for_building_attr("doctor");
+            create_roamer_preview_for_building_attr("hospital");
             break;
         case OVERLAY_NONE:
         default:
@@ -414,275 +456,183 @@ static void show_overlay(int overlay)
     window_invalidate();
 }
 
-// this is mix of get_clone_type_from_grid_offset & get_clone_type_from_building functions with reduced code for overlay purpose
-static int get_building_type_from_grid_offset(int grid_offset)
+static int get_overlay_for_building_type(const building_type_registry_impl::BuildingType &type)
 {
-    int terrain = map_terrain_get(grid_offset);
+    const int is_dock = building_type_attr_is(type, "dock");
+    int overlay = OVERLAY_NONE;
 
-    if (terrain & TERRAIN_BUILDING) {
-        int building_id = map_building_at(grid_offset);
-        if (building_id) {
-            return building_main(building_get(building_id))->type;
-        }
-    } else if (terrain & TERRAIN_AQUEDUCT) {
-        return BUILDING_AQUEDUCT;
-    } else if (terrain & TERRAIN_GARDEN) {
-        if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-            return BUILDING_OVERGROWN_GARDENS;
-        }
-        return BUILDING_GARDENS;
-    } else if (terrain & TERRAIN_ROAD) {
-        if (map_property_is_plaza_earthquake_or_overgrown_garden(grid_offset)) {
-            return BUILDING_PLAZA;
-        }
-        return BUILDING_ROAD;
-    } else if (terrain & TERRAIN_HIGHWAY) {
-        return BUILDING_HIGHWAY;
+    if (type.is_well()) {
+        overlay = OVERLAY_WATER;
+    } else if (type.is_theater()) {
+        overlay = OVERLAY_THEATER;
+    } else if (building_type_attr_is_any(type, {
+        "plaza", "road", "roadblock", "roofed_garden_wall_gate", "looped_garden_gate",
+        "panelled_garden_gate", "highway"
+    })) {
+        overlay = OVERLAY_ROADS;
+    } else if (building_type_attr_is_any(type, {"aqueduct", "reservoir", "fountain"})) {
+        overlay = OVERLAY_WATER;
+    } else if (type.is_temple() ||
+        building_type_attr_is_any(type, {"lararium", "nymphaeum", "small_mausoleum", "large_mausoleum"})) {
+        overlay = OVERLAY_RELIGION;
+    } else if (building_type_attr_is_any(type, {"prefecture", "burning_ruin"})) {
+        overlay = OVERLAY_FIRE;
+    } else if (type.is_architect_guild() || building_type_attr_is(type, "engineers_post")) {
+        overlay = OVERLAY_DAMAGE;
+    } else if (building_type_attr_is(type, "actor_colony")) {
+        overlay = OVERLAY_THEATER;
+    } else if (building_type_attr_is_any(type, {"amphitheater", "gladiator_school"})) {
+        overlay = OVERLAY_AMPHITHEATER;
+    } else if (building_type_attr_is(type, "tavern")) {
+        overlay = OVERLAY_TAVERN;
+    } else if (building_type_attr_is(type, "arena")) {
+        overlay = OVERLAY_ARENA;
+    } else if (building_type_attr_is_any(type, {"colosseum", "lion_house"})) {
+        overlay = OVERLAY_COLOSSEUM;
+    } else if (building_type_attr_is_any(type, {"hippodrome", "chariot_maker"})) {
+        overlay = OVERLAY_HIPPODROME;
+    } else if (building_type_attr_is(type, "school")) {
+        overlay = OVERLAY_SCHOOL;
+    } else if (building_type_attr_is(type, "library")) {
+        overlay = OVERLAY_LIBRARY;
+    } else if (building_type_attr_is(type, "academy")) {
+        overlay = OVERLAY_ACADEMY;
+    } else if (building_type_attr_is(type, "barber")) {
+        overlay = OVERLAY_BARBER;
+    } else if (building_type_attr_is(type, "bathhouse")) {
+        overlay = OVERLAY_BATHHOUSE;
+    } else if (building_type_attr_is(type, "doctor")) {
+        overlay = OVERLAY_CLINIC;
+    } else if (building_type_attr_is(type, "hospital")) {
+        overlay = OVERLAY_HOSPITAL;
+    } else if (building_type_attr_is_any(type, {"forum", "senate"})) {
+        overlay = OVERLAY_TAX_INCOME;
+    } else if (type.is_granary() || type.is_mess_hall() || type.is_caravanserai() ||
+        resource_is_food(building_output_resource(type.type())) ||
+        building_type_attr_is_any(type, {
+            "market", "oil_workshop", "wine_workshop", "wharf"
+        })) {
+        overlay = OVERLAY_FOOD_STOCKS;
+    } else if (type.has_housing() ||
+        building_type_attr_is_any(type, {
+            "gardens", "overgrown_gardens", "governors_house", "governors_villa", "governors_palace",
+            "small_statue", "medium_statue", "large_statue", "triumphal_arch", "small_pond", "large_pond",
+            "pine_tree", "fir_tree", "oak_tree", "elm_tree", "fig_tree", "plum_tree", "palm_tree", "date_tree",
+            "pine_path", "fir_path", "oak_path", "elm_path", "fig_path", "plum_path", "palm_path", "date_path",
+            "garden_path", "pavilion",
+            "goddess_statue", "senator_statue", "obelisk", "horse_statue", "legion_statue", "gladiator_statue",
+            "panelled_garden_wall"
+        })) {
+        overlay = OVERLAY_DESIRABILITY;
+    } else if (building_type_attr_is_any(type, {"mission_post", "native_hut", "native_hut_alt", "native_meeting"})) {
+        overlay = OVERLAY_NATIVE;
+    } else if (type.is_warehouse() || type.is_lighthouse() || type.is_armoury() ||
+        is_dock || building_type_attr_is_any(type, {"warehouse_space", "cart_depot"})) {
+        overlay = OVERLAY_LOGISTICS;
+    } else if (building_type_attr_is(type, "latrines")) {
+        overlay = OVERLAY_HEALTH;
     }
+    return overlay;
+}
 
-    return BUILDING_NONE;
+static Building building_main_at_grid_offset(int grid_offset)
+{
+    const int building_id = map_building_at(grid_offset);
+    return building_id ? Building(building_get(building_id)).main() : Building(nullptr);
+}
+
+static int get_overlay_for_terrain(int terrain)
+{
+    if (terrain & TERRAIN_RUBBLE) {
+        return OVERLAY_DAMAGE;
+    }
+    if (terrain & TERRAIN_AQUEDUCT) {
+        return OVERLAY_WATER;
+    }
+    if (terrain & TERRAIN_GARDEN) {
+        return OVERLAY_DESIRABILITY;
+    }
+    if (terrain & TERRAIN_ROAD) {
+        return OVERLAY_ROADS;
+    }
+    if (terrain & TERRAIN_HIGHWAY) {
+        return OVERLAY_ROADS;
+    }
+    return OVERLAY_NONE;
 }
 
 static void show_overlay_from_grid_offset(int grid_offset)
 {
     int overlay = OVERLAY_NONE;
-    int clone_type = get_building_type_from_grid_offset(grid_offset);
-    if (clone_type == BUILDING_WELL) {
-        overlay = OVERLAY_WATER;
-    } else if (clone_type == BUILDING_THEATER) {
-        overlay = OVERLAY_THEATER;
-    } else switch (clone_type) {
-        case BUILDING_PLAZA:
-        case BUILDING_ROAD:
-        case BUILDING_ROADBLOCK:
-        case BUILDING_ROOFED_GARDEN_WALL_GATE:
-        case BUILDING_LOOPED_GARDEN_GATE:
-        case BUILDING_PANELLED_GARDEN_GATE:
-        case BUILDING_HIGHWAY:
-            overlay = OVERLAY_ROADS;
-            break;
-        case BUILDING_AQUEDUCT:
-        case BUILDING_RESERVOIR:
-        case BUILDING_FOUNTAIN:
-            overlay = OVERLAY_WATER;
-            break;
-        case BUILDING_ORACLE:
-        case BUILDING_SMALL_TEMPLE_CERES:
-        case BUILDING_SMALL_TEMPLE_NEPTUNE:
-        case BUILDING_SMALL_TEMPLE_MERCURY:
-        case BUILDING_SMALL_TEMPLE_MARS:
-        case BUILDING_SMALL_TEMPLE_VENUS:
-        case BUILDING_LARGE_TEMPLE_CERES:
-        case BUILDING_LARGE_TEMPLE_NEPTUNE:
-        case BUILDING_LARGE_TEMPLE_MERCURY:
-        case BUILDING_LARGE_TEMPLE_MARS:
-        case BUILDING_LARGE_TEMPLE_VENUS:
-        case BUILDING_GRAND_TEMPLE_CERES:
-        case BUILDING_GRAND_TEMPLE_NEPTUNE:
-        case BUILDING_GRAND_TEMPLE_MERCURY:
-        case BUILDING_GRAND_TEMPLE_MARS:
-        case BUILDING_GRAND_TEMPLE_VENUS:
-        case BUILDING_PANTHEON:
-        case BUILDING_LARARIUM:
-        case BUILDING_NYMPHAEUM:
-        case BUILDING_SMALL_MAUSOLEUM:
-        case BUILDING_LARGE_MAUSOLEUM:
-        case BUILDING_SHRINE_CERES:
-        case BUILDING_SHRINE_NEPTUNE:
-        case BUILDING_SHRINE_MERCURY:
-        case BUILDING_SHRINE_MARS:
-        case BUILDING_SHRINE_VENUS:
-            overlay = OVERLAY_RELIGION;
-            break;
-        case BUILDING_PREFECTURE:
-        case BUILDING_BURNING_RUIN:
-            overlay = OVERLAY_FIRE;
-            break;
-        case BUILDING_ENGINEERS_POST:
-        case BUILDING_ARCHITECT_GUILD:
-            overlay = OVERLAY_DAMAGE;
-            break;
-        case BUILDING_ACTOR_COLONY:
-            overlay = OVERLAY_THEATER;
-            break;
-        case BUILDING_AMPHITHEATER:
-        case BUILDING_GLADIATOR_SCHOOL:
-            overlay = OVERLAY_AMPHITHEATER;
-            break;
-        case BUILDING_TAVERN:
-            overlay = OVERLAY_TAVERN;
-            break;
-        case BUILDING_ARENA:
-            overlay = OVERLAY_ARENA;
-            break;
-        case BUILDING_COLOSSEUM:
-        case BUILDING_LION_HOUSE:
-            overlay = OVERLAY_COLOSSEUM;
-            break;
-        case BUILDING_HIPPODROME:
-        case BUILDING_CHARIOT_MAKER:
-            overlay = OVERLAY_HIPPODROME;
-            break;
-        case BUILDING_SCHOOL:
-            overlay = OVERLAY_SCHOOL;
-            break;
-        case BUILDING_LIBRARY:
-            overlay = OVERLAY_LIBRARY;
-            break;
-        case BUILDING_ACADEMY:
-            overlay = OVERLAY_ACADEMY;
-            break;
-        case BUILDING_BARBER:
-            overlay = OVERLAY_BARBER;
-            break;
-        case BUILDING_BATHHOUSE:
-            overlay = OVERLAY_BATHHOUSE;
-            break;
-        case BUILDING_DOCTOR:
-            overlay = OVERLAY_CLINIC;
-            break;
-        case BUILDING_HOSPITAL:
-            overlay = OVERLAY_HOSPITAL;
-            break;
-        case BUILDING_FORUM:
-        case BUILDING_SENATE:
-            overlay = OVERLAY_TAX_INCOME;
-            break;
-        case BUILDING_MARKET:
-        case BUILDING_GRANARY:
-        case BUILDING_CARAVANSERAI:
-        case BUILDING_MESS_HALL:
-        case BUILDING_FRUIT_FARM:
-        case BUILDING_OLIVE_FARM:
-        case BUILDING_PIG_FARM:
-        case BUILDING_VEGETABLE_FARM:
-        case BUILDING_VINES_FARM:
-        case BUILDING_WHEAT_FARM:
-        case BUILDING_OIL_WORKSHOP:
-        case BUILDING_WINE_WORKSHOP:
-        case BUILDING_WHARF:
-            overlay = OVERLAY_FOOD_STOCKS;
-            break;
-        case BUILDING_GARDENS:
-        case BUILDING_OVERGROWN_GARDENS:
-        case BUILDING_GOVERNORS_HOUSE:
-        case BUILDING_GOVERNORS_VILLA:
-        case BUILDING_GOVERNORS_PALACE:
-        case BUILDING_HOUSE_SMALL_TENT:
-        case BUILDING_HOUSE_LARGE_TENT:
-        case BUILDING_HOUSE_SMALL_SHACK:
-        case BUILDING_HOUSE_LARGE_SHACK:
-        case BUILDING_HOUSE_SMALL_HOVEL:
-        case BUILDING_HOUSE_LARGE_HOVEL:
-        case BUILDING_HOUSE_SMALL_CASA:
-        case BUILDING_HOUSE_LARGE_CASA:
-        case BUILDING_HOUSE_SMALL_INSULA:
-        case BUILDING_HOUSE_MEDIUM_INSULA:
-        case BUILDING_HOUSE_LARGE_INSULA:
-        case BUILDING_HOUSE_GRAND_INSULA:
-        case BUILDING_HOUSE_SMALL_VILLA:
-        case BUILDING_HOUSE_MEDIUM_VILLA:
-        case BUILDING_HOUSE_LARGE_VILLA:
-        case BUILDING_HOUSE_GRAND_VILLA:
-        case BUILDING_HOUSE_SMALL_PALACE:
-        case BUILDING_HOUSE_MEDIUM_PALACE:
-        case BUILDING_HOUSE_LARGE_PALACE:
-        case BUILDING_HOUSE_LUXURY_PALACE:
-        case BUILDING_SMALL_STATUE:
-        case BUILDING_MEDIUM_STATUE:
-        case BUILDING_LARGE_STATUE:
-        case BUILDING_TRIUMPHAL_ARCH:
-        case BUILDING_SMALL_POND:
-        case BUILDING_LARGE_POND:
-        case BUILDING_PINE_TREE:
-        case BUILDING_FIR_TREE:
-        case BUILDING_OAK_TREE:
-        case BUILDING_ELM_TREE:
-        case BUILDING_FIG_TREE:
-        case BUILDING_PLUM_TREE:
-        case BUILDING_PALM_TREE:
-        case BUILDING_DATE_TREE:
-        case BUILDING_PINE_PATH:
-        case BUILDING_FIR_PATH:
-        case BUILDING_OAK_PATH:
-        case BUILDING_ELM_PATH:
-        case BUILDING_FIG_PATH:
-        case BUILDING_PLUM_PATH:
-        case BUILDING_PALM_PATH:
-        case BUILDING_DATE_PATH:
-        case BUILDING_GARDEN_PATH:
-        case BUILDING_PAVILION_BLUE:
-        case BUILDING_PAVILION_RED:
-        case BUILDING_PAVILION_ORANGE:
-        case BUILDING_PAVILION_YELLOW:
-        case BUILDING_PAVILION_GREEN:
-        case BUILDING_GODDESS_STATUE:
-        case BUILDING_SENATOR_STATUE:
-        case BUILDING_OBELISK:
-        case BUILDING_HORSE_STATUE:
-        case BUILDING_LEGION_STATUE:
-        case BUILDING_GLADIATOR_STATUE:
-        case BUILDING_PANELLED_GARDEN_WALL:
-            overlay = OVERLAY_DESIRABILITY;
-            break;
-        case BUILDING_MISSION_POST:
-        case BUILDING_NATIVE_HUT:
-        case BUILDING_NATIVE_HUT_ALT:
-        case BUILDING_NATIVE_MEETING:
-            overlay = OVERLAY_NATIVE;
-            break;
-        case BUILDING_WAREHOUSE:
-        case BUILDING_WAREHOUSE_SPACE:
-        case BUILDING_DEPOT:
-        case BUILDING_DOCK:
-        case BUILDING_LIGHTHOUSE:
-        case BUILDING_ARMOURY:
-            overlay = OVERLAY_LOGISTICS;
-            break;
-        case BUILDING_LATRINES:
-            overlay = OVERLAY_HEALTH;
-            break;
-        case BUILDING_NONE:
-            if (map_terrain_get(grid_offset) & TERRAIN_RUBBLE) {
-                overlay = OVERLAY_DAMAGE;
-            }
-            break;
-        default:
-            break;
+    const int terrain = map_terrain_get(grid_offset);
+    const Building building = building_main_at_grid_offset(grid_offset);
+    if (building.id() && building.type) {
+        overlay = get_overlay_for_building_type(*building.type);
+    } else {
+        overlay = get_overlay_for_terrain(terrain);
     }
     if (!(game_state_overlay() == OVERLAY_NONE && overlay == OVERLAY_NONE)) {
         show_overlay(overlay);
     }
 }
 
-static int has_storage_orders(building_type type)
+static int has_storage_orders(const building_type_registry_impl::BuildingType &type)
 {
-    return type == BUILDING_WAREHOUSE ||
-        type == BUILDING_WAREHOUSE_SPACE ||
-        type == BUILDING_GRANARY ||
-        type == BUILDING_MARKET ||
-        type == BUILDING_DOCK ||
-        type == BUILDING_MESS_HALL ||
-        type == BUILDING_TAVERN ||
-        type == BUILDING_ROADBLOCK ||
-        type == BUILDING_CARAVANSERAI ||
-        type == BUILDING_ROOFED_GARDEN_WALL_GATE ||
-        type == BUILDING_LOOPED_GARDEN_GATE ||
-        type == BUILDING_PANELLED_GARDEN_GATE ||
-        type == BUILDING_HEDGE_GATE_DARK ||
-        type == BUILDING_HEDGE_GATE_LIGHT ||
-        type == BUILDING_PALISADE_GATE ||
-        (type == BUILDING_SMALL_TEMPLE_CERES && building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD)) ||
-        (type == BUILDING_LARGE_TEMPLE_CERES && building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD)) ||
-        (type == BUILDING_SMALL_TEMPLE_VENUS && building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) ||
-        (type == BUILDING_LARGE_TEMPLE_VENUS && building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE));
+    const int is_dock = building_type_attr_is(type, "dock");
+    return type.has_native_storage() ||
+        type.has_distribution() ||
+        is_dock ||
+        building_type_attr_is_any(type, {
+            "warehouse_space", "market", "tavern", "roadblock",
+            "roofed_garden_wall_gate", "looped_garden_gate", "panelled_garden_gate",
+            "hedge_gate_dark", "hedge_gate_light", "palisade_gate"
+        }) ||
+        ((building_type_attr_is(type, "small_temple_ceres") || building_type_attr_is(type, "large_temple_ceres")) &&
+            building_monument_gt_module_is_active(CERES_MODULE_2_DISTRIBUTE_FOOD)) ||
+        ((building_type_attr_is(type, "small_temple_venus") || building_type_attr_is(type, "large_temple_venus")) &&
+            building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE));
+}
+
+static void toggle_mothball_building(Building &building)
+{
+    if (!building.id() || !building.type) {
+        return;
+    }
+
+    const model_building *model = model_get_building(building.type->type());
+    if (!model || !model->laborers) {
+        return;
+    }
+
+    building_mothball_toggle(building_get(building.id()));
+    if (building.is_in_use()) {
+        city_warning_show(WARNING_DATA_MOTHBALL_OFF, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_OFF"));
+    } else if (building.is_mothballed()) {
+        city_warning_show(WARNING_DATA_MOTHBALL_ON, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_ON"));
+    }
+}
+
+static void copy_building_settings(Building &building)
+{
+    if (!building.id()) {
+        return;
+    }
+    building_data_transfer_copy(building_get(building.id()), 0);
+}
+
+static void paste_building_settings(Building &building)
+{
+    if (!building.id()) {
+        return;
+    }
+    building_data_transfer_paste(building_get(building.id()), 0);
 }
 
 static int tooltip_has_widget_payload(const tooltip_context *c)
 {
     return c->type != TOOLTIP_NONE
         || c->text_id != 0
-        || c->translation_key != 0
+        || static_cast<bool>(c->translation_key)
         || c->precomposed_text != 0
         || c->has_numeric_prefix
         || c->num_extra_values > 0
@@ -763,19 +713,19 @@ static void handle_hotkeys(const hotkeys *h)
     }
     if (h->rotate_map_left) {
         if (!building_construction_in_progress()) {
-            game_orientation_rotate_left();
+            game_orientation_apply(GameOrientationRequest::turn_quarter_steps(1));
             window_invalidate();
         }
     }
     if (h->rotate_map_right) {
         if (!building_construction_in_progress()) {
-            game_orientation_rotate_right();
+            game_orientation_apply(GameOrientationRequest::turn_quarter_steps(-1));
             window_invalidate();
         }
     }
     if (h->rotate_map_north) {
         if (!building_construction_in_progress()) {
-            game_orientation_rotate_north();
+            game_orientation_apply(GameOrientationRequest::face(DIR_0_TOP));
             window_invalidate();
         }
     }
@@ -807,23 +757,14 @@ static void handle_hotkeys(const hotkeys *h)
         window_invalidate();
     }
     if (h->mothball_toggle) {
-        int building_id = map_building_at(widget_city_current_grid_offset());
-        building *b = building_main(building_get(building_id));
-        if (building_id && model_get_building(b->type)->laborers) {
-            building_mothball_toggle(b);
-            if (b->state == BUILDING_STATE_IN_USE) {
-                mothball_warning_id = city_warning_show(WARNING_DATA_MOTHBALL_OFF, mothball_warning_id);
-            } else if (b->state == BUILDING_STATE_MOTHBALLED) {
-                mothball_warning_id = city_warning_show(WARNING_DATA_MOTHBALL_ON, mothball_warning_id);
-            }
-        }
+        Building building = building_main_at_grid_offset(widget_city_current_grid_offset());
+        toggle_mothball_building(building);
     }
     if (h->storage_order) {
         int grid_offset = widget_city_current_grid_offset();
-        int building_id = map_building_at(grid_offset);
-        if (building_id) {
-            building *b = building_main(building_get(building_id));
-            if (has_storage_orders(b->type)) {
+        const Building building = building_main_at_grid_offset(grid_offset);
+        if (building.id() && building.type) {
+            if (has_storage_orders(*building.type)) {
                 window_building_info_show(grid_offset);
                 window_building_info_show_storage_orders();
             }
@@ -838,18 +779,12 @@ static void handle_hotkeys(const hotkeys *h)
 
     }
     if (h->copy_building_settings) {
-        int building_id = map_building_at(widget_city_current_grid_offset());
-        if (building_id) {
-            building *b = building_main(building_get(building_id));
-            building_data_transfer_copy(b, 0);
-        }
+        Building building = building_main_at_grid_offset(widget_city_current_grid_offset());
+        copy_building_settings(building);
     }
     if (h->paste_building_settings) {
-        int building_id = map_building_at(widget_city_current_grid_offset());
-        if (building_id) {
-            building *b = building_main(building_get(building_id));
-            building_data_transfer_paste(b, 0);
-        }
+        Building building = building_main_at_grid_offset(widget_city_current_grid_offset());
+        paste_building_settings(building);
     }
     if (h->show_empire_map) {
         if (!window_is(WINDOW_EMPIRE)) {

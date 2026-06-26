@@ -25,16 +25,15 @@
     <ClCompile Include="src\assets\augustus_asset_extractor.cpp" />
     <ClCompile Include="src\assets\augustus_julius_template_resolver.cpp" />
     <ClCompile Include="src\assets\graphics_extractor_common.cpp" />
-    <ClCompile Include="src\core\buffer.c" />
-    <ClCompile Include="src\core\image.c">
-      <CompileAs>CompileAsCpp</CompileAs>
-    </ClCompile>
-    <ClCompile Include="src\core\image_packer.c" />
-    <ClCompile Include="src\core\io.c" />
+    <ClCompile Include="src\core\buffer.cpp" />
+    <ClCompile Include="src\core\image.cpp" />
+    <ClCompile Include="src\core\image_packer.cpp" />
+    <ClCompile Include="src\core\io.cpp" />
     <ClCompile Include="src\core\legacy_image_extractor.cpp" />
-    <ClCompile Include="src\core\png_read.c" />
-    <ClCompile Include="src\core\xml_parser.c" />
-    <ClCompile Include="src\graphics\renderer.c" />
+    <ClCompile Include="src\core\png_read.cpp" />
+    <ClCompile Include="src\core\xml_parser.cpp" />
+    <ClCompile Include="src\graphics\image.cpp" />
+    <ClCompile Include="src\graphics\renderer.cpp" />
     <ClCompile Include="ext\sxml\sxml.c" />
     <ClCompile Include="ext\spng\spng.c" />
   </ItemGroup>
@@ -104,7 +103,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>AUGUSTUS_GRAPHICS_EXTRACTOR;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)ext;$(ProjectDir)ext\dirent;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>

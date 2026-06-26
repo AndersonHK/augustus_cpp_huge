@@ -1,5 +1,6 @@
 #pragma once
 
+
 enum {
     VICTORY_STATE_LOST = -1,
     VICTORY_STATE_NONE = 0,
@@ -23,3 +24,4 @@ void city_victory_continue_governing(int months);
 void city_victory_stop_governing(void);
 
 int city_victory_has_won(void);
+

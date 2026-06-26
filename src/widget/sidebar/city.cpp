@@ -1,48 +1,74 @@
-extern "C" {
-#include "city.h"
-
 #include "building/construction.h"
-#include "building/menu.h"
+#include "building/building_type_registry_internal.h"
+#include "translation/translation.h"
 #include "building/tool_mode.h"
-#include "city/message.h"
-#include "city/view.h"
 #include "city/warning.h"
-#include "core/config.h"
-#include "core/direction.h"
-#include "core/lang.h"
-#include "game/campaign.h"
 #include "game/orientation.h"
 #include "game/state.h"
 #include "game/undo.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
-#include "graphics/image_button.h"
 #include "graphics/lang_text.h"
-#include "graphics/screen.h"
-#include "graphics/text.h"
-#include "graphics/window.h"
-#include "input/hotkey.h"
 #include "map/orientation.h"
-#include "scenario/property.h"
-#include "translation/translation.h"
 #include "widget/city.h"
 #include "widget/minimap.h"
 #include "widget/sidebar/common.h"
 #include "widget/sidebar/extra.h"
-#include "widget/sidebar/slide.h"
-#include "window/advisors.h"
 #include "window/build_menu.h"
 #include "window/city.h"
 #include "window/empire.h"
 #include "window/message_dialog.h"
-#include "window/message_list.h"
 #include "window/mission_briefing.h"
+
+#include "city.h"
+
+#include "widget/sidebar/slide.h"
+#include "window/message_list.h"
 #include "window/overlay_menu.h"
-}
+#include "window/advisors.h"
+#include "game/campaign.h"
+
+#include <string_view>
+
+
+#include "building/building_type_api.h"
+#include "building/menu.h"
+#include "city/message.h"
+#include "city/view.h"
+#include "core/config.h"
+#include "core/direction.h"
+#include "graphics/image_button.h"
+#include "graphics/screen.h"
+#include "graphics/text.h"
+#include "graphics/window.h"
+#include "input/hotkey.h"
+#include "scenario/allowed_building.h"
+#include "scenario/property.h"
+
 
 #define MINIMAP_Y_OFFSET 59
 #define TOOLTIP_CLEAR_BUTTON 21
 #define TOOLTIP_ROAD_BUTTON 22
+
+static building_type cached_type_from_loaded_attr(std::string_view attr, building_type &cache)
+{
+    if (cache == BUILDING_NONE) {
+        cache = building_type_registry_impl::type_from_attr(attr);
+    }
+    return cache;
+}
+
+static building_type clear_land_type()
+{
+    static building_type type = BUILDING_NONE;
+    return cached_type_from_loaded_attr("clear_land", type);
+}
+
+static building_type road_type()
+{
+    static building_type type = BUILDING_NONE;
+    return cached_type_from_loaded_attr("road", type);
+}
 
 static void button_overlay(int param1, int param2);
 static void button_collapse_expand(int param1, int param2);
@@ -102,7 +128,7 @@ static image_button buttons_build_expanded[] = {
 static image_button buttons_top_expanded[] = {
     {7, 155, 71, 23, IB_NORMAL, GROUP_SIDEBAR_ADVISORS_EMPIRE, 0, button_advisors, button_none, 0, 0, 1},
     {84, 155, 71, 23, IB_NORMAL, GROUP_SIDEBAR_ADVISORS_EMPIRE, 3, button_empire, button_help, 0, MESSAGE_DIALOG_EMPIRE_MAP, 1},
-    {7, 184, 33, 22, IB_NORMAL, 0, 0, button_toggle_grid, button_none, 0, 0, 1, "UI", "Toggle Grid Button" },
+    {7, 184, 33, 22, IB_NORMAL, 0, 0, button_toggle_grid, button_none, 0, 0, 1, "UI\\Toggle_Grid_Button", "Toggle Grid Button" },
     {46, 184, 33, 22, IB_NORMAL, GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS, 3, button_rotate_north, button_none, 0, 0, 1},
     {84, 184, 33, 22, IB_NORMAL, GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS, 6, button_rotate, button_none, 0, 0, 1},
     {123, 184, 33, 22, IB_NORMAL, GROUP_SIDEBAR_BRIEFING_ROTATE_BUTTONS, 9, button_rotate, button_none, 1, 0, 1},
@@ -118,7 +144,7 @@ static void draw_overlay_text(int x_offset)
         const uint8_t *text = get_current_overlay_text();
         text_draw_centered(text, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     } else {
-        lang_text_draw_centered(6, 4, x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_centered("main_strings.6.4", x_offset, 32, 117, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     }
 }
 
@@ -162,7 +188,7 @@ static void draw_number_of_messages(int x_offset)
 static void draw_buttons_collapsed(int x_offset)
 {
     int asclepius = config_get(CONFIG_UI_DRAW_ASCLEPIUS);
-    buttons_build_collapsed[4].assetlist_name = asclepius ? "UI" : 0;
+    buttons_build_collapsed[4].assetlist_name = asclepius ? "UI\\Asclepius_Button" : 0;
     buttons_build_collapsed[4].image_name = asclepius ? "Asclepius Button" : 0;
     image_buttons_draw(x_offset, 24, button_expand_sidebar, 1);
     image_buttons_draw(x_offset, 24, buttons_build_collapsed, 12);
@@ -171,7 +197,7 @@ static void draw_buttons_collapsed(int x_offset)
 static void draw_buttons_expanded(int x_offset)
 {
     int asclepius = config_get(CONFIG_UI_DRAW_ASCLEPIUS);
-    buttons_build_expanded[4].assetlist_name = asclepius ? "UI" : 0;
+    buttons_build_expanded[4].assetlist_name = asclepius ? "UI\\Asclepius_Button" : 0;
     buttons_build_expanded[4].image_name = asclepius ? "Asclepius Button" : 0;
     buttons_build_expanded[12].enabled = game_can_undo();
     image_buttons_draw(x_offset, 24, buttons_overlays_collapse_sidebar, 2);
@@ -179,21 +205,53 @@ static void draw_buttons_expanded(int x_offset)
     image_buttons_draw(x_offset, 24, buttons_top_expanded, 6);
 }
 
+static building_type direct_tool_type_for_submenu(int submenu)
+{
+    switch (submenu) {
+        case BUILD_MENU_VACANT_HOUSE:
+            return building_type_registry_get_vacant_lot_fill_type();
+        case BUILD_MENU_CLEAR_LAND:
+            return clear_land_type();
+        case BUILD_MENU_ROAD:
+            return road_type();
+        default:
+            return BUILDING_NONE;
+    }
+}
+
+static int direct_tool_button_enabled(int submenu)
+{
+    building_type type = direct_tool_type_for_submenu(submenu);
+    if (type == BUILDING_NONE) {
+        return -1;
+    }
+    return scenario_allowed_building(type);
+}
+
+static int build_button_enabled(int submenu)
+{
+    int direct_tool_enabled = direct_tool_button_enabled(submenu);
+    if (direct_tool_enabled >= 0) {
+        return direct_tool_enabled;
+    }
+    return building_menu_count_items(submenu) > 0;
+}
+
 static void draw_collapsed_background(void)
 {
     int x_offset = sidebar_common_get_x_offset_collapsed();
-    image_draw(image_group(GROUP_SIDE_PANEL), x_offset, 24, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_SIDE_PANEL)).draw(x_offset, 24);
     draw_buttons_collapsed(x_offset);
     draw_sidebar_remainder(x_offset, 1);
 }
 
 static void draw_expanded_background(int x_offset)
 {
-    image_draw(image_group(GROUP_SIDE_PANEL) + 1, x_offset, 24, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_SIDE_PANEL) + 1).draw(x_offset, 24);
     draw_buttons_expanded(x_offset);
     draw_overlay_text(x_offset + 4);
     draw_number_of_messages(x_offset);
-    image_draw(window_build_menu_image(), x_offset + 6, 239, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(window_build_menu_image()).draw(x_offset + 6, 239);
     widget_minimap_update(0);
     widget_minimap_draw_decorated(x_offset + 8, MINIMAP_Y_OFFSET, MINIMAP_WIDTH, MINIMAP_HEIGHT);
 
@@ -212,15 +270,8 @@ void widget_sidebar_city_draw_background(void)
 static void enable_building_buttons(void)
 {
     for (int i = 0; i < 12; i++) {
-        buttons_build_expanded[i].enabled = 1;
-        if (building_menu_count_items(buttons_build_expanded[i].parameter1) <= 0) {
-            buttons_build_expanded[i].enabled = 0;
-        }
-
-        buttons_build_collapsed[i].enabled = 1;
-        if (building_menu_count_items(buttons_build_collapsed[i].parameter1) <= 0) {
-            buttons_build_collapsed[i].enabled = 0;
-        }
+        buttons_build_expanded[i].enabled = build_button_enabled(buttons_build_expanded[i].parameter1);
+        buttons_build_collapsed[i].enabled = build_button_enabled(buttons_build_collapsed[i].parameter1);
     }
 }
 
@@ -297,15 +348,16 @@ int widget_sidebar_city_get_tooltip_text(tooltip_context *c)
 {
     if (data.focus_button_for_tooltip) {
         if (data.focus_button_for_tooltip == 42) {
-            c->translation_key = TR_TOGGLE_GRID;
+            c->translation_key = "TR_TOGGLE_GRID";
             return 0;
         }
         if (data.focus_button_for_tooltip == TOOLTIP_CLEAR_BUTTON) {
+            building_type clear_land = clear_land_type();
             building_type clear_mode = building_tool_mode_resolve(
-                BUILDING_CLEAR_LAND,
-                BUILDING_CLEAR_LAND,
+                clear_land,
+                clear_land,
                 hotkey_get_modifiers());
-            if (building_construction_selection_type() == BUILDING_CLEAR_LAND) {
+            if (building_construction_selection_type() == clear_land) {
                 clear_mode = building_construction_type();
             }
             c->precomposed_text = lang_get_building_type_string(clear_mode);
@@ -313,11 +365,12 @@ int widget_sidebar_city_get_tooltip_text(tooltip_context *c)
             return 0;
         }
         if (data.focus_button_for_tooltip == TOOLTIP_ROAD_BUTTON) {
+            building_type road = road_type();
             building_type road_mode = building_tool_mode_resolve(
-                BUILDING_ROAD,
-                BUILDING_ROAD,
+                road,
+                road,
                 hotkey_get_modifiers());
-            if (building_construction_selection_type() == BUILDING_ROAD) {
+            if (building_construction_selection_type() == road) {
                 road_mode = building_construction_type();
             }
             c->precomposed_text = lang_get_building_type_string(road_mode);
@@ -352,12 +405,12 @@ static void button_collapse_expand(int param1, int param2)
 
 static void button_build(int submenu, int param2)
 {
-    if (submenu == BUILD_MENU_CLEAR_LAND || submenu == BUILD_MENU_ROAD) {
+    building_type direct_tool_type = direct_tool_type_for_submenu(submenu);
+    if (direct_tool_type != BUILDING_NONE) {
         window_build_menu_hide();
         widget_city_clear_current_tile();
         building_construction_cancel();
-        building_type type = submenu == BUILD_MENU_CLEAR_LAND ? BUILDING_CLEAR_LAND : BUILDING_ROAD;
-        building_construction_set_type(type, 0);
+        building_construction_set_type(direct_tool_type, 0);
         window_request_refresh();
         return;
     }
@@ -412,16 +465,12 @@ static void button_toggle_grid(int param1, int param2)
 
 static void button_rotate_north(int param1, int param2)
 {
-    game_orientation_rotate_north();
+    game_orientation_apply(GameOrientationRequest::face(DIR_0_TOP));
     window_invalidate();
 }
 
 static void button_rotate(int clockwise, int param2)
 {
-    if (clockwise) {
-        game_orientation_rotate_right();
-    } else {
-        game_orientation_rotate_left();
-    }
+    game_orientation_apply(GameOrientationRequest::turn_quarter_steps(clockwise ? -1 : 1));
     window_invalidate();
 }

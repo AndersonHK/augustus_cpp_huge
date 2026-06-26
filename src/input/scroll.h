@@ -4,6 +4,7 @@
 #include "input/mouse.h"
 #include "input/touch.h"
 
+
 typedef enum {
     SCROLL_TYPE_CITY = 0,
     SCROLL_TYPE_EMPIRE = 1,
@@ -28,3 +29,4 @@ void scroll_arrow_left(int value);
 void scroll_arrow_right(int value);
 void scroll_arrow_up(int value);
 void scroll_arrow_down(int value);
+

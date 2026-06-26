@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resource id="clay" slot="6" name_key="main_strings.23.11">
+  <model xml_attr="clay" flags="storable" />
+  <trade buy="40" sell="30" />
+  <graphics>
+    <cart load="single" path="Walkers\Group_097" image="Image_0088" />
+    <cart load="multiple" path="Walkers\Group_250" image="Image_0048" />
+    <cart load="eight" path="Walkers\Group_250" image="Image_0048" />
+    <storage load="1" path="Industry\Warehouse_Storage_Filled" image="Image_0040" />
+    <storage load="2" path="Industry\Warehouse_Storage_Filled" image="Image_0041" />
+    <storage load="3" path="Industry\Warehouse_Storage_Filled" image="Image_0042" />
+    <storage load="4" path="Industry\Warehouse_Storage_Filled" image="Image_0043" />
+    <panel_icon path="UI\Resource_Icons" image="Image_0011" />
+    <empire_icon path="PaperMap\Empire_Resources" image="Image_0011" />
+    <editor_icon path="UI\Resource_Icons" image="Image_0011" />
+    <editor_empire_icon path="PaperMap\Empire_Resources" image="Image_0011" />
+  </graphics>
+</resource>

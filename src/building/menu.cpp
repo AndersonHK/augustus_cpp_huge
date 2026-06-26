@@ -1,10 +1,10 @@
+#include "building/building_record.h"
 #include "menu.h"
 
 #include "building/building_type_api.h"
-#include "building/building_type_legacy_migration.h"
 #include "building/building_type_registry_internal.h"
+#include "building/industry.h"
 
-extern "C" {
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/buildings.h"
@@ -13,7 +13,6 @@ extern "C" {
 #include "game/tutorial.h"
 #include "scenario/allowed_building.h"
 #include "scenario/property.h"
-}
 
 #include <algorithm>
 #include <array>
@@ -28,83 +27,41 @@ struct menu_entry {
     int enabled = 0;
 };
 
-static const building_type LEGACY_MENU_BUILDING_TYPE[BUILD_MENU_MAX][30] = {
-    {BUILDING_HOUSE_VACANT_LOT, BUILDING_NONE},
-    {BUILDING_CLEAR_LAND, BUILDING_REPAIR_LAND, BUILDING_NONE},
-    {BUILDING_ROAD, BUILDING_HIGHWAY, BUILDING_ROADBLOCK, BUILDING_NONE},
-    {BUILDING_DRAGGABLE_RESERVOIR, BUILDING_AQUEDUCT, BUILDING_NONE},
-    {BUILDING_NONE},
-    {BUILDING_MENU_SMALL_TEMPLES, BUILDING_MENU_LARGE_TEMPLES, BUILDING_MENU_GRAND_TEMPLES, BUILDING_MENU_SHRINES,
-        BUILDING_ORACLE, BUILDING_SMALL_MAUSOLEUM, BUILDING_LARGE_MAUSOLEUM, BUILDING_NYMPHAEUM, BUILDING_NONE},
-    {BUILDING_MISSION_POST, BUILDING_NONE},
-    {BUILDING_NONE},
-    {BUILDING_MENU_GARDENS, BUILDING_MENU_TREES, BUILDING_MENU_PATHS, BUILDING_MENU_PARKS, BUILDING_MENU_STATUES,
-        BUILDING_MENU_GOV_RES, BUILDING_PLAZA, BUILDING_CITY_MINT,
-        BUILDING_TRIUMPHAL_ARCH, BUILDING_NONE},
-    {BUILDING_LOW_BRIDGE, BUILDING_SHIP_BRIDGE, BUILDING_SHIPYARD, BUILDING_DOCK, BUILDING_WHARF, BUILDING_NONE},
-    {BUILDING_PALISADE, BUILDING_WALL, BUILDING_TOWER, BUILDING_GATEHOUSE,
-        BUILDING_MENU_FORT, BUILDING_BARRACKS, BUILDING_MESS_HALL, BUILDING_MILITARY_ACADEMY, BUILDING_NONE},
-    {BUILDING_MENU_FARMS, BUILDING_MENU_RAW_MATERIALS, BUILDING_MENU_WORKSHOPS,
-        BUILDING_GRANARY, BUILDING_WAREHOUSE, BUILDING_DEPOT, BUILDING_NONE},
-    {BUILDING_NONE},
-    {BUILDING_NONE},
-    {BUILDING_CONCRETE_MAKER, BUILDING_NONE},
-    {BUILDING_MENU_SMALL_TEMPLES, BUILDING_NONE},
-    {BUILDING_MENU_LARGE_TEMPLES, BUILDING_NONE},
-    {BUILDING_FORT_LEGIONARIES, BUILDING_FORT_JAVELIN, BUILDING_FORT_MOUNTED, BUILDING_FORT_AUXILIA_INFANTRY, BUILDING_FORT_ARCHERS, BUILDING_NONE},
-    {BUILDING_COLONNADE, BUILDING_HEDGE_LIGHT, BUILDING_HEDGE_DARK, BUILDING_LOOPED_GARDEN_WALL, BUILDING_ROOFED_GARDEN_WALL,
-        BUILDING_PANELLED_GARDEN_WALL, BUILDING_PAVILION_BLUE, BUILDING_SMALL_POND, BUILDING_LARGE_POND, BUILDING_NONE},
-    {BUILDING_MENU_TREES, BUILDING_PINE_TREE, BUILDING_FIR_TREE, BUILDING_OAK_TREE, BUILDING_ELM_TREE, BUILDING_FIG_TREE, BUILDING_PLUM_TREE,
-        BUILDING_PALM_TREE, BUILDING_DATE_TREE, BUILDING_NONE},
-    {BUILDING_MENU_PATHS, BUILDING_GARDEN_PATH, BUILDING_PINE_PATH , BUILDING_FIR_PATH, BUILDING_OAK_PATH, BUILDING_ELM_PATH,
-        BUILDING_FIG_PATH, BUILDING_PLUM_PATH, BUILDING_PALM_PATH, BUILDING_DATE_PATH, BUILDING_NONE},
-    {BUILDING_NONE},
-    {BUILDING_SMALL_STATUE, BUILDING_GODDESS_STATUE, BUILDING_SENATOR_STATUE, BUILDING_GLADIATOR_STATUE, BUILDING_DECORATIVE_COLUMN,
-        BUILDING_MEDIUM_STATUE, BUILDING_LEGION_STATUE, BUILDING_OBELISK, BUILDING_HORSE_STATUE, BUILDING_NONE},
-    {BUILDING_NONE},
-    {BUILDING_MENU_SHRINES, BUILDING_SHRINE_CERES, BUILDING_SHRINE_NEPTUNE, BUILDING_SHRINE_MERCURY, BUILDING_SHRINE_MARS, BUILDING_SHRINE_VENUS, BUILDING_NONE},
-    {BUILDING_MENU_GARDENS, BUILDING_GARDENS, BUILDING_OVERGROWN_GARDENS, BUILDING_NONE}
-};
-
 static std::array<std::vector<menu_entry>, BUILD_MENU_MAX> menu_entries;
 
 static int menu_catalog_built = 0;
 static int changed = 1;
 
+struct submenu_expander_mapping {
+    build_menu_group submenu;
+    const char *text_id;
+};
+
+static const submenu_expander_mapping SUBMENU_EXPANDERS[] = {
+    {BUILD_MENU_FARMS, "farms"},
+    {BUILD_MENU_RAW_MATERIALS, "raw_materials"},
+    {BUILD_MENU_WORKSHOPS, "workshops"},
+    {BUILD_MENU_SMALL_TEMPLES, "small_temples"},
+    {BUILD_MENU_LARGE_TEMPLES, "large_temples"},
+    {BUILD_MENU_FORTS, "fort"},
+    {BUILD_MENU_GRAND_TEMPLES, "grand_temples"},
+    {BUILD_MENU_PARKS, "parks"},
+    {BUILD_MENU_TREES, "trees"},
+    {BUILD_MENU_PATHS, "paths"},
+    {BUILD_MENU_GOV_RES, "governor_home"},
+    {BUILD_MENU_STATUES, "statues"},
+    {BUILD_MENU_SHRINES, "shrines"},
+    {BUILD_MENU_GARDENS, "all_gardens"},
+};
+
 static building_type submenu_expander_type(int submenu)
 {
-    switch (submenu) {
-        case BUILD_MENU_FARMS:
-            return BUILDING_MENU_FARMS;
-        case BUILD_MENU_RAW_MATERIALS:
-            return BUILDING_MENU_RAW_MATERIALS;
-        case BUILD_MENU_WORKSHOPS:
-            return BUILDING_MENU_WORKSHOPS;
-        case BUILD_MENU_SMALL_TEMPLES:
-            return BUILDING_MENU_SMALL_TEMPLES;
-        case BUILD_MENU_LARGE_TEMPLES:
-            return BUILDING_MENU_LARGE_TEMPLES;
-        case BUILD_MENU_FORTS:
-            return BUILDING_MENU_FORT;
-        case BUILD_MENU_GRAND_TEMPLES:
-            return BUILDING_MENU_GRAND_TEMPLES;
-        case BUILD_MENU_PARKS:
-            return BUILDING_MENU_PARKS;
-        case BUILD_MENU_TREES:
-            return BUILDING_MENU_TREES;
-        case BUILD_MENU_PATHS:
-            return BUILDING_MENU_PATHS;
-        case BUILD_MENU_GOV_RES:
-            return BUILDING_MENU_GOV_RES;
-        case BUILD_MENU_STATUES:
-            return BUILDING_MENU_STATUES;
-        case BUILD_MENU_SHRINES:
-            return BUILDING_MENU_SHRINES;
-        case BUILD_MENU_GARDENS:
-            return BUILDING_MENU_GARDENS;
-        default:
-            return BUILDING_NONE;
+    for (const submenu_expander_mapping &mapping : SUBMENU_EXPANDERS) {
+        if (mapping.submenu == submenu) {
+            return building_type_registry_impl::type_from_attr(mapping.text_id);
+        }
     }
+    return BUILDING_NONE;
 }
 
 static int is_valid_submenu(int submenu)
@@ -125,6 +82,7 @@ static build_menu_group button_group_from_string(const char *group)
     static const group_mapping groups[] = {
         {"vacant_house", BUILD_MENU_VACANT_HOUSE},
         {"clear_land", BUILD_MENU_CLEAR_LAND},
+        {"tools", BUILD_MENU_CLEAR_LAND},
         {"road", BUILD_MENU_ROAD},
         {"water", BUILD_MENU_WATER},
         {"health", BUILD_MENU_HEALTH},
@@ -170,20 +128,10 @@ static void add_menu_entry(build_menu_group submenu, building_type type, int ord
 
 static building_type menu_tool_type_for_definition(building_type type)
 {
-    if (type == BUILDING_RESERVOIR) {
-        return BUILDING_DRAGGABLE_RESERVOIR;
+    if (building_type_registry_impl::type_attr_is(type, "reservoir")) {
+        return building_type_registry_impl::type_from_attr("draggable_reservoir");
     }
     return type;
-}
-
-static int legacy_menu_entry_is_xml_owned(building_type type)
-{
-    if (type <= BUILDING_NONE || type >= BUILDING_TYPE_MAX) {
-        return 0;
-    }
-
-    const char *text_id = building_type_legacy_migration_text_id_for_enum(static_cast<uint16_t>(type));
-    return building_type_legacy_migration_text_id_is_xml_owned(text_id);
 }
 
 static void rebuild_menu_catalog(void)
@@ -192,24 +140,19 @@ static void rebuild_menu_catalog(void)
         entries.clear();
     }
 
-    for (int submenu = 0; submenu < BUILD_MENU_MAX; submenu++) {
-        for (int item = 0; LEGACY_MENU_BUILDING_TYPE[submenu][item] != BUILDING_NONE; item++) {
-            building_type legacy_type = LEGACY_MENU_BUILDING_TYPE[submenu][item];
-            if (legacy_menu_entry_is_xml_owned(legacy_type)) {
-                continue;
-            }
-            add_menu_entry(static_cast<build_menu_group>(submenu), legacy_type, item * 100);
-        }
-    }
-
     using namespace building_type_registry_impl;
     for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
-        if (!definition || !definition->has_button() || !definition->button().has_group()) {
+        if (!definition) {
             continue;
         }
-        build_menu_group submenu = button_group_from_string(definition->button().group());
-        int order = definition->button().has_order() ? definition->button().order() : 10000;
-        add_menu_entry(submenu, menu_tool_type_for_definition(definition->type()), order);
+        for (const BuildButtonDefinition &button : definition->buttons()) {
+            if (!button.has_group()) {
+                continue;
+            }
+            build_menu_group submenu = button_group_from_string(button.group());
+            int order = button.has_order() ? button.order() : 10000;
+            add_menu_entry(submenu, menu_tool_type_for_definition(definition->type()), order);
+        }
     }
 
     for (std::vector<menu_entry> &entries : menu_entries) {
@@ -236,16 +179,6 @@ void building_menu_invalidate_catalog(void)
     changed = 1;
 }
 
-static building_type well_type(void)
-{
-    return BUILDING_WELL;
-}
-
-static building_type theater_type(void)
-{
-    return BUILDING_THEATER;
-}
-
 void building_menu_enable_all(void)
 {
     rebuild_menu_catalog();
@@ -258,14 +191,14 @@ void building_menu_enable_all(void)
 
 static void enable_house(int *enabled, building_type menu_building_type)
 {
-    if (menu_building_type >= BUILDING_HOUSE_VACANT_LOT && menu_building_type <= BUILDING_HOUSE_LUXURY_PALACE) {
+    if (building_type_registry_has_housing(menu_building_type)) {
         *enabled = 1;
     }
 }
 
 static void enable_clear(int *enabled, building_type menu_building_type)
 {
-    if (menu_building_type == BUILDING_CLEAR_LAND) {
+    if (building_type_registry_impl::type_attr_is(menu_building_type, "clear_land")) {
         *enabled = 1;
     }
 }
@@ -288,22 +221,24 @@ static int is_building_type_allowed(building_type type);
 
 static int can_get_required_resource(building_type type)
 {
-    switch (type) {
-        case BUILDING_SHIPYARD:
-            return empire_can_produce_resource_naturally(RESOURCE_FISH);
-        case BUILDING_TAVERN:
-            return empire_can_produce_resource_potentially(RESOURCE_WINE) ||
-                empire_can_import_resource_potentially(RESOURCE_WINE);
-        case BUILDING_LIGHTHOUSE:
-            return (empire_can_produce_resource_potentially(RESOURCE_TIMBER) ||
-                empire_can_import_resource_potentially(RESOURCE_TIMBER)) &&
-                building_monument_has_required_resources_to_build(type);
-        case BUILDING_CITY_MINT:
-            return is_building_type_allowed(BUILDING_SENATE) &&
-                building_monument_has_required_resources_to_build(type);
-        default:
-            return building_monument_has_required_resources_to_build(type);
+    if (building_type_registry_impl::type_attr_is(type, "shipyard")) {
+        return empire_can_produce_resource_naturally(resource_fish());
+    } else if (building_is_farm(type)) {
+        const resource_type output_resource = building_output_resource(type);
+        return output_resource > RESOURCE_NONE && empire_can_produce_resource_locally(output_resource);
+    } else if (building_type_registry_impl::type_attr_is(type, "tavern")) {
+        return empire_can_produce_resource_potentially(resource_wine()) ||
+            empire_can_import_resource_potentially(resource_wine());
+    } else if (building_type_registry_impl::type_attr_is(type, "lighthouse")) {
+        return (empire_can_produce_resource_potentially(resource_timber()) ||
+            empire_can_import_resource_potentially(resource_timber())) &&
+            building_monument_has_required_resources_to_build(type);
+    } else if (building_type_registry_impl::type_attr_is(type, "city_mint")) {
+        building_type senate = building_type_registry_impl::type_from_attr("senate");
+        return senate != BUILDING_NONE && is_building_type_allowed(senate) &&
+            building_monument_has_required_resources_to_build(type);
     }
+    return building_monument_has_required_resources_to_build(type);
 }
 
 static int is_building_type_allowed(building_type type)
@@ -319,12 +254,19 @@ static void enable_if_allowed(int *enabled, building_type menu_building_type, bu
     if (menu_building_type != type) {
         return;
     }
-    if (type == BUILDING_MENU_SMALL_TEMPLES || type == BUILDING_MENU_LARGE_TEMPLES || type == BUILDING_MENU_FORT) {
+    if (building_type_registry_impl::type_attr_is(type, "small_temples") ||
+        building_type_registry_impl::type_attr_is(type, "large_temples") ||
+        building_type_registry_impl::type_attr_is(type, "fort")) {
         *enabled = 1;
         enable_cycling_temples_if_allowed(type);
     } else {
         *enabled = is_building_type_allowed(type);
     }
+}
+
+static void enable_if_allowed(int *enabled, building_type menu_building_type, const char *type_text_id)
+{
+    enable_if_allowed(enabled, menu_building_type, building_type_registry_impl::type_from_attr(type_text_id));
 }
 
 static void enable_submenu_entries_if_allowed(int *enabled, building_type type, int submenu)
@@ -349,7 +291,7 @@ static void disable_raw(int *enabled, building_type menu_building_type, building
     if (!empire_can_produce_resource_naturally(resource)) {
         *enabled = 0;
     }
-    if (scenario_is_tutorial_2() && resource == RESOURCE_SAND) {
+    if (scenario_is_tutorial_2() && resource == resource_sand()) {
         *enabled = 0;
     }
 }
@@ -362,7 +304,7 @@ static void disable_finished(int *enabled, building_type menu_building_type, bui
     if (!empire_can_produce_resource_potentially(resource)) {
         *enabled = 0;
     }
-    if (scenario_is_tutorial_2() && (resource != RESOURCE_POTTERY && resource != RESOURCE_WEAPONS)) {
+    if (scenario_is_tutorial_2() && (resource != resource_pottery() && resource != resource_weapons())) {
         *enabled = 0;
     }
 }
@@ -392,7 +334,8 @@ static void enable_normal(int *enabled, building_type type)
         enable_if_allowed(enabled, type, current_type);
     }
 
-    if (type == BUILDING_TRIUMPHAL_ARCH && !city_buildings_triumphal_arch_available()) {
+    if (building_type_registry_impl::type_attr_is(type, "triumphal_arch") &&
+        !city_buildings_triumphal_arch_available()) {
         *enabled = 0;
     }
 }
@@ -401,107 +344,107 @@ static void enable_tutorial1_start(int *enabled, building_type type)
 {
     enable_house(enabled, type);
     enable_clear(enabled, type);
-    enable_if_allowed(enabled, type, well_type());
-    enable_if_allowed(enabled, type, BUILDING_ROAD);
-    enable_if_allowed(enabled, type, BUILDING_ROADBLOCK);
+    enable_if_allowed(enabled, type, "well");
+    enable_if_allowed(enabled, type, "road");
+    enable_if_allowed(enabled, type, "roadblock");
 }
 
 static void enable_tutorial1_after_fire(int *enabled, building_type type)
 {
     enable_tutorial1_start(enabled, type);
-    enable_if_allowed(enabled, type, BUILDING_PREFECTURE);
-    enable_if_allowed(enabled, type, BUILDING_MARKET);
+    enable_if_allowed(enabled, type, "prefecture");
+    enable_if_allowed(enabled, type, "market");
 }
 
 static void enable_tutorial1_after_collapse(int *enabled, building_type type)
 {
     enable_tutorial1_after_fire(enabled, type);
-    enable_if_allowed(enabled, type, BUILDING_ENGINEERS_POST);
-    enable_if_allowed(enabled, type, BUILDING_SENATE);
+    enable_if_allowed(enabled, type, "engineers_post");
+    enable_if_allowed(enabled, type, "senate");
 }
 
 static void enable_tutorial1_after_senate(int *enabled, building_type type)
 {
     enable_tutorial1_after_collapse(enabled, type);
-    enable_if_allowed(enabled, type, BUILDING_MENU_SMALL_TEMPLES);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_CERES);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_NEPTUNE);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_MERCURY);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_MARS);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_VENUS);
+    enable_if_allowed(enabled, type, "small_temples");
+    enable_if_allowed(enabled, type, "small_temple_ceres");
+    enable_if_allowed(enabled, type, "small_temple_neptune");
+    enable_if_allowed(enabled, type, "small_temple_mercury");
+    enable_if_allowed(enabled, type, "small_temple_mars");
+    enable_if_allowed(enabled, type, "small_temple_venus");
 }
 
 static void enable_tutorial2_start(int *enabled, building_type type)
 {
     enable_house(enabled, type);
     enable_clear(enabled, type);
-    enable_if_allowed(enabled, type, well_type());
-    enable_if_allowed(enabled, type, BUILDING_ROAD);
-    enable_if_allowed(enabled, type, BUILDING_ROADBLOCK);
-    enable_if_allowed(enabled, type, BUILDING_PREFECTURE);
-    enable_if_allowed(enabled, type, BUILDING_ENGINEERS_POST);
-    enable_if_allowed(enabled, type, BUILDING_SENATE);
-    enable_if_allowed(enabled, type, BUILDING_MARKET);
-    enable_if_allowed(enabled, type, BUILDING_GRANARY);
-    enable_if_allowed(enabled, type, BUILDING_MENU_FARMS);
-    enable_if_allowed(enabled, type, BUILDING_WHEAT_FARM);
-    enable_if_allowed(enabled, type, BUILDING_VEGETABLE_FARM);
-    enable_if_allowed(enabled, type, BUILDING_FRUIT_FARM);
-    enable_if_allowed(enabled, type, BUILDING_PIG_FARM);
-    enable_if_allowed(enabled, type, BUILDING_MENU_SMALL_TEMPLES);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_CERES);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_NEPTUNE);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_MERCURY);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_MARS);
-    enable_if_allowed(enabled, type, BUILDING_SMALL_TEMPLE_VENUS);
+    enable_if_allowed(enabled, type, "well");
+    enable_if_allowed(enabled, type, "road");
+    enable_if_allowed(enabled, type, "roadblock");
+    enable_if_allowed(enabled, type, "prefecture");
+    enable_if_allowed(enabled, type, "engineers_post");
+    enable_if_allowed(enabled, type, "senate");
+    enable_if_allowed(enabled, type, "market");
+    enable_if_allowed(enabled, type, "granary");
+    enable_if_allowed(enabled, type, "farms");
+    enable_if_allowed(enabled, type, "wheat_farm");
+    enable_if_allowed(enabled, type, "vegetable_farm");
+    enable_if_allowed(enabled, type, "fruit_farm");
+    enable_if_allowed(enabled, type, "pig_farm");
+    enable_if_allowed(enabled, type, "small_temples");
+    enable_if_allowed(enabled, type, "small_temple_ceres");
+    enable_if_allowed(enabled, type, "small_temple_neptune");
+    enable_if_allowed(enabled, type, "small_temple_mercury");
+    enable_if_allowed(enabled, type, "small_temple_mars");
+    enable_if_allowed(enabled, type, "small_temple_venus");
 }
 
 static void enable_tutorial2_up_to_250(int *enabled, building_type type)
 {
     enable_tutorial2_start(enabled, type);
-    enable_if_allowed(enabled, type, BUILDING_DRAGGABLE_RESERVOIR);
-    enable_if_allowed(enabled, type, BUILDING_AQUEDUCT);
-    enable_if_allowed(enabled, type, BUILDING_FOUNTAIN);
+    enable_if_allowed(enabled, type, "draggable_reservoir");
+    enable_if_allowed(enabled, type, "aqueduct");
+    enable_if_allowed(enabled, type, "fountain");
 }
 
 static void enable_tutorial2_up_to_450(int *enabled, building_type type)
 {
     enable_tutorial2_up_to_250(enabled, type);
-    enable_if_allowed(enabled, type, BUILDING_MENU_GARDENS);
-    enable_if_allowed(enabled, type, BUILDING_GARDENS);
-    enable_if_allowed(enabled, type, BUILDING_OVERGROWN_GARDENS);
-    enable_if_allowed(enabled, type, BUILDING_ACTOR_COLONY);
-    enable_if_allowed(enabled, type, theater_type());
-    enable_if_allowed(enabled, type, BUILDING_BATHHOUSE);
-    enable_if_allowed(enabled, type, BUILDING_SCHOOL);
+    enable_if_allowed(enabled, type, "all_gardens");
+    enable_if_allowed(enabled, type, "gardens");
+    enable_if_allowed(enabled, type, "overgrown_gardens");
+    enable_if_allowed(enabled, type, "actor_colony");
+    enable_if_allowed(enabled, type, "theater");
+    enable_if_allowed(enabled, type, "bathhouse");
+    enable_if_allowed(enabled, type, "school");
 }
 
 static void enable_tutorial2_after_450(int *enabled, building_type type)
 {
     enable_tutorial2_up_to_450(enabled, type);
-    enable_if_allowed(enabled, type, BUILDING_MENU_RAW_MATERIALS);
+    enable_if_allowed(enabled, type, "raw_materials");
     enable_submenu_entries_if_allowed(enabled, type, BUILD_MENU_RAW_MATERIALS);
-    enable_if_allowed(enabled, type, BUILDING_MENU_WORKSHOPS);
-    enable_if_allowed(enabled, type, BUILDING_WINE_WORKSHOP);
-    enable_if_allowed(enabled, type, BUILDING_OIL_WORKSHOP);
-    enable_if_allowed(enabled, type, BUILDING_WEAPONS_WORKSHOP);
-    enable_if_allowed(enabled, type, BUILDING_FURNITURE_WORKSHOP);
-    enable_if_allowed(enabled, type, BUILDING_POTTERY_WORKSHOP);
-    enable_if_allowed(enabled, type, BUILDING_BRICKWORKS);
-    enable_if_allowed(enabled, type, BUILDING_CONCRETE_MAKER);
-    enable_if_allowed(enabled, type, BUILDING_WAREHOUSE);
-    enable_if_allowed(enabled, type, BUILDING_FORUM);
-    enable_if_allowed(enabled, type, BUILDING_AMPHITHEATER);
-    enable_if_allowed(enabled, type, BUILDING_GLADIATOR_SCHOOL);
+    enable_if_allowed(enabled, type, "workshops");
+    enable_if_allowed(enabled, type, "wine_workshop");
+    enable_if_allowed(enabled, type, "oil_workshop");
+    enable_if_allowed(enabled, type, "weapons_workshop");
+    enable_if_allowed(enabled, type, "furniture_workshop");
+    enable_if_allowed(enabled, type, "pottery_workshop");
+    enable_if_allowed(enabled, type, "brickworks");
+    enable_if_allowed(enabled, type, "concrete_maker");
+    enable_if_allowed(enabled, type, "warehouse");
+    enable_if_allowed(enabled, type, "forum");
+    enable_if_allowed(enabled, type, "amphitheater");
+    enable_if_allowed(enabled, type, "gladiator_school");
 }
 
 static void disable_resources(int *enabled, building_type type)
 {
-    for (resource_type r = RESOURCE_MIN; r < RESOURCE_MAX; r = static_cast<resource_type>(static_cast<int>(r) + 1)) {
+    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(static_cast<int>(r) + 1)) {
         if (resource_is_food(r) || resource_is_raw_material(r)) {
-            disable_raw(enabled, type, resource_get_data(r)->industry, r);
+            disable_raw(enabled, type, building_producer_for_resource(r), r);
         } else {
-            disable_finished(enabled, type, resource_get_data(r)->industry, r);
+            disable_finished(enabled, type, building_producer_for_resource(r), r);
         }
     }
 }
@@ -559,12 +502,12 @@ void building_menu_update(void)
             }
         }
     }
-    enable_cycling_temples_if_allowed(BUILDING_MENU_SMALL_TEMPLES);
-    enable_cycling_temples_if_allowed(BUILDING_MENU_LARGE_TEMPLES);
-    enable_cycling_temples_if_allowed(BUILDING_MENU_SHRINES);
-    enable_cycling_temples_if_allowed(BUILDING_MENU_TREES);
-    enable_cycling_temples_if_allowed(BUILDING_MENU_PATHS);
-    enable_cycling_temples_if_allowed(BUILDING_MENU_GARDENS);
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("small_temples"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("large_temples"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("shrines"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("trees"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("paths"));
+    enable_cycling_temples_if_allowed(building_type_registry_impl::type_from_attr("all_gardens"));
     changed = 1;
 }
 
@@ -666,37 +609,11 @@ int building_menu_is_submenu(build_menu_group menu)
 
 int building_menu_get_submenu_for_type(building_type type)
 {
-    switch (type) {
-        case BUILDING_MENU_FARMS:
-            return BUILD_MENU_FARMS;
-        case BUILDING_MENU_RAW_MATERIALS:
-            return BUILD_MENU_RAW_MATERIALS;
-        case BUILDING_MENU_WORKSHOPS:
-            return BUILD_MENU_WORKSHOPS;
-        case BUILDING_MENU_SMALL_TEMPLES:
-            return BUILD_MENU_SMALL_TEMPLES;
-        case BUILDING_MENU_LARGE_TEMPLES:
-            return BUILD_MENU_LARGE_TEMPLES;
-        case BUILDING_MENU_FORT:
-            return BUILD_MENU_FORTS;
-        case BUILDING_MENU_GRAND_TEMPLES:
-            return BUILD_MENU_GRAND_TEMPLES;
-        case BUILDING_MENU_PARKS:
-            return BUILD_MENU_PARKS;
-        case BUILDING_MENU_TREES:
-            return BUILD_MENU_TREES;
-        case BUILDING_MENU_PATHS:
-            return BUILD_MENU_PATHS;
-        case BUILDING_MENU_GOV_RES:
-            return BUILD_MENU_GOV_RES;
-        case BUILDING_MENU_STATUES:
-            return BUILD_MENU_STATUES;
-        case BUILDING_MENU_SHRINES:
-            return BUILD_MENU_SHRINES;
-        case BUILDING_MENU_GARDENS:
-            return BUILD_MENU_GARDENS;
-        default:
-            return 0;
+    for (const submenu_expander_mapping &mapping : SUBMENU_EXPANDERS) {
+        if (building_type_registry_impl::type_attr_is(type, mapping.text_id)) {
+            return mapping.submenu;
+        }
     }
+    return 0;
 }
 

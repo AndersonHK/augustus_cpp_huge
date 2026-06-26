@@ -1,22 +1,22 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "translation/translation.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+
 #include "select_city_trade_route.h"
 
-#include "core/lang.h"
+#include "window/editor/map.h"
+
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/trade_route.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/scrollbar.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-}
 
 #include <string.h>
 #include <stdio.h>
@@ -28,8 +28,8 @@ extern "C" {
 #define DETAILS_ROW_HEIGHT 32
 #define MAX_VISIBLE_ROWS 14
 
-#define RESOURCE_ALL_BUYS RESOURCE_MAX + 1 // max +1 indicates all resources that this trade route buys
-#define RESOURCE_ALL_SELLS RESOURCE_MAX + 2 // max +2 indicates all resources that this trade route sells
+#define RESOURCE_ALL_BUYS RESOURCE_SLOT_COUNT + 1 // max +1 indicates all resources that this trade route buys
+#define RESOURCE_ALL_SELLS RESOURCE_SLOT_COUNT + 2 // max +2 indicates all resources that this trade route sells
 
 typedef enum {
     WINDOW_TYPE_TRADE_ROUTES,
@@ -80,10 +80,10 @@ static struct {
 } data;
 
 static struct {
-    city_resource_state resource[RESOURCE_MAX];
+    city_resource_state resource[RESOURCE_SLOT_COUNT];
     int trade_route_id;
     list_item_entry_t list[MAX_VISIBLE_ROWS];
-    resource_type traded_resources[RESOURCE_MAX]; // Maps list index to actual resource_type
+    resource_type traded_resources[RESOURCE_SLOT_COUNT]; // Maps list index to actual resource_type
     unsigned int resource_list_size;
     void (*callback)(int);
     unsigned int focus_button_id;
@@ -132,11 +132,11 @@ static void populate_resource_list_for_route(int offset)
             // Handle special 'All' entries (first two positions)
             if (list_index == 0) {
                 route_resource_data.list[i].id = RESOURCE_ALL_BUYS;
-                route_resource_data.list[i].name = translation_for(TR_EDITOR_ALL_BUYS);
+                route_resource_data.list[i].name = translation_for_key("TR_EDITOR_ALL_BUYS");
                 continue;
             } else if (list_index == 1) {
                 route_resource_data.list[i].id = RESOURCE_ALL_SELLS;
-                route_resource_data.list[i].name = translation_for(TR_EDITOR_ALL_SELLS);
+                route_resource_data.list[i].name = translation_for_key("TR_EDITOR_ALL_SELLS");
                 continue;
             }
 
@@ -149,8 +149,8 @@ static void populate_resource_list_for_route(int offset)
             if (r_data) {
                 const uint8_t *resource_name = r_data->text;
                 const uint8_t *suffix =
-                    route_resource_data.resource[r] == RESOURCE_BUYS ? translation_for(TR_EDITOR_BUYS) :
-                    route_resource_data.resource[r] == RESOURCE_SELLS ? translation_for(TR_EDITOR_SELLS) :
+                    route_resource_data.resource[r] == RESOURCE_BUYS ? translation_for_key("TR_EDITOR_BUYS") :
+                    route_resource_data.resource[r] == RESOURCE_SELLS ? translation_for_key("TR_EDITOR_SELLS") :
                     NULL;
 
                 static uint8_t name_buffer[MAX_VISIBLE_ROWS][64];
@@ -178,7 +178,7 @@ static void create_resource_list_for_route(int route_id)
     route_resource_data.resource_list_size = 2;
 
     // Build a sequential list of traded resources (starting after the 'All' entries)
-    for (int r = RESOURCE_MIN; r < RESOURCE_MAX; r++) {
+    for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
         resource_type resource = static_cast<resource_type>(r);
         if (!resource_is_storable(resource)) {
             continue;
@@ -238,7 +238,7 @@ static void draw_foreground(void)
         y_offset += DETAILS_ROW_HEIGHT;
     }
 
-    lang_text_draw_centered(13, 3, 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 48, 32 + 16 * 30, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();
@@ -393,9 +393,9 @@ const uint8_t *window_editor_select_city_trade_route_show_get_selected_name(int 
 
     // Handle special 'All' cases
     if (resource_id == RESOURCE_ALL_BUYS) {
-        return translation_for(TR_EDITOR_ALL_BUYS);
+        return translation_for_key("TR_EDITOR_ALL_BUYS");
     } else if (resource_id == RESOURCE_ALL_SELLS) {
-        return translation_for(TR_EDITOR_ALL_SELLS);
+        return translation_for_key("TR_EDITOR_ALL_SELLS");
     }
 
     // Get the resource data
@@ -417,9 +417,9 @@ const uint8_t *window_editor_select_city_trade_route_show_get_selected_name(int 
 
     const uint8_t *suffix = NULL;
     if (buys) {
-        suffix = translation_for(TR_EDITOR_BUYS);
+        suffix = translation_for_key("TR_EDITOR_BUYS");
     } else if (sells) {
-        suffix = translation_for(TR_EDITOR_SELLS);
+        suffix = translation_for_key("TR_EDITOR_SELLS");
     }
 
     // Combine resource name with suffix

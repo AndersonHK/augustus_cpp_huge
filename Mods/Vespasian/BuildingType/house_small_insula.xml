@@ -19,6 +19,22 @@
                 <option image="Image_0001" />
             </options>
         </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Aesthetics\House_Insula_1_Northern" />
+            <options selection="stable_variant">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Aesthetics\House_Insula_1_Desert" />
+            <options selection="stable_variant">
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+            </options>
+        </variant>
     </graphics>
     <housing path="house_small_insula" capacity="19" evolve_to="house_medium_insula" devolve_to="house_large_casa" merge_to="house_small_insula_2x2" />
     <spawn_group road_access="normal" delay_bands="100:0">

@@ -5,9 +5,6 @@
 #include "translation/translation.h"
 #include "graphics/screen.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     LANG_FRAG_LABEL,    // a lang string
@@ -24,31 +21,12 @@ typedef struct {
     int number;
     int space_width;
     const uint8_t *text;
+    translation_key text_key;
 } lang_fragment;
-
-int lang_text_get_width(int group, int number, font_t font, int pixel_size);
-
-int lang_text_draw(int group, int number, int x_offset, int y_offset, font_t font, int pixel_size);
-int lang_text_draw_colored(int group, int number, int x_offset, int y_offset, font_t font, int pixel_size, color_t color);
-
-void lang_text_draw_centered(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
-void lang_text_draw_right_aligned(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
-void lang_text_draw_centered_colored(
-    int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
-
-void lang_text_draw_ellipsized(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
-int lang_text_get_amount_width(int group, int number, int amount, font_t font, int pixel_size);
-int lang_text_draw_amount(int group, int number, int amount, int x_offset, int y_offset, font_t font, int pixel_size);
-int lang_text_draw_amount_centered(int group, int number, int amount, int x_offset, int y_offset, int box_width,
-    font_t font, int pixel_size);
-int lang_text_draw_amount_colored(int group, int number, int amount, int x_offset, int y_offset,
-    font_t font, int pixel_size, color_t color);
 
 int lang_text_draw_year(int year, int x_offset, int y_offset, font_t font, int pixel_size);
 void lang_text_draw_month_year_max_width(
     int month, int year, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
-
-int lang_text_draw_multiline(int group, int number, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
 
 int lang_text_get_sequence_width(const lang_fragment *seq, int count, font_t font, int pixel_size);
 int lang_text_draw_sequence(const lang_fragment *seq, int count, int x, int y, font_t font, int pixel_size, color_t color);
@@ -61,6 +39,26 @@ int lang_text_draw_sequence_centered_ellipsized(const lang_fragment *seq, int co
 
 int lang_text_concatenate_sequence(const lang_fragment *seq, int count, uint8_t *dst, int dst_size);
 
-#ifdef __cplusplus
-}
-#endif
+
+int lang_text_get_width(translation_key key, font_t font, int pixel_size);
+
+int lang_text_draw(translation_key key, int x_offset, int y_offset, font_t font, int pixel_size);
+int lang_text_draw_colored(translation_key key, int x_offset, int y_offset, font_t font, int pixel_size, color_t color);
+
+void lang_text_draw_centered(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+void lang_text_draw_right_aligned(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+void lang_text_draw_centered_colored(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
+
+void lang_text_draw_ellipsized(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+int lang_text_get_amount_width(translation_key key, int amount, font_t font, int pixel_size);
+int lang_text_draw_amount(translation_key key, int amount, int x_offset, int y_offset, font_t font, int pixel_size);
+int lang_text_draw_amount_centered(
+    translation_key key, int amount, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);
+int lang_text_draw_amount_colored(
+    translation_key key, int amount, int x_offset, int y_offset, font_t font, int pixel_size, color_t color);
+int lang_text_draw_multiline(
+    translation_key key, int x_offset, int y_offset, int box_width, font_t font, int pixel_size);

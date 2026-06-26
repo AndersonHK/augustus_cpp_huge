@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temple_mercury">
-    <identity name_key="building.large_temple_mercury.name" />
+    <identity name_key="main_strings.28.67" />
+    <temple religion="large_temple_mercury" />
     <model size="3" cost="150" />
     <desirability>
         <value value="14" />
@@ -9,10 +10,14 @@
         <range value="5" />
     </desirability>
     <foundation policy="land" />
-    <button group="large_temples" order="30" icon="Health_Culture\Temple_Mercury" icon_image="Image_0001" text_key="building.large_temple_mercury.name" />
+    <button group="large_temples" order="30" icon="Health_Culture\Temple_Mercury" icon_image="Image_0001" text_key="main_strings.28.67" />
+    <cycle group="large_temples" order="30" steps="1" />
     <sound id="temple_mercury" />
     <event_data attr="large_temple_mercury" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="temple_active" capacity="3000" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Temple_Mercury" />

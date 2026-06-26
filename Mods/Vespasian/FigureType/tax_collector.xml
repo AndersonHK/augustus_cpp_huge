@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<figure type="tax_collector">
+    <profiles default="service">
+        <profile id="service">
+            <native class="legacy_action" />
+            <owner slot="primary" building="any" state="in_use" />
+            <movement roam_ticks="1" max_roam_length="768" return_mode="return_to_owner_road" />
+            <pathing mode="smart_service" terrain="roads" effect="tax_collector" />
+        </profile>
+    </profiles>
+    <graphics image_group="tax_collector" max_image_offset="12" />
+</figure>

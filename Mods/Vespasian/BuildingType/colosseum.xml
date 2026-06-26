@@ -9,17 +9,20 @@
         <range value="3" />
     </desirability>
     <foundation policy="land" />
-    <button group="entertainment" order="0" icon="Health_Culture\Colosseum" text_key="main_strings.28.33" />
+  <button group="entertainment" order="50" icon="Health_Culture\Colosseum" text_key="main_strings.28.33" />
     <flags fire_proof="1" />
     <sound id="colosseum" mute_on_enemies="true" />
     <event_data attr="colosseum" />
+    <culture_modules>
+        <culture_module path="colosseum" capacity="1" count="working" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Colosseum" />
             <image value="Coloseum ON" />
         </default>
     </graphics>
-    <construction mode="phased" road_update_radius="7">
+    <construction mode="phased" road_update_radius="7" max_count="1">
         <phase index="1">
             <graphics>
                 <path value="Environment\Group_206" />
@@ -61,7 +64,6 @@
         <employees count="100" />
         <labor_seeker>
             <method value="workforce" />
-            <amount value="50" />
         </labor_seeker>
     </labor>
 </building>

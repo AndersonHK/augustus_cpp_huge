@@ -2,9 +2,7 @@
 
 #include "translation/localization.h"
 
-extern "C" {
 #include "core/log.h"
-}
 
 static struct {
     language_type last_determined_language;

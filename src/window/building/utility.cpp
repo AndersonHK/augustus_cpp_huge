@@ -1,27 +1,29 @@
-extern "C" {
+#include "building/clone.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "map/building.h"
+#include "map/water_supply.h"
+#include "window/building_info.h"
+
+#include "graphics/complex_button.h"
+#include "translation/translation.h"
 #include "utility.h"
+#include "window/building/figures.h"
+#include "building/building.h"
+#include "building/building_type_registry_internal.h"
+#include "building/roadblock.h"
 
 #include "assets/assets.h"
-#include "building/building.h"
-#include "building/clone.h"
-#include "building/roadblock.h"
+#include "building/building_type_api.h"
+#include "building/building_record.h"
 #include "city/constants.h"
 #include "city/finance.h"
 #include "core/dir.h"
 #include "core/image.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/complex_button.h"
-#include "graphics/generic_button.h"
-#include "graphics/image.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "map/building.h"
-#include "map/water_supply.h"
-#include "translation/translation.h"
-#include "window/building_info.h"
-#include "window/building/figures.h"
-}
 
 #include <stdlib.h>
 
@@ -33,9 +35,19 @@ static struct {
     unsigned int focus_button_id;
     unsigned int orders_focus_button_id;
     unsigned int figure_focus_button_id;
-    int building_id;
-    int tooltip_id;
-} data = { 0, 0, 0, 0, 0 };
+    Building building = Building(nullptr);
+    int tooltip_id = 0;
+} data;
+
+static building_type type_from_attr(const char *text_id)
+{
+    return building_type_registry_impl::type_from_attr(text_id);
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    return type == type_from_attr(text_id);
+}
 
 static generic_button go_to_orders_button[] = {
     {0, 0, 304, 20, button_go_to_orders},
@@ -55,16 +67,16 @@ static generic_button orders_permission_buttons[] = {
     {0, 288, 210, 22, button_toggle_figure_state, 0, PERMISSION_WATCHMAN},
 };
 
-static int permission_tooltip_translations[] = { 0,
-TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MAINTENANCE,TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_PRIEST,
-TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MARKET, TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_ENTERTAINER,
-TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_EDUCATION, TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MEDICINE,
-TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_TAX_COLLECTOR, TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_LABOR_SEEKER,
-TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MISSIONARY, TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_WATCHMAN,
+static translation_key permission_tooltip_translations[] = { {},
+"TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MAINTENANCE","TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_PRIEST",
+"TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MARKET", "TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_ENTERTAINER",
+"TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_EDUCATION", "TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MEDICINE",
+"TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_TAX_COLLECTOR", "TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_LABOR_SEEKER",
+"TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_MISSIONARY", "TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION_WATCHMAN",
 };
 
-static int permission_orders_tooltip_translations[] = {
-    TR_TOOLTIP_BUTTON_ROADBLOCK_ORDER_REJECT_ALL, TR_TOOLTIP_BUTTON_ROADBLOCK_ORDER_ACCEPT_ALL };
+static translation_key permission_orders_tooltip_translations[] = {
+    "TR_TOOLTIP_BUTTON_ROADBLOCK_ORDER_REJECT_ALL", "TR_TOOLTIP_BUTTON_ROADBLOCK_ORDER_ACCEPT_ALL" };
 
 static generic_button roadblock_orders_buttons[] = {
     {309, 0, 20, 20, button_roadblock_orders},
@@ -83,9 +95,9 @@ void window_building_draw_engineers_post(building_info_context *c)
     c->help_id = 81;
     window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/Engineer.ogg");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(104, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.104.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
 
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
@@ -122,9 +134,9 @@ void window_building_draw_prefect(building_info_context *c)
     c->help_id = 86;
     window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/Prefect.ogg");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(88, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.88.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else if (b->num_workers <= 0) {
@@ -156,7 +168,7 @@ void window_building_draw_prefect(building_info_context *c)
 
 static int affect_all_button_state(void)
 {
-    building *b = building_get(data.building_id);
+    building *b = building_get(data.building.id());
     if (b->data.roadblock.exceptions) {
         return REJECT_ALL;
     } else {
@@ -167,9 +179,9 @@ static int affect_all_button_state(void)
 static void draw_roadblock_orders_buttons(int x, int y, int focused)
 {
     if (affect_all_button_state() == ACCEPT_ALL) {
-        image_draw(assets_lookup_image_id(ASSET_UI_SELECTION_CHECKMARK), x + 29, y + 4, COLOR_MASK_NONE, SCALE_NONE);
+        ImageGroupEntryRef::from_group("UI\\Selection_Checkmark", "Selection_Checkmark").draw(x + 29, y + 4);
     } else {
-        image_draw(assets_get_image_id("UI", "Denied_Walker_Checkmark"), x + 29, y + 4, COLOR_MASK_NONE, SCALE_NONE);
+        ImageGroupEntryRef::from_group("UI\\Denied_Walker_Checkmark", "Denied_Walker_Checkmark").draw(x + 29, y + 4);
     }
     button_border_draw(x + 25, y, 20, 20, data.orders_focus_button_id == 1);
 }
@@ -180,15 +192,15 @@ void window_building_draw_roadblock(building_info_context *c)
     c->help_id = 0;
     window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/Road.ogg");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(28, 115, c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_ROADBLOCK_DESC);
+    lang_text_draw_centered("main_strings.28.115", c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    window_building_draw_description_at(c, 96, "TR_BUILDING_ROADBLOCK_DESC");
 }
 
 void window_building_draw_roadblock_button(building_info_context *c)
 {
     button_border_draw(c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 34,
         BLOCK_SIZE * (c->width_blocks - 10), 20, data.focus_button_id == 1 ? 1 : 0);
-    text_draw_centered(translation_for(TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION), c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30,
+    text_draw_centered(translation_for_key("TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION"), c->x_offset + 80, c->y_offset + BLOCK_SIZE * c->height_blocks - 30,
         BLOCK_SIZE * (c->width_blocks - 10), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 }
 
@@ -197,7 +209,7 @@ void window_building_draw_roadblock_orders(building_info_context *c)
     c->help_id = 3;
     int y_offset = window_building_get_vertical_offset(c, 28);
     outer_panel_draw(c->x_offset, y_offset, 29, 28);
-    text_draw_centered(translation_for(TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION), c->x_offset, y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_centered(translation_for_key("TR_TOOLTIP_BUTTON_ROADBLOCK_PERMISSION"), c->x_offset, y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
     inner_panel_draw(c->x_offset + 16, y_offset + 42, c->width_blocks - 2, 21);
 }
 
@@ -210,32 +222,31 @@ void window_building_draw_roadblock_orders_foreground(building_info_context *c)
         GROUP_FIGURE_TAX_COLLECTOR, GROUP_FIGURE_TAX_COLLECTOR, GROUP_FIGURE_LABOR_SEEKER, GROUP_FIGURE_LABOR_SEEKER,
         GROUP_FIGURE_MISSIONARY, GROUP_FIGURE_MISSIONARY, GROUP_FIGURE_TOWER_SENTRY, GROUP_FIGURE_TOWER_SENTRY,
     };
-    building *b = building_get(c->building_id);
-    data.building_id = b->id;
+    building *b = building_get(c->building.id());
+    data.building = c->building;
     draw_roadblock_orders_buttons(c->x_offset + 365, y_offset + 404, data.orders_focus_button_id == 1);
 
     for (unsigned int i = 0; i < size_of_orders_permission_buttons; i++) {
-        image_draw(image_group(ids[i * 2]) + 4, c->x_offset + 32, y_offset + 46 + 32 * i, COLOR_MASK_NONE, SCALE_NONE);
-        image_draw(image_group(ids[i * 2 + 1]) + 4, c->x_offset + 64, y_offset + 46 + 32 * i,
-            COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(Image::group(ids[i * 2]) + 4).draw(c->x_offset + 32, y_offset + 46 + 32 * i);
+        Image::from_id(Image::group(ids[i * 2 + 1]) + 4).draw(c->x_offset + 64, y_offset + 46 + 32 * i);
         button_border_draw(c->x_offset + 180, y_offset + 50 + 32 * i, 210, 22, data.figure_focus_button_id == i + 1);
-        int state = building_roadblock_get_permission(static_cast<roadblock_permission>(i + 1), b);
+        int state = Roadblock(b).has_permission(static_cast<roadblock_permission>(i + 1));
         if (state) {
-            lang_text_draw_centered(99, 7, c->x_offset + 180, y_offset + 55 + 32 * i, 210, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw_centered("main_strings.99.7", c->x_offset + 180, y_offset + 55 + 32 * i, 210, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
-            lang_text_draw_centered(99, 8, c->x_offset + 180, y_offset + 55 + 32 * i, 210, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+            lang_text_draw_centered("main_strings.99.8", c->x_offset + 180, y_offset + 55 + 32 * i, 210, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
         }
     }
 }
 
-void window_building_roadblock_get_tooltip_walker_permissions(int *translation)
+void window_building_roadblock_get_tooltip_walker_permissions(translation_key *translation)
 {
     if (data.figure_focus_button_id) {
         *translation = permission_tooltip_translations[data.figure_focus_button_id];
     } else if (data.orders_focus_button_id) {
         *translation = permission_orders_tooltip_translations[affect_all_button_state()];
     } else {
-        *translation = 0;
+        *translation = {};
     }
 }
 
@@ -245,8 +256,8 @@ void window_building_draw_garden_gate(building_info_context *c)
     window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/Road.ogg");
     //window_building_play_sound(c, "wavs/garden.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_GARDEN_WALL_GATE), c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_GARDEN_WALL_GATE_DESC);
+    text_draw_centered(translation_for_key("TR_BUILDING_GARDEN_WALL_GATE"), c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    window_building_draw_description_at(c, 96, "TR_BUILDING_GARDEN_WALL_GATE_DESC");
 }
 
 void window_building_draw_palisade_gate(building_info_context *c)
@@ -255,8 +266,8 @@ void window_building_draw_palisade_gate(building_info_context *c)
     window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/Road.ogg");
     //window_building_play_sound(c, "wavs/gatehouse.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    text_draw_centered(translation_for(TR_BUILDING_PALISADE_GATE), c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_PALISADE_GATE_DESC);
+    text_draw_centered(translation_for_key("TR_BUILDING_PALISADE_GATE"), c->x_offset, c->y_offset + 10, 16 * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    window_building_draw_description_at(c, 96, "TR_BUILDING_PALISADE_GATE_DESC");
 }
 
 void window_building_draw_burning_ruin(building_info_context *c)
@@ -264,12 +275,10 @@ void window_building_draw_burning_ruin(building_info_context *c)
     c->help_id = 0;
     window_building_play_sound(c, "wavs/ruin.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(111, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.111.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    lang_text_draw(41, building_get(c->rubble_building_id)->type,
-        c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    lang_text_draw_multiline(111, 1, c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 143,
-        BLOCK_SIZE * (c->width_blocks - 4), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    text_draw(lang_get_building_type_string(building_get(c->rubble_building_id)->type), c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    lang_text_draw_multiline("main_strings.111.1", c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 143, BLOCK_SIZE * (c->width_blocks - 4), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void trigger_building_repair(const complex_button *button)
@@ -290,18 +299,20 @@ static void init_repair_building_button(building_info_context *c)
     repair_building_button->height = 20;
     repair_building_button->parameters[0] = c->rubble_building_id;
     building *b = building_get(c->rubble_building_id);
-    if (b->type == BUILDING_WAREHOUSE_SPACE) { // swap the b pointer for the main warehouse building
+    if (type_matches(static_cast<building_type>(b->type), "warehouse_space")) {
         b = building_get(map_building_rubble_building_id(b->data.rubble.og_grid_offset));
     }
     static lang_fragment frag;
+    frag = {};
+    frag.type = LANG_FRAG_LABEL;
     if (!building_can_repair(b)) {
-        frag = { LANG_FRAG_LABEL, CUSTOM_TRANSLATION, TR_WARNING_REPAIR_IMPOSSIBLE, 0, 0, nullptr };
+        frag.text_key = "TR_WARNING_REPAIR_IMPOSSIBLE";
         repair_building_button->is_disabled = 1;
     } else if (building_is_still_burning(b)) {
-        frag = { LANG_FRAG_LABEL, CUSTOM_TRANSLATION, TR_BUILDING_INFO_BUILDING_BURNING, 0, 0, nullptr };
+        frag.text_key = "TR_BUILDING_INFO_BUILDING_BURNING";
         repair_building_button->is_disabled = 1;
     } else {
-        frag = { LANG_FRAG_LABEL, CUSTOM_TRANSLATION, TR_BUILDING_INFO_REPAIR_BUILDING, 0, 0, nullptr };
+        frag.text_key = "TR_BUILDING_INFO_REPAIR_BUILDING";
         repair_building_button->is_disabled = 0;
     }
     repair_building_button->user_data = c;
@@ -315,11 +326,11 @@ void window_building_draw_rubble(building_info_context *c)
     c->help_id = 0;
     window_building_play_sound(c, "wavs/ruin.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(140, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.140.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     building *b = building_get(c->rubble_building_id);
     building_type og_type = static_cast<building_type>(b->data.rubble.og_type);
     building_type type = og_type == BUILDING_NONE ? static_cast<building_type>(b->type) : og_type;
-    int is_burning_ruins = (b->type == BUILDING_BURNING_RUIN);
+    int is_burning_ruins = type_matches(static_cast<building_type>(b->type), "burning_ruin");
 
     if (building_can_repair_type(type) || building_can_repair_type(type)) {
         init_repair_building_button(c);
@@ -329,14 +340,11 @@ void window_building_draw_rubble(building_info_context *c)
         init_repair_building_button(c);
         complex_button_draw(repair_building_button);
     }
-    int cursor = lang_text_draw(41, type,
-        c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int cursor = text_draw(lang_get_building_type_string(type), c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     if (is_burning_ruins && type) { // show original building type if it's burning ruins
-        cursor += lang_text_draw(41, type, c->x_offset + 32 + cursor, c->y_offset + BLOCK_SIZE * c->height_blocks - 173,
-             FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height));
+        cursor += text_draw(lang_get_building_type_string(type), c->x_offset + 32 + cursor, c->y_offset + BLOCK_SIZE * c->height_blocks - 173, FONT_NORMAL_RED, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_RED)->line_height), 0);
     }
-    lang_text_draw_multiline(140, 1, c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 143,
-        BLOCK_SIZE * (c->width_blocks - 4), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_multiline("main_strings.140.1", c->x_offset + 32, c->y_offset + BLOCK_SIZE * c->height_blocks - 143, BLOCK_SIZE * (c->width_blocks - 4), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 void window_building_draw_reservoir(building_info_context *c)
@@ -344,8 +352,8 @@ void window_building_draw_reservoir(building_info_context *c)
     c->help_id = 59;
     window_building_play_sound(c, "wavs/resevoir.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(107, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    int text_id = building_get(c->building_id)->has_water_access ? 1 : 3;
+    lang_text_draw_centered("main_strings.107.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    int text_id = c->building.has_water_access() ? 1 : 3;
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 173, 107, text_id);
 }
 
@@ -354,7 +362,7 @@ void window_building_draw_aqueduct(building_info_context *c)
     c->help_id = 60;
     window_building_play_sound(c, "wavs/aquaduct.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(141, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.141.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 144, 141, c->aqueduct_has_water ? 1 : 2);
 }
 
@@ -363,9 +371,9 @@ void window_building_draw_fountain(building_info_context *c)
     c->help_id = 61;
     window_building_play_sound(c, "wavs/fountain.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(108, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.108.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     int text_id;
-    building *b = building_get(c->building_id);
+    building *b = building_get(c->building.id());
     if (b->has_water_access) {
         if (b->num_workers > 0) {
             text_id = 1;
@@ -388,8 +396,8 @@ void window_building_draw_well(building_info_context *c)
     c->help_id = 62;
     window_building_play_sound(c, "wavs/well.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(109, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    int well_necessity = map_water_supply_is_building_unnecessary(c->building_id, 2);
+    lang_text_draw_centered("main_strings.109.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    int well_necessity = map_water_supply_is_building_unnecessary(c->building.id(), 2);
     int text_id = 0;
     if (well_necessity == BUILDING_NECESSARY) { // well is OK
         text_id = 1;
@@ -413,24 +421,24 @@ void window_building_draw_latrines(building_info_context *c)
         window_building_play_sound(c, "wavs/well.wav");
     }
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_LATRINES, c->x_offset, c->y_offset + 10,
+    lang_text_draw_centered("TR_BUILDING_LATRINES", c->x_offset, c->y_offset + 10,
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    int latrines_necessity = map_water_supply_is_building_unnecessary(c->building_id, 3);
-    building *b = building_get(c->building_id);
+    int latrines_necessity = map_water_supply_is_building_unnecessary(c->building.id(), 3);
+    building *b = building_get(c->building.id());
     if (b->num_workers <= 0) {
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_LATRINES_NO_WORKERS);
+        window_building_draw_description(c, "TR_BUILDING_LATRINES_NO_WORKERS");
     } else if (latrines_necessity == BUILDING_NECESSARY) { // latrines cover at least one house with well access
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_LATRINES_DESC_1);
+        window_building_draw_description(c, "TR_BUILDING_LATRINES_DESC_1");
     } else if (latrines_necessity == BUILDING_UNNECESSARY_FOUNTAIN) { // latrines cover houses having all fountain access
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_LATRINES_UNNECESSARY);
+        window_building_draw_description(c, "TR_BUILDING_LATRINES_UNNECESSARY");
     } else if (latrines_necessity == BUILDING_UNNECESSARY_NO_HOUSES) { // no houses around
-        window_building_draw_description(c, CUSTOM_TRANSLATION, TR_BUILDING_LATRINES_NO_HOUSES);
+        window_building_draw_description(c, "TR_BUILDING_LATRINES_NO_HOUSES");
     }
     inner_panel_draw(c->x_offset + 16, c->y_offset + 116, c->width_blocks - 2, 4);
     window_building_draw_employment_without_house_cover(c, 120);
     window_building_draw_risks(c, c->x_offset + c->width_blocks * BLOCK_SIZE - 76, c->y_offset + 124);
-    window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 126, CUSTOM_TRANSLATION, TR_BUILDING_LATRINES_DESC_2);
+    window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 126, "TR_BUILDING_LATRINES_DESC_2");
 }
 
 void window_building_draw_mission_post(building_info_context *c)
@@ -439,7 +447,7 @@ void window_building_draw_mission_post(building_info_context *c)
     c->help_id = 8;
     window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/MissionPost.ogg");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(134, 0, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.134.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
     } else {
@@ -455,8 +463,7 @@ static void draw_native(building_info_context *c, int group_id)
     c->help_id = 0;
     //window_building_play_sound(c, "wavs/empty_land.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(group_id, 0, c->x_offset, c->y_offset + 10,
-        BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(group_id, 0), c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     window_building_draw_description_at(c, 106, group_id, 1);
 }
 
@@ -483,27 +490,27 @@ void window_building_draw_native_decoration(building_info_context *c)
     c->help_id = 0;
     window_building_play_sound(c, "wavs/park.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_NATIVE_DECORATION, c->x_offset,
+    lang_text_draw_centered("TR_BUILDING_NATIVE_DECORATION", c->x_offset,
         c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_NATIVE_DECORATION_DESC);
+    window_building_draw_description_at(c, 96, "TR_BUILDING_NATIVE_DECORATION_DESC");
 }
 void window_building_draw_native_monument(building_info_context *c)
 {
     c->help_id = 0;
     window_building_play_sound(c, "wavs/park.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_NATIVE_MONUMENT, c->x_offset,
+    lang_text_draw_centered("TR_BUILDING_NATIVE_MONUMENT", c->x_offset,
         c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_NATIVE_MONUMENT_DESC);
+    window_building_draw_description_at(c, 96, "TR_BUILDING_NATIVE_MONUMENT_DESC");
 }
 void window_building_draw_native_watchtower(building_info_context *c)
 {
     c->help_id = 0;
     window_building_play_sound(c, "wavs/tower2.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_NATIVE_WATCHTOWER, c->x_offset,
+    lang_text_draw_centered("TR_BUILDING_NATIVE_WATCHTOWER", c->x_offset,
         c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    window_building_draw_description_at(c, 96, CUSTOM_TRANSLATION, TR_BUILDING_NATIVE_WATCHTOWER_DESC);
+    window_building_draw_description_at(c, 96, "TR_BUILDING_NATIVE_WATCHTOWER_DESC");
 }
 
 void window_building_draw_highway(building_info_context *c)
@@ -512,29 +519,31 @@ void window_building_draw_highway(building_info_context *c)
     window_building_play_sound(c, ASSETS_DIRECTORY "/Sounds/Road.ogg");
     window_building_prepare_figure_list(c);
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUILDING_HIGHWAY, c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("TR_BUILDING_HIGHWAY", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     window_building_draw_figure_list(c);
     window_building_draw_levy(HIGHWAY_LEVY_MONTHLY, c->x_offset + 30, c->y_offset + BLOCK_SIZE * c->height_blocks - 130);
-    window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 80, CUSTOM_TRANSLATION, TR_BUILDING_HIGHWAY_DESC);
+    window_building_draw_description_at(c, BLOCK_SIZE * c->height_blocks - 80, "TR_BUILDING_HIGHWAY_DESC");
 }
 
 static void button_toggle_figure_state(const generic_button *button)
 {
     int index = button->parameter1;
-    building *b = building_get(data.building_id);
-    if (building_type_is_roadblock(b->type)) {
-        building_roadblock_set_permission(static_cast<roadblock_permission>(index), b);
+    building *b = building_get(data.building.id());
+    Roadblock roadblock(b);
+    if (roadblock.kind() != ROADBLOCK_NONE) {
+        roadblock.toggle_permission(static_cast<roadblock_permission>(index));
     }
     window_invalidate();
 }
 
 static void button_roadblock_orders(const generic_button *button)
 {
-    building *b = building_get(data.building_id);
+    building *b = building_get(data.building.id());
+    Roadblock roadblock(b);
     if (affect_all_button_state() == REJECT_ALL) {
-        building_roadblock_accept_none(b);
+        roadblock.accept_none();
     } else {
-        building_roadblock_accept_all(b);
+        roadblock.accept_all();
     }
     window_invalidate();
 
@@ -564,7 +573,7 @@ int window_building_handle_mouse_roadblock_orders(const mouse *m, building_info_
 {
     int y_offset = window_building_get_vertical_offset(c, 28);
 
-    data.building_id = c->building_id;
+    data.building = c->building;
     if (GenericButtonList(orders_permission_buttons, size_of_orders_permission_buttons).handle_mouse(
         *m,
         c->x_offset + 180,

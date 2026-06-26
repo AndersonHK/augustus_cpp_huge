@@ -1,18 +1,15 @@
 #pragma once
 
 #include "translation/localization.h"
+#include "game/mod_manager.h"
 
-extern "C" {
+#include "core/file.h"
+#include "core/log.h"
+#include "platform/file_manager.h"
 #include "core/buffer.h"
 #include "core/config.h"
 #include "core/encoding.h"
-#include "core/file.h"
 #include "core/io.h"
-#include "core/log.h"
-#include "game/mod_manager.h"
-#include "platform/file_manager.h"
-#include "translation/translation_key_table.h"
-}
 
 #include <array>
 #include <cctype>
@@ -115,7 +112,6 @@ struct locale_catalog {
     std::map<int, std::vector<localized_text>> editor_strings;
     std::vector<message_definition> main_messages;
     std::vector<message_definition> editor_messages;
-    std::vector<localized_text> project_keys = std::vector<localized_text>(TRANSLATION_MAX_KEY);
     std::map<std::string, localized_text> named_project_keys;
     bool has_main_strings = false;
     bool has_editor_strings = false;
@@ -215,8 +211,7 @@ struct raw_message_table {
 };
 
 extern runtime_state g_runtime;
-extern std::vector<localized_text> g_missing_project_key_fallbacks;
-extern std::vector<uint8_t> g_missing_project_key_reported;
+extern std::map<std::string, bool> g_missing_project_key_reported;
 extern std::map<uint64_t, bool> g_missing_legacy_string_reported;
 extern std::vector<std::string> *g_list_result;
 
@@ -233,16 +228,13 @@ std::string format_hash_stamp(const char *prefix, uint64_t hash);
 std::string make_julius_localization_root();
 std::string make_julius_stamp_path();
 std::string make_julius_manifest_path();
-localized_text &fallback_project_key(translation_key key);
-const char *legacy_project_key_name_for_slot(int is_editor, int group, int index);
-void report_missing_project_key(translation_key key);
+void report_missing_project_key(const char *key);
 void report_missing_legacy_string(int is_editor, int group, int index);
 const char *language_code_for(language_type language);
 const char *language_display_name(language_type language);
 const char *language_english_name(language_type language);
 language_type language_from_code(std::string_view code);
 void rebuild_text_groups(std::map<int, std::vector<localized_text>> &groups);
-void rebuild_project_keys(std::vector<localized_text> &project_keys);
 void rebuild_named_project_keys(std::map<std::string, localized_text> &project_keys);
 void rebuild_messages(std::vector<message_definition> &messages, language_type language, std::vector<lang_message> &legacy_messages);
 bool ensure_generated_localization_cache();

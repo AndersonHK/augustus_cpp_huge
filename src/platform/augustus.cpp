@@ -1,14 +1,24 @@
-extern "C" {
+#include "building/building_type_registry.h"
+#include "building/building_type_startup_bridge.h"
+#include "core/log.h"
+#include "translation/translation.h"
+#include "game/game.h"
+#include "game/mod_manager.h"
+#include "game/performance_tracker.h"
+#include "platform/cursor.h"
+#include "platform/joystick.h"
+#include "window/asset_previewer.h"
+
+#include "core/file.h"
+#include "game/settings.h"
+#include "platform/platform.h"
+#include "platform/file_manager_cache.h"
+#include "platform/prefs.h"
+#include "platform/user_path.h"
 #include "assets/assets.h"
 #include "core/config.h"
 #include "core/encoding.h"
-#include "core/file.h"
-#include "core/lang.h"
-#include "core/log.h"
 #include "core/time.h"
-#include "game/game.h"
-#include "game/mod_manager.h"
-#include "game/settings.h"
 #include "game/system.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
@@ -16,24 +26,15 @@ extern "C" {
 #include "input/touch.h"
 #include "platform/android/android.h"
 #include "platform/arguments.h"
-#include "platform/cursor.h"
 #include "platform/emscripten/emscripten.h"
 #include "platform/file_manager.h"
-#include "platform/file_manager_cache.h"
 #include "platform/ios/ios.h"
-#include "platform/joystick.h"
 #include "platform/keyboard_input.h"
-#include "platform/platform.h"
-#include "platform/prefs.h"
 #include "platform/renderer.h"
 #include "platform/screen.h"
 #include "platform/switch/switch.h"
 #include "platform/touch.h"
-#include "platform/user_path.h"
 #include "platform/vita/vita.h"
-#include "window/asset_previewer.h"
-#include "building/building_type_registry.h"
-}
 
 #include "SDL.h"
 
@@ -296,8 +297,8 @@ static int build_graphics_bootstrap_stamp(char *buffer, size_t buffer_size)
     }
 
     char graphics_source_path[FILE_NAME_MAX];
-    const char *asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET, 0);
-    if (!append_path_component(graphics_source_path, sizeof(graphics_source_path), asset_root, ASSETS_IMAGE_PATH)) {
+    const std::string asset_root = platform_file_manager_get_directory_for_location(PATH_LOCATION_ASSET);
+    if (!append_path_component(graphics_source_path, sizeof(graphics_source_path), asset_root.c_str(), ASSETS_IMAGE_PATH)) {
         return 0;
     }
 
@@ -321,7 +322,7 @@ static int bootstrap_augustus_graphics_directory(void)
 {
     ensure_graphics_directory("Mods");
     ensure_graphics_directory("Mods/Augustus");
-    ensure_graphics_directory(mod_manager_get_augustus_graphics_path());
+    ensure_graphics_directory(mod_manager::augustus_graphics_path().c_str());
     return 1;
 }
 
@@ -329,7 +330,7 @@ static int bootstrap_julius_graphics_directory(void)
 {
     ensure_graphics_directory("Mods");
     ensure_graphics_directory("Mods/Julius");
-    ensure_graphics_directory(mod_manager_get_julius_graphics_path());
+    ensure_graphics_directory(mod_manager::julius_graphics_path().c_str());
     return 1;
 }
 
@@ -340,6 +341,9 @@ static int bootstrap_canonical_graphics_sources(void)
 
 static int pre_init_with_current_base_path(void)
 {
+    if (!lang_dir_is_valid(".")) {
+        return 0;
+    }
     if (!bootstrap_canonical_graphics_sources()) {
         return 0;
     }
@@ -479,25 +483,36 @@ static void platform_per_frame_callback(void)
 
 static void run_and_draw(void)
 {
+    performance_tracker_begin_frame();
+
     time_millis time_before_run = system_get_ticks();
     time_set_millis(time_before_run);
 
-    game_run();
-    game_draw();
-    uint64_t time_after_draw = system_get_ticks();
-
-    data.fps.frame_count++;
-    if (time_after_draw - data.fps.last_update_time > 1000) {
-        data.fps.last_fps = data.fps.frame_count;
-        data.fps.last_update_time = time_after_draw;
-        data.fps.frame_count = 0;
+    {
+        PerformanceTrackerScope run_scope(PERFORMANCE_TRACKER_BUCKET_RUN);
+        game_run();
     }
 
-    if (config_get(CONFIG_UI_DISPLAY_FPS)) {
-        game_display_fps(data.fps.last_fps);
+    uint64_t time_after_draw = 0;
+    {
+        PerformanceTrackerScope draw_scope(PERFORMANCE_TRACKER_BUCKET_DRAW);
+        game_draw();
+        time_after_draw = system_get_ticks();
+
+        data.fps.frame_count++;
+        if (time_after_draw - data.fps.last_update_time > 1000) {
+            data.fps.last_fps = data.fps.frame_count;
+            data.fps.last_update_time = time_after_draw;
+            data.fps.frame_count = 0;
+        }
+
+        if (config_get(CONFIG_UI_DISPLAY_FPS)) {
+            game_display_fps(data.fps.last_fps);
+        }
     }
 
     platform_renderer_render();
+    performance_tracker_end_frame();
 }
 
 static void handle_mouse_button(SDL_MouseButtonEvent *event, int is_down)
@@ -938,11 +953,11 @@ static void setup(const augustus_args *args)
         exit_with_status(1);
     }
 
-    mod_manager_set_mod_name(args->mod_name);
+    mod_manager::set_mod_name(args->mod_name);
     if (!config_must_configure_user_directory() && platform_file_manager_is_directory_writeable(pref_user_dir())) {
         platform_user_path_create_subdirectories();
-        if (!mod_manager_load_mod_list()) {
-            const char *failure_reason = mod_manager_get_failure_reason();
+        if (!mod_manager::load_mod_list()) {
+            const char *failure_reason = mod_manager::failure_reason().c_str();
             SDL_ShowSimpleMessageBox(
                 SDL_MESSAGEBOX_ERROR,
                 "Startup error",
@@ -952,13 +967,13 @@ static void setup(const augustus_args *args)
             exit_with_status(3);
         }
     }
-    if (!building_type_registry_validate_mod()) {
+    if (!building_type_startup_bridge_validate_mod()) {
         char message[512];
         snprintf(message, sizeof(message),
             "Unable to find the selected mod data.\n\nExpected folder:\n%s",
-            building_type_registry_get_building_type_path());
+            building_type_startup_bridge_get_building_type_path());
         SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR, "Missing mod", message, NULL);
-        SDL_Log("Missing mod directory: %s", building_type_registry_get_building_type_path());
+        SDL_Log("Missing mod directory: %s", building_type_startup_bridge_get_building_type_path());
         exit_with_status(4);
     }
 
@@ -991,7 +1006,7 @@ static void setup(const augustus_args *args)
     }
 
     char title[100];
-    encoding_to_utf8(lang_get_string(9, 0), title, 100, 0);
+    encoding_to_utf8(lang_get_string("main_strings.9.0"), title, 100, 0);
     if (!platform_screen_create(title, config_get(CONFIG_SCREEN_DISPLAY_SCALE), args->display_id)) {
         SDL_Log("Exiting: SDL create window failed");
         exit_with_status(-2);

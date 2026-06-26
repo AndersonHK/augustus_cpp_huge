@@ -9,9 +9,13 @@
         <range value="4" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="50" icon="Military\Armoury_OFF_C" text_key="TR_BUILDING_ARMOURY" />
+  <button group="security" order="110" icon="Military\Armoury_OFF_C" text_key="TR_BUILDING_ARMOURY" />
     <sound id="armoury" />
     <event_data attr="armoury" />
+    <storages>
+        <storage path="weapons_input_armoury" />
+    </storages>
+    <distribution path="armoury" />
     <flags draw_desirability_range="1" />
     <graphics>
         <default>

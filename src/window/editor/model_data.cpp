@@ -1,30 +1,29 @@
-#include "building/building_type_registry.h"
+#include "building/building_type.h"
+#include "translation/translation.h"
+#include "building/industry.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/file_dialog.h"
+#include "window/numeric_input.h"
 
-extern "C" {
 #include "model_data.h"
 
-#include "building/industry.h"
+#include "window/editor/map.h"
+#include "graphics/grid_box.h"
+#include "building/building_type_registry.h"
+#include "building/building_type_startup_bridge.h"
+
+
+#include "building/building_type_api.h"
 #include "building/properties.h"
-#include "building/type.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "game/resource.h"
 #include "graphics/font.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
-#include "translation/translation.h"
-#include "window/editor/map.h"
-#include "window/file_dialog.h"
-#include "window/numeric_input.h"
-}
-
-#include <stdio.h>
 
 #define NO_SELECTION (unsigned int) -1
 #define NUM_DATA_BUTTONS (sizeof(data_buttons) / sizeof(generic_button))
@@ -86,6 +85,37 @@ static grid_box_type model_buttons = {
     .handle_tooltip = building_tooltip
 };
 
+static building_type runtime_type(const char *text_id)
+{
+    return text_id ? building_type_startup_bridge_runtime_id_from_text(text_id) : BUILDING_NONE;
+}
+
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
+
+static int is_extra_editor_model_type(building_type type)
+{
+    return type_matches(type, "clear_land") ||
+        type_matches(type, "repair_land") ||
+        type_matches(type, "clear_trees");
+}
+
+static int is_hidden_editor_model_type(building_type type)
+{
+    return type_matches(type, "grand_garden") || type_matches(type, "dolphin_fountain");
+}
+
+static int has_production_field(building_type type)
+{
+    return building_is_raw_resource_producer(type) ||
+        building_is_workshop(type) ||
+        type_matches(type, "wharf") ||
+        building_is_farm(type);
+}
+
 static void init(void)
 {
     data.target_index = NO_SELECTION;
@@ -100,8 +130,8 @@ static void populate_list(void)
         building_type type = static_cast<building_type>(i);
         const building_properties *props = building_properties_for_type(type);
         if (((props->size && props->event_data.attr) &&
-            (i != BUILDING_GRAND_GARDEN && i != BUILDING_DOLPHIN_FOUNTAIN)) ||
-            i == BUILDING_CLEAR_LAND || i == BUILDING_REPAIR_LAND || i == BUILDING_CLEAR_TREES) {
+            !is_hidden_editor_model_type(type)) ||
+            is_extra_editor_model_type(type)) {
             data.items[data.total_items++] = type;
         }
     }
@@ -116,7 +146,7 @@ static void button_static_click(const generic_button *button)
         case 1:
             model_reset();
             resource_init();
-            building_type_registry_apply_model_overrides();
+            building_type_startup_bridge_apply_model_overrides();
             window_request_refresh();
             break;
         case 2:
@@ -207,17 +237,16 @@ static void button_edit_laborers(const generic_button *button)
 
 static void set_production(int value)
 {
-    resource_data *resource = resource_get_data(resource_get_from_industry(data.items[data.target_index]));
-    resource->production_per_month = value;
+    building_set_production_per_month(data.items[data.target_index], value);
     data.target_index = NO_SELECTION;
 }
 
 static void button_edit_production(const generic_button *button)
 {
     building_type type = data.items[data.target_index];
-    if (building_is_raw_resource_producer(type) || building_is_workshop(type) || type == BUILDING_WHARF || building_is_farm(type)) {
+    if (has_production_field(type)) {
         window_numeric_input_bound_show(model_buttons.focused_item.x, model_buttons.focused_item.y, button,
-            9, -1000000000, 1000000000, set_production);
+            9, 0, 1000000000, set_production);
     }
 }
 
@@ -229,16 +258,7 @@ static void model_item_click(const grid_box_item *item)
 static void get_building_translation(building_type b_type, uint8_t *buffer, int buffer_size)
 {
     const uint8_t *b_type_string = lang_get_building_type_string(b_type);
-
-    if (BUILDING_SMALL_TEMPLE_CERES <= b_type && b_type <= BUILDING_SMALL_TEMPLE_VENUS) {
-        const uint8_t *temple_prefix = lang_get_building_type_string(BUILDING_MENU_SMALL_TEMPLES);
-        snprintf((char *) buffer, buffer_size, "%s %s", temple_prefix, b_type_string);
-    } else if (BUILDING_LARGE_TEMPLE_CERES <= b_type && b_type <= BUILDING_LARGE_TEMPLE_VENUS) {
-        const uint8_t *temple_prefix = lang_get_building_type_string(BUILDING_MENU_LARGE_TEMPLES);
-        snprintf((char *) buffer, buffer_size, "%s %s", temple_prefix, b_type_string);
-    } else {
-        string_copy(b_type_string, buffer, buffer_size);
-    }
+    string_copy(b_type_string, buffer, buffer_size);
 }
 
 static void draw_model_item(const grid_box_item *item)
@@ -250,8 +270,7 @@ static void draw_model_item(const grid_box_item *item)
     get_building_translation(b_type, b_string, sizeof(b_string));
     text_draw_ellipsized(b_string, item->x + 8, item->y + 8, 12 * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    for (unsigned int i = 0; i < MAX_DATA_BUTTONS - (!(building_is_raw_resource_producer(b_type) ||
-        building_is_workshop(b_type) || b_type == BUILDING_WHARF || building_is_farm(b_type))); i++) {
+    for (unsigned int i = 0; i < MAX_DATA_BUTTONS - (!has_production_field(b_type)); i++) {
         button_border_draw(item->x + data_buttons[i].x, item->y + data_buttons[i].y,
             data_buttons[i].width, data_buttons[i].height, item->is_focused && data.data_buttons_focus_id == i + 1);
 
@@ -270,7 +289,7 @@ static void draw_model_item(const grid_box_item *item)
             case 5:
                 value = model_get_building(b_type)->laborers; break;
             case 6:
-                value = resource_get_data(resource_get_from_industry(b_type))->production_per_month;
+                value = building_production_per_month(b_type);
         }
         text_draw_number(value, 0, NULL, item->x + data_buttons[i].x + 8, item->y + data_buttons[i].y + 6,
                   FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), 0);
@@ -285,17 +304,17 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(16, 32, 42, 27);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_CHANGE_MODEL_DATA, 26, 42, 38 * BLOCK_SIZE, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    lang_text_draw_centered(13, 3, 16, 27 * BLOCK_SIZE + 8, 42 * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_CHANGE_MODEL_DATA", 26, 42, 38 * BLOCK_SIZE, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 16, 27 * BLOCK_SIZE + 8, 42 * BLOCK_SIZE, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_PARAMETER_MODEL, 80, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_PARAMETER_COST, 235, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_DATA_DES_VALUE, 295, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_DATA_DES_STEP, 350, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_DATA_DES_STEP_SIZE, 405, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_DATA_DES_RANGE, 460, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_PARAMETER_LABORERS, 505, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_MODEL_PRODUCTION, 570, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_PARAMETER_MODEL", 80, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_PARAMETER_COST", 235, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_DATA_DES_VALUE", 295, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_DATA_DES_STEP", 350, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_DATA_DES_STEP_SIZE", 405, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_DATA_DES_RANGE", 460, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_PARAMETER_LABORERS", 505, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_MODEL_PRODUCTION", 570, 75, 30, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
     graphics_reset_dialog();
 
@@ -313,16 +332,16 @@ static void draw_foreground(void)
         switch (i) {
             default:
             case 0:
-                key = TR_EDITOR_SCENARIO_EVENTS_EXPORT;
+                key = "TR_EDITOR_SCENARIO_EVENTS_EXPORT";
                 break;
             case 1:
-                key = TR_BUTTON_RESET_DEFAULTS;
+                key = "TR_BUTTON_RESET_DEFAULTS";
                 break;
             case 2:
-                key = TR_EDITOR_SCENARIO_EVENTS_IMPORT;
+                key = "TR_EDITOR_SCENARIO_EVENTS_IMPORT";
                 break;
         }
-        lang_text_draw_centered(CUSTOM_TRANSLATION, key,
+        lang_text_draw_centered(key,
             static_buttons[i].x, static_buttons[i].y + 6, static_buttons[i].width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
@@ -365,11 +384,23 @@ static void handle_input(const mouse *m, const hotkeys *h)
 
 static int desirability_tooltip(tooltip_context *c)
 {
+    static const translation_key desirability_data_keys[] = {
+        "TR_EDITOR_MODEL_DATA_DES_VALUE",
+        "TR_EDITOR_MODEL_DATA_DES_STEP",
+        "TR_EDITOR_MODEL_DATA_DES_STEP_SIZE",
+        "TR_EDITOR_MODEL_DATA_DES_RANGE"
+    };
+    static const translation_key desirability_tooltip_keys[] = {
+        "TR_EDITOR_DESIRABILITY_VALUE",
+        "TR_EDITOR_DESIRABILITY_STEP",
+        "TR_EDITOR_DESIRABILITY_STEP_SIZE",
+        "TR_EDITOR_DESIRABILITY_RANGE"
+    };
     const mouse *m_global = mouse_get();
     const mouse *m = mouse_in_dialog(m_global);
 
     for (int i = 0; i < 4; i++) {
-        const uint8_t *text = translation_for(static_cast<translation_key>(TR_EDITOR_MODEL_DATA_DES_VALUE + i));
+        const uint8_t *text = translation_for(desirability_data_keys[i]);
         int width = text_get_width(text, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         int x;
 
@@ -391,8 +422,7 @@ static int desirability_tooltip(tooltip_context *c)
 
         if (x <= m->x && x + width > m->x &&
             75 <= m->y && 75 + 10 > m->y) {
-            c->text_group = CUSTOM_TRANSLATION;
-            c->text_id = static_cast<translation_key>(TR_EDITOR_DESIRABILITY_VALUE + i);
+            c->translation_key = desirability_tooltip_keys[i];
             c->type = TOOLTIP_BUTTON;
             return 1;
         }

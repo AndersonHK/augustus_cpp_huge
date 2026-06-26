@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include "core/buffer.h"
 
+
 #define TERRAIN_LAST_FLAG TERRAIN_HIGHWAY_BOTTOM_RIGHT
 #define TERRAIN_NUM_FLAGS  (21)  // bits
 #define KEY_MAX_LEN 32 // max length of a single key - only debugging purposes
@@ -164,3 +165,4 @@ void map_terrain_migrate_old_bridges(void);
 void map_terrain_migrate_old_walls(void);
 
 void map_terrain_load_state(buffer *buf, int expanded_terrain_data, buffer *images, int legacy_image_buffer);
+

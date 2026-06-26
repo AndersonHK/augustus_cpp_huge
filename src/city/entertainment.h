@@ -1,5 +1,6 @@
 #pragma once
 
+
 int city_entertainment_theater_shows(void);
 int city_entertainment_amphitheater_shows(void);
 int city_entertainment_arena_shows(void);
@@ -16,3 +17,4 @@ void city_entertainment_calculate_shows(void);
 int city_entertainment_show_message_colosseum(void);
 
 int city_entertainment_show_message_hippodrome(void);
+

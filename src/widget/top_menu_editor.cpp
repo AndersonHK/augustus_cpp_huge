@@ -1,40 +1,39 @@
-#include "top_menu_editor.h"
-
-extern "C" {
-#include "core/string.h"
 #include "empire/editor.h"
 #include "empire/empire.h"
-#include "empire/object.h"
 #include "game/file_editor.h"
-#include "game/resource.h"
+#include "game/game.h"
+#include "graphics/image.h"
 #include "graphics/menu.h"
+#include "widget/map_editor.h"
+#include "window/config.h"
+#include "window/editor/empire.h"
+#include "window/file_dialog.h"
+#include "window/message_dialog.h"
+#include "window/select_list.h"
+
+#include "window/editor/map.h"
+#include "window/hotkey_config.h"
+#include "translation/translation.h"
+#include "window/popup_dialog.h"
+#include "top_menu_editor.h"
+
 #include "scenario/data.h"
+#include "scenario/scenario.h"
+#include "core/string.h"
+#include "empire/object.h"
+#include "game/resource.h"
+#include "game/resource_id_bridge.h"
 #include "scenario/editor.h"
 #include "scenario/editor_map.h"
 #include "scenario/empire.h"
-#include "scenario/scenario.h"
-#include "widget/map_editor.h"
-#include "window/hotkey_config.h"
-#include "window/popup_dialog.h"
-#include "window/select_list.h"
-#include "window/editor/empire.h"
-#include "window/editor/map.h"
-}
 
-#include "top_menu_editor.h"
 
-#include "game/game.h"
 #include "game/system.h"
 #include "graphics/color.h"
-#include "graphics/image.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "translation/translation.h"
-#include "window/config.h"
-#include "window/file_dialog.h"
-#include "window/message_dialog.h"
 
 void menu_file_new_map(int param);
 static void menu_file_load_map(int param);
@@ -62,14 +61,14 @@ static menu_item menu_file[] = {
     {7, 1, menu_file_new_map, 0},
     {7, 2, menu_file_load_map, 0},
     {7, 3, menu_file_save_map, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_BACK_TO_MAIN_MENU, menu_file_exit_to_menu, 0},
+    {"TR_BUTTON_BACK_TO_MAIN_MENU", menu_file_exit_to_menu, 0},
     {1, 5, menu_file_exit_game, 0}
 };
 
 static menu_item menu_options[] = {
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_GENERAL, menu_options_general, 0},
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_UI_CHANGES, menu_options_user_interface, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_CONFIGURE_HOTKEYS, menu_options_hotkeys, 0}
+    {"TR_CONFIG_HEADER_GENERAL", menu_options_general, 0},
+    {"TR_CONFIG_HEADER_UI_CHANGES", menu_options_user_interface, 0},
+    {"TR_BUTTON_CONFIGURE_HOTKEYS", menu_options_hotkeys, 0}
 };
 
 static menu_item menu_help[] = {
@@ -85,9 +84,9 @@ static menu_item menu_resets[] = {
 
 static menu_item menu_empire[] = {
     {149, 1, menu_empire_choose, 0},
-    {CUSTOM_TRANSLATION, TR_EDITOR_CHOOSE_CUSTOM_EMPIRE, menu_empire_custom, 0},
-    {CUSTOM_TRANSLATION, TR_EDITOR_VIEW_CURRENT_EMPIRE, menu_empire_view, 0},
-    {CUSTOM_TRANSLATION, TR_EDITOR_CREATE_NEW_EMPIRE, menu_empire_create, 0}
+    {"TR_EDITOR_CHOOSE_CUSTOM_EMPIRE", menu_empire_custom, 0},
+    {"TR_EDITOR_VIEW_CURRENT_EMPIRE", menu_empire_view, 0},
+    {"TR_EDITOR_CREATE_NEW_EMPIRE", menu_empire_create, 0}
 };
 
 static menu_bar_item menu[] = {
@@ -138,10 +137,10 @@ static void top_menu_window_show(void)
 void widget_top_menu_editor_draw(void)
 {
     int block_width = 24;
-    int image_base = image_group(GROUP_TOP_MENU);
+    int image_base = Image::group(GROUP_TOP_MENU);
     int s_width = screen_width();
     for (int i = 0; i * block_width < s_width; i++) {
-        image_draw(image_base + i % 8, i * block_width, 0, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + i % 8).draw(i * block_width, 0);
     }
     menu_bar_draw(menu, 5, s_width);
 }
@@ -362,7 +361,7 @@ static void menu_empire_choose(int param)
     clear_state();
     window_go_back();
     scenario_editor_unset_custom_empire();
-    resource_set_mapping(RESOURCE_ORIGINAL_VERSION);
+    resource_set_mapping(resource_id_bridge_original_version());
     empire_load(1, scenario_empire_id());
     empire_object_init_cities(scenario_empire_id());
     window_editor_empire_show();
@@ -372,7 +371,7 @@ static void menu_empire_custom(int param)
 {
     clear_state();
     window_go_back();
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     window_file_dialog_show(FILE_TYPE_EMPIRE, FILE_DIALOG_LOAD);
 }
 
@@ -381,9 +380,9 @@ static void menu_empire_view(int param)
     clear_state();
     window_go_back();
     if (scenario_empire_id() == SCENARIO_CUSTOM_EMPIRE) {
-        resource_set_mapping(RESOURCE_CURRENT_VERSION);
+        resource_set_mapping(resource_id_bridge_current_version());
     } else {
-        resource_set_mapping(RESOURCE_ORIGINAL_VERSION);
+        resource_set_mapping(resource_id_bridge_original_version());
     }
     empire_editor_init(0);
     window_editor_empire_show();
@@ -395,7 +394,7 @@ static void menu_empire_create(int param)
     window_go_back();
     scenario.empire.id = SCENARIO_CUSTOM_EMPIRE;
     string_copy(string_from_ascii("\0"), (uint8_t *)scenario.empire.custom_name, 300);
-    resource_set_mapping(RESOURCE_CURRENT_VERSION);
+    resource_set_mapping(resource_id_bridge_current_version());
     empire_clear();
     empire_object_clear();
     empire_object_init_cities(SCENARIO_CUSTOM_EMPIRE);

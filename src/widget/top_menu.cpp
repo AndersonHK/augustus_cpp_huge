@@ -1,31 +1,45 @@
-#include "building/building_type_registry.h"
-
-extern "C" {
-#include "top_menu.h"
-
-#include "assets/assets.h"
 #include "building/construction.h"
-#include "building/properties.h"
-#include "city/constants.h"
-#include "city/emperor.h"
-#include "city/finance.h"
+#include "translation/translation.h"
 #include "city/health.h"
-#include "city/population.h"
-#include "city/ratings.h"
-#include "core/calc.h"
-#include "core/config.h"
-#include "core/lang.h"
-#include "game/campaign.h"
 #include "game/file.h"
-#include "game/settings.h"
 #include "game/state.h"
-#include "game/system.h"
-#include "game/time.h"
 #include "game/undo.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/menu.h"
+#include "widget/city.h"
+#include "window/advisor/health.h"
+#include "window/city.h"
+#include "window/config.h"
+#include "window/file_dialog.h"
+#include "window/main_menu.h"
+#include "window/message_dialog.h"
+#include "window/mission_selection.h"
+#include "window/plain_message_dialog.h"
+
+#include "top_menu.h"
+
+#include "window/hotkey_config.h"
+#include "window/advisors.h"
+#include "window/popup_dialog.h"
+#include "building/building_type_registry.h"
+#include "building/building_type_startup_bridge.h"
+
+#include "game/settings.h"
+#include "game/campaign.h"
+
+#include "assets/assets.h"
+#include "building/properties.h"
+#include "city/constants.h"
+#include "city/emperor.h"
+#include "city/finance.h"
+#include "city/population.h"
+#include "city/ratings.h"
+#include "core/calc.h"
+#include "core/config.h"
+#include "game/system.h"
+#include "game/time.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
@@ -33,19 +47,6 @@ extern "C" {
 #include "scenario/criteria.h"
 #include "scenario/event/controller.h"
 #include "scenario/property.h"
-#include "widget/city.h"
-#include "window/advisors.h"
-#include "window/advisor/health.h"
-#include "window/city.h"
-#include "window/config.h"
-#include "window/file_dialog.h"
-#include "window/hotkey_config.h"
-#include "window/main_menu.h"
-#include "window/message_dialog.h"
-#include "window/mission_selection.h"
-#include "window/plain_message_dialog.h"
-#include "window/popup_dialog.h"
-}
 
 enum {
     INFO_NONE = 0,
@@ -97,18 +98,18 @@ static menu_item menu_file[] = {
     {1, 3, menu_file_load_game, 0},
     {1, 4, menu_file_save_game, 0},
     {1, 6, menu_file_delete_game, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_BACK_TO_MAIN_MENU, menu_file_exit_to_main_menu, 0},
+    {"TR_BUTTON_BACK_TO_MAIN_MENU", menu_file_exit_to_main_menu, 0},
     {1, 5, menu_file_exit_game, 0},
 };
 
 static menu_item menu_options[] = {
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_GENERAL, menu_options_general, 0},
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_UI_CHANGES, menu_options_user_interface, 0},
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_GAMEPLAY_CHANGES, menu_options_gameplay, 0},
-    {CUSTOM_TRANSLATION, TR_CONFIG_HEADER_CITY_MANAGEMENT_CHANGES, menu_options_city_management, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_CONFIGURE_HOTKEYS, menu_options_hotkeys, 0},
+    {"TR_CONFIG_HEADER_GENERAL", menu_options_general, 0},
+    {"TR_CONFIG_HEADER_UI_CHANGES", menu_options_user_interface, 0},
+    {"TR_CONFIG_HEADER_GAMEPLAY_CHANGES", menu_options_gameplay, 0},
+    {"TR_CONFIG_HEADER_CITY_MANAGEMENT_CHANGES", menu_options_city_management, 0},
+    {"TR_BUTTON_CONFIGURE_HOTKEYS", menu_options_hotkeys, 0},
     {19, 51, menu_options_monthly_autosave, 0},
-    {CUSTOM_TRANSLATION, TR_BUTTON_YEARLY_AUTOSAVE_OFF, menu_options_yearly_autosave, 0},
+    {"TR_BUTTON_YEARLY_AUTOSAVE_OFF", menu_options_yearly_autosave, 0},
 };
 
 static menu_item menu_help[] = {
@@ -125,7 +126,7 @@ static menu_item menu_advisors[] = {
     {4, 4, menu_advisors_go_to, ADVISOR_RATINGS},
     {4, 5, menu_advisors_go_to, ADVISOR_TRADE},
     {4, 6, menu_advisors_go_to, ADVISOR_POPULATION},
-    {CUSTOM_TRANSLATION, TR_HEADER_HOUSING, menu_advisors_go_to, ADVISOR_HOUSING},
+    {"TR_HEADER_HOUSING", menu_advisors_go_to, ADVISOR_HOUSING},
     {4, 7, menu_advisors_go_to, ADVISOR_HEALTH},
     {4, 8, menu_advisors_go_to, ADVISOR_EDUCATION},
     {4, 9, menu_advisors_go_to, ADVISOR_ENTERTAINMENT},
@@ -202,7 +203,7 @@ static void set_text_for_monthly_autosave(void)
 static void set_text_for_yearly_autosave(void)
 {
     menu_update_text(&menu[INDEX_OPTIONS], 6,
-        config_get(CONFIG_GP_CH_YEARLY_AUTOSAVE) ? TR_BUTTON_YEARLY_AUTOSAVE_ON : TR_BUTTON_YEARLY_AUTOSAVE_OFF);
+        config_get(CONFIG_GP_CH_YEARLY_AUTOSAVE) ? "TR_BUTTON_YEARLY_AUTOSAVE_ON" : "TR_BUTTON_YEARLY_AUTOSAVE_OFF");
 }
 
 static void set_text_for_tooltips(void)
@@ -271,10 +272,10 @@ static void top_menu_window_show(void)
 static void refresh_background(void)
 {
     int block_width = 24;
-    int image_base = image_group(GROUP_TOP_MENU);
+    int image_base = Image::group(GROUP_TOP_MENU);
     int s_width = screen_width();
     for (int i = 0; i * block_width < s_width; i++) {
-        image_draw(image_base + i % 8, i * block_width, 0, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_base + i % 8).draw(i * block_width, 0);
     }
 }
 
@@ -293,7 +294,7 @@ static int get_black_panel_actual_width(int desired_width)
 
 static int get_black_panel_total_width_for_text_id(int group, int id, int number, font_t font)
 {
-    int label_width = lang_text_get_width(group, id, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+    int label_width = lang_text_get_width(current_string_key(group, id), font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int number_width = text_get_number_width(number, '@', " ", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int text_width = label_width + number_width; // add padding
     int total_width = get_black_panel_actual_width(text_width);
@@ -445,7 +446,7 @@ static widget_layout_case_t widget_top_menu_measure_layout(int available_width, 
 static int draw_panel_with_text_and_number(int offset, int lang_section, int lang_index,
     int number, int margin, int fixed_width, font_t font, color_t label_color, color_t num_color)
 {
-    int label_width = lang_text_get_width(lang_section, lang_index, font, screen_ui_to_pixel(font_definition_for(font)->line_height));
+    int label_width = lang_text_get_width(current_string_key(lang_section, lang_index), font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int number_width = text_get_number_width(number, '@', " ", font, screen_ui_to_pixel(font_definition_for(font)->line_height));
     int text_width = label_width + number_width + 2 * margin;
 
@@ -457,7 +458,7 @@ static int draw_panel_with_text_and_number(int offset, int lang_section, int lan
     int usable_width = end_of_panel - offset - 2 * BLACK_PANEL_BLOCK_WIDTH;
     int draw_x = offset + BLACK_PANEL_BLOCK_WIDTH + (usable_width / 2) - text_width / 2;
     // Draw label
-    lang_text_draw_colored(lang_section, lang_index, draw_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), label_color);
+    lang_text_draw_colored(current_string_key(lang_section, lang_index), draw_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), label_color);
     // Draw number right after label
     text_draw_number(number, '@', "\0", draw_x + label_width, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), num_color);
 
@@ -544,7 +545,7 @@ static char get_cosmetic_day_of_month(void)
     return static_cast<char>(game_time_day() + 1);
 }
 
-extern "C" void widget_top_menu_draw(int force)
+void widget_top_menu_draw(int force)
 {
     // Skip redraw if nothing changed
     if (!force &&
@@ -581,13 +582,13 @@ extern "C" void widget_top_menu_draw(int force)
     if (layout == WIDGET_LAYOUT_NONE) {
         int current_x = data.menu_end;
         data.funds.start = current_x;
-        current_x += lang_text_draw_colored(6, 0, current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), treasury_color);
+        current_x += lang_text_draw_colored("main_strings.6.0", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), treasury_color);
         // Draw number right after label
         current_x += text_draw_number(treasury, '@', "\0", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), treasury_color);
         data.funds.end = current_x;
         current_x += PANEL_MARGIN;
         data.population.start = current_x;
-        current_x += lang_text_draw_colored(6, 1, current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), pop_color);
+        current_x += lang_text_draw_colored("main_strings.6.1", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), pop_color);
         current_x += text_draw_number(city_population(), '@', "\0", current_x, 5, font, screen_ui_to_pixel(font_definition_for(font)->line_height), pop_color);
         data.population.end = current_x;
         current_x += PANEL_MARGIN;
@@ -781,7 +782,7 @@ static int handle_mouse_menu(const mouse *m)
     return 0;
 }
 
-extern "C" int widget_top_menu_handle_input(const mouse *m, const hotkeys *h)
+int widget_top_menu_handle_input(const mouse *m, const hotkeys *h)
 {
     if (widget_city_has_input()) {
         return 0;
@@ -793,7 +794,7 @@ extern "C" int widget_top_menu_handle_input(const mouse *m, const hotkeys *h)
     }
 }
 
-extern "C" int widget_top_menu_get_tooltip_text(tooltip_context *c)
+int widget_top_menu_get_tooltip_text(tooltip_context *c)
 {
     if (data.focus_menu_id) {
         return 49 + data.focus_menu_id;
@@ -802,8 +803,8 @@ extern "C" int widget_top_menu_get_tooltip_text(tooltip_context *c)
     if (button_id) {
         if (button_id == INFO_POPULATION) {
             if (scenario_criteria_population_enabled()) {
-                const uint8_t *original_tooltip = lang_get_string(68, 59 + INFO_POPULATION);
-                const uint8_t *precomposed_text = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_POPULATION_GOAL);
+                const uint8_t *original_tooltip = lang_get_string(current_string_key(68, 59 + INFO_POPULATION));
+                const uint8_t *precomposed_text = lang_get_string("TR_TOOLTIP_POPULATION_GOAL");
                 int value = scenario_criteria_population();
                 static char formatted_text[128];
                 snprintf(formatted_text, sizeof(formatted_text), "%s\n%s %d", original_tooltip, precomposed_text, value);
@@ -833,24 +834,24 @@ extern "C" int widget_top_menu_get_tooltip_text(tooltip_context *c)
                 case INFO_PERSONAL:
                 case INFO_FAVOR:
                 {
-                    const uint8_t *original_text = lang_get_string(53, (city_rating_favor() <= 90)
-                        ? 27 + city_rating_explanation_for(SELECTED_RATING_FAVOR) : 53);
+                    const uint8_t *original_text = lang_get_string(current_string_key(53, (city_rating_favor() <= 90)
+                        ? 27 + city_rating_explanation_for(SELECTED_RATING_FAVOR) : 53));
                     if (button_id == INFO_PERSONAL) {
-                        original_text = lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_PERSONAL_SAVINGS);
+                        original_text = lang_get_string("TR_TOOLTIP_PERSONAL_SAVINGS");
                     }
-                    const uint8_t *gift_text = lang_get_string(52, 50);
+                    const uint8_t *gift_text = lang_get_string("main_strings.52.50");
                     int value = city_emperor_months_since_gift();
-                    const uint8_t *months_text = lang_get_string(8, 4 + (value != 1));
+                    const uint8_t *months_text = lang_get_string(current_string_key(8, 4 + (value != 1)));
                     static char formatted_text[128];
                     snprintf(formatted_text, sizeof(formatted_text), "%s\n%s: %d %s", original_text, gift_text, value, months_text);
                     c->precomposed_text = (const uint8_t *) formatted_text;
                     return 1;
                 }
                 case INFO_HEALTH:
-                    c->text_group = CUSTOM_TRANSLATION;
+                    c->translation_key = "TR_CONDITION_TYPE_STATS_CITY_HEALTH";
                     c->extra_text_groups[0] = 56;
                     c->extra_text_ids[0] = window_advisor_health_get_rating_text_id();
-                    return TR_CONDITION_TYPE_STATS_CITY_HEALTH;
+                    return 1;
                 default:
                     return 0;
             }
@@ -869,8 +870,8 @@ static void replay_map_confirmed(int confirmed, int checked)
     if (!game_campaign_is_active()) {
         window_city_show();
         if (!game_file_start_scenario_by_name(scenario_name())) {
-            window_plain_message_dialog_show_with_extra(TR_REPLAY_MAP_NOT_FOUND_TITLE,
-                TR_REPLAY_MAP_NOT_FOUND_MESSAGE, 0, scenario_name());
+            window_plain_message_dialog_show_with_extra("TR_REPLAY_MAP_NOT_FOUND_TITLE",
+                "TR_REPLAY_MAP_NOT_FOUND_MESSAGE", 0, scenario_name());
         }
     } else {
         int mission_id = game_campaign_is_original() ? scenario_campaign_mission() : 0;
@@ -879,7 +880,7 @@ static void replay_map_confirmed(int confirmed, int checked)
         window_mission_selection_show_again();
     }
     model_reset();
-    building_type_registry_apply_model_overrides();
+    building_type_startup_bridge_apply_model_overrides();
     scenario_events_process_all();
 }
 
@@ -887,7 +888,7 @@ static void menu_file_replay_map(int param)
 {
     clear_state();
     building_construction_clear_type();
-    window_popup_dialog_show_confirmation(lang_get_string(1, 2), 0, 0, replay_map_confirmed);
+    window_popup_dialog_show_confirmation(lang_get_string("main_strings.1.2"), 0, 0, replay_map_confirmed);
 }
 
 static void menu_file_load_game(int param)
@@ -936,7 +937,7 @@ static void main_menu_confirmed(int confirmed, int checked)
 static void menu_file_exit_to_main_menu(int param)
 {
     clear_state();
-    window_popup_dialog_show_confirmation(translation_for(TR_BUTTON_BACK_TO_MAIN_MENU), 0, 0,
+    window_popup_dialog_show_confirmation(translation_for_key("TR_BUTTON_BACK_TO_MAIN_MENU"), 0, 0,
         main_menu_confirmed);
 }
 

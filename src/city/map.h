@@ -2,6 +2,7 @@
 
 #include "map/point.h"
 
+
 const map_tile *city_map_entry_point(void);
 const map_tile *city_map_exit_point(void);
 
@@ -32,3 +33,4 @@ int city_map_road_network_index(int network_id);
 void city_map_clear_largest_road_networks(void);
 
 void city_map_add_to_largest_road_networks(int network_id, int size);
+

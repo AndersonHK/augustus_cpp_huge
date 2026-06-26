@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <production_method>
     <kind value="workshop" />
-    <output resource="iron" />
+    <output resource="iron" production_per_month="80" />
     <batch_size value="1" />
 </production_method>

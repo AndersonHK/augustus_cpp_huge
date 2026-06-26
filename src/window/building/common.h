@@ -1,5 +1,8 @@
 #pragma once
 
+#include "building/building.h"
+#include "translation/translation.h"
+
 static const int MIN_Y_POSITION = 32;
 static const int MARGIN_POSITION = 16;
 
@@ -37,14 +40,14 @@ typedef enum {
     TERRAIN_INFO_HIGHWAY = 16,
 } terrain_info_type;
 
-typedef struct {
+struct building_info_context {
     int x_offset;
     int y_offset;
     int width_blocks;
     int height_blocks;
     int help_id;
     int can_play_sound;
-    int building_id;
+    Building building = Building(nullptr);
     int has_road_access;
     int worker_percentage;
     int has_reservoir_pipes;
@@ -73,7 +76,7 @@ typedef struct {
         int x_offset;
         int y_offset;
     } risk_icons;
-} building_info_context;
+};
 
 void window_building_set_possible_position(int *x_offset, int *y_offset, int width_blocks, int height_blocks);
 
@@ -86,14 +89,26 @@ void window_building_draw_employment(building_info_context *c, int y_offset);
 void window_building_draw_employment_without_house_cover(building_info_context *c, int y_offset);
 
 void window_building_draw_description(building_info_context *c, int text_group, int text_id);
+void window_building_draw_description(building_info_context *c, translation_key key);
 
 int window_building_draw_description_at(building_info_context *c, int y_offset, int text_group, int text_id);
+int window_building_draw_description_at(building_info_context *c, int y_offset, translation_key key);
 
 void window_building_play_sound(building_info_context *c, const char *sound_file);
 
+enum window_building_production_row_flags {
+    WINDOW_BUILDING_PRODUCTION_OUTPUTS = 1,
+    WINDOW_BUILDING_PRODUCTION_INPUTS = 2
+};
+
+int window_building_draw_production_rows(building_info_context *c, int y_offset, int flags);
+int window_building_draw_production_outputs_inline(building_info_context *c, int x_offset, int y_offset);
+int window_building_has_figure_delivery_output(building_info_context *c);
+
 void window_building_draw_monument_construction_process(building_info_context *c,
-    int tr_phase_name, int tr_phase_name_text, int tr_construction_desc);
+    translation_key tr_phase_name, translation_key tr_phase_name_text, translation_key tr_construction_desc);
 
 void window_building_draw_risks(building_info_context *c, int x_offset, int y_offset);
 
-void window_building_get_risks_tooltip(const building_info_context *c, int *group_id, int *text_id);
+void window_building_get_risks_tooltip(
+    const building_info_context *c, int *group_id, int *text_id, translation_key *translation);

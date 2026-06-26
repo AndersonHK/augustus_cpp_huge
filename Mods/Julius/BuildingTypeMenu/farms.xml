@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="farms">
+    <identity name_key="TR_PARAMETER_VALUE_BUILDING_MENU_FARMS" />
+    <button group="industry" order="0" text_key="TR_PARAMETER_VALUE_BUILDING_MENU_FARMS" />
+    <event_data attr="farms|all_farms" />
+</building>

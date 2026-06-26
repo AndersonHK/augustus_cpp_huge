@@ -2,9 +2,6 @@
 
 #include "core/image.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     ATLAS_FIRST,
@@ -32,7 +29,8 @@ typedef enum {
 
 typedef enum {
     IMAGE_FILTER_NEAREST = 0,
-    IMAGE_FILTER_LINEAR = 1
+    IMAGE_FILTER_LINEAR = 1,
+    IMAGE_FILTER_BEST = 2
 } image_filter;
 
 typedef enum {
@@ -164,7 +162,4 @@ const graphics_renderer_interface *graphics_renderer(void);
 
 void graphics_renderer_set_interface(const graphics_renderer_interface *new_renderer);
 
-#ifdef __cplusplus
-}
-#endif
 

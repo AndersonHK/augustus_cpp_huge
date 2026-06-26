@@ -1,32 +1,33 @@
+#include "building/count.h"
+#include "translation/translation.h"
+#include "city/migration.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+
+#include "population.h"
+
+#include "window/advisors.h"
+#include "building/building.h"
+#include "building/house.h"
 #include "graphics/advisor_card_button_widget.h"
 #include "graphics/ui_runtime.h"
 
-extern "C" {
-#include "population.h"
 
-#include "building/count.h"
-#include "building/house.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/locale.h"
 #include "core/string.h"
 #include "city/finance.h"
-#include "city/migration.h"
 #include "city/population.h"
 #include "city/ratings.h"
 #include "city/resource.h"
 #include "game/time.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/image.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
 #include "scenario/criteria.h"
-#include "window/advisors.h"
-}
 
 #define ADVISOR_HEIGHT 27
 
@@ -121,10 +122,10 @@ static void draw_history_graph(int full_size, int x, int y)
         int start_month, start_year, end_month, end_year;
         get_min_max_month_year(max_months, &start_month, &start_year, &end_month, &end_year);
 
-        int width = lang_text_draw(25, start_month, x - 20, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        int width = lang_text_draw(current_string_key(25, start_month), x - 20, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         lang_text_draw_year(start_year, x + width - 20, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
-        width = lang_text_draw(25, end_month, x + 380, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        width = lang_text_draw(current_string_key(25, end_month), x + 380, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         lang_text_draw_year(end_year, x + width + 380, y + 210, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
         graphics_set_clip_rectangle(0, 0, 640, y + 200);
@@ -139,20 +140,16 @@ static void draw_history_graph(int full_size, int x, int y)
             if (val > 0) {
                 switch (max_months) {
                     case 20:
-                        image_draw(image_group(GROUP_POPULATION_GRAPH_BAR), x + 20 * m, y + 200 - val,
-                            COLOR_MASK_NONE, SCALE_NONE);
+                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR)).draw(x + 20 * m, y + 200 - val);
                         break;
                     case 40:
-                        image_draw(image_group(GROUP_POPULATION_GRAPH_BAR) + 1, x + 10 * m, y + 200 - val,
-                            COLOR_MASK_NONE, SCALE_NONE);
+                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 1).draw(x + 10 * m, y + 200 - val);
                         break;
                     case 100:
-                        image_draw(image_group(GROUP_POPULATION_GRAPH_BAR) + 2, x + 4 * m, y + 200 - val,
-                            COLOR_MASK_NONE, SCALE_NONE);
+                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 2).draw(x + 4 * m, y + 200 - val);
                         break;
                     case 200:
-                        image_draw(image_group(GROUP_POPULATION_GRAPH_BAR) + 3, x + 2 * m, y + 200 - val,
-                            COLOR_MASK_NONE, SCALE_NONE);
+                        Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 3).draw(x + 2 * m, y + 200 - val);
                         break;
                     default:
                         graphics_draw_line(x + m, x + m, y + 200 - val, y + 199, COLOR_RED);
@@ -207,8 +204,7 @@ static void draw_census_graph(int full_size, int x, int y)
                 val = pop >> y_shift;
             }
             if (val > 0) {
-                image_draw(image_group(GROUP_POPULATION_GRAPH_BAR) + 2, x + 4 * i, y + 200 - val,
-                    COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR) + 2).draw(x + 4 * i, y + 200 - val);
             }
         }
         graphics_reset_clip_rectangle();
@@ -240,8 +236,8 @@ static void draw_society_graph(int full_size, int x, int y)
         text_draw_number_centered(y_max / 2, x - 66, y + 96, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         text_draw_number_centered(0, x - 66, y + 196, 60, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         // x axis
-        lang_text_draw_centered(55, 9, x - 80, y + 210, 200, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
-        lang_text_draw_centered(55, 10, x + 280, y + 210, 200, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        lang_text_draw_centered("main_strings.55.9", x - 80, y + 210, 200, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
+        lang_text_draw_centered("main_strings.55.10", x + 280, y + 210, 200, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
         graphics_set_clip_rectangle(0, 0, 640, y + 200);
         for (int i = 0; i < 20; i++) {
@@ -253,8 +249,7 @@ static void draw_society_graph(int full_size, int x, int y)
                 val = pop >> y_shift;
             }
             if (val > 0) {
-                image_draw(image_group(GROUP_POPULATION_GRAPH_BAR), x + 20 * i, y + 200 - val,
-                    COLOR_MASK_NONE, SCALE_NONE);
+                Image::from_id(Image::group(GROUP_POPULATION_GRAPH_BAR)).draw(x + 20 * i, y + 200 - val);
             }
         }
         graphics_reset_clip_rectangle();
@@ -273,7 +268,7 @@ static int calculate_total_housing_buildings(void)
 {
     int total_houses = 0;
     for (int i = 1; i < building_count(); i++) {
-        if (building_house_is_active(building_get(i))) {
+        if (building_house_is_active(Building(building_get(i)))) {
             total_houses++;
         }
     }
@@ -290,15 +285,15 @@ static void print_society_info(void)
     }
 
     // Percent patricians
-    width = text_draw(translation_for(TR_ADVISOR_PERCENTAGE_IN_VILLAS_PALACES), 75, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw(translation_for_key("TR_ADVISOR_PERCENTAGE_IN_VILLAS_PALACES"), 75, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     text_draw_percentage(city_population_percentage_in_villas_palaces(), 75 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // Percent impoverished
-    width = text_draw(translation_for(TR_ADVISOR_PERCENTAGE_IN_TENTS_SHACKS), 75, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw(translation_for_key("TR_ADVISOR_PERCENTAGE_IN_TENTS_SHACKS"), 75, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     text_draw_percentage(city_population_percentage_in_tents_shacks(), 75 + width, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // Average tax
-    width = text_draw(translation_for(TR_ADVISOR_AVERAGE_TAX), 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw(translation_for_key("TR_ADVISOR_AVERAGE_TAX"), 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     text_draw_money(avg_tax_per_house, 75 + width, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 }
 
@@ -307,19 +302,19 @@ static void print_census_info(void)
     int width;
 
     // Average age
-    width = text_draw(translation_for(TR_ADVISOR_AVERAGE_AGE), 75, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw(translation_for_key("TR_ADVISOR_AVERAGE_AGE"), 75, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     text_draw_number(city_population_average_age(), '@', " ", 75 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     // Percent working age
-    width = text_draw(translation_for(TR_ADVISOR_PERCENT_IN_WORKFORCE), 75, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw(translation_for_key("TR_ADVISOR_PERCENT_IN_WORKFORCE"), 75, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     text_draw_percentage(city_population_percent_in_workforce(), 75 + width, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
 
     // Yearly births
-    width = text_draw(translation_for(TR_ADVISOR_BIRTHS_LAST_YEAR), 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw(translation_for_key("TR_ADVISOR_BIRTHS_LAST_YEAR"), 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     text_draw_number(city_population_yearly_births(), '@', "", 75 + width, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     // Yearly deaths
-    width = text_draw(translation_for(TR_ADVISOR_DEATHS_LAST_YEAR), 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
+    width = text_draw(translation_for_key("TR_ADVISOR_DEATHS_LAST_YEAR"), 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
     text_draw_number(city_population_yearly_deaths(), '@', "", 75 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 }
 
@@ -329,36 +324,36 @@ static void print_history_info(void)
 
     // food stores
     if (scenario_property_rome_supplies_wheat()) {
-        lang_text_draw(55, 11, 75, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.11", 75, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else {
-        width = lang_text_draw_amount(8, 6, city_resource_operating_granaries(), 70, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        width = lang_text_draw_amount(current_string_amount_key(8, 6, city_resource_operating_granaries()), city_resource_operating_granaries(), 70, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         if (city_resource_food_supply_months() > 0) {
-            width += lang_text_draw(55, 12, 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-            lang_text_draw_amount(8, 4, city_resource_food_supply_months(), 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            width += lang_text_draw("main_strings.55.12", 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw_amount(current_string_amount_key(8, 4, city_resource_food_supply_months()), city_resource_food_supply_months(), 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else if (city_resource_food_stored() > city_resource_food_needed() / 2) {
-            lang_text_draw(55, 13, 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.13", 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else if (city_resource_food_stored() > 0) {
-            lang_text_draw(55, 15, 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.15", 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
-            lang_text_draw(55, 14, 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.14", 70 + width, 342, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
     }
 
     // food types eaten
-    width = lang_text_draw(55, 16, 75, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+    width = lang_text_draw("main_strings.55.16", 75, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     text_draw_number(city_resource_food_types_eaten(), '@', " ", 75 + width, 360, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
 
     // immigration
     int newcomers = city_migration_newcomers();
     if (newcomers >= 5) {
-        lang_text_draw(55, 24, 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.24", 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         width = text_draw_number(newcomers, '@', " ", 70, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
-        lang_text_draw(55, 17, 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.17", 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else if (city_migration_no_room_for_immigrants()) {
-        lang_text_draw(55, 24, 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
-        lang_text_draw(55, 19, 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.24", 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.19", 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
     } else if (city_migration_percentage() < 80) {
-        lang_text_draw(55, 25, 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.25", 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         int text_id;
         switch (city_migration_no_immigration_cause()) {
             case NO_IMMIGRATION_LOW_WAGES: text_id = 20; break;
@@ -370,15 +365,15 @@ static void print_history_info(void)
             default: text_id = 0; break;
         }
         if (text_id) {
-            lang_text_draw(55, text_id, 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw(current_string_key(55, text_id), 75, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
     } else {
-        lang_text_draw(55, 24, 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+        lang_text_draw("main_strings.55.24", 75, 378, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         width = text_draw_number(newcomers, '@', " ", 70, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height), 0);
         if (newcomers == 1) {
-            lang_text_draw(55, 18, 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.18", 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         } else {
-            lang_text_draw(55, 17, 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
+            lang_text_draw("main_strings.55.17", 70 + width, 396, FONT_NORMAL_WHITE, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_WHITE)->line_height));
         }
     }
 }
@@ -388,31 +383,31 @@ static int draw_background(void)
     int width;
 
     outer_panel_draw(0, 0, 40, ADVISOR_HEIGHT);
-    image_draw(image_group(GROUP_ADVISOR_ICONS) + 5, 10, 10, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_ADVISOR_ICONS) + 5).draw(10, 10);
 
     int graph_order = city_population_graph_order();
     // Title: depends on big graph shown
     if (graph_order < 2) {
-        lang_text_draw(55, 0, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw("main_strings.55.0", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     } else if (graph_order < 4) {
-        lang_text_draw(55, 1, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw("main_strings.55.1", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     } else {
-        lang_text_draw(55, 2, 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw("main_strings.55.2", 60, 12, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     }
 
-    image_draw(image_group(GROUP_PANEL_WINDOWS) + 14, 62, 60, COLOR_MASK_NONE, SCALE_NONE);
+    Image::from_id(Image::group(GROUP_PANEL_WINDOWS) + 14).draw(62, 60);
 
     int x_offset = text_get_number_width(city_population(), 0, "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    x_offset += lang_text_get_width(CUSTOM_TRANSLATION, TR_ADVISOR_TOTAL_POPULATION, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    int target_width = lang_text_get_width(53, 6, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    x_offset += lang_text_get_width("TR_ADVISOR_TOTAL_POPULATION", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int target_width = lang_text_get_width("main_strings.53.6", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     target_width += text_get_number_width(scenario_criteria_population(), '@', " )", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset = 620 - x_offset;
     int target_offset = 620 - target_width - 12; // 12 pixels for length of @), to align with other text
 
     width = text_draw_number(city_population(), 0, "", x_offset, 25, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    text_draw(translation_for(TR_ADVISOR_TOTAL_POPULATION), x_offset + width, 25, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
+    text_draw(translation_for_key("TR_ADVISOR_TOTAL_POPULATION"), x_offset + width, 25, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     // (target population)
-    width = lang_text_draw(53, 6, target_offset, 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    width = lang_text_draw("main_strings.53.6", target_offset, 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number(scenario_criteria_population(), '@', " )", target_offset + width, 40, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     int big_text, top_text, bot_text;
     void (*big_graph)(int, int, int);
@@ -478,7 +473,7 @@ static int draw_background(void)
             break;
     }
 
-    lang_text_draw_centered(55, big_text, 60, 295, 400, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(55, big_text), 60, 295, 400, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     big_graph(1, 70, 64);
     top_graph(0, 511, 63);
@@ -486,12 +481,12 @@ static int draw_background(void)
 
     // info panel
     inner_panel_draw(48, 336, 34, 5);
-    int image_id = image_group(GROUP_BULLET);
-    image_draw(image_id, 56, 344, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_id, 56, 362, COLOR_MASK_NONE, SCALE_NONE);
-    image_draw(image_id, 56, 380, COLOR_MASK_NONE, SCALE_NONE);
+    int image_id = Image::group(GROUP_BULLET);
+    Image::from_id(image_id).draw(56, 344);
+    Image::from_id(image_id).draw(56, 362);
+    Image::from_id(image_id).draw(56, 380);
     if (graph_order < 4) {
-        image_draw(image_id, 56, 398, COLOR_MASK_NONE, SCALE_NONE);
+        Image::from_id(image_id).draw(56, 398);
     }
 
     info_panel();
@@ -653,29 +648,29 @@ static uint8_t *get_graph_tooltip(int x, int y)
         if (val && y >= 200 - val) {
             int current_month, current_year;
             get_current_month_year_from_months(m, max_months, &current_month, &current_year);
-            uint8_t *offset = string_copy(lang_get_string(25, current_month), tooltip_text, 300);
+            uint8_t *offset = string_copy(lang_get_string(current_string_key(25, current_month)), tooltip_text, 300);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
             if (current_year >= 0) {
                 int use_year_ad = locale_year_before_ad();
                 if (use_year_ad) {
                     offset += string_from_int(offset, current_year, 0);
                     offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-                    offset = string_copy(lang_get_string(20, 1), offset, (int) (offset - tooltip_text));
+                    offset = string_copy(lang_get_string("main_strings.20.1"), offset, (int) (offset - tooltip_text));
                 } else {
-                    offset = string_copy(lang_get_string(20, 1), offset, (int) (offset - tooltip_text));
+                    offset = string_copy(lang_get_string("main_strings.20.1"), offset, (int) (offset - tooltip_text));
                     offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
                     offset += string_from_int(offset, current_year, 0);
                 }
             } else {
                 offset += string_from_int(offset, -current_year, 0);
                 offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-                offset = string_copy(lang_get_string(20, 0), offset, (int) (offset - tooltip_text));
+                offset = string_copy(lang_get_string("main_strings.20.0"), offset, (int) (offset - tooltip_text));
             }
 
             offset = string_copy(string_from_ascii(": "), offset, 300 - (int) (offset - tooltip_text));
             offset += string_from_int(offset, pop, 0);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-            offset = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ADVISOR_POPULATION_RESIDENTS), offset, 300 - (int) (offset - tooltip_text));
+            offset = string_copy(lang_get_string("TR_ADVISOR_POPULATION_RESIDENTS"), offset, 300 - (int) (offset - tooltip_text));
             return tooltip_text;
         }
     } else if (graph_type == 1) {
@@ -697,13 +692,13 @@ static uint8_t *get_graph_tooltip(int x, int y)
             val = pop >> y_shift;
         }
         if (val && y >= 200 - val) {
-            uint8_t *offset = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ADVISOR_POPULATION_AGE), tooltip_text, 300);
+            uint8_t *offset = string_copy(lang_get_string("TR_ADVISOR_POPULATION_AGE"), tooltip_text, 300);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
             offset += string_from_int(offset, m, 0);
             offset = string_copy(string_from_ascii(": "), offset, 300 - (int) (offset - tooltip_text));
             offset += string_from_int(offset, pop, 0);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-            offset = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ADVISOR_POPULATION_RESIDENTS), offset, 300 - (int) (offset - tooltip_text));
+            offset = string_copy(lang_get_string("TR_ADVISOR_POPULATION_RESIDENTS"), offset, 300 - (int) (offset - tooltip_text));
             return tooltip_text;
         }
     } else if (graph_type == 2) {
@@ -725,9 +720,9 @@ static uint8_t *get_graph_tooltip(int x, int y)
             val = pop >> y_shift;
         }
         if (val && y >= 200 - val) {
-            uint8_t *offset = string_copy(lang_get_string(29, m), tooltip_text, 300);
+            uint8_t *offset = string_copy(lang_get_string(current_string_key(29, m)), tooltip_text, 300);
             offset = string_copy(string_from_ascii(" "), offset, 300 - (int) (offset - tooltip_text));
-            offset = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_ADVISOR_POPULATION_DWELLERS), offset, 300 - (int) (offset - tooltip_text));
+            offset = string_copy(lang_get_string("TR_ADVISOR_POPULATION_DWELLERS"), offset, 300 - (int) (offset - tooltip_text));
             offset = string_copy(string_from_ascii(": "), offset, 300 - (int) (offset - tooltip_text));
             offset += string_from_int(offset, pop, 0);
             return tooltip_text;

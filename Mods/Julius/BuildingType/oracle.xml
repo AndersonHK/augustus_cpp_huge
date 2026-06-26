@@ -12,10 +12,14 @@
         <employees count="0" />
     </labor>
     <foundation policy="land" />
+    <temple religion="oracle" />
     <button group="temples" order="500" icon="Health_Culture\Oracle" text_key="main_strings.28.98" />
     <sound id="oracle" />
     <event_data attr="oracle" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="oracle" capacity="500" count="total" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Oracle" />

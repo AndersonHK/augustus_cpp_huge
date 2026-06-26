@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 int city_population(void);
 int city_population_school_age(void);
@@ -89,6 +86,3 @@ int city_population_percentage_in_tents_shacks(void);
 
 int city_population_percentage_in_villas_palaces(void);
 
-#ifdef __cplusplus
-}
-#endif

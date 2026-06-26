@@ -1,35 +1,81 @@
+#include "building/count.h"
+#include "building/image.h"
+#include "building/industry.h"
+#include "city/festival.h"
+#include "map/image.h"
+
 #include "building/animations.h"
 
 #include "assets/assets.h"
 #include "assets/image_group_entry.h"
-#include "building/building_type.h"
-#include "building/building_type_registry_internal.h"
-
-extern "C" {
 #include "building/building.h"
-#include "building/count.h"
-#include "building/image.h"
-#include "building/industry.h"
+#include "figure/figure.h"
+#include "building/building_record.h"
+#include "building/building_runtime_internal.h"
+#include "building/distribution.h"
+#include "building/building_type.h"
+#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
+#include "core/crash_context.h"
+#include "graphics/image.h"
+#include "graphics/runtime_texture.h"
+
 #include "building/monument.h"
 #include "building/properties.h"
-#include "city/festival.h"
 #include "core/calc.h"
 #include "core/image.h"
 #include "game/animation.h"
-#include "map/image.h"
+#include "game/resource_graphics.h"
+#include "map/property.h"
 #include "map/sprite.h"
 #include "scenario/property.h"
-}
 
+#include <cstdio>
+#include <cstring>
+#include <memory>
 #include <utility>
 
 namespace building_type_registry_impl {
 
 namespace {
 
+int definition_is(const BuildingType *definition, const char *attr)
+{
+    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
+}
+
+int definition_is_any(const BuildingType *definition, const char *const *attrs, int count)
+{
+    for (int i = 0; i < count; i++) {
+        if (definition_is(definition, attrs[i])) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+building_type runtime_type_from_attr(const char *attr)
+{
+    return building_type_registry_impl::type_from_attr(attr);
+}
+
+int has_first_distribution_resource(const building &building, const BuildingType *definition)
+{
+    const Distribution *distribution = definition ? definition->distribution() : nullptr;
+    if (!distribution) {
+        return 1;
+    }
+    for (const DistributionResourceRule &rule : distribution->resources()) {
+        if (resource_is_inventory(rule.resource)) {
+            return building.resources[rule.resource] > 0;
+        }
+    }
+    return 1;
+}
+
 void advance_monument_secondary_animation(building &building)
 {
-    if (building.type == BUILDING_GRAND_TEMPLE_CERES && building.monument.upgrades == 1) {
+    if (definition_is(definition_for_type(building.type), "grand_temple_ceres") && building.monument.upgrades == 1) {
         building.monument.secondary_frame++;
         if (building.monument.secondary_frame > 4) {
             building.monument.secondary_frame = 0;
@@ -52,6 +98,318 @@ int normalized_animation_frame(int animation_cursor, const RuntimeAnimationTrack
     return current_frame;
 }
 
+int graphics_condition_matches(const GraphicsCondition &condition, const Building &building)
+{
+    const Building state = building.composition_owner();
+    int matches = 0;
+    switch (condition.type) {
+        case GraphicsConditionType::HasWorkers:
+            matches = state.worker_count();
+            break;
+        case GraphicsConditionType::Working:
+            matches = state.is_working();
+            break;
+        case GraphicsConditionType::WaterAccess:
+            matches = state.has_water_access();
+            break;
+        case GraphicsConditionType::FigureSlotOccupied:
+            switch (condition.figure_slot) {
+                case FigureSlot::Primary:
+                    matches = state.has_primary_figure();
+                    break;
+                case FigureSlot::Secondary:
+                    matches = state.has_secondary_figure();
+                    break;
+                case FigureSlot::Quaternary:
+                    matches = state.has_quaternary_figure();
+                    break;
+                case FigureSlot::None:
+                default:
+                    matches = 0;
+                    break;
+            }
+            break;
+        case GraphicsConditionType::ResourcePositive:
+            matches = state.resource_amount(condition.resource) > 0;
+            break;
+        case GraphicsConditionType::ResourceAmount:
+        {
+            const int amount = state.resource_amount(condition.resource);
+            switch (condition.comparison) {
+                case GraphicComparison::LessThan:
+                    matches = amount < condition.threshold;
+                    break;
+                case GraphicComparison::LessThanOrEqual:
+                    matches = amount <= condition.threshold;
+                    break;
+                case GraphicComparison::Equal:
+                    matches = amount == condition.threshold;
+                    break;
+                case GraphicComparison::GreaterThan:
+                    matches = amount > condition.threshold;
+                    break;
+                case GraphicComparison::GreaterThanOrEqual:
+                    matches = amount >= condition.threshold;
+                    break;
+                case GraphicComparison::None:
+                default:
+                    matches = 0;
+                    break;
+            }
+            break;
+        }
+        case GraphicsConditionType::Climate:
+            matches = scenario_property_climate() == condition.climate;
+            break;
+        case GraphicsConditionType::MonumentUpgrade:
+            matches = state.monument_upgrade_level() == condition.monument_upgrade;
+            break;
+        case GraphicsConditionType::FestivalGames:
+            matches = city_festival_games_active() == condition.festival_games;
+            break;
+        case GraphicsConditionType::Days1Positive:
+            matches = state.entertainment_days1() > 0;
+            break;
+        case GraphicsConditionType::Days1NotPositive:
+            matches = state.entertainment_days1() <= 0;
+            break;
+        case GraphicsConditionType::Days2Positive:
+            matches = state.entertainment_days2() > 0;
+            break;
+        case GraphicsConditionType::Days1OrDays2Positive:
+            matches = state.entertainment_days1() > 0 || state.entertainment_days2() > 0;
+            break;
+        case GraphicsConditionType::Desirability:
+            switch (condition.comparison) {
+                case GraphicComparison::LessThan:
+                    matches = state.desirability() < condition.threshold;
+                    break;
+                case GraphicComparison::LessThanOrEqual:
+                    matches = state.desirability() <= condition.threshold;
+                    break;
+                case GraphicComparison::Equal:
+                    matches = state.desirability() == condition.threshold;
+                    break;
+                case GraphicComparison::GreaterThan:
+                    matches = state.desirability() > condition.threshold;
+                    break;
+                case GraphicComparison::GreaterThanOrEqual:
+                    matches = state.desirability() >= condition.threshold;
+                    break;
+                case GraphicComparison::None:
+                default:
+                    matches = 0;
+                    break;
+            }
+            break;
+        case GraphicsConditionType::None:
+        default:
+            matches = 0;
+            break;
+    }
+    return matches;
+}
+
+building_runtime *runtime_for_building(Building building, std::unique_ptr<building_runtime> &temporary_runtime)
+{
+    Building owner = building.type && building.type->has_graphic() ? building : building.main();
+    if (!owner.type) {
+        return nullptr;
+    }
+
+    if (building_runtime *runtime = owner.runtime_instance()) {
+        return runtime;
+    }
+
+    temporary_runtime = std::make_unique<building_runtime>(owner);
+    return temporary_runtime.get();
+}
+
+const GraphicsTarget *resolve_target_for_direct_graphics(Building building)
+{
+    return building.type ? BuildingType::resolve_graphics_target_for_image(building.type, building) : nullptr;
+}
+
+int draw_resource_storage_footprint(Building building, const BuildingDrawContext &ctx)
+{
+    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
+        return 1;
+    }
+    const resource_type resource = building.warehouse_resource_id();
+    const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? building.resource_amount(resource) : 0;
+    const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
+    resource_graphics(graphic_resource).storage_image(loads).draw(ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    return 1;
+}
+
+int draw_resource_storage_top(Building building, const BuildingDrawContext &ctx)
+{
+    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
+        return 1;
+    }
+    const resource_type resource = building.warehouse_resource_id();
+    const int loads = resource > RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT ? building.resource_amount(resource) : 0;
+    const resource_type graphic_resource = loads > 0 ? resource : RESOURCE_NONE;
+    resource_graphics(graphic_resource).storage_image(loads).draw_top(ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    return 1;
+}
+
+void log_missing_runtime_stage_slice(const char *stage, const Building &building)
+{
+    char detail[256];
+    if (building.type) {
+        snprintf(
+            detail,
+            sizeof(detail),
+            "type=%s grid_offset=%d stage=%s",
+            building.type->attr(),
+            building.grid_offset(),
+            stage ? stage : "");
+    } else {
+        snprintf(detail, sizeof(detail), "building=null stage=%s", stage ? stage : "");
+    }
+
+    error_context_report_error("Native building draw stage had no drawable slice. Falling back to legacy rendering.", detail);
+}
+
+}
+
+void GraphicsLayer::set_path(std::string path)
+{
+    path_ = std::move(path);
+}
+
+void GraphicsLayer::set_image(std::string image)
+{
+    image_ = std::move(image);
+}
+
+void GraphicsLayer::set_option_selection(GraphicsOptionSelection selection)
+{
+    option_selection_ = selection;
+}
+
+void GraphicsLayer::set_animation_enabled(int enabled)
+{
+    animation_enabled_ = enabled ? 1 : 0;
+}
+
+void GraphicsLayer::set_stage(GraphicsLayerStage stage)
+{
+    stage_ = stage;
+}
+
+void GraphicsLayer::set_offset(int x, int y)
+{
+    x_offset_ = x;
+    y_offset_ = y;
+}
+
+GraphicsLayerOption &GraphicsLayer::add_option()
+{
+    options_.emplace_back();
+    return options_.back();
+}
+
+void GraphicsLayer::add_condition(GraphicsCondition condition)
+{
+    conditions_.push_back(std::move(condition));
+}
+
+int GraphicsLayer::has_path() const
+{
+    return !path_.empty();
+}
+
+const char *GraphicsLayer::path() const
+{
+    return path_.c_str();
+}
+
+int GraphicsLayer::has_image() const
+{
+    return !image_.empty();
+}
+
+const char *GraphicsLayer::image() const
+{
+    return image_.c_str();
+}
+
+GraphicsOptionSelection GraphicsLayer::option_selection() const
+{
+    return option_selection_;
+}
+
+int GraphicsLayer::animation_enabled() const
+{
+    return animation_enabled_;
+}
+
+GraphicsLayerStage GraphicsLayer::stage() const
+{
+    return stage_;
+}
+
+int GraphicsLayer::x_offset() const
+{
+    return x_offset_;
+}
+
+int GraphicsLayer::y_offset() const
+{
+    return y_offset_;
+}
+
+int GraphicsLayer::has_options() const
+{
+    return !options_.empty();
+}
+
+int GraphicsLayer::option_count() const
+{
+    return static_cast<int>(options_.size());
+}
+
+const GraphicsLayerOption *GraphicsLayer::option(int index) const
+{
+    if (index < 0 || static_cast<size_t>(index) >= options_.size()) {
+        return nullptr;
+    }
+    return &options_[static_cast<size_t>(index)];
+}
+
+const std::vector<GraphicsCondition> &GraphicsLayer::conditions() const
+{
+    return conditions_;
+}
+
+int GraphicsLayer::matches(const Building &building) const
+{
+    for (const GraphicsCondition &condition : conditions_) {
+        if (!graphics_condition_matches(condition, building)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+GraphicsLayer GraphicsLayer::resolved_option(unsigned char variant) const
+{
+    if (options_.empty()) {
+        return *this;
+    }
+
+    GraphicsLayer resolved = *this;
+    const GraphicsLayerOption &option = options_[variant % options_.size()];
+    resolved.options_.clear();
+    if (!option.path.empty()) {
+        resolved.set_path(option.path);
+    }
+    if (!option.image.empty()) {
+        resolved.set_image(option.image);
+    }
+    return resolved;
 }
 
 void GraphicsTarget::set_path(std::string path)
@@ -64,10 +422,31 @@ void GraphicsTarget::set_image(std::string image)
     image_ = std::move(image);
 }
 
+void GraphicsTarget::set_option_selection(GraphicsOptionSelection selection)
+{
+    option_selection_ = selection;
+}
+
+void GraphicsTarget::set_resource_storage(int value)
+{
+    resource_storage_ = value ? 1 : 0;
+}
+
+void GraphicsTarget::set_animation_enabled(int enabled)
+{
+    animation_enabled_ = enabled ? 1 : 0;
+}
+
 GraphicsTarget &GraphicsTarget::add_option()
 {
     options_.emplace_back();
     return options_.back();
+}
+
+GraphicsLayer &GraphicsTarget::add_layer()
+{
+    layers_.emplace_back();
+    return layers_.back();
 }
 
 int GraphicsTarget::has_path() const
@@ -90,6 +469,21 @@ const char *GraphicsTarget::image() const
     return image_.c_str();
 }
 
+GraphicsOptionSelection GraphicsTarget::option_selection() const
+{
+    return option_selection_;
+}
+
+int GraphicsTarget::is_resource_storage() const
+{
+    return resource_storage_;
+}
+
+int GraphicsTarget::animation_enabled() const
+{
+    return animation_enabled_;
+}
+
 int GraphicsTarget::has_options() const
 {
     return !options_.empty();
@@ -100,10 +494,33 @@ int GraphicsTarget::option_count() const
     return static_cast<int>(options_.size());
 }
 
+const GraphicsTarget *GraphicsTarget::option(int index) const
+{
+    if (index < 0 || static_cast<size_t>(index) >= options_.size()) {
+        return nullptr;
+    }
+    return &options_[static_cast<size_t>(index)];
+}
+
+const std::vector<GraphicsLayer> &GraphicsTarget::layers() const
+{
+    return layers_;
+}
+
 GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
 {
+    auto inherit_layer_paths = [](GraphicsTarget &target) {
+        for (GraphicsLayer &layer : target.layers_) {
+            if (!layer.has_path()) {
+                layer.set_path(target.path_);
+            }
+        }
+    };
+
     if (options_.empty()) {
-        return *this;
+        GraphicsTarget resolved = *this;
+        inherit_layer_paths(resolved);
+        return resolved;
     }
 
     // Options are authored as partial targets. Materialize one effective target so
@@ -112,72 +529,24 @@ GraphicsTarget GraphicsTarget::resolved_option(unsigned char variant) const
     if (!resolved.has_path()) {
         resolved.set_path(path_);
     }
+    if (resolved.layers_.empty()) {
+        resolved.layers_ = layers_;
+    }
+    inherit_layer_paths(resolved);
+    if (!animation_enabled_) {
+        resolved.set_animation_enabled(0);
+    }
     return resolved;
 }
 
-int GraphicsCondition::matches(const ::building &building) const
+int GraphicsVariant::matches(const Building &building) const
 {
-    switch (type) {
-        case GraphicsConditionType::HasWorkers:
-            return building.num_workers > 0;
-        case GraphicsConditionType::Working:
-            return building.num_workers > 0 && building.has_water_access;
-        case GraphicsConditionType::WaterAccess:
-            return building.has_water_access;
-        case GraphicsConditionType::FigureSlotOccupied:
-            switch (figure_slot) {
-                case FigureSlot::Primary:
-                    return building.figure_id > 0;
-                case FigureSlot::Secondary:
-                    return building.figure_id2 > 0;
-                case FigureSlot::Quaternary:
-                    return building.figure_id4 > 0;
-                case FigureSlot::None:
-                default:
-                    return 0;
-            }
-        case GraphicsConditionType::ResourcePositive:
-            return resource > RESOURCE_NONE && resource < RESOURCE_MAX && building.resources[resource] > 0;
-        case GraphicsConditionType::Climate:
-            return scenario_property_climate() == climate;
-        case GraphicsConditionType::MonumentUpgrade:
-            return building.monument.upgrades == monument_upgrade;
-        case GraphicsConditionType::FestivalGames:
-            return city_festival_games_active() == festival_games;
-        case GraphicsConditionType::Days1Positive:
-            return building.data.entertainment.days1 > 0;
-        case GraphicsConditionType::Days1NotPositive:
-            return building.data.entertainment.days1 <= 0;
-        case GraphicsConditionType::Days2Positive:
-            return building.data.entertainment.days2 > 0;
-        case GraphicsConditionType::Days1OrDays2Positive:
-            return building.data.entertainment.days1 > 0 || building.data.entertainment.days2 > 0;
-        case GraphicsConditionType::Desirability:
-            switch (comparison) {
-                case GraphicComparison::LessThan:
-                    return building.desirability < threshold;
-                case GraphicComparison::LessThanOrEqual:
-                    return building.desirability <= threshold;
-                case GraphicComparison::Equal:
-                    return building.desirability == threshold;
-                case GraphicComparison::GreaterThan:
-                    return building.desirability > threshold;
-                case GraphicComparison::GreaterThanOrEqual:
-                    return building.desirability >= threshold;
-                case GraphicComparison::None:
-                default:
-                    return 0;
-            }
-        case GraphicsConditionType::None:
-        default:
-            return 0;
+    if (!role.empty()) {
+        return 0;
     }
-}
 
-int GraphicsVariant::matches(const ::building &building) const
-{
     for (const GraphicsCondition &condition : conditions) {
-        if (!condition.matches(building)) {
+        if (!graphics_condition_matches(condition, building)) {
             return 0;
         }
     }
@@ -217,7 +586,7 @@ const GraphicsVariant *GraphicsDefinition::last_variant() const
 
 int GraphicsDefinition::has_path() const
 {
-    return default_target_.has_path();
+    return default_target_.has_path() || default_target_.has_options() || default_target_.is_resource_storage();
 }
 
 int GraphicsDefinition::has_default_node() const
@@ -235,23 +604,110 @@ const std::vector<GraphicsVariant> &GraphicsDefinition::variants() const
     return variants_;
 }
 
-const GraphicsTarget *GraphicsDefinition::resolve_target(const ::building &building) const
+const GraphicsTarget *GraphicsDefinition::resolve_target(const Building &building) const
 {
     for (const GraphicsVariant &variant : variants_) {
-        if (variant.target.has_path() && variant.matches(building)) {
+        if (!variant.role.empty()) {
+            continue;
+        }
+        if ((variant.target.has_path() || variant.target.has_options() || variant.target.is_resource_storage()) &&
+            variant.matches(building)) {
             return &variant.target;
         }
     }
-    if (default_target_.has_path()) {
+    if (default_target_.has_path() || default_target_.has_options() || default_target_.is_resource_storage()) {
         return &default_target_;
     }
     return nullptr;
 }
 
-unsigned char GraphicsDefinition::upgrade_level_for(const ::building &building) const
+int GraphicsDefinition::draw_footprint(Building building, const BuildingDrawContext &ctx) const
+{
+    if (const GraphicsTarget *target = resolve_target_for_direct_graphics(building)) {
+        if (target->is_resource_storage()) {
+            return draw_resource_storage_footprint(building, ctx);
+        }
+    }
+
+    std::unique_ptr<building_runtime> temporary_runtime;
+    building_runtime *runtime = runtime_for_building(building, temporary_runtime);
+    if (!runtime || !runtime->resolve_graphics_cache()) {
+        return 0;
+    }
+
+    if (ctx.force_draw_tile || map_property_is_draw_tile(ctx.grid_offset)) {
+        const RuntimeDrawSlice *footprint = runtime->cached_graphic_footprint();
+        if (!footprint) {
+            log_missing_runtime_stage_slice("footprint", building);
+            return 0;
+        }
+        runtime_texture_draw(*footprint, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    }
+    runtime->draw_cached_graphic_layers(GraphicsLayerStage::Footprint, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+
+    return 1;
+}
+
+int GraphicsDefinition::draw_top(Building building, const BuildingDrawContext &ctx) const
+{
+    if (const GraphicsTarget *target = resolve_target_for_direct_graphics(building)) {
+        if (target->is_resource_storage()) {
+            return draw_resource_storage_top(building, ctx);
+        }
+    }
+
+    std::unique_ptr<building_runtime> temporary_runtime;
+    building_runtime *runtime = runtime_for_building(building, temporary_runtime);
+    if (!runtime || !runtime->resolve_graphics_cache()) {
+        return 0;
+    }
+
+    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
+        return 1;
+    }
+
+    if (const RuntimeDrawSlice *top = runtime->cached_graphic_top()) {
+        runtime_texture_draw(*top, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+    }
+    runtime->draw_cached_graphic_layers(GraphicsLayerStage::Top, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+
+    return 1;
+}
+
+int GraphicsDefinition::draw_animation(Building building, const BuildingDrawContext &ctx) const
+{
+    if (const GraphicsTarget *target = resolve_target_for_direct_graphics(building)) {
+        if (target->is_resource_storage()) {
+            return 1;
+        }
+    }
+
+    std::unique_ptr<building_runtime> temporary_runtime;
+    building_runtime *runtime = runtime_for_building(building, temporary_runtime);
+    if (!runtime || !runtime->resolve_graphics_cache()) {
+        return 0;
+    }
+
+    if (!ctx.force_draw_tile && !map_property_is_draw_tile(ctx.grid_offset)) {
+        return 1;
+    }
+
+    if (runtime->cached_owns_graphic_animation()) {
+        runtime->advance_cached_graphic_animation(ctx.grid_offset);
+        if (const RuntimeDrawSlice *frame = runtime->cached_graphic_animation(ctx.grid_offset)) {
+            runtime_texture_draw(*frame, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+        }
+    }
+    runtime->draw_cached_graphic_layer_animations(ctx.grid_offset, ctx.x, ctx.y, ctx.color_mask, ctx.scale);
+
+    return 1;
+}
+
+unsigned char GraphicsDefinition::upgrade_level_for(const Building &building) const
 {
     for (const GraphicsVariant &variant : variants_) {
-        if (!variant.target.has_path() || !variant.matches(building)) {
+        if ((!variant.target.has_path() && !variant.target.has_options() && !variant.target.is_resource_storage()) ||
+            !variant.matches(building)) {
             continue;
         }
 
@@ -265,99 +721,120 @@ unsigned char GraphicsDefinition::upgrade_level_for(const ::building &building) 
     return 0;
 }
 
-BuildingAnimation::BuildingAnimation(::building &building)
-    : BuildingAnimation(building, definition_for_type(building.type))
+BuildingAnimation::BuildingAnimation(Building building)
+    : record_(building.record_)
+    , definition_(building.type)
+    , state_record_(building.record_)
+    , state_definition_(building.type)
 {
+    Building owner = building.composition_owner();
+    if (owner.id()) {
+        state_record_ = owner.record_;
+        state_definition_ = owner.type ? owner.type : definition_;
+    }
 }
 
-BuildingAnimation::BuildingAnimation(::building &building, const BuildingType *definition)
-    : building_(building)
-    , definition_(definition)
+building &BuildingAnimation::record()
 {
+    return *record_;
 }
 
-int BuildingAnimation::gated_offset(int animation_cursor, int *offset) const
+const building &BuildingAnimation::record() const
 {
+    return *record_;
+}
+
+const building &BuildingAnimation::state_record() const
+{
+    return *state_record_;
+}
+
+int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) const
+{
+    const building &building = state_record();
+    const BuildingType *definition = state_definition_;
+
     *offset = 0;
-    // These gates deliberately mirror the old animation.c decisions: XML-authored
+    // These gates deliberately mirror the old animation decisions: XML-authored
     // animations and legacy image animations must both pause for the same runtime
     // building states, otherwise placing a migrated graphic changes gameplay cues.
-    if (definition_ && definition_->water_access().has_requirements() && !building_.has_water_access) {
+    if (definition && definition->water_access().has_requirements() && !building.has_water_access) {
         return 1;
     }
-    if (building_is_workshop(building_.type)) {
-        if (building_.num_workers <= 0 || building_.strike_duration_days > 0 ||
-            !building_industry_has_raw_materials_for_production(&building_)) {
+    if (building_is_workshop(building.type)) {
+        if (building.num_workers <= 0 || building.strike_duration_days > 0 ||
+            !building_industry_has_raw_materials_for_production(&building)) {
             return 1;
         }
     }
-    if (building_.type == BUILDING_CONCRETE_MAKER) {
-        if (building_.data.industry.progress == 0) {
+    if (definition_is(definition, "concrete_maker")) {
+        if (building.data.industry.progress == 0) {
             return 1;
         }
     }
-    if ((building_.type == BUILDING_PREFECTURE || building_.type == BUILDING_ENGINEERS_POST) &&
-        building_.num_workers <= 0) {
+    static const char *worker_paused_service_posts[] = { "prefecture", "engineers_post" };
+    if (definition_is_any(definition, worker_paused_service_posts, 2) && building.num_workers <= 0) {
         return 1;
     }
-    if (building_.type == BUILDING_MARKET && building_.num_workers <= 0) {
+    if (definition && definition->has_market() && building.num_workers <= 0) {
         return 1;
     }
-    if (building_.type == BUILDING_WAREHOUSE && building_.num_workers < model_get_building(building_.type)->laborers) {
+    if (definition && definition->is_warehouse() && building.num_workers < model_get_building(building.type)->laborers) {
         return 1;
     }
-    if (building_.type == BUILDING_DOCK && building_.data.dock.num_ships <= 0) {
+    if (definition && std::strcmp(definition->attr(), "dock") == 0 && building.data.dock.num_ships <= 0) {
         map_sprite_animation_set(animation_cursor, 1);
         *offset = 1;
         return 1;
     }
-    if (building_is_raw_resource_producer(building_.type) &&
-        (building_.num_workers <= 0 || building_.strike_duration_days > 0)) {
+    if (building_is_raw_resource_producer(building.type) &&
+        (building.num_workers <= 0 || building.strike_duration_days > 0)) {
         return 1;
     }
-    if (building_.type == BUILDING_GLADIATOR_SCHOOL) {
-        if (building_.num_workers <= 0) {
+    if (definition_is(definition, "gladiator_school")) {
+        if (building.num_workers <= 0) {
             map_sprite_animation_set(animation_cursor, 1);
             *offset = 1;
             return 1;
         }
-    } else if ((building_.type == BUILDING_THEATER ||
-        (building_.type >= BUILDING_HIPPODROME && building_.type <= BUILDING_CHARIOT_MAKER)) &&
-        building_.type != BUILDING_HIPPODROME && building_.num_workers <= 0) {
+    } else if (((definition && definition->is_theater()) ||
+        definition_is(definition, "chariot_maker")) &&
+        !definition_is(definition, "hippodrome") && building.num_workers <= 0) {
         return 1;
     }
-    if (building_.type == BUILDING_GRANARY && building_.num_workers < model_get_building(building_.type)->laborers) {
+    if (definition && definition->is_granary() && building.num_workers < model_get_building(building.type)->laborers) {
         return 1;
     }
-    if (building_monument_is_monument(&building_) &&
-        (building_.type != BUILDING_ORACLE && building_.type != BUILDING_NYMPHAEUM &&
-            (building_.num_workers <= 0 || building_.monument.phase != MONUMENT_FINISHED))) {
+    if (building_monument_is_monument(&building) &&
+        (!(definition && definition->is_oracle()) && !definition_is(definition, "nymphaeum") &&
+            (building.num_workers <= 0 || building.monument.phase != MONUMENT_FINISHED))) {
         return 1;
     }
-    if (building_.type == BUILDING_CITY_MINT &&
-        ((building_.output_resource_id == RESOURCE_DENARII &&
-            building_.resources[RESOURCE_GOLD] < BUILDING_INDUSTRY_CITY_MINT_GOLD_PER_COIN) ||
-            building_.num_workers <= 0 ||
-            (building_count_active(BUILDING_SENATE) == 0))) {
+    if (definition_is(definition, "city_mint") &&
+        ((building.output_resource_id == resource_denarii() &&
+            !Building(const_cast<::building *>(&building)).native_production_has_raw_materials()) ||
+            building.num_workers <= 0 ||
+            (building_count_active(runtime_type_from_attr("senate")) == 0))) {
         return 1;
     }
-    if ((building_.type == BUILDING_ARCHITECT_GUILD || building_.type == BUILDING_MESS_HALL ||
-        building_.type == BUILDING_ARENA) && building_.num_workers <= 0) {
+    static const char *worker_paused_buildings[] = { "architect_guild", "mess_hall", "arena" };
+    if (definition_is_any(definition, worker_paused_buildings, 3) && building.num_workers <= 0) {
         return 1;
     }
-    if (building_.type == BUILDING_TAVERN && (building_.num_workers <= 0 || !building_.resources[RESOURCE_WINE])) {
+    if (definition_is(definition, "tavern") &&
+        (building.num_workers <= 0 || !has_first_distribution_resource(building, definition))) {
         return 1;
     }
-    if (building_.type == BUILDING_WATCHTOWER && (building_.num_workers <= 0 || !building_.figure_id4)) {
+    if (definition_is(definition, "watchtower") && (building.num_workers <= 0 || !building.figure_id4)) {
         return 1;
     }
-    if (building_.type == BUILDING_DEPOT && building_.num_workers <= 0) {
+    if (definition_is(definition, "cart_depot") && building.num_workers <= 0) {
         return 1;
     }
-    if (building_.type == BUILDING_ARMOURY && building_.num_workers <= 0) {
+    if (definition && definition->is_armoury() && building.num_workers <= 0) {
         return 1;
     }
-    if (building_.type == BUILDING_AMPHITHEATER && building_.num_workers <= 0) {
+    if (definition_is(definition, "amphitheater") && building.num_workers <= 0) {
         return 1;
     }
     return 0;
@@ -366,8 +843,9 @@ int BuildingAnimation::gated_offset(int animation_cursor, int *offset) const
 int BuildingAnimation::advance_wine_workshop_offset(
     int animation_cursor, int max_frame, int clamp_to_available) const
 {
+    const building &building = record();
     const int pct_done = calc_percentage(
-        building_.data.industry.progress, building_industry_get_max_progress(&building_));
+        building.data.industry.progress, building_industry_get_max_progress(&building));
     const int current_sprite = map_sprite_animation_at(animation_cursor);
     int new_sprite = 0;
     if (pct_done <= 0) {
@@ -430,11 +908,11 @@ int BuildingAnimation::advance_reversible_offset(int animation_cursor, int max_f
     return new_sprite;
 }
 
-int BuildingAnimation::advance_looping_offset(int animation_cursor, int max_frame) const
+int BuildingAnimation::advance_looping_offset(int animation_cursor, int max_frame)
 {
     int new_sprite = map_sprite_animation_at(animation_cursor) + 1;
     if (new_sprite > max_frame) {
-        advance_monument_secondary_animation(building_);
+        advance_monument_secondary_animation(record());
         new_sprite = 1;
     }
     map_sprite_animation_set(animation_cursor, new_sprite);
@@ -447,11 +925,6 @@ int BuildingAnimation::runtime_track_offset(const ::RuntimeAnimationTrack &track
         return 0;
     }
 
-    int offset = 0;
-    if (gated_offset(animation_cursor, &offset)) {
-        return offset;
-    }
-
     if (!should_advance || !track.speed_id) {
         return normalized_animation_frame(animation_cursor, track);
     }
@@ -459,7 +932,7 @@ int BuildingAnimation::runtime_track_offset(const ::RuntimeAnimationTrack &track
         return normalized_animation_frame(animation_cursor, track);
     }
 
-    if (building_.type == BUILDING_WINE_WORKSHOP) {
+    if (definition_is(definition_, "wine_workshop")) {
         return advance_wine_workshop_offset(animation_cursor, track.num_frames, 1);
     }
     if (track.can_reverse) {
@@ -468,80 +941,75 @@ int BuildingAnimation::runtime_track_offset(const ::RuntimeAnimationTrack &track
     return advance_looping_offset(animation_cursor, track.num_frames);
 }
 
-int BuildingAnimation::legacy_offset(int image_id, int animation_cursor)
+int BuildingAnimation::offset_for(const Image &image, int animation_cursor)
 {
-    return legacy_offset_for_image(image_get(image_id), animation_cursor);
-}
-
-int BuildingAnimation::legacy_offset_for_image(const ::image *img, int animation_cursor)
-{
-    if (!img) {
-        return 0;
-    }
+    const ::image &img = image.legacy();
     int offset = 0;
-    if (gated_offset(animation_cursor, &offset)) {
+    if (legacy_gate_offset(animation_cursor, &offset)) {
         return offset;
     }
-    if (building_.type == BUILDING_COLOSSEUM) {
+    if (definition_is(definition_, "colosseum")) {
         // The colosseum uses the terrain image as part of the animated facade, so
         // the legacy cursor is also the map grid offset that must be rewritten.
-        map_image_set(animation_cursor, building_image_get(&building_));
+        map_image_set(animation_cursor, building_image_get(&record()));
     }
 
-    if (!img->animation) {
+    if (!img.animation) {
         return 0;
     }
-    if (!game_animation_should_advance(img->animation->speed_id)) {
+    if (!game_animation_should_advance(img.animation->speed_id)) {
         return map_sprite_animation_at(animation_cursor) & 0x7f;
     }
 
-    if (building_.type == BUILDING_WINE_WORKSHOP) {
-        return advance_wine_workshop_offset(animation_cursor, img->animation->num_sprites, 0);
+    if (definition_is(definition_, "wine_workshop")) {
+        return advance_wine_workshop_offset(animation_cursor, img.animation->num_sprites, 0);
     }
-    if (img->animation->can_reverse) {
-        return advance_reversible_offset(animation_cursor, img->animation->num_sprites);
+    if (img.animation->can_reverse) {
+        return advance_reversible_offset(animation_cursor, img.animation->num_sprites);
     }
-    return advance_looping_offset(animation_cursor, img->animation->num_sprites);
+    return advance_looping_offset(animation_cursor, img.animation->num_sprites);
 }
 
-int BuildingAnimation::advance_storage_flag(int image_id)
+int BuildingAnimation::advance_storage_flag(const Image &image)
 {
+    building &building = record();
     // Storage yards keep the flag frame on the building data instead of the map
     // sprite byte because their visible tile image is already driven by storage
     // quantity/state.
-    const image *img = assets_get_image(image_id);
-    if (!img || !img->animation) {
+    const ::image &img = image.legacy();
+    if (!img.animation) {
         return 0;
     }
-    if (!img->animation->speed_id) {
+    if (!img.animation->speed_id) {
         return 0;
     }
-    if (game_animation_should_advance(img->animation->speed_id)) {
-        building_.data.warehouse.flag_frame++;
+    if (game_animation_should_advance(img.animation->speed_id)) {
+        building.data.warehouse.flag_frame++;
     }
 
-    if (building_.data.warehouse.flag_frame > img->animation->num_sprites) {
-        building_.data.warehouse.flag_frame = 0;
+    if (building.data.warehouse.flag_frame > img.animation->num_sprites) {
+        building.data.warehouse.flag_frame = 0;
     }
-    return building_.data.warehouse.flag_frame;
+    return building.data.warehouse.flag_frame;
 }
 
 int BuildingAnimation::advance_fumigation()
 {
+    building &building = record();
     // Fumigation predates authored image metadata and uses the fixed legacy
     // animation speed 8 with a 0..5 frame range.
     if (game_animation_should_advance(8)) {
-        if (building_.fumigation_direction) {
-            building_.fumigation_frame++;
+        if (building.fumigation_direction) {
+            building.fumigation_frame++;
         } else {
-            building_.fumigation_frame--;
+            building.fumigation_frame--;
         }
     }
 
-    if (building_.fumigation_frame > 5) {
-        building_.fumigation_frame = 0;
+    if (building.fumigation_frame > 5) {
+        building.fumigation_frame = 0;
     }
-    return building_.fumigation_frame;
+    return building.fumigation_frame;
 }
 
 }

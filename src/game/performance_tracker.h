@@ -1,0 +1,117 @@
+#pragma once
+
+#include <stdint.h>
+
+
+typedef enum {
+    PERFORMANCE_TRACKER_BUCKET_FRAME,
+    PERFORMANCE_TRACKER_BUCKET_RUN,
+    PERFORMANCE_TRACKER_BUCKET_DRAW,
+    PERFORMANCE_TRACKER_BUCKET_PRESENT,
+    PERFORMANCE_TRACKER_BUCKET_TICK,
+    PERFORMANCE_TRACKER_BUCKET_ADVANCE,
+    PERFORMANCE_TRACKER_BUCKET_FIGURE,
+    PERFORMANCE_TRACKER_BUCKET_FORMATION,
+    PERFORMANCE_TRACKER_BUCKET_ROAD_NETWORK,
+    PERFORMANCE_TRACKER_BUCKET_RESOURCE,
+    PERFORMANCE_TRACKER_BUCKET_WATER,
+    PERFORMANCE_TRACKER_BUCKET_PRODUCTION,
+    PERFORMANCE_TRACKER_BUCKET_LABOR,
+    PERFORMANCE_TRACKER_BUCKET_DESIRABILITY,
+    PERFORMANCE_TRACKER_BUCKET_BUILDING_STATE,
+    PERFORMANCE_TRACKER_BUCKET_HOUSE_EVOLUTION,
+    PERFORMANCE_TRACKER_BUCKET_FIGURE_GENERATION,
+    PERFORMANCE_TRACKER_BUCKET_CULTURE,
+    PERFORMANCE_TRACKER_BUCKET_TRADE,
+    PERFORMANCE_TRACKER_BUCKET_MAINTENANCE,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_FOOTPRINT,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ROW,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_TOP,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_FIGURES,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_MAIN_ANIMATION,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_DELETION,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_ELEVATED,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_GHOST,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_OVERLAY,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_WEATHER,
+    PERFORMANCE_TRACKER_BUCKET_CITY_DRAW_CLOUDS,
+    PERFORMANCE_TRACKER_BUCKET_MAX
+} performance_tracker_bucket;
+
+typedef enum {
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_MOVEMENT,
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY,
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_LOCAL_WORKFORCE,
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_VENUE,
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_STORAGE,
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION,
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_WATER,
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_WALL,
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_DEBUG,
+    PERFORMANCE_TRACKER_ROUTE_PURPOSE_MAX
+} performance_tracker_route_purpose;
+
+typedef enum {
+    PERFORMANCE_TRACKER_ROUTE_METRIC_REQUESTS,
+    PERFORMANCE_TRACKER_ROUTE_METRIC_PLANS,
+    PERFORMANCE_TRACKER_ROUTE_METRIC_COST_MAPS,
+    PERFORMANCE_TRACKER_ROUTE_METRIC_CACHE_HITS,
+    PERFORMANCE_TRACKER_ROUTE_METRIC_CACHE_MISSES,
+    PERFORMANCE_TRACKER_ROUTE_METRIC_PRUNED_BY_NETWORK,
+    PERFORMANCE_TRACKER_ROUTE_METRIC_PRUNED_BY_CURRENT_PATH,
+    PERFORMANCE_TRACKER_ROUTE_METRIC_FAILED,
+    PERFORMANCE_TRACKER_ROUTE_METRIC_ASYNC_JOBS,
+    PERFORMANCE_TRACKER_ROUTE_METRIC_MAX
+} performance_tracker_route_metric;
+
+typedef enum {
+    PERFORMANCE_TRACKER_RENDER_METRIC_SUBMISSIONS,
+    PERFORMANCE_TRACKER_RENDER_METRIC_MANAGED_SUBMISSIONS,
+    PERFORMANCE_TRACKER_RENDER_METRIC_ATLAS_FALLBACK_SUBMISSIONS,
+    PERFORMANCE_TRACKER_RENDER_METRIC_SILHOUETTE_SUBMISSIONS,
+    PERFORMANCE_TRACKER_RENDER_METRIC_TEXTURE_SWITCHES,
+    PERFORMANCE_TRACKER_RENDER_METRIC_GRID_OVERLAYS,
+    PERFORMANCE_TRACKER_RENDER_METRIC_MAX
+} performance_tracker_render_metric;
+
+void performance_tracker_init(int enabled);
+void performance_tracker_shutdown(void);
+int performance_tracker_enabled(void);
+void performance_tracker_begin_frame(void);
+void performance_tracker_end_frame(void);
+void performance_tracker_record_ticks_processed(int ticks);
+void performance_tracker_record_speed_goal(uint64_t elapsed_ms, uint64_t millis_per_tick_x1000);
+void performance_tracker_record_speed_wait(uint64_t elapsed_ms);
+void performance_tracker_record_route_metric(
+    performance_tracker_route_metric metric, performance_tracker_route_purpose purpose, uint64_t amount);
+void performance_tracker_record_route_plan(performance_tracker_route_purpose purpose);
+performance_tracker_route_purpose performance_tracker_current_route_purpose(void);
+void performance_tracker_record_render_metric(performance_tracker_render_metric metric, uint64_t amount);
+
+
+class PerformanceTrackerScope {
+public:
+    explicit PerformanceTrackerScope(performance_tracker_bucket bucket);
+    ~PerformanceTrackerScope();
+
+    PerformanceTrackerScope(const PerformanceTrackerScope &) = delete;
+    PerformanceTrackerScope &operator=(const PerformanceTrackerScope &) = delete;
+
+private:
+    performance_tracker_bucket bucket_;
+    uint64_t start_;
+    int active_;
+};
+
+class PerformanceTrackerRouteScope {
+public:
+    explicit PerformanceTrackerRouteScope(performance_tracker_route_purpose purpose);
+    ~PerformanceTrackerRouteScope();
+
+    PerformanceTrackerRouteScope(const PerformanceTrackerRouteScope &) = delete;
+    PerformanceTrackerRouteScope &operator=(const PerformanceTrackerRouteScope &) = delete;
+
+private:
+    performance_tracker_route_purpose previous_;
+};

@@ -4,9 +4,6 @@
 #include "input/hotkey.h"
 #include "input/mouse.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef struct {
     int x;
@@ -34,6 +31,3 @@ int widget_city_current_grid_offset(void);
 
 void widget_city_setup_routing_preview(void);
 
-#ifdef __cplusplus
-}
-#endif

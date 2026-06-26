@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+
 #define CAMPAIGN_NO_RANK -1
 #define CAMPAIGN_ORIGINAL_NAME "***ORIGINAL_CAMPAIGN***"
 
@@ -145,3 +146,4 @@ void game_campaign_restore(void);
  * Clears the campaign data.
  */
 void game_campaign_clear(void);
+

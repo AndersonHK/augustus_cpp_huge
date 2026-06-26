@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "assets/image_group_entry.h"
 #include "assets/xml.h"
@@ -37,12 +37,6 @@ private:
 const ImageGroupPayload *image_group_payload_get(const char *path_key);
 int image_group_payload_load(const char *path_key);
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void image_group_payload_clear_all(void);
 
-#ifdef __cplusplus
-}
-#endif

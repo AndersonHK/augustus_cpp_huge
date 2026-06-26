@@ -12,6 +12,9 @@
     <button group="education" order="10" icon="Health_Culture\School" text_key="main_strings.28.51" />
     <sound id="school" mute_on_enemies="true" />
     <event_data attr="school" />
+    <culture_modules>
+        <culture_module path="school" capacity="75" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\School" />

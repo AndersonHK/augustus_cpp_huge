@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 
+
 #define MAX_HERD_POINTS 4
 #define MAX_FISH_POINTS 8
 #define MAX_INVASION_POINTS 8
@@ -146,3 +147,4 @@ extern struct scenario_t {
         uint8_t player_name[MAX_PLAYER_NAME];
     } campaign;
 } scenario;
+

@@ -1,35 +1,35 @@
-#include "graphics/ui_runtime.h"
-
-extern "C" {
-#include "window/select_campaign.h"
-
-#include "core/dir.h"
-#include "core/direction.h"
-#include "core/image_group.h"
-#include "core/lang.h"
-#include "core/log.h"
-#include "core/string.h"
-#include "game/campaign.h"
-#include "game/settings.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
+#include "translation/translation.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
 #include "graphics/rich_text.h"
-#include "graphics/screen.h"
-#include "graphics/text.h"
-#include "graphics/window.h"
 #include "input/input.h"
-#include "scenario/property.h"
-#include "scenario/scenario.h"
-#include "widget/input_box.h"
 #include "window/main_menu.h"
 #include "window/mission_list.h"
 #include "window/mission_selection.h"
 #include "window/plain_message_dialog.h"
-}
+
+#include "window/select_campaign.h"
+
+#include "widget/input_box.h"
+#include "graphics/ui_runtime.h"
+
+#include "game/settings.h"
+#include "game/campaign.h"
+#include "scenario/scenario.h"
+
+#include "core/dir.h"
+#include "core/direction.h"
+#include "core/image_group.h"
+#include "core/log.h"
+#include "core/string.h"
+#include "graphics/ui_runtime_api.h"
+#include "graphics/screen.h"
+#include "graphics/text.h"
+#include "graphics/window.h"
+#include "scenario/property.h"
 
 #define PLAYER_NAME_LENGTH 32
 #define CAMPAIGN_LIST_Y_POSITION 96
@@ -43,9 +43,15 @@ static void select_campaign(unsigned int index, int is_double_click);
 static void campaign_name_tooltip(const list_box_item *item, tooltip_context *c);
 
 static generic_button bottom_buttons[] = {
-    {16, 436, 90, 30, button_back, 0, TR_BUTTON_CANCEL },
-    {444, 436, 180, 30, button_start_mission, 0, TR_WINDOW_CAMPAIGN_BUTTON_BEGIN_CAMPAIGN },
-    {234, 436, 200, 30, button_mission_list, 0, TR_WINDOW_CAMPAIGN_BUTTON_MISSION_LIST }
+    {16, 436, 90, 30, button_back },
+    {444, 436, 180, 30, button_start_mission },
+    {234, 436, 200, 30, button_mission_list }
+};
+
+static const translation_key bottom_button_text_keys[] = {
+    "TR_BUTTON_CANCEL",
+    "TR_WINDOW_CAMPAIGN_BUTTON_BEGIN_CAMPAIGN",
+    "TR_WINDOW_CAMPAIGN_BUTTON_MISSION_LIST"
 };
 
 #define NUM_BOTTOM_BUTTONS (sizeof(bottom_buttons) / sizeof(generic_button))
@@ -77,7 +83,7 @@ static input_box player_name_input = { 304, 52, 20, 2, FONT_NORMAL_WHITE, 1, dat
 
 static void calculate_input_box_width(void)
 {
-    int text_width = lang_text_get_width(31, 0, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    int text_width = lang_text_get_width("main_strings.31.0", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     player_name_input.x = ((text_width + 31) / BLOCK_SIZE) * BLOCK_SIZE;
     player_name_input.width_blocks = (624 - player_name_input.x) / BLOCK_SIZE;
 }
@@ -89,7 +95,7 @@ static void init(void)
     scenario_settings_init();
     const uint8_t *default_player_name = setting_player_name();
     if (!string_length(default_player_name)) {
-        default_player_name = lang_get_string(9, 5);
+        default_player_name = lang_get_string("main_strings.9.5");
     }
     player_name_input.placeholder = default_player_name;
     if (string_equals(player_name_input.placeholder, data.player_name)) {
@@ -106,20 +112,20 @@ static void init(void)
 
 static void draw_background(void)
 {
-    image_draw_fullscreen_background(image_group(GROUP_MAIN_MENU_BACKGROUND));
+    Image::from_id(Image::group(GROUP_MAIN_MENU_BACKGROUND)).draw_fullscreen_background();
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_SELECT_CAMPAIGN, 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    lang_text_draw(31, 0, 16, 61, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("TR_WINDOW_SELECT_CAMPAIGN", 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw("main_strings.31.0", 16, 61, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     const campaign_info *info = game_campaign_get_info();
     if (!info) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_SAVE_DIALOG_INVALID_FILE, 362, 241, 246, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw_centered("TR_SAVE_DIALOG_INVALID_FILE", 362, 241, 246, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
         data.available_buttons = 1;
     } else {
         int y_offset = 40;
         text_draw_centered_ellipsized(info->name, 362, CAMPAIGN_LIST_Y_POSITION, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         if (info->author) {
-            int width = lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_AUTHOR,
+            int width = lang_text_draw("TR_WINDOW_CAMPAIGN_AUTHOR",
                 362, CAMPAIGN_LIST_Y_POSITION + 20, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             text_draw(info->author, 362 + width, CAMPAIGN_LIST_Y_POSITION + 20, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
             y_offset += 20;
@@ -132,16 +138,16 @@ static void draw_background(void)
             rich_text_update();
             rich_text_draw_scrollbar();
         } else {
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_NO_DESC, 362, 246, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            lang_text_draw_centered("TR_WINDOW_CAMPAIGN_NO_DESC", 362, 246, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         }
         if (info->current_mission >= info->number_of_missions) {
-            lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_FINISHED,
+            lang_text_draw_centered("TR_WINDOW_CAMPAIGN_FINISHED",
                 362, 414, 246, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else if (info->current_mission > 0) {
-            int width = lang_text_get_width(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_CURRENT_MISSION, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+            int width = lang_text_get_width("TR_WINDOW_CAMPAIGN_CURRENT_MISSION", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             width += text_get_number_width(info->current_mission + 1, '@', "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             int x_offset = (246 - width) / 2;
-            x_offset += lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_CAMPAIGN_CURRENT_MISSION,
+            x_offset += lang_text_draw("TR_WINDOW_CAMPAIGN_CURRENT_MISSION",
                 362 + x_offset, 414, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
             text_draw_number(info->current_mission + 1, '@', "", 362 + x_offset, 414, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
         }
@@ -158,7 +164,7 @@ static void draw_campaign_item(const list_box_item *item)
 {
     uint8_t file[FILE_NAME_MAX];
     if (item->index == ORIGINAL_CAMPAIGN_ID) {
-        string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ORIGINAL_CAMPAIGN_NAME), file, FILE_NAME_MAX);
+        string_copy(lang_get_string("TR_WINDOW_ORIGINAL_CAMPAIGN_NAME"), file, FILE_NAME_MAX);
     } else {
         encoding_from_utf8(data.campaign_list->files[item->index - 1].name, file, FILE_NAME_MAX);
         file_remove_extension((char *) file);
@@ -179,9 +185,9 @@ static void draw_foreground(void)
     for (unsigned int i = 0; i < NUM_BOTTOM_BUTTONS; i++) {
         const int disabled = i >= data.available_buttons;
         UiTextSpec text_spec;
-        text_spec.content_type = UiTextContentType::Raw;
+        text_spec.content_type = UiTextContentType::TranslationKey;
         text_spec.alignment = UiTextAlignment::Center;
-        text_spec.raw_text = lang_get_string(CUSTOM_TRANSLATION, bottom_buttons[i].parameter1);
+        text_spec.text_key = bottom_button_text_keys[i];
         text_spec.x = bottom_buttons[i].x;
         text_spec.y = bottom_buttons[i].y + 9;
         text_spec.box_width = bottom_buttons[i].width;
@@ -256,8 +262,8 @@ static void button_start_mission(const generic_button *button)
 {
     const campaign_info *info = game_campaign_get_info();
     if (!info) {
-        window_plain_message_dialog_show(TR_WINDOW_INVALID_CAMPAIGN_TITLE,
-            TR_WINDOW_INVALID_CAMPAIGN_TEXT, 1);
+        window_plain_message_dialog_show("TR_WINDOW_INVALID_CAMPAIGN_TITLE",
+            "TR_WINDOW_INVALID_CAMPAIGN_TEXT", 1);
         return;
     }
     if (!*data.player_name) {
@@ -291,7 +297,7 @@ static void campaign_name_tooltip(const list_box_item *item, tooltip_context *c)
 {
     static uint8_t file[FILE_NAME_MAX];
     if (item->index == ORIGINAL_CAMPAIGN_ID) {
-        string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_WINDOW_ORIGINAL_CAMPAIGN_NAME), file, FILE_NAME_MAX);
+        string_copy(lang_get_string("TR_WINDOW_ORIGINAL_CAMPAIGN_NAME"), file, FILE_NAME_MAX);
     } else {
         encoding_from_utf8(data.campaign_list->files[item->index - 1].name, file, FILE_NAME_MAX);
         file_remove_extension((char *) file);
@@ -308,7 +314,7 @@ static void handle_tooltip(tooltip_context *c)
     list_box_handle_tooltip(&list_box, c);
 }
 
-extern "C" void window_select_campaign_show(void)
+void window_select_campaign_show(void)
 {
     window_type window = {
         WINDOW_SELECT_CAMPAIGN,

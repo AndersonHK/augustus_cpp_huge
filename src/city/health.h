@@ -1,7 +1,9 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
 #include "figure/figure.h"
+class Building;
+
 
 #define SICKNESS_LEVEL_LOW 0
 #define SICKNESS_LEVEL_MEDIUM 1
@@ -18,13 +20,11 @@ void city_health_change(int amount);
 
 void city_health_set(int new_value);
 
-int city_health_get_house_health_level(const building *b, int update_city_data);
+int city_health_get_house_health_level(Building house, int update_city_data);
 
 void city_health_update(void);
 
 void city_health_update_sickness_level_in_building(int building_id);
-
-void city_health_dispatch_sickness(figure *f);
 
 int city_health_get_global_sickness_level(void);
 
@@ -34,3 +34,6 @@ int city_health_get_population_with_baths_access(void);
 int city_health_get_population_with_well_access(void);
 int city_health_get_population_with_latrines_access(void);
 int city_health_get_population_with_water_access(void);
+
+
+void city_health_dispatch_sickness(Figure *f);

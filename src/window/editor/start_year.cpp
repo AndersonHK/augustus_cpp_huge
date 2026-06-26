@@ -1,20 +1,20 @@
-extern "C" {
-#include "start_year.h"
-
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/starting_conditions.h"
+#include "window/numeric_input.h"
+
+#include "start_year.h"
+
+#include "window/editor/map.h"
+
+#include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
 #include "graphics/screen.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-#include "window/editor/map.h"
-#include "window/editor/starting_conditions.h"
-#include "window/numeric_input.h"
-}
 
 static void button_era(const generic_button *button);
 static void button_year(const generic_button *button);
@@ -37,12 +37,12 @@ static void draw_foreground(void)
 
     outer_panel_draw(128, 44, 20, 10);
 
-    lang_text_draw_centered(44, 13, 138, 56, 320, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    lang_text_draw_centered(13, 3, 128, 178, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.44.13", 138, 56, 320, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 128, 178, 320, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     int start_year = scenario_property_start_year();
     button_border_draw(158, 100, 100, 30, focus_button_id == 1);
-    lang_text_draw_centered(20, start_year >= 0 ? 1 : 0, 158, 110, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(20, start_year >= 0 ? 1 : 0), 158, 110, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     button_border_draw(278, 100, 120, 30, focus_button_id == 2);
     text_draw_number_centered(start_year >= 0 ? start_year : -start_year, 278, 110, 120, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));

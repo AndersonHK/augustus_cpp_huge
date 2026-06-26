@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 void map_random_clear(void);
 
 void map_random_init(void);
@@ -13,3 +14,4 @@ int map_random_get_from_buffer(buffer *buf, int grid_offset);
 void map_random_save_state(buffer *buf);
 
 void map_random_load_state(buffer *buf);
+

@@ -5,19 +5,19 @@
 
 #include "core/file.h"
 
-typedef struct file_info {
+struct file_info {
     char name[FILE_NAME_MAX];
     const char *extension;
     int type;
     unsigned int modified_time;
-    struct file_info *next;
-} file_info;
+    file_info *next;
+};
 
-typedef struct dir_info {
+struct dir_info {
     char name[FILE_NAME_MAX];
     file_info *first_file;
-    struct dir_info *next;
-} dir_info;
+    dir_info *next;
+};
 
 const dir_info *platform_file_manager_cache_get_dir_info(const char *dir);
 int platform_file_manager_cache_file_has_extension(const file_info *f, const char *extension);

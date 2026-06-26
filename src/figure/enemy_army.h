@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 #define MAX_ENEMY_ARMIES 125
 
 typedef struct {
@@ -44,3 +45,4 @@ int enemy_army_is_stronger_than_legions(void);
 void enemy_armies_save_state(buffer *buf, buffer *totals_buf);
 
 void enemy_armies_load_state(buffer *buf, buffer *totals_buf);
+

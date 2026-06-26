@@ -3,7 +3,7 @@
 #include "graphics/tooltip.h"
 #include "input/mouse.h"
 
-typedef enum {
+enum sidebar_extra_display {
     SIDEBAR_EXTRA_DISPLAY_NONE = 0,
     SIDEBAR_EXTRA_DISPLAY_GAME_SPEED = 1,
     SIDEBAR_EXTRA_DISPLAY_UNEMPLOYMENT = 2,
@@ -12,7 +12,7 @@ typedef enum {
     SIDEBAR_EXTRA_DISPLAY_RATINGS = 16,
     SIDEBAR_EXTRA_DISPLAY_REQUESTS = 32,
     SIDEBAR_EXTRA_DISPLAY_ALL = 63
-} sidebar_extra_display;
+};
 
 /**
  * @return The actual height of the extra info

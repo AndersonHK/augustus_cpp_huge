@@ -3,6 +3,7 @@
 #define XML_PARSER_MAX_ATTRIBUTES 13
 #define XML_PARSER_TAG_MAX_LENGTH 32
 
+
 /*
  * @brief A structure that holds info about a xml element.
  *
@@ -122,3 +123,4 @@ void xml_parser_reset(void);
  * @brief Frees the memory associated with the parser.
  */
 void xml_parser_free(void);
+

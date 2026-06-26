@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 typedef enum {
     MESSAGE_CAT_RIOT = 0,
     MESSAGE_CAT_FIRE = 1,
@@ -257,3 +258,8 @@ void city_message_set_scroll_position(int scroll_position);
 void city_message_save_state(buffer *messages, buffer *extra, buffer *counts, buffer *delays, buffer *population);
 
 void city_message_load_state(buffer *messages, buffer *extra, buffer *counts, buffer *delays, buffer *population);
+
+
+struct lang_message;
+const lang_message *city_message_get_lang_message(const city_message *message);
+const lang_message *city_message_get_lang_message_for(int message_type, int custom_message_id);

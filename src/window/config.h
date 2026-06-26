@@ -1,8 +1,5 @@
 #pragma once
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef enum {
     CONFIG_FIRST_PAGE = 0,
@@ -34,6 +31,3 @@ typedef enum {
 
 void window_config_show(window_config_page page, unsigned int category, int show_background_image);
 
-#ifdef __cplusplus
-}
-#endif

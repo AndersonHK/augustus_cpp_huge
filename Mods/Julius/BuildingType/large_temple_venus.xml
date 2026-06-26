@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="large_temple_venus">
     <identity name_key="main_strings.28.69" />
+    <temple religion="large_temple_venus" />
     <model size="3" cost="150" />
     <desirability>
         <value value="14" />
@@ -10,9 +11,14 @@
     </desirability>
     <foundation policy="land" />
     <button group="large_temples" order="50" icon="Health_Culture\Temple_Venus" text_key="main_strings.28.69" />
+    <cycle group="large_temples" order="50" steps="1" />
     <sound id="temple_venus" />
     <event_data attr="large_temple_venus" />
+    <distribution path="venus_temple" />
     <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="temple_active" capacity="1500" count="active" />
+    </culture_modules>
     <graphics>
         <default>
             <path value="Health_Culture\Temple_Venus" />
@@ -25,7 +31,8 @@
     <labor>
         <employees count="5" />
         <labor_seeker>
-            <method value="workforce" />
+            <method value="houses_spawn_if_below" />
+            <amount value="50" />
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">

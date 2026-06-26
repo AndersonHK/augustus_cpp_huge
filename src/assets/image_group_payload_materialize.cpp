@@ -1,12 +1,10 @@
 #include "assets/image_group_payload_internal.h"
 
 #include "core/crash_context.h"
-#include "core/image_payload.h"
+#include "graphics/image.h"
 
-extern "C" {
 #include "core/file.h"
 #include "core/png_read.h"
-}
 
 #include <algorithm>
 #include <cstring>
@@ -19,16 +17,16 @@ namespace {
 
 // Input: one uploaded payload object plus one logical slice template.
 // Output: a runtime slice populated from the payload's actual renderer handle and logical dimensions.
-int populate_slice_from_payload(const ImagePayload *payload, int is_isometric, RuntimeDrawSlice &out_slice)
+int populate_slice_from_image(const Image *image, int is_isometric, RuntimeDrawSlice &out_slice)
 {
     out_slice = RuntimeDrawSlice();
-    if (!payload) {
+    if (!image) {
         return 0;
     }
 
-    out_slice.handle = payload->handle();
-    out_slice.width = payload->legacy().width;
-    out_slice.height = payload->legacy().height;
+    out_slice.handle = image->render_handle();
+    out_slice.width = image->width();
+    out_slice.height = image->height();
     out_slice.is_isometric = is_isometric;
     return out_slice.is_valid();
 }
@@ -188,6 +186,11 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
                     convert_to_grayscale(out_layer.surface);
                 }
                 copy_prepared_layer_metadata(raw_layer, out_layer);
+                if (resolved->has_sprite_offset) {
+                    out_layer.has_sprite_offset = 1;
+                    out_layer.sprite_offset_x = resolved->sprite_offset_x;
+                    out_layer.sprite_offset_y = resolved->sprite_offset_y;
+                }
                 return 1;
             }
             // Extracted isometric composites can reference the top half of flat footprint-only tiles.
@@ -203,6 +206,11 @@ int prepare_group_image_layer(const ImageGroupDoc &doc, const RawLayerDef &raw_l
     }
 
     copy_prepared_layer_metadata(raw_layer, out_layer);
+    if (resolved->has_sprite_offset) {
+        out_layer.has_sprite_offset = 1;
+        out_layer.sprite_offset_x = resolved->sprite_offset_x;
+        out_layer.sprite_offset_y = resolved->sprite_offset_y;
+    }
     return 1;
 }
 
@@ -286,7 +294,7 @@ int finalize_surface_to_resolved_entry(
         return 0;
     }
 
-    const int tile_span = split_surface.width > 0 ? (split_surface.width + 2) / (FOOTPRINT_WIDTH + 2) : 0;
+    const int tile_span = entry.is_isometric && split_surface.width > 0 ? (split_surface.width + 2) / (FOOTPRINT_WIDTH + 2) : 0;
     out_entry.tile_span = tile_span;
     if (tile_span > 0) {
         out_entry.footprint.slice.draw_offset_y += -FOOTPRINT_HALF_HEIGHT * (tile_span - 1);
@@ -327,19 +335,19 @@ int materialize_animation_frame_surface(
     frame_image.original.height = frame_surface.height;
     out_frame_key = make_entry_payload_key(doc.key, doc.source, entry.id) +
         "\\" + key_suffix + "_" + std::to_string(frame_index);
-    const ImagePayload *payload = image_payload_load_pixels_payload(
+    const Image *image = image_manager().load_pixels(
             out_frame_key.c_str(),
             frame_image,
             frame_surface.pixels.data(),
             frame_surface.width,
             frame_surface.height);
-    if (!payload) {
+    if (!image) {
         out_frame_key.clear();
         return 0;
     }
-    if (!populate_slice_from_payload(payload, 0, out_frame_slice)) {
+    if (!populate_slice_from_image(image, 0, out_frame_slice)) {
         crash_context_report_error("Animation frame materialized with an invalid runtime slice", out_frame_key.c_str());
-        image_payload_release_key(out_frame_key.c_str());
+        image_manager().release(out_frame_key);
         out_frame_key.clear();
         return 0;
     }
@@ -414,12 +422,19 @@ int resolve_animation(
     ResolvedImageEntry &out_entry)
 {
     if (!entry.animation.present) {
+        if (referenced_entry && referenced_entry->has_sprite_offset && !out_entry.has_sprite_offset) {
+            out_entry.has_sprite_offset = 1;
+            out_entry.sprite_offset_x = referenced_entry->sprite_offset_x;
+            out_entry.sprite_offset_y = referenced_entry->sprite_offset_y;
+            out_entry.animation.sprite_offset_x = referenced_entry->sprite_offset_x;
+            out_entry.animation.sprite_offset_y = referenced_entry->sprite_offset_y;
+        }
         if (referenced_entry && referenced_entry->has_animation) {
             out_entry.animation = referenced_entry->animation;
             out_entry.has_animation = referenced_entry->has_animation;
             for (const std::string &frame_key : referenced_entry->animation_frame_keys) {
                 if (!frame_key.empty()) {
-                    image_payload_retain_key(frame_key.c_str());
+                    image_manager().retain(frame_key);
                     out_entry.animation_frame_keys.push_back(frame_key);
                 }
             }
@@ -429,6 +444,9 @@ int resolve_animation(
 
     out_entry.animation.sprite_offset_x = entry.animation.metadata.sprite_offset_x;
     out_entry.animation.sprite_offset_y = entry.animation.metadata.sprite_offset_y;
+    out_entry.has_sprite_offset = 1;
+    out_entry.sprite_offset_x = entry.animation.metadata.sprite_offset_x;
+    out_entry.sprite_offset_y = entry.animation.metadata.sprite_offset_y;
     out_entry.animation.can_reverse = entry.animation.metadata.can_reverse;
     out_entry.animation.speed_id = entry.animation.metadata.speed_id;
     if (!entry.animation.explicit_frames.empty()) {
@@ -908,45 +926,45 @@ int upload_split_surface(
         base_image.is_isometric = is_isometric;
         base_image.atlas.y_offset = top_height;
 
-        const ImagePayload *footprint_payload = image_payload_load_pixels_payload(
+        const Image *footprint_image = image_manager().load_pixels(
                 base_key.c_str(),
                 base_image,
                 footprint_source.pixels.data(),
                 footprint_source.width,
                 footprint_source.height);
-        if (!footprint_payload) {
+        if (!footprint_image) {
             return 0;
         }
 
-        image top_image = {};
-        top_image.width = split_surface.width;
-        top_image.height = top_height;
-        top_image.original.width = split_surface.width;
-        top_image.original.height = top_height;
-        const ImagePayload *top_payload = image_payload_load_pixels_payload(
+        image top_metadata = {};
+        top_metadata.width = split_surface.width;
+        top_metadata.height = top_height;
+        top_metadata.original.width = split_surface.width;
+        top_metadata.original.height = top_height;
+        const Image *top_image = image_manager().load_pixels(
                 (base_key + "\\top").c_str(),
-                top_image,
+                top_metadata,
                 split_surface.pixels.data(),
                 split_surface.width,
                 top_height);
-        if (!top_payload) {
-            image_payload_release_key(base_key.c_str());
+        if (!top_image) {
+            image_manager().release(base_key);
             return 0;
         }
 
         out_footprint.texture_key = base_key;
-        if (!populate_slice_from_payload(footprint_payload, is_isometric, out_footprint.slice)) {
+        if (!populate_slice_from_image(footprint_image, is_isometric, out_footprint.slice)) {
             crash_context_report_error("Resolved image group footprint materialized with an invalid runtime slice", base_key.c_str());
-            image_payload_release_key((base_key + "\\top").c_str());
-            image_payload_release_key(base_key.c_str());
+            image_manager().release(base_key + "\\top");
+            image_manager().release(base_key);
             return 0;
         }
 
         out_top.texture_key = base_key + "\\top";
-        if (!populate_slice_from_payload(top_payload, 0, out_top.slice)) {
+        if (!populate_slice_from_image(top_image, 0, out_top.slice)) {
             crash_context_report_error("Resolved image group top materialized with an invalid runtime slice", (base_key + "\\top").c_str());
-            image_payload_release_key((base_key + "\\top").c_str());
-            image_payload_release_key(base_key.c_str());
+            image_manager().release(base_key + "\\top");
+            image_manager().release(base_key);
             return 0;
         }
         return 1;
@@ -958,20 +976,20 @@ int upload_split_surface(
     base_image.original.width = split_surface.width;
     base_image.original.height = split_surface.height;
     base_image.is_isometric = is_isometric;
-    const ImagePayload *footprint_payload = image_payload_load_pixels_payload(
+    const Image *footprint_image = image_manager().load_pixels(
             base_key.c_str(),
             base_image,
             footprint_source.pixels.data(),
             footprint_source.width,
             footprint_source.height);
-    if (!footprint_payload) {
+    if (!footprint_image) {
         return 0;
     }
 
     out_footprint.texture_key = base_key;
-    if (!populate_slice_from_payload(footprint_payload, is_isometric, out_footprint.slice)) {
+    if (!populate_slice_from_image(footprint_image, is_isometric, out_footprint.slice)) {
         crash_context_report_error("Resolved image group footprint materialized with an invalid runtime slice", base_key.c_str());
-        image_payload_release_key(base_key.c_str());
+        image_manager().release(base_key);
         return 0;
     }
     out_top = {};
@@ -1040,6 +1058,13 @@ const ResolvedImageEntry *materialize_source_entry(const std::string &group_key,
             }
             if (canvas_height <= 0) {
                 canvas_height = transformed_layer_height(prepared_layer);
+            }
+            if (!resolved_entry.has_sprite_offset && prepared_layer.has_sprite_offset) {
+                resolved_entry.has_sprite_offset = 1;
+                resolved_entry.sprite_offset_x = prepared_layer.sprite_offset_x;
+                resolved_entry.sprite_offset_y = prepared_layer.sprite_offset_y;
+                resolved_entry.animation.sprite_offset_x = prepared_layer.sprite_offset_x;
+                resolved_entry.animation.sprite_offset_y = prepared_layer.sprite_offset_y;
             }
             prepared_layers.push_back(std::move(prepared_layer));
         }

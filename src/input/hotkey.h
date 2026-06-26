@@ -3,9 +3,6 @@
 #include "core/hotkey_config.h"
 #include "input/keys.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 typedef struct {
     // fixed keys with multiple functions
@@ -66,6 +63,3 @@ void hotkey_handle_escape(void);
 
 void hotkey_handle_global_keys(void);
 
-#ifdef __cplusplus
-}
-#endif

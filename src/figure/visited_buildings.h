@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 typedef struct {
     unsigned int index;
     int building_id;
@@ -55,3 +56,4 @@ void figure_visited_buildings_save_state(buffer *buf);
  * @param buf Buffer
  */
 void figure_visited_buildings_load_state(buffer *buf);
+

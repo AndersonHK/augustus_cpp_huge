@@ -1,26 +1,27 @@
-extern "C" {
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/graphics.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/editor/attributes.h"
+#include "window/editor/edit_demand_change.h"
+
 #include "demand_changes.h"
+
+#include "window/editor/map.h"
+#include "graphics/grid_box.h"
 
 #include "core/image_group_editor.h"
 #include "core/string.h"
 #include "empire/trade_route.h"
 #include "game/resource.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/grid_box.h"
-#include "graphics/image.h"
-#include "graphics/lang_text.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/demand_change.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-#include "window/editor/attributes.h"
-#include "window/editor/edit_demand_change.h"
-#include "window/editor/map.h"
-}
 
 #include <stdlib.h>
 
@@ -114,15 +115,15 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 0, 40, 25);
-    lang_text_draw(44, 94, 20, 14, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw("main_strings.44.94", 20, 14, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     if (!data.demand_changes_in_use) {
-        lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NO_DEMAND_CHANGES, 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+        lang_text_draw_centered("TR_EDITOR_NO_DEMAND_CHANGES", 0, 165, 640, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
     }
 
-    lang_text_draw_centered(13, 3, 0, 374, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 0, 374, 640, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_NEW_DEMAND_CHANGE, new_demand_change_button.x + 8,
+    lang_text_draw_centered("TR_EDITOR_NEW_DEMAND_CHANGE", new_demand_change_button.x + 8,
         new_demand_change_button.y + 8, new_demand_change_button.width - 16, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
@@ -173,11 +174,10 @@ static void draw_demand_change_button(const grid_box_item *item)
     text_draw_number(demand_change->year, '+', " ", item->x + 5, item->y + 7, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     int width = lang_text_draw_year(scenario_property_start_year() + demand_change->year, item->x + 40, item->y + 7,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    int image_id = resource_get_data(static_cast<resource_type>(demand_change->resource))->image.editor.icon;
-    const image *img = image_get(image_id);
-    int base_height = (item->height - img->original.height) / 2;
-    image_draw(image_id, item->x + 45 + width, item->y + base_height, COLOR_MASK_NONE, SCALE_NONE);
-    width += lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_SHORT_ROUTE_TEXT, item->x + 75 + width, item->y + 7,
+    const ImageGroupEntryRef &icon = resource_graphics(static_cast<resource_type>(demand_change->resource)).editor_icon();
+    int base_height = (item->height - icon.height()) / 2;
+    icon.draw(item->x + 45 + width, item->y + base_height);
+    width += lang_text_draw("TR_EDITOR_SHORT_ROUTE_TEXT", item->x + 75 + width, item->y + 7,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     width += text_draw_number(demand_change->route_id, '@', " ", item->x + 75 + width, item->y + 7,
         FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);

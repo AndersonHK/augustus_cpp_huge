@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="highway">
+    <identity name_key="TR_BUILDING_HIGHWAY" />
+    <model size="2" cost="100" />
+    <desirability>
+        <value value="-4" />
+        <step value="1" />
+        <step_size value="2" />
+        <range value="2" />
+    </desirability>
+    <foundation policy="road_or_land" />
+    <tool kind="highway" />
+    <tile kind="highway" refresh="none" />
+    <event_data attr="highway" />
+    <flags fire_proof="1" />
+    <graphics>
+        <default>
+            <path value="Admin_Logistics\Highway_Placement" />
+            <image value="Highway_Placement" />
+        </default>
+        <variant role="tile_base">
+            <path value="Admin_Logistics\Highway_Base_Start" />
+            <options selection="stable_variant">
+                <option image="Highway_Base_Start" />
+                <option image="Image_0000" />
+                <option image="Image_0001" />
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+                <option image="Image_0004" />
+                <option image="Image_0005" />
+                <option image="Image_0006" />
+                <option image="Image_0007" />
+                <option image="Image_0008" />
+                <option image="Image_0009" />
+                <option image="Image_0010" />
+                <option image="Image_0011" />
+                <option image="Image_0012" />
+                <option image="Image_0013" />
+                <option image="Image_0014" />
+            </options>
+        </variant>
+        <variant role="tile_barrier">
+            <path value="Admin_Logistics\Highway_Barrier_Start" />
+            <options selection="stable_variant">
+                <option image="Highway_Barrier_Start" />
+                <option image="Image_0015" />
+                <option image="Image_0016" />
+                <option image="Image_0017" />
+                <option image="Image_0018" />
+                <option image="Image_0019" />
+                <option image="Image_0020" />
+                <option image="Image_0021" />
+            </options>
+        </variant>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

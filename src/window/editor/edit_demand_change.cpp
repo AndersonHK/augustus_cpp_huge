@@ -1,27 +1,27 @@
-extern "C" {
+#include "graphics/generic_button.h"
+#include "translation/translation.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "window/numeric_input.h"
+#include "window/plain_message_dialog.h"
+#include "window/select_list.h"
+
 #include "edit_demand_change.h"
 
-#include "core/lang.h"
+#include "window/editor/map.h"
+
 #include "core/string.h"
 #include "empire/city.h"
 #include "empire/trade_route.h"
 #include "empire/type.h"
 #include "graphics/ui_runtime_api.h"
-#include "graphics/generic_button.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/demand_change.h"
 #include "scenario/editor.h"
 #include "scenario/property.h"
-#include "window/editor/map.h"
-#include "window/numeric_input.h"
-#include "window/plain_message_dialog.h"
-#include "window/select_list.h"
-}
 
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +58,7 @@ static struct {
     unsigned int num_routes;
     int is_new_demand_change;
     const uint8_t *errors[MAX_POSSIBLE_ERRORS];
-    resource_type available_resources[RESOURCE_MAX];
+    resource_type available_resources[RESOURCE_SLOT_COUNT];
 } data;
 
 static void create_route_info(int route_id, const uint8_t *city_name)
@@ -108,7 +108,7 @@ static void init(int id)
             const uint8_t *city_name = empire_city_get_name(city);
             create_route_info(i, city_name);
         } else {
-            create_route_info(i, lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_UNKNOWN_ROUTE));
+            create_route_info(i, lang_get_string("TR_EDITOR_UNKNOWN_ROUTE"));
         }
     }
 }
@@ -116,18 +116,18 @@ static void init(int id)
 static const uint8_t *get_text_for_route_id(int route_id)
 {
     if (!data.num_routes) {
-        return lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_NO_ROUTES);
+        return lang_get_string("TR_EDITOR_NO_ROUTES");
     }
     // No route selected yet
     if (route_id == 0) {
-        return lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_SET_A_ROUTE);
+        return lang_get_string("TR_EDITOR_SET_A_ROUTE");
     }
     for (unsigned int i = 0; i < data.num_routes; i++) {
         if (data.route_ids[i] == route_id) {
             return data.route_names[i];
         }
     }
-    return lang_get_string(CUSTOM_TRANSLATION, TR_EDITOR_UNKNOWN_ROUTE);
+    return lang_get_string("TR_EDITOR_UNKNOWN_ROUTE");
 }
 
 static void draw_background(void)
@@ -137,7 +137,7 @@ static void draw_background(void)
     graphics_in_dialog();
 
     outer_panel_draw(0, 100, 40, 11);
-    lang_text_draw(44, 94, 20, 114, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw("main_strings.44.94", 20, 114, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     text_draw_number_centered_prefix(data.demand_change.year, '+', 30, 158, 60, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     lang_text_draw_year(scenario_property_start_year() + data.demand_change.year, 100, 158, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
@@ -146,21 +146,20 @@ static void draw_background(void)
         190, 158, 120, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height),
         COLOR_MASK_NONE);
 
-    lang_text_draw(44, 97, 330, 158, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.97", 330, 158, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_centered(get_text_for_route_id(data.demand_change.route_id), 420, 158, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
 
-    lang_text_draw(44, 100, 60, 198, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.100", 60, 198, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     text_draw_number_centered(data.demand_change.amount, 350, 198, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     
-    translation_key key = data.demand_change.buys ? TR_EDITOR_DEMAND_CHANGE_BUYS : TR_EDITOR_DEMAND_CHANGE_SELLS;
-    lang_text_draw_centered(CUSTOM_TRANSLATION, key, 480, 198, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    translation_key key = data.demand_change.buys ? "TR_EDITOR_DEMAND_CHANGE_BUYS" : "TR_EDITOR_DEMAND_CHANGE_SELLS";
+    lang_text_draw_centered(key, 480, 198, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered_colored(44, 101, 16, 244, 250, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height),
-        data.is_new_demand_change ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
+    lang_text_draw_centered_colored("main_strings.44.101", 16, 244, 250, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), data.is_new_demand_change ? COLOR_FONT_LIGHT_GRAY : COLOR_RED);
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_BUTTON_CANCEL, 409, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("TR_BUTTON_CANCEL", 409, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw_centered(18, 3, 524, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.18.3", 524, 244, 100, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     graphics_reset_dialog();
 }
@@ -216,10 +215,10 @@ static void set_resource(int value)
 
 static void button_resource(const generic_button *button)
 {
-    static const uint8_t *resource_texts[RESOURCE_MAX];
+    static const uint8_t *resource_texts[RESOURCE_SLOT_COUNT];
     static int total_resources = 0;
     if (!total_resources) {
-        for (int resource_id = RESOURCE_NONE; resource_id < RESOURCE_MAX; resource_id++) {
+        for (int resource_id = RESOURCE_NONE; resource_id < RESOURCE_SLOT_COUNT; resource_id++) {
             resource_type resource = static_cast<resource_type>(resource_id);
             if (!resource_is_storable(resource)) {
                 continue;
@@ -297,16 +296,16 @@ static unsigned int validate(void)
     }
 
     if (data.demand_change.resource == RESOURCE_NONE) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_NO_RESOURCE);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_NO_RESOURCE");
     }
     if (data.demand_change.amount <= 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_REQUEST_NO_AMOUNT);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_REQUEST_NO_AMOUNT");
     }
     if (data.demand_change.year == 0) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_DEMAND_CHANGE_NO_YEAR);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_DEMAND_CHANGE_NO_YEAR");
     }
     if (!is_valid_route()) {
-        data.errors[num_errors++] = translation_for(TR_EDITOR_EDIT_DEMAND_CHANGE_INVALID_ROUTE_SET);
+        data.errors[num_errors++] = translation_for_key("TR_EDITOR_EDIT_DEMAND_CHANGE_INVALID_ROUTE_SET");
     }
 
     return num_errors;
@@ -316,7 +315,7 @@ static void button_save(const generic_button *button)
 {
     unsigned int num_errors = validate();
     if(num_errors) {
-        window_plain_message_dialog_show_text_list(TR_EDITOR_FORM_ERRORS_FOUND, TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS,
+        window_plain_message_dialog_show_text_list("TR_EDITOR_FORM_ERRORS_FOUND", "TR_EDITOR_FORM_HAS_FOLLOWING_ERRORS",
             data.errors, num_errors);
         return;
     }

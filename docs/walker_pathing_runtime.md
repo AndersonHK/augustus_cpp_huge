@@ -11,7 +11,7 @@ This note maps the native walker pathing work so future sessions can find the ru
 - `src/figure/figure_runtime_native.h/.cpp` owns native controller classes, venue ranking, and controller factory dispatch.
 - `src/building/building_runtime.cpp` creates profiled native figures for BuildingType spawns.
 - `src/building/local_workforce.h/.cpp` owns local workforce targeting and save data.
-- `src/map/routing_distance.h/.cpp` wraps routing-grid distance checks for walker destination selection.
+- `src/figure/route.h/.cpp` wraps routing-grid distance checks for walker destination selection.
 - `src/map/road_service_history.h/.cpp` owns per-road, per-effect visit stamps.
 - `src/game/file_io.cpp` saves and loads road service history.
 - `src/game/save_version.h` records save-version boundaries.
@@ -130,8 +130,11 @@ Effect ids are save-compatible and append-only. New entertainment effects were a
 - `entertainment_colosseum_lion`
 - `entertainment_hippodrome`
 - `market_goods`
+- `doctor`
+- `surgeon`
+- `tax_collector`
 
-`SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended entertainment history grids. `SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended market history grid. See `docs/save_data_organization.md` and `src/game/save_version.h` for the current save version and full `.svv` piece layout.
+`SAVE_GAME_LAST_NO_ENTERTAINMENT_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended entertainment history grids. `SAVE_GAME_LAST_NO_MARKET_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended market history grid. `SAVE_GAME_LAST_NO_MEDICINE_TAX_ROAD_SERVICE_HISTORY` marks the compatibility boundary for the appended doctor, surgeon, and tax collector grids. See `docs/save_data_organization.md` and `src/game/save_version.h` for the current save version and full `.svv` piece layout.
 `docs/save_load_runtime_bridges.md` documents how the loaded history grids, local workforce allocation vector, and FigureType profile inference are rebuilt after the file pieces are read.
 
 ## Related Context

@@ -19,6 +19,22 @@
                 <option image="Image_0003" />
             </options>
         </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Aesthetics\House_Villa_1_Northern" />
+            <options selection="stable_variant">
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Aesthetics\House_Villa_1_Desert" />
+            <options selection="stable_variant">
+                <option image="Image_0002" />
+                <option image="Image_0003" />
+            </options>
+        </variant>
     </graphics>
     <housing path="house_medium_villa" capacity="42" evolve_to="house_large_villa" devolve_to="house_small_villa" />
     <spawn_group road_access="normal" delay_bands="100:0">

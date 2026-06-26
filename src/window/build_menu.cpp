@@ -1,34 +1,36 @@
-extern "C" {
+#include "building/construction.h"
+#include "translation/translation.h"
+#include "building/rotation.h"
+#include "city/warning.h"
+#include "game/resource_graphics.h"
+#include "graphics/generic_button.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "input/input.h"
+#include "widget/city.h"
+#include "widget/sidebar/city.h"
+#include "window/city.h"
+
 #include "build_menu.h"
 
-#include "assets/assets.h"
-#include "building/construction.h"
+
 #include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/rotation.h"
 #include "city/view.h"
-#include "city/warning.h"
 #include "core/config.h"
 #include "core/image.h"
-#include "core/lang.h"
+#include "core/locale.h"
 #include "core/string.h"
 #include "game/resource.h"
-#include "graphics/generic_button.h"
-#include "graphics/image.h"
-#include "graphics/lang_text.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "input/input.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-#include "widget/city.h"
-#include "widget/sidebar/city.h"
-#include "window/city.h"
-}
+#include "building/building_type_registry_internal.h"
+#include <building/industry.h>
 
 #include <cstddef>
 #include <vector>
@@ -36,9 +38,12 @@ extern "C" {
 #define MENU_X_OFFSET 298
 #define MENU_Y_OFFSET 110
 #define MENU_ITEM_HEIGHT 24
-#define MENU_ITEM_WIDTH 208
+#define MENU_LABEL_BLOCKS 18
+#define MENU_ITEM_WIDTH 290
 #define MENU_CLICK_MARGIN 20
 #define MENU_TEXT_X_OFFSET 8
+// Center build labels on the visible button rectangle; the retained hit box is wider than the label art.
+#define MENU_TEXT_CENTER_X_OFFSET -5
 
 #define MENU_RESOURCE_ICON_SIZE 16
 
@@ -51,6 +56,17 @@ extern "C" {
 
 static uint8_t tooltip_text[TOOLTIP_TEXT_LENGTH];
 
+static const building_type_registry_impl::BuildingType *building_type_definition_from_attr(const char *text_id)
+{
+    return building_type_registry_impl::definition_for_type(
+        building_type_registry_impl::type_from_attr(text_id));
+}
+
+static building_type building_type_from_attr(const char *text_id)
+{
+    return building_type_registry_impl::type_from_attr(text_id);
+}
+
 class BuildMenuButton {
 public:
     void bind(build_menu_group submenu, int item_index, unsigned int display_index, generic_button &button_widget);
@@ -59,7 +75,7 @@ public:
     building_type type() const;
     int shortcut_index() const;
     const uint8_t *display_name() const;
-    int menu_icon() const;
+    const ImageGroupEntryRef &menu_icon() const;
     int cost() const;
     int has_rotation_icon() const;
     int has_monument_icon() const;
@@ -69,19 +85,21 @@ public:
 
 private:
     building_type cost_type() const;
+    const building_type_registry_impl::BuildingType *definition() const;
 
     build_menu_group submenu = SUBMENU_NONE;
     int menu_item_index = -1;
     unsigned int display_index = 0;
     building_type building = BUILDING_NONE;
-    int menu_icon_id = -1;
+    const building_type_registry_impl::BuildingType *type_definition = nullptr;
+    ImageGroupEntryRef menu_icon_ref;
 };
 
 static void button_menu_button_clicked(const generic_button *button);
 static void rebuild_visible_menu_buttons(void);
 static void request_visible_menu_button_rebuild(void);
 static const BuildMenuButton *focused_menu_button(void);
-static int produced_resource_icon(building_type type);
+static ImageGroupEntryRef produced_resource_icon(building_type type);
 
 static std::vector<generic_button> build_menu_button_widgets;
 static std::vector<BuildMenuButton> build_menu_buttons;
@@ -118,13 +136,14 @@ void BuildMenuButton::bind(build_menu_group button_submenu, int item_index, unsi
     menu_item_index = item_index;
     display_index = button_display_index;
     building = building_menu_type(submenu, menu_item_index);
-    menu_icon_id = building_type_registry_get_button_icon_image_id(building);
-    if (!menu_icon_id) {
-        menu_icon_id = produced_resource_icon(building);
+    type_definition = building_type_registry_impl::definition_for_type(cost_type());
+    menu_icon_ref = definition() ? definition()->button_icon_ref() : ImageGroupEntryRef();
+    if (!menu_icon_ref.is_bound()) {
+        menu_icon_ref = produced_resource_icon(building);
     }
 
     button_widget.reset();
-    button_widget.set_bounds(0, static_cast<short>(MENU_ITEM_HEIGHT * display_index), 290, 20);
+    button_widget.set_bounds(0, static_cast<short>(MENU_ITEM_HEIGHT * display_index), MENU_ITEM_WIDTH, 20);
     button_widget.set_handlers(button_menu_button_clicked, 0);
     button_widget.set_context(this);
     button_widget.debug_name = "city-build-menu-button";
@@ -136,7 +155,8 @@ void BuildMenuButton::clear()
     menu_item_index = -1;
     display_index = 0;
     building = BUILDING_NONE;
-    menu_icon_id = -1;
+    type_definition = nullptr;
+    menu_icon_ref = ImageGroupEntryRef();
 }
 
 int BuildMenuButton::is_bound() const
@@ -208,7 +228,7 @@ static int init(build_menu_group submenu)
 int window_build_menu_image(void)
 {
     building_type type = building_construction_selection_type();
-    int image_base = image_group(GROUP_PANEL_WINDOWS);
+    int image_base = Image::group(GROUP_PANEL_WINDOWS);
     if (type == BUILDING_NONE) {
         return image_base + 12;
     }
@@ -218,19 +238,19 @@ int window_build_menu_image(void)
             return image_base;
         case BUILD_MENU_CLEAR_LAND:
             if (scenario_property_climate() == CLIMATE_DESERT) {
-                return image_group(GROUP_PANEL_WINDOWS_DESERT);
+                return Image::group(GROUP_PANEL_WINDOWS_DESERT);
             } else {
                 return image_base + 11;
             }
         case BUILD_MENU_ROAD:
             if (scenario_property_climate() == CLIMATE_DESERT) {
-                return image_group(GROUP_PANEL_WINDOWS_DESERT) + 1;
+                return Image::group(GROUP_PANEL_WINDOWS_DESERT) + 1;
             } else {
                 return image_base + 10;
             }
         case BUILD_MENU_WATER:
             if (scenario_property_climate() == CLIMATE_DESERT) {
-                return image_group(GROUP_PANEL_WINDOWS_DESERT) + 2;
+                return Image::group(GROUP_PANEL_WINDOWS_DESERT) + 2;
             } else {
                 return image_base + 3;
             }
@@ -251,7 +271,7 @@ int window_build_menu_image(void)
         case BUILD_MENU_SECURITY:
         case BUILD_MENU_FORTS:
             if (scenario_property_climate() == CLIMATE_DESERT) {
-                return image_group(GROUP_PANEL_WINDOWS_DESERT) + 3;
+                return Image::group(GROUP_PANEL_WINDOWS_DESERT) + 3;
             } else {
                 return image_base + 8;
             }
@@ -277,79 +297,94 @@ static int get_sidebar_x_offset(void)
 
 static int is_auto_cycle_button(build_menu_group submenu, building_type type)
 {
-    return (type == BUILDING_MENU_SMALL_TEMPLES && submenu == BUILD_MENU_SMALL_TEMPLES) ||
-        (type == BUILDING_MENU_LARGE_TEMPLES && submenu == BUILD_MENU_LARGE_TEMPLES) ||
-        (type == BUILDING_MENU_SHRINES && submenu == BUILD_MENU_SHRINES) ||
-        (type == BUILDING_MENU_TREES && submenu == BUILD_MENU_TREES) ||
-        (type == BUILDING_MENU_PATHS && submenu == BUILD_MENU_PATHS) ||
-        (type == BUILDING_MENU_GARDENS && submenu == BUILD_MENU_GARDENS);
+    return (building_type_registry_impl::type_attr_is(type, "small_temples") &&
+            submenu == BUILD_MENU_SMALL_TEMPLES) ||
+        (building_type_registry_impl::type_attr_is(type, "large_temples") &&
+            submenu == BUILD_MENU_LARGE_TEMPLES) ||
+        (building_type_registry_impl::type_attr_is(type, "shrines") && submenu == BUILD_MENU_SHRINES) ||
+        (building_type_registry_impl::type_attr_is(type, "trees") && submenu == BUILD_MENU_TREES) ||
+        (building_type_registry_impl::type_attr_is(type, "paths") && submenu == BUILD_MENU_PATHS) ||
+        (building_type_registry_impl::type_attr_is(type, "all_gardens") && submenu == BUILD_MENU_GARDENS);
 }
 
-static int produced_resource_icon(building_type type)
+// Costs share the right-side status column with auto-cycle text, so center the composed money string there.
+static void draw_menu_money_centered(int value, int x, int y, int box_width, font_t font, int pixel_size)
 {
-    resource_type r = resource_get_from_industry(type);
-    if (r != RESOURCE_NONE) {
-        return resource_get_data(r)->image.icon;
+    const uint8_t *postfix = locale_translate_money_dn() ? lang_get_string("main_strings.6.0") : string_from_ascii("Dn");
+    int width = text_get_number_width(value, '@', "", font, pixel_size) + text_get_width(postfix, font, pixel_size);
+    int offset = (box_width - width) / 2;
+    if (offset < 0) {
+        offset = 0;
     }
-    return -1;
+    text_draw_money(value, x + offset, y, font, pixel_size);
 }
 
-static void draw_resource_icon_scaled(int image_id, int x, int y, int max_size)
+static ImageGroupEntryRef produced_resource_icon(building_type type)
 {
-    const image *img = image_get(image_id);
-    if (!img) {
+    resource_type r = building_output_resource(type);
+    if (r != RESOURCE_NONE) {
+        return resource_graphics(r).panel_icon();
+    }
+    return ImageGroupEntryRef();
+}
+
+static void draw_resource_icon_scaled(const ImageGroupEntryRef &image, int x, int y, int max_size)
+{
+    if (!image.is_bound()) {
         return;
     }
-    int scale_percent;
-    if (img->height < 20) {
-        scale_percent = 100;
-    } else {
-        scale_percent = (20 * 100) / img->height;
+    const int image_width = image.width();
+    const int image_height = image.height();
+    if (image_width <= 0 || image_height <= 0) {
+        return;
     }
-    switch (image_id) {
-        case 1192://meat
-            y = y + 4;
-            break;
-        case 1195://iron
-            y = y + 2;
-            break;
-        case 11658://gold
-            y = y + 3;
-            break;
-        case 1203://fish
-            y = y + 4;
-            break;
-    }
-
-    image_draw_scaled_centered(image_id, x, y, COLOR_MASK_NONE, scale_percent);
+    const int larger_dimension = image_width > image_height ? image_width : image_height;
+    const float draw_scale = larger_dimension > max_size ?
+        static_cast<float>(larger_dimension) / static_cast<float>(max_size) :
+        SCALE_NONE;
+    const int scaled_width = static_cast<int>(image_width / draw_scale);
+    const int scaled_height = static_cast<int>(image_height / draw_scale);
+    image.draw(x + (max_size - scaled_width) / 2, y + (max_size - scaled_height) / 2, COLOR_MASK_NONE, draw_scale);
 }
 
 building_type BuildMenuButton::cost_type() const
 {
-    if (building == BUILDING_DRAGGABLE_RESERVOIR) {
-        return BUILDING_RESERVOIR;
+    if (building_type_registry_impl::type_attr_is(building, "draggable_reservoir")) {
+        return building_type_from_attr("reservoir");
     }
     return building;
+}
+
+const building_type_registry_impl::BuildingType *BuildMenuButton::definition() const
+{
+    return type_definition;
 }
 
 const uint8_t *BuildMenuButton::display_name() const
 {
     if (is_auto_cycle()) {
-        return translation_for(TR_AUTO_CYCLE_TEMPLES);
+        return translation_for_key("TR_AUTO_CYCLE_TEMPLES");
     }
-    const char *text_key = building_type_registry_get_button_text_key(building);
+    const char *text_key = definition() ? definition()->button_text_key() : nullptr;
     if (text_key && *text_key) {
         const uint8_t *display_name = lang_get_string_by_key(text_key);
         if (display_name) {
             return display_name;
         }
     }
-    return lang_get_string(28, building);
+    text_key = definition() && definition()->identity().has_name_key() ? definition()->identity().name_key() : nullptr;
+    if (text_key && *text_key) {
+        const uint8_t *display_name = lang_get_string_by_key(text_key);
+        if (display_name) {
+            return display_name;
+        }
+    }
+    return lang_get_building_type_string(building);
 }
 
-int BuildMenuButton::menu_icon() const
+const ImageGroupEntryRef &BuildMenuButton::menu_icon() const
 {
-    return menu_icon_id;
+    return menu_icon_ref;
 }
 
 int BuildMenuButton::cost() const
@@ -380,65 +415,55 @@ void BuildMenuButton::draw(int item_x_align, int x_offset, int focused) const
     int item_y = data.y_offset + MENU_Y_OFFSET + static_cast<int>(MENU_ITEM_HEIGHT * display_index);
     int menu_index = shortcut_index();
 
-    label_draw(item_x_align, item_y, 18, focused ? 1 : 2);
+    label_draw(item_x_align, item_y, MENU_LABEL_BLOCKS, focused ? 1 : 2);
 
     if (is_auto_cycle()) {
         if (menu_index > 0) {
             text_draw_build_menu_with_index(display_name(), menu_index % 10,
-                item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
+                item_x_align + MENU_TEXT_CENTER_X_OFFSET, item_y + 4,
                 MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         } else {
             text_draw_centered(display_name(),
-                item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
+                item_x_align + MENU_TEXT_CENTER_X_OFFSET, item_y + 4,
                 MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
         }
-        lang_text_draw_centered(18, 5 - building_construction_is_auto_cycling(), x_offset - MENU_ITEM_MONEY_OFFSET,
-            item_y + 4, MENU_ITEM_MONEY_OFFSET,
-            FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+        lang_text_draw_centered(current_string_key(18, 5 - building_construction_is_auto_cycling()), x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4, MENU_ITEM_MONEY_OFFSET, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
         return;
     }
 
-    int text_offset = MENU_TEXT_X_OFFSET;
-    int icon = menu_icon();
-    if (icon >= 0 && config_get(CONFIG_UI_CV_BUILD_MENU_ICONS)) {
+    const ImageGroupEntryRef &icon = menu_icon();
+    if (icon.is_bound() && config_get(CONFIG_UI_CV_BUILD_MENU_ICONS)) {
         draw_resource_icon_scaled(icon, item_x_align + MENU_TEXT_X_OFFSET + 2 +
             (has_monument_icon() + has_rotation_icon()) * MENU_ICON_WIDTH,
             item_y + 2, MENU_RESOURCE_ICON_SIZE);
-        text_offset += MENU_RESOURCE_ICON_SIZE + 4;
-    }
-
-    if (menu_index > 0) {
-        text_draw_build_menu_with_index(display_name(), menu_index % 10,
-            item_x_align + MENU_TEXT_X_OFFSET, item_y + 4,
-            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
-    } else {
-        text_draw_centered(display_name(), item_x_align + text_offset, item_y + 4,
-            MENU_ITEM_WIDTH - (text_offset - MENU_TEXT_X_OFFSET), FONT_NORMAL_GREEN,
-            screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
     }
 
     int build_cost = cost();
+    if (menu_index > 0) {
+        text_draw_build_menu_with_index(display_name(), menu_index % 10,
+            item_x_align + MENU_TEXT_CENTER_X_OFFSET, item_y + 4,
+            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+    } else {
+        text_draw_centered(display_name(), item_x_align + MENU_TEXT_CENTER_X_OFFSET, item_y + 4,
+            MENU_ITEM_WIDTH, FONT_NORMAL_GREEN,
+            screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
+    }
+
     if (build_cost) {
-        text_draw_money(build_cost, x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4,
+        draw_menu_money_centered(build_cost, x_offset - MENU_ITEM_MONEY_OFFSET, item_y + 4, MENU_ITEM_MONEY_OFFSET,
             FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
     } else {
-        int image_id = assets_get_image_id("UI", "Expand Menu Icon");
-        image_draw(image_id, item_x_align + MENU_ICON_X_OFFSET + 268,
-            item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        ImageGroupEntryRef::from_group("UI\\Expand_Menu_Icon", "Expand Menu Icon").draw(item_x_align + MENU_ICON_X_OFFSET + 268, item_y + MENU_ICON_Y_OFFSET);
     }
 
     int icons_drawn = 0;
     if (has_rotation_icon()) {
-        int image_id = assets_get_image_id("UI", "Rotate Build Icon");
-        image_draw(image_id, item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET,
-            item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        ImageGroupEntryRef::from_group("UI\\Rotate_Build_Icon", "Rotate Build Icon").draw(item_x_align + icons_drawn * MENU_ICON_WIDTH + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET);
         icons_drawn++;
     }
 
     if (has_monument_icon()) {
-        int image_id = assets_get_image_id("UI", "Monument Build Icon");
-        image_draw(image_id, item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET,
-            item_y + MENU_ICON_Y_OFFSET, COLOR_MASK_NONE, SCALE_NONE);
+        ImageGroupEntryRef::from_group("UI\\Monument_Build_Icon", "Monument Build Icon").draw(item_x_align + icons_drawn * (MENU_ICON_WIDTH + 3) + MENU_ICON_X_OFFSET, item_y + MENU_ICON_Y_OFFSET);
     }
 }
 
@@ -569,14 +594,14 @@ static void generate_tooltip_text_for_monument(building_type monument)
     int phases = building_monument_phases(monument) - 1;
     uint8_t *index = tooltip_text;
     index += string_from_int(index, phases, 0);
-    index = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_MONUMENT_PHASE + (phases != 1 ? 1 : 0)),
+    index = string_copy(lang_get_string(phases == 1 ? "TR_TOOLTIP_MONUMENT_PHASE" : "TR_TOOLTIP_MONUMENT_PHASES"),
         index, remanining_length(index));
-    index = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_TOOLTIP_MONUMENT_RESOURCE_REQUIREMENTS),
+    index = string_copy(lang_get_string("TR_TOOLTIP_MONUMENT_RESOURCE_REQUIREMENTS"),
         index, remanining_length(index));
 
     int has_listed_resource = 0;
 
-    for (int i = RESOURCE_MIN; i < RESOURCE_MAX; ++i) {
+    for (int i = (RESOURCE_NONE + 1); i < RESOURCE_SLOT_COUNT; ++i) {
         resource_type r = static_cast<resource_type>(i);
         int amount = 0;
         for (int phase = 1; phase <= phases; phase++) {

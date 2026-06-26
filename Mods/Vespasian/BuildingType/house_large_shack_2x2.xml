@@ -16,6 +16,16 @@
             <path value="Aesthetics\House_Shack" />
             <image value="Image_0005" />
         </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <path value="Aesthetics\House_Shack_Northern" />
+            <image value="Image_0005" />
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <path value="Aesthetics\House_Shack_Desert" />
+            <image value="Image_0005" />
+        </variant>
     </graphics>
     <housing path="house_large_shack" capacity="44" evolve_to="house_small_hovel_2x2" devolve_to="house_small_shack_2x2" split_to="house_large_shack" />
     <spawn_group road_access="normal" delay_bands="100:0">

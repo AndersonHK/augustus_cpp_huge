@@ -12,8 +12,11 @@
     <button group="entertainment" order="10" icon="Health_Culture\Theater" text_key="main_strings.28.31" />
     <sound id="theater" mute_on_enemies="true" />
     <event_data attr="theater" />
+    <culture_modules>
+        <culture_module path="theater" capacity="500" upgrade_bonus="700" count="active" />
+    </culture_modules>
     <graphics>
-        <default>
+        <default animation="0">
             <path value="Health_Culture\Theater" />
             <image value="Image_0000" />
         </default>
@@ -24,7 +27,7 @@
             <path value="Health_Culture\Theatre_ON_01" />
             <image value="Theatre Upgrade ON" />
         </variant>
-        <variant>
+        <variant animation="0">
             <condition type="desirability" operator="gt" threshold="45" />
             <path value="Health_Culture\Theatre_Upgrade_OFF" />
             <image value="Theatre Upgrade OFF" />

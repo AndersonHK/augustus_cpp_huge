@@ -1,30 +1,31 @@
-#include <cstdlib>
-#include <cstring>
-
-extern "C" {
-#include "mission_list.h"
-
-#include "assets/assets.h"
-#include "core/image_group.h"
-#include "core/log.h"
-#include "core/string.h"
-#include "game/campaign.h"
 #include "game/file.h"
+#include "translation/translation.h"
 #include "game/file_io.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "graphics/list_box.h"
-#include "graphics/text.h"
-#include "graphics/window.h"
 #include "input/input.h"
 #include "widget/minimap.h"
 #include "window/mission_briefing.h"
 #include "window/mission_selection.h"
 #include "window/select_campaign.h"
-}
+
+#include "mission_list.h"
+
+#include <cstdlib>
+#include <cstring>
+
+#include "game/campaign.h"
+
+#include "assets/assets.h"
+#include "core/image_group.h"
+#include "core/log.h"
+#include "core/string.h"
+#include "graphics/ui_runtime_api.h"
+#include "graphics/text.h"
+#include "graphics/window.h"
 
 #define MISSION_LIST_Y_POSITION 48
 #define MISSION_MAP_MAX_WIDTH 352.0f
@@ -91,8 +92,13 @@ struct MissionListData {
 MissionListData data;
 
 static generic_button bottom_buttons[] = {
-    {344, 436, 90, 30, button_back, 0, TR_BUTTON_CANCEL },
-    {444, 436, 180, 30, button_start_scenario, 0, TR_WINDOW_MISSION_LIST_BUTTON_BEGIN_SCENARIO },
+    {344, 436, 90, 30, button_back },
+    {444, 436, 180, 30, button_start_scenario },
+};
+
+static const translation_key bottom_button_text_keys[] = {
+    "TR_BUTTON_CANCEL",
+    "TR_WINDOW_MISSION_LIST_BUTTON_BEGIN_SCENARIO",
 };
 
 class MissionListBottomButtons {
@@ -108,7 +114,7 @@ public:
             const generic_button &button = buttons_[i];
             button_border_draw(button.x, button.y, button.width, button.height, focus_button_id == i + 1);
             text_draw_centered(
-                lang_get_string(CUSTOM_TRANSLATION, text_id_for(button, ok_button_type)),
+                translation_for(text_key_for(i, ok_button_type)),
                 button.x,
                 button.y + 9,
                 button.width,
@@ -133,13 +139,12 @@ private:
         return sizeof(bottom_buttons) / sizeof(bottom_buttons[0]);
     }
 
-    static int text_id_for(const generic_button &button, int ok_button_type)
+    static translation_key text_key_for(unsigned int index, int ok_button_type)
     {
-        int text_id = button.parameter1;
-        if (text_id == TR_WINDOW_MISSION_LIST_BUTTON_BEGIN_SCENARIO) {
-            text_id += ok_button_type;
+        if (bottom_button_text_keys[index] == "TR_WINDOW_MISSION_LIST_BUTTON_BEGIN_SCENARIO" && ok_button_type == BUTTON_TYPE_MISSION_SELECTION) {
+            return "TR_WINDOW_MISSION_LIST_BUTTON_SCENARIO_SELECTION";
         }
-        return text_id;
+        return bottom_button_text_keys[index];
     }
 
     generic_button *buttons_;
@@ -276,8 +281,7 @@ static void draw_scenario_selection_button(const campaign_scenario *camp_scenari
         return;
     }
 
-    image_draw(image_group(GROUP_SELECT_MISSION_BUTTON),
-        (int) (x_offset * scale) + camp_scenario->x, (int) (y_offset * scale) + camp_scenario->y, COLOR_MASK_NONE, scale);
+    Image::from_id(Image::group(GROUP_SELECT_MISSION_BUTTON)).draw((int) (x_offset * scale) + camp_scenario->x, (int) (y_offset * scale) + camp_scenario->y, COLOR_MASK_NONE, scale);
 }
 
 static int draw_mission_selection_map(void)
@@ -285,7 +289,7 @@ static int draw_mission_selection_map(void)
     int image_id;
     float extra_scale = 1.0f;
     if (!data.selected_item->mission.background_image.id) {
-        image_id = image_group(GROUP_EMPIRE_MAP);
+        image_id = Image::group(GROUP_EMPIRE_MAP);
         extra_scale = 2.5f;
     } else {
         image_id = data.selected_item->mission.background_image.id;
@@ -301,8 +305,7 @@ static int draw_mission_selection_map(void)
 
     int x_offset = SELECTED_ITEM_INFO_X_OFFSET + (int) ((MISSION_MAP_MAX_WIDTH - img->original.width / scale) / 2);
 
-    image_draw(image_id, (int) (x_offset * scale), (int) (MISSION_LIST_Y_POSITION * scale),
-        COLOR_MASK_NONE, scale);
+    Image::from_id(image_id).draw((int) (x_offset * scale), (int) (MISSION_LIST_Y_POSITION * scale), COLOR_MASK_NONE, scale);
 
     for (int i = 1; i <= data.selected_item->mission.total_scenarios; i++) {
         draw_scenario_selection_button(data.items[data.selected_item->index + i].scenario,
@@ -322,25 +325,25 @@ static void draw_scenario_map(void)
 
 static void draw_rank(int y_offset)
 {
-    int x_offset = lang_text_get_width(44, 117, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
+    int x_offset = lang_text_get_width("main_strings.44.117", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
     x_offset += text_get_width(string_from_ascii(":"), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-    x_offset += lang_text_get_width(32, data.selected_item->rank, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    x_offset += lang_text_get_width(current_string_key(32, data.selected_item->rank), FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     x_offset = SELECTED_ITEM_INFO_X_OFFSET + (SELECTED_ITEM_INFO_WIDTH - x_offset) / 2;
-    x_offset += lang_text_draw(44, 117, x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
+    x_offset += lang_text_draw("main_strings.44.117", x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)) - 6;
     x_offset += text_draw(string_from_ascii(":"), x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    lang_text_draw(32, data.selected_item->rank, x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw(current_string_key(32, data.selected_item->rank), x_offset, y_offset, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 }
 
 static void draw_background(void)
 {
-    image_draw_fullscreen_background(image_group(GROUP_EMPIRE_MAP));
+    Image::from_id(Image::group(GROUP_EMPIRE_MAP)).draw_fullscreen_background();
 
     graphics_in_dialog();
     outer_panel_draw(0, 0, 40, 30);
     text_draw_centered_ellipsized(game_campaign_get_info()->name, 32, 14, 554, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
 
 
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_WINDOW_MISSION_LIST_CAMPAIGN_NOT_FINISHED - data.campaign_finished,
+    lang_text_draw_centered(data.campaign_finished ? "TR_WINDOW_CAMPAIGN_FINISHED" : "TR_WINDOW_MISSION_LIST_CAMPAIGN_NOT_FINISHED",
         16, 446, SELECTED_ITEM_INFO_X_OFFSET - 48, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
     if (data.selected_item->scenario) {
@@ -378,11 +381,11 @@ static void draw_background(void)
 
         // Number of missions
         int x_offset = text_get_number_width(data.selected_item->mission.total_scenarios, '@', "", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
-        x_offset += lang_text_get_width(CUSTOM_TRANSLATION, TR_WINDOW_MISSION_LIST_SCENARIOS, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        x_offset += lang_text_get_width("TR_WINDOW_MISSION_LIST_SCENARIOS", FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         x_offset = SELECTED_ITEM_INFO_X_OFFSET + (352 - x_offset) / 2;
         x_offset += text_draw_number(data.selected_item->mission.total_scenarios, '@', "",
             x_offset, y_offset + 56, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-        lang_text_draw(CUSTOM_TRANSLATION, TR_WINDOW_MISSION_LIST_SCENARIOS, x_offset, y_offset + 56,
+        lang_text_draw("TR_WINDOW_MISSION_LIST_SCENARIOS", x_offset, y_offset + 56,
             FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
         data.ok_button_type = BUTTON_TYPE_MISSION_SELECTION;
@@ -411,7 +414,7 @@ static void draw_item(const list_box_item *item)
         text_ellipsize(text, font, screen_ui_to_pixel(font_definition_for(font)->line_height), item->width - width);
         text_draw(text, item->x + width, item->y + 2, font, screen_ui_to_pixel(font_definition_for(font)->line_height), 0);
     } else {
-        uint8_t *cursor = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_SAVE_DIALOG_MISSION), text, 80);
+        uint8_t *cursor = string_copy(lang_get_string("TR_SAVE_DIALOG_MISSION"), text, 80);
         cursor = string_copy(string_from_ascii(" "), cursor, 80 - (int) (cursor - text));
         cursor += string_from_int(cursor, item_to_draw->mission.id, 0);
         cursor = string_copy(string_from_ascii(" - "), cursor, 80 - (int) (cursor - text));
@@ -529,7 +532,7 @@ static void item_tooltip(const list_box_item *item, tooltip_context *c)
     static unsigned int last_selection;
 
     if (last_selection != item->index + 1) {
-        uint8_t *cursor = string_copy(lang_get_string(CUSTOM_TRANSLATION, TR_SAVE_DIALOG_MISSION), text, 300);
+        uint8_t *cursor = string_copy(lang_get_string("TR_SAVE_DIALOG_MISSION"), text, 300);
         cursor = string_copy(string_from_ascii(" "), cursor, 300 - (int) (cursor - text));
         cursor += string_from_int(cursor, item_to_draw->mission.id, 0);
         cursor = string_copy(string_from_ascii(" - "), cursor, 300 - (int) (cursor - text));
@@ -570,12 +573,12 @@ static void show_window(int keep_data)
 
 } // namespace
 
-extern "C" void window_mission_list_show(void)
+void window_mission_list_show(void)
 {
     show_window(0);
 }
 
-extern "C" void window_mission_list_show_again(void)
+void window_mission_list_show_again(void)
 {
     show_window(1);
 }

@@ -1,6 +1,10 @@
 #pragma once
 
-#include "building/building.h"
+#include "building/building_fwd.h"
+class Building;
+
+
+class Building;
 
 /**
  * Evolves/devolves houses if appropriate, and consumes pottery/furniture/oil/wine
@@ -12,11 +16,12 @@ void building_house_process_evolve_and_consume_goods(void);
  * @param house House to determine text for
  * @param worst_desirability_building The ID of the building with worst contribution to desirability
  */
-void building_house_determine_evolve_text(building *house, int worst_desirability_building);
+void building_house_determine_evolve_text(Building house, int worst_desirability_building);
 
 /**
  * Determine building with worst contribution to desirability
  * @param house House to determine worst building for
  * @return Worst desirability building ID
  */
-building_type building_house_determine_worst_desirability_building_type(const building *house);
+building_type building_house_determine_worst_desirability_building_type(Building house);
+

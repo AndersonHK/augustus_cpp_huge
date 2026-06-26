@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="large_mausoleum">
+    <identity name_key="TR_BUILDING_LARGE_MAUSOLEUM" />
+    <model size="3" cost="500" />
+    <desirability>
+        <value value="-10" />
+        <step value="1" />
+        <step_size value="3" />
+        <range value="6" />
+    </desirability>
+    <foundation policy="land" />
+  <button group="temples" order="610" text_key="TR_BUILDING_LARGE_MAUSOLEUM" />
+    <sound id="oracle" />
+    <event_data attr="large_mausoleum" />
+    <flags fire_proof="1" draw_desirability_range="1" venus_gt_bonus="1" />
+    <culture_modules>
+        <culture_module path="temple_active" capacity="750" count="active" />
+    </culture_modules>
+    <graphics>
+        <default>
+            <path value="Monuments\Mausoleum_L" />
+            <image value="Mausoleum L" />
+        </default>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

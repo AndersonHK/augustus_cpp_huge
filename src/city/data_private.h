@@ -9,6 +9,7 @@
 #include "city/resource.h"
 #include "map/point.h"
 
+
 typedef struct {
     int8_t happiness;
     int8_t target_happiness;
@@ -327,18 +328,18 @@ extern struct city_data_t {
         int32_t bet_amount;
     } games;
     struct {
-        int16_t space_in_warehouses[RESOURCE_MAX];
-        int16_t stored_in_warehouses[RESOURCE_MAX];
-        int16_t trade_status[RESOURCE_MAX];
-        int16_t export_status_before_stockpiling[RESOURCE_MAX];
-        int16_t import_over[RESOURCE_MAX];
-        int16_t export_over[RESOURCE_MAX];
-        int32_t stockpiled[RESOURCE_MAX];
-        int16_t mothballed[RESOURCE_MAX];
+        int16_t space_in_warehouses[RESOURCE_SLOT_COUNT];
+        int16_t stored_in_warehouses[RESOURCE_SLOT_COUNT];
+        int16_t trade_status[RESOURCE_SLOT_COUNT];
+        int16_t export_status_before_stockpiling[RESOURCE_SLOT_COUNT];
+        int16_t import_over[RESOURCE_SLOT_COUNT];
+        int16_t export_over[RESOURCE_SLOT_COUNT];
+        int32_t stockpiled[RESOURCE_SLOT_COUNT];
+        int16_t mothballed[RESOURCE_SLOT_COUNT];
         int32_t wine_types_available;
         int32_t food_types_available;
         int32_t food_types_eaten;
-        int32_t granary_food_stored[RESOURCE_MAX_FOOD];
+        int32_t granary_food_stored[RESOURCE_SLOT_COUNT];
         int32_t granary_total_stored;
         int32_t food_supply_months;
         int32_t food_needed_per_month;
@@ -414,3 +415,4 @@ extern struct city_data_t {
         int32_t total_food;
     } caravanserai;
 } city_data;
+

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <building type="prefecture">
-    <identity name_key="building.prefecture.name" />
+    <identity name_key="main_strings.28.55" />
     <model size="1" cost="30" />
     <desirability>
         <value value="-2" />
@@ -9,7 +9,7 @@
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="security" order="10" icon="Admin_Logistics\Prefecture" text_key="building.prefecture.name" />
+  <button group="security" order="70" icon="Admin_Logistics\Prefecture" text_key="main_strings.28.55" />
     <sound id="prefecture" />
     <event_data attr="prefecture" />
     <flags draw_desirability_range="1" />

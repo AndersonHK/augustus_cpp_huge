@@ -1,5 +1,12 @@
 #pragma once
 
 #include "building/building.h"
+#include "building/distribution.h"
 
-int building_tavern_get_storage_destination(building *tavern);
+class Tavern : public Building {
+public:
+    using Building::Building;
+    explicit Tavern(Building building) : Building(building) {}
+
+    int storage_destination();
+};

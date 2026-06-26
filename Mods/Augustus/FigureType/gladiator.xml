@@ -4,8 +4,8 @@
         <profile id="venue_seeker">
             <native class="entertainment_venue_seeker" />
             <owner slot="primary" building="gladiator_school" state="in_use" />
-            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="3200" return_mode="none" />
-            <pathing mode="venue_seeker" />
+            <movement roam_ticks="1" max_roam_length="3200" return_mode="none" />
+            <pathing mode="venue_seeker" terrain="roads" />
             <venue_targets show_duration="32">
                 <venue building="amphitheater" show_slot="days1" />
                 <venue building="colosseum" show_slot="days2" />
@@ -15,20 +15,20 @@
         <profile id="amphitheater_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="amphitheater" state="in_use" />
-            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
-            <pathing mode="vanilla_roaming" effect="entertainment_amphitheater_gladiator" />
+            <movement roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
+            <pathing mode="vanilla_roaming" terrain="roads" effect="entertainment_amphitheater_gladiator" />
         </profile>
         <profile id="arena_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="arena" state="in_use" />
-            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
-            <pathing mode="vanilla_roaming" effect="entertainment_arena_gladiator" />
+            <movement roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
+            <pathing mode="vanilla_roaming" terrain="roads" effect="entertainment_arena_gladiator" />
         </profile>
         <profile id="colosseum_service">
             <native class="entertainment_service" />
             <owner slot="primary" building="colosseum" state="in_use" />
-            <movement terrain_usage="roads" roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
-            <pathing mode="vanilla_roaming" effect="entertainment_colosseum_gladiator" />
+            <movement roam_ticks="1" max_roam_length="512" return_mode="return_to_owner_road" />
+            <pathing mode="vanilla_roaming" terrain="roads" effect="entertainment_colosseum_gladiator" />
         </profile>
     </profiles>
     <graphics image_group="gladiator" max_image_offset="12" />

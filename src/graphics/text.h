@@ -7,9 +7,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 void text_capture_cursor(int cursor_position, int offset_start, int offset_end);
 void text_draw_cursor(int x_offset, int y_offset, int is_insert);
@@ -63,6 +60,3 @@ int text_measure_multiline(const uint8_t *str, int box_width, font_t font, int p
 
 void text_draw_build_menu_with_index(const uint8_t *str, int index, int x_offset, int y_offset, int box_width, font_t font, int pixel_size, color_t color);
 
-#ifdef __cplusplus
-}
-#endif

@@ -10,9 +10,9 @@ public:
     float source_scale_y(const render_2d_request &request, const image &img) const;
     render_domain tooltip_domain_for(render_domain domain) const;
     render_domain snapshot_domain_for(render_domain domain) const;
-    int should_use_linear_filter(
+    image_filter scale_filter(
         const render_2d_request &request,
         const image &img,
         float city_scale,
-        int disable_linear_filter) const;
+        int auto_force_nearest_filter) const;
 };

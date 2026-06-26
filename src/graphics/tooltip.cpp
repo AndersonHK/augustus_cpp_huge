@@ -1,36 +1,35 @@
+#include "building/building.h"
+#include "translation/translation.h"
+#include "city/labor.h"
+#include "graphics/graphics.h"
+#include "graphics/lang_text.h"
+#include "map/building.h"
+#include "map/image.h"
+
+#include "window/advisors.h"
 #include "tooltip.h"
 
 #include "core/crash_context.h"
 
-extern "C" {
-#include "building/building.h"
-#include "city/labor.h"
+#include "game/settings.h"
+#include "building/building_record.h"
 #include "city/ratings.h"
 #include "city/view.h"
 #include "core/calc.h"
 #include "core/config.h"
-#include "core/lang.h"
 #include "core/string.h"
 #include "core/time.h"
 #include "game/cheats.h"
-#include "game/settings.h"
-#include "graphics/graphics.h"
-#include "graphics/lang_text.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 #include "graphics/text.h"
 #include "graphics/window.h"
-#include "map/building.h"
 #include "map/desirability.h"
 #include "map/grid.h"
-#include "map/image.h"
 #include "map/property.h"
 #include "map/terrain.h"
 #include "scenario/criteria.h"
 #include "scenario/property.h"
-#include "translation/translation.h"
-#include "window/advisors.h"
-}
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -107,10 +106,9 @@ static const uint8_t *get_tooltip_text(const tooltip_context *c)
         return c->precomposed_text;
     }
     if (c->translation_key) {
-        const translation_key key = static_cast<translation_key>(c->translation_key);
-        text = translation_for(key);
+        text = translation_for(c->translation_key);
     } else {
-        text = lang_get_string(c->text_group, c->text_id);
+        text = lang_get_string(current_string_key(c->text_group, c->text_id));
     }
     if (c->has_numeric_prefix) {
         int offset = string_from_int(composed_tooltip_text, c->numeric_prefix, 0);
@@ -133,7 +131,7 @@ static const uint8_t *get_tooltip_text(const tooltip_context *c)
                 }
                 composed_tooltip_text[offset++] = ' ';
             }
-            const uint8_t *extra_value = lang_get_string(c->extra_text_groups[i], c->extra_text_ids[i]);
+            const uint8_t *extra_value = lang_get_string(current_string_key(c->extra_text_groups[i], c->extra_text_ids[i]));
             string_copy(extra_value, &composed_tooltip_text[offset], COMPOSED_TOOLTIP_TEXT_MAX - offset);
             offset += string_length(extra_value);
         }
@@ -163,12 +161,12 @@ static void log_empty_button_tooltip(const tooltip_context *c)
 {
     char detail[256];
     snprintf(detail, sizeof(detail),
-        "window=%d domain=%d text_group=%d text_id=%d translation=%d mouse=(%d,%d)",
+        "window=%d domain=%d text_group=%d text_id=%d translation=%s mouse=(%d,%d)",
         window_get_id(),
         c->domain,
         c->text_group,
         c->text_id,
-        c->translation_key,
+        c->translation_key.id ? c->translation_key.id : "<none>",
         c->mouse_x,
         c->mouse_y);
     error_context_report_error("Button tooltip resolved to no text", detail);
@@ -391,7 +389,7 @@ static void draw_senate_tooltip_row(int label_text_id, int primary_value, const 
     const int primary_column_x = 140;
     const int secondary_column_x = 176;
 
-    lang_text_draw_colored(68, label_text_id, 5, y, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
+    lang_text_draw_colored(current_string_key(68, label_text_id), 5, y, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
     text_draw_number(primary_value, '@', primary_postfix, primary_column_x, y, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);
     if (show_secondary) {
         text_draw_number(secondary_value, '(', ")", secondary_column_x, y, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height), COLOR_TOOLTIP);

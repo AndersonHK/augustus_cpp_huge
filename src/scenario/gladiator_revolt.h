@@ -2,6 +2,7 @@
 
 #include "core/buffer.h"
 
+
 void scenario_gladiator_revolt_init(void);
 
 void scenario_gladiator_revolt_process(void);
@@ -15,3 +16,4 @@ void scenario_gladiator_revolt_save_state(buffer *buf);
 void scenario_gladiator_revolt_load_state(buffer *buf);
 
 void scenario_gladiator_revolt_start_new(void);
+

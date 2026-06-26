@@ -1,31 +1,34 @@
-extern "C" {
-#include "scenario_events.h"
-
-#include "core/string.h"
-#include "editor/editor.h"
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
-#include "graphics/image.h"
 #include "graphics/lang_text.h"
-#include "graphics/screen.h"
-#include "graphics/scrollbar.h"
-#include "graphics/text.h"
-#include "graphics/window.h"
 #include "input/input.h"
-#include "scenario/editor_events.h"
 #include "scenario/event/event.h"
-#include "scenario/event/controller.h"
 #include "scenario/event/parameter_data.h"
-#include "scenario/property.h"
 #include "window/city.h"
 #include "window/editor/attributes.h"
-#include "window/editor/map.h"
 #include "window/editor/custom_variables.h"
 #include "window/editor/scenario_event_details.h"
 #include "window/file_dialog.h"
 #include "window/numeric_input.h"
-}
+
+#include "scenario_events.h"
+
+#include "editor/editor.h"
+#include "window/editor/map.h"
+#include <array>
+
+#include "graphics/image.h"
+
+
+#include "core/string.h"
+#include "graphics/ui_runtime_api.h"
+#include "graphics/screen.h"
+#include "graphics/scrollbar.h"
+#include "graphics/text.h"
+#include "graphics/window.h"
+#include "scenario/editor_events.h"
+#include "scenario/event/controller.h"
+#include "scenario/property.h"
 
 #define EVENTS_Y_OFFSET 100
 #define EVENTS_ROW_HEIGHT 31
@@ -104,7 +107,7 @@ static void populate_list(int offset)
 static void add_new_event(void)
 {
     scenario_event_t *event = scenario_event_create(0, 0, 0);
-    array_advance(event->condition_groups);
+    scenario_event_condition_group_add(event);
 
     init_list();
     window_request_refresh();
@@ -135,8 +138,8 @@ static void draw_foreground(void)
 
     outer_panel_draw(16, 16, 26, 38);
 
-    text_draw_centered(translation_for(TR_EDITOR_SCENARIO_EVENTS_TITLE), 48, 30, BUTTON_WIDTH, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
-    text_draw_label_and_number(translation_for(TR_EDITOR_SCENARIO_EVENTS_COUNT), data.total_events, "",
+    text_draw_centered(translation_for_key("TR_EDITOR_SCENARIO_EVENTS_TITLE"), 48, 30, BUTTON_WIDTH, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
+    text_draw_label_and_number(translation_for_key("TR_EDITOR_SCENARIO_EVENTS_COUNT"), data.total_events, "",
         30, 70, FONT_NORMAL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_PLAIN)->line_height), COLOR_BLACK);
 
     for (unsigned int i = 0; i < MAX_VISIBLE_ROWS; i++) {
@@ -147,16 +150,16 @@ static void draw_foreground(void)
             if (data.list[i]->state != EVENT_STATE_UNDEFINED) {
                 text_draw_number(data.list[i]->id, 0, "", buttons[i].x + 6, buttons[i].y + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), color);
                 if (!*data.list[i]->name) {
-                    text_draw_label_and_number(translation_for(TR_EDITOR_SCENARIO_EVENTS_CONDITIONS),
+                    text_draw_label_and_number(translation_for_key("TR_EDITOR_SCENARIO_EVENTS_CONDITIONS"),
                         scenario_event_count_conditions(data.list[i]), "", 100, buttons[i].y + 8,
                         FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
-                    text_draw_label_and_number(translation_for(TR_EDITOR_SCENARIO_EVENTS_ACTIONS),
-                        data.list[i]->actions.size, "", 250, buttons[i].y + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
+                    text_draw_label_and_number(translation_for_key("TR_EDITOR_SCENARIO_EVENTS_ACTIONS"),
+                        scenario_event_action_count(data.list[i]), "", 250, buttons[i].y + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), COLOR_MASK_NONE);
                 } else {
                     text_draw(data.list[i]->name, 100, buttons[i].y + 8, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), color);
                 }
             } else {
-                text_draw_centered(translation_for(TR_EDITOR_SCENARIO_EVENT_DELETED), 48, buttons[i].y + 8,
+                text_draw_centered(translation_for_key("TR_EDITOR_SCENARIO_EVENT_DELETED"), 48, buttons[i].y + 8,
                     BUTTON_WIDTH, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             }
         }
@@ -167,21 +170,21 @@ static void draw_foreground(void)
     }
 
     generic_button *btn = &buttons[10];
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_ADD, btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_EVENTS_ADD", btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     btn = &buttons[11];
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_IMPORT, btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_EVENTS_IMPORT", btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     btn = &buttons[12];
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_EXPORT, btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_EVENTS_EXPORT", btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     btn = &buttons[13];
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_SCENARIO_EVENTS_CLEAR, btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_SCENARIO_EVENTS_CLEAR", btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
     btn = &buttons[14];
-    lang_text_draw_centered(CUSTOM_TRANSLATION, TR_EDITOR_CUSTOM_VARIABLES_TITLE, btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
+    lang_text_draw_centered("TR_EDITOR_CUSTOM_VARIABLES_TITLE", btn->x, btn->y + 8, btn->width, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height));
 
-    lang_text_draw_centered(13, 3, 48, 600, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)); // Right-click to Continue
+    lang_text_draw_centered("main_strings.13.3", 48, 600, BUTTON_WIDTH, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height)); // Right-click to Continue
 
     scrollbar_draw(&scrollbar);
     graphics_reset_dialog();

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="palisade">
+    <identity name_key="TR_BUILDING_PALISADE" />
+    <model size="1" cost="6" hp="60" />
+    <desirability>
+        <value value="0" />
+        <step value="0" />
+        <step_size value="0" />
+        <range value="0" />
+    </desirability>
+    <foundation policy="land" />
+    <tool kind="draggable_building" drag_terrain="land_or_road" rotation="hedge" />
+  <button group="security" order="10" text_key="TR_BUILDING_PALISADE" />
+    <event_data attr="palisade" />
+    <flags fire_proof="1" draw_desirability_range="1" />
+    <graphics>
+        <default>
+            <options selection="connectable">
+                <option path="Military\Pal_Wall_C_01" image="Pal Wall C 01" />
+                <option path="Military\Pal_Wall_C_02" image="Pal Wall C 02" />
+                <option path="Military\Pal_Wall_C_03" image="Pal Wall C 03" />
+                <option path="Military\Pal_Wall_C_04" image="Pal Wall C 04" />
+                <option path="Military\Pal_Wall_C_05" image="Pal Wall C 05" />
+                <option path="Military\Pal_Wall_C_06" image="Pal Wall C 06" />
+                <option path="Military\Pal_Wall_C_07" image="Pal Wall C 07" />
+                <option path="Military\Pal_Wall_C_08" image="Pal Wall C 08" />
+                <option path="Military\Pal_Wall_C_09" image="Pal Wall C 09" />
+                <option path="Military\Pal_Wall_C_10" image="Pal Wall C 10" />
+                <option path="Military\Pal_Wall_C_11" image="Pal Wall C 11" />
+                <option path="Military\Pal_Wall_C_12" image="Pal Wall C 12" />
+                <option path="Military\Pal_Wall_C_13" image="Pal Wall C 13" />
+                <option path="Military\Pal_Wall_C_14" image="Pal Wall C 14" />
+                <option path="Military\Pal_Wall_C_15" image="Pal Wall C 15" />
+                <option path="Military\Pal_Wall_C_16" image="Pal Wall C 16" />
+                <option path="Military\Pal_Wall_C_17" image="Pal Wall C 17" />
+                <option path="Military\Pal_Wall_C_18" image="Pal Wall C 18" />
+                <option path="Military\Pal_Wall_C_19" image="Pal Wall C 19" />
+                <option path="Military\Pal_Wall_C_20" image="Pal Wall C 20" />
+                <option path="Military\Pal_Wall_C_21" image="Pal Wall C 21" />
+            </options>
+        </default>
+        <variant>
+            <condition type="climate" value="northern" />
+            <options selection="connectable">
+                <option path="Military\Pal_Wall_N_01" image="Pal Wall N 01" />
+                <option path="Military\Pal_Wall_N_02" image="Pal Wall N 02" />
+                <option path="Military\Pal_Wall_N_03" image="Pal Wall N 03" />
+                <option path="Military\Pal_Wall_N_04" image="Pal Wall N 04" />
+                <option path="Military\Pal_Wall_N_05" image="Pal Wall N 05" />
+                <option path="Military\Pal_Wall_N_06" image="Pal Wall N 06" />
+                <option path="Military\Pal_Wall_N_07" image="Pal Wall N 07" />
+                <option path="Military\Pal_Wall_N_08" image="Pal Wall N 08" />
+                <option path="Military\Pal_Wall_N_09" image="Pal Wall N 09" />
+                <option path="Military\Pal_Wall_N_10" image="Pal Wall N 10" />
+                <option path="Military\Pal_Wall_N_11" image="Pal Wall N 11" />
+                <option path="Military\Pal_Wall_N_12" image="Pal Wall N 12" />
+                <option path="Military\Pal_Wall_N_13" image="Pal Wall N 13" />
+                <option path="Military\Pal_Wall_N_14" image="Pal Wall N 14" />
+                <option path="Military\Pal_Wall_N_15" image="Pal Wall N 15" />
+                <option path="Military\Pal_Wall_N_16" image="Pal Wall N 16" />
+                <option path="Military\Pal_Wall_N_17" image="Pal Wall N 17" />
+                <option path="Military\Pal_Wall_N_18" image="Pal Wall N 18" />
+                <option path="Military\Pal_Wall_N_19" image="Pal Wall N 19" />
+                <option path="Military\Pal_Wall_N_20" image="Pal Wall N 20" />
+                <option path="Military\Pal_Wall_N_21" image="Pal Wall N 21" />
+            </options>
+        </variant>
+        <variant>
+            <condition type="climate" value="desert" />
+            <options selection="connectable">
+                <option path="Military\Pal_Wall_S_01" image="Pal Wall S 01" />
+                <option path="Military\Pal_Wall_S_02" image="Pal Wall S 02" />
+                <option path="Military\Pal_Wall_S_03" image="Pal Wall S 03" />
+                <option path="Military\Pal_Wall_S_04" image="Pal Wall S 04" />
+                <option path="Military\Pal_Wall_S_05" image="Pal Wall S 05" />
+                <option path="Military\Pal_Wall_S_06" image="Pal Wall S 06" />
+                <option path="Military\Pal_Wall_S_07" image="Pal Wall S 07" />
+                <option path="Military\Pal_Wall_S_08" image="Pal Wall S 08" />
+                <option path="Military\Pal_Wall_S_09" image="Pal Wall S 09" />
+                <option path="Military\Pal_Wall_S_10" image="Pal Wall S 10" />
+                <option path="Military\Pal_Wall_S_11" image="Pal Wall S 11" />
+                <option path="Military\Pal_Wall_S_12" image="Pal Wall S 12" />
+                <option path="Military\Pal_Wall_S_13" image="Pal Wall S 13" />
+                <option path="Military\Pal_Wall_S_14" image="Pal Wall S 14" />
+                <option path="Military\Pal_Wall_S_15" image="Pal Wall S 15" />
+                <option path="Military\Pal_Wall_S_16" image="Pal Wall S 16" />
+                <option path="Military\Pal_Wall_S_17" image="Pal Wall S 17" />
+                <option path="Military\Pal_Wall_S_18" image="Pal Wall S 18" />
+                <option path="Military\Pal_Wall_S_19" image="Pal Wall S 19" />
+                <option path="Military\Pal_Wall_S_20" image="Pal Wall S 20" />
+                <option path="Military\Pal_Wall_S_21" image="Pal Wall S 21" />
+            </options>
+        </variant>
+    </graphics>
+    <labor>
+        <employees count="0" />
+    </labor>
+</building>

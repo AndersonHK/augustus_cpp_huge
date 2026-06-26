@@ -1,19 +1,57 @@
 #pragma once
 
+#include "building/building.h"
 #include "core/buffer.h"
 #include "core/direction.h"
 #include "figure/action.h"
 #include "figure/properties.h"
 #include "figure/type.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+constexpr int FIGURE_FACTION_ROAMER_PREVIEW = 2;
 
-#define FIGURE_FACTION_ROAMER_PREVIEW 2
+class Figure;
 
-typedef struct {
-    unsigned int id;
+class FigureRelation {
+public:
+    Figure &get();
+    const Figure &get() const;
+    void retarget(Figure &figure);
+    void clear();
+    unsigned int save_id() const;
+
+private:
+    Figure *figure_ = nullptr;
+};
+
+class Figure {
+public:
+    Figure() = default;
+    explicit Figure(unsigned int slot);
+
+    unsigned int id() const;
+    void reset(unsigned int slot);
+
+    static Figure *get(unsigned int id);
+    static unsigned int count();
+    static Figure *create(figure_type type, int x, int y, direction_type dir);
+    static void init_scenario();
+    static void kill_all();
+    static void save_state(buffer *list, buffer *seq);
+    static void load_state(buffer *list, buffer *seq, int version);
+    static void resolve_loaded_building_references();
+
+    void remove();
+    int retarget_building(const Building &from, const Building &to);
+    int is_dead() const;
+    int is_enemy() const;
+    int is_melee_enemy() const;
+    int is_ranged_enemy() const;
+    int is_mounted_enemy() const;
+    int is_caesar_enemy() const;
+    int is_legion() const;
+    int is_herd() const;
+    int is_category(figure_category_mask category_mask) const;
+    int target_is_alive() const;
 
     unsigned int image_id;
     unsigned int cart_image_id;
@@ -77,9 +115,9 @@ typedef struct {
     short cc_delta_xy;
     unsigned char cc_direction; // 1 = x, 2 = y
     unsigned char speed_multiplier;
-    unsigned int building_id;
-    unsigned int immigrant_building_id;
-    unsigned int destination_building_id;
+    Building building{nullptr};
+    Building immigrant_building{nullptr};
+    Building destination_building{nullptr};
     unsigned int formation_id;
     unsigned char index_in_formation;
     unsigned char formation_at_rest;
@@ -107,71 +145,27 @@ typedef struct {
     signed char phrase_id;
     unsigned char phrase_sequence_city;
     unsigned char trader_id;
-    unsigned char wait_ticks_next_target; //used for retargetting for fighting figures, and destination for pushers
+    unsigned char wait_ticks_next_target; // used for retargeting fighting figures and destinations for pushers
     unsigned char dont_draw_elevated;
-    unsigned short target_figure_id;
-    unsigned short targeted_by_figure_id;
+    FigureRelation target_figure;
+    FigureRelation targeted_by_figure;
     unsigned short created_sequence;
     unsigned short target_figure_created_sequence;
     unsigned char figures_on_same_tile_index;
     unsigned char num_attackers;
-    unsigned int attacker_id1;
-    unsigned int attacker_id2;
-    unsigned int opponent_id;
-    short last_visited_index; //can only be used if figure goes through initialization process
-    int last_destinatation_id; //can be used for any figure, holds only one value
+    FigureRelation attacker1;
+    FigureRelation attacker2;
+    FigureRelation opponent;
+    short last_visited_index; // can only be used if figure goes through initialization process
+    int last_destination_id; // legacy save/debug slot until each meaning is split
+    unsigned int legacy_visited_dock_mask;
     struct {
         unsigned short tourist_money_spent;
         unsigned short ticks_since_last_visited_id[12];
         unsigned short visited_building_type_ids[12];
         unsigned char tourist_rank;
     } tourist;
-} figure;
 
-figure *figure_get(unsigned int id);
-
-unsigned int figure_count(void);
-
-/**
- * Creates a figure
- * @param type Figure type
- * @param x X position
- * @param y Y position
- * @param dir Direction the figure faces
- * @return Always a figure. If figure->id is zero, it is an invalid one.
- */
-figure *figure_create(figure_type type, int x, int y, direction_type dir);
-
-void figure_delete(figure *f);
-
-int figure_is_dead(const figure *f);
-
-int figure_is_enemy(const figure *f);
-
-int figure_is_melee_enemy(const figure *f);
-
-int figure_is_ranged_enemy(const figure *f);
-
-int figure_is_mounted_enemy(const figure *f);
-
-int figure_is_caesar_enemy(const figure *f);
-
-int figure_is_legion(const figure *f);
-
-int figure_is_herd(const figure *f);
-
-int figure_is_category(figure *f, figure_category category);
-
-void figure_init_scenario(void);
-
-void figure_kill_all(void);
-
-int figure_target_is_alive(const figure *f);
-
-void figure_save_state(buffer *list, buffer *seq);
-
-void figure_load_state(buffer *list, buffer *seq, int version);
-
-#ifdef __cplusplus
-}
-#endif
+private:
+    unsigned int slot_ = 0;
+};

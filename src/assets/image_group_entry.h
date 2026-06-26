@@ -26,6 +26,9 @@ public:
     int has_top() const;
     int has_animation() const;
     const RuntimeAnimationTrack &animation() const;
+    int has_sprite_offset() const;
+    int sprite_offset_x() const;
+    int sprite_offset_y() const;
     int is_isometric() const;
     int tile_span() const;
     const std::vector<color_t> &split_pixels() const;
@@ -37,6 +40,7 @@ public:
     void set_top_slice(RuntimeDrawSlice top);
     void clear_top_slice();
     void set_animation(RuntimeAnimationTrack animation);
+    void set_sprite_offset(int x, int y);
     void set_split_pixels(std::vector<color_t> split_pixels, int split_width, int split_height, int top_height);
 
 private:
@@ -46,6 +50,9 @@ private:
     RuntimeAnimationTrack animation_;
     int has_top_ = 0;
     int has_animation_ = 0;
+    int has_sprite_offset_ = 0;
+    int sprite_offset_x_ = 0;
+    int sprite_offset_y_ = 0;
     int is_isometric_ = 0;
     int tile_span_ = 0;
     std::vector<color_t> split_pixels_;

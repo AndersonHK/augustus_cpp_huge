@@ -1,32 +1,33 @@
-extern "C" {
-#include "construction_clear.h"
-
 #include "building/building.h"
+#include "translation/translation.h"
 #include "building/connectable.h"
 #include "building/construction.h"
-#include "building/monument.h"
+#include "building/building_type_registry_internal.h"
+#include "building/local_workforce.h"
+#include "city/culture.h"
 #include "city/warning.h"
-#include "core/config.h"
-#include "core/string.h"
+#include "construction_clear.h"
 #include "figure/roamer_preview.h"
 #include "figuretype/migrant.h"
 #include "game/undo.h"
-#include "graphics/color.h"
-#include "graphics/window.h"
 #include "map/aqueduct.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
+#include "map/tiles.h"
+
+#include "window/popup_dialog.h"
+
+#include "building/building_record.h"
+#include "building/monument.h"
+#include "core/config.h"
+#include "core/string.h"
+#include "graphics/color.h"
+#include "graphics/window.h"
 #include "map/grid.h"
 #include "map/property.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
-#include "translation/translation.h"
-#include "window/popup_dialog.h"
-}
-
-#include "building/local_workforce.h"
 
 #include <string.h>
 
@@ -47,6 +48,7 @@ static struct {
 
 static int repair_land_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end, int *buildings_count);
 static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int x_end, int y_end);
+
 static building *get_deletable_building(int grid_offset)
 {
     int building_id = map_building_at(grid_offset);
@@ -54,10 +56,18 @@ static building *get_deletable_building(int grid_offset)
         return 0;
     }
     building *b = building_main(building_get(building_id));
-    if (b->type == BUILDING_BURNING_RUIN || b->type == BUILDING_NATIVE_CROPS ||
-        b->type == BUILDING_NATIVE_HUT || b->type == BUILDING_NATIVE_HUT_ALT ||
-        b->type == BUILDING_NATIVE_MEETING || b->type == BUILDING_NATIVE_MONUMENT ||
-        b->type == BUILDING_NATIVE_DECORATION || b->type == BUILDING_NATIVE_WATCHTOWER) {
+    static const char *const protected_types[] = {
+        "burning_ruin",
+        "native_crops",
+        "native_hut",
+        "native_hut_alt",
+        "native_meeting",
+        "native_monument",
+        "native_decor",
+        "native_watchtower",
+    };
+    if (building_type_registry_impl::type_attr_is_any(
+        b->type, protected_types, sizeof(protected_types) / sizeof(protected_types[0]))) {
         return 0;
     }
     if (b->state == BUILDING_STATE_DELETED_BY_PLAYER || b->is_deleted) {
@@ -114,7 +124,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                 if (!b) {
                     continue;
                 }
-                if (b->type == BUILDING_FORT_GROUND || building_is_fort(b->type)) {
+                if (building_type_registry_impl::type_attr_is(b->type, "fort_ground") || building_is_fort(b->type)) {
                     if (!measure_only && confirm.fort_confirmed != 1) {
                         continue;
                     }
@@ -130,20 +140,22 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                         game_undo_disable();
                     }
                 }
+                Building building_obj(b);
                 if (b->house_size && b->house_population && !measure_only) {
-                    figure *homeless = figure_create_homeless(b, b->house_population);
+                    Figure *homeless = migrant_create_homeless(building_obj, b->house_population);
                     b->house_population = 0;
-                    b->figure_id = homeless->id;
+                    b->figure_id = homeless->id();
                 }
                 if (b->state != BUILDING_STATE_DELETED_BY_PLAYER) {
-                    if (b->type == BUILDING_SHIPYARD && b->figure_id) {
-                        figure *f = figure_get(b->figure_id);
+                    if (building_type_registry_impl::type_attr_is(b->type, "shipyard") && b->figure_id) {
+                        Figure *f = Figure::get(b->figure_id);
                         f->state = FIGURE_STATE_DEAD;
                     }
                     items_placed++;
                     game_undo_add_building(b);
                 }
-                building_local_workforce_remove_building(b);
+                building_local_workforce::remove_building(building_obj);
+                city_culture_remove_building_module_capacity(b);
                 b->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 b->is_deleted = 1;
                 building *space = b;
@@ -153,7 +165,9 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                     }
                     space = building_get(space->prev_part_building_id);
                     game_undo_add_building(space);
-                    building_local_workforce_remove_building(space);
+                    Building space_obj(space);
+                    building_local_workforce::remove_building(space_obj);
+                    city_culture_remove_building_module_capacity(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
                 space = b;
@@ -163,7 +177,9 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                         break;
                     }
                     game_undo_add_building(space);
-                    building_local_workforce_remove_building(space);
+                    Building space_obj(space);
+                    building_local_workforce::remove_building(space_obj);
+                    city_culture_remove_building_module_capacity(space);
                     space->state = BUILDING_STATE_DELETED_BY_PLAYER;
                 }
             } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
@@ -172,7 +188,7 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                 map_aqueduct_remove(grid_offset);
             } else if (map_terrain_is(grid_offset, TERRAIN_WATER)) { //only bridges fall here
                 if (!measure_only && (map_bridge_has_figures(grid_offset) && !config_get(CONFIG_GP_CH_ALWAYS_DESTROY_BRIDGES))) {
-                    city_warning_show(WARNING_PEOPLE_ON_BRIDGE, NEW_WARNING_SLOT);
+                    city_warning_show_translated(WARNING_PEOPLE_ON_BRIDGE);
                 } else if (confirm.bridge_confirmed == 1) {
                     map_bridge_remove(grid_offset, measure_only);
                     items_placed++;
@@ -197,15 +213,17 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
                             map_building_set_rubble_grid_building_id(grid_offset, 0, 1); // remove rubble marker
 
                             if (rubble_building->state == BUILDING_STATE_RUBBLE ||
-                                    rubble_building->type == BUILDING_BURNING_RUIN) {
+                                    building_type_registry_impl::type_attr_is(rubble_building->type, "burning_ruin")) {
                                 int ruins_left = map_building_ruins_left(rubble_id);
                                 if (!ruins_left) { //dont remove buildings until their last rubble is gone
+                                    city_culture_remove_building_module_capacity(rubble_building);
                                     rubble_building->state = BUILDING_STATE_DELETED_BY_GAME;
                                 }
                             } else if (rubble_building->state == BUILDING_STATE_UNUSED) {
                                 // intentional fallthrough - unused buildings are corrupt if they exist on the grid. 
                                 // dont change state, just remove reference on the grid - addressed after if {} block 
                             } else {
+                                city_culture_remove_building_module_capacity(rubble_building);
                                 rubble_building->state = BUILDING_STATE_DELETED_BY_GAME;
                             }
                         }
@@ -238,13 +256,16 @@ static int clear_land_confirmed(int measure_only, int x_start, int y_start, int 
         map_tiles_update_region_aqueducts(x_min - 3, y_min - 3, x_max + 3, y_max + 3);
     }
     if (!measure_only) {
-        map_routing_update_land();
-        map_routing_update_walls();
-        map_routing_update_water();
+        Route::updateLandTerrain();
+        Route::updateWallTerrain();
+        Route::updateWaterTerrain();
         building_update_state(); // the update of b state is needed to determine the right images for walls/palisades
         map_tiles_update_area_walls(x_min, y_min, radius + 1);
         building_connectable_update_connections();
-        figure_roamer_preview_reset(BUILDING_CLEAR_LAND);
+        building_type clear_land = building_type_registry_impl::type_from_attr("clear_land");
+        if (clear_land != BUILDING_NONE) {
+            figure_roamer_preview_reset(clear_land);
+        }
         window_invalidate();
     }
     return items_placed;
@@ -314,7 +335,7 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
             int building_id = map_building_at(grid_offset);
             if (building_id) {
                 building *b = building_get(building_id);
-                if (building_is_fort(b->type) || b->type == BUILDING_FORT_GROUND) {
+                if (building_is_fort(b->type) || building_type_registry_impl::type_attr_is(b->type, "fort_ground")) {
                     ask_confirm_fort = 1;
                 }
                 if (building_monument_is_monument(b)) {
@@ -339,7 +360,7 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
         window_popup_dialog_show(POPUP_DIALOG_DELETE_FORT, confirm_delete_fort, 2);
         return -1;
     } else if (ask_confirm_monument) {
-        window_popup_dialog_show_confirmation(translation_for(TR_CONFIRM_DELETE_MONUMENT), 0, 0, confirm_delete_monument);
+        window_popup_dialog_show_confirmation(translation_for_key("TR_CONFIRM_DELETE_MONUMENT"), 0, 0, confirm_delete_monument);
         return -1;
     } else if (ask_confirm_bridge) {
         window_popup_dialog_show(POPUP_DIALOG_DELETE_BRIDGE, confirm_delete_bridge, 2);
@@ -351,11 +372,12 @@ int building_construction_clear_land(int measure_only, int x_start, int y_start,
 
 color_t building_construction_clear_color(void)
 {
-    if (building_construction_type() == BUILDING_CLEAR_LAND) {
+    building_type construction_type = building_construction_type();
+    if (building_type_registry_impl::type_attr_is(construction_type, "clear_land")) {
         return COLOR_MASK_RED;
-    } else if (building_construction_type() == BUILDING_CLEAR_TREES) {
+    } else if (building_type_registry_impl::type_attr_is(construction_type, "clear_trees")) {
         return COLOR_MASK_YELLOW_RANGE;
-    } else if (building_construction_type() == BUILDING_REPAIR_LAND) {
+    } else if (building_type_registry_impl::type_attr_is(construction_type, "repair_land")) {
         return COLOR_MASK_GREEN;
     }
     return COLOR_MASK_NONE;
@@ -389,8 +411,11 @@ static int clear_trees_confirmed(int measure_only, int x_start, int y_start, int
     if (!measure_only && items_cleared) {
         map_tiles_update_region_empty_land(x_min, y_min, x_max, y_max);
         map_tiles_update_region_meadow(x_min, y_min, x_max, y_max);
-        map_routing_update_land();
-        figure_roamer_preview_reset(BUILDING_CLEAR_TREES);
+        Route::updateLandTerrain();
+        building_type clear_trees = building_type_registry_impl::type_from_attr("clear_trees");
+        if (clear_trees != BUILDING_NONE) {
+            figure_roamer_preview_reset(clear_trees);
+        }
         window_invalidate();
     }
 
@@ -427,7 +452,7 @@ static int repair_land_confirmed(int measure_only, int x_start, int y_start, int
         if (building_id) {
             building *b = building_get(building_id);
             if (building_can_repair(b)) {
-                if (b->type == BUILDING_WAREHOUSE_SPACE) { // swap the b pointer for the main warehouse building
+                if (building_type_registry_impl::type_attr_is(b->type, "warehouse_space")) {
                     b = building_get(map_building_rubble_building_id(b->data.rubble.og_grid_offset));
                 }
                 if (!was_building_counted(b->id, repairable_buildings)) {
@@ -441,11 +466,11 @@ static int repair_land_confirmed(int measure_only, int x_start, int y_start, int
                 }
             } else {
                 if (building_monument_is_limited(b->type)) {
-                    city_warning_show(WARNING_REPAIR_MONUMENT, NEW_WARNING_SLOT);
-                } else if (b->type == BUILDING_AQUEDUCT) {
-                    city_warning_show(WARNING_REPAIR_AQUEDUCT, NEW_WARNING_SLOT);
+                    city_warning_show(WARNING_REPAIR_MONUMENT, translation_for_key("TR_WARNING_CANT_REPAIR_MONUMENTS"));
+                } else if (building_type_registry_impl::type_attr_is(b->type, "aqueduct")) {
+                    city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for_key("TR_WARNING_CANT_REPAIR_AQUEDUCTS"));
                 } else {
-                    city_warning_show(WARNING_REPAIR_IMPOSSIBLE, NEW_WARNING_SLOT);
+                    city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
                 }
             }
         }
@@ -476,10 +501,10 @@ int building_construction_repair_land(int measure_only, int x_start, int y_start
 
         static uint8_t big_buffer[120];
         memset(big_buffer, 0, sizeof(big_buffer)); // Clear buffer
-        const uint8_t *custom_text = translation_for(TR_CONFIRM_REPAIR_BUILDINGS_TITLE);
+        const uint8_t *custom_text = translation_for_key("TR_CONFIRM_REPAIR_BUILDINGS_TITLE");
 
         int offset = 0;
-        const uint8_t *prefix = translation_for(TR_CONFIRM_REPAIR_BUILDINGS);
+        const uint8_t *prefix = translation_for_key("TR_CONFIRM_REPAIR_BUILDINGS");
         string_copy(prefix, &big_buffer[offset], sizeof(big_buffer) - offset);
         offset += string_length(prefix);
         big_buffer[offset++] = ' ';
@@ -487,7 +512,7 @@ int building_construction_repair_land(int measure_only, int x_start, int y_start
         offset += string_from_int(&big_buffer[offset], repair_cost, 0);
         big_buffer[offset++] = ' ';
 
-        const uint8_t *currency = lang_get_string(6, 0);
+        const uint8_t *currency = lang_get_string("main_strings.6.0");
         string_copy(currency, &big_buffer[offset], sizeof(big_buffer) - offset);
         offset += string_length(currency);
 

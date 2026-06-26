@@ -1,8 +1,9 @@
+#
+
 #include "game/time.h"
 
-extern "C" {
 #include "game/defines.h"
-}
+
 
 #include <climits>
 
@@ -90,7 +91,7 @@ static int scale_legacy_day_ticks(int legacy_ticks)
 
 } // namespace
 
-extern "C" void game_time_init(int year)
+void game_time_init(int year)
 {
     g_data.tick = 0;
     g_data.day = 0;
@@ -99,72 +100,72 @@ extern "C" void game_time_init(int year)
     g_data.year = year;
 }
 
-extern "C" int game_time_tick(void)
+int game_time_tick(void)
 {
     return g_data.tick;
 }
 
-extern "C" int game_time_day(void)
+int game_time_day(void)
 {
     return g_data.day;
 }
 
-extern "C" int game_time_month(void)
+int game_time_month(void)
 {
     return g_data.month;
 }
 
-extern "C" int game_time_year(void)
+int game_time_year(void)
 {
     return g_data.year;
 }
 
-extern "C" int game_time_ticks_per_day(void)
+int game_time_ticks_per_day(void)
 {
     return game_defines_ticks_per_day();
 }
 
-extern "C" int game_time_days_in_month(int month)
+int game_time_days_in_month(int month)
 {
     return game_defines_days_in_month(month);
 }
 
-extern "C" int game_time_days_in_current_month(void)
+int game_time_days_in_current_month(void)
 {
     return game_time_days_in_month(g_data.month);
 }
 
-extern "C" int game_time_days_per_year(void)
+int game_time_days_per_year(void)
 {
     return game_defines_days_per_year();
 }
 
-extern "C" int game_time_ticks_per_month(int month)
+int game_time_ticks_per_month(int month)
 {
     return game_defines_ticks_per_month(month);
 }
 
-extern "C" int game_time_ticks_per_year(void)
+int game_time_ticks_per_year(void)
 {
     return game_defines_ticks_per_year();
 }
 
-extern "C" int game_time_is_last_day_of_month(void)
+int game_time_is_last_day_of_month(void)
 {
     return game_defines_is_last_day_of_month(g_data.month, g_data.day);
 }
 
-extern "C" int game_time_is_last_day_of_year(void)
+int game_time_is_last_day_of_year(void)
 {
     return game_defines_is_last_day_of_year(g_data.month, g_data.day);
 }
 
-extern "C" int game_time_scale_legacy_day_ticks(int legacy_ticks)
+int game_time_scale_legacy_day_ticks(int legacy_ticks)
 {
     return scale_legacy_day_ticks(legacy_ticks);
 }
 
-extern "C" int game_time_scale_legacy_day_tick_index(int legacy_tick)
+int game_time_scale_legacy_day_tick_index(int legacy_tick)
 {
     int scaled_tick = scale_legacy_day_ticks(legacy_tick);
     const int ticks_per_day = game_time_ticks_per_day();
@@ -177,7 +178,7 @@ extern "C" int game_time_scale_legacy_day_tick_index(int legacy_tick)
     return scaled_tick < 0 ? 0 : scaled_tick;
 }
 
-extern "C" int game_time_advance_tick(void)
+int game_time_advance_tick(void)
 {
     if (++g_data.tick >= game_time_ticks_per_day()) {
         g_data.tick = 0;
@@ -186,7 +187,7 @@ extern "C" int game_time_advance_tick(void)
     return 0;
 }
 
-extern "C" int game_time_advance_day(void)
+int game_time_advance_day(void)
 {
     g_data.total_days++;
     if (++g_data.day >= game_time_days_in_current_month()) {
@@ -196,7 +197,7 @@ extern "C" int game_time_advance_day(void)
     return 0;
 }
 
-extern "C" int game_time_advance_month(void)
+int game_time_advance_month(void)
 {
     if (++g_data.month >= GAME_TIME_MONTHS_PER_YEAR) {
         g_data.month = 0;
@@ -205,22 +206,22 @@ extern "C" int game_time_advance_month(void)
     return 0;
 }
 
-extern "C" void game_time_advance_year(void)
+void game_time_advance_year(void)
 {
     ++g_data.year;
 }
 
-extern "C" int game_time_total_months(void)
+int game_time_total_months(void)
 {
     return calculate_total_months_from_days(g_data.total_days);
 }
 
-extern "C" int game_time_total_years(void)
+int game_time_total_years(void)
 {
     return game_time_total_months() / GAME_TIME_MONTHS_PER_YEAR;
 }
 
-extern "C" void game_time_save_state(buffer *buf)
+void game_time_save_state(buffer *buf)
 {
     buffer_write_i32(buf, g_data.tick);
     buffer_write_i32(buf, g_data.day);
@@ -229,7 +230,7 @@ extern "C" void game_time_save_state(buffer *buf)
     buffer_write_i32(buf, g_data.total_days);
 }
 
-extern "C" void game_time_load_state(buffer *buf)
+void game_time_load_state(buffer *buf)
 {
     g_data.tick = buffer_read_i32(buf);
     g_data.day = buffer_read_i32(buf);
@@ -239,7 +240,7 @@ extern "C" void game_time_load_state(buffer *buf)
     clamp_loaded_time_state();
 }
 
-extern "C" void game_time_load_basic_info(buffer *buf, int *month, int *year)
+void game_time_load_basic_info(buffer *buf, int *month, int *year)
 {
     buffer_skip(buf, 8);
     *month = buffer_read_i32(buf);

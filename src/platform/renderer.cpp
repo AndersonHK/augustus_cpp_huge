@@ -1,8 +1,9 @@
-﻿#include "renderer.h"
+#include "renderer.h"
 
 #include "core/calc.h"
 #include "core/config.h"
 #include "core/time.h"
+#include "game/performance_tracker.h"
 #include "graphics/renderer.h"
 #include "graphics/screen.h"
 #include "input/mouse.h"
@@ -81,7 +82,22 @@ typedef struct managed_image_resource {
     int height;
 } managed_image_resource;
 
+typedef enum {
+    RENDER_TEXTURE_NONE,
+    RENDER_TEXTURE_MANAGED,
+    RENDER_TEXTURE_ATLAS_FALLBACK,
+    RENDER_TEXTURE_SILHOUETTE
+} resolved_render_texture_kind;
+
+typedef struct {
+    SDL_Texture *texture;
+    resolved_render_texture_kind kind;
+    int use_atlas_coords;
+} resolved_render_texture;
+
 static void draw_image_request(const render_2d_request *request);
+static SDL_Texture *get_texture(int texture_id);
+static SDL_Texture *get_silhouette_texture(const image *img);
 
 typedef struct render_state {
     SDL_Texture *target;
@@ -146,7 +162,8 @@ static struct {
     float city_scale;
     render_domain active_render_domain;
     int should_correct_texture_offset;
-    int disable_linear_filter;
+    int auto_force_nearest_filter;
+    SDL_Texture *last_submitted_texture;
 } data = {};
 
 static render_state tooltip_render_state;
@@ -270,33 +287,51 @@ static int is_pixel_domain(render_domain domain)
         || domain == RENDER_DOMAIN_SNAPSHOT_PIXEL;
 }
 
-static int should_use_linear_scale_filter(void)
+static image_filter configured_scale_filter(void)
 {
-    switch (config_get(CONFIG_UI_SCALE_FILTER)) {
-        case CONFIG_UI_SCALE_FILTER_NEAREST:
-            return 0;
-        case CONFIG_UI_SCALE_FILTER_LINEAR:
-            return 1;
-        case CONFIG_UI_SCALE_FILTER_AUTO:
+    switch (config_get(CONFIG_SCALE_FILTER)) {
+        case CONFIG_SCALE_FILTER_NEAREST:
+            return IMAGE_FILTER_NEAREST;
+        case CONFIG_SCALE_FILTER_LINEAR:
+            return IMAGE_FILTER_LINEAR;
+        case CONFIG_SCALE_FILTER_BEST:
+            return IMAGE_FILTER_BEST;
+        case CONFIG_SCALE_FILTER_AUTO:
         default:
             break;
     }
 #ifndef __APPLE__
-    return (platform_screen_get_scale() % 100) != 0;
+    return (platform_screen_get_scale() % 100) != 0 ? IMAGE_FILTER_LINEAR : IMAGE_FILTER_NEAREST;
 #else
-    return 1;
+    return IMAGE_FILTER_LINEAR;
 #endif
 }
 
 static const char *configured_scale_quality_hint(void)
 {
-    return should_use_linear_scale_filter() ? "linear" : "nearest";
+    switch (configured_scale_filter()) {
+        case IMAGE_FILTER_LINEAR:
+            return "linear";
+        case IMAGE_FILTER_BEST:
+            return "best";
+        case IMAGE_FILTER_NEAREST:
+        default:
+            return "nearest";
+    }
 }
 
 #ifdef USE_TEXTURE_SCALE_MODE
 static SDL_ScaleMode configured_scale_mode(void)
 {
-    return should_use_linear_scale_filter() ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;
+    switch (configured_scale_filter()) {
+        case IMAGE_FILTER_LINEAR:
+            return SDL_ScaleModeLinear;
+        case IMAGE_FILTER_BEST:
+            return SDL_ScaleModeBest;
+        case IMAGE_FILTER_NEAREST:
+        default:
+            return SDL_ScaleModeNearest;
+    }
 }
 #endif
 
@@ -362,6 +397,7 @@ static void clear_screen(void)
     if (data.paused) {
         return;
     }
+    data.last_submitted_texture = 0;
     SDL_SetRenderDrawColor(data.renderer, 0, 0, 0, 255);
     SDL_RenderClear(data.renderer);
 }
@@ -459,6 +495,53 @@ static image_handle request_image_handle(const render_2d_request *request)
         return request->img->resource_handle;
     }
     return 0;
+}
+
+static void record_resolved_render_texture(const resolved_render_texture &resolved)
+{
+    performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_SUBMISSIONS, 1);
+    switch (resolved.kind) {
+        case RENDER_TEXTURE_MANAGED:
+            performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_MANAGED_SUBMISSIONS, 1);
+            break;
+        case RENDER_TEXTURE_ATLAS_FALLBACK:
+            performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_ATLAS_FALLBACK_SUBMISSIONS, 1);
+            break;
+        case RENDER_TEXTURE_SILHOUETTE:
+            performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_SILHOUETTE_SUBMISSIONS, 1);
+            break;
+        case RENDER_TEXTURE_NONE:
+        default:
+            break;
+    }
+    if (data.last_submitted_texture && data.last_submitted_texture != resolved.texture) {
+        performance_tracker_record_render_metric(PERFORMANCE_TRACKER_RENDER_METRIC_TEXTURE_SWITCHES, 1);
+    }
+    data.last_submitted_texture = resolved.texture;
+}
+
+static resolved_render_texture resolve_render_texture(const render_2d_request *request)
+{
+    resolved_render_texture resolved = {};
+    if (!request || !request->img) {
+        return resolved;
+    }
+    if (request->use_silhouette) {
+        resolved.texture = get_silhouette_texture(request->img);
+        resolved.kind = resolved.texture ? RENDER_TEXTURE_SILHOUETTE : RENDER_TEXTURE_NONE;
+        return resolved;
+    }
+
+    resolved.texture = get_managed_texture(request_image_handle(request));
+    if (resolved.texture) {
+        resolved.kind = RENDER_TEXTURE_MANAGED;
+        return resolved;
+    }
+
+    resolved.texture = get_texture(request->img->atlas.id);
+    resolved.kind = resolved.texture ? RENDER_TEXTURE_ATLAS_FALLBACK : RENDER_TEXTURE_NONE;
+    resolved.use_atlas_coords = resolved.texture ? 1 : 0;
+    return resolved;
 }
 
 static void draw_managed_image_request(const managed_image_request *request)
@@ -735,9 +818,20 @@ static SDL_Texture *get_texture(int texture_id)
     return data.texture_lists[type][texture_id & IMAGE_ATLAS_BIT_MASK];
 }
 
-static SDL_Texture *get_silhouette_texture(const image *img);
+static SDL_ScaleMode scale_mode_for_filter(image_filter filter)
+{
+    switch (filter) {
+        case IMAGE_FILTER_LINEAR:
+            return SDL_ScaleModeLinear;
+        case IMAGE_FILTER_BEST:
+            return SDL_ScaleModeBest;
+        case IMAGE_FILTER_NEAREST:
+        default:
+            return SDL_ScaleModeNearest;
+    }
+}
 
-static void set_texture_color_and_filter(SDL_Texture *texture, color_t color, int use_linear_filter)
+static void set_texture_color_and_filter(SDL_Texture *texture, color_t color, image_filter filter)
 {
     if (!color) {
         color = COLOR_MASK_NONE;
@@ -756,7 +850,7 @@ static void set_texture_color_and_filter(SDL_Texture *texture, color_t color, in
     SDL_ScaleMode current_scale_mode;
     SDL_GetTextureScaleMode(texture, &current_scale_mode);
 
-    SDL_ScaleMode desired_scale_mode = use_linear_filter ? SDL_ScaleModeLinear : SDL_ScaleModeNearest;
+    SDL_ScaleMode desired_scale_mode = scale_mode_for_filter(filter);
     if (current_scale_mode != desired_scale_mode) {
         SDL_SetTextureScaleMode(texture, desired_scale_mode);
     }
@@ -773,9 +867,9 @@ static float request_logical_height(const render_2d_request *request, const imag
     return request->logical_height > 0.0f ? request->logical_height : (float) img->height;
 }
 
-static void draw_texture_request(const render_2d_request *request, SDL_Texture *texture, int use_atlas_coords)
+static void draw_texture_request(const render_2d_request *request, const resolved_render_texture &resolved)
 {
-    if (data.paused || !request || !request->img || !texture) {
+    if (data.paused || !request || !request->img || !resolved.texture) {
         return;
     }
 
@@ -793,11 +887,11 @@ static void draw_texture_request(const render_2d_request *request, SDL_Texture *
     float source_scale_y = g_render_2d_pipeline.source_scale_y(*request, *img);
     float logical_width = request_logical_width(request, img);
     float logical_height = request_logical_height(request, img);
-    int use_linear_filter = g_render_2d_pipeline.should_use_linear_filter(
-        *request, *img, data.city_scale, data.disable_linear_filter);
-    set_texture_color_and_filter(texture, request->color, use_linear_filter);
-    const image_handle handle = request_image_handle(request);
-    const int uses_managed_texture = handle > 0 && get_managed_texture(handle) == texture;
+    image_filter filter = g_render_2d_pipeline.scale_filter(
+        *request, *img, data.city_scale, data.auto_force_nearest_filter);
+    set_texture_color_and_filter(resolved.texture, request->color, filter);
+    const int uses_managed_texture = resolved.kind == RENDER_TEXTURE_MANAGED;
+    record_resolved_render_texture(resolved);
 
     float x = request->x + (img->x_offset / source_scale_x);
     float y = request->y + (img->y_offset / source_scale_y);
@@ -805,39 +899,36 @@ static void draw_texture_request(const render_2d_request *request, SDL_Texture *
     int src_correction = uses_managed_texture ? 0 : is_city_scale && data.should_correct_texture_offset ? 1 : 0;
 
     SDL_Rect src_coords = {
-        (use_atlas_coords && !uses_managed_texture ? img->atlas.x_offset : 0) + src_correction,
-        (use_atlas_coords && !uses_managed_texture ? img->atlas.y_offset : 0) + src_correction,
+        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.x_offset : 0) + src_correction,
+        (resolved.use_atlas_coords && !uses_managed_texture ? img->atlas.y_offset : 0) + src_correction,
         img->width - src_correction, img->height - src_correction
     };
 
-    // When zooming out, instead of drawing the grid image, we reduce the isometric textures' size,
-    // which ends up simulating a grid without any performance penalty
-    int grid_correction = (img->is_isometric && config_get(CONFIG_UI_SHOW_GRID) && data.city_scale > 2.0f) ?
-        2 : -src_correction;
-    float grid_correction_x = grid_correction / source_scale_x;
-    float grid_correction_y = grid_correction / source_scale_y;
-    float dst_width = logical_width - grid_correction_x;
-    float dst_height = logical_height - grid_correction_y;
+    int dst_correction = -src_correction;
+    float dst_correction_x = dst_correction / source_scale_x;
+    float dst_correction_y = dst_correction / source_scale_y;
+    float dst_width = logical_width - dst_correction_x;
+    float dst_height = logical_height - dst_correction_y;
 
 #ifdef USE_RENDERCOPYF
     if (HAS_RENDERCOPYF) {
         SDL_FRect dst_coords = {
-            x + grid_correction_x,
-            y + grid_correction_y,
+            x + dst_correction_x,
+            y + dst_correction_y,
             dst_width,
             dst_height
         };
-        SDL_RenderCopyExF(data.renderer, texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
+        SDL_RenderCopyExF(data.renderer, resolved.texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
     } else
 #endif
     {
         SDL_Rect dst_coords = {
-            (int) round(x + grid_correction_x),
-            (int) round(y + grid_correction_y),
+            (int) round(x + dst_correction_x),
+            (int) round(y + dst_correction_y),
             (int) round(dst_width),
             (int) round(dst_height)
         };
-        SDL_RenderCopyEx(data.renderer, texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
+        SDL_RenderCopyEx(data.renderer, resolved.texture, &src_coords, &dst_coords, request->angle, NULL, SDL_FLIP_NONE);
     }
 
     if (should_restore_scale) {
@@ -852,19 +943,11 @@ static void draw_image_request(const render_2d_request *request)
         return;
     }
 
-    SDL_Texture *texture = 0;
-    if (request->use_silhouette) {
-        texture = get_silhouette_texture(request->img);
-    } else {
-        texture = get_managed_texture(request_image_handle(request));
-        if (!texture) {
-            texture = get_texture(request->img->atlas.id);
-        }
-    }
-    if (!texture) {
+    resolved_render_texture resolved = resolve_render_texture(request);
+    if (!resolved.texture) {
         return;
     }
-    draw_texture_request(request, texture, request->use_silhouette ? 0 : 1);
+    draw_texture_request(request, resolved);
 }
 
 static void draw_texture_advanced(const image *img, float x, float y, color_t color,
@@ -948,7 +1031,7 @@ static color_t *get_custom_texture_buffer(custom_image_type type, int *actual_te
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Cannot get buffer to YUV texture");
         return 0;
     }
-    data.custom_textures[type].buffer = (color_t *) malloc((size_t) width * height * sizeof(color_t));
+    data.custom_textures[type].buffer = static_cast<color_t *>(malloc(static_cast<size_t>(width) * height * sizeof(color_t)));
     if (actual_texture_width) {
         *actual_texture_width = width;
     }
@@ -1162,7 +1245,7 @@ static int save_to_texture_for_domain(render_domain domain, int texture_id, int 
         }
 #ifdef USE_TEXTURE_SCALE_MODE
         if (HAS_TEXTURE_SCALE_MODE) {
-            SDL_SetTextureScaleMode(texture, SDL_ScaleModeNearest);
+            SDL_SetTextureScaleMode(texture, configured_scale_mode());
         }
 #endif
     } else {
@@ -1351,7 +1434,7 @@ static SDL_Texture *get_silhouette_texture(const image *img)
     SDL_Rect src_coords = { img && img->resource_handle ? 0 : img->atlas.x_offset,
         img && img->resource_handle ? 0 : img->atlas.y_offset, img->width, img->height };
 
-    set_texture_color_and_filter(original_texture, 0, 0);
+    set_texture_color_and_filter(original_texture, 0, IMAGE_FILTER_NEAREST);
 
     SDL_RenderCopy(data.renderer, original_texture, &src_coords, 0);
 
@@ -1431,9 +1514,9 @@ static void draw_custom_texture(custom_image_type type, int x, int y, float scal
             create_blend_texture(type);
         }
     }
-    data.disable_linear_filter = disable_filtering;
+    data.auto_force_nearest_filter = disable_filtering;
     draw_texture(&data.custom_textures[type].img, x, y, 0, scale);
-    data.disable_linear_filter = 0;
+    data.auto_force_nearest_filter = 0;
 }
 
 static void release_image_resource(image *img)
@@ -1837,7 +1920,10 @@ void platform_renderer_render(void)
     if (platform_cursor_is_software()) {
         draw_software_mouse_cursor();
     }
-    SDL_RenderPresent(data.renderer);
+    {
+        PerformanceTrackerScope present_scope(PERFORMANCE_TRACKER_BUCKET_PRESENT);
+        SDL_RenderPresent(data.renderer);
+    }
     SDL_SetRenderTarget(data.renderer, data.render_texture);
     set_render_domain(previous_domain);
 }

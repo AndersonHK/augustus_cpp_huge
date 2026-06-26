@@ -1,35 +1,47 @@
+#include "building/count.h"
+#include "building/building_type_startup_bridge.h"
+#include "city/data.h"
+#include "city/health.h"
+#include "city/labor.h"
+#include "scenario/event/parameter_data.h"
+
+#include "window/editor/select_city_trade_route.h"
+#include "window/advisors.h"
 #include "scenario/event/parameter_city.h"
 
-extern "C" {
-#include "building/count.h"
+#include "figure/figure.h"
+#include "game/settings.h"
+#include "building/building_type_api.h"
 #include "building/granary.h"
 #include "building/warehouse.h"
 #include "city/constants.h"
 #include "city/emperor.h"
 #include "city/finance.h"
-#include "city/health.h"
-#include "city/labor.h"
-#include "city/data.h"
 #include "city/population.h"
 #include "city/ratings.h"
 #include "city/resource.h"
 #include "core/calc.h"
 #include "empire/city.h"
 #include "empire/trade_route.h"
-#include "figure/figure.h"
 #include "figure/formation.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/terrain.h"
-#include "scenario/event/parameter_data.h"
-#include "game/settings.h"
-#include "window/advisors.h"
-#include "window/editor/select_city_trade_route.h"
+
+#define RESOURCE_ALL_BUYS RESOURCE_SLOT_COUNT + 1 // max +1 indicates all resources that this trade route buys
+#define RESOURCE_ALL_SELLS RESOURCE_SLOT_COUNT + 2 // max +2 indicates all resources that this trade route sells
+//above mirrors the defines in select_city_trade_route.c
+
+static building_type runtime_type(const char *text_id)
+{
+    return building_type_startup_bridge_runtime_id_from_text(text_id);
 }
 
-#define RESOURCE_ALL_BUYS RESOURCE_MAX + 1 // max +1 indicates all resources that this trade route buys
-#define RESOURCE_ALL_SELLS RESOURCE_MAX + 2 // max +2 indicates all resources that this trade route sells
-//above mirrors the defines in select_city_trade_route.c
+static int type_matches(building_type type, const char *text_id)
+{
+    building_type resolved = runtime_type(text_id);
+    return resolved != BUILDING_NONE && type == resolved;
+}
 
 static int resource_count(scenario_action_t *action)
 {
@@ -51,37 +63,46 @@ static int resource_count(scenario_action_t *action)
 static int building_coverage(scenario_action_t *action)
 {
     building_type type = static_cast<building_type>(action->parameter3);
-    if (BUILDING_THEATER != BUILDING_NONE && type == BUILDING_THEATER) {
+    if (type_matches(type, "theater")) {
         return window_advisors_get_theater_coverage();
     }
-    switch (type) {
-        case BUILDING_TAVERN:
-            return window_advisors_get_tavern_coverage();
-        case BUILDING_ARENA:
-            return window_advisors_get_arena_coverage();
-        case BUILDING_AMPHITHEATER:
-            return window_advisors_get_amphitheater_coverage();
-        case BUILDING_HIPPODROME:
-            return window_advisors_get_hippodrome_coverage();
-        case BUILDING_COLOSSEUM:
-            return window_advisors_get_colosseum_coverage();
-        case BUILDING_BATHHOUSE:
-            return window_advisors_get_bathhouse_coverage();
-        case BUILDING_BARBER:
-            return window_advisors_get_barber_coverage();
-        case BUILDING_DOCTOR:
-            return window_advisors_get_clinic_coverage();
-        case BUILDING_HOSPITAL:
-            return window_advisors_get_hospital_coverage();
-        case BUILDING_SCHOOL:
-            return window_advisors_get_school_coverage();
-        case BUILDING_LIBRARY:
-            return window_advisors_get_library_coverage();
-        case BUILDING_ACADEMY:
-            return window_advisors_get_academy_coverage();
-        default:
-            return 0;
+    if (type_matches(type, "tavern")) {
+        return window_advisors_get_tavern_coverage();
     }
+    if (type_matches(type, "arena")) {
+        return window_advisors_get_arena_coverage();
+    }
+    if (type_matches(type, "amphitheater")) {
+        return window_advisors_get_amphitheater_coverage();
+    }
+    if (type_matches(type, "hippodrome")) {
+        return window_advisors_get_hippodrome_coverage();
+    }
+    if (type_matches(type, "colosseum")) {
+        return window_advisors_get_colosseum_coverage();
+    }
+    if (type_matches(type, "bathhouse")) {
+        return window_advisors_get_bathhouse_coverage();
+    }
+    if (type_matches(type, "barber")) {
+        return window_advisors_get_barber_coverage();
+    }
+    if (type_matches(type, "doctor")) {
+        return window_advisors_get_clinic_coverage();
+    }
+    if (type_matches(type, "hospital")) {
+        return window_advisors_get_hospital_coverage();
+    }
+    if (type_matches(type, "school")) {
+        return window_advisors_get_school_coverage();
+    }
+    if (type_matches(type, "library")) {
+        return window_advisors_get_library_coverage();
+    }
+    if (type_matches(type, "academy")) {
+        return window_advisors_get_academy_coverage();
+    }
+    return 0;
 }
 
 static int unemployment_rate(scenario_action_t *action)
@@ -104,7 +125,7 @@ static int population_by_housing_type(scenario_action_t *action)
         return 0;
     }
     if (!is_group) {
-        house_level level = static_cast<house_level>(action->parameter3 - 10); // convert from building_type to house_level
+        house_level level = static_cast<house_level>(action->parameter3);
         int pop_at_level = city_population_at_level(level);
         if (is_absolute) {
             return pop_at_level;
@@ -175,63 +196,67 @@ static int count_not_overgrown(int grid_offset)
 
 static int get_building_count(scenario_action_t *action)
 {
-    building_type type = static_cast<building_type>(action->parameter3);
+    int type = action->parameter3;
     int active_only = action->parameter4;
     int total_count = 0;
     switch (type) {
-        case BUILDING_MENU_FARMS:
+        case SCENARIO_BUILDING_MENU_FARMS:
             total_count = building_set_count_farms(active_only);
             break;
-        case BUILDING_MENU_RAW_MATERIALS:
+        case SCENARIO_BUILDING_MENU_RAW_MATERIALS:
             total_count = building_set_count_raw_materials(active_only);
             break;
-        case BUILDING_MENU_WORKSHOPS:
+        case SCENARIO_BUILDING_MENU_WORKSHOPS:
             total_count = building_set_count_workshops(active_only);
             break;
-        case BUILDING_MENU_SMALL_TEMPLES:
+        case SCENARIO_BUILDING_MENU_SMALL_TEMPLES:
             total_count = building_set_count_small_temples(active_only);
             break;
-        case BUILDING_MENU_LARGE_TEMPLES:
+        case SCENARIO_BUILDING_MENU_LARGE_TEMPLES:
             total_count = building_set_count_large_temples(active_only);
             break;
-        case BUILDING_MENU_GRAND_TEMPLES:
-            total_count = building_count_grand_temples_active();
+        case SCENARIO_BUILDING_MENU_GRAND_TEMPLES:
+            total_count = active_only ? building_count_grand_temples_active() : building_count_grand_temples();
             break;
-        case BUILDING_MENU_TREES:
+        case SCENARIO_BUILDING_MENU_TREES:
             total_count = building_set_count_deco_trees();
             break;
-        case BUILDING_MENU_PATHS:
+        case SCENARIO_BUILDING_MENU_PATHS:
             total_count = building_set_count_deco_paths();
             break;
-        case BUILDING_MENU_PARKS:
+        case SCENARIO_BUILDING_MENU_PARKS:
             total_count = building_set_count_deco_statues();
             break;
-        case BUILDING_ANY:
+        case SCENARIO_BUILDING_ANY:
             total_count = building_count_any_total(active_only);
             break;
-        case BUILDING_ROAD:
+        case SCENARIO_BUILDING_ROAD:
             total_count = building_count_terrain(TERRAIN_ROAD, count_no_condition);
             break;
-        case BUILDING_HIGHWAY:
+        case SCENARIO_BUILDING_HIGHWAY:
             total_count = building_count_terrain(TERRAIN_HIGHWAY, count_no_condition);
             break;
-        case BUILDING_PLAZA:
+        case SCENARIO_BUILDING_PLAZA:
             total_count = building_count_terrain(TERRAIN_ROAD, map_property_is_plaza_earthquake_or_overgrown_garden);
             break;
-        case BUILDING_GARDENS:
+        case SCENARIO_BUILDING_GARDENS:
             total_count = building_count_terrain(TERRAIN_GARDEN, count_not_overgrown);
             break;
-        case BUILDING_OVERGROWN_GARDENS:
+        case SCENARIO_BUILDING_OVERGROWN_GARDENS:
             total_count = building_count_terrain(TERRAIN_GARDEN, map_property_is_plaza_earthquake_or_overgrown_garden);
             break;
-        case BUILDING_LOW_BRIDGE:
+        case SCENARIO_BUILDING_RUBBLE:
+            total_count = building_count_terrain(TERRAIN_RUBBLE, count_no_condition);
+            break;
+        case SCENARIO_BUILDING_LOW_BRIDGE:
             total_count = building_count_bridges(0);
             break;
-        case BUILDING_SHIP_BRIDGE:
+        case SCENARIO_BUILDING_SHIP_BRIDGE:
             total_count = building_count_bridges(1);
             break;
         default:
-            total_count = active_only ? building_count_active(type) : building_count_total(type);
+            total_count = active_only ? building_count_active(static_cast<building_type>(type)) :
+                building_count_total(static_cast<building_type>(type));
             break;
     }
     return total_count;
@@ -247,20 +272,20 @@ static int get_enemy_troops_count(scenario_action_t *action)
 {
     enemy_class_t enemy_class = static_cast<enemy_class_t>(action->parameter3);
     int count = 0;
-    for (unsigned int i = 1; i < figure_count(); i++) {    // Iterate through all figures to count enemy troops
-        figure *f = figure_get(i);
-        if (!figure_is_enemy(f) || figure_is_dead(f)) {
+    for (unsigned int i = 1; i < Figure::count(); i++) {    // Iterate through all figures to count enemy troops
+        Figure *f = Figure::get(i);
+        if (!f->is_enemy() || f->is_dead()) {
             continue;
         }
         switch (enemy_class) {
             case ENEMY_CLASS_MELEE:
-                count += figure_is_melee_enemy(f);
+                count += f->is_melee_enemy();
                 break;
             case ENEMY_CLASS_RANGED:
-                count += figure_is_ranged_enemy(f);
+                count += f->is_ranged_enemy();
                 break;
             case ENEMY_CLASS_MOUNTED:
-                count += figure_is_mounted_enemy(f);
+                count += f->is_mounted_enemy();
                 break;
             case ENEMY_CLASS_ALL:
                 count++;
@@ -288,7 +313,7 @@ static int city_trade_quota_fill_percentage(scenario_action_t *action)
     int city_id = empire_city_get_for_trade_route(trade_route_id);
 
     if (resource_id == RESOURCE_ALL_BUYS || resource_id == RESOURCE_ALL_SELLS) {
-        for (int resource = RESOURCE_MIN; resource < RESOURCE_MAX; resource++) {
+        for (int resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource++) {
             resource_type r = static_cast<resource_type>(resource);
             int buys = empire_city_buys_resource(city_id, r);
             int sells = empire_city_sells_resource(city_id, r);
@@ -382,9 +407,9 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.param_types[0] = PARAMETER_TYPE_RESOURCE;
             info.param_types[1] = PARAMETER_TYPE_STORAGE_TYPE;
             info.param_types[2] = PARAMETER_TYPE_BOOLEAN; // respect settings
-            info.param_keys[0] = TR_PARAMETER_TYPE_RESOURCE;
-            info.param_keys[1] = TR_PARAMETER_TYPE_STORAGE_TYPE;
-            info.param_keys[2] = TR_PARAMETER_RESPECT_SETTINGS;
+            info.param_keys[0] = "TR_PARAMETER_TYPE_RESOURCE";
+            info.param_keys[1] = "TR_PARAMETER_TYPE_STORAGE_TYPE";
+            info.param_keys[2] = "TR_PARAMETER_RESPECT_SETTINGS";
             info.param_names[0] = "resource";
             info.param_names[1] = "storage_type";
             info.param_names[2] = "respect_settings";
@@ -393,14 +418,14 @@ city_property_info_t city_property_get_param_info(city_property_t type)
         case CITY_PROPERTY_SERVICE_COVERAGE:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_COVERAGE_BUILDINGS;
-            info.param_keys[0] = TR_CITY_PROPERTY_SERVICE_COVERAGE;
+            info.param_keys[0] = "TR_CITY_PROPERTY_SERVICE_COVERAGE";
             info.param_names[0] = "coverage";
             break;
 
         case CITY_PROPERTY_POPS_UNEMPLOYMENT:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_PERCENTAGE;
-            info.param_keys[0] = TR_PARAMETER_PERCENTAGE;
+            info.param_keys[0] = "TR_PARAMETER_PERCENTAGE";
             info.param_names[0] = "percentage_type";
             break;
 
@@ -408,8 +433,8 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.count = 2;
             info.param_types[0] = PARAMETER_TYPE_HOUSING_TYPE;
             info.param_types[1] = PARAMETER_TYPE_PERCENTAGE;
-            info.param_keys[0] = TR_CITY_PROPERTY_POPS_HOUSING_TYPE;
-            info.param_keys[1] = TR_PARAMETER_PERCENTAGE;
+            info.param_keys[0] = "TR_CITY_PROPERTY_POPS_HOUSING_TYPE";
+            info.param_keys[1] = "TR_PARAMETER_PERCENTAGE";
             info.param_names[0] = "housing_type";
             info.param_names[1] = "percentage_type";
             break;
@@ -418,8 +443,8 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.count = 2;
             info.param_types[0] = PARAMETER_TYPE_AGE_GROUP;
             info.param_types[1] = PARAMETER_TYPE_PERCENTAGE;
-            info.param_keys[0] = TR_CITY_PROPERTY_POPS_BY_AGE;
-            info.param_keys[1] = TR_PARAMETER_PERCENTAGE;
+            info.param_keys[0] = "TR_CITY_PROPERTY_POPS_BY_AGE";
+            info.param_keys[1] = "TR_PARAMETER_PERCENTAGE";
             info.param_names[0] = "age_group";
             info.param_names[1] = "percentage_type";
             break;
@@ -428,8 +453,8 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.count = 2;
             info.param_types[0] = PARAMETER_TYPE_BUILDING;
             info.param_types[1] = PARAMETER_TYPE_BOOLEAN; // active only or all
-            info.param_keys[0] = TR_PARAMETER_TYPE_ALLOWED_BUILDING;
-            info.param_keys[1] = TR_CITY_PROPERTY_ACTIVE_ONLY;
+            info.param_keys[0] = "TR_PARAMETER_TYPE_ALLOWED_BUILDING";
+            info.param_keys[1] = "TR_CITY_PROPERTY_ACTIVE_ONLY";
             info.param_names[0] = "building";
             info.param_names[1] = "active_only";
             break;
@@ -437,21 +462,21 @@ city_property_info_t city_property_get_param_info(city_property_t type)
         case CITY_PROPERTY_TROOPS_COUNT_PLAYER:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_PLAYER_TROOPS;
-            info.param_keys[0] = TR_CITY_PROPERTY_TROOPS_COUNT_PLAYER;
+            info.param_keys[0] = "TR_CITY_PROPERTY_TROOPS_COUNT_PLAYER";
             info.param_names[0] = "troop_type";
             break;
 
         case CITY_PROPERTY_TROOPS_COUNT_ENEMY:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_ENEMY_CLASS;
-            info.param_keys[0] = TR_CITY_PROPERTY_TROOPS_COUNT_ENEMY;
+            info.param_keys[0] = "TR_CITY_PROPERTY_TROOPS_COUNT_ENEMY";
             info.param_names[0] = "enemy_class";
             break;
 
         case CITY_PROPERTY_TERRAIN_COUNT_TILES:
             info.count = 1;
             info.param_types[0] = PARAMETER_TYPE_TERRAIN;
-            info.param_keys[0] = TR_PARAMETER_TERRAIN;
+            info.param_keys[0] = "TR_PARAMETER_TERRAIN";
             info.param_names[0] = "terrain_type";
             break;
         case CITY_PROPERTY_QUOTA_FILL:
@@ -459,9 +484,9 @@ city_property_info_t city_property_get_param_info(city_property_t type)
             info.param_types[0] = PARAMETER_TYPE_ROUTE;
             info.param_types[1] = PARAMETER_TYPE_ROUTE_RESOURCE;
             info.param_types[2] = PARAMETER_TYPE_PERCENTAGE;
-            info.param_keys[0] = TR_PARAMETER_TYPE_ROUTE;
-            info.param_keys[1] = TR_PARAMETER_TYPE_RESOURCE;
-            info.param_keys[2] = TR_PARAMETER_PERCENTAGE;
+            info.param_keys[0] = "TR_PARAMETER_TYPE_ROUTE";
+            info.param_keys[1] = "TR_PARAMETER_TYPE_RESOURCE";
+            info.param_keys[2] = "TR_PARAMETER_PERCENTAGE";
             info.param_names[0] = "route";
             info.param_names[1] = "resource";
             info.param_names[2] = "percentage_type";

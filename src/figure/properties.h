@@ -2,11 +2,8 @@
 
 #include "figure/type.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-typedef enum {
+enum figure_category_mask {
     FIGURE_CATEGORY_INACTIVE = 0,
     FIGURE_CATEGORY_CITIZEN = 1 << 0,
     FIGURE_CATEGORY_ARMED = 1 << 1,
@@ -23,20 +20,37 @@ typedef enum {
     FIGURE_CATEGORY_HEALTH = 1 << 12,
         
     FIGURE_CATEGORY_ALL = FIGURE_CATEGORY_INACTIVE | FIGURE_CATEGORY_CITIZEN | FIGURE_CATEGORY_HOSTILE | FIGURE_CATEGORY_ANIMAL
-} figure_category;
+};
 
-typedef struct {
-    figure_category category;
+struct figure_properties {
+    figure_category_mask category;
     int max_damage; //health points - 1 (this is maximum damage that can be taken without dying)
     int attack_value;
     int defense_value;
     int missile_defense_value;
     int missile_attack_value;
     int missile_delay;
-} figure_properties;
+};
 
 const figure_properties *figure_properties_for_type(figure_type type);
 
-#ifdef __cplusplus
+
+constexpr figure_category_mask operator|(figure_category_mask lhs, figure_category_mask rhs)
+{
+    return static_cast<figure_category_mask>(static_cast<unsigned int>(lhs) | static_cast<unsigned int>(rhs));
 }
-#endif
+
+constexpr figure_category_mask operator&(figure_category_mask lhs, figure_category_mask rhs)
+{
+    return static_cast<figure_category_mask>(static_cast<unsigned int>(lhs) & static_cast<unsigned int>(rhs));
+}
+
+constexpr figure_category_mask operator^(figure_category_mask lhs, figure_category_mask rhs)
+{
+    return static_cast<figure_category_mask>(static_cast<unsigned int>(lhs) ^ static_cast<unsigned int>(rhs));
+}
+
+constexpr bool figure_category_mask_has_any(figure_category_mask value, figure_category_mask mask)
+{
+    return static_cast<unsigned int>(value & mask) != 0;
+}

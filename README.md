@@ -62,6 +62,16 @@ you are missing it, you can [download the update here](https://github.com/bvscha
 
 See [Running Julius](https://github.com/bvschaik/julius/wiki/Running-Julius) for further instructions and startup options.
 
+## Vespasian developer notes
+
+This fork is migrating legacy C/static-table runtime behavior toward XML-defined objects and object-owned C++ runtime relationships. Before refactoring hot paths, read:
+
+- [Object-owned runtime refactor doctrine](docs/object_owned_runtime_refactor.md)
+- [Building reference runtime architecture](docs/building_reference_runtime_architecture.md)
+- [Save/load runtime bridges](docs/save_load_runtime_bridges.md)
+
+The intended direction is to replace repeated scans, string/id lookups, static cleanup helpers, and defensive fallback layers with object-owned registration, deregistration, and lifecycle cleanup.
+
 ## Manual
 
 Augustus changes are explained in detail in the comprehensive manual. Below you can find the links to the manual in a few language versions.

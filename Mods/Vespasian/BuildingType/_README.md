@@ -1,6 +1,8 @@
 # BuildingType XML
 
-The loader reads every `*.xml` file in this folder at startup. Keep templates/examples in non-`.xml` files so they do not get loaded as live data.
+The loader reads every `<building>` XML root in the selected mod's `BuildingType`, `BuildingTypeMenu`, and `Tiles` folders at startup.
+
+Keep templates/examples in non-`.xml` files so they do not get loaded as live data.
 
 Templates and examples are maintained only in `Mods\Vespasian\BuildingType`.
 `Mods\Augustus\BuildingType` and `Mods\Julius\BuildingType` keep live XML data only.
@@ -43,8 +45,12 @@ Current supported nodes:
 - `<desirability> ... </desirability>`
 - `<foundation ... />`
 - `<button ... />`
+- `<roadblock ... />`
+- `<tile ... />`
+- `<temple ... />`
 - `<sound ... />`
 - `<event_data ... />`
+- `<market ... />`
 - `<flags ... />`
 - `<water_access> ... </water_access>`
 - `<graphics> ... </graphics>`
@@ -53,6 +59,7 @@ Current supported nodes:
 - `<storages> ... </storages>`
 - `<production_methods> ... </production_methods>`
 - `<housing ... />`
+- `<vacant_lot ... />`
 - `<spawn_group ...>`
 - `<spawn ... />`
 
@@ -87,7 +94,7 @@ Small building example:
 
 ```xml
 <building type="barber">
-    <identity name_key="building.barber.name" />
+    <identity name_key="main_strings.28.49" />
     <model size="1" cost="25" />
     <desirability>
         <value value="2" />
@@ -96,7 +103,7 @@ Small building example:
         <range value="2" />
     </desirability>
     <foundation policy="land" />
-    <button group="health" order="40" icon="barber" text_key="building.barber.name" />
+    <button group="health" order="40" icon="barber" text_key="main_strings.28.49" />
     <sound id="barber" />
     <event_data attr="barber" />
     <labor>
@@ -111,17 +118,43 @@ Small building example:
 
 Current supported `<foundation>` attributes:
 
-- `policy="land|road|water|shoreline|aqueduct|custom"` stores the placement/foundation policy key for the next construction pass
+- `policy="land|road|road_or_land|road_or_wall_or_land|wall|water|shoreline|aqueduct|custom"` stores the placement/foundation policy key for the next construction pass
+- `open_water="true|false"` requires the footprint to connect to open navigable water after the shoreline check; use this for shoreline buildings that must be reachable by ships
 
 Current supported `<foundation>` child nodes:
 
 - `<terrain value="meadow|rock|tree|water|wall|distant_water" />`
+- `<cell x="0" y="0" terrain="land|clear|water|road|road_or_land|road_or_wall_or_land|wall|aqueduct|any" />`
+- `<cell rotation="0|1|2|3" x="0" y="0" terrain="..." />`
 
 Foundation terrain rules:
 
 - `<terrain>` may appear zero or more times
 - terrain requirements feed the existing placement warning/check path
-- use `rock` for quarry/mine placement, `tree` for timber yards, `water` for clay pits, and `distant_water` for sand pits
+- use `meadow` for farms, `rock` for quarry/mine placement, `tree` for timber yards, `water` for clay pits, and `distant_water` for sand pits or lighthouses
+- `<cell>` may appear zero or more times and declares a per-footprint tile requirement in local building coordinates
+- `rotation` is optional; omit it for all rotations or set it to `0..3` for rotation-specific shoreline or composed-footprint cells
+- cells not listed by XML inherit the foundation policy: `land/custom/shoreline` require clear land, `road` requires road, `road_or_land` allows clear land, road, highway, and valid highway-under-aqueduct tiles, `road_or_wall_or_land` also allows wall tiles, `wall` requires wall, `water` requires water
+- shoreline buildings select their waterside orientation from adjacent water, register their placed footprint with the water map, and save their shoreline orientation from the shared construction placement plan; water footprint cells must be declared explicitly with `<cell ... terrain="water" />`
+- `policy="wall"` declares a wall-mounted structure: construction requires the wall footprint, replaces the underlying wall terrain with the placed building terrain, and refreshes surrounding wall images through the shared placement path
+
+Current supported `<composed>` attributes:
+
+- `footprint_width="N"` and `footprint_height="N"` declare the full placement footprint used by construction and ghost previews
+- `inherit_orientation="true|false"` is optional; use it only when child records must copy the main record orientation byte
+
+Current supported `<composed>` child nodes:
+
+- `<main x="0" y="0" />` optionally declares the main building record offset inside the composed footprint
+- `<main><offset rotation="0|1|2|3" x="0" y="0" /></main>` declares rotation-specific main offsets
+- `<part type="building_attr" role="..." x="0" y="0" />` declares a child building part offset for all rotations
+- `<part type="building_attr" role="..."><offset rotation="0|1|2|3" x="0" y="0" /></part>` declares rotation-specific child offsets
+
+Composition rules:
+
+- construction validation, ghost previews, and live placement all consume the same composed part offsets
+- part `type` references another BuildingType `attr`; recursive composed parts are rejected
+- `role` is optional runtime metadata for specialized repair paths, such as farm fields
 
 Current supported `<button>` attributes:
 
@@ -132,6 +165,80 @@ Current supported `<button>` attributes:
 - `text_key="..."` optionally overrides the button text key; otherwise generated UI can use `<identity name_key="...">`
 
 `<menu>` is accepted as a temporary alias for `<button>` only during this migration slice. Prefer `<button>` in new XML.
+
+Roads, highways, roadblocks, and bridges are smart-tool special cases. They must not declare `<button>` nodes because the tool-mode sidebar owns those buttons directly.
+
+Current supported `<cycle>` attributes:
+
+- `group="key"` declares that this BuildingType participates in a construction selection cycle with other BuildingTypes using the same group key
+- `order="N"` sorts members inside the cycle; construction skips members disallowed by the scenario
+- `steps="N"` declares how many construction-cycle key presses are needed before advancing to the next member; use this for graphics whose rotation key also changes orientation before changing type
+
+Construction cycles are loaded entirely from BuildingType XML. Do not add hardcoded type-name arrays for new cycle groups.
+
+Current supported `<tool>` attributes:
+
+- `kind="clear_land|clear_trees|repair_land|road|highway|wall|roadblock|aqueduct|draggable_reservoir|draggable_building"` declares construction-tool behavior used by construction, ghost rendering, and special tool previews without inferring behavior from the BuildingType name
+- `drag_terrain="land|land_or_road"` is required for `kind="draggable_building"` and declares whether drag placement may transform road tiles into gate variants
+- `rotation="none|path|hedge|variant|pair"` is required for `kind="draggable_building"` and declares how the placed building stores orientation or variant state
+
+Current supported `<roadblock>` attributes:
+
+- `kind="standard|storage|bridge"` stores the roadblock category used by roadblock routing and permissions
+- `bridge_type="low|ship"` is required when `kind="bridge"` and declares the bridge placement/sprite variant without relying on the building type name
+- `passage="wall_gate|center_road"` is optional for `kind="standard"` and declares multi-tile pass-through terrain behavior such as wall gates or center-road arches
+
+Current supported `<tile>` attributes:
+
+- `kind="..."` marks a BuildingType as tile-backed data and stores the tile kind key from XML
+- `refresh="none|garden|plaza"` is optional and declares which dirty-region image refresh family to run; omit it only for tile-backed tools that never dirty-refresh through the tile system
+- `placement="none|garden|plaza"` is optional and declares area-drag placement effects for tile-backed tools; omit it for tiles that are placed through ordinary building/tool construction
+- `overgrown="true|false"` marks garden placement with the overgrown tile state used by overgrown gardens
+
+Tile-backed BuildingTypes use the normal root-level `<graphics>` block. Do not add a tile-specific graphics node. For plaza-like tiles, the default graphics target supplies single-tile images and a `<variant role="tile_large">` target supplies two-by-two plaza images. Other tile-backed tools may declare named graphics roles for their live rendering path, such as highway `tile_base` and `tile_barrier`.
+Area-drag tile tools such as gardens and plazas declare both their foundation policy and tile `placement`, so shared ghost validation and final construction agree on which map cells are legal.
+Construction refreshes each placed tile-backed part through its declared tile refresh behavior, so new tile-backed BuildingTypes should not need construction-side branches.
+Single-tile roadblock tiles use their declared `foundation policy="road"` for placement and are treated as passable road tools during shared foundation validation, so walkers standing on the road do not create a separate construction branch.
+
+Current supported `<temple>` attributes:
+
+- `religion="path"` references a definition under the selected mod's `Religions` folder
+
+Temple rules:
+
+- `<temple ... />` marks the BuildingType as religion-backed and links it directly to the referenced Religion module
+- god identity, temple tier, religion capacity, and grand-temple panel presentation belong to the referenced Religion module, not to BuildingType names
+- Religion modules reference God definitions from the selected mod's `Gods` folder
+- Pantheon is represented as the grand temple for all gods: `<god path="all" />` plus `tier="grand"`
+- religion and temple behavior must read this tag-backed module data, not infer temple status from BuildingType text ids or file names
+
+Current supported `Gods` XML:
+
+```xml
+<god legacy="ceres|neptune|mercury|mars|venus" />
+```
+
+Current supported `Religions` XML:
+
+```xml
+<religion>
+    <god path="ceres" />
+    <tier value="shrine|small|large|grand|oracle" />
+    <capacity amount="N" />
+    <presentation
+        sound="wavs/temple_farm.wav"
+        name_key="TR_BUILDING_GRAND_TEMPLE_CERES_DESC"
+        bonus_key="TR_BUILDING_GRAND_TEMPLE_CERES_BONUS_DESC"
+        quote_key="TR_BUILDING_CERES_TEMPLE_QUOTE"
+        banner_group="UI\Ceres_L_Banner"
+        banner_image="Ceres L Banner"
+        content_y_offset="0"
+        height_blocks="40"
+        module_key="ceres" />
+</religion>
+```
+
+`<presentation>` is required for `tier="grand"` Religion modules. `module_key` selects the two-module option bucket and currently supports `ceres`, `neptune`, `mercury`, `mars`, `venus`, and `pantheon`.
 
 Current supported `<sound>` attributes:
 
@@ -144,6 +251,11 @@ Raw-material producer sound ids currently include `clay_pit`, `iron_mine`, `timb
 Current supported `<event_data>` attributes:
 
 - `attr="..."` stores the scenario-event/query building attribute key
+
+Current supported `<market>` attributes:
+
+- `max_distance="N"` stores the market supplier search and placement-preview range
+- `max_food_stock="N"` stores the fallback food stock threshold used after wanted goods are already stocked
 
 Current supported `<flags>` attributes:
 
@@ -218,6 +330,7 @@ Current supported `<graphics>` child nodes:
 
 - `<default> ... </default>`
 - `<variant> ... </variant>`
+- `<variant role="..."> ... </variant>`
 - `<options selection="stable_variant"> ... </options>`
 - `<option image="..." />`
 - `<option path="..." image="..." />`
@@ -257,6 +370,7 @@ Structured `<graphics>` rules:
 
 - `<default>` is required
 - `<variant>` entries are checked in XML order
+- `<variant role="...">` declares named graphics used by tile/runtime renderers and is not considered by normal building rendering when the role is tile-only metadata
 - all `<condition>` nodes inside one `<variant>` must match
 - the first matching variant wins
 - the `<default>` target is used when no variant matches
@@ -287,6 +401,10 @@ Current supported `<construction>` attributes and child nodes:
 - `mode="instant"` may contain direct `<requirement>` nodes for placement-time resource costs; money cost stays in `<model cost="N" />`
 - `mode="phased"` starts the building at `MONUMENT_START`
 - `road_update_radius="N"` updates nearby roads when the phased monument is placed
+- `free_when_broke_limit="N"` allows placement while out of money until total city count for that BuildingType reaches `N`
+- `max_count="N"` blocks placement once the city already has `N` active/created/mothballed buildings of that BuildingType
+- `max_count_unless_config="multiple_barracks"` disables `max_count` while that gameplay config is enabled
+- `requires_building="building_attr"` blocks placement until the referenced BuildingType exists in the city
 - `<phase index="N"> ... </phase>` defines one construction phase
 - `<phase><graphics> ... </graphics></phase>` uses direct `<path>` and optional `<image>` target nodes; phase graphics do not currently support `<default>`, `<variant>`, or `<options>`
 - `<requirement type="architects|stone|timber|concrete|marble|bricks|gold|iron" amount="N" />` declares phase delivery requirements
@@ -306,23 +424,22 @@ Current supported `<labor>` child nodes:
 
 Current supported `<labor_seeker>` child nodes:
 
-- `<method value="none|houses_spawn_if_below|houses_generate_if_below|workforce" />`
+- `<method value="houses_spawn_if_below|houses_generate_if_below|workforce" />`
 - `<amount value="N" />`
 
-`<method>` is required. `<amount>` is optional and defaults to the
-building's `<employees count="N" />` value when omitted. If a labor seeker has no
-`<amount>` node, the enclosing `<labor>` node must also define `<employees>`.
+`<method>` is required whenever a `<labor_seeker>` node exists. Omit the entire
+`<labor_seeker>` node for buildings that use global-access or otherwise
+legacy-owned labor and do not send labor seekers.
 
 `method="houses_spawn_if_below"` preserves the normal vanilla labor-seeker path:
 the walker counts nearby housing into `houses_covered`, then city-wide labor
 allocation fills `num_workers`. Use an explicit `<amount>` when the coverage
-threshold should be different from the employee count.
+threshold should be different from the employee count. `<amount>` is required
+for this method.
 
 `method="houses_generate_if_below"` preserves the legacy direct-generation
-exception used by vanilla entertainment buildings.
-
-`method="none"` explicitly marks a labor-using building as having no labor
-seeker policy. It is used for global-access or otherwise legacy-owned labor.
+exception used by vanilla entertainment buildings. `<amount>` is required for
+this method.
 
 `method="workforce"` uses local workforce acquisition. The building is excluded
 from city-wide labor category allocation while global labor is disabled, and its
@@ -330,7 +447,9 @@ labor seeker targets nearby unemployed house residents instead of counting house
 coverage. Global labor overrides workforce and uses city-wide labor allocation.
 Production methods also consume this labor policy: when global labor is disabled,
 native production checks local workforce access for `method="workforce"` buildings
-instead of the legacy decaying `houses_covered` value.
+instead of the legacy decaying `houses_covered` value. `<amount>` is optional for
+this method and defaults to the building's `<employees count="N" />` value when
+omitted.
 
 Current supported `<storages>` child nodes:
 
@@ -346,12 +465,18 @@ Current supported `<housing>` attributes:
 - `capacity="N"` is required and stores the complete building's residential capacity
 - `evolve_to="..."`, `devolve_to="..."`, `merge_to="..."`, and `split_to="..."` are optional BuildingType text-id transitions
 
+Current supported `<vacant_lot>` attributes:
+
+- `fill_to="..."` references the BuildingType that an empty vacant lot becomes when residents first enter
+
 Housing rules:
 
 - Footprint remains on BuildingType via `<model size="N" />`
 - Residential capacity is a whole-building BuildingType value; do not derive it from tile count
 - Residential requirements, tax multiplier, prosperity, and resident class live in the referenced HousingType
 - Any non-empty transition target must resolve to an existing BuildingType during load
+- Vacant lots are declared as their own BuildingType with normal level-0 `<housing ... />` data and a `<vacant_lot fill_to="house_small_tent" />` node; do not assign the vacant-house tool directly to `house_small_tent`
+- Vacant lots are direct-tool special cases and should not declare generated buttons
 - Native housing BuildingTypes use their string ids directly; the compatibility layer maps those ids to legacy `house_level` values only where old runtime fields still need a level
 - Vespasian, Augustus, and Julius native house chains include every legacy level through `house_luxury_palace`; 1x1 levels define explicit `_2x2` merged BuildingTypes so save/load and evolution can choose by string id plus footprint.
 

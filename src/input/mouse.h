@@ -7,9 +7,6 @@
 
 #include "input/touch.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
  /**
   * Mouse button state
@@ -95,6 +92,3 @@ const mouse *mouse_in_dialog(const mouse *m);
 
 const mouse *mouse_in_dialog_with_size(const mouse *m, int width, int height);
 
-#ifdef __cplusplus
-}
-#endif

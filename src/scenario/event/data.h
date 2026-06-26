@@ -1,8 +1,9 @@
 #pragma once
 
-#include "core/array.h"
-
 #include <stdint.h>
+
+#include <vector>
+
 
 #define EVENT_NAME_LENGTH 32
 #define CONDITION_GROUP_ITEMS_ARRAY_SIZE_STEP 2
@@ -141,9 +142,11 @@ typedef struct {
     int parent_event_id; // not saved to savefile or scenario file, assigned during load for reference
 } scenario_condition_t;
 
+using scenario_condition_array_t = std::vector<scenario_condition_t>;
+
 typedef struct {
     fulfillment_type type;
-    array(scenario_condition_t) conditions;
+    scenario_condition_array_t conditions;
 } scenario_condition_group_t;
 
 typedef struct {
@@ -156,6 +159,10 @@ typedef struct {
     int parent_event_id; // not saved to savefile or scenario file, assigned during load for reference
 } scenario_action_t;
 
+using scenario_condition_group_array_t = std::vector<scenario_condition_group_t>;
+
+using scenario_action_array_t = std::vector<scenario_action_t>;
+
 typedef struct {
     unsigned int id;
     event_state state;
@@ -166,8 +173,8 @@ typedef struct {
     int execution_count;
     int days_until_active;
     uint8_t name[EVENT_NAME_LENGTH];
-    array(scenario_condition_group_t) condition_groups;
-    array(scenario_action_t) actions;
+    scenario_condition_group_array_t condition_groups;
+    scenario_action_array_t actions;
 } scenario_event_t;
 
 typedef struct {
@@ -179,3 +186,4 @@ typedef struct {
     int min_evaluation; //limits are inherited from xml parameters on adding to the array
     int max_evaluation; //they cannot be set afterwards, because they are dictated by the kind of number expected to be returned
 } scenario_formula_t;
+

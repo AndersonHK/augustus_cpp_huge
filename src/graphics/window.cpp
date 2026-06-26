@@ -1,18 +1,17 @@
-#include "window.h"
-
-extern "C" {
-#include "game/system.h"
 #include "graphics/graphics.h"
-#include "graphics/renderer.h"
-#include "graphics/screen.h"
 #include "graphics/warning.h"
 #include "input/cursor.h"
-#include "input/hotkey.h"
+#include "window/city.h"
+
 #include "input/joystick.h"
+#include "window.h"
+
+#include "game/system.h"
+#include "graphics/renderer.h"
+#include "graphics/screen.h"
+#include "input/hotkey.h"
 #include "input/scroll.h"
 #include "input/touch.h"
-#include "window/city.h"
-}
 
 #define MAX_QUEUE 5
 

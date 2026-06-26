@@ -1,3 +1,4 @@
+#include "building/building_record.h"
 #include "building/housing_type.h"
 
 #include <utility>
@@ -12,6 +13,16 @@ HousingType::HousingType(std::string path)
 const char *HousingType::path() const
 {
     return path_.c_str();
+}
+
+void HousingType::set_level(int level)
+{
+    level_ = level;
+}
+
+int HousingType::level() const
+{
+    return level_;
 }
 
 void HousingType::set_resident_class(HousingResidentClass resident_class)

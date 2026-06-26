@@ -1,36 +1,37 @@
-extern "C" {
-#include "undo.h"
-
 #include "building/connectable.h"
 #include "building/construction.h"
-#include "building/house.h"
-#include "building/image.h"
-#include "building/industry.h"
-#include "building/menu.h"
-#include "building/monument.h"
-#include "building/properties.h"
 #include "building/storage.h"
-#include "building/warehouse.h"
-#include "building/storage.h"
-#include "city/buildings.h"
-#include "city/finance.h"
-#include "core/calc.h"
-#include "core/image.h"
 #include "figure/roamer_preview.h"
-#include "game/resource.h"
-#include "graphics/window.h"
 #include "map/aqueduct.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
-#include "map/grid.h"
 #include "map/image.h"
+#include "scenario/earthquake.h"
+#include "undo.h"
+
+#include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
+#include "building/house.h"
+
+
+#include "building/menu.h"
+#include "building/monument.h"
+#include "building/properties.h"
+#include "building/warehouse.h"
+#include "city/buildings.h"
+#include "city/finance.h"
+#include "core/image.h"
+#include "game/resource.h"
+#include "graphics/window.h"
+#include "map/grid.h"
 #include "map/property.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/sprite.h"
 #include "map/terrain.h"
-#include "scenario/earthquake.h"
-}
 
+#include <initializer_list>
 #include <string.h>
 
 #define MAX_UNDO_BUILDINGS 50
@@ -52,6 +53,23 @@ static struct {
         } items[MAX_UNDO_TYPE_CHANGES];
     } type_changes;
 } data;
+
+static int type_matches(building_type type, const char *text_id)
+{
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    return definition && definition->attr() && text_id && strcmp(definition->attr(), text_id) == 0;
+}
+
+static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
+{
+    for (const char *text_id : text_ids) {
+        if (type_matches(type, text_id)) {
+            return 1;
+        }
+    }
+    return 0;
+}
 
 int game_can_undo(void)
 {
@@ -236,20 +254,18 @@ static void add_building_to_terrain(building *b)
     if (b->id <= 0) {
         return;
     }
-    if (building_is_farm(b->type)) {
-        map_building_tiles_add_farm(b->id, b->x, b->y, building_image_get_base_farm_crop(b->type),
-            calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b)));
-    } else {
+    b->state = BUILDING_STATE_IN_USE;
+    if (!Building(b).refresh_graphic_if_native()) {
         int size = building_properties_for_type(b->type)->size;
         if (building_is_house(b->type) && b->house_is_merged) {
             size = 2;
         }
         map_building_tiles_add(b->id, b->x, b->y, size, 0, 0);
-        if (b->type == BUILDING_WHARF) {
-            b->data.industry.fishing_boat_id = 0;
-        }
     }
-    b->state = BUILDING_STATE_IN_USE;
+    if (type_matches(b->type, "wharf")) {
+        b->data.industry.fishing_boat_id = 0;
+        b->data.industry.second_fishing_boat_id = 0;
+    }
 }
 
 void game_undo_perform(void)
@@ -259,30 +275,25 @@ void game_undo_perform(void)
     }
     data.available = 0;
     city_finance_process_construction(-data.building_cost);
-    if (data.type == BUILDING_CLEAR_LAND || data.type == BUILDING_CLEAR_TREES) {
+    if (type_matches_any(data.type, {"clear_land", "clear_trees"})) {
         for (int i = 0; i < data.num_buildings; i++) {
             if (data.buildings[i].id) {
                 building *b = building_restore_from_undo(&data.buildings[i]);
-                switch (b->type) {
-                    default:
-                        break;
-                    case BUILDING_WAREHOUSE:
-                    case BUILDING_GRANARY:
-                        if (!building_storage_restore(b->storage_id)) {
-                            building_storage_reset_building_ids();
-                        }
-                        break;
-                    case BUILDING_TRIUMPHAL_ARCH:
-                        city_buildings_build_triumphal_arch();
-                        building_menu_update();
-                        if (building_construction_type() == BUILDING_TRIUMPHAL_ARCH &&
-                            !building_menu_is_enabled(BUILDING_TRIUMPHAL_ARCH)) {
-                            building_construction_clear_type();
-                        }
-                        break;
+                Building restored(b);
+                if (restored.type && (restored.type->is_warehouse() || restored.type->is_granary())) {
+                    if (!building_storage_restore(b->storage_id)) {
+                        building_storage_reset_building_ids();
+                    }
+                } else if (type_matches(b->type, "triumphal_arch")) {
+                    const building_type arch = b->type;
+                    city_buildings_build_triumphal_arch();
+                    building_menu_update();
+                    if (building_construction_type() == arch && !building_menu_is_enabled(arch)) {
+                        building_construction_clear_type();
+                    }
                 }
                 if (building_is_house(b->type)) {
-                    building_house_restore_population_after_undo(b);
+                    building_house_restore_population_after_undo(Building(b));
                 }
                 add_building_to_terrain(b);
             }
@@ -294,26 +305,24 @@ void game_undo_perform(void)
         map_property_restore();
         map_building_restore();
         map_property_clear_constructing_and_deleted();
-    } else if (data.type == BUILDING_AQUEDUCT || data.type == BUILDING_ROAD ||
-        data.type == BUILDING_WALL || data.type == BUILDING_HIGHWAY) {
+    } else if (type_matches_any(data.type, {"aqueduct", "road", "wall", "highway"})) {
         map_terrain_restore();
         map_aqueduct_restore();
         restore_map_images();
         game_undo_restore_building_types();
         building_connectable_update_connections();
 
-    } else if (data.type == BUILDING_LOW_BRIDGE || data.type == BUILDING_SHIP_BRIDGE) {
+    } else if (type_matches_any(data.type, {"low_bridge", "ship_bridge"})) {
         map_terrain_restore();
         map_sprite_restore();
         restore_map_images();
-    } else if (data.type == BUILDING_PLAZA || data.type == BUILDING_GARDENS ||
-        data.type == BUILDING_OVERGROWN_GARDENS) {
+    } else if (type_matches_any(data.type, {"plaza", "gardens", "overgrown_gardens"})) {
         map_terrain_restore();
         map_aqueduct_restore();
         map_property_restore();
         restore_map_images();
     } else if (data.num_buildings) {
-        if (data.type == BUILDING_DRAGGABLE_RESERVOIR) {
+        if (type_matches(data.type, "draggable_reservoir")) {
             map_terrain_restore();
             map_aqueduct_restore();
             restore_map_images();
@@ -325,8 +334,8 @@ void game_undo_perform(void)
         }
         building_update_state();
     }
-    map_routing_update_land();
-    map_routing_update_walls();
+    Route::updateLandTerrain();
+    Route::updateWallTerrain();
     figure_roamer_preview_reset(building_construction_type());
     data.num_buildings = 0;
 }
@@ -343,27 +352,27 @@ void game_undo_reduce_time_available(void)
         return;
     }
     data.timeout_ticks--;
-    switch (data.type) {
-        case BUILDING_CLEAR_LAND:
-        case BUILDING_CLEAR_TREES:
-        case BUILDING_AQUEDUCT:
-        case BUILDING_ROAD:
-        case BUILDING_HIGHWAY:
-        case BUILDING_WALL:
-        case BUILDING_LOW_BRIDGE:
-        case BUILDING_SHIP_BRIDGE:
-        case BUILDING_PLAZA:
-        case BUILDING_GARDENS:
-        case BUILDING_OVERGROWN_GARDENS:
-            return;
-        default: break;
+    if (type_matches_any(data.type, {
+        "clear_land",
+        "clear_trees",
+        "aqueduct",
+        "road",
+        "highway",
+        "wall",
+        "low_bridge",
+        "ship_bridge",
+        "plaza",
+        "gardens",
+        "overgrown_gardens"
+    })) {
+        return;
     }
     if (data.num_buildings <= 0) {
         data.available = 0;
         window_invalidate();
         return;
     }
-    if (data.type == BUILDING_HOUSE_VACANT_LOT) {
+    if (data.type == building_type_registry_get_vacant_lot_fill_type()) {
         for (int i = 0; i < data.num_buildings; i++) {
             if (data.buildings[i].id && building_get(data.buildings[i].id)->house_population) {
                 // no undo on a new house where people moved in

@@ -1,13 +1,13 @@
+#include "building/construction.h"
+#include "game/state.h"
+
+#include "game/performance_tracker.h"
 #include "game/speed.h"
 
-extern "C" {
-#include "building/construction.h"
-#include "core/time.h"
 #include "game/settings.h"
-#include "game/state.h"
+#include "core/time.h"
 #include "graphics/window.h"
 #include "input/scroll.h"
-}
 
 #define MAX_TICKS_PER_FRAME 20
 #define MILLIS_PER_TICK_SCALE 1000
@@ -104,8 +104,10 @@ int game_speed_get_elapsed_ticks(void)
     }
 
     const time_millis scaled_diff = diff * MILLIS_PER_TICK_SCALE + data.leftover_millis_x1000;
+    performance_tracker_record_speed_goal(diff, millis_per_tick_x1000);
     const int ticks = static_cast<int>(scaled_diff / millis_per_tick_x1000);
     if (!ticks) {
+        performance_tracker_record_speed_wait(diff);
         data.leftover_millis_x1000 = scaled_diff;
         data.last_update = now;
         return 0;

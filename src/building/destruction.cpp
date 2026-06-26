@@ -1,29 +1,41 @@
-#include "destruction.h"
-
-extern "C" {
 #include "building/data_transfer.h"
 #include "building/image.h"
 #include "building/local_workforce.h"
-#include "city/message.h"
-#include "city/population.h"
-#include "city/ratings.h"
-#include "core/image.h"
-#include "figuretype/missile.h"
 #include "figuretype/wall.h"
 #include "game/undo.h"
 #include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
+#include "map/tiles.h"
+
+#include "building/building.h"
+#include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
+#include "city/ratings.h"
+#include "city/culture.h"
+#include "destruction.h"
+
+#include "city/message.h"
+#include "city/population.h"
+#include "core/image.h"
+#include "figuretype/missile.h"
 #include "map/grid.h"
 #include "map/property.h"
 #include "map/random.h"
-#include "map/routing_terrain.h"
+#include "figure/route.h"
 #include "map/terrain.h"
-#include "map/tiles.h"
 #include "sound/effect.h"
-}
 
 #include <string.h>
+
+static building_type burning_ruin_type()
+{
+    static building_type burning_ruin = BUILDING_NONE;
+    if (burning_ruin == BUILDING_NONE) {
+        burning_ruin = building_type_registry_impl::type_from_attr("burning_ruin");
+    }
+    return burning_ruin;
+}
 
 enum {
     DESTROY_COLLAPSE = 0,
@@ -36,11 +48,13 @@ static void set_rubble_grid_info_for_all_parts(building *b);
 static void destroy_without_rubble(building *b)
 {
     game_undo_disable();
-    building_local_workforce_remove_building(b);
+    city_culture_remove_building_module_capacity(b);
+    Building building_object(*b);
+    building_local_workforce::remove_building(building_object);
     if (b->house_size && b->house_population) {
         city_population_remove_home_removed(b->house_population);
     }
-    if (b->type == BUILDING_LOW_BRIDGE || b->type == BUILDING_SHIP_BRIDGE) {
+    if (building_type_registry_impl::type_is_bridge(b->type)) {
         map_bridge_remove(b->grid_offset, 0);
     }
     building_clear_related_data(b);
@@ -52,7 +66,9 @@ static void destroy_without_rubble(building *b)
 static void destroy_on_fire(building *b, int plagued)
 {
     game_undo_disable();
-    building_local_workforce_remove_building(b);
+    city_culture_remove_building_module_capacity(b);
+    Building building_object(*b);
+    building_local_workforce::remove_building(building_object);
     b->fire_risk = 0;
     b->damage_risk = 0;
     if (b->house_size && b->house_population) {
@@ -78,7 +94,7 @@ static void destroy_on_fire(building *b, int plagued)
     }
 
     int waterside_building = 0;
-    if (b->type == BUILDING_DOCK || b->type == BUILDING_WHARF || b->type == BUILDING_SHIPYARD) {
+    if (building_type_registry_impl::type_has_water_foundation(b->type)) {
         waterside_building = 1;
     }
     int num_tiles;
@@ -87,11 +103,14 @@ static void destroy_on_fire(building *b, int plagued)
     } else {
         num_tiles = 0;
     }
+    const building_type burning_ruin = burning_ruin_type();
     map_building_tiles_remove(b->id, b->x, b->y);
     if (map_terrain_is(b->grid_offset, TERRAIN_WATER)) {
         b->state = BUILDING_STATE_RUBBLE;
+    } else if (burning_ruin != BUILDING_NONE) {
+        building_change_type(b, burning_ruin);
     } else {
-        building_change_type(b, BUILDING_BURNING_RUIN);
+        b->state = BUILDING_STATE_RUBBLE;
     }
     b->figure_id4 = 0;
     b->tax_income_or_storage = 0;
@@ -123,7 +142,10 @@ static void destroy_on_fire(building *b, int plagued)
         if (map_terrain_is(map_grid_offset(x, y), TERRAIN_WATER)) {
             continue;
         }
-        building *ruin = building_create(BUILDING_BURNING_RUIN, x, y);
+        if (burning_ruin == BUILDING_NONE) {
+            continue;
+        }
+        building *ruin = building_create(burning_ruin, x, y);
         map_building_tiles_add(ruin->id, ruin->x, ruin->y, 1, building_image_get(ruin), TERRAIN_BUILDING);
         ruin->fire_duration = (ruin->house_figure_generation_delay & 7) + 1;
         ruin->figure_id4 = 0;
@@ -135,7 +157,7 @@ static void destroy_on_fire(building *b, int plagued)
         ruin->data.rubble.og_orientation = og_orientation;
     }
     if (waterside_building) {
-        map_routing_update_water();
+        Route::updateWaterTerrain();
     }
 }
 
@@ -159,7 +181,10 @@ static void destroy_linked_parts(building *b, int destruction_method, int plague
                 part->state = BUILDING_STATE_DELETED_BY_GAME;
                 break;
             default:
-                map_building_tiles_set_rubble(part_id, part->x, part->y, part->size);
+                {
+                    Building part_building(*part);
+                    map_building_tiles_set_rubble(&part_building, part->x, part->y, part->size);
+                }
                 part->state = BUILDING_STATE_RUBBLE;
                 break;
         }
@@ -183,7 +208,10 @@ static void destroy_linked_parts(building *b, int destruction_method, int plague
                 part->state = BUILDING_STATE_DELETED_BY_GAME;
                 break;
             default:
-                map_building_tiles_set_rubble(part_id, part->x, part->y, part->size);
+                {
+                    Building part_building(*part);
+                    map_building_tiles_set_rubble(&part_building, part->x, part->y, part->size);
+                }
                 part->state = BUILDING_STATE_RUBBLE;
         }
     }
@@ -205,13 +233,15 @@ static void destroy_linked_parts(building *b, int destruction_method, int plague
 
 void building_destroy_by_collapse(building *b)
 {
-    building_local_workforce_remove_building(b);
+    city_culture_remove_building_module_capacity(b);
+    Building building_object(*b);
+    building_local_workforce::remove_building(building_object);
     b->state = BUILDING_STATE_RUBBLE;
-    if (b->type == BUILDING_TOWER) {
+    if (building_type_registry_impl::type_attr_is(b->type, "tower")) {
         figure_kill_tower_sentries_in_building(b);
     }
     set_rubble_grid_info_for_all_parts(b);
-    map_building_tiles_set_rubble(b->id, b->x, b->y, b->size);
+    map_building_tiles_set_rubble(&building_object, b->x, b->y, b->size);
     figure_create_explosion_cloud(b->x, b->y, b->size, 0);
     destroy_linked_parts(b, DESTROY_COLLAPSE, 0);
 
@@ -225,11 +255,13 @@ void building_destroy_by_fire(building *b)
 
 void building_destroy_by_earthquake(building *b)
 {
-    building_local_workforce_remove_building(b);
+    city_culture_remove_building_module_capacity(b);
+    Building building_object(*b);
+    building_local_workforce::remove_building(building_object);
     int grid_offset = b->grid_offset; // save before destroying building
     int size = b->size;
     b->state = BUILDING_STATE_DELETED_BY_GAME;
-    map_building_tiles_set_rubble(b->id, b->x, b->y, b->size);
+    map_building_tiles_set_rubble(&building_object, b->x, b->y, b->size);
     destroy_linked_parts(b, DESTROY_EARTHQUAKE, 0);
     map_building_set_rubble_grid_building_id(grid_offset, 0, size);
 }
@@ -261,7 +293,7 @@ int building_destroy_first_of_type(building_type type)
         int grid_offset = b->grid_offset;
         game_undo_disable();
         building_destroy_by_collapse(b);
-        map_routing_update_land();
+        Route::updateLandTerrain();
         return grid_offset;
     }
     return 0;
@@ -284,7 +316,7 @@ void building_destroy_last_placed(void)
         city_message_post(1, MESSAGE_ROAD_TO_ROME_BLOCKED, 0, last_building->grid_offset);
         game_undo_disable();
         building_destroy_by_collapse(last_building);
-        map_routing_update_land();
+        Route::updateLandTerrain();
     }
 }
 
@@ -299,12 +331,14 @@ void building_destroy_increase_enemy_damage(int grid_offset, int max_damage)
 static void set_rubble_grid_info_for_all_parts(building *b)
 {
     b = building_main(b); //get main warehouse building to copy data from
+    Building main_building(b);
+    const building_type_registry_impl::BuildingType *main_type = main_building.type;
     building *part = b; //initialize part iterator - start with main building
     for (int i = 0; i < 9 && part->id > 0; i++) {
         building *next_part = building_next(part);
         part->data.rubble.og_type = b->type;
         part->data.rubble.og_grid_offset = b->grid_offset;
-        part->data.rubble.og_size = b->type == BUILDING_WAREHOUSE ? 3 : b->size;
+        part->data.rubble.og_size = main_type && main_type->is_warehouse() ? 3 : b->size;
         part->data.rubble.og_orientation = (unsigned char) b->subtype.orientation;
         part = next_part;
     }
@@ -316,7 +350,8 @@ void building_destroy_by_enemy(int x, int y, int grid_offset)
     if (building_id > 0) {
         building *b = building_get(building_id);
         if (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_MOTHBALLED) {
-            city_ratings_peace_building_destroyed(b->type);
+            Building destroyed_building(b);
+            city_ratings_peace_building_destroyed(destroyed_building);
             building_destroy_by_collapse(b);
         }
     } else {
@@ -329,12 +364,12 @@ void building_destroy_by_enemy(int x, int y, int grid_offset)
             map_property_clear_plaza_earthquake_or_overgrown_garden(grid_offset);
             map_tiles_update_all_gardens();
         } else {
-            map_building_tiles_set_rubble(0, x, y, 1);
+            map_building_tiles_set_rubble(nullptr, x, y, 1);
         }
     }
     figure_tower_sentry_reroute();
     map_tiles_update_area_walls(x, y, 3);
     map_tiles_update_region_aqueducts(x - 3, y - 3, x + 3, y + 3);
-    map_routing_update_land();
-    map_routing_update_walls();
+    Route::updateLandTerrain();
+    Route::updateWallTerrain();
 }

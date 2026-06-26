@@ -2,9 +2,6 @@
 
 #include <stdint.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /**
  * Language type
@@ -69,6 +66,3 @@ int locale_paragraph_indent(void);
  */
 int locale_translate_rank_autosaves(void);
 
-#ifdef __cplusplus
-}
-#endif

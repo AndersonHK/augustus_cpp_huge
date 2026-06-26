@@ -1,5 +1,6 @@
 #pragma once
 
+
 typedef enum {
     NO_BET,
     BLUE_HORSE,
@@ -10,3 +11,4 @@ typedef enum {
 
 int has_bet_in_progress(void);
 void race_result_process(void);
+

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<building type="vines_farm_field">
+    <identity name_key="main_strings.28.104" />
+    <model size="1" />
+    <foundation policy="land" />
+    <event_data attr="vines_farm_field" />
+    <flags fire_proof="1" />
+    <labor>
+        <employees count="1" />
+    </labor>
+    <graphics>
+        <default>
+            <path value="Industry\Farm_Crops" />
+            <options selection="production_progress">
+                <option image="Image_0020" />
+                <option image="Image_0021" />
+                <option image="Image_0022" />
+                <option image="Image_0023" />
+                <option image="Image_0024" />
+            </options>
+        </default>
+    </graphics>
+    <production_methods>
+        <production_method path="vines_farm_field_basic" />
+    </production_methods>
+</building>

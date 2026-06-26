@@ -3,6 +3,7 @@
 #include "core/buffer.h"
 #include "game/save_version.h"
 
+
 #define DEMAND_CHANGE_LEGACY_IS_RISE 9999
 #define DEMAND_CHANGE_LEGACY_IS_FALL -9999
 
@@ -43,3 +44,4 @@ void scenario_demand_change_save_state(buffer *buf);
 void scenario_demand_change_load_state(buffer *buf, scenario_version_t version);
 
 void scenario_demand_change_load_state_old_version(buffer *buf, int is_legacy_change);
+

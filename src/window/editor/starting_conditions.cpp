@@ -1,23 +1,23 @@
-extern "C" {
-#include "starting_conditions.h"
-
-#include "graphics/ui_runtime_api.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/lang_text.h"
-#include "graphics/text.h"
-#include "graphics/screen.h"
-#include "graphics/window.h"
 #include "input/input.h"
-#include "scenario/editor.h"
-#include "scenario/map.h"
-#include "scenario/property.h"
 #include "window/editor/attributes.h"
-#include "window/editor/map.h"
 #include "window/editor/start_year.h"
 #include "window/numeric_input.h"
 #include "window/select_list.h"
-}
+
+#include "starting_conditions.h"
+
+#include "window/editor/map.h"
+
+#include "graphics/ui_runtime_api.h"
+#include "graphics/text.h"
+#include "graphics/screen.h"
+#include "graphics/window.h"
+#include "scenario/editor.h"
+#include "scenario/map.h"
+#include "scenario/property.h"
 
 static void button_rank(const generic_button *button);
 static void button_caesar_salary(const generic_button *button);
@@ -57,50 +57,50 @@ static void draw_foreground(void)
 
     outer_panel_draw(0, 0, 30, 30);
 
-    lang_text_draw(44, 88, 32, 17, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    lang_text_draw_centered(13, 3, 12, 452, 480, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.88", 32, 17, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
+    lang_text_draw_centered("main_strings.13.3", 12, 452, 480, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 108, 32, 57, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.108", 32, 57, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 48, 200, 30, data.focus_button_id == 1);
-    lang_text_draw_centered(32, scenario_property_player_rank(), 262, 57, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(32, scenario_property_player_rank()), 262, 57, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(CUSTOM_TRANSLATION, TR_EDITOR_CAESAR_SALARY, 32, 97, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("TR_EDITOR_CAESAR_SALARY", 32, 97, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 88, 200, 30, data.focus_button_id == 2);
     text_draw_number_centered(scenario_property_caesar_salary(), 262, 97, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 89, 32, 137, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.89", 32, 137, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 128, 200, 30, data.focus_button_id == 3);
     lang_text_draw_year(scenario_property_start_year(), 330, 137, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 39, 32, 177, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.39", 32, 177, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 168, 200, 30, data.focus_button_id == 4);
     text_draw_number_centered(scenario_initial_funds(), 262, 177, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 68, 32, 217, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.68", 32, 217, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 208, 200, 30, data.focus_button_id == 5);
     text_draw_number_centered(scenario_rescue_loan(), 262, 217, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 43, 32, 257, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.43", 32, 257, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 248, 200, 30, data.focus_button_id == 6);
-    lang_text_draw_centered(18, scenario_property_rome_supplies_wheat(), 262, 257, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, scenario_property_rome_supplies_wheat()), 262, 257, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 80, 32, 297, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.80", 32, 297, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 288, 200, 30, data.focus_button_id == 7);
-    lang_text_draw_centered(18, scenario_map_has_flotsam(), 262, 297, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw_centered(current_string_key(18, scenario_map_has_flotsam()), 262, 297, 200, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-    lang_text_draw(44, 91, 32, 337, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.91", 32, 337, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 328, 200, 30, data.focus_button_id == 8);
     int width = text_draw_number(scenario_editor_milestone_year(25), '+', " ", 297, 339, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     lang_text_draw_year(scenario_property_start_year() + scenario_editor_milestone_year(25),
         307 + width, 339, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
-    lang_text_draw(44, 92, 32, 377, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.92", 32, 377, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 368, 200, 30, data.focus_button_id == 9);
     width = text_draw_number(scenario_editor_milestone_year(50), '+', " ", 297, 379, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     lang_text_draw_year(scenario_property_start_year() + scenario_editor_milestone_year(50),
         307 + width, 379, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
 
-    lang_text_draw(44, 93, 32, 417, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+    lang_text_draw("main_strings.44.93", 32, 417, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     button_border_draw(262, 408, 200, 30, data.focus_button_id == 10);
     width = text_draw_number(scenario_editor_milestone_year(75), '+', " ", 297, 419, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     lang_text_draw_year(scenario_property_start_year() + scenario_editor_milestone_year(75),
