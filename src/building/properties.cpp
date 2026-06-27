@@ -1,6 +1,7 @@
 #include "properties.h"
 
-#include "building/building_type_api.h"
+#include "building/housing_type.h"
+#include "building/housing_type_registry.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -133,9 +134,9 @@ void model_load_model_data(buffer *buf)
 
 const model_house *model_get_house(house_level level)
 {
-    building_type type = building_type_registry_get_housing_type_for_level(level, 1);
-    const model_house *model = building_type_registry_get_housing_model(type);
-    return model ? model : &NO_HOUSE_MODEL;
+    const building_type_registry_impl::HousingType *housing_type =
+        building_type_registry_impl::find_housing_type_definition_for_level(level);
+    return housing_type ? &housing_type->model() : &NO_HOUSE_MODEL;
 }
 
 model_building *model_get_building(building_type type)

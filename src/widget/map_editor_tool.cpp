@@ -8,7 +8,6 @@
 
 #include "assets/assets.h"
 #include "building/properties.h"
-#include "building/building_type_api.h"
 #include "city/view.h"
 #include "core/image_group.h"
 #include "core/image_group_editor.h"
@@ -23,11 +22,6 @@ static const int X_VIEW_OFFSETS[MAX_TILES] = { 0, -30, 30, 0, -60, 60, -30, 30, 
 static const int Y_VIEW_OFFSETS[MAX_TILES] = { 0, 15, 15, 30, 30, 30, 45, 45, 60, 45, 45, 60, 60, 75, 75, 90 };
 
 static float scale = SCALE_NONE;
-
-static building_type building_type_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
 
 static void offset_to_view_offset(int dx, int dy, int *view_dx, int *view_dy)
 {
@@ -254,25 +248,25 @@ void map_editor_tool_draw(const map_tile *tile)
     city_view_get_selected_tile_pixels(&x, &y);
     switch (type) {
         case TOOL_NATIVE_CENTER:
-            draw_building(tile, x, y, building_type_from_attr("native_meeting"));
+            draw_building(tile, x, y, building_type_registry_impl::type_from_attr("native_meeting"));
             break;
         case TOOL_NATIVE_HUT:
-            draw_building(tile, x, y, building_type_from_attr("native_hut"));
+            draw_building(tile, x, y, building_type_registry_impl::type_from_attr("native_hut"));
             break;
         case TOOL_NATIVE_HUT_ALT:
-            draw_building(tile, x, y, building_type_from_attr("native_hut_alt"));
+            draw_building(tile, x, y, building_type_registry_impl::type_from_attr("native_hut_alt"));
             break;
         case TOOL_NATIVE_FIELD:
-            draw_building(tile, x, y, building_type_from_attr("native_crops"));
+            draw_building(tile, x, y, building_type_registry_impl::type_from_attr("native_crops"));
             break;
         case TOOL_NATIVE_DECORATION:
-            draw_building(tile, x, y, building_type_from_attr("native_decor"));
+            draw_building(tile, x, y, building_type_registry_impl::type_from_attr("native_decor"));
             break;
         case TOOL_NATIVE_MONUMENT:
-            draw_building(tile, x, y, building_type_from_attr("native_monument"));
+            draw_building(tile, x, y, building_type_registry_impl::type_from_attr("native_monument"));
             break;
         case TOOL_NATIVE_WATCHTOWER:
-            draw_building(tile, x, y, building_type_from_attr("native_watchtower"));
+            draw_building(tile, x, y, building_type_registry_impl::type_from_attr("native_watchtower"));
             break;
         case TOOL_EARTHQUAKE_POINT:
         case TOOL_ENTRY_POINT:

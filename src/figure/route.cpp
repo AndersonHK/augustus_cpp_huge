@@ -10,13 +10,13 @@
 #include "map/grid.h"
 #include "map/random.h"
 #include "map/road_access.h"
-#include "map/road_network.h"
 #include "map/routing.h"
 #include "map/terrain.h"
 
 #include <array>
 #include <cstdlib>
 #include <limits>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -38,9 +38,30 @@ struct RouteIntent {
     map_point destination = { 0, 0 };
     RoutePolicy policy;
     figure_type_registry_impl::PathingMode::TerrainAccess terrain;
-    performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_MOVEMENT;
     int max_tiles = 0;
     int only_through_building_id = 0;
+
+    bool operator==(const RouteIntent &other) const
+    {
+        return destination.x == other.destination.x &&
+            destination.y == other.destination.y &&
+            policy == other.policy &&
+            terrain == other.terrain &&
+            max_tiles == other.max_tiles &&
+            only_through_building_id == other.only_through_building_id;
+    }
+
+    Route::Request requestFrom(const Figure &figure) const
+    {
+        Route::Request request = Route::Request::between(
+            { figure.x, figure.y },
+            destination,
+            policy,
+            policy.performancePurpose());
+        request.max_tiles = max_tiles;
+        request.only_through_building_id = only_through_building_id;
+        return request;
+    }
 };
 
 struct FigureRoute {
@@ -53,6 +74,64 @@ struct FigureRoute {
     uint8_t same_direction_count = 0;
 
     bool active() const { return figure_id != 0; }
+
+    bool belongsTo(const Figure &figure) const
+    {
+        return figure_id == figure.id();
+    }
+
+    bool isCurrentFor(const Figure &figure) const
+    {
+        return active() && belongsTo(figure) && figure.routing_path_id == id;
+    }
+
+    bool matchesIntent(const RouteIntent &route_intent) const
+    {
+        return has_intent && intent == route_intent;
+    }
+
+    void stampIntent(const RouteIntent &route_intent)
+    {
+        intent = route_intent;
+        has_intent = true;
+    }
+
+    void assign(Figure &figure, const RouteIntent &route_intent, BuiltPath &&built_path)
+    {
+        figure_id = figure.id();
+        stampIntent(route_intent);
+        directions = std::move(built_path.directions);
+        current_step = 0;
+        same_direction_count = 0;
+        figure.routing_path_id = id;
+        figure.routing_path_length = built_path.tile_count;
+    }
+
+    bool hasCurrentStep() const
+    {
+        return current_step < directions.size();
+    }
+
+    int currentDirection() const
+    {
+        return hasCurrentStep() ?
+            directions[current_step] >> kRouteDirectionBitOffset :
+            8;
+    }
+
+    void advanceTile()
+    {
+        if (!hasCurrentStep()) {
+            return;
+        }
+
+        const int tiles_in_direction = (directions[current_step] & kRouteDirectionCountMask) + 1;
+        same_direction_count++;
+        if (same_direction_count >= tiles_in_direction) {
+            current_step++;
+            same_direction_count = 0;
+        }
+    }
 
     void reset(unsigned int new_id)
     {
@@ -92,6 +171,16 @@ static std::vector<FailedRouteAttempt> failed_route_attempts;
 static FigureRoute *path_slot(unsigned int id)
 {
     return id < paths.size() ? &paths[id] : nullptr;
+}
+
+static FigureRoute *path_for_figure(const Figure &figure)
+{
+    if (figure.routing_path_id == 0) {
+        return nullptr;
+    }
+
+    FigureRoute *path = path_slot(figure.routing_path_id);
+    return path && path->belongsTo(figure) ? path : nullptr;
 }
 
 static FigureRoute *append_path(void)
@@ -148,19 +237,27 @@ static void add_direction_to_path(
     same_direction_count = 0;
 }
 
-static int is_equal_distance_but_better_direction(
-    int distance,
-    int next_distance,
-    int direction,
-    int next_direction)
+class AmbientCostMapHandle {
+public:
+    int distanceAt(int gridOffset) const
+    {
+        return map_routing_distance(gridOffset);
+    }
+
+    int reachableDistanceAt(int gridOffset, int maxDistance = 0) const
+    {
+        const int distance = distanceAt(gridOffset);
+        if (distance <= 0 || (maxDistance > 0 && distance > maxDistance)) {
+            return 0;
+        }
+        return distance;
+    }
+};
+
+static const AmbientCostMapHandle &ambient_cost_map()
 {
-    if (next_distance != distance) {
-        return 0;
-    }
-    if (direction == -1) {
-        return 1;
-    }
-    return direction % 2 == 1 && next_direction % 2 == 0;
+    static const AmbientCostMapHandle cost_map;
+    return cost_map;
 }
 
 static int next_is_better(
@@ -181,14 +278,21 @@ static int next_is_better(
     if (next_distance < distance) {
         return 1;
     }
-    return is_equal_distance_but_better_direction(distance, next_distance, direction, next_direction);
+    if (next_distance != distance) {
+        return 0;
+    }
+    if (direction == -1) {
+        return 1;
+    }
+    return direction % 2 == 1 && next_direction % 2 == 0;
 }
 
 static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
 {
     BuiltPath result;
+    const AmbientCostMapHandle &cost_map = ambient_cost_map();
     const int dst_grid_offset = map_grid_offset(dst_x, dst_y);
-    int distance = map_routing_distance(dst_grid_offset);
+    int distance = cost_map.distanceAt(dst_grid_offset);
     if (distance <= 0) {
         return result;
     }
@@ -201,7 +305,7 @@ static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
     const int step = num_directions == 8 ? 1 : 2;
 
     while (distance > 1) {
-        const int base_distance = map_routing_distance(grid_offset);
+        const int base_distance = cost_map.distanceAt(grid_offset);
         distance = base_distance;
         int direction = -1;
         int is_highway = 0;
@@ -210,7 +314,7 @@ static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
                 continue;
             }
             const int next_offset = grid_offset + map_grid_direction_delta(next_direction);
-            const int next_distance = map_routing_distance(next_offset);
+            const int next_distance = cost_map.distanceAt(next_offset);
             const int next_is_highway = map_terrain_is(next_offset, TERRAIN_HIGHWAY);
             if (next_distance && next_is_better(
                 base_distance,
@@ -242,9 +346,10 @@ static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
 static BuiltPath build_water_path(int dst_x, int dst_y, bool is_flotsam)
 {
     BuiltPath result;
+    const AmbientCostMapHandle &cost_map = ambient_cost_map();
     const int rand = random_byte() & 3;
     const int dst_grid_offset = map_grid_offset(dst_x, dst_y);
-    int distance = map_routing_distance(dst_grid_offset);
+    int distance = cost_map.distanceAt(dst_grid_offset);
     if (distance <= 0) {
         return result;
     }
@@ -257,7 +362,7 @@ static BuiltPath build_water_path(int dst_x, int dst_y, bool is_flotsam)
 
     while (distance > 1) {
         int current_rand = rand;
-        distance = map_routing_distance(grid_offset);
+        distance = cost_map.distanceAt(grid_offset);
         if (is_flotsam) {
             current_rand = map_random_get(grid_offset) & 3;
         }
@@ -267,7 +372,7 @@ static BuiltPath build_water_path(int dst_x, int dst_y, bool is_flotsam)
                 continue;
             }
             const int next_offset = grid_offset + map_grid_direction_delta(next_direction);
-            const int next_distance = map_routing_distance(next_offset);
+            const int next_distance = cost_map.distanceAt(next_offset);
             if (!next_distance) {
                 continue;
             }
@@ -308,160 +413,6 @@ static Route::RoadResult road_result(const road_access_candidate &candidate, int
     };
 }
 
-static roadblock_permission route_permission(const Route::Request &request)
-{
-    return request.policy.permission.value_or(PERMISSION_NONE);
-}
-
-static int route_destination_offset(const Route::Request &request)
-{
-    return map_grid_offset(request.destination.x, request.destination.y);
-}
-
-static routed_building_type routed_building_type_for_policy_kind(RoutePolicyKind kind)
-{
-    switch (kind) {
-        case RoutePolicyKind::ConstructionHighway:
-            return ROUTED_BUILDING_HIGHWAY;
-        case RoutePolicyKind::ConstructionWall:
-            return ROUTED_BUILDING_WALL;
-        case RoutePolicyKind::ConstructionAqueduct:
-            return ROUTED_BUILDING_AQUEDUCT;
-        case RoutePolicyKind::ConstructionRoad:
-        default:
-            return ROUTED_BUILDING_ROAD;
-    }
-}
-
-static int can_route_over_surface(const Route::Request &request)
-{
-    const int direction_limit = request.policy.directionLimit();
-    switch (request.policy.kind) {
-        case RoutePolicyKind::CitizenRoadGarden:
-            return map_routing_citizen_can_travel_over_road_garden(
-                request.source.x,
-                request.source.y,
-                request.destination.x,
-                request.destination.y,
-                direction_limit,
-                route_permission(request));
-        case RoutePolicyKind::CitizenRoadGardenHighway:
-            return map_routing_citizen_can_travel_over_road_garden_highway(
-                request.source.x,
-                request.source.y,
-                request.destination.x,
-                request.destination.y,
-                direction_limit,
-                route_permission(request));
-        case RoutePolicyKind::NonCitizenLand:
-            return map_routing_noncitizen_can_travel_over_land(
-                request.source.x,
-                request.source.y,
-                request.destination.x,
-                request.destination.y,
-                direction_limit,
-                request.only_through_building_id,
-                request.max_tiles);
-        case RoutePolicyKind::Walls:
-            return map_routing_can_travel_over_walls(
-                request.source.x,
-                request.source.y,
-                request.destination.x,
-                request.destination.y,
-                4);
-        case RoutePolicyKind::ConstructionRoad:
-        case RoutePolicyKind::ConstructionHighway:
-        case RoutePolicyKind::ConstructionWall:
-        case RoutePolicyKind::ConstructionAqueduct:
-            return map_routing_calculate_distances_for_building(
-                routed_building_type_for_policy_kind(request.policy.kind),
-                request.source.x,
-                request.source.y);
-        case RoutePolicyKind::CitizenLand:
-        default:
-            return map_routing_citizen_can_travel_over_land(
-                request.source.x,
-                request.source.y,
-                request.destination.x,
-                request.destination.y,
-                direction_limit,
-                route_permission(request));
-    }
-}
-
-static int route_request_has_valid_endpoints(const Route::Request &request)
-{
-    return request.has_destination &&
-        map_grid_is_valid_offset(map_grid_offset(request.source.x, request.source.y)) &&
-        map_grid_is_valid_offset(route_destination_offset(request));
-}
-
-static int road_network_at(const map_point &point)
-{
-    const int grid_offset = map_grid_offset(point.x, point.y);
-    if (!map_grid_is_valid_offset(grid_offset) ||
-        !figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset)) {
-        return 0;
-    }
-    return map_road_network_get(grid_offset);
-}
-
-static bool terrain_is_road_like(int grid_offset)
-{
-    return figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset);
-}
-
-static bool route_request_pruned_by_network(const Route::Request &request)
-{
-    if (!request.require_same_road_network) {
-        return false;
-    }
-
-    const int source_network = road_network_at(request.source);
-    const int destination_network = road_network_at(request.destination);
-    if (source_network <= 0 || destination_network <= 0 || source_network == destination_network) {
-        return false;
-    }
-
-    performance_tracker_record_route_metric(
-        PERFORMANCE_TRACKER_ROUTE_METRIC_PRUNED_BY_NETWORK,
-        request.purpose,
-        1);
-    return true;
-}
-
-static bool route_destination_within_max_tiles(const Route::Request &request)
-{
-    if (request.max_tiles <= 0) {
-        return true;
-    }
-
-    const int destination_distance = map_routing_distance(route_destination_offset(request));
-    return destination_distance > 0 && destination_distance <= request.max_tiles;
-}
-
-static bool can_reach_with_road_garden_distance_field(const Route::Request &request)
-{
-    const int source_offset = map_grid_offset(request.source.x, request.source.y);
-    if (!map_grid_is_valid_offset(source_offset) ||
-        !figure_type_registry_impl::PathingMode::citizenIsRoadLike(source_offset)) {
-        return false;
-    }
-
-    map_routing_calculate_distances_road_garden(
-        request.source.x,
-        request.source.y,
-        route_permission(request));
-    return route_destination_within_max_tiles(request);
-}
-
-static bool request_needs_bounded_road_garden_field(const Route::Request &request)
-{
-    return request.max_tiles > 0 &&
-        request.policy.kind == RoutePolicyKind::CitizenRoadGarden &&
-        request.policy.directionLimit() == 4;
-}
-
 static BuiltPath build_seeded_land_path(
     const Route::Request &request,
     int path_direction_limit,
@@ -482,74 +433,37 @@ static BuiltPath build_seeded_land_path(
     return built_path;
 }
 
+static std::optional<BuiltPath> build_reachable_seeded_land_path(
+    const Route::Request &request,
+    int path_direction_limit,
+    int fallback_direction_limit = 0)
+{
+    if (!request.canReachOverSurface()) {
+        return std::nullopt;
+    }
+    return build_seeded_land_path(request, path_direction_limit, fallback_direction_limit);
+}
+
 static BuiltPath build_route_path(
     const Route::Request &request,
     int path_direction_limit,
     int fallback_direction_limit = 0)
 {
-    switch (request.policy.kind) {
-        case RoutePolicyKind::WaterBoat:
-            map_routing_calculate_distances_water_boat(request.source.x, request.source.y);
-            return build_water_path(request.destination.x, request.destination.y, false);
-        case RoutePolicyKind::WaterFlotsam:
+    if (request.policy.isWater()) {
+        if (request.policy.isWaterFlotsam()) {
             map_routing_calculate_distances_water_flotsam(request.source.x, request.source.y);
-            return build_water_path(request.destination.x, request.destination.y, true);
-        default:
-            if (!can_route_over_surface(request)) {
-                return {};
-            }
-            return build_seeded_land_path(request, path_direction_limit, fallback_direction_limit);
+        } else {
+            map_routing_calculate_distances_water_boat(request.source.x, request.source.y);
+        }
+        return build_water_path(
+            request.destination.x,
+            request.destination.y,
+            request.policy.isWaterFlotsam());
     }
-}
-
-static BuiltPath build_route_path(const Route::Request &request)
-{
-    return build_route_path(request, request.policy.pathDirectionLimit());
-}
-
-static Route::Request route_request_from_figure(
-    const Figure &figure,
-    RoutePolicy policy,
-    performance_tracker_route_purpose purpose)
-{
-    Route::Request request = Route::Request::between(
-        { figure.x, figure.y },
-        { figure.destination_x, figure.destination_y },
-        policy,
-        purpose);
-    if (!request.policy.permission) {
-        request.policy.permission = Roadblock::permission_for(figure);
+    if (auto built_path = build_reachable_seeded_land_path(request, path_direction_limit, fallback_direction_limit)) {
+        return std::move(*built_path);
     }
-    request.policy.neighborhood = route_neighborhood_from_direction_limit(figure.disallow_diagonal ? 4 : 8);
-    request.max_tiles = figure.max_roam_length > 0 ? figure.max_roam_length : 0;
-    request.only_through_building_id = figure.destination_building.id();
-    return request;
-}
-
-static performance_tracker_route_purpose route_purpose_for_figure(const Figure &figure)
-{
-    if (figure.is_boat) {
-        return PERFORMANCE_TRACKER_ROUTE_PURPOSE_WATER;
-    }
-    if (figure.terrain_usage == TERRAIN_USAGE_WALLS) {
-        return PERFORMANCE_TRACKER_ROUTE_PURPOSE_WALL;
-    }
-    return PERFORMANCE_TRACKER_ROUTE_PURPOSE_MOVEMENT;
-}
-
-static bool same_point(const map_point &left, const map_point &right)
-{
-    return left.x == right.x && left.y == right.y;
-}
-
-static bool same_route_intent(const RouteIntent &left, const RouteIntent &right)
-{
-    return same_point(left.destination, right.destination) &&
-        left.policy == right.policy &&
-        left.terrain == right.terrain &&
-        left.purpose == right.purpose &&
-        left.max_tiles == right.max_tiles &&
-        left.only_through_building_id == right.only_through_building_id;
+    return {};
 }
 
 static RouteIntent route_intent_from_figure(Figure &figure)
@@ -559,35 +473,24 @@ static RouteIntent route_intent_from_figure(Figure &figure)
     const RouteNeighborhood neighborhood = route_neighborhood_from_direction_limit(direction_limit);
     const roadblock_permission permission = Roadblock::permission_for(figure);
     intent.destination = { figure.destination_x, figure.destination_y };
-    intent.purpose = route_purpose_for_figure(figure);
     intent.max_tiles = figure.max_roam_length > 0 ? figure.max_roam_length : 0;
     intent.only_through_building_id = figure.destination_building.id();
 
     if (figure.is_boat) {
-        intent.policy = RoutePolicy::fromKind(
-            figure.is_boat == 2 ? RoutePolicyKind::WaterFlotsam : RoutePolicyKind::WaterBoat,
-            neighborhood);
+        intent.policy = RoutePolicy::water(figure.is_boat == 2, neighborhood);
         intent.policy.permission = permission;
-        return intent;
+    } else {
+        const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(&figure);
+        intent.terrain = pathing ?
+            pathing->terrain :
+            figure_type_registry_impl::PathingMode::terrainFromLegacyUsage(figure.terrain_usage);
+        intent.policy = figure_type_registry_impl::PathingMode::routePolicyForTerrain(
+            intent.terrain,
+            permission,
+            neighborhood);
     }
 
-    const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(&figure);
-    intent.terrain = pathing ?
-        pathing->terrain :
-        figure_type_registry_impl::PathingMode::terrainFromLegacyUsage(figure.terrain_usage);
-    intent.policy = figure_type_registry_impl::PathingMode::routePolicyForTerrain(
-        intent.terrain,
-        permission,
-        neighborhood);
     return intent;
-}
-
-static FailedRouteAttempt &failed_route_attempt_for(unsigned int figure_id)
-{
-    if (failed_route_attempts.size() <= figure_id) {
-        failed_route_attempts.resize(static_cast<size_t>(figure_id) + 1);
-    }
-    return failed_route_attempts[figure_id];
 }
 
 static void clear_stale_failed_route_attempts()
@@ -616,8 +519,9 @@ static bool failed_route_retry_deferred(const Figure &figure, const RouteIntent 
     const map_point source = { figure.x, figure.y };
     FailedRouteAttempt &attempt = failed_route_attempts[figure.id()];
     if (!attempt.skip_next_retry ||
-        !same_point(attempt.source, source) ||
-        !same_route_intent(attempt.intent, intent)) {
+        attempt.source.x != source.x ||
+        attempt.source.y != source.y ||
+        !(attempt.intent == intent)) {
         attempt = {};
         return false;
     }
@@ -627,7 +531,10 @@ static bool failed_route_retry_deferred(const Figure &figure, const RouteIntent 
 
 static void record_failed_route_attempt(const Figure &figure, const RouteIntent &intent)
 {
-    FailedRouteAttempt &attempt = failed_route_attempt_for(figure.id());
+    if (failed_route_attempts.size() <= figure.id()) {
+        failed_route_attempts.resize(static_cast<size_t>(figure.id()) + 1);
+    }
+    FailedRouteAttempt &attempt = failed_route_attempts[figure.id()];
     attempt.source = { figure.x, figure.y };
     attempt.intent = intent;
     attempt.skip_next_retry = true;
@@ -645,16 +552,16 @@ static BuiltPath build_enemy_land_route(
     int path_direction_limit,
     int fallback_direction_limit)
 {
-    request.policy.kind = RoutePolicyKind::NonCitizenLand;
+    request.policy = request.policy.asNonCitizenLand();
     request.max_tiles = 5000;
-    if (can_route_over_surface(request)) {
-        return build_seeded_land_path(request, path_direction_limit, fallback_direction_limit);
+    if (auto built_path = build_reachable_seeded_land_path(request, path_direction_limit, fallback_direction_limit)) {
+        return std::move(*built_path);
     }
 
     request.only_through_building_id = 0;
     request.max_tiles = 25000;
-    if (can_route_over_surface(request)) {
-        return build_seeded_land_path(request, path_direction_limit, fallback_direction_limit);
+    if (auto built_path = build_reachable_seeded_land_path(request, path_direction_limit, fallback_direction_limit)) {
+        return std::move(*built_path);
     }
 
     if (!map_routing_noncitizen_can_travel_through_everything(
@@ -669,71 +576,47 @@ static BuiltPath build_enemy_land_route(
 }
 
 static BuiltPath build_figure_route_path(
-    const Figure &figure,
-    const figure_type_registry_impl::PathingMode::TerrainAccess &terrain,
-    RoutePolicy policy,
-    int path_direction_limit,
-    performance_tracker_route_purpose purpose)
+    Route::Request request,
+    const RouteIntent &intent)
 {
-    Route::Request request = route_request_from_figure(
-        figure,
-        policy,
-        purpose);
     const int direction_limit = request.policy.directionLimit();
 
-    if (terrain.enemy_land) {
-        return build_enemy_land_route(request, path_direction_limit, direction_limit);
+    if (intent.terrain.usesEnemyLandRoute()) {
+        return build_enemy_land_route(request, direction_limit, direction_limit);
     }
 
-    if (terrain.animal_land) {
+    if (intent.terrain.usesAnimalLandRoute()) {
         request.only_through_building_id = -1;
         request.max_tiles = 5000;
-        return build_route_path(request, path_direction_limit, direction_limit);
+        return build_route_path(request, direction_limit, direction_limit);
     }
 
-    if (terrain.usesRoadAccess()) {
-        if (can_route_over_surface(request)) {
-            return build_seeded_land_path(request, path_direction_limit, direction_limit);
+    if (intent.terrain.usesRoadAccess()) {
+        if (auto built_path = build_reachable_seeded_land_path(request, direction_limit, direction_limit)) {
+            return std::move(*built_path);
         }
-        if (terrain.requires_roads) {
+        if (!intent.terrain.allowsRoadAccessFallback()) {
             return {};
         }
-        request.policy.kind = RoutePolicyKind::CitizenLand;
+        request.policy = request.policy.withoutRoadAccess();
     }
 
-    return build_route_path(request, path_direction_limit, direction_limit);
+    return build_route_path(request, direction_limit, direction_limit);
 }
 
-static BuiltPath build_route_for_intent(const Figure &figure, const RouteIntent &intent)
-{
-    if (intent.policy.isWater()) {
-        return build_route_path(route_request_from_figure(
-            figure,
-            intent.policy,
-            intent.purpose));
-    }
-    return build_figure_route_path(
-        figure,
-        intent.terrain,
-        intent.policy,
-        intent.policy.directionLimit(),
-        intent.purpose);
-}
-
-class AnyRoadAccessCandidateVisitor final : public RoadAccessCandidateVisitor {
-public:
-    void visit(const road_access_candidate &) override { found_ = true; }
-    bool found() const { return found_; }
-
-private:
-    bool found_ = false;
-};
-
+template <typename DistanceAt>
 class BestRouteRoadAccessVisitor final : public RoadAccessCandidateVisitor {
 public:
+    explicit BestRouteRoadAccessVisitor(const DistanceAt &distanceAt) : distanceAt_(distanceAt) {}
+
     void visit(const road_access_candidate &candidate) override
     {
-        const int distance = map_routing_distance(candidate.grid_offset);
+        found_ = true;
+        if (!select_reachable_) {
+            return;
+        }
+
+        const int distance = distanceAt_(candidate.grid_offset);
         if (distance <= 0) {
             return;
         }
@@ -748,26 +631,32 @@ public:
         }
     }
 
+    bool found() const { return found_; }
+    void selectReachableCandidates() { select_reachable_ = true; }
     Route::RoadResult bestNetworkRoad() const { return best_network_road_; }
     Route::RoadResult shortestRoad() const { return shortest_road_; }
 
 private:
+    bool found_ = false;
+    bool select_reachable_ = false;
     int best_network_index_ = std::numeric_limits<int>::max();
     int shortest_distance_ = std::numeric_limits<int>::max();
     Route::RoadResult best_network_road_;
     Route::RoadResult shortest_road_;
+    DistanceAt distanceAt_;
 };
 
-template <typename VisitCandidates, typename SeedDistanceGrid>
+template <typename VisitCandidates, typename SeedCostMap, typename DistanceAt>
 static Route::RoadResult best_road_to_largest_network(
     const VisitCandidates &visit_candidates,
-    const SeedDistanceGrid &seed_distance_grid,
+    const SeedCostMap &seed_cost_map,
+    const DistanceAt &distance_at,
     performance_tracker_route_purpose purpose,
     bool fallback_to_shortest_distance)
 {
-    AnyRoadAccessCandidateVisitor any_candidate;
-    visit_candidates(any_candidate);
-    if (!any_candidate.found()) {
+    BestRouteRoadAccessVisitor<DistanceAt> best_candidate(distance_at);
+    visit_candidates(best_candidate);
+    if (!best_candidate.found()) {
         performance_tracker_record_route_metric(
             PERFORMANCE_TRACKER_ROUTE_METRIC_PRUNED_BY_NETWORK,
             purpose,
@@ -775,9 +664,9 @@ static Route::RoadResult best_road_to_largest_network(
         return {};
     }
 
-    seed_distance_grid();
+    seed_cost_map();
 
-    BestRouteRoadAccessVisitor best_candidate;
+    best_candidate.selectReachableCandidates();
     visit_candidates(best_candidate);
     if (best_candidate.bestNetworkRoad() || !fallback_to_shortest_distance) {
         return best_candidate.bestNetworkRoad();
@@ -785,86 +674,46 @@ static Route::RoadResult best_road_to_largest_network(
     return best_candidate.shortestRoad();
 }
 
-class SameNetworkAccessRoadVisitor final {
-public:
-    explicit SameNetworkAccessRoadVisitor(int sourceNetwork) : sourceNetwork_(sourceNetwork) {}
+} // namespace
 
-    void visit(int grid_offset)
-    {
-        if (found_ ||
-            !terrain_is_road_like(grid_offset) ||
-            map_road_network_get(grid_offset) != sourceNetwork_) {
-            return;
-        }
-        found_ = true;
-    }
-
-    bool found() const { return found_; }
-    bool done() const { return found_; }
-
-private:
-    int sourceNetwork_ = 0;
-    bool found_ = false;
-};
-
-class BestAccessRoadVisitor final {
-public:
-    BestAccessRoadVisitor(bool requireSameNetwork, int sourceNetwork, int maxDistance)
-        : requireSameNetwork_(requireSameNetwork),
-          sourceNetwork_(sourceNetwork),
-          maxDistance_(maxDistance)
-    {
-    }
-
-    void visit(int grid_offset)
-    {
-        if (!terrain_is_road_like(grid_offset)) {
-            return;
-        }
-        if (requireSameNetwork_ &&
-            sourceNetwork_ > 0 &&
-            map_road_network_get(grid_offset) != sourceNetwork_) {
-            return;
-        }
-
-        const int distance = map_routing_distance(grid_offset);
-        if (distance <= 0 || (maxDistance_ > 0 && distance > maxDistance_)) {
-            return;
-        }
-        if (!best_road_ || distance < best_road_.distance) {
-            best_road_ = road_result(grid_offset, distance);
-        }
-    }
-
-    Route::RoadResult bestRoad() const { return best_road_; }
-    bool done() const { return false; }
-
-private:
-    bool requireSameNetwork_ = false;
-    int sourceNetwork_ = 0;
-    int maxDistance_ = 0;
-    Route::RoadResult best_road_;
-};
-
-template <typename Visitor>
-static void visit_access_road_area_tiles(
-    int x_min,
-    int y_min,
-    int x_max,
-    int y_max,
-    Visitor &visitor)
+void Route::DistanceQuery::CostMapHandle::seed(
+    const map_point &source,
+    const std::optional<roadblock_permission> &permission,
+    performance_tracker_route_purpose purpose)
 {
-    for (int y = y_min; y <= y_max; y++) {
-        for (int x = x_min; x <= x_max; x++) {
-            visitor.visit(map_grid_offset(x, y));
-            if (visitor.done()) {
-                return;
-            }
-        }
+    PerformanceTrackerRouteScope route_scope(purpose);
+    performance_tracker_record_route_metric(
+        PERFORMANCE_TRACKER_ROUTE_METRIC_REQUESTS,
+        purpose,
+        1);
+    if (generation_ == map_routing_distance_generation()) {
+        performance_tracker_record_route_metric(
+            PERFORMANCE_TRACKER_ROUTE_METRIC_CACHE_HITS,
+            purpose,
+            1);
+        return;
     }
+    performance_tracker_record_route_metric(
+        PERFORMANCE_TRACKER_ROUTE_METRIC_CACHE_MISSES,
+        purpose,
+        1);
+    if (permission) {
+        map_routing_calculate_distances_road_garden(source.x, source.y, *permission);
+    } else {
+        map_routing_calculate_distances(source.x, source.y);
+    }
+    generation_ = map_routing_distance_generation();
 }
 
-} // namespace
+int Route::DistanceQuery::CostMapHandle::distanceAt(int gridOffset) const
+{
+    return ambient_cost_map().distanceAt(gridOffset);
+}
+
+int Route::DistanceQuery::CostMapHandle::reachableDistanceAt(int gridOffset, int maxDistance) const
+{
+    return ambient_cost_map().reachableDistanceAt(gridOffset, maxDistance);
+}
 
 Route::Request Route::Request::between(
     const map_point &source,
@@ -881,6 +730,97 @@ Route::Request Route::Request::between(
     return request;
 }
 
+int Route::Request::sourceOffset() const
+{
+    return map_grid_offset(source.x, source.y);
+}
+
+int Route::Request::destinationOffset() const
+{
+    return map_grid_offset(destination.x, destination.y);
+}
+
+bool Route::Request::hasValidEndpoints() const
+{
+    return has_destination &&
+        map_grid_is_valid_offset(sourceOffset()) &&
+        map_grid_is_valid_offset(destinationOffset());
+}
+
+bool Route::Request::acceptsDestinationDistance(int distance) const
+{
+    return max_tiles <= 0 || (distance > 0 && distance <= max_tiles);
+}
+
+bool Route::Request::canReachOverSurface() const
+{
+    if (policy.isConstruction()) {
+        return map_routing_calculate_distances_for_building(
+            policy.constructionBuildingType(),
+            source.x,
+            source.y);
+    }
+
+    if (policy.isNonCitizenLand()) {
+        return map_routing_noncitizen_can_travel_over_land(
+            source.x,
+            source.y,
+            destination.x,
+            destination.y,
+            policy.directionLimit(),
+            only_through_building_id,
+            max_tiles);
+    }
+    if (policy.isWalls()) {
+        return map_routing_can_travel_over_walls(
+            source.x,
+            source.y,
+            destination.x,
+            destination.y,
+            policy.pathDirectionLimit());
+    }
+
+    auto can_travel = map_routing_citizen_can_travel_over_land;
+    if (policy.isCitizenRoadGarden()) {
+        can_travel = map_routing_citizen_can_travel_over_road_garden;
+    } else if (policy.isCitizenRoadGardenHighway()) {
+        can_travel = map_routing_citizen_can_travel_over_road_garden_highway;
+    }
+    return can_travel(
+        source.x,
+        source.y,
+        destination.x,
+        destination.y,
+        policy.directionLimit(),
+        policy.roadblockPermission());
+}
+
+bool Route::Request::canReachWithBoundedRoadGardenDistanceField() const
+{
+    const int source_offset = sourceOffset();
+    if (!map_grid_is_valid_offset(source_offset) ||
+        !figure_type_registry_impl::PathingMode::citizenIsRoadLike(source_offset)) {
+        return false;
+    }
+
+    map_routing_calculate_distances_road_garden(
+        source.x,
+        source.y,
+        policy.roadblockPermission());
+    return acceptsDestinationDistance(ambient_cost_map().distanceAt(destinationOffset()));
+}
+
+bool Route::Request::prunesByRoadNetwork() const
+{
+    if (!require_same_road_network) {
+        return false;
+    }
+
+    const int source_network = figure_type_registry_impl::PathingMode::citizenRoadNetworkAt(sourceOffset());
+    const int destination_network = figure_type_registry_impl::PathingMode::citizenRoadNetworkAt(destinationOffset());
+    return source_network > 0 && destination_network > 0 && source_network != destination_network;
+}
+
 bool Route::Planner::canReach(const Request &request)
 {
     PerformanceTrackerRouteScope route_scope(request.purpose);
@@ -893,19 +833,24 @@ bool Route::Planner::canReach(const Request &request)
         request.purpose,
         1);
 
-    if (!route_request_has_valid_endpoints(request)) {
+    if (!request.hasValidEndpoints()) {
         performance_tracker_record_route_metric(
             PERFORMANCE_TRACKER_ROUTE_METRIC_FAILED,
             request.purpose,
             1);
         return false;
     }
-    if (route_request_pruned_by_network(request)) {
+    if (request.prunesByRoadNetwork()) {
+        performance_tracker_record_route_metric(
+            PERFORMANCE_TRACKER_ROUTE_METRIC_PRUNED_BY_NETWORK,
+            request.purpose,
+            1);
         return false;
     }
-    const bool reached = request_needs_bounded_road_garden_field(request) ?
-        can_reach_with_road_garden_distance_field(request) :
-        can_route_over_surface(request) && route_destination_within_max_tiles(request);
+    const bool reached = request.policy.needsBoundedRoadGardenDistanceField(request.max_tiles) ?
+        request.canReachWithBoundedRoadGardenDistanceField() :
+        request.canReachOverSurface() &&
+            request.acceptsDestinationDistance(ambient_cost_map().distanceAt(request.destinationOffset()));
     if (!reached) {
         performance_tracker_record_route_metric(
             PERFORMANCE_TRACKER_ROUTE_METRIC_FAILED,
@@ -943,7 +888,7 @@ Route::DistanceQuery Route::DistanceQuery::fromRoad(
 
     return DistanceQuery(
         road,
-        map_road_network_get(source_offset),
+        figure_type_registry_impl::PathingMode::citizenRoadNetworkAt(source_offset),
         permission,
         purpose,
         true);
@@ -959,9 +904,7 @@ Route::DistanceQuery Route::DistanceQuery::fromPoint(
         return DistanceQuery({ 0, 0 }, 0, std::nullopt, purpose, false);
     }
 
-    const int source_network = figure_type_registry_impl::PathingMode::citizenIsRoadLike(source_offset) ?
-        map_road_network_get(source_offset) :
-        0;
+    const int source_network = figure_type_registry_impl::PathingMode::citizenRoadNetworkAt(source_offset);
     return DistanceQuery(point, source_network, permission, purpose, true);
 }
 
@@ -972,38 +915,10 @@ Route::DistanceQuery Route::DistanceQuery::fromFigure(
     return fromRoad({ figure.x, figure.y }, Roadblock::permission_for(figure), purpose);
 }
 
-void Route::DistanceQuery::seedDistanceGrid() const
+const Route::DistanceQuery::CostMapHandle &Route::DistanceQuery::costMap() const
 {
-    PerformanceTrackerRouteScope route_scope(purpose_);
-    performance_tracker_record_route_metric(
-        PERFORMANCE_TRACKER_ROUTE_METRIC_REQUESTS,
-        purpose_,
-        1);
-    if (distanceGridGeneration_ == map_routing_distance_generation()) {
-        performance_tracker_record_route_metric(
-            PERFORMANCE_TRACKER_ROUTE_METRIC_CACHE_HITS,
-            purpose_,
-            1);
-        return;
-    }
-    performance_tracker_record_route_metric(
-        PERFORMANCE_TRACKER_ROUTE_METRIC_CACHE_MISSES,
-        purpose_,
-        1);
-    if (permission_) {
-        map_routing_calculate_distances_road_garden(source_.x, source_.y, *permission_);
-    } else {
-        map_routing_calculate_distances(source_.x, source_.y);
-    }
-    distanceGridGeneration_ = map_routing_distance_generation();
-}
-
-int Route::DistanceQuery::distanceFor(const RoadResult &candidate, int maxDistance) const
-{
-    if (candidate.distance <= 0 || (maxDistance > 0 && candidate.distance > maxDistance)) {
-        return 0;
-    }
-    return candidate.distance;
+    costMap_.seed(source_, permission_, purpose_);
+    return costMap_;
 }
 
 int Route::DistanceQuery::distanceTo(int gridOffset, int maxDistance) const
@@ -1011,13 +926,7 @@ int Route::DistanceQuery::distanceTo(int gridOffset, int maxDistance) const
     if (!valid_ || !map_grid_is_valid_offset(gridOffset)) {
         return 0;
     }
-    seedDistanceGrid();
-
-    const int distance = map_routing_distance(gridOffset);
-    if (distance <= 0 || (maxDistance > 0 && distance > maxDistance)) {
-        return 0;
-    }
-    return distanceFor(road_result(gridOffset, distance), maxDistance);
+    return costMap().reachableDistanceAt(gridOffset, maxDistance);
 }
 
 Route::RoadResult Route::DistanceQuery::findRoad(const map_point &road, int maxDistance) const
@@ -1025,20 +934,18 @@ Route::RoadResult Route::DistanceQuery::findRoad(const map_point &road, int maxD
     if (!valid_) {
         return {};
     }
-    seedDistanceGrid();
+    const CostMapHandle &cost_map = costMap();
 
     const int grid_offset = map_grid_offset(road.x, road.y);
     if (!map_grid_is_valid_offset(grid_offset)) {
         return {};
     }
 
-    const int distance = map_routing_distance(grid_offset);
-    if (distance <= 0 || (maxDistance > 0 && distance > maxDistance)) {
+    const int distance = cost_map.reachableDistanceAt(grid_offset, maxDistance);
+    if (distance <= 0) {
         return {};
     }
-
-    const int reachable_distance = distanceFor(road_result(grid_offset, distance), maxDistance);
-    return reachable_distance > 0 ? road_result(grid_offset, reachable_distance) : RoadResult{};
+    return road_result(grid_offset, distance);
 }
 
 Route::RoadResult Route::DistanceQuery::findReachableRoad(
@@ -1072,7 +979,7 @@ Route::RoadResult Route::DistanceQuery::findReachableAreaTile(
     if (!valid_ || radius <= 0) {
         return {};
     }
-    seedDistanceGrid();
+    const CostMapHandle &cost_map = costMap();
 
     int best_distance = std::numeric_limits<int>::max();
     int best_grid_offset = 0;
@@ -1086,22 +993,18 @@ Route::RoadResult Route::DistanceQuery::findReachableAreaTile(
         for (int yy = y_min; yy <= y_max; yy++) {
             for (int xx = x_min; xx <= x_max; xx++) {
                 const int grid_offset = map_grid_offset(xx, yy);
-                if (requireRoad && !terrain_is_road_like(grid_offset)) {
+                if (requireRoad &&
+                    !figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset)) {
                     continue;
                 }
 
-                const int distance = map_routing_distance(grid_offset);
-                if (distance <= 0 || distance >= best_distance ||
-                    (maxDistance > 0 && distance > maxDistance)) {
+                const int distance = cost_map.reachableDistanceAt(grid_offset, maxDistance);
+                if (distance <= 0 || distance >= best_distance) {
                     continue;
                 }
 
-                const int reachable_distance =
-                    distanceFor(road_result(grid_offset, distance), maxDistance);
-                if (reachable_distance > 0 && reachable_distance < best_distance) {
-                    best_distance = reachable_distance;
-                    best_grid_offset = grid_offset;
-                }
+                best_distance = distance;
+                best_grid_offset = grid_offset;
             }
         }
 
@@ -1121,7 +1024,8 @@ Route::RoadResult Route::DistanceQuery::findRoadToLargestNetwork(int x, int y, i
         [x, y, size](RoadAccessCandidateVisitor &visitor) {
             map_road_access_visit_candidates(x, y, size, visitor);
         },
-        [this]() { seedDistanceGrid(); },
+        [this]() { costMap(); },
+        [this](int gridOffset) { return costMap_.distanceAt(gridOffset); },
         purpose_,
         true);
 }
@@ -1138,7 +1042,8 @@ Route::RoadResult Route::DistanceQuery::findHippodromeRoadToLargestNetwork(
         [x, y, rotated](RoadAccessCandidateVisitor &visitor) {
             map_road_access_visit_hippodrome_candidates(x, y, rotated ? 1 : 0, visitor);
         },
-        [this]() { seedDistanceGrid(); },
+        [this]() { costMap(); },
+        [this](int gridOffset) { return costMap_.distanceAt(gridOffset); },
         purpose_,
         true);
 }
@@ -1155,7 +1060,8 @@ Route::RoadResult Route::DistanceQuery::findMonumentConstructionRoadToLargestNet
         [x, y, size](RoadAccessCandidateVisitor &visitor) {
             map_road_access_visit_monument_construction_candidates(x, y, size, visitor);
         },
-        [this]() { seedDistanceGrid(); },
+        [this]() { costMap(); },
+        [this](int gridOffset) { return costMap_.distanceAt(gridOffset); },
         purpose_,
         size < 3);
 }
@@ -1176,24 +1082,42 @@ Route::RoadResult Route::DistanceQuery::findAccessRoad(
     int y_max = 0;
     map_grid_get_area(target.x, target.y, target.size, radius, &x_min, &y_min, &x_max, &y_max);
 
-    bool has_same_network_candidate = !requireSameNetwork || sourceNetwork_ <= 0;
-    if (!has_same_network_candidate) {
-        SameNetworkAccessRoadVisitor same_network(sourceNetwork_);
-        visit_access_road_area_tiles(x_min, y_min, x_max, y_max, same_network);
-        if (!same_network.found()) {
-            performance_tracker_record_route_metric(
-                PERFORMANCE_TRACKER_ROUTE_METRIC_PRUNED_BY_NETWORK,
-                purpose_,
-                1);
-            return {};
-        }
+    if (requireSameNetwork && sourceNetwork_ > 0 &&
+        !figure_type_registry_impl::PathingMode::citizenAreaTouchesRoadNetwork(
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            sourceNetwork_)) {
+        performance_tracker_record_route_metric(
+            PERFORMANCE_TRACKER_ROUTE_METRIC_PRUNED_BY_NETWORK,
+            purpose_,
+            1);
+        return {};
     }
 
-    seedDistanceGrid();
+    const CostMapHandle &cost_map = costMap();
 
-    BestAccessRoadVisitor best_road(requireSameNetwork, sourceNetwork_, maxDistance);
-    visit_access_road_area_tiles(x_min, y_min, x_max, y_max, best_road);
-    return best_road.bestRoad();
+    Route::RoadResult best_road;
+    for (int y = y_min; y <= y_max; y++) {
+        for (int x = x_min; x <= x_max; x++) {
+            const int grid_offset = map_grid_offset(x, y);
+            if (!figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset)) {
+                continue;
+            }
+            if (requireSameNetwork &&
+                sourceNetwork_ > 0 &&
+                !figure_type_registry_impl::PathingMode::citizenIsInRoadNetwork(grid_offset, sourceNetwork_)) {
+                continue;
+            }
+
+            const int distance = cost_map.reachableDistanceAt(grid_offset, maxDistance);
+            if (distance > 0 && (!best_road || distance < best_road.distance)) {
+                best_road = road_result(grid_offset, distance);
+            }
+        }
+    }
+    return best_road;
 }
 
 Route::TerrainQuery Route::TerrainQuery::enemyLandFrom(
@@ -1218,13 +1142,11 @@ Route::TerrainQuery Route::TerrainQuery::enemyLandFrom(
     Route::Request request;
     request.source = source;
     request.destination = { -1, -1 };
-    request.policy = RoutePolicy::fromKind(
-        RoutePolicyKind::NonCitizenLand,
-        route_neighborhood_from_direction_limit(directions));
+    request.policy = RoutePolicy::nonCitizenLand(route_neighborhood_from_direction_limit(directions));
     request.purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_MOVEMENT;
     request.max_tiles = maxTiles;
     request.only_through_building_id = onlyThroughBuildingId;
-    can_route_over_surface(request);
+    request.canReachOverSurface();
     return TerrainQuery(true);
 }
 
@@ -1233,7 +1155,7 @@ int Route::TerrainQuery::distanceTo(int gridOffset) const
     if (!valid_ || !map_grid_is_valid_offset(gridOffset)) {
         return 0;
     }
-    return map_routing_distance(gridOffset);
+    return ambient_cost_map().distanceAt(gridOffset);
 }
 
 void Route::clearAll()
@@ -1249,7 +1171,7 @@ void Route::clean()
         unsigned int figure_id = path.figure_id;
         if (figure_id > 0 && figure_id < Figure::count()) {
             const Figure *f = Figure::get(figure_id);
-            if (f->state != FIGURE_STATE_ALIVE || f->routing_path_id != i) {
+            if (f->state != FIGURE_STATE_ALIVE || !path.isCurrentFor(*f)) {
                 path.release();
             }
         }
@@ -1265,7 +1187,7 @@ void Route::add(Figure &figure)
         return;
     }
 
-    const performance_tracker_route_purpose purpose = intent.purpose;
+    const performance_tracker_route_purpose purpose = intent.policy.performancePurpose();
     PerformanceTrackerRouteScope route_scope(purpose);
     performance_tracker_record_route_metric(
         PERFORMANCE_TRACKER_ROUTE_METRIC_REQUESTS,
@@ -1283,14 +1205,12 @@ void Route::add(Figure &figure)
     if (!path) {
         return;
     }
-    BuiltPath built_path = build_route_for_intent(figure, intent);
+    const Route::Request request = intent.requestFrom(figure);
+    BuiltPath built_path = intent.policy.isWater() ?
+        build_route_path(request, request.policy.pathDirectionLimit()) :
+        build_figure_route_path(request, intent);
     if (built_path) {
-        path->figure_id = figure.id();
-        path->intent = intent;
-        path->has_intent = true;
-        path->directions = std::move(built_path.directions);
-        figure.routing_path_id = path->id;
-        figure.routing_path_length = built_path.tile_count;
+        path->assign(figure, intent, std::move(built_path));
         clear_failed_route_attempt(figure);
     } else {
         performance_tracker_record_route_metric(
@@ -1305,23 +1225,22 @@ void Route::add(Figure &figure)
 
 bool Route::hasReusablePath(Figure &figure)
 {
-    if (figure.routing_path_id <= 0) {
+    if (figure.routing_path_id == 0) {
         return false;
     }
 
-    FigureRoute *path = path_slot(figure.routing_path_id);
-    if (!path || path->figure_id != figure.id()) {
+    FigureRoute *path = path_for_figure(figure);
+    if (!path) {
         Route::remove(figure);
         return false;
     }
 
     const RouteIntent intent = route_intent_from_figure(figure);
     if (!path->has_intent) {
-        path->intent = intent;
-        path->has_intent = true;
+        path->stampIntent(intent);
         return true;
     }
-    if (same_route_intent(path->intent, intent)) {
+    if (path->matchesIntent(intent)) {
         return true;
     }
 
@@ -1332,8 +1251,8 @@ bool Route::hasReusablePath(Figure &figure)
 void Route::remove(Figure &figure)
 {
     if (figure.routing_path_id > 0) {
-        FigureRoute *path = path_slot(figure.routing_path_id);
-        if (path && path->figure_id == figure.id()) {
+        FigureRoute *path = path_for_figure(figure);
+        if (path) {
             path->release();
         }
         figure.routing_path_id = 0;
@@ -1343,48 +1262,33 @@ void Route::remove(Figure &figure)
 
 int Route::currentDirection(const Figure &figure)
 {
-    FigureRoute *path = path_slot(figure.routing_path_id);
-    if (!path) {
-        return 8;
-    }
-    if (path->current_step >= path->directions.size()) {
-        return 8;
-    }
-    return path->directions[path->current_step] >> kRouteDirectionBitOffset;
+    FigureRoute *path = path_for_figure(figure);
+    return path ? path->currentDirection() : 8;
 }
 
 void Route::advanceTile(Figure &figure)
 {
-    FigureRoute *path = path_slot(figure.routing_path_id);
+    FigureRoute *path = path_for_figure(figure);
     if (!path) {
         return;
     }
 
-    if (path->current_step >= path->directions.size()) {
-        return;
-    }
-
-    int tiles_in_direction = (path->directions[path->current_step] & kRouteDirectionCountMask) + 1;
-
-    path->same_direction_count++;
-    if (path->same_direction_count >= tiles_in_direction) {
-        path->current_step++;
-        path->same_direction_count = 0;
-    }
+    path->advanceTile();
 }
 
 bool Route::calculateConstructionDistances(RoutePolicyKind kind, const map_point &source)
 {
     performance_tracker_record_route_plan(PERFORMANCE_TRACKER_ROUTE_PURPOSE_CONSTRUCTION);
+    const RoutePolicy policy = RoutePolicy::fromKind(kind);
     return map_routing_calculate_distances_for_building(
-        routed_building_type_for_policy_kind(kind),
+        policy.constructionBuildingType(),
         source.x,
         source.y);
 }
 
 int Route::constructionDistanceTo(int gridOffset)
 {
-    return map_routing_distance(gridOffset);
+    return ambient_cost_map().distanceAt(gridOffset);
 }
 
 int Route::waterPathLength(const map_point &source, const map_point &destination, bool flotsam)
@@ -1401,9 +1305,11 @@ int Route::waterPathLength(const map_point &source, const map_point &destination
     const Route::Request request = Route::Request::between(
         source,
         destination,
-        RoutePolicy::fromKind(flotsam ? RoutePolicyKind::WaterFlotsam : RoutePolicyKind::WaterBoat),
+        RoutePolicy::water(flotsam),
         PERFORMANCE_TRACKER_ROUTE_PURPOSE_WATER);
-    const int path_length = build_route_path(request).tile_count;
+    const int path_length = build_route_path(
+        request,
+        request.policy.pathDirectionLimit()).tile_count;
     if (path_length <= 0) {
         performance_tracker_record_route_metric(
             PERFORMANCE_TRACKER_ROUTE_METRIC_FAILED,
@@ -1420,9 +1326,10 @@ bool Route::waterCanReachAdjacentOpenWater(const map_point &source, int x, int y
     map_routing_calculate_distances_water_boat(source.x, source.y);
 
     const int base_offset = map_grid_offset(x, y);
+    const AmbientCostMapHandle &cost_map = ambient_cost_map();
     for (const int *tile_delta = map_grid_adjacent_offsets(size); *tile_delta; tile_delta++) {
         const int grid_offset = base_offset + *tile_delta;
-        if (map_terrain_is(grid_offset, TERRAIN_WATER) && map_routing_distance(grid_offset) > 0) {
+        if (map_terrain_is(grid_offset, TERRAIN_WATER) && cost_map.distanceAt(grid_offset) > 0) {
             return true;
         }
     }

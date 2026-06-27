@@ -26,6 +26,8 @@ The routing system has two different shapes today:
 
 Highways are therefore split between routing, movement, and drawing as a special case. The target shape should remove that tack-on model and represent highways as one mod-defined movement surface among many, with declared movement speed. Route cost is derived from that speed.
 
+Pathing mode validation is partially centralized in the transitional XML bridge: `PathingPolicy` now owns the checks that a mode's required service effect and road-capable terrain are satisfied. Remaining transport assumptions still come from legacy terrain usage values and road/highway passability helpers until XML-owned movement surfaces replace those fixed categories.
+
 ## Target Model
 
 Use fixed-point tile progress with a 128-unit tile as a transitional gameplay/runtime representation. The XML-facing movement declaration should be speed, not route cost:

@@ -15,7 +15,6 @@
 #include "building/roadblock.h"
 
 #include "assets/assets.h"
-#include "building/building_type_api.h"
 #include "building/building_record.h"
 #include "city/constants.h"
 #include "city/finance.h"
@@ -38,16 +37,6 @@ static struct {
     Building building = Building(nullptr);
     int tooltip_id = 0;
 } data;
-
-static building_type type_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    return type == type_from_attr(text_id);
-}
 
 static generic_button go_to_orders_button[] = {
     {0, 0, 304, 20, button_go_to_orders},
@@ -299,7 +288,7 @@ static void init_repair_building_button(building_info_context *c)
     repair_building_button->height = 20;
     repair_building_button->parameters[0] = c->rubble_building_id;
     building *b = building_get(c->rubble_building_id);
-    if (type_matches(static_cast<building_type>(b->type), "warehouse_space")) {
+    if (building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "warehouse_space")) {
         b = building_get(map_building_rubble_building_id(b->data.rubble.og_grid_offset));
     }
     static lang_fragment frag;
@@ -330,7 +319,7 @@ void window_building_draw_rubble(building_info_context *c)
     building *b = building_get(c->rubble_building_id);
     building_type og_type = static_cast<building_type>(b->data.rubble.og_type);
     building_type type = og_type == BUILDING_NONE ? static_cast<building_type>(b->type) : og_type;
-    int is_burning_ruins = type_matches(static_cast<building_type>(b->type), "burning_ruin");
+    int is_burning_ruins = building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "burning_ruin");
 
     if (building_can_repair_type(type) || building_can_repair_type(type)) {
         init_repair_building_button(c);

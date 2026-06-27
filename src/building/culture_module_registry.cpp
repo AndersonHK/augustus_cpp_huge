@@ -7,12 +7,9 @@
 #include "core/xml_value.h"
 #include "game/mod_manager.h"
 
-#include "core/file.h"
-#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 
-#include <cstdio>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -34,58 +31,46 @@ struct ParseState {
 std::unordered_map<std::string, std::unique_ptr<CultureModule>> g_culture_modules;
 ParseState g_parse_state;
 
-int compare_text(const char *left, const char *right)
-{
-    if (!left || !right) {
-        return left == right ? 0 : (left ? 1 : -1);
-    }
-    while (*left && *right && *left == *right) {
-        ++left;
-        ++right;
-    }
-    return static_cast<unsigned char>(*left) - static_cast<unsigned char>(*right);
-}
-
 CultureModuleType parse_type(const char *value)
 {
     std::string text = xml_value::trim_copy(value ? value : "");
-    if (compare_text(text.c_str(), "theater") == 0) {
+    if (text == "theater") {
         return CultureModuleType::Theater;
     }
-    if (compare_text(text.c_str(), "amphitheater") == 0) {
+    if (text == "amphitheater") {
         return CultureModuleType::Amphitheater;
     }
-    if (compare_text(text.c_str(), "arena") == 0) {
+    if (text == "arena") {
         return CultureModuleType::Arena;
     }
-    if (compare_text(text.c_str(), "colosseum") == 0) {
+    if (text == "colosseum") {
         return CultureModuleType::Colosseum;
     }
-    if (compare_text(text.c_str(), "colosseum_presence") == 0) {
+    if (text == "colosseum_presence") {
         return CultureModuleType::ColosseumPresence;
     }
-    if (compare_text(text.c_str(), "hippodrome") == 0) {
+    if (text == "hippodrome") {
         return CultureModuleType::Hippodrome;
     }
-    if (compare_text(text.c_str(), "tavern") == 0) {
+    if (text == "tavern") {
         return CultureModuleType::Tavern;
     }
-    if (compare_text(text.c_str(), "school") == 0) {
+    if (text == "school") {
         return CultureModuleType::School;
     }
-    if (compare_text(text.c_str(), "library") == 0) {
+    if (text == "library") {
         return CultureModuleType::Library;
     }
-    if (compare_text(text.c_str(), "academy") == 0) {
+    if (text == "academy") {
         return CultureModuleType::Academy;
     }
-    if (compare_text(text.c_str(), "hospital") == 0) {
+    if (text == "hospital") {
         return CultureModuleType::Hospital;
     }
-    if (compare_text(text.c_str(), "oracle") == 0) {
+    if (text == "oracle") {
         return CultureModuleType::Oracle;
     }
-    if (compare_text(text.c_str(), "temple") == 0) {
+    if (text == "temple") {
         return CultureModuleType::Temple;
     }
     return CultureModuleType::None;
@@ -138,22 +123,13 @@ int parse_definition_file(const char *filename, const char *definition_path)
 {
     ErrorContextScope error_scope("culture_module_registry.parse_definition", filename);
 
-    std::vector<char> buffer;
-    if (!xml_definition::load_file_to_buffer(filename, buffer, "CultureModule")) {
-        error_context_report_error("Failed to load CultureModule definition.", filename);
-        return 0;
-    }
-
     g_parse_state = {};
     g_parse_state.definition = std::make_unique<CultureModule>(definition_path ? definition_path : "");
-    if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize CultureModule xml parser", filename, 0);
-        error_context_report_error("Unable to initialize CultureModule xml parser.", filename);
-        return 0;
-    }
-
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "CultureModule",
+        XML_ELEMENTS,
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
     if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_type) {
         log_error("Unable to parse CultureModule xml", filename, 0);
         error_context_report_error("Unable to parse CultureModule xml.", filename);
@@ -195,23 +171,11 @@ int culture_module_registry_load(void)
     culture_module_registry_get_culture_module_path();
     g_culture_modules.clear();
 
-    const dir_listing *files = dir_find_files_with_extension(g_culture_module_path.c_str(), "xml");
-    if (!files || files->num_files <= 0) {
-        return 1;
-    }
-
-    for (int i = 0; i < files->num_files; i++) {
-        char full_path[FILE_NAME_MAX];
-        std::snprintf(full_path, FILE_NAME_MAX, "%s%s", g_culture_module_path.c_str(), files->files[i].name);
-        const std::string normalized_path = xml_definition::normalize_path(files->files[i].name);
-        if (normalized_path.empty()) {
-            log_error("Unsupported CultureModule file name", files->files[i].name, 0);
-            return 0;
-        }
-        if (!parse_definition_file(full_path, normalized_path.c_str())) {
-            return 0;
-        }
-    }
-
-    return 1;
+    return xml_definition::for_each_definition_file(
+        g_culture_module_path,
+        "CultureModule",
+        false,
+        [](const xml_definition::DefinitionFile &file, const std::string &normalized_path) {
+            return parse_definition_file(file.full_path.c_str(), normalized_path.c_str());
+        });
 }

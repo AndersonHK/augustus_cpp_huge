@@ -159,7 +159,7 @@ private:
     void assign_figure_slot(building_type_registry_impl::FigureSlot slot, unsigned int figure_id);
     int create_spawned_figure(const building_type_registry_impl::SpawnPolicy &policy, const map_point &road);
     int try_spawn_policy(const building_type_registry_impl::SpawnPolicy &policy, const map_point &road);
-    void spawn_service_roamer_group(
+    void run_spawn_group(
         const building_type_registry_impl::SpawnDelayGroup &group,
         size_t group_index,
         int run_labor);

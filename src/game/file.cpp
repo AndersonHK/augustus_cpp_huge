@@ -2,8 +2,7 @@
 #include "translation/translation.h"
 
 #include "building/building.h"
-#include "building/building_type_startup_bridge.h"
-#include "building/building_type_api.h"
+#include "building/building_type_id_bridge.h"
 #include "building/building_runtime.h"
 #include "building/construction.h"
 #include "building/granary.h"
@@ -286,7 +285,7 @@ static void check_hippodrome_compatibility(Building b)
 
 static void check_backward_compatibility(void)
 {
-    const building_type hippodrome = building_type_startup_bridge_runtime_id_from_text("hippodrome");
+    const building_type hippodrome = building_type_id_bridge_runtime_from_text("hippodrome");
     if (hippodrome == BUILDING_NONE) {
         return;
     }

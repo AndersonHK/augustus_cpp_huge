@@ -7,6 +7,7 @@
 
 #include "core/file.h"
 #include "core/log.h"
+#include "core/xml_definition.h"
 #include "core/xml_parser.h"
 
 #include <array>
@@ -89,11 +90,7 @@ std::string g_failure_reason;
 
 static void set_failure_reason(const char *message, const char *detail = nullptr)
 {
-    if (detail && *detail) {
-        g_failure_reason = std::string(message ? message : "") + "\n\n" + detail;
-    } else {
-        g_failure_reason = message ? message : "";
-    }
+    g_failure_reason = xml_definition::format_failure_reason(message, detail);
 }
 
 static std::string trim_copy(const std::string &value)
@@ -467,63 +464,17 @@ static const xml_parser_element XML_ELEMENTS[] = {
     { "age_decennia", parse_birth_age_decennia, nullptr, "birth_table", nullptr }
 };
 
-static int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
-{
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        log_error("Unable to open defines xml", filename, 0);
-        set_failure_reason("Failed to load gameplay defines.", filename);
-        return 0;
-    }
-
-    if (fseek(fp, 0, SEEK_END) != 0) {
-        file_close(fp);
-        log_error("Unable to seek defines xml", filename, 0);
-        set_failure_reason("Failed to load gameplay defines.", filename);
-        return 0;
-    }
-
-    long size = ftell(fp);
-    if (size < 0) {
-        file_close(fp);
-        log_error("Unable to size defines xml", filename, 0);
-        set_failure_reason("Failed to load gameplay defines.", filename);
-        return 0;
-    }
-
-    rewind(fp);
-    buffer.resize(static_cast<size_t>(size));
-    const size_t read = buffer.empty() ? 0 : fread(buffer.data(), 1, buffer.size(), fp);
-    file_close(fp);
-
-    if (read != buffer.size()) {
-        log_error("Unable to read defines xml", filename, 0);
-        set_failure_reason("Failed to load gameplay defines.", filename);
-        return 0;
-    }
-
-    return 1;
-}
-
 static int parse_defines_file(const char *filename, DefinesDocument &document_out)
 {
-    std::vector<char> buffer;
-    if (!load_file_to_buffer(filename, buffer)) {
-        return 0;
-    }
-
     g_parse_state = {};
     g_parse_state.filename = filename;
 
-    if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize defines parser", filename, 0);
-        set_failure_reason("Failed to load gameplay defines.", filename);
-        return 0;
-    }
-
     const ErrorContextScope scope("Defines XML", filename);
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "Defines",
+        XML_ELEMENTS,
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
 
     if (!parsed || g_parse_state.error || !g_parse_state.saw_root) {
         set_failure_reason("Failed to load gameplay defines.", filename);

@@ -16,7 +16,6 @@
 #include "building/building.h"
 #include "figure/figure.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 
 #include "assets/assets.h"
@@ -30,32 +29,14 @@
 #include "figure/route.h"
 #include "map/terrain.h"
 
-#include <cstring>
 #include <math.h>
 #include <stdlib.h>
 
-static int type_matches(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
-}
-
-static int type_matches_any(building_type type, const char *const *text_ids, int count)
-{
-    for (int i = 0; i < count; i++) {
-        if (type_matches(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 static int is_vacant_lot_starting_house(const building *b)
 {
-    building_type fill_type = building_type_registry_get_vacant_lot_fill_type();
+    building_type fill_type = building_type_registry_impl::vacant_lot_fill_type();
     return b && b->house_population == 0 &&
-        (type_matches(b->type, "house_vacant_lot") ||
+        (building_type_registry_impl::type_attr_is(b->type, "house_vacant_lot") ||
             (fill_type != BUILDING_NONE && b->type == fill_type));
 }
 
@@ -307,7 +288,7 @@ void map_orientation_update_buildings(void)
         } else if (definition && definition->roadblock().has_center_road_passage()) {
             map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
             map_terrain_add_triumphal_arch_roads(b->x, b->y, b->subtype.orientation);
-        } else if (type_matches(type, "hippodrome")) {
+        } else if (building_type_registry_impl::type_attr_is(type, "hippodrome")) {
             map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);
         } else {
             static const char *const water_buildings[] = {
@@ -327,10 +308,11 @@ void map_orientation_update_buildings(void)
                 "large_mausoleum",
                 "decorative_column",
             };
-            if ((definition && std::strcmp(definition->attr(), "dock") == 0) ||
-                type_matches_any(type, water_buildings, sizeof(water_buildings) / sizeof(water_buildings[0]))) {
+            if ((definition && definition->attr_is("dock")) ||
+                building_type_registry_impl::type_attr_is_any(type,
+                    water_buildings, sizeof(water_buildings) / sizeof(water_buildings[0]))) {
                 map_water_add_building(i, b->x, b->y, b->size);
-            } else if (type_matches_any(type, decorative_buildings,
+            } else if (building_type_registry_impl::type_attr_is_any(type, decorative_buildings,
                     sizeof(decorative_buildings) / sizeof(decorative_buildings[0])) ||
                 (current.type && current.type->is_watchtower())) {
                 map_building_tiles_add(i, b->x, b->y, b->size, building_image_get(b), TERRAIN_BUILDING);

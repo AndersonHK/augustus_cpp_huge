@@ -84,19 +84,13 @@ static Building first_warehouse()
     return type == BUILDING_NONE ? Building(nullptr) : Building::first_of_type(type);
 }
 
-static int building_is_warehouse(const Building &building)
-{
-    const building_type_registry_impl::BuildingType *definition = building.type;
-    return definition && definition->is_warehouse();
-}
-
 static Building warehouse_main_for_storage(const Building &building)
 {
-    if (building_is_warehouse(building)) {
+    if (building.type && building.type->is_warehouse()) {
         return building;
     }
     Building main = building.main();
-    return building_is_warehouse(main) ? main : Building(nullptr);
+    return main.type && main.type->is_warehouse() ? main : Building(nullptr);
 }
 
 int building_warehouse_get_space_info(const Building &warehouse)
@@ -261,7 +255,7 @@ void building_warehouse_recount_resources(Building &main)
 {
     main = warehouse_main_for_storage(main);
     //helper to reflect the resources in the main warehouse, like granary does
-    if (!building_is_warehouse(main)) {
+    if (!main.type || !main.type->is_warehouse()) {
         return;
     }
 
@@ -401,7 +395,7 @@ int building_warehouse_try_remove_resource(Building &warehouse, resource_type re
 void building_warehouse_remove_resource_curse(Building &warehouse, int amount)
 {
     Building main = warehouse_main_for_storage(warehouse);
-    if (!building_is_warehouse(main)) {
+    if (!main.type || !main.type->is_warehouse()) {
         return;
     }
 
@@ -715,7 +709,7 @@ int building_warehouses_remove_resource(resource_type resource, int amount)
 int building_warehouse_accepts_storage(Building &warehouse, resource_type resource, int *understaffed)
 {
     Building main = warehouse_main_for_storage(warehouse);
-    if (!main.is_in_use() || !building_is_warehouse(main) ||
+    if (!main.is_in_use() || !main.type || !main.type->is_warehouse() ||
         !main.has_cached_road_access() || main.distance_from_entry() <= 0 || main.has_plague()) {
         return 0;
     }

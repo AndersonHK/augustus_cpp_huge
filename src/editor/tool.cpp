@@ -129,21 +129,6 @@ int editor_tool_is_in_use(void)
     return data.build_in_progress;
 }
 
-static building_type runtime_type(const char *text_id)
-{
-    if (!text_id || !*text_id) {
-        return BUILDING_NONE;
-    }
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (definition && definition->attr() && strcmp(definition->attr(), text_id) == 0) {
-            return type;
-        }
-    }
-    return BUILDING_NONE;
-}
-
 void editor_tool_start_use(const map_tile *tile)
 {
     if (!data.active) {
@@ -153,7 +138,7 @@ void editor_tool_start_use(const map_tile *tile)
     data.start_elevation = map_elevation_at(tile->grid_offset);
     data.start_tile = *tile;
     if (data.type == TOOL_ROAD) {
-        building_type road_type = runtime_type("road");
+        building_type road_type = building_type_registry_impl::type_from_attr("road");
         if (road_type > BUILDING_NONE) {
             game_undo_start_build(road_type);
         }
@@ -432,37 +417,37 @@ static void place_building(const map_tile *tile)
     building_type type = BUILDING_NONE;
     switch (data.type) {
         case TOOL_NATIVE_HUT:
-            type = runtime_type("native_hut");
+            type = building_type_registry_impl::type_from_attr("native_hut");
             image_id = image_group(GROUP_EDITOR_BUILDING_NATIVE) + (random_byte() & 1);
             size = 1;
             break;
         case TOOL_NATIVE_HUT_ALT:
-            type = runtime_type("native_hut_alt");
+            type = building_type_registry_impl::type_from_attr("native_hut_alt");
             image_id = building_image_get_for_type(type);
             size = 1;
             break;
         case TOOL_NATIVE_CENTER:
-            type = runtime_type("native_meeting");
+            type = building_type_registry_impl::type_from_attr("native_meeting");
             image_id = image_group(GROUP_EDITOR_BUILDING_NATIVE) + 2;
             size = 2;
             break;
         case TOOL_NATIVE_FIELD:
-            type = runtime_type("native_crops");
+            type = building_type_registry_impl::type_from_attr("native_crops");
             image_id = image_group(GROUP_EDITOR_BUILDING_CROPS);
             size = 1;
             break;
         case TOOL_NATIVE_DECORATION:
-            type = runtime_type("native_decor");
+            type = building_type_registry_impl::type_from_attr("native_decor");
             size = 1;
             image_id = building_image_get_for_type(type);
             break;
         case TOOL_NATIVE_MONUMENT:
-            type = runtime_type("native_monument");
+            type = building_type_registry_impl::type_from_attr("native_monument");
             size = 4;
             image_id = building_image_get_for_type(type);
             break;
         case TOOL_NATIVE_WATCHTOWER:
-            type = runtime_type("native_watchtower");
+            type = building_type_registry_impl::type_from_attr("native_watchtower");
             size = 1;
             image_id = building_image_get_for_type(type);
             break;

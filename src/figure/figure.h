@@ -41,6 +41,7 @@ public:
     static void resolve_loaded_building_references();
 
     void remove();
+    void release_destination_reservations();
     int retarget_building(const Building &from, const Building &to);
     int is_dead() const;
     int is_enemy() const;
@@ -52,6 +53,22 @@ public:
     int is_herd() const;
     int is_category(figure_category_mask category_mask) const;
     int target_is_alive() const;
+    int legacy_corpse_image_id(int base_image_id) const;
+    int legacy_static_frame_image_id(int base_image_id, int frame_count) const;
+    int legacy_directional_frame_image_id(int base_image_id, int direction, int frame_offset, int frame_stride = 8) const;
+    int legacy_image_id_for_direction_major_frame(
+        int base_image_id,
+        int direction,
+        int frame_offset,
+        int direction_stride) const;
+    void select_legacy_corpse_image(int base_image_id);
+    void select_legacy_static_frame_image(int base_image_id, int frame_count);
+    void select_legacy_directional_frame_image(int base_image_id, int direction, int frame_offset, int frame_stride = 8);
+    void adjust_legacy_gladiator_attack_image_row();
+    void clear_legacy_cart_overlay_image();
+    void select_legacy_cart_overlay_base_image(int base_image_id);
+    void select_legacy_cart_overlay_image(int base_image_id, int direction);
+    void finalize_legacy_cartpusher_overlay_image(int direction, bool lift_full_food_load = false);
 
     unsigned int image_id;
     unsigned int cart_image_id;

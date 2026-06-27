@@ -4,6 +4,8 @@
 
 Move military unit and formation structure into mod data so forts, soldiers, and battle formations are no longer governed by hardcoded 4x4 assumptions. Vespasian's target formation size should be 8x8, for 64 soldiers, while Julius and Augustus can preserve their current 4x4 behavior through their own XML.
 
+The visual/runtime constraint is the fort mustering ground. It is currently sized around the legacy 4x4 soldier layout, so larger formations need adaptive slot spacing until Vespasian's figure logical sizes shrink. The planned half-size figure XML overrides are therefore a practical prerequisite for full 8x8 formations that look correct without expanding the mustering-ground footprint.
+
 The model should follow the same direction as native buildings: data declares the semantic object, runtime code resolves it into typed definitions, and gameplay asks the owning object what it contains instead of branching on a legacy building or figure id.
 
 ## New Data Folders
@@ -13,7 +15,7 @@ Add two new mod folders:
 - `Mods/<mod>/UnitType`
 - `Mods/<mod>/FormationType`
 
-`UnitType` defines combat-capable unit archetypes. These are figure-backed units with stats, abilities, graphics references, and movement/pathing policy.
+`UnitType` defines combat-capable unit archetypes. These are figure-backed units with stats, abilities, graphics references, and movement/pathing policy. The scope is all combat actors, not only Roman fort soldiers: legionaries, javelin soldiers, cavalry, enemy barbarians, native fighters, wolves/animals, and future special combat figures should all migrate through the same unit definition model.
 
 `FormationType` defines a collection of unit slots arranged into a tactical shape. A fort references one formation type and owns the units created from that formation.
 
@@ -118,13 +120,26 @@ This also creates the right place for composed state: the fort owns the formatio
 5. Teach fort construction/loading to create a formation instance from the resolved definition.
 6. Replace hardcoded formation size loops with `FormationInstance` iteration.
 7. Move soldier stats and ranged/melee behavior into `UnitType`.
-8. Bridge old saves by mapping legacy fort/soldier records into the formation declared by the fort type.
-9. Delete legacy constants that assume 16 soldiers once save migration and runtime behavior are covered.
+8. Extend `UnitType` coverage to enemies, barbarians, animals, and any other combat figures instead of maintaining a Roman-only data lane.
+9. Make formation slot spacing data-driven or computed from the fort's current mustering-ground footprint, then switch Vespasian to half-size figure logical dimensions before relying on dense 8x8 visuals.
+10. Bridge old saves by mapping legacy fort/soldier records into the formation declared by the fort type.
+11. Delete legacy constants that assume 16 soldiers once save migration and runtime behavior are covered.
 
 ### Current Prerequisite Status
 
 - [x] Legacy runtime formation logic has formation-owned capacity helpers for active slot iteration, open/full checks, and overflow counts.
+- [x] Capacity, roster clearing, and open-slot assignment helpers now live on the `formation` object instead of free functions, so callers ask the formation directly while the save/storage contract is still fixed.
+- [x] Active figure-id iteration, reverse iteration, first active figure lookup, and active-figure predicates now live on `formation`; normal `src/figure` runtime callers no longer turn raw `figures[]` slots directly into `Figure` objects outside fixed save/layout storage.
+- [x] `UnitType` and `FormationType` registries load before `BuildingType`, expose typed lookups, and fail startup on missing or invalid XML.
+- [x] Julius and Augustus author legacy 4x4 formations for legionary, javelin, mounted, infantry, and archer forts; Vespasian authors 8x8 cohort formations for the same fort unit families.
+- [x] Fort BuildingType XML declares `<military><formation key="..." /></military>`, resolves it through `FormationType`, and construction/counting derives the legacy primary soldier figure type from the resolved formation where possible.
+- [x] Runtime `formation` objects bind to their owning fort's resolved `FormationType` at creation/load refresh time, while live figure slots still clamp through the legacy 16-slot storage array.
+- [x] The old C++ fort-type-to-soldier table was removed from building counts; fort counting now enumerates BuildingType definitions with military data and derives the soldier figure from the resolved formation.
+- [x] UnitType XML now declares the transitional barracks recruit category and weapon requirement; formation recruitment and barracks weapon consumption ask the resolved `FormationType`/`UnitType` instead of remapping fort soldier figure enums.
 - [ ] Fixed storage, save/load serialization, physical clearing, formation layout tables, and overflow ejection scans still intentionally use the current 16-slot storage contract until a real `FormationInstance`/save migration exists.
+- [ ] Add real `FormationInstance` ownership to forts so the resolved `FormationType` capacity and slots, including Vespasian's 8x8 definitions, can control live spawned units instead of being clipped by the legacy save/layout contract.
+- [ ] Add adaptive slot spacing for larger formations inside the current fort mustering-ground footprint.
+- [ ] Migrate enemy, barbarian, wolf/animal, and other combat figure archetypes into `UnitType`.
 
 ## Runtime Boundaries
 

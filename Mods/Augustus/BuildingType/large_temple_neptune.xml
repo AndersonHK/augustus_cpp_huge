@@ -51,7 +51,7 @@
         </labor_seeker>
     </labor>
     <spawn_group road_access="normal" delay_bands="100:3,75:7,50:10,25:15,1:20">
-        <spawn mode="service_roamer" spawn_figure="priest"
+        <spawn mode="profiled_figure" spawn_figure="priest"
             action_state="roaming" direction="top" figure_slot="primary"
             init_roaming="true" profile="neptune_service" />
         <spawn mode="temple_neptune_chariot" />

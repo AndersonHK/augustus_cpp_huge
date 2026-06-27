@@ -7,12 +7,10 @@
 #include "service.h"
 
 #include "building/building.h"
-#include "building/building_type_registry_internal.h"
 #include "building/market.h"
 
 #include "assets/assets.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "city/buildings.h"
 #include "core/calc.h"
 #include "figure/combat.h"
@@ -22,22 +20,13 @@
 #include "figure/figure_runtime_api.h"
 #include "game/time.h"
 
-#include <cstring>
-
 static const int DOCTOR_HEALING_OFFSETS[] = { 0, 1, 2, 3, 4, 5, 4, 3, 2, 1};
-
-static int building_matches(const building *b, const char *attr)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
 
 static int first_plague_building_matching(const char *attr)
 {
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (building_matches(b, attr) && b->has_plague) {
+        if (Building(b).matches(attr) && b->has_plague) {
             return b->id;
         }
     }
@@ -209,7 +198,7 @@ void figure_school_child_action(Figure *f)
     f->max_roam_length = 192;
 
     building *b = building_get(f->building.id());
-    if (b->state != BUILDING_STATE_IN_USE || !building_matches(b, "school")) {
+    if (b->state != BUILDING_STATE_IN_USE || !Building(b).matches("school")) {
         f->state = FIGURE_STATE_DEAD;
     }
     figure_image_increase_offset(f, 12);
@@ -283,9 +272,7 @@ static int fight_plague(Figure *f, int force)
     if (!building_with_plague_id) {
         for (int i = 1; i < building_count(); i++) {
             building *b = building_get(i);
-            const building_type_registry_impl::BuildingType *definition =
-                building_type_registry_impl::definition_for_type(b->type);
-            if (definition && std::strcmp(definition->attr(), "dock") == 0 && b->has_plague) {
+            if (Building(b).matches("dock") && b->has_plague) {
                 building_with_plague_id = b->id;
                 break;
             }

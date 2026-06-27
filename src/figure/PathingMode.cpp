@@ -1,5 +1,7 @@
 #include "figure/PathingMode.h"
 
+#include "map/grid.h"
+#include "map/road_network.h"
 #include "map/routing_data.h"
 #include "map/terrain.h"
 
@@ -99,11 +101,6 @@ PathingMode::TerrainAccess PathingMode::terrainFromLegacyUsage(int terrain_usage
     return terrain;
 }
 
-bool PathingMode::terrainRequiresRoads(const TerrainAccess &terrain)
-{
-    return terrain.usesRoadAccess();
-}
-
 RoutePolicy PathingMode::routePolicyForTerrain(
     const TerrainAccess &terrain,
     std::optional<roadblock_permission> permission,
@@ -115,7 +112,7 @@ RoutePolicy PathingMode::routePolicyForTerrain(
 
     if (terrain.wall_grid) {
         policy.kind = RoutePolicyKind::Walls;
-    } else if (terrain.enemy_land || terrain.animal_land) {
+    } else if (terrain.usesNonCitizenPolicy()) {
         policy.kind = RoutePolicyKind::NonCitizenLand;
     } else if (terrain.usesRoadAccess()) {
         policy.kind = terrain.allows_highways ?
@@ -125,6 +122,16 @@ RoutePolicy PathingMode::routePolicyForTerrain(
         policy.kind = RoutePolicyKind::CitizenLand;
     }
     return policy;
+}
+
+bool PathingPolicy::hasRequiredServiceEffect() const
+{
+    return mode && (!mode->requires_service_effect || effect != ROAD_SERVICE_EFFECT_NONE);
+}
+
+bool PathingPolicy::hasRequiredTerrainAccess() const
+{
+    return mode && (!mode->requires_road || terrain.usesRoadAccess());
 }
 
 int PathingMode::citizenIsPassable(int grid_offset)
@@ -141,6 +148,39 @@ int PathingMode::citizenIsRoad(int grid_offset)
 int PathingMode::citizenIsRoadLike(int grid_offset)
 {
     return citizenIsRoad(grid_offset) || map_terrain_is(grid_offset, TERRAIN_ACCESS_RAMP);
+}
+
+int PathingMode::citizenRoadNetworkAt(int grid_offset)
+{
+    if (!map_grid_is_valid_offset(grid_offset) || !citizenIsRoadLike(grid_offset)) {
+        return 0;
+    }
+    return map_road_network_get(grid_offset);
+}
+
+bool PathingMode::citizenIsInRoadNetwork(int grid_offset, int road_network)
+{
+    return road_network > 0 && citizenRoadNetworkAt(grid_offset) == road_network;
+}
+
+bool PathingMode::citizenAreaTouchesRoadNetwork(
+    int x_min,
+    int y_min,
+    int x_max,
+    int y_max,
+    int road_network)
+{
+    if (road_network <= 0) {
+        return false;
+    }
+    for (int y = y_min; y <= y_max; y++) {
+        for (int x = x_min; x <= x_max; x++) {
+            if (citizenIsInRoadNetwork(map_grid_offset(x, y), road_network)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 int PathingMode::citizenIsHighway(int grid_offset)

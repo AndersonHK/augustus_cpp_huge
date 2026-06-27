@@ -37,6 +37,26 @@ public:
             return requires_roads || prefers_roads;
         }
 
+        bool usesNonCitizenPolicy() const
+        {
+            return enemy_land || animal_land;
+        }
+
+        bool usesEnemyLandRoute() const
+        {
+            return enemy_land;
+        }
+
+        bool usesAnimalLandRoute() const
+        {
+            return animal_land;
+        }
+
+        bool allowsRoadAccessFallback() const
+        {
+            return usesRoadAccess() && !requires_roads;
+        }
+
         bool operator==(const TerrainAccess &other) const
         {
             return legacy_usage == other.legacy_usage &&
@@ -69,7 +89,6 @@ public:
     bool requires_venue_targets;
 
     static TerrainAccess terrainFromLegacyUsage(int terrain_usage);
-    static bool terrainRequiresRoads(const TerrainAccess &terrain);
     static RoutePolicy routePolicyForTerrain(
         const TerrainAccess &terrain,
         std::optional<roadblock_permission> permission = std::nullopt,
@@ -77,6 +96,14 @@ public:
     static int citizenIsPassable(int grid_offset);
     static int citizenIsRoad(int grid_offset);
     static int citizenIsRoadLike(int grid_offset);
+    static int citizenRoadNetworkAt(int grid_offset);
+    static bool citizenIsInRoadNetwork(int grid_offset, int road_network);
+    static bool citizenAreaTouchesRoadNetwork(
+        int x_min,
+        int y_min,
+        int x_max,
+        int y_max,
+        int road_network);
     static int citizenIsHighway(int grid_offset);
     static int citizenIsPassableTerrain(int grid_offset);
     static int gateIsTransformable(int grid_offset);
@@ -98,6 +125,9 @@ struct PathingPolicy {
     const PathingMode *mode = &VanillaRoaming;
     PathingMode::TerrainAccess terrain = PathingMode::terrainFromLegacyUsage(TERRAIN_USAGE_ANY);
     road_service_effect effect = ROAD_SERVICE_EFFECT_NONE;
+
+    bool hasRequiredServiceEffect() const;
+    bool hasRequiredTerrainAccess() const;
 };
 
 const PathingMode *pathing_mode_from_xml_id(const char *xml_id);

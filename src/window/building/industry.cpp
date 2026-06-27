@@ -15,7 +15,6 @@
 #include "core/file.h"
 
 #include "assets/assets.h"
-#include "building/building_type_api.h"
 #include "building/building_record.h"
 #include "building/monument.h"
 #include "city/buildings.h"

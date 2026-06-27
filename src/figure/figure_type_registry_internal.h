@@ -61,7 +61,10 @@ enum class EntertainmentShowSlot {
 struct OwnerBinding {
     FigureSlot slot = FigureSlot::None;
     building_type required_building_type = BUILDING_NONE;
+    std::string required_building_reference;
     OwnerStateRequirement required_owner_state = OwnerStateRequirement::InUse;
+
+    building_type resolved_required_building_type() const;
 };
 
 struct MovementProfile {
@@ -102,7 +105,10 @@ struct GraphicsPolicy {
 
 struct EntertainmentVenueTarget {
     building_type building = BUILDING_NONE;
+    std::string building_reference;
     EntertainmentShowSlot show_slot = EntertainmentShowSlot::None;
+
+    building_type resolved_building_type() const;
 };
 
 class FigureTypeProfile {
@@ -127,6 +133,7 @@ public:
     int show_duration() const;
     void add_venue_target(const EntertainmentVenueTarget &target);
     const std::vector<EntertainmentVenueTarget> &venue_targets() const;
+    int resolve_building_references(const char *figure_attr);
 
 private:
     std::string id_;
@@ -167,6 +174,7 @@ public:
     const FigureTypeProfile *profile(const char *profile_id) const;
     const FigureTypeProfile *default_profile() const;
     const std::vector<FigureTypeProfile> &profiles() const;
+    int resolve_building_references();
 
 private:
     figure_type type_ = FIGURE_NONE;
@@ -183,7 +191,6 @@ private:
 extern std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> g_figure_types;
 extern std::string g_failure_reason;
 
-int directory_exists(const char *path);
 void set_failure_reason(const char *message, const char *detail = nullptr);
 std::vector<std::string> build_candidate_definition_paths();
 const FigureTypeDefinition *definition_for(figure_type type);

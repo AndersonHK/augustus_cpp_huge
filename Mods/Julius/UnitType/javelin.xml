@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="javelin"><figure type="fort_javelin" /><combat><health value="80" /><attack value="8" /><defense value="4" /><morale value="60" /><armor value="2" /></combat><movement pathing="soldier_land" /><recruit type="javelin" /><abilities><melee /><ranged range="6" projectile="javelin" cooldown="45" damage="8" /></abilities><graphics figure_type="javelin" /></unit>

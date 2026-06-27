@@ -4,7 +4,6 @@
 #include "building/building.h"
 #include "building/culture_module.h"
 #include "building/building_type_registry_internal.h"
-#include "building/building_type_api.h"
 #include "building/house.h"
 #include "building/monument.h"
 #include "building/religion.h"

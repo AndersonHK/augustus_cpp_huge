@@ -7,23 +7,9 @@
 #include "building/water_access_runtime.h"
 #include "building/building_type_registry_internal.h"
 
-#include <cstring>
-
 #include "building/building_record.h"
 #include "map/grid.h"
 #include "map/terrain.h"
-
-static building_type building_type_from_definition_attr(const char *text_id)
-{
-    for (int type = 1; type < BUILDING_TYPE_MAX; type++) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
-        if (definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0) {
-            return static_cast<building_type>(type);
-        }
-    }
-    return BUILDING_NONE;
-}
 
 void map_water_supply_update_buildings(void)
 {
@@ -73,20 +59,20 @@ int map_water_supply_is_building_unnecessary(int building_id, int radius)
 
 int map_water_supply_fountain_radius(void)
 {
-    return water_access_runtime_range_for_building(building_type_from_definition_attr("fountain"));
+    return water_access_runtime_range_for_building(building_type_registry_impl::type_from_attr("fountain"));
 }
 
 int map_water_supply_reservoir_radius(void)
 {
-    return water_access_runtime_range_for_building(building_type_from_definition_attr("reservoir"));
+    return water_access_runtime_range_for_building(building_type_registry_impl::type_from_attr("reservoir"));
 }
 
 int map_water_supply_well_radius(void)
 {
-    return water_access_runtime_range_for_building(building_type_from_definition_attr("well"));
+    return water_access_runtime_range_for_building(building_type_registry_impl::type_from_attr("well"));
 }
 
 int map_water_supply_latrines_radius(void)
 {
-    return water_access_runtime_range_for_building(building_type_from_definition_attr("latrines"));
+    return water_access_runtime_range_for_building(building_type_registry_impl::type_from_attr("latrines"));
 }

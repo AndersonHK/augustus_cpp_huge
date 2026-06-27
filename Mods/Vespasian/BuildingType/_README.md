@@ -505,7 +505,8 @@ Current supported `<spawn_group>` attributes:
 
 Current supported `<spawn>` modes:
 
-- `mode="service_roamer"`
+- `mode="profiled_figure"` for generic BuildingType-owned figure spawns
+- `mode="service_roamer"` as the legacy XML spelling for the same generic figure-spawn path
 - `mode="temple_supplier"`
 - `mode="temple_destination_priest"`
 - `mode="temple_mars_mess_hall_priest"`
@@ -514,8 +515,8 @@ Current supported `<spawn>` modes:
 
 Current supported `<spawn>` attributes:
 
-- `spawn_figure="..."` using the same identifiers; required for `service_roamer`
-- `action_state="roaming|engineer_created|prefect_created|tax_collector_created|entertainer_roaming|entertainer_school_created|work_camp_worker_created|work_camp_architect_created"`; required for legacy `service_roamer` spawns that do not use `profile`
+- `spawn_figure="..."` using the same identifiers; required for generic figure-spawn modes
+- `action_state="roaming|engineer_created|prefect_created|tax_collector_created|entertainer_roaming|entertainer_school_created|work_camp_worker_created|work_camp_architect_created"`; required for generic figure spawns that do not use `profile`
 - `direction="top|bottom"`
 - `figure_slot="primary|secondary|quaternary|none"`
 - `spawn_count="N"` for one policy spawning the same figure several times on one trigger
@@ -538,7 +539,7 @@ Current engine behavior:
 - Repo-owned BuildingType graphics use only the structured `<graphics>` schema.
 - A `spawn_group` owns the shared delay/guard phase, then runs its child `<spawn>` policies in order.
 - Any BuildingType with spawn groups uses the runtime spawn path, including housing.
-- Temple-specific spawn modes preserve existing religion module behavior while moving temple spawn selection into BuildingType XML. Standard temple priest roamers still use `service_roamer`.
+- Temple-specific spawn modes preserve existing religion module behavior while moving temple spawn selection into BuildingType XML. Standard temple priest roamers still use the generic figure-spawn path.
 - Delay evaluation now uses the explicit `delay_bands` data from XML rather than a hardcoded named profile.
 - Ordered policies can coordinate: a policy that succeeds with `block_on_success="true"` stops later sibling policies in the same group.
 - Use `block_on_success="true"` when a building should spawn either A or B on the same trigger.
@@ -559,13 +560,13 @@ Residential spawn examples:
 
 ```xml
 <spawn_group road_access="normal" delay_bands="100:0">
-    <spawn mode="service_roamer" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="24" />
+    <spawn mode="profiled_figure" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="24" />
 </spawn_group>
 ```
 
 ```xml
 <spawn_group road_access="normal" delay_bands="100:0">
-    <spawn mode="service_roamer" spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
+    <spawn mode="profiled_figure" spawn_figure="patrician" profile="house_roamer" direction="bottom" figure_slot="quaternary" chance_per_million="24390" />
 </spawn_group>
 ```
 

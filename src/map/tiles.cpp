@@ -32,9 +32,6 @@
 
 #include "map/tile_runtime_api.h"
 
-#include <cstring>
-
-
 #define OFFSET(x,y) (x + GRID_SIZE * y)
 
 #define FORBIDDEN_TERRAIN_MEADOW (TERRAIN_AQUEDUCT | TERRAIN_ELEVATION | TERRAIN_ACCESS_RAMP |\
@@ -752,8 +749,7 @@ static void set_wall_image(int x, int y, int grid_offset)
     int building_id = map_building_at(grid_offset);
     if (building_id) {
         Building wall(building_get(building_id));
-        const char *attr = wall.type ? wall.type->attr() : nullptr;
-        if (attr && !std::strcmp(attr, "wall") && wall.refresh_graphic_if_native()) {
+        if (wall.matches("wall") && wall.refresh_graphic_if_native()) {
             map_property_set_multi_tile_size(grid_offset, 1);
             map_property_mark_draw_tile(grid_offset);
             return;

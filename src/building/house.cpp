@@ -15,7 +15,6 @@
 #include "building/housing_type.h"
 #include "building/local_workforce.h"
 
-#include "building/building_type_api.h"
 #include "city/population.h"
 #include "core/config.h"
 #include "core/image.h"
@@ -152,18 +151,18 @@ static int set_house_legacy_level_from_type(building *house, building_type type)
 static int housing_model_size(building_type type)
 {
     const auto *definition = building_type_registry_impl::definition_for_type(type);
-    int size = definition ? definition->model().size() : 0;
+    int size = definition ? definition->declared_model_size() : 0;
     return size > 0 ? size : 0;
 }
 
 static building_type one_tile_medium_insula_type()
 {
-    return building_type_registry_get_housing_type_for_level(HOUSE_MEDIUM_INSULA, 1);
+    return building_type_registry_impl::building_type_for_housing_level(HOUSE_MEDIUM_INSULA, 1);
 }
 
 static building_type vacant_lot_fill_type()
 {
-    return building_type_registry_get_vacant_lot_fill_type();
+    return building_type_registry_impl::vacant_lot_fill_type();
 }
 
 static int is_empty_vacant_lot(const building *house)
@@ -192,7 +191,7 @@ void building_house_change_to(Building house_object, building_type type)
     house_object.change_type(type);
     set_house_legacy_level_from_type(house, house->type);
     if (house_object.type && house_object.type->has_housing()) {
-        int size = house_object.type->model().size();
+        int size = house_object.type->declared_model_size();
         if (size > 0) {
             house->size = house->house_size = size;
             house->house_is_merged = size > 1 ? 1 : 0;

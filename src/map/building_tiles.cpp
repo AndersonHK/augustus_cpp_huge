@@ -17,8 +17,6 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-#include <string_view>
-
 void map_building_tiles_add_remove(unsigned int building_id, int x, int y, int size, int image_id, int terrain_to_add, int terrain_to_remove)
 {
     if (!map_grid_is_inside(x, y, size)) {
@@ -134,8 +132,7 @@ void map_building_tiles_set_rubble(const Building *building, int x, int y, int s
     }
     // building id passed here is the original building that got destroyed, but can be 0 for walls and aqueducts
     const unsigned int building_id = building ? building->id() : 0;
-    const bool is_burning_ruin = building && building->type && building->type->attr() &&
-        std::string_view(building->type->attr()) == "burning_ruin";
+    const bool is_burning_ruin = building && building->matches("burning_ruin");
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {
             int grid_offset = map_grid_offset(x + dx, y + dy);

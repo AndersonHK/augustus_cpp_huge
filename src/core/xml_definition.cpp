@@ -1,12 +1,18 @@
 #include "core/xml_definition.h"
 
+#include "core/crash_context.h"
 #include "core/xml_value.h"
 
 #include "core/file.h"
+#include "core/dir.h"
 #include "core/log.h"
+#include "core/xml_parser.h"
+#include "platform/file_manager.h"
 
 #include <cstdio>
 #include <cstring>
+#include <limits>
+#include <utility>
 
 namespace xml_definition {
 
@@ -21,7 +27,26 @@ static int equals_ignore_case_ascii(char left, char right)
     return left == right;
 }
 
-static int ends_with_ignore_case_ascii(const std::string &value, const char *suffix)
+int starts_with_ignore_case_ascii(const std::string &value, const char *prefix)
+{
+    if (!prefix) {
+        return 0;
+    }
+
+    const size_t prefix_length = std::strlen(prefix);
+    if (value.size() < prefix_length) {
+        return 0;
+    }
+
+    for (size_t i = 0; i < prefix_length; i++) {
+        if (!equals_ignore_case_ascii(value[i], prefix[i])) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+int ends_with_ignore_case_ascii(const std::string &value, const char *suffix)
 {
     if (!suffix) {
         return 0;
@@ -74,6 +99,76 @@ std::string normalize_path(const char *value)
     return collapsed;
 }
 
+std::string format_failure_reason(const char *message, const char *detail)
+{
+    if (detail && *detail) {
+        return std::string(message ? message : "") + "\n\n" + detail;
+    }
+    return message ? message : "";
+}
+
+static int stop_on_first_directory_entry([[maybe_unused]] const char *name, [[maybe_unused]] long unused)
+{
+    return LIST_MATCH;
+}
+
+bool directory_exists(const char *path)
+{
+    return path && platform_file_manager_list_directory_contents(
+        path, TYPE_DIR | TYPE_FILE, 0, stop_on_first_directory_entry) != LIST_ERROR;
+}
+
+std::vector<DefinitionFile> find_files_with_extension(const std::string &directory, const char *extension)
+{
+    std::vector<DefinitionFile> result;
+    const dir_listing *files = dir_find_files_with_extension(directory.c_str(), extension);
+    if (!files || files->num_files <= 0) {
+        return result;
+    }
+
+    result.reserve(static_cast<size_t>(files->num_files));
+    for (int i = 0; i < files->num_files; i++) {
+        DefinitionFile file;
+        file.name = files->files[i].name;
+        file.full_path = directory + file.name;
+        result.push_back(std::move(file));
+    }
+    return result;
+}
+
+bool for_each_definition_file(
+    const std::string &directory,
+    const char *label,
+    bool require_files,
+    const DefinitionFileVisitor &visitor,
+    bool *out_found_any)
+{
+    const std::vector<DefinitionFile> files = find_files_with_extension(directory, "xml");
+    if (out_found_any) {
+        *out_found_any = !files.empty();
+    }
+    if (files.empty()) {
+        if (require_files) {
+            const std::string message = std::string("No ") + (label ? label : "definition") + " xml files found in";
+            log_error(message.c_str(), directory.c_str(), 0);
+        }
+        return !require_files;
+    }
+
+    for (const DefinitionFile &file : files) {
+        const std::string normalized_path = normalize_path(file.name.c_str());
+        if (normalized_path.empty()) {
+            const std::string message = std::string("Unsupported ") + (label ? label : "definition") + " file name";
+            log_error(message.c_str(), file.name.c_str(), 0);
+            return false;
+        }
+        if (visitor && !visitor(file, normalized_path)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 int load_file_to_buffer(const char *filename, std::vector<char> &buffer, const char *label)
 {
     FILE *fp = file_open(filename, "rb");
@@ -104,6 +199,92 @@ int load_file_to_buffer(const char *filename, std::vector<char> &buffer, const c
         return 0;
     }
     return 1;
+}
+
+bool parse_file(
+    const char *filename,
+    const char *label,
+    const xml_parser_element *elements,
+    int element_count,
+    bool stop_on_invalid_xml)
+{
+    std::vector<char> buffer;
+    if (!load_file_to_buffer(filename, buffer, label)) {
+        const std::string message = std::string("Failed to load ") + (label ? label : "xml") + " definition.";
+        error_context_report_error(message.c_str(), filename);
+        return false;
+    }
+
+    return parse_buffer(filename, label, elements, element_count, buffer, stop_on_invalid_xml);
+}
+
+bool parse_buffer(
+    const char *filename,
+    const char *label,
+    const xml_parser_element *elements,
+    int element_count,
+    const std::vector<char> &buffer,
+    bool stop_on_invalid_xml)
+{
+    if (buffer.size() > std::numeric_limits<unsigned int>::max()) {
+        const std::string message = std::string(label ? label : "xml") + " definition is too large to parse.";
+        log_error(message.c_str(), filename, 0);
+        error_context_report_error(message.c_str(), filename);
+        return false;
+    }
+
+    if (!xml_parser_init(elements, element_count, stop_on_invalid_xml ? 1 : 0)) {
+        const std::string message = std::string("Unable to initialize ") + (label ? label : "xml") + " xml parser.";
+        log_error(message.c_str(), filename, 0);
+        error_context_report_error(message.c_str(), filename);
+        return false;
+    }
+
+    const bool parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1) != 0;
+    xml_parser_free();
+    return parsed;
+}
+
+static bool parse_required_int_attribute_at_least(const char *attribute, int minimum, int *out_value)
+{
+    if (!attribute || !out_value || !xml_parser_has_attribute(attribute)) {
+        return false;
+    }
+
+    int value = 0;
+    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string(attribute), &value) || value < minimum) {
+        return false;
+    }
+    *out_value = value;
+    return true;
+}
+
+bool parse_required_nonnegative_int_attribute(const char *attribute, int *out_value)
+{
+    return parse_required_int_attribute_at_least(attribute, 0, out_value);
+}
+
+bool parse_required_positive_int_attribute(const char *attribute, int *out_value)
+{
+    return parse_required_int_attribute_at_least(attribute, 1, out_value);
+}
+
+bool parse_optional_nonnegative_int_attribute(const char *attribute, int *out_value)
+{
+    if (!attribute || !xml_parser_has_attribute(attribute)) {
+        return true;
+    }
+    return parse_required_nonnegative_int_attribute(attribute, out_value);
+}
+
+bool parse_required_nonempty_string_attribute(const char *attribute, std::string *out_value)
+{
+    if (!attribute || !out_value || !xml_parser_has_attribute(attribute)) {
+        return false;
+    }
+
+    *out_value = xml_value::trim_copy(xml_parser_get_attribute_string(attribute));
+    return !out_value->empty();
 }
 
 } // namespace xml_definition

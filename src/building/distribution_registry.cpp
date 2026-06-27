@@ -5,15 +5,11 @@
 #include "building/storage_type_registry.h"
 #include "core/crash_context.h"
 #include "core/xml_definition.h"
-#include "core/xml_value.h"
 #include "game/mod_manager.h"
 
-#include "core/file.h"
-#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 
-#include <cstdio>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -33,23 +29,6 @@ struct ParseState {
 
 std::unordered_map<std::string, std::unique_ptr<Distribution>> g_distributions;
 ParseState g_parse_state;
-
-int parse_optional_nonnegative_int(const char *attribute_name, int *out_value)
-{
-    if (!xml_parser_has_attribute(attribute_name)) {
-        return 1;
-    }
-
-    int parsed = 0;
-    const char *text = xml_parser_get_attribute_string(attribute_name);
-    if (!xml_value::parse_int_strict(text ? text : "", &parsed) || parsed < 0) {
-        log_error("Distribution rule has invalid non-negative integer attribute", attribute_name, 0);
-        g_parse_state.error = 1;
-        return 0;
-    }
-    *out_value = parsed;
-    return 1;
-}
 
 int parse_root()
 {
@@ -78,9 +57,11 @@ int parse_takes()
     int priority = 0;
     int baseline_stock = 0;
     int max_stock = 0;
-    if (!parse_optional_nonnegative_int("priority", &priority) ||
-        !parse_optional_nonnegative_int("baseline_stock", &baseline_stock) ||
-        !parse_optional_nonnegative_int("max_stock", &max_stock)) {
+    if (!xml_definition::parse_optional_nonnegative_int_attribute("priority", &priority) ||
+        !xml_definition::parse_optional_nonnegative_int_attribute("baseline_stock", &baseline_stock) ||
+        !xml_definition::parse_optional_nonnegative_int_attribute("max_stock", &max_stock)) {
+        log_error("Distribution rule has invalid non-negative integer attribute", g_parse_state.definition->path(), 0);
+        g_parse_state.error = 1;
         return 0;
     }
 
@@ -117,22 +98,13 @@ int parse_definition_file(const char *filename, const char *definition_path)
 {
     ErrorContextScope error_scope("distribution_registry.parse_definition", filename);
 
-    std::vector<char> buffer;
-    if (!xml_definition::load_file_to_buffer(filename, buffer, "Distribution")) {
-        error_context_report_error("Failed to load Distribution definition.", filename);
-        return 0;
-    }
-
     g_parse_state = {};
     g_parse_state.definition = std::make_unique<Distribution>(definition_path ? definition_path : "");
-    if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize Distribution xml parser", filename, 0);
-        error_context_report_error("Unable to initialize Distribution xml parser.", filename);
-        return 0;
-    }
-
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "Distribution",
+        XML_ELEMENTS,
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
     if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_rule ||
         g_parse_state.definition->resources().empty()) {
         log_error("Unable to parse Distribution xml", filename, 0);
@@ -175,23 +147,11 @@ int distribution_registry_load(void)
     distribution_registry_get_distribution_path();
     g_distributions.clear();
 
-    const dir_listing *files = dir_find_files_with_extension(g_distribution_path.c_str(), "xml");
-    if (!files || files->num_files <= 0) {
-        return 1;
-    }
-
-    for (int i = 0; i < files->num_files; i++) {
-        char full_path[FILE_NAME_MAX];
-        std::snprintf(full_path, FILE_NAME_MAX, "%s%s", g_distribution_path.c_str(), files->files[i].name);
-        const std::string normalized_path = xml_definition::normalize_path(files->files[i].name);
-        if (normalized_path.empty()) {
-            log_error("Unsupported Distribution file name", files->files[i].name, 0);
-            return 0;
-        }
-        if (!parse_definition_file(full_path, normalized_path.c_str())) {
-            return 0;
-        }
-    }
-
-    return 1;
+    return xml_definition::for_each_definition_file(
+        g_distribution_path,
+        "Distribution",
+        false,
+        [](const xml_definition::DefinitionFile &file, const std::string &normalized_path) {
+            return parse_definition_file(file.full_path.c_str(), normalized_path.c_str());
+        });
 }

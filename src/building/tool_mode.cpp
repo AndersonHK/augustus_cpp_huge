@@ -3,7 +3,6 @@
 
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
-#include "building/building_type_api.h"
 #include "city/view.h"
 #include "core/direction.h"
 #include "map/terrain.h"
@@ -28,12 +27,10 @@ struct ToolModeDefinition {
 
 static building_type type_from_tool_kind(ConstructionToolKind kind)
 {
-    for (const auto &definition : building_type_registry_impl::g_building_types) {
-        if (definition && definition->tool().kind() == kind) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
+    return building_type_registry_impl::first_type_where(
+        [kind](const building_type_registry_impl::BuildingType &definition) {
+            return definition.tool().kind() == kind;
+        });
 }
 
 static bool type_matches_tool(building_type type, ConstructionToolKind kind)

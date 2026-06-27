@@ -16,8 +16,6 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-#include <cstring>
-
 constexpr int MAX_QUEUE = GRID_SIZE * GRID_SIZE;
 constexpr int GUARD = 50000;
 
@@ -71,16 +69,6 @@ static struct {
 } state;
 
 static int citizen_can_enter_roadblock(int grid_offset);
-
-static int building_matches(building *b, const char *text_id)
-{
-    if (!b) {
-        return 0;
-    }
-    Building current(b);
-    const building_type_registry_impl::BuildingType *definition = current.type;
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
-}
 
 static void reset_fighting_status(void)
 {
@@ -308,11 +296,24 @@ static int callback_calc_distance(int next_offset, int dist, int direction)
     return 1;
 }
 
+static int can_enter_citizen_road_garden_surface(int grid_offset)
+{
+    const int terrain = terrain_land_citizen.items[grid_offset];
+    return (terrain == CITIZEN_0_ROAD || terrain == CITIZEN_2_PASSABLE_TERRAIN) &&
+        citizen_can_enter_roadblock(grid_offset);
+}
+
+static int can_enter_citizen_road_garden_highway_surface(int grid_offset)
+{
+    const int terrain = terrain_land_citizen.items[grid_offset];
+    return terrain >= CITIZEN_0_ROAD &&
+        terrain <= CITIZEN_2_PASSABLE_TERRAIN &&
+        citizen_can_enter_roadblock(grid_offset);
+}
+
 static int callback_calc_distance_road_garden(int next_offset, int dist, int direction)
 {
-    if ((terrain_land_citizen.items[next_offset] == CITIZEN_0_ROAD ||
-         terrain_land_citizen.items[next_offset] == CITIZEN_2_PASSABLE_TERRAIN) &&
-        citizen_can_enter_roadblock(next_offset)) {
+    if (can_enter_citizen_road_garden_surface(next_offset)) {
         enqueue(next_offset, dist);
     }
     return 1;
@@ -483,7 +484,7 @@ static int can_place_initial_road_or_aqueduct(int grid_offset, int is_aqueduct)
             return 1;
         }
         if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-            if (building_matches(building_get(map_building_at(grid_offset)), "reservoir")) {
+            if (Building(building_get(map_building_at(grid_offset))).matches("reservoir")) {
                 return 1;
             }
         }
@@ -634,14 +635,7 @@ int map_routing_citizen_can_travel_over_land(
 
 static int callback_travel_citizen_road_garden(int offset, int next_offset, int direction)
 {
-    if (terrain_land_citizen.items[next_offset] == CITIZEN_0_ROAD ||
-        terrain_land_citizen.items[next_offset] == CITIZEN_2_PASSABLE_TERRAIN) {
-        if (!citizen_can_enter_roadblock(next_offset)) {
-            return 0;
-        }
-        return 1;
-    }
-    return 0;
+    return can_enter_citizen_road_garden_surface(next_offset);
 }
 
 int map_routing_citizen_can_travel_over_road_garden(
@@ -649,11 +643,7 @@ int map_routing_citizen_can_travel_over_road_garden(
 {
     state.roadblock_permission = permission;
     int dst_offset = map_grid_offset(dst_x, dst_y);
-    if (terrain_land_citizen.items[dst_offset] != CITIZEN_0_ROAD &&
-        terrain_land_citizen.items[dst_offset] != CITIZEN_2_PASSABLE_TERRAIN) {
-        return 0;
-    }
-    if (!citizen_can_enter_roadblock(dst_offset)) {
+    if (!can_enter_citizen_road_garden_surface(dst_offset)) {
         return 0;
     }
     ++stats.total_routes_calculated;
@@ -663,12 +653,7 @@ int map_routing_citizen_can_travel_over_road_garden(
 
 static int callback_travel_citizen_road_garden_highway(int offset, int next_offset, int direction)
 {
-    if (terrain_land_citizen.items[next_offset] >= CITIZEN_0_ROAD &&
-        terrain_land_citizen.items[next_offset] <= CITIZEN_2_PASSABLE_TERRAIN &&
-        citizen_can_enter_roadblock(next_offset)) {
-        return 1;
-    }
-    return 0;
+    return can_enter_citizen_road_garden_highway_surface(next_offset);
 }
 
 int map_routing_citizen_can_travel_over_road_garden_highway(
@@ -676,11 +661,7 @@ int map_routing_citizen_can_travel_over_road_garden_highway(
 {
     state.roadblock_permission = permission;
     int dst_offset = map_grid_offset(dst_x, dst_y);
-    if (terrain_land_citizen.items[dst_offset] < CITIZEN_0_ROAD ||
-        terrain_land_citizen.items[dst_offset] > CITIZEN_2_PASSABLE_TERRAIN) {
-        return 0;
-    }
-    if (!citizen_can_enter_roadblock(dst_offset)) {
+    if (!can_enter_citizen_road_garden_highway_surface(dst_offset)) {
         return 0;
     }
     ++stats.total_routes_calculated;

@@ -173,7 +173,10 @@ them with named animation state.
 - Add a narrow draw request type that can represent one base slice plus optional
   overlay slices.
 - Make `city_figure.cpp` call the facade first but keep every legacy fallback.
-- Add debug logging that reports which figures still fall back to `Image::from_id`.
+- Add debug counters and once-per-type info logging that report which figures
+  still fall back to `Image::from_id`
+  (`FigureGraphicsDebugCounters::facade_draw_requests`,
+  `legacy_fallback_draws`, and `image_from_id_fallback_draws`).
 
 ### Slice 2: Native Payload Cache
 
@@ -183,6 +186,22 @@ them with named animation state.
   FigureType, action target, direction, frame, and logical-size signature.
 - Replace repeated path-pattern expansion in `GenericFigureGraphics` with
   load-time materialized target data where possible.
+- First safe cache starter: `GenericFigureGraphics` now memoizes expanded
+  native path/image target strings by pattern, direction, and frame, and asks
+  the existing `ImageGroupPayload` registry before calling load. Direct
+  `ImageGroupEntry *` caching still waits for a payload generation/invalidation
+  signal so game reset cannot leave stale entry pointers.
+- Follow-up consolidation: hardcoded native figure entries and
+  `GenericFigureGraphics` now share the registry-first payload lookup and the
+  native-entry-to-draw-request base slice/sprite offset assembly. The remaining
+  `city_figure.cpp` `Image::from_id` fallback stays until unconverted
+  image-id figures and the legacy `image_id >= 10000` offset hack are retired.
+- Cleanup pass: the one-use `GenericFigureGraphics::resolve_entry` wrapper was
+  deleted; draw-request assembly now calls the shared `native_entry(...)`
+  helper directly while preserving the same missing-target diagnostics.
+- Cleanup pass: `FigureGraphics::set_legacy_base_draw_request_image(...)` was
+  removed from the public facade and moved to the private native helper layer,
+  where it now returns base-slice validity for depot/cart draw request builders.
 - Use `runtime_texture_draw_request(...)` so logical size can differ from
   source pixel size.
 
@@ -216,35 +235,65 @@ resolve legacy `image_group` graphics into draw requests without relying on
 
 - `update_legacy_graphics_policy_image_state`: legacy XML graphics fallback for
   action/corpse/direction/image-offset state. Needs a draw-request resolver for
-  non-native `image_group` policies, including corpse base and
+  non-native `image_group` policies, including corpse base. Directional default
+  rows now share the `FigureGraphics` directional-frame helper and preserve
   `direction_frame_stride`.
-- `RoamingServiceFigure`: service walkers and labor seekers using
-  `figure_image_update(...)`. Needs action/corpse, direction, image offset, and
-  `max_image_offset` as graphics state.
-- `TransientWandererFigure`: ownerless ambient walkers. Needs corpse state,
-  static variant selection from `static_frame_count`, direction, and image
-  offset.
-- `MarketSupplierFigure`: market supplier base/corpse animation. Needs
-  action/corpse, direction, image offset, and carried-resource/cart state before
-  the city fallback can stop reading `f->image_id`.
-- `DeliveryFollowerFigure`: delivery boy and supplier followers. Needs
-  follow/dead/corpse action state, direction, image offset, and cart/resource
-  clearing represented as graphics state rather than `cart_image_id = 0`.
-- `EngineerServiceFigure`: simple service animation. Needs action/corpse,
-  direction, and image offset as graphics state.
-- `PrefectServiceFigure`: fire, bucket, attack, corpse, and default states.
-  Needs action target (`going_to_fire`, `at_fire`, `attack`, `corpse`),
-  attack direction, image offset, attack image offset, and bucket artwork as a
-  named target/layer.
-- `EntertainmentFigureBase`: charioteer, lion tamer, gladiator, corpse, attack,
-  and cart/animal overlay cases. Needs action target, direction, image offset,
-  attack image offset, wait-tick driven lion-tamer whip state, animal/cart
-  layers, and the current gladiator frame corrections represented in data.
+- `RoamingServiceFigure`: service walkers and labor seekers now delegate legacy
+  image-state selection through `FigureGraphics::update_legacy_image_state`.
+  Still needs `max_image_offset` and animation cursor ownership moved out of the
+  controller.
+- `TransientWandererFigure`: ownerless ambient walkers now delegate corpse,
+  static-frame, and default legacy image-state selection through
+  `FigureGraphics::update_legacy_image_state`. Still needs animation cursor
+  ownership moved out of the controller.
+- `MarketSupplierFigure`: market supplier base/corpse image-state selection now
+  delegates through `FigureGraphics::update_legacy_image_state`. Still needs
+  carried-resource/follower state represented as graphics state before the city
+  fallback can stop reading `f->image_id`.
+- `DeliveryFollowerFigure`: delivery boy and supplier followers now delegate
+  base/corpse/direction/image-offset selection through the legacy
+  `FigureGraphics` helper while preserving the previous-tile-direction fallback.
+  Still needs follow/dead action naming and cart/resource clearing represented
+  as graphics state rather than `cart_image_id = 0`.
+- `EngineerServiceFigure`: simple service animation now delegates legacy
+  image-state selection through `FigureGraphics::update_legacy_image_state`.
+  Still needs animation cursor ownership moved out of the controller.
+- `PrefectServiceFigure`: default and corpse image-state selection now
+  delegates through the legacy `FigureGraphics` helper with the existing
+  direction/attack-direction choice preserved. Fire, bucket, and attack artwork
+  now use the `FigureGraphics` directional-frame helper, but still need named
+  action targets/layers.
+- `EntertainmentFigureBase`: plain default/corpse image-state rows now delegate
+  through the legacy `FigureGraphics` helper where the current XML is plain
+  `image_group` data. Charioteer corpse/attack, lion-tamer whip, and gladiator
+  attack rows now use the `FigureGraphics` directional-frame helper, but still
+  need action targets represented in data. Legacy cart-overlay finalization now
+  goes through `FigureGraphics`, but the controller still chooses the cart/animal
+  base image and stores the final result in `cart_image_id`.
 
 ### Slice 5: Overlay And Cart Ownership
 
 - Move cart/resource overlays out of `city_figure.cpp` into figure graphics
   layers.
+- Replace `cart_image_id` finalization with FigureGraphics-owned overlay
+  helpers first, including explicit clear/no-overlay states, then move those
+  overlays into draw request layers.
+- Depot-cart draw requests now use FigureGraphics helpers for direction-major
+  row arithmetic and legacy base-image request setup; cart layer selection and
+  load/resource slices still need named graphics state.
+- Map-flag base and flag image layers now resolve through `FigureGraphics`;
+  `city_figure.cpp` only keeps the flag number text overlay while
+  `cart_image_id` remains the temporary storage bridge.
+- Enemy-atlas figure drawing now resolves through a colorless
+  `FigureGraphics` layer when no cart overlay is present; city draw no longer
+  calls `Image::enemy(...)` directly, but enemy image-id selection still lives
+  in the enemy/native controllers.
+- After the map-flag and enemy draw migrations, remaining city draw fallbacks
+  collapse to one `Image::from_id` path, so the fallback debug counter now
+  treats every legacy fallback draw as an image-id fallback.
+- Enemy-atlas sprite offsets are now also supplied by the `FigureGraphics` draw
+  request. The city fallback offset path no longer selects `Image::enemy(...)`
+  and only mirrors the remaining `Image::from_id` fallback.
 - Resource carts should resolve their resource payload through the same graphics
   request rather than mutate `cart_image_id`.
 - Lion tamer animals, hippodrome horses, fort standards, map flags, prefect

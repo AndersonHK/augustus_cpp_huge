@@ -17,8 +17,6 @@
 #include "figure/figure_runtime_api.h"
 #include "figure/route.h"
 
-#include <cstring>
-
 #define OFFSET(x,y) ((x) + GRID_SIZE * (y))
 
 void map_water_add_building(int building_id, int x, int y, int size, int image_id)
@@ -456,8 +454,7 @@ static int find_wharf_for_new_fishing_boat(Figure *boat, map_point *tile, int as
             if (candidate.state_id() != BUILDING_STATE_IN_USE) {
                 continue;
             }
-            const building_type_registry_impl::BuildingType *definition = candidate.type;
-            if (!definition || !definition->attr() || std::strcmp(definition->attr(), "wharf") != 0) {
+            if (!candidate.matches("wharf")) {
                 continue;
             }
             building *record = building_get(candidate.id());

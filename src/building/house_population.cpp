@@ -11,7 +11,6 @@
 #include "building/building.h"
 #include "building/house.h"
 
-#include "building/building_type_api.h"
 #include "building/monument.h"
 #include "city/message.h"
 #include "city/population.h"

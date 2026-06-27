@@ -12,11 +12,10 @@
 
 #include "window/editor/map.h"
 #include "graphics/grid_box.h"
-#include "building/building_type_registry.h"
+#include "building/building_type_registry_internal.h"
 #include "building/building_type_startup_bridge.h"
 
 
-#include "building/building_type_api.h"
 #include "building/properties.h"
 #include "core/string.h"
 #include "game/resource.h"
@@ -85,34 +84,23 @@ static grid_box_type model_buttons = {
     .handle_tooltip = building_tooltip
 };
 
-static building_type runtime_type(const char *text_id)
-{
-    return text_id ? building_type_startup_bridge_runtime_id_from_text(text_id) : BUILDING_NONE;
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
 static int is_extra_editor_model_type(building_type type)
 {
-    return type_matches(type, "clear_land") ||
-        type_matches(type, "repair_land") ||
-        type_matches(type, "clear_trees");
+    return building_type_registry_impl::type_attr_is(type, "clear_land") ||
+        building_type_registry_impl::type_attr_is(type, "repair_land") ||
+        building_type_registry_impl::type_attr_is(type, "clear_trees");
 }
 
 static int is_hidden_editor_model_type(building_type type)
 {
-    return type_matches(type, "grand_garden") || type_matches(type, "dolphin_fountain");
+    return building_type_registry_impl::type_attr_is(type, "grand_garden") || building_type_registry_impl::type_attr_is(type, "dolphin_fountain");
 }
 
 static int has_production_field(building_type type)
 {
     return building_is_raw_resource_producer(type) ||
         building_is_workshop(type) ||
-        type_matches(type, "wharf") ||
+        building_type_registry_impl::type_attr_is(type, "wharf") ||
         building_is_farm(type);
 }
 

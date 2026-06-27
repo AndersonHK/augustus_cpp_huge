@@ -12,7 +12,6 @@
 #include "building/housing_type.h"
 #include "city/houses.h"
 
-#include "building/building_type_api.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/resource.h"
@@ -261,7 +260,7 @@ static int evolve_xml_housing(building *house, house_demands *demands, time_mill
         house_object.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::MergeTo) :
         BUILDING_NONE;
     int is_empty_vacant_lot =
-        house->house_population <= 0 && house->type == building_type_registry_get_vacant_lot_fill_type();
+        house->house_population <= 0 && house->type == building_type_registry_impl::vacant_lot_fill_type();
     if (merge_to != BUILDING_NONE && house->house_size == 1 &&
         (house->house_population > 0 ||
             (is_empty_vacant_lot && config_get(CONFIG_GP_CH_HOUSING_PRE_MERGE_VACANT_LOTS)))) {
@@ -300,7 +299,9 @@ static int evolve_xml_housing(building *house, house_demands *demands, time_mill
 
     if (target != BUILDING_NONE) {
         int current_size = house->house_size;
-        int target_size = building_type_registry_get_model_size(target);
+        const building_type_registry_impl::BuildingType *target_definition =
+            building_type_registry_impl::definition_for_type(target);
+        int target_size = target_definition ? target_definition->declared_model_size() : 0;
         if (status == EVOLVE && target_size > current_size) {
             if (building_house_can_expand(house_object, target_size * target_size)) {
                 game_undo_disable();

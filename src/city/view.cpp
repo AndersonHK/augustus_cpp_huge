@@ -121,6 +121,13 @@ static void foreach_valid_view_tile_row(MakeTile make_tile, DispatchRow dispatch
     }
 }
 
+static void dispatch_visible_map_tile_row(const visible_view_tile *row_tiles, int row_count, map_callback *callback)
+{
+    for (int i = 0; i < row_count; i++) {
+        callback(row_tiles[i].x, row_tiles[i].y, row_tiles[i].grid_offset);
+    }
+}
+
 static void check_camera_boundaries(void)
 {
     int min_scale = city_view_get_min_scale();
@@ -824,9 +831,7 @@ void city_view_foreach_valid_map_tile(map_callback *callback)
             return visible_view_tile{ x, y, grid_offset };
         },
         [callback](const visible_view_tile *row_tiles, int row_count) {
-            for (int i = 0; i < row_count; i++) {
-                callback(row_tiles[i].x, row_tiles[i].y, row_tiles[i].grid_offset);
-            }
+            dispatch_visible_map_tile_row(row_tiles, row_count, callback);
         });
 }
 
@@ -838,19 +843,13 @@ void city_view_foreach_valid_map_tile_row(map_callback *callback1, map_callback 
         },
         [callback1, callback2, callback3](const visible_view_tile *row_tiles, int row_count) {
             if (callback1) {
-                for (int i = 0; i < row_count; i++) {
-                    callback1(row_tiles[i].x, row_tiles[i].y, row_tiles[i].grid_offset);
-                }
+                dispatch_visible_map_tile_row(row_tiles, row_count, callback1);
             }
             if (callback2) {
-                for (int i = 0; i < row_count; i++) {
-                    callback2(row_tiles[i].x, row_tiles[i].y, row_tiles[i].grid_offset);
-                }
+                dispatch_visible_map_tile_row(row_tiles, row_count, callback2);
             }
             if (callback3) {
-                for (int i = 0; i < row_count; i++) {
-                    callback3(row_tiles[i].x, row_tiles[i].y, row_tiles[i].grid_offset);
-                }
+                dispatch_visible_map_tile_row(row_tiles, row_count, callback3);
             }
         });
 }

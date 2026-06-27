@@ -1,8 +1,8 @@
-#include "figure/figure.h"
 #include "building/building_record.h"
 #include "resource.h"
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/count.h"
 #include "building/granary.h"
@@ -10,7 +10,6 @@
 #include "building/industry.h"
 #include "building/monument.h"
 #include "building/properties.h"
-#include "building/building_type_api.h"
 #include "building/warehouse.h"
 #include "city/buildings.h"
 #include "city/data_private.h"
@@ -33,7 +32,6 @@
 #include "scenario/property.h"
 
 #include <math.h>
-#include <cstring>
 
 static struct {
     resource_list resources;
@@ -45,20 +43,10 @@ static struct {
     resource_list foods;
 } potential;
 
-static int building_matches(const Building &building, const char *text_id)
-{
-    return building.type && text_id && std::strcmp(building.type->attr(), text_id) == 0;
-}
-
 static building *first_of_type(const char *text_id)
 {
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        if (building_matches(Building(b), text_id)) {
-            return b;
-        }
-    }
-    return nullptr;
+    building_type type = building_type_registry_impl::type_from_attr(text_id);
+    return type == BUILDING_NONE ? nullptr : building_first_of_type(type);
 }
 
 static building *first_working_monument(const char *text_id)
@@ -390,6 +378,37 @@ void city_resource_calculate_warehouse_stocks(void)
     }
 }
 
+static void add_available_trade_resource(resource_type r)
+{
+    if (empire_can_produce_resource(r) || empire_can_import_resource(r)) {
+        available.resources.items[available.resources.size++] = r;
+        potential.resources.items[potential.resources.size++] = r;
+        if (resource_is_food(r)) {
+            available.foods.items[available.foods.size++] = r;
+            potential.foods.items[potential.foods.size++] = r;
+        }
+        return;
+    }
+
+    if (empire_can_produce_resource_potentially(r) || empire_can_import_resource_potentially(r)) {
+        potential.resources.items[potential.resources.size++] = r;
+        if (resource_is_food(r)) {
+            potential.foods.items[potential.foods.size++] = r;
+        }
+    }
+}
+
+static void add_available_trade_resources_by_storage_state(int storable)
+{
+    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
+        const int resource_is_storable_value = resource_is_storable(r) ? 1 : 0;
+        if (!resource_is_tradeable(r) || resource_is_storable_value != storable) {
+            continue;
+        }
+        add_available_trade_resource(r);
+    }
+}
+
 void city_resource_determine_available(int storable_only)
 {
     for (int i = 0; i < RESOURCE_SLOT_COUNT; i++) {
@@ -404,43 +423,9 @@ void city_resource_determine_available(int storable_only)
     potential.foods.size = 0;
 
     // Upstream's trade lists stop before denarii/troops; dynamic resources use the special flag for that boundary.
-    for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-        if (!resource_is_tradeable(r) || !resource_is_storable(r)) {
-            continue;
-        }
-        if (empire_can_produce_resource(r) || empire_can_import_resource(r)) {
-            available.resources.items[available.resources.size++] = r;
-            potential.resources.items[potential.resources.size++] = r;
-            if (resource_is_food(r)) {
-                available.foods.items[available.foods.size++] = r;
-                potential.foods.items[potential.foods.size++] = r;
-            }
-        } else if (empire_can_produce_resource_potentially(r) || empire_can_import_resource_potentially(r)) {
-            potential.resources.items[potential.resources.size++] = r;
-            if (resource_is_food(r)) {
-                potential.foods.items[potential.foods.size++] = r;
-            }
-        }
-    }
+    add_available_trade_resources_by_storage_state(1);
     if (!storable_only) {
-        for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
-            if (!resource_is_tradeable(r) || resource_is_storable(r)) {
-                continue;
-            }
-            if (empire_can_produce_resource(r) || empire_can_import_resource(r)) {
-                available.resources.items[available.resources.size++] = r;
-                potential.resources.items[potential.resources.size++] = r;
-                if (resource_is_food(r)) {
-                    available.foods.items[available.foods.size++] = r;
-                    potential.foods.items[potential.foods.size++] = r;
-                }
-            } else if (empire_can_produce_resource_potentially(r) || empire_can_import_resource_potentially(r)) {
-                potential.resources.items[potential.resources.size++] = r;
-                if (resource_is_food(r)) {
-                    potential.foods.items[potential.foods.size++] = r;
-                }
-            }
-        }
+        add_available_trade_resources_by_storage_state(0);
     }
 }
 

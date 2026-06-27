@@ -361,6 +361,24 @@ Determinism guardrails:
 
 - Introduce local cost-map objects with reusable scratch buffers.
 - Add generation-stamped distance and visited arrays.
+- Preparation landed: `route.cpp` now reads ambient distances through one
+  private backend accessor, and `Route::DistanceQuery` carries a private legacy
+  cost-map handle wrapper instead of a raw distance-grid generation integer.
+  Its local distance-query APIs and road-candidate selectors now seed and read
+  through that handle, including max-distance filtering and legacy generation
+  validation; the handle still wraps the global grid until a real local cost
+  map lands.
+- Remaining `route_distance_at()` bridge users are path reconstruction,
+  planner max-tile validation after policy-specific legacy seeding,
+  `TerrainQuery`, construction distance reads, and water reachability; moving
+  them needs policy-specific cost-map handles rather than the citizen-road
+  `DistanceQuery` handle.
+- Pathing ownership cleanup: citizen road-network lookup now lives on
+  `PathingMode`, so route planning no longer owns a local road-like/network
+  helper or includes the road-network map header directly.
+- Route-policy cleanup: wall route classification now lives on `RoutePolicy`,
+  and route intent performance purposes are derived from the constructed policy
+  instead of a separate figure-field helper.
 - Cache common fields by policy, source/target set, and epochs.
 - Convert `Route::DistanceQuery` to hold a `CostMapHandle` instead of reseeding
   the global grid.

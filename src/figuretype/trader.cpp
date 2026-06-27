@@ -9,13 +9,11 @@
 #include <stdio.h>
 
 #include "building/building.h"
-#include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/dock.h"
 #include "building/lighthouse.h"
 
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/granary.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -45,8 +43,6 @@
 #include "map/routing.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
-
-#include <cstring>
 
 #define INFINITE 10000
 #define TRADER_INITIAL_WAIT GAME_TIME_TICKS_PER_DAY
@@ -86,31 +82,11 @@ static struct {
 
 static resource_type get_least_filled_quota_resource(Building &building, int city_id, signed char trader_buying);
 
-static const building_type_registry_impl::BuildingType *definition_for_building(const building *b)
-{
-    return b ? building_type_registry_impl::definition_for_type(b->type) : nullptr;
-}
-
-static int definition_attr_is(const building_type_registry_impl::BuildingType *definition, const char *attr)
-{
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
-
-static int building_matches(const building *b, const char *attr)
-{
-    return definition_attr_is(definition_for_building(b), attr);
-}
-
-static int building_matches(Building &building, const char *attr)
-{
-    return definition_attr_is(building.type, attr);
-}
-
 static building *first_building(const char *attr)
 {
     for (int i = 1; i < building_count(); i++) {
         building *b = building_get(i);
-        if (building_matches(b, attr)) {
+        if (Building(b).matches(attr)) {
             return b;
         }
     }
@@ -215,8 +191,8 @@ int figure_create_trade_ship(int x, int y, int city_id)
 int figure_trade_caravan_can_buy(Figure *trader, int building_id, int city_id)
 {
     Building building(building_get(building_id));
-    if (!building_matches(building, "warehouse") &&
-        !(config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES) && building_matches(building, "granary"))) {
+    if (!building.matches("warehouse") &&
+        !(config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES) && building.matches("granary"))) {
         return 0;
     }
     if (building.has_plague()) {
@@ -234,7 +210,7 @@ int figure_trade_caravan_can_buy(Figure *trader, int building_id, int city_id)
 int figure_trade_caravan_can_sell(Figure *trader, int building_id, int city_id)
 {
     Building building(building_get(building_id));
-    if (!building_matches(building, "warehouse") && !building_matches(building, "granary")) {
+    if (!building.matches("warehouse") && !building.matches("granary")) {
         return 0;
     }
     if (building.has_plague()) {
@@ -255,7 +231,7 @@ int figure_trade_caravan_can_sell(Figure *trader, int building_id, int city_id)
 resource_type get_native_trader_buy_resource(Building &storage)
 {
     resource_type highest_resource = RESOURCE_NONE;
-    if (building_matches(storage, "warehouse")) {
+    if (storage.matches("warehouse")) {
         building_warehouse_recount_resources(storage);
     }
     for (int r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r++) {
@@ -274,11 +250,11 @@ static resource_type trader_get_buy_resource(int building_id, int city_id)
     unsigned char land_trader = 1; // 1 = land trader, 0 = sea trader
     building *b = building_get(building_id);
     Building building(b);
-    if (!building_matches(b, "warehouse") && !building_matches(b, "granary")) {
+    if (!building.matches("warehouse") && !building.matches("granary")) {
         return RESOURCE_NONE;
     }
 
-    if (building_matches(b, "granary") && !config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES)) {
+    if (building.matches("granary") && !config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES)) {
         return RESOURCE_NONE;
     }
     resource_type resource = get_least_filled_quota_resource(building, city_id, 1); // 1 = trader buying
@@ -289,7 +265,7 @@ static resource_type trader_get_buy_resource(int building_id, int city_id)
         return RESOURCE_NONE;
     }
     unsigned char success = 0;
-    if (building_matches(b, "granary")) {
+    if (building.matches("granary")) {
         success = building_granary_remove_export(building, resource, 1, land_trader);
     } else {
         success = building_warehouse_remove_export(building, resource, 1, land_trader);
@@ -303,7 +279,7 @@ static resource_type trader_get_sell_resource(int building_id, int city_id)
     unsigned char land_trader = 1; // 1 = land trader, 0 = sea trader
     building *b = building_get(building_id);
     Building building(b);
-    if (!building_matches(b, "warehouse") && !building_matches(b, "granary")) {
+    if (!building.matches("warehouse") && !building.matches("granary")) {
         return RESOURCE_NONE;
     }
 
@@ -313,7 +289,7 @@ static resource_type trader_get_sell_resource(int building_id, int city_id)
     }
 
     unsigned char success = 0;
-    if (building_matches(b, "granary")) {
+    if (building.matches("granary")) {
         success = building_granary_add_import(building, resource, 1, land_trader);
     } else {
         success = building_warehouse_add_import(building, resource, 1, land_trader);
@@ -324,7 +300,7 @@ static resource_type trader_get_sell_resource(int building_id, int city_id)
 
 static resource_type get_least_filled_quota_resource(Building &storage, int city_id, signed char trader_buying)
 {
-    const int is_granary = building_matches(storage, "granary");
+    const int is_granary = storage.matches("granary");
     int r_start = RESOURCE_NONE + 1;
     int r_end = RESOURCE_SLOT_COUNT;
 
@@ -475,11 +451,12 @@ static int get_closest_storage(const Figure *f, int x, int y, int city_id, map_p
     }
     // 5. Return result 
     if (best_building_id) {
-        const building *best_building = building_get(best_building_id);
-        if (building_matches(best_building, "granary") && best_building->has_road_access >= 1) {
+        building *best_building = building_get(best_building_id);
+        Building best(best_building);
+        if (best.matches("granary") && best_building->has_road_access >= 1) {
             // go to center of granary
             map_point_store_result(best_building->x + 1, best_building->y + 1, dst);
-        } else if (building_matches(best_building, "warehouse") && best_building->has_road_access >= 1) {
+        } else if (best.matches("warehouse") && best_building->has_road_access >= 1) {
             map_point_store_result(best_building->x, best_building->y, dst);
         } else if (!map_has_road_access_warehouse(best_building->x, best_building->y, dst) &&
              !map_has_road_access_granary(best_building->x, best_building->y, dst)) {
@@ -534,7 +511,7 @@ void figure_trade_caravan_action(Figure *f)
     }
 
     figure_image_increase_offset(f, 12);
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
             figure_combat_handle_attack(f);
@@ -627,7 +604,7 @@ void figure_trade_caravan_action(Figure *f)
     int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
 
 
-    f->image_id = trader_image_id() + dir + 8 * f->image_offset;
+    f->select_legacy_directional_frame_image(trader_image_id(), dir, f->image_offset);
 }
 
 void figure_trade_caravan_donkey_action(Figure *f)
@@ -643,7 +620,7 @@ void figure_trade_caravan_donkey_action(Figure *f)
     }
 
     figure_image_increase_offset(f, 12);
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
 
     Figure *leader = Figure::get(f->leading_figure_id);
     if (f->leading_figure_id <= 0) {
@@ -665,7 +642,7 @@ void figure_trade_caravan_donkey_action(Figure *f)
     }
     int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
 
-    f->image_id = trader_image_id() + dir + 8 * f->image_offset;
+    f->select_legacy_directional_frame_image(trader_image_id(), dir, f->image_offset);
 }
 
 void figure_native_trader_action(Figure *f)
@@ -675,7 +652,7 @@ void figure_native_trader_action(Figure *f)
     f->is_ghost = 0;
     f->terrain_usage = TERRAIN_USAGE_ANY;
     figure_image_increase_offset(f, 12);
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
             figure_combat_handle_attack(f);
@@ -735,9 +712,9 @@ void figure_native_trader_action(Figure *f)
                 if (building_storage_get_permission(BUILDING_STORAGE_PERMISSION_NATIVES, building) &&
                     f->trader_amount_bought < figure_trade_land_trade_units() && resource != RESOURCE_NONE) {
                     int removed = 0;
-                    if (building_matches(building, "granary")) {
+                    if (building.matches("granary")) {
                         removed = building_granary_try_remove_resource(building, resource, 1);
-                    } else if (building_matches(building, "warehouse")) {
+                    } else if (building.matches("warehouse")) {
                         removed = building_warehouse_try_remove_resource(building, resource, 1);
                     }
                     if (removed) {
@@ -770,23 +747,20 @@ void figure_native_trader_action(Figure *f)
     int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
 
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = image_group(GROUP_FIGURE_CARTPUSHER) + 96 + figure_image_corpse_offset(f);
-        f->cart_image_id = 0;
+        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CARTPUSHER) + 96);
+        f->clear_legacy_cart_overlay_image();
     } else {
-        f->image_id = image_group(GROUP_FIGURE_CARTPUSHER) + dir + 8 * f->image_offset;
-        f->cart_image_id = image_group(GROUP_FIGURE_MIGRANT_CART) + 8 + 8 * f->resource_id;
+        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CARTPUSHER), dir, f->image_offset);
+        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_MIGRANT_CART) + 8 + 8 * f->resource_id);
     }
-    if (f->cart_image_id) {
-        f->cart_image_id += dir;
-        figure_image_set_cart_offset(f, dir);
-    }
+    f->finalize_legacy_cartpusher_overlay_image(dir);
 }
 
 int figure_trade_ship_is_trading(Figure *ship)
 {
     Building dock = ship->destination_building;
     building *b = building_get(dock.id());
-    if (!b || !dock.is_in_use() || !dock.type || std::strcmp(dock.type->attr(), "dock") != 0) {
+    if (!b || !dock.is_in_use() || !dock.matches("dock")) {
         return TRADE_SHIP_BUYING;
     }
     for (int i = 0; i < 3; i++) {
@@ -850,7 +824,7 @@ void figure_trade_ship_action(Figure *f)
     f->is_ghost = 0;
     f->is_boat = 1;
     figure_image_increase_offset(f, 12);
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
             figure_combat_handle_attack(f);
@@ -1073,7 +1047,7 @@ void figure_trade_ship_action(Figure *f)
             break;
     }
     int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
-    f->image_id = image_group(GROUP_FIGURE_SHIP) + dir;
+    f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_SHIP), dir, 0);
 }
 
 int figure_trade_land_trade_units(void)

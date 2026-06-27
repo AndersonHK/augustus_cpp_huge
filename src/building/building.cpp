@@ -17,7 +17,6 @@
 #include "city/culture.h"
 #include "city/warning.h"
 #include "game/undo.h"
-#include "map/bridge.h"
 #include "map/building.h"
 #include "map/building_tiles.h"
 #include "map/road_access.h"
@@ -49,7 +48,6 @@
 #include <vector>
 
 #include "building/destruction.h"
-#include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
 #include "building/building_type_legacy_migration.h"
 #include "building/granary.h"
@@ -84,46 +82,10 @@ static struct {
     building *last_of_type[BUILDING_TYPE_MAX];
 } data;
 
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
-static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
-{
-    for (const char *text_id : text_ids) {
-        if (type_matches(type, text_id)) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static int building_matches(const building *b, const char *text_id)
-{
-    return b && type_matches(b->type, text_id);
-}
-
-static int original_type_matches(const building *b, const char *text_id)
-{
-    return b && type_matches(static_cast<building_type>(b->data.rubble.og_type), text_id);
-}
-
-static const building_type_registry_impl::BuildingType *definition_for_type(building_type type)
-{
-    return building_type_registry_impl::definition_for_type(type);
-}
-
-static int definition_registers_water_footprint(const building_type_registry_impl::BuildingType *definition)
-{
-    return definition && definition->foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline;
-}
+using building_type_registry_impl::type_attr_is;
+using building_type_registry_impl::type_attr_is_any;
+using building_type_registry_impl::type_from_attr;
+using building_type_registry_impl::definition_for_type;
 
 static int output_cart_capacity_from_methods(
     const std::vector<building_type_registry_impl::ProductionMethod *> &methods,
@@ -252,7 +214,7 @@ static void report_missing_building_type_definition(
         safe_text(runtime_text_id),
         runtime_save_id,
         safe_text(legacy_text_id),
-        building_type_registry_has_definition(runtime_type),
+        building_type_registry_impl::definition_for_type(runtime_type) != nullptr,
         record ? record->x : 0,
         record ? record->y : 0,
         record ? record->grid_offset : 0,
@@ -400,7 +362,7 @@ Building Building::next_of_type() const
 
 int Building::matches(const char *text_id) const
 {
-    return type && text_id && type->attr() && std::strcmp(type->attr(), text_id) == 0;
+    return type && text_id && type->attr_is(text_id);
 }
 
 int Building::grid_offset() const
@@ -1087,13 +1049,12 @@ int Building::image_id() const
 void Building::add_map_tiles(int image_id) const
 {
     if (record_) {
-        const char *attr = type ? type->attr() : nullptr;
-        if (definition_registers_water_footprint(type)) {
+        if (type && type->foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline) {
             map_water_add_building(record_->id, record_->x, record_->y, record_->size, image_id);
             return;
         }
         int terrain = TERRAIN_BUILDING;
-        if (attr && !std::strcmp(attr, "wall")) {
+        if (matches("wall")) {
             terrain |= TERRAIN_WALL;
         }
         if (type && type->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
@@ -1463,7 +1424,13 @@ void Building::set_fumigation_direction(int direction)
 
 int Building::fort_figure_type() const
 {
-    return record_ ? record_->subtype.fort_figure_type : 0;
+    if (!record_) {
+        return 0;
+    }
+    if (record_->subtype.fort_figure_type) {
+        return record_->subtype.fort_figure_type;
+    }
+    return type ? type->military().primary_figure_type() : 0;
 }
 
 int Building::is_unfinished_monument() const
@@ -1545,7 +1512,7 @@ building *building_get(unsigned int id)
 
 int building_can_repair_type(building_type type)
 {
-    if (building_monument_is_limited(type) || type_matches(type, "aqueduct") || building_is_fort(type)) {
+    if (building_monument_is_limited(type) || type_attr_is(type, "aqueduct") || building_is_fort(type)) {
         return 0; // limited monuments and aqueducts cannot be repaired at the moment, aqueducts require a rework,
     }   //and limited monuments are too complex to easily repair, and arent a common occurrence
     // forts have the complexity of holding formations, so are also currently excluded
@@ -1788,7 +1755,7 @@ static void normalize_loaded_composed_main(building *main_record,
     main_record->x = static_cast<unsigned char>(expected_x);
     main_record->y = static_cast<unsigned char>(expected_y);
     main_record->grid_offset = map_grid_offset(expected_x, expected_y);
-    main_record->house_size = building_type_registry_has_housing(main_record->type) ? props->size : 0;
+    main_record->house_size = definition.has_housing() ? props->size : 0;
     main_record->output_resource_id = building_output_resource(main_record->type);
     main_record->prev_part_building_id = 0;
 
@@ -1978,26 +1945,28 @@ building *building_create(building_type type, int x, int y)
     fill_adjacent_types(b);
     city_culture_add_building_module_capacity(b);
 
+    Building building_obj(b);
+
     // house size
-    if (building_type_registry_has_housing(type)) {
+    if (building_obj.type && building_obj.type->has_housing()) {
         b->house_size = props->size;
     }
 
     // subtype
     if (building_is_house(type)) {
-        int level = building_type_registry_get_housing_level(type);
+        int level = building_obj.type && building_obj.type->housing_type() ?
+            building_obj.type->housing_type()->level() :
+            -1;
         b->subtype.house_level = static_cast<short>(level);
     }
 
     b->output_resource_id = building_output_resource(type);
 
-    Building building_obj(b);
     if (building_obj.type && building_obj.type->is_granary()) {
         b->resources[RESOURCE_NONE] = FULL_GRANARY;
     }
 
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
+    const building_type_registry_impl::BuildingType *definition = building_obj.type;
     const building_type_registry_impl::Distribution *distribution =
         definition ? definition->distribution() : nullptr;
 
@@ -2005,7 +1974,7 @@ building *building_create(building_type type, int x, int y)
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
         b->accepted_goods[r] = distribution && distribution->handles_resource(r);
     }
-    if (building_obj.type && building_obj.type->attr() && !std::strcmp(building_obj.type->attr(), "dock")) {
+    if (building_obj.matches("dock")) {
         for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
             b->accepted_goods[r] = 1;
         }
@@ -2024,14 +1993,14 @@ building *building_create(building_type type, int x, int y)
     // Most roadblock-like buildings should allow everything by default
     if (Roadblock(b).kind() != ROADBLOCK_NONE &&
         Roadblock(b).kind() != ROADBLOCK_STANDARD &&
-        !type_matches(b->type, "gatehouse") &&
-        !type_matches(b->type, "palisade_gate") &&
+        !type_attr_is(b->type, "gatehouse") &&
+        !type_attr_is(b->type, "palisade_gate") &&
         (!building_obj.type || !building_obj.type->is_granary()) &&
         (!building_obj.type || !building_obj.type->is_warehouse()) &&
         config_get(CONFIG_GP_CH_GATES_DEFAULT_TO_PASS_ALL_WALKERS)) {
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
     }
-    if (building_type_is_bridge(b->type)) {
+    if (definition && definition->roadblock().is_bridge()) {
         // Bridges should allow all walkers by default.
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
     }
@@ -2044,12 +2013,12 @@ building *building_create(building_type type, int x, int y)
         b->data.roadblock.exceptions = ROADBLOCK_PERMISSION_ALL;
     }
 
-    if (type_matches(b->type, "market") && config_get(CONFIG_GP_CH_MARKETS_DONT_ACCEPT)) {
+    if (type_attr_is(b->type, "market") && config_get(CONFIG_GP_CH_MARKETS_DONT_ACCEPT)) {
         if (const building_type_registry_impl::Distribution *market_distribution =
             building_obj.type ? building_obj.type->distribution() : nullptr) {
             market_distribution->set_acceptance(building_obj, 0);
         }
-    } else if (type_matches(b->type, "market") && !config_get(CONFIG_GP_CH_MARKETS_DONT_ACCEPT)) {
+    } else if (type_attr_is(b->type, "market") && !config_get(CONFIG_GP_CH_MARKETS_DONT_ACCEPT)) {
         if (const building_type_registry_impl::Distribution *market_distribution =
             building_obj.type ? building_obj.type->distribution() : nullptr) {
             market_distribution->set_acceptance(building_obj, 1);
@@ -2101,7 +2070,7 @@ void building_clear_related_data(building *b)
         Building fort(*b);
         formation_legion_delete_for_fort(fort);
     }
-    if (building_matches(b, "triumphal_arch")) {
+    if (Building(b).matches("triumphal_arch")) {
         city_buildings_remove_triumphal_arch();
         building_menu_update();
     }
@@ -2136,7 +2105,9 @@ int building_was_tent(const building *b)
     if (!b) {
         return 0;
     }
-    int level = building_type_registry_get_housing_level(static_cast<building_type>(b->data.rubble.og_type));
+    const building_type_registry_impl::BuildingType *definition =
+        definition_for_type(static_cast<building_type>(b->data.rubble.og_type));
+    int level = definition && definition->housing_type() ? definition->housing_type()->level() : -1;
     return level >= HOUSE_SMALL_TENT && level <= HOUSE_LARGE_TENT;
 }
 
@@ -2148,7 +2119,8 @@ int building_is_storage(building_type b_type)
 
 int building_is_still_burning(building *b)
 {
-    int hot = building_matches(b, "burning_ruin");
+    Building current(b);
+    int hot = current.matches("burning_ruin");
     int grid_offset = hot ? b->data.rubble.og_grid_offset : b->grid_offset;
     int size = hot ? b->data.rubble.og_size : b->size;
     grid_slice *b_area = map_grid_get_grid_slice_square(grid_offset, size);
@@ -2158,7 +2130,7 @@ int building_is_still_burning(building *b)
             return 1;
         }
         building *tile_building = building_get(map_building_at(offset));
-        if (building_matches(tile_building, "burning_ruin")) {
+        if (Building(tile_building).matches("burning_ruin")) {
             if (tile_building->state == BUILDING_STATE_RUBBLE) {
                 continue; // extinguished tile
             }
@@ -2173,7 +2145,7 @@ int building_can_repair(building *b)
     if (!b) {
         return 0;
     }
-    if (building_matches(b, "burning_ruin")) {
+    if (Building(b).matches("burning_ruin")) {
         if (building_is_still_burning(b)) {
             return 0;
         }
@@ -2199,8 +2171,8 @@ int building_repair_cost(building *b)
         return 0;
     }
     Building building_obj(b);
-    int is_ruin = building_matches(b, "burning_ruin") || // ruins and collapsed warehouse parts all use rubble data
-        building_matches(b, "warehouse_space") || (building_obj.type && building_obj.type->is_warehouse());
+    int is_ruin = building_obj.matches("burning_ruin") || // ruins and collapsed warehouse parts all use rubble data
+        building_obj.matches("warehouse_space") || (building_obj.type && building_obj.type->is_warehouse());
 
     og_grid_offset = is_ruin ? b->data.rubble.og_grid_offset : b->grid_offset;
     og_size = is_ruin ? b->data.rubble.og_size : b->size;
@@ -2211,14 +2183,14 @@ int building_repair_cost(building *b)
         int clear_cost = house_slice->size * (11 + 3); // 10.5 per new house tile + 3 per rubble tile to clear
         return clear_cost;
     }
-    if (building_matches(b, "warehouse_space")) {
+    if (building_obj.matches("warehouse_space")) {
         og_size = 1; // dont charge for clearing the whole warehouse, just the collapsed part, otherwise its *9
     }
     grid_slice *grid_slice = map_grid_get_grid_slice_square(og_grid_offset, og_size); // wont work correctly for hippo
     int clear_cost = building_construction_prepare_terrain(grid_slice, CLEAR_MODE_RUBBLE, COST_MEASURE);
     int placement_cost = model_get_building(og_type)->cost;
     const building_type_registry_impl::BuildingType *original_definition = definition_for_type(og_type);
-    if (original_definition && original_definition->is_warehouse() && building_matches(b, "warehouse_space")) {
+    if (original_definition && original_definition->is_warehouse() && building_obj.matches("warehouse_space")) {
         placement_cost = 0; // collapsed warehouse parts only need clearing cost, no placement cost
     }
     return clear_cost + placement_cost + placement_cost / 20; // +5% fee on a building price
@@ -2248,13 +2220,13 @@ static int is_warehouse_ruin(building *b)
 {
     int is_warehouse = 0;
     Building building_obj(b);
-    if ((building_obj.type && building_obj.type->is_warehouse()) || building_matches(b, "warehouse_space")) {
+    if ((building_obj.type && building_obj.type->is_warehouse()) || building_obj.matches("warehouse_space")) {
         is_warehouse = 1;
-    } else if (building_matches(b, "burning_ruin")) { // shouldnt happen - wh are fireproof - but just in case
+    } else if (building_obj.matches("burning_ruin")) { // shouldnt happen - wh are fireproof - but just in case
         building_type original_type = static_cast<building_type>(b->data.rubble.og_type);
         const building_type_registry_impl::BuildingType *original_definition = definition_for_type(original_type);
         if ((original_definition && original_definition->is_warehouse()) ||
-            original_type_matches(b, "warehouse_space")) {
+            type_attr_is(original_type, "warehouse_space")) {
             is_warehouse = 1;
         }
     }
@@ -2281,7 +2253,7 @@ static int warehouse_repair(building *b)
     }
     map_terrain_backup(); // backup the terrain in case of failure
     int cleared = building_construction_prepare_terrain(grid_slice, CLEAR_MODE_RUBBLE, COST_PROCESS);
-    building_type warehouse_type = runtime_type("warehouse");
+    building_type warehouse_type = type_from_attr("warehouse");
     if (cleared) {
         success = building_construction_place_building(warehouse_type, std_x, std_y, 1);
         new_building = building_main(building_get(map_building_at(map_grid_offset(std_x, std_y))));//inception
@@ -2324,7 +2296,8 @@ int building_repair(building *b)
     if (!b) {
         return 0;
     }
-    if (building_matches(b, "burning_ruin") && building_is_still_burning(b)) {
+    Building building_obj(b);
+    if (building_obj.matches("burning_ruin") && building_is_still_burning(b)) {
         city_warning_show(WARNING_REPAIR_BURNING, translation_for_key("TR_WARNING_REPAIR_BURNING"));
         return 0;
     }
@@ -2332,7 +2305,8 @@ int building_repair(building *b)
         if (building_monument_is_limited(b->type) ||
             building_monument_is_limited(static_cast<building_type>(b->data.rubble.og_type))) {
             city_warning_show(WARNING_REPAIR_MONUMENT, translation_for_key("TR_WARNING_CANT_REPAIR_MONUMENTS"));
-        } else if (building_matches(b, "aqueduct") || original_type_matches(b, "aqueduct")) {
+        } else if (building_obj.matches("aqueduct") ||
+            type_attr_is(static_cast<building_type>(b->data.rubble.og_type), "aqueduct")) {
             city_warning_show(WARNING_REPAIR_AQUEDUCT, translation_for_key("TR_WARNING_CANT_REPAIR_AQUEDUCTS"));
         } else {
             city_warning_show(WARNING_REPAIR_IMPOSSIBLE, translation_for_key("TR_WARNING_REPAIR_IMPOSSIBLE"));
@@ -2359,7 +2333,7 @@ int building_repair(building *b)
 
     if (building_is_house(type) || type == 1) {
         is_house_lot = 1;
-        building_change_type(b, building_type_registry_get_vacant_lot_fill_type());
+        building_change_type(b, building_type_registry_impl::vacant_lot_fill_type());
     }
     int placement_cost = 0;
     og_storage_id = b->storage_id; //store the original storage id before clearing it
@@ -2374,9 +2348,9 @@ int building_repair(building *b)
     int cleared = building_construction_prepare_terrain(grid_slice, CLEAR_MODE_RUBBLE, COST_PROCESS);
     if (is_house_lot) {
         success = building_construction_fill_vacant_lots(grid_slice);
-    } else if (type_matches_any(type_to_place, {"wall", "tower"})) {
+    } else if (type_attr_is_any(type_to_place, {"wall", "tower"})) {
         wall = 1;
-        building_type wall_type = runtime_type("wall");
+        building_type wall_type = type_from_attr("wall");
         for (int i = 0; i < grid_slice->size; i++) {
             success = building_construction_place_wall(grid_slice->grid_offsets[i]);
             placement_cost += model_get_building(wall_type)->cost * success;
@@ -2384,13 +2358,13 @@ int building_repair(building *b)
                 break; // force failure if any wall/tower placement failed
             }
         }
-        if (type_matches(type_to_place, "tower")) {
+        if (type_attr_is(type_to_place, "tower")) {
             map_tiles_update_all_walls(); // towers affect wall connections
             success = building_construction_place_building(type_to_place, x, y, 1);
         }
 
     } else {
-        if (type_matches(type_to_place, "gatehouse")) {
+        if (type_attr_is(type_to_place, "gatehouse")) {
             wall = 1;
         }
         success = building_construction_place_building(type_to_place, x, y, 1);
@@ -2448,22 +2422,24 @@ void building_update_state(void)
             continue;
         }
         if (b->state == BUILDING_STATE_UNDO || b->state == BUILDING_STATE_DELETED_BY_PLAYER) {
-            if (building_matches(b, "tower") || building_matches(b, "gatehouse")) {
+            Building building_obj(b);
+            if (building_obj.matches("tower") || building_obj.matches("gatehouse")) {
                 wall_recalc = 1;
                 road_recalc = 1;
-            } else if (building_matches(b, "reservoir")) {
+            } else if (building_obj.matches("reservoir")) {
                 aqueduct_recalc = 1;
             } else {
-                Building building_obj(b);
-                if ((building_obj.type && building_obj.type->is_granary()) || building_type_is_bridge(b->type)) {
+                if (building_obj.type &&
+                    (building_obj.type->is_granary() || building_obj.type->roadblock().is_bridge())) {
                     road_recalc = 1;
                 } else if (building_monument_is_grand_temple(b->type) ||
-                    building_matches(b, "pantheon") || building_matches(b, "lighthouse")) {
+                    building_obj.matches("pantheon") || building_obj.matches("lighthouse")) {
                     road_recalc = 1;
                 }
             }
             map_building_tiles_remove(b->id, b->x, b->y);
-            if (Roadblock(b).kind() != ROADBLOCK_NONE && b->size == 1 && !building_type_is_bridge(b->type)) {
+            if (Roadblock(b).kind() != ROADBLOCK_NONE && b->size == 1 &&
+                (!building_obj.type || !building_obj.type->roadblock().is_bridge())) {
                 // Leave the road behind the deleted roadblock
                 // except for bridges - they are coded as size 1 too
                 map_tiles_set_road(b->x, b->y);
@@ -2476,7 +2452,7 @@ void building_update_state(void)
                 city_population_remove_home_removed(b->house_population);
                 b->house_population = 0;
             }
-            if (building_is_fort(b->type) || building_matches(b, "fort_ground")) {
+            if (building_is_fort(b->type) || Building(b).matches("fort_ground")) {
                 b->state = BUILDING_STATE_DELETED_BY_GAME;
                 map_building_tiles_remove(b->id, b->x, b->y);
                 map_building_set_rubble_grid_building_id(b->grid_offset, 0, b->size);
@@ -2557,7 +2533,7 @@ int building_is_active(const building *b)
     if (building_monument_is_unfinished_monument(b)) {
         return 0;
     }
-    if (building_matches(b, "reservoir") || building_matches(b, "fountain")) {
+    if (type_attr_is(b->type, "reservoir") || type_attr_is(b->type, "fountain")) {
         return b->has_water_access;
     }
     const building_type_registry_impl::BuildingType *definition =
@@ -2565,14 +2541,14 @@ int building_is_active(const building *b)
     if (definition && definition->is_oracle()) {
         return !building_monument_is_monument(b) || b->monument.phase == MONUMENT_FINISHED;
     }
-    if (building_matches(b, "nymphaeum") || building_matches(b, "small_mausoleum") ||
-        building_matches(b, "large_mausoleum")) {
+    if (type_attr_is(b->type, "nymphaeum") || type_attr_is(b->type, "small_mausoleum") ||
+        type_attr_is(b->type, "large_mausoleum")) {
         return b->monument.phase == MONUMENT_FINISHED;
     }
-    if (building_matches(b, "wharf")) {
+    if (type_attr_is(b->type, "wharf")) {
         return b->num_workers > 0 && map_water_wharf_live_fishing_boats(Building(const_cast<building *>(b))) > 0;
     }
-    if (definition && std::strcmp(definition->attr(), "dock") == 0) {
+    if (type_attr_is(b->type, "dock")) {
         return b->num_workers > 0 && b->has_water_access;
     }
     return b->num_workers > 0;
@@ -2585,12 +2561,14 @@ int building_is_primary_product_producer(building_type type)
 
 int building_is_house(building_type type)
 {
-    return building_type_registry_has_housing(type);
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
+    return definition && definition->has_housing();
 }
 
 int building_get_house_group(building_type type)
 {
-    int legacy_level = building_type_registry_get_housing_level(type);
+    const building_type_registry_impl::BuildingType *definition = definition_for_type(type);
+    int legacy_level = definition && definition->housing_type() ? definition->housing_type()->level() : -1;
     if (legacy_level < 0) {
         return 0;
     }
@@ -2666,7 +2644,7 @@ int building_has_supplier_inventory(building_type type)
 
 int building_is_fort(building_type type)
 {
-    return type_matches_any(type, {
+    return type_attr_is_any(type, {
         "fort_legionaries",
         "fort_javelin",
         "fort_mounted",
@@ -2733,8 +2711,8 @@ int building_get_levy(const building *b)
     // Pantheon base bonus
     const building_type_registry_impl::BuildingType *definition =
         building_type_registry_impl::definition_for_type(b->type);
-    if (building_monument_working(runtime_type("pantheon")) &&
-        ((definition && definition->is_temple()) || type_matches_any(b->type, {
+    if (building_monument_working(type_from_attr("pantheon")) &&
+        ((definition && definition->is_temple()) || type_attr_is_any(b->type, {
                 "nymphaeum",
                 "small_mausoleum",
                 "large_mausoleum"
@@ -2762,7 +2740,7 @@ int building_get_laborers(building_type type)
     const model_building *model = model_get_building(type);
     int workers = model->laborers;
     // Neptune GT bonus
-    if (type_matches(type, "fountain") && building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
+    if (type_attr_is(type, "fountain") && building_monument_working_grand_temple_for_god(GOD_NEPTUNE)) {
         workers /= 2;
         if (workers == 0) {
             workers = 1;
@@ -2902,17 +2880,16 @@ static void building_resource_state_write_payload(buffer *buf)
 
         buffer_write_u32(buf, b->id);
         resource_save_write_ref(buf, building_resource_save_ref(static_cast<resource_type>(b->output_resource_id)));
+        Building building_obj(b);
         resource_save_write_ref(buf, building_resource_save_ref(
-            building_matches(b, "warehouse_space") ?
-                static_cast<resource_type>(b->subtype.warehouse_resource_id) :
+            building_obj.matches("warehouse_space") ? static_cast<resource_type>(b->subtype.warehouse_resource_id) :
                 RESOURCE_NONE));
         resource_save_write_ref(buf, building_resource_save_ref(
             building_uses_fetch_inventory(b) ?
                 static_cast<resource_type>(b->data.market.fetch_inventory_id) :
                 RESOURCE_NONE));
         resource_save_write_ref(buf, building_resource_save_ref(
-            building_matches(b, "cart_depot") ?
-                static_cast<resource_type>(b->data.depot.current_order.resource_type) :
+            building_obj.matches("cart_depot") ? static_cast<resource_type>(b->data.depot.current_order.resource_type) :
                 RESOURCE_NONE));
         building_write_resource_i16_values(buf, b->resources);
         building_write_resource_u8_values(buf, b->accepted_goods);
@@ -2968,7 +2945,7 @@ static int dock_has_any_accepted_goods(const building *b)
 
 static void repair_dock_accepted_goods_if_empty(building *b)
 {
-    if (!b || !building_matches(b, "dock") || dock_has_any_accepted_goods(b)) {
+    if (!b || !Building(b).matches("dock") || dock_has_any_accepted_goods(b)) {
         return;
     }
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
@@ -3038,7 +3015,8 @@ void building_resource_state_load(buffer *buf)
         if (b) {
             b->output_resource_id = static_cast<unsigned char>(
                 output >= RESOURCE_NONE && output < RESOURCE_SLOT_COUNT ? output : RESOURCE_NONE);
-            if (building_matches(b, "warehouse_space")) {
+            Building building_obj(b);
+            if (building_obj.matches("warehouse_space")) {
                 b->subtype.warehouse_resource_id =
                     warehouse_resource >= RESOURCE_NONE && warehouse_resource < RESOURCE_SLOT_COUNT ?
                         static_cast<short>(warehouse_resource) :
@@ -3050,7 +3028,7 @@ void building_resource_state_load(buffer *buf)
                         static_cast<unsigned char>(fetch_inventory) :
                         RESOURCE_NONE;
             }
-            if (building_matches(b, "cart_depot")) {
+            if (building_obj.matches("cart_depot")) {
                 b->data.depot.current_order.resource_type =
                     depot_order_resource >= RESOURCE_NONE && depot_order_resource < RESOURCE_SLOT_COUNT ?
                         static_cast<resource_type>(depot_order_resource) :
@@ -3121,7 +3099,7 @@ void building_load_state(buffer *buf, buffer *sequence, buffer *corrupt_houses, 
 
     // Fix messy old hack that assigned gardens to building 0
     building *b = first_building_slot();
-    if (b->state == BUILDING_STATE_UNUSED && type_matches(b->type, "gardens")) {
+    if (b->state == BUILDING_STATE_UNUSED && type_attr_is(b->type, "gardens")) {
         b->type = BUILDING_NONE;
     }
 

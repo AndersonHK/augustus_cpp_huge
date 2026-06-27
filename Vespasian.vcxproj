@@ -221,6 +221,8 @@
     <ClCompile Include="src\figure\sound.cpp" />
     <ClCompile Include="src\figure\trader.cpp" />
     <ClCompile Include="src\figure\figure_type_registry.cpp" />
+    <ClCompile Include="src\figure\unit_type_registry.cpp" />
+    <ClCompile Include="src\figure\formation_type_registry.cpp" />
     <ClCompile Include="src\figure\PathingMode.cpp" />
     <ClCompile Include="src\figure\visited_buildings.cpp" />
     <ClCompile Include="src\game\animation.cpp" />
@@ -568,7 +570,6 @@
     <ClInclude Include="src\building\building_runtime.h" />
     <ClInclude Include="src\building\building_runtime_internal.h" />
     <ClInclude Include="src\building\building_type.h" />
-    <ClInclude Include="src\building\building_type_api.h" />
     <ClInclude Include="src\building\building_type_id_bridge.h" />
     <ClInclude Include="src\building\building_type_legacy_migration.h" />
     <ClInclude Include="src\building\building_type_startup_bridge.h" />
@@ -743,6 +744,8 @@
     <ClInclude Include="src\figure\figure_runtime_native.h" />
     <ClInclude Include="src\figure\figure_type_registry.h" />
     <ClInclude Include="src\figure\figure_type_registry_internal.h" />
+    <ClInclude Include="src\figure\unit_type.h" />
+    <ClInclude Include="src\figure\formation_type.h" />
     <ClInclude Include="src\figure\PathingMode.h" />
     <ClInclude Include="src\figure\formation.h" />
     <ClInclude Include="src\figure\formation_enemy.h" />

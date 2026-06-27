@@ -1,7 +1,6 @@
 #pragma once
 
 #include "building/building_type.h"
-#include "building/building_type_api.h"
 
 #include <array>
 #include <initializer_list>
@@ -35,6 +34,8 @@ struct ParseState {
     int saw_event_data = 0;
     int saw_market = 0;
     int saw_flags = 0;
+    int saw_military = 0;
+    int saw_military_formation = 0;
     int saw_desirability = 0;
     int saw_desirability_value = 0;
     int saw_desirability_step = 0;
@@ -72,6 +73,7 @@ struct ParseState {
     int parsing_construction_phase = 0;
     int parsing_labor = 0;
     int parsing_labor_seeker = 0;
+    int parsing_military = 0;
     int parsing_culture_modules = 0;
     int parsing_storages = 0;
     int parsing_production_methods = 0;
@@ -92,19 +94,28 @@ extern std::string g_building_type_path;
 extern std::array<std::unique_ptr<BuildingType>, BUILDING_TYPE_MAX> g_building_types;
 extern ParseState g_parse_state;
 
-int directory_exists(const char *path);
 const BuildingType *definition_for_type(building_type type);
 building_type type_from_attr(std::string_view attr);
 int type_attr_is(building_type type, std::string_view attr);
 int type_attr_is_any(building_type type, std::initializer_list<std::string_view> attrs);
 int type_attr_is_any(building_type type, const char *const *attrs, int count);
-int type_is_bridge(building_type type);
-int type_is_ship_bridge(building_type type);
-int type_is_wall_foundation(building_type type);
-int type_is_wall_gate(building_type type);
-int type_has_water_foundation(building_type type);
+template<typename Predicate>
+building_type first_type_where(Predicate predicate)
+{
+    for (const std::unique_ptr<BuildingType> &definition : g_building_types) {
+        if (definition && predicate(*definition)) {
+            return definition->type();
+        }
+    }
+    return BUILDING_NONE;
+}
 building_type type_from_roadblock_bridge(RoadblockBridgeType bridge_type);
 building_type runtime_id_from_text(const char *text_id);
+building_type building_type_for_housing_level(int level, int footprint_size);
+building_type vacant_lot_fill_type();
+building_type vacant_lot_occupancy_type();
+int housing_type_level_count();
+int housing_type_level_at(int index);
 void refresh_building_type_path();
 void clear_xml_runtime_property_fields();
 

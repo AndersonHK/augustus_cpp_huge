@@ -74,14 +74,8 @@ static void draw_figure_layers(
     }
 }
 
-static void draw_map_flag(const Figure *f, int x, int y, float scale)
+static void draw_map_flag_number(const Figure *f, int x, int y, float scale)
 {
-    // base
-    Image::from_id(f->image_id).draw(x, y, COLOR_MASK_NONE, scale);
-    // flag
-    const Image &flag_image = Image::from_id(f->cart_image_id);
-    flag_image.draw(x, y - flag_image.height(), COLOR_MASK_NONE, scale);
-    // flag number
     int number = 0;
     int id = f->resource_id;
     if (id >= MAP_FLAG_INVASION_MIN && id < MAP_FLAG_INVASION_MAX) {
@@ -114,52 +108,51 @@ static void tile_cross_country_offset_to_pixel_offset(int cross_country_x, int c
     }
 }
 
-static int tile_progress_to_pixel_offset_x(int direction, int progress)
-{
-    if (figure_movement_tile_progress_complete(progress)) {
-        return 0;
-    }
-    switch (direction) {
-        case DIR_0_TOP:
-        case DIR_2_RIGHT:
-            return 2 * progress - 28;
-        case DIR_1_TOP_RIGHT:
-            return 4 * progress - 56;
-        case DIR_4_BOTTOM:
-        case DIR_6_LEFT:
-            return 28 - 2 * progress;
-        case DIR_5_BOTTOM_LEFT:
-            return 56 - 4 * progress;
-        default:
-            return 0;
-    }
-}
-
-static int tile_progress_to_pixel_offset_y(int direction, int progress)
-{
-    if (figure_movement_tile_progress_complete(progress)) {
-        return 0;
-    }
-    switch (direction) {
-        case DIR_0_TOP:
-        case DIR_6_LEFT:
-            return 14 - progress;
-        case DIR_2_RIGHT:
-        case DIR_4_BOTTOM:
-            return progress - 14;
-        case DIR_3_BOTTOM_RIGHT:
-            return 2 * progress - 28;
-        case DIR_7_TOP_LEFT:
-            return 28 - 2 * progress;
-        default:
-            return 0;
-    }
-}
-
 static void tile_progress_to_pixel_offset(int direction, int progress, int *pixel_x, int *pixel_y)
 {
-    *pixel_x = tile_progress_to_pixel_offset_x(direction, progress);
-    *pixel_y = tile_progress_to_pixel_offset_y(direction, progress);
+    *pixel_x = 0;
+    *pixel_y = 0;
+    if (figure_movement_tile_progress_complete(progress)) {
+        return;
+    }
+
+    switch (direction) {
+        case DIR_0_TOP:
+        case DIR_2_RIGHT:
+            *pixel_x = 2 * progress - 28;
+            break;
+        case DIR_1_TOP_RIGHT:
+            *pixel_x = 4 * progress - 56;
+            break;
+        case DIR_4_BOTTOM:
+        case DIR_6_LEFT:
+            *pixel_x = 28 - 2 * progress;
+            break;
+        case DIR_5_BOTTOM_LEFT:
+            *pixel_x = 56 - 4 * progress;
+            break;
+        default:
+            break;
+    }
+
+    switch (direction) {
+        case DIR_0_TOP:
+        case DIR_6_LEFT:
+            *pixel_y = 14 - progress;
+            break;
+        case DIR_2_RIGHT:
+        case DIR_4_BOTTOM:
+            *pixel_y = progress - 14;
+            break;
+        case DIR_3_BOTTOM_RIGHT:
+            *pixel_y = 2 * progress - 28;
+            break;
+        case DIR_7_TOP_LEFT:
+            *pixel_y = 28 - 2 * progress;
+            break;
+        default:
+            break;
+    }
 }
 
 static void adjust_pixel_offset(
@@ -211,7 +204,7 @@ static void adjust_pixel_offset(
         *pixel_x += x_offset - draw_request->sprite_offset_x;
         *pixel_y += y_offset - draw_request->sprite_offset_y;
     } else {
-        const Image &img = f->is_enemy_image ? Image::enemy(f->image_id) : Image::from_id(f->image_id);
+        const Image &img = Image::from_id(f->image_id);
         const image_animation *animation = img.animation();
         *pixel_x += x_offset - (animation ? animation->sprite_offset_x : 0);
         *pixel_y += y_offset - (animation ? animation->sprite_offset_y : 0);
@@ -240,17 +233,12 @@ static void draw_figure(
                 draw_request->scaling_policy);
         }
         draw_figure_layers(*draw_request, x, y, color_mask, scale, 0);
+        if (f->type == FIGURE_MAP_FLAG) {
+            draw_map_flag_number(f, x, y, scale);
+        }
         return;
     }
-    if (f->cart_image_id && f->type == FIGURE_MAP_FLAG) {
-        draw_map_flag(f, x, y, scale);
-    } else if (f->cart_image_id) {
-        Image::from_id(f->image_id).draw(x, y, color_mask, scale);
-    } else if (f->is_enemy_image) {
-        Image::enemy(f->image_id).draw(x, y, COLOR_MASK_NONE, scale);
-    } else {
-        Image::from_id(f->image_id).draw(x, y, color_mask, scale);
-    }
+    Image::from_id(f->image_id).draw(x, y, color_mask, scale);
 }
 
 void city_draw_figure(const Figure *f, int x, int y, float scale, int highlight)

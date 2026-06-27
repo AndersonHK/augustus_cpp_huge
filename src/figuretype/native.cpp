@@ -104,18 +104,15 @@ void figure_indigenous_native_action(Figure *f)
 
     f->is_enemy_image = 1;
     if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-        if (f->attack_image_offset >= 12) {
-            f->image_id = 393 + dir + 8 * ((f->attack_image_offset - 12) / 2);
-        } else {
-            f->image_id = 393 + dir;
-        }
+        const int frame_offset = f->attack_image_offset >= 12 ? (f->attack_image_offset - 12) / 2 : 0;
+        f->select_legacy_directional_frame_image(393, dir, frame_offset);
     } else if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = 441 + figure_image_corpse_offset(f);
+        f->select_legacy_corpse_image(441);
     } else if (f->direction == DIR_FIGURE_ATTACK) {
-        f->image_id = 393 + dir + 8 * (f->image_offset / 2);
+        f->select_legacy_directional_frame_image(393, dir, f->image_offset / 2);
     } else if (f->action_state == FIGURE_ACTION_159_NATIVE_ATTACKING) {
-        f->image_id = 297 + dir + 8 * f->image_offset;
+        f->select_legacy_directional_frame_image(297, dir, f->image_offset);
     } else {
-        f->image_id = 201 + dir + 8 * f->image_offset;
+        f->select_legacy_directional_frame_image(201, dir, f->image_offset);
     }
 }

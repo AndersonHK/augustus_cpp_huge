@@ -1,8 +1,7 @@
 #include "allowed_building.h"
 
-#include "building/building_type_api.h"
 #include "building/building_type_id_bridge.h"
-#include "building/building_type_startup_bridge.h"
+#include "building/building_type_registry_internal.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -71,11 +70,6 @@ static int conversion_from_original_initialized;
 
 static uint8_t allowed_buildings[BUILDING_TYPE_MAX];
 
-static building_type runtime_type(const char *text_id)
-{
-    return text_id ? building_type_startup_bridge_runtime_id_from_text(text_id) : BUILDING_NONE;
-}
-
 static void refresh_dynamic_original_allowed_slots(void)
 {
     memset(conversion_from_original, 0, sizeof(conversion_from_original));
@@ -85,15 +79,15 @@ static void refresh_dynamic_original_allowed_slots(void)
             if (!text_id) {
                 break;
             }
-            conversion_from_original[i][j] = runtime_type(text_id);
+            conversion_from_original[i][j] = building_type_registry_impl::type_from_attr(text_id);
         }
     }
 
-    conversion_from_original[9][0] = runtime_type("theater");
+    conversion_from_original[9][0] = building_type_registry_impl::type_from_attr("theater");
     conversion_from_original[9][1] = BUILDING_NONE;
-    conversion_from_original[42][0] = runtime_type("well");
+    conversion_from_original[42][0] = building_type_registry_impl::type_from_attr("well");
     conversion_from_original[42][1] = BUILDING_NONE;
-    conversion_from_original[7][0] = building_type_registry_get_vacant_lot_fill_type();
+    conversion_from_original[7][0] = building_type_registry_impl::vacant_lot_fill_type();
     conversion_from_original[7][1] = BUILDING_NONE;
     conversion_from_original_initialized = 1;
 }

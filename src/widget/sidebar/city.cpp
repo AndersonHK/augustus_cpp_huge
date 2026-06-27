@@ -31,7 +31,6 @@
 #include <string_view>
 
 
-#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "city/message.h"
 #include "city/view.h"
@@ -209,7 +208,7 @@ static building_type direct_tool_type_for_submenu(int submenu)
 {
     switch (submenu) {
         case BUILD_MENU_VACANT_HOUSE:
-            return building_type_registry_get_vacant_lot_fill_type();
+            return building_type_registry_impl::vacant_lot_fill_type();
         case BUILD_MENU_CLEAR_LAND:
             return clear_land_type();
         case BUILD_MENU_ROAD:

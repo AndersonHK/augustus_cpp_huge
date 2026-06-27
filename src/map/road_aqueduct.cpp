@@ -14,33 +14,6 @@
 #include "map/image.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
-static int building_matches(building *b, const char *text_id)
-{
-    if (!b) {
-        return 0;
-    }
-    Building current(b);
-    const building_type_registry_impl::BuildingType *definition = current.type;
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
-}
-
-static int building_at_matches(int grid_offset, const char *text_id)
-{
-    unsigned int building_id = map_building_at(grid_offset);
-    return building_id && building_matches(building_get(building_id), text_id);
-}
-
-static int building_is_wall_gate(building *b)
-{
-    if (!b) {
-        return 0;
-    }
-    Building current(b);
-    return current.type && current.type->roadblock().is_wall_gate();
-}
-
 int map_can_place_road_under_aqueduct(int grid_offset)
 {
     int image_id = map_image_at(grid_offset) - image_group(GROUP_BUILDING_AQUEDUCT);
@@ -155,16 +128,14 @@ static int is_road_tile_for_aqueduct(int grid_offset, int gate_orientation)
     int is_road = map_terrain_is(grid_offset, TERRAIN_ROAD) ? 1 : 0;
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         building *b = building_get(map_building_at(grid_offset));
-        if (building_is_wall_gate(b)) {
+        Building current(b);
+        if (b && current.type && current.type->roadblock().is_wall_gate()) {
             if (b->subtype.orientation == gate_orientation) {
                 is_road = 1;
             }
-        } else {
-            Building current(b);
-            if (current.type && current.type->is_granary()) {
-                if (figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset)) {
-                    is_road = 1;
-                }
+        } else if (current.type && current.type->is_granary()) {
+            if (figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset)) {
+                is_road = 1;
             }
         }
     }
@@ -216,7 +187,9 @@ static int is_aqueduct(int x, int y, int check_routing)
         return 0;
     } else if (map_terrain_is(grid_offset, TERRAIN_AQUEDUCT)) {
         return 1;
-    } else if (building_at_matches(grid_offset, "reservoir")) {
+    }
+    unsigned int building_id = map_building_at(grid_offset);
+    if (building_id && Building(building_get(building_id)).matches("reservoir")) {
         return 1;
     } else if (check_routing && Route::constructionDistanceTo(grid_offset) > 0) {
         return 1;

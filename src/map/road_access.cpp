@@ -17,15 +17,6 @@
 #include "map/terrain.h"
 #include "map/tiles.h"
 
-static int building_is_wall_gate(building *b)
-{
-    if (!b) {
-        return 0;
-    }
-    Building current(b);
-    return current.type && current.type->roadblock().is_wall_gate();
-}
-
 static int terrain_is_road_like(int grid_offset)
 {
     // Building road access ignores highways. Figure roaming has figure-specific
@@ -33,13 +24,46 @@ static int terrain_is_road_like(int grid_offset)
     return map_terrain_is(grid_offset, TERRAIN_ROAD | TERRAIN_ACCESS_RAMP) ? 1 : 0;
 }
 
+static int tile_accepts_storage_road_access(int grid_offset, int global_labor)
+{
+    const int valid_terrain = global_labor ?
+        TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP :
+        TERRAIN_ROAD | TERRAIN_ACCESS_RAMP;
+    if (!map_terrain_is(grid_offset, valid_terrain)) {
+        return 0;
+    }
+    return global_labor ||
+        Roadblock(building_get(map_building_at(grid_offset))).kind() == ROADBLOCK_NONE;
+}
+
+static int first_storage_road_access_point(
+    int x,
+    int y,
+    const int (*offsets)[2],
+    int offset_count,
+    int global_labor,
+    int *x_road,
+    int *y_road)
+{
+    for (int i = 0; i < offset_count; i++) {
+        const int candidate_x = x + offsets[i][0];
+        const int candidate_y = y + offsets[i][1];
+        if (tile_accepts_storage_road_access(map_grid_offset(candidate_x, candidate_y), global_labor)) {
+            *x_road = candidate_x;
+            *y_road = candidate_y;
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static int candidate_for_road_access_tile(int grid_offset, road_access_candidate *candidate)
 {
-    building *adjacent_building = map_terrain_is(grid_offset, TERRAIN_BUILDING) ?
-        building_get(map_building_at(grid_offset)) : nullptr;
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) &&
-        building_is_wall_gate(adjacent_building)) {
-        return 0;
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
+        Building adjacent(building_get(map_building_at(grid_offset)));
+        if (adjacent.type && adjacent.type->roadblock().is_wall_gate()) {
+            return 0;
+        }
     }
     if (!terrain_is_road_like(grid_offset)) {
         return 0;
@@ -218,38 +242,27 @@ void map_update_granary_internal_roads(const building *b)
 int map_has_road_access_warehouse(int x, int y, map_point *road)
 {
     building *warehouse = building_main(building_get(map_building_at(map_grid_offset(x, y))));
-    int rx = x = (warehouse->x);
-    int ry = y = (warehouse->y);
-    int glp = config_get(CONFIG_GP_CH_GLOBAL_LABOUR);
-    int valid_terrain = glp ? TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP : TERRAIN_ROAD | TERRAIN_ACCESS_RAMP;
-    int has_road = 0;
     if (!warehouse) {
         return 0; //unable to map the building
     }
-    // Check the 4 non-diagonal adjacent tiles for a 1x1 warehouse
-    if (map_terrain_is(map_grid_offset(x, y - 1), valid_terrain) &&
-        (Roadblock(building_get(map_building_at(map_grid_offset(x, y - 1)))).kind() == ROADBLOCK_NONE || glp)) {
-        rx = x;
-        ry = y - 1;
-        has_road = 1;
-    } else if (map_terrain_is(map_grid_offset(x + 1, y), valid_terrain) &&
-        (Roadblock(building_get(map_building_at(map_grid_offset(x + 1, y)))).kind() == ROADBLOCK_NONE || glp)) {
-        rx = x + 1;
-        ry = y;
-        has_road = 1;
-    } else if (map_terrain_is(map_grid_offset(x, y + 1), valid_terrain) &&
-        (Roadblock(building_get(map_building_at(map_grid_offset(x, y + 1)))).kind() == ROADBLOCK_NONE || glp)) {
-        rx = x;
-        ry = y + 1;
-        has_road = 1;
-    } else if (map_terrain_is(map_grid_offset(x - 1, y), valid_terrain) &&
-        (Roadblock(building_get(map_building_at(map_grid_offset(x - 1, y)))).kind() == ROADBLOCK_NONE || glp)) {
-        rx = x - 1;
-        ry = y;
-        has_road = 1;
-    }
-
-    if (has_road) {
+    x = warehouse->x;
+    y = warehouse->y;
+    int rx = x;
+    int ry = y;
+    const int access_offsets[][2] = {
+        { 0, -1 },
+        { 1, 0 },
+        { 0, 1 },
+        { -1, 0 },
+    };
+    if (first_storage_road_access_point(
+        x,
+        y,
+        access_offsets,
+        sizeof(access_offsets) / sizeof(access_offsets[0]),
+        config_get(CONFIG_GP_CH_GLOBAL_LABOUR),
+        &rx,
+        &ry)) {
         warehouse->road_access_x = rx;
         warehouse->road_access_y = ry;
         if (road) {
@@ -301,26 +314,20 @@ int map_has_road_access_hippodrome(int x, int y, map_point *road)
 int map_has_road_access_granary(int x, int y, map_point *road)
 {
     int rx = -1, ry = -1;
-    int glp = config_get(CONFIG_GP_CH_GLOBAL_LABOUR);
-    int valid_terrain = glp ? TERRAIN_ROAD | TERRAIN_HIGHWAY | TERRAIN_ACCESS_RAMP : TERRAIN_ROAD | TERRAIN_ACCESS_RAMP;
-    if (map_terrain_is(map_grid_offset(x + 1, y - 1), valid_terrain) &&
-        (Roadblock(building_get(map_building_at(map_grid_offset(x + 1, y - 1)))).kind() == ROADBLOCK_NONE || glp)) {
-        rx = x + 1;
-        ry = y - 1;
-    } else if (map_terrain_is(map_grid_offset(x + 3, y + 1), valid_terrain) &&
-        (Roadblock(building_get(map_building_at(map_grid_offset(x + 3, y + 1)))).kind() == ROADBLOCK_NONE || glp)) {
-        rx = x + 3;
-        ry = y + 1;
-    } else if (map_terrain_is(map_grid_offset(x + 1, y + 3), valid_terrain) &&
-        (Roadblock(building_get(map_building_at(map_grid_offset(x + 1, y + 3)))).kind() == ROADBLOCK_NONE || glp)) {
-        rx = x + 1;
-        ry = y + 3;
-    } else if (map_terrain_is(map_grid_offset(x - 1, y + 1), valid_terrain) &&
-        (Roadblock(building_get(map_building_at(map_grid_offset(x - 1, y + 1)))).kind() == ROADBLOCK_NONE || glp)) {
-        rx = x - 1;
-        ry = y + 1;
-    }
-    if (rx >= 0 && ry >= 0) {
+    const int access_offsets[][2] = {
+        { 1, -1 },
+        { 3, 1 },
+        { 1, 3 },
+        { -1, 1 },
+    };
+    if (first_storage_road_access_point(
+        x,
+        y,
+        access_offsets,
+        sizeof(access_offsets) / sizeof(access_offsets[0]),
+        config_get(CONFIG_GP_CH_GLOBAL_LABOUR),
+        &rx,
+        &ry)) {
         building *b = building_get(map_building_at(map_grid_offset(x, y)));
         if (b) {
             b->road_access_x = rx;

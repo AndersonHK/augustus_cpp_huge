@@ -13,8 +13,6 @@
 #include "core/config.h"
 #include "game/time.h"
 
-#include <cstring>
-
 #define POPULATION_SCALING_FACTOR 1200
 #define BASE_RESOURCE_REQUIREMENT 3
 
@@ -27,23 +25,6 @@ typedef enum {
 static void naval_battle_start(void);
 static void executions_start(void);
 static void imperial_games_start(void);
-
-static building_type first_type_matching(int (*matches)(const building_type_registry_impl::BuildingType &))
-{
-    for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type = static_cast<building_type>(type + 1)) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(type);
-        if (definition && matches(*definition)) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
-
-static int is_colosseum(const building_type_registry_impl::BuildingType &type)
-{
-    return std::strcmp(type.attr(), "colosseum") == 0;
-}
 
 static games_type make_game(
     int id,
@@ -87,7 +68,7 @@ static games_type make_game(
 
 static building_type colosseum_type(void)
 {
-    return first_type_matching(is_colosseum);
+    return building_type_registry_impl::type_from_attr("colosseum");
 }
 
 static games_type *all_games()

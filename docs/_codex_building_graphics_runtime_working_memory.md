@@ -8,6 +8,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - When a touched building-facing file needs object behavior, prefer converting the caller boundary to C++ and passing `Building`, `Building&`, or a typed owner object. Avoid adding new raw `building *` wrappers, id-to-object helpers, or C-linkage overloads beside the object path.
 - Current source still exposes `Building::draw_footprint(...)`, `Building::draw_top(...)`, and `Building::draw_animation(...)`. Those are live migration seams for the existing city renderer, not the desired final API shape.
 - The final renderer direction is a singular building-owned draw request/command path, with `BuildingType` graphics modules deciding footprint/top/animation/detail slices internally.
+- Historical agent scratch note `docs/agent_logs/building_object_migration/lagrange.md` was folded into this checkpoint: do not add parallel raw/object overloads, do not preserve duplicate stage-specific draw surfaces, and pull the next graphics migration by converting a caller boundary to pass `Building` into the real owner rather than adding another compatibility helper.
 - Hippodrome XML now declares finished graphics, phased construction graphics, and composed parts with rotation-aware offsets. Legacy Hippodrome image fallback still exists in `src/building/image.cpp`, so older notes saying Hippodrome had no XML mapping should be read as pre-composed-XML history, not current state.
 - Older dated sections below remain useful evidence, but later dated checkpoints and the source tree win when they disagree.
 

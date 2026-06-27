@@ -3,7 +3,6 @@
 #include "building/building.h"
 #include "variant.h"
 
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/properties.h"
 #include "building/rotation.h"
@@ -12,7 +11,6 @@
 #include "map/random.h"
 
 #include <cstddef>
-#include <cstring>
 
 #define CITY_DIRECTION_ANY -1
 #define MAX_VARIANTS_PER_BUILDING 12
@@ -43,13 +41,6 @@ static building_variant variants[] = {
 
 #define BUILDINGS_WITH_VARIANTS (sizeof(variants) / sizeof(building_variant))
 
-static int variant_matches_type(const building_variant &variant, building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && std::strcmp(definition->attr(), variant.type_text_id) == 0;
-}
-
 static const building_type_registry_impl::GraphicsTarget *rotation_graphics_target(building_type type)
 {
     const building_type_registry_impl::BuildingType *definition =
@@ -69,7 +60,7 @@ static const building_type_registry_impl::GraphicsTarget *rotation_graphics_targ
 int building_variant_has_variants(building_type type)
 {
     for (size_t i = 0; i < BUILDINGS_WITH_VARIANTS; i++) {
-        if (variant_matches_type(variants[i], type)) {
+        if (building_type_registry_impl::type_attr_is(type, variants[i].type_text_id)) {
             return 1;
         }
     }
@@ -95,7 +86,7 @@ static building_variant *get_variant_data(building_type type)
             continue;
         }
 
-        if (variant_matches_type(variants[i], type)) {
+        if (building_type_registry_impl::type_attr_is(type, variants[i].type_text_id)) {
             variant = &variants[i];
             break;
         }

@@ -1,7 +1,6 @@
 #include "labor.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/industry.h"
 #include "building/local_workforce.h"
 #include "city/culture.h"
@@ -35,10 +34,6 @@ typedef enum {
     LABOR_CATEGORY_MAX
 } labor_category;
 
-static int category_for_building_type(const building_type_registry_impl::BuildingType &type_definition)
-{
-    return static_cast<int>(type_definition.labor_category());
-}
 static struct {
     labor_category category;
     int workers;
@@ -199,7 +194,7 @@ static void calculate_workers_needed_per_category(void)
             continue;
         }
         Building bldg(b);
-        int category = bldg.type ? category_for_building_type(*bldg.type) : LABOR_CATEGORY_NONE;
+        int category = bldg.type ? static_cast<int>(bldg.type->labor_category()) : LABOR_CATEGORY_NONE;
         b->labor_category = category - 1;
         if (!should_have_workers(bldg, category, 1)) {
             continue;
@@ -323,7 +318,7 @@ static void set_building_worker_weight(void)
             continue;
         }
         Building bldg(b);
-        int cat = bldg.type ? category_for_building_type(*bldg.type) : LABOR_CATEGORY_NONE;
+        int cat = bldg.type ? static_cast<int>(bldg.type->labor_category()) : LABOR_CATEGORY_NONE;
         if (cat == LABOR_CATEGORY_NONE) {
             continue;
         }
@@ -368,7 +363,7 @@ static void allocate_workers_to_water(void)
             continue;
         }
         Building bldg(b);
-        if (!bldg.type || category_for_building_type(*bldg.type) != LABOR_CATEGORY_WATER) {
+        if (!bldg.type || static_cast<int>(bldg.type->labor_category()) != LABOR_CATEGORY_WATER) {
             continue;
         }
         set_building_workers(b, 0);
@@ -409,7 +404,7 @@ static void allocate_workers_to_non_water_buildings(void)
             continue;
         }
         Building bldg(b);
-        int cat = bldg.type ? category_for_building_type(*bldg.type) : LABOR_CATEGORY_NONE;
+        int cat = bldg.type ? static_cast<int>(bldg.type->labor_category()) : LABOR_CATEGORY_NONE;
         if (cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_NONE) {
             // water is handled by allocate_workers_to_water(void)
             continue;
@@ -452,7 +447,7 @@ static void allocate_workers_to_non_water_buildings(void)
             continue;
         }
         Building bldg(b);
-        int cat = bldg.type ? category_for_building_type(*bldg.type) : LABOR_CATEGORY_NONE;
+        int cat = bldg.type ? static_cast<int>(bldg.type->labor_category()) : LABOR_CATEGORY_NONE;
         if (cat == LABOR_CATEGORY_NONE || cat == LABOR_CATEGORY_WATER || cat == LABOR_CATEGORY_MILITARY) {
             continue;
         }

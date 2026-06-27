@@ -4,11 +4,10 @@
 #include "building/water_access_type.h"
 
 #include "core/crash_context.h"
+#include "core/xml_definition.h"
 #include "core/xml_value.h"
 #include "game/mod_manager.h"
 
-#include "core/file.h"
-#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 
@@ -36,50 +35,6 @@ struct ParseState {
 };
 
 ParseState g_parse_state;
-
-int compare_text(const char *left, const char *right)
-{
-    if (!left || !right) {
-        return left == right ? 0 : (left ? 1 : -1);
-    }
-    while (*left && *right && *left == *right) {
-        ++left;
-        ++right;
-    }
-    return static_cast<unsigned char>(*left) - static_cast<unsigned char>(*right);
-}
-
-int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
-{
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        log_error("Unable to open WaterAccessType xml", filename, 0);
-        return 0;
-    }
-
-    if (fseek(fp, 0, SEEK_END) != 0) {
-        file_close(fp);
-        log_error("Unable to seek WaterAccessType xml", filename, 0);
-        return 0;
-    }
-
-    long size = ftell(fp);
-    if (size < 0) {
-        file_close(fp);
-        log_error("Unable to size WaterAccessType xml", filename, 0);
-        return 0;
-    }
-    rewind(fp);
-
-    buffer.resize(static_cast<size_t>(size));
-    size_t read = fread(buffer.data(), 1, buffer.size(), fp);
-    file_close(fp);
-    if (read != buffer.size()) {
-        log_error("Unable to read WaterAccessType xml", filename, 0);
-        return 0;
-    }
-    return 1;
-}
 
 int parse_root()
 {
@@ -114,19 +69,12 @@ int parse_definition_file(const char *filename)
 {
     ErrorContextScope error_scope("water_access_type_registry.parse_definition", filename);
 
-    std::vector<char> buffer;
-    if (!load_file_to_buffer(filename, buffer)) {
-        return 0;
-    }
-
     g_parse_state = {};
-    if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize WaterAccessType xml parser", filename, 0);
-        return 0;
-    }
-
-    int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    int parsed = xml_definition::parse_file(
+        filename,
+        "WaterAccessType",
+        XML_ELEMENTS,
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
     if (!parsed || g_parse_state.error || !g_parse_state.definition) {
         log_error("Unable to parse WaterAccessType xml", filename, 0);
         return 0;
@@ -192,7 +140,7 @@ const WaterAccessType *find_water_access_type(const char *text_id)
         return nullptr;
     }
     for (const std::unique_ptr<WaterAccessType> &definition : g_water_access_types) {
-        if (definition && compare_text(definition->text_id(), text_id) == 0) {
+        if (definition && xml_value::equals(definition->text_id(), text_id)) {
             return definition.get();
         }
     }
@@ -234,21 +182,17 @@ int water_access_type_registry_load(void)
     g_water_access_by_number.fill(nullptr);
     g_defined_mask = 0;
 
-    const dir_listing *files = dir_find_files_with_extension(g_water_access_type_path.c_str(), "xml");
-    if (!files || files->num_files <= 0) {
-        log_error("No WaterAccessType xml files found in", g_water_access_type_path.c_str(), 0);
-        return 0;
-    }
-
-    for (int i = 0; i < files->num_files; i++) {
-        char full_path[FILE_NAME_MAX];
-        snprintf(full_path, FILE_NAME_MAX, "%s%s", g_water_access_type_path.c_str(), files->files[i].name);
-        if (!parse_definition_file(full_path)) {
-            log_error("Unable to parse WaterAccessType xml", full_path, 0);
-            return 0;
-        }
-    }
-    return 1;
+    return xml_definition::for_each_definition_file(
+        g_water_access_type_path,
+        "WaterAccessType",
+        true,
+        [](const xml_definition::DefinitionFile &file, const std::string &) {
+            if (parse_definition_file(file.full_path.c_str())) {
+                return true;
+            }
+            log_error("Unable to parse WaterAccessType xml", file.full_path.c_str(), 0);
+            return false;
+        });
 }
 
 const char *water_access_type_text_from_number_id(uint8_t number_id)

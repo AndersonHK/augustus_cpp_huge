@@ -2,7 +2,7 @@
 #include "housing.h"
 
 #include "building/count.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/house.h"
 #include "building/house_population.h"
 #include "building/properties.h"
@@ -26,7 +26,7 @@
 
 static building_type housing_type_for_level(int level_id)
 {
-    return building_type_registry_get_housing_type_for_level(level_id, 1);
+    return building_type_registry_impl::building_type_for_housing_level(level_id, 1);
 }
 
 static void draw_housing_table(void)
@@ -46,9 +46,9 @@ static void draw_housing_table(void)
     int total_residences = 0;
     int houses_using_goods[RESOURCE_SLOT_COUNT] = { 0 };
 
-    const int housing_level_count = building_type_registry_get_housing_level_count();
+    const int housing_level_count = building_type_registry_impl::housing_type_level_count();
     for (int index = 0; index < housing_level_count; index++) {
-        int level_id = building_type_registry_get_housing_level_at(index);
+        int level_id = building_type_registry_impl::housing_type_level_at(index);
         if (level_id < 0) {
             continue;
         }

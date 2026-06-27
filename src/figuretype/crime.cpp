@@ -13,7 +13,6 @@
 #include "building/building_type_registry_internal.h"
 
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/destruction.h"
 #include "building/granary.h"
 #include "building/warehouse.h"
@@ -47,16 +46,6 @@ typedef struct {
     int building_id;
     resource_type resource;
 } looter_destination;
-
-static int type_matches_any(building_type type, const char * const *attrs)
-{
-    for (int i = 0; attrs[i]; i++) {
-        if (building_type_registry_impl::type_attr_is(type, attrs[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 static int get_looter_destination(Figure *f)
 {
@@ -299,7 +288,7 @@ void figure_protestor_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     figure_image_increase_offset(f, 64);
     city_figures_add_protester();
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
 
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
         figure_combat_handle_corpse(f);
@@ -310,7 +299,7 @@ void figure_protestor_action(Figure *f)
         f->image_offset = 0;
     }
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = image_group(GROUP_FIGURE_CRIMINAL) + figure_image_corpse_offset(f) + 96;
+        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CRIMINAL) + 96);
     } else {
         f->image_id = image_group(GROUP_FIGURE_CRIMINAL) + CRIMINAL_OFFSETS[f->image_offset / 4] + 104;
     }
@@ -328,11 +317,11 @@ static void set_criminal_image(Figure *f)
     }
     dir = figure_image_normalize_direction(dir);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = image_group(GROUP_FIGURE_CRIMINAL) + 96 + figure_image_corpse_offset(f);
+        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CRIMINAL) + 96);
     } else if (f->direction == DIR_FIGURE_ATTACK) {
         f->image_id = image_group(GROUP_FIGURE_CRIMINAL) + 104 + CRIMINAL_OFFSETS[f->image_offset % 16];
     } else if (f->action_state == FIGURE_ACTION_121_RIOTER_MOVING || f->action_state == FIGURE_ACTION_228_CRIMINAL_GOING_TO_LOOT || f->action_state == FIGURE_ACTION_229_CRIMINAL_GOING_TO_ROB) {
-        f->image_id = image_group(GROUP_FIGURE_CRIMINAL) + dir + 8 * f->image_offset;
+        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_CRIMINAL), dir, f->image_offset);
     } else {
         f->image_id = image_group(GROUP_FIGURE_CRIMINAL) + 104 + CRIMINAL_OFFSETS[f->image_offset / 2];
     }
@@ -344,7 +333,7 @@ void figure_rioter_action(Figure *f)
     city_figures_add_rioter(!f->targeted_by_figure.save_id());
     f->terrain_usage = TERRAIN_USAGE_ENEMY;
     f->max_roam_length = 480;
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
     f->is_ghost = 0;
 
     switch (f->action_state) {
@@ -412,7 +401,7 @@ void figure_robber_action(Figure *f)
     city_figures_add_robber(!f->targeted_by_figure.save_id());
     f->terrain_usage = TERRAIN_USAGE_PREFER_ROADS_HIGHWAY;
     f->max_roam_length = 480;
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
     f->is_ghost = 0;
 
     switch (f->action_state) {
@@ -465,7 +454,7 @@ void figure_looter_action(Figure *f)
     city_figures_add_looter(!f->targeted_by_figure.save_id());
     f->terrain_usage = TERRAIN_USAGE_PREFER_ROADS_HIGHWAY;
     f->max_roam_length = 480;
-    f->cart_image_id = 0;
+    f->clear_legacy_cart_overlay_image();
     f->is_ghost = 0;
 
     switch (f->action_state) {
@@ -548,7 +537,10 @@ int figure_rioter_collapse_building(Figure *f)
         if (building.type && building.type->is_well()) {
             continue;
         }
-        if (type_matches_any(b->type, non_collapsible_types)) {
+        if (building_type_registry_impl::type_attr_is_any(
+            b->type,
+            non_collapsible_types,
+            (sizeof(non_collapsible_types) / sizeof(non_collapsible_types[0])) - 1)) {
             continue;
         }
         int house_level = building_house_legacy_level(Building(b));

@@ -27,7 +27,6 @@
 
 #include "assets/assets.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/menu.h"
 #include "building/monument.h"
 #include "building/properties.h"
@@ -125,26 +124,6 @@ static void replace_all(std::string &text, std::string_view placeholder, std::st
     }
 }
 
-static std::string localized_text_from_key_name(const char *key_name)
-{
-    return key_name ? legacy_text(translation_for_key(key_name)) : "";
-}
-
-static std::string building_type_name(building_type type)
-{
-    std::string text = localized_text_from_key_name(building_type_registry_get_name_key(type));
-    if (!text.empty()) {
-        return text;
-    }
-    return localized_text_from_key_name(building_type_registry_get_button_text_key(type));
-}
-
-static std::string resource_name(resource_type resource)
-{
-    resource_data *data = resource_get_data(resource);
-    return data ? legacy_text(data->text) : "";
-}
-
 static PlaceWarningMessage warning_text(warning_type type, translation_key key)
 {
     return {type, localized_text(key)};
@@ -153,7 +132,7 @@ static PlaceWarningMessage warning_text(warning_type type, translation_key key)
 static PlaceWarningMessage warning_from_template(warning_type type, translation_key key, building_type building)
 {
     std::string text = localized_text(key);
-    replace_all(text, "<building-type>", building_type_name(building));
+    replace_all(text, "<building-type>", building_construction_warning_type_name(building));
     return {type, text};
 }
 
@@ -161,8 +140,8 @@ static PlaceWarningMessage warning_from_template(warning_type type, translation_
     resource_type resource)
 {
     std::string text = localized_text(key);
-    replace_all(text, "<building-type>", building_type_name(building));
-    replace_all(text, "<resource>", resource_name(resource));
+    replace_all(text, "<building-type>", building_construction_warning_type_name(building));
+    replace_all(text, "<resource>", building_construction_warning_resource_name(resource));
     return {type, text};
 }
 
@@ -170,8 +149,8 @@ static PlaceWarningMessage warning_from_template(warning_type type, translation_
     building_type required_building)
 {
     std::string text = localized_text(key);
-    replace_all(text, "<building-type>", building_type_name(building));
-    replace_all(text, "<required-building>", building_type_name(required_building));
+    replace_all(text, "<building-type>", building_construction_warning_type_name(building));
+    replace_all(text, "<required-building>", building_construction_warning_type_name(required_building));
     return {type, text};
 }
 
@@ -179,7 +158,7 @@ static PlaceWarningMessage max_count_warning_from_template(warning_type type, tr
     int max_count)
 {
     std::string text = localized_text(key);
-    replace_all(text, "<building-type>", building_type_name(building));
+    replace_all(text, "<building-type>", building_construction_warning_type_name(building));
     replace_all(text, "<max-count>", std::to_string(max_count));
     return {type, text};
 }
@@ -314,13 +293,14 @@ static int check_gatehouse_tiles(int grid_offset)
 
 static void add_building(building *b)
 {
-    if (building_type_registry_has_construction(b->type) &&
-        !building_type_registry_has_phased_construction(b->type) &&
+    Building building_obj(b);
+    const building_type_registry_impl::BuildingType *definition = building_obj.type;
+    if (definition && definition->has_construction() && !definition->has_phased_construction() &&
         building_monument_type_is_monument(b->type) &&
         !b->monument.phase) {
         b->monument.phase = MONUMENT_FINISHED;
     }
-    if (Building(b).refresh_graphic_if_native()) {
+    if (building_obj.refresh_graphic_if_native()) {
         return;
     }
     int image_id = building_image_get(b);
@@ -492,8 +472,8 @@ static void add_to_map(
             b->subtype.orientation = building_rotation_get_rotation();
         }
         add_composed_building(b, placement);
-        if (building_type_registry_has_phased_construction(type)) {
-            int road_update_radius = building_type_registry_get_construction_road_update_radius(type);
+        if (definition.has_phased_construction()) {
+            int road_update_radius = definition.construction().road_update_radius();
             if (road_update_radius > 0) {
                 map_tiles_update_area_roads(b->x, b->y, road_update_radius);
             }
@@ -511,8 +491,8 @@ static void add_to_map(
         } else if (building_is_fort(type)) {
             assign_fort_formation_to_parts(b);
         }
-    } else if (building_type_registry_has_phased_construction(type)) {
-        int road_update_radius = building_type_registry_get_construction_road_update_radius(type);
+    } else if (definition.has_phased_construction()) {
+        int road_update_radius = definition.construction().road_update_radius();
         if (road_update_radius > 0) {
             map_tiles_update_area_roads(b->x, b->y, road_update_radius);
         }
@@ -619,7 +599,7 @@ int building_construction_is_warehouse_corner(int tile_no)
 int building_construction_fill_vacant_lots(grid_slice *area)
 {
     int items_placed = 0;
-    building_type vacant_lot_type = building_type_registry_get_vacant_lot_fill_type();
+    building_type vacant_lot_type = building_type_registry_impl::vacant_lot_fill_type();
     for (int i = 0; i < area->size; i++) {
         int grid_offset = area->grid_offsets[i];
         int x = map_grid_offset_to_x(grid_offset);
@@ -652,12 +632,14 @@ struct force_place_check {
     int clear_offsets[FORCE_PLACE_MAX_CLEAR_TILES];
 };
 
-static int instant_building_has_required_resources(building_type type, int emit_warnings)
+static int instant_building_has_required_resources(
+    const building_type_registry_impl::BuildingType &definition,
+    int emit_warnings)
 {
     for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
-        int amount = building_type_registry_get_instant_construction_requirement(type, resource);
+        int amount = definition.construction().instant_requirement_amount(resource);
         if (amount > 0 && city_resource_count_warehouses_amount(resource) < amount) {
-            building_needs_resource_warning(type, resource).show_when(emit_warnings);
+            building_needs_resource_warning(definition.type(), resource).show_when(emit_warnings);
             return 0;
         }
     }
@@ -719,7 +701,7 @@ static int building_construction_global_rules_allow_placement(
         building_needs_materials_warning(type).show_when(emit_warnings);
         return 0;
     }
-    if (!instant_building_has_required_resources(type, emit_warnings)) {
+    if (!instant_building_has_required_resources(definition, emit_warnings)) {
         return 0;
     }
     if (!construction_rules_allow_placement(definition, emit_warnings)) {
@@ -749,8 +731,14 @@ static int terrain_requirement_allows_placement(int x, int y, PlaceWarningMessag
 
 static void instant_building_remove_required_resources(building_type type)
 {
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition) {
+        return;
+    }
+
     for (resource_type resource = (RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
-        int amount = building_type_registry_get_instant_construction_requirement(type, resource);
+        int amount = definition->construction().instant_requirement_amount(resource);
         if (amount > 0) {
             building_warehouses_remove_resource(resource, amount);
         }

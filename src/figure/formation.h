@@ -2,7 +2,10 @@
 
 #include "building/building_fwd.h"
 #include "core/buffer.h"
+#include "figure/formation_type.h"
 #include "figure/type.h"
+
+#include <initializer_list>
 class Building;
 
 
@@ -11,22 +14,13 @@ class Building;
 
 #define NATIVE_FORMATION 0
 
-enum {
-    LEGION_RECRUIT_NONE = 0,
-    LEGION_RECRUIT_MOUNTED = 1,
-    LEGION_RECRUIT_JAVELIN = 2,
-    LEGION_RECRUIT_LEGIONARY = 3,
-    LEGION_RECRUIT_INFANTRY = 4,
-    LEGION_RECRUIT_ARCHER = 5,
-};
-
-typedef enum {
+enum formation_attack_enum {
     FORMATION_ATTACK_FOOD_CHAIN = 0,
     FORMATION_ATTACK_GOLD_STORES = 1,
     FORMATION_ATTACK_BEST_BUILDINGS = 2,
     FORMATION_ATTACK_TROOPS = 3,
     FORMATION_ATTACK_RANDOM = 4
-} formation_attack_enum;
+};
 
 enum {
     FORMATION_COLUMN = 0,
@@ -45,16 +39,16 @@ enum {
     FORMATION_MAX = 13
 };
 
-typedef struct {
+struct formation_state {
     int duration_halt;
     int duration_advance;
     int duration_regroup;
-} formation_state;
+};
 
 /**
  * Formation data
  */
-typedef struct {
+struct formation {
     unsigned int id; /**< ID of the formation */
     int faction_id; /**< 1 = player, 0 = everyone else */
 
@@ -76,6 +70,7 @@ typedef struct {
     int figure_type; /**< Type of figure in this formation */
     int num_figures; /**< Current number of figures in the formation */
     int max_figures; /**< Maximum number of figures */
+    const FormationType *formation_type_definition; /**< Runtime declaration; restored from the owning fort. */
     int figures[MAX_FORMATION_FIGURES]; /**< Figure IDs */
     int total_damage; /**< Total damage of all figures added */
     int max_total_damage; /**< Maximum total damage of all figures added */
@@ -141,43 +136,187 @@ typedef struct {
 
     unsigned int target_formation_id;
 
-} formation;
-
-inline int formation_slot_capacity(const formation *m)
-{
-    if (!m || m->max_figures <= 0 || m->max_figures > MAX_FORMATION_FIGURES) {
-        return MAX_FORMATION_FIGURES;
+    void set_formation_type(const FormationType *definition)
+    {
+        formation_type_definition = definition;
+        if (definition) {
+            max_figures = definition->capacity();
+        }
     }
-    return m->max_figures;
-}
 
-inline int formation_figure_count(const formation *m)
-{
-    if (!m || m->num_figures <= 0) {
+    const FormationType *formation_type() const
+    {
+        return formation_type_definition;
+    }
+
+    void bind_legion_definition_from_fort(const Building &fort);
+    void refresh_legion_definition_from_home();
+
+    ::figure_type figure_type_id() const
+    {
+        return static_cast<::figure_type>(figure_type);
+    }
+
+    bool has_figure_type(::figure_type type) const
+    {
+        return figure_type_id() == type;
+    }
+
+    bool has_any_figure_type(std::initializer_list<::figure_type> types) const
+    {
+        for (::figure_type type : types) {
+            if (has_figure_type(type)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    int declared_capacity() const
+    {
+        if (formation_type_definition) {
+            return formation_type_definition->capacity();
+        }
+        return max_figures > 0 ? max_figures : MAX_FORMATION_FIGURES;
+    }
+
+    int slot_capacity() const
+    {
+        const int capacity = declared_capacity();
+        if (capacity <= 0 || capacity > MAX_FORMATION_FIGURES) {
+            return MAX_FORMATION_FIGURES;
+        }
+        return capacity;
+    }
+
+    int figure_count() const
+    {
+        if (num_figures <= 0) {
+            return 0;
+        }
+        const int capacity = slot_capacity();
+        return num_figures < capacity ? num_figures : capacity;
+    }
+
+    int total_figure_count() const
+    {
+        return num_figures;
+    }
+
+    bool has_figures() const
+    {
+        return num_figures > 0;
+    }
+
+    int has_open_slot() const
+    {
+        return num_figures < slot_capacity();
+    }
+
+    int is_full() const
+    {
+        return num_figures >= slot_capacity();
+    }
+
+    int overflow_count() const
+    {
+        const int overflow = num_figures - slot_capacity();
+        return overflow > 0 ? overflow : 0;
+    }
+
+    bool counts_for_legion_type(::figure_type type) const
+    {
+        return is_legion && (type == FIGURE_FORT_STANDARD || has_figure_type(type));
+    }
+
+    bool should_update_herd(bool include_empty_wolf_spawns) const
+    {
+        return in_use && is_herd && !is_legion && (has_figures() || include_empty_wolf_spawns);
+    }
+
+    int base_morale_limit() const;
+    int legion_distant_battle_strength_factor() const;
+    int legion_curse_weight() const;
+
+    void clear_roster()
+    {
+        for (int &figure_id : figures) {
+            figure_id = 0;
+        }
+        num_figures = 0;
+        total_damage = 0;
+        max_total_damage = 0;
+    }
+
+    int assign_figure_to_open_slot(int figure_id)
+    {
+        const int capacity = slot_capacity();
+        for (int slot = 0; slot < capacity; slot++) {
+            if (!figures[slot]) {
+                figures[slot] = figure_id;
+                return slot;
+            }
+        }
+        // Large invasions can overflow the fixed legacy array; spread overflow soldiers across existing slots.
+        return figure_id % capacity;
+    }
+
+    int add_figure_to_roster(int figure_id, int deployed, int damage, int max_damage)
+    {
+        num_figures++;
+        total_damage += damage;
+        max_total_damage += max_damage;
+        if (deployed) {
+            is_at_fort = 0;
+        }
+        return assign_figure_to_open_slot(figure_id);
+    }
+
+    int first_figure_id() const
+    {
+        const int capacity = slot_capacity();
+        for (int slot = 0; slot < capacity; slot++) {
+            if (figures[slot]) {
+                return figures[slot];
+            }
+        }
         return 0;
     }
-    const int slot_capacity = formation_slot_capacity(m);
-    return m->num_figures < slot_capacity ? m->num_figures : slot_capacity;
-}
 
-inline int formation_has_open_slot(const formation *m)
-{
-    return m && m->num_figures < formation_slot_capacity(m);
-}
-
-inline int formation_is_full(const formation *m)
-{
-    return m && m->num_figures == formation_slot_capacity(m);
-}
-
-inline int formation_overflow_count(const formation *m)
-{
-    if (!m) {
-        return 0;
+    template <typename Visitor>
+    void for_each_figure_id(Visitor visitor) const
+    {
+        const int capacity = slot_capacity();
+        for (int slot = 0; slot < capacity; slot++) {
+            if (figures[slot]) {
+                visitor(figures[slot], slot);
+            }
+        }
     }
-    const int overflow_count = m->num_figures - formation_slot_capacity(m);
-    return overflow_count > 0 ? overflow_count : 0;
-}
+
+    template <typename Visitor>
+    void for_each_figure_id_reverse(Visitor visitor) const
+    {
+        for (int slot = slot_capacity() - 1; slot >= 0; slot--) {
+            if (figures[slot]) {
+                visitor(figures[slot], slot);
+            }
+        }
+    }
+
+    template <typename Predicate>
+    bool any_figure_id(Predicate predicate) const
+    {
+        const int capacity = slot_capacity();
+        for (int slot = 0; slot < capacity; slot++) {
+            if (figures[slot] && predicate(figures[slot], slot)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+};
 
 void formations_clear(void);
 
@@ -247,6 +386,7 @@ void formation_move_herds_away(int x, int y);
 void formation_calculate_figures(void);
 
 void formation_update_all(int second_time);
+void formation_refresh_runtime_definitions(void);
 
 void formations_save_state(buffer *buf, buffer *totals);
 void formations_load_state(buffer *buf, buffer *totals, int version);

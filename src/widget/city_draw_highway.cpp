@@ -1,6 +1,5 @@
 #include "building/building.h"
 #include "building/building_record.h"
-#include "figure/figure.h"
 #include "graphics/image.h"
 #include "graphics/runtime_texture.h"
 #include "map/aqueduct.h"
@@ -45,8 +44,8 @@ static int is_highway_access(int grid_offset, int direction_index)
         return 1;
     }
     if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-        const building *b = building_get(map_building_at(grid_offset));
-        Building building_object(const_cast<building *>(b));
+        building *b = building_get(map_building_at(grid_offset));
+        Building building_object(b);
         if (building_object.type && building_object.type->is_granary()) {
             return grid_offset == b->grid_offset + map_grid_delta(1, 0) ||
                 grid_offset == b->grid_offset + map_grid_delta(0, 1) ||

@@ -1,7 +1,6 @@
 #include "formation.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/count.h"
 #include "building/monument.h"
 #include "city/data_private.h"
@@ -165,6 +164,74 @@ void formation_refresh_regalia(void)
     }
 }
 
+void formation::bind_legion_definition_from_fort(const Building &fort)
+{
+    if (!is_legion || !fort.id() || !fort.type) {
+        return;
+    }
+    set_formation_type(fort.type->military().formation_type());
+    const ::figure_type fort_figure_type = static_cast<::figure_type>(fort.fort_figure_type());
+    if (fort_figure_type != FIGURE_NONE) {
+        figure_type = fort_figure_type;
+    }
+}
+
+void formation::refresh_legion_definition_from_home()
+{
+    if (!is_legion || building_id <= 0) {
+        return;
+    }
+    bind_legion_definition_from_fort(Building(building_get(building_id)));
+}
+
+int formation::base_morale_limit() const
+{
+    if (has_figure_type(FIGURE_FORT_LEGIONARY)) {
+        return has_military_training ? 90 : 80;
+    }
+    if (has_figure_type(FIGURE_ENEMY_CAESAR_LEGIONARY)) {
+        return 100;
+    }
+    if (has_any_figure_type({
+        FIGURE_FORT_JAVELIN,
+        FIGURE_FORT_MOUNTED,
+        FIGURE_FORT_INFANTRY,
+        FIGURE_FORT_ARCHER
+    })) {
+        return has_military_training ? 70 : 60;
+    }
+    switch (enemy_type) {
+        case ENEMY_0_BARBARIAN:
+        case ENEMY_1_NUMIDIAN:
+        case ENEMY_2_GAUL:
+        case ENEMY_3_CELT:
+        case ENEMY_4_GOTH:
+            return 80;
+        case ENEMY_8_GREEK:
+        case ENEMY_10_CARTHAGINIAN:
+            return 90;
+        default:
+            return 70;
+    }
+}
+
+int formation::legion_distant_battle_strength_factor() const
+{
+    if (has_military_training) {
+        return has_figure_type(FIGURE_FORT_LEGIONARY) ? 3 : 2;
+    }
+    return has_figure_type(FIGURE_FORT_LEGIONARY) ? 2 : 1;
+}
+
+int formation::legion_curse_weight() const
+{
+    int weight = total_figure_count();
+    if (has_figure_type(FIGURE_FORT_LEGIONARY)) {
+        weight *= 2;
+    }
+    return weight;
+}
+
 formation *formation_create_legion(const Building &fort)
 {
     const int building_id = fort.id();
@@ -179,6 +246,7 @@ formation *formation_create_legion(const Building &fort)
     m->is_legion = 1;
     m->figure_type = type;
     m->building_id = building_id;
+    m->refresh_legion_definition_from_home();
     m->layout = FORMATION_DOUBLE_LINE_1;
     m->morale = 50;
     m->is_at_fort = 1;
@@ -314,21 +382,12 @@ int formation_is_charging(const formation *m)
 
 int formation_update_halted_state(formation *m)
 {
-    int all_figures_idle = 1;
+    const bool has_moving_figure = m->any_figure_id([](int figure_id, int) {
+        return Figure::get(figure_id)->direction != DIR_8_NONE;
+    });
 
-    for (int i = 0; i < formation_figure_count(m); i++) {
-        int figure_id = m->figures[i];
-        if (figure_id) {
-            const Figure *f = Figure::get(figure_id);
-            if (f->direction != DIR_8_NONE) {
-                all_figures_idle = 0;
-                break;
-            }
-        }
-    }
-
-    m->is_halted = all_figures_idle;
-    return all_figures_idle;
+    m->is_halted = !has_moving_figure;
+    return m->is_halted;
 }
 
 
@@ -408,7 +467,7 @@ void formation_caesar_pause(void)
 {
     for (formation &entry : formations) {
         formation *m = &entry;
-        if (m->in_use == 1 && m->figure_type == FIGURE_ENEMY_CAESAR_LEGIONARY) {
+        if (m->in_use == 1 && m->has_figure_type(FIGURE_ENEMY_CAESAR_LEGIONARY)) {
             m->wait_ticks = 20;
         }
     }
@@ -418,7 +477,7 @@ void formation_caesar_retreat(void)
 {
     for (formation &entry : formations) {
         formation *m = &entry;
-        if (m->in_use == 1 && m->figure_type == FIGURE_ENEMY_CAESAR_LEGIONARY) {
+        if (m->in_use == 1 && m->has_figure_type(FIGURE_ENEMY_CAESAR_LEGIONARY)) {
             m->months_low_morale = 1;
         }
     }
@@ -445,13 +504,14 @@ void formation_calculate_legion_totals(void)
             if (m->is_legion) {
                 data.id_last_legion = i;
                 data.num_legions++;
-                if (m->figure_type == FIGURE_FORT_LEGIONARY) {
+                if (m->has_figure_type(FIGURE_FORT_LEGIONARY)) {
                     city_military_add_legionary_legion();
                 }
             }
-            if (m->missile_attack_timeout <= 0 && m->figures[0]) {
-                Figure *f = Figure::get(m->figures[0]);
-                if (f->state == FIGURE_STATE_ALIVE) {
+            if (m->missile_attack_timeout <= 0) {
+                const int figure_id = m->first_figure_id();
+                Figure *f = figure_id ? Figure::get(figure_id) : nullptr;
+                if (f && f->state == FIGURE_STATE_ALIVE) {
                     formation_set_home(m, f->x, f->y);
                 }
             }
@@ -500,40 +560,16 @@ int formation_for_legion(int legion_index)
 
 void formation_change_morale(formation *m, int amount)
 {
-    int max_morale;
-    if (m->figure_type == FIGURE_FORT_LEGIONARY) {
-        max_morale = m->has_military_training ? 90 : 80;
-    } else if (m->figure_type == FIGURE_ENEMY_CAESAR_LEGIONARY) {
-        max_morale = 100;
-    } else if (m->figure_type == FIGURE_FORT_JAVELIN || m->figure_type == FIGURE_FORT_MOUNTED
-        || m->figure_type == FIGURE_FORT_INFANTRY || m->figure_type == FIGURE_FORT_ARCHER) {
-        max_morale = m->has_military_training ? 70 : 60;
-    } else {
-        switch (m->enemy_type) {
-            case ENEMY_0_BARBARIAN:
-            case ENEMY_1_NUMIDIAN:
-            case ENEMY_2_GAUL:
-            case ENEMY_3_CELT:
-            case ENEMY_4_GOTH:
-                max_morale = 80;
-                break;
-            case ENEMY_8_GREEK:
-            case ENEMY_10_CARTHAGINIAN:
-                max_morale = 90;
-                break;
-            default:
-                max_morale = 70;
-                break;
-        }
-    }
-
-    m->morale = calc_bound(m->morale + amount, 0, max_morale + m->mess_hall_max_morale_modifier);
+    m->morale = calc_bound(
+        m->morale + amount,
+        0,
+        m->base_morale_limit() + m->mess_hall_max_morale_modifier);
 }
 
 void formation_update_morale_after_death(formation *m)
 {
     formation_calculate_figures();
-    int pct_dead = calc_percentage(1, m->num_figures + 1);
+    int pct_dead = calc_percentage(1, m->total_figure_count() + 1);
     int morale;
     if (pct_dead < 8) {
         morale = -4;
@@ -722,13 +758,8 @@ static void clear_figures(void)
 {
     for (unsigned int i = 1; i < formations.size(); i++) {
         formation *f = formation_get(i);
-        for (int fig = 0; fig < MAX_FORMATION_FIGURES; fig++) {
-            f->figures[fig] = 0;
-        }
-        f->num_figures = 0;
+        f->clear_roster();
         f->is_at_fort = 1;
-        f->total_damage = 0;
-        f->max_total_damage = 0;
     }
 }
 
@@ -736,14 +767,12 @@ int formation_legion_count_alive_soldiers(int formation_id)
 {
     formation *m = formation_get(formation_id);
     int alive_soldiers = 0;
-    for (int i = 0; i < formation_figure_count(m); i++) {
-        if (m->figures[i]) {
-            Figure *f = Figure::get(m->figures[i]);
-            if (!f->is_dead()) {
-                alive_soldiers++;
-            }
+    m->for_each_figure_id([&](int figure_id, int) {
+        Figure *f = Figure::get(figure_id);
+        if (!f->is_dead()) {
+            alive_soldiers++;
         }
-    }
+    });
     return alive_soldiers;
 }
 
@@ -752,7 +781,7 @@ int formation_legion_count_alive_soldiers_by_type(figure_type type)
     int totals = 0;
     for (formation &entry : formations) {
         formation *m = &entry;
-        if (m->in_use && m->is_legion && (m->figure_type == type || type == FIGURE_FORT_STANDARD)) {
+        if (m->in_use && m->counts_for_legion_type(type)) {
             // fort_standard used to count all types
             totals += formation_legion_count_alive_soldiers(m->id);
         }
@@ -761,33 +790,11 @@ int formation_legion_count_alive_soldiers_by_type(figure_type type)
 }
 
 
-static int add_figure(int formation_id, int figure_id, int deployed, int damage, int max_damage)
-{
-    formation *f = formation_get(formation_id);
-    f->num_figures++;
-    f->total_damage += damage;
-    f->max_total_damage += max_damage;
-    if (deployed) {
-        f->is_at_fort = 0;
-    }
-    const int slot_capacity = formation_slot_capacity(f);
-    for (int fig = 0; fig < slot_capacity; fig++) {
-        if (!f->figures[fig]) {
-            f->figures[fig] = figure_id;
-            return fig;
-        }
-    }
-
-    // The rest of the code can happen on large invasions
-    // Try to balance the remaining soldiers evenly instead of stacking them all on one tile
-    return figure_id % slot_capacity;
-}
-
 void formation_move_herds_away(int x, int y)
 {
     for (unsigned int i = 1; i < formations.size(); i++) {
         formation *f = formation_get(i);
-        if (f->in_use != 1 || f->is_legion || !f->is_herd || f->num_figures <= 0) {
+        if (f->in_use != 1 || f->is_legion || !f->is_herd || !f->has_figures()) {
             continue;
         }
         if (calc_maximum_distance(x, y, f->x_home, f->y_home) <= 6) {
@@ -811,7 +818,8 @@ void formation_calculate_figures(void)
         if (f->type == FIGURE_ENEMY54_GLADIATOR) {
             continue;
         }
-        int index = add_figure(f->formation_id, i,
+        formation *m = formation_get(f->formation_id);
+        int index = m->add_figure_to_roster(i,
             f->formation_at_rest != 1, f->damage,
             figure_properties_for_type(static_cast<figure_type>(f->type))->max_damage
         );
@@ -823,31 +831,31 @@ void formation_calculate_figures(void)
         formation *m = formation_get(i);
         if (m->in_use && !m->is_herd) {
             if (m->is_legion) {
-                if (m->num_figures > 0) {
+                if (m->has_figures()) {
                     int was_halted = m->is_halted;
                     int was_charging = m->is_charging;
                     formation_update_movement_all_states(m);
                     if (!was_charging && m->is_charging && !m->is_at_fort) {
-                        if (m->figure_type == FIGURE_FORT_MOUNTED) {
+                        if (m->has_figure_type(FIGURE_FORT_MOUNTED)) {
                             sound_effect_play(SOUND_EFFECT_HORSE_MOVING);//CHAAARGE!
-                        } else if (m->figure_type == FIGURE_FORT_INFANTRY) {
+                        } else if (m->has_figure_type(FIGURE_FORT_INFANTRY)) {
                             sound_speech_play_file("wavs/horn3.wav"); //unused horn sound
                         }
                     }
                     if (!was_halted && m->is_halted) { // formation stopped
                         m->halted_at_grid_offset = map_grid_offset(m->x_home, m->y_home);
                         m->started_moving_from_grid_offset = 0;
-                        if (m->figure_type == FIGURE_FORT_LEGIONARY) {
+                        if (m->has_figure_type(FIGURE_FORT_LEGIONARY)) {
                             sound_effect_play(SOUND_EFFECT_FORMATION_SHIELD);
                         }
                     }
                 }
             } else {
                 // enemy
-                if (m->num_figures <= 0) {
+                if (!m->has_figures()) {
                     formation_clear(m->id);
                 } else {
-                    enemy_army_totals_add_enemy_formation(m->num_figures);
+                    enemy_army_totals_add_enemy_formation(m->total_figure_count());
                 }
             }
         }
@@ -901,7 +909,9 @@ static void update_directions(void)
     for (formation &entry : formations) {
         formation *m = &entry;
         if (m->in_use && !m->is_herd) {
-            update_direction(m->id, Figure::get(m->figures[0])->direction);
+            if (int figure_id = m->first_figure_id()) {
+                update_direction(m->id, Figure::get(figure_id)->direction);
+            }
         }
     }
 }
@@ -911,8 +921,16 @@ static void set_legion_max_figures(void)
     for (formation &entry : formations) {
         formation *m = &entry;
         if (m->in_use && m->is_legion) {
-            m->max_figures = MAX_FORMATION_FIGURES;
+            m->refresh_legion_definition_from_home();
+            m->max_figures = m->declared_capacity();
         }
+    }
+}
+
+void formation_refresh_runtime_definitions(void)
+{
+    for (formation &entry : formations) {
+        entry.refresh_legion_definition_from_home();
     }
 }
 

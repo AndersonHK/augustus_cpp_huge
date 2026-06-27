@@ -1062,7 +1062,7 @@ int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnP
     }
 
     switch (policy.mode) {
-        case building_type_registry_impl::SpawnMode::ServiceRoamer:
+        case building_type_registry_impl::SpawnMode::FigureSpawn:
             return create_spawned_figure(policy, road);
         case building_type_registry_impl::SpawnMode::TempleSupplier:
             return spawn_temple_supplier(road);
@@ -1083,7 +1083,7 @@ int building_runtime::try_spawn_policy(const building_type_registry_impl::SpawnP
     }
 }
 
-void building_runtime::spawn_service_roamer_group(
+void building_runtime::run_spawn_group(
     const building_type_registry_impl::SpawnDelayGroup &group,
     size_t group_index,
     int run_labor)
@@ -1184,7 +1184,7 @@ void building_runtime::spawn_figure()
     for (size_t i = 0; i < spawn_groups.size(); i++) {
         const building_type_registry_impl::SpawnDelayGroup &group = spawn_groups[i];
         if (!group.policies.empty()) {
-            spawn_service_roamer_group(group, i, i == 0);
+            run_spawn_group(group, i, i == 0);
         }
     }
 

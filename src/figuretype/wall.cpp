@@ -2,8 +2,6 @@
 #include "wall.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
-#include "building/building_type_registry_internal.h"
 #include "city/view.h"
 #include "core/calc.h"
 #include "core/config.h"
@@ -20,8 +18,6 @@
 #include "map/road_access.h"
 #include "map/terrain.h"
 #include "sound/effect.h"
-
-#include <cstring>
 
 #define BALLISTA_RANGE 15
 #define WATCHTOWER_RANGE 12
@@ -47,11 +43,6 @@ static const int TOWER_SENTRY_FIRING_OFFSETS[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
-
-static int building_matches(const Building &building, const char *attr)
-{
-    return building.type && building.type->attr() && std::strcmp(building.type->attr(), attr) == 0;
-}
 
 void figure_ballista_action(Figure *f)
 {
@@ -116,10 +107,12 @@ void figure_ballista_action(Figure *f)
     }
     int dir = figure_image_direction(f);
     if (f->action_state == FIGURE_ACTION_181_BALLISTA_FIRING) {
-        f->image_id = image_group(GROUP_FIGURE_BALLISTA) + dir +
-            8 * BALLISTA_FIRING_OFFSETS[f->wait_ticks_missile / 4];
+        f->select_legacy_directional_frame_image(
+            image_group(GROUP_FIGURE_BALLISTA),
+            dir,
+            BALLISTA_FIRING_OFFSETS[f->wait_ticks_missile / 4]);
     } else {
-        f->image_id = image_group(GROUP_FIGURE_BALLISTA) + dir;
+        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_BALLISTA), dir, 0);
     }
 }
 
@@ -211,25 +204,27 @@ void figure_tower_sentry_set_image(Figure *f)
 {
     int dir = figure_image_direction(f);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = image_group(GROUP_FIGURE_TOWER_SENTRY) +
-            136 + figure_image_corpse_offset(f);
+        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_TOWER_SENTRY) + 136);
     } else if (f->action_state == FIGURE_ACTION_172_TOWER_SENTRY_FIRING) {
-        f->image_id = image_group(GROUP_FIGURE_TOWER_SENTRY) +
-            dir + 96 + 8 * TOWER_SENTRY_FIRING_OFFSETS[f->wait_ticks_missile / 2];
+        f->select_legacy_directional_frame_image(
+            image_group(GROUP_FIGURE_TOWER_SENTRY) + 96,
+            dir,
+            TOWER_SENTRY_FIRING_OFFSETS[f->wait_ticks_missile / 2]);
     } else if (f->action_state == FIGURE_ACTION_225_WATCHMAN_SHOOTING) {
         dir = figure_image_normalize_direction(f->attack_direction);
-        f->image_id = image_group(GROUP_FIGURE_TOWER_SENTRY) +
-            dir + 96 + 8 * TOWER_SENTRY_FIRING_OFFSETS[f->wait_ticks_missile / 2];
+        f->select_legacy_directional_frame_image(
+            image_group(GROUP_FIGURE_TOWER_SENTRY) + 96,
+            dir,
+            TOWER_SENTRY_FIRING_OFFSETS[f->wait_ticks_missile / 2]);
     } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
         int image_id = image_group(GROUP_FIGURE_TOWER_SENTRY);
-        if (f->attack_image_offset < 16) {
-            f->image_id = image_id + 96 + dir;
-        } else {
-            f->image_id = image_id + 96 + dir + 8 * ((f->attack_image_offset - 16) / 2);
-        }
+        const int frame_offset = f->attack_image_offset < 16 ? 0 : (f->attack_image_offset - 16) / 2;
+        f->select_legacy_directional_frame_image(image_id + 96, dir, frame_offset);
     } else {
-        f->image_id = image_group(GROUP_FIGURE_TOWER_SENTRY) +
-            dir + 8 * f->image_offset;
+        f->select_legacy_directional_frame_image(
+            image_group(GROUP_FIGURE_TOWER_SENTRY),
+            dir,
+            f->image_offset);
     }
 }
 
@@ -263,7 +258,7 @@ void figure_tower_sentry_action(Figure *f)
             break;
         case FIGURE_ACTION_170_TOWER_SENTRY_AT_REST:
 
-            if (!building_matches(tower, "tower")) {
+            if (!tower.matches("tower")) {
                 f->state = FIGURE_STATE_DEAD;
             }
 

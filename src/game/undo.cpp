@@ -11,7 +11,6 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/house.h"
 
@@ -31,7 +30,6 @@
 #include "map/sprite.h"
 #include "map/terrain.h"
 
-#include <initializer_list>
 #include <string.h>
 
 #define MAX_UNDO_BUILDINGS 50
@@ -53,23 +51,6 @@ static struct {
         } items[MAX_UNDO_TYPE_CHANGES];
     } type_changes;
 } data;
-
-static int type_matches(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && text_id && strcmp(definition->attr(), text_id) == 0;
-}
-
-static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
-{
-    for (const char *text_id : text_ids) {
-        if (type_matches(type, text_id)) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 int game_can_undo(void)
 {
@@ -262,7 +243,7 @@ static void add_building_to_terrain(building *b)
         }
         map_building_tiles_add(b->id, b->x, b->y, size, 0, 0);
     }
-    if (type_matches(b->type, "wharf")) {
+    if (building_type_registry_impl::type_attr_is(b->type, "wharf")) {
         b->data.industry.fishing_boat_id = 0;
         b->data.industry.second_fishing_boat_id = 0;
     }
@@ -275,7 +256,7 @@ void game_undo_perform(void)
     }
     data.available = 0;
     city_finance_process_construction(-data.building_cost);
-    if (type_matches_any(data.type, {"clear_land", "clear_trees"})) {
+    if (building_type_registry_impl::type_attr_is_any(data.type, {"clear_land", "clear_trees"})) {
         for (int i = 0; i < data.num_buildings; i++) {
             if (data.buildings[i].id) {
                 building *b = building_restore_from_undo(&data.buildings[i]);
@@ -284,7 +265,7 @@ void game_undo_perform(void)
                     if (!building_storage_restore(b->storage_id)) {
                         building_storage_reset_building_ids();
                     }
-                } else if (type_matches(b->type, "triumphal_arch")) {
+                } else if (building_type_registry_impl::type_attr_is(b->type, "triumphal_arch")) {
                     const building_type arch = b->type;
                     city_buildings_build_triumphal_arch();
                     building_menu_update();
@@ -305,24 +286,24 @@ void game_undo_perform(void)
         map_property_restore();
         map_building_restore();
         map_property_clear_constructing_and_deleted();
-    } else if (type_matches_any(data.type, {"aqueduct", "road", "wall", "highway"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(data.type, {"aqueduct", "road", "wall", "highway"})) {
         map_terrain_restore();
         map_aqueduct_restore();
         restore_map_images();
         game_undo_restore_building_types();
         building_connectable_update_connections();
 
-    } else if (type_matches_any(data.type, {"low_bridge", "ship_bridge"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(data.type, {"low_bridge", "ship_bridge"})) {
         map_terrain_restore();
         map_sprite_restore();
         restore_map_images();
-    } else if (type_matches_any(data.type, {"plaza", "gardens", "overgrown_gardens"})) {
+    } else if (building_type_registry_impl::type_attr_is_any(data.type, {"plaza", "gardens", "overgrown_gardens"})) {
         map_terrain_restore();
         map_aqueduct_restore();
         map_property_restore();
         restore_map_images();
     } else if (data.num_buildings) {
-        if (type_matches(data.type, "draggable_reservoir")) {
+        if (building_type_registry_impl::type_attr_is(data.type, "draggable_reservoir")) {
             map_terrain_restore();
             map_aqueduct_restore();
             restore_map_images();
@@ -352,7 +333,7 @@ void game_undo_reduce_time_available(void)
         return;
     }
     data.timeout_ticks--;
-    if (type_matches_any(data.type, {
+    if (building_type_registry_impl::type_attr_is_any(data.type, {
         "clear_land",
         "clear_trees",
         "aqueduct",
@@ -372,7 +353,7 @@ void game_undo_reduce_time_available(void)
         window_invalidate();
         return;
     }
-    if (data.type == building_type_registry_get_vacant_lot_fill_type()) {
+    if (data.type == building_type_registry_impl::vacant_lot_fill_type()) {
         for (int i = 0; i < data.num_buildings; i++) {
             if (data.buildings[i].id && building_get(data.buildings[i].id)->house_population) {
                 // no undo on a new house where people moved in

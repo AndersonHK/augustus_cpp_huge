@@ -6,21 +6,12 @@
 #include "building/building_record.h"
 #include "core/image.h"
 #include "core/image_group.h"
-#include "map/bridge.h"
 #include "map/grid.h"
 #include "map/orientation.h"
 #include "map/tiles.h"
 
-#include <cstring>
-
 static grid_u32 images;
 static grid_u32 images_backup;
-
-static int building_matches(const Building &building, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition = building.type;
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
-}
 
 unsigned int map_image_at(int grid_offset)
 {
@@ -77,7 +68,7 @@ void map_image_update_all(void)
             b.state_id() != BUILDING_STATE_CREATED) {
             continue;
         }
-        if (building_type_is_bridge(record->type) || building_matches(b, "wall")) {
+        if ((b.type && b.type->roadblock().is_bridge()) || b.matches("wall")) {
             continue; //bridges are drawn as a part of terrain drawing, and their image shouldnt be fetched.
         }
         if (b.refresh_graphic_if_native()) {

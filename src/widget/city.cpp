@@ -25,7 +25,6 @@
 
 #include "game/settings.h"
 
-#include "building/building_type_api.h"
 #include "building/properties.h"
 #include "city/finance.h"
 #include "core/calc.h"

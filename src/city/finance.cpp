@@ -3,7 +3,7 @@
 #include "finance.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "building/count.h"
 #include "building/culture_module.h"
 #include "building/house.h"
@@ -18,28 +18,16 @@
 #include "map/data.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
 static int house_tax_multiplier(const Building &house)
 {
     const model_house *model = building_house_get_model(house);
     return model ? difficulty_adjust_money(model->tax_multiplier) : 0;
 }
 
-static int building_matches(const Building &building, const char *text_id)
-{
-    return building.type && text_id && std::strcmp(building.type->attr(), text_id) == 0;
-}
-
 static building *first_of_type(const char *text_id)
 {
-    for (int id = 1; id < building_count(); id++) {
-        building *b = building_get(id);
-        if (building_matches(Building(b), text_id)) {
-            return b;
-        }
-    }
-    return nullptr;
+    building_type type = building_type_registry_impl::type_from_attr(text_id);
+    return type == BUILDING_NONE ? nullptr : building_first_of_type(type);
 }
 
 typedef struct {
@@ -312,9 +300,9 @@ static void collect_monthly_taxes(void)
     city_data.taxes.monthly.uncollected_patricians = 0;
     city_data.taxes.monthly.collected_patricians = 0;
 
-    const int housing_level_count = building_type_registry_get_housing_level_count();
+    const int housing_level_count = building_type_registry_impl::housing_type_level_count();
     for (int i = 0; i < housing_level_count; i++) {
-        int level = building_type_registry_get_housing_level_at(i);
+        int level = building_type_registry_impl::housing_type_level_at(i);
         if (level >= 0) {
             city_data.population.at_level[level] = 0;
         }

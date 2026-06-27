@@ -5,7 +5,6 @@
 #include "city/festival.h"
 #include "figure/action.h"
 #include "figure/figure.h"
-#include "figure/figure_graphics.h"
 #include "map/building.h"
 #include "map/road_access.h"
 
@@ -38,8 +37,13 @@
 #include <exception>
 #include <limits>
 #include <memory>
-#include <string_view>
 #include <vector>
+
+namespace figure_runtime_native_impl {
+bool update_legacy_graphics_policy_image_state(
+    Figure &figure,
+    const figure_type_registry_impl::FigureTypeDefinition *definition);
+}
 
 namespace {
 
@@ -75,11 +79,6 @@ void clear_entry(unsigned int id)
 int entry_matches_figure(const RuntimeEntry &entry, const Figure *f)
 {
     return entry.data == f && entry.created_sequence == f->created_sequence;
-}
-
-bool type_matches(const building_type_registry_impl::BuildingType *type, const char *text_id)
-{
-    return type && std::string_view(type->attr()) == text_id;
 }
 
 const char *profile_id_for_priest_owner(const Figure *f)
@@ -158,19 +157,23 @@ const char *infer_profile_id(const Figure *f)
                     }
                     const building_type_registry_impl::BuildingType *building_type = f->building.type;
                     if (f->type == FIGURE_ACTOR) {
-                        return type_matches(building_type, "amphitheater") ? "amphitheater_service" : "theater_service";
+                        return building_type && building_type->attr_is("amphitheater") ?
+                            "amphitheater_service" :
+                            "theater_service";
                     }
                     if (f->type == FIGURE_GLADIATOR) {
-                        if (type_matches(building_type, "arena")) {
+                        if (building_type && building_type->attr_is("arena")) {
                             return "arena_service";
                         }
-                        if (type_matches(building_type, "colosseum")) {
+                        if (building_type && building_type->attr_is("colosseum")) {
                             return "colosseum_service";
                         }
                         return "amphitheater_service";
                     }
                     if (f->type == FIGURE_LION_TAMER) {
-                        return type_matches(building_type, "colosseum") ? "colosseum_service" : "arena_service";
+                        return building_type && building_type->attr_is("colosseum") ?
+                            "colosseum_service" :
+                            "arena_service";
                     }
                     if (f->type == FIGURE_CHARIOTEER) {
                         return "hippodrome_service";
@@ -434,10 +437,13 @@ const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Fi
 
 int figure_runtime_update_graphics(Figure *f)
 {
-    if (!f) {
+    RuntimeEntry *entry = bind_entry(f);
+    if (!entry || !entry->definition) {
         return 0;
     }
-    return FigureGraphics::update_legacy_image_state(*f) ? 1 : 0;
+    return figure_runtime_native_impl::update_legacy_graphics_policy_image_state(
+        *f,
+        entry->definition) ? 1 : 0;
 }
 
 int figure_runtime_choose_roaming_direction(

@@ -22,7 +22,6 @@
 #include "graphics/text.h"
 
 #include <cstdlib>
-#include <cstring>
 #include <vector>
 
 #define STORAGE_ORIGINAL_BUFFER_SIZE 32
@@ -30,16 +29,6 @@
 #define STORAGE_CURRENT_BUFFER_SIZE (STORAGE_STATIC_BUFFER_SIZE + RESOURCE_SLOT_COUNT * 2)
 
 static std::vector<data_storage> storages;
-
-static int storage_building_is_granary(const Building &b)
-{
-    return b.type && b.type->is_granary();
-}
-
-static int storage_building_is_warehouse(const Building &b)
-{
-    return b.type && b.type->is_warehouse();
-}
 
 static void initialize_storage(data_storage &storage, unsigned int position)
 {
@@ -94,9 +83,9 @@ int building_storage_get_array_size(void)
 int building_storage_try_add_resource(Building &b, int resource, int amount, int is_produced)
 {
     resource_type resource_id = static_cast<resource_type>(resource);
-    if (storage_building_is_granary(b)) {
+    if (b.type && b.type->is_granary()) {
         return building_granary_try_add_resource(b, resource_id, amount, is_produced, 1);
-    } else if (storage_building_is_warehouse(b)) {
+    } else if (b.type && b.type->is_warehouse()) {
         return building_warehouse_try_add_resource(b, resource_id, amount, 1);
     }
     return 0;
@@ -251,9 +240,9 @@ int building_storage_count_stored_resource_types(int building_id)
 
 int building_storage_get_amount(const Building &b, resource_type resource)
 {
-    if (storage_building_is_granary(b)) {
+    if (b.type && b.type->is_granary()) {
         return b.resource_amount(resource);
-    } else if (storage_building_is_warehouse(b)) {
+    } else if (b.type && b.type->is_warehouse()) {
         return building_warehouse_get_amount(b, resource);
     }
     return 0;
@@ -271,7 +260,7 @@ building_storage_state building_storage_get_state(const Building &b, int resourc
     if (b.has_plague() || (b.state_id() != BUILDING_STATE_IN_USE && b.state_id() != BUILDING_STATE_CREATED)) {
         return BUILDING_STORAGE_STATE_NOT_ACCEPTING;
     }
-    if (!storage_building_is_granary(b) && !storage_building_is_warehouse(b)) {
+    if (!b.type || !b.type->is_storage()) {
         return BUILDING_STORAGE_STATE_NOT_ACCEPTING;
     }
     const building_storage *s = building_storage_get(b.storage_id());
@@ -281,7 +270,7 @@ building_storage_state building_storage_get_state(const Building &b, int resourc
         // If relative is 0, return raw state without checking amounts
         return entry->state;
     }
-    int amount = storage_building_is_warehouse(b) ?
+    int amount = b.type->is_warehouse() ?
         building_warehouse_get_amount(b, static_cast<resource_type>(resource)) : b.resource_amount(static_cast<resource_type>(resource));
 
     switch (entry->state) {
@@ -312,7 +301,7 @@ building_storage_state building_storage_get_state(const Building &b, int resourc
 resource_type building_storage_get_highest_quantity_resource(Building &b)
 {
     resource_type highest_resource = RESOURCE_NONE;
-    if (storage_building_is_warehouse(b)) {
+    if (b.type && b.type->is_warehouse()) {
         building_warehouse_recount_resources(b);
     }
     for (resource_type resource = static_cast<resource_type>(RESOURCE_NONE + 1); resource < RESOURCE_SLOT_COUNT; resource = static_cast<resource_type>(resource + 1)) {
@@ -420,9 +409,9 @@ void building_storage_cycle_partial_resource_state(int storage_id, resource_type
 
 int building_storage_accepts_storage(Building &b, resource_type resource, int *understaffed)
 {
-    if (storage_building_is_warehouse(b)) {
+    if (b.type && b.type->is_warehouse()) {
         return building_warehouse_accepts_storage(b, resource, understaffed);
-    } else if (storage_building_is_granary(b)) {
+    } else if (b.type && b.type->is_granary()) {
         return building_granary_accepts_storage(b, resource, understaffed);
     }
     return 0;
@@ -460,7 +449,8 @@ static const uint8_t *storage_state_text(building_storage_state state, const Bui
     switch (state) {
         case BUILDING_STORAGE_STATE_ACCEPTING:   return lang_get_string("main_strings.99.7");
         case BUILDING_STORAGE_STATE_NOT_ACCEPTING: return lang_get_string("main_strings.99.8");
-        case BUILDING_STORAGE_STATE_GETTING:     return lang_get_string(current_string_key(99, 9 + storage_building_is_granary(building_object)));
+        case BUILDING_STORAGE_STATE_GETTING:
+            return lang_get_string(current_string_key(99, 9 + (building_object.type && building_object.type->is_granary())));
         case BUILDING_STORAGE_STATE_MAINTAINING: return lang_get_string("TR_WINDOW_BUILDING_DISTRIBUTION_MAINTAINING");
         default: return (const uint8_t *) "";
     }
@@ -478,7 +468,7 @@ int building_storage_summary_tooltip(const Building &building_object, char *tool
         return 1;
     }
 
-    const resource_list *list = storage_building_is_warehouse(building_object)
+    const resource_list *list = building_object.type && building_object.type->is_warehouse()
         ? city_resource_get_potential() : city_resource_get_potential_foods();
 
     building_storage_state state;
@@ -580,7 +570,7 @@ int building_storage_summary_tooltip(const Building &building_object, char *tool
 
 int building_storage_resource_max_storable(const Building &building_object, resource_type resource_id)
 {
-    if (storage_building_is_granary(building_object) && resource_id >= (RESOURCE_NONE + 1)) {
+    if (building_object.type && building_object.type->is_granary() && resource_id >= (RESOURCE_NONE + 1)) {
         return 0;
     }
 
@@ -644,14 +634,13 @@ building_storage_permission_states building_storage_get_permission_from_building
     if (!definition) {
         return BUILDING_STORAGE_PERMISSION_MARKET;
     }
-    const char *attr = definition->attr();
-    if (std::strcmp(attr, "market") == 0) {
+    if (definition->attr_is("market")) {
         return BUILDING_STORAGE_PERMISSION_MARKET;
     }
     if (definition->is_mess_hall()) {
         return BUILDING_STORAGE_PERMISSION_QUARTERMASTER;
     }
-    if (std::strcmp(attr, "tavern") == 0) {
+    if (definition->attr_is("tavern")) {
         return BUILDING_STORAGE_PERMISSION_BARKEEP;
     }
     if (definition->is_caravanserai()) {

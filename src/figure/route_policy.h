@@ -1,6 +1,8 @@
 #pragma once
 
 #include "building/roadblock.h"
+#include "game/performance_tracker.h"
+#include "map/routing.h"
 
 #include <cstdint>
 #include <optional>
@@ -44,29 +46,119 @@ struct RoutePolicy {
         return policy;
     }
 
+    static RoutePolicy water(
+        bool flotsam,
+        RouteNeighborhood neighborhood = RouteNeighborhood::FourWay)
+    {
+        return fromKind(flotsam ? RoutePolicyKind::WaterFlotsam : RoutePolicyKind::WaterBoat, neighborhood);
+    }
+
+    static RoutePolicy nonCitizenLand(RouteNeighborhood neighborhood = RouteNeighborhood::FourWay)
+    {
+        return fromKind(RoutePolicyKind::NonCitizenLand, neighborhood);
+    }
+
     int directionLimit() const
     {
         return static_cast<int>(neighborhood);
     }
 
-    int pathDirectionLimit() const
+    bool isConstruction() const
+    {
+        return kind == RoutePolicyKind::ConstructionRoad ||
+            kind == RoutePolicyKind::ConstructionHighway ||
+            kind == RoutePolicyKind::ConstructionWall ||
+            kind == RoutePolicyKind::ConstructionAqueduct;
+    }
+
+    routed_building_type constructionBuildingType() const
     {
         switch (kind) {
-            case RoutePolicyKind::Walls:
-            case RoutePolicyKind::ConstructionRoad:
             case RoutePolicyKind::ConstructionHighway:
+                return ROUTED_BUILDING_HIGHWAY;
             case RoutePolicyKind::ConstructionWall:
+                return ROUTED_BUILDING_WALL;
             case RoutePolicyKind::ConstructionAqueduct:
-                return 4;
+                return ROUTED_BUILDING_AQUEDUCT;
+            case RoutePolicyKind::ConstructionRoad:
             default:
-                return directionLimit();
+                return ROUTED_BUILDING_ROAD;
         }
+    }
+
+    bool isNonCitizenLand() const
+    {
+        return kind == RoutePolicyKind::NonCitizenLand;
+    }
+
+    RoutePolicy asNonCitizenLand() const
+    {
+        RoutePolicy policy = *this;
+        policy.kind = RoutePolicyKind::NonCitizenLand;
+        return policy;
+    }
+
+    bool isWalls() const
+    {
+        return kind == RoutePolicyKind::Walls;
+    }
+
+    bool isCitizenRoadGarden() const
+    {
+        return kind == RoutePolicyKind::CitizenRoadGarden;
+    }
+
+    bool isCitizenRoadGardenHighway() const
+    {
+        return kind == RoutePolicyKind::CitizenRoadGardenHighway;
+    }
+
+    RoutePolicy withoutRoadAccess() const
+    {
+        RoutePolicy policy = *this;
+        policy.kind = RoutePolicyKind::CitizenLand;
+        return policy;
+    }
+
+    int pathDirectionLimit() const
+    {
+        return isWalls() || isConstruction() ?
+            4 :
+            directionLimit();
+    }
+
+    roadblock_permission roadblockPermission() const
+    {
+        return permission.value_or(PERMISSION_NONE);
+    }
+
+    bool needsBoundedRoadGardenDistanceField(int max_tiles) const
+    {
+        return max_tiles > 0 &&
+            isCitizenRoadGarden() &&
+            directionLimit() == 4;
     }
 
     bool isWater() const
     {
         return kind == RoutePolicyKind::WaterBoat ||
             kind == RoutePolicyKind::WaterFlotsam;
+    }
+
+    bool isWaterFlotsam() const
+    {
+        return kind == RoutePolicyKind::WaterFlotsam;
+    }
+
+    performance_tracker_route_purpose performancePurpose() const
+    {
+        if (isWater()) {
+            return PERFORMANCE_TRACKER_ROUTE_PURPOSE_WATER;
+        }
+        if (isWalls()) {
+            return PERFORMANCE_TRACKER_ROUTE_PURPOSE_WALL;
+        }
+        return PERFORMANCE_TRACKER_ROUTE_PURPOSE_MOVEMENT;
     }
 
     bool operator==(const RoutePolicy &other) const

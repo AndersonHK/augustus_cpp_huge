@@ -27,7 +27,6 @@
 
 #include <array>
 #include <cstdint>
-#include <cstring>
 #include <vector>
 
 namespace {
@@ -123,11 +122,6 @@ building_type aqueduct_type_id()
     return type;
 }
 
-int definition_is(const BuildingType *definition, const char *text_id)
-{
-    return definition && definition->attr() && std::strcmp(definition->attr(), text_id) == 0;
-}
-
 const char *text_from_mask(uint8_t mask)
 {
     for (uint8_t id = 0; id < 8; id++) {
@@ -175,7 +169,8 @@ const WaterAccessProvideRule *primary_provider_rule(building_type type)
 int provider_size_for_building_type(building_type type)
 {
     const BuildingType *definition = definition_for_provider(type);
-    return definition && definition->has_model() ? definition->model().size() : 1;
+    const int declared_size = definition ? definition->declared_model_size() : 0;
+    return declared_size > 0 ? declared_size : 1;
 }
 
 int add_mask_tile(std::array<uint8_t, GRID_SIZE * GRID_SIZE> &mask, int grid_offset, uint8_t bit)
@@ -654,7 +649,7 @@ void project_building_state(const SimulationResult &result)
                 building_has_required_workers(b) &&
                 requirements_are_satisfied(water, b->x, b->y, b->size, result.masks));
         }
-        if (definition_is(definition, "fountain")) {
+        if (definition->attr_is("fountain")) {
             if (b->desirability > 60) {
                 b->upgrade_level = 3;
             } else if (b->desirability > 40) {

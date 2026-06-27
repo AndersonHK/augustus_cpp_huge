@@ -129,10 +129,18 @@ void figure_seagulls_action(Figure *f)
     }
     if (f->id() & 1) {
         figure_image_increase_offset(f, 54);
-        f->image_id = image_group(GROUP_FIGURE_SEAGULLS) + f->image_offset / 3;
+        f->select_legacy_directional_frame_image(
+            image_group(GROUP_FIGURE_SEAGULLS),
+            0,
+            f->image_offset / 3,
+            1);
     } else {
         figure_image_increase_offset(f, 72);
-        f->image_id = image_group(GROUP_FIGURE_SEAGULLS) + 18 + f->image_offset / 3;
+        f->select_legacy_directional_frame_image(
+            image_group(GROUP_FIGURE_SEAGULLS) + 18,
+            0,
+            f->image_offset / 3,
+            1);
     }
 }
 
@@ -185,17 +193,18 @@ void figure_sheep_action(Figure *f)
     }
     int dir = figure_image_direction(f);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = image_group(GROUP_FIGURE_SHEEP) + 104 +
-            figure_image_corpse_offset(f);
+        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_SHEEP) + 104);
     } else if (f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
         if (f->id() & 3) {
-            f->image_id = image_group(GROUP_FIGURE_SHEEP) + 48 + dir +
-                8 * SHEEP_IMAGE_OFFSETS[f->wait_ticks & 0x3f];
+            f->select_legacy_directional_frame_image(
+                image_group(GROUP_FIGURE_SHEEP) + 48,
+                dir,
+                SHEEP_IMAGE_OFFSETS[f->wait_ticks & 0x3f]);
         } else {
-            f->image_id = image_group(GROUP_FIGURE_SHEEP) + 96 + dir;
+            f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_SHEEP) + 96, dir, 0);
         }
     } else {
-        f->image_id = image_group(GROUP_FIGURE_SHEEP) + dir + 8 * f->image_offset;
+        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_SHEEP), dir, f->image_offset);
     }
 }
 
@@ -262,14 +271,16 @@ void figure_wolf_action(Figure *f)
     }
     int dir = figure_image_direction(f);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = image_group(GROUP_FIGURE_WOLF) + 96 + figure_image_corpse_offset(f);
+        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_WOLF) + 96);
     } else if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-        f->image_id = image_group(GROUP_FIGURE_WOLF) + 104 +
-            dir + 8 * (f->attack_image_offset / 4);
+        f->select_legacy_directional_frame_image(
+            image_group(GROUP_FIGURE_WOLF) + 104,
+            dir,
+            f->attack_image_offset / 4);
     } else if (f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
-        f->image_id = image_group(GROUP_FIGURE_WOLF) + 152 + dir;
+        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_WOLF) + 152, dir, 0);
     } else {
-        f->image_id = image_group(GROUP_FIGURE_WOLF) + dir + 8 * f->image_offset;
+        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_WOLF), dir, f->image_offset);
     }
 }
 
@@ -341,16 +352,18 @@ void figure_zebra_action(Figure *f)
     }
     int dir = figure_image_direction(f);
     if (f->action_state == FIGURE_ACTION_149_CORPSE) {
-        f->image_id = image_group(GROUP_FIGURE_ZEBRA) + 96 + figure_image_corpse_offset(f);
+        f->select_legacy_corpse_image(image_group(GROUP_FIGURE_ZEBRA) + 96);
     } else if (f->action_state == FIGURE_ACTION_196_HERD_ANIMAL_AT_REST) {
         if (f->id() & 3) {
-            f->image_id = image_group(GROUP_FIGURE_ZEBRA) + 104 + dir +
-                8 * ZEBRA_IMAGE_OFFSETS[f->wait_ticks & 0x3f];
+            f->select_legacy_directional_frame_image(
+                image_group(GROUP_FIGURE_ZEBRA) + 104,
+                dir,
+                ZEBRA_IMAGE_OFFSETS[f->wait_ticks & 0x3f]);
         } else {
-            f->image_id = image_group(GROUP_FIGURE_ZEBRA) + dir;
+            f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_ZEBRA), dir, 0);
         }
     } else {
-        f->image_id = image_group(GROUP_FIGURE_ZEBRA) + dir + 8 * f->image_offset;
+        f->select_legacy_directional_frame_image(image_group(GROUP_FIGURE_ZEBRA), dir, f->image_offset);
     }
 }
 
@@ -534,13 +547,17 @@ void figure_hippodrome_horse_action(Figure *f)
 
     int dir = figure_image_direction(f);
     if (f->resource_id == 0) {
-        f->image_id = image_group(GROUP_FIGURE_HIPPODROME_HORSE_1) +
-            dir + 8 * f->image_offset;
-        f->cart_image_id = image_group(GROUP_FIGURE_HIPPODROME_CART_1) + dir;
+        f->select_legacy_directional_frame_image(
+            image_group(GROUP_FIGURE_HIPPODROME_HORSE_1),
+            dir,
+            f->image_offset);
+        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_HIPPODROME_CART_1) + dir);
     } else {
-        f->image_id = image_group(GROUP_FIGURE_HIPPODROME_HORSE_2) +
-            dir + 8 * f->image_offset;
-        f->cart_image_id = image_group(GROUP_FIGURE_HIPPODROME_CART_2) + dir;
+        f->select_legacy_directional_frame_image(
+            image_group(GROUP_FIGURE_HIPPODROME_HORSE_2),
+            dir,
+            f->image_offset);
+        f->select_legacy_cart_overlay_base_image(image_group(GROUP_FIGURE_HIPPODROME_CART_2) + dir);
     }
     int cart_dir = (dir + 4) % 8;
     figure_image_set_cart_offset(f, cart_dir);

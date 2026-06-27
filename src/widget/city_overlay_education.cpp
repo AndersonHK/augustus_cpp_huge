@@ -3,7 +3,6 @@
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
-#include "building/building_type_api.h"
 #include "game/state.h"
 
 static int show_building_education(const building *b)

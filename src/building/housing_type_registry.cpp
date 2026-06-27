@@ -4,16 +4,14 @@
 #include "building/housing_type_registry.h"
 
 #include "core/crash_context.h"
+#include "core/xml_definition.h"
 #include "core/xml_value.h"
 #include "building/water_access_type.h"
 #include "game/mod_manager.h"
 
-#include "core/file.h"
-#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 
-#include <cstdio>
 #include <cstring>
 #include <algorithm>
 #include <memory>
@@ -43,149 +41,29 @@ std::unordered_map<int, const HousingType *> g_housing_types_by_level;
 std::vector<int> g_housing_levels;
 ParseState g_parse_state;
 
-int compare_text(const char *left, const char *right)
-{
-    if (!left || !right) {
-        return left == right ? 0 : (left ? 1 : -1);
-    }
-    while (*left && *right && *left == *right) {
-        ++left;
-        ++right;
-    }
-    return static_cast<unsigned char>(*left) - static_cast<unsigned char>(*right);
-}
-
-int equals_ignore_case_ascii(char left, char right)
-{
-    if (left >= 'A' && left <= 'Z') {
-        left = static_cast<char>(left - 'A' + 'a');
-    }
-    if (right >= 'A' && right <= 'Z') {
-        right = static_cast<char>(right - 'A' + 'a');
-    }
-    return left == right;
-}
-
-int ends_with_ignore_case_ascii(const std::string &value, const char *suffix)
-{
-    if (!suffix) {
-        return 0;
-    }
-
-    const size_t suffix_length = strlen(suffix);
-    if (value.size() < suffix_length) {
-        return 0;
-    }
-
-    const size_t start = value.size() - suffix_length;
-    for (size_t i = 0; i < suffix_length; i++) {
-        if (!equals_ignore_case_ascii(value[start + i], suffix[i])) {
-            return 0;
-        }
-    }
-    return 1;
-}
-
-std::string normalize_definition_path(const char *value)
-{
-    std::string normalized = xml_value::trim_copy(value ? value : "");
-    if (normalized.empty()) {
-        return std::string();
-    }
-
-    for (char &ch : normalized) {
-        if (ch == '/') {
-            ch = '\\';
-        }
-    }
-
-    std::string collapsed;
-    collapsed.reserve(normalized.size());
-    char previous = '\0';
-    for (char ch : normalized) {
-        if (ch == '\\' && previous == '\\') {
-            continue;
-        }
-        collapsed.push_back(ch);
-        previous = ch;
-    }
-    normalized = collapsed;
-
-    if (!normalized.empty() && normalized.front() == '\\') {
-        return std::string();
-    }
-    if (!normalized.empty() && normalized.back() == '\\') {
-        return std::string();
-    }
-    if (ends_with_ignore_case_ascii(normalized, ".xml")) {
-        normalized.resize(normalized.size() - 4);
-    }
-    return normalized;
-}
-
-int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
-{
-    FILE *fp = file_open(filename, "rb");
-    if (!fp) {
-        log_error("Unable to open HousingType xml", filename, 0);
-        return 0;
-    }
-
-    if (fseek(fp, 0, SEEK_END) != 0) {
-        file_close(fp);
-        log_error("Unable to seek HousingType xml", filename, 0);
-        return 0;
-    }
-
-    long size = ftell(fp);
-    if (size < 0) {
-        file_close(fp);
-        log_error("Unable to size HousingType xml", filename, 0);
-        return 0;
-    }
-    rewind(fp);
-
-    buffer.resize(static_cast<size_t>(size));
-    const size_t read = fread(buffer.data(), 1, buffer.size(), fp);
-    file_close(fp);
-    if (read != buffer.size()) {
-        log_error("Unable to read HousingType xml", filename, 0);
-        return 0;
-    }
-    return 1;
-}
-
 int parse_non_negative_attribute(const char *node_name, const char *attribute_name, int *out_value)
 {
-    if (!xml_parser_has_attribute(attribute_name)) {
-        log_error("HousingType node is missing required attribute", attribute_name, 0);
-        return 0;
-    }
-
-    const char *text = xml_parser_get_attribute_string(attribute_name);
-    int value = 0;
-    if (!text || !xml_value::parse_int_strict(text, &value) || value < 0) {
+    if (!xml_definition::parse_required_nonnegative_int_attribute(attribute_name, out_value)) {
         log_error("Unsupported HousingType numeric value", node_name, 0);
         return 0;
     }
-    *out_value = value;
     return 1;
 }
 
 int parse_water_requirement(const char *value, int *out_water)
 {
-    if (value && compare_text(value, "none") == 0) {
+    if (xml_value::equals(value, "none")) {
         *out_water = 0;
         return 1;
     }
-    if (value && compare_text(value, "well") == 0) {
+    if (xml_value::equals(value, "well")) {
         if (!water_access_mask_from_text("well")) {
             return 0;
         }
         *out_water = 1;
         return 1;
     }
-    if (value && compare_text(value, "fountain") == 0) {
+    if (xml_value::equals(value, "fountain")) {
         if (!water_access_mask_from_text("fountain")) {
             return 0;
         }
@@ -208,7 +86,7 @@ int parse_root()
         return 0;
     }
 
-    std::string path = normalize_definition_path(xml_parser_get_attribute_string("type"));
+    std::string path = xml_definition::normalize_path(xml_parser_get_attribute_string("type"));
     if (path.empty()) {
         log_error("Unsupported HousingType type", xml_parser_get_attribute_string("type"), 0);
         g_parse_state.error = 1;
@@ -216,7 +94,7 @@ int parse_root()
     }
 
     int level = -1;
-    if (!xml_value::parse_int_strict(xml_parser_get_attribute_string("level"), &level) || level < 0) {
+    if (!xml_definition::parse_required_nonnegative_int_attribute("level", &level)) {
         log_error("Unsupported HousingType level", xml_parser_get_attribute_string("level"), 0);
         g_parse_state.error = 1;
         return 0;
@@ -240,9 +118,9 @@ int parse_residents()
     }
 
     const char *resident_class = xml_parser_get_attribute_string("class");
-    if (resident_class && compare_text(resident_class, "plebeian") == 0) {
+    if (xml_value::equals(resident_class, "plebeian")) {
         g_parse_state.definition->set_resident_class(HousingResidentClass::Plebeian);
-    } else if (resident_class && compare_text(resident_class, "patrician") == 0) {
+    } else if (xml_value::equals(resident_class, "patrician")) {
         g_parse_state.definition->set_resident_class(HousingResidentClass::Patrician);
     } else {
         log_error("Unsupported HousingType residents class", resident_class, 0);
@@ -376,22 +254,13 @@ int parse_definition_file(const char *filename, const char *definition_path)
 {
     ErrorContextScope error_scope("housing_type_registry.parse_definition", filename);
 
-    std::vector<char> buffer;
-    if (!load_file_to_buffer(filename, buffer)) {
-        error_context_report_error("Failed to load HousingType definition.", filename);
-        return 0;
-    }
-
     g_parse_state = {};
     g_parse_state.definition = std::make_unique<HousingType>(definition_path ? definition_path : "");
-    if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize HousingType xml parser", filename, 0);
-        error_context_report_error("Unable to initialize HousingType xml parser.", filename);
-        return 0;
-    }
-
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "HousingType",
+        XML_ELEMENTS,
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
     if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_residents ||
         !g_parse_state.saw_evolution || !g_parse_state.saw_requirements || !g_parse_state.saw_prosperity ||
         !g_parse_state.saw_tax) {
@@ -432,7 +301,7 @@ std::string compatibility_base_text_id(const char *text_id)
 
 const HousingType *find_housing_type_definition(const char *path)
 {
-    const std::string normalized = normalize_definition_path(path);
+    const std::string normalized = xml_definition::normalize_path(path);
     const auto found = g_housing_types.find(normalized);
     return found != g_housing_types.end() ? found->second.get() : nullptr;
 }
@@ -476,22 +345,14 @@ int housing_type_registry_load(void)
     g_housing_types_by_level.clear();
     g_housing_levels.clear();
 
-    const dir_listing *files = dir_find_files_with_extension(g_housing_type_path.c_str(), "xml");
-    if (!files || files->num_files <= 0) {
-        return 1;
-    }
-
-    for (int i = 0; i < files->num_files; i++) {
-        char full_path[FILE_NAME_MAX];
-        snprintf(full_path, FILE_NAME_MAX, "%s%s", g_housing_type_path.c_str(), files->files[i].name);
-        const std::string normalized_path = normalize_definition_path(files->files[i].name);
-        if (normalized_path.empty()) {
-            log_error("Unsupported HousingType file name", files->files[i].name, 0);
-            return 0;
-        }
-        if (!parse_definition_file(full_path, normalized_path.c_str())) {
-            return 0;
-        }
+    if (!xml_definition::for_each_definition_file(
+        g_housing_type_path,
+        "HousingType",
+        false,
+        [](const xml_definition::DefinitionFile &file, const std::string &normalized_path) {
+            return parse_definition_file(file.full_path.c_str(), normalized_path.c_str());
+        })) {
+        return 0;
     }
 
     std::sort(g_housing_levels.begin(), g_housing_levels.end());

@@ -7,6 +7,7 @@
 #include "core/log.h"
 #include "core/random.h"
 #include "empire/city.h"
+#include "figure/image.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/movement.h"
 #include "figure/name.h"
@@ -14,6 +15,7 @@
 #include "figure/trader.h"
 #include "figure/visited_buildings.h"
 #include "game/resource.h"
+#include "game/resource_graphics.h"
 #include "game/resource_id_bridge.h"
 #include "game/save_version.h"
 #include "map/figure.h"
@@ -482,6 +484,7 @@ Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir
 
 void Figure::remove()
 {
+    release_destination_reservations();
     ::building *b = building_get(building.id());
     switch (type) {
         case FIGURE_LABOR_SEEKER:
@@ -600,6 +603,15 @@ void Figure::remove()
     const unsigned int slot = id();
     reset(slot);
     trim_dead_tail();
+}
+
+void Figure::release_destination_reservations()
+{
+    if (!destination_building.id()) {
+        return;
+    }
+    destination_building.release_input_storage_reservation(id());
+    destination_building.release_legacy_storage_reservation(id());
 }
 
 int Figure::retarget_building(const Building &from, const Building &to)
@@ -731,6 +743,107 @@ int Figure::target_is_alive() const
     }
     const Figure &target = target_figure.get();
     return !target.is_dead() && target.created_sequence == target_figure_created_sequence;
+}
+
+int Figure::legacy_corpse_image_id(int base_image_id) const
+{
+    return base_image_id + figure_image_corpse_offset(const_cast<Figure *>(this));
+}
+
+int Figure::legacy_static_frame_image_id(int base_image_id, int frame_count) const
+{
+    if (frame_count <= 0) {
+        return base_image_id;
+    }
+    return base_image_id + static_cast<int>(id() % static_cast<unsigned int>(frame_count));
+}
+
+int Figure::legacy_directional_frame_image_id(
+    int base_image_id,
+    int direction,
+    int frame_offset,
+    int frame_stride) const
+{
+    const int normalized_direction = figure_image_normalize_direction(direction);
+    return base_image_id + normalized_direction + frame_stride * frame_offset;
+}
+
+int Figure::legacy_image_id_for_direction_major_frame(
+    int base_image_id,
+    int direction,
+    int frame_offset,
+    int direction_stride) const
+{
+    const int normalized_direction = figure_image_normalize_direction(direction);
+    return base_image_id + normalized_direction * direction_stride + frame_offset;
+}
+
+void Figure::select_legacy_corpse_image(int base_image_id)
+{
+    image_id = legacy_corpse_image_id(base_image_id);
+}
+
+void Figure::select_legacy_static_frame_image(int base_image_id, int frame_count)
+{
+    image_id = legacy_static_frame_image_id(base_image_id, frame_count);
+}
+
+void Figure::select_legacy_directional_frame_image(
+    int base_image_id,
+    int direction,
+    int frame_offset,
+    int frame_stride)
+{
+    image_id = legacy_directional_frame_image_id(base_image_id, direction, frame_offset, frame_stride);
+}
+
+void Figure::adjust_legacy_gladiator_attack_image_row()
+{
+    if (image_id >= 5705 && image_id <= 5706) {
+        image_id -= 8;
+    } else if (image_id > 5705) {
+        image_id -= 2;
+    }
+}
+
+void Figure::clear_legacy_cart_overlay_image()
+{
+    cart_image_id = 0;
+}
+
+void Figure::select_legacy_cart_overlay_base_image(int base_image_id)
+{
+    cart_image_id = base_image_id;
+}
+
+void Figure::select_legacy_cart_overlay_image(int base_image_id, int direction)
+{
+    if (!base_image_id) {
+        clear_legacy_cart_overlay_image();
+        return;
+    }
+
+    const int normalized_direction = figure_image_normalize_direction(direction);
+    cart_image_id = base_image_id + normalized_direction + 8 * image_offset;
+    figure_image_set_cart_offset(this, normalized_direction);
+}
+
+void Figure::finalize_legacy_cartpusher_overlay_image(int direction, bool lift_full_food_load)
+{
+    if (!cart_image_id) {
+        return;
+    }
+
+    const int normalized_direction = figure_image_normalize_direction(direction);
+    if (resource_graphics_cart_marker_is(cart_image_id)) {
+        cart_image_id = resource_graphics_cart_marker_for_direction(normalized_direction);
+    } else {
+        cart_image_id += normalized_direction;
+    }
+    figure_image_set_cart_offset(this, normalized_direction);
+    if (lift_full_food_load) {
+        y_offset_cart -= 40;
+    }
 }
 
 void Figure::init_scenario()

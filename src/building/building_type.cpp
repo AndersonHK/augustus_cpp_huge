@@ -2,12 +2,14 @@
 #include "building/building_record.h"
 #include "building/building.h"
 #include "building/building_type.h"
+#include "building/building_type_registry_internal.h"
 
 #include "building/connectable.h"
 #include "building/housing_type.h"
 #include "building/industry.h"
 #include "building/production_method.h"
 #include "building/religion.h"
+#include "figure/formation_type.h"
 
 #include "building/monument.h"
 #include "building/properties.h"
@@ -723,6 +725,36 @@ int BuildingFlagsDefinition::has_any() const
     return has_fire_proof_ || has_draw_desirability_range_ || has_venus_gt_bonus_;
 }
 
+void MilitaryDefinition::set_formation_reference(std::string key)
+{
+    formation_reference_ = std::move(key);
+}
+
+void MilitaryDefinition::set_formation_type(const FormationType *formation)
+{
+    formation_type_ = formation;
+}
+
+const std::string &MilitaryDefinition::formation_reference() const
+{
+    return formation_reference_;
+}
+
+const FormationType *MilitaryDefinition::formation_type() const
+{
+    return formation_type_;
+}
+
+figure_type MilitaryDefinition::primary_figure_type() const
+{
+    return formation_type_ ? formation_type_->primary_figure_type() : FIGURE_NONE;
+}
+
+int MilitaryDefinition::has_any() const
+{
+    return !formation_reference_.empty();
+}
+
 void WaterAccessDefinition::add_provide_rule(WaterAccessProvideRule rule)
 {
     provide_rules_.push_back(std::move(rule));
@@ -939,6 +971,9 @@ int ConstructionDefinition::phase_count() const
 
 int ConstructionDefinition::instant_requirement_amount(resource_type resource) const
 {
+    if (mode_ != ConstructionMode::Instant) {
+        return 0;
+    }
     for (const ConstructionRequirement &requirement : instant_requirements_) {
         if (requirement.resource == resource) {
             return requirement.amount;
@@ -1360,6 +1395,16 @@ void BuildingType::set_venus_gt_bonus(int value)
     flags_.set_venus_gt_bonus(value);
 }
 
+void BuildingType::set_military_formation_reference(std::string key)
+{
+    military_.set_formation_reference(std::move(key));
+}
+
+void BuildingType::set_military_formation_type(const FormationType *formation)
+{
+    military_.set_formation_type(formation);
+}
+
 void BuildingType::add_water_access_provide_rule(WaterAccessProvideRule rule)
 {
     water_access_.add_provide_rule(std::move(rule));
@@ -1763,6 +1808,11 @@ const BuildingFlagsDefinition &BuildingType::flags() const
     return flags_;
 }
 
+const MilitaryDefinition &BuildingType::military() const
+{
+    return military_;
+}
+
 const WaterAccessDefinition &BuildingType::water_access() const
 {
     return water_access_;
@@ -1792,6 +1842,32 @@ const char *BuildingType::button_text_key() const
 {
     const BuildButtonDefinition &primary_button = button();
     return has_button() && primary_button.has_text_key() ? primary_button.text_key() : nullptr;
+}
+
+int BuildingType::declared_model_size() const
+{
+    return has_model() && model().has_size() ? model().size() : 0;
+}
+
+figure_type BuildingType::preview_figure_type() const
+{
+    if (!has_housing()) {
+        for (const SpawnDelayGroup &group : spawn_groups()) {
+            for (const SpawnPolicy &policy : group.policies) {
+                if (policy.spawn_figure != FIGURE_NONE) {
+                    return policy.spawn_figure;
+                }
+            }
+        }
+    }
+    if (has_temple()) {
+        return FIGURE_PRIEST;
+    }
+    if (has_labor() && labor().has_seeker_policy() &&
+        labor().seeker_policy().method != LaborSeekerMethod::None) {
+        return FIGURE_LABOR_SEEKER;
+    }
+    return FIGURE_NONE;
 }
 
 int BuildingType::required_workers() const
@@ -1910,6 +1986,11 @@ int BuildingType::is_warehouse() const
 int BuildingType::is_granary() const
 {
     return attr_ == "granary";
+}
+
+int BuildingType::is_storage() const
+{
+    return is_granary() || is_warehouse();
 }
 
 int BuildingType::is_mess_hall() const
@@ -2045,6 +2126,11 @@ int BuildingType::has_market() const
 int BuildingType::has_flags() const
 {
     return flags_.has_any();
+}
+
+int BuildingType::has_military() const
+{
+    return military_.has_any();
 }
 
 int BuildingType::has_water_access_provider() const
@@ -2194,12 +2280,42 @@ int BuildingType::has_native_production() const
 
 int BuildingType::is_farm() const
 {
+    return farm_production_method() ? 1 : 0;
+}
+
+const ProductionMethod *BuildingType::farm_production_method() const
+{
     for (const ProductionMethod *method : production_methods_) {
         if (method && method->is_farm()) {
-            return 1;
+            return method;
         }
     }
-    return 0;
+    return nullptr;
+}
+
+const ProductionMethod *BuildingType::farm_panel_production_method() const
+{
+    if (const ProductionMethod *method = farm_production_method()) {
+        return method;
+    }
+    if (!has_composition()) {
+        return nullptr;
+    }
+    for (const ComposedPartDefinition &part : composition().parts()) {
+        const BuildingType *part_type = building_type_registry_impl::definition_for_type(part.type);
+        if (!part_type) {
+            continue;
+        }
+        if (const ProductionMethod *method = part_type->farm_production_method()) {
+            return method;
+        }
+    }
+    return nullptr;
+}
+
+int BuildingType::has_farm_panel() const
+{
+    return farm_panel_production_method() ? 1 : 0;
 }
 
 int BuildingType::has_culture_modules() const
@@ -2220,6 +2336,11 @@ int BuildingType::has_distribution() const
 int BuildingType::has_housing() const
 {
     return housing_type_ ? 1 : 0;
+}
+
+int BuildingType::housing_level() const
+{
+    return housing_type_ ? housing_type_->level() : -1;
 }
 
 int BuildingType::is_vacant_lot() const

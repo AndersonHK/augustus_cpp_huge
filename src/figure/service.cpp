@@ -10,10 +10,8 @@
 #include "building/building_type_registry_internal.h"
 #include "building/religion.h"
 
-#include <initializer_list>
-
 #include "building/building_record.h"
-#include "building/building_type_api.h"
+#include "building/housing_type.h"
 #include "building/monument.h"
 #include "building/properties.h"
 #include "city/buildings.h"
@@ -26,32 +24,6 @@
 
 #define MAX_COVERAGE 96
 #define TOURISM_COOLDOWN 96
-
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_impl::runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
-static int type_matches_any(building_type type, std::initializer_list<const char *> text_ids)
-{
-    for (const char *text_id : text_ids) {
-        if (type_matches(type, text_id)) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-static const building_type_registry_impl::BuildingType *definition_for(building_type type)
-{
-    return building_type_registry_impl::definition_for_type(type);
-}
 
 static int temple_is_tier(const building_type_registry_impl::BuildingType *definition,
     building_type_registry_impl::ReligionTier tier)
@@ -265,12 +237,11 @@ static int provide_missionary_coverage(int x, int y)
             int id = map_building_at(map_grid_offset(xx, yy));
             if (id) {
                 building *b = building_get(id);
-                if (type_matches_any(b->type, {
-                    "native_hut",
-                    "native_hut_alt",
-                    "native_meeting",
-                    "native_watchtower"
-                })) {
+                Building native_building(b);
+                if (native_building.matches("native_hut") ||
+                    native_building.matches("native_hut_alt") ||
+                    native_building.matches("native_meeting") ||
+                    native_building.matches("native_watchtower")) {
                     b->sentiment.native_anger = 0;
                 }
             }
@@ -304,7 +275,7 @@ static void tourist_spend(building *b, Figure *f)
         return;
     }
 
-    if (type_matches(b->type, "hippodrome")) {
+    if (Building(b).matches("hippodrome")) {
         b = building_main(b);
     }
     for (int i = 0; i <= 12; ++i) {
@@ -354,7 +325,7 @@ static int provide_service(int x, int y, int *data, void (*callback)(building *,
 
 static void engineer_coverage(building *b, int *max_damage_seen)
 {
-    if (type_matches(b->type, "hippodrome")) {
+    if (Building(b).matches("hippodrome")) {
         b = building_main(b);
     }
     if (b->damage_risk > *max_damage_seen) {
@@ -365,7 +336,7 @@ static void engineer_coverage(building *b, int *max_damage_seen)
 
 static void prefect_coverage(building *b, int *min_happiness_seen)
 {
-    if (type_matches(b->type, "hippodrome")) {
+    if (Building(b).matches("hippodrome")) {
         b = building_main(b);
     }
     b->fire_risk = 0;
@@ -432,9 +403,10 @@ static const model_house *house_evolution_target_model(Building house)
         house.type->housing_transition_type(building_type_registry_impl::HousingTransitionKind::EvolveTo) :
         BUILDING_NONE;
     if (evolve_to != BUILDING_NONE) {
-        const model_house *model = building_type_registry_get_housing_model(evolve_to);
-        if (model) {
-            return model;
+        const building_type_registry_impl::BuildingType *evolve_definition =
+            building_type_registry_impl::definition_for_type(evolve_to);
+        if (evolve_definition && evolve_definition->housing_type()) {
+            return &evolve_definition->housing_type()->model();
         }
     }
 
@@ -536,7 +508,7 @@ static int provide_venus_wine_to_taverns(building *market, int x, int y)
             int id = map_building_at(grid_offset);
             if (id) {
                 building *b = building_get(id);
-                if (type_matches(b->type, "tavern")) {
+                if (Building(b).matches("tavern")) {
                     int amount_wanted = 200 - b->resources[resource_wine()];
                     if (market->resources[resource_wine()] > 0 && amount_wanted > 0) {
                         if (amount_wanted <= market->resources[resource_wine()]) {
@@ -708,29 +680,29 @@ int figure_service_provide_coverage(Figure *f)
             break;
         case FIGURE_ACTOR:
             b = get_entertainment_building(f);
-            if (Building venue(b); b && venue.type && venue.type->is_theater()) {
+            if (Building venue(b); venue.type && venue.type->is_theater()) {
                 houses_serviced = provide_culture(x, y, theater_coverage);
-            } else if (b && type_matches(b->type, "amphitheater")) {
+            } else if (venue.matches("amphitheater")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days1 ? 2 : 1, amphitheater_coverage);
             }
             break;
         case FIGURE_GLADIATOR:
             b = get_entertainment_building(f);
-            if (b && type_matches(b->type, "amphitheater")) {
+            if (Building venue(b); venue.matches("amphitheater")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days2 ? 2 : 1, amphitheater_coverage);
-            } else if (b && type_matches(b->type, "colosseum")) {
+            } else if (venue.matches("colosseum")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days1 ? 2 : 1, colosseum_coverage);
-            } else if (b && type_matches(b->type, "arena")) {
+            } else if (venue.matches("arena")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days1 ? 2 : 1, arena_coverage);
             }
             break;
         case FIGURE_LION_TAMER:
             b = get_entertainment_building(f);
-            if (b && type_matches(b->type, "arena")) {
+            if (Building venue(b); venue.matches("arena")) {
                 houses_serviced = provide_entertainment(x, y,
                     b->data.entertainment.days1 ? 2 : 1, arena_coverage);
             } else if (b) {

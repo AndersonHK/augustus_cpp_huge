@@ -8,13 +8,10 @@
 #include "city/god.h"
 #include "game/mod_manager.h"
 
-#include "core/file.h"
-#include "core/dir.h"
 #include "core/log.h"
 #include "core/xml_parser.h"
 
 #include <algorithm>
-#include <cstdio>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -37,34 +34,22 @@ std::unordered_map<std::string, std::unique_ptr<God>> g_gods;
 std::vector<const God *> g_runtime_gods;
 ParseState g_parse_state;
 
-int compare_text(const char *left, const char *right)
-{
-    if (!left || !right) {
-        return left == right ? 0 : (left ? 1 : -1);
-    }
-    while (*left && *right && *left == *right) {
-        ++left;
-        ++right;
-    }
-    return static_cast<unsigned char>(*left) - static_cast<unsigned char>(*right);
-}
-
 god_type parse_god_type(const char *value)
 {
     std::string text = xml_value::trim_copy(value ? value : "");
-    if (compare_text(text.c_str(), "ceres") == 0) {
+    if (text == "ceres") {
         return GOD_CERES;
     }
-    if (compare_text(text.c_str(), "neptune") == 0) {
+    if (text == "neptune") {
         return GOD_NEPTUNE;
     }
-    if (compare_text(text.c_str(), "mercury") == 0) {
+    if (text == "mercury") {
         return GOD_MERCURY;
     }
-    if (compare_text(text.c_str(), "mars") == 0) {
+    if (text == "mars") {
         return GOD_MARS;
     }
-    if (compare_text(text.c_str(), "venus") == 0) {
+    if (text == "venus") {
         return GOD_VENUS;
     }
     return GOD_ALL;
@@ -73,11 +58,11 @@ god_type parse_god_type(const char *value)
 GodBlessingType parse_blessing_type(const char *value, int *ok)
 {
     std::string text = xml_value::trim_copy(value ? value : "");
-    if (compare_text(text.c_str(), "neptune_trade_bonus") == 0) {
+    if (text == "neptune_trade_bonus") {
         *ok = 1;
         return GodBlessingType::NeptuneTradeBonus;
     }
-    if (compare_text(text.c_str(), "venus_employment") == 0) {
+    if (text == "venus_employment") {
         *ok = 1;
         return GodBlessingType::VenusEmployment;
     }
@@ -155,22 +140,13 @@ int parse_definition_file(const char *filename, const char *definition_path)
 {
     ErrorContextScope error_scope("god_registry.parse_definition", filename);
 
-    std::vector<char> buffer;
-    if (!xml_definition::load_file_to_buffer(filename, buffer, "God")) {
-        error_context_report_error("Failed to load God definition.", filename);
-        return 0;
-    }
-
     g_parse_state = {};
     g_parse_state.definition = std::make_unique<God>(definition_path ? definition_path : "");
-    if (!xml_parser_init(XML_ELEMENTS, static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])), 1)) {
-        log_error("Unable to initialize God xml parser", filename, 0);
-        error_context_report_error("Unable to initialize God xml parser.", filename);
-        return 0;
-    }
-
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "God",
+        XML_ELEMENTS,
+        static_cast<int>(sizeof(XML_ELEMENTS) / sizeof(XML_ELEMENTS[0])));
     if (!parsed || g_parse_state.error || !g_parse_state.definition || !g_parse_state.saw_legacy) {
         log_error("Unable to parse God xml", filename, 0);
         error_context_report_error("Unable to parse God xml.", filename);
@@ -263,23 +239,14 @@ int god_registry_load(void)
     g_gods.clear();
     g_runtime_gods.clear();
 
-    const dir_listing *files = dir_find_files_with_extension(g_god_path.c_str(), "xml");
-    if (!files || files->num_files <= 0) {
-        log_error("No God xml files found in", g_god_path.c_str(), 0);
+    if (!xml_definition::for_each_definition_file(
+        g_god_path,
+        "God",
+        true,
+        [](const xml_definition::DefinitionFile &file, const std::string &normalized_path) {
+            return parse_definition_file(file.full_path.c_str(), normalized_path.c_str());
+        })) {
         return 0;
-    }
-
-    for (int i = 0; i < files->num_files; i++) {
-        char full_path[FILE_NAME_MAX];
-        std::snprintf(full_path, FILE_NAME_MAX, "%s%s", g_god_path.c_str(), files->files[i].name);
-        const std::string normalized_path = xml_definition::normalize_path(files->files[i].name);
-        if (normalized_path.empty()) {
-            log_error("Unsupported God file name", files->files[i].name, 0);
-            return 0;
-        }
-        if (!parse_definition_file(full_path, normalized_path.c_str())) {
-            return 0;
-        }
     }
 
     assign_runtime_ids();

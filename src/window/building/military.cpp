@@ -17,7 +17,6 @@
 #include "military.h"
 
 #include "assets/assets.h"
-#include "building/building_type_api.h"
 #include "building/building_record.h"
 #include "city/data_private.h"
 #include "city/buildings.h"

@@ -14,7 +14,6 @@
 #include "building/building_runtime_internal.h"
 #include "building/distribution.h"
 #include "building/building_type.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
 #include "graphics/image.h"
@@ -31,33 +30,12 @@
 #include "scenario/property.h"
 
 #include <cstdio>
-#include <cstring>
 #include <memory>
 #include <utility>
 
 namespace building_type_registry_impl {
 
 namespace {
-
-int definition_is(const BuildingType *definition, const char *attr)
-{
-    return definition && definition->attr() && std::strcmp(definition->attr(), attr) == 0;
-}
-
-int definition_is_any(const BuildingType *definition, const char *const *attrs, int count)
-{
-    for (int i = 0; i < count; i++) {
-        if (definition_is(definition, attrs[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
-building_type runtime_type_from_attr(const char *attr)
-{
-    return building_type_registry_impl::type_from_attr(attr);
-}
 
 int has_first_distribution_resource(const building &building, const BuildingType *definition)
 {
@@ -75,7 +53,7 @@ int has_first_distribution_resource(const building &building, const BuildingType
 
 void advance_monument_secondary_animation(building &building)
 {
-    if (definition_is(definition_for_type(building.type), "grand_temple_ceres") && building.monument.upgrades == 1) {
+    if (type_attr_is(building.type, "grand_temple_ceres") && building.monument.upgrades == 1) {
         building.monument.secondary_frame++;
         if (building.monument.secondary_frame > 4) {
             building.monument.secondary_frame = 0;
@@ -762,13 +740,14 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
             return 1;
         }
     }
-    if (definition_is(definition, "concrete_maker")) {
+    if (definition && definition->attr_is("concrete_maker")) {
         if (building.data.industry.progress == 0) {
             return 1;
         }
     }
     static const char *worker_paused_service_posts[] = { "prefecture", "engineers_post" };
-    if (definition_is_any(definition, worker_paused_service_posts, 2) && building.num_workers <= 0) {
+    if (definition && type_attr_is_any(definition->type(), worker_paused_service_posts, 2) &&
+        building.num_workers <= 0) {
         return 1;
     }
     if (definition && definition->has_market() && building.num_workers <= 0) {
@@ -777,7 +756,7 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
     if (definition && definition->is_warehouse() && building.num_workers < model_get_building(building.type)->laborers) {
         return 1;
     }
-    if (definition && std::strcmp(definition->attr(), "dock") == 0 && building.data.dock.num_ships <= 0) {
+    if (definition && definition->attr_is("dock") && building.data.dock.num_ships <= 0) {
         map_sprite_animation_set(animation_cursor, 1);
         *offset = 1;
         return 1;
@@ -786,50 +765,51 @@ int BuildingAnimation::legacy_gate_offset(int animation_cursor, int *offset) con
         (building.num_workers <= 0 || building.strike_duration_days > 0)) {
         return 1;
     }
-    if (definition_is(definition, "gladiator_school")) {
+    if (definition && definition->attr_is("gladiator_school")) {
         if (building.num_workers <= 0) {
             map_sprite_animation_set(animation_cursor, 1);
             *offset = 1;
             return 1;
         }
     } else if (((definition && definition->is_theater()) ||
-        definition_is(definition, "chariot_maker")) &&
-        !definition_is(definition, "hippodrome") && building.num_workers <= 0) {
+        (definition && definition->attr_is("chariot_maker"))) &&
+        !(definition && definition->attr_is("hippodrome")) && building.num_workers <= 0) {
         return 1;
     }
     if (definition && definition->is_granary() && building.num_workers < model_get_building(building.type)->laborers) {
         return 1;
     }
     if (building_monument_is_monument(&building) &&
-        (!(definition && definition->is_oracle()) && !definition_is(definition, "nymphaeum") &&
+        (!(definition && definition->is_oracle()) && !(definition && definition->attr_is("nymphaeum")) &&
             (building.num_workers <= 0 || building.monument.phase != MONUMENT_FINISHED))) {
         return 1;
     }
-    if (definition_is(definition, "city_mint") &&
+    if (definition && definition->attr_is("city_mint") &&
         ((building.output_resource_id == resource_denarii() &&
             !Building(const_cast<::building *>(&building)).native_production_has_raw_materials()) ||
             building.num_workers <= 0 ||
-            (building_count_active(runtime_type_from_attr("senate")) == 0))) {
+            (building_count_active(type_from_attr("senate")) == 0))) {
         return 1;
     }
     static const char *worker_paused_buildings[] = { "architect_guild", "mess_hall", "arena" };
-    if (definition_is_any(definition, worker_paused_buildings, 3) && building.num_workers <= 0) {
+    if (definition && type_attr_is_any(definition->type(), worker_paused_buildings, 3) &&
+        building.num_workers <= 0) {
         return 1;
     }
-    if (definition_is(definition, "tavern") &&
+    if (definition && definition->attr_is("tavern") &&
         (building.num_workers <= 0 || !has_first_distribution_resource(building, definition))) {
         return 1;
     }
-    if (definition_is(definition, "watchtower") && (building.num_workers <= 0 || !building.figure_id4)) {
+    if (definition && definition->attr_is("watchtower") && (building.num_workers <= 0 || !building.figure_id4)) {
         return 1;
     }
-    if (definition_is(definition, "cart_depot") && building.num_workers <= 0) {
+    if (definition && definition->attr_is("cart_depot") && building.num_workers <= 0) {
         return 1;
     }
     if (definition && definition->is_armoury() && building.num_workers <= 0) {
         return 1;
     }
-    if (definition_is(definition, "amphitheater") && building.num_workers <= 0) {
+    if (definition && definition->attr_is("amphitheater") && building.num_workers <= 0) {
         return 1;
     }
     return 0;
@@ -927,7 +907,7 @@ int BuildingAnimation::runtime_track_offset(const ::RuntimeAnimationTrack &track
         return normalized_animation_frame(animation_cursor, track);
     }
 
-    if (definition_is(definition_, "wine_workshop")) {
+    if (definition_ && definition_->attr_is("wine_workshop")) {
         return advance_wine_workshop_offset(animation_cursor, track.num_frames, 1);
     }
     if (track.can_reverse) {
@@ -943,7 +923,7 @@ int BuildingAnimation::offset_for(const Image &image, int animation_cursor)
     if (legacy_gate_offset(animation_cursor, &offset)) {
         return offset;
     }
-    if (definition_is(definition_, "colosseum")) {
+    if (definition_ && definition_->attr_is("colosseum")) {
         // The colosseum uses the terrain image as part of the animated facade, so
         // the legacy cursor is also the map grid offset that must be rewritten.
         map_image_set(animation_cursor, building_image_get(&record()));
@@ -956,7 +936,7 @@ int BuildingAnimation::offset_for(const Image &image, int animation_cursor)
         return map_sprite_animation_at(animation_cursor) & 0x7f;
     }
 
-    if (definition_is(definition_, "wine_workshop")) {
+    if (definition_ && definition_->attr_is("wine_workshop")) {
         return advance_wine_workshop_offset(animation_cursor, img.animation->num_sprites, 0);
     }
     if (img.animation->can_reverse) {

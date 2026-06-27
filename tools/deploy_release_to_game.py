@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import traceback
+import ctypes
 import os
 import stat
 import shutil
@@ -213,7 +215,12 @@ def require_mod_folder_path(mods_path: Path, label: str, expected_parent: Path |
 
 def require_exact_mod_folder(mods_path: Path, label: str, expected_parent: Path | None = None) -> Path:
     resolved_mods = require_mod_folder_path(mods_path, label, expected_parent)
-    entries = list(resolved_mods.iterdir())
+    require_exact_mod_contents(resolved_mods, label)
+    return resolved_mods
+
+
+def require_exact_mod_contents(mods_path: Path, label: str) -> None:
+    entries = list(mods_path.iterdir())
     folders = {entry.name for entry in entries if entry.is_dir()}
     non_folders = [entry.name for entry in entries if not entry.is_dir()]
     if folders != EXPECTED_MOD_FOLDERS or non_folders:
@@ -224,10 +231,15 @@ def require_exact_mod_folder(mods_path: Path, label: str, expected_parent: Path 
             f"{label} Mods folder must contain exactly these folders: {expected}. "
             f"Found folders: {actual_folders}. Found files: {actual_files}."
         )
-    return resolved_mods
 
 
 def require_safe_target_mods(target_mods: Path, game_root: Path) -> Path:
+    if not target_mods.exists():
+        if target_mods.name != "Mods":
+            raise RuntimeError(f"Target Mods folder must be named exactly 'Mods': {target_mods}")
+        if not same_path(target_mods.parent, game_root):
+            raise RuntimeError(f"Target Mods folder is not a direct child of the game folder: {target_mods}")
+        return target_mods
     resolved_mods = require_mod_folder_path(target_mods, "Target", game_root)
     if same_path(resolved_mods, game_root) or same_path(resolved_mods, game_root.parent):
         raise RuntimeError(f"Refusing to delete suspicious Mods path: {resolved_mods}")
@@ -238,6 +250,74 @@ def copy_file(source: Path, destination: Path, dry_run: bool) -> None:
     print(f"{'Would copy' if dry_run else 'Copying'} {source} -> {destination}")
     if not dry_run:
         shutil.copy2(source, destination)
+
+
+def remove_tree(path: Path, label: str) -> None:
+    if not path.exists():
+        return
+    try:
+        shutil.rmtree(path)
+    except OSError as exc:
+        raise RuntimeError(f"Unable to remove {label}: {path}. Close any open files under it and retry.") from exc
+
+
+def replace_mods_folder(source_mods: Path, target_mods: Path, game_root: Path, dry_run: bool) -> None:
+    staging_mods = game_root / "Mods.deploy-staging"
+    backup_mods = game_root / "Mods.deploy-backup"
+
+    print(f"{'Would prepare' if dry_run else 'Preparing'} staged Mods folder: {staging_mods}")
+    if dry_run:
+        print(f"Would copy {source_mods} -> {staging_mods}")
+        if target_mods.exists():
+            print(f"Would rename {target_mods} -> {backup_mods}")
+        else:
+            print(f"Target Mods folder is missing; would promote staged folder directly.")
+        print(f"Would rename {staging_mods} -> {target_mods}")
+        if target_mods.exists():
+            print(f"Would remove old backup {backup_mods}")
+        return
+
+    remove_tree(staging_mods, "stale staged Mods folder")
+    remove_tree(backup_mods, "stale backup Mods folder")
+
+    try:
+        shutil.copytree(source_mods, staging_mods)
+        require_exact_mod_contents(staging_mods, "Staged")
+
+        if target_mods.exists():
+            print(f"Renaming current Mods folder to backup: {target_mods} -> {backup_mods}")
+            target_mods.rename(backup_mods)
+        else:
+            print("Target Mods folder is missing; promoting staged folder directly.")
+
+        print(f"Promoting staged Mods folder: {staging_mods} -> {target_mods}")
+        staging_mods.rename(target_mods)
+    except OSError as exc:
+        if staging_mods.exists():
+            try:
+                shutil.rmtree(staging_mods)
+            except OSError:
+                pass
+        if backup_mods.exists() and not target_mods.exists():
+            try:
+                backup_mods.rename(target_mods)
+            except OSError:
+                pass
+        raise RuntimeError(
+            "Unable to atomically replace the target Mods folder. "
+            "Close any files open under the game Mods directory and retry."
+        ) from exc
+
+    if backup_mods.exists():
+        try:
+            shutil.rmtree(backup_mods)
+        except OSError as exc:
+            print(
+                f"WARNING: Deployed fresh Mods folder, but could not remove old backup {backup_mods}. "
+                "Close open files there and delete it manually when convenient.",
+                file=sys.stderr,
+            )
+            print(f"Backup removal detail: {exc}", file=sys.stderr)
 
 
 def deploy_release(dry_run: bool) -> None:
@@ -268,13 +348,7 @@ def deploy_release(dry_run: bool) -> None:
     else:
         print("Release debug symbols: not found; skipping Vespasian.pdb")
 
-    print(f"{'Would delete' if dry_run else 'Deleting'} {target_mods}")
-    if not dry_run:
-        shutil.rmtree(target_mods)
-
-    print(f"{'Would copy' if dry_run else 'Copying'} {source_mods} -> {target_mods}")
-    if not dry_run:
-        shutil.copytree(source_mods, target_mods)
+    replace_mods_folder(source_mods, target_mods, game_root, dry_run)
 
     copy_file(exe_path, game_root / exe_path.name, dry_run)
     if pdb_path.is_file():
@@ -292,17 +366,110 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Print the registry result, validation checks, and planned file operations without deleting or copying.",
     )
+    pause_group = parser.add_mutually_exclusive_group()
+    pause_group.add_argument(
+        "--pause-on-exit",
+        action="store_true",
+        help="Prompt before closing even when not launched from Explorer.",
+    )
+    pause_group.add_argument(
+        "--no-pause-on-exit",
+        action="store_true",
+        help="Never prompt before closing.",
+    )
     return parser.parse_args()
+
+
+def parent_process_name() -> str:
+    if os.name != "nt":
+        return ""
+
+    class PROCESSENTRY32W(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", ctypes.c_ulong),
+            ("cntUsage", ctypes.c_ulong),
+            ("th32ProcessID", ctypes.c_ulong),
+            ("th32DefaultHeapID", ctypes.c_void_p),
+            ("th32ModuleID", ctypes.c_ulong),
+            ("cntThreads", ctypes.c_ulong),
+            ("th32ParentProcessID", ctypes.c_ulong),
+            ("pcPriClassBase", ctypes.c_long),
+            ("dwFlags", ctypes.c_ulong),
+            ("szExeFile", ctypes.c_wchar * 260),
+        ]
+
+    kernel32 = ctypes.windll.kernel32
+    snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+    if snapshot == ctypes.c_void_p(-1).value:
+        return ""
+
+    try:
+        current_pid = os.getpid()
+        parent_pid = 0
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(entry)
+        if not kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
+            return ""
+        while True:
+            if entry.th32ProcessID == current_pid:
+                parent_pid = entry.th32ParentProcessID
+                break
+            if not kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
+                break
+        if not parent_pid:
+            return ""
+
+        entry = PROCESSENTRY32W()
+        entry.dwSize = ctypes.sizeof(entry)
+        if not kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
+            return ""
+        while True:
+            if entry.th32ProcessID == parent_pid:
+                return entry.szExeFile.casefold()
+            if not kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
+                break
+    finally:
+        kernel32.CloseHandle(snapshot)
+    return ""
+
+
+def should_pause_on_exit(args: argparse.Namespace) -> bool:
+    if args.no_pause_on_exit:
+        return False
+    if args.pause_on_exit:
+        return True
+    return parent_process_name() == "explorer.exe"
+
+
+def pause_on_exit_if_needed(args: argparse.Namespace) -> None:
+    if should_pause_on_exit(args):
+        try:
+            input("\nPress Enter to close this window...")
+        except EOFError:
+            pass
 
 
 def main() -> int:
     args = parse_args()
+    exit_code = 0
     try:
         deploy_release(args.dry_run)
-    except RuntimeError as exc:
+    except Exception as exc:
+        log_path = Path(__file__).with_name("deploy_release_to_game.last.log")
+        with log_path.open("w", encoding="utf-8") as log:
+            log.write("DEPLOY FAILED\n")
+            traceback.print_exception(type(exc), exc, exc.__traceback__, file=log)
+        print("DEPLOY FAILED.", file=sys.stderr)
         print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-    return 0
+        print(f"Failure details were written to: {log_path}", file=sys.stderr)
+        exit_code = 1
+    else:
+        log_path = Path(__file__).with_name("deploy_release_to_game.last.log")
+        with log_path.open("w", encoding="utf-8") as log:
+            log.write("DEPLOY SUCCEEDED\n")
+    finally:
+        pause_on_exit_if_needed(args)
+    return exit_code
 
 
 if __name__ == "__main__":

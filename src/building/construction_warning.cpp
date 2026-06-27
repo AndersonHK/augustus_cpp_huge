@@ -5,7 +5,6 @@
 
 #include "building/building.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/industry.h"
 #include "building/monument.h"
@@ -30,41 +29,15 @@
 
 static int has_warning = 0;
 
-static const building_type_registry_impl::BuildingType *type_definition(building_type type)
-{
-    return building_type_registry_impl::definition_for_type(type);
-}
-
-static int type_has_attr(building_type type, std::string_view attr)
-{
-    const building_type_registry_impl::BuildingType *definition = type_definition(type);
-    return definition && std::string_view(definition->attr()) == attr;
-}
-
-static int type_has_any_attr(building_type type, std::initializer_list<std::string_view> attrs)
-{
-    const building_type_registry_impl::BuildingType *definition = type_definition(type);
-    if (!definition) {
-        return 0;
-    }
-    std::string_view attr(definition->attr());
-    for (std::string_view candidate : attrs) {
-        if (attr == candidate) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 static int is_vacant_lot_fill_type(building_type type)
 {
-    building_type vacant_lot = building_type_registry_get_vacant_lot_fill_type();
+    building_type vacant_lot = building_type_registry_impl::vacant_lot_fill_type();
     return vacant_lot != BUILDING_NONE && type == vacant_lot;
 }
 
 static int is_shrine_tier(building_type type)
 {
-    const building_type_registry_impl::BuildingType *definition = type_definition(type);
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
     return definition && definition->is_temple_tier(building_type_registry_impl::ReligionTier::Shrine);
 }
 
@@ -102,15 +75,14 @@ static void show(warning_type warning, translation_key key)
 void building_construction_warning_show_missing_resource(resource_type resource)
 {
     std::string text = legacy_text(translation_for_key("TR_CITY_WARNING_TEMPLATE_MISSING_RESOURCE"));
-    resource_data *data = resource_get_data(resource);
-    replace_all(text, "<resource>", data ? legacy_text(data->text) : "");
+    replace_all(text, "<resource>", building_construction_warning_resource_name(resource));
     city_warning_show(WARNING_MISSING_RESOURCE, reinterpret_cast<const uint8_t *>(text.c_str()));
     has_warning = 1;
 }
 
-static std::string building_type_name(building_type type)
+std::string building_construction_warning_type_name(building_type type)
 {
-    const building_type_registry_impl::BuildingType *definition = type_definition(type);
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
     const char *name_key = definition && definition->has_identity() ? definition->identity().name_key() : nullptr;
     if (name_key) {
         std::string name = legacy_text(translation_for_key(name_key));
@@ -128,17 +100,23 @@ static std::string building_type_name(building_type type)
     return "";
 }
 
+std::string building_construction_warning_resource_name(resource_type resource)
+{
+    resource_data *data = resource_get_data(resource);
+    return data ? legacy_text(data->text) : "";
+}
+
 static void show_missing_producer(building_type producer)
 {
     std::string text = legacy_text(translation_for_key("TR_CITY_WARNING_TEMPLATE_MISSING_PRODUCER"));
-    replace_all(text, "<building-type>", building_type_name(producer));
+    replace_all(text, "<building-type>", building_construction_warning_type_name(producer));
     city_warning_show(WARNING_MISSING_PRODUCER, reinterpret_cast<const uint8_t *>(text.c_str()));
     has_warning = 1;
 }
 
 static void check_road_access(building_type type, int x, int y, int size)
 {
-    if (is_vacant_lot_fill_type(type) || type_has_any_attr(type, {
+    if (is_vacant_lot_fill_type(type) || building_type_registry_impl::type_attr_is_any(type, {
         "well",
         "large_statue",
         "fountain",
@@ -183,15 +161,15 @@ static void check_road_access(building_type type, int x, int y, int size)
     int has_road = 0;
     if (map_has_road_access(x, y, size, 0)) {
         has_road = 1;
-    } else if (type_has_attr(type, "granary") && map_has_road_access_granary(x, y, 0)) {
+    } else if (building_type_registry_impl::type_attr_is(type, "granary") && map_has_road_access_granary(x, y, 0)) {
         has_road = 1;
-    } else if (type_has_attr(type, "warehouse")) {
+    } else if (building_type_registry_impl::type_attr_is(type, "warehouse")) {
         // Warehouse road access is checked after composed placement moves the tower to its XML offset.
         //TODO: a dedicated function similar as for hippodrome should be used for consistency
         has_road = 1;
-    } else if (type_has_attr(type, "hippodrome") && map_has_road_access_hippodrome(x, y, 0)) {
+    } else if (building_type_registry_impl::type_attr_is(type, "hippodrome") && map_has_road_access_hippodrome(x, y, 0)) {
         has_road = 1;
-    } else if (type_has_attr(type, "lararium") && map_closest_road_within_radius(x, y, size, 2, 0, 0)) {
+    } else if (building_type_registry_impl::type_attr_is(type, "lararium") && map_closest_road_within_radius(x, y, size, 2, 0, 0)) {
         has_road = 1;
     } else if (is_shrine_tier(type) && map_closest_road_within_radius(x, y, size, 2, 0, 0)) {
         has_road = 1;
@@ -204,8 +182,9 @@ static void check_road_access(building_type type, int x, int y, int size)
 
 static void check_water(building_type type, int x, int y, int size)
 {
-    if (has_warning || type_has_attr(type, "reservoir") || type_has_attr(type, "aqueduct") ||
-        !building_type_registry_has_water_access_requirements(type)) {
+    const building_type_registry_impl::BuildingType *definition = building_type_registry_impl::definition_for_type(type);
+    if (has_warning || building_type_registry_impl::type_attr_is(type, "reservoir") || building_type_registry_impl::type_attr_is(type, "aqueduct") ||
+        !definition || !definition->water_access().has_requirements()) {
         return;
     }
 
@@ -216,7 +195,7 @@ static void check_water(building_type type, int x, int y, int size)
 
 static void check_workers(building_type type)
 {
-    if (!has_warning && !type_has_attr(type, "well") && !building_is_fort(type)) {
+    if (!has_warning && !building_type_registry_impl::type_attr_is(type, "well") && !building_is_fort(type)) {
         if (model_get_building(type)->laborers > 0 && city_labor_workers_needed() >= 10) {
             show(WARNING_WORKERS_NEEDED, "TR_CITY_WARNING_WORKERS_NEEDED");
         }
@@ -225,7 +204,7 @@ static void check_workers(building_type type)
 
 static void check_market(building_type type)
 {
-    if (!has_warning && type_has_attr(type, "granary")) {
+    if (!has_warning && building_type_registry_impl::type_attr_is(type, "granary")) {
         if (active_count("market") <= 0) {
             show(WARNING_BUILD_MARKET, "TR_CITY_WARNING_BUILD_MARKET");
         }
@@ -244,7 +223,7 @@ static void check_barracks(building_type type)
 
 static void check_armoury(building_type type)
 {
-    if (type_has_attr(type, "barracks")) {
+    if (building_type_registry_impl::type_attr_is(type, "barracks")) {
         if (active_count("armoury") <= 0) {
             show(WARNING_NO_ARMOURY, "TR_WARNING_NO_ARMOURY");
         }
@@ -253,7 +232,7 @@ static void check_armoury(building_type type)
 
 static void check_weapons_access(building_type type)
 {
-    if (type_has_attr(type, "barracks")) {
+    if (building_type_registry_impl::type_attr_is(type, "barracks")) {
         if (city_resource_count_warehouses_amount(resource_weapons()) <= 0) {
             show(WARNING_WEAPONS_NEEDED, "TR_CITY_WARNING_WEAPONS_NEEDED");
         }
@@ -262,7 +241,7 @@ static void check_weapons_access(building_type type)
 
 static void check_wall(building_type type, int x, int y, int size)
 {
-    if (!has_warning && type_has_attr(type, "tower")) {
+    if (!has_warning && building_type_registry_impl::type_attr_is(type, "tower")) {
         if (!map_terrain_is_adjacent_to_wall(x, y, size)) {
             show(WARNING_SENTRIES_NEED_WALL, "TR_CITY_WARNING_SENTRIES_NEED_WALL");
         }
@@ -271,7 +250,7 @@ static void check_wall(building_type type, int x, int y, int size)
 
 static void check_actor_access(building_type type)
 {
-    if (!has_warning && type_has_attr(type, "theater")) {
+    if (!has_warning && building_type_registry_impl::type_attr_is(type, "theater")) {
         if (active_count("actor_colony") <= 0) {
             show(WARNING_BUILD_ACTOR_COLONY, "TR_CITY_WARNING_BUILD_ACTOR_COLONY");
         }
@@ -280,7 +259,7 @@ static void check_actor_access(building_type type)
 
 static void check_gladiator_access(building_type type)
 {
-    if (!has_warning && type_has_any_attr(type, {"amphitheater", "colosseum", "arena"})) {
+    if (!has_warning && building_type_registry_impl::type_attr_is_any(type, {"amphitheater", "colosseum", "arena"})) {
         if (active_count("gladiator_school") <= 0) {
             show(WARNING_BUILD_GLADIATOR_SCHOOL, "TR_CITY_WARNING_BUILD_GLADIATOR_SCHOOL");
         }
@@ -289,7 +268,7 @@ static void check_gladiator_access(building_type type)
 
 static void check_lion_access(building_type type)
 {
-    if (!has_warning && type_has_any_attr(type, {"colosseum", "arena"})) {
+    if (!has_warning && building_type_registry_impl::type_attr_is_any(type, {"colosseum", "arena"})) {
         if (active_count("lion_house") <= 0) {
             show(WARNING_BUILD_LION_HOUSE, "TR_CITY_WARNING_BUILD_LION_HOUSE");
         }
@@ -298,7 +277,7 @@ static void check_lion_access(building_type type)
 
 static void check_charioteer_access(building_type type)
 {
-    if (!has_warning && type_has_attr(type, "hippodrome")) {
+    if (!has_warning && building_type_registry_impl::type_attr_is(type, "hippodrome")) {
         if (active_count("chariot_maker") <= 0) {
             show(WARNING_BUILD_CHARIOT_MAKER, "TR_CITY_WARNING_BUILD_CHARIOT_MAKER");
         }
@@ -365,7 +344,7 @@ void building_construction_warning_check_food_stocks(building_type type)
 
 void building_construction_warning_check_reservoir(building_type type)
 {
-    if (!has_warning && type_has_attr(type, "reservoir")) {
+    if (!has_warning && building_type_registry_impl::type_attr_is(type, "reservoir")) {
         if (building_count_active(type)) {
             show(WARNING_CONNECT_TO_RESERVOIR, "TR_CITY_WARNING_CONNECT_TO_RESERVOIR");
         } else {

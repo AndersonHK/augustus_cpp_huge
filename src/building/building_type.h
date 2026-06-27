@@ -10,6 +10,15 @@ enum {
     BUILDING_TYPE_MAX = 512
 };
 
+enum {
+    BUILDING_TYPE_TERRAIN_MEADOW = 1 << 0,
+    BUILDING_TYPE_TERRAIN_ROCK = 1 << 1,
+    BUILDING_TYPE_TERRAIN_TREE = 1 << 2,
+    BUILDING_TYPE_TERRAIN_WATER = 1 << 3,
+    BUILDING_TYPE_TERRAIN_WALL = 1 << 4,
+    BUILDING_TYPE_TERRAIN_DISTANT_WATER = 1 << 5
+};
+
 /**
  * House levels
  */
@@ -78,6 +87,8 @@ enum {
 #include <string_view>
 #include <vector>
 
+class FormationType;
+
 namespace building_type_registry_impl {
 
 class ProductionMethod;
@@ -117,7 +128,7 @@ enum class WaterAccessRequirementTermKind {
 
 enum class SpawnMode {
     None,
-    ServiceRoamer,
+    FigureSpawn,
     TempleSupplier,
     TempleDestinationPriest,
     TempleMarsMessHallPriest,
@@ -630,6 +641,21 @@ private:
     int venus_gt_bonus_ = 0;
 };
 
+class MilitaryDefinition {
+public:
+    void set_formation_reference(std::string key);
+    void set_formation_type(const FormationType *formation);
+
+    const std::string &formation_reference() const;
+    const FormationType *formation_type() const;
+    figure_type primary_figure_type() const;
+    int has_any() const;
+
+private:
+    std::string formation_reference_;
+    const FormationType *formation_type_ = nullptr;
+};
+
 struct WaterAccessNode {
     WaterAccessNodeKind kind = WaterAccessNodeKind::None;
     int x = 0;
@@ -833,6 +859,8 @@ public:
     void set_fire_proof(int value);
     void set_draw_desirability_range(int value);
     void set_venus_gt_bonus(int value);
+    void set_military_formation_reference(std::string key);
+    void set_military_formation_type(const FormationType *formation);
     void add_water_access_provide_rule(WaterAccessProvideRule rule);
     void add_water_access_requirement_rule(WaterAccessRequirementRule rule);
     void add_water_access_node(WaterAccessNode node);
@@ -903,12 +931,15 @@ public:
     const EventDataDefinition &event_data() const;
     const MarketDefinition &market() const;
     const BuildingFlagsDefinition &flags() const;
+    const MilitaryDefinition &military() const;
     const WaterAccessDefinition &water_access() const;
     const GraphicsDefinition &graphics() const;
     const ConstructionDefinition &construction() const;
     const ComposedBuildingDefinition &composition() const;
     ImageGroupEntryRef button_icon_ref() const;
     const char *button_text_key() const;
+    int declared_model_size() const;
+    figure_type preview_figure_type() const;
     int required_workers() const;
     int has_data_only_graphics() const;
     int is_temple() const;
@@ -938,6 +969,10 @@ public:
     int is_watchtower() const;
     int is_armoury() const;
     int is_farm() const;
+    int is_storage() const;
+    const ProductionMethod *farm_production_method() const;
+    const ProductionMethod *farm_panel_production_method() const;
+    int has_farm_panel() const;
     int production_is_enabled() const;
     static const GraphicsTarget *resolve_graphics_target_for_image(const BuildingType *definition, const Building &building);
     int has_identity() const;
@@ -953,6 +988,7 @@ public:
     int has_event_data() const;
     int has_market() const;
     int has_flags() const;
+    int has_military() const;
     int has_water_access_provider() const;
     int has_graphic() const;
     int has_construction() const;
@@ -981,6 +1017,7 @@ public:
     int has_culture_modules() const;
     int has_distribution() const;
     int has_housing() const;
+    int housing_level() const;
     int is_vacant_lot() const;
     unsigned char upgrade_level_for(const Building &building) const;
 
@@ -1002,6 +1039,7 @@ private:
     EventDataDefinition event_data_;
     MarketDefinition market_;
     BuildingFlagsDefinition flags_;
+    MilitaryDefinition military_;
     WaterAccessDefinition water_access_;
     GraphicsDefinition graphics_;
     ConstructionDefinition construction_;

@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="utf-8"?>
+<unit key="archer"><figure type="fort_archer" /><combat><health value="70" /><attack value="6" /><defense value="3" /><morale value="60" /><armor value="1" /></combat><movement pathing="soldier_land" /><recruit type="archer" /><abilities><melee /><ranged range="8" projectile="arrow" cooldown="40" damage="10" /></abilities><graphics figure_type="archer" /></unit>

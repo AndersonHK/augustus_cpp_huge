@@ -3,7 +3,6 @@
 #include "building/building.h"
 #include "figure/figure.h"
 #include "building/building_record.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/variant.h"
 #include "map/building.h"
@@ -46,7 +45,7 @@ static building_type clone_target_for_gate(building_type type)
 static building_type get_clone_type_from_building(const Building *b, building_type clone_type)
 {
     if (building_is_house(clone_type)) {
-        return building_type_registry_get_vacant_lot_fill_type();
+        return building_type_registry_impl::vacant_lot_fill_type();
     }
 
     if (building_type_registry_impl::type_attr_is(clone_type, "reservoir")) {

@@ -11,6 +11,9 @@
     <foundation policy="land" />
     <event_data attr="fort_swords" />
     <flags fire_proof="1" draw_desirability_range="1" />
+    <military>
+        <formation key="legacy_infantry_4x4" />
+    </military>
     <labor>
         <employees count="0" />
     </labor>

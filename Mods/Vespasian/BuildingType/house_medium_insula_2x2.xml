@@ -29,6 +29,6 @@
     </graphics>
     <housing path="house_medium_insula" capacity="80" evolve_to="house_large_insula" devolve_to="house_small_insula_2x2" split_to="house_medium_insula" />
     <spawn_group road_access="normal" delay_bands="100:0">
-        <spawn mode="service_roamer" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="384" />
+        <spawn mode="profiled_figure" spawn_figure="beggar" profile="unemployment_wanderer" direction="bottom" figure_slot="quaternary" chance_source="house_unemployed_workers" chance_divisor="384" />
     </spawn_group>
 </building>

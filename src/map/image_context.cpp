@@ -12,28 +12,7 @@
 #include "map/property.h"
 #include "map/terrain.h"
 
-#include <cstring>
-
 #define MAX_TILES 8
-
-static int building_matches(building *b, const char *text_id)
-{
-    if (!b) {
-        return 0;
-    }
-    Building current(b);
-    const building_type_registry_impl::BuildingType *definition = current.type;
-    return definition && definition->attr() && text_id && std::strcmp(definition->attr(), text_id) == 0;
-}
-
-static int building_is_wall_gate(building *b)
-{
-    if (!b) {
-        return 0;
-    }
-    Building current(b);
-    return current.type && current.type->roadblock().is_wall_gate();
-}
 
 struct terrain_image_context {
     const unsigned char tiles[MAX_TILES];
@@ -445,9 +424,12 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
         int offset = grid_offset + map_grid_direction_delta(i);
         if (map_terrain_is(offset, TERRAIN_GATEHOUSE)) {
             building *b = building_get(map_building_at(offset));
-            if (building_is_wall_gate(b) &&
-                b->subtype.orientation == 1 + ((i / 2) & 1)) { // 1,2,1,2
-                tiles[i] = 1;
+            if (b) {
+                Building current(b);
+                if (current.type && current.type->roadblock().is_wall_gate() &&
+                    b->subtype.orientation == 1 + ((i / 2) & 1)) { // 1,2,1,2
+                    tiles[i] = 1;
+                }
             }
         } else if (map_terrain_is(offset, TERRAIN_ACCESS_RAMP)) {
             tiles[i] = 1;
@@ -480,15 +462,15 @@ static void set_tiles_road(int grid_offset, int tiles[MAX_TILES])
             if ((current.type &&
                     (current.type->is_lighthouse() ||
                         current.type->is_temple_tier(building_type_registry_impl::ReligionTier::Large))) ||
-                building_matches(b, "large_mausoleum") ||
-                building_matches(b, "nymphaeum") ||
-                building_matches(b, "city_mint")) {
+                current.matches("large_mausoleum") ||
+                current.matches("nymphaeum") ||
+                current.matches("city_mint")) {
                 tiles[i] = (offset == b->grid_offset + map_grid_delta(0, 1)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(1, 0)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(1, 2)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(2, 1)) ? 1 : 0;
             }
-            if (building_matches(b, "colosseum")) {
+            if (current.matches("colosseum")) {
                 tiles[i] = (offset == b->grid_offset + map_grid_delta(0, 2)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(2, 0)) ? 1 : 0;
                 tiles[i] |= (offset == b->grid_offset + map_grid_delta(2, 4)) ? 1 : 0;
@@ -536,7 +518,7 @@ static void set_terrain_reservoir(
     int offset = grid_offset + map_grid_direction_delta(direction);
     if (map_terrain_is(offset, TERRAIN_BUILDING)) {
         building *b = building_get(map_building_at(offset));
-        if (building_matches(b, "reservoir") && map_property_multi_tile_xy(offset) == multi_tile_mask) {
+        if (b && Building(b).matches("reservoir") && map_property_multi_tile_xy(offset) == multi_tile_mask) {
             tiles[direction] = 1;
             return;
         }

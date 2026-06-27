@@ -6,7 +6,6 @@
 #include "figure/movement.h"
 
 #include "building/building.h"
-#include "building/building_type_registry_internal.h"
 #include "building/roadblock.h"
 #include "figure/combat.h"
 #include "figure/figure_runtime_api.h"
@@ -27,36 +26,12 @@
 
 namespace {
 
-building_type runtime_type(const char *text_id)
-{
-    return building_type_registry_impl::runtime_id_from_text(text_id);
-}
-
-bool type_matches(building_type type, const char *text_id)
-{
-    const building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
-bool building_at_matches(int grid_offset, const char *text_id)
-{
-    building *b = building_get(map_building_at(grid_offset));
-    return b && type_matches(b->type, text_id);
-}
-
-int hit_points_for_type(building_type type)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->model().has_hit_points() ?
-        definition->model().hit_points() :
-        game_defines_default_building_hit_points();
-}
-
 int hit_points_for_building_at(int grid_offset)
 {
-    building *b = building_get(map_building_at(grid_offset));
-    return b ? hit_points_for_type(b->type) : game_defines_default_building_hit_points();
+    Building building_obj(building_get(map_building_at(grid_offset)));
+    return building_obj.type && building_obj.type->model().has_hit_points() ?
+        building_obj.type->model().hit_points() :
+        game_defines_default_building_hit_points();
 }
 
 } // namespace
@@ -266,7 +241,7 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
                 f->direction = DIR_FIGURE_REROUTE;
             }
         } else {
-            if (!type_matches(b->type, "fort_ground")) {
+            if (!Building(b).matches("fort_ground")) {
                 f->direction = DIR_FIGURE_REROUTE;
             }
 
@@ -866,8 +841,9 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
     f->cross_country_x = figure_movement_tile_to_cross_country(x_src);
     f->cross_country_y = figure_movement_tile_to_cross_country(y_src);
     const int source_grid_offset = map_grid_offset(x_src, y_src);
+    Building source_building(building_get(map_building_at(source_grid_offset)));
     if (map_terrain_is(source_grid_offset, TERRAIN_WALL_OR_GATEHOUSE) ||
-        building_at_matches(source_grid_offset, "watchtower")) {
+        (source_building.type && source_building.type->is_watchtower())) {
         height = 6;
     }
     figure_movement_set_cross_country_direction(f,
@@ -895,8 +871,7 @@ int figure_movement_can_launch_cross_country_missile(int x_src, int y_src, int x
                 break;
             }
             if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && map_property_multi_tile_size(grid_offset) > 1) {
-                building *b = building_get(map_building_at(grid_offset));
-                if (!b || !type_matches(b->type, "fort_ground")) {
+                if (!Building(building_get(map_building_at(grid_offset))).matches("fort_ground")) {
                     break;
                 }
             }

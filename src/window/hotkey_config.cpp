@@ -3,7 +3,6 @@
 #include "window/hotkey_editor.h"
 #include "hotkey_config.h"
 
-#include "building/building_type_api.h"
 #include "building/building_type.h"
 #include "building/building_type_registry_internal.h"
 #include "core/calc.h"
@@ -20,8 +19,6 @@
 #include "window/config.h"
 #include "window/plain_message_dialog.h"
 #include "graphics/image.h"
-
-#include <cstring>
 
 #define GROUP_BUILDINGS 28
 
@@ -182,17 +179,6 @@ static hotkey_widget hotkey_widgets[] = {
 
 #define NUM_WIDGETS sizeof(hotkey_widgets) / sizeof(hotkey_widget)
 
-static building_type building_type_from_attr(const char *text_id)
-{
-    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
-        building_type_registry_impl::g_building_types) {
-        if (definition && std::strcmp(definition->attr(), text_id) == 0) {
-            return definition->type();
-        }
-    }
-    return BUILDING_NONE;
-}
-
 #define HOTKEY_X_OFFSET_1 290
 #define HOTKEY_X_OFFSET_2 430
 #define HOTKEY_BTN_WIDTH 140
@@ -303,7 +289,7 @@ static void draw_background(void)
                 text_draw(translation_for(widget->name_translation),
                     32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else if (widget->building_text_id) {
-                building_type type = building_type_from_attr(widget->building_text_id);
+                building_type type = building_type_registry_impl::type_from_attr(widget->building_text_id);
                 text_draw(lang_get_building_type_string(type),
                     32, text_offset, FONT_NORMAL_GREEN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_GREEN)->line_height), 0);
             } else {

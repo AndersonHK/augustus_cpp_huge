@@ -2,7 +2,6 @@
 #include "terrain.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "city/map.h"
 #include "core/image.h"
@@ -13,29 +12,8 @@
 #include "map/ring.h"
 #include "map/sprite.h"
 
-#include <string.h>
-
 static grid_u32 terrain_grid;
 static grid_u32 terrain_grid_backup;
-
-static building_type building_type_from_definition_attr(const char *text_id)
-{
-    for (int type = 1; type < BUILDING_TYPE_MAX; type++) {
-        const building_type_registry_impl::BuildingType *definition =
-            building_type_registry_impl::definition_for_type(static_cast<building_type>(type));
-        if (definition && definition->attr() && text_id && strcmp(definition->attr(), text_id) == 0) {
-            return static_cast<building_type>(type);
-        }
-    }
-    return BUILDING_NONE;
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    const building_type_registry_impl::BuildingType *definition =
-        building_type_registry_impl::definition_for_type(type);
-    return definition && definition->attr() && text_id && strcmp(definition->attr(), text_id) == 0;
-}
 
 const terrain_flags_array *map_terrain_to_array(int grid_offset)
 {
@@ -530,16 +508,14 @@ static void determine_original_trees(buffer *images, int legacy_buffer)
     }
 }
 
-static int legacy_map_is_bridge(int grid_offset)
+static int old_save_bridge_tile(int grid_offset)
 {
-    //old way for checking for bridges - check if it's sprite, and check if it's on water
-    //checking just for sprites is misleading, as on land buildings also have sprites - it's their animation frame
     return (map_sprite_bridge_at(grid_offset)) && map_terrain_is(grid_offset, TERRAIN_WATER);
 }
 
 int map_bridge_find_start_and_direction_legacy(int grid_offset, int *axis, int *axis_direction)
 {
-    if (!legacy_map_is_bridge(grid_offset)) {
+    if (!old_save_bridge_tile(grid_offset)) {
         return -1;
     }
 
@@ -556,7 +532,7 @@ int map_bridge_find_start_and_direction_legacy(int grid_offset, int *axis, int *
         int delta = map_grid_delta(dx, dy);
 
         int current = grid_offset;
-        while (legacy_map_is_bridge(current)) {
+        while (old_save_bridge_tile(current)) {
             int sprite = map_sprite_bridge_at(current);
             if (map_bridge_is_ramp_sprite(sprite)) {
                 int next = current + delta;
@@ -594,7 +570,7 @@ void map_terrain_migrate_old_bridges(void)
             if (!map_grid_is_valid_offset(grid_offset)) {
                 continue;
             }
-            if (legacy_map_is_bridge(grid_offset) && !map_is_bridge(grid_offset)) {
+            if (old_save_bridge_tile(grid_offset) && !map_is_bridge(grid_offset)) {
                 // Find true start of the old bridge
                 // Only process tiles that are part of a legacy bridge and haven't been upgraded yet 
                 int axis, dir;
@@ -619,7 +595,7 @@ void map_terrain_migrate_old_bridges(void)
                 building *b = building_create(bridge_type, start_x, start_y);
 
                 int current = start;
-                while (legacy_map_is_bridge(current)) {
+                while (old_save_bridge_tile(current)) {
                     map_terrain_add(current, TERRAIN_BUILDING);
                     map_building_set(current, b->id);
                     current += delta;
@@ -631,7 +607,7 @@ void map_terrain_migrate_old_bridges(void)
 
 void map_terrain_migrate_old_walls(void)
 {
-    building_type wall_type = building_type_from_definition_attr("wall");
+    building_type wall_type = building_type_registry_impl::type_from_attr("wall");
     if (wall_type == BUILDING_NONE) {
         return;
     }
@@ -650,7 +626,7 @@ void map_terrain_migrate_old_walls(void)
                 } else {
                     building *wall = building_get(map_building_at(grid_offset));
                     // Recreate the wall if pointing to a wrong building
-                    if (!wall || !type_matches(wall->type, "wall")) {
+                    if (!wall || !building_type_registry_impl::type_attr_is(wall->type, "wall")) {
                         wall = building_create(wall_type, x, y);
                         map_building_set(grid_offset, wall->id);
                     }

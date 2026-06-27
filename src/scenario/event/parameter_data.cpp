@@ -1,12 +1,11 @@
 #include "window/editor/select_city_trade_route.h"
 #include "translation/translation.h"
-#pragma once
 #include <array>
 
 #include "parameter_data.h"
 
-#include "building/building_type_api.h"
-#include "building/building_type_startup_bridge.h"
+#include "building/building_type_id_bridge.h"
+#include "building/building_type_registry_internal.h"
 #include "building/menu.h"
 #include "building/properties.h"
 #include "city/constants.h"
@@ -30,27 +29,6 @@
 #define NEGATIVE_UNLIMITED -1000000000 //fits in 32bit signed int
 
 #define BUILDING_PARAMETER_MAPPING_CAPACITY (BUILDING_TYPE_MAX + 32)
-
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_startup_bridge_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
-static int type_matches_any(building_type type, const char *const *text_ids, int count)
-{
-    for (int i = 0; i < count; i++) {
-        if (type_matches(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 static std::array<scenario_condition_data_t, CONDITION_TYPE_MAX> &scenario_condition_data_table()
 {
@@ -868,7 +846,8 @@ static special_attribute_mapping_t special_attribute_mappings_coverage_buildings
 static void refresh_coverage_building_mappings(void)
 {
     for (int i = 0; i < (int) SPECIAL_ATTRIBUTE_MAPPINGS_COVERAGE_BUILDINGS_SIZE; i++) {
-        special_attribute_mappings_coverage_buildings[i].value = runtime_type(special_attribute_mappings_coverage_buildings[i].text);
+        special_attribute_mappings_coverage_buildings[i].value =
+            building_type_id_bridge_runtime_from_text(special_attribute_mappings_coverage_buildings[i].text);
     }
 }
 
@@ -975,8 +954,8 @@ static void generate_model_mappings(void)
     for (building_type type = BUILDING_NONE; type < BUILDING_TYPE_MAX; type++) {
         const building_properties *props = building_properties_for_type(type);
         if (((!props->size || !props->event_data.attr) &&
-                !type_matches_any(type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]))) ||
-            type_matches_any(type, excluded_models, sizeof(excluded_models) / sizeof(excluded_models[0]))) {
+                !building_type_registry_impl::type_attr_is_any(type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]))) ||
+            building_type_registry_impl::type_attr_is_any(type, excluded_models, sizeof(excluded_models) / sizeof(excluded_models[0]))) {
             continue;
         }
         append_mapping(special_attribute_mappings_model_buildings, &special_attribute_mappings_model_buildings_size,
@@ -990,13 +969,13 @@ static void generate_housing_mappings(void)
         return;
     }
 
-    int level_count = building_type_registry_get_housing_level_count();
+    int level_count = building_type_registry_impl::housing_type_level_count();
     if (level_count <= 0) {
         return;
     }
     for (int i = 0; i < level_count; i++) {
-        int level = building_type_registry_get_housing_level_at(i);
-        building_type type = building_type_registry_get_housing_type_for_level(level, 1);
+        int level = building_type_registry_impl::housing_type_level_at(i);
+        building_type type = building_type_registry_impl::building_type_for_housing_level(level, 1);
         const building_properties *props = type == BUILDING_NONE ? 0 : building_properties_for_type(type);
         if (!props || !props->event_data.attr) {
             continue;
@@ -1239,7 +1218,7 @@ int scenario_events_parameter_data_get_default_value_for_parameter(xml_data_attr
         case PARAMETER_TYPE_ALLOWED_BUILDING:
         case PARAMETER_TYPE_BUILDING_COUNTING:
         case PARAMETER_TYPE_MODEL:
-            return runtime_type("well");
+            return building_type_id_bridge_runtime_from_text("well");
         case PARAMETER_TYPE_STANDARD_MESSAGE:
             return MESSAGE_CAESAR_WRATH;
         case PARAMETER_TYPE_RATING_TYPE:
@@ -1257,7 +1236,7 @@ int scenario_events_parameter_data_get_default_value_for_parameter(xml_data_attr
         case PARAMETER_TYPE_DATA_TYPE:
             return MODEL_COST;
         case PARAMETER_TYPE_HOUSING_TYPE:
-            return building_type_registry_get_housing_level_at(0);
+            return building_type_registry_impl::housing_type_level_at(0);
         case PARAMETER_TYPE_CITY_PROPERTY:
             return CITY_PROPERTY_DIFFICULTY;
         case PARAMETER_TYPE_ENEMY_CLASS:
@@ -1265,7 +1244,7 @@ int scenario_events_parameter_data_get_default_value_for_parameter(xml_data_attr
         case PARAMETER_TYPE_PLAYER_TROOPS:
             return FIGURE_FORT_STANDARD;
         case PARAMETER_TYPE_COVERAGE_BUILDINGS:
-            return runtime_type("theater");
+            return building_type_id_bridge_runtime_from_text("theater");
         case PARAMETER_TYPE_ROUTE_RESOURCE:
             // Encode default route_id=1 with RESOURCE_ALL_BUYS (RESOURCE_SLOT_COUNT + 1)
             return window_editor_select_city_trade_route_encode_route_resource(1, RESOURCE_SLOT_COUNT + 1);
@@ -1297,16 +1276,16 @@ parameter_type scenario_events_parameter_data_resolve_flexible_type(const scenar
 
 static const uint8_t *get_allowed_building_name(building_type type)
 {
-    if (type == building_type_registry_get_vacant_lot_fill_type()) {
+    if (type == building_type_registry_impl::vacant_lot_fill_type()) {
         return lang_get_string("main_strings.68.20");
     }
-    if (type_matches(type, "clear_land")) {
+    if (building_type_registry_impl::type_attr_is(type, "clear_land")) {
         return translation_for("TR_BUILDING_LAND_CLEAR");
     }
-    if (type_matches(type, "repair_land")) {
+    if (building_type_registry_impl::type_attr_is(type, "repair_land")) {
         return translation_for("TR_BUILDING_LAND_REPAIR");
     }
-    if (type_matches(type, "clear_trees")) {
+    if (building_type_registry_impl::type_attr_is(type, "clear_trees")) {
         return translation_for_key("TR_BUILDING_MENU_TREES");
     }
     return lang_get_building_type_string(type);

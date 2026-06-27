@@ -2,7 +2,6 @@
 #include "granary.h"
 
 #include "building/building.h"
-#include "building/building_type_api.h"
 #include "building/building_type_registry_internal.h"
 #include "building/destruction.h"
 #include "building/properties.h"

@@ -103,19 +103,6 @@ static constexpr std::string_view building_set_deco_statues[] = {
     "dolphin_fountain",
 };
 
-struct fort_type_entry {
-    std::string_view attr;
-    figure_type figure;
-};
-
-static constexpr fort_type_entry fort_types[] = {
-    {"fort_legionaries", FIGURE_FORT_LEGIONARY},
-    {"fort_javelin", FIGURE_FORT_JAVELIN},
-    {"fort_mounted", FIGURE_FORT_MOUNTED},
-    {"fort_swords", FIGURE_FORT_INFANTRY},
-    {"fort_archers", FIGURE_FORT_ARCHER},
-};
-
 int building_count_forts(int active_only);
 static int count_all_types_in_set(int active_only, std::span<const std::string_view> set);
 
@@ -231,8 +218,9 @@ int building_count_fort_type_in_area(int minx, int miny, int maxx, int maxy, bui
     const bool all_forts = is_fort_menu_type(type);
     const figure_type figure_type = building_count_forts_get_figure_type_from_building(type);
     return count_unique_buildings_in_area(minx, miny, maxx, maxy, [all_forts, figure_type](building *b) {
+        Building fort(b);
         return building_is_fort(b->type) &&
-            (all_forts || b->subtype.fort_figure_type == figure_type) &&
+            (all_forts || fort.fort_figure_type() == figure_type) &&
             (b->state == BUILDING_STATE_IN_USE || b->state == BUILDING_STATE_CREATED);
     });
 }
@@ -388,8 +376,9 @@ static int count_forts_per_type(building_type type, int active_only)
         if (!active_only && b->state != BUILDING_STATE_IN_USE && b->state != BUILDING_STATE_CREATED) {
             continue;
         }
+        Building fort(b);
         if (building_is_active(b) >= active_only && b == building_main(b) &&
-            b->subtype.fort_figure_type == building_count_forts_get_figure_type_from_building(type)) {
+            fort.fort_figure_type() == building_count_forts_get_figure_type_from_building(type)) {
             count++;
         }
     }
@@ -398,10 +387,9 @@ static int count_forts_per_type(building_type type, int active_only)
 
 figure_type building_count_forts_get_figure_type_from_building(building_type type)
 {
-    for (const fort_type_entry &entry : fort_types) {
-        if (building_type_registry_impl::type_attr_is(type, entry.attr)) {
-            return entry.figure;
-        }
+    if (const building_type_registry_impl::BuildingType *definition =
+            building_type_registry_impl::definition_for_type(type)) {
+        return definition->military().primary_figure_type();
     }
     return FIGURE_NONE;
 }
@@ -409,10 +397,10 @@ figure_type building_count_forts_get_figure_type_from_building(building_type typ
 int building_count_forts(int active_only)
 {
     int total = 0;
-    for (const fort_type_entry &entry : fort_types) {
-        building_type type = building_type_registry_impl::type_from_attr(entry.attr);
-        if (type != BUILDING_NONE) {
-            total += count_forts_per_type(type, active_only);
+    for (const std::unique_ptr<building_type_registry_impl::BuildingType> &definition :
+        building_type_registry_impl::g_building_types) {
+        if (definition && definition->has_military()) {
+            total += count_forts_per_type(definition->type(), active_only);
         }
     }
     return total;

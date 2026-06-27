@@ -28,6 +28,13 @@ public:
             const map_point &destination,
             RoutePolicy policy,
             performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
+        int sourceOffset() const;
+        int destinationOffset() const;
+        bool hasValidEndpoints() const;
+        bool acceptsDestinationDistance(int distance) const;
+        bool canReachOverSurface() const;
+        bool canReachWithBoundedRoadGardenDistanceField() const;
+        bool prunesByRoadNetwork() const;
     };
 
     class Planner {
@@ -69,6 +76,19 @@ public:
         RoadResult findAccessRoad(const building &target, int radius, int maxDistance = 0, bool requireSameNetwork = false) const;
 
     private:
+        class CostMapHandle {
+        public:
+            void seed(
+                const map_point &source,
+                const std::optional<roadblock_permission> &permission,
+                performance_tracker_route_purpose purpose);
+            int distanceAt(int gridOffset) const;
+            int reachableDistanceAt(int gridOffset, int maxDistance = 0) const;
+
+        private:
+            int generation_ = -1;
+        };
+
         DistanceQuery(
             const map_point &source,
             int sourceNetwork,
@@ -76,8 +96,7 @@ public:
             performance_tracker_route_purpose purpose,
             bool valid);
 
-        void seedDistanceGrid() const;
-        int distanceFor(const RoadResult &candidate, int maxDistance) const;
+        const CostMapHandle &costMap() const;
         RoadResult findReachableAreaTile(int x, int y, int size, int radius, int maxDistance, bool requireRoad) const;
 
         map_point source_ = { 0, 0 };
@@ -85,7 +104,7 @@ public:
         std::optional<roadblock_permission> permission_;
         performance_tracker_route_purpose purpose_ = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY;
         bool valid_ = false;
-        mutable int distanceGridGeneration_ = -1;
+        mutable CostMapHandle costMap_;
     };
 
     class TerrainQuery {

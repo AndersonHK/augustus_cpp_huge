@@ -1,5 +1,4 @@
 #include <array>
-#include <string_view>
 
 #include "action_types.h"
 
@@ -406,7 +405,7 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
             continue;
         }
         Building b = Building(building_get(building_id)).main();
-        if (b.type && b.type->attr() && std::string_view(b.type->attr()) == "burning_ruin") {
+        if (b.matches("burning_ruin")) {
             continue;
         }
         if ((b.state_id() != BUILDING_STATE_IN_USE && b.state_id() != BUILDING_STATE_MOTHBALLED) || b.is_deleted()) {

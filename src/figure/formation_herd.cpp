@@ -69,7 +69,7 @@ static int get_roaming_destination(formation *m, int distance, int *x_tile, int 
     int x = m->x_home;
     int y = m->y_home;
     int direction = m->herd_direction;
-    int allow_negative_desirability = m->figure_type == FIGURE_WOLF;
+    int allow_negative_desirability = m->has_figure_type(FIGURE_WOLF);
     int target_direction = (formation_id + random_byte()) & 7;
     if (direction >= DIR_0_TOP && direction < DIR_8_NONE) {
         target_direction = direction;
@@ -135,14 +135,11 @@ static int get_roaming_destination(formation *m, int distance, int *x_tile, int 
 
 static void move_animals(const formation *m, int attacking_animals)
 {
-    for (int i = 0; i < formation_slot_capacity(m); i++) {
-        if (m->figures[i] <= 0) {
-            continue;
-        }
-        Figure *f = Figure::get(m->figures[i]);
+    m->for_each_figure_id([&](int figure_id, int) {
+        Figure *f = Figure::get(figure_id);
         if (f->action_state == FIGURE_ACTION_149_CORPSE ||
             f->action_state == FIGURE_ACTION_150_ATTACK) {
-            continue;
+            return;
         }
         f->wait_ticks = ANIMAL_MOVE_WAIT_TICKS;
         if (attacking_animals) {
@@ -162,12 +159,12 @@ static void move_animals(const formation *m, int attacking_animals)
         } else {
             f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
         }
-    }
+    });
 }
 
 static int can_spawn_wolf(formation *m)
 {
-    if (formation_has_open_slot(m) && m->figure_type == FIGURE_WOLF) {
+    if (m->has_open_slot() && m->has_figure_type(FIGURE_WOLF)) {
         m->herd_wolf_spawn_delay++;
         if (m->herd_wolf_spawn_delay > WOLF_SPAWN_DELAY_TICKS) {
             m->herd_wolf_spawn_delay = 0;
@@ -182,15 +179,15 @@ static void update_herd_formation(formation *m, int infinite_wolves_spawning)
     if (infinite_wolves_spawning && can_spawn_wolf(m)) {
         // spawn new wolf
         if (!map_terrain_is(map_grid_offset(m->x, m->y), TERRAIN_IMPASSABLE_WOLF)) {
-            Figure *wolf = Figure::create(static_cast<figure_type>(m->figure_type), m->x, m->y, DIR_0_TOP);
+            Figure *wolf = Figure::create(m->figure_type_id(), m->x, m->y, DIR_0_TOP);
             wolf->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
             wolf->formation_id = m->id;
             wolf->wait_ticks = wolf->id() & 0x1f;
         }
     }
 
-    if (m->figures[0]) {
-        Figure *f = Figure::get(m->figures[0]);
+    if (const int figure_id = m->first_figure_id()) {
+        Figure *f = Figure::get(figure_id);
         if (f->state == FIGURE_STATE_ALIVE) {
             formation_set_home(m, f->x, f->y);
         }
@@ -199,7 +196,7 @@ static void update_herd_formation(formation *m, int infinite_wolves_spawning)
     int attacking_animals = 0;
     int roam_distance;
     int roam_delay;
-    switch (m->figure_type) {
+    switch (m->figure_type_id()) {
         case FIGURE_SHEEP:
             roam_distance = SHEEP_ROAM_DISTANCE;
             roam_delay = SHEEP_ROAM_DELAY;
@@ -211,12 +208,11 @@ static void update_herd_formation(formation *m, int infinite_wolves_spawning)
         case FIGURE_WOLF:
             roam_distance = WOLF_ROAM_DISTANCE;
             roam_delay = WOLF_ROAM_DELAY;
-            for (int fig = 0; fig < formation_slot_capacity(m); fig++) {
-                int figure_id = m->figures[fig];
-                if (figure_id > 0 && Figure::get(figure_id)->action_state == FIGURE_ACTION_150_ATTACK) {
+            m->for_each_figure_id([&](int figure_id, int) {
+                if (Figure::get(figure_id)->action_state == FIGURE_ACTION_150_ATTACK) {
                     attacking_animals++;
                 }
-            }
+            });
             if (m->missile_attack_timeout) {
                 attacking_animals = 1;
             }
@@ -236,7 +232,7 @@ static void update_herd_formation(formation *m, int infinite_wolves_spawning)
                 m->herd_direction = DIR_8_NONE;
                 if (formation_enemy_move_formation_to(m, x_tile, y_tile, &x_tile, &y_tile)) {
                     formation_set_destination(m, x_tile, y_tile);
-                    if (m->figure_type == FIGURE_WOLF && city_sound_update_march_wolf()) {
+                    if (m->has_figure_type(FIGURE_WOLF) && city_sound_update_march_wolf()) {
                         sound_effect_play(SOUND_EFFECT_WOLF_HOWL);
                     }
                     move_animals(m, 0);
@@ -253,8 +249,9 @@ void formation_herd_update(void)
     }
     for (int i = 1; i < formation_count(); i++) {
         formation *m = formation_get(i);
-        int infinite_wolves_spawning = m->figure_type == FIGURE_WOLF && !config_get(CONFIG_GP_CH_DISABLE_INFINITE_WOLVES_SPAWNING);
-        if (m->in_use && m->is_herd && !m->is_legion && (m->num_figures > 0 || infinite_wolves_spawning)) {
+        bool infinite_wolves_spawning = m->has_figure_type(FIGURE_WOLF) &&
+            !config_get(CONFIG_GP_CH_DISABLE_INFINITE_WOLVES_SPAWNING);
+        if (m->should_update_herd(infinite_wolves_spawning)) {
             update_herd_formation(m, infinite_wolves_spawning);
         }
     }

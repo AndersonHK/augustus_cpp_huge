@@ -8,10 +8,9 @@
 
 #include "select_special_attribute_mapping.h"
 
-#include "building/building_type_startup_bridge.h"
 #include "window/editor/map.h"
 
-#include "building/building_type_api.h"
+#include "building/building_type_registry_internal.h"
 #include "core/string.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/screen.h"
@@ -61,17 +60,6 @@ static struct {
     special_attribute_mapping_t *list[MAX_VISIBLE_ROWS];
 } data;
 
-static building_type runtime_type(const char *text_id)
-{
-    return text_id ? building_type_startup_bridge_runtime_id_from_text(text_id) : BUILDING_NONE;
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
 static void populate_list(int offset)
 {
     if (data.list_size - offset < MAX_VISIBLE_ROWS) {
@@ -90,13 +78,13 @@ static void populate_list(int offset)
 
 static const uint8_t *get_allowed_building_name(building_type type)
 {
-    if (type == building_type_registry_get_vacant_lot_fill_type()) {
+    if (type == building_type_registry_impl::vacant_lot_fill_type()) {
         return lang_get_string("main_strings.68.20");
     }
-    if (type_matches(type, "clear_land")) {
+    if (building_type_registry_impl::type_attr_is(type, "clear_land")) {
         return lang_get_string("main_strings.68.21");
     }
-    if (type_matches(type, "repair_land")) {
+    if (building_type_registry_impl::type_attr_is(type, "repair_land")) {
         return lang_get_string("TR_BUILDING_LAND_REPAIR");
     }
     return lang_get_building_type_string(type);

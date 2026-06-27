@@ -8,7 +8,6 @@
 
 #include "education.h"
 
-#include "building/building_type_api.h"
 #include "city/population.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/text.h"
@@ -16,10 +15,7 @@
 
 #define ADVISOR_HEIGHT 17
 
-static building_type type_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
+using building_type_registry_impl::type_from_attr;
 
 static int get_education_advice(void)
 {

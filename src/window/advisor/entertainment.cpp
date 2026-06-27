@@ -18,7 +18,6 @@
 #include "graphics/ui_runtime.h"
 
 
-#include "building/building_type_api.h"
 #include "city/finance.h"
 #include "core/calc.h"
 #include "graphics/ui_runtime_api.h"
@@ -33,10 +32,7 @@
 
 static unsigned int focus_button_id;
 
-static building_type type_from_attr(const char *text_id)
-{
-    return building_type_registry_impl::type_from_attr(text_id);
-}
+using building_type_registry_impl::type_from_attr;
 
 static void button_hold_games(const generic_button *button);
 static void draw_hold_games_button_widget(void);

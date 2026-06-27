@@ -3,12 +3,11 @@
 #include "scenario/event/parameter_data.h"
 #include "window/plain_message_dialog.h"
 
-#include "building/building_type_registry.h"
+#include "building/building_type_registry_internal.h"
 #include "building/building_type_startup_bridge.h"
 
 
 #include "building/properties.h"
-#include "building/building_type_api.h"
 #include "core/buffer.h"
 #include "core/io.h"
 #include "core/log.h"
@@ -29,27 +28,6 @@ static struct {
     char error_message[ERROR_MESSAGE_LENGTH];
     int error_line_number;
 } data;
-
-static building_type runtime_type(const char *text_id)
-{
-    return building_type_startup_bridge_runtime_id_from_text(text_id);
-}
-
-static int type_matches(building_type type, const char *text_id)
-{
-    building_type resolved = runtime_type(text_id);
-    return resolved != BUILDING_NONE && type == resolved;
-}
-
-static int type_matches_any(building_type type, const char *const *text_ids, int count)
-{
-    for (int i = 0; i < count; i++) {
-        if (type_matches(type, text_ids[i])) {
-            return 1;
-        }
-    }
-    return 0;
-}
 
 // EXPORT
 
@@ -78,8 +56,8 @@ static void export_model_data(buffer *buf)
         }
 
         if (((!props->size || !props->event_data.attr) &&
-                !type_matches_any(type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]))) ||
-            type_matches_any(type, excluded_models, sizeof(excluded_models) / sizeof(excluded_models[0]))) {
+                !building_type_registry_impl::type_attr_is_any(type, editor_tools, sizeof(editor_tools) / sizeof(editor_tools[0]))) ||
+            building_type_registry_impl::type_attr_is_any(type, excluded_models, sizeof(excluded_models) / sizeof(excluded_models[0]))) {
             continue;
         }
 
@@ -110,7 +88,7 @@ static void export_model_data(buffer *buf)
         xml_exporter_add_attribute_int("desirability_step_size", model->desirability_step_size);
         xml_exporter_add_attribute_int("desirability_range", model->desirability_range);
         xml_exporter_add_attribute_int("laborers", model->laborers);
-        if ((building_is_raw_resource_producer(type) || building_is_workshop(type) || type_matches(type, "wharf"))) {
+        if ((building_is_raw_resource_producer(type) || building_is_workshop(type) || building_type_registry_impl::type_attr_is(type, "wharf"))) {
             if (production_changed) {
                 xml_exporter_add_attribute_int("production_rate", production_per_month);
             }

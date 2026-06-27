@@ -8,17 +8,14 @@
 #include "figure/action.h"
 #include "game/mod_manager.h"
 
-#include "core/file.h"
 #include "core/log.h"
-#include "platform/file_manager.h"
 #include "building/properties.h"
-#include "core/dir.h"
 #include "core/image.h"
+#include "core/xml_definition.h"
 #include "core/xml_parser.h"
 
 #include <array>
 #include <cstddef>
-#include <cstdio>
 #include <limits>
 #include <string>
 #include <string_view>
@@ -29,6 +26,56 @@ namespace figure_type_registry_impl {
 
 std::array<std::unique_ptr<FigureTypeDefinition>, FIGURE_TYPE_MAX> g_figure_types;
 std::string g_failure_reason;
+
+static int building_reference_is_any_or_empty(const std::string &reference)
+{
+    return reference.empty() || xml_value::equals(reference.c_str(), "any");
+}
+
+static int resolve_building_reference(
+    const std::string &reference,
+    building_type &out_type,
+    const char *context,
+    int allow_any)
+{
+    if (building_reference_is_any_or_empty(reference)) {
+        out_type = BUILDING_NONE;
+        if (allow_any || reference.empty()) {
+            return 1;
+        }
+    } else {
+        out_type = building_type_registry_impl::runtime_id_from_text(reference.c_str());
+        if (out_type != BUILDING_NONE) {
+            return 1;
+        }
+    }
+
+    std::string detail = context ? context : "";
+    if (!detail.empty()) {
+        detail += " ";
+    }
+    detail += "building=";
+    detail += reference;
+    set_failure_reason("FigureType building reference is unknown.", detail.c_str());
+    log_error("FigureType building reference is unknown", detail.c_str(), 0);
+    return 0;
+}
+
+building_type OwnerBinding::resolved_required_building_type() const
+{
+    if (required_building_type != BUILDING_NONE || required_building_reference.empty()) {
+        return required_building_type;
+    }
+    return building_type_registry_impl::runtime_id_from_text(required_building_reference.c_str());
+}
+
+building_type EntertainmentVenueTarget::resolved_building_type() const
+{
+    if (building != BUILDING_NONE || building_reference.empty()) {
+        return building;
+    }
+    return building_type_registry_impl::runtime_id_from_text(building_reference.c_str());
+}
 
 FigureTypeProfile::FigureTypeProfile(std::string id)
     : id_(std::move(id))
@@ -98,6 +145,28 @@ void FigureTypeProfile::add_venue_target(const EntertainmentVenueTarget &target)
 const std::vector<EntertainmentVenueTarget> &FigureTypeProfile::venue_targets() const
 {
     return venue_targets_;
+}
+
+int FigureTypeProfile::resolve_building_references(const char *figure_attr)
+{
+    std::string context = "figure=";
+    context += figure_attr ? figure_attr : "";
+    context += " profile=";
+    context += id();
+
+    if (!resolve_building_reference(
+        owner_binding_.required_building_reference,
+        owner_binding_.required_building_type,
+        context.c_str(),
+        1)) {
+        return 0;
+    }
+    for (EntertainmentVenueTarget &target : venue_targets_) {
+        if (!resolve_building_reference(target.building_reference, target.building, context.c_str(), 0)) {
+            return 0;
+        }
+    }
+    return 1;
 }
 
 FigureTypeDefinition::FigureTypeDefinition(figure_type type, std::string attr)
@@ -213,47 +282,19 @@ const std::vector<FigureTypeProfile> &FigureTypeDefinition::profiles() const
     return profiles_;
 }
 
-static int stop_on_first_entry([[maybe_unused]] const char *name, [[maybe_unused]] long unused)
+int FigureTypeDefinition::resolve_building_references()
 {
-    return LIST_MATCH;
-}
-
-
-class ScopedFile {
-public:
-    explicit ScopedFile(FILE *file)
-        : file_(file)
-    {
-    }
-
-    ~ScopedFile()
-    {
-        if (file_) {
-            file_close(file_);
+    for (FigureTypeProfile &profile : profiles_) {
+        if (!profile.resolve_building_references(attr())) {
+            return 0;
         }
     }
-
-    FILE *get() const
-    {
-        return file_;
-    }
-
-private:
-    FILE *file_ = nullptr;
-};
-
-int directory_exists(const char *path)
-{
-    return platform_file_manager_list_directory_contents(path, TYPE_DIR | TYPE_FILE, 0, stop_on_first_entry) != LIST_ERROR;
+    return 1;
 }
 
 void set_failure_reason(const char *message, const char *detail)
 {
-    if (detail && *detail) {
-        g_failure_reason = std::string(message ? message : "") + "\n\n" + detail;
-    } else {
-        g_failure_reason = message ? message : "";
-    }
+    g_failure_reason = xml_definition::format_failure_reason(message, detail);
 }
 
 static void append_unique_candidate_path(std::vector<std::string> &paths, const char *mod_path)
@@ -307,64 +348,13 @@ const FigureTypeProfile *default_profile_for(figure_type type)
     return definition ? definition->default_profile() : nullptr;
 }
 
-static figure_type parse_figure_type_name(const char *name)
+static std::string parse_building_type_reference(const char *attr)
 {
-    struct NamedFigure {
-        std::string_view name;
-        figure_type type;
-    };
-
-    static constexpr std::array<NamedFigure, 34> kFigureNames = { {
-        { "labor_seeker", FIGURE_LABOR_SEEKER },
-        { "engineer", FIGURE_ENGINEER },
-        { "prefect", FIGURE_PREFECT },
-        { "priest", FIGURE_PRIEST },
-        { "doctor", FIGURE_DOCTOR },
-        { "surgeon", FIGURE_SURGEON },
-        { "tax_collector", FIGURE_TAX_COLLECTOR },
-        { "missionary", FIGURE_MISSIONARY },
-        { "patrician", FIGURE_PATRICIAN },
-        { "beggar", FIGURE_BEGGAR },
-        { "market_trader", FIGURE_MARKET_TRADER },
-        { "market_supplier", FIGURE_MARKET_SUPPLIER },
-        { "delivery_boy", FIGURE_DELIVERY_BOY },
-        { "actor", FIGURE_ACTOR },
-        { "gladiator", FIGURE_GLADIATOR },
-        { "lion_tamer", FIGURE_LION_TAMER },
-        { "charioteer", FIGURE_CHARIOTEER },
-        { "teacher", FIGURE_TEACHER },
-        { "librarian", FIGURE_LIBRARIAN },
-        { "barber", FIGURE_BARBER },
-        { "bathhouse_worker", FIGURE_BATHHOUSE_WORKER },
-        { "school_child", FIGURE_SCHOOL_CHILD },
-        { "depot_cart_pusher", FIGURE_DEPOT_CART_PUSHER },
-        { "work_camp_worker", FIGURE_WORK_CAMP_WORKER },
-        { "work_camp_slave", FIGURE_WORK_CAMP_SLAVE },
-        { "work_camp_architect", FIGURE_WORK_CAMP_ARCHITECT },
-        { "mess_hall_supplier", FIGURE_MESS_HALL_SUPPLIER },
-        { "mess_hall_collector", FIGURE_MESS_HALL_COLLECTOR },
-        { "barkeep", FIGURE_BARKEEP },
-        { "barkeep_supplier", FIGURE_BARKEEP_SUPPLIER },
-        { "caravanserai_supplier", FIGURE_CARAVANSERAI_SUPPLIER },
-        { "caravanserai_collector", FIGURE_CARAVANSERAI_COLLECTOR },
-        { "mess_hall_fort_supplier", FIGURE_MESS_HALL_FORT_SUPPLIER },
-        { "fishing_boat", FIGURE_FISHING_BOAT }
-    } };
-
-    for (const NamedFigure &entry : kFigureNames) {
-        if (xml_value::equals(name, entry.name)) {
-            return entry.type;
-        }
+    if (!attr) {
+        return "";
     }
-    return FIGURE_NONE;
-}
-
-static building_type parse_building_type_name(const char *attr)
-{
-    if (!attr || xml_value::equals(attr, "any")) {
-        return BUILDING_NONE;
-    }
-    return building_type_registry_impl::runtime_id_from_text(attr);
+    std::string reference = xml_value::trim_copy(attr);
+    return xml_value::equals(reference.c_str(), "any") ? "" : reference;
 }
 
 static NativeClassId parse_native_class_name(const char *name)
@@ -780,7 +770,7 @@ static int parse_definition_root()
     }
 
     const char *type_attr = xml_parser_get_attribute_string("type");
-    figure_type type = parse_figure_type_name(type_attr);
+    figure_type type = figure_type_from_xml_name(type_attr);
     if (type == FIGURE_NONE) {
         g_parse_state.error = true;
         log_error("FigureType root has an unknown figure type", type_attr, 0);
@@ -856,11 +846,16 @@ static void finish_profile_node()
         g_parse_state.error = true;
         log_error("FigureType venue seeker profile is missing venue targets", g_parse_state.current_profile->id(), 0);
     }
+    if ((g_parse_state.current_profile->native_class() == NativeClassId::EntertainmentVenueSeeker) !=
+        (g_parse_state.current_profile->pathing_policy().mode == &VenueSeeker)) {
+        g_parse_state.error = true;
+        log_error("FigureType venue seeker native class must use venue_seeker pathing",
+            g_parse_state.current_profile->id(), 0);
+    }
     if (g_parse_state.current_profile->native_class() == NativeClassId::DepotCartPusher) {
         const OwnerBinding &owner = g_parse_state.current_profile->owner_binding();
-        const building_type cart_depot_type = building_type_registry_impl::runtime_id_from_text("cart_depot");
         if (owner.slot != FigureSlot::None ||
-            owner.required_building_type != cart_depot_type ||
+            !xml_value::equals(owner.required_building_reference.c_str(), "cart_depot") ||
             owner.required_owner_state != OwnerStateRequirement::InUse ||
             g_parse_state.current_profile->pathing_policy().mode != &DepotOrderRoute) {
             g_parse_state.error = true;
@@ -923,11 +918,11 @@ static int parse_owner_node()
     }
     if (xml_parser_has_attribute("building")) {
         const char *building_attr = xml_parser_get_attribute_string("building");
-        owner_binding.required_building_type = parse_building_type_name(building_attr);
-        if (owner_binding.required_building_type == BUILDING_NONE &&
-            (!building_attr || !xml_value::equals(building_attr, "any"))) {
+        owner_binding.required_building_reference = parse_building_type_reference(building_attr);
+        if (building_attr && !xml_value::equals(building_attr, "any") &&
+            owner_binding.required_building_reference.empty()) {
             g_parse_state.error = true;
-            log_error("FigureType owner node has an unknown building type", building_attr, 0);
+            log_error("FigureType owner node has an empty building type", building_attr, 0);
             return 0;
         }
     }
@@ -1267,17 +1262,14 @@ static int parse_pathing_node()
     const char *effect_text = xml_parser_get_attribute_string("effect");
     pathing_policy.effect = parse_service_effect_name(effect_text);
 
-    if (pathing_policy.mode->requires_service_effect) {
-        // Smart service pathing compares road-tile history for one explicit service effect.
-        if (pathing_policy.effect == ROAD_SERVICE_EFFECT_NONE) {
-            g_parse_state.error = true;
-            error_context_report_error("FigureType smart_service pathing requires a service effect",
-                profile->id());
-            return 0;
-        }
+    // Smart service pathing compares road-tile history for one explicit service effect.
+    if (!pathing_policy.hasRequiredServiceEffect()) {
+        g_parse_state.error = true;
+        error_context_report_error("FigureType smart_service pathing requires a service effect",
+            profile->id());
+        return 0;
     }
-    if (pathing_policy.mode->requires_road &&
-        !PathingMode::terrainRequiresRoads(pathing_policy.terrain)) {
+    if (!pathing_policy.hasRequiredTerrainAccess()) {
         g_parse_state.error = true;
         error_context_report_error(
             "FigureType pathing requires road-capable terrain",
@@ -1328,9 +1320,9 @@ static int parse_venue_node()
     }
 
     EntertainmentVenueTarget target;
-    target.building = parse_building_type_name(xml_parser_get_attribute_string("building"));
+    target.building_reference = parse_building_type_reference(xml_parser_get_attribute_string("building"));
     target.show_slot = parse_show_slot_name(xml_parser_get_attribute_string("show_slot"));
-    if (target.building == BUILDING_NONE ||
+    if (target.building_reference.empty() ||
         target.show_slot == EntertainmentShowSlot::None) {
         g_parse_state.error = true;
         log_error("FigureType venue has an invalid building or show_slot", profile->id(), 0);
@@ -1354,59 +1346,21 @@ static const std::array<xml_parser_element, 10> XML_ELEMENTS = { {
     { "venue", parse_venue_node, nullptr, "venue_targets", nullptr }
 } };
 
-static int load_file_to_buffer(const char *filename, std::vector<char> &buffer)
-{
-    ScopedFile fp(file_open(filename, "rb"));
-    if (!fp.get()) {
-        set_failure_reason("Failed to load FigureType definition.", filename);
-        return 0;
-    }
-
-    if (fseek(fp.get(), 0, SEEK_END) != 0) {
-        set_failure_reason("Failed to load FigureType definition.", filename);
-        return 0;
-    }
-
-    long size = ftell(fp.get());
-    if (size < 0) {
-        set_failure_reason("Failed to load FigureType definition.", filename);
-        return 0;
-    }
-
-    rewind(fp.get());
-    buffer.resize(static_cast<size_t>(size));
-    const size_t read = buffer.empty() ? 0 : fread(buffer.data(), 1, buffer.size(), fp.get());
-    if (read != buffer.size()) {
-        set_failure_reason("Failed to load FigureType definition.", filename);
-        return 0;
-    }
-
-    return 1;
-}
-
 static int parse_definition_file(const char *filename)
 {
-    std::vector<char> buffer;
-    if (!load_file_to_buffer(filename, buffer)) {
-        return 0;
-    }
-    if (buffer.size() > std::numeric_limits<unsigned int>::max()) {
-        set_failure_reason("FigureType definition is too large to parse.", filename);
-        return 0;
-    }
-
     g_parse_state = {};
-    if (!xml_parser_init(XML_ELEMENTS.data(), static_cast<int>(XML_ELEMENTS.size()), 1)) {
-        set_failure_reason("Failed to initialize FigureType XML parser.", filename);
+    const ErrorContextScope scope("FigureType XML", filename);
+    const int parsed = xml_definition::parse_file(
+        filename,
+        "FigureType",
+        XML_ELEMENTS.data(),
+        static_cast<int>(XML_ELEMENTS.size()));
+    if (!parsed) {
+        set_failure_reason("Failed to parse FigureType definition.", filename);
         return 0;
     }
 
-    const ErrorContextScope scope("FigureType XML", filename);
-    const int parsed = xml_parser_parse(buffer.data(), static_cast<unsigned int>(buffer.size()), 1);
-    xml_parser_free();
-
-    if (!parsed ||
-        g_parse_state.error ||
+    if (g_parse_state.error ||
         !g_parse_state.saw_root ||
         !g_parse_state.saw_profiles ||
         !g_parse_state.saw_graphics ||
@@ -1495,23 +1449,27 @@ int figure_type_registry_load(void)
     int found_any_definition_file = 0;
 
     for (const std::string &path : candidate_paths) {
-        if (!figure_type_registry_impl::directory_exists(path.c_str())) {
+        if (!xml_definition::directory_exists(path.c_str())) {
             continue;
         }
 
-        const dir_listing *files = dir_find_files_with_extension(path.c_str(), "xml");
-        if (!files || files->num_files <= 0) {
-            continue;
+        bool found_in_path = false;
+        if (!xml_definition::for_each_definition_file(
+            path,
+            "FigureType",
+            false,
+            [](const xml_definition::DefinitionFile &file, const std::string &) {
+                if (figure_type_registry_impl::parse_definition_file(file.full_path.c_str())) {
+                    return true;
+                }
+                log_error("Unable to parse FigureType xml", file.full_path.c_str(), 0);
+                return false;
+            },
+            &found_in_path)) {
+            return 0;
         }
-
-        found_any_definition_file = 1;
-        for (int i = 0; i < files->num_files; i++) {
-            char full_path[FILE_NAME_MAX];
-            snprintf(full_path, FILE_NAME_MAX, "%s%s", path.c_str(), files->files[i].name);
-            if (!figure_type_registry_impl::parse_definition_file(full_path)) {
-                log_error("Unable to parse FigureType xml", full_path, 0);
-                return 0;
-            }
+        if (found_in_path) {
+            found_any_definition_file = 1;
         }
     }
 
@@ -1530,5 +1488,16 @@ int figure_type_registry_load(void)
         return 0;
     }
 
+    return 1;
+}
+
+int figure_type_registry_resolve_building_references(void)
+{
+    for (std::unique_ptr<figure_type_registry_impl::FigureTypeDefinition> &definition :
+        figure_type_registry_impl::g_figure_types) {
+        if (definition && !definition->resolve_building_references()) {
+            return 0;
+        }
+    }
     return figure_type_registry_impl::validate_building_spawn_profile_references();
 }

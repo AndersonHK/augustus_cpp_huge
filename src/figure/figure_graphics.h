@@ -24,15 +24,6 @@ struct FigureGraphicDrawRequest {
     int sprite_offset_y = 0;
     render_logical_size fixed_logical_size = {};
     render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
-
-    bool add_layer(const FigureGraphicDrawLayer &layer)
-    {
-        if (!layer.slice.is_valid() || layer_count >= MAX_LAYERS) {
-            return false;
-        }
-        layers[layer_count++] = layer;
-        return true;
-    }
 };
 
 class FigureGraphics {
@@ -43,7 +34,6 @@ public:
     }
 
     bool resolve(FigureGraphicDrawRequest &request) const;
-    static bool update_legacy_image_state(Figure &figure);
 
 private:
     const Figure &figure_;

@@ -20,7 +20,6 @@
 #include "building/market.h"
 #include "figure/figure.h"
 
-#include "building/building_type_api.h"
 #include "building/building_record.h"
 #include "building/granary.h"
 #include "building/monument.h"
@@ -45,7 +44,6 @@
 #include "sound/speech.h"
 
 
-#include <cstring>
 #include <math.h>
 
 static const resource_list *stored_resources_for_type(const building_type_registry_impl::BuildingType &type)
@@ -67,19 +65,9 @@ static int is_monument_working(Building &building)
         && !building_monument_has_labour_problems(building_get(building.id()));
 }
 
-static int is_granary(const Building &building)
-{
-    return building.type && building.type->is_granary();
-}
-
-static int is_warehouse(const Building &building)
-{
-    return building.type && building.type->is_warehouse();
-}
-
 static int storage_strings_for_building(const Building &building)
 {
-    return is_granary(building) ? 98 : 99;
+    return building.type && building.type->is_granary() ? 98 : 99;
 }
 
 static void draw_resource_icon_centered(resource_type resource, int x, int y, int width = 25, int height = 25)
@@ -96,7 +84,7 @@ static const building_type_registry_impl::Distribution *distribution_for(const B
 
 static int is_dock(const Building &building)
 {
-    return building.type && std::strcmp(building.type->attr(), "dock") == 0;
+    return building.matches("dock");
 }
 
 static const resource_list *dock_order_resources()
@@ -867,8 +855,7 @@ static void set_distributed_resources(const Building &building)
 void window_building_draw_distributor_orders(building_info_context *c, const uint8_t *title)
 {
     Building &building = c->building;
-    const auto *definition = building.type;
-    c->help_id = definition && std::strcmp(definition->attr(), "dock") == 0 ? 83 : 3;
+    c->help_id = is_dock(building) ? 83 : 3;
     int y_offset = window_building_get_vertical_offset(c, 28);
     outer_panel_draw(c->x_offset, y_offset, 29, 28);
     text_draw_centered(title, c->x_offset, y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height), 0);
@@ -1148,8 +1135,7 @@ const uint8_t *window_building_dock_get_tooltip(building_info_context *c)
     int x_offset = c->x_offset + 16;
     int y_offset = c->y_offset + 240;
     const Building &dock_object = c->building;
-    const auto *definition = dock_object.type;
-    if (!definition || std::strcmp(definition->attr(), "dock") != 0) {
+    if (!is_dock(dock_object)) {
         return 0;
     }
     int width = dock_distribution_permissions_buttons_count > data.dock_max_cities_visible ? 140 : 170;
@@ -1247,7 +1233,7 @@ void window_building_draw_storage(building_info_context *c)
             window_building_draw_description(c, "TR_BUILDING_FUMIGATION_DESC");
         } else {
             window_building_draw_description(c,
-                is_granary(storage_building) ? "TR_BUILDING_GRANARY_PLAGUE_DESC" : "TR_BUILDING_WAREHOUSE_PLAGUE_DESC");
+                type.is_granary() ? "TR_BUILDING_GRANARY_PLAGUE_DESC" : "TR_BUILDING_WAREHOUSE_PLAGUE_DESC");
         }
     } else if (!c->has_road_access) {
         y += 4 + window_building_draw_description_at(c, 56, 69, 25);
@@ -1393,7 +1379,7 @@ void window_building_draw_storage_foreground(building_info_context *c)
     int rejects_all = get_permissions_all_none_button_state(storage_building);
     storage_image_buttons[2 + rejects_all].dont_draw = 1; // hide the irrelevant button
 
-    if (is_warehouse(storage_building)) {
+    if (storage_building.type && storage_building.type->is_warehouse()) {
         if (building_storage_get_permission(BUILDING_STORAGE_PERMISSION_WORKER, storage_building)) {
             storage_image_buttons[0].dont_draw = 1;
         } else {
@@ -1470,18 +1456,19 @@ void window_building_draw_storage_orders_foreground(building_info_context *c)
     button_border_draw(storage_empty_all_button->x, storage_empty_all_button->y, storage_empty_all_button->width,
         storage_empty_all_button->height, data.orders_focus_button_id == 1 ? 1 : 0);
 
+    const bool granary = building.type && building.type->is_granary();
     if (storage->empty_all) {
-        lang_text_draw_centered(current_string_key(label_id, is_granary(building) ? 8 : 5), //button text
+        lang_text_draw_centered(current_string_key(label_id, granary ? 8 : 5), //button text
             storage_empty_all_button->x, storage_empty_all_button->y + 5, storage_empty_all_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
 
-        if (is_granary(building)) {
+        if (granary) {
             lang_text_draw_centered("main_strings.98.9", c->x_offset, storage_empty_all_button->y - 28, // 'trying to send elsewhere'
                 BLOCK_SIZE * c->width_blocks, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
         } else {
             lang_text_draw_centered("main_strings.99.6", c->x_offset, storage_empty_all_button->y - 28, BLOCK_SIZE * c->width_blocks, FONT_SMALL_PLAIN, screen_ui_to_pixel(font_definition_for(FONT_SMALL_PLAIN)->line_height));
         }
     } else {
-        lang_text_draw_centered(current_string_key(label_id, is_granary(building) ? 7 : 4), storage_empty_all_button->x, storage_empty_all_button->y + 5, storage_empty_all_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
+        lang_text_draw_centered(current_string_key(label_id, granary ? 7 : 4), storage_empty_all_button->x, storage_empty_all_button->y + 5, storage_empty_all_button->width, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height));
     }
 
     // Accept-none button
@@ -1559,7 +1546,7 @@ static translation_key storage_permission_tooltip(building_storage_permission_st
 void window_building_storage_get_tooltip_distribution_permissions(translation_key *translation)
 {
     const Building &storage_building = data.building;
-    int is_warehouse_building = is_warehouse(storage_building);
+    int is_warehouse_building = storage_building.type && storage_building.type->is_warehouse();
 
     if (data.permission_focus_button_id) {
         building_storage_permission_states permission =
@@ -1674,9 +1661,7 @@ static void toggle_resource_state(const generic_button *button, int reverse_orde
         return;
     }
     resource_type resource;
-    const auto *definition = building.type;
-    if (distribution_for(building) ||
-        (definition && std::strcmp(definition->attr(), "dock") == 0)) {
+    if (distribution_for(building) || is_dock(building)) {
         if (static_cast<unsigned int>(index) >= data.stored_resources.size) {
             return;
         }
