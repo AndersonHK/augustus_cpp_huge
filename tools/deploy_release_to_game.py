@@ -20,6 +20,8 @@ GOG_GAME_IDS = {"1207658835"}
 GAME_NAME_TOKENS = ("caesar 3", "caesar iii")
 GAME_ROOT_REQUIRED_FILES = ("c3.exe",)
 GAME_ROOT_LOCALE_FILES = ("c3.eng", "c3_mm.eng")
+LEGACY_DEPLOY_WORKSPACES = ("Mods.deploy-staging", "Mods.deploy-backup")
+DEPLOY_BACKUP_PREFIX = "Mods.deploy-backup"
 PROCESS_SNAPSHOT_FLAG = 0x00000002
 PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
 
@@ -370,29 +372,93 @@ def remove_path(path: Path, label: str) -> None:
         raise RuntimeError(f"Unable to remove {label}: {path}. {describe_os_error(exc)}") from exc
 
 
-def clear_directory(path: Path, label: str) -> None:
-    if not path.exists():
-        path.mkdir(parents=True)
-        return
-    if not path.is_dir() or path.is_symlink():
+def require_safe_deploy_workspace_path(path: Path, game_root: Path, label: str) -> Path:
+    if not same_path(path.parent, game_root):
+        raise RuntimeError(f"{label} must be a direct child of the game folder: {path}")
+    allowed_name = path.name in LEGACY_DEPLOY_WORKSPACES or path.name.startswith(f"{DEPLOY_BACKUP_PREFIX}.")
+    if not allowed_name:
+        raise RuntimeError(f"{label} has an unexpected deploy workspace name: {path}")
+    if path.exists() and (path.is_symlink() or is_reparse_point(path)):
+        raise RuntimeError(f"{label} must not be a symlink, junction, or reparse point: {path}")
+    return path
+
+
+def remove_deploy_workspace(path: Path, game_root: Path, label: str, required: bool) -> None:
+    try:
+        require_safe_deploy_workspace_path(path, game_root, label)
+        remove_tree(path, label)
+    except RuntimeError as exc:
+        if required:
+            raise
+        print(f"WARNING: {exc}", file=sys.stderr)
+
+
+def cleanup_legacy_deploy_workspaces(game_root: Path, dry_run: bool) -> None:
+    for name in LEGACY_DEPLOY_WORKSPACES:
+        workspace = game_root / name
+        if not workspace.exists():
+            continue
+        if dry_run:
+            print(f"Would remove stale deploy workspace: {workspace}")
+        else:
+            print(f"Removing stale deploy workspace: {workspace}")
+            remove_deploy_workspace(workspace, game_root, "stale deploy workspace", required=False)
+
+
+def unique_deploy_backup_path(game_root: Path) -> Path:
+    timestamp_ms = int(time.time() * 1000)
+    for attempt in range(100):
+        candidate = game_root / f"{DEPLOY_BACKUP_PREFIX}.{os.getpid()}.{timestamp_ms}.{attempt}"
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError("Unable to choose an unused deploy backup folder name.")
+
+
+def require_real_directory(path: Path, label: str) -> None:
+    if not path.is_dir():
         raise RuntimeError(f"{label} must be a real directory: {path}")
-    for entry in list(path.iterdir()):
-        remove_path(entry, f"{label} entry")
+    if path.is_symlink() or is_reparse_point(path):
+        raise RuntimeError(f"{label} must not be a symlink, junction, or reparse point: {path}")
 
 
-def copy_directory_contents(source: Path, destination: Path, label: str) -> None:
-    if not source.is_dir():
-        raise RuntimeError(f"{label} source folder does not exist: {source}")
-    destination.mkdir(parents=True, exist_ok=True)
-    for entry in source.iterdir():
-        target = destination / entry.name
+def move_path(source: Path, destination: Path, label: str) -> None:
+    try:
+        source.replace(destination)
+    except OSError as exc:
+        raise RuntimeError(f"Unable to move {label}: {source} -> {destination}. {describe_os_error(exc)}") from exc
+
+
+def copy_tree(source: Path, destination: Path, label: str) -> None:
+    require_real_directory(source, f"{label} source folder")
+    if destination.exists():
+        raise RuntimeError(f"{label} destination already exists before copy: {destination}")
+    try:
+        shutil.copytree(source, destination)
+    except OSError as exc:
+        cleanup_detail = ""
         try:
-            if entry.is_dir() and not entry.is_symlink():
-                shutil.copytree(entry, target)
-            else:
-                shutil.copy2(entry, target)
-        except OSError as exc:
-            raise RuntimeError(f"Unable to copy {label}: {entry} -> {target}. {describe_os_error(exc)}") from exc
+            remove_path(destination, f"partial {label}")
+        except RuntimeError as cleanup_exc:
+            cleanup_detail = f" Partial copy cleanup also failed: {cleanup_exc}"
+        raise RuntimeError(
+            f"Unable to copy {label}: {source} -> {destination}. {describe_os_error(exc)}{cleanup_detail}"
+        ) from exc
+
+
+def restore_mod_folders(target_mods: Path, backup_mods: Path, original_existing: set[str]) -> list[str]:
+    restore_errors: list[str] = []
+    for folder in sorted(EXPECTED_MOD_FOLDERS):
+        target_folder = target_mods / folder
+        backup_folder = backup_mods / folder
+        try:
+            if backup_folder.exists():
+                remove_path(target_folder, "partially deployed mod folder")
+                move_path(backup_folder, target_folder, "target mod folder restore")
+            elif folder not in original_existing:
+                remove_path(target_folder, "new target mod folder after failed deploy")
+        except RuntimeError as restore_exc:
+            restore_errors.append(str(restore_exc))
+    return restore_errors
 
 
 def describe_os_error(exc: OSError) -> str:
@@ -420,93 +486,57 @@ def remove_unexpected_target_mod_entries(target_mods: Path, dry_run: bool) -> No
 
 
 def replace_mods_folder(source_mods: Path, target_mods: Path, game_root: Path, dry_run: bool) -> None:
-    staging_mods = game_root / "Mods.deploy-staging"
-    backup_mods = game_root / "Mods.deploy-backup"
-
+    backup_mods = unique_deploy_backup_path(game_root)
     if dry_run:
         print(f"Would ensure target Mods folder exists: {target_mods}")
+        cleanup_legacy_deploy_workspaces(game_root, True)
         if target_mods.exists():
             remove_unexpected_target_mod_entries(target_mods, True)
-        print(f"Would prepare staged Mods folder: {staging_mods}")
-        print(f"Would copy {source_mods} -> {staging_mods}")
+        print(f"Would prepare per-run backup folder: {backup_mods}")
         for folder in sorted(EXPECTED_MOD_FOLDERS):
-            print(f"Would backup, clear, and refill mod folder {target_mods / folder} from {staging_mods / folder}")
-        print(f"Would remove old backup {backup_mods}")
+            print(f"Would move existing mod folder to backup if present: {target_mods / folder}")
+            print(f"Would copy source mod folder directly: {source_mods / folder} -> {target_mods / folder}")
+        print(f"Would remove per-run backup after successful deploy: {backup_mods}")
         return
 
     target_mods.mkdir(parents=False, exist_ok=True)
+    cleanup_legacy_deploy_workspaces(game_root, False)
     remove_unexpected_target_mod_entries(target_mods, False)
 
-    print(f"Preparing staged Mods folder: {staging_mods}")
-    remove_tree(staging_mods, "stale staged Mods folder")
-    remove_tree(backup_mods, "stale backup Mods folder")
-
+    require_safe_deploy_workspace_path(backup_mods, game_root, "per-run deploy backup")
+    print(f"Preparing per-run backup folder: {backup_mods}")
     try:
-        shutil.copytree(source_mods, staging_mods)
-        require_exact_mod_contents(staging_mods, "Staged")
+        backup_mods.mkdir()
     except OSError as exc:
-        remove_tree(staging_mods, "staged Mods folder after failed deploy")
-        remove_tree(backup_mods, "backup Mods folder after failed deploy")
-        raise RuntimeError(
-            "Unable to stage replacement mod folders before touching the target Mods folder. "
-            f"Detail: {describe_os_error(exc)}"
-        ) from exc
-
-    backup_mods.mkdir()
+        raise RuntimeError(f"Unable to create per-run deploy backup folder: {backup_mods}. {describe_os_error(exc)}") from exc
+    original_existing = {folder for folder in EXPECTED_MOD_FOLDERS if (target_mods / folder).exists()}
 
     try:
         for folder in sorted(EXPECTED_MOD_FOLDERS):
-            staged_folder = staging_mods / folder
+            source_folder = source_mods / folder
             target_folder = target_mods / folder
             backup_folder = backup_mods / folder
             if target_folder.exists():
-                print(f"Copying backup of mod folder: {target_folder} -> {backup_folder}")
-                try:
-                    shutil.copytree(target_folder, backup_folder)
-                except OSError as exc:
-                    raise RuntimeError(
-                        f"Unable to copy backup of target mod folder: {target_folder} -> {backup_folder}. "
-                        f"{describe_os_error(exc)}"
-                    ) from exc
+                require_real_directory(target_folder, "target mod folder")
+                print(f"Moving target mod folder to backup: {target_folder} -> {backup_folder}")
+                move_path(target_folder, backup_folder, "target mod folder backup")
 
-            print(f"Clearing target mod folder: {target_folder}")
-            clear_directory(target_folder, "target mod folder")
-            print(f"Copying staged mod contents: {staged_folder} -> {target_folder}")
-            copy_directory_contents(staged_folder, target_folder, "staged mod folder")
+            print(f"Copying source mod folder: {source_folder} -> {target_folder}")
+            copy_tree(source_folder, target_folder, "source mod folder")
 
         require_exact_mod_contents(target_mods, "Target")
     except RuntimeError as exc:
-        restore_errors: list[str] = []
-        for folder in sorted(EXPECTED_MOD_FOLDERS):
-            target_folder = target_mods / folder
-            backup_folder = backup_mods / folder
-            if not backup_folder.exists():
-                continue
-            try:
-                clear_directory(target_folder, "partially deployed mod folder")
-                copy_directory_contents(backup_folder, target_folder, "target mod folder restore")
-            except RuntimeError as restore_exc:
-                restore_errors.append(str(restore_exc))
-        remove_tree(staging_mods, "staged Mods folder after failed deploy")
+        restore_errors = restore_mod_folders(target_mods, backup_mods, original_existing)
+        remove_deploy_workspace(backup_mods, game_root, "backup Mods folder after failed deploy", required=False)
         if restore_errors:
             raise RuntimeError(
-                "Unable to replace target mod folders, and restore from backups had errors: "
+                "Unable to replace target mod folders, and restore from the per-run backup had errors: "
                 + " | ".join(restore_errors)
             ) from exc
-        remove_tree(backup_mods, "backup Mods folder after restored failed deploy")
         raise
 
-    remove_tree(staging_mods, "empty staged Mods folder")
     if backup_mods.exists():
-        try:
-            shutil.rmtree(backup_mods)
-        except OSError as exc:
-            print(
-                f"WARNING: Deployed fresh Mods folders, but could not remove old backup {backup_mods}. "
-                "Close open files there and delete it manually when convenient.",
-                file=sys.stderr,
-            )
-            print(f"Backup removal detail: {exc}", file=sys.stderr)
+        remove_deploy_workspace(backup_mods, game_root, "per-run backup Mods folder after successful deploy", required=False)
 
 
 def deploy_release(dry_run: bool) -> None:

@@ -51,7 +51,7 @@ The remaining work is not "add the first native strategy model"; it is to delete
 - `city_building_ghost.cpp` still has hardcoded preview branches for draggable reservoir, aqueduct, bridge, and road/garden-gate transforms.
 - `city_with_overlay.cpp` and `city_without_overlay.cpp` still branch on farm drawing rules; `city_without_overlay.cpp` still carries a gatehouse top branch.
 - Storage is partially native, but warehouse/granary overlay ornaments and `resource_storage` direct branches are still compatibility code rather than fully generic strategy handling.
-- `animations.cpp` still logs native draw-stage fallback to legacy rendering when a runtime slice is missing.
+- `BuildingGraphics.cpp` still logs native draw-stage fallback to legacy rendering when a runtime slice is missing.
 - `building_type_registry_xml.cpp` still accepts metadata-only BuildingType XML temporarily, so parser strictness is not yet at the final data-owned state.
 
 ## Strategy Families

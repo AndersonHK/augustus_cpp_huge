@@ -18,7 +18,8 @@ enum class RoutePolicyKind : std::uint8_t {
     ConstructionRoad,
     ConstructionHighway,
     ConstructionWall,
-    ConstructionAqueduct
+    ConstructionAqueduct,
+    ConstructionDraggableReservoir
 };
 
 enum class RouteNeighborhood : std::uint8_t {
@@ -68,7 +69,8 @@ struct RoutePolicy {
         return kind == RoutePolicyKind::ConstructionRoad ||
             kind == RoutePolicyKind::ConstructionHighway ||
             kind == RoutePolicyKind::ConstructionWall ||
-            kind == RoutePolicyKind::ConstructionAqueduct;
+            kind == RoutePolicyKind::ConstructionAqueduct ||
+            kind == RoutePolicyKind::ConstructionDraggableReservoir;
     }
 
     routed_building_type constructionBuildingType() const
@@ -80,6 +82,8 @@ struct RoutePolicy {
                 return ROUTED_BUILDING_WALL;
             case RoutePolicyKind::ConstructionAqueduct:
                 return ROUTED_BUILDING_AQUEDUCT;
+            case RoutePolicyKind::ConstructionDraggableReservoir:
+                return ROUTED_BUILDING_DRAGGABLE_RESERVOIR;
             case RoutePolicyKind::ConstructionRoad:
             default:
                 return ROUTED_BUILDING_ROAD;

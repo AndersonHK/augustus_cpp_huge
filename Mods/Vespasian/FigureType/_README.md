@@ -18,7 +18,17 @@ Current supported shape:
 - `<movement ... />`
 - `<pathing ... />`
 - `<venue_targets ...>` with `<venue ... />` children for entertainer venue seekers; `show_duration` is stored and displayed as active calendar days, and runtime ranking uses `2 * show_days + route_distance`
-- `<graphics image_group="..." max_image_offset="N" base_image_offset="N" static_frame_count="N" corpse_image_group="..." corpse_base_image_offset="N" />` at figure level. Optional `base_image_offset` defaults to zero, optional `static_frame_count` chooses one still frame by `figure id % N`, and optional corpse attributes let profiles use a different corpse row.
+- `<graphics>` at figure level.
+- `<graphics><default><path value="Walkers\..." /></default></graphics>` is the preferred authored shape for native FigureType graphics. Add `<image value="..." />` when the target needs an explicit image id or pattern during migration.
+- `<action state="..." min_wait_ticks="...">` and `<corpse frame_count="...">` use the same nested `<path>` and optional `<image>` children as `<default>`.
+- Flat `image_group="..."`, `image_asset="..."`, `path_pattern="..."`, `image_pattern="..."`, `corpse_*`, `action_*`, and cart graphics attributes still parse as legacy migration inputs, but new Vespasian-authored graphics should use child target nodes.
+- Optional graphics attributes such as `max_image_offset`, `base_image_offset`, `static_frame_count`, `sprite_offset_x`, and `sprite_offset_y` remain on `<graphics>` until those policies are also split into child nodes.
+
+The current extracted legacy walker groups often lack the meaningful metadata a
+hand-authored Vespasian asset should have, so migration files may still carry an
+explicit `<image>` child to recover the intended entry. New authored graphics
+should instead use meaningful file/group names with one default image entry per
+XML whenever possible.
 
 Buildings select a native profile with `profile="..."` on their `<spawn>`. The building only chooses the profile; the figure profile owns the native class, owner contract, movement, pathing mode, and road-history effect.
 
@@ -63,7 +73,7 @@ Residential walker support:
 - `beggar` uses profile `unemployment_wanderer` with `transient_wanderer`, `stand_still`, `terrain_usage="roads_highway"`, and `return_mode="die_at_limit"`.
 - Housing BuildingType XML owns when these figures spawn. Any missing profiled BuildingType spawn reference is a FigureType load failure after all FigureType XML has loaded.
 - Residential walkers do not declare a road service `effect`, because they do not provide coverage and should not write road-service history.
-- `<graphics base_image_offset="N" />` offsets the resolved image group base. Beggars also use `static_frame_count="8"` for Julius-style still-frame variation and `corpse_image_group="labor_seeker"` for their corpse row.
+- Legacy `<graphics base_image_offset="N" />` offsets the resolved image group base. Beggars also use legacy `static_frame_count="8"` for Julius-style still-frame variation and `corpse_image_group="labor_seeker"` for their corpse row.
 - See [Walker Pathing Runtime](../../../docs/walker_pathing_runtime.md) for the fuller migration note and save-load inference concerns.
 
 Related implementation notes:

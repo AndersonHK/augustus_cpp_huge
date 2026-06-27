@@ -1437,7 +1437,7 @@ void BuildingType::mark_graphics_default_node()
 
 void BuildingType::clear_graphics()
 {
-    graphics_ = GraphicsDefinition();
+    graphics_ = BuildingGraphics();
 }
 
 GraphicsTarget &BuildingType::default_graphics_target()
@@ -1818,7 +1818,7 @@ const WaterAccessDefinition &BuildingType::water_access() const
     return water_access_;
 }
 
-const GraphicsDefinition &BuildingType::graphics() const
+const BuildingGraphics &BuildingType::graphics() const
 {
     return graphics_;
 }
@@ -2023,25 +2023,13 @@ int BuildingType::is_armoury() const
     return attr_ == "armoury";
 }
 
-int BuildingType::production_is_enabled() const
-{
-    if (production_methods_.empty()) {
-        return 1;
-    }
-    for (const ProductionMethod *method : production_methods_) {
-        if (method && method->is_enabled()) {
-            return 1;
-        }
-    }
-    return 0;
-}
-
 const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const BuildingType *definition, const Building &building)
 {
     if (!definition || !definition->has_graphic()) {
         return nullptr;
     }
 
+#ifndef STARTUP_PARSER_TEST
     if (definition->has_phased_construction() &&
         building.monument_phase() != MONUMENT_FINISHED &&
         building.monument_phase() >= MONUMENT_START) {
@@ -2053,6 +2041,7 @@ const GraphicsTarget *BuildingType::resolve_graphics_target_for_image(const Buil
             return &construction_phase->graphics;
         }
     }
+#endif
 
     return definition->graphics_.resolve_target(building);
 }

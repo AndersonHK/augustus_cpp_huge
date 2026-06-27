@@ -9,9 +9,11 @@
 #include "core/config.h"
 #include "core/log.h"
 #include "figure/enemy_army.h"
+#include "figure/combat.h"
 #include "figure/figure.h"
 #include "figure/formation_enemy.h"
 #include "figure/formation_herd.h"
+#include "figure/formation_layout.h"
 #include "figure/formation_legion.h"
 #include "figure/properties.h"
 #include "figure/route.h"
@@ -30,6 +32,7 @@
 #define BUFFER_SIZE_FOR_10_LEGIONS 128
 #define CURRENT_BUFFER_SIZE_PER_FORMATION 256
 #define MAX_LEGIONS_REGALIA 20 + 1 // +1 to keep indexing simple with 1 start
+#define HERD_ANIMAL_MOVE_WAIT_TICKS 401
 
 static std::vector<formation> formations;
 static struct {
@@ -262,6 +265,44 @@ int formation::legion_curse_weight() const
     return weight;
 }
 
+int formation::legacy_storage_slot_count() const
+{
+    return MAX_FORMATION_FIGURES;
+}
+
+void formation::write_legacy_figure_slots(buffer *buf) const
+{
+    for (int slot = 0; slot < legacy_storage_slot_count(); slot++) {
+        buffer_write_i16(buf, figures[slot]);
+    }
+}
+
+void formation::read_legacy_figure_slots(buffer *buf)
+{
+    for (int slot = 0; slot < legacy_storage_slot_count(); slot++) {
+        figures[slot] = buffer_read_i16(buf);
+    }
+}
+
+std::vector<int> formation::layout_grid_offsets() const
+{
+    const FormationLayoutFootprint footprint = formation_type_definition ?
+        formation_type_definition->layout_footprint() :
+        formation_layout_legacy_footprint();
+    const std::vector<FormationLayoutPosition> positions =
+        formation_layout_positions(layout, figure_count(), declared_capacity(), footprint);
+    if (positions.empty()) {
+        return {};
+    }
+
+    const int base_offset = map_grid_offset(positions[0].x, positions[0].y);
+    std::vector<int> offsets(positions.size(), 0);
+    for (size_t index = 1; index < positions.size(); index++) {
+        offsets[index] = map_grid_offset(positions[index].x, positions[index].y) - base_offset;
+    }
+    return offsets;
+}
+
 static bool figure_is_combat_locked(const Figure &f)
 {
     return f.action_state == FIGURE_ACTION_149_CORPSE ||
@@ -305,6 +346,26 @@ int formation::count_figures_in_action(int action_state) const
 bool formation::has_figure_in_action(int action_state) const
 {
     return count_figures_in_action(action_state) > 0;
+}
+
+bool formation::has_figure_attacking_live_legion() const
+{
+    return any_figure_id([](int figure_id, int) {
+        Figure *f = Figure::get(figure_id);
+        if (f->action_state == FIGURE_ACTION_150_ATTACK) {
+            Figure *opponent = f->opponent.save_id() ? &f->opponent.get() : nullptr;
+            return opponent && !opponent->is_dead() && opponent->is_legion();
+        }
+        return false;
+    });
+}
+
+bool formation::is_fully_in_city() const
+{
+    return !any_figure_id([](int figure_id, int) {
+        Figure *f = Figure::get(figure_id);
+        return f->state != FIGURE_STATE_DEAD && f->is_ghost;
+    });
 }
 
 void formation::kill_figures() const
@@ -376,6 +437,34 @@ void formation::reset_non_combat_figures_action(int action_state) const
         }
         f->action_state = action_state;
         f->wait_ticks = 0;
+    });
+}
+
+void formation::move_herd_animals(int attacking_animals) const
+{
+    for_each_figure_id([&](int figure_id, int) {
+        Figure *f = Figure::get(figure_id);
+        if (figure_is_combat_locked(*f)) {
+            return;
+        }
+        f->wait_ticks = HERD_ANIMAL_MOVE_WAIT_TICKS;
+        if (attacking_animals) {
+            int target_id = figure_combat_get_target_for_wolf(f->x, f->y, 6);
+            if (target_id) {
+                Figure *target = Figure::get(target_id);
+                f->action_state = FIGURE_ACTION_199_WOLF_ATTACKING;
+                f->destination_x = target->x;
+                f->destination_y = target->y;
+                f->target_figure.retarget(*target);
+                target->targeted_by_figure.retarget(*f);
+                f->target_figure_created_sequence = target->created_sequence;
+                Route::remove(f);
+            } else {
+                f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
+            }
+        } else {
+            f->action_state = FIGURE_ACTION_196_HERD_ANIMAL_AT_REST;
+        }
     });
 }
 
@@ -1138,9 +1227,7 @@ void formations_save_state(buffer *buf, buffer *totals)
         buffer_write_u8(buf, f->is_at_fort);
         buffer_write_i16(buf, f->figure_type);
         buffer_write_i16(buf, f->building_id);
-        for (int fig = 0; fig < MAX_FORMATION_FIGURES; fig++) {
-            buffer_write_i16(buf, f->figures[fig]);
-        }
+        f->write_legacy_figure_slots(buf);
         buffer_write_u8(buf, f->num_figures);
         buffer_write_u8(buf, f->max_figures);
         buffer_write_i16(buf, f->layout);
@@ -1234,9 +1321,7 @@ void formations_load_state(buffer *buf, buffer *totals, int version)
         f->is_at_fort = buffer_read_u8(buf);
         f->figure_type = buffer_read_i16(buf);
         f->building_id = buffer_read_i16(buf);
-        for (int fig = 0; fig < MAX_FORMATION_FIGURES; fig++) {
-            f->figures[fig] = buffer_read_i16(buf);
-        }
+        f->read_legacy_figure_slots(buf);
         f->num_figures = buffer_read_u8(buf);
         f->max_figures = buffer_read_u8(buf);
         f->layout = buffer_read_i16(buf);

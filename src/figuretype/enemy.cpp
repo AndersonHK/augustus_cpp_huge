@@ -171,8 +171,10 @@ static void enemy_action(Figure *f, formation *m)
 {
     city_figures_add_enemy();
     f->terrain_usage = TERRAIN_USAGE_ENEMY;
-    f->formation_position_x.enemy = formation_layout_position_x(m->layout, f->index_in_formation);
-    f->formation_position_y.enemy = formation_layout_position_y(m->layout, f->index_in_formation);
+    const FormationLayoutPosition position =
+        formation_layout_position(m->layout, f->index_in_formation, m->declared_capacity());
+    f->formation_position_x.enemy = position.x;
+    f->formation_position_y.enemy = position.y;
 
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:

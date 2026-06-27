@@ -1,6 +1,6 @@
 #include "city/labor.h"
 #include "translation/translation.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "game/state.h"
 #include "graphics/arrow_button.h"
 #include "graphics/generic_button.h"

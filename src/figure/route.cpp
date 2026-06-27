@@ -237,27 +237,18 @@ static void add_direction_to_path(
     same_direction_count = 0;
 }
 
-class AmbientCostMapHandle {
-public:
-    int distanceAt(int gridOffset) const
-    {
-        return map_routing_distance(gridOffset);
-    }
-
-    int reachableDistanceAt(int gridOffset, int maxDistance = 0) const
-    {
-        const int distance = distanceAt(gridOffset);
-        if (distance <= 0 || (maxDistance > 0 && distance > maxDistance)) {
-            return 0;
-        }
-        return distance;
-    }
-};
-
-static const AmbientCostMapHandle &ambient_cost_map()
+static int route_distance_at(int grid_offset)
 {
-    static const AmbientCostMapHandle cost_map;
-    return cost_map;
+    return map_routing_distance(grid_offset);
+}
+
+static int reachable_route_distance_at(int grid_offset, int max_distance = 0)
+{
+    const int distance = route_distance_at(grid_offset);
+    if (distance <= 0 || (max_distance > 0 && distance > max_distance)) {
+        return 0;
+    }
+    return distance;
 }
 
 static int next_is_better(
@@ -290,9 +281,8 @@ static int next_is_better(
 static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
 {
     BuiltPath result;
-    const AmbientCostMapHandle &cost_map = ambient_cost_map();
     const int dst_grid_offset = map_grid_offset(dst_x, dst_y);
-    int distance = cost_map.distanceAt(dst_grid_offset);
+    int distance = route_distance_at(dst_grid_offset);
     if (distance <= 0) {
         return result;
     }
@@ -305,7 +295,7 @@ static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
     const int step = num_directions == 8 ? 1 : 2;
 
     while (distance > 1) {
-        const int base_distance = cost_map.distanceAt(grid_offset);
+        const int base_distance = route_distance_at(grid_offset);
         distance = base_distance;
         int direction = -1;
         int is_highway = 0;
@@ -314,7 +304,7 @@ static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
                 continue;
             }
             const int next_offset = grid_offset + map_grid_direction_delta(next_direction);
-            const int next_distance = cost_map.distanceAt(next_offset);
+            const int next_distance = route_distance_at(next_offset);
             const int next_is_highway = map_terrain_is(next_offset, TERRAIN_HIGHWAY);
             if (next_distance && next_is_better(
                 base_distance,
@@ -346,10 +336,9 @@ static BuiltPath build_land_path(int dst_x, int dst_y, int num_directions)
 static BuiltPath build_water_path(int dst_x, int dst_y, bool is_flotsam)
 {
     BuiltPath result;
-    const AmbientCostMapHandle &cost_map = ambient_cost_map();
     const int rand = random_byte() & 3;
     const int dst_grid_offset = map_grid_offset(dst_x, dst_y);
-    int distance = cost_map.distanceAt(dst_grid_offset);
+    int distance = route_distance_at(dst_grid_offset);
     if (distance <= 0) {
         return result;
     }
@@ -362,7 +351,7 @@ static BuiltPath build_water_path(int dst_x, int dst_y, bool is_flotsam)
 
     while (distance > 1) {
         int current_rand = rand;
-        distance = cost_map.distanceAt(grid_offset);
+        distance = route_distance_at(grid_offset);
         if (is_flotsam) {
             current_rand = map_random_get(grid_offset) & 3;
         }
@@ -372,7 +361,7 @@ static BuiltPath build_water_path(int dst_x, int dst_y, bool is_flotsam)
                 continue;
             }
             const int next_offset = grid_offset + map_grid_direction_delta(next_direction);
-            const int next_distance = cost_map.distanceAt(next_offset);
+            const int next_distance = route_distance_at(next_offset);
             if (!next_distance) {
                 continue;
             }
@@ -479,14 +468,10 @@ static RouteIntent route_intent_from_figure(Figure &figure)
         intent.policy = RoutePolicy::water(figure.is_boat == 2, neighborhood);
         intent.policy.permission = Roadblock::permission_for(figure);
     } else {
-        const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(&figure);
-        intent.terrain = pathing ?
-            pathing->terrain :
-            figure_type_registry_impl::PathingMode::terrainFromLegacyUsage(figure.terrain_usage);
-        intent.policy = figure_type_registry_impl::PathingMode::routePolicyForTerrain(
-            intent.terrain,
-            figure_runtime_roadblock_permission(&figure),
-            neighborhood);
+        const figure_type_registry_impl::PathingMode::RoutePolicySelection selection =
+            figure_type_registry_impl::PathingMode::routePolicyForFigure(figure, neighborhood);
+        intent.terrain = selection.terrain;
+        intent.policy = selection.policy;
     }
 
     return intent;
@@ -706,12 +691,12 @@ void Route::DistanceQuery::CostMapHandle::seed(
 
 int Route::DistanceQuery::CostMapHandle::distanceAt(int gridOffset) const
 {
-    return ambient_cost_map().distanceAt(gridOffset);
+    return route_distance_at(gridOffset);
 }
 
 int Route::DistanceQuery::CostMapHandle::reachableDistanceAt(int gridOffset, int maxDistance) const
 {
-    return ambient_cost_map().reachableDistanceAt(gridOffset, maxDistance);
+    return reachable_route_distance_at(gridOffset, maxDistance);
 }
 
 Route::Request Route::Request::between(
@@ -806,7 +791,7 @@ bool Route::Request::canReachWithBoundedRoadGardenDistanceField() const
         source.x,
         source.y,
         policy.roadblockPermission());
-    return acceptsDestinationDistance(ambient_cost_map().distanceAt(destinationOffset()));
+    return acceptsDestinationDistance(route_distance_at(destinationOffset()));
 }
 
 bool Route::Request::prunesByRoadNetwork() const
@@ -849,7 +834,7 @@ bool Route::Planner::canReach(const Request &request)
     const bool reached = request.policy.needsBoundedRoadGardenDistanceField(request.max_tiles) ?
         request.canReachWithBoundedRoadGardenDistanceField() :
         request.canReachOverSurface() &&
-            request.acceptsDestinationDistance(ambient_cost_map().distanceAt(request.destinationOffset()));
+            request.acceptsDestinationDistance(route_distance_at(request.destinationOffset()));
     if (!reached) {
         performance_tracker_record_route_metric(
             PERFORMANCE_TRACKER_ROUTE_METRIC_FAILED,
@@ -947,6 +932,39 @@ Route::RoadResult Route::DistanceQuery::findRoad(const map_point &road, int maxD
     return road_result(grid_offset, distance);
 }
 
+Route::RoadResult Route::DistanceQuery::findBestReachableAreaTile(
+    int x_min,
+    int y_min,
+    int x_max,
+    int y_max,
+    const CostMapHandle &cost_map,
+    int maxDistance,
+    bool requireRoad,
+    bool requireSameNetwork) const
+{
+    Route::RoadResult best_road;
+    for (int y = y_min; y <= y_max; y++) {
+        for (int x = x_min; x <= x_max; x++) {
+            const int grid_offset = map_grid_offset(x, y);
+            if (requireRoad &&
+                !figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset)) {
+                continue;
+            }
+            if (requireSameNetwork &&
+                sourceNetwork_ > 0 &&
+                !figure_type_registry_impl::PathingMode::citizenIsInRoadNetwork(grid_offset, sourceNetwork_)) {
+                continue;
+            }
+
+            const int distance = cost_map.reachableDistanceAt(grid_offset, maxDistance);
+            if (distance > 0 && (!best_road || distance < best_road.distance)) {
+                best_road = road_result(grid_offset, distance);
+            }
+        }
+    }
+    return best_road;
+}
+
 Route::RoadResult Route::DistanceQuery::findReachableRoad(
     int x,
     int y,
@@ -980,8 +998,6 @@ Route::RoadResult Route::DistanceQuery::findReachableAreaTile(
     }
     const CostMapHandle &cost_map = costMap();
 
-    int best_distance = std::numeric_limits<int>::max();
-    int best_grid_offset = 0;
     for (int r = 1; r <= radius; r++) {
         int x_min = 0;
         int y_min = 0;
@@ -989,26 +1005,17 @@ Route::RoadResult Route::DistanceQuery::findReachableAreaTile(
         int y_max = 0;
         map_grid_get_area(x, y, size, r, &x_min, &y_min, &x_max, &y_max);
 
-        for (int yy = y_min; yy <= y_max; yy++) {
-            for (int xx = x_min; xx <= x_max; xx++) {
-                const int grid_offset = map_grid_offset(xx, yy);
-                if (requireRoad &&
-                    !figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset)) {
-                    continue;
-                }
-
-                const int distance = cost_map.reachableDistanceAt(grid_offset, maxDistance);
-                if (distance <= 0 || distance >= best_distance) {
-                    continue;
-                }
-
-                best_distance = distance;
-                best_grid_offset = grid_offset;
-            }
-        }
-
-        if (best_grid_offset) {
-            return road_result(best_grid_offset, best_distance);
+        const Route::RoadResult best_road = findBestReachableAreaTile(
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            cost_map,
+            maxDistance,
+            requireRoad,
+            false);
+        if (best_road) {
+            return best_road;
         }
     }
     return {};
@@ -1097,26 +1104,15 @@ Route::RoadResult Route::DistanceQuery::findAccessRoad(
 
     const CostMapHandle &cost_map = costMap();
 
-    Route::RoadResult best_road;
-    for (int y = y_min; y <= y_max; y++) {
-        for (int x = x_min; x <= x_max; x++) {
-            const int grid_offset = map_grid_offset(x, y);
-            if (!figure_type_registry_impl::PathingMode::citizenIsRoadLike(grid_offset)) {
-                continue;
-            }
-            if (requireSameNetwork &&
-                sourceNetwork_ > 0 &&
-                !figure_type_registry_impl::PathingMode::citizenIsInRoadNetwork(grid_offset, sourceNetwork_)) {
-                continue;
-            }
-
-            const int distance = cost_map.reachableDistanceAt(grid_offset, maxDistance);
-            if (distance > 0 && (!best_road || distance < best_road.distance)) {
-                best_road = road_result(grid_offset, distance);
-            }
-        }
-    }
-    return best_road;
+    return findBestReachableAreaTile(
+        x_min,
+        y_min,
+        x_max,
+        y_max,
+        cost_map,
+        maxDistance,
+        true,
+        requireSameNetwork);
 }
 
 Route::TerrainQuery Route::TerrainQuery::enemyLandFrom(
@@ -1154,7 +1150,7 @@ int Route::TerrainQuery::distanceTo(int gridOffset) const
     if (!valid_ || !map_grid_is_valid_offset(gridOffset)) {
         return 0;
     }
-    return ambient_cost_map().distanceAt(gridOffset);
+    return route_distance_at(gridOffset);
 }
 
 void Route::clearAll()
@@ -1287,7 +1283,7 @@ bool Route::calculateConstructionDistances(RoutePolicyKind kind, const map_point
 
 int Route::constructionDistanceTo(int gridOffset)
 {
-    return ambient_cost_map().distanceAt(gridOffset);
+    return route_distance_at(gridOffset);
 }
 
 int Route::waterPathLength(const map_point &source, const map_point &destination, bool flotsam)
@@ -1318,6 +1314,16 @@ int Route::waterPathLength(const map_point &source, const map_point &destination
     return path_length;
 }
 
+void Route::blockDistanceArea(int x, int y, int size)
+{
+    map_routing_block(x, y, size);
+}
+
+void Route::deleteFirstWallOrAqueduct(int x, int y)
+{
+    map_routing_delete_first_wall_or_aqueduct(x, y);
+}
+
 bool Route::waterCanReachAdjacentOpenWater(const map_point &source, int x, int y, int size)
 {
     PerformanceTrackerRouteScope route_scope(PERFORMANCE_TRACKER_ROUTE_PURPOSE_WATER);
@@ -1325,10 +1331,9 @@ bool Route::waterCanReachAdjacentOpenWater(const map_point &source, int x, int y
     map_routing_calculate_distances_water_boat(source.x, source.y);
 
     const int base_offset = map_grid_offset(x, y);
-    const AmbientCostMapHandle &cost_map = ambient_cost_map();
     for (const int *tile_delta = map_grid_adjacent_offsets(size); *tile_delta; tile_delta++) {
         const int grid_offset = base_offset + *tile_delta;
-        if (map_terrain_is(grid_offset, TERRAIN_WATER) && cost_map.distanceAt(grid_offset) > 0) {
+        if (map_terrain_is(grid_offset, TERRAIN_WATER) && route_distance_at(grid_offset) > 0) {
             return true;
         }
     }

@@ -32,7 +32,7 @@ int ImageGroupEntry::has_animation() const
     return has_animation_;
 }
 
-const RuntimeAnimationTrack &ImageGroupEntry::animation() const
+const Animation &ImageGroupEntry::animation() const
 {
     return animation_;
 }
@@ -101,11 +101,10 @@ void ImageGroupEntry::clear_top_slice()
     has_top_ = 0;
 }
 
-void ImageGroupEntry::set_animation(RuntimeAnimationTrack animation)
+void ImageGroupEntry::set_animation(Animation animation)
 {
     animation_ = std::move(animation);
-    animation_.num_frames = static_cast<int>(animation_.frames.size());
-    has_animation_ = !animation_.frames.empty();
+    has_animation_ = animation_.has_frames();
 }
 
 void ImageGroupEntry::set_sprite_offset(int x, int y)

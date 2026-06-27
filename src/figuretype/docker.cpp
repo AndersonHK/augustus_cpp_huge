@@ -2,7 +2,6 @@
 #include "city/health.h"
 #include "city/trade.h"
 #include "empire/empire.h"
-#include "game/resource_graphics.h"
 #include "map/road_access.h"
 
 #include "docker.h"
@@ -22,6 +21,7 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "figure/figure_type_registry_internal.h"
 #include "figure/trader.h"
 #include "figuretype/trader.h"
 #include "game/resource.h"
@@ -407,7 +407,7 @@ static int fetch_export_resource(Figure *f, building *dock, int add_to_bought)
 static void set_cart_graphic(Figure *f)
 {
     f->select_legacy_cart_overlay_base_image(f->resource_id != RESOURCE_NONE ?
-        resource_graphics_cart_marker_for_direction(0) :
+        figure_type_registry_impl::FigureGraphics::resource_cart_marker_for_direction(0) :
         image_group(GROUP_FIGURE_CARTPUSHER_CART));
 }
 

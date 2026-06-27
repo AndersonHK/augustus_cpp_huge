@@ -1,6 +1,5 @@
 #include "startup/startup_parser.h"
 
-#include "assets/assets.h"
 #include "building/building_type_registry.h"
 #include "building/building_type_startup_bridge.h"
 #include "building/properties.h"
@@ -11,9 +10,7 @@
 #include "game/defines.h"
 #include "game/mod_manager.h"
 #include "game/resource.h"
-#include "graphics/image.h"
 #include "graphics/renderer.h"
-#include "scenario/property.h"
 #include "translation/translation.h"
 
 #include <algorithm>
@@ -269,37 +266,28 @@ int load_resources(StartupParseResult &result)
     return 1;
 }
 
-std::string graphics_failure_detail()
-{
-    const char *asset_failure_reason = assets_get_failure_reason();
-    if (asset_failure_reason && *asset_failure_reason) {
-        return asset_failure_reason;
-    }
-    return "Failed to load startup graphics required by BuildingType validation.";
-}
-
-int prepare_building_type_graphics(StartupParseResult &result)
+int prepare_graphics_validation(StartupParseResult &result)
 {
     install_startup_renderer_if_needed();
-    if (!Image::load_climate(CLIMATE_CENTRAL, 0, 1, 1, 1)) {
-        return fail_step(result, "BuildingType graphics preparation", graphics_failure_detail());
-    }
-    if (!Image::load_climate(CLIMATE_NORTHERN, 0, 1, 1, 1)) {
-        return fail_step(result, "BuildingType graphics preparation", graphics_failure_detail());
-    }
-    if (!Image::load_climate(CLIMATE_DESERT, 0, 1, 1, 1)) {
-        return fail_step(result, "BuildingType graphics preparation", graphics_failure_detail());
-    }
-    if (!Image::load_climate(CLIMATE_CENTRAL, 0, 1, 0, 0)) {
-        return fail_step(result, "BuildingType graphics preparation", graphics_failure_detail());
-    }
-
-    result.definitions.building_type_graphics_prepared = 1;
-    append_step(result, "BuildingType graphics preparation", 1, "climate graphics loaded");
+    result.definitions.graphics_validation_prepared = 1;
+    append_step(
+        result,
+        "graphics validation prerequisites",
+        1,
+        "headless renderer installed; generated graphics must already exist");
     return 1;
 }
 
 } // namespace
+
+StartupEnvironment inspect_startup_environment()
+{
+    StartupEnvironment environment;
+    environment.game_root = std::filesystem::current_path().string();
+    environment.mod_stack = mod_manager::mod_names();
+    environment.mod_path = mod_manager::mod_path();
+    return environment;
+}
 
 StartupParseResult parse_startup_definitions(const StartupParseRequest &request)
 {
@@ -327,6 +315,9 @@ StartupParseResult parse_startup_definitions(const StartupParseRequest &request)
     if (!run_step(result, "game defines", game_defines_load, game_defines_get_failure_reason())) {
         return result;
     }
+    if (request.prepare_graphics_validation && !prepare_graphics_validation(result)) {
+        return result;
+    }
 
     building_properties_init();
     figure_type_registry_reset();
@@ -340,9 +331,6 @@ StartupParseResult parse_startup_definitions(const StartupParseRequest &request)
         return result;
     }
     if (!run_step(result, "FormationType definitions", formation_type_registry_load, formation_type_registry_get_failure_reason())) {
-        return result;
-    }
-    if (request.prepare_building_type_graphics && !prepare_building_type_graphics(result)) {
         return result;
     }
     if (!run_step(result, "BuildingType definitions", building_type_registry_load)) {

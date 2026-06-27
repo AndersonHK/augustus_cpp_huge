@@ -26,7 +26,7 @@
 
 #include "building.h"
 
-#include "building/animations.h"
+#include "building/BuildingGraphics.h"
 #include "building/building_record.h"
 #include "building/building_runtime_internal.h"
 #include "building/dock.h"
@@ -469,6 +469,18 @@ int Building::has_cached_road_access() const
     return record_ && record_->has_road_access;
 }
 
+int Building::cached_road_access_point(map_point *road) const
+{
+    building *owner = record_ ? building_main(record_) : nullptr;
+    if (!owner || !owner->has_road_access) {
+        return 0;
+    }
+    if (road) {
+        map_point_store_result(owner->road_access_x, owner->road_access_y, road);
+    }
+    return 1;
+}
+
 int Building::has_house_size() const
 {
     return record_ && record_->house_size;
@@ -733,6 +745,35 @@ int Building::has_road_access(map_point *road) const
         return map_has_road_access(access_x, access_y, access_size, road);
     }
     return owner && map_has_road_access(owner->x, owner->y, owner->size, road);
+}
+
+int Building::query_road_access_point(map_point *road) const
+{
+    building *owner = record_ ? building_main(record_) : nullptr;
+    if (!owner) {
+        return 0;
+    }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(owner->type);
+    if (definition && definition->is_warehouse()) {
+        return map_has_road_access_warehouse(owner->x, owner->y, road);
+    }
+    if (definition && definition->is_granary()) {
+        return map_has_road_access_granary(owner->x, owner->y, road);
+    }
+    return Building(owner).has_road_access(road);
+}
+
+int Building::storage_destination_road_access_point(map_point *road) const
+{
+    const Building owner = main();
+    if (!owner.type ||
+        (!owner.type->is_warehouse() &&
+            !owner.type->is_granary() &&
+            !owner.type->is_grand_temple_venus())) {
+        return 0;
+    }
+    return owner.query_road_access_point(road);
 }
 
 int Building::has_water_access() const

@@ -37,7 +37,7 @@
 #include "core/calc.h"
 #include "core/config.h"
 #include "figure/movement.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/sprite.h"

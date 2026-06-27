@@ -36,7 +36,7 @@
 #include "figure/visited_buildings.h"
 #include "figuretype/animal.h"
 #include "figuretype/water.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/campaign.h"
 #include "game/difficulty.h"
 #include "game/file_io.h"
@@ -127,7 +127,7 @@ static void clear_scenario_data(void)
     city_data_init();
     city_message_init_scenario();
     game_state_init();
-    game_animation_init();
+    Animation::init();
     sound_city_init();
     building_menu_enable_all();
     building_clear_all();

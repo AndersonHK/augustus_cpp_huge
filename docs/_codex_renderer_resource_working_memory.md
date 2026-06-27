@@ -15,7 +15,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - `Image` in `src/graphics/image.h/.cpp` is the manager-owned renderable image object. It owns the runtime handle plus image metadata and exposes draw/runtime-slice methods with default `COLOR_MASK_NONE` and `SCALE_NONE` arguments.
 - `ImageGroupEntryRef` is the semantic handle for "this entry from this image group." It stores a group path plus optional entry id, resolves to the manager-owned `Image`, and exposes `draw(...)`, dimensions, and runtime slices.
 - Do not introduce a bespoke `Icon` class for resource/building/button imagery. Existing XML already expresses those visuals as image group paths plus optional entry ids, so callers should store/use `ImageGroupEntryRef`.
-- Resource imagery now lives in `ResourceGraphics` (`src/game/resource_graphics.h/.cpp`), loaded from `Mods/<Mod>/Resources/*.xml`.
+- Resource imagery now lives in `ResourceGraphics` (`src/game/ResourceGraphics.h/.cpp`), loaded from `Mods/<Mod>/Resources/*.xml`.
 - Resources no longer expose image id fields or producer/industry fields. Production ownership is inferred from building production methods through `building_output_resource(...)` and `building_producer_for_resource(...)`.
 - Border composition moved out of `Image` and into `ImageBorder`, a UI composition primitive that owns explicit image-group segment references instead of relying on neighboring image ids.
 - The upcoming image-group class pass should be able to absorb `ImageGroupEntryRef` naturally: callers already speak in group path + entry id terms rather than raw legacy image ids.

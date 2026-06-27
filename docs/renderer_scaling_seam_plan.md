@@ -18,6 +18,7 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
 
 - Render requests now carry `render_logical_size fixed_logical_size` alongside the legacy float logical width and height.
 - `Render2DPipeline` resolves fixed logical dimensions first, then falls back to float logical dimensions or source image size, preserving current rendering for existing callers.
+- `Render2DPipeline` owns `scale_filter` config interpretation for both per-request city draw filtering and renderer texture quality hints.
 - Managed runtime texture requests pass the fixed logical-size fields through to the renderer request bridge.
 - Figure drawing has started passing fixed logical-size requests, but broad XML/image metadata ownership is not migrated.
 - `RENDER_LOGICAL_UNITS_PER_PIXEL = 6` is a compatibility seam, not the final authoring grain for city graphics.

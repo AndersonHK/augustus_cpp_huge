@@ -160,7 +160,7 @@ static void generate_labor_seeker(building *b, int x, int y)
     }
     if (b->figure_id2) {
         Figure *f = Figure::get(b->figure_id2);
-        if (!f->state || f->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(f, b)) {
+        if (f->is_dead() || f->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(f, b)) {
             b->figure_id2 = 0;
         }
     } else {
@@ -247,7 +247,7 @@ static int has_figure_of_types(building *b, figure_type type1, figure_type type2
         return 0;
     }
     Figure *f = Figure::get(b->figure_id);
-    if (f->state && figure_belongs_to_building(f, b) && (f->type == type1 || f->type == type2)) {
+    if (f && !f->is_dead() && figure_belongs_to_building(f, b) && (f->type == type1 || f->type == type2)) {
         return 1;
     } else {
         b->figure_id = 0;
@@ -518,30 +518,11 @@ static void send_supplier_to_destination(Figure *f, Building destination)
     }
     f->destination_building = destination;
     map_point road;
-    int destination_found = 0;
-    if (!destination.type) {
-        destination_found = 0;
-    } else if (destination.type->is_warehouse()) {
-        if (map_has_road_access_warehouse(destination.x(), destination.y(), &road)) {
-            destination_found = 1;
-            f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-            f->destination_x = road.x;
-            f->destination_y = road.y;
-        }
-    } else if (destination.type->is_granary()) {
-        if (map_has_road_access_granary(destination.x(), destination.y(), &road)) {
-            destination_found = 1;
-            f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-            f->destination_x = road.x;
-            f->destination_y = road.y;
-        }
-    } else if (destination.type->is_grand_temple_venus()) {
-        if (map_has_road_access(destination.x(), destination.y(), destination.size(), &road)) {
-            destination_found = 1;
-            f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-            f->destination_x = road.x;
-            f->destination_y = road.y;
-        }
+    const int destination_found = destination.storage_destination_road_access_point(&road);
+    if (destination_found) {
+        f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
+        f->destination_x = road.x;
+        f->destination_y = road.y;
     }
     if (!destination_found) {
         f->action_state = FIGURE_ACTION_146_SUPPLIER_RETURNING;
@@ -969,7 +950,9 @@ static void spawn_figure_dock(building *b)
         int existing_dockers = 0;
         for (int i = 0; i < 3; i++) {
             if (b->data.distribution.cartpusher_ids[i]) {
-                if (Figure::get(b->data.distribution.cartpusher_ids[i])->type == FIGURE_DOCKER) {
+                Figure *docker = Figure::get(b->data.distribution.cartpusher_ids[i]);
+                if (docker && !docker->is_dead() && docker->type == FIGURE_DOCKER &&
+                    figure_belongs_to_building(docker, b)) {
                     existing_dockers++;
                 } else {
                     b->data.distribution.cartpusher_ids[i] = 0;
@@ -981,6 +964,7 @@ static void spawn_figure_dock(building *b)
             for (int i = 2; i >= 0; i--) {
                 if (b->data.distribution.cartpusher_ids[i]) {
                     Figure::get(b->data.distribution.cartpusher_ids[i])->state = FIGURE_STATE_DEAD;
+                    b->data.distribution.cartpusher_ids[i] = 0;
                     break;
                 }
             }
@@ -1204,7 +1188,7 @@ static void spawn_figure_depot(building *b)
         for (int i = 0; i < 3; i++) {
             if (b->data.distribution.cartpusher_ids[i]) {
                 Figure *f = Figure::get(b->data.distribution.cartpusher_ids[i]);
-                if (f->type == FIGURE_DEPOT_CART_PUSHER &&
+                if (f && !f->is_dead() && f->type == FIGURE_DEPOT_CART_PUSHER &&
                     figure_belongs_to_building(f, b)) {
                     existing_carts++;
                 } else {

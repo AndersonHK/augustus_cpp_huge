@@ -1,7 +1,6 @@
 #include "building/industry.h"
 #include "building/storage.h"
 #include "city/health.h"
-#include "game/resource_graphics.h"
 
 #include "cartpusher.h"
 
@@ -23,6 +22,7 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/PathingMode.h"
+#include "figure/figure_type_registry_internal.h"
 #include "figure/route.h"
 #include "game/resource.h"
 #include "game/time.h"
@@ -139,7 +139,7 @@ static void set_cart_graphic(Figure *f, int always_carries_resource)
     const int carried = resource == RESOURCE_NONE ? 0 :
         (f->loads_sold_or_carrying == 0 ? always_carries_resource : f->loads_sold_or_carrying);
     f->select_legacy_cart_overlay_base_image(carried > 0 ?
-        resource_graphics_cart_marker_for_direction(0) :
+        figure_type_registry_impl::FigureGraphics::resource_cart_marker_for_direction(0) :
         image_group(GROUP_FIGURE_CARTPUSHER_CART));
 }
 
@@ -172,7 +172,7 @@ static void cartpusher_return_to_source(Figure *f, const Building &origin)
 }
 
 static int should_change_destination(
-    const Figure *f, const Building &origin, const Building &new_destination, int x_dst, int y_dst)
+    const Figure *f, int action, const Building &origin, const Building &new_destination, int x_dst, int y_dst)
 {
     if (!f->destination_building.id()) {
         return 1;
@@ -182,7 +182,7 @@ static int should_change_destination(
         f->destination_x == x_dst &&
         f->destination_y == y_dst &&
         current_destination_obj.type == new_destination.type;
-    switch (f->action_state) {
+    switch (action) {
         case FIGURE_ACTION_21_CARTPUSHER_DELIVERING_TO_WAREHOUSE:
         case FIGURE_ACTION_22_CARTPUSHER_DELIVERING_TO_GRANARY:
         {
@@ -200,6 +200,18 @@ static int should_change_destination(
             }
             break;
         }
+        case FIGURE_ACTION_23_CARTPUSHER_DELIVERING_TO_WORKSHOP:
+            if (same_destination) {
+                break;
+            }
+            if (!building_is_workshop(current_destination_obj.type ? current_destination_obj.type->type() : BUILDING_NONE)) {
+                return 1;
+            }
+            if (current_destination_obj.input_storage_available_space(static_cast<resource_type>(f->resource_id)) <
+                resource_units_per_load()) {
+                return 1;
+            }
+            break;
         case FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE:
             if (!is_warehouse_storage(current_destination_obj) && !current_destination_obj.matches("granary")) {
                 return current_destination_obj.type == new_destination.type &&
@@ -262,9 +274,10 @@ static void validate_action_for_old_destination(Figure *f, const Building &desti
 
 static void set_destination(Figure *f, int action, const Building &origin, const Building &destination, int x_dst, int y_dst)
 {
+    const int change_destination = should_change_destination(f, action, origin, destination, x_dst, y_dst);
     f->action_state = action;
     f->wait_ticks = 0;
-    if (should_change_destination(f, origin, destination, x_dst, y_dst)) {
+    if (change_destination) {
         f->release_destination_reservations();
         Route::remove(f);
         f->destination_building = destination;
@@ -287,7 +300,7 @@ static int set_input_storage_destination_from_runtime_id(
 {
     Building destination = building_from_runtime_id(destination_id);
     const resource_type resource = static_cast<resource_type>(f->resource_id);
-    if (should_change_destination(f, origin, destination, x_dst, y_dst)) {
+    if (should_change_destination(f, action, origin, destination, x_dst, y_dst)) {
         f->release_destination_reservations();
     }
     if (!destination.reserve_input_storage_load(resource, f->id())) {
@@ -596,7 +609,7 @@ void figure_cartpusher_action(Figure *f)
                     cartpusher_return_to_source(f, source);
                 } else {
                     f->release_destination_reservations();
-                    if (should_change_destination(f, source, destination, f->destination_x, f->destination_y)) {
+                    if (should_change_destination(f, f->action_state, source, destination, f->destination_x, f->destination_y)) {
                         const int previous_action = f->action_state;
                         determine_cartpusher_destination(f, source, road_network_id);
                         if (f->action_state == previous_action) {
@@ -626,7 +639,7 @@ void figure_cartpusher_action(Figure *f)
                         cartpusher_return_to_source(f, source);
                         break;
                     }
-                    if (should_change_destination(f, source, destination, f->destination_x, f->destination_y)) {
+                    if (should_change_destination(f, f->action_state, source, destination, f->destination_x, f->destination_y)) {
                         const int previous_action = f->action_state;
                         determine_cartpusher_destination(f, source, road_network_id);
                         if (f->action_state == previous_action) {

@@ -41,7 +41,7 @@
 #include "core/random.h"
 #include "core/string.h"
 #include "figure/type.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/speed.h"
 #include "graphics/font.h"
 #include "graphics/text.h"
@@ -324,7 +324,7 @@ int game_reload_language(void)
 
 void game_run(void)
 {
-    game_animation_update();
+    Animation::update_timers();
     int num_ticks = game_speed_get_elapsed_ticks();
     int processed_ticks = 0;
     for (int i = 0; i < num_ticks; i++) {

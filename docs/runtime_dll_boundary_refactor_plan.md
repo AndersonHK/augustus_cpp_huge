@@ -14,6 +14,8 @@ The target model is strict DLL/plugin-style boundaries:
 
 The shared exception is the crash/error context logger and the smallest shared core ABI needed to report fatal startup diagnostics.
 
+Separate focused executables may share implementation through a shared DLL or static module boundary. For example, `JuliusGraphicsExtractor.exe` and `AugustusGraphicsExtractor.exe` should remain separate contract tests, but the legacy image decoding, filesystem helpers, PNG writing, and extraction reports should live in a shared graphics-extraction library. The same rule applies to runtime, XML startup parsing, and save/load bridging: keep executable entry points narrow and independent, share only through explicitly owned module contracts, and avoid duplicated private helper code.
+
 ## Ownership Contract
 
 The target architecture is a handoff between layers, not a shared reset/rebuild system.
@@ -45,9 +47,10 @@ Current direct tester shape:
 | --- | --- | --- |
 | Runtime reset internals | `StartupParserTest` no longer includes `building_runtime.h` or calls `building_runtime_reset()` directly. Startup parser cleanup must remain parser-owned; registry load should produce immutable definitions, not reset runtime bridge state. | Keep tester cleanup limited to parser-owned teardown until the startup facade returns a typed `StartupDefinitions` object. |
 | Registry load order | `StartupParserTest` now calls `startup_parser::parse_startup_definitions()` and prints returned step diagnostics instead of calling each registry directly. The facade still uses global registries internally as the static-boundary first step. | Convert the facade's `StartupDefinitions` from a summary into the immutable definition payload runtime startup will consume. |
-| Graphics validation inputs | The startup parser facade now has an explicit pre-BuildingType graphics preparation step, so `StartupParserTest` no longer needs ad hoc graphics setup in `main.cpp`. The static step still mirrors runtime climate/image loading and uses a minimal headless renderer when no runtime renderer exists. | Replace runtime image-cache loading with parser/graphics-owned image-group validation data after graphics extraction exposes a self-contained generated-asset manifest. |
-| Project compile graph | `StartupParserTest.vcxproj` still compiles `src\**\*.cpp`, so the executable links far more runtime code than the test contract needs. | Replace the wildcard with a curated startup-parser/static-boundary source list after parser-only source ownership is explicit. |
-| Platform/UI shims | `platform_shims.cpp` supplies only minimal process/system stubs, but SDL libraries remain linked through the shared project settings. | Move parser-test project settings toward shared-core/file/XML dependencies only. |
+| Startup environment reporting | `StartupParserTest` now asks the facade for game root, mod stack, and selected mod path through `startup_parser::inspect_startup_environment()` instead of including `game/mod_manager.h` directly. | Keep moving tester-visible startup facts behind the facade until the executable can link only shared-core/parser sources. |
+| Graphics validation inputs | The startup parser facade now has an explicit pre-registry graphics-validation preparation step, so `StartupParserTest` installs the minimal headless renderer needed to validate generated image-group payloads. The test executable checks extraction stamp files before parsing any XML and fails with exact `JuliusGraphicsExtractor` / `AugustusGraphicsExtractor` commands when deployed Mods have not been regenerated. | Replace runtime image-cache loading with parser/graphics-owned image-group validation data after graphics extraction exposes a self-contained generated-asset manifest. |
+| Project compile graph | `StartupParserTest.vcxproj` now uses curated startup/static-boundary source groups instead of `src\**\*.cpp`. The list keeps startup, XML registries, generated image-group materialization, core file/XML helpers, and minimal platform file/log support while leaving out window/widget/input/editor/sound/app-shell sources and extractor implementation files. `GraphicsDefinition` is now the shared graphics base in `src\graphics\GraphicsDefinition.h/.cpp`; `BuildingGraphics` data/selection methods live in `src\building\BuildingGraphics.h/.cpp`, `FigureGraphics` owns FigureType draw policies in `src\figure\FigureGraphics.h/.cpp`, and `ResourceGraphics` is limited to icon presentation in `src\game\ResourceGraphics.h/.cpp`. XML graphics path/source resolution now lives in `src\assets\xml_path_resolution.cpp`, generated image-copy primitives now live in `src\assets\image_copy.cpp`, pathing mode XML metadata now lives in `src\figure\PathingMode_metadata.cpp`, parser-visible `ProductionMethod` data now stays in `src\building\production_method.cpp` while live production eligibility/progress lives in `src\building\production_method_runtime.cpp`, and parser-visible `Distribution` rules stay in `src\building\distribution.cpp` while live source lookup/acceptance behavior lives in `src\building\distribution_runtime.cpp`. Parser-test builds now fence out live `BuildingGraphics` condition evaluation and construction-phase building-state selection instead of supplying fake live building state, and no longer need runtime `PathingMode` terrain probes. | Split the remaining parser-test shim surfaces into parser-owned sources: generated image materialization still depends on runtime image/atlas loader hooks, and registry cleanup still calls menu/monument cache invalidation hooks until definition loading returns immutable payloads. |
+| Platform/UI shims | `platform_shims.cpp` supplies parser-test no-ops for menu/monument cache invalidation, runtime image/atlas entry points, legacy image lookups, and building/scenario validation bridges. The project no longer links SDL_mixer or SDL_ttf; stale timing, resize/fullscreen, folder-dialog, exit, external-pixel loader, runtime building reset, and terrain/pathing probe hooks are no longer present; SDL2 remains for the current file/log platform helpers. Production-only city finance, mothball, game calendar, shipyard water-spawn, distribution source lookup, storage permission, stockpile, acceptance, live graphics-condition building state, climate/festival, and runtime PathingMode shims are no longer needed by parser-time loading. | Move file/log support into shared-core/parser-owned code so the parser test can eventually drop SDL2 entirely; replace runtime image loader stubs only after generated graphics validation reads a self-contained generated-asset manifest. |
 
 ## Candidate DLLs
 
@@ -74,6 +77,15 @@ ExtractionResult extract_graphics(const ExtractionRequest &request, ErrorSink &e
 ```
 
 After extraction succeeds, the runtime loads generated native assets through the normal image/resource pipeline. Extractor implementation details must not stay reachable from the game loop.
+
+Future extractor revisions should preserve and emit more meaningful metadata
+from the legacy source files: stable group names, useful default entries,
+source dimensions, offsets, layer intent, and any recoverable animation/action
+structure. The current extractor output is a migration artifact that often
+forces FigureType or BuildingType graphics XML to redeclare metadata that was
+lost during extraction. Authored Vespasian graphics are not constrained by that
+shape and should remain free to use clean one-group-per-file names and default
+entries.
 
 ### XML Startup Parser DLL
 
@@ -164,15 +176,16 @@ No runtime object should store pointers to DLL-owned memory. Returned data must 
 3. Convert the facade output into an explicit `StartupDefinitions` object owned by runtime startup.
 4. Move parser-only helpers, schema walkers, and cross-reference validators behind that facade.
 5. Build the parser facade as a static boundary first, then as a DLL once payload ownership is explicit.
-6. Apply the same treatment to graphics extraction, starting from the standalone extractor executable.
+6. Apply the same treatment to graphics extraction, starting from the standalone Julius and Augustus extractor executables and a shared extraction implementation module.
 7. Apply the same treatment to save/load migration after current-version runtime ownership is strong enough that bridge data can be discarded immediately after import.
 
 ## Test Harness Pattern
 
 The small test executables should become contract callers for these DLLs, not alternate implementations:
 
-- `AugustusGraphicsExtractor.exe` should eventually load/call the graphics extraction DLL, verify generated outputs, then exit.
-- `StartupParserTest.exe` should eventually load/call the XML startup parser DLL, verify the returned `StartupDefinitions`, then exit.
+- `JuliusGraphicsExtractor.exe` should eventually load/call the shared graphics extraction DLL for legacy atlas extraction, verify generated Julius outputs, then exit.
+- `AugustusGraphicsExtractor.exe` should eventually load/call the same graphics extraction DLL for Augustus image-group extraction, verify generated Augustus outputs, then exit.
+- `StartupParserTest.exe` should require those generated graphics outputs, load/call the XML startup parser DLL, verify the returned `StartupDefinitions`, then exit.
 - A future save bridge tester should load/call the save/load DLL against known-good saves and assert that they import into valid current runtime data.
 
 That pattern keeps tests honest. If a DLL boundary changes, the game and its focused test executable both exercise the same exported contract. The testers remain small PowerShell-friendly smoke tests while the heavy compatibility code still lives in the one-shot DLL that can be unloaded after use.

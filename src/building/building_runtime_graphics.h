@@ -1,6 +1,6 @@
 #pragma once
 
-#include "building/animations.h"
+#include "building/BuildingGraphics.h"
 
 class Building;
 

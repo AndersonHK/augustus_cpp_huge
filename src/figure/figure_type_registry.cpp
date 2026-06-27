@@ -2,6 +2,7 @@
 
 #include "figure/figure_type_registry_internal.h"
 
+#include "assets/image_group_payload.h"
 #include "building/building_type_registry_internal.h"
 #include "core/crash_context.h"
 #include "core/xml_value.h"
@@ -15,10 +16,14 @@
 #include "core/xml_parser.h"
 
 #include <array>
+#include <cctype>
+#include <cstdio>
 #include <cstddef>
+#include <cstring>
 #include <limits>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -75,48 +80,6 @@ building_type EntertainmentVenueTarget::resolved_building_type() const
         return building;
     }
     return building_type_registry_impl::runtime_id_from_text(building_reference.c_str());
-}
-
-int GraphicsPolicy::default_source_count() const
-{
-    return (image_group ? 1 : 0) +
-        (image_asset != ASSET_MAX_KEY ? 1 : 0) +
-        (!path_pattern.empty() || !image_pattern.empty() ? 1 : 0);
-}
-
-int GraphicsPolicy::corpse_source_count() const
-{
-    return (corpse_image_group ? 1 : 0) +
-        (corpse_image_asset != ASSET_MAX_KEY ? 1 : 0) +
-        (!corpse_path_pattern.empty() || !corpse_image_pattern.empty() ? 1 : 0);
-}
-
-int GraphicsPolicy::has_native_payload() const
-{
-    return !path_pattern.empty() && !image_pattern.empty();
-}
-
-int GraphicsPolicy::has_action_native_payload() const
-{
-    return !action_path_pattern.empty() && !action_image_pattern.empty();
-}
-
-int GraphicsPolicy::has_corpse_native_payload() const
-{
-    return !corpse_path_pattern.empty() && !corpse_image_pattern.empty();
-}
-
-int GraphicsPolicy::action_graphics_matches(int figure_action_state, int wait_ticks) const
-{
-    return action_state &&
-        figure_action_state == action_state &&
-        wait_ticks >= action_min_wait_ticks &&
-        has_action_native_payload();
-}
-
-int GraphicsPolicy::has_fixed_logical_size() const
-{
-    return fixed_logical_size.width > 0 && fixed_logical_size.height > 0;
 }
 
 FigureTypeProfile::FigureTypeProfile(std::string id)
@@ -288,14 +251,42 @@ const MovementProfile &FigureTypeDefinition::movement_profile() const
     return movement_profile_;
 }
 
-void FigureTypeDefinition::set_graphics_policy(const GraphicsPolicy &graphics_policy)
+void FigureTypeDefinition::set_graphics(const FigureGraphics &graphics_definition)
 {
-    graphics_policy_ = graphics_policy;
+    graphics_ = graphics_definition;
 }
 
-const GraphicsPolicy &FigureTypeDefinition::graphics_policy() const
+const FigureGraphics &FigureTypeDefinition::graphics() const
 {
-    return graphics_policy_;
+    return graphics_;
+}
+
+int FigureTypeDefinition::cache_graphics_bindings()
+{
+    return graphics_.cache_native_payload_bindings(*this);
+}
+
+const GraphicsTargetBinding *FigureTypeDefinition::graphics_binding(
+    GraphicsTargetRole role,
+    int direction_index,
+    int frame) const
+{
+    return graphics_.cached_target_binding(role, direction_index, frame);
+}
+
+const GraphicsTargetBinding *FigureTypeDefinition::graphics_binding_for_state(
+    int figure_action_state,
+    int wait_ticks,
+    int image_offset,
+    int corpse_frame_offset,
+    int direction_index) const
+{
+    return graphics_.cached_target_binding_for_state(
+        figure_action_state,
+        wait_ticks,
+        image_offset,
+        corpse_frame_offset,
+        direction_index);
 }
 
 void FigureTypeDefinition::set_pathing_policy(const PathingPolicy &pathing_policy)
@@ -562,7 +553,7 @@ static int parse_image_group_name(const char *name)
         int image_group_id;
     };
 
-    static constexpr std::array<NamedGroup, 22> kImageGroups = { {
+    static constexpr std::array<NamedGroup, 23> kImageGroups = { {
         { "labor_seeker", GROUP_FIGURE_LABOR_SEEKER },
         { "engineer", GROUP_FIGURE_ENGINEER },
         { "prefect", GROUP_FIGURE_PREFECT },
@@ -579,6 +570,7 @@ static int parse_image_group_name(const char *name)
         { "actor", GROUP_FIGURE_ACTOR },
         { "gladiator", GROUP_FIGURE_GLADIATOR },
         { "lion_tamer", GROUP_FIGURE_LION_TAMER },
+        { "lion_tamer_whip", GROUP_FIGURE_LION_TAMER_WHIP },
         { "charioteer", GROUP_FIGURE_CHARIOTEER },
         { "teacher_librarian", GROUP_FIGURE_TEACHER_LIBRARIAN },
         { "barber", GROUP_FIGURE_BARBER },
@@ -658,21 +650,30 @@ static int parse_int_array_8(const char *text, std::array<int, 8> &out_values)
 static int validate_depot_cart_graphics(
     const FigureTypeDefinition *definition,
     bool *parse_error,
-    const GraphicsPolicy &graphics_policy)
+    const FigureGraphics &graphics_definition)
 {
     if (!definition || definition->type() != FIGURE_DEPOT_CART_PUSHER) {
         return 1;
     }
 
-    if (graphics_policy.image_asset == ASSET_MAX_KEY ||
-        graphics_policy.corpse_image_asset == ASSET_MAX_KEY ||
-        graphics_policy.cart_mode != CartGraphicsMode::ResourceLoad) {
+    if (!graphics_definition.has_legacy_resource_cart_graphics()) {
         *parse_error = true;
+        std::string detail = "figure=";
+        detail += definition->attr();
+        detail += " profile=* context=cart";
+        set_failure_reason(
+            "Depot cart pusher graphics requires image_asset, corpse_image_asset, and cart_mode resource_load.",
+            detail.c_str());
         log_error("Depot cart pusher graphics requires image_asset, corpse_image_asset, and cart_mode resource_load",
-            definition->attr(), 0);
+            detail.c_str(), 0);
         return 0;
     }
     return 1;
+}
+
+static int graphics_target_has_image_without_path(const std::string &path, const std::string &image)
+{
+    return path.empty() && !image.empty();
 }
 
 static road_service_effect parse_service_effect_name(const char *name)
@@ -814,7 +815,7 @@ enum class GraphicsTargetKind {
 struct ParseState {
     std::unique_ptr<FigureTypeDefinition> definition;
     FigureTypeProfile *current_profile = nullptr;
-    GraphicsPolicy graphics_policy;
+    FigureGraphics graphics_definition;
     GraphicsTargetKind current_graphics_target = GraphicsTargetKind::None;
     bool saw_root = false;
     bool saw_profiles = false;
@@ -1092,7 +1093,7 @@ static int graphics_parse_error(const char *message, const char *detail = nullpt
     return 0;
 }
 
-static int parse_graphics_sprite_offset(GraphicsPolicy &graphics_policy)
+static int parse_graphics_sprite_offset(FigureGraphics &graphics_definition)
 {
     const bool has_sprite_offset_x = xml_parser_has_attribute("sprite_offset_x");
     const bool has_sprite_offset_y = xml_parser_has_attribute("sprite_offset_y");
@@ -1103,16 +1104,16 @@ static int parse_graphics_sprite_offset(GraphicsPolicy &graphics_policy)
     if (!has_sprite_offset_x) {
         return 1;
     }
-    if (graphics_policy.has_sprite_offset) {
+    if (graphics_definition.has_sprite_offset) {
         return graphics_parse_error("FigureType graphics sprite offset is duplicated");
     }
-    graphics_policy.has_sprite_offset = 1;
-    graphics_policy.sprite_offset_x = xml_parser_get_attribute_int("sprite_offset_x");
-    graphics_policy.sprite_offset_y = xml_parser_get_attribute_int("sprite_offset_y");
+    graphics_definition.has_sprite_offset = 1;
+    graphics_definition.sprite_offset_x = xml_parser_get_attribute_int("sprite_offset_x");
+    graphics_definition.sprite_offset_y = xml_parser_get_attribute_int("sprite_offset_y");
     return 1;
 }
 
-static int parse_graphics_logical_size(GraphicsPolicy &graphics_policy)
+static int parse_graphics_logical_size(FigureGraphics &graphics_definition)
 {
     const bool has_logical_width = xml_parser_has_attribute("logical_width");
     const bool has_logical_height = xml_parser_has_attribute("logical_height");
@@ -1123,15 +1124,15 @@ static int parse_graphics_logical_size(GraphicsPolicy &graphics_policy)
     if (!has_logical_width) {
         return 1;
     }
-    if (graphics_policy.has_fixed_logical_size()) {
+    if (graphics_definition.has_fixed_logical_size()) {
         return graphics_parse_error("FigureType graphics logical size is duplicated");
     }
-    return parse_graphics_logical_dimension("logical_width", graphics_policy.fixed_logical_size.width) &&
-        parse_graphics_logical_dimension("logical_height", graphics_policy.fixed_logical_size.height);
+    return parse_graphics_logical_dimension("logical_width", graphics_definition.fixed_logical_size.width) &&
+        parse_graphics_logical_dimension("logical_height", graphics_definition.fixed_logical_size.height);
 }
 
 static int parse_graphics_default_source_attributes(
-    GraphicsPolicy &graphics_policy,
+    FigureGraphics &graphics_definition,
     const char *image_group_attr,
     const char *image_asset_attr,
     const char *path_attr,
@@ -1148,7 +1149,7 @@ static int parse_graphics_default_source_attributes(
     if (!source_count) {
         return 1;
     }
-    if (graphics_policy.default_source_count()) {
+    if (graphics_definition.default_source_count()) {
         return graphics_parse_error("FigureType graphics default target is duplicated");
     }
     if (source_count != 1) {
@@ -1160,23 +1161,23 @@ static int parse_graphics_default_source_attributes(
             "FigureType graphics path pattern requires both path_pattern and image_pattern");
     }
     if (has_image_group) {
-        graphics_policy.image_group = parse_image_group_name(xml_parser_get_attribute_string(image_group_attr));
-        if (!graphics_policy.image_group) {
+        graphics_definition.image_group = parse_image_group_name(xml_parser_get_attribute_string(image_group_attr));
+        if (!graphics_definition.image_group) {
             return graphics_parse_error(
                 "FigureType graphics node has an unknown image_group",
                 xml_parser_get_attribute_string(image_group_attr));
         }
     } else if (has_image_asset) {
-        graphics_policy.image_asset = parse_image_asset_name(xml_parser_get_attribute_string(image_asset_attr));
-        if (graphics_policy.image_asset == ASSET_MAX_KEY) {
+        graphics_definition.image_asset = parse_image_asset_name(xml_parser_get_attribute_string(image_asset_attr));
+        if (graphics_definition.image_asset == ASSET_MAX_KEY) {
             return graphics_parse_error(
                 "FigureType graphics node has an unknown image_asset",
                 xml_parser_get_attribute_string(image_asset_attr));
         }
     } else {
-        graphics_policy.path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(path_attr));
-        graphics_policy.image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(image_attr));
-        if (graphics_policy.path_pattern.empty() || graphics_policy.image_pattern.empty()) {
+        graphics_definition.path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(path_attr));
+        graphics_definition.image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(image_attr));
+        if (graphics_definition.path_pattern.empty() || graphics_definition.image_pattern.empty()) {
             return graphics_parse_error(
                 "FigureType graphics path pattern requires non-empty path_pattern and image_pattern");
         }
@@ -1184,29 +1185,29 @@ static int parse_graphics_default_source_attributes(
     return 1;
 }
 
-static int parse_graphics_default_options(GraphicsPolicy &graphics_policy)
+static int parse_graphics_default_options(FigureGraphics &graphics_definition)
 {
     if (xml_parser_has_attribute("max_image_offset")) {
-        graphics_policy.max_image_offset = xml_parser_get_attribute_int("max_image_offset");
-        if (graphics_policy.max_image_offset <= 0) {
+        graphics_definition.max_image_offset = xml_parser_get_attribute_int("max_image_offset");
+        if (graphics_definition.max_image_offset <= 0) {
             return graphics_parse_error("FigureType graphics node requires a positive max_image_offset");
         }
     }
     if (xml_parser_has_attribute("base_image_offset")) {
-        graphics_policy.image_group_offset = xml_parser_get_attribute_int("base_image_offset");
-        if (graphics_policy.image_group_offset < 0) {
+        graphics_definition.image_group_offset = xml_parser_get_attribute_int("base_image_offset");
+        if (graphics_definition.image_group_offset < 0) {
             return graphics_parse_error("FigureType graphics node requires a non-negative base_image_offset");
         }
     }
     if (xml_parser_has_attribute("direction_stride")) {
-        graphics_policy.direction_frame_stride = xml_parser_get_attribute_int("direction_stride");
-        if (graphics_policy.direction_frame_stride <= 0) {
+        graphics_definition.direction_frame_stride = xml_parser_get_attribute_int("direction_stride");
+        if (graphics_definition.direction_frame_stride <= 0) {
             return graphics_parse_error("FigureType graphics node requires a positive direction_stride");
         }
     }
     if (xml_parser_has_attribute("static_frame_count")) {
-        graphics_policy.static_frame_count = xml_parser_get_attribute_int("static_frame_count");
-        if (graphics_policy.static_frame_count <= 0) {
+        graphics_definition.static_frame_count = xml_parser_get_attribute_int("static_frame_count");
+        if (graphics_definition.static_frame_count <= 0) {
             return graphics_parse_error("FigureType graphics node requires a positive static_frame_count");
         }
     }
@@ -1214,38 +1215,56 @@ static int parse_graphics_default_options(GraphicsPolicy &graphics_policy)
 }
 
 static int parse_graphics_action_source_attributes(
-    GraphicsPolicy &graphics_policy,
+    FigureGraphics &graphics_definition,
+    const char *image_group_attr,
     const char *path_attr,
     const char *image_attr)
 {
+    const bool has_image_group = image_group_attr && xml_parser_has_attribute(image_group_attr);
     const bool has_path_pattern = path_attr && xml_parser_has_attribute(path_attr);
     const bool has_image_pattern = image_attr && xml_parser_has_attribute(image_attr);
-    if (!has_path_pattern && !has_image_pattern) {
+    const int source_count =
+        (has_image_group ? 1 : 0) +
+        (has_path_pattern || has_image_pattern ? 1 : 0);
+    if (!source_count) {
         return 1;
     }
-    if (!graphics_policy.action_path_pattern.empty() || !graphics_policy.action_image_pattern.empty()) {
+    if (graphics_definition.action_source_count()) {
         return graphics_parse_error("FigureType action graphics target is duplicated");
+    }
+    if (source_count != 1) {
+        return graphics_parse_error(
+            "FigureType action graphics target must choose exactly one image_group or path/image pattern");
     }
     if (has_path_pattern != has_image_pattern) {
         return graphics_parse_error(
             "FigureType action graphics requires both path_pattern and image_pattern");
     }
 
-    graphics_policy.action_path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(path_attr));
-    graphics_policy.action_image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(image_attr));
-    if (graphics_policy.action_path_pattern.empty() || graphics_policy.action_image_pattern.empty()) {
-        return graphics_parse_error("FigureType graphics node has invalid action graphics attributes");
+    if (has_image_group) {
+        graphics_definition.action_image_group = parse_image_group_name(xml_parser_get_attribute_string(image_group_attr));
+        if (!graphics_definition.action_image_group) {
+            return graphics_parse_error(
+                "FigureType graphics node has an unknown action image_group",
+                xml_parser_get_attribute_string(image_group_attr));
+        }
+    } else {
+        graphics_definition.action_path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(path_attr));
+        graphics_definition.action_image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(image_attr));
+        if (graphics_definition.action_path_pattern.empty() || graphics_definition.action_image_pattern.empty()) {
+            return graphics_parse_error("FigureType graphics node has invalid action graphics attributes");
+        }
     }
     return 1;
 }
 
-static int parse_graphics_action_state(GraphicsPolicy &graphics_policy, const char *state_attr)
+static int parse_graphics_action_state(FigureGraphics &graphics_definition, const char *state_attr)
 {
     if (!xml_parser_has_attribute(state_attr)) {
         return graphics_parse_error("FigureType action graphics requires a state");
     }
-    graphics_policy.action_state = parse_action_state_name(xml_parser_get_attribute_string(state_attr));
-    if (!graphics_policy.action_state) {
+    graphics_definition.action_state = parse_action_state_name(xml_parser_get_attribute_string(state_attr));
+    if (!graphics_definition.action_state) {
         return graphics_parse_error(
             "FigureType graphics node has invalid action graphics attributes",
             xml_parser_get_attribute_string(state_attr));
@@ -1253,20 +1272,20 @@ static int parse_graphics_action_state(GraphicsPolicy &graphics_policy, const ch
     return 1;
 }
 
-static int parse_graphics_action_wait_ticks(GraphicsPolicy &graphics_policy, const char *wait_attr)
+static int parse_graphics_action_wait_ticks(FigureGraphics &graphics_definition, const char *wait_attr)
 {
     if (!xml_parser_has_attribute(wait_attr)) {
         return 1;
     }
-    graphics_policy.action_min_wait_ticks = xml_parser_get_attribute_int(wait_attr);
-    if (graphics_policy.action_min_wait_ticks < 0) {
+    graphics_definition.action_min_wait_ticks = xml_parser_get_attribute_int(wait_attr);
+    if (graphics_definition.action_min_wait_ticks < 0) {
         return graphics_parse_error("FigureType graphics node requires a non-negative action_min_wait_ticks");
     }
     return 1;
 }
 
 static int parse_graphics_corpse_source_attributes(
-    GraphicsPolicy &graphics_policy,
+    FigureGraphics &graphics_definition,
     const char *image_group_attr,
     const char *image_asset_attr,
     const char *path_attr,
@@ -1283,7 +1302,7 @@ static int parse_graphics_corpse_source_attributes(
     if (!corpse_source_count) {
         return 1;
     }
-    if (graphics_policy.corpse_source_count()) {
+    if (graphics_definition.corpse_source_count()) {
         return graphics_parse_error("FigureType corpse graphics target is duplicated");
     }
     if (corpse_source_count > 1) {
@@ -1294,26 +1313,26 @@ static int parse_graphics_corpse_source_attributes(
             "FigureType corpse graphics path pattern requires both path_pattern and image_pattern");
     }
     if (has_corpse_image_group) {
-        graphics_policy.corpse_image_group =
+        graphics_definition.corpse_image_group =
             parse_image_group_name(xml_parser_get_attribute_string(image_group_attr));
-        if (!graphics_policy.corpse_image_group) {
+        if (!graphics_definition.corpse_image_group) {
             return graphics_parse_error(
                 "FigureType graphics node has an unknown corpse_image_group",
                 xml_parser_get_attribute_string(image_group_attr));
         }
     }
     if (has_corpse_path_pattern) {
-        graphics_policy.corpse_path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(path_attr));
-        graphics_policy.corpse_image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(image_attr));
-        if (graphics_policy.corpse_path_pattern.empty() || graphics_policy.corpse_image_pattern.empty()) {
+        graphics_definition.corpse_path_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(path_attr));
+        graphics_definition.corpse_image_pattern = xml_value::trim_copy(xml_parser_get_attribute_string(image_attr));
+        if (graphics_definition.corpse_path_pattern.empty() || graphics_definition.corpse_image_pattern.empty()) {
             return graphics_parse_error(
                 "FigureType corpse graphics path pattern requires non-empty path_pattern and image_pattern");
         }
     }
     if (has_corpse_image_asset) {
-        graphics_policy.corpse_image_asset =
+        graphics_definition.corpse_image_asset =
             parse_image_asset_name(xml_parser_get_attribute_string(image_asset_attr));
-        if (graphics_policy.corpse_image_asset == ASSET_MAX_KEY) {
+        if (graphics_definition.corpse_image_asset == ASSET_MAX_KEY) {
             return graphics_parse_error(
                 "FigureType graphics node has an unknown corpse_image_asset",
                 xml_parser_get_attribute_string(image_asset_attr));
@@ -1323,19 +1342,19 @@ static int parse_graphics_corpse_source_attributes(
 }
 
 static int parse_graphics_corpse_options(
-    GraphicsPolicy &graphics_policy,
+    FigureGraphics &graphics_definition,
     const char *base_offset_attr,
     const char *frame_count_attr)
 {
     if (xml_parser_has_attribute(base_offset_attr)) {
-        graphics_policy.corpse_image_group_offset = xml_parser_get_attribute_int(base_offset_attr);
-        if (graphics_policy.corpse_image_group_offset < 0) {
+        graphics_definition.corpse_image_group_offset = xml_parser_get_attribute_int(base_offset_attr);
+        if (graphics_definition.corpse_image_group_offset < 0) {
             return graphics_parse_error("FigureType graphics node requires a non-negative corpse base_image_offset");
         }
     }
     if (xml_parser_has_attribute(frame_count_attr)) {
-        graphics_policy.corpse_frame_count = xml_parser_get_attribute_int(frame_count_attr);
-        if (graphics_policy.corpse_frame_count <= 0) {
+        graphics_definition.corpse_frame_count = xml_parser_get_attribute_int(frame_count_attr);
+        if (graphics_definition.corpse_frame_count <= 0) {
             return graphics_parse_error("FigureType graphics node requires a positive corpse frame_count");
         }
     }
@@ -1343,7 +1362,7 @@ static int parse_graphics_corpse_options(
 }
 
 static int parse_graphics_cart_attributes(
-    GraphicsPolicy &graphics_policy,
+    FigureGraphics &graphics_definition,
     const char *mode_attr,
     const char *offsets_x_attr,
     const char *offsets_y_attr,
@@ -1362,8 +1381,8 @@ static int parse_graphics_cart_attributes(
     if (!is_known_cart_graphics_mode_name(cart_mode)) {
         return graphics_parse_error("FigureType graphics node has an unknown cart_mode", cart_mode);
     }
-    graphics_policy.cart_mode = parse_cart_graphics_mode_name(cart_mode);
-    if (graphics_policy.cart_mode == CartGraphicsMode::ResourceLoad) {
+    graphics_definition.cart_mode = parse_cart_graphics_mode_name(cart_mode);
+    if (graphics_definition.cart_mode == CartGraphicsMode::ResourceLoad) {
         if (!xml_parser_has_attribute(offsets_x_attr) ||
             !xml_parser_has_attribute(offsets_y_attr) ||
             !xml_parser_has_attribute(high_load_threshold_attr) ||
@@ -1371,32 +1390,32 @@ static int parse_graphics_cart_attributes(
             !xml_parser_has_attribute(direction_3_y_adjust_attr)) {
             return graphics_parse_error("FigureType resource_load cart graphics is missing required cart attributes");
         }
-        if (!parse_int_array_8(xml_parser_get_attribute_string(offsets_x_attr), graphics_policy.cart_offsets_x)) {
+        if (!parse_int_array_8(xml_parser_get_attribute_string(offsets_x_attr), graphics_definition.cart_offsets_x)) {
             return graphics_parse_error("FigureType graphics node has invalid cart_offsets_x");
         }
-        if (!parse_int_array_8(xml_parser_get_attribute_string(offsets_y_attr), graphics_policy.cart_offsets_y)) {
+        if (!parse_int_array_8(xml_parser_get_attribute_string(offsets_y_attr), graphics_definition.cart_offsets_y)) {
             return graphics_parse_error("FigureType graphics node has invalid cart_offsets_y");
         }
-        graphics_policy.cart_high_load_threshold = xml_parser_get_attribute_int(high_load_threshold_attr);
-        if (graphics_policy.cart_high_load_threshold < 0) {
+        graphics_definition.cart_high_load_threshold = xml_parser_get_attribute_int(high_load_threshold_attr);
+        if (graphics_definition.cart_high_load_threshold < 0) {
             return graphics_parse_error("FigureType graphics node requires a non-negative cart_high_load_threshold");
         }
-        graphics_policy.cart_high_load_y_adjust = xml_parser_get_attribute_int(high_load_y_adjust_attr);
-        graphics_policy.cart_direction_3_y_adjust = xml_parser_get_attribute_int(direction_3_y_adjust_attr);
+        graphics_definition.cart_high_load_y_adjust = xml_parser_get_attribute_int(high_load_y_adjust_attr);
+        graphics_definition.cart_direction_3_y_adjust = xml_parser_get_attribute_int(direction_3_y_adjust_attr);
     }
     return 1;
 }
 
-static int parse_graphics_default_attributes(GraphicsPolicy &graphics_policy)
+static int parse_graphics_default_attributes(FigureGraphics &graphics_definition)
 {
     return parse_graphics_default_source_attributes(
-            graphics_policy, "image_group", "image_asset", "path_pattern", "image_pattern") &&
-        parse_graphics_sprite_offset(graphics_policy) &&
-        parse_graphics_logical_size(graphics_policy) &&
-        parse_graphics_default_options(graphics_policy);
+            graphics_definition, "image_group", "image_asset", "path_pattern", "image_pattern") &&
+        parse_graphics_sprite_offset(graphics_definition) &&
+        parse_graphics_logical_size(graphics_definition) &&
+        parse_graphics_default_options(graphics_definition);
 }
 
-static int parse_graphics_legacy_action_attributes(GraphicsPolicy &graphics_policy)
+static int parse_graphics_legacy_action_attributes(FigureGraphics &graphics_definition)
 {
     const bool has_action_state = xml_parser_has_attribute("action_state");
     const bool has_action_path_pattern = xml_parser_has_attribute("action_path_pattern");
@@ -1411,35 +1430,35 @@ static int parse_graphics_legacy_action_attributes(GraphicsPolicy &graphics_poli
         return graphics_parse_error(
             "FigureType action graphics requires action_state, action_path_pattern, and action_image_pattern");
     }
-    if (!parse_graphics_action_state(graphics_policy, "action_state") ||
+    if (!parse_graphics_action_state(graphics_definition, "action_state") ||
         !parse_graphics_action_source_attributes(
-            graphics_policy, "action_path_pattern", "action_image_pattern") ||
-        !parse_graphics_action_wait_ticks(graphics_policy, "action_min_wait_ticks")) {
+            graphics_definition, nullptr, "action_path_pattern", "action_image_pattern") ||
+        !parse_graphics_action_wait_ticks(graphics_definition, "action_min_wait_ticks")) {
         return 0;
     }
     g_parse_state.saw_graphics_action = true;
     return 1;
 }
 
-static int parse_graphics_legacy_corpse_attributes(GraphicsPolicy &graphics_policy)
+static int parse_graphics_legacy_corpse_attributes(FigureGraphics &graphics_definition)
 {
-    const int source_count_before = graphics_policy.corpse_source_count();
+    const int source_count_before = graphics_definition.corpse_source_count();
     if (!parse_graphics_corpse_source_attributes(
-            graphics_policy,
+            graphics_definition,
             "corpse_image_group",
             "corpse_image_asset",
             "corpse_path_pattern",
             "corpse_image_pattern") ||
-        !parse_graphics_corpse_options(graphics_policy, "corpse_base_image_offset", "corpse_frame_count")) {
+        !parse_graphics_corpse_options(graphics_definition, "corpse_base_image_offset", "corpse_frame_count")) {
         return 0;
     }
-    if (!source_count_before && graphics_policy.corpse_source_count()) {
+    if (!source_count_before && graphics_definition.corpse_source_count()) {
         g_parse_state.saw_graphics_corpse = true;
     }
     return 1;
 }
 
-static int parse_graphics_legacy_cart_attributes(GraphicsPolicy &graphics_policy)
+static int parse_graphics_legacy_cart_attributes(FigureGraphics &graphics_definition)
 {
     if (!xml_parser_has_attribute("cart_mode")) {
         return 1;
@@ -1448,7 +1467,7 @@ static int parse_graphics_legacy_cart_attributes(GraphicsPolicy &graphics_policy
         return graphics_parse_error("FigureType cart graphics target is duplicated");
     }
     if (!parse_graphics_cart_attributes(
-            graphics_policy,
+            graphics_definition,
             "cart_mode",
             "cart_offsets_x",
             "cart_offsets_y",
@@ -1474,15 +1493,15 @@ static int parse_graphics_node()
             g_parse_state.definition->attr());
     }
 
-    g_parse_state.graphics_policy = {};
+    g_parse_state.graphics_definition = {};
     g_parse_state.saw_graphics = true;
-    if (!parse_graphics_default_attributes(g_parse_state.graphics_policy) ||
-        !parse_graphics_legacy_action_attributes(g_parse_state.graphics_policy) ||
-        !parse_graphics_legacy_corpse_attributes(g_parse_state.graphics_policy) ||
-        !parse_graphics_legacy_cart_attributes(g_parse_state.graphics_policy)) {
+    if (!parse_graphics_default_attributes(g_parse_state.graphics_definition) ||
+        !parse_graphics_legacy_action_attributes(g_parse_state.graphics_definition) ||
+        !parse_graphics_legacy_corpse_attributes(g_parse_state.graphics_definition) ||
+        !parse_graphics_legacy_cart_attributes(g_parse_state.graphics_definition)) {
         return 0;
     }
-    if (g_parse_state.graphics_policy.default_source_count()) {
+    if (g_parse_state.graphics_definition.default_source_count()) {
         g_parse_state.saw_graphics_default = true;
     }
     return 1;
@@ -1496,7 +1515,7 @@ static int parse_graphics_default_node()
     if (g_parse_state.saw_graphics_default) {
         return graphics_parse_error("FigureType graphics default target is duplicated");
     }
-    if (!parse_graphics_default_attributes(g_parse_state.graphics_policy)) {
+    if (!parse_graphics_default_attributes(g_parse_state.graphics_definition)) {
         return 0;
     }
     g_parse_state.saw_graphics_default = true;
@@ -1512,9 +1531,13 @@ static int parse_graphics_action_node()
     if (g_parse_state.saw_graphics_action) {
         return graphics_parse_error("FigureType action graphics target is duplicated");
     }
-    if (!parse_graphics_action_state(g_parse_state.graphics_policy, "state") ||
-        !parse_graphics_action_source_attributes(g_parse_state.graphics_policy, "path_pattern", "image_pattern") ||
-        !parse_graphics_action_wait_ticks(g_parse_state.graphics_policy, "min_wait_ticks")) {
+    if (xml_parser_has_attribute("state") &&
+        !parse_graphics_action_state(g_parse_state.graphics_definition, "state")) {
+        return 0;
+    }
+    if (!parse_graphics_action_source_attributes(
+            g_parse_state.graphics_definition, "image_group", "path_pattern", "image_pattern") ||
+        !parse_graphics_action_wait_ticks(g_parse_state.graphics_definition, "min_wait_ticks")) {
         return 0;
     }
     g_parse_state.saw_graphics_action = true;
@@ -1531,12 +1554,12 @@ static int parse_graphics_corpse_node()
         return graphics_parse_error("FigureType corpse graphics target is duplicated");
     }
     if (!parse_graphics_corpse_source_attributes(
-            g_parse_state.graphics_policy,
+            g_parse_state.graphics_definition,
             "image_group",
             "image_asset",
             "path_pattern",
             "image_pattern") ||
-        !parse_graphics_corpse_options(g_parse_state.graphics_policy, "base_image_offset", "frame_count")) {
+        !parse_graphics_corpse_options(g_parse_state.graphics_definition, "base_image_offset", "frame_count")) {
         return 0;
     }
     g_parse_state.saw_graphics_corpse = true;
@@ -1553,7 +1576,7 @@ static int parse_graphics_cart_node()
         return graphics_parse_error("FigureType cart graphics target is duplicated");
     }
     if (!parse_graphics_cart_attributes(
-            g_parse_state.graphics_policy,
+            g_parse_state.graphics_definition,
             "mode",
             "offsets_x",
             "offsets_y",
@@ -1581,51 +1604,54 @@ static int parse_graphics_target_value_node(int path_node)
         return graphics_parse_error("FigureType graphics path/image value is empty");
     }
 
-    GraphicsPolicy &graphics_policy = g_parse_state.graphics_policy;
+    FigureGraphics &graphics_definition = g_parse_state.graphics_definition;
     switch (g_parse_state.current_graphics_target) {
         case GraphicsTargetKind::Default:
-            if (graphics_policy.image_group || graphics_policy.image_asset != ASSET_MAX_KEY) {
+            if (graphics_definition.image_group || graphics_definition.image_asset != ASSET_MAX_KEY) {
                 return graphics_parse_error("FigureType graphics default target source is duplicated");
             }
             if (path_node) {
-                if (!graphics_policy.path_pattern.empty()) {
+                if (!graphics_definition.path_pattern.empty()) {
                     return graphics_parse_error("FigureType graphics default path is duplicated");
                 }
-                graphics_policy.path_pattern = std::move(value);
+                graphics_definition.path_pattern = std::move(value);
             } else {
-                if (!graphics_policy.image_pattern.empty()) {
+                if (!graphics_definition.image_pattern.empty()) {
                     return graphics_parse_error("FigureType graphics default image is duplicated");
                 }
-                graphics_policy.image_pattern = std::move(value);
+                graphics_definition.image_pattern = std::move(value);
             }
             return 1;
         case GraphicsTargetKind::Action:
+            if (graphics_definition.action_image_group) {
+                return graphics_parse_error("FigureType graphics action target source is duplicated");
+            }
             if (path_node) {
-                if (!graphics_policy.action_path_pattern.empty()) {
+                if (!graphics_definition.action_path_pattern.empty()) {
                     return graphics_parse_error("FigureType graphics action path is duplicated");
                 }
-                graphics_policy.action_path_pattern = std::move(value);
+                graphics_definition.action_path_pattern = std::move(value);
             } else {
-                if (!graphics_policy.action_image_pattern.empty()) {
+                if (!graphics_definition.action_image_pattern.empty()) {
                     return graphics_parse_error("FigureType graphics action image is duplicated");
                 }
-                graphics_policy.action_image_pattern = std::move(value);
+                graphics_definition.action_image_pattern = std::move(value);
             }
             return 1;
         case GraphicsTargetKind::Corpse:
-            if (graphics_policy.corpse_image_group || graphics_policy.corpse_image_asset != ASSET_MAX_KEY) {
+            if (graphics_definition.corpse_image_group || graphics_definition.corpse_image_asset != ASSET_MAX_KEY) {
                 return graphics_parse_error("FigureType graphics corpse target source is duplicated");
             }
             if (path_node) {
-                if (!graphics_policy.corpse_path_pattern.empty()) {
+                if (!graphics_definition.corpse_path_pattern.empty()) {
                     return graphics_parse_error("FigureType graphics corpse path is duplicated");
                 }
-                graphics_policy.corpse_path_pattern = std::move(value);
+                graphics_definition.corpse_path_pattern = std::move(value);
             } else {
-                if (!graphics_policy.corpse_image_pattern.empty()) {
+                if (!graphics_definition.corpse_image_pattern.empty()) {
                     return graphics_parse_error("FigureType graphics corpse image is duplicated");
                 }
-                graphics_policy.corpse_image_pattern = std::move(value);
+                graphics_definition.corpse_image_pattern = std::move(value);
             }
             return 1;
         case GraphicsTargetKind::None:
@@ -1646,48 +1672,66 @@ static int parse_graphics_image_node()
 
 static int validate_graphics_target_policy()
 {
-    const GraphicsPolicy &graphics_policy = g_parse_state.graphics_policy;
-    if (graphics_policy.default_source_count() != 1 ||
-        (graphics_policy.path_pattern.empty() != graphics_policy.image_pattern.empty())) {
+    const FigureGraphics &graphics_definition = g_parse_state.graphics_definition;
+    if (graphics_definition.default_source_count() != 1 ||
+        graphics_target_has_image_without_path(graphics_definition.path_pattern, graphics_definition.image_pattern)) {
         return graphics_parse_error(
-            "FigureType graphics node must choose exactly one image_group, image_asset, or path/image pattern");
+            "FigureType graphics node must choose exactly one image_group, image_asset, or path target");
     }
-    if (g_parse_state.saw_graphics_action &&
-        (!graphics_policy.action_state || !graphics_policy.has_action_native_payload())) {
-        return graphics_parse_error(
-            "FigureType action graphics requires state, path, and image targets");
+    if (g_parse_state.saw_graphics_action) {
+        if (graphics_definition.action_source_count() != 1 ||
+            graphics_target_has_image_without_path(
+                graphics_definition.action_path_pattern,
+                graphics_definition.action_image_pattern)) {
+            return graphics_parse_error("FigureType action graphics requires one complete source");
+        }
+        if (graphics_definition.has_action_native_payload() && !graphics_definition.action_state) {
+            return graphics_parse_error("FigureType native action graphics requires a state");
+        }
     }
-    if (graphics_policy.corpse_source_count() > 1 ||
-        (graphics_policy.corpse_path_pattern.empty() != graphics_policy.corpse_image_pattern.empty())) {
-        return graphics_parse_error("FigureType corpse graphics path/image target is incomplete");
+    if (graphics_definition.corpse_source_count() > 1 ||
+        graphics_target_has_image_without_path(
+            graphics_definition.corpse_path_pattern,
+            graphics_definition.corpse_image_pattern)) {
+        return graphics_parse_error("FigureType corpse graphics target has an image without a path");
     }
-    if (g_parse_state.saw_graphics_corpse && graphics_policy.corpse_source_count() != 1) {
+    if (g_parse_state.saw_graphics_corpse && graphics_definition.corpse_source_count() != 1) {
         return graphics_parse_error("FigureType corpse graphics target requires a source");
     }
     return validate_depot_cart_graphics(
         g_parse_state.definition.get(),
         &g_parse_state.error,
-        graphics_policy);
+        graphics_definition);
 }
 
 static int validate_current_graphics_target_policy()
 {
-    const GraphicsPolicy &graphics_policy = g_parse_state.graphics_policy;
+    const FigureGraphics &graphics_definition = g_parse_state.graphics_definition;
     switch (g_parse_state.current_graphics_target) {
         case GraphicsTargetKind::Default:
-            if (graphics_policy.default_source_count() != 1 ||
-                (graphics_policy.path_pattern.empty() != graphics_policy.image_pattern.empty())) {
+            if (graphics_definition.default_source_count() != 1 ||
+                graphics_target_has_image_without_path(
+                    graphics_definition.path_pattern,
+                    graphics_definition.image_pattern)) {
                 return graphics_parse_error("FigureType graphics default target requires one complete source");
             }
             return 1;
         case GraphicsTargetKind::Action:
-            if (!graphics_policy.action_state || !graphics_policy.has_action_native_payload()) {
-                return graphics_parse_error("FigureType action graphics requires state, path, and image targets");
+            if (graphics_definition.action_source_count() != 1 ||
+                graphics_target_has_image_without_path(
+                    graphics_definition.action_path_pattern,
+                    graphics_definition.action_image_pattern)) {
+                return graphics_parse_error("FigureType action graphics target requires one complete source");
+            }
+            if (graphics_definition.has_action_native_payload() && !graphics_definition.action_state) {
+                return graphics_parse_error("FigureType native action graphics requires a state");
             }
             return 1;
         case GraphicsTargetKind::Corpse:
-            if (graphics_policy.corpse_source_count() != 1 ||
-                (graphics_policy.corpse_path_pattern.empty() != graphics_policy.corpse_image_pattern.empty())) {
+            if (graphics_definition.corpse_source_count() != 1 ||
+                graphics_target_has_image_without_path(
+                    graphics_definition.corpse_path_pattern,
+                    graphics_definition.corpse_image_pattern)) {
                 return graphics_parse_error("FigureType corpse graphics target requires one complete source");
             }
             return 1;
@@ -1716,7 +1760,7 @@ static void finish_graphics_node()
     if (!validate_graphics_target_policy()) {
         return;
     }
-    g_parse_state.definition->set_graphics_policy(g_parse_state.graphics_policy);
+    g_parse_state.definition->set_graphics(g_parse_state.graphics_definition);
 }
 
 static int parse_pathing_node()
@@ -1879,6 +1923,10 @@ static int parse_definition_file(const char *filename)
     figure_type type = g_parse_state.definition->type();
     if (type <= FIGURE_NONE || type >= FIGURE_TYPE_MAX) {
         set_failure_reason("FigureType definition has an invalid figure id.", filename);
+        return 0;
+    }
+
+    if (!g_parse_state.definition->cache_graphics_bindings()) {
         return 0;
     }
 

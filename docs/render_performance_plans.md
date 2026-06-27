@@ -13,6 +13,7 @@ Current implemented seams:
 - Render metrics now count 2D requests, managed-image requests, submissions by texture source, texture switches, texture misses, grid overlays, visible render tile rows, and visible render tiles.
 - The normal city draw row path uses `CityViewRenderPhase` entries so phases can share visible row traversal and carry `Building` objects per visible tile; top/animation/elevated-ornament paths defer legacy image lookups until native draw or compatibility fallbacks need them.
 - Renderer requests now carry an optional fixed logical-size bridge. Existing float/source-size behavior remains the fallback while callers and XML are migrated.
+- `Render2DPipeline` owns render-domain classification and scale-filter config interpretation; SDL renderer setup asks the pipeline for texture filter hints instead of duplicating `scale_filter` policy.
 
 Scope:
 - Reduce repeated visible-tile traversal in the city draw path while preserving layer order.
@@ -25,10 +26,11 @@ Scope:
 Implementation sequence:
 1. [x] Split `city_draw_main_row` into top/figure/animation buckets.
 2. [x] Add first renderer metrics for request counts, texture-source submissions, texture switches/misses, grid overlays, and visible row/tile counts.
-3. [~] Collapse repeated row traversal overhead. Normal city draw rows use `CityViewRenderPhase`; deletion/editor phase-major paths still need an order-safe contract before they can be collapsed.
-4. [ ] Add a city draw command prepass that can carry `Building` objects or direct building pointers.
-5. [ ] Replace broad graphics signatures with dirty flags or generation counters owned by the building runtime.
-6. [ ] Remove low-risk `Building::from_id` call sites from draw code by carrying object references through the row command path.
+3. [x] Centralize render-domain and `scale_filter` policy interpretation in `Render2DPipeline`.
+4. [~] Collapse repeated row traversal overhead. Normal city draw rows use `CityViewRenderPhase`; deletion/editor phase-major paths still need an order-safe contract before they can be collapsed.
+5. [ ] Add a city draw command prepass that can carry `Building` objects or direct building pointers.
+6. [ ] Replace broad graphics signatures with dirty flags or generation counters owned by the building runtime.
+7. [ ] Remove low-risk `Building::from_id` call sites from draw code by carrying object references through the row command path.
 
 Expected benefit:
 - Low to medium. This reduces single-threaded CPU waste and gives clearer measurements. It will not solve the long-term draw-call ceiling by itself.

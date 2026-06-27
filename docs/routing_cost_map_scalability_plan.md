@@ -336,6 +336,10 @@ Determinism guardrails:
   facade.
 - Preserve C-compatible wrappers only at subsystem boundaries that have not
   migrated yet.
+- Progress landed: figure route-policy selection now lives behind
+  `PathingMode::routePolicyForFigure()`, including XML profile lookup, legacy
+  terrain fallback, and roadblock permission selection. Route planning still
+  consumes the selected policy through the legacy backend.
 
 ### Slice 2: Figure Route Reuse
 
@@ -358,6 +362,13 @@ Determinism guardrails:
   over cached candidates.
 - Dirty access caches from nearby road, roadblock, and building placement
   events.
+- Preparation landed: legacy road-access checks now build a `RoadAccessQuery`
+  for footprint, hippodrome, and monument candidate areas before scanning; this
+  names the future cache boundary without adding invalidation yet.
+- Building-owned boundary started: committed buildings now expose cached
+  road-access points and storage-destination road-access queries through
+  `Building`, while cache invalidation still stays with the existing
+  maintenance/resource refresh paths.
 - Convert local workforce house/workplace scans to typed runtime lists.
 
 ### Slice 4: CostMapCache
@@ -382,6 +393,9 @@ Determinism guardrails:
 - Route-policy cleanup: wall route classification now lives on `RoutePolicy`,
   and route intent performance purposes are derived from the constructed policy
   instead of a separate figure-field helper.
+- Candidate selection cleanup: `Route::DistanceQuery` now shares one
+  route-owned area selector for reachable-tile and access-road scans, preserving
+  expanding-radius and same-network pruning semantics.
 - Cache common fields by policy, source/target set, and epochs.
 - Convert `Route::DistanceQuery` to hold a `CostMapHandle` instead of reseeding
   the global grid.

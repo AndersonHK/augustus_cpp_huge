@@ -137,7 +137,11 @@ This also creates the right place for composed state: the fort owns the formatio
 - [x] The old C++ fort-type-to-soldier table was removed from building counts; fort counting now enumerates BuildingType definitions with military data and derives the soldier figure from the resolved formation.
 - [x] UnitType XML now declares the transitional barracks recruit category and weapon requirement; formation recruitment and barracks weapon consumption ask the resolved `FormationType`/`UnitType` instead of remapping fort soldier figure enums.
 - [x] Fort-bound legion initialization, declared recruit selection, overflow ejection, and non-combat movement setup now route through `formation` methods instead of duplicating slot scans at legion call sites.
-- [ ] Fixed storage, save/load serialization, physical clearing, and formation layout tables still intentionally use the current 16-slot storage contract until a real `FormationInstance`/save migration exists.
+- [x] Herd animal movement and enemy formation-wide combat/city predicates now route through `formation` methods, further concentrating legacy figure-id iteration behind the runtime formation object.
+- [x] Formation layout callers now ask `formation` for live grid offsets derived from the resolved `FormationType` footprint; the lower helper preserves legacy 16-position output without modulo wrapping slot indices.
+- [x] Save/load now routes the fixed 16 roster slot serialization through `formation` methods, naming the legacy storage bridge without changing the save format.
+- [ ] Fixed roster storage still intentionally uses the 16-entry `figures[]` array until a real `FormationInstance`/save migration exists.
+- [ ] Layout still carries a 16-position legacy compatibility table for existing formation layouts; larger formations need adaptive spacing or data-driven slot coordinates before >16 live slots can render correctly.
 - [ ] Add real `FormationInstance` ownership to forts so the resolved `FormationType` capacity and slots, including Vespasian's 8x8 definitions, can control live spawned units instead of being clipped by the legacy save/layout contract.
 - [ ] Add adaptive slot spacing for larger formations inside the current fort mustering-ground footprint.
 - [ ] Migrate enemy, barbarian, wolf/animal, and other combat figure archetypes into `UnitType`.

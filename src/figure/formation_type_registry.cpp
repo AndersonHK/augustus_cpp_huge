@@ -269,6 +269,11 @@ int FormationType::capacity() const
     return width_ * height_;
 }
 
+FormationLayoutFootprint FormationType::layout_footprint() const
+{
+    return {width_, height_};
+}
+
 bool FormationType::has_grid() const
 {
     return width_ > 0 && height_ > 0;

@@ -22,7 +22,7 @@
 #include "core/random.h"
 #include "core/string.h"
 #include "core/time.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/system.h"
 #include "graphics/ui_runtime_api.h"
 #include "graphics/renderer.h"
@@ -179,7 +179,7 @@ static void select_asset(unsigned int index, int unused)
         }
     }
     if (data.animation.enabled) {
-        game_animation_init();
+        Animation::init();
         data.animation.frame = 1;
         data.animation.reversed = 0;
     }
@@ -557,7 +557,7 @@ static void draw_foreground(void)
     int image_id = get_current_asset_index() + IMAGE_MAIN_ENTRIES;
     const image *img = image_get(image_id);
     if (data.animation.enabled && img->animation) {
-        if (game_animation_should_advance(img->animation->speed_id)) {
+        if (Animation::should_advance(img->animation->speed_id)) {
             advance_animation_frame(img);
             window_invalidate();
         }
@@ -724,7 +724,7 @@ static void button_top(const generic_button *button)
             if (data.animation.enabled) {
                 data.animation.frame = 1;
                 data.animation.reversed = 0;
-                game_animation_init();
+                Animation::init();
             }
             window_invalidate();
             return;

@@ -1,14 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
@@ -20,11 +12,57 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="tools\startup_parser_test\main.cpp" />
+    <ClCompile Include="tools\startup_parser_test\miniz_impl.c" />
     <ClCompile Include="tools\startup_parser_test\platform_shims.cpp" />
-    <ClCompile Include="src\**\*.cpp" Exclude="src\platform\augustus.cpp;src\platform\android\**\*.cpp;src\platform\switch\**\*.cpp;src\platform\vita\**\*.cpp" />
+    <ClCompile Include="src\assets\image_group_entry.cpp" />
+    <ClCompile Include="src\assets\image_group_payload*.cpp" />
+    <ClCompile Include="src\assets\image_copy.cpp" />
+    <ClCompile Include="src\assets\xml_path_resolution.cpp" />
+    <ClCompile Include="src\building\building_type*.cpp" />
+    <ClCompile Include="src\building\culture_module.cpp" />
+    <ClCompile Include="src\building\culture_module_registry.cpp" />
+    <ClCompile Include="src\building\distribution.cpp" />
+    <ClCompile Include="src\building\distribution_registry.cpp" />
+    <ClCompile Include="src\building\god_id_bridge.cpp" />
+    <ClCompile Include="src\building\god_registry.cpp" />
+    <ClCompile Include="src\building\BuildingGraphics.cpp" />
+    <ClCompile Include="src\building\housing_type.cpp" />
+    <ClCompile Include="src\building\housing_type_registry.cpp" />
+    <ClCompile Include="src\building\production_method.cpp" />
+    <ClCompile Include="src\building\production_method_registry.cpp" />
+    <ClCompile Include="src\building\properties.cpp" />
+    <ClCompile Include="src\building\religion.cpp" />
+    <ClCompile Include="src\building\religion_registry.cpp" />
+    <ClCompile Include="src\building\storage_type.cpp" />
+    <ClCompile Include="src\building\storage_type_registry.cpp" />
+    <ClCompile Include="src\building\water_access_type.cpp" />
+    <ClCompile Include="src\building\water_access_type_id_bridge.cpp" />
+    <ClCompile Include="src\core\*.cpp" Exclude="src\core\hotkey_config.cpp;src\core\image.cpp;src\core\legacy_image_extractor.cpp;src\core\smacker.cpp;src\core\xml_exporter.cpp" />
+    <ClCompile Include="src\figure\PathingMode_metadata.cpp" />
+    <ClCompile Include="src\figure\FigureGraphics.cpp" />
+    <ClCompile Include="src\figure\figure_type_registry.cpp" />
+    <ClCompile Include="src\figure\formation_type_registry.cpp" />
+    <ClCompile Include="src\figure\unit_type_registry.cpp" />
+    <ClCompile Include="src\game\Animation.cpp" />
+    <ClCompile Include="src\game\defines.cpp" />
+    <ClCompile Include="src\game\mod_manager.cpp" />
+    <ClCompile Include="src\game\resource.cpp" />
+    <ClCompile Include="src\game\ResourceGraphics.cpp" />
+    <ClCompile Include="src\game\resource_id_bridge.cpp" />
+    <ClCompile Include="src\graphics\GraphicsDefinition.cpp" />
+    <ClCompile Include="src\graphics\image.cpp" />
+    <ClCompile Include="src\graphics\image_group_entry_ref.cpp" />
+    <ClCompile Include="src\graphics\renderer.cpp" />
+    <ClCompile Include="src\graphics\runtime_texture.cpp" />
+    <ClCompile Include="src\platform\file_manager.cpp" />
+    <ClCompile Include="src\platform\file_manager_cache.cpp" />
+    <ClCompile Include="src\platform\log.cpp" />
+    <ClCompile Include="src\platform\platform.cpp" />
+    <ClCompile Include="src\platform\prefs.cpp" />
+    <ClCompile Include="src\startup\startup_parser.cpp" />
+    <ClCompile Include="src\translation\*.cpp" />
     <ClCompile Include="ext\spng\spng.c" />
     <ClCompile Include="ext\sxml\sxml.c" />
-    <ClCompile Include="ext\tinyfiledialogs\tinyfiledialogs.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -34,19 +72,6 @@
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <ConfigurationType>Application</ConfigurationType>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -65,12 +90,6 @@
   </ImportGroup>
   <ImportGroup Label="Shared">
   </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
@@ -82,7 +101,6 @@
     <TargetName>StartupParserTest</TargetName>
     <OutDir>$(Platform)\$(Configuration)\</OutDir>
     <IntDir>out\$(Platform)\$(Configuration)\StartupParserTest\</IntDir>
-    <SDLPlatformDir Condition="'$(Platform)'=='Win32'">x86</SDLPlatformDir>
     <SDLPlatformDir Condition="'$(Platform)'=='x64'">x64</SDLPlatformDir>
   </PropertyGroup>
   <ItemDefinitionGroup>
@@ -91,20 +109,20 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>STARTUP_PARSER_TEST;SDL_MAIN_HANDLED;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)ext;$(ProjectDir)ext\dirent;$(ProjectDir)vendor\SDL2-2.32.10\include;$(ProjectDir)vendor\SDL2_mixer-2.8.1\include;$(ProjectDir)vendor\SDL2_ttf-2.24.0\include;$(ProjectDir)ext\easyav1_dummy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)ext;$(ProjectDir)ext\dirent;$(ProjectDir)vendor\SDL2-2.32.10\include;$(ProjectDir)ext\easyav1_dummy;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <AdditionalLibraryDirectories>$(ProjectDir)vendor\SDL2-2.32.10\lib\$(SDLPlatformDir);$(ProjectDir)vendor\SDL2_mixer-2.8.1\lib\$(SDLPlatformDir);$(ProjectDir)vendor\SDL2_ttf-2.24.0\lib\$(SDLPlatformDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>SDL2.lib;SDL2_mixer.lib;SDL2_ttf.lib;dbghelp.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)vendor\SDL2-2.32.10\lib\$(SDLPlatformDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>SDL2.lib;dbghelp.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <GenerateDebugInformation Condition="'$(Configuration)'=='Debug'">true</GenerateDebugInformation>
       <GenerateDebugInformation Condition="'$(Configuration)'=='Release'">false</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>copy /Y "$(ProjectDir)vendor\SDL2-2.32.10\lib\$(SDLPlatformDir)\SDL2.dll" "$(OutDir)"&#x0D;&#x0A;copy /Y "$(ProjectDir)vendor\SDL2_mixer-2.8.1\lib\$(SDLPlatformDir)\SDL2_mixer.dll" "$(OutDir)"&#x0D;&#x0A;copy /Y "$(ProjectDir)vendor\SDL2_ttf-2.24.0\lib\$(SDLPlatformDir)\SDL2_ttf.dll" "$(OutDir)"</Command>
+      <Command>copy /Y "$(ProjectDir)vendor\SDL2-2.32.10\lib\$(SDLPlatformDir)\SDL2.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Release'">

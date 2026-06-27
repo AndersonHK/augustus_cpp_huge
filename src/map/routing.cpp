@@ -41,6 +41,13 @@ static const int HIGHWAY_DIRECTIONS[] = {
     0
 };
 
+struct map_routing_distance_grid {
+    grid_i16 possible;
+    grid_i16 determined;
+    int dst_x;
+    int dst_y;
+};
+
 static map_routing_distance_grid distance;
 static int distance_generation;
 
@@ -77,11 +84,6 @@ static void reset_fighting_status(void)
         map_grid_clear_u8(fighting_data.status.items);
         fighting_data.last_check = current_time;
     }
-}
-
-const map_routing_distance_grid *map_routing_get_distance_grid(void)
-{
-    return &distance;
 }
 
 int map_routing_distance_generation(void)

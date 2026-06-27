@@ -40,7 +40,7 @@
 #include <vector>
 
 namespace figure_runtime_native_impl {
-bool update_legacy_graphics_policy_image_state(
+bool update_legacy_figure_graphics_image_state(
     Figure &figure,
     const figure_type_registry_impl::FigureTypeDefinition *definition);
 }
@@ -414,7 +414,7 @@ int figure_runtime_update_graphics(Figure *f)
     if (!entry || !entry->definition) {
         return 0;
     }
-    return figure_runtime_native_impl::update_legacy_graphics_policy_image_state(
+    return figure_runtime_native_impl::update_legacy_figure_graphics_image_state(
         *f,
         entry->definition) ? 1 : 0;
 }

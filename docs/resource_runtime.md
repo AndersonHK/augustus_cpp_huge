@@ -7,7 +7,9 @@ This note records the current resource ownership model after moving resource def
 - `Mods/<Mod>/Resources/*.xml` owns the selected mod's complete resource set.
 - `src/game/resource.cpp` parses those XML files into `resource_data` defaults.
 - `resource_data` owns resource text id, numeric slot, locale key, flags, default trade prices, and XML attribute name.
-- `ResourceGraphics` in `src/game/resource_graphics.h/.cpp` owns the image-group entry references for carts, storage stacks, panel icons, empire icons, and editor icons.
+- `ResourceGraphics : GraphicsDefinition` in `src/game/ResourceGraphics.h/.cpp` owns resource presentation icons only: panel icons, empire icons, and editor icons.
+- `BuildingGraphics : GraphicsDefinition` owns the resource storage-stack image refs parsed from resource `<storage>` nodes, because those images draw warehouse/building storage.
+- `FigureGraphics : GraphicsDefinition` owns the resource cart/load image refs parsed from resource `<cart>` nodes, because those images draw cartpusher-style figure overlays.
 - Resources do not own production throughput, producers, industries, or warning templates. Producer lookup belongs to building/production code through `building_output_resource(...)` and `building_producer_for_resource(...)`, while warning selection belongs to gameplay triggers.
 - `ProductionMethod` owns base monthly throughput through the `<output production_per_month="...">` attribute. Scenario/save production-rate overrides mutate production methods, not resources.
 - `src/game/resource_id_bridge.cpp` owns save-local resource id tables and the legacy raw-id migration maps for old saves.
@@ -39,7 +41,7 @@ Optional model attributes:
 - `xml_attr`: scenario/model XML attribute spelling.
 - `flags`: comma-separated `food`, `storable`, `inventory`, and/or `special`.
 
-Graphics nodes use `ImageGroupEntryRef` data: `path` is the logical image group path and `image` is the optional entry id. Callers should ask `resource_graphics(resource).panel_icon().draw(x, y)` instead of reaching through resource structs or raw image ids.
+Graphics nodes use `ImageGroupEntryRef` data: `path` is the logical image group path and `image` is the optional entry id. Resource XML still keeps cart, storage, and icon declarations together for authoring convenience, but startup routes the refs to their owner classes. UI callers should ask `resource_graphics(resource).panel_icon().draw(x, y)` instead of reaching through resource structs or raw image ids.
 
 Production throughput belongs to `Mods/<Mod>/ProductionMethod/*.xml`:
 

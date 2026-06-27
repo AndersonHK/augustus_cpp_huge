@@ -11,7 +11,7 @@
 #include "building/production_runtime.h"
 
 #include "assets/image_group_payload.h"
-#include "building/animations.h"
+#include "building/BuildingGraphics.h"
 #include "building/building_runtime_graphics.h"
 #include "building/variant.h"
 #include "core/calc.h"
@@ -469,6 +469,15 @@ static int resolve_graphic_layer_binding(
     return 1;
 }
 
+static int animation_owner_is_working_for_runtime_preview(Building building)
+{
+    const Building animation_owner = building.composition_owner();
+    if (animation_owner.id()) {
+        return animation_owner.is_working();
+    }
+    return building.is_working();
+}
+
 // Input: one live building instance in the city animation draw stage.
 // Output: advances the native XML animation cursor at the same layer where legacy image groups tick.
 void building_runtime::advance_graphic_animation(int animation_cursor)
@@ -478,20 +487,20 @@ void building_runtime::advance_graphic_animation(int animation_cursor)
     }
 
     ensure_cached_graphics_bindings();
-    const RuntimeAnimationTrack *track_ptr = cached_animation_track();
-    if (!track_ptr || !graphics_cache_.owns_graphic_animation) {
+    const Animation *animation = cached_animation();
+    if (!animation || !graphics_cache_.owns_graphic_animation) {
         return;
     }
 
-    building().animate().runtime_track_offset(*track_ptr, 1, animation_cursor);
+    building().animate().frame_offset(*animation, 1, animation_cursor);
     // The frame cursor has just moved; the draw slice is rebuilt lazily by
     // graphic_animation() so ghosts and normal city draws share one read path.
     graphics_cache_.animation_slice = RuntimeDrawSlice();
 }
 
 // Input: one live building instance whose cached bindings may include an animation image-group entry.
-// Output: the runtime animation track exposed by that cached animation entry, or null when this building instance has no native animation.
-const RuntimeAnimationTrack *building_runtime::cached_animation_track() const
+// Output: the animation exposed by that cached animation entry, or null when this building instance has no native animation.
+const Animation *building_runtime::cached_animation() const
 {
     return graphics_cache_.animation_entry && graphics_cache_.animation_entry->has_animation() ?
         &graphics_cache_.animation_entry->animation() :
@@ -521,12 +530,12 @@ const RuntimeDrawSlice *building_runtime::cached_graphic_top() const
 
 void building_runtime::advance_cached_graphic_animation(int animation_cursor)
 {
-    const RuntimeAnimationTrack *track_ptr = cached_animation_track();
-    if (!track_ptr || !graphics_cache_.owns_graphic_animation) {
+    const Animation *animation = cached_animation();
+    if (!animation || !graphics_cache_.owns_graphic_animation) {
         return;
     }
 
-    building().animate().runtime_track_offset(*track_ptr, 1, animation_cursor);
+    building().animate().frame_offset(*animation, 1, animation_cursor);
     graphics_cache_.animation_slice = RuntimeDrawSlice();
 }
 
@@ -575,21 +584,18 @@ void building_runtime::draw_cached_graphic_layer_animations(
         if (!layer.owns_animation || !layer.entry || !layer.entry->has_animation()) {
             continue;
         }
-        const RuntimeAnimationTrack &track = layer.entry->animation();
-        const int animation_offset = building().animate().runtime_track_offset(track, 1, animation_cursor);
+        const Animation &animation = layer.entry->animation();
+        const int animation_offset = building().animate().frame_offset(animation, 1, animation_cursor);
         if (animation_offset <= 0) {
             layer.animation_slice = RuntimeDrawSlice();
             continue;
         }
-        const size_t frame_index = static_cast<size_t>(animation_offset - 1);
-        if (frame_index >= track.frames.size()) {
+        RuntimeDrawSlice frame_slice = animation.frame_slice_at_offset(animation_offset);
+        if (!frame_slice.is_valid()) {
             layer.animation_slice = RuntimeDrawSlice();
             continue;
         }
 
-        RuntimeDrawSlice frame_slice = track.frames[frame_index];
-        frame_slice.draw_offset_x += track.sprite_offset_x;
-        frame_slice.draw_offset_y += track.sprite_offset_y;
         layer.animation_slice = frame_slice;
         draw_shifted_runtime_slice(&layer.animation_slice, x, y, layer.x_offset, layer.y_offset, color, scale);
     }
@@ -605,25 +611,21 @@ int building_runtime::cached_owns_graphic_animation() const
 void building_runtime::rebuild_cached_animation_slice(int animation_cursor)
 {
     graphics_cache_.animation_slice = RuntimeDrawSlice();
-    const RuntimeAnimationTrack *track_ptr = cached_animation_track();
-    if (!track_ptr || !graphics_cache_.owns_graphic_animation) {
+    const Animation *animation_ptr = cached_animation();
+    if (!animation_ptr || !graphics_cache_.owns_graphic_animation) {
         return;
     }
 
-    const RuntimeAnimationTrack &track = *track_ptr;
-    const int animation_offset = building().animate().runtime_track_offset(track, 0, animation_cursor);
+    const Animation &animation = *animation_ptr;
+    const int animation_offset = building().animate().frame_offset(animation, 0, animation_cursor);
     if (animation_offset <= 0) {
         return;
     }
 
-    const size_t frame_index = static_cast<size_t>(animation_offset - 1);
-    if (frame_index >= track.frames.size()) {
+    RuntimeDrawSlice frame_slice = animation.frame_slice_at_offset(animation_offset);
+    if (!frame_slice.is_valid()) {
         return;
     }
-
-    RuntimeDrawSlice frame_slice = track.frames[frame_index];
-    frame_slice.draw_offset_x += track.sprite_offset_x;
-    frame_slice.draw_offset_y += track.sprite_offset_y;
     if (graphics_cache_.base_entry && graphics_cache_.base_entry->top()) {
         frame_slice.draw_offset_y += graphics_cache_.base_entry->top()->draw_offset_y;
     }
@@ -687,8 +689,7 @@ void building_runtime::rebuild_cached_graphics_bindings()
         return;
     }
 
-    const Building animation_owner = building().composition_owner();
-    const int animation_owner_is_working = animation_owner.id() && animation_owner.is_working();
+    const int animation_owner_is_working = animation_owner_is_working_for_runtime_preview(building());
 
     graphics_cache_.base_payload = payload;
     graphics_cache_.base_entry = entry;

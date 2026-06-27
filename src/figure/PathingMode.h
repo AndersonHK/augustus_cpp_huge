@@ -76,6 +76,11 @@ public:
         }
     };
 
+    struct RoutePolicySelection {
+        TerrainAccess terrain;
+        RoutePolicy policy;
+    };
+
     constexpr PathingMode(
         const char *xml_id,
         RoadRequirement road_requirement,
@@ -100,6 +105,7 @@ public:
 
     roadblock_permission roadblockPermissionFor(const Figure &figure) const;
     static TerrainAccess terrainFromLegacyUsage(int terrain_usage);
+    static RoutePolicySelection routePolicyForFigure(Figure &figure, RouteNeighborhood neighborhood);
     static RoutePolicy routePolicyForTerrain(
         const TerrainAccess &terrain,
         std::optional<roadblock_permission> permission = std::nullopt,

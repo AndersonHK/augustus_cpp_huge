@@ -71,7 +71,7 @@ enum {
 
 
 
-#include "building/animations.h"
+#include "building/BuildingGraphics.h"
 #include "building/water_access_type.h"
 #include "graphics/image.h"
 
@@ -933,7 +933,7 @@ public:
     const BuildingFlagsDefinition &flags() const;
     const MilitaryDefinition &military() const;
     const WaterAccessDefinition &water_access() const;
-    const GraphicsDefinition &graphics() const;
+    const BuildingGraphics &graphics() const;
     const ConstructionDefinition &construction() const;
     const ComposedBuildingDefinition &composition() const;
     ImageGroupEntryRef button_icon_ref() const;
@@ -1041,7 +1041,7 @@ private:
     BuildingFlagsDefinition flags_;
     MilitaryDefinition military_;
     WaterAccessDefinition water_access_;
-    GraphicsDefinition graphics_;
+    BuildingGraphics graphics_;
     ConstructionDefinition construction_;
     bool has_construction_ = false;
     ComposedBuildingDefinition composition_;

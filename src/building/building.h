@@ -6,16 +6,13 @@
 #include "building/building_type.h"
 #include "game/resource.h"
 
+#include "game/Animation.h"
 #include "graphics/color.h"
 #include "map/point.h"
 
 #include <cstdint>
 #include <functional>
 #include <source_location>
-
-namespace building_type_registry_impl {
-class BuildingAnimation;
-}
 
 class building_runtime;
 
@@ -88,6 +85,7 @@ public:
     int is_mothballed() const;
     int has_plague() const;
     int has_cached_road_access() const;
+    int cached_road_access_point(map_point *road) const;
     int has_house_size() const;
     int house_population() const;
     void set_house_population(int value);
@@ -111,6 +109,8 @@ public:
     float labor_access_score() const;
     int has_required_workers() const;
     int has_road_access(map_point *road) const;
+    int query_road_access_point(map_point *road) const;
+    int storage_destination_road_access_point(map_point *road) const;
     int has_water_access() const;
     int is_working() const;
     int is_merged_house() const;

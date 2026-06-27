@@ -328,8 +328,10 @@ void figure_soldier_action(Figure *f)
     if (f->formation_at_rest || f->action_state == FIGURE_ACTION_81_SOLDIER_GOING_TO_FORT) {
         layout = FORMATION_AT_REST;
     }
-    f->formation_position_x.soldier = m->x + formation_layout_position_x(layout, f->index_in_formation);
-    f->formation_position_y.soldier = m->y + formation_layout_position_y(layout, f->index_in_formation);
+    FormationLayoutPosition position =
+        formation_layout_position(layout, f->index_in_formation, m->declared_capacity());
+    f->formation_position_x.soldier = m->x + position.x;
+    f->formation_position_y.soldier = m->y + position.y;
 
     switch (f->action_state) {
         case FIGURE_ACTION_150_ATTACK:
@@ -378,8 +380,9 @@ void figure_soldier_action(Figure *f)
         case FIGURE_ACTION_83_SOLDIER_GOING_TO_STANDARD:
             f->attack_image_offset = 0;
             f->formation_at_rest = 0;
-            f->destination_x = m->standard_x + formation_layout_position_x(m->layout, f->index_in_formation);
-            f->destination_y = m->standard_y + formation_layout_position_y(m->layout, f->index_in_formation);
+            position = formation_layout_position(m->layout, f->index_in_formation, m->declared_capacity());
+            f->destination_x = m->standard_x + position.x;
+            f->destination_y = m->standard_y + position.y;
             if (f->alternative_location_index) {
                 f->destination_x += ALTERNATIVE_POINTS[f->alternative_location_index].x;
                 f->destination_y += ALTERNATIVE_POINTS[f->alternative_location_index].y;
@@ -403,8 +406,9 @@ void figure_soldier_action(Figure *f)
             f->formation_at_rest = 0;
             f->image_offset = 0;
             map_figure_update(f);
-            f->destination_x = m->standard_x + formation_layout_position_x(m->layout, f->index_in_formation);
-            f->destination_y = m->standard_y + formation_layout_position_y(m->layout, f->index_in_formation);
+            position = formation_layout_position(m->layout, f->index_in_formation, m->declared_capacity());
+            f->destination_x = m->standard_x + position.x;
+            f->destination_y = m->standard_y + position.y;
             if (f->alternative_location_index) {
                 f->destination_x += ALTERNATIVE_POINTS[f->alternative_location_index].x;
                 f->destination_y += ALTERNATIVE_POINTS[f->alternative_location_index].y;

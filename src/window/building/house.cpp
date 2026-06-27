@@ -2,7 +2,7 @@
 #include "building/house.h"
 #include "building/local_workforce.h"
 #include "city/sentiment.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"
 #include "map/road_access.h"

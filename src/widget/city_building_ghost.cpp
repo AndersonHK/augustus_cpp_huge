@@ -88,10 +88,7 @@ static struct {
         int grid_offset;
         building_type type;
     } roamer_preview;
-    struct {
-        building_type type;
-        int cursor;
-    } animation_preview;
+    int animation_preview_cursor_by_type[BUILDING_TYPE_MAX];
     tile_xy_offsets offsets[4][MAX_TILES];
 } data = {
     .scale = SCALE_NONE
@@ -179,17 +176,17 @@ static void draw_tile_view_offset(int building_size, int *x_offset, int *y_offse
 static void draw_runtime_ghost_animation(Building &building, int animation_cursor, int x, int y, color_t color)
 {
     const building_type type = building.type ? building.type->type() : BUILDING_NONE;
-    if (data.animation_preview.type != type) {
-        data.animation_preview.type = type;
-        data.animation_preview.cursor = 0;
+    const int cursor_index = static_cast<int>(type);
+    if (cursor_index <= BUILDING_NONE || cursor_index >= BUILDING_TYPE_MAX) {
+        return;
     }
 
     // Ghosts reuse the real grid offset as an animation cursor. Save/restore the
     // map sprite byte so preview animation never leaks into the city map state.
     const int saved_cursor = map_sprite_animation_at(animation_cursor);
-    map_sprite_animation_set(animation_cursor, data.animation_preview.cursor);
+    map_sprite_animation_set(animation_cursor, data.animation_preview_cursor_by_type[cursor_index]);
     building.draw_animation({ x, y, animation_cursor, color, data.scale, 1 });
-    data.animation_preview.cursor = map_sprite_animation_at(animation_cursor);
+    data.animation_preview_cursor_by_type[cursor_index] = map_sprite_animation_at(animation_cursor);
     map_sprite_animation_set(animation_cursor, saved_cursor);
 }
 

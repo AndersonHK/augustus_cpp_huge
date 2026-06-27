@@ -1,7 +1,6 @@
 #include "renderer.h"
 
 #include "core/calc.h"
-#include "core/config.h"
 #include "core/time.h"
 #include "game/performance_tracker.h"
 #include "graphics/renderer.h"
@@ -282,44 +281,14 @@ static float scale_for_domain(render_domain domain)
     return g_render_2d_pipeline.scale_for_domain(domain, platform_screen_get_scale());
 }
 
-static int is_pixel_domain(render_domain domain)
-{
-    return domain == RENDER_DOMAIN_PIXEL
-        || domain == RENDER_DOMAIN_TOOLTIP_PIXEL
-        || domain == RENDER_DOMAIN_SNAPSHOT_PIXEL;
-}
-
 static image_filter configured_scale_filter(void)
 {
-    switch (config_get(CONFIG_SCALE_FILTER)) {
-        case CONFIG_SCALE_FILTER_NEAREST:
-            return IMAGE_FILTER_NEAREST;
-        case CONFIG_SCALE_FILTER_LINEAR:
-            return IMAGE_FILTER_LINEAR;
-        case CONFIG_SCALE_FILTER_BEST:
-            return IMAGE_FILTER_BEST;
-        case CONFIG_SCALE_FILTER_AUTO:
-        default:
-            break;
-    }
-#ifndef __APPLE__
-    return (platform_screen_get_scale() % 100) != 0 ? IMAGE_FILTER_LINEAR : IMAGE_FILTER_NEAREST;
-#else
-    return IMAGE_FILTER_LINEAR;
-#endif
+    return g_render_2d_pipeline.configured_scale_filter(platform_screen_get_scale());
 }
 
 static const char *configured_scale_quality_hint(void)
 {
-    switch (configured_scale_filter()) {
-        case IMAGE_FILTER_LINEAR:
-            return "linear";
-        case IMAGE_FILTER_BEST:
-            return "best";
-        case IMAGE_FILTER_NEAREST:
-        default:
-            return "nearest";
-    }
+    return g_render_2d_pipeline.scale_quality_hint(configured_scale_filter());
 }
 
 #ifdef USE_TEXTURE_SCALE_MODE
@@ -954,7 +923,8 @@ static render_2d_request make_texture_request(const image *img, float x, float y
     request.logical_height = logical_height;
     request.color = color;
     request.domain = data.active_render_domain;
-    request.scaling_policy = is_pixel_domain(request.domain) ? RENDER_SCALING_POLICY_PIXEL_ART : RENDER_SCALING_POLICY_AUTO;
+    request.scaling_policy =
+        g_render_2d_pipeline.is_pixel_domain(request.domain) ? RENDER_SCALING_POLICY_PIXEL_ART : RENDER_SCALING_POLICY_AUTO;
     return request;
 }
 

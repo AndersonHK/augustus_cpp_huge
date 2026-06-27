@@ -40,17 +40,17 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
 - `building_runtime::data` remains a transitional public reference for code not yet migrated inside the runtime class. Prefer `record()`/`building()` in runtime implementation and do not add new consumers of `data`.
 
 ## 2026-05-11 current graphics/animation checkpoint
-- Native BuildingType graphics now use `building_runtime_graphics.cpp` for target resolution, stable-option selection, and cached `RuntimeDrawSlice` binding. City view code asks the `Building` object to draw the active footprint/top/animation stage; `GraphicsDefinition` then reads the cached slices from `building_runtime`.
-- Animation frame policy now lives in `src/building/animations.h/.cpp` as `BuildingAnimation`. This object owns frame cursor normalization, legacy animation gates, wine-workshop progress frames, reversible animation high-bit handling, looping animation, storage-yard flags, and fumigation animation.
+- Native BuildingType graphics now use `building_runtime_graphics.cpp` for target resolution, stable-option selection, and cached `RuntimeDrawSlice` binding. City view code asks the `Building` object to draw the active footprint/top/animation stage; `BuildingGraphics` then reads the cached slices from `building_runtime`.
+- Animation frame data and draw-slice materialization now live in `Animation` (`src/game/Animation.h/.cpp`). Callers should request one-based frames through `Animation::frame_slice_at_offset(...)` instead of indexing animation frame vectors. Building-specific playback policy lives beside it as `BuildingAnimation`, which owns frame cursor normalization, legacy animation gates, wine-workshop progress frames, reversible animation high-bit handling, looping animation, storage-yard flags, and fumigation animation.
 - The old `src/building/animation.*` facade has been removed. Legacy overlay/non-native C++ draw paths instantiate `BuildingAnimation` directly; this keeps animation policy in the concept object instead of behind another C wrapper.
 - Live native animation call chain:
   - `src/widget/city_with_overlay.cpp` or `src/widget/city_without_overlay.cpp`
   - `Building::draw_animation({ x, y, grid_offset, color_mask, scale })`
-  - `GraphicsDefinition::draw_animation(building, context)`
+  - `BuildingGraphics::draw_animation(building, context)`
   - `building_runtime::advance_graphic_animation(grid_offset)`
-  - `BuildingAnimation::runtime_track_offset(track, should_advance=1, grid_offset)`
+  - `BuildingAnimation::frame_offset(animation, should_advance=1, grid_offset)`
   - `building_runtime::graphic_animation(grid_offset)`
-  - `BuildingAnimation::runtime_track_offset(track, should_advance=0, grid_offset)`
+  - `BuildingAnimation::frame_offset(animation, should_advance=0, grid_offset)`
 - `advance_graphic_animation()` is the tick. `graphic_animation()` reads and materializes the current frame slice; it must not secretly advance the animation.
 - Placement ghosts use the same generic BuildingType renderer for XML-owned graphics. `city_building_ghost.cpp` passes `force_draw_tile` in `BuildingDrawContext` and saves/restores the map sprite animation byte because the ghost preview reuses the hovered grid offset as a temporary cursor without owning real map state.
 - Water-driven graphics now depend on generic BuildingType water rules and projected building state. See `docs/water_access_runtime.md` for the provider/consumer mask simulation that feeds `has_water_access` and related compatibility mirrors.
@@ -221,7 +221,7 @@ Workspace: `C:\Users\imper\Documents\GitHub\augustus_cpp_huge`
   - parser now expects structured `<graphics>` with `<default>`, optional conditional `<variant>`, target `<path>`, optional `<image>`, and optional stable `<options>`.
 - `src/building/building_runtime.h/.cpp` and `src/building/building_runtime_graphics.cpp`
   - runtime now resolves new-path building images, assigns stable graphics variants, and still maintains legacy compatibility state.
-- `src/building/building.h/.cpp` and `src/building/animations.h/.cpp`
+- `src/building/building.h/.cpp` and `src/game/Animation.h/.cpp`
   - live city drawing asks `Building::draw_footprint(...)`, `draw_top(...)`, and `draw_animation(...)` for payload-backed footprint/top/animation slices before legacy tile-id rendering.
 - `src/assets/image_group_payload.h/.cpp`
   - path-keyed group manager now exposes default-image lookup, caches failed loads, stores implicit animation metadata/frame keys plus footprint/top composition data, and clones whole-image aliases including top/animation

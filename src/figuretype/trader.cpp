@@ -40,7 +40,7 @@
 #include "figure/trader.h"
 #include "figure/visited_buildings.h"
 #include "game/time.h"
-#include "map/routing.h"
+#include "map/grid.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
 

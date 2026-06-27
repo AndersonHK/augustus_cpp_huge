@@ -254,7 +254,8 @@ int Barracks::create_tower_sentry(int x, int y)
         f->destination_x = road.x;
         f->destination_y = road.y;
     } else {
-        f->state = FIGURE_STATE_DEAD;
+        f->remove();
+        return 0;
     }
     tower.set_primary_figure_id(f->id());
     f->building = tower;

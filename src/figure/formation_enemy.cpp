@@ -14,7 +14,6 @@
 #include "figure/enemy_army.h"
 #include "figure/figure.h"
 #include "figure/formation.h"
-#include "figure/formation_layout.h"
 #include "figure/route.h"
 #include "map/figure.h"
 #include "map/grid.h"
@@ -534,19 +533,10 @@ static void set_native_target_building(formation *m)
 
 int formation_enemy_move_formation_to(const formation *m, int x, int y, int *x_tile, int *y_tile)
 {
-    int base_offset = map_grid_offset(
-        formation_layout_position_x(m->layout, 0),
-        formation_layout_position_y(m->layout, 0));
-    const int figure_count = m->figure_count();
+    const std::vector<int> figure_offsets = m->layout_grid_offsets();
+    const int figure_count = static_cast<int>(figure_offsets.size());
     if (figure_count <= 0) {
         return 0;
-    }
-    std::vector<int> figure_offsets(figure_count);
-    figure_offsets[0] = 0;
-    for (int i = 1; i < figure_count; i++) {
-        figure_offsets[i] = map_grid_offset(
-            formation_layout_position_x(m->layout, i),
-            formation_layout_position_y(m->layout, i)) - base_offset;
     }
     const Route::TerrainQuery route = Route::TerrainQuery::enemyLandFrom({ x, y }, 600);
     for (int r = 0; r <= 10; r++) {
@@ -750,17 +740,6 @@ static void update_enemy_movement(formation *m, int roman_distance)
     }
 }
 
-static int formation_fully_in_city(const formation *m)
-{
-    return !m->any_figure_id([](int figure_id, int) {
-        Figure *f = Figure::get(figure_id);
-        if (f->state != FIGURE_STATE_DEAD && f->is_ghost) {
-            return true;
-        }
-        return false;
-    });
-}
-
 static void update_enemy_formation(formation *m, int *roman_distance)
 {
     enemy_army *army = enemy_army_get_editable(m->invasion_id);
@@ -773,14 +752,7 @@ static void update_enemy_formation(formation *m, int *roman_distance)
     if (city_figures_soldiers() <= 0) {
         formation_clear_monthly_counters(m);
     }
-    if (m->any_figure_id([](int figure_id, int) {
-        Figure *f = Figure::get(figure_id);
-        if (f->action_state == FIGURE_ACTION_150_ATTACK) {
-            Figure *opponent = f->opponent.save_id() ? &f->opponent.get() : nullptr;
-            return opponent && !opponent->is_dead() && opponent->is_legion();
-        }
-        return false;
-    })) {
+    if (m->has_figure_attacking_live_legion()) {
         formation_record_fight(m);
     }
     if (formation_has_low_morale(m)) {
@@ -813,7 +785,7 @@ static void update_enemy_formation(formation *m, int *roman_distance)
             army->destination_y = y_tile;
             army->destination_building_id = 0;
         } else {
-            if (!set_enemy_target_building(m) && !army->started_retreating && formation_fully_in_city(m)) {
+            if (!set_enemy_target_building(m) && !army->started_retreating && m->is_fully_in_city()) {
                 city_message_post(1, MESSAGE_ENEMIES_LEAVING, 0, 0);
                 army->started_retreating = 1;
             }

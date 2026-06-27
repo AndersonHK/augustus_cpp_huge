@@ -1,9 +1,11 @@
 #include "building/building_type.h"
+#include "building/BuildingGraphics.h"
 #include "building/industry.h"
+#include "figure/figure_type_registry_internal.h"
 #include "translation/translation.h"
 #include "core/xml_value.h"
 #include "game/mod_manager.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 
 #include "resource.h"
 
@@ -307,12 +309,15 @@ static void finish_resource_root()
     resource_text_id_lookup[resource_text_id_storage[static_cast<size_t>(type)]] = type;
     loaded_resources.push_back(type);
 
-    ResourceGraphics &graphics = mutable_resource_graphics(type);
-    graphics.set_storage_images(resource_parse_state.storage_images);
-    graphics.set_cart_images(
+    building_type_registry_impl::BuildingGraphics::set_resource_storage_images(
+        type,
+        resource_parse_state.storage_images);
+    figure_type_registry_impl::FigureGraphics::set_resource_cart_images(
+        type,
         resource_parse_state.cart_single_load,
         resource_parse_state.cart_multiple_loads,
         resource_parse_state.cart_eight_loads);
+    ResourceGraphics &graphics = mutable_resource_graphics(type);
     graphics.set_panel_icon(resource_parse_state.panel_icon);
     graphics.set_empire_icon(resource_parse_state.empire_icon);
     graphics.set_editor_icon(resource_parse_state.editor_icon);
@@ -463,6 +468,8 @@ int resource_get_supply_chain_for_raw_material(resource_supply_chain *chain, res
 void resource_init(void)
 {
     resource_graphics_reset();
+    building_type_registry_impl::BuildingGraphics::reset_resource_storage_images();
+    figure_type_registry_impl::FigureGraphics::reset_resource_cart_images();
     production_method_registry_reset_production_overrides();
     load_resource_definitions();
     std::memcpy(resource_info, resource_info_defaults, sizeof(resource_info_defaults));

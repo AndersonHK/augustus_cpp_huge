@@ -1,9 +1,9 @@
 #include "city_figure.h"
 
 #include "city/view.h"
-#include "figure/figure_graphics.h"
 #include "figure/image.h"
 #include "figure/movement.h"
+#include "figure/figure_runtime_native.h"
 #include "figuretype/editor.h"
 #include "graphics/runtime_texture.h"
 #include "graphics/text.h"
@@ -244,7 +244,7 @@ static void draw_figure(
 void city_draw_figure(const Figure *f, int x, int y, float scale, int highlight)
 {
     FigureGraphicDrawRequest draw_request;
-    const FigureGraphicDrawRequest *request = FigureGraphics(*f).resolve(draw_request) ? &draw_request : nullptr;
+    const FigureGraphicDrawRequest *request = figure_graphics_resolve_draw_request(*f, draw_request) ? &draw_request : nullptr;
     adjust_pixel_offset(f, &x, &y, request);
     draw_figure(f, x, y, scale, highlight, request);
 }
@@ -252,7 +252,7 @@ void city_draw_figure(const Figure *f, int x, int y, float scale, int highlight)
 void city_draw_selected_figure(const Figure *f, int x, int y, float scale, pixel_coordinate *coord)
 {
     FigureGraphicDrawRequest draw_request;
-    const FigureGraphicDrawRequest *request = FigureGraphics(*f).resolve(draw_request) ? &draw_request : nullptr;
+    const FigureGraphicDrawRequest *request = figure_graphics_resolve_draw_request(*f, draw_request) ? &draw_request : nullptr;
     adjust_pixel_offset(f, &x, &y, request);
     draw_figure(f, x, y, scale, 0, request);
     coord->x = x;

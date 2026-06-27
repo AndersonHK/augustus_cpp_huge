@@ -1,5 +1,5 @@
 #include "city/victory.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/generic_button.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"

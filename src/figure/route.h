@@ -97,6 +97,15 @@ public:
             bool valid);
 
         const CostMapHandle &costMap() const;
+        RoadResult findBestReachableAreaTile(
+            int x_min,
+            int y_min,
+            int x_max,
+            int y_max,
+            const CostMapHandle &cost_map,
+            int maxDistance,
+            bool requireRoad,
+            bool requireSameNetwork) const;
         RoadResult findReachableAreaTile(int x, int y, int size, int radius, int maxDistance, bool requireRoad) const;
 
         map_point source_ = { 0, 0 };
@@ -134,6 +143,8 @@ public:
     static int constructionDistanceTo(int gridOffset);
     static bool waterCanReachAdjacentOpenWater(const map_point &source, int x, int y, int size);
     static int waterPathLength(const map_point &source, const map_point &destination, bool flotsam = false);
+    static void blockDistanceArea(int x, int y, int size);
+    static void deleteFirstWallOrAqueduct(int x, int y);
     static void updateAllTerrain();
     static void updateLandTerrain();
     static void updateCitizenLandTerrain();

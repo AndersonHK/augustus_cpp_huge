@@ -1,4 +1,4 @@
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/graphics.h"
 #include "graphics/image.h"
 #include "graphics/lang_text.h"

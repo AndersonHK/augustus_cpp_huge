@@ -2,43 +2,125 @@
 
 #include "figure/formation.h"
 
-static const int FORMATION_LAYOUT_POSITION_X[FORMATION_MAX][MAX_FORMATION_FIGURES] = {
-    {0, 1, 0, 1, -1, -1, 0, 1, -1, 2, 2, 2, 0, 1, -1, 2},
-    {0, 0, -1, 1, -1, 1, -2, -2, 2, 2, -3, -3, 3, 3, -4, -4},
-    {0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
-    {0, 2, -2, 1, -1, 3, -3, 4, -4, 5, 6, -5, -6, 7, 8, -7},
-    {0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1},
-    {0, 0, 1, 0, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1, -1, 0},
-    {0, 1, 0, 1, 2, 2, 1, 0, 2, 3, 3, 3, 1, 2, 0, 3},
-    {0, 1, 0, 1, 2, 2, 1, 0, 2, 3, 3, 3, 1, 2, 0, 3},
-    {0, 1, 0, 0, 1, -1, 2, -1, 1, 0, 1, 0, 1, -1, 1, -1},
-    {0, 2, -1, 1, 1, -1, 3, -2, 0, -4, -1, 0, 1, 4, 2, -5}, // herd
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    {0, 2, 0, 2, -2, -2, 0, 2, -2, 4, 4, 4, 0, 2, -2, 4},
-    {0, 1, 0, 1, 2, 2, 1, 0, 2, 3, 3, 3, 1, 2, 0, 3}
-};
-static const int FORMATION_LAYOUT_POSITION_Y[FORMATION_MAX][MAX_FORMATION_FIGURES] = {
-    {0, 0, 1, 1, 0, 1, -1, -1, -1, -1, 0, 1, 2, 2, 2, 2},
-    {0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1},
-    {0, -1, 1, 0, -1, 1, -2, -2, 2, 2, -3, -3, 3, 3, -4, -4},
-    {0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1},
-    {0, -2, 2, -1, 1, -3, 3, -4, 4, -5, -6, 5, 6, -7, -8, 7},
-    {0, -1, 0, 1, 0, -1, 1, 1, -1, -1, 1, 1, -1, 0, 0, 0},
-    {0, 0, 1, 1, 0, 1, 2, 2, 2, 0, 1, 2, 3, 3, 3, 3},
-    {0, 0, 1, 1, 0, 1, 2, 2, 2, 0, 1, 2, 3, 3, 3, 3},
-    {0, -1, 1, 0, 0, 1, 1, -1, -1, 1, 0, 2, 1, 1, -2, 1},
-    {0, 1, -1, 1, 0, 1, 1, -1, 2, 0, 3, 5, 4, 0, 3, 2}, // herd
-    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-    {0, 0, 2, 2, 0, 2, -2, -2, -2, -2, 0, 2, 4, 4, 4, 4},
-    {0, 0, 1, 1, 0, 1, 2, 2, 2, 0, 1, 2, 3, 3, 3, 3}
+namespace {
+
+constexpr int LEGACY_LAYOUT_SLOT_COUNT = 16;
+
+static const FormationLayoutPosition LEGACY_LAYOUT_POSITIONS[FORMATION_MAX][LEGACY_LAYOUT_SLOT_COUNT] = {
+    {{0, 0}, {1, 0}, {0, 1}, {1, 1}, {-1, 0}, {-1, 1}, {0, -1}, {1, -1}, {-1, -1}, {2, -1}, {2, 0}, {2, 1}, {0, 2}, {1, 2}, {-1, 2}, {2, 2}},
+    {{0, 0}, {0, 1}, {-1, 0}, {1, 0}, {-1, 1}, {1, 1}, {-2, 0}, {-2, 1}, {2, 0}, {2, 1}, {-3, 0}, {-3, 1}, {3, 0}, {3, 1}, {-4, 0}, {-4, 1}},
+    {{0, 0}, {0, -1}, {0, 1}, {1, 0}, {1, -1}, {1, 1}, {0, -2}, {1, -2}, {0, 2}, {1, 2}, {0, -3}, {1, -3}, {0, 3}, {1, 3}, {0, -4}, {1, -4}},
+    {{0, 0}, {2, 0}, {-2, 0}, {1, 1}, {-1, 1}, {3, 1}, {-3, 1}, {4, 0}, {-4, 0}, {5, 1}, {6, 0}, {-5, 1}, {-6, 0}, {7, 1}, {8, 0}, {-7, 1}},
+    {{0, 0}, {0, -2}, {0, 2}, {1, -1}, {1, 1}, {1, -3}, {1, 3}, {0, -4}, {0, 4}, {1, -5}, {0, -6}, {1, 5}, {0, 6}, {1, -7}, {0, -8}, {1, 7}},
+    {{0, 0}, {0, -1}, {1, 0}, {0, 1}, {-1, 0}, {1, -1}, {1, 1}, {-1, 1}, {-1, -1}, {1, -1}, {1, 1}, {-1, 1}, {-1, -1}, {1, 0}, {-1, 0}, {0, 0}},
+    {{0, 0}, {1, 0}, {0, 1}, {1, 1}, {2, 0}, {2, 1}, {1, 2}, {0, 2}, {2, 2}, {3, 0}, {3, 1}, {3, 2}, {1, 3}, {2, 3}, {0, 3}, {3, 3}},
+    {{0, 0}, {1, 0}, {0, 1}, {1, 1}, {2, 0}, {2, 1}, {1, 2}, {0, 2}, {2, 2}, {3, 0}, {3, 1}, {3, 2}, {1, 3}, {2, 3}, {0, 3}, {3, 3}},
+    {{0, 0}, {1, -1}, {0, 1}, {0, 0}, {1, 0}, {-1, 1}, {2, 1}, {-1, -1}, {1, -1}, {0, 1}, {1, 0}, {0, 2}, {1, 1}, {-1, 1}, {1, -2}, {-1, 1}},
+    {{0, 0}, {2, 1}, {-1, -1}, {1, 1}, {1, 0}, {-1, 1}, {3, 1}, {-2, -1}, {0, 2}, {-4, 0}, {-1, 3}, {0, 5}, {1, 4}, {4, 0}, {2, 3}, {-5, 2}},
+    {{0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}},
+    {{0, 0}, {2, 0}, {0, 2}, {2, 2}, {-2, 0}, {-2, 2}, {0, -2}, {2, -2}, {-2, -2}, {4, -2}, {4, 0}, {4, 2}, {0, 4}, {2, 4}, {-2, 4}, {4, 4}},
+    {{0, 0}, {1, 0}, {0, 1}, {1, 1}, {2, 0}, {2, 1}, {1, 2}, {0, 2}, {2, 2}, {3, 0}, {3, 1}, {3, 2}, {1, 3}, {2, 3}, {0, 3}, {3, 3}}
 };
 
-int formation_layout_position_x(int layout, int index)
+bool has_legacy_position(int layout, int index)
 {
-    return FORMATION_LAYOUT_POSITION_X[layout][index % MAX_FORMATION_FIGURES];
+    return layout >= 0 && layout < FORMATION_MAX && index >= 0 && index < LEGACY_LAYOUT_SLOT_COUNT;
 }
 
-int formation_layout_position_y(int layout, int index)
+int positive_or(int value, int fallback)
 {
-    return FORMATION_LAYOUT_POSITION_Y[layout][index % MAX_FORMATION_FIGURES];
+    return value > 0 ? value : fallback;
+}
+
+int clamped_slot_count(int live_slot_count, int declared_capacity)
+{
+    if (live_slot_count <= 0) {
+        return 0;
+    }
+    if (declared_capacity > 0 && live_slot_count > declared_capacity) {
+        return declared_capacity;
+    }
+    return live_slot_count;
+}
+
+FormationLayoutPosition computed_position(int index, int declared_capacity, FormationLayoutFootprint footprint)
+{
+    const int desired_capacity = positive_or(declared_capacity, index + 1);
+    const int footprint_columns = positive_or(footprint.width, 1);
+    const int footprint_rows = positive_or(footprint.height, 1);
+    const int footprint_capacity = footprint_columns * footprint_rows;
+    int columns = footprint_columns;
+    if (desired_capacity <= footprint_capacity && desired_capacity < columns) {
+        columns = desired_capacity;
+    }
+    if (columns <= 0) {
+        columns = 1;
+    }
+    return {index % columns, index / columns};
+}
+
+FormationLayoutPosition position_for_slot(int layout, int index, int declared_capacity, FormationLayoutFootprint footprint)
+{
+    if (has_legacy_position(layout, index)) {
+        return LEGACY_LAYOUT_POSITIONS[layout][index];
+    }
+    return computed_position(index, declared_capacity, footprint);
+}
+
+} // namespace
+
+FormationLayoutFootprint formation_layout_legacy_footprint()
+{
+    return {4, 4};
+}
+
+FormationLayoutPosition formation_layout_position(
+    int layout,
+    int index,
+    int declared_capacity)
+{
+    return formation_layout_position(
+        layout,
+        index,
+        declared_capacity,
+        formation_layout_legacy_footprint());
+}
+
+FormationLayoutPosition formation_layout_position(
+    int layout,
+    int index,
+    int declared_capacity,
+    FormationLayoutFootprint footprint)
+{
+    if (index < 0) {
+        return {0, 0};
+    }
+    return position_for_slot(layout, index, declared_capacity, footprint);
+}
+
+std::vector<FormationLayoutPosition> formation_layout_positions(
+    int layout,
+    int live_slot_count,
+    int declared_capacity)
+{
+    return formation_layout_positions(
+        layout,
+        live_slot_count,
+        declared_capacity,
+        formation_layout_legacy_footprint());
+}
+
+std::vector<FormationLayoutPosition> formation_layout_positions(
+    int layout,
+    int live_slot_count,
+    int declared_capacity,
+    FormationLayoutFootprint footprint)
+{
+    const int slot_count = clamped_slot_count(live_slot_count, declared_capacity);
+    std::vector<FormationLayoutPosition> positions;
+    positions.reserve(slot_count);
+    for (int index = 0; index < slot_count; index++) {
+        positions.push_back(position_for_slot(layout, index, declared_capacity, footprint));
+    }
+    return positions;
 }

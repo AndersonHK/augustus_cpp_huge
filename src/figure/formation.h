@@ -6,6 +6,7 @@
 #include "figure/type.h"
 
 #include <initializer_list>
+#include <vector>
 class Building;
 class Figure;
 
@@ -240,6 +241,10 @@ struct formation {
     int declared_recruit_type() const;
     int legion_distant_battle_strength_factor() const;
     int legion_curse_weight() const;
+    std::vector<int> layout_grid_offsets() const;
+    int legacy_storage_slot_count() const;
+    void write_legacy_figure_slots(buffer *buf) const;
+    void read_legacy_figure_slots(buffer *buf);
 
     void clear_roster()
     {
@@ -291,12 +296,15 @@ struct formation {
     int count_alive_figures() const;
     int count_figures_in_action(int action_state) const;
     bool has_figure_in_action(int action_state) const;
+    bool has_figure_attacking_live_legion() const;
+    bool is_fully_in_city() const;
     void kill_figures() const;
     int kill_alive_figures(int limit) const;
     void set_all_figures_action(int action_state) const;
     void set_alive_figures_action(int action_state, bool mark_at_rest = false) const;
     void set_non_combat_figures_action(int action_state, bool remove_route = false) const;
     void reset_non_combat_figures_action(int action_state) const;
+    void move_herd_animals(int attacking_animals) const;
     void mark_overflow_figures_returning_to_barracks() const;
     bool prepare_legion_to_move();
     void send_non_combat_figures_to_standard();

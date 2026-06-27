@@ -798,7 +798,7 @@ int building_warehouse_for_getting(const Building &src, resource_type resource, 
     }
     if (min_building.id()) {
         if (dst) {
-            map_point_store_result(min_building.road_access_x(), min_building.road_access_y(), dst);
+            min_building.cached_road_access_point(dst);
         }
         return min_building.id();
     } else {
@@ -841,7 +841,7 @@ int building_warehouse_with_resource(int x, int y, resource_type resource, int r
     }
     if (min_building.id()) {
         if (dst) {
-            map_point_store_result(min_building.road_access_x(), min_building.road_access_y(), dst);
+            min_building.cached_road_access_point(dst);
         }
         return min_building.id();
     } else {

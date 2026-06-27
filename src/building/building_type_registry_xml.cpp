@@ -1,7 +1,6 @@
 #
 
 #include "building/building_record.h"
-#include "building/building_runtime.h"
 #include "building/building_type_registry.h"
 #include "building/building_type_registry_internal.h"
 #include "building/building_type_startup_bridge.h"
@@ -5082,7 +5081,6 @@ int building_type_registry_load(void)
     building_type_id_bridge_reset_for_runtime();
     water_access_type_id_bridge_reset_for_runtime();
     building_monument_reset_runtime_bridge();
-    building_runtime_reset();
     building_menu_invalidate_catalog();
     return 1;
 }

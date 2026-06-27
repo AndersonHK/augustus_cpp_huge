@@ -105,7 +105,7 @@ private:
         const building_type_registry_impl::GraphicsTarget &target,
         const ImageGroupPayload *&payload,
         const ImageGroupEntry *&entry) const;
-    const RuntimeAnimationTrack *cached_animation_track() const;
+    const Animation *cached_animation() const;
     int worker_percentage() const;
     int default_spawn_delay() const;
     void check_labor_problem();

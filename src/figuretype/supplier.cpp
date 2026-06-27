@@ -1,7 +1,6 @@
 #include "building/distribution.h"
 #include "building/storage.h"
 #include "figuretype/wall.h"
-#include "game/resource_graphics.h"
 #include "map/road_access.h"
 
 #include "supplier.h"
@@ -20,6 +19,7 @@
 #include "figure/movement.h"
 #include "figure/route.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/figure_type_registry_internal.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "map/data.h"
@@ -331,7 +331,7 @@ void figure_supplier_action(Figure *f)
             RESOURCE_NONE;
         f->select_legacy_cart_overlay_base_image(carried_resource == RESOURCE_NONE ?
             image_group(GROUP_FIGURE_CARTPUSHER_CART) :
-            resource_graphics_cart_marker_for_direction(0));
+            figure_type_registry_impl::FigureGraphics::resource_cart_marker_for_direction(0));
         int dir = figure_image_normalize_direction(f->direction < 8 ? f->direction : f->previous_tile_direction);
         if (f->action_state == FIGURE_ACTION_149_CORPSE) {
             f->select_legacy_corpse_image(image_group(GROUP_FIGURE_CARTPUSHER) + 96);

@@ -27,7 +27,6 @@
 #include "map/random.h"
 #include "map/road_access.h"
 #include "map/road_network.h"
-#include "map/routing.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
 #include "scenario/property.h"
@@ -435,8 +434,8 @@ void building_maintenance_check_rome_access(void)
             return;
         }
         for (int i = 0; i < 15; i++) {
-            map_routing_delete_first_wall_or_aqueduct(entry_point->x, entry_point->y);
-            map_routing_delete_first_wall_or_aqueduct(exit_point->x, exit_point->y);
+            Route::deleteFirstWallOrAqueduct(entry_point->x, entry_point->y);
+            Route::deleteFirstWallOrAqueduct(exit_point->x, exit_point->y);
 
             map_tiles_update_all_walls();
             map_tiles_update_all_aqueducts(0);

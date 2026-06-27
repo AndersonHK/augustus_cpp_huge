@@ -108,7 +108,7 @@ struct ResolvedTextureSlice {
 struct ResolvedImageEntry {
     ResolvedTextureSlice footprint;
     ResolvedTextureSlice top;
-    RuntimeAnimationTrack animation;
+    Animation animation;
     std::vector<std::string> animation_frame_keys;
     int has_top = 0;
     int has_animation = 0;

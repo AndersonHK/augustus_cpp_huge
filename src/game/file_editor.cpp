@@ -24,7 +24,7 @@
 #include "figure/trader.h"
 #include "figuretype/editor.h"
 #include "figuretype/water.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/file_io.h"
 #include "game/state.h"
 #include "game/time.h"
@@ -69,7 +69,7 @@ void game_file_editor_clear_data(void)
     city_data_init_scenario();
     city_message_init_scenario();
     game_state_init();
-    game_animation_init();
+    Animation::init();
     sound_city_init();
     building_menu_enable_all();
     building_clear_all();

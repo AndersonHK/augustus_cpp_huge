@@ -1,5 +1,5 @@
 #include "building/building.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/image.h"
 #include "graphics/image_border.h"
 #include "graphics/lang_text.h"

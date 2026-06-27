@@ -1,5 +1,6 @@
 #pragma once
 
+#include "figure/formation_layout.h"
 #include "figure/unit_type.h"
 
 #include <memory>
@@ -22,6 +23,7 @@ public:
 
     void set_grid(int width, int height);
     int capacity() const;
+    FormationLayoutFootprint layout_footprint() const;
 
     bool has_grid() const;
     bool has_slots() const;

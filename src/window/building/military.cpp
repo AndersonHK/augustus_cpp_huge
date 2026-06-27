@@ -2,7 +2,7 @@
 #include "building/building.h"
 #include "city/buildings.h"
 #include "building/count.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/generic_button.h"
 #include "graphics/image.h"
 #include "graphics/image_border.h"

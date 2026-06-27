@@ -28,7 +28,7 @@
 
 #include "city_with_overlay.h"
 
-#include "building/animations.h"
+#include "building/BuildingGraphics.h"
 #include "building/building.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"

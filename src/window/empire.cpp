@@ -22,7 +22,7 @@
 #include "window/trade_opened.h"
 #include "graphics/empire_trade_route_button_widget.h"
 #include "graphics/ui_runtime.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 
 
 #include "assets/assets.h"

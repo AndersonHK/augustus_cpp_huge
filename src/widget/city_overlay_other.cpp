@@ -1,4 +1,4 @@
-#include "building/animations.h"
+#include "building/BuildingGraphics.h"
 #include "translation/translation.h"
 #include "building/building.h"
 #include "building/house.h"

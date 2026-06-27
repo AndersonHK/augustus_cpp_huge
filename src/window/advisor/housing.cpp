@@ -19,7 +19,7 @@
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "scenario/property.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/image.h"
 
 #define ADVISOR_HEIGHT 27

@@ -146,10 +146,10 @@ void figure_seagulls_action(Figure *f)
 
 static void herd_get_destination(int index, const formation *m, uint8_t *x, uint8_t *y)
 {
-    int offset_x = formation_layout_position_x(FORMATION_HERD, index);
-    int offset_y = formation_layout_position_y(FORMATION_HERD, index);
-    int destination_x = m->destination_x + offset_x;
-    int destination_y = m->destination_y + offset_y;
+    const FormationLayoutPosition position =
+        formation_layout_position(FORMATION_HERD, index, m->declared_capacity());
+    int destination_x = m->destination_x + position.x;
+    int destination_y = m->destination_y + position.y;
     map_grid_bound(&destination_x, &destination_y);
     *x = destination_x;
     *y = destination_y;

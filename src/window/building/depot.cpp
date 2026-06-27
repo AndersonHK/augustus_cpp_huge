@@ -24,7 +24,7 @@
 #include "graphics/text.h"
 #include "graphics/window.h"
 #include "window/building_info.h"
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "graphics/image.h"
 
 static translation_key order_condition_key(order_condition_type condition_type)

@@ -44,7 +44,7 @@ int image_base_for(const figure_type_registry_impl::FigureTypeDefinition *defini
     if (!definition) {
         return image_group(GROUP_FIGURE_SHIP) + 8;
     }
-    const figure_type_registry_impl::GraphicsPolicy &graphics = definition->graphics_policy();
+    const figure_type_registry_impl::FigureGraphics &graphics = definition->graphics();
     return image_group(graphics.image_group ? graphics.image_group : GROUP_FIGURE_SHIP) + graphics.image_group_offset;
 }
 
@@ -114,7 +114,7 @@ int FishingBoat::advance(const figure_type_registry_impl::FigureTypeDefinition *
     is_ghost = 0;
     is_boat = 1;
     clear_legacy_cart_overlay_image();
-    figure_image_increase_offset(this, definition ? definition->graphics_policy().max_image_offset : 12);
+    figure_image_increase_offset(this, definition ? definition->graphics().max_image_offset : 12);
 
     switch (action_state) {
         case FIGURE_ACTION_190_FISHING_BOAT_CREATED:

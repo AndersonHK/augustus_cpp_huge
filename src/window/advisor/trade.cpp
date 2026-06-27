@@ -1,4 +1,4 @@
-#include "game/resource_graphics.h"
+#include "game/ResourceGraphics.h"
 #include "building/building_type_registry_internal.h"
 #include "translation/translation.h"
 #include "graphics/generic_button.h"

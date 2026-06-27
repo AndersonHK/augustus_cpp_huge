@@ -1,4 +1,3 @@
-#include "figure/figure.h"
 #include "building/building_record.h"
 #include "road_access.h"
 
@@ -8,12 +7,9 @@
 #include "building/rotation.h"
 #include "core/config.h"
 #include "city/map.h"
-#include "figure/PathingMode.h"
 #include "map/building.h"
 #include "map/grid.h"
-#include "map/property.h"
 #include "map/road_network.h"
-#include "map/routing.h"
 #include "map/terrain.h"
 #include "map/tiles.h"
 
@@ -110,64 +106,7 @@ void map_road_access_visit_candidates(
 
 void map_road_access_visit_candidates(int x, int y, int size, RoadAccessCandidateVisitor &visitor)
 {
-    const road_access_area area = { { x, y }, size };
-    map_road_access_visit_candidates(&area, 1, visitor);
-}
-
-static int fill_hippodrome_areas(road_access_area *areas, int x, int y, int rotation)
-{
-    areas[0] = { { x, y }, 5 };
-    int x_offset = 0;
-    int y_offset = 0;
-    building_rotation_get_offset_with_rotation(5, rotation, &x_offset, &y_offset);
-    areas[1] = { { x + x_offset, y + y_offset }, 5 };
-    building_rotation_get_offset_with_rotation(10, rotation, &x_offset, &y_offset);
-    areas[2] = { { x + x_offset, y + y_offset }, 5 };
-    return 3;
-}
-
-void map_road_access_visit_hippodrome_candidates(
-    int x,
-    int y,
-    int rotation,
-    RoadAccessCandidateVisitor &visitor)
-{
-    road_access_area areas[3];
-    const int area_count = fill_hippodrome_areas(areas, x, y, rotation);
-    map_road_access_visit_candidates(areas, area_count, visitor);
-}
-
-static int fill_monument_construction_areas(road_access_area *areas, int x, int y, int size)
-{
-    if (size < 3) {
-        areas[0] = { { x, y }, size };
-        return 1;
-    }
-
-    const int half_size = size / 2;
-    int area_count = 0;
-    areas[area_count++] = { { x + half_size, y + size - 1 }, 1 };
-    areas[area_count++] = { { x + size - 1, y + half_size }, 1 };
-    areas[area_count++] = { { x + half_size, y }, 1 };
-    areas[area_count++] = { { x, y + half_size }, 1 };
-    if (size % 2 != 0) {
-        areas[area_count++] = { { x + 1, y + size - 1 }, 1 };
-        areas[area_count++] = { { x + size - 1, y + 1 }, 1 };
-        areas[area_count++] = { { x + 1, y }, 1 };
-        areas[area_count++] = { { x, y + 1 }, 1 };
-    }
-    return area_count;
-}
-
-void map_road_access_visit_monument_construction_candidates(
-    int x,
-    int y,
-    int size,
-    RoadAccessCandidateVisitor &visitor)
-{
-    road_access_area areas[8];
-    const int area_count = fill_monument_construction_areas(areas, x, y, size);
-    map_road_access_visit_candidates(areas, area_count, visitor);
+    RoadAccessQuery::fromFootprint(x, y, size).visitCandidates(visitor);
 }
 
 class BestRoadAccessVisitor : public RoadAccessCandidateVisitor {
@@ -188,11 +127,81 @@ private:
     int found_ = 0;
 };
 
-template <typename VisitCandidates>
-static int store_best_road_access(const VisitCandidates &visit_candidates, map_point *road)
+void RoadAccessQuery::addArea(int x, int y, int size)
+{
+    areas_[area_count_++] = { { x, y }, size };
+}
+
+RoadAccessQuery RoadAccessQuery::fromFootprint(int x, int y, int size)
+{
+    RoadAccessQuery query;
+    query.addArea(x, y, size);
+    return query;
+}
+
+RoadAccessQuery RoadAccessQuery::fromRotatedFootprint(int rotation, int x, int y, int size)
+{
+    switch (rotation) {
+        case 3:
+            x = x - size + 1;
+            break;
+        case 2:
+            x = x - size + 1;
+            y = y - size + 1;
+            break;
+        case 1:
+            y = y - size + 1;
+            break;
+        default:
+            break;
+    }
+    return fromFootprint(x, y, size);
+}
+
+RoadAccessQuery RoadAccessQuery::hippodrome(int x, int y, int rotation)
+{
+    RoadAccessQuery query;
+    query.addArea(x, y, 5);
+    int x_offset = 0;
+    int y_offset = 0;
+    building_rotation_get_offset_with_rotation(5, rotation, &x_offset, &y_offset);
+    query.addArea(x + x_offset, y + y_offset, 5);
+    building_rotation_get_offset_with_rotation(10, rotation, &x_offset, &y_offset);
+    query.addArea(x + x_offset, y + y_offset, 5);
+    return query;
+}
+
+RoadAccessQuery RoadAccessQuery::monumentConstruction(int x, int y, int size)
+{
+    RoadAccessQuery query;
+    if (size < 3) {
+        query.addArea(x, y, size);
+        return query;
+    }
+
+    const int half_size = size / 2;
+    query.addArea(x + half_size, y + size - 1, 1);
+    query.addArea(x + size - 1, y + half_size, 1);
+    query.addArea(x + half_size, y, 1);
+    query.addArea(x, y + half_size, 1);
+    if (size % 2 != 0) {
+        query.addArea(x + 1, y + size - 1, 1);
+        query.addArea(x + size - 1, y + 1, 1);
+        query.addArea(x + 1, y, 1);
+        query.addArea(x, y + 1, 1);
+    }
+    return query;
+}
+
+void RoadAccessQuery::visitCandidates(RoadAccessCandidateVisitor &visitor) const
+{
+    map_road_access_visit_candidates(areas_, area_count_, visitor);
+}
+
+int RoadAccessQuery::hasRoadAccess(map_point *road) const
 {
     BestRoadAccessVisitor best;
-    visit_candidates(best);
+    visitCandidates(best);
     if (!best.found()) {
         return 0;
     }
@@ -201,6 +210,24 @@ static int store_best_road_access(const VisitCandidates &visit_candidates, map_p
         map_point_store_result(best.candidate().road.x, best.candidate().road.y, road);
     }
     return 1;
+}
+
+void map_road_access_visit_hippodrome_candidates(
+    int x,
+    int y,
+    int rotation,
+    RoadAccessCandidateVisitor &visitor)
+{
+    RoadAccessQuery::hippodrome(x, y, rotation).visitCandidates(visitor);
+}
+
+void map_road_access_visit_monument_construction_candidates(
+    int x,
+    int y,
+    int size,
+    RoadAccessCandidateVisitor &visitor)
+{
+    RoadAccessQuery::monumentConstruction(x, y, size).visitCandidates(visitor);
 }
 
 int map_has_road_access(int x, int y, int size, map_point *road)
@@ -276,34 +303,12 @@ int map_has_road_access_warehouse(int x, int y, map_point *road)
 int map_has_road_access_rotation(int rotation, int x, int y, int size, map_point *road)
 {
     // do not use for warehouses or granaries, they have their own access checks
-    switch (rotation) {
-        case 3:
-            x = x - size + 1;
-            break;
-        case 2:
-            x = x - size + 1;
-            y = y - size + 1;
-            break;
-        case 1:
-            y = y - size + 1;
-            break;
-        default:
-            break;
-    }
-    return store_best_road_access(
-        [x, y, size](RoadAccessCandidateVisitor &visitor) {
-            map_road_access_visit_candidates(x, y, size, visitor);
-        },
-        road);
+    return RoadAccessQuery::fromRotatedFootprint(rotation, x, y, size).hasRoadAccess(road);
 }
 
 int map_has_road_access_hippodrome_rotation(int x, int y, map_point *road, int rotation)
 {
-    return store_best_road_access(
-        [x, y, rotation](RoadAccessCandidateVisitor &visitor) {
-            map_road_access_visit_hippodrome_candidates(x, y, rotation, visitor);
-        },
-        road);
+    return RoadAccessQuery::hippodrome(x, y, rotation).hasRoadAccess(road);
 }
 
 int map_has_road_access_hippodrome(int x, int y, map_point *road)
@@ -343,11 +348,7 @@ int map_has_road_access_granary(int x, int y, map_point *road)
 
 int map_has_road_access_monument_construction(int x, int y, int size)
 {
-    return store_best_road_access(
-        [x, y, size](RoadAccessCandidateVisitor &visitor) {
-            map_road_access_visit_monument_construction_candidates(x, y, size, visitor);
-        },
-        nullptr);
+    return RoadAccessQuery::monumentConstruction(x, y, size).hasRoadAccess(nullptr);
 }
 
 static int road_within_radius(int x, int y, int size, int radius, int *x_road, int *y_road)
@@ -398,52 +399,4 @@ int map_road_get_granary_inner_road_tiles_count(building *b)
         }
     }
     return count;
-}
-
-static int get_adjacent_road_tile_for_roaming(int grid_offset, roadblock_permission perm)
-{
-    int is_road = terrain_is_road_like(grid_offset);
-    int no_permissions = 0;
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
-
-        building *b = building_get(map_building_at(grid_offset));
-        Building current(b);
-        if (Roadblock(b).kind() != ROADBLOCK_NONE) {
-            if (!Roadblock(b).has_permission(perm)) {
-                no_permissions = 1;
-            }
-        }
-        if (current.type && current.type->is_granary()) {
-            if (figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset)) {
-                if (map_road_get_granary_inner_road_tiles_count(b) >= 3) {
-                    is_road = 1; //edges of the granary that connect to another road become roads
-                    //not including passable terrain helps deal with roaming inside the granary
-                } else {
-                    is_road = 0; // dont roam into dead-end granaries
-                }
-            }
-        } else if (current.type && current.type->is_warehouse()) {
-            if (figure_type_registry_impl::PathingMode::citizenIsPassableTerrain(grid_offset) || figure_type_registry_impl::PathingMode::citizenIsRoad(grid_offset)) {
-                is_road = 1;
-            }
-        }
-    }
-    is_road = is_road && !no_permissions;
-    return is_road;
-}
-
-int map_get_adjacent_road_tiles_for_roaming(int grid_offset, int *road_tiles, int perm)
-{
-    road_tiles[1] = road_tiles[3] = road_tiles[5] = road_tiles[7] = 0;
-
-    road_tiles[0] = get_adjacent_road_tile_for_roaming(grid_offset + map_grid_delta(0, -1),
-        static_cast<roadblock_permission>(perm));
-    road_tiles[2] = get_adjacent_road_tile_for_roaming(grid_offset + map_grid_delta(1, 0),
-        static_cast<roadblock_permission>(perm));
-    road_tiles[4] = get_adjacent_road_tile_for_roaming(grid_offset + map_grid_delta(0, 1),
-        static_cast<roadblock_permission>(perm));
-    road_tiles[6] = get_adjacent_road_tile_for_roaming(grid_offset + map_grid_delta(-1, 0),
-        static_cast<roadblock_permission>(perm));
-
-    return road_tiles[0] + road_tiles[2] + road_tiles[4] + road_tiles[6];
 }

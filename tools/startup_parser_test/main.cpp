@@ -1,8 +1,8 @@
-#include "game/mod_manager.h"
 #include "startup/startup_parser.h"
 
 #include <filesystem>
 #include <iostream>
+#include <vector>
 #include <string>
 #include <system_error>
 
@@ -68,6 +68,72 @@ bool run_startup_parse()
     return result.succeeded != 0;
 }
 
+struct ExtractionPrerequisite {
+    const char *label;
+    const char *relative_path;
+};
+
+std::filesystem::path executable_directory(const char *argv0)
+{
+    std::error_code error;
+    std::filesystem::path executable = argv0 && *argv0 ?
+        std::filesystem::absolute(std::filesystem::path(argv0), error) :
+        std::filesystem::current_path(error);
+    if (error) {
+        executable = std::filesystem::current_path();
+    }
+    return executable.has_filename() ? executable.parent_path() : executable;
+}
+
+std::string quoted(const std::filesystem::path &path)
+{
+    return "\"" + path.string() + "\"";
+}
+
+bool check_extraction_prerequisites(
+    const std::filesystem::path &game_root,
+    const std::filesystem::path &tool_directory)
+{
+    const std::vector<ExtractionPrerequisite> prerequisites = {
+        { "Julius central graphics extraction", "Mods/Julius/Graphics.legacy_extract.stamp" },
+        { "Julius northern graphics extraction", "Mods/Julius/Graphics.legacy_extract_northern.stamp" },
+        { "Julius desert graphics extraction", "Mods/Julius/Graphics.legacy_extract_desert.stamp" },
+        { "Augustus graphics extraction", "Mods/Augustus/Graphics.graphics_extract.stamp" },
+    };
+
+    std::vector<std::filesystem::path> missing;
+    for (const ExtractionPrerequisite &prerequisite : prerequisites) {
+        std::filesystem::path path = game_root / std::filesystem::path(prerequisite.relative_path);
+        std::error_code error;
+        if (!std::filesystem::is_regular_file(path, error)) {
+            missing.push_back(path);
+        }
+    }
+
+    if (missing.empty()) {
+        return true;
+    }
+
+    std::cerr
+        << "\nStartupParserTest prerequisite failure: generated graphics extraction stamps are missing.\n"
+        << "The XML parser was not run. Do not add parser fallbacks for this failure; run the extractors first.\n"
+        << "Deploying Mods replaces generated graphics, so these commands are expected after each fresh deploy.\n\n";
+
+    for (const std::filesystem::path &path : missing) {
+        std::cerr << "Missing stamp: " << path.string() << "\n";
+    }
+
+    const std::filesystem::path julius_extractor = tool_directory / "JuliusGraphicsExtractor.exe";
+    const std::filesystem::path augustus_extractor = tool_directory / "AugustusGraphicsExtractor.exe";
+    std::cerr
+        << "\nRequired order:\n"
+        << "  " << quoted(julius_extractor) << " --game-root " << quoted(game_root) << "\n"
+        << "  " << quoted(augustus_extractor) << " --game-root " << quoted(game_root)
+        << " --no-force --stamp\n"
+        << "  " << quoted(tool_directory / "StartupParserTest.exe") << " --game-root " << quoted(game_root) << "\n";
+    return false;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -88,13 +154,19 @@ int main(int argc, char **argv)
         }
     }
 
-    std::cout << "Startup parser test game root: " << std::filesystem::current_path().string() << "\n";
+    const std::filesystem::path game_root = std::filesystem::current_path();
+    if (!check_extraction_prerequisites(game_root, executable_directory(argv[0]))) {
+        return 1;
+    }
+
+    const startup_parser::StartupEnvironment environment = startup_parser::inspect_startup_environment();
+    std::cout << "Startup parser test game root: " << environment.game_root << "\n";
     std::cout << "Selected mod stack: ";
-    const auto &mods = mod_manager::mod_names();
+    const auto &mods = environment.mod_stack;
     for (size_t i = 0; i < mods.size(); ++i) {
         std::cout << (i ? " -> " : "") << mods[i];
     }
-    std::cout << "\nSelected mod path: " << mod_manager::mod_path() << "\n";
+    std::cout << "\nSelected mod path: " << environment.mod_path << "\n";
 
     if (!run_startup_parse()) {
         std::cerr << "Startup parser test failed.\n";

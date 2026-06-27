@@ -1,7 +1,9 @@
 #include "figure/figure.h"
 
 #include "building/building_record.h"
+#include "building/building_type_registry_internal.h"
 #include "building/monument.h"
+#include "building/production_method.h"
 #include "building/properties.h"
 #include "city/emperor.h"
 #include "core/log.h"
@@ -9,13 +11,13 @@
 #include "empire/city.h"
 #include "figure/image.h"
 #include "figure/figure_runtime_api.h"
+#include "figure/figure_type_registry_internal.h"
 #include "figure/movement.h"
 #include "figure/name.h"
 #include "figure/route.h"
 #include "figure/trader.h"
 #include "figure/visited_buildings.h"
 #include "game/resource.h"
-#include "game/resource_graphics.h"
 #include "game/resource_id_bridge.h"
 #include "game/save_version.h"
 #include "map/figure.h"
@@ -103,19 +105,135 @@ int get_resource_id(figure_type type, int resource)
     }
 }
 
-void clear_building_figure_slot_if_matches(::building *b, unsigned int figure_id)
+int clear_building_figure_slot_if_matches(::building *b, unsigned int figure_id)
 {
     if (!b || !figure_id) {
-        return;
+        return 0;
     }
+    int cleared = 0;
     if (b->figure_id == figure_id) {
         b->figure_id = 0;
+        cleared = 1;
     }
     if (b->figure_id2 == figure_id) {
         b->figure_id2 = 0;
+        cleared = 1;
+    }
+    if (b->immigrant_figure_id == figure_id) {
+        b->immigrant_figure_id = 0;
+        cleared = 1;
     }
     if (b->figure_id4 == figure_id) {
         b->figure_id4 = 0;
+        cleared = 1;
+    }
+    return cleared;
+}
+
+int clear_distribution_figure_slot_if_matches(::building *b, unsigned int figure_id)
+{
+    if (!b || !figure_id) {
+        return 0;
+    }
+    int cleared = 0;
+    for (int i = 0; i < 3; i++) {
+        if (b->data.distribution.cartpusher_ids[i] == figure_id) {
+            b->data.distribution.cartpusher_ids[i] = 0;
+            cleared = 1;
+        }
+    }
+    return cleared;
+}
+
+int clear_known_building_refs_for_figure(const Figure &figure)
+{
+    int cleared = 0;
+    cleared |= clear_building_figure_slot_if_matches(building_get(figure.building.id()), figure.id());
+    cleared |= clear_building_figure_slot_if_matches(building_get(figure.destination_building.id()), figure.id());
+    cleared |= clear_building_figure_slot_if_matches(building_get(figure.immigrant_building.id()), figure.id());
+    return cleared;
+}
+
+int figure_may_be_tracked_by_building_slot(const Figure &figure)
+{
+    if (figure.building.id() || figure.destination_building.id() || figure.immigrant_building.id()) {
+        return 1;
+    }
+    switch (static_cast<figure_type>(figure.type)) {
+        case FIGURE_LABOR_SEEKER:
+        case FIGURE_MARKET_SUPPLIER:
+        case FIGURE_PRIEST_SUPPLIER:
+        case FIGURE_BARKEEP_SUPPLIER:
+        case FIGURE_MESS_HALL_SUPPLIER:
+        case FIGURE_CARAVANSERAI_SUPPLIER:
+        case FIGURE_LIGHTHOUSE_SUPPLIER:
+        case FIGURE_SURGEON:
+        case FIGURE_DOCTOR:
+        case FIGURE_BALLISTA:
+        case FIGURE_WATCHTOWER_ARCHER:
+        case FIGURE_PRIEST:
+        case FIGURE_ACTOR:
+        case FIGURE_GLADIATOR:
+        case FIGURE_LION_TAMER:
+        case FIGURE_CHARIOTEER:
+        case FIGURE_WATCHMAN:
+        case FIGURE_MESS_HALL_FORT_SUPPLIER:
+        case FIGURE_WAREHOUSEMAN:
+        case FIGURE_CART_PUSHER:
+        case FIGURE_WORK_CAMP_ARCHITECT:
+        case FIGURE_WORK_CAMP_WORKER:
+        case FIGURE_WORK_CAMP_SLAVE:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+void clear_any_building_refs_for_figure(const Figure &figure)
+{
+    const unsigned int figure_id = figure.id();
+    for (int building_id = 1; building_id < Building::count(); building_id++) {
+        clear_building_figure_slot_if_matches(building_get(building_id), figure_id);
+    }
+}
+
+int loaded_figure_id_is_alive(unsigned int figure_id)
+{
+    if (!figure_id || figure_id >= Figure::count()) {
+        return 0;
+    }
+    const Figure *figure = Figure::get(figure_id);
+    return figure && figure->id() == figure_id && figure->state == FIGURE_STATE_ALIVE;
+}
+
+int building_uses_output_cart_slot(const ::building *b)
+{
+    if (!b || b->state != BUILDING_STATE_IN_USE) {
+        return 0;
+    }
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(b->type);
+    if (!definition) {
+        return 0;
+    }
+    for (const building_type_registry_impl::ProductionMethod *method : definition->production_methods()) {
+        if (method && method->is_figure_delivery_output()) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void clear_dead_loaded_producer_cart_slots()
+{
+    for (int building_id = 1; building_id < Building::count(); building_id++) {
+        ::building *b = building_get(building_id);
+        if (!building_uses_output_cart_slot(b)) {
+            continue;
+        }
+        if (b->figure_id && !loaded_figure_id_is_alive(b->figure_id)) {
+            b->figure_id = 0;
+        }
     }
 }
 
@@ -485,56 +603,15 @@ Figure *Figure::create(figure_type figure_type, int x, int y, direction_type dir
 void Figure::remove()
 {
     release_destination_reservations();
+    const int cleared_known_slot = clear_known_building_refs_for_figure(*this);
     ::building *b = building_get(building.id());
     switch (type) {
-        case FIGURE_LABOR_SEEKER:
-        case FIGURE_MARKET_SUPPLIER:
-        case FIGURE_PRIEST_SUPPLIER:
-        case FIGURE_BARKEEP_SUPPLIER:
-        case FIGURE_MESS_HALL_SUPPLIER:
-        case FIGURE_CARAVANSERAI_SUPPLIER:
-        case FIGURE_LIGHTHOUSE_SUPPLIER:
-            clear_building_figure_slot_if_matches(b, id());
-            break;
-        case FIGURE_SURGEON:
-        case FIGURE_DOCTOR:
-            clear_building_figure_slot_if_matches(building_get(destination_building.id()), id());
-            break;
-        case FIGURE_BALLISTA:
-        case FIGURE_WATCHTOWER_ARCHER:
-            if (b) {
-                b->figure_id4 = 0;
-            }
-            break;
         case FIGURE_DOCKER:
         case FIGURE_DEPOT_CART_PUSHER:
-            if (b) {
-                for (int i = 0; i < 3; i++) {
-                    if (b->data.distribution.cartpusher_ids[i] == id()) {
-                        b->data.distribution.cartpusher_ids[i] = 0;
-                    }
-                }
-            }
-            break;
-        case FIGURE_PRIEST:
-            if (destination_building.id()) {
-                clear_building_figure_slot_if_matches(b, id());
-            }
-            break;
-        case FIGURE_ACTOR:
-        case FIGURE_GLADIATOR:
-        case FIGURE_LION_TAMER:
-            clear_building_figure_slot_if_matches(b, id());
+            clear_distribution_figure_slot_if_matches(b, id());
             break;
         case FIGURE_ENEMY_CAESAR_LEGIONARY:
             city_emperor_mark_soldier_killed();
-            break;
-        case FIGURE_CHARIOTEER:
-            if (b && building_is_neptune_temple(b->type) && id() == b->figure_id2) {
-                b->figure_id2 = 0;
-            } else if (b && id() == b->figure_id) {
-                b->figure_id = 0;
-            }
             break;
         case FIGURE_EXPLOSION:
         case FIGURE_FORT_STANDARD:
@@ -553,47 +630,20 @@ void Figure::remove()
         case FIGURE_MESS_HALL_COLLECTOR:
         case FIGURE_TRADE_SHIP:
             break;
-        case FIGURE_WATCHMAN:
-            if (b && id() == b->figure_id2) {
-                b->figure_id2 = 0;
-            } else if (b && id() == b->figure_id) {
-                b->figure_id = 0;
-            }
-            break;
-        case FIGURE_MESS_HALL_FORT_SUPPLIER:
-            if (::building *fort = building_get(destination_building.id())) {
-                if (fort->figure_id2 == id()) {
-                    fort->figure_id2 = 0;
-                }
-            }
-            break;
-        case FIGURE_WAREHOUSEMAN:
-            if (b && id() == b->figure_id4) {
-                b->figure_id4 = 0;
-            } else if (b && id() == b->figure_id) {
-                b->figure_id = 0;
-            }
-            break;
         case FIGURE_CART_PUSHER:
         case FIGURE_WORK_CAMP_ARCHITECT:
         case FIGURE_WORK_CAMP_WORKER:
         case FIGURE_WORK_CAMP_SLAVE:
             building_monument_remove_delivery(id());
-            if (b) {
-                b->figure_id = 0;
-            }
             break;
         default:
-            if (b) {
-                b->figure_id = 0;
-            }
             break;
+    }
+    if (!cleared_known_slot && figure_may_be_tracked_by_building_slot(*this)) {
+        clear_any_building_refs_for_figure(*this);
     }
     if (empire_city_id) {
         empire_city_remove_trader(empire_city_id, id());
-    }
-    if (::building *immigrant = building_get(immigrant_building.id())) {
-        immigrant->immigrant_figure_id = 0;
     }
     figure_visited_buildings_remove_list(last_visited_index);
     Route::remove(this);
@@ -835,8 +885,8 @@ void Figure::finalize_legacy_cartpusher_overlay_image(int direction, bool lift_f
     }
 
     const int normalized_direction = figure_image_normalize_direction(direction);
-    if (resource_graphics_cart_marker_is(cart_image_id)) {
-        cart_image_id = resource_graphics_cart_marker_for_direction(normalized_direction);
+    if (figure_type_registry_impl::FigureGraphics::resource_cart_marker_is(cart_image_id)) {
+        cart_image_id = figure_type_registry_impl::FigureGraphics::resource_cart_marker_for_direction(normalized_direction);
     } else {
         cart_image_id += normalized_direction;
     }
@@ -945,4 +995,5 @@ void Figure::resolve_loaded_building_references()
         f->destination_building = loaded_building_ref(refs.destination_building_id);
     }
     data.pending_building_refs.clear();
+    clear_dead_loaded_producer_cart_slots();
 }

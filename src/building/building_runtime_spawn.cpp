@@ -7,7 +7,6 @@
 #include "figure/figure.h"
 #include "figure/figure_runtime_api.h"
 #include "figure/figure_type_registry_internal.h"
-#include "map/road_access.h"
 
 #include "building/building.h"
 #include "building/armoury.h"
@@ -34,7 +33,7 @@
 #include "core/config.h"
 #include "core/random.h"
 #include "figure/movement.h"
-#include "game/animation.h"
+#include "game/Animation.h"
 #include "game/resource.h"
 #include "game/time.h"
 #include "core/log.h"
@@ -69,28 +68,12 @@ void send_supplier_to_storage_destination(Figure *supplier, const Building &dest
     }
 
     supplier->destination_building = destination;
-
-    map_point road;
-    int destination_found = 0;
     if (!destination.type) {
         return;
     }
-    const building_type_registry_impl::BuildingType &destination_type = *destination.type;
-    if (destination_type.is_warehouse()) {
-        if (map_has_road_access_warehouse(destination.x(), destination.y(), &road)) {
-            destination_found = 1;
-        }
-    } else if (destination_type.is_granary()) {
-        if (map_has_road_access_granary(destination.x(), destination.y(), &road)) {
-            destination_found = 1;
-        }
-    } else if (destination_type.is_grand_temple_venus()) {
-        if (map_has_road_access(destination.x(), destination.y(), destination.size(), &road)) {
-            destination_found = 1;
-        }
-    }
 
-    if (destination_found) {
+    map_point road;
+    if (destination.storage_destination_road_access_point(&road)) {
         supplier->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
         supplier->destination_x = road.x;
         supplier->destination_y = road.y;
@@ -158,7 +141,7 @@ void building_runtime::generate_labor_seeker(int x, int y)
     if (record().figure_id2) {
         Building current = building();
         Figure *existing = Figure::get(record().figure_id2);
-        if (!existing->state || existing->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(existing, current)) {
+        if (existing->is_dead() || existing->type != FIGURE_LABOR_SEEKER || !figure_belongs_to_building(existing, current)) {
             record().figure_id2 = 0;
         }
         return;
@@ -251,7 +234,7 @@ int building_runtime::has_figure_of_type(figure_type type)
     }
     Figure *existing = Figure::get(record().figure_id);
     Building current = building();
-    if (existing->state && figure_belongs_to_building(existing, current) && existing->type == type) {
+    if (existing && !existing->is_dead() && figure_belongs_to_building(existing, current) && existing->type == type) {
         return 1;
     }
     record().figure_id = 0;
@@ -269,7 +252,7 @@ int building_runtime::has_figure_of_any(const std::vector<figure_type> &types)
     // not match, which breaks alternates that intentionally share the slot.
     Figure *existing = Figure::get(record().figure_id);
     Building current = building();
-    if (!existing || !existing->state || !figure_belongs_to_building(existing, current)) {
+    if (!existing || existing->is_dead() || !figure_belongs_to_building(existing, current)) {
         record().figure_id = 0;
         return 0;
     }
@@ -315,7 +298,7 @@ unsigned int building_runtime::find_live_owned_figure(figure_type primary_type, 
     Building current = building();
     for (unsigned int i = 1; i < Figure::count(); i++) {
         Figure *existing = Figure::get(i);
-        if (!existing || !existing->state || !figure_belongs_to_building(existing, current)) {
+        if (!existing || existing->is_dead() || !figure_belongs_to_building(existing, current)) {
             continue;
         }
         if (existing->type == primary_type || (secondary_type != FIGURE_NONE && existing->type == secondary_type)) {
@@ -347,7 +330,7 @@ int building_runtime::slot_has_live_figure(
 
     Figure *existing = Figure::get(*slot_value);
     Building current = building();
-    if (!existing || !existing->state || !figure_belongs_to_building(existing, current)) {
+    if (!existing || existing->is_dead() || !figure_belongs_to_building(existing, current)) {
         *slot_value = 0;
         *slot_value = find_live_owned_figure(primary_type, secondary_type);
         return *slot_value > 0;

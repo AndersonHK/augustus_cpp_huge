@@ -24,10 +24,13 @@ their logical game size.
 - Some FigureType XML already uses `path_pattern` / `image_pattern`, for
   example `barkeep.xml` and `work_camp_architect.xml`, but this is still a
   pattern bridge rather than the building-style target/layer/policy model.
-- `src/figure/figure_runtime_native.cpp` has `GenericFigureGraphics`, which can
-  resolve an `ImageGroupEntry` and return a `RuntimeDrawSlice`. That is useful
-  as a bridge, but many native figure controllers still assign `f->image_id`
-  directly.
+- `src/figure/FigureGraphics.cpp` now owns cached default/action/corpse
+  target bindings, legacy atlas image-id formulas, carried-resource cart
+  imagery, legacy image/stacked overlay layer construction, and legacy cart
+  overlay layers. `src/figure/figure_runtime_native.cpp` still uses
+  `GenericFigureGraphics` as the runtime bridge, but it now asks
+  `FigureTypeDefinition` / `FigureGraphics` for cached bindings instead of
+  rebuilding path strings per draw.
 - `src/widget/city_figure.cpp` has a native-slice fast path, then falls back to
   carts, horses, fort standards, map flags, enemy images, and `Image::from_id`.
   That keeps graphics policy split between runtime controllers and draw code.
@@ -40,6 +43,45 @@ their logical game size.
   which derives logical size from source pixel size.
 
 ## Target Shape
+
+### Shared Graphics Class Boundary
+
+The graphics hierarchy is explicit:
+
+```cpp
+class GraphicsDefinition;
+class BuildingGraphics : public GraphicsDefinition;
+class FigureGraphics : public GraphicsDefinition;
+class ResourceGraphics : public GraphicsDefinition;
+```
+
+`BuildingGraphics` owns building graphics selection and warehouse/resource
+storage stack refs. `FigureGraphics` owns FigureType draw policy, figure draw
+requests, carried-load/cart refs, and figure overlay composition. `ResourceGraphics`
+is intentionally narrow and owns only resource icon presentation.
+
+`GraphicsDefinition` owns vocabulary that is shared across those children:
+definition kind, comparison operators, normalized eight-way direction helpers,
+orientation/point/frame value objects, and canonical target role names such as
+default, action, corpse, overlay, icon, resource storage, and resource cart.
+
+The old `src/figure/figure_graphics.h` facade is retired. Figure draw request
+types now live beside the native figure runtime API, and FigureType graphics
+data lives on `FigureGraphics` instead of a generic policy bag.
+
+### Authored Graphics Versus Extracted Legacy Art
+
+Path-only native targets are the desired authored-asset contract. A Vespasian
+authored figure group should be able to use meaningful file names and a single
+default entry, such as `<path value="Walkers\lion_tamer_walk_ne_01" />`, without
+redeclaring an arbitrary legacy image id.
+
+The current legacy graphics extractor is intentionally crude and often loses
+source metadata while splitting atlas content into generated files. When using
+that extracted output as migration input, FigureType graphics may still need
+explicit `<image>` children or other redeclared metadata to recover meaning the
+extractor did not preserve. That is an extractor shortcoming, not a limitation
+of the target FigureType graphics schema.
 
 ### Figure Graphics Definition
 
@@ -83,17 +125,10 @@ The exact XML shape can evolve, but the important contract is:
 
 ### Figure Graphics Runtime Object
 
-Add a figure graphics object, probably under `src/figure/figure_graphics.*` or
-inside the runtime split if that stays cleaner:
-
-```cpp
-class FigureGraphics {
-public:
-    FigureGraphicDrawRequest resolve(const Figure &figure) const;
-    void advance(Figure &figure) const;
-    void invalidate(Figure &figure) const;
-};
-```
+Runtime figure draw resolution should continue moving behind the
+`FigureGraphics` definition and native figure runtime API. Do not reintroduce a
+parallel `figure_graphics.h` facade; that path was retired so `FigureGraphics`
+can be the graphics-definition child, not a separate draw helper.
 
 `FigureGraphicDrawRequest` should contain:
 
@@ -132,9 +167,10 @@ placement, tile-progress movement offset, and renderer submission.
 
 ## Data Model
 
-### FigureType Graphics Policy
+### FigureType Graphics Definition
 
-Move from `GraphicsPolicy` as a bag of legacy fields to a small policy graph:
+Move from `FigureGraphics` as a transitional holder of legacy fields to a small
+definition graph:
 
 - `targets`: default, action-specific, corpse, attack, idle, cart, carried load,
   mounted/animal, formation standard, map flag.
@@ -166,17 +202,21 @@ them with named animation state.
 
 ## Slice Plan
 
-### Slice 1: Facade Without Behavior Change
+### Slice 1: Graphics Definition Boundary
 
-- Add `FigureGraphics` facade that wraps the existing `GenericFigureGraphics`,
-  `figure_image_update`, and legacy `f->image_id` rules.
-- Add a narrow draw request type that can represent one base slice plus optional
-  overlay slices.
-- Make `city_figure.cpp` call the facade first but keep every legacy fallback.
-- Add debug counters and once-per-type info logging that report which figures
-  still fall back to `Image::from_id`
-  (`FigureGraphicsDebugCounters::facade_draw_requests`,
-  `legacy_fallback_draws`, and `image_from_id_fallback_draws`).
+- Retire the standalone `figure_graphics.h` facade and keep `FigureGraphics`
+  as the FigureType graphics-definition child of `GraphicsDefinition`.
+- Keep `BuildingGraphics` as the building-specific graphics-definition child,
+  so figure XML migration can share target/path/layer contracts without copying
+  building-only state assumptions.
+- Promote shared target-role, comparison, direction/orientation, point/offset,
+  and frame vocabulary into `GraphicsDefinition`; leave child-specific storage
+  and runtime selection behavior on the concrete child classes.
+- Keep the narrow draw request type beside the native figure runtime API so
+  runtime rendering can represent one base slice plus optional overlay slices.
+- Keep debug counters and once-per-type info logging focused on which figures
+  still fall back to `Image::from_id` while converted paths resolve through
+  `FigureGraphics`.
 
 ### Slice 2: Native Payload Cache
 
@@ -186,11 +226,20 @@ them with named animation state.
   FigureType, action target, direction, frame, and logical-size signature.
 - Replace repeated path-pattern expansion in `GenericFigureGraphics` with
   load-time materialized target data where possible.
-- First safe cache starter: `GenericFigureGraphics` now memoizes expanded
+- First safe cache starter: `GenericFigureGraphics` memoized expanded
   native path/image target strings by pattern, direction, and frame, and asks
-  the existing `ImageGroupPayload` registry before calling load. Direct
-  `ImageGroupEntry *` caching still waits for a payload generation/invalidation
-  signal so game reset cannot leave stale entry pointers.
+  the existing `ImageGroupPayload` registry before calling load.
+- Cached binding slice: FigureType load now materializes default/action/corpse
+  bindings on `FigureGraphics`, storing expanded path/image text plus resolved
+  `ImageGroupPayload` and `ImageGroupEntry` pointers. `GenericFigureGraphics`
+  reads those cached bindings by target role, direction, and frame instead of
+  rebuilding strings and payload lookups during every draw.
+- Cached binding cleanup: default/action/corpse role selection and corpse-frame
+  clamping now live behind `FigureTypeDefinition::graphics_binding_for_state(...)`
+  instead of a runtime-local frame helper.
+- Figure-state target lookup now lives on `FigureGraphics`, including the
+  current/previous direction choice, orientation-normalized target direction,
+  and corpse-frame offset used by cached bindings.
 - Follow-up consolidation: hardcoded native figure entries and
   `GenericFigureGraphics` now share the registry-first payload lookup and the
   native-entry-to-draw-request base slice/sprite offset assembly. The remaining
@@ -199,9 +248,9 @@ them with named animation state.
 - Cleanup pass: the one-use `GenericFigureGraphics::resolve_entry` wrapper was
   deleted; draw-request assembly now calls the shared `native_entry(...)`
   helper directly while preserving the same missing-target diagnostics.
-- Cleanup pass: `FigureGraphics::set_legacy_base_draw_request_image(...)` was
-  removed from the public facade and moved to the private native helper layer,
-  where it now returns base-slice validity for depot/cart draw request builders.
+- Cleanup pass: legacy base draw-request setup moved out of the retired
+  standalone draw facade and into the private native helper layer, where it now
+  returns base-slice validity for depot/cart draw request builders.
 - Use `runtime_texture_draw_request(...)` so logical size can differ from
   source pixel size.
 
@@ -211,16 +260,23 @@ them with named animation state.
   one-line node.
 - Parser slice: FigureType now accepts strict child targets under `<graphics>`:
   `<default>`, `<action>`, `<corpse>`, and `<cart>`, plus nested `<path>` and
-  `<image>` nodes for default/action/corpse path-pattern targets. Legacy root
-  attributes still parse as migration input, while target/source completeness
-  now validates through `GraphicsPolicy`; payload-existence validation remains
-  the next load-time step.
-- Validate every path/image reference at FigureType load time.
+  optional `<image>` nodes for default/action/corpse path targets. Path-only
+  child targets bind to the image group's default entry; flat legacy
+  `path_pattern` attributes still require explicit `image_pattern` during
+  migration.
+- Extracted legacy groups can remain verbose until the extractor preserves more
+  metadata. Authored Vespasian graphics should prefer meaningful one-group
+  files with default entries and no duplicate image-id declarations.
+- Load-time validation now expands native default/action/corpse targets through
+  `FigureGraphics` and requires each referenced `ImageGroupPayload` plus either
+  its explicit entry or default entry to resolve, with figure/profile/context
+  details in startup failures.
 - Support default, direction, corpse, action-state, static-frame, and cart/load
   targets.
 - Keep legacy attributes as a temporary migration input, but do not add new
   features to them.
-- Update `Mods/Vespasian/FigureType/_README.md` once the parser shape is real.
+- `Mods/Vespasian/FigureType/_README.md` and `_template.xml.example` now show
+  the nested path-only authored shape.
 
 ### Slice 4: Retire Controller Image Mutation
 
@@ -239,11 +295,18 @@ state, not city-draw-only fallbacks. Move these only after `FigureGraphics` can
 resolve legacy `image_group` graphics into draw requests without relying on
 `f->image_id`:
 
-- `update_legacy_graphics_policy_image_state`: legacy XML graphics fallback for
+- `update_legacy_figure_graphics_image_state`: legacy XML graphics fallback for
   action/corpse/direction/image-offset state. Needs a draw-request resolver for
   non-native `image_group` policies, including corpse base. Directional default
   rows now share the `FigureGraphics` directional-frame helper and preserve
-  `direction_frame_stride`.
+  `direction_frame_stride`. Native path/image policies now skip the synthetic
+  draw-request fallback check and validate their cached `FigureGraphics`
+  binding directly. Generic legacy default/static/corpse/directional image-id
+  formulas now live on `FigureGraphics`; controllers pass current animation
+  state and keep only the legacy `f->image_id` mutation until draw requests can
+  resolve old `image_group` policies directly. Prefect, charioteer, and
+  gladiator special attack/base rows now also ask `FigureGraphics` for named
+  legacy row ids instead of rebuilding `legacy_image_base() + 104` locally.
 - `RoamingServiceFigure`: service walkers and labor seekers now delegate legacy
   image-state selection through `FigureGraphics::update_legacy_image_state`.
   Still needs `max_image_offset` and animation cursor ownership moved out of the
@@ -285,8 +348,10 @@ resolve legacy `image_group` graphics into draw requests without relying on
   helpers first, including explicit clear/no-overlay states, then move those
   overlays into draw request layers.
 - Depot-cart draw requests now use FigureGraphics helpers for direction-major
-  row arithmetic and legacy base-image request setup; cart layer selection and
-  load/resource slices still need named graphics state.
+  row arithmetic and legacy base-image request setup. XML-owned resource-load
+  completeness, cart layer offsets, and carried-resource slice selection now
+  live on `FigureGraphics`; the remaining work is replacing the legacy
+  `f->image_id` base-image bridge with direct old-`image_group` draw requests.
 - Map-flag base and flag image layers now resolve through `FigureGraphics`;
   `city_figure.cpp` only keeps the flag number text overlay while
   `cart_image_id` remains the temporary storage bridge.
@@ -297,11 +362,27 @@ resolve legacy `image_group` graphics into draw requests without relying on
 - After the map-flag and enemy draw migrations, remaining city draw fallbacks
   collapse to one `Image::from_id` path, so the fallback debug counter now
   treats every legacy fallback draw as an image-id fallback.
+- The old `prepared_legacy_image(...)` bridge now lives behind
+  `FigureGraphics::legacy_image(...)`, preserving unpacked-asset and
+  external-image loading for unconverted fallbacks. Raw `f->image_id`,
+  `cart_image_id`, and legion flag id storage remains until those overlays have
+  named graphics targets.
 - Enemy-atlas sprite offsets are now also supplied by the `FigureGraphics` draw
   request. The city fallback offset path no longer selects `Image::enemy(...)`
   and only mirrors the remaining `Image::from_id` fallback.
+- `FigureGraphicsLayer` now owns legacy image layers, stacked flag/map overlays,
+  enemy colorless layers, and cart overlay layer offsets; runtime draw requests
+  only adapt those layers. Raw `f->image_id`, `cart_image_id`, and
+  `legion_flag_id` bridges remain until named overlay targets are authored.
+- Lion-tamer whip frames now come from a structured FigureType `<action><path value="Walkers\\<group>" /></action>` legacy action source instead of a
+  runtime-hardcoded atlas group. The controller still owns the timed
+  `wait_ticks_missile >= 96` selection until action-state/frame policy can
+  represent that condition.
 - Resource carts should resolve their resource payload through the same graphics
-  request rather than mutate `cart_image_id`.
+  request rather than mutate `cart_image_id`. Depot cart XML-owned
+  resource-load completeness, layer offsets, and carried-resource cart slice
+  selection now live on `FigureGraphics`; the generic `cart_image_id` marker
+  bridge remains until resource payload layers are represented as graphics data.
 - Lion tamer animals, hippodrome horses, fort standards, map flags, prefect
   buckets, missile launchers, and fishing-boat/dock-related overlays should each
   become named graphics policies or layers.
