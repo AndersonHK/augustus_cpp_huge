@@ -282,7 +282,4 @@ Requirement: forts should own XML-declared formations made from XML-declared com
 
 Requirement: keep only active manual-test notes here; resolved findings belong in git history or focused docs.
 
-- [ ] Actor colonies may spawn actors that never create plays at theaters/amphitheaters; current candidate fix is Vespasian entertainment profiles using `roads_highway`.
-- [ ] Vespasian theaters should only send actor service walkers when they have plays.
-- [ ] Vespasian amphitheaters should only animate/send service walkers when they have plays or gladiator days.
 - [ ] Garden area placement has a global garden recomposition bridge after preview restore/placement; full isolated placement and atomic garden replacement remain open.

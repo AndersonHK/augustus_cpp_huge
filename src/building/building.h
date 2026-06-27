@@ -229,6 +229,8 @@ void building_change_type(building *b, building_type type);
 
 building *building_main(const building *b);
 
+building *building_repair_target(building *b);
+
 building *building_next(building *b);
 
 building *building_create(building_type type, int x, int y);

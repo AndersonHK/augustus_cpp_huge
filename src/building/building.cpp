@@ -1632,6 +1632,16 @@ building *building_main(const building *b)
     return first_building_slot();
 }
 
+building *building_repair_target(building *b)
+{
+    if (!b || b->state != BUILDING_STATE_RUBBLE) {
+        return b;
+    }
+
+    building *main_record = building_main(b);
+    return main_record && main_record->state == BUILDING_STATE_RUBBLE ? main_record : b;
+}
+
 building *building_next(building *b)
 {
     return building_get(b->next_part_building_id);
@@ -2183,6 +2193,7 @@ int building_is_still_burning(building *b)
 
 int building_can_repair(building *b)
 {
+    b = building_repair_target(b);
     if (!b) {
         return 0;
     }
@@ -2204,8 +2215,15 @@ int building_can_repair(building *b)
     }
 }
 
+static void get_repair_footprint(
+    building_type type,
+    int orientation,
+    int *grid_offset,
+    int *size);
+
 int building_repair_cost(building *b)
 {
+    b = building_repair_target(b);
     int og_grid_offset = 0, og_size = 0;
     building_type og_type = BUILDING_NONE;
     if (!b || !building_can_repair(b)) {
@@ -2218,6 +2236,7 @@ int building_repair_cost(building *b)
     og_grid_offset = is_ruin ? b->data.rubble.og_grid_offset : b->grid_offset;
     og_size = is_ruin ? b->data.rubble.og_size : b->size;
     og_type = static_cast<building_type>(is_ruin ? b->data.rubble.og_type : b->type);
+    const int og_orientation = is_ruin ? b->data.rubble.og_orientation : b->subtype.orientation;
 
     if (building_is_house(og_type)) {
         grid_slice *house_slice = map_grid_get_grid_slice_house(b->id, 1);
@@ -2227,6 +2246,7 @@ int building_repair_cost(building *b)
     if (building_obj.matches("warehouse_space")) {
         og_size = 1; // dont charge for clearing the whole warehouse, just the collapsed part, otherwise its *9
     }
+    get_repair_footprint(og_type, og_orientation, &og_grid_offset, &og_size);
     grid_slice *grid_slice = map_grid_get_grid_slice_square(og_grid_offset, og_size); // wont work correctly for hippo
     int clear_cost = building_construction_prepare_terrain(grid_slice, CLEAR_MODE_RUBBLE, COST_MEASURE);
     int placement_cost = model_get_building(og_type)->cost;
@@ -2257,6 +2277,42 @@ static int get_rubble_data(building *b, int *og_size, int *og_grid_offset, int *
     }
 }
 
+static void get_repair_footprint(
+    building_type type,
+    int orientation,
+    int *grid_offset,
+    int *size)
+{
+    if (!grid_offset || !size) {
+        return;
+    }
+
+    const building_type_registry_impl::BuildingType *definition =
+        building_type_registry_impl::definition_for_type(type);
+    if (!definition || !definition->has_composition()) {
+        return;
+    }
+
+    const building_type_registry_impl::ComposedBuildingDefinition &composition = definition->composition();
+    const int rotation = normalized_composed_rotation(orientation);
+    const building_type_registry_impl::ComposedPartOffset main_offset =
+        composition.main_offset_for_rotation(rotation);
+    if (!main_offset.has_value) {
+        return;
+    }
+
+    int origin_x = map_grid_offset_to_x(*grid_offset) - main_offset.x;
+    int origin_y = map_grid_offset_to_y(*grid_offset) - main_offset.y;
+    int footprint_width = rotation % 2 ? composition.footprint_height() : composition.footprint_width();
+    int footprint_height = rotation % 2 ? composition.footprint_width() : composition.footprint_height();
+    if (footprint_width <= 0 || footprint_height <= 0) {
+        return;
+    }
+
+    *grid_offset = map_grid_offset(origin_x, origin_y);
+    *size = footprint_width > footprint_height ? footprint_width : footprint_height;
+}
+
 static int is_warehouse_ruin(building *b)
 {
     int is_warehouse = 0;
@@ -2272,6 +2328,19 @@ static int is_warehouse_ruin(building *b)
         }
     }
     return is_warehouse;
+}
+
+static void retire_repaired_rubble_chain(building *main_record)
+{
+    for (building *part = main_record, *next = nullptr; part && part->id > 0; part = next) {
+        next = part->next_part_building_id > 0 ? building_get(part->next_part_building_id) : nullptr;
+        part->prev_part_building_id = 0;
+        part->next_part_building_id = 0;
+        part->state = BUILDING_STATE_DELETED_BY_GAME;
+        if (next == part) {
+            break;
+        }
+    }
 }
 
 static int warehouse_repair(building *b)
@@ -2327,13 +2396,14 @@ static int warehouse_repair(building *b)
         map_grid_offset_to_x(standard_grid_offset), map_grid_offset_to_y(standard_grid_offset), 3, 1);
 
     city_culture_remove_building_module_capacity(b);
-    b->state = BUILDING_STATE_DELETED_BY_GAME; // mark old building as deleted
+    retire_repaired_rubble_chain(b);
     game_undo_disable(); // not accounting for undoing repairs
     return full_cost;
 }
 
 int building_repair(building *b)
 {
+    b = building_repair_target(b);
     if (!b) {
         return 0;
     }
@@ -2371,6 +2441,9 @@ int building_repair(building *b)
     int size = og_size ? og_size : b->size;
     building_type type = og_type ? og_type : static_cast<building_type>(b->type);
     building_type type_to_place = og_type ? og_type : static_cast<building_type>(b->type);
+    get_repair_footprint(type_to_place, og_orientation, &grid_offset, &size);
+    x = map_grid_offset_to_x(grid_offset);
+    y = map_grid_offset_to_y(grid_offset);
 
     if (building_is_house(type) || type == 1) {
         is_house_lot = 1;
@@ -2439,7 +2512,7 @@ int building_repair(building *b)
         map_tiles_update_all_walls(); // towers affect wall connections
     }
     city_culture_remove_building_module_capacity(b);
-    b->state = BUILDING_STATE_DELETED_BY_GAME; // mark old building as deleted
+    retire_repaired_rubble_chain(b);
     game_undo_disable(); // not accounting for undoing repairs
     return full_cost;
 }

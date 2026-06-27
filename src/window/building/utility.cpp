@@ -286,11 +286,8 @@ static void init_repair_building_button(building_info_context *c)
     repair_building_button->y = c->y_offset + BLOCK_SIZE * c->height_blocks - 30;
     repair_building_button->width = button_width;
     repair_building_button->height = 20;
-    repair_building_button->parameters[0] = c->rubble_building_id;
-    building *b = building_get(c->rubble_building_id);
-    if (building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "warehouse_space")) {
-        b = building_get(map_building_rubble_building_id(b->data.rubble.og_grid_offset));
-    }
+    building *b = building_repair_target(building_get(c->rubble_building_id));
+    repair_building_button->parameters[0] = b ? b->id : c->rubble_building_id;
     static lang_fragment frag;
     frag = {};
     frag.type = LANG_FRAG_LABEL;
@@ -316,12 +313,12 @@ void window_building_draw_rubble(building_info_context *c)
     window_building_play_sound(c, "wavs/ruin.wav");
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.140.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
-    building *b = building_get(c->rubble_building_id);
+    building *b = building_repair_target(building_get(c->rubble_building_id));
     building_type og_type = static_cast<building_type>(b->data.rubble.og_type);
     building_type type = og_type == BUILDING_NONE ? static_cast<building_type>(b->type) : og_type;
     int is_burning_ruins = building_type_registry_impl::type_attr_is(static_cast<building_type>(b->type), "burning_ruin");
 
-    if (building_can_repair_type(type) || building_can_repair_type(type)) {
+    if (building_can_repair(b)) {
         init_repair_building_button(c);
         complex_button_draw(repair_building_button);
     } else if (building_clone_type_from_building_type(type) != BUILDING_NONE) {
