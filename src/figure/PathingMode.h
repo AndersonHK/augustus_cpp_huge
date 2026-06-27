@@ -4,6 +4,8 @@
 #include "figure/type.h"
 #include "map/road_service_history.h"
 
+class Figure;
+
 namespace figure_type_registry_impl {
 
 class PathingMode {
@@ -21,6 +23,11 @@ public:
     enum class VenueTargetRequirement {
         NoVenueTargets,
         RequiresVenueTargets
+    };
+
+    enum class RoadblockRule {
+        UseFigurePermission,
+        IgnoreRoadblocks
     };
 
     struct TerrainAccess {
@@ -73,11 +80,13 @@ public:
         const char *xml_id,
         RoadRequirement road_requirement,
         ServiceEffectRequirement service_effect_requirement,
-        VenueTargetRequirement venue_target_requirement)
+        VenueTargetRequirement venue_target_requirement,
+        RoadblockRule roadblock_rule = RoadblockRule::UseFigurePermission)
         : xml_id(xml_id),
           requires_road(road_requirement == RoadRequirement::RequiresRoadMovement),
           requires_service_effect(service_effect_requirement == ServiceEffectRequirement::RequiresServiceEffect),
-          requires_venue_targets(venue_target_requirement == VenueTargetRequirement::RequiresVenueTargets)
+          requires_venue_targets(venue_target_requirement == VenueTargetRequirement::RequiresVenueTargets),
+          roadblock_rule(roadblock_rule)
     {
     }
 
@@ -87,7 +96,9 @@ public:
     bool requires_road;
     bool requires_service_effect;
     bool requires_venue_targets;
+    RoadblockRule roadblock_rule;
 
+    roadblock_permission roadblockPermissionFor(const Figure &figure) const;
     static TerrainAccess terrainFromLegacyUsage(int terrain_usage);
     static RoutePolicy routePolicyForTerrain(
         const TerrainAccess &terrain,

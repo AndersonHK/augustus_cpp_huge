@@ -21,6 +21,7 @@ Figure *figure_runtime_create_profiled(
 int figure_runtime_apply_profile_movement(Figure *f);
 
 const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Figure *f);
+roadblock_permission figure_runtime_roadblock_permission(Figure *f);
 
 // Executes a native FigureType controller; returns zero when legacy action should handle it.
 int figure_runtime_execute(Figure *f);

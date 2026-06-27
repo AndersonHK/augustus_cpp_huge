@@ -340,6 +340,9 @@ Determinism guardrails:
 ### Slice 2: Figure Route Reuse
 
 - Add destination/policy/epoch stamps to routed figures or native route records.
+- Make destination selection return a reusable planned route object. A spawner or
+  venue selector should validate reachability once, then hand the same route to
+  the figure instead of making the figure recompute under a second policy.
 - Ensure destination mutation routes through one method that invalidates the
   route once.
 - Let movement reuse current paths until next-tile validation fails.

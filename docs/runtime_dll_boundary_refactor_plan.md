@@ -14,6 +14,41 @@ The target model is strict DLL/plugin-style boundaries:
 
 The shared exception is the crash/error context logger and the smallest shared core ABI needed to report fatal startup diagnostics.
 
+## Ownership Contract
+
+The target architecture is a handoff between layers, not a shared reset/rebuild system.
+
+- XML startup creates immutable type definitions: `BuildingType`, `FigureType`, resources, units, formations, graphics definitions, pathing definitions, and other registries. Once startup has produced those objects, startup is done until program shutdown.
+- Runtime consumes those resolved definitions and live objects. It creates, uses, mutates, and removes live runtime objects, but it does not reset, recreate, or reload type registries.
+- Save/load bridging is the only layer that knows save records. It reads records and produces current live objects, serializes current live objects back into records, and applies old-save migrations. Runtime should not know that legacy records exist.
+- The bridge does not own the game loop. It should not run ticks, route walkers as gameplay, render, or repair runtime behavior beyond import/export and compatibility migration.
+- Graphics extraction only extracts legacy assets into native files. It does not own runtime rendering, XML gameplay meaning, or save migration.
+
+## Boundary Smells
+
+The dependency graph is part of the design feedback. If a focused tester like `StartupParserTest` needs to compile against most runtime files, the boundary is wrong or still too porous. The tester should call the same small startup-parser contract the game calls; it should not need city simulation, rendering, save migration, extraction helpers, or record-era gameplay internals just to validate XML startup.
+
+Use compile dependencies as a partitioning guide:
+
+- code needed only to decode legacy graphics belongs behind the graphics extraction DLL
+- code needed only to parse and validate XML belongs behind the startup parser DLL
+- code needed only to read old saves, migrate records, or bridge legacy ids belongs behind the save/load bridge DLL
+- code needed by the live game loop belongs in runtime, and should consume current-version objects
+
+The target runtime contract is object-owned. Runtime code should not know raw save records; it should receive current-state objects. Save/load should not know XML parser internals. XML startup should not know save bridge internals. Graphics extraction should be completely self-contained and unrelated to runtime rendering after generated assets exist.
+
+### Startup Parser Test Dependency Audit
+
+Current direct tester shape:
+
+| Dependency surface | Current state | First extraction target |
+| --- | --- | --- |
+| Runtime reset internals | `StartupParserTest` no longer includes `building_runtime.h` or calls `building_runtime_reset()` directly. Startup parser cleanup must remain parser-owned; registry load should produce immutable definitions, not reset runtime bridge state. | Keep tester cleanup limited to parser-owned teardown until the startup facade returns a typed `StartupDefinitions` object. |
+| Registry load order | `StartupParserTest` now calls `startup_parser::parse_startup_definitions()` and prints returned step diagnostics instead of calling each registry directly. The facade still uses global registries internally as the static-boundary first step. | Convert the facade's `StartupDefinitions` from a summary into the immutable definition payload runtime startup will consume. |
+| Graphics validation inputs | The startup parser facade now has an explicit pre-BuildingType graphics preparation step, so `StartupParserTest` no longer needs ad hoc graphics setup in `main.cpp`. The static step still mirrors runtime climate/image loading and uses a minimal headless renderer when no runtime renderer exists. | Replace runtime image-cache loading with parser/graphics-owned image-group validation data after graphics extraction exposes a self-contained generated-asset manifest. |
+| Project compile graph | `StartupParserTest.vcxproj` still compiles `src\**\*.cpp`, so the executable links far more runtime code than the test contract needs. | Replace the wildcard with a curated startup-parser/static-boundary source list after parser-only source ownership is explicit. |
+| Platform/UI shims | `platform_shims.cpp` supplies only minimal process/system stubs, but SDL libraries remain linked through the shared project settings. | Move parser-test project settings toward shared-core/file/XML dependencies only. |
+
 ## Candidate DLLs
 
 ### Graphics Extraction DLL
@@ -85,8 +120,8 @@ Does not own:
 Runtime contract:
 
 ```cpp
-LoadResult load_save_into_runtime(const SaveLoadRequest &request, RuntimeImportSink &runtime, ErrorSink &errors);
-SaveResult write_runtime_save(const SaveWriteRequest &request, const RuntimeExportView &runtime, ErrorSink &errors);
+LoadedGameObjects load_save_objects(const SaveLoadRequest &request, ErrorSink &errors);
+SaveResult write_save_from_objects(const SaveWriteRequest &request, const RuntimeObjectExportView &objects, ErrorSink &errors);
 ```
 
 Once a save is loaded, bridge-only compatibility data should be gone. The runtime should hold object references, typed registries, and current-version state.
@@ -116,8 +151,8 @@ Each one-shot DLL should be treated as a tool that runs and disappears:
 1. Runtime/bootstrap loads the DLL.
 2. Runtime calls one exported function with an explicit request.
 3. DLL reports through the shared crash/error context sink.
-4. DLL returns success plus data/output paths, or failure plus diagnostics.
-5. Runtime copies/imports the returned data into runtime-owned objects.
+4. DLL returns success plus owned definitions, generated paths, or live object bundles; otherwise it returns failure plus diagnostics.
+5. Runtime takes ownership of the returned startup definitions or live objects through an explicit result contract.
 6. Runtime unloads the DLL.
 
 No runtime object should store pointers to DLL-owned memory. Returned data must either be copied into runtime-owned storage or transferred through an explicit ownership handle that remains valid after unload.

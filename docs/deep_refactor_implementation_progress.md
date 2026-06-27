@@ -1,6 +1,6 @@
 # Deep Refactor Implementation Progress
 
-Snapshot: 2026-06-26, branch `Deep-Refactors-Part2`
+Snapshot: 2026-06-26, branch `Deep-Refactors-Part3`
 
 This is the live checklist for the current implementation push. Detailed requirements live in `docs/deep_refactor_requirements.md`; detailed designs live in the linked plan files. This file should stay short enough to scan before coding.
 
@@ -9,9 +9,10 @@ Line-count target: move the net diff from `master` toward `-5k` by deleting lega
 Current measured state:
 
 - Baseline branch: `master`.
-- Committed branch delta: `git diff --shortstat master...HEAD` reports 90 files, 1759 insertions, 1046 deletions.
-- Current working-tree delta: `git diff --shortstat` reports 212 files, 4866 insertions, 6252 deletions.
-- Latest known deployed runtime build: `D:\Games\GOG Games\Caesar 3\Vespasian.exe`, 2026-06-26 16:42:44.
+- Committed branch delta: `git diff --shortstat master...HEAD` reports 474 files, 8106 insertions, 7187 deletions.
+- Current working-tree delta: `git diff --shortstat` reports 32 files, 782 insertions, 594 deletions.
+- Latest local Release runtime build: `x64\Release\Vespasian.exe`, 2026-06-26 19:47:03.
+- Latest known deployed runtime build: `D:\Games\GOG Games\Caesar 3\Vespasian.exe`, 2026-06-26 19:31:16.
 - Current validation priority: build only from the main session; agents implement/read in disjoint areas.
 
 ## Coordination
@@ -22,7 +23,7 @@ Requirement: keep work planned, delegated, build-gated, and regression-testable.
 - [x] Use agents for disjoint implementation/research slices without letting them compile.
 - [x] Keep stable requirements separate in `docs/deep_refactor_requirements.md`.
 - [x] Split verbose requirement text out of this tracker.
-- [ ] Keep two agents busy with long-lived implementation or cleanup slices.
+- [x] Keep two agents busy with long-lived implementation or cleanup slices.
 - [ ] Update this checklist when a slice lands or a dependency order changes.
 - [ ] Record manual regression findings only as short current-state notes.
 
@@ -33,9 +34,12 @@ Requirement: catch parser/startup failures from PowerShell before manual runtime
 - [x] Add loud deployment failure handling and Explorer pause behavior to `tools/deploy_release_to_game.py`.
 - [x] Add `StartupParserTest` headless startup/XML parser executable.
 - [x] Make startup parser tests run from the actual game folder via `--game-root`.
-- [ ] Run `StartupParserTest.exe --game-root "D:\Games\GOG Games\Caesar 3"` after the next deploy.
-- [ ] Rebuild Release x64 from the main session after agent patches settle.
-- [ ] Deploy the next Release x64 build for manual regression testing.
+- [x] Rebuild Release x64 from the main session after agent patches settle.
+- [x] Add deploy preflight for running game processes that lock the target Mods folder.
+- [x] Close running deployed `Vespasian.exe` before the next deploy attempt.
+- [x] Resolve deploy blocker by preserving the `Mods` root and replacing mod folder contents with backup/restore cleanup.
+- [x] Deploy the next Release x64 build for manual regression testing.
+- [x] Make `StartupParserTest.exe --game-root "D:\Games\GOG Games\Caesar 3"` mirror runtime graphics extraction before BuildingType graphics validation.
 
 ## Runtime DLL Boundary Refactor
 
@@ -45,7 +49,14 @@ Requirement: split extraction, XML startup parsing, and save/load bridge work in
 
 - [x] Document the DLL boundary intent and shared crash-context rule.
 - [x] Shape the startup parser test as the future XML parser DLL caller.
+- [x] Record compile-dependency smell: a focused tester depending on most runtime files means the DLL boundary is still too porous.
+- [x] Remove the startup parser tester's direct `building_runtime.h` dependency.
+- [x] Document the strict handoff contract: startup owns immutable definitions, save/load owns record conversion, runtime owns live object behavior.
+- [x] Add the first static `startup_parser::parse_startup_definitions()` facade and route `StartupParserTest` through it.
+- [x] Add an explicit pre-BuildingType graphics preparation step to the startup parser facade.
 - [ ] Define a tiny stable ABI/shared-core boundary.
+- [ ] Move normal game startup onto the facade after init-failure mapping and localization request behavior are explicit.
+- [ ] Replace the startup parser test's `src\**\*.cpp` project wildcard after a parser facade owns registry load order.
 - [ ] Extract graphics extraction into a self-contained module boundary.
 - [ ] Extract XML startup parsing into a self-contained module boundary.
 - [ ] Extract save/load bridging into a self-contained module boundary.
@@ -62,6 +73,8 @@ Requirement: data-owning objects should own their behavior, references, cleanup,
 - [x] Move many one-line BuildingType facts from C accessors to object methods.
 - [x] Remove local `building_matches` and `type_matches` helper islands.
 - [x] Add the requirement that BuildingType spawn declarations create figure/profile pairs while FigureType profiles own walker behavior.
+- [x] Move profiled-spawn initial action and roaming setup onto `FigureTypeProfile`.
+- [x] Move native producer cart/effect spawning into `building_runtime` and delete dead wharf/shipyard legacy spawn branches.
 - [ ] Finish retiring redundant spawn `mode` versus FigureType `profile` behavior split.
 - [ ] Convert remaining raw `building *` compatibility boundaries to `Building` object calls when touched.
 - [ ] Replace repeated type/string scans with typed runtime lists.
@@ -84,6 +97,8 @@ Requirement: centralize route planning and make cost-map generation lazy, reusab
 - [x] Add failed-route retry/backoff gate.
 - [x] Move same-road-network and road-network helper logic into `PathingMode`.
 - [x] Add `Route::DistanceQuery::CostMapHandle` bridge over the legacy global grid.
+- [x] Move venue-seeker roadblock behavior into `PathingMode` for route planning and per-step movement.
+- [x] Record route handoff requirement so destination selection can pass its validated route to the figure.
 - [ ] Finish splitting `PathingMode` policy creation from route planning.
 - [ ] Add building-owned road-access caches.
 - [ ] Convert road-access callers to cached spans or equivalent.
@@ -128,8 +143,8 @@ Requirement: the city draw loop should ask figures for XML-backed draw requests 
 - [x] Remove public compatibility wrappers and several one-use graphics accessors.
 - [x] Move more legacy image arithmetic onto `Figure` or private native helpers.
 - [ ] Add cached native payload bindings for runtime-bound figures.
-- [ ] Use explicit logical width/height in figure draw requests.
-- [ ] Add structured child-node FigureType graphics parsing.
+- [x] Use explicit logical width/height in figure draw requests.
+- [x] Add structured child-node FigureType graphics parsing.
 - [ ] Validate figure graphics targets at FigureType load time.
 - [ ] Retire controller-owned `f->image_id` mutation in converted controllers.
 - [ ] Move cart/resource/animal/standard overlays into figure graphics layers.
@@ -204,6 +219,7 @@ Requirement: forts should own XML-declared formations made from XML-declared com
 - [x] Add `military/formation` references to fort BuildingType XML.
 - [x] Move recruit categories and weapon requirements into `UnitType`.
 - [x] Move many formation roster queries and mutations onto `formation`.
+- [x] Move fort-bound legion initialization, declared recruit selection, overflow ejection, and movement prep onto `formation`.
 - [ ] Add `FormationInstance` ownership to forts.
 - [ ] Replace remaining hardcoded formation-size loops with formation instance iteration.
 - [ ] Move soldier stats and combat abilities fully into `UnitType`.
@@ -214,6 +230,6 @@ Requirement: forts should own XML-declared formations made from XML-declared com
 
 Requirement: keep only active manual-test notes here; resolved findings belong in git history or focused docs.
 
-- [ ] Actor colonies may spawn actors that never create plays at theaters/amphitheaters.
+- [ ] Actor colonies may spawn actors that never create plays at theaters/amphitheaters; current candidate fix is Vespasian entertainment profiles using `roads_highway`.
 - [ ] Vespasian theaters should only send actor service walkers when they have plays.
 - [ ] Vespasian amphitheaters should only animate/send service walkers when they have plays or gladiator days.

@@ -2906,14 +2906,19 @@ static int building_resource_state_read_count(buffer *buf, const char *field_nam
     return static_cast<int>(count);
 }
 
-static void building_resource_state_load_i16_values(buffer *buf, building *b)
+static void building_resource_state_load_i16_values(buffer *buf, building *b, bool *loaded_resources)
 {
     int count = building_resource_state_read_count(buf, "resources");
     for (int i = 0; i < count; i++) {
         resource_type resource = resource_save_read_ref(buf);
         int value = buffer_read_i16(buf);
-        if (b && resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
-            b->resources[resource] = static_cast<short>(value);
+        if (resource >= RESOURCE_NONE && resource < RESOURCE_SLOT_COUNT) {
+            if (loaded_resources) {
+                loaded_resources[resource] = true;
+            }
+            if (b) {
+                b->resources[resource] = static_cast<short>(value);
+            }
         }
     }
 }
@@ -2950,6 +2955,32 @@ static void repair_dock_accepted_goods_if_empty(building *b)
     }
     for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
         b->accepted_goods[r] = 1;
+    }
+}
+
+static void restore_omitted_native_storage_resources(
+    building *b, const short *flat_resources, const bool *loaded_resources)
+{
+    if (!b || !flat_resources || !loaded_resources) {
+        return;
+    }
+
+    Building building_obj(b);
+    if (!building_obj.type || !building_obj.type->has_native_storage()) {
+        return;
+    }
+
+    for (const building_type_registry_impl::StorageType *storage_type : building_obj.type->storage_types()) {
+        if (!storage_type) {
+            continue;
+        }
+        for (resource_type resource : storage_type->resources()) {
+            if (resource <= RESOURCE_NONE || resource >= RESOURCE_SLOT_COUNT ||
+                loaded_resources[resource] || !flat_resources[resource]) {
+                continue;
+            }
+            b->resources[resource] = flat_resources[resource];
+        }
     }
 }
 
@@ -3012,7 +3043,10 @@ void building_resource_state_load(buffer *buf)
         resource_type fetch_inventory = resource_save_read_ref(&payload);
         resource_type depot_order_resource = resource_save_read_ref(&payload);
 
+        short flat_resources[RESOURCE_SLOT_COUNT] = {};
+        bool loaded_resources[RESOURCE_SLOT_COUNT] = {};
         if (b) {
+            memcpy(flat_resources, b->resources, sizeof(flat_resources));
             b->output_resource_id = static_cast<unsigned char>(
                 output >= RESOURCE_NONE && output < RESOURCE_SLOT_COUNT ? output : RESOURCE_NONE);
             Building building_obj(b);
@@ -3038,7 +3072,8 @@ void building_resource_state_load(buffer *buf)
             memset(b->accepted_goods, 0, sizeof(b->accepted_goods));
         }
 
-        building_resource_state_load_i16_values(&payload, b);
+        building_resource_state_load_i16_values(&payload, b, loaded_resources);
+        restore_omitted_native_storage_resources(b, flat_resources, loaded_resources);
         building_resource_state_load_u8_values(&payload, b);
         repair_dock_accepted_goods_if_empty(b);
     }

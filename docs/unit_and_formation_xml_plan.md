@@ -136,7 +136,8 @@ This also creates the right place for composed state: the fort owns the formatio
 - [x] Runtime `formation` objects bind to their owning fort's resolved `FormationType` at creation/load refresh time, while live figure slots still clamp through the legacy 16-slot storage array.
 - [x] The old C++ fort-type-to-soldier table was removed from building counts; fort counting now enumerates BuildingType definitions with military data and derives the soldier figure from the resolved formation.
 - [x] UnitType XML now declares the transitional barracks recruit category and weapon requirement; formation recruitment and barracks weapon consumption ask the resolved `FormationType`/`UnitType` instead of remapping fort soldier figure enums.
-- [ ] Fixed storage, save/load serialization, physical clearing, formation layout tables, and overflow ejection scans still intentionally use the current 16-slot storage contract until a real `FormationInstance`/save migration exists.
+- [x] Fort-bound legion initialization, declared recruit selection, overflow ejection, and non-combat movement setup now route through `formation` methods instead of duplicating slot scans at legion call sites.
+- [ ] Fixed storage, save/load serialization, physical clearing, and formation layout tables still intentionally use the current 16-slot storage contract until a real `FormationInstance`/save migration exists.
 - [ ] Add real `FormationInstance` ownership to forts so the resolved `FormationType` capacity and slots, including Vespasian's 8x8 definitions, can control live spawned units instead of being clipped by the legacy save/layout contract.
 - [ ] Add adaptive slot spacing for larger formations inside the current fort mustering-ground footprint.
 - [ ] Migrate enemy, barbarian, wolf/animal, and other combat figure archetypes into `UnitType`.

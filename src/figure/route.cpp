@@ -471,14 +471,13 @@ static RouteIntent route_intent_from_figure(Figure &figure)
     RouteIntent intent;
     const int direction_limit = figure.disallow_diagonal ? 4 : 8;
     const RouteNeighborhood neighborhood = route_neighborhood_from_direction_limit(direction_limit);
-    const roadblock_permission permission = Roadblock::permission_for(figure);
     intent.destination = { figure.destination_x, figure.destination_y };
     intent.max_tiles = figure.max_roam_length > 0 ? figure.max_roam_length : 0;
     intent.only_through_building_id = figure.destination_building.id();
 
     if (figure.is_boat) {
         intent.policy = RoutePolicy::water(figure.is_boat == 2, neighborhood);
-        intent.policy.permission = permission;
+        intent.policy.permission = Roadblock::permission_for(figure);
     } else {
         const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(&figure);
         intent.terrain = pathing ?
@@ -486,7 +485,7 @@ static RouteIntent route_intent_from_figure(Figure &figure)
             figure_type_registry_impl::PathingMode::terrainFromLegacyUsage(figure.terrain_usage);
         intent.policy = figure_type_registry_impl::PathingMode::routePolicyForTerrain(
             intent.terrain,
-            permission,
+            figure_runtime_roadblock_permission(&figure),
             neighborhood);
     }
 
@@ -909,10 +908,10 @@ Route::DistanceQuery Route::DistanceQuery::fromPoint(
 }
 
 Route::DistanceQuery Route::DistanceQuery::fromFigure(
-    const Figure &figure,
+    Figure &figure,
     performance_tracker_route_purpose purpose)
 {
-    return fromRoad({ figure.x, figure.y }, Roadblock::permission_for(figure), purpose);
+    return fromRoad({ figure.x, figure.y }, figure_runtime_roadblock_permission(&figure), purpose);
 }
 
 const Route::DistanceQuery::CostMapHandle &Route::DistanceQuery::costMap() const

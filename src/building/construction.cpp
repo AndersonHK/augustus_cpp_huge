@@ -504,6 +504,7 @@ static int place_area_tile(int x_start, int y_start, int x_end, int y_end, build
     int x_min, y_min, x_max, y_max;
     map_grid_start_end_to_area(x_start, y_start, x_end, y_end, &x_min, &y_min, &x_max, &y_max);
     game_undo_restore_map(1);
+    map_tiles_update_all_tile(*tile);
 
     int items_placed = 0;
     for (int y = y_min; y <= y_max; y++) {
@@ -536,7 +537,7 @@ static int place_area_tile(int x_start, int y_start, int x_end, int y_end, build
             }
         }
     }
-    map_tiles_update_region_tile(x_min, y_min, x_max, y_max, *tile);
+    map_tiles_update_area_placement_tile(x_min, y_min, x_max, y_max, *tile);
     return items_placed;
 }
 

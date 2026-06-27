@@ -813,6 +813,21 @@ void building_runtime::spawn_armoury()
     assign_figure_slot(target_slot, warehouseman->id());
 }
 
+void building_runtime::run_native_production_phase(const map_point &road, int run_labor)
+{
+    if (!type().has_native_production()) {
+        return;
+    }
+    if (run_labor) {
+        run_labor_phase_if_defined(road);
+    }
+    if (building().native_production_has_completed_effect()) {
+        building().start_native_production();
+        return;
+    }
+    spawn_figure_delivery_cart(road);
+}
+
 resource_type building_runtime::figure_delivery_output_resource() const
 {
     if (!definition_) {
@@ -828,22 +843,41 @@ resource_type building_runtime::figure_delivery_output_resource() const
 
 void building_runtime::spawn_figure_delivery_cart(const map_point &road)
 {
+    if (slot_has_live_figure(building_type_registry_impl::FigureSlot::Primary, FIGURE_CART_PUSHER)) {
+        return;
+    }
+
     resource_type resource = figure_delivery_output_resource();
-    if (resource == RESOURCE_NONE || record().data.industry.has_fish <= 0 ||
-        slot_has_live_figure(building_type_registry_impl::FigureSlot::Primary, FIGURE_CART_PUSHER)) {
+    int loads = 0;
+    int reserved_from_figure_delivery = 0;
+    if (resource != RESOURCE_NONE && record().data.industry.has_fish > 0) {
+        loads = std::min(static_cast<int>(record().data.industry.has_fish),
+            building().output_cart_capacity(resource));
+        record().data.industry.has_fish -= loads;
+        reserved_from_figure_delivery = 1;
+    } else if (!building().reserve_output_storage_loads(&resource, &loads)) {
+        return;
+    }
+
+    if (resource == RESOURCE_NONE || loads <= 0) {
         return;
     }
 
     Figure *cart = Figure::create(FIGURE_CART_PUSHER, road.x, road.y, DIR_4_BOTTOM);
     if (!cart) {
+        if (reserved_from_figure_delivery) {
+            record().data.industry.has_fish += static_cast<unsigned char>(loads);
+        } else {
+            building().add_storage_resource(
+                resource, loads * resource_units_per_load(), building_type_registry_impl::StorageRole::Output);
+        }
         return;
     }
-    const int loads = std::min(static_cast<int>(record().data.industry.has_fish),
-        building().output_cart_capacity(resource));
-    record().data.industry.has_fish -= loads;
+
     cart->action_state = FIGURE_ACTION_20_CARTPUSHER_INITIAL;
     cart->resource_id = resource;
     attach_figure_to_building(cart, building());
+    record().output_resource_id = static_cast<unsigned char>(resource);
     record().figure_id = cart->id();
     cart->wait_ticks = game_time_scale_legacy_day_ticks(30);
     cart->loads_sold_or_carrying = static_cast<unsigned char>(loads);
@@ -1166,7 +1200,13 @@ void building_runtime::spawn_figure()
             set_building_graphic();
         }
 
-        if (type().is_architect_guild()) {
+        if (type().has_native_production()) {
+            check_labor_problem();
+            map_point road;
+            if (resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &road)) {
+                run_native_production_phase(road, 1);
+            }
+        } else if (type().is_architect_guild()) {
             spawn_architect_guild();
         } else if (type().is_caravanserai()) {
             spawn_caravanserai();
@@ -1188,10 +1228,10 @@ void building_runtime::spawn_figure()
         }
     }
 
-    if (figure_delivery_output_resource() != RESOURCE_NONE) {
+    if (type().has_native_production()) {
         map_point road;
         if (resolve_road_access(building_type_registry_impl::RoadAccessMode::Normal, &road)) {
-            spawn_figure_delivery_cart(road);
+            run_native_production_phase(road, 0);
         }
     }
 }

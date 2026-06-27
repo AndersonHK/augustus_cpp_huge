@@ -211,7 +211,7 @@ Some pieces are independent byte dumps, but several order dependencies are inten
 - `resource_init()` runs before production-rate overrides and many economy systems are used after load.
 - Road service history and local workforce load after resources/model data and before gameplay resumes; both tolerate missing old-save pieces by clearing to empty state.
 
-Preview loading for savegame thumbnails uses the same piece reader, but it does not run the full live-game loader. It reads enough city/scenario/building/map data to render minimap info; full BuildingType/runtime rebinding remains part of the live load path.
+Preview loading for savegame thumbnails uses the same piece reader, but it does not run the full live-game loader. It reads enough city/scenario/building/map data to render minimap info; full record-to-object hydration remains part of the live save bridge path.
 
 Compatibility helpers that do not own standalone pieces still matter to the load contract. `building_type_id_bridge_prepare_new_save_table()` prepares the table before writing; `map_property_load_state_u8()` reads old 8-bit map bitfields; `figure_visited_buildings_migrate()` synthesizes visited-building state for old saves; `map_terrain_migrate_old_bridges()` and `map_terrain_migrate_old_walls()` repair old terrain encodings; `scenario_events_migrate_to_formulas()`, `scenario_events_migrate_to_resolved_display_names()`, `scenario_events_migrate_to_grid_slices()`, `scenario_events_min_max_migrate_to_formulas()`, and `scenario_events_migrate_to_buys_sells()` upgrade old scenario-event data after the owning pieces load.
 

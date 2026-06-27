@@ -203,8 +203,8 @@ The same rule applies to figure-type code: runtime code should iterate typed `Fi
 Subtype membership is a registry/runtime responsibility:
 
 - XML declares which concrete subclass a building or figure type belongs to.
-- Startup/load resolves those declarations once.
-- Creating, deleting, loading, or changing a building type updates the subtype lists.
+- Startup resolves XML declarations into immutable type definitions once; save/load hydrates live instances against those already-resolved definitions.
+- Creating, deleting, hydrating, or type-changing a building instance updates the subtype lists.
 - Runtime loops iterate the already-maintained typed list.
 - Save/load still serializes ids as bridge data, then hydrates typed runtime lists before normal gameplay resumes.
 

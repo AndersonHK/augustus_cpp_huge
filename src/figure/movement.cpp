@@ -224,7 +224,7 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
             }
             Roadblock roadblock(b);
             if (roadblock.kind() != ROADBLOCK_NONE) {
-                if (!roadblock.allows(*f)) {
+                if (!roadblock.has_permission(figure_runtime_roadblock_permission(f))) {
                     f->direction = DIR_FIGURE_REROUTE;
                 }
             }
@@ -237,7 +237,7 @@ static void advance_route_tile(Figure *f, int roaming_enabled)
         building *b = building_get(map_building_at(target_grid_offset));
         Roadblock roadblock(b);
         if (roadblock.kind() != ROADBLOCK_NONE) {
-            if (!roadblock.allows(*f)) {
+            if (!roadblock.has_permission(figure_runtime_roadblock_permission(f))) {
                 f->direction = DIR_FIGURE_REROUTE;
             }
         } else {
@@ -599,7 +599,7 @@ void figure_movement_roam_ticks(Figure *f, int num_ticks)
                 }
             }
             int road_tiles[8];
-            roadblock_permission permission = Roadblock::permission_for(*f);
+            roadblock_permission permission = figure_runtime_roadblock_permission(f);
             int adjacent_road_tiles = get_adjacent_road_tiles_for_roaming(f, f->grid_offset, road_tiles, permission);
             if (adjacent_road_tiles == 3 &&
                 get_diagonal_road_tiles_for_roaming(f, f->grid_offset, road_tiles, permission) >= 5) {

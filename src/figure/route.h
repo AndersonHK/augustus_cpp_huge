@@ -61,7 +61,7 @@ public:
             std::optional<roadblock_permission> permission = std::nullopt,
             performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
         static DistanceQuery fromFigure(
-            const Figure &figure,
+            Figure &figure,
             performance_tracker_route_purpose purpose = PERFORMANCE_TRACKER_ROUTE_PURPOSE_DISTANCE_QUERY);
 
         explicit operator bool() const { return valid_; }

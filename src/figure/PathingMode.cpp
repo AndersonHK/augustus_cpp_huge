@@ -31,7 +31,8 @@ const PathingMode VenueSeeker(
     "venue_seeker",
     PathingMode::RoadRequirement::RequiresRoadMovement,
     PathingMode::ServiceEffectRequirement::NoServiceEffect,
-    PathingMode::VenueTargetRequirement::RequiresVenueTargets);
+    PathingMode::VenueTargetRequirement::RequiresVenueTargets,
+    PathingMode::RoadblockRule::IgnoreRoadblocks);
 const PathingMode StorageFetch(
     "storage_fetch",
     PathingMode::RoadRequirement::RequiresRoadMovement,
@@ -228,6 +229,14 @@ const PathingMode *pathing_mode_from_xml_id(const char *xml_id)
         }
     }
     return nullptr;
+}
+
+roadblock_permission PathingMode::roadblockPermissionFor(const Figure &figure) const
+{
+    if (roadblock_rule == RoadblockRule::IgnoreRoadblocks) {
+        return PERMISSION_NONE;
+    }
+    return Roadblock::permission_for(figure);
 }
 
 } // namespace figure_type_registry_impl

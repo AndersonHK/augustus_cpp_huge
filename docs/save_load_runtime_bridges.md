@@ -132,7 +132,7 @@ For each version-1 entry, the loader resolves runtime identity by saved text id 
 
 If a building record references a save id that is not present in the loaded table, the bridge treats that id as a legacy raw enum and recovers its canonical text id through `building_type_legacy_migration_text_id_for_enum()`. This preserves old raw-id records such as `BUILDING_ORACLE = 98` without overriding explicit save-table entries.
 
-Preview loading does not mutate the active bridge. It reads enough city/scenario/building/map data to render minimap info, while full BuildingType/runtime rebinding remains part of the live load path.
+Preview loading does not mutate the active bridge. It reads enough city/scenario/building/map data to render minimap info, while full record-to-object hydration remains part of the live save bridge path.
 
 ## WaterAccessType Save Bridge
 

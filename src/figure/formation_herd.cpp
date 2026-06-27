@@ -186,11 +186,8 @@ static void update_herd_formation(formation *m, int infinite_wolves_spawning)
         }
     }
 
-    if (const int figure_id = m->first_figure_id()) {
-        Figure *f = Figure::get(figure_id);
-        if (f->state == FIGURE_STATE_ALIVE) {
-            formation_set_home(m, f->x, f->y);
-        }
+    if (Figure *f = m->first_alive_figure()) {
+        formation_set_home(m, f->x, f->y);
     }
 
     int attacking_animals = 0;
@@ -208,11 +205,7 @@ static void update_herd_formation(formation *m, int infinite_wolves_spawning)
         case FIGURE_WOLF:
             roam_distance = WOLF_ROAM_DISTANCE;
             roam_delay = WOLF_ROAM_DELAY;
-            m->for_each_figure_id([&](int figure_id, int) {
-                if (Figure::get(figure_id)->action_state == FIGURE_ACTION_150_ATTACK) {
-                    attacking_animals++;
-                }
-            });
+            attacking_animals = m->count_figures_in_action(FIGURE_ACTION_150_ATTACK);
             if (m->missile_attack_timeout) {
                 attacking_animals = 1;
             }

@@ -5,7 +5,10 @@ This is the stable requirements companion for `deep_refactor_implementation_prog
 ## Data Ownership
 
 - XML declarations are the source of truth for buildings, figures, units, formations, resources, graphics, pathing, and movement surfaces.
-- C++ should resolve XML keys into typed runtime objects once at startup or load time, then pass object references instead of repeatedly matching strings, enum ids, or legacy records.
+- Preserve mod identity: Julius XML/data should match Julius GH behavior, Augustus should match Augustus GH behavior, and Vespasian is the enhanced data mod for intentional behavior changes such as making actor colonies required for plays.
+- Startup should resolve XML keys into immutable typed definition objects once, then hand those definitions to runtime for the rest of the process.
+- Save/load should be the only layer that knows save records. It should hydrate records into live objects, serialize live objects back into records, and apply old-save migrations without owning game-loop behavior.
+- Runtime should consume resolved definitions and live objects. It should not reset or recreate type registries, know legacy records exist, or translate records into objects.
 - Compatibility attrs such as `<event_data attr="...">` are allowed only as migration bridges for old events, saves, or unported systems. New behavior should live in explicit modules such as storage, labor, production, religion, military, water access, construction, graphics, or pathing.
 - The runtime bit/mask layer must be generated from data-owned declarations. Bits are acceleration structures, not authored design.
 

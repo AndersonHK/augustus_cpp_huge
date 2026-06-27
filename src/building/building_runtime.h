@@ -142,6 +142,7 @@ private:
     void spawn_lighthouse();
     void spawn_watchtower();
     void spawn_armoury();
+    void run_native_production_phase(const map_point &road, int run_labor);
     resource_type figure_delivery_output_resource() const;
     void spawn_figure_delivery_cart(const map_point &road);
     int resolve_road_access(building_type_registry_impl::RoadAccessMode mode, map_point *road) const;

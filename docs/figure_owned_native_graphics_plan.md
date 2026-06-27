@@ -209,6 +209,12 @@ them with named animation state.
 
 - Add structured child-node graphics parsing beside the existing legacy
   one-line node.
+- Parser slice: FigureType now accepts strict child targets under `<graphics>`:
+  `<default>`, `<action>`, `<corpse>`, and `<cart>`, plus nested `<path>` and
+  `<image>` nodes for default/action/corpse path-pattern targets. Legacy root
+  attributes still parse as migration input, while target/source completeness
+  now validates through `GraphicsPolicy`; payload-existence validation remains
+  the next load-time step.
 - Validate every path/image reference at FigureType load time.
 - Support default, direction, corpse, action-state, static-frame, and cart/load
   targets.

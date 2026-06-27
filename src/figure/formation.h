@@ -7,6 +7,7 @@
 
 #include <initializer_list>
 class Building;
+class Figure;
 
 
 #define MAX_LEGIONS 6
@@ -151,6 +152,7 @@ struct formation {
 
     void bind_legion_definition_from_fort(const Building &fort);
     void refresh_legion_definition_from_home();
+    void initialize_legion_from_fort(const Building &fort, int assigned_legion_id);
 
     ::figure_type figure_type_id() const
     {
@@ -235,6 +237,7 @@ struct formation {
     }
 
     int base_morale_limit() const;
+    int declared_recruit_type() const;
     int legion_distant_battle_strength_factor() const;
     int legion_curse_weight() const;
 
@@ -282,6 +285,22 @@ struct formation {
         }
         return 0;
     }
+
+    Figure *first_figure() const;
+    Figure *first_alive_figure() const;
+    int count_alive_figures() const;
+    int count_figures_in_action(int action_state) const;
+    bool has_figure_in_action(int action_state) const;
+    void kill_figures() const;
+    int kill_alive_figures(int limit) const;
+    void set_all_figures_action(int action_state) const;
+    void set_alive_figures_action(int action_state, bool mark_at_rest = false) const;
+    void set_non_combat_figures_action(int action_state, bool remove_route = false) const;
+    void reset_non_combat_figures_action(int action_state) const;
+    void mark_overflow_figures_returning_to_barracks() const;
+    bool prepare_legion_to_move();
+    void send_non_combat_figures_to_standard();
+    void send_non_combat_figures_to_fort();
 
     template <typename Visitor>
     void for_each_figure_id(Visitor visitor) const

@@ -532,18 +532,6 @@ static void set_native_target_building(formation *m)
     }
 }
 
-static void set_figures_to_initial(const formation *m)
-{
-    m->for_each_figure_id([](int figure_id, int) {
-        Figure *f = Figure::get(figure_id);
-        if (f->action_state != FIGURE_ACTION_149_CORPSE &&
-            f->action_state != FIGURE_ACTION_150_ATTACK) {
-            f->action_state = FIGURE_ACTION_151_ENEMY_INITIAL;
-            f->wait_ticks = 0;
-        }
-    });
-}
-
 int formation_enemy_move_formation_to(const formation *m, int x, int y, int *x_tile, int *y_tile)
 {
     int base_offset = map_grid_offset(
@@ -696,7 +684,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
             state->duration_halt--;
             if (state->duration_halt <= 0) {
                 state->duration_regroup = regroup_duration;
-                set_figures_to_initial(m);
+                m->reset_non_combat_figures_action(FIGURE_ACTION_151_ENEMY_INITIAL);
                 regroup = 0;
                 halt = 1;
             }
@@ -707,7 +695,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
             state->duration_regroup--;
             if (state->duration_regroup <= 0) {
                 state->duration_advance = advance_duration;
-                set_figures_to_initial(m);
+                m->reset_non_combat_figures_action(FIGURE_ACTION_151_ENEMY_INITIAL);
                 advance = 1;
                 regroup = 0;
             }
@@ -718,7 +706,7 @@ static void update_enemy_movement(formation *m, int roman_distance)
             state->duration_advance--;
             if (state->duration_advance <= 0) {
                 state->duration_halt = halt_duration;
-                set_figures_to_initial(m);
+                m->reset_non_combat_figures_action(FIGURE_ACTION_151_ENEMY_INITIAL);
                 halt = 1;
                 advance = 0;
             }
@@ -796,22 +784,11 @@ static void update_enemy_formation(formation *m, int *roman_distance)
         formation_record_fight(m);
     }
     if (formation_has_low_morale(m)) {
-        m->for_each_figure_id([](int figure_id, int) {
-            Figure *f = Figure::get(figure_id);
-            if (f->action_state != FIGURE_ACTION_150_ATTACK &&
-                f->action_state != FIGURE_ACTION_149_CORPSE &&
-                f->action_state != FIGURE_ACTION_148_FLEEING) {
-                f->action_state = FIGURE_ACTION_148_FLEEING;
-                Route::remove(f);
-            }
-        });
+        m->set_non_combat_figures_action(FIGURE_ACTION_148_FLEEING, true);
         return;
     }
-    if (const int figure_id = m->first_figure_id()) {
-        Figure *f = Figure::get(figure_id);
-        if (f->state == FIGURE_STATE_ALIVE) {
-            formation_set_home(m, f->x, f->y);
-        }
+    if (Figure *f = m->first_alive_figure()) {
+        formation_set_home(m, f->x, f->y);
     }
     if (!army->formation_id) {
         army->formation_id = m->id;

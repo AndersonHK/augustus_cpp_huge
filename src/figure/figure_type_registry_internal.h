@@ -3,6 +3,7 @@
 #include "assets/assets.h"
 #include "building/building_type.h"
 #include "figure/type.h"
+#include "graphics/renderer.h"
 
 #include "figure/PathingMode.h"
 
@@ -81,6 +82,8 @@ struct GraphicsPolicy {
     int has_sprite_offset = 0;
     int sprite_offset_x = 0;
     int sprite_offset_y = 0;
+    render_logical_size fixed_logical_size = {};
+    render_scaling_policy scaling_policy = RENDER_SCALING_POLICY_AUTO;
     int action_state = 0;
     int action_min_wait_ticks = 0;
     std::string action_path_pattern;
@@ -101,6 +104,14 @@ struct GraphicsPolicy {
     int cart_high_load_threshold = 0;
     int cart_high_load_y_adjust = 0;
     int cart_direction_3_y_adjust = 0;
+
+    int default_source_count() const;
+    int corpse_source_count() const;
+    int has_native_payload() const;
+    int has_action_native_payload() const;
+    int has_corpse_native_payload() const;
+    int action_graphics_matches(int figure_action_state, int wait_ticks) const;
+    int has_fixed_logical_size() const;
 };
 
 struct EntertainmentVenueTarget {
@@ -109,6 +120,12 @@ struct EntertainmentVenueTarget {
     EntertainmentShowSlot show_slot = EntertainmentShowSlot::None;
 
     building_type resolved_building_type() const;
+};
+
+struct ProfileSpawnBehavior {
+    int action_state = 0;
+    bool has_action_state = false;
+    bool init_roaming = false;
 };
 
 class FigureTypeProfile {
@@ -134,6 +151,7 @@ public:
     void add_venue_target(const EntertainmentVenueTarget &target);
     const std::vector<EntertainmentVenueTarget> &venue_targets() const;
     int resolve_building_references(const char *figure_attr);
+    ProfileSpawnBehavior spawn_behavior() const;
 
 private:
     std::string id_;

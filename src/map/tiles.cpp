@@ -464,6 +464,24 @@ void map_tiles_update_region_tile(
     update_region_tile_refresh_behavior(x_min, y_min, x_max, y_max, tile.refresh_behavior());
 }
 
+void map_tiles_update_area_placement_tile(
+    int x_min,
+    int y_min,
+    int x_max,
+    int y_max,
+    const building_type_registry_impl::TileDefinition &tile)
+{
+    switch (tile.refresh_behavior()) {
+        case building_type_registry_impl::TileRefreshBehavior::Garden:
+            foreach_map_tile_in_region(x_min, y_min, x_max, y_max, clear_garden_image);
+            foreach_map_tile_in_region(x_min, y_min, x_max, y_max, set_garden_image);
+            break;
+        default:
+            update_region_tile_refresh_behavior(x_min, y_min, x_max, y_max, tile.refresh_behavior());
+            break;
+    }
+}
+
 static int get_gatehouse_building_id(int grid_offset)
 {
     if (map_terrain_is(grid_offset, TERRAIN_GATEHOUSE)) {

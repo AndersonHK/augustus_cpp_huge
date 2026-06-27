@@ -583,6 +583,14 @@ static int overlay_draws_building_animation(const Building &building)
             return building.matches("reservoir") || building.matches("fountain");
         case OVERLAY_FOOD_STOCKS:
             return building.matches("market") || (building.type && building.type->is_granary());
+        case OVERLAY_ENTERTAINMENT:
+        case OVERLAY_THEATER:
+        case OVERLAY_AMPHITHEATER:
+        case OVERLAY_ARENA:
+        case OVERLAY_COLOSSEUM:
+        case OVERLAY_HIPPODROME:
+        case OVERLAY_TAVERN:
+            return overlay->show_building(building.record());
         default:
             return 0;
     }

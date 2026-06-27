@@ -6,10 +6,12 @@ from __future__ import annotations
 import argparse
 import traceback
 import ctypes
+from ctypes import wintypes
 import os
 import stat
 import shutil
 import sys
+import time
 from pathlib import Path
 
 
@@ -18,6 +20,63 @@ GOG_GAME_IDS = {"1207658835"}
 GAME_NAME_TOKENS = ("caesar 3", "caesar iii")
 GAME_ROOT_REQUIRED_FILES = ("c3.exe",)
 GAME_ROOT_LOCALE_FILES = ("c3.eng", "c3_mm.eng")
+PROCESS_SNAPSHOT_FLAG = 0x00000002
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+
+
+class PROCESSENTRY32W(ctypes.Structure):
+    _fields_ = [
+        ("dwSize", ctypes.c_ulong),
+        ("cntUsage", ctypes.c_ulong),
+        ("th32ProcessID", ctypes.c_ulong),
+        ("th32DefaultHeapID", ctypes.c_void_p),
+        ("th32ModuleID", ctypes.c_ulong),
+        ("cntThreads", ctypes.c_ulong),
+        ("th32ParentProcessID", ctypes.c_ulong),
+        ("pcPriClassBase", ctypes.c_long),
+        ("dwFlags", ctypes.c_ulong),
+        ("szExeFile", ctypes.c_wchar * 260),
+    ]
+
+
+def windows_process_entries() -> list[tuple[int, int, str]]:
+    if os.name != "nt":
+        return []
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    snapshot = kernel32.CreateToolhelp32Snapshot(PROCESS_SNAPSHOT_FLAG, 0)
+    if snapshot == ctypes.c_void_p(-1).value:
+        return []
+
+    entries: list[tuple[int, int, str]] = []
+    entry = PROCESSENTRY32W()
+    entry.dwSize = ctypes.sizeof(PROCESSENTRY32W)
+    has_entry = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
+    try:
+        while has_entry:
+            entries.append((entry.th32ProcessID, entry.th32ParentProcessID, entry.szExeFile))
+            has_entry = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
+    finally:
+        kernel32.CloseHandle(snapshot)
+    return entries
+
+
+def windows_process_image_path(pid: int) -> Path | None:
+    if os.name != "nt":
+        return None
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    process = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+    if not process:
+        return None
+    try:
+        buffer = ctypes.create_unicode_buffer(32768)
+        size = wintypes.DWORD(len(buffer))
+        if kernel32.QueryFullProcessImageNameW(process, 0, buffer, ctypes.byref(size)):
+            return Path(buffer.value).resolve()
+        return None
+    finally:
+        kernel32.CloseHandle(process)
 
 
 def game_name_matches(value: object) -> bool:
@@ -246,74 +305,204 @@ def require_safe_target_mods(target_mods: Path, game_root: Path) -> Path:
     return resolved_mods
 
 
+def running_processes_under(folder: Path) -> list[str]:
+    root_text = str(folder.resolve()).casefold()
+    matches: list[str] = []
+    for pid, _, exe_name in windows_process_entries():
+        process_path = windows_process_image_path(pid)
+        if not process_path:
+            continue
+        process_text = str(process_path).casefold()
+        if process_text == root_text or process_text.startswith(root_text + os.sep):
+            matches.append(f"{exe_name} (pid {pid})")
+    return matches
+
+
+def require_no_running_game_processes(game_root: Path, dry_run: bool) -> None:
+    running = running_processes_under(game_root)
+    if not running:
+        return
+    message = "Close running Caesar 3/Vespasian processes before deploy: " + ", ".join(running)
+    if dry_run:
+        print(f"WARNING: {message}", file=sys.stderr)
+    else:
+        raise RuntimeError(message)
+
+
 def copy_file(source: Path, destination: Path, dry_run: bool) -> None:
     print(f"{'Would copy' if dry_run else 'Copying'} {source} -> {destination}")
     if not dry_run:
         shutil.copy2(source, destination)
 
 
+def make_writable_and_retry_remove(func: object, path: str, exc_info: object) -> None:
+    try:
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    except OSError:
+        raise
+
+
 def remove_tree(path: Path, label: str) -> None:
     if not path.exists():
         return
+    last_error: OSError | None = None
+    for attempt in range(3):
+        try:
+            shutil.rmtree(path, onerror=make_writable_and_retry_remove)
+            return
+        except OSError as exc:
+            last_error = exc
+            if attempt < 2:
+                time.sleep(0.25)
+    raise RuntimeError(f"Unable to remove {label}: {path}. {describe_os_error(last_error)}") from last_error
+
+
+def remove_path(path: Path, label: str) -> None:
+    if not path.exists():
+        return
+    if path.is_dir() and not path.is_symlink():
+        remove_tree(path, label)
+        return
     try:
-        shutil.rmtree(path)
+        path.unlink()
     except OSError as exc:
-        raise RuntimeError(f"Unable to remove {label}: {path}. Close any open files under it and retry.") from exc
+        raise RuntimeError(f"Unable to remove {label}: {path}. {describe_os_error(exc)}") from exc
+
+
+def clear_directory(path: Path, label: str) -> None:
+    if not path.exists():
+        path.mkdir(parents=True)
+        return
+    if not path.is_dir() or path.is_symlink():
+        raise RuntimeError(f"{label} must be a real directory: {path}")
+    for entry in list(path.iterdir()):
+        remove_path(entry, f"{label} entry")
+
+
+def copy_directory_contents(source: Path, destination: Path, label: str) -> None:
+    if not source.is_dir():
+        raise RuntimeError(f"{label} source folder does not exist: {source}")
+    destination.mkdir(parents=True, exist_ok=True)
+    for entry in source.iterdir():
+        target = destination / entry.name
+        try:
+            if entry.is_dir() and not entry.is_symlink():
+                shutil.copytree(entry, target)
+            else:
+                shutil.copy2(entry, target)
+        except OSError as exc:
+            raise RuntimeError(f"Unable to copy {label}: {entry} -> {target}. {describe_os_error(exc)}") from exc
+
+
+def describe_os_error(exc: OSError) -> str:
+    parts: list[str] = []
+    if getattr(exc, "winerror", None):
+        parts.append(f"WinError {exc.winerror}")
+    elif getattr(exc, "errno", None):
+        parts.append(f"errno {exc.errno}")
+    if getattr(exc, "strerror", None):
+        parts.append(str(exc.strerror))
+    if getattr(exc, "filename", None):
+        parts.append(f"path={exc.filename}")
+    if getattr(exc, "filename2", None):
+        parts.append(f"target={exc.filename2}")
+    return "; ".join(parts) if parts else str(exc)
+
+
+def remove_unexpected_target_mod_entries(target_mods: Path, dry_run: bool) -> None:
+    for entry in list(target_mods.iterdir()):
+        if entry.name in EXPECTED_MOD_FOLDERS and entry.is_dir():
+            continue
+        print(f"{'Would remove' if dry_run else 'Removing'} unexpected target Mods entry: {entry}")
+        if not dry_run:
+            remove_path(entry, "unexpected target Mods entry")
 
 
 def replace_mods_folder(source_mods: Path, target_mods: Path, game_root: Path, dry_run: bool) -> None:
     staging_mods = game_root / "Mods.deploy-staging"
     backup_mods = game_root / "Mods.deploy-backup"
 
-    print(f"{'Would prepare' if dry_run else 'Preparing'} staged Mods folder: {staging_mods}")
     if dry_run:
+        print(f"Would ensure target Mods folder exists: {target_mods}")
+        if target_mods.exists():
+            remove_unexpected_target_mod_entries(target_mods, True)
+        print(f"Would prepare staged Mods folder: {staging_mods}")
         print(f"Would copy {source_mods} -> {staging_mods}")
-        if target_mods.exists():
-            print(f"Would rename {target_mods} -> {backup_mods}")
-        else:
-            print(f"Target Mods folder is missing; would promote staged folder directly.")
-        print(f"Would rename {staging_mods} -> {target_mods}")
-        if target_mods.exists():
-            print(f"Would remove old backup {backup_mods}")
+        for folder in sorted(EXPECTED_MOD_FOLDERS):
+            print(f"Would backup, clear, and refill mod folder {target_mods / folder} from {staging_mods / folder}")
+        print(f"Would remove old backup {backup_mods}")
         return
 
+    target_mods.mkdir(parents=False, exist_ok=True)
+    remove_unexpected_target_mod_entries(target_mods, False)
+
+    print(f"Preparing staged Mods folder: {staging_mods}")
     remove_tree(staging_mods, "stale staged Mods folder")
     remove_tree(backup_mods, "stale backup Mods folder")
 
     try:
         shutil.copytree(source_mods, staging_mods)
         require_exact_mod_contents(staging_mods, "Staged")
-
-        if target_mods.exists():
-            print(f"Renaming current Mods folder to backup: {target_mods} -> {backup_mods}")
-            target_mods.rename(backup_mods)
-        else:
-            print("Target Mods folder is missing; promoting staged folder directly.")
-
-        print(f"Promoting staged Mods folder: {staging_mods} -> {target_mods}")
-        staging_mods.rename(target_mods)
     except OSError as exc:
-        if staging_mods.exists():
-            try:
-                shutil.rmtree(staging_mods)
-            except OSError:
-                pass
-        if backup_mods.exists() and not target_mods.exists():
-            try:
-                backup_mods.rename(target_mods)
-            except OSError:
-                pass
+        remove_tree(staging_mods, "staged Mods folder after failed deploy")
+        remove_tree(backup_mods, "backup Mods folder after failed deploy")
         raise RuntimeError(
-            "Unable to atomically replace the target Mods folder. "
-            "Close any files open under the game Mods directory and retry."
+            "Unable to stage replacement mod folders before touching the target Mods folder. "
+            f"Detail: {describe_os_error(exc)}"
         ) from exc
 
+    backup_mods.mkdir()
+
+    try:
+        for folder in sorted(EXPECTED_MOD_FOLDERS):
+            staged_folder = staging_mods / folder
+            target_folder = target_mods / folder
+            backup_folder = backup_mods / folder
+            if target_folder.exists():
+                print(f"Copying backup of mod folder: {target_folder} -> {backup_folder}")
+                try:
+                    shutil.copytree(target_folder, backup_folder)
+                except OSError as exc:
+                    raise RuntimeError(
+                        f"Unable to copy backup of target mod folder: {target_folder} -> {backup_folder}. "
+                        f"{describe_os_error(exc)}"
+                    ) from exc
+
+            print(f"Clearing target mod folder: {target_folder}")
+            clear_directory(target_folder, "target mod folder")
+            print(f"Copying staged mod contents: {staged_folder} -> {target_folder}")
+            copy_directory_contents(staged_folder, target_folder, "staged mod folder")
+
+        require_exact_mod_contents(target_mods, "Target")
+    except RuntimeError as exc:
+        restore_errors: list[str] = []
+        for folder in sorted(EXPECTED_MOD_FOLDERS):
+            target_folder = target_mods / folder
+            backup_folder = backup_mods / folder
+            if not backup_folder.exists():
+                continue
+            try:
+                clear_directory(target_folder, "partially deployed mod folder")
+                copy_directory_contents(backup_folder, target_folder, "target mod folder restore")
+            except RuntimeError as restore_exc:
+                restore_errors.append(str(restore_exc))
+        remove_tree(staging_mods, "staged Mods folder after failed deploy")
+        if restore_errors:
+            raise RuntimeError(
+                "Unable to replace target mod folders, and restore from backups had errors: "
+                + " | ".join(restore_errors)
+            ) from exc
+        remove_tree(backup_mods, "backup Mods folder after restored failed deploy")
+        raise
+
+    remove_tree(staging_mods, "empty staged Mods folder")
     if backup_mods.exists():
         try:
             shutil.rmtree(backup_mods)
         except OSError as exc:
             print(
-                f"WARNING: Deployed fresh Mods folder, but could not remove old backup {backup_mods}. "
+                f"WARNING: Deployed fresh Mods folders, but could not remove old backup {backup_mods}. "
                 "Close open files there and delete it manually when convenient.",
                 file=sys.stderr,
             )
@@ -329,6 +518,7 @@ def deploy_release(dry_run: bool) -> None:
     require_game_root(game_root)
     print(f"Registry source: {registry_source}")
     print(f"Game folder: {game_root}")
+    require_no_running_game_processes(game_root, dry_run)
 
     target_mods = require_safe_target_mods(game_root / "Mods", game_root)
 
@@ -348,6 +538,7 @@ def deploy_release(dry_run: bool) -> None:
     else:
         print("Release debug symbols: not found; skipping Vespasian.pdb")
 
+    require_no_running_game_processes(game_root, dry_run)
     replace_mods_folder(source_mods, target_mods, game_root, dry_run)
 
     copy_file(exe_path, game_root / exe_path.name, dry_run)
@@ -381,56 +572,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def parent_process_name() -> str:
-    if os.name != "nt":
-        return ""
-
-    class PROCESSENTRY32W(ctypes.Structure):
-        _fields_ = [
-            ("dwSize", ctypes.c_ulong),
-            ("cntUsage", ctypes.c_ulong),
-            ("th32ProcessID", ctypes.c_ulong),
-            ("th32DefaultHeapID", ctypes.c_void_p),
-            ("th32ModuleID", ctypes.c_ulong),
-            ("cntThreads", ctypes.c_ulong),
-            ("th32ParentProcessID", ctypes.c_ulong),
-            ("pcPriClassBase", ctypes.c_long),
-            ("dwFlags", ctypes.c_ulong),
-            ("szExeFile", ctypes.c_wchar * 260),
-        ]
-
-    kernel32 = ctypes.windll.kernel32
-    snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-    if snapshot == ctypes.c_void_p(-1).value:
-        return ""
-
-    try:
-        current_pid = os.getpid()
-        parent_pid = 0
-        entry = PROCESSENTRY32W()
-        entry.dwSize = ctypes.sizeof(entry)
-        if not kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
-            return ""
-        while True:
-            if entry.th32ProcessID == current_pid:
-                parent_pid = entry.th32ParentProcessID
-                break
-            if not kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
-                break
-        if not parent_pid:
-            return ""
-
-        entry = PROCESSENTRY32W()
-        entry.dwSize = ctypes.sizeof(entry)
-        if not kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
-            return ""
-        while True:
-            if entry.th32ProcessID == parent_pid:
-                return entry.szExeFile.casefold()
-            if not kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
-                break
-    finally:
-        kernel32.CloseHandle(snapshot)
-    return ""
+    entries = {pid: (parent_pid, exe_name) for pid, parent_pid, exe_name in windows_process_entries()}
+    parent_pid = entries.get(os.getpid(), (0, ""))[0]
+    return entries.get(parent_pid, (0, ""))[1].casefold() if parent_pid else ""
 
 
 def should_pause_on_exit(args: argparse.Namespace) -> bool:

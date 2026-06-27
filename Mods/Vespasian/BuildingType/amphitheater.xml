@@ -17,7 +17,7 @@
         <culture_module path="theater" capacity="1500" upgrade_bonus="500" count="active" />
     </culture_modules>
     <graphics>
-        <default>
+        <default animation="0">
             <path value="Health_Culture\Amphitheater" />
             <image value="Image_0000" />
         </default>
@@ -28,7 +28,7 @@
             <path value="Health_Culture\Amphitheater" />
             <image value="Amphitheatre Upgrade ON" />
         </variant>
-        <variant>
+        <variant animation="0">
             <condition type="desirability" operator="gt" threshold="45" />
             <path value="Health_Culture\Amphitheater" />
             <image value="Amphitheatre Upgrade OFF" />

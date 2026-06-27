@@ -342,48 +342,12 @@ Figure *figure_runtime_create_profiled(
     }
 
     f->building = building;
-    // The profile owns the lifecycle; these legacy action states remain the
-    // save-compatible storage used to rebind the same profile after load.
-    switch (profile->native_class()) {
-        case figure_type_registry_impl::NativeClassId::EngineerService:
-            f->action_state = FIGURE_ACTION_60_ENGINEER_CREATED;
-            break;
-        case figure_type_registry_impl::NativeClassId::PrefectService:
-            f->action_state = FIGURE_ACTION_70_PREFECT_CREATED;
-            break;
-        case figure_type_registry_impl::NativeClassId::EntertainmentService:
-            f->action_state = FIGURE_ACTION_94_ENTERTAINER_ROAMING;
-            figure_movement_init_roaming(f);
-            break;
-        case figure_type_registry_impl::NativeClassId::EntertainmentVenueSeeker:
-            f->action_state = FIGURE_ACTION_90_ENTERTAINER_AT_SCHOOL_CREATED;
-            break;
-        case figure_type_registry_impl::NativeClassId::MarketSupplier:
-            f->action_state = FIGURE_ACTION_145_SUPPLIER_GOING_TO_STORAGE;
-            break;
-        case figure_type_registry_impl::NativeClassId::DepotCartPusher:
-            f->action_state = FIGURE_ACTION_238_DEPOT_CART_PUSHER_INITIAL;
-            break;
-        case figure_type_registry_impl::NativeClassId::FishingBoat:
-            f->action_state = FIGURE_ACTION_190_FISHING_BOAT_CREATED;
-            break;
-        case figure_type_registry_impl::NativeClassId::LegacyAction:
-            break;
-        case figure_type_registry_impl::NativeClassId::DeliveryFollower:
-            break;
-        case figure_type_registry_impl::NativeClassId::TransientWanderer:
-            if (profile->pathing_policy().mode == &figure_type_registry_impl::StandStill) {
-                f->action_state = 0;
-            } else {
-                f->action_state = FIGURE_ACTION_125_ROAMING;
-                figure_movement_init_roaming(f);
-            }
-            break;
-        case figure_type_registry_impl::NativeClassId::RoamingService:
-        default:
-            f->action_state = FIGURE_ACTION_125_ROAMING;
-            figure_movement_init_roaming(f);
-            break;
+    const figure_type_registry_impl::ProfileSpawnBehavior spawn_behavior = profile->spawn_behavior();
+    if (spawn_behavior.has_action_state) {
+        f->action_state = static_cast<unsigned char>(spawn_behavior.action_state);
+    }
+    if (spawn_behavior.init_roaming) {
+        figure_movement_init_roaming(f);
     }
 
     if (!figure_runtime_bind_profile(f, profile_id)) {
@@ -433,6 +397,15 @@ const figure_type_registry_impl::PathingPolicy *figure_runtime_pathing_policy(Fi
 {
     RuntimeEntry *entry = bind_entry(f);
     return entry && entry->profile ? &entry->profile->pathing_policy() : nullptr;
+}
+
+roadblock_permission figure_runtime_roadblock_permission(Figure *f)
+{
+    const figure_type_registry_impl::PathingPolicy *pathing = figure_runtime_pathing_policy(f);
+    if (!f || !pathing || !pathing->mode) {
+        return f ? Roadblock::permission_for(*f) : PERMISSION_NONE;
+    }
+    return pathing->mode->roadblockPermissionFor(*f);
 }
 
 int figure_runtime_update_graphics(Figure *f)
