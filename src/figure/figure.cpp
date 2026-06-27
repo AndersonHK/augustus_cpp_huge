@@ -1,5 +1,6 @@
 #include "figure/figure.h"
 
+#include "assets/assets.h"
 #include "building/building_record.h"
 #include "building/building_type_registry_internal.h"
 #include "building/monument.h"
@@ -17,16 +18,82 @@
 #include "figure/route.h"
 #include "figure/trader.h"
 #include "figure/visited_buildings.h"
+#include "figuretype/animal.h"
+#include "figuretype/cartpusher.h"
+#include "figuretype/depot.h"
+#include "figuretype/enemy.h"
+#include "figuretype/supplier.h"
+#include "figuretype/trader.h"
+#include "figuretype/water.h"
+#include "figuretype/workcamp.h"
 #include "game/resource.h"
 #include "game/resource_id_bridge.h"
 #include "game/save_version.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
+#include "graphics/text.h"
+#include "graphics/ui_constants.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/road_service_history.h"
+#include "scenario/property.h"
+#include "window/building/common.h"
 
 #include <cstdlib>
 #include <memory>
 #include <vector>
+
+#define CAMEL_PORTRAIT 59
+
+static const int FIGURE_TYPE_TO_BIG_FIGURE_IMAGE[] = {
+    8, 4, 4, 9, 51, 13, 8, 16, 7, 4, // 0-9
+    18, 42, 26, 41, 8, 1, 33, 10, 11, 25, //10-19
+    61, 25, 15, 15, 15, 60, 12, 14, 5, 52, //20-29
+    52, 2, 3, 6, 6, 13, 8, 8, 17, 12, //30-39
+    58, 21, 50, 8, 8, 8, 28, 30, 23, 8, //40-49
+    8, 8, 34, 39, 33, 43, 27, 48, 63, 8, //50-59
+    8, 8, 8, 8, 53, 8, 38, 62, 54, 55, //60-69
+    56, 8, 8, 58, 0, 7, 50, 0, 14, 3, //70-79
+    3, 58, 50, 0, 0, 3, 15, 15, 0, 51, //80-89
+    0, 0, 7, 17, 7, 0, 0, 0, 0, 0, 0, //90-99
+};
+
+static const translation_key NEW_FIGURE_TYPES[] = {
+    "TR_FIGURE_TYPE_WORK_CAMP_WORKER", "TR_FIGURE_TYPE_WORK_CAMP_SLAVE", "TR_FIGURE_TYPE_WORK_CAMP_ARCHITECT",
+    "TR_FIGURE_TYPE_MESS_HALL_SUPPLIER", "TR_FIGURE_TYPE_MESS_HALL_COLLECTOR", "TR_FIGURE_TYPE_PRIEST_SUPPLIER",
+    "TR_FIGURE_TYPE_BARKEEP", "TR_FIGURE_TYPE_BARKEEP_SUPPLIER", "TR_FIGURE_TYPE_TOURIST",
+    "TR_FIGURE_TYPE_WATCHMAN", {}, {}, "TR_FIGURE_TYPE_CARAVANSERAI_SUPPLIER", "TR_FIGURE_TYPE_ROBBER",
+    "TR_FIGURE_TYPE_LOOTER", "TR_FIGURE_TYPE_CARAVANSERAI_COLLECTOR", "TR_FIGURE_TYPE_LIGHTHOUSE_SUPPLIER",
+    "TR_FIGURE_TYPE_MESS_HALL_COLLECTOR", {}, "TR_BUILDING_FORT_AUXILIA_INFANTRY", "TR_FIGURE_TYPE_BEGGAR",
+    "TR_BUILDING_FORT_ARCHERS", {}, {}
+};
+
+static ImageGroupEntryRef big_people_image_ref(figure_type type)
+{
+    switch (type) {
+        case FIGURE_WORK_CAMP_SLAVE:
+            return ImageGroupEntryRef::from_group("Walkers\\Slave_Portrait", "Slave Portrait");
+        case FIGURE_CARAVANSERAI_SUPPLIER:
+            return ImageGroupEntryRef::from_group("Walkers\\caravanserai_overseer_portrait", "caravanserai_overseer_portrait");
+        case FIGURE_CARAVANSERAI_COLLECTOR:
+            return ImageGroupEntryRef::from_group("Walkers\\caravanserai_walker_portrait", "caravanserai_walker_portrait");
+        case FIGURE_MESS_HALL_COLLECTOR:
+        case FIGURE_MESS_HALL_FORT_SUPPLIER:
+            return ImageGroupEntryRef::from_group("Walkers\\M_Hall_Portrait", "M Hall Portrait");
+        case FIGURE_BARKEEP:
+        case FIGURE_BARKEEP_SUPPLIER:
+            return ImageGroupEntryRef::from_group("Walkers\\Barkeep_Portrait", "Barkeep Portrait");
+        case FIGURE_WORK_CAMP_ARCHITECT:
+            return ImageGroupEntryRef::from_group("Walkers\\architect_portrait", "architect_portrait");
+        case FIGURE_WORK_CAMP_WORKER:
+            return ImageGroupEntryRef::from_group("Walkers\\overseer_portrait", "overseer_portrait");
+        case FIGURE_MESS_HALL_SUPPLIER:
+            return ImageGroupEntryRef::from_group("Walkers\\quartermaster_portrait", "quartermaster_portrait");
+        default:
+            return ImageGroupEntryRef();
+    }
+}
 
 namespace {
 
@@ -58,7 +125,7 @@ Figure *invalid_figure()
 
 unsigned int save_id_for(const Building &building)
 {
-    return building.id();
+    return building.id;
 }
 
 Building loaded_building_ref(unsigned int id)
@@ -105,58 +172,18 @@ int get_resource_id(figure_type type, int resource)
     }
 }
 
-int clear_building_figure_slot_if_matches(::building *b, unsigned int figure_id)
-{
-    if (!b || !figure_id) {
-        return 0;
-    }
-    int cleared = 0;
-    if (b->figure_id == figure_id) {
-        b->figure_id = 0;
-        cleared = 1;
-    }
-    if (b->figure_id2 == figure_id) {
-        b->figure_id2 = 0;
-        cleared = 1;
-    }
-    if (b->immigrant_figure_id == figure_id) {
-        b->immigrant_figure_id = 0;
-        cleared = 1;
-    }
-    if (b->figure_id4 == figure_id) {
-        b->figure_id4 = 0;
-        cleared = 1;
-    }
-    return cleared;
-}
-
-int clear_distribution_figure_slot_if_matches(::building *b, unsigned int figure_id)
-{
-    if (!b || !figure_id) {
-        return 0;
-    }
-    int cleared = 0;
-    for (int i = 0; i < 3; i++) {
-        if (b->data.distribution.cartpusher_ids[i] == figure_id) {
-            b->data.distribution.cartpusher_ids[i] = 0;
-            cleared = 1;
-        }
-    }
-    return cleared;
-}
-
-int clear_known_building_refs_for_figure(const Figure &figure)
+int clear_known_building_refs_for_figure(Figure &figure)
 {
     int cleared = 0;
-    cleared |= clear_building_figure_slot_if_matches(building_get(figure.building.id()), figure.id());
-    cleared |= clear_building_figure_slot_if_matches(building_get(figure.destination_building.id()), figure.id());
-    cleared |= clear_building_figure_slot_if_matches(building_get(figure.immigrant_building.id()), figure.id());
+    cleared |= figure.building.clear_figure_slot_if_matches(figure.id());
+    cleared |= figure.destination_building.clear_figure_slot_if_matches(figure.id());
+    cleared |= figure.immigrant_building.clear_figure_slot_if_matches(figure.id());
     return cleared;
 }
 
 int figure_may_be_tracked_by_building_slot(const Figure &figure)
 {
-    if (figure.building.id() || figure.destination_building.id() || figure.immigrant_building.id()) {
+    if (figure.building.id || figure.destination_building.id || figure.immigrant_building.id) {
         return 1;
     }
     switch (static_cast<figure_type>(figure.type)) {
@@ -193,7 +220,7 @@ void clear_any_building_refs_for_figure(const Figure &figure)
 {
     const unsigned int figure_id = figure.id();
     for (int building_id = 1; building_id < Building::count(); building_id++) {
-        clear_building_figure_slot_if_matches(building_get(building_id), figure_id);
+        Building(building_get(building_id)).clear_figure_slot_if_matches(figure_id);
     }
 }
 
@@ -604,11 +631,10 @@ void Figure::remove()
 {
     release_destination_reservations();
     const int cleared_known_slot = clear_known_building_refs_for_figure(*this);
-    ::building *b = building_get(building.id());
     switch (type) {
         case FIGURE_DOCKER:
         case FIGURE_DEPOT_CART_PUSHER:
-            clear_distribution_figure_slot_if_matches(b, id());
+            building.clear_distribution_cartpusher_slot_if_matches(id());
             break;
         case FIGURE_ENEMY_CAESAR_LEGIONARY:
             city_emperor_mark_soldier_killed();
@@ -657,7 +683,7 @@ void Figure::remove()
 
 void Figure::release_destination_reservations()
 {
-    if (!destination_building.id()) {
+    if (!destination_building.id) {
         return;
     }
     destination_building.release_input_storage_reservation(id());
@@ -666,24 +692,24 @@ void Figure::release_destination_reservations()
 
 int Figure::retarget_building(const Building &from, const Building &to)
 {
-    const unsigned int from_id = from.id();
-    const unsigned int to_id = to.id();
+    const unsigned int from_id = from.id;
+    const unsigned int to_id = to.id;
     if (!from_id || !to_id || from_id == to_id) {
         return 0;
     }
 
     int changed = 0;
     int destination_changed = 0;
-    if (building.id() == from_id) {
+    if (building.id == from_id) {
         building = to;
         changed = 1;
     }
-    if (immigrant_building.id() == from_id) {
+    if (immigrant_building.id == from_id) {
         immigrant_building = to;
         changed = 1;
         destination_changed = 1;
     }
-    if (destination_building.id() == from_id) {
+    if (destination_building.id == from_id) {
         destination_building = to;
         changed = 1;
         destination_changed = 1;
@@ -784,6 +810,141 @@ int Figure::is_category(figure_category_mask category_mask) const
 {
     const figure_properties *props = figure_properties_for_type(static_cast<figure_type>(type));
     return figure_category_mask_has_any(props->category, category_mask);
+}
+
+int Figure::uses_tall_info_panel() const
+{
+    return type == FIGURE_TRADE_CARAVAN ||
+        type == FIGURE_TRADE_CARAVAN_DONKEY ||
+        type == FIGURE_TRADE_SHIP ||
+        type == FIGURE_NATIVE_TRADER;
+}
+
+int Figure::has_info_action_button() const
+{
+    if (type == FIGURE_DEPOT_CART_PUSHER) {
+        return !reinterpret_cast<const figuretype::DepotCartPusher *>(this)->is_recalled();
+    }
+    return 0;
+}
+
+void Figure::handle_info_action_button()
+{
+    if (type == FIGURE_DEPOT_CART_PUSHER) {
+        reinterpret_cast<figuretype::DepotCartPusher *>(this)->recall();
+    }
+}
+
+int Figure::big_people_image_id(figure_type figure_type)
+{
+    switch (figure_type) {
+        case FIGURE_TRADE_CARAVAN_DONKEY:
+        case FIGURE_TRADE_CARAVAN:
+            if (scenario_property_climate() == CLIMATE_DESERT) {
+                return Image::group(GROUP_BIG_PEOPLE) + CAMEL_PORTRAIT - 1;
+            }
+            break;
+        case FIGURE_DEPOT_CART_PUSHER:
+            return assets_lookup_image_id(ASSET_OX);
+        case FIGURE_FORT_INFANTRY:
+            return assets_get_image_id("Warriors", "auxinf_portrait");
+        case FIGURE_FORT_ARCHER:
+            return assets_get_image_id("Warriors", "auxarch_portrait");
+        case FIGURE_ENEMY_CATAPULT:
+            return assets_get_image_id("Warriors", "catapult_portrait");
+        default:
+            break;
+    }
+    return Image::group(GROUP_BIG_PEOPLE) + FIGURE_TYPE_TO_BIG_FIGURE_IMAGE[figure_type] - 1;
+}
+
+void Figure::draw_big_people_image(figure_type figure_type, int x, int y)
+{
+    ImageGroupEntryRef ref = big_people_image_ref(figure_type);
+    if (ref.is_bound()) {
+        ref.draw(x, y);
+    } else {
+        Image::from_id(big_people_image_id(figure_type)).draw(x, y);
+    }
+}
+
+void Figure::draw_big_people_image(int x, int y) const
+{
+    draw_big_people_image(static_cast<figure_type>(type), x, y);
+}
+
+translation_key Figure::new_type_translation_key(figure_type figure_type)
+{
+    if (figure_type < FIGURE_NEW_TYPES || figure_type >= FIGURE_TYPE_MAX) {
+        return {};
+    }
+    return NEW_FIGURE_TYPES[figure_type - FIGURE_NEW_TYPES];
+}
+
+translation_key Figure::type_translation_key() const
+{
+    return new_type_translation_key(static_cast<figure_type>(type));
+}
+
+void Figure::draw(building_info_context *c)
+{
+    if (action_state == FIGURE_ACTION_74_PREFECT_GOING_TO_FIRE ||
+        action_state == FIGURE_ACTION_75_PREFECT_AT_FIRE) {
+        Image::from_id(Image::group(GROUP_BIG_PEOPLE) + 18).draw(c->x_offset + 28, c->y_offset + 112);
+    } else {
+        draw_big_people_image(c->x_offset + 28, c->y_offset + 112);
+    }
+
+    lang_text_draw(current_string_key(65, name), c->x_offset + 90, c->y_offset + 108,
+        FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
+    const translation_key custom_type = type_translation_key();
+    if (custom_type.id) {
+        text_draw(translation_for(custom_type), c->x_offset + 92, c->y_offset + 139,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+    } else {
+        lang_text_draw(current_string_key(64, type), c->x_offset + 92, c->y_offset + 139,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+    }
+
+    if (c->figure.phrase_id >= 0) {
+        lang_text_draw_multiline(current_string_key(130, 21 * c->figure.sound_id + c->figure.phrase_id + 1),
+            c->x_offset + 90, c->y_offset + 160, BLOCK_SIZE * (c->width_blocks - 8),
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+    }
+
+    if (tourist.tourist_money_spent) {
+        int width = text_draw(translation_for_key("TR_WINDOW_FIGURE_TOURIST"),
+            c->x_offset + 92, c->y_offset + 180,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+        text_draw_money(tourist.tourist_money_spent, c->x_offset + 92 + width, c->y_offset + 180,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+    }
+}
+
+void Figure::draw_figure_info(building_info_context *c)
+{
+    if (type == FIGURE_TRADE_CARAVAN || type == FIGURE_TRADE_CARAVAN_DONKEY ||
+        type == FIGURE_TRADE_SHIP || type == FIGURE_NATIVE_TRADER) {
+        reinterpret_cast<figuretype::Trader *>(this)->draw(c);
+    } else if (type >= FIGURE_ENEMY43_SPEAR && type <= FIGURE_ENEMY53_AXE) {
+        reinterpret_cast<figuretype::Enemy *>(this)->draw(c);
+    } else if (type == FIGURE_FISHING_BOAT) {
+        reinterpret_cast<figuretype::Boat *>(this)->draw(c);
+    } else if (type == FIGURE_SHIPWRECK || is_herd()) {
+        reinterpret_cast<figuretype::Animal *>(this)->draw(c);
+    } else if (type == FIGURE_CART_PUSHER || type == FIGURE_WAREHOUSEMAN || type == FIGURE_DOCKER) {
+        reinterpret_cast<figuretype::CartPusher *>(this)->draw(c);
+    } else if (type == FIGURE_MARKET_SUPPLIER || type == FIGURE_MESS_HALL_SUPPLIER ||
+        type == FIGURE_PRIEST_SUPPLIER || type == FIGURE_BARKEEP_SUPPLIER ||
+        type == FIGURE_CARAVANSERAI_SUPPLIER || type == FIGURE_LIGHTHOUSE_SUPPLIER) {
+        reinterpret_cast<figuretype::Supplier *>(this)->draw(c);
+    } else if (type == FIGURE_WORK_CAMP_WORKER || type == FIGURE_WORK_CAMP_SLAVE) {
+        reinterpret_cast<figuretype::WorkCampWorker *>(this)->draw(c);
+    } else if (type == FIGURE_DEPOT_CART_PUSHER) {
+        reinterpret_cast<figuretype::DepotCartPusher *>(this)->draw(c);
+    } else {
+        draw(c);
+    }
 }
 
 int Figure::target_is_alive() const

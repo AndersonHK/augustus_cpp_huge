@@ -417,7 +417,7 @@ static void assign_fort_formation_to_parts(building *main_record)
     }
     Building fort_object(main_record);
     const int formation_id = formation_legion_create_for_fort(fort_object);
-    for (Building part(main_record); part.id(); part = part.next()) {
+    for (Building part(main_record); part.id; part = part.next()) {
         part.set_formation_id(formation_id);
         if (!part.next_part_id()) {
             break;
@@ -433,7 +433,7 @@ static void add_depot(building *b)
 
 static void add_granary(building *b)
 {
-    b->storage_id = building_storage_create(b->id);
+    Building(b).set_storage_id(building_storage_create(b->id));
     add_building(b);
     map_update_granary_internal_roads(b);
     map_tiles_update_area_roads(b->x, b->y, 5);
@@ -464,7 +464,7 @@ static void add_to_map(
     }
     if (definition.has_composition()) {
         if (definition.is_warehouse()) {
-            b->storage_id = building_storage_create(b->id);
+            building_obj.set_storage_id(building_storage_create(b->id));
             b->subtype.orientation = orientation;
         } else if (building_is_fort(type)) {
             b->subtype.fort_figure_type = building_count_forts_get_figure_type_from_building(type);

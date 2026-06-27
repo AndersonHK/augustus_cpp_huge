@@ -19,11 +19,48 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "game/ResourceGraphics.h"
 #include "game/time.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
+#include "graphics/text.h"
+#include "graphics/ui_constants.h"
 #include "map/figure.h"
 #include "map/grid.h"
+#include "translation/translation.h"
+#include "window/building/common.h"
 
 #define VALID_MONUMENT_RECHECK_TICKS 60
+
+void figuretype::WorkCampWorker::draw(building_info_context *c)
+{
+    draw_big_people_image(c->x_offset + 28, c->y_offset + 112);
+
+    lang_text_draw(current_string_key(65, name), c->x_offset + 90, c->y_offset + 108,
+        FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
+    int width = text_draw(translation_for(new_type_translation_key(static_cast<figure_type>(type))),
+        c->x_offset + 92, c->y_offset + 139,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+    resource_type resource = static_cast<resource_type>(collecting_item_id);
+
+    if (action_state == FIGURE_ACTION_204_WORK_CAMP_WORKER_GETTING_RESOURCES) {
+        width += lang_text_draw("main_strings.129.17", c->x_offset + 90 + width, c->y_offset + 139,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+        resource_graphics(resource).panel_icon().draw(c->x_offset + 90 + width, c->y_offset + 135);
+    } else if (action_state == FIGURE_ACTION_205_WORK_CAMP_WORKER_GOING_TO_MONUMENT ||
+        action_state == FIGURE_ACTION_209_WORK_CAMP_SLAVE_FOLLOWING ||
+        action_state == FIGURE_ACTION_210_WORK_CAMP_SLAVE_GOING_TO_MONUMENT ||
+        action_state == FIGURE_ACTION_211_WORK_CAMP_SLAVE_DELIVERING_RESOURCES) {
+        width += lang_text_draw("main_strings.129.18", c->x_offset + 90 + width, c->y_offset + 139,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+        resource_graphics(resource).panel_icon().draw(c->x_offset + 90 + width, c->y_offset + 135);
+    }
+    if (c->figure.phrase_id >= 0) {
+        lang_text_draw_multiline(current_string_key(130, 21 * c->figure.sound_id + c->figure.phrase_id + 1),
+            c->x_offset + 90, c->y_offset + 160, BLOCK_SIZE * (c->width_blocks - 8),
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+    }
+}
 
 static int create_slave_workers(int leader_id, int first_figure_id)
 {
@@ -38,7 +75,7 @@ static int create_slave_workers(int leader_id, int first_figure_id)
     slave->destination_y = f->destination_y;
     slave->action_state = FIGURE_ACTION_209_WORK_CAMP_SLAVE_FOLLOWING;
     slave->wait_ticks = game_time_scale_legacy_day_ticks(VALID_MONUMENT_RECHECK_TICKS);
-    building_monument_add_delivery(slave->destination_building.id(), slave->id(), slave->collecting_item_id, 1);
+    building_monument_add_delivery(slave->destination_building.id, slave->id(), slave->collecting_item_id, 1);
     return slave->id();
 }
 
@@ -48,7 +85,7 @@ static int take_resource_from_warehouse(Figure *f, int warehouse_id)
     Building warehouse(building_get(warehouse_id));
     Building monument = f->destination_building;
     int resources_needed = monument.resource_amount(resource) -
-        building_monument_resource_in_delivery(building_get(monument.id()), resource);
+        building_monument_resource_in_delivery(building_get(monument.id), resource);
     int num_loads;
     int stored = building_warehouse_get_amount(warehouse, resource);
     if (stored <= CARTLOADS_PER_MONUMENT_DELIVERY) {
@@ -88,7 +125,7 @@ static int has_valid_monument_destination(Figure *f)
 void figure_workcamp_worker_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     int monument_id;
     int warehouse_id;
     map_point dst;
@@ -135,7 +172,7 @@ void figure_workcamp_worker_action(Figure *f)
                 building_monument_add_delivery(monument_id, f->id(), resource, resources_needed);
                 break;
             }
-            if (!f->destination_building.id()) {
+            if (!f->destination_building.id) {
                 f->state = FIGURE_STATE_DEAD;
             }
             break;
@@ -148,7 +185,7 @@ void figure_workcamp_worker_action(Figure *f)
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
                 building_monument_remove_delivery(f->id());
-                warehouse_id = f->destination_building.id();
+                warehouse_id = f->destination_building.id;
                 monument_id = building_monument_get_monument(b->x, b->y, f->collecting_item_id, b->road_network_id, &dst);
                 f->action_state = FIGURE_ACTION_205_WORK_CAMP_WORKER_GOING_TO_MONUMENT;
                 f->destination_building = Building(building_get(monument_id));
@@ -179,7 +216,7 @@ void figure_workcamp_worker_action(Figure *f)
             if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
                 f->wait_ticks = game_time_scale_legacy_day_ticks(VALID_MONUMENT_RECHECK_TICKS);
                 f->action_state = FIGURE_ACTION_216_WORK_CAMP_WORKER_ENTERING_MONUMENT;
-                building *monument = building_get(f->destination_building.id());
+                building *monument = building_get(f->destination_building.id);
                 if (!building_monument_access_point(monument, &dst)) {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -262,7 +299,7 @@ void figure_workcamp_slave_action(Figure *f)
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION || f->direction == DIR_FIGURE_LOST) {
                 f->action_state = FIGURE_ACTION_211_WORK_CAMP_SLAVE_DELIVERING_RESOURCES;
-                building *monument = building_get(f->destination_building.id());
+                building *monument = building_get(f->destination_building.id);
                 if (!building_monument_access_point(monument, &dst)) {
                     f->state = FIGURE_STATE_DEAD;
                 }
@@ -282,7 +319,7 @@ void figure_workcamp_slave_action(Figure *f)
             f->use_cross_country = 1;
             f->dont_draw_elevated = 1;
             if (figure_movement_move_ticks_cross_country(f, 1)) {
-                building *monument = building_get(f->destination_building.id());
+                building *monument = building_get(f->destination_building.id);
                 building_monument_deliver_resource(monument, f->collecting_item_id);
                 f->state = FIGURE_STATE_DEAD;
             } else {
@@ -299,7 +336,7 @@ void figure_workcamp_slave_action(Figure *f)
 void figure_workcamp_architect_action(Figure *f)
 {
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     building *monument;
     map_point dst;
     if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
@@ -323,7 +360,7 @@ void figure_workcamp_architect_action(Figure *f)
                     f->destination_x = dst.x;
                     f->destination_y = dst.y;
                     // Only send 1 architect
-                    building_monument_add_delivery(f->destination_building.id(), f->id(), RESOURCE_NONE, 10);
+                    building_monument_add_delivery(f->destination_building.id, f->id(), RESOURCE_NONE, 10);
                     f->action_state = FIGURE_ACTION_207_WORK_CAMP_ARCHITECT_GOING_TO_MONUMENT;
                     f->wait_ticks = game_time_scale_legacy_day_ticks(VALID_MONUMENT_RECHECK_TICKS);
                     break;
@@ -339,7 +376,7 @@ void figure_workcamp_architect_action(Figure *f)
                 break;
             }
             figure_movement_move_ticks(f, 1);
-            monument = building_get(f->destination_building.id());
+            monument = building_get(f->destination_building.id);
             if (monument->state == BUILDING_STATE_UNUSED || !building_monument_access_point(monument, &dst) ||
                 b->monument.phase == MONUMENT_FINISHED) {
                 f->state = FIGURE_STATE_DEAD;
@@ -360,7 +397,7 @@ void figure_workcamp_architect_action(Figure *f)
             if (figure_movement_move_ticks_cross_country(f, 1)) {
                 if (f->wait_ticks >= 384) {
                     f->state = FIGURE_STATE_DEAD;
-                    monument = building_get(f->destination_building.id());
+                    monument = building_get(f->destination_building.id);
                     monument->resources[RESOURCE_NONE]--;
                     if (monument->resources[RESOURCE_NONE] <= 0) {
                         building_monument_progress(monument);

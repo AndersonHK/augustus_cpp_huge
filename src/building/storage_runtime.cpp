@@ -111,7 +111,7 @@ int BuildingStorage::reservation_is_current(const InboundReservation &reservatio
     Figure *figure = Figure::get(reservation.figure_id);
     if (!figure || figure->id() != reservation.figure_id || figure->is_dead() ||
         static_cast<resource_type>(figure->resource_id) != reservation.resource ||
-        figure->destination_building.id() != building_->id) {
+        figure->destination_building.id != building_->id) {
         return 0;
     }
 

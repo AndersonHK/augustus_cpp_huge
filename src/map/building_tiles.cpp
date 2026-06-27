@@ -131,7 +131,7 @@ void map_building_tiles_set_rubble(const Building *building, int x, int y, int s
         return;
     }
     // building id passed here is the original building that got destroyed, but can be 0 for walls and aqueducts
-    const unsigned int building_id = building ? building->id() : 0;
+    const unsigned int building_id = building ? building->id : 0;
     const bool is_burning_ruin = building && building->matches("burning_ruin");
     for (int dy = 0; dy < size; dy++) {
         for (int dx = 0; dx < size; dx++) {

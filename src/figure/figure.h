@@ -6,10 +6,12 @@
 #include "figure/action.h"
 #include "figure/properties.h"
 #include "figure/type.h"
+#include "translation/translation.h"
 
 constexpr int FIGURE_FACTION_ROAMER_PREVIEW = 2;
 
 class Figure;
+struct building_info_context;
 
 class FigureRelation {
 public:
@@ -52,6 +54,16 @@ public:
     int is_legion() const;
     int is_herd() const;
     int is_category(figure_category_mask category_mask) const;
+    int uses_tall_info_panel() const;
+    int has_info_action_button() const;
+    void handle_info_action_button();
+    void draw_figure_info(building_info_context *c);
+    void draw(building_info_context *c);
+    static int big_people_image_id(figure_type type);
+    static void draw_big_people_image(figure_type type, int x, int y);
+    void draw_big_people_image(int x, int y) const;
+    static translation_key new_type_translation_key(figure_type type);
+    translation_key type_translation_key() const;
     int target_is_alive() const;
     int legacy_corpse_image_id(int base_image_id) const;
     int legacy_frame_image_id(int base_image_id, int frame_offset) const;

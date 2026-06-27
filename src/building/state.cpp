@@ -219,9 +219,9 @@ static void remove_figures_referencing_unsupported_building(unsigned int buildin
         if (!f || !f->state) {
             continue;
         }
-        if (f->building.id() == building_id ||
-            f->destination_building.id() == building_id ||
-            f->immigrant_building.id() == building_id) {
+        if (f->building.id == building_id ||
+            f->destination_building.id == building_id ||
+            f->immigrant_building.id == building_id) {
             f->remove();
         }
     }
@@ -953,7 +953,7 @@ int building_state_load_from_buffer(buffer *buf, building *b, int building_buf_s
     b->desirability = buffer_read_i8(buf);
     b->is_deleted = buffer_read_u8(buf);
     b->is_close_to_water = buffer_read_u8(buf);
-    b->storage_id = buffer_read_u8(buf);
+    Building(b).set_storage_id(buffer_read_u8(buf));
     b->sentiment.house_happiness = buffer_read_i8(buf); // which union field we use does not matter
     b->show_on_problem_overlay = buffer_read_u8(buf);
 

@@ -15,6 +15,19 @@ Current implemented seams:
 - Renderer requests now carry an optional fixed logical-size bridge. Existing float/source-size behavior remains the fallback while callers and XML are migrated.
 - `Render2DPipeline` owns render-domain classification and scale-filter config interpretation; SDL renderer setup asks the pipeline for texture filter hints instead of duplicating `scale_filter` policy.
 
+## Progress Checkpoint
+
+- [x] Add render metrics for request counts, texture sources, texture switches/misses, grid overlays, visible rows, and visible tiles.
+- [x] Centralize `scale_filter` and render-domain policy in `Render2DPipeline`.
+- [x] Add fixed logical-size fields to renderer requests as a bridge.
+- [~] Collapse normal city draw rows through `CityViewRenderPhase`; deletion/editor phase-major paths remain separate.
+- [~] Carry `Building` objects through some draw phases; broad row command/prepass ownership remains open.
+- [ ] Add renderer seam pixel checks for terrain/water/filter modes before logical-size XML work.
+- [ ] Introduce city render command lists and instance-data abstraction.
+- [ ] Move terrain/water/figure/building assets away from atlas fallback into native GPU-friendly resources.
+- [ ] Add Vulkan backend and orthographic z-buffered city renderer.
+- [ ] Add HDR scene target and shader-side lighting/material policies only as an explicit visual milestone with manual review.
+
 Scope:
 - Reduce repeated visible-tile traversal in the city draw path while preserving layer order.
 - Cache stable visible tile rows for a camera/viewport/orientation where practical.

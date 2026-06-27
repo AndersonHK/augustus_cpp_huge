@@ -174,13 +174,16 @@ No runtime object should store pointers to DLL-owned memory. Returned data must 
 
 ## Migration Slices
 
-1. Add headless startup parser executable as the immediate safety harness.
-2. Isolate startup parsing behind a narrow C++ facade so callers stop reaching into individual registries directly.
-3. Convert the facade output into an explicit `StartupDefinitions` object owned by runtime startup.
-4. Move parser-only helpers, schema walkers, and cross-reference validators behind that facade.
-5. Build the parser facade as a static boundary first, then as a DLL once payload ownership is explicit.
-6. Apply the same treatment to graphics extraction, starting from the standalone Julius and Augustus extractor executables and a shared extraction implementation module.
-7. Apply the same treatment to save/load migration after current-version runtime ownership is strong enough that bridge data can be discarded immediately after import.
+- [x] Add headless startup parser executable as the immediate safety harness.
+- [x] Isolate startup parsing behind a narrow C++ facade so callers stop reaching into individual registries directly.
+- [~] Convert the facade output into an explicit `StartupDefinitions` object owned by runtime startup.
+  - Current state: the facade returns step diagnostics and startup environment facts, but still relies on global registries as the static-boundary bridge.
+- [~] Move parser-only helpers, schema walkers, and cross-reference validators behind that facade.
+  - Current state: several parser-visible/runtime-visible seams were split, but generated image materialization and cleanup hooks still expose runtime-shaped dependencies.
+- [ ] Build the parser facade as a static boundary first, then as a DLL once payload ownership is explicit.
+- [~] Apply the same treatment to graphics extraction, starting from the standalone Julius and Augustus extractor executables and a shared extraction implementation module.
+  - Current state: Julius/Augustus extraction are separate executable concerns with shared helper code; the explicit DLL boundary is still future work.
+- [ ] Apply the same treatment to save/load migration after current-version runtime ownership is strong enough that bridge data can be discarded immediately after import.
 
 ## Test Harness Pattern
 

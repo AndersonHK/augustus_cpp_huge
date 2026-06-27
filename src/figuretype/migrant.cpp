@@ -23,14 +23,14 @@ static struct {
 
 static int house_is_valid(const Building &house, const Figure &migrant)
 {
-    if (!house.id() || !house.is_in_use() || !house.has_house_size() || house.has_plague()) {
+    if (!house.id || !house.is_in_use() || !house.has_house_size() || house.has_plague()) {
         return 0;
     }
     if (house.immigrant_figure_id() == migrant.id()) {
         return 1;
     }
-    return migrant.immigrant_building.id() == house.id() &&
-        migrant.destination_building.id() == house.id() &&
+    return migrant.immigrant_building.id == house.id &&
+        migrant.destination_building.id == house.id &&
         house.house_population_room() >= migrant.migrant_num_people;
 }
 
@@ -132,7 +132,7 @@ static Building closest_house_with_room(int x, int y)
     Building closest(nullptr);
     for (building_type type = static_cast<building_type>(BUILDING_NONE + 1); type < BUILDING_TYPE_MAX;
         type = static_cast<building_type>(type + 1)) {
-        for (Building house = Building::first_of_type(type); house.id(); house = house.next_of_type()) {
+        for (Building house = Building::first_of_type(type); house.id; house = house.next_of_type()) {
             if (!house.type || !house.type->has_housing() || !house.is_in_use() || !house.has_house_size() || house.has_plague() ||
                 house.distance_from_entry() <= 0 || house.house_population_room() <= 0 || house.immigrant_figure_id()) {
                 continue;
@@ -280,7 +280,7 @@ void figure_homeless_action(Figure *f)
             f->wait_ticks++;
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(51)) {
                 Building house = closest_house_with_room(f->x, f->y);
-                if (house.id()) {
+                if (house.id) {
                     int x_road, y_road;
                     if (map_closest_road_within_radius(house.x(), house.y(), house.size(), 2, &x_road, &y_road)) {
                         send_homeless_to_house(*f, house, x_road, y_road);
@@ -345,7 +345,7 @@ void figure_homeless_action(Figure *f)
                 f->wait_ticks = 0;
                 Building house = closest_house_with_room(f->x, f->y);
                 int x_road, y_road;
-                if (house.id() &&
+                if (house.id &&
                     map_closest_road_within_radius(house.x(), house.y(), house.size(), 2, &x_road, &y_road)) {
                     send_homeless_to_house(*f, house, x_road, y_road);
                     Route::remove(f);

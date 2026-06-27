@@ -1,6 +1,6 @@
 # Codex Augustus repository map and implementation memory
 
-Snapshot: 2026-05-11
+Snapshot: 2026-06-27
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Top-level layout that matters now
@@ -16,6 +16,8 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - The Visual Studio solution/project at repo root is the build path that matters.
 - `res/augustus.rc` is part of the project and provides the executable icon/resource wiring.
 - Runtime performance tracker contract: `docs/performance_tracker_runtime.md`; `debug_performance_tracker` enables the `vespasian-performance.log` sidecar next to `augustus-log.txt`.
+- Deep refactor checklist and requirements live in `docs/deep_refactor_implementation_progress.md` and `docs/deep_refactor_requirements.md`.
+- Owner-bound runtime module extraction planning lives in `docs/object_owned_runtime_refactor.md` and `docs/bound_runtime_module_extraction_plan.md`.
 
 ## Upstream lineage and source references
 - Julius is the base project repository: https://github.com/bvschaik/julius
@@ -45,6 +47,14 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - `render_2d_request`
   - render domains
   - scaling policy enums
+- `src/graphics/GraphicsDefinition.h/.cpp`
+  - shared graphics definition vocabulary and comparison/orientation concepts
+- `src/building/BuildingGraphics.h/.cpp`
+  - building-specific graphics selection and native building draw policy
+- `src/figure/FigureGraphics.h/.cpp`
+  - FigureType graphics policy, native/cached figure graphics bindings, legacy fallback draw helpers, and figure graphics migration target
+- `src/game/ResourceGraphics.h/.cpp`
+  - resource icon/presentation graphics; resource cart/building draw policy should route through figure/building graphics instead of expanding this class
 - `src/graphics/image.cpp`
   - legacy image/glyph wrappers now emit request-based draws
 - `src/graphics/font.h`
@@ -203,6 +213,7 @@ Resource motive:
   - save and scenario version gates; update when persisted layout or behavior changes
 - Key save-backed runtime payloads currently include building records, figure records/routes, building type save tables, road service history, and local workforce allocations.
 - The current save also has resource and water access type save tables. They persist save-local ids as text ids, then resolve them against active `Resources` and `WaterAccessType` XML so runtime numeric ids can remain mod-defined.
+- Current architectural target: save/load should hydrate current runtime structs plus module-owned state, then reconstruct save records at the bridge. `id` fields are stable identity bridge keys. Ordinary peeled fields should leave the runtime record as their module takes ownership and be appended back only by the save bridge.
 
 ## Water access runtime map
 - `Mods/<Mod>/WaterAccessType/*.xml`
@@ -330,6 +341,8 @@ Pattern:
   - profile binding, lifecycle rebinding, C facade, and smart-service direction selection
 - `src/figure/figure_runtime_native.h/.cpp`
   - native service, engineer, prefect, and entertainment controller classes
+- `src/figure/FigureGraphics.h/.cpp`
+  - FigureType graphics ownership and cached native graphics bindings; use with `docs/figure_owned_native_graphics_plan.md`
 - `src/building/local_workforce.h/.cpp`
   - local workforce labor-seeker targeting, house/workplace allocation table, and save payload
 - `src/map/routing_distance.h/.cpp`
@@ -356,5 +369,7 @@ Pattern:
   - do not attempt a full UTF storage migration during unrelated renderer/widget work
 
 ## Current "next target" map
-- Extend the shared UI runtime rollout to more shared widget composition without rewriting large windows wholesale.
-- Keep world-renderer/zoom/quad-map work for a later phase built on top of the current request-based backend.
+- Work down `docs/deep_refactor_implementation_progress.md` against the stable requirements in `docs/deep_refactor_requirements.md`.
+- Continue figure-owned native graphics and renderer seam work before authoring Vespasian half-size FigureType XML.
+- Continue routing cost-map work through `PathingMode`, `Route`, and future `RouteWorld`/cost-map cache ownership rather than local pathfinding helpers.
+- Extend the shared UI runtime rollout to more shared widget composition without rewriting large windows wholesale when UI work is in scope.

@@ -232,7 +232,7 @@ static int get_height_id(void)
         return HEIGHT_7_26_BLOCKS;
     } else if (context.type == BUILDING_INFO_BUILDING) {
         const Building current_building = context.building;
-        building *b = current_building.id() ? building_get(current_building.id()) : nullptr;
+        building *b = current_building.id ? building_get(current_building.id) : nullptr;
         if (!b || !current_building.type) {
             return HEIGHT_0_22_BLOCKS;
         }
@@ -316,11 +316,11 @@ static int get_height_id(void)
 
 static void adjust_height_for_storage_buildings(building_info_context *c)
 {
-    building *b = c->building.id() ? building_get(c->building.id()) : nullptr;
+    building *b = c->building.id ? building_get(c->building.id) : nullptr;
     if (!b || !b->storage_id) {
         return;
     }
-    int stored_types = building_storage_count_stored_resource_types(c->building.id());
+    int stored_types = building_storage_count_stored_resource_types(c->building.id);
     int y_offset_blocks = 0;
 
     if (!b->has_plague && c->has_road_access) {
@@ -336,7 +336,7 @@ static int has_mothball_button(const Building &building)
 
 static void draw_mothball_button(void)
 {
-    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    building *b = context.building.id ? building_get(context.building.id) : nullptr;
     if (!b) {
         return;
     }
@@ -447,8 +447,8 @@ static void init(int grid_offset)
         building_type btype = static_cast<building_type>(b->type);
         Building selected_part(b);
         Building main_part = selected_part.main();
-        if (main_part.id() && main_part.id() != selected_part.id()) {
-            if (building *main_record = building_get(main_part.id())) {
+        if (main_part.id && main_part.id != selected_part.id) {
+            if (building *main_record = building_get(main_part.id)) {
                 b = main_record;
                 btype = static_cast<building_type>(b->type);
             }
@@ -466,7 +466,7 @@ static void init(int grid_offset)
 
         if (building_type_registry_impl::type_attr_is(btype, "barracks")) {
             context.barracks_soldiers_requested = formation_legion_recruits_needed();
-            if (Barracks(b).unmanned_tower(nullptr).id()) {
+            if (Barracks(b).unmanned_tower(nullptr).id) {
                 context.barracks_soldiers_requested++;
             }
         } else if (b->house_size) {
@@ -617,7 +617,7 @@ static void draw_background(void)
         window_building_draw_terrain(&context);
     } else if (context.type == BUILDING_INFO_BUILDING) {
         const Building current_building = context.building;
-        building *b = current_building.id() ? building_get(current_building.id()) : nullptr;
+        building *b = current_building.id ? building_get(current_building.id) : nullptr;
         if (!b || !current_building.type) {
             return;
         }
@@ -881,7 +881,7 @@ static void draw_background(void)
 static void draw_foreground(void)
 {
     const Building current_building = context.building;
-    building *b = current_building.id() ? building_get(current_building.id()) : nullptr;
+    building *b = current_building.id ? building_get(current_building.id) : nullptr;
     // building-specific buttons
     init_context_buttons(&context);
     if (context.type == BUILDING_INFO_BUILDING && b && current_building.type) {
@@ -1031,7 +1031,7 @@ static int handle_specific_building_info_mouse(const mouse *m)
         return window_building_handle_mouse_figure_list(m, &context);
     } else if (context.type == BUILDING_INFO_BUILDING) {
         const Building current_building = context.building;
-        building *b = current_building.id() ? building_get(current_building.id()) : nullptr;
+        building *b = current_building.id ? building_get(current_building.id) : nullptr;
         if (!b || !current_building.type) {
             return 0;
         }
@@ -1118,8 +1118,8 @@ static void handle_input(const mouse *m, const hotkeys *h)
     } else {
         handled |= image_buttons_handle_mouse(
             m, 0, 0, image_buttons_help_advisor_close, context.advisor_button ? 3 : 2, &focus_image_button_id);
-        building *b = (context.type == BUILDING_INFO_BUILDING && context.building.id()) ?
-            building_get(context.building.id()) : nullptr;
+        building *b = (context.type == BUILDING_INFO_BUILDING && context.building.id) ?
+            building_get(context.building.id) : nullptr;
         if (b && building_monument_is_unfinished_monument(b)) {
             handled = GenericButtonList(generic_button_monument_construction, 1).handle_mouse(
                 *m,
@@ -1173,7 +1173,7 @@ static void get_tooltip(tooltip_context *c)
         text_id = window_building_get_legion_info_tooltip_text(&context);
     }
 
-    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    building *b = context.building.id ? building_get(context.building.id) : nullptr;
     if (!text_id && !group_id && !translation && !precomposed_text &&
         context.type == BUILDING_INFO_BUILDING && b &&
         focus_mothball_image_button_id && has_mothball_button(context.building)) {
@@ -1283,7 +1283,7 @@ static void button_advisor(int advisor, int param2)
 
 static void button_mothball(int param1, int param2)
 {
-    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    building *b = context.building.id ? building_get(context.building.id) : nullptr;
     int workers_needed = context.building.type ? context.building.type->required_workers() : 0;
     if (b && workers_needed) {
         building_mothball_toggle(b);
@@ -1293,7 +1293,7 @@ static void button_mothball(int param1, int param2)
 
 static void button_monument_construction(const generic_button *button)
 {
-    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    building *b = context.building.id ? building_get(context.building.id) : nullptr;
     if (b) {
         building_monument_toggle_construction_halted(b);
         window_invalidate();
@@ -1390,7 +1390,7 @@ void window_building_info_depot_select_resource(void)
 
 void window_building_info_depot_toggle_condition_type(void)
 {
-    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    building *b = context.building.id ? building_get(context.building.id) : nullptr;
     if (!b) {
         return;
     }
@@ -1401,7 +1401,7 @@ void window_building_info_depot_toggle_condition_type(void)
 
 void window_building_info_depot_toggle_condition_threshold(void)
 {
-    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    building *b = context.building.id ? building_get(context.building.id) : nullptr;
     if (!b) {
         return;
     }
@@ -1413,7 +1413,7 @@ void window_building_info_depot_toggle_condition_threshold(void)
 
 void window_building_info_depot_toggle_condition_threshold_reverse(void)
 {
-    building *b = context.building.id() ? building_get(context.building.id()) : nullptr;
+    building *b = context.building.id ? building_get(context.building.id) : nullptr;
     if (!b) {
         return;
     }

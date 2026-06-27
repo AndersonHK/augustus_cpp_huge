@@ -40,7 +40,7 @@ static void draw_vacant_lot(building_info_context *c)
     window_building_draw_figure_list(c);
 
     int text_id = 2;
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
     if (map_closest_road_within_radius(b->x, b->y, 1, 2, 0, 0)) {
         text_id = 1;
     }
@@ -49,7 +49,7 @@ static void draw_vacant_lot(building_info_context *c)
 
 static void draw_population_info(building_info_context *c, int y_offset)
 {
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
     int icon = 13;
     if (building_house_has_plebeian_residents(c->building)) {
         icon++;
@@ -86,7 +86,7 @@ static void draw_population_info(building_info_context *c, int y_offset)
 
 static void draw_tax_info(building_info_context *c, int y_offset)
 {
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
     if (b->house_tax_coverage) {
         int pct = calc_adjust_with_percentage(b->tax_income_or_storage / 2, city_finance_tax_percentage());
         int width = lang_text_draw("main_strings.127.24", c->x_offset + 36, y_offset, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
@@ -99,7 +99,7 @@ static void draw_tax_info(building_info_context *c, int y_offset)
 
 static void draw_happiness_info(building_info_context *c, int y_offset)
 {
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
     int happiness = b->sentiment.house_happiness;
     static const translation_key sentiment_keys[] = {
         "TR_BUILDING_WINDOW_HOUSE_SENTIMENT_1",
@@ -168,7 +168,7 @@ void window_building_draw_house(building_info_context *c)
 {
     c->advisor_button = ADVISOR_HOUSING;
     c->help_id = 56;
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
     if (b->house_population <= 0) {
         draw_vacant_lot(c);
         return;
@@ -292,7 +292,7 @@ const uint8_t *window_building_house_get_tooltip(const building_info_context *c)
         return 0;
     }
 
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
 
     const model_house *house_model = building_house_get_model(c->building);
     if (!house_model || !house_model->food_types) {

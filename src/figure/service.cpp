@@ -552,14 +552,14 @@ static building *get_entertainment_building(const Figure *f)
 {
     if (f->action_state == FIGURE_ACTION_94_ENTERTAINER_ROAMING ||
         f->action_state == FIGURE_ACTION_95_ENTERTAINER_RETURNING) {
-        return building_get(f->building.id());
+        return building_get(f->building.id);
     }
-    return building_get(f->destination_building.id());
+    return building_get(f->destination_building.id);
 }
 
 static int provide_priest_service(Figure *f, int x, int y)
 {
-    const building_type_registry_impl::BuildingType *type = f->building.id() ? f->building.type : nullptr;
+    const building_type_registry_impl::BuildingType *type = f->building.id ? f->building.type : nullptr;
     if (!type || !type->is_temple()) {
         return 0;
     }
@@ -578,7 +578,7 @@ static int provide_priest_service(Figure *f, int x, int y)
     if (temple_serves_god(type, GOD_CERES)) {
         int houses_serviced = provide_culture(x, y, religion_coverage_ceres);
         if (basic_temple) {
-            provide_market_goods(building_get(f->building.id()), x, y);
+            provide_market_goods(building_get(f->building.id), x, y);
         }
         return houses_serviced;
     }
@@ -591,16 +591,16 @@ static int provide_priest_service(Figure *f, int x, int y)
     if (temple_serves_god(type, GOD_MARS)) {
         if (basic_temple && building_monument_gt_module_is_active(MARS_MODULE_1_MESS_HALL) &&
             city_buildings_get_mess_hall()) {
-            collect_offerings(building_get(f->building.id()), x, y);
+            collect_offerings(building_get(f->building.id), x, y);
         }
         return provide_culture(x, y, religion_coverage_mars);
     }
     if (temple_serves_god(type, GOD_VENUS)) {
         int houses_serviced = provide_culture(x, y, religion_coverage_venus);
         if (basic_temple) {
-            provide_market_goods(building_get(f->building.id()), x, y);
+            provide_market_goods(building_get(f->building.id), x, y);
             if (building_monument_gt_module_is_active(VENUS_MODULE_1_DISTRIBUTE_WINE)) {
-                provide_venus_wine_to_taverns(building_get(f->building.id()), x, y);
+                provide_venus_wine_to_taverns(building_get(f->building.id), x, y);
             }
         }
         return houses_serviced;
@@ -626,11 +626,11 @@ int figure_service_provide_coverage(Figure *f)
             break;
         }
         case FIGURE_MARKET_TRADER:
-            houses_serviced = provide_market_goods(building_get(f->building.id()), x, y);
+            houses_serviced = provide_market_goods(building_get(f->building.id), x, y);
             break;
         case FIGURE_MARKET_SUPPLIER:
             if (!config_get(CONFIG_GP_CH_NO_SUPPLIER_DISTRIBUTION)) {
-                houses_serviced = provide_market_goods(building_get(f->building.id()), x, y);
+                houses_serviced = provide_market_goods(building_get(f->building.id), x, y);
             }
             break;
         case FIGURE_BATHHOUSE_WORKER:
@@ -661,8 +661,8 @@ int figure_service_provide_coverage(Figure *f)
         case FIGURE_NATIVE_TRADER:
         case FIGURE_LIGHTHOUSE_SUPPLIER:
         {
-            b = building_get(f->building.id());
-            building *dest_b = building_get(f->destination_building.id());
+            b = building_get(f->building.id);
+            building *dest_b = building_get(f->destination_building.id);
             if (!b || !dest_b) {
                 break;
             }
@@ -715,7 +715,7 @@ int figure_service_provide_coverage(Figure *f)
             break;
         case FIGURE_BARKEEP:
         {
-            b = building_get(f->building.id());
+            b = building_get(f->building.id);
             if (!b) {
                 break;
             }
@@ -761,8 +761,8 @@ int figure_service_provide_coverage(Figure *f)
             tourist_visit(x, y, f, tourist_spend);
             break;
     }
-    if (f->building.id()) {
-        b = building_get(f->building.id());
+    if (f->building.id) {
+        b = building_get(f->building.id);
         if (b) {
             b->houses_covered += houses_serviced;
             if (b->houses_covered > 300) {

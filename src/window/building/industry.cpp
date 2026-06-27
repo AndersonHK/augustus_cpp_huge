@@ -136,10 +136,10 @@ static int farm_progress_percentage(Building farm)
     int total_percentage = 0;
     int part_count = 0;
     farm.for_each_part([&](Building part) {
-        if (part.id() == farm.id() || !building_has_farm_production(part)) {
+        if (part.id == farm.id || !building_has_farm_production(part)) {
             return;
         }
-        building *record = building_get(part.id());
+        building *record = building_get(part.id);
         if (!record) {
             return;
         }
@@ -150,7 +150,7 @@ static int farm_progress_percentage(Building farm)
         return total_percentage / part_count;
     }
 
-    building *record = building_get(farm.id());
+    building *record = building_get(farm.id);
     return record ? calc_percentage(record->data.industry.progress, building_industry_get_max_progress(record)) : 0;
 }
 
@@ -159,10 +159,10 @@ static int farm_efficiency(Building farm)
     int total_efficiency = 0;
     int part_count = 0;
     farm.for_each_part([&](Building part) {
-        if (part.id() == farm.id() || !building_has_farm_production(part)) {
+        if (part.id == farm.id || !building_has_farm_production(part)) {
             return;
         }
-        building *record = building_get(part.id());
+        building *record = building_get(part.id);
         if (!record) {
             return;
         }
@@ -176,7 +176,7 @@ static int farm_efficiency(Building farm)
         return total_efficiency / part_count;
     }
 
-    building *record = building_get(farm.id());
+    building *record = building_get(farm.id);
     return record ? building_get_efficiency(record) : -1;
 }
 
@@ -191,7 +191,7 @@ static void draw_farm(building_info_context *c, int help_id, const char *sound_f
     lang_text_draw_centered(current_string_key(group_id, 0), c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     Building &current_building = c->building;
-    building *b = building_get(current_building.id());
+    building *b = building_get(current_building.id);
     if (!b) {
         return;
     }
@@ -274,7 +274,7 @@ static void draw_raw_material(
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     Building &current_building = c->building;
-    building *b = building_get(current_building.id());
+    building *b = building_get(current_building.id);
     int pct_done = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
     industry_draw_output_with_progress_line(c, text, pct_done, 44);
     const int production_rows_height = window_building_draw_production_rows(
@@ -411,7 +411,7 @@ static void draw_workshop(
         BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
     Building &current_building = c->building;
-    building *b = building_get(current_building.id());
+    building *b = building_get(current_building.id);
     int pct_done = calc_percentage(b->data.industry.progress, building_industry_get_max_progress(b));
     industry_draw_output_with_progress_line(c, text, pct_done, 40);
 
@@ -547,7 +547,7 @@ void window_building_draw_city_mint(building_info_context *c)
     c->help_id = 0;
     window_building_play_sound(c, "wavs/coin.wav");
     Building city_mint = c->building;
-    building *b = building_get(city_mint.id());
+    building *b = building_get(city_mint.id);
     data.city_mint = Building(nullptr);
     if (city_mint.monument_phase() == MONUMENT_FINISHED) {
         c->advisor_button = ADVISOR_FINANCIAL;
@@ -628,14 +628,14 @@ void window_building_draw_city_mint(building_info_context *c)
 
 void window_building_draw_city_mint_foreground(building_info_context *c)
 {
-    if (!data.city_mint.id()) {
+    if (!data.city_mint.id) {
         return;
     }
     int x = c->x_offset + 32;
     int y = c->y_offset + BLOCK_SIZE * c->height_blocks - 171;
     button_border_draw(x, y, 20, 20, data.focus_button_id == 1);
     button_border_draw(x, y + 24, 20, 20, data.focus_button_id == 2);
-    building *city_mint = building_get(data.city_mint.id());
+    building *city_mint = building_get(data.city_mint.id);
     int selected_offset = city_mint && city_mint->output_resource_id == resource_denarii() ? 0 : 24;
     ImageGroupEntryRef::from_group("UI\\Denied_Walker_Checkmark", "Denied_Walker_Checkmark").draw(x + 4, y + 4 + selected_offset);
 }
@@ -652,7 +652,7 @@ void window_building_draw_shipyard(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.100.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
 
     if (!c->has_road_access) {
         window_building_draw_description(c, 69, 25);
@@ -691,7 +691,7 @@ void window_building_draw_wharf(building_info_context *c)
     outer_panel_draw(c->x_offset, c->y_offset, c->width_blocks, c->height_blocks);
     lang_text_draw_centered("main_strings.102.0", c->x_offset, c->y_offset + 10, BLOCK_SIZE * c->width_blocks, FONT_LARGE_BLACK, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BLACK)->line_height));
 
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
 
     Figure *boat = map_water_wharf_live_fishing_boat(c->building);
     bool has_live_boat = boat != nullptr;
@@ -740,7 +740,7 @@ static void city_mint_conversion_changed(int accepted, int checked)
     if (!accepted) {
         return;
     }
-    building *city_mint = building_get(data.city_mint.id());
+    building *city_mint = building_get(data.city_mint.id);
     if (!city_mint) {
         return;
     }
@@ -758,7 +758,7 @@ static void city_mint_conversion_changed(int accepted, int checked)
 static void set_city_mint_conversion(const generic_button *button)
 {
     resource_type resource = static_cast<resource_type>(button->parameter1);
-    building *city_mint = building_get(data.city_mint.id());
+    building *city_mint = building_get(data.city_mint.id);
     if (city_mint && city_mint->output_resource_id != resource) {
         window_popup_dialog_show_confirmation(translation_for_key("TR_BUILDING_CITY_MINT_CHANGE_PRODUCTION"),
             translation_for_key("TR_BUILDING_CITY_MINT_PROGRESS_WILL_BE_LOST"), 0, city_mint_conversion_changed);
@@ -767,7 +767,7 @@ static void set_city_mint_conversion(const generic_button *button)
 
 int window_building_handle_mouse_city_mint(const mouse *m, building_info_context *c)
 {
-    if (!data.city_mint.id()) {
+    if (!data.city_mint.id) {
         return 0;
     }
     if (GenericButtonList(mint_conversion_buttons, 2).handle_mouse(

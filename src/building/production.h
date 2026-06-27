@@ -14,7 +14,6 @@ public:
     Production(const Building &building, const building_type_registry_impl::ProductionMethod *method, size_t method_index);
 
     Building building() const;
-    unsigned int building_id() const;
 
     const building_type_registry_impl::ProductionMethod *method() const
     {

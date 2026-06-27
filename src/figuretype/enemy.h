@@ -2,6 +2,15 @@
 
 #include "figure/figure.h"
 
+namespace figuretype {
+
+class Enemy : public Figure {
+public:
+    void draw(building_info_context *c);
+};
+
+} // namespace figuretype
+
 
 	void figure_enemy43_spear_action(Figure *f);
 

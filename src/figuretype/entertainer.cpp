@@ -62,7 +62,7 @@ static EntertainmentVenueKind venue_kind(const Building &building)
 
 static int venue_ready(const Building &building, EntertainmentVenueKind kind)
 {
-    const ::building *record = building_get(building.id());
+    const ::building *record = building_get(building.id);
     if (!record) {
         return 0;
     }
@@ -189,7 +189,7 @@ static Building determine_destination(Figure *f)
 static void update_shows(Figure *f)
 {
     Building venue = f->destination_building.main();
-    building *b = building_get(venue.id());
+    building *b = building_get(venue.id);
     EntertainmentVenueKind kind = venue_kind(venue);
     if (!venue_ready(venue, kind)) {
         return;
@@ -387,7 +387,7 @@ void figure_entertainer_action(Figure *f)
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
                 Building destination = determine_destination(f);
-                if (destination.id()) {
+                if (destination.id) {
                     int x_road, y_road;
                     int found_road = 0;
                     do {
@@ -401,7 +401,7 @@ void figure_entertainer_action(Figure *f)
                             break;
                         }
                         destination = destination.next();
-                    } while (destination.id() != 0);
+                    } while (destination.id != 0);
                     if (!found_road) {
                         f->state = FIGURE_STATE_DEAD;
                     }
@@ -501,7 +501,7 @@ void figure_tourist_action(Figure *f)
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
                 Building destination = determine_tourist_destination(f->x, f->y);
-                if (destination.id()) {
+                if (destination.id) {
                     int x_road, y_road;
                     if (map_closest_road_within_radius(destination.x(), destination.y(), destination.size(), 2, &x_road, &y_road)) {
                         f->destination_building = destination;

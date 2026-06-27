@@ -174,7 +174,7 @@ static int show_figure_crime(const Figure *f)
 static int show_figure_problems(const Figure *f)
 {
     if (f->type == FIGURE_LABOR_SEEKER) {
-        return building_get(f->building.id())->show_on_problem_overlay;
+        return building_get(f->building.id)->show_on_problem_overlay;
     } else if (f->type == FIGURE_CART_PUSHER) {
         return f->action_state == FIGURE_ACTION_20_CARTPUSHER_INITIAL || f->min_max_seen;
     } else if (f->type == FIGURE_PROTESTER || f->type == FIGURE_BEGGAR) {

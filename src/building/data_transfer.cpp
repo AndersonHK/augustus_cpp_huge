@@ -129,17 +129,17 @@ int building_data_transfer_copy(building *b, int supress_warnings)
             source.copy_accepted_goods(data.resource, RESOURCE_SLOT_COUNT);
             break;
         case DATA_TYPE_GRANARY:
-            storage = building_storage_get(source.storage_id());
+            storage = building_storage_get(source.storage_id);
             data.storage = *storage;
             data.i16 = static_cast<short>(Roadblock(b).exceptions());
             break;
         case DATA_TYPE_WAREHOUSE:
-            storage = building_storage_get(source.storage_id());
+            storage = building_storage_get(source.storage_id);
             data.storage = *storage;
             break;
         case DATA_TYPE_DOCK:
             source.copy_accepted_goods(data.resource, RESOURCE_SLOT_COUNT);
-            data.i8 = static_cast<char>(source.dock_has_accepted_route_ids());
+            data.i8 = static_cast<char>(source.dock_has_accepted_route_ids);
             data.i32 = source.dock_accepted_route_ids();
             break;
         case DATA_TYPE_DEPOT:
@@ -178,7 +178,7 @@ int building_data_transfer_paste(building *b, int supress_warnings)
             break;
         case DATA_TYPE_GRANARY:
         case DATA_TYPE_WAREHOUSE:
-            building_storage_set_data(target.storage_id(), data.storage);
+            building_storage_set_data(target.storage_id, data.storage);
             Roadblock(b).set_exceptions(data.i16);
             break;
         case DATA_TYPE_DOCK:

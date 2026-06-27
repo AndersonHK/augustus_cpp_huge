@@ -102,17 +102,17 @@ void building_storage_reset_building_ids(void)
             continue;
         }
         building_type type = definition->type();
-        for (Building b = Building::first_of_type(type); b.id(); b = b.next_of_type()) {
+        for (Building b = Building::first_of_type(type); b.id; b = b.next_of_type()) {
             if (b.state_id() == BUILDING_STATE_UNUSED) {
                 continue;
             }
-            if (b.storage_id()) {
-                data_storage *storage = storage_at(b.storage_id());
+            if (b.storage_id) {
+                data_storage *storage = storage_at(b.storage_id);
                 if (storage && storage->building_id) {
                     // storage is already connected to a building: corrupt, create new
-                    b.set_storage_id(building_storage_create(b.id()));
+                    b.set_storage_id(building_storage_create(b.id));
                 } else if (storage) {
-                    storage->building_id = b.id();
+                    storage->building_id = b.id;
                 }
             }
         }
@@ -216,7 +216,7 @@ void building_storage_toggle_empty_all(int storage_id)
 int building_storage_get_empty_all(int building_id)
 {
     Building b(building_get(building_id));
-    unsigned int storage_id = b.storage_id();
+    unsigned int storage_id = b.storage_id;
     if (storage_id >= storages.size()) {
         return 0;
     }
@@ -226,7 +226,7 @@ int building_storage_get_empty_all(int building_id)
 int building_storage_count_stored_resource_types(int building_id)
 {
     Building b(building_get(building_id));
-    if (!b.storage_id()) {
+    if (!b.storage_id) {
         return 0;
     }
     int stored_types_count = 0;
@@ -250,7 +250,7 @@ int building_storage_get_amount(const Building &b, resource_type resource)
 
 int building_storage_get_storage_state_quantity(const Building &b, resource_type resource)
 {
-    const building_storage *s = building_storage_get(b.storage_id());
+    const building_storage *s = building_storage_get(b.storage_id);
     const resource_storage_entry *entry = &s->resource_state[resource];
     return entry->quantity;
 }
@@ -263,7 +263,7 @@ building_storage_state building_storage_get_state(const Building &b, int resourc
     if (!b.type || !b.type->is_storage()) {
         return BUILDING_STORAGE_STATE_NOT_ACCEPTING;
     }
-    const building_storage *s = building_storage_get(b.storage_id());
+    const building_storage *s = building_storage_get(b.storage_id);
     const resource_storage_entry *entry = &s->resource_state[resource];
 
     if (!relative) {
@@ -342,14 +342,14 @@ void building_storage_cycle_resource_state(int storage_id, resource_type resourc
 void building_storage_toggle_permission(building_storage_permission_states p, Building &b)
 {
     int permission_bit = 1 << p;
-    if (data_storage *storage = storage_at(b.storage_id())) {
+    if (data_storage *storage = storage_at(b.storage_id)) {
         storage->storage.permissions ^= permission_bit;
     }
 }
 
 int building_storage_get_permission(building_storage_permission_states p, const Building &b)
 {
-    const building_storage *s = building_storage_get(b.storage_id());
+    const building_storage *s = building_storage_get(b.storage_id);
     int permission_bit = 1 << p;
     return !(s->permissions & permission_bit);
 }
@@ -357,7 +357,7 @@ int building_storage_get_permission(building_storage_permission_states p, const 
 void building_storage_set_permission(building_storage_permission_states p, Building &b, int enable)
 {
     int permission_bit = 1 << p;
-    data_storage *storage = storage_at(b.storage_id());
+    data_storage *storage = storage_at(b.storage_id);
     if (!storage) {
         return;
     }
@@ -458,7 +458,7 @@ static const uint8_t *storage_state_text(building_storage_state state, const Bui
 
 int building_storage_summary_tooltip(const Building &building_object, char *tooltip_text, int max_length, storage_summary_style style)
 {
-    if (!building_object.id() || !tooltip_text || max_length <= 0) return 0;
+    if (!building_object.id || !tooltip_text || max_length <= 0) return 0;
     if (style == STORAGE_SUMMARY_STYLE_NONE) {
         tooltip_text[0] = '\0';
         return 0;
@@ -574,7 +574,7 @@ int building_storage_resource_max_storable(const Building &building_object, reso
         return 0;
     }
 
-    const building_storage *s = building_storage_get(building_object.storage_id());
+    const building_storage *s = building_storage_get(building_object.storage_id);
     const resource_storage_entry *entry = &s->resource_state[resource_id];
 
     if (entry->state != BUILDING_STORAGE_STATE_NOT_ACCEPTING) {
@@ -770,7 +770,7 @@ void building_storage_load_state(buffer *buf, int version)
         if (!definition || !definition->is_granary()) {
             continue;
         }
-        for (Building b = Building::first_of_type(definition->type()); b.id(); b = b.next_of_type()) {
+        for (Building b = Building::first_of_type(definition->type()); b.id; b = b.next_of_type()) {
             int granary_free_space = BUILDING_STORAGE_QUANTITY_MAX;
             for (resource_type r = (RESOURCE_NONE + 1); r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
                 int amount = b.resource_amount(r) / 100;

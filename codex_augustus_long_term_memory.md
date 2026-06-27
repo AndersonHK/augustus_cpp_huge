@@ -1,6 +1,6 @@
 # Codex Augustus long-term working memory
 
-Snapshot: 2026-05-11
+Snapshot: 2026-06-27
 
 ## Project identity
 This branch is still best understood as a simulation-rhythm fork of Augustus.
@@ -19,7 +19,10 @@ Primary design goals remain:
 - Do not broaden a rewrite just because a subsystem is old; center the work on the best control point.
 - Prefer object-owned metadata for runtime concepts. For example, `PathingMode` instances should carry pathing requirements like `requires_road` rather than leaving those requirements in separate helper functions or scattered switch lists.
 - Prefer concept-owned behavior as well as metadata. For example, `BuildingAnimation` owns frame advancement/gating, and water access type/rule definitions own the facts that older code used to re-encode through helper branches.
+- Prefer owner-bound runtime modules over loose policy calls. The external API should read like `building.production().tick()` or `building.culture().should_animate()`, with the module already bound to its owner, immutable definition pointer, and mutable state. Avoid exposing `definition->tick(building)` to normal callers.
+- Treat XML folders carefully: some are complete module definitions, some are partial ingredients, and some are vocabularies. `WaterAccessType` is a vocabulary, while building-specific water rules currently still live in BuildingType until a future `WaterAccess`/`BuildingWaterAccess` definition folder peels them out.
 - For small enum-like data that must survive XML mods and saves, prefer stable text ids at content/save boundaries and compact runtime ids/masks inside the simulation. Water access uses text ids plus numeric ids `0..7`, stored as `uint8_t` masks.
+- During record-to-object migration, `id` is special identity bridge data. Do not treat identity like ordinary mutable public state. Peeled fields should eventually live in runtime structs/modules, and save/load should reconstruct save records from runtime state plus module state.
 - Natural tree-like terrain means `TERRAIN_TREE | TERRAIN_SHRUB`; timber-yard adjacency, tree-only clearing, and force-placement tree clearing should stay aligned on that mask.
 - Comment functions consistently when touching code. Prefer concise contract comments that explain ownership, invariants, save/load behavior, validation, or surprising legacy interactions; avoid comments that merely restate assignments.
 - Update the relevant markdown whenever behavior, XML contracts, save formats, new runtime classes, or major chokepoints change, unless the user explicitly says not to. Add cross-references so future sessions can find the information from the four core Codex files without crowding those files with every detail.
@@ -79,6 +82,10 @@ Primary design goals remain:
   - shared UI facade/orchestration
 - `Building` / `building_runtime`
   - C++ runtime object over saved building records; city rendering now enters native building graphics through `Building::draw(BuildingDrawPass::...)`, while raw records are persistence/legacy-boundary data
+- owner-bound building module direction
+  - low-hanging module plans live in `docs/bound_runtime_module_extraction_plan.md`; start with water access, culture/entertainment, religion, housing, production, storage, and formation facades before physically peeling save fields
+- graphics definition hierarchy
+  - `GraphicsDefinition`, `BuildingGraphics`, `FigureGraphics`, and `ResourceGraphics` are the intended split; figure-owned native graphics work should follow `docs/figure_owned_native_graphics_plan.md`
 - `BuildingAnimation`
   - building animation frame selection, legacy cursor quirks, and shared native/legacy animation gating
 - `WaterAccessType` / `water_access_runtime`
@@ -114,4 +121,4 @@ Primary design goals remain:
 - Do not collapse renderer policy back into many ad hoc draw helpers once the chokepoints exist.
 
 ## Short mnemonic
-Build is stable; renderer backend exists; shared UI runtime now exists; native BuildingType/HousingType, FigureType, WaterAccessType, and BuildingAnimation runtimes are active; asset fallback and retained startup failures are part of the architecture; keep moving through explicit chokepoints, not broad rewrites.
+Build is stable; renderer backend exists; shared UI runtime now exists; native BuildingType/HousingType, FigureType, WaterAccessType, BuildingAnimation, FigureGraphics, ResourceGraphics, UnitType, and FormationType runtimes are active or mid-migration; asset fallback and retained startup failures are part of the architecture; keep moving through explicit chokepoints and owner-bound modules, not broad rewrites.

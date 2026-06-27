@@ -143,12 +143,12 @@ void city_labor_calculate_workers(int num_plebs, int num_patricians)
 static int should_have_workers(const Building &building, int category, int check_access)
 {
     const building_type_registry_impl::BuildingType *type = building.type;
-    if (!building.id() || !building.is_main_part() || !type ||
+    if (!building.id || !building.is_main_part() || !type ||
         !building.employment_required_workers() || category == LABOR_CATEGORY_NONE) {
         return 0;
     }
     if (category == LABOR_CATEGORY_ENTERTAINMENT) {
-        const ::building *record = building_get(building.id());
+        const ::building *record = building_get(building.id);
         if (type->is_hippodrome() && record && record->prev_part_building_id) {
             return 0;
         }

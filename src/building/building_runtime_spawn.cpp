@@ -48,7 +48,7 @@ namespace {
 
 int figure_belongs_to_building(const Figure *f, const Building &building)
 {
-    return f && f->building.id() == building.id();
+    return f && f->building.id == building.id;
 }
 
 void attach_figure_to_building(Figure *f, const Building &building)
@@ -63,8 +63,8 @@ void send_supplier_to_storage_destination(Figure *supplier, const Building &dest
     if (!supplier) {
         return;
     }
-    if (supplier->destination_building.id()) {
-        supplier->last_destination_id = supplier->destination_building.id();
+    if (supplier->destination_building.id) {
+        supplier->last_destination_id = supplier->destination_building.id;
     }
 
     supplier->destination_building = destination;
@@ -356,7 +356,7 @@ int building_runtime::spawn_caravanserai_supplier(const map_point &road)
     }
 
     Building destination = building_caravanserai_get_storage_destination(building());
-    if (!destination.id()) {
+    if (!destination.id) {
         return 0;
     }
 
@@ -382,7 +382,7 @@ int building_runtime::spawn_lighthouse_supplier(const map_point &road)
     }
 
     Building destination = building_lighthouse_get_storage_destination(building());
-    if (!destination.id()) {
+    if (!destination.id) {
         return 0;
     }
 
@@ -423,7 +423,7 @@ int building_runtime::spawn_temple_supplier(const map_point &road)
         distribution->update_demands(current);
     }
     Building destination = building_temple_get_storage_destination(current);
-    if (!destination.id()) {
+    if (!destination.id) {
         return 0;
     }
 
@@ -451,7 +451,7 @@ int building_runtime::spawn_temple_destination_priest(const map_point &road)
         return 0;
     }
     Building pantheon = Building::first_of_type(pantheon_type);
-    if (!pantheon.id()) {
+    if (!pantheon.id) {
         return 0;
     }
 
@@ -474,7 +474,7 @@ int building_runtime::spawn_temple_mars_mess_hall_priest(const map_point &road)
     }
 
     Building mess_hall = Building::first_of_type(building_type_registry_impl::type_from_attr("mess_hall"));
-    if (!mess_hall.id() || !mess_hall.is_in_use() || !mess_hall.type || !mess_hall.type->is_mess_hall()) {
+    if (!mess_hall.id || !mess_hall.is_in_use() || !mess_hall.type || !mess_hall.type->is_mess_hall()) {
         return 0;
     }
 
@@ -1171,7 +1171,7 @@ void building_runtime::run_spawn_group(
 
 void building_runtime::spawn_figure()
 {
-    if (!building().id() || !definition() || !building().is_in_use()) {
+    if (!building().id || !definition() || !building().is_in_use()) {
         return;
     }
 

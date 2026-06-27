@@ -174,7 +174,7 @@ void formation_refresh_regalia(void)
 
 void formation::bind_legion_definition_from_fort(const Building &fort)
 {
-    if (!is_legion || !fort.id() || !fort.type) {
+    if (!is_legion || !fort.id || !fort.type) {
         return;
     }
     set_formation_type(fort.type->military().formation_type());
@@ -198,7 +198,7 @@ void formation::initialize_legion_from_fort(const Building &fort, int assigned_l
     in_use = 1;
     is_legion = 1;
     figure_type = static_cast<::figure_type>(fort.fort_figure_type());
-    building_id = fort.id();
+    building_id = fort.id;
     refresh_legion_definition_from_home();
     layout = FORMATION_DOUBLE_LINE_1;
     morale = 50;
@@ -1083,7 +1083,7 @@ void formation_set_destination_building(formation *m, int x, int y, const Buildi
 {
     m->destination_x = x;
     m->destination_y = y;
-    m->destination_building_id = building ? building->id() : 0;
+    m->destination_building_id = building ? building->id : 0;
 }
 
 void formation_set_home(formation *m, int x, int y)

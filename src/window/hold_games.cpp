@@ -134,7 +134,7 @@ static void draw_background(void)
         text_draw(translation_for_key("TR_WINDOW_GAMES_NOT_ENOUGH_FUNDS"), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else if (!has_resources) {
         text_draw(translation_for_key("TR_WINDOW_GAMES_NOT_ENOUGH_RESOURCES"), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
-    } else if (game->water_access_required && game_building.id() && !game_building.has_water_access()) {
+    } else if (game->water_access_required && game_building.id && !game_building.has_water_access()) {
         text_draw(translation_for_key("TR_WINDOW_GAMES_NO_WATER_ACCESS"), 120, 355, FONT_NORMAL_BLACK, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BLACK)->line_height), 0);
     } else {
         data.game_possible = 1;

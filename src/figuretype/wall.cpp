@@ -47,7 +47,7 @@ static const int TOWER_SENTRY_FIRING_OFFSETS[] = {
 void figure_ballista_action(Figure *f)
 {
     Building tower = f->building;
-    building *b = building_get(tower.id());
+    building *b = building_get(tower.id);
     if (!b) {
         f->state = FIGURE_STATE_DEAD;
         return;
@@ -144,7 +144,7 @@ static void tower_sentry_pick_target(Figure *f)
 
 static int tower_sentry_init_patrol(Building &tower, int *x_tile, int *y_tile)
 {
-    building *b = building_get(tower.id());
+    building *b = building_get(tower.id);
     if (!b) {
         return 0;
     }
@@ -190,7 +190,7 @@ static int tower_sentry_init_patrol(Building &tower, int *x_tile, int *y_tile)
 
 static void figure_watchtower_archer_spawn(Building &tower)
 {
-    building *b = building_get(tower.id());
+    building *b = building_get(tower.id);
     if (!b || b->figure_id4 || !tower.type || !tower.type->is_watchtower()) {
         return;
     }
@@ -231,7 +231,7 @@ void figure_tower_sentry_set_image(Figure *f)
 void figure_tower_sentry_action(Figure *f)
 {
     Building tower = f->building;
-    building *b = building_get(tower.id());
+    building *b = building_get(tower.id);
     if (!b) {
         f->state = FIGURE_STATE_DEAD;
         return;
@@ -383,7 +383,7 @@ void figure_tower_sentry_reroute(void)
         } else {
             // Teleport back to tower
             map_figure_delete(f);
-            building *b = building_get(f->building.id());
+            building *b = building_get(f->building.id);
             if (!b) {
                 f->state = FIGURE_STATE_DEAD;
                 continue;
@@ -418,7 +418,7 @@ static void watchman_pick_target(Figure *f)
 void figure_watchman_action(Figure *f)
 {
     Building watchman_building = f->building;
-    building *b = building_get(watchman_building.id());
+    building *b = building_get(watchman_building.id);
     if (!b) {
         f->state = FIGURE_STATE_DEAD;
         return;
@@ -490,7 +490,7 @@ void figure_watchman_action(Figure *f)
 
 void figure_watchtower_archer_action(Figure *f)
 {
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     if (!b) {
         f->state = FIGURE_STATE_DEAD;
         return;
@@ -548,7 +548,7 @@ void figure_kill_tower_sentries_in_building(building *b)
     Building tower(b);
     for (unsigned int i = 0; i < Figure::count(); i++) {
         Figure *f = Figure::get(i);
-        if (!f->is_dead() && f->type == FIGURE_TOWER_SENTRY && f->building.id() == tower.id()) {
+        if (!f->is_dead() && f->type == FIGURE_TOWER_SENTRY && f->building.id == tower.id) {
             f->state = FIGURE_STATE_DEAD;
         }
     }

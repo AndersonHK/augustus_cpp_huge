@@ -159,7 +159,7 @@ int building_runtime::legacy_storage_reservation_is_current(const LegacyStorageR
 
     Figure *figure = Figure::get(reservation.figure_id);
     if (!figure || figure->id() != reservation.figure_id || figure->is_dead() ||
-        figure->destination_building.id() != record_->id ||
+        figure->destination_building.id != record_->id ||
         static_cast<resource_type>(figure->resource_id) != reservation.resource ||
         figure->loads_sold_or_carrying <= 0) {
         return 0;

@@ -75,7 +75,7 @@ int city_resource_count_warehouses_amount(resource_type resource)
     }
 
     int total = 0;
-    for (Building warehouse = building_warehouse_first(); warehouse.id(); warehouse = warehouse.next_of_type()) {
+    for (Building warehouse = building_warehouse_first(); warehouse.id; warehouse = warehouse.next_of_type()) {
         if (!warehouse.is_in_use()) {
             continue;
         }
@@ -147,7 +147,7 @@ int city_resource_get_available_empty_space_granaries(resource_type food)
         return 0;
     }
 
-    for (Building granary = building_granary_first(); granary.id(); granary = granary.next_of_type()) {
+    for (Building granary = building_granary_first(); granary.id; granary = granary.next_of_type()) {
         if (!granary.is_in_use()) {
             continue;
         }
@@ -161,7 +161,7 @@ int city_resource_get_available_empty_space_granaries(resource_type food)
 int city_resource_get_available_empty_space_warehouses(resource_type resource)
 {
     int available_storage = 0;
-    for (Building warehouse = building_warehouse_first(); warehouse.id(); warehouse = warehouse.next_of_type()) {
+    for (Building warehouse = building_warehouse_first(); warehouse.id; warehouse = warehouse.next_of_type()) {
         if (!warehouse.is_in_use()) {
             continue;
         }

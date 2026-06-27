@@ -206,7 +206,7 @@ void figure_roamer_preview_create_all_for_building_type(building_type type)
     if (data.stored_building_types == MAX_STORED_BUILDING_TYPES) {
         return;
     }
-    for (Building b = Building::first_of_type(type); b.id(); b = b.next_of_type()) {
+    for (Building b = Building::first_of_type(type); b.id; b = b.next_of_type()) {
         figure_roamer_preview_create(type, b.x(), b.y());
     }
     data.types[data.stored_building_types] = type;
@@ -233,7 +233,7 @@ void figure_roamer_preview_reset(building_type type)
     }
     if (show_other_roamers) {
         for (int i = 0; i < data.stored_building_types; i++) {
-            for (Building b = Building::first_of_type(data.types[i]); b.id(); b = b.next_of_type()) {
+            for (Building b = Building::first_of_type(data.types[i]); b.id; b = b.next_of_type()) {
                 figure_roamer_preview_create(data.types[i], b.x(), b.y());
             }
         }

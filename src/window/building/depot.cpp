@@ -402,7 +402,7 @@ static void depot_draw_cart_status(const building *b, building_info_context *c)
                 case FIGURE_ACTION_239_DEPOT_CART_PUSHER_HEADING_TO_SOURCE:
                 {
                     const Building &src = f->destination_building;
-                    text_draw(translation_for((src.id() && src.type && src.type->is_granary())
+                    text_draw(translation_for((src.id && src.type && src.type->is_granary())
                             ? "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_FOOD"
                             : "TR_WINDOW_BUILDING_DEPOT_CART_PUSHER_GETTING_GOODS"),
                         x_action, y_pos, FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
@@ -978,7 +978,7 @@ static void depot_recall_all_cart_pushers(const generic_button *button)
         if (b->data.distribution.cartpusher_ids[i]) {
             Figure *f = Figure::get(b->data.distribution.cartpusher_ids[i]);
             if (f && f->state != FIGURE_STATE_DEAD) {
-                figure_depot_recall(f);
+                reinterpret_cast<figuretype::DepotCartPusher *>(f)->recall();
                 recalled_count++;
             }
         }

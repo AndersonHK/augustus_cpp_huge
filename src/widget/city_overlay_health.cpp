@@ -82,8 +82,8 @@ static int show_figure_sickness(const Figure *f)
     } else if (f->type == FIGURE_DOCKER || f->type == FIGURE_CART_PUSHER ||
                f->type == FIGURE_WAREHOUSEMAN || f->type == FIGURE_DEPOT_CART_PUSHER ||
                f->type == FIGURE_LIGHTHOUSE_SUPPLIER || f->type == FIGURE_NATIVE_TRADER) {
-        building *b = building_get(f->building.id());
-        building *dest_b = building_get(f->destination_building.id());
+        building *b = building_get(f->building.id);
+        building *dest_b = building_get(f->destination_building.id);
         if (b->sickness_level > 0 || dest_b->sickness_level > 0) {
             return 1;
         }

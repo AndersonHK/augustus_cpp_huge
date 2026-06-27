@@ -101,7 +101,7 @@ static int type_uses_native_spawn(building_type type)
 
 static int figure_belongs_to_building(const Figure *f, const building *b)
 {
-    return f && b && f->building.id() == b->id;
+    return f && b && f->building.id == b->id;
 }
 
 static void attach_figure_to_building(Figure *f, building *b)
@@ -513,8 +513,8 @@ static void spawn_figure_colosseum(building *b)
 
 static void send_supplier_to_destination(Figure *f, Building destination)
 {
-    if (f->destination_building.id()) {
-        f->last_destination_id = f->destination_building.id();
+    if (f->destination_building.id) {
+        f->last_destination_id = f->destination_building.id;
     }
     f->destination_building = destination;
     map_point road;
@@ -545,7 +545,7 @@ static void spawn_temple_supplier(building *b, int x, int y)
         distribution->update_demands(temple);
     }
     Building destination = building_temple_get_storage_destination(temple);
-    if (!destination.id()) {
+    if (!destination.id) {
         return;
     }
     Figure *f = Figure::create(FIGURE_PRIEST_SUPPLIER, x, y, DIR_0_TOP);
@@ -804,7 +804,7 @@ static void spawn_figure_temple(building *b)
         // Mars Module 1 Bonus
         if (building_is_mars_temple(b->type) && building_monument_gt_module_is_active(MARS_MODULE_1_MESS_HALL)) {
             Building mess_hall(building_get(city_buildings_get_mess_hall()));
-            if (mess_hall.id() && mess_hall.type && mess_hall.type->is_mess_hall()) {
+            if (mess_hall.id && mess_hall.type && mess_hall.type->is_mess_hall()) {
                 Figure *f = Figure::get(b->figure_id2);
                 if (f->state != FIGURE_STATE_ALIVE) {
                     b->figure_id2 = 0;

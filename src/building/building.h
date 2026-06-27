@@ -21,6 +21,34 @@ class Building {
     friend class building_type_registry_impl::BuildingAnimation;
 
 public:
+    template <typename Stored, typename Public = Stored>
+    class RecordField {
+    public:
+        RecordField() = default;
+        explicit RecordField(Stored *value)
+            : value_(value),
+              fallback_(value ? static_cast<Public>(*value) : Public{})
+        {}
+
+        operator Public() const
+        {
+            return value_ ? static_cast<Public>(*value_) : fallback_;
+        }
+
+        RecordField &operator=(Public value)
+        {
+            fallback_ = value;
+            if (value_) {
+                *value_ = static_cast<Stored>(value);
+            }
+            return *this;
+        }
+
+    private:
+        Stored *value_ = nullptr;
+        Public fallback_ = {};
+    };
+
     class TypeRange {
     public:
         class iterator {
@@ -56,7 +84,6 @@ public:
     static Building create(building_type type, int x, int y);
     static int count();
 
-    unsigned int id() const;
     const ::building *record() const;
     Building main() const;
     Building composition_owner() const;
@@ -117,7 +144,10 @@ public:
     int has_primary_figure() const;
     int has_secondary_figure() const;
     int has_quaternary_figure() const;
+    int clear_figure_slot_if_matches(unsigned int figure_id);
+    int clear_distribution_cartpusher_slot_if_matches(unsigned int figure_id);
     unsigned int distribution_cartpusher_id(int index) const;
+    void set_figure_spawn_delay(int ticks);
     int resource_amount(resource_type resource) const;
     void add_resource(resource_type resource, int amount);
     void set_resource_amount(resource_type resource, int amount);
@@ -149,15 +179,13 @@ public:
     void set_variant(int variant);
     int image_id() const;
     void add_map_tiles(int image_id) const;
-    int storage_id() const;
-    void set_storage_id(int storage_id);
+    void set_storage_id(int new_storage_id);
     int blocked_storage_permission_mask() const;
     int warehouse_flag_frame() const;
     resource_type warehouse_resource_id() const;
     void set_warehouse_resource_id(resource_type resource);
     int loads_stored() const;
     int industry_has_raw_materials() const;
-    int dock_has_accepted_route_ids() const;
     int dock_accepted_route_ids() const;
     int dock_trade_ship_id() const;
     void set_dock_trade_ship_id(int figure_id);
@@ -181,6 +209,9 @@ public:
     int update_native_production(int new_day, int *out_is_striking);
     int native_production_has_completed_effect() const;
     int output_cart_capacity(resource_type resource) const;
+    int industry_has_fish() const;
+    void add_industry_fish(int amount);
+    void add_industry_production_current_month(int amount);
     int reserve_output_storage_loads(resource_type *out_resource, int *out_loads);
     int start_native_production();
     void advance_native_production_stats();
@@ -205,6 +236,10 @@ public:
     int entertainment_days2() const;
     int desirability() const;
     std::uint64_t graphics_state_signature(int selected_graphics_option) const;
+
+    RecordField<unsigned int> id;
+    RecordField<unsigned char, unsigned int> storage_id;
+    RecordField<unsigned char, int> dock_has_accepted_route_ids;
 
 private:
     ::building *record_ = nullptr;

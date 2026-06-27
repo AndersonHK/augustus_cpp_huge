@@ -20,7 +20,7 @@ void figure_indigenous_native_action(Figure *f)
 {
     time_millis now = time_get_millis();
 
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     f->terrain_usage = TERRAIN_USAGE_ANY;
     f->use_cross_country = 0;
     f->max_roam_length = 800;

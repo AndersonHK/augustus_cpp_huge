@@ -235,7 +235,7 @@ static int show_figure_food_stocks(const Figure *f)
 
         case FIGURE_WAREHOUSEMAN:
         {
-            return f->building.id() && f->building.type && f->building.type->is_granary();
+            return f->building.id && f->building.type && f->building.type->is_granary();
         }
         default:
             return 0;

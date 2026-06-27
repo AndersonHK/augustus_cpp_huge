@@ -67,7 +67,7 @@ static building_type get_clone_type_from_building(const Building *b, building_ty
     }
 
     if (building_type_registry_impl::type_attr_is(clone_type, "burning_ruin")) {
-        if (b && b->id()) {
+        if (b && b->id) {
             building *before_fire = building_get(map_building_rubble_building_id(b->grid_offset()));
             building_type type = before_fire ?
                 building_clone_type_from_building_type(static_cast<building_type>(before_fire->data.rubble.og_type)) :
@@ -96,7 +96,7 @@ int building_clone_rotation_from_grid_offset(int grid_offset)
         return 0;
     }
     Building b = Building(building_get(building_id)).main();
-    if (!b.id()) {
+    if (!b.id) {
         return 0;
     }
     building_type type = b.type ? b.type->type() : BUILDING_NONE;

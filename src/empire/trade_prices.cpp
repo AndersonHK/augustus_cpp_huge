@@ -18,7 +18,7 @@ static struct trade_price prices[RESOURCE_SLOT_COUNT];
 
 static int trade_percentage_from_laborers(int percent, Building building)
 {
-    if (!building.id()) {
+    if (!building.id) {
         return 0;
     }
     int percent_laborers = 0;

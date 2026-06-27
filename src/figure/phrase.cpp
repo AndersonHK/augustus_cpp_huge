@@ -537,7 +537,7 @@ static int trade_caravan_phrase(Figure *f)
             return 7; // no trade
         }
     } else if (f->action_state == FIGURE_ACTION_102_TRADE_CARAVAN_TRADING) {
-        const unsigned int destination_id = f->destination_building.id();
+        const unsigned int destination_id = f->destination_building.id;
         if (figure_trade_caravan_can_buy(f, destination_id, f->empire_city_id)) {
             return 11; // buying goods
         } else if (figure_trade_caravan_can_sell(f, destination_id, f->empire_city_id)) {

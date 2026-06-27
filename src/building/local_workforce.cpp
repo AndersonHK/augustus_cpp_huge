@@ -49,7 +49,7 @@ int is_live_building(const building *b)
 
 int is_live_building(const Building &building)
 {
-    return building.id() && building.is_in_use();
+    return building.id && building.is_in_use();
 }
 
 const building_type_registry_impl::LaborSeekerPolicy *labor_policy_for(const Building &building)
@@ -134,7 +134,7 @@ int assigned_workers_for_workplace(unsigned int workplace_id)
 
 int possible_workers_for_house(const Building &house)
 {
-    const building *record = building_get(house.id());
+    const building *record = building_get(house.id);
     if (!record || !is_live_building(house) || !house.has_house_size() ||
         record->house_population <= 0 || city_population() <= 0) {
         return 0;
@@ -155,12 +155,12 @@ int possible_workers_for_house(const Building &house)
 
 void refresh_house_unemployed(Building &house)
 {
-    building *record = building_get(house.id());
+    building *record = building_get(house.id);
     if (!record || !is_live_building(house) || !house.has_house_size()) {
         return;
     }
 
-    record->local_workforce_assigned = static_cast<short>(assigned_workers_for_house(house.id()));
+    record->local_workforce_assigned = static_cast<short>(assigned_workers_for_house(house.id));
     const int unemployed = possible_workers_for_house(house) - record->local_workforce_assigned;
     record->local_workforce_unemployed = static_cast<short>(std::max(0, unemployed));
 }
@@ -176,19 +176,19 @@ void refresh_house_unemployed(building *house)
 
 int access_workers_for_workplace(const Building &workplace)
 {
-    const building *record = building_get(workplace.id());
+    const building *record = building_get(workplace.id);
     if (!record || !is_live_building(workplace)) {
         return 0;
     }
     if (!uses_active_workforce(workplace)) {
         return std::max<int>(0, record->houses_covered);
     }
-    return std::min(assigned_workers_for_workplace(workplace.id()), required_workers(workplace));
+    return std::min(assigned_workers_for_workplace(workplace.id), required_workers(workplace));
 }
 
 void refresh_access_score(Building &workplace)
 {
-    if (building *record = building_get(workplace.id())) {
+    if (building *record = building_get(workplace.id)) {
         record->labor_access_score = static_cast<float>(access_workers_for_workplace(workplace));
     }
 }
@@ -222,13 +222,13 @@ void add_allocation(unsigned int workplace_id, unsigned int house_id, int worker
 
 int labor_seeker_slot_is_busy(Building &workplace)
 {
-    building *record = building_get(workplace.id());
+    building *record = building_get(workplace.id);
     if (!record || !is_live_building(workplace) || !record->figure_id2) {
         return 0;
     }
 
     Figure *existing = Figure::get(record->figure_id2);
-    if (existing->state && existing->building.id() == workplace.id()) {
+    if (existing->state && existing->building.id == workplace.id) {
         return 1;
     }
     record->figure_id2 = 0;
@@ -274,7 +274,7 @@ void retire_labor_seeker(Figure *f)
         return;
     }
 
-    building *workplace = building_get(f->building.id());
+    building *workplace = building_get(f->building.id);
     if (is_live_building(workplace) && workplace->figure_id2 == f->id()) {
         workplace->figure_id2 = 0;
     }
@@ -287,10 +287,10 @@ void trim_workplace_to_required(Building &workplace)
         return;
     }
 
-    int excess = assigned_workers_for_workplace(workplace.id()) - required_workers(workplace);
+    int excess = assigned_workers_for_workplace(workplace.id) - required_workers(workplace);
     for (size_t i = g_allocations.size(); i > 0 && excess > 0; i--) {
         const WorkforceAllocation &allocation = g_allocations[i - 1];
-        if (allocation.workplace_id != workplace.id()) {
+        if (allocation.workplace_id != workplace.id) {
             continue;
         }
         excess -= release_from_record(i - 1, excess);
@@ -303,10 +303,10 @@ void trim_house_to_possible(Building &house)
         return;
     }
 
-    int excess = assigned_workers_for_house(house.id()) - possible_workers_for_house(house);
+    int excess = assigned_workers_for_house(house.id) - possible_workers_for_house(house);
     for (size_t i = g_allocations.size(); i > 0 && excess > 0; i--) {
         const WorkforceAllocation &allocation = g_allocations[i - 1];
-        if (allocation.house_id != house.id()) {
+        if (allocation.house_id != house.id) {
             continue;
         }
         excess -= release_from_record(i - 1, excess);
@@ -450,7 +450,7 @@ int find_nearest_assigned_source(Building &workplace, const map_point *road, map
     map_point best_road = { 0, 0 };
     std::vector<int> house_ids_to_release;
     for (const WorkforceAllocation &allocation : g_allocations) {
-        if (allocation.workplace_id != workplace.id() || allocation.workers <= 0) {
+        if (allocation.workplace_id != workplace.id || allocation.workers <= 0) {
             continue;
         }
 
@@ -474,7 +474,7 @@ int find_nearest_assigned_source(Building &workplace, const map_point *road, map
     }
 
     for (int house_id : house_ids_to_release) {
-        release_workplace_source(workplace.id(), house_id);
+        release_workplace_source(workplace.id, house_id);
     }
 
     if (!best_house_id) {
@@ -491,11 +491,11 @@ int prepare_labor_seeker_target(Figure *f)
     }
 
     Building workplace = f->building;
-    building *workplace_record = building_get(workplace.id());
+    building *workplace_record = building_get(workplace.id);
     if (!uses_active_workforce(workplace) || !workplace_record || workplace_record->figure_id2 != f->id()) {
         return 0;
     }
-    if (f->destination_building.id()) {
+    if (f->destination_building.id) {
         Building house = f->destination_building;
         if (is_live_building(house) && house.has_house_size()) {
             const map_point source_road = { f->x, f->y };
@@ -512,7 +512,7 @@ int prepare_labor_seeker_target(Figure *f)
             const int target_is_reachable = Route::Planner::canReach(reachability);
             if (!target_is_reachable) {
                 if (f->collecting_item_id == kLaborSeekerTripValidate) {
-                    release_workplace_source(workplace.id(), house.id());
+                    release_workplace_source(workplace.id, house.id);
                 }
                 f->destination_building = Building(nullptr);
             } else {
@@ -520,13 +520,13 @@ int prepare_labor_seeker_target(Figure *f)
                     return 1;
                 }
                 refresh_house_unemployed(house);
-                building *house_record = building_get(house.id());
+                building *house_record = building_get(house.id);
                 if (house_record && house_record->local_workforce_unemployed > 0) {
                     return 1;
                 }
             }
         } else if (f->collecting_item_id == kLaborSeekerTripValidate) {
-            release_workplace_source(workplace.id(), f->destination_building.id());
+            release_workplace_source(workplace.id, f->destination_building.id);
         }
         f->destination_building = Building(nullptr);
     }
@@ -578,7 +578,7 @@ int create_labor_seeker(
         return 0;
     }
 
-    building *record = building_get(workplace.id());
+    building *record = building_get(workplace.id);
     if (!record) {
         labor_seeker->state = FIGURE_STATE_DEAD;
         return 0;
@@ -599,7 +599,7 @@ int retarget_labor_seeker_to_unemployed(Figure *f)
     }
 
     Building workplace = f->building;
-    building *workplace_record = building_get(workplace.id());
+    building *workplace_record = building_get(workplace.id);
     if (!uses_active_workforce(workplace) || !workplace_record || workplace_record->figure_id2 != f->id()) {
         return 0;
     }
@@ -632,7 +632,7 @@ void handle_arrival(Figure *f)
 {
     Building workplace = f->building;
     Building house = f->destination_building;
-    building *house_record = building_get(house.id());
+    building *house_record = building_get(house.id);
     if (!uses_active_workforce(workplace)) {
         retire_labor_seeker(f);
         return;
@@ -658,7 +658,7 @@ void handle_arrival(Figure *f)
     const int needed = required_workers(workplace) - access_workers_for_workplace(workplace);
     const int assigned = std::min<int>(std::max(0, needed), house_record ? house_record->local_workforce_unemployed : 0);
     if (assigned > 0) {
-        add_allocation(workplace.id(), house.id(), assigned);
+        add_allocation(workplace.id, house.id, assigned);
         refresh_house_unemployed(house);
     }
     if (retarget_labor_seeker_to_unemployed(f)) {
@@ -678,10 +678,10 @@ void kill_labor_seekers_for_building(unsigned int building_id)
         if (!f || f->state != FIGURE_STATE_ALIVE || f->type != FIGURE_LABOR_SEEKER) {
             continue;
         }
-        if (f->building.id() != building_id && f->destination_building.id() != building_id) {
+        if (f->building.id != building_id && f->destination_building.id != building_id) {
             continue;
         }
-        building *workplace = building_get(f->building.id());
+        building *workplace = building_get(f->building.id);
         if (is_live_building(workplace) && workplace->figure_id2 == f->id()) {
             workplace->figure_id2 = 0;
         }
@@ -834,7 +834,7 @@ int access_score(const Building &building)
 int house_available_workers(Building &house)
 {
     refresh_house_unemployed(house);
-    building *record = building_get(house.id());
+    building *record = building_get(house.id);
     return std::max<int>(0, record ? record->local_workforce_unemployed : 0);
 }
 
@@ -853,9 +853,9 @@ void reconcile_house(Building &house)
 
 void remove_building(Building &target)
 {
-    remove_allocations_for_building(target.id());
-    kill_labor_seekers_for_building(target.id());
-    building *record = building_get(target.id());
+    remove_allocations_for_building(target.id);
+    kill_labor_seekers_for_building(target.id);
+    building *record = building_get(target.id);
     if (!record) {
         return;
     }
@@ -866,13 +866,13 @@ void remove_building(Building &target)
 
 void replace_house(const Building &from, const Building &to)
 {
-    if (!from.id() || !to.id() || from.id() == to.id()) {
+    if (!from.id || !to.id || from.id == to.id) {
         return;
     }
 
     for (WorkforceAllocation &allocation : g_allocations) {
-        if (allocation.house_id == from.id()) {
-            allocation.house_id = to.id();
+        if (allocation.house_id == from.id) {
+            allocation.house_id = to.id;
         }
     }
     merge_duplicate_allocations();
@@ -907,7 +907,7 @@ int spawn_validation(Building &workplace, const map_point *road)
     if (!uses_active_workforce(workplace) || !road) {
         return 0;
     }
-    building *record = building_get(workplace.id());
+    building *record = building_get(workplace.id);
     if (!record) {
         return 0;
     }
@@ -949,7 +949,7 @@ void labor_seeker_failed(Figure *f)
         return;
     }
     if (f->collecting_item_id == kLaborSeekerTripValidate) {
-        ::release_workplace_source(f->building.id(), f->destination_building.id());
+        ::release_workplace_source(f->building.id, f->destination_building.id);
     }
     f->destination_building = Building(nullptr);
     if (::retarget_labor_seeker_to_unemployed(f)) {

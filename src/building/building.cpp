@@ -243,6 +243,9 @@ Building::Building(
     const building_type_registry_impl::BuildingType *type_definition,
     const std::source_location &location)
     : type(type_definition),
+    id(record ? &record->id : nullptr),
+    storage_id(record ? &record->storage_id : nullptr),
+    dock_has_accepted_route_ids(record ? &record->data.dock.has_accepted_route_ids : nullptr),
     record_(record)
 {
     if (building_record_requires_type_definition(record_) && !type) {
@@ -311,11 +314,6 @@ int Building::count()
     return building_count();
 }
 
-unsigned int Building::id() const
-{
-    return record_ ? record_->id : 0;
-}
-
 const ::building *Building::record() const
 {
     return record_;
@@ -335,7 +333,7 @@ Building Building::main() const
 Building Building::composition_owner() const
 {
     Building owner = main();
-    return owner.id() ? owner : *this;
+    return owner.id ? owner : *this;
 }
 
 Building Building::next() const
@@ -346,7 +344,7 @@ Building Building::next() const
 void Building::for_each_part(const std::function<void(Building)> &visitor) const
 {
     Building part = main();
-    for (int guard = 0; part.id() && guard < 64; guard++) {
+    for (int guard = 0; part.id && guard < 64; guard++) {
         visitor(part);
         if (!part.next_part_id()) {
             break;
@@ -610,12 +608,12 @@ int Building::employment_worker_count() const
 
     int workers = 0;
     int farm_part_count = 0;
-    const unsigned int owner_id = main().id();
+    const Building owner = main();
     for_each_part([&](Building part) {
         if (!part.record_) {
             return;
         }
-        if (part.id() == owner_id) {
+        if (part.id == owner.id) {
             workers += part.record_->num_workers;
             return;
         }
@@ -635,12 +633,12 @@ int Building::employment_required_workers() const
 
     int workers = 0;
     int farm_part_count = 0;
-    const unsigned int owner_id = main().id();
+    const Building owner = main();
     for_each_part([&](Building part) {
         if (!part.type) {
             return;
         }
-        if (part.id() == owner_id) {
+        if (part.id == owner.id) {
             workers += part.type->required_workers();
             return;
         }
@@ -787,14 +785,14 @@ int Building::is_working() const
         return 0;
     }
 
-    const building_type_registry_impl::BuildingType *definition = type;
-    if (!definition) {
+    const building_type_registry_impl::BuildingType *type_definition = type;
+    if (!type_definition) {
         return worker_count() > 0;
     }
-    if (definition->required_workers() > 0 && !worker_count()) {
+    if (type_definition->required_workers() > 0 && !worker_count()) {
         return 0;
     }
-    if (definition->water_access().has_requirements() && !has_water_access()) {
+    if (type_definition->water_access().has_requirements() && !has_water_access()) {
         return 0;
     }
     return 1;
@@ -820,12 +818,59 @@ int Building::has_quaternary_figure() const
     return record_ && record_->figure_id4 > 0;
 }
 
+int Building::clear_figure_slot_if_matches(unsigned int figure_id)
+{
+    if (!record_ || !figure_id) {
+        return 0;
+    }
+    int cleared = 0;
+    if (record_->figure_id == figure_id) {
+        record_->figure_id = 0;
+        cleared = 1;
+    }
+    if (record_->figure_id2 == figure_id) {
+        record_->figure_id2 = 0;
+        cleared = 1;
+    }
+    if (record_->immigrant_figure_id == figure_id) {
+        record_->immigrant_figure_id = 0;
+        cleared = 1;
+    }
+    if (record_->figure_id4 == figure_id) {
+        record_->figure_id4 = 0;
+        cleared = 1;
+    }
+    return cleared;
+}
+
+int Building::clear_distribution_cartpusher_slot_if_matches(unsigned int figure_id)
+{
+    if (!record_ || !figure_id) {
+        return 0;
+    }
+    int cleared = 0;
+    for (int i = 0; i < 3; i++) {
+        if (record_->data.distribution.cartpusher_ids[i] == figure_id) {
+            record_->data.distribution.cartpusher_ids[i] = 0;
+            cleared = 1;
+        }
+    }
+    return cleared;
+}
+
 unsigned int Building::distribution_cartpusher_id(int index) const
 {
     if (!record_ || index < 0 || index >= 3) {
         return 0;
     }
     return record_->data.distribution.cartpusher_ids[index];
+}
+
+void Building::set_figure_spawn_delay(int ticks)
+{
+    if (record_) {
+        record_->figure_spawn_delay = ticks;
+    }
 }
 
 int Building::resource_amount(resource_type resource) const
@@ -1090,7 +1135,8 @@ int Building::image_id() const
 void Building::add_map_tiles(int image_id) const
 {
     if (record_) {
-        if (type && type->foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline) {
+        if (type &&
+            type->foundation().policy_type() == building_type_registry_impl::FoundationPolicy::Shoreline) {
             map_water_add_building(record_->id, record_->x, record_->y, record_->size, image_id);
             return;
         }
@@ -1098,7 +1144,8 @@ void Building::add_map_tiles(int image_id) const
         if (matches("wall")) {
             terrain |= TERRAIN_WALL;
         }
-        if (type && type->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
+        if (type &&
+            type->roadblock().kind() != building_type_registry_impl::RoadblockKind::None &&
             type->roadblock().kind() != building_type_registry_impl::RoadblockKind::Bridge) {
             terrain |= TERRAIN_ROAD;
         }
@@ -1106,15 +1153,11 @@ void Building::add_map_tiles(int image_id) const
     }
 }
 
-int Building::storage_id() const
+void Building::set_storage_id(int new_storage_id)
 {
-    return record_ ? record_->storage_id : 0;
-}
-
-void Building::set_storage_id(int storage_id)
-{
+    storage_id = static_cast<unsigned int>(new_storage_id);
     if (record_) {
-        record_->storage_id = storage_id;
+        record_->storage_id = static_cast<unsigned char>(new_storage_id);
     }
 }
 
@@ -1149,11 +1192,6 @@ int Building::loads_stored() const
 int Building::industry_has_raw_materials() const
 {
     return record_ ? record_->data.industry.has_raw_materials : 0;
-}
-
-int Building::dock_has_accepted_route_ids() const
-{
-    return record_ ? record_->data.dock.has_accepted_route_ids : 0;
 }
 
 int Building::dock_accepted_route_ids() const
@@ -1223,6 +1261,7 @@ void Building::set_has_water_access(int value)
 
 void Building::set_dock_accepted_route_ids(int has_route_ids, int route_ids)
 {
+    dock_has_accepted_route_ids = has_route_ids;
     if (record_) {
         record_->data.dock.has_accepted_route_ids = static_cast<unsigned char>(has_route_ids);
         record_->data.dock.accepted_route_ids = route_ids;
@@ -1300,6 +1339,25 @@ int Building::native_production_has_completed_effect() const
 int Building::output_cart_capacity(resource_type resource) const
 {
     return output_cart_capacity_for_definition(type, resource);
+}
+
+int Building::industry_has_fish() const
+{
+    return record_ ? record_->data.industry.has_fish : 0;
+}
+
+void Building::add_industry_fish(int amount)
+{
+    if (record_) {
+        record_->data.industry.has_fish += amount;
+    }
+}
+
+void Building::add_industry_production_current_month(int amount)
+{
+    if (record_) {
+        record_->data.industry.production_current_month += amount;
+    }
 }
 
 int Building::reserve_output_storage_loads(resource_type *out_resource, int *out_loads)
@@ -1849,7 +1907,7 @@ static void normalize_loaded_composed_main(building *main_record,
     main_record->prev_part_building_id = 0;
 
     if (definition.is_warehouse() && !main_record->storage_id) {
-        main_record->storage_id = building_storage_create(main_record->id);
+        Building(main_record, &definition).set_storage_id(building_storage_create(main_record->id));
     }
 }
 
@@ -2153,7 +2211,7 @@ void building_clear_related_data(building *b)
 {
     if (b->storage_id) {
         building_storage_delete(b->storage_id);
-        b->storage_id = 0;
+        Building(b).set_storage_id(0);
     }
     if (building_is_fort(b->type)) {
         Building fort(*b);
@@ -2417,8 +2475,7 @@ static int warehouse_repair(building *b)
     if (new_building->storage_id != og_storage_id) {
         building_storage_delete(new_building->storage_id);
         building_storage_change_building(og_storage_id, new_building->id);
-        // above does `new_building->storage_id = og_storage_id`
-        b->storage_id = 0; // remove reference to the storage we just nuked
+        Building(b).set_storage_id(0);
     }
 
     int placement_cost = model_get_building(warehouse_type)->cost * success;
@@ -2532,8 +2589,7 @@ int building_repair(building *b)
         if (new_building->storage_id != og_storage_id) {
             building_storage_delete(new_building->storage_id);
             building_storage_change_building(og_storage_id, new_building->id);
-            // above does `new_building->storage_id = og_storage_id`
-            b->storage_id = 0; // remove reference to the storage we just nuked
+            Building(b).set_storage_id(0);
         }
     }
     placement_cost += model_get_building(type_to_place)->cost * success;
@@ -2620,7 +2676,7 @@ void building_update_state(void)
             building_delete(b);
         } else if (b->immigrant_figure_id) {
             const Figure *f = Figure::get(b->immigrant_figure_id);
-            if (!f || f->state != FIGURE_STATE_ALIVE || f->destination_building.id() != b->id) {
+            if (!f || f->state != FIGURE_STATE_ALIVE || f->destination_building.id != b->id) {
                 b->immigrant_figure_id = 0;
             }
         }

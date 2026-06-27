@@ -135,7 +135,72 @@ figure_record->destination_building_id
 static_cleanup_for_possible_bad_record_state(...)
 ```
 
-Public fields may remain temporarily during migration, but the direction is toward private data with explicit methods that preserve invariants.
+Public fields are acceptable when the operation is plain state access or assignment. Do not create or keep accessors whose whole behavior is equivalent to:
+
+```cpp
+return value;
+```
+
+or:
+
+```cpp
+value = other_value;
+```
+
+That kind of accessor is just a compatibility wrapper and should be deleted as callers move to the owning object. Keep data private only when reads or writes must enforce an invariant, synchronize related state, register/deregister from runtime indexes, release ownership, clamp/normalize values, convert save ids into object references, update dirty flags, or perform any behavior beyond simple assignment. In those cases the method should own that behavior directly and be named for the behavior, not for the field plumbing.
+
+This rule also applies during record-to-object migration. Moving fields under `private` is useful as a temporary compiler aid, but the final split should be deliberate: simple state becomes public object data, invariant-bearing state remains private behind behavior methods.
+
+## Bound Runtime Modules
+
+The long-term module target is not loose policy calls such as:
+
+```cpp
+entertainment_definition->tick(building);
+```
+
+That shape is too easy to call from arbitrary code with the wrong owner, stale state, or the wrong definition. It recreates the same opacity as legacy helper functions, only with newer names.
+
+Prefer owner-bound runtime modules:
+
+```cpp
+building.entertainment().tick();
+```
+
+Conceptually:
+
+```cpp
+class BuildingEntertainment {
+public:
+    void tick();
+
+private:
+    Building &owner_;
+    const EntertainmentDef *definition_;
+    EntertainmentState &state_;
+};
+```
+
+`Building` remains the central routing object. `BuildingType` remains immutable startup-loaded definition data. A runtime module binds exactly one owner object, one current type/module definition pointer, and one mutable state/data object. The module is born with the owning building, dies with the owning building, and is refreshed or rebound through the building lifecycle if the building changes type.
+
+This keeps responsibilities separated while keeping the data that belongs together packaged together:
+
+- `*Def` / type module: immutable XML-loaded rules, policies, costs, graphics, capacities, requirements, and tags.
+- `*State` / data module: mutable per-building state that must save/load and tick.
+- `Building*` runtime module: behavior facade bound to one `Building`, its current `*Def`, and its current `*State`.
+- `Building`: owns module construction, lifecycle, rebinding when type changes, and the public route to module behavior.
+
+The same direction applies to figures:
+
+```cpp
+figure.trade().draw_info_panel(context);
+figure.cargo().reserve_destination();
+figure.route().advance();
+```
+
+Internally a module may call private helpers across several files, but callers should enter through the owning object or its bound module. That makes wrong usage look wrong: a random subsystem should not be able to casually tick an entertainment definition against any building record.
+
+Type pointers inside bound modules should remain pointers rather than references where the owning object can change type. The definition object itself is immutable; the binding may change to a different immutable definition during upgrade, evolution, conversion, or compatibility migration.
 
 ## Single Object Surfaces
 
@@ -179,6 +244,8 @@ Allowed:
 - Load reads stable ids.
 - Load resolves ids into pointers/references and typed runtime lists.
 - Debug logs print ids.
+
+During the record-to-object migration, public field syntax is acceptable only when it is truly object-owned or safely record-backed. `Building.id`, `Building.storage_id`, and similar transitional fields should not be detached mirrors that can drift away from the save-backed record. Until save/load serializes live object state directly, assignment-capable migration fields must either write through to the record/module state immediately or remain private behind a behavior method.
 
 Disallowed for normal runtime:
 

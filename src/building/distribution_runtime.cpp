@@ -19,7 +19,7 @@ void update_food_source(resource_storage_info *info, resource_type resource, con
 {
     if (distance < info[resource].min_distance && source.resource_amount(resource)) {
         info[resource].min_distance = distance;
-        info[resource].building_id = source.id();
+        info[resource].building_id = source.id;
     }
 }
 
@@ -29,7 +29,7 @@ void update_warehouse_source(resource_storage_info *info, resource_type resource
         !city_resource_is_stockpiled(resource) &&
         building_warehouse_get_available_amount(source, resource)) {
         info[resource].min_distance = distance;
-        info[resource].building_id = source.id();
+        info[resource].building_id = source.id;
     }
 }
 
@@ -81,7 +81,7 @@ int find_distribution_sources(
             if (!definition || !definition->is_granary()) {
                 continue;
             }
-            for (Building source = Building::first_of_type(definition->type()); source.id(); source = source.next_of_type()) {
+    for (Building source = Building::first_of_type(definition->type()); source.id; source = source.next_of_type()) {
                 if (type && invalid_distribution_source(source, permission, road_network)) {
                     continue;
                 }
@@ -100,7 +100,7 @@ int find_distribution_sources(
         if (!definition || !definition->is_warehouse()) {
             continue;
         }
-        for (Building source = Building::first_of_type(definition->type()); source.id(); source = source.next_of_type()) {
+        for (Building source = Building::first_of_type(definition->type()); source.id; source = source.next_of_type()) {
             if (type && invalid_distribution_source(source, permission, road_network)) {
                 continue;
             }

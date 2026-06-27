@@ -52,7 +52,7 @@ int building_house_is_active(Building house)
 
 int building_house_legacy_level(Building house)
 {
-    if (!house.id()) {
+    if (!house.id) {
         return -1;
     }
 
@@ -65,7 +65,7 @@ int building_house_legacy_level(Building house)
         return -1;
     }
 
-    const building *record = building_get(house.id());
+    const building *record = building_get(house.id);
     if (!record) {
         return -1;
     }
@@ -77,7 +77,7 @@ int building_house_legacy_level(Building house)
 
 const model_house *building_house_get_model(Building house)
 {
-    if (!house.id()) {
+    if (!house.id) {
         return nullptr;
     }
 
@@ -91,7 +91,7 @@ const model_house *building_house_get_model(Building house)
 
 int building_house_has_plebeian_residents(Building house)
 {
-    if (!house.id()) {
+    if (!house.id) {
         return 0;
     }
     const auto *housing = house.type ? house.type->housing_type() : nullptr;
@@ -105,7 +105,7 @@ int building_house_has_plebeian_residents(Building house)
 
 int building_house_has_patrician_residents(Building house)
 {
-    if (!house.id()) {
+    if (!house.id) {
         return 0;
     }
     const auto *housing = house.type ? house.type->housing_type() : nullptr;
@@ -119,7 +119,7 @@ int building_house_has_patrician_residents(Building house)
 
 static void add_house_tiles(Building &house_object)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return;
     }
@@ -180,7 +180,7 @@ static building_type split_type_for_house(building *house)
 
 void building_house_change_to(Building house_object, building_type type)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return;
     }
@@ -218,7 +218,7 @@ static void create_vacant_lot(int x, int y)
 
 void building_house_change_to_vacant_lot(Building house_object)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return;
     }
@@ -275,10 +275,10 @@ static int plan_has_participant(const HouseMergePlan &plan, unsigned int buildin
 
 static void add_participant(HouseMergePlan &plan, Building house)
 {
-    if (!house.id() || plan_has_participant(plan, house.id())) {
+    if (!house.id || plan_has_participant(plan, house.id)) {
         return;
     }
-    plan.participants.push_back(house.id());
+    plan.participants.push_back(house.id);
     plan.population += house.house_population();
     plan.happiness_weight += house.house_population() * house.house_happiness();
     for (resource_type r = RESOURCE_NONE; r < RESOURCE_SLOT_COUNT; r = static_cast<resource_type>(r + 1)) {
@@ -288,10 +288,10 @@ static void add_participant(HouseMergePlan &plan, Building house)
 
 static int house_can_share_expand_footprint(Building source, Building other)
 {
-    if (!other.id()) {
+    if (!other.id) {
         return 0;
     }
-    if (other.id() == source.id()) {
+    if (other.id == source.id) {
         return 1;
     }
     return other.is_in_use() && other.has_house_size() &&
@@ -351,7 +351,7 @@ static int tile_can_merge_into_2x2(Building source, int tile_offset)
         return 0;
     }
     Building other = building_at_tile(tile_offset);
-    if (other.id() == source.id()) {
+    if (other.id == source.id) {
         return 1;
     }
     return other.is_in_use() && other.has_house_size() &&
@@ -378,7 +378,7 @@ static int find_merge_origin(Building house, int *out_x, int *out_y)
 static int collect_house_merge_plan(Building source, building_type type, int x, int y, int size,
     int merged, int num_tiles, HouseMergePlan *plan)
 {
-    if (!source.id() || type == BUILDING_NONE || !plan) {
+    if (!source.id || type == BUILDING_NONE || !plan) {
         return 0;
     }
     *plan = {};
@@ -387,7 +387,7 @@ static int collect_house_merge_plan(Building source, building_type type, int x, 
     plan->y = y;
     plan->size = size;
     plan->merged = merged;
-    plan->source_id = source.id();
+    plan->source_id = source.id;
 
     int base_offset = map_grid_offset(x, y);
     for (int i = 0; i < num_tiles; i++) {
@@ -396,12 +396,12 @@ static int collect_house_merge_plan(Building source, building_type type, int x, 
             continue;
         }
         Building participant = building_at_tile(tile_offset);
-        if (!participant.id() || !participant.is_in_use() || !participant.has_house_size()) {
+        if (!participant.id || !participant.is_in_use() || !participant.has_house_size()) {
             return 0;
         }
         add_participant(*plan, participant);
     }
-    if (!plan_has_participant(*plan, source.id())) {
+    if (!plan_has_participant(*plan, source.id)) {
         add_participant(*plan, source);
     }
     return !plan->participants.empty();
@@ -416,7 +416,7 @@ static void retarget_figures_for_house_merge(const HouseMergePlan &plan, Buildin
         }
         for (unsigned int participant_id : plan.participants) {
             Building participant(building_get(participant_id));
-            const int was_immigrant = figure->immigrant_building.id() == participant_id;
+            const int was_immigrant = figure->immigrant_building.id == participant_id;
             const int retargeted = figure->retarget_building(participant, replacement);
             if (retargeted) {
                 if (was_immigrant && !replacement.immigrant_figure_id()) {
@@ -436,11 +436,11 @@ static unsigned int apply_house_merge_plan(const HouseMergePlan &plan)
     }
 
     Building source(building_get(plan.source_id));
-    if (!source.id()) {
+    if (!source.id) {
         return 0;
     }
     Building replacement = Building::create(plan.type, plan.x, plan.y);
-    if (!replacement.id()) {
+    if (!replacement.id) {
         return 0;
     }
     replacement.copy_house_data_from(source);
@@ -466,12 +466,12 @@ static unsigned int apply_house_merge_plan(const HouseMergePlan &plan)
         Building participant(building_get(participant_id));
         participant.retire_replaced_house();
     }
-    return replacement.id();
+    return replacement.id;
 }
 
 unsigned int building_house_merge(Building house_object)
 {
-    if (!house_object.id() || !house_object.has_house_size()) {
+    if (!house_object.id || !house_object.has_house_size()) {
         return 0;
     }
     if (house_object.is_merged_house()) {
@@ -507,7 +507,7 @@ unsigned int building_house_merge(Building house_object)
 
 int building_house_can_expand(Building house_object, int num_tiles)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return 0;
     }
@@ -527,11 +527,11 @@ static void create_splitted_house_tile(unsigned int main_house_id, building_type
         return;
     }
     Building source(building_get(main_house_id));
-    if (!source.id()) {
+    if (!source.id) {
         return;
     }
     Building house = Building::create(type, x, y);
-    if (!house.id()) {
+    if (!house.id) {
         return;
     }
     house.copy_house_data_from(source);
@@ -658,7 +658,7 @@ static int expansion_contains_house_footprint(int expansion_origin, int num_tile
 
 static int split_blocking_houses(Building source, int x, int y, int num_tiles, int dry_run)
 {
-    const unsigned int source_id = source.id();
+    const unsigned int source_id = source.id;
     int grid_offset = map_grid_offset(x, y);
     for (int i = 0; i < num_tiles; i++) {
         int tile_offset = grid_offset + HOUSE_TILE_OFFSETS[i];
@@ -703,7 +703,7 @@ static int split_blocking_houses(Building source, int x, int y, int num_tiles, i
 
 int building_house_expand_to_type(Building house_object, building_type type)
 {
-    if (!house_object.id() || !house_object.has_house_size()) {
+    if (!house_object.id || !house_object.has_house_size()) {
         return 0;
     }
     int target_size = housing_model_size(type);
@@ -715,14 +715,14 @@ int building_house_expand_to_type(Building house_object, building_type type)
     int y = 0;
     int num_tiles = target_size * target_size;
     if (!find_expand_origin(house_object, num_tiles, &x, &y)) {
-        building *house = building_get(house_object.id());
+        building *house = building_get(house_object.id);
         if (house) {
             house->data.house.no_space_to_expand = 1;
         }
         return 0;
     }
 
-    const unsigned int source_id = house_object.id();
+    const unsigned int source_id = house_object.id;
     if (!building_get(source_id)) {
         return 0;
     }
@@ -827,7 +827,7 @@ static void shrink_house_to_type(building *house, building_type type)
 
 void building_house_devolve_to_type(Building house_object, building_type type)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return;
     }
@@ -901,7 +901,7 @@ static int find_best_corner_for_devolve(int x, int y, int old_size, int new_size
 
 void building_house_check_for_corruption(Building house_object)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return;
     }
@@ -929,13 +929,13 @@ void building_house_check_for_corruption(Building house_object)
 
 void building_house_restore_population_after_undo(Building house_object)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return;
     }
     if (house->figure_id) {
         Figure *homeless = Figure::get(house->figure_id);
-        if (homeless && homeless->building.id() == house->id) {
+        if (homeless && homeless->building.id == house->id) {
             house->house_population = homeless->migrant_num_people;
             city_population_add_homeless(homeless->migrant_num_people);
             homeless->remove();

@@ -460,7 +460,7 @@ static void place_building(const map_tile *tile)
 
     if (editor_tool_can_place_building(tile, size * size, 0)) {
         Building building = Building(building_create(type, tile->x, tile->y));
-        map_building_tiles_add(building.id(), tile->x, tile->y, size, image_id, TERRAIN_BUILDING);
+        map_building_tiles_add(building.id, tile->x, tile->y, size, image_id, TERRAIN_BUILDING);
         scenario_editor_set_as_unsaved();
     } else {
         city_warning_show_translated(WARNING_EDITOR_CANNOT_PLACE);

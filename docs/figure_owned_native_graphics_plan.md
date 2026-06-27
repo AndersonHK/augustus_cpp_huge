@@ -42,6 +42,21 @@ their logical game size.
   height, but city figure drawing normally calls `runtime_texture_draw(...)`,
   which derives logical size from source pixel size.
 
+## Progress Checkpoint
+
+- [x] Establish `GraphicsDefinition`, `BuildingGraphics`, `FigureGraphics`, and `ResourceGraphics` as the intended graphics class split.
+- [x] Retire the separate `figure_graphics.h` direction and keep FigureType graphics data on `FigureGraphics`.
+- [x] Materialize cached default/action/corpse FigureType graphics bindings through `FigureGraphics`.
+- [x] Add structured FigureType graphics child-node parsing for default/action/corpse/cart targets.
+- [x] Move many legacy direction/frame/corpse formulas behind `FigureGraphics` helpers instead of local controller arithmetic.
+- [x] Move figure info-window draw bodies onto `Figure`/figuretype child `draw(c)` methods, reducing one legacy central switch surface.
+- [~] Move cart/resource/flag/enemy overlay assembly behind `FigureGraphics`; raw `image_id`, `cart_image_id`, and flag bridges remain.
+- [~] Start using fixed logical-size draw requests for figures; final XML logical-size ownership is still blocked by the renderer seam plan.
+- [ ] Make converted FigureType graphics use real payload-managed file path references as the authored norm, such as nested `Walkers/<file>` paths.
+- [ ] Make city figure drawing ask the figure object for a complete draw request, with `city_figure.cpp` only handling placement/submission.
+- [ ] Delete controller-owned image mutation and direct `f->image_id` authority for converted figures.
+- [ ] Add Vespasian half-size FigureType XML only after payload ownership and every renderer seam prerequisite are complete.
+
 ## Target Shape
 
 ### Shared Graphics Class Boundary

@@ -11,7 +11,7 @@ Current measured state:
 - Baseline branch: `master`.
 - Committed branch delta: `git diff --shortstat master...HEAD` reports no committed branch delta.
 - Current working-tree delta: `git diff --shortstat` reports 46 tracked files, 756 insertions, 852 deletions, plus `RendererSeamTest` project files and seven new focused boundary/runtime/test sources.
-- Latest local Release runtime build: `x64\Release\Vespasian.exe`, 2026-06-27 04:51:02.
+- Latest local Release runtime build: `x64\Release\Vespasian.exe`, 2026-06-27 07:21:51.
 - Latest known deployed runtime build: `D:\Games\GOG Games\Caesar 3\Vespasian.exe`, 2026-06-27 03:30:38, deployed as narrow exe/PDB copy after full Mods deploy hit an access-denied lock on `Mods\Augustus`.
 - Latest local validation: Release x64 solution build passed; `git diff --check` passed with only LF/CRLF warnings. Previous focused startup/seam checks remain: `StartupParserTest.exe --game-root "D:\Games\GOG Games\Caesar 3"` passed; `RendererSeamTest.exe --game-root "D:\Games\GOG Games\Caesar 3" --matrix terrain-water --artifacts out\renderer_seams` passed with 1 real-pixel software fixture case and 4607 expected skips.
 - Current validation priority: solution Release x64 now builds all projects, including `StartupParserTest`.
@@ -92,6 +92,8 @@ Requirement: split extraction, XML startup parsing, and save/load bridge work in
 
 Source plan: `docs/object_owned_runtime_refactor.md`
 
+Module extraction plan: `docs/bound_runtime_module_extraction_plan.md`
+
 Requirement: data-owning objects should own their behavior, references, cleanup, and typed relationships.
 
 - [x] Delete `building_type_api.h` compatibility layer.
@@ -107,6 +109,11 @@ Requirement: data-owning objects should own their behavior, references, cleanup,
 - [x] Move docker behavior from the legacy `figure_docker_action` callback into `figuretype::Docker::docker_action()` and call the object method directly from the remaining dispatcher.
 - [x] Convert docker trade/storage behavior from raw `building *`/record-field access to `Building` object calls.
 - [x] Promote shared warehouse/granary first-iterator helpers into their storage modules and remove docker's duplicate storage-discovery helpers.
+- [x] Move figure-info draw helper bodies out of `figures.cpp` and onto `Figure`/figuretype child `draw(c)` methods.
+- [x] Draft the first bound-runtime module extraction order from existing Vespasian XML folders.
+- [x] Draft markdown-only class declarations for `BuildingWaterAccess`, `BuildingCulture`, `BuildingReligion`, `BuildingHousing`, `BuildingProduction`, `BuildingStorage`, and `BuildingFormation`, including XML source/future-folder mapping.
+- [x] Delete local uppercase `MIN`/`MAX` macros from project C/C++ sources.
+- [x] Delete one-line `Building::id()` and `Building::storage_id()` accessors and expose the simple object state directly.
 - [ ] Finish retiring redundant spawn `mode` versus FigureType `profile` behavior split.
 - [ ] Convert remaining raw `building *` compatibility boundaries to `Building` object calls when touched.
 - [ ] Replace repeated type/string scans with typed runtime lists.
@@ -120,13 +127,13 @@ Source plan: `docs/routing_cost_map_scalability_plan.md`
 
 Requirement: centralize route planning and make cost-map generation lazy, reusable, and policy-owned.
 
-- [x] Add route-specific performance counters.
+- [ ] Add route-specific performance counters.
 - [x] Replace public surface routing with `RoutePolicy`.
 - [x] Add `Route::Planner::canReach()` facade.
 - [x] Move citizen/wall/noncitizen reachability calls behind route facade code.
-- [x] Add route-owned destination/policy intent stamps.
-- [x] Reuse existing figure routes until intent or next-step validity changes.
-- [x] Add failed-route retry/backoff gate.
+- [~] Add route-owned destination/policy intent stamps.
+- [~] Reuse existing figure routes until intent or next-step validity changes.
+- [ ] Add failed-route retry/backoff gate.
 - [x] Move same-road-network and road-network helper logic into `PathingMode`.
 - [x] Add `Route::DistanceQuery::CostMapHandle` bridge over the legacy global grid.
 - [x] Move venue-seeker roadblock behavior into `PathingMode` for route planning and per-step movement.
@@ -137,7 +144,7 @@ Requirement: centralize route planning and make cost-map generation lazy, reusab
 - [x] Move figure route-policy selection onto `PathingMode`, including XML profile lookup, legacy terrain fallback, and roadblock permission selection.
 - [x] Consolidate `Route::DistanceQuery` reachable-area and access-road candidate scans behind one route-owned selector.
 - [x] Move legacy road-access footprint, hippodrome, and monument candidate scans behind a `RoadAccessQuery` boundary.
-- [x] Add the first `Building` road-access cache boundary for committed cached points and storage-destination spawn queries.
+- [~] Add the first `Building` road-access cache boundary for committed cached points and storage-destination spawn queries.
 - [x] Finish splitting `PathingMode` policy creation from route planning.
 - [ ] Add building-owned road-access caches.
 - [ ] Convert road-access callers to cached spans or equivalent.

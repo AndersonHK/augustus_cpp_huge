@@ -294,7 +294,7 @@ void figure_protestor_action(Figure *f)
         figure_combat_handle_corpse(f);
     }
     f->wait_ticks++;
-    if (f->wait_ticks > 200 && f->building.id() == 0) {
+    if (f->wait_ticks > 200 && f->building.id == 0) {
         f->state = FIGURE_STATE_DEAD;
         f->image_offset = 0;
     }
@@ -491,7 +491,7 @@ void figure_looter_action(Figure *f)
             figure_image_increase_offset(f, 12);
             figure_movement_move_ticks(f, 1);
             if (f->direction == DIR_FIGURE_AT_DESTINATION) {
-                loot_storage(f, static_cast<resource_type>(f->collecting_item_id), f->destination_building.id());
+                loot_storage(f, static_cast<resource_type>(f->collecting_item_id), f->destination_building.id);
                 f->state = FIGURE_STATE_DEAD;
             } else if (f->direction == DIR_FIGURE_REROUTE) {
                 Route::remove(f);

@@ -148,6 +148,13 @@ This also creates the right place for composed state: the fort owns the formatio
 - [ ] Migrate enemy, barbarian, wolf/animal, and other combat figure archetypes into `UnitType`.
 - [ ] Move legacy vanilla formation numeric-id translation into the save/load compatibility bridge; bridge entries should store the old numeric id as data, keep old enum names only as same-line XML comments, and build string-id to runtime-id tables from loaded `FormationType` definitions.
 
+### Next Gates
+
+- Larger Vespasian formations should not be visually validated until figure logical-size ownership is complete enough to author half-size figures.
+- Adaptive spacing must fit the current fortress mustering-ground footprint; do not assume a larger formation can simply occupy a larger world footprint.
+- The bridge should preserve the legacy 16-slot prefix only as save compatibility. Runtime iteration should continue using the dynamic formation roster.
+- Unit coverage should include every combat actor family, not only Roman fort soldiers.
+
 ## Runtime Boundaries
 
 The first slice should not rewrite all combat AI. It should establish ownership and data shape:

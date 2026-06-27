@@ -15,6 +15,8 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figure/route.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "map/point.h"
@@ -22,6 +24,7 @@
 #include "map/terrain.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
+#include "window/building/common.h"
 
 void map_figure_add(Figure *f);
 void map_figure_delete(Figure *f);
@@ -52,6 +55,13 @@ static const int ZEBRA_IMAGE_OFFSETS[] = {
     3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,  3,
     3,  3,  3,  3,  4,  4,  4,  4, -13, -13, -13, -13, -13, -13, -13, -13
 };
+
+void figuretype::Animal::draw(building_info_context *c)
+{
+    draw_big_people_image(c->x_offset + 28, c->y_offset + 112);
+    lang_text_draw(current_string_key(64, type), c->x_offset + 92, c->y_offset + 139,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+}
 
 enum {
     HORSE_CREATED = 0,
@@ -369,7 +379,7 @@ void figure_zebra_action(Figure *f)
 
 static void set_horse_destination(Figure *f, int state)
 {
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     int orientation = city_view_orientation();
     int rotation =  b->subtype.orientation;
     if (state == HORSE_CREATED) {
@@ -465,7 +475,7 @@ void figure_hippodrome_horse_action(Figure *f)
     f->use_cross_country = 1;
     f->is_ghost = 0;
     figure_image_increase_offset(f, 8);
-    if(!(building_get(f->building.id())->state)){
+    if(!(building_get(f->building.id)->state)){
         f->state = FIGURE_STATE_DEAD;
         return;
     }

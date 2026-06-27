@@ -2,6 +2,15 @@
 
 #include "figure/figure.h"
 
+namespace figuretype {
+
+class Boat : public Figure {
+public:
+    void draw(building_info_context *c);
+};
+
+} // namespace figuretype
+
 
 	void figure_create_flotsam(void);
 

@@ -78,7 +78,7 @@ int house_population_remove_from_city(int num_people)
 
 int house_population_get_capacity(Building house_object)
 {
-    const building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    const building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house || !house_object.type) {
         return 0;
     }

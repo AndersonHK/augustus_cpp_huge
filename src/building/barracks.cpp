@@ -43,7 +43,7 @@ Building Barracks::for_weapon(int x, int y, resource_type resource, int road_net
     }
     int min_dist = INFINITE;
     Building min_building(nullptr);
-    for (Building b = first_building_with_attr("barracks"); b.id(); b = b.next_of_type()) {
+    for (Building b = first_building_with_attr("barracks"); b.id; b = b.next_of_type()) {
         if (!is_valid_destination(b, road_network_id)) {
             continue;
         }
@@ -55,7 +55,7 @@ Building Barracks::for_weapon(int x, int y, resource_type resource, int road_net
         }
     }
     Building monument(building_get(building_monument_get_grand_temple_for_god(GOD_MARS)));
-    if (monument.id() && monument.monument_phase() == MONUMENT_FINISHED &&
+    if (monument.id && monument.monument_phase() == MONUMENT_FINISHED &&
         is_valid_destination(monument, road_network_id)) {
         int dist = monument.max_distance_to(x, y);
         dist += 8 * monument.resource_amount(resource_weapons());
@@ -64,7 +64,7 @@ Building Barracks::for_weapon(int x, int y, resource_type resource, int road_net
             min_building = monument;
         }
     }
-    if (min_building.id() && min_dist < INFINITE) {
+    if (min_building.id && min_dist < INFINITE) {
         if (dst) {
             map_point_store_result(min_building.road_access_x(), min_building.road_access_y(), dst);
         }
@@ -148,7 +148,7 @@ static Building get_closest_military_academy(int x, int y)
 {
     Building min_building(nullptr);
     int min_distance = INFINITE;
-    for (Building b = first_building_with_attr("military_academy"); b.id(); b = b.next_of_type()) {
+    for (Building b = first_building_with_attr("military_academy"); b.id; b = b.next_of_type()) {
         if (b.is_in_use() && b.has_required_workers()) {
             int dist = b.max_distance_to(x, y);
             if (dist < min_distance) {
@@ -162,13 +162,13 @@ static Building get_closest_military_academy(int x, int y)
 
 int Barracks::priority() const
 {
-    building *record = building_get(id());
+    building *record = building_get(id);
     return record ? record->subtype.barracks_priority : 0;
 }
 
 void Barracks::set_priority(int priority)
 {
-    building *record = building_get(id());
+    building *record = building_get(id);
     if (record) {
         record->subtype.barracks_priority = priority;
     }
@@ -188,7 +188,7 @@ int Barracks::create_soldier(int x, int y)
             }
         }
         Building academy = get_closest_military_academy(m->x, m->y);
-        if (academy.id()) {
+        if (academy.id) {
             map_point road;
             if (academy.has_road_access(&road)) {
                 f->action_state = FIGURE_ACTION_85_SOLDIER_GOING_TO_MILITARY_ACADEMY;
@@ -211,7 +211,7 @@ int Barracks::create_soldier(int x, int y)
 
 static Building get_unmanned_tower_of_type(const char *attr, const Building &barracks, map_point *road)
 {
-    for (Building b = first_building_with_attr(attr); b.id(); b = b.next_of_type()) {
+    for (Building b = first_building_with_attr(attr); b.id; b = b.next_of_type()) {
         if (b.is_in_use() && b.worker_count() &&
             !b.has_primary_figure() && !b.has_quaternary_figure() &&
             (b.road_network_id() == barracks.road_network_id() || config_get(CONFIG_GP_CH_TOWER_SENTRIES_GO_OFFROAD))) {
@@ -235,7 +235,7 @@ Building Barracks::unmanned_tower(map_point *road) const
     }
 
     Building tower = get_unmanned_tower_of_type(first_priority, *this, road);
-    if (tower.id()) {
+    if (tower.id) {
         return tower;
     }
     return get_unmanned_tower_of_type(second_priority, *this, road);
@@ -245,7 +245,7 @@ int Barracks::create_tower_sentry(int x, int y)
 {
     map_point road;
     Building tower = unmanned_tower(&road);
-    if (!tower.id()) {
+    if (!tower.id) {
         return 0;
     }
     Figure *f = Figure::create(FIGURE_TOWER_SENTRY, x, y, DIR_0_TOP);

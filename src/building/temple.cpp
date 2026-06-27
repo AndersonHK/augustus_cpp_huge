@@ -17,7 +17,7 @@ Building building_temple_get_storage_destination(Building temple)
             return Building(nullptr);
         }
         Building grand_temple(building_get(building_monument_get_venus_gt()));
-        if (grand_temple.id() != 0 && grand_temple.road_network_id() == temple.road_network_id() &&
+        if (grand_temple.id != 0 && grand_temple.road_network_id() == temple.road_network_id() &&
             temple.resource_amount(resource_wine()) < BASELINE_STOCK &&
             grand_temple.resource_amount(resource_wine()) > 0) {
             temple.set_fetch_inventory_id(resource_wine());

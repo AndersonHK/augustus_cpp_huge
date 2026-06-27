@@ -29,7 +29,7 @@ int get_resource_slot_index(resource_type resource)
 
 ::building *production_record(Building building)
 {
-    return building_get(building.id());
+    return building_get(building.id);
 }
 
 int output_amount(const building_type_registry_impl::ProductionMethod &method)
@@ -65,7 +65,7 @@ Production::Production(
     const Building &building,
     const building_type_registry_impl::ProductionMethod *method,
     size_t method_index)
-    : record_(building_get(building.id()))
+    : record_(building_get(building.id))
     , definition_(building.type)
     , method_(method)
     , method_index_(method_index)
@@ -77,21 +77,16 @@ Building Production::building() const
     return Building(record_, definition_);
 }
 
-unsigned int Production::building_id() const
-{
-    return building().id();
-}
-
 Building Production::context_building() const
 {
     Building owner = building();
     Building main = owner.main();
-    return main.id() ? main : owner;
+    return main.id ? main : owner;
 }
 
 ::building *Production::context_record() const
 {
-    return building_get(context_building().id());
+    return building_get(context_building().id);
 }
 
 int Production::decrement_strike_if_needed(int new_day, int *out_is_striking)

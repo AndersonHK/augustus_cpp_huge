@@ -24,6 +24,20 @@ Scaling mode 3 currently exposes visible seams between city-view sprites, especi
 - `RENDER_LOGICAL_UNITS_PER_PIXEL = 6` is a compatibility seam, not the final authoring grain for city graphics.
 - Atlas fallback, the remaining atlas source-edge crop, and exact shared-edge city tile geometry remain open seam risks.
 
+## Progress Checkpoint
+
+- [x] Rename the config concept to global `scale_filter` and route it through `Render2DPipeline`.
+- [x] Add a fixed logical-size bridge to render requests.
+- [~] Start passing fixed logical-size requests from figure drawing.
+- [ ] Choose the final fine-grained integer logical-size unit for city-view XML.
+- [ ] Add automated terrain/water seam pixel checks.
+- [ ] Remove grid rendering tile-size mutation.
+- [ ] Add exact shared-edge city tile destination geometry.
+- [ ] Add atlas edge padding while atlas fallback remains.
+- [ ] Migrate terrain, water, and climate images into managed native resources.
+- [ ] Remove atlas fallback from city draw after native coverage is complete.
+- [ ] Author Vespasian half-size FigureType XML only after figure-owned native graphics and every seam item above are complete.
+
 ## Prescription
 
 This whole prescription is a prerequisite for Vespasian half-size FigureType XML.

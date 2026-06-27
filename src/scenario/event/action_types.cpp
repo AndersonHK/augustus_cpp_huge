@@ -414,7 +414,7 @@ int scenario_action_type_building_force_collapse_execute(scenario_action_t *acti
         const building_type building_type_id = b.type ? b.type->type() : BUILDING_NONE;
         if (destroy_all || building_type_id == type ||
             (type == SCENARIO_BUILDING_MENU_FORT && building_is_fort(building_type_id))) {
-            building_destroy_by_collapse(building_get(b.id()));
+            building_destroy_by_collapse(building_get(b.id));
         }
     }
 
@@ -756,7 +756,7 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
                 int building_id = map_building_at(current_grid_offset);
                 if (building_id) {
                     Building b = Building(building_get(building_id)).main();
-                    building_destroy_without_rubble(building_get(b.id()));
+                    building_destroy_without_rubble(building_get(b.id));
                 }
                 // Since the engine only supports one blocking terrain per tile, 
                 // remove all others before adding a new one
@@ -769,7 +769,7 @@ int scenario_action_type_change_terrain_execute(scenario_action_t *action)
                 int building_id = map_building_at(current_grid_offset);
                 if (building_id) {
                     Building b = Building(building_get(building_id)).main();
-                    building_destroy_without_rubble(building_get(b.id()));
+                    building_destroy_without_rubble(building_get(b.id));
                 }
 
             }

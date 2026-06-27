@@ -33,7 +33,7 @@ namespace figuretype {
 
 Figure *Docker::valid_trade_ship_for_dock(Building &dock)
 {
-    if (!dock.id() || !dock.dock_trade_ship_id()) {
+    if (!dock.id || !dock.dock_trade_ship_id()) {
         return nullptr;
     }
     Figure *ship = Figure::get(dock.dock_trade_ship_id());
@@ -104,7 +104,7 @@ int Docker::try_export_resource(Building storage, resource_type resource, int ci
 
 int Docker::store_destination_map_point(Building destination, map_point *dst)
 {
-    if (!destination.id()) {
+    if (!destination.id) {
         return 0;
     }
     if (destination.type && destination.type->is_granary()) {
@@ -120,7 +120,7 @@ int Docker::store_destination_map_point(Building destination, map_point *dst)
 
 int Docker::is_invalid_destination(Building destination, const Building &dock)
 {
-    if (!destination.id() || !dock.id()) {
+    if (!destination.id || !dock.id) {
         return 1;
     }
     return !destination.is_in_use() ||
@@ -134,7 +134,7 @@ Building Docker::closest_import_storage_for_resource(int x, int y, const Buildin
 {
     int min_distance = INFINITE;
     Building closest_storage(nullptr);
-    for (Building storage = building_warehouse_first(); storage.id(); storage = storage.next_of_type()) {
+    for (Building storage = building_warehouse_first(); storage.id; storage = storage.next_of_type()) {
 
         if (is_invalid_destination(storage, dock) ||
             !building_warehouse_maximum_receptible_amount(storage, resource)) {
@@ -153,7 +153,7 @@ Building Docker::closest_import_storage_for_resource(int x, int y, const Buildin
         }
     }
     if (resource_is_food(resource)) {
-        for (Building storage = building_granary_first(); storage.id(); storage = storage.next_of_type()) {
+        for (Building storage = building_granary_first(); storage.id; storage = storage.next_of_type()) {
             if (is_invalid_destination(storage, dock) ||
                 !building_granary_maximum_receptible_amount(storage, resource)) {
                 continue;
@@ -182,7 +182,7 @@ Building Docker::closest_building_for_import(int x, int y, int city_id, const Bu
             return Building(nullptr);
         }
         Building destination = closest_import_storage_for_resource(x, y, dock, resource, dst);
-        if (destination.id()) {
+        if (destination.id) {
             *import_resource = resource;
         }
         return destination;
@@ -198,7 +198,7 @@ Building Docker::closest_building_for_import(int x, int y, int city_id, const Bu
             continue;
         }
         Building destination = closest_import_storage_for_resource(x, y, dock, resource, dst);
-        if (destination.id()) {
+        if (destination.id) {
             *import_resource = resource;
             return destination;
         }
@@ -211,7 +211,7 @@ Building Docker::closest_export_storage_for_resource(int x, int y, const Buildin
 {
     int min_distance = INFINITE;
     Building closest_storage(nullptr);
-    for (Building storage = building_warehouse_first(); storage.id(); storage = storage.next_of_type()) {
+    for (Building storage = building_warehouse_first(); storage.id; storage = storage.next_of_type()) {
         if (is_invalid_destination(storage, dock)) {
             continue;
         }
@@ -228,7 +228,7 @@ Building Docker::closest_export_storage_for_resource(int x, int y, const Buildin
         }
     }
     if (resource_is_food(resource) && config_get(CONFIG_GP_CH_ALLOW_EXPORTING_FROM_GRANARIES)) {
-        for (Building storage = building_granary_first(); storage.id(); storage = storage.next_of_type()) {
+        for (Building storage = building_granary_first(); storage.id; storage = storage.next_of_type()) {
             if (is_invalid_destination(storage, dock) ||
                 !building_granary_get_amount(storage, resource)) {
                 continue;
@@ -258,7 +258,7 @@ Building Docker::closest_building_for_export(int x, int y, int city_id, const Bu
             return Building(nullptr);
         }
         Building destination = closest_export_storage_for_resource(x, y, dock, resource, dst);
-        if (destination.id()) {
+        if (destination.id) {
             *export_resource = resource;
         }
         return destination;
@@ -274,7 +274,7 @@ Building Docker::closest_building_for_export(int x, int y, int city_id, const Bu
             continue;
         }
         Building destination = closest_export_storage_for_resource(x, y, dock, resource, dst);
-        if (destination.id()) {
+        if (destination.id) {
             *export_resource = resource;
             return destination;
         }
@@ -290,20 +290,20 @@ int Docker::deliver_import_resource(Building &dock)
         return 0;
     }
     map_point tile;
-    resource_type resource = destination_building.id() ?
+    resource_type resource = destination_building.id ?
         static_cast<resource_type>(resource_id) : RESOURCE_NONE;
     Building destination = closest_building_for_import(x, y, ship->empire_city_id,
         dock, &tile, &resource);
-    if (!destination.id()) {
+    if (!destination.id) {
         return 0;
     }
-    if (!destination_building.id()) {
+    if (!destination_building.id) {
         ship->loads_sold_or_carrying--;
         action_state = FIGURE_ACTION_133_DOCKER_IMPORT_QUEUE;
     } else {
         action_state = FIGURE_ACTION_135_DOCKER_IMPORT_GOING_TO_STORAGE;
     }
-    if (destination_building.id() != destination.id()) {
+    if (destination_building.id != destination.id) {
         Route::remove(this);
     }
     destination_building = destination;
@@ -325,13 +325,13 @@ int Docker::fetch_export_resource(Building &dock, int add_to_bought)
     resource_type resource = add_to_bought ? RESOURCE_NONE : static_cast<resource_type>(resource_id);
     Building destination = closest_building_for_export(x, y, ship->empire_city_id,
         dock, &tile, &resource);
-    if (!destination.id()) {
+    if (!destination.id) {
         return 0;
     }
     if (add_to_bought) {
         ship->trader_amount_bought++;
     }
-    if (destination_building.id() != destination.id()) {
+    if (destination_building.id != destination.id) {
         Route::remove(this);
     }
     destination_building = destination;
@@ -527,7 +527,7 @@ void Docker::docker_action()
                     trade_city_id, f->loads_sold_or_carrying)) {
                     int trader_id = ship->trader_id;
                     trader_record_sold_resource(trader_id, static_cast<resource_type>(f->resource_id));
-                    city_health_update_sickness_level_in_building(dock.id());
+                    city_health_update_sickness_level_in_building(dock.id);
                     city_health_dispatch_sickness(f);
                     f->action_state = FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING;
                     f->wait_ticks = 0;
@@ -557,7 +557,7 @@ void Docker::docker_action()
                 if (ship && try_export_resource(f->destination_building, static_cast<resource_type>(f->resource_id), trade_city_id)) {
                     int trader_id = ship->trader_id;
                     trader_record_bought_resource(trader_id, static_cast<resource_type>(f->resource_id));
-                    city_health_update_sickness_level_in_building(dock.id());
+                    city_health_update_sickness_level_in_building(dock.id);
                     city_health_dispatch_sickness(f);
                     f->action_state = FIGURE_ACTION_137_DOCKER_EXPORT_RETURNING;
                 } else if (ship) {

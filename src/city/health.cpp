@@ -62,7 +62,7 @@ static int is_plague_building(const Building &building)
 
 static int occupied_house_at_level(Building house, int level)
 {
-    const building *b = building_get(house.id());
+    const building *b = building_get(house.id);
     return b && building_house_is_active(house) && b->house_population && building_house_legacy_level(house) == level;
 }
 
@@ -121,8 +121,8 @@ void city_health_update_sickness_level_in_building(int building_id)
 
 void city_health_dispatch_sickness(Figure *f)
 {
-    building *b = building_get(f->building.id());
-    building *dest_b = building_get(f->destination_building.id());
+    building *b = building_get(f->building.id);
+    building *dest_b = building_get(f->destination_building.id);
     if (!b || !dest_b) {
         return;
     }
@@ -306,7 +306,7 @@ static void adjust_sickness_level_in_house(building *b, int house_health, int po
 // House Health Calculation
 int city_health_get_house_health_level(Building house, int update_city_data)
 {
-    const building *b = building_get(house.id());
+    const building *b = building_get(house.id);
     if (!b) {
         return 0;
     }

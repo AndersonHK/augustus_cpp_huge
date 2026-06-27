@@ -418,7 +418,7 @@ void building_house_process_evolve_and_consume_goods(void)
 
 void building_house_determine_evolve_text(Building house_object, int worst_desirability_building)
 {
-    building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return;
     }
@@ -753,7 +753,7 @@ void building_house_determine_evolve_text(Building house_object, int worst_desir
 
 static building_type get_building_type_at_tile(Building house_object, int x, int y)
 {
-    const building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    const building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return BUILDING_NONE;
     }
@@ -785,7 +785,7 @@ static building_type get_building_type_at_tile(Building house_object, int x, int
 
 building_type building_house_determine_worst_desirability_building_type(Building house_object)
 {
-    const building *house = house_object.id() ? building_get(house_object.id()) : nullptr;
+    const building *house = house_object.id ? building_get(house_object.id) : nullptr;
     if (!house) {
         return BUILDING_NONE;
     }

@@ -155,7 +155,7 @@ static void draw_employment_details(building_info_context *c, const Building &cu
 void window_building_draw_employment(building_info_context *c, int y_offset)
 {
     Building current = c->building.main();
-    building *b = building_get(current.id());
+    building *b = building_get(current.id);
     if (!b) {
         return;
     }
@@ -166,7 +166,7 @@ void window_building_draw_employment(building_info_context *c, int y_offset)
 void window_building_draw_employment_without_house_cover(building_info_context *c, int y_offset)
 {
     Building current = c->building.main();
-    building *b = building_get(current.id());
+    building *b = building_get(current.id);
     if (!b) {
         return;
     }
@@ -244,7 +244,7 @@ static int draw_output_storage_amount(
 
     const int amount = c->building.storage_resource_amount(
         resource, building_type_registry_impl::StorageRole::Output);
-    const building *record = building_get(c->building.id());
+    const building *record = building_get(c->building.id);
     const int max_progress = method ? method->max_progress_for(c->building) : 0;
     const int is_full_and_complete = amount >= capacity && record && max_progress > 0 &&
         record->data.industry.progress >= max_progress;
@@ -330,7 +330,7 @@ static int production_method_matches_current_output(
         return 1;
     }
 
-    const building *record = building_get(c->building.id());
+    const building *record = building_get(c->building.id);
     const resource_type output = record ? static_cast<resource_type>(record->output_resource_id) : RESOURCE_NONE;
     return resource_slot(output) < 0 || method->output_resource() == output;
 }
@@ -495,7 +495,7 @@ int window_building_has_figure_delivery_output(building_info_context *c)
 
 static void window_building_draw_monument_resources_needed(building_info_context *c)
 {
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
     int y_offset = 95;
     inner_panel_draw(c->x_offset + 16, c->y_offset + y_offset, c->width_blocks - 2, 5);
     if (building_monument_needs_resources(b)) {
@@ -614,7 +614,7 @@ static translation_key monument_phase_text_key(translation_key first_phase_text,
 void window_building_draw_monument_construction_process(building_info_context *c,
     translation_key tr_phase_name, translation_key tr_phase_name_text, translation_key tr_construction_desc)
 {
-    building *b = building_get(c->building.id());
+    building *b = building_get(c->building.id);
 
     if (b->monument.phase != MONUMENT_FINISHED) {
         if (!c->has_road_access) {
@@ -665,7 +665,7 @@ void window_building_draw_risks(building_info_context *c, int x_offset, int y_of
     c->risk_icons.x_offset = x_offset;
     c->risk_icons.y_offset = y_offset;
 
-    const building *b = building_get(c->building.id());
+    const building *b = building_get(c->building.id);
     static const ImageGroupEntryRef collapse_icon =
         ImageGroupEntryRef::from_group("UI\\Risk_Widget_Collapse", "Risk_Widget_Collapse");
     static const ImageGroupEntryRef fire_icon =
@@ -710,7 +710,7 @@ void window_building_get_risks_tooltip(
         return;
     }
 
-    const building *b = building_get(c->building.id());
+    const building *b = building_get(c->building.id);
     const mouse *m = mouse_get();
 
     // Health tooltip

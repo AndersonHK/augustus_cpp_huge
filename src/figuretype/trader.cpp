@@ -5,10 +5,12 @@
 
 #include "trader.h"
 
+#include <algorithm>
 #include <math.h>
 #include <stdio.h>
 
 #include "building/building.h"
+#include "building/building_type_registry_internal.h"
 #include "building/caravanserai.h"
 #include "building/dock.h"
 #include "building/lighthouse.h"
@@ -39,15 +41,20 @@
 #include "figure/route.h"
 #include "figure/trader.h"
 #include "figure/visited_buildings.h"
+#include "game/ResourceGraphics.h"
+#include "game/resource.h"
 #include "game/time.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
+#include "graphics/text.h"
 #include "map/grid.h"
 #include "scenario/map.h"
 #include "scenario/property.h"
+#include "translation/translation.h"
+#include "window/building/common.h"
 
 #define INFINITE 10000
 #define TRADER_INITIAL_WAIT GAME_TIME_TICKS_PER_DAY
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define SCORE_BASE 100 // base for scoring system, resource multipliers are in relation to this value
 #define DISTANCE_BASELINE 80 // baseline for chess distance - 2* (2/3 of small province, 1/4 of enormous province)
@@ -80,6 +87,224 @@ static struct {
     buy_multipliers buy_multiplier;
 } data;
 
+static Figure &head_of_caravan(Figure &figure)
+{
+    Figure *current = &figure;
+    while (current->type == FIGURE_TRADE_CARAVAN_DONKEY) {
+        current = Figure::get(current->leading_figure_id);
+    }
+    return *current;
+}
+
+void figuretype::Trader::draw(building_info_context *c)
+{
+        Figure &trader = head_of_caravan(*this);
+
+        Figure::draw_big_people_image(static_cast<figure_type>(trader.type), c->x_offset + 28, c->y_offset + 83);
+        lang_text_draw(current_string_key(65, trader.name), c->x_offset + 90, c->y_offset + 79,
+            FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
+
+        const empire_city *city = empire_city_get(trader.empire_city_id);
+        int width = lang_text_draw(current_string_key(64, trader.type), c->x_offset + 90, c->y_offset + 110,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+        const uint8_t *city_name = empire_city_get_name(city);
+
+        if (trader.type != FIGURE_NATIVE_TRADER) {
+            text_draw(city_name, c->x_offset + 90 + width, c->y_offset + 110,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+        }
+        width = lang_text_draw("main_strings.129.1", c->x_offset + 90, c->y_offset + 130,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+        int units_capacity = 0;
+        switch (trader.type) {
+            case FIGURE_TRADE_CARAVAN:
+                units_capacity = figure_trade_land_trade_units();
+                break;
+            case FIGURE_TRADE_SHIP:
+                units_capacity = figure_trade_sea_trade_units();
+                break;
+            case FIGURE_NATIVE_TRADER:
+                units_capacity = figure_trade_land_trade_units() / 3 + 1;
+                break;
+        }
+        lang_text_draw_amount(current_string_amount_key(8, 10, units_capacity), units_capacity,
+            c->x_offset + 90 + width, c->y_offset + 130,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+
+        int trader_id = trader.trader_id;
+        if (trader.type == FIGURE_TRADE_SHIP) {
+            int text_id;
+            switch (trader.action_state) {
+                case FIGURE_ACTION_114_TRADE_SHIP_ANCHORED: text_id = 6; break;
+                case FIGURE_ACTION_112_TRADE_SHIP_MOORED: text_id = 7; break;
+                case FIGURE_ACTION_115_TRADE_SHIP_LEAVING: text_id = 8; break;
+                default: text_id = 9; break;
+            }
+            lang_text_draw(current_string_key(129, text_id), c->x_offset + 90, c->y_offset + 150,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+        } else {
+            int text_id;
+            switch (trader.action_state) {
+                case FIGURE_ACTION_101_TRADE_CARAVAN_ARRIVING:
+                case FIGURE_ACTION_160_NATIVE_TRADER_GOING_TO_STORAGE:
+                    text_id = 12;
+                    break;
+                case FIGURE_ACTION_102_TRADE_CARAVAN_TRADING:
+                case FIGURE_ACTION_163_NATIVE_TRADER_AT_STORAGE:
+                    text_id = 10;
+                    break;
+                case FIGURE_ACTION_103_TRADE_CARAVAN_LEAVING:
+                    text_id = trader_has_traded(trader_id) ? 11 : 13;
+                    break;
+                default:
+                    text_id = 11;
+                    break;
+            }
+            lang_text_draw(current_string_key(129, text_id), c->x_offset + 90, c->y_offset + 150,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+        }
+        if (trader_has_traded(trader_id)) {
+            int total_bought = 0;
+            int total_sold = 0;
+            for (int r = RESOURCE_NONE + 1; r < RESOURCE_SLOT_COUNT; r++) {
+                total_bought += trader_bought_resources(trader_id, static_cast<resource_type>(r));
+                total_sold += trader_sold_resources(trader_id, static_cast<resource_type>(r));
+            }
+
+            int y_base = c->y_offset + 174;
+            text_draw_number(total_bought, '(', ")", c->x_offset + 410, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+
+            width = lang_text_draw("main_strings.129.4", c->x_offset + 40, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            for (int r = RESOURCE_NONE + 1; r < RESOURCE_SLOT_COUNT; r++) {
+                resource_type resource = static_cast<resource_type>(r);
+                if (trader_bought_resources(trader_id, resource)) {
+                    width += text_draw_number(trader_bought_resources(trader_id, resource), '@', " ",
+                        c->x_offset + 40 + width, y_base,
+                        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                    const ImageGroupEntryRef &icon = resource_graphics(resource).panel_icon();
+                    int base_height = (25 - icon.height()) / 2;
+                    icon.draw(c->x_offset + 35 + width, y_base - 7 + base_height);
+                    width += 25;
+                }
+            }
+
+            y_base = c->y_offset + 202;
+            text_draw_number(total_sold, '(', ")", c->x_offset + 410, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+
+            width = lang_text_draw("main_strings.129.5", c->x_offset + 40, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            for (int r = RESOURCE_NONE + 1; r < RESOURCE_SLOT_COUNT; r++) {
+                resource_type resource = static_cast<resource_type>(r);
+                if (trader_sold_resources(trader_id, resource)) {
+                    width += text_draw_number(trader_sold_resources(trader_id, resource), '@', " ",
+                        c->x_offset + 40 + width, y_base,
+                        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                    const ImageGroupEntryRef &icon = resource_graphics(resource).panel_icon();
+                    int base_height = (25 - icon.height()) / 2;
+                    icon.draw(c->x_offset + 35 + width, y_base - 7 + base_height);
+                    width += 25;
+                }
+            }
+        } else {
+            int y_base = c->y_offset + 174;
+            width = lang_text_draw("main_strings.129.2", c->x_offset + 40, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            for (int r = RESOURCE_NONE + 1; r < RESOURCE_SLOT_COUNT; r++) {
+                resource_type resource = static_cast<resource_type>(r);
+                if (city->buys_resource[r] && resource_is_storable(resource)) {
+                    const ImageGroupEntryRef &icon = resource_graphics(resource).panel_icon();
+                    int base_width = (25 - icon.width()) / 2;
+                    int base_height = (25 - icon.height()) / 2;
+                    icon.draw(c->x_offset + 40 + width + base_width, y_base - 7 + base_height);
+                    width += 25;
+                }
+            }
+
+            y_base = c->y_offset + 202;
+            width = lang_text_draw("main_strings.129.3", c->x_offset + 40, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            for (int r = RESOURCE_NONE + 1; r < RESOURCE_SLOT_COUNT; r++) {
+                resource_type resource = static_cast<resource_type>(r);
+                if (city->sells_resource[r] && resource_is_storable(resource)) {
+                    const ImageGroupEntryRef &icon = resource_graphics(resource).panel_icon();
+                    int base_width = (25 - icon.width()) / 2;
+                    int base_height = (25 - icon.height()) / 2;
+                    icon.draw(c->x_offset + 40 + width + base_width, y_base - 7 + base_height);
+                    width += 25;
+                }
+            }
+        }
+
+        if (building_monument_working(building_type_registry_impl::type_from_attr("caravanserai")) &&
+            trader.type != FIGURE_TRADE_SHIP) {
+            trade_policy policy = city_trade_policy_get(LAND_TRADE_POLICY);
+            if (policy) {
+                int text_width = text_draw(translation_for_key("TR_BUILDING_CARAVANSERAI_POLICY_TITLE"),
+                    c->x_offset + 40, c->y_offset + 222,
+                    FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                switch (policy) {
+                    case TRADE_POLICY_1:
+                        text_draw(translation_for_key("TR_BUILDING_CARAVANSERAI_POLICY_1_TITLE"),
+                            c->x_offset + 40 + text_width + 10, c->y_offset + 222,
+                            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                        break;
+                    case TRADE_POLICY_2:
+                        text_draw(translation_for_key("TR_BUILDING_CARAVANSERAI_POLICY_2_TITLE"),
+                            c->x_offset + 40 + text_width + 10, c->y_offset + 222,
+                            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                        break;
+                    case TRADE_POLICY_3:
+                        text_draw(translation_for_key("TR_BUILDING_CARAVANSERAI_POLICY_3_TITLE"),
+                            c->x_offset + 40 + text_width + 10, c->y_offset + 222,
+                            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                text_draw(translation_for_key("TR_BUILDING_CARAVANSERAI_NO_POLICY"),
+                    c->x_offset + 40, c->y_offset + 222,
+                    FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+            }
+        }
+
+        if (building_monument_working(building_type_registry_impl::type_from_attr("lighthouse")) &&
+            trader.type == FIGURE_TRADE_SHIP) {
+            trade_policy policy = city_trade_policy_get(SEA_TRADE_POLICY);
+            if (policy) {
+                int text_width = text_draw(translation_for_key("TR_BUILDING_LIGHTHOUSE_POLICY_TITLE"),
+                    c->x_offset + 40, c->y_offset + 222,
+                    FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                switch (policy) {
+                    case TRADE_POLICY_1:
+                        text_draw(translation_for_key("TR_BUILDING_LIGHTHOUSE_POLICY_1_TITLE"),
+                            c->x_offset + 40 + text_width + 10, c->y_offset + 222,
+                            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                        break;
+                    case TRADE_POLICY_2:
+                        text_draw(translation_for_key("TR_BUILDING_LIGHTHOUSE_POLICY_2_TITLE"),
+                            c->x_offset + 40 + text_width + 10, c->y_offset + 222,
+                            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                        break;
+                    case TRADE_POLICY_3:
+                        text_draw(translation_for_key("TR_BUILDING_LIGHTHOUSE_POLICY_3_TITLE"),
+                            c->x_offset + 40 + text_width + 10, c->y_offset + 222,
+                            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+                        break;
+                    default:
+                        break;
+                }
+            } else {
+                text_draw(translation_for_key("TR_BUILDING_LIGHTHOUSE_NO_POLICY"),
+                    c->x_offset + 40, c->y_offset + 222,
+                    FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+            }
+        }
+    }
+
 static resource_type get_least_filled_quota_resource(Building &building, int city_id, signed char trader_buying);
 
 static int random_initial_wait_ticks(void)
@@ -98,7 +323,7 @@ static int calculate_log_score(int baseline, int multiplier_min, int multiplier_
     if (input_value <= 0) input_value = 1; // Avoid log(0) errors
     double ratio = (double) input_value / baseline;
     int score = (int) (SCORE_BASE + logarithmic_scaler * log10(ratio));
-    score = MIN(MAX(score, multiplier_min), multiplier_max);
+    score = std::min(std::max(score, multiplier_min), multiplier_max);
     return score;
 }
 
@@ -205,7 +430,7 @@ int figure_trade_caravan_can_sell(Figure *trader, int building_id, int city_id)
     if (!building_storage_get_permission(BUILDING_STORAGE_PERMISSION_TRADERS, building)) {
         return 0;
     }
-    if (building_storage_get(building.storage_id())->empty_all) {
+    if (building_storage_get(building.storage_id)->empty_all) {
         return 0;
     }
     return 1;
@@ -374,12 +599,12 @@ static int get_closest_storage(const Figure *f, int x, int y, int city_id, map_p
     for (int t = 0; t < 2; t++) {
         const int is_granary = t == 0;
         for (Building building = is_granary ? building_granary_first() : building_warehouse_first();
-             building.id();
+             building.id;
              building = building.next_of_type()) {
             // Skip buildings
             if (!building.is_in_use() || building.has_plague() || !building.has_cached_road_access()
-            || (figure_visited_building_in_list(f->last_visited_index, building.id())) ||
-            building.id() == f->destination_building.id() ||
+            || (figure_visited_building_in_list(f->last_visited_index, building.id)) ||
+            building.id == f->destination_building.id ||
             !building_storage_get_permission(permissions, building)) {
                 continue; // Not active, infected, unreachable by road, recently visited, currenty at, not accepted
             }
@@ -399,7 +624,7 @@ static int get_closest_storage(const Figure *f, int x, int y, int city_id, map_p
                         ? building_granary_maximum_receptible_amount(building, resource) :
                         building_warehouse_maximum_receptible_amount(building, resource);
                     // Limit to how much can actually be sold here
-                    int can_add = MIN(MIN(sellable[r], receptable), sell_capacity);
+            int can_add = std::min(std::min(sellable[r], receptable), sell_capacity);
                     can_add = can_add * data.sell_multiplier.value_multiplier[r]; // Apply sell multiplier
                     sell_score += can_add; // Add this to the total sell score
                 }
@@ -410,7 +635,7 @@ static int get_closest_storage(const Figure *f, int x, int y, int city_id, map_p
                     int available = is_granary
                         ? building_granary_get_amount(building, resource) : building_warehouse_get_available_amount(building, resource);
                     // Limit to how much the trader can actually buy from here
-                    int can_take = MIN(MIN(buyable[r], available), buy_capacity);
+            int can_take = std::min(std::min(buyable[r], available), buy_capacity);
                     can_take = can_take * data.buy_multiplier.value_multiplier[r]; // Apply buy multiplier
                     buy_score += can_take; // Add this to the total buy score
                 }
@@ -429,7 +654,7 @@ static int get_closest_storage(const Figure *f, int x, int y, int city_id, map_p
             // If this building is the best candidate so far, store it
             if (total_score > best_score && total_score > 0) {
                 best_score = total_score;
-                best_building_id = building.id();
+                best_building_id = building.id;
             }
         }
     }
@@ -449,7 +674,7 @@ static int get_closest_storage(const Figure *f, int x, int y, int city_id, map_p
             map_point_store_result(best.x(), best.y(), dst); //fallback
         }
         resource_multiplier_reset();
-        return best.id();
+        return best.id;
     }
     resource_multiplier_reset();
     return 0;
@@ -532,7 +757,7 @@ void figure_trade_caravan_action(Figure *f)
             if (f->wait_ticks > game_time_scale_legacy_day_ticks(10)) {
                 f->wait_ticks = 0;
                 int move_on = 0;
-                const unsigned int destination_id = f->destination_building.id();
+                const unsigned int destination_id = f->destination_building.id;
                 if (figure_trade_caravan_can_buy(f, destination_id, f->empire_city_id)) {
                     resource_type resource = trader_get_buy_resource(destination_id, f->empire_city_id);
                     if (resource) {
@@ -704,7 +929,7 @@ void figure_native_trader_action(Figure *f)
                         trader_record_bought_resource(f->trader_id, resource);
                         int price = trade_price_sell(resource, 1);
                         city_finance_process_export(price * removed);
-                        city_health_update_sickness_level_in_building(f->destination_building.id());
+                        city_health_update_sickness_level_in_building(f->destination_building.id);
                         f->trader_amount_bought += 3; //native traders 3 times less efficient
                     }
 
@@ -742,7 +967,7 @@ void figure_native_trader_action(Figure *f)
 int figure_trade_ship_is_trading(Figure *ship)
 {
     Building dock = ship->destination_building;
-    building *b = building_get(dock.id());
+    building *b = building_get(dock.id);
     if (!b || !dock.is_in_use() || !dock.matches("dock")) {
         return TRADE_SHIP_BUYING;
     }
@@ -770,7 +995,7 @@ int figure_trade_ship_is_trading(Figure *ship)
 static int trade_dock_ignoring_ship(Figure *f)
 {
     Building dock = f->destination_building;
-    building *b = building_get(dock.id());
+    building *b = building_get(dock.id);
     if (b && building_dock_is_working(dock) &&
         (unsigned int) b->data.dock.trade_ship_id == f->id()) {
         for (int i = 0; i < 3; i++) {
@@ -793,11 +1018,11 @@ static int trade_dock_ignoring_ship(Figure *f)
 
 static int record_dock(Figure *ship, const Building &dock)
 {
-    building *record = building_get(dock.id());
+    building *record = building_get(dock.id);
     if (!record || (record->data.dock.trade_ship_id != 0 && (unsigned int) record->data.dock.trade_ship_id != ship->id())) {
         return 0;
     }
-    ship->last_visited_index = figure_visited_buildings_add(ship->last_visited_index, dock.id());
+    ship->last_visited_index = figure_visited_buildings_add(ship->last_visited_index, dock.id);
     return 1;
 }
 
@@ -825,7 +1050,7 @@ void figure_trade_ship_action(Figure *f)
                 f->wait_ticks = 0;
                 map_point queue_tile;
                 Building dock = building_dock_get_destination(*f, nullptr, &queue_tile);
-                if (dock.id()) {
+                if (dock.id) {
                     f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
                     f->destination_x = queue_tile.x;
                     f->destination_y = queue_tile.y;
@@ -855,8 +1080,8 @@ void figure_trade_ship_action(Figure *f)
                 f->wait_ticks = 0;
                 map_point tile;
                 Building dock(nullptr);
-                if (!f->destination_building.id() &&
-                    (dock = building_dock_get_destination(*f, nullptr, &tile)).id()) {
+                if (!f->destination_building.id &&
+                    (dock = building_dock_get_destination(*f, nullptr, &tile)).id) {
                     f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
                     f->destination_building = dock;
                     f->destination_x = tile.x;
@@ -864,7 +1089,7 @@ void figure_trade_ship_action(Figure *f)
                     Route::remove(f);
                 }
                 if ((dock = building_dock_get_closer_free_destination(*f,
-                    SHIP_DOCK_REQUEST_2_FIRST_QUEUE, &tile)).id()) {
+                    SHIP_DOCK_REQUEST_2_FIRST_QUEUE, &tile)).id) {
                     f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
                     f->destination_building = dock;
                     f->destination_x = tile.x;
@@ -872,7 +1097,7 @@ void figure_trade_ship_action(Figure *f)
                     Route::remove(f);
                 } else if (!building_dock_is_working(f->destination_building) ||
                     !building_dock_accepts_ship(*f, f->destination_building)) {
-                    if ((dock = building_dock_get_destination(*f, nullptr, &tile)).id()) {
+                    if ((dock = building_dock_get_destination(*f, nullptr, &tile)).id) {
                         f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
                         f->destination_building = dock;
                         f->destination_x = tile.x;
@@ -892,7 +1117,7 @@ void figure_trade_ship_action(Figure *f)
                 Building dock(nullptr);
                 if (!building_dock_is_working(f->destination_building) ||
                     !building_dock_accepts_ship(*f, f->destination_building)) {
-                    if ((dock = building_dock_get_destination(*f, &f->destination_building, &tile)).id()) {
+                    if ((dock = building_dock_get_destination(*f, &f->destination_building, &tile)).id) {
                         f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
                         f->destination_building = dock;
                         f->destination_x = tile.x;
@@ -916,23 +1141,23 @@ void figure_trade_ship_action(Figure *f)
                     f->action_state = FIGURE_ACTION_111_TRADE_SHIP_GOING_TO_DOCK;
                     f->destination_x = tile.x;
                     f->destination_y = tile.y;
-                    building *record = building_get(f->destination_building.id());
+                    building *record = building_get(f->destination_building.id);
                     if (record) {
                         record->data.dock.trade_ship_id = f->id();
                     }
                 } else if (
-                    (dock = building_dock_get_closer_free_destination(*f, SHIP_DOCK_REQUEST_1_DOCKING, &tile)).id() &&
+                    (dock = building_dock_get_closer_free_destination(*f, SHIP_DOCK_REQUEST_1_DOCKING, &tile)).id &&
                     building_dock_request_docking(*f, dock, &tile)
                     ) {
                     f->action_state = FIGURE_ACTION_111_TRADE_SHIP_GOING_TO_DOCK;
                     f->destination_building = dock;
                     f->destination_x = tile.x;
                     f->destination_y = tile.y;
-                    building *record = building_get(f->destination_building.id());
+                    building *record = building_get(f->destination_building.id);
                     if (record) {
                         record->data.dock.trade_ship_id = f->id();
                     }
-                } else if ((dock = building_dock_reposition_anchored_ship(*f, &tile)).id()) {
+                } else if ((dock = building_dock_reposition_anchored_ship(*f, &tile)).id) {
                     f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
                     f->destination_building = dock;
                     f->destination_x = tile.x;
@@ -967,19 +1192,19 @@ void figure_trade_ship_action(Figure *f)
             if (!building_dock_is_working(f->destination_building) ||
                 !building_dock_accepts_ship(*f, f->destination_building) ||
                 trade_dock_ignoring_ship(f)) {
-                building *record = building_get(f->destination_building.id());
+                building *record = building_get(f->destination_building.id);
                 if (record && (unsigned int) record->data.dock.trade_ship_id == f->id()) {
                     record->data.dock.trade_ship_id = 0;
                 }
                 map_point tile;
                 Building dock = building_dock_get_destination(*f, &f->destination_building, &tile);
-                if (dock.id()) {
+                if (dock.id) {
                     f->action_state = FIGURE_ACTION_113_TRADE_SHIP_GOING_TO_DOCK_QUEUE;
                     f->destination_building = dock;
                     f->destination_x = tile.x;
                     f->destination_y = tile.y;
                 } else {
-                    building *dst = building_get(f->destination_building.id());
+                    building *dst = building_get(f->destination_building.id);
                     f->destination_building = Building(nullptr);
                     f->trade_ship_failed_dock_attempts = 0;
                     f->action_state = FIGURE_ACTION_115_TRADE_SHIP_LEAVING;
@@ -1098,7 +1323,7 @@ int figure_trade_sea_trade_units(void)
         if (policy == TRADE_POLICY_3) {
             Building lighthouse = building_lighthouse_first();
 
-            if (lighthouse.id()) {
+            if (lighthouse.id) {
                 int pct_workers = calc_percentage(lighthouse.worker_count(),
                     lighthouse.type ? lighthouse.type->required_workers() : 0);
                 if (pct_workers >= 100) { // full laborers
@@ -1135,7 +1360,7 @@ int figure_trader_ship_can_queue_for_export(Figure *ship)
 
 int figure_trader_ship_get_distance_to_dock(const Figure *ship, unsigned int dock_id)
 {
-    if (ship->destination_building.id() == dock_id) {
+    if (ship->destination_building.id == dock_id) {
         return ship->routing_path_length - ship->routing_path_current_tile;
     }
     Building dock(building_get(dock_id));
@@ -1153,7 +1378,7 @@ int figure_trader_ship_other_ship_closer_to_dock(unsigned int dock_id, int dista
                 empire_city *city = empire_city_get(city_id);
                 for (int i = 0; i < 3; i++) {
                     Figure *other_ship = Figure::get(city->trader_figure_ids[i]);
-                    if (other_ship->destination_building.id() == dock_id && other_ship->routing_path_length) {
+                    if (other_ship->destination_building.id == dock_id && other_ship->routing_path_length) {
                         int other_ship_distance_to_dock = figure_trader_ship_get_distance_to_dock(other_ship, dock_id);
                         if (other_ship_distance_to_dock < distance) {
                             return other_ship->id();

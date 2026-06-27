@@ -72,11 +72,11 @@ static void set_lighthouse_graphic(Building lighthouse)
         lighthouse.refresh_graphic();
     } else {
         map_building_tiles_add(
-            lighthouse.id(),
+            lighthouse.id,
             lighthouse.x(),
             lighthouse.y(),
             lighthouse.size(),
-            building_image_get(building_get(lighthouse.id())),
+            building_image_get(building_get(lighthouse.id)),
             TERRAIN_BUILDING);
     }
 }

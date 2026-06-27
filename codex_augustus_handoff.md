@@ -1,6 +1,6 @@
 # Codex Augustus handoff memory
 
-Snapshot: 2026-05-11
+Snapshot: 2026-06-27
 Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 
 ## Recommended next-chat posture
@@ -8,7 +8,7 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Reason: the current arc now spans VS/MSBuild repair, mixed C/C++ migration, asset-pack precedence, load-failure doctrine, renderer backend refactor, shared UI runtime rollout, BuildingType graphics migration, typed water access, and animation ownership cleanup.
 - Session bootstrap:
   - read the four core Codex memory files first
-  - then read task-specific docs such as `docs/graphics_extraction_pipeline.md`, `docs/walker_pathing_runtime.md`, `docs/water_access_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, `Mods/Vespasian/BuildingType/_README.md`, `Mods/Vespasian/HousingType/_README.md`, `docs/save_load_runtime_bridges.md`, `docs/building_type_legacy_reference_ledger.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
+  - then read task-specific docs such as `docs/deep_refactor_implementation_progress.md`, `docs/deep_refactor_requirements.md`, `docs/object_owned_runtime_refactor.md`, `docs/bound_runtime_module_extraction_plan.md`, `docs/figure_owned_native_graphics_plan.md`, `docs/renderer_scaling_seam_plan.md`, `docs/routing_cost_map_scalability_plan.md`, `docs/runtime_dll_boundary_refactor_plan.md`, `docs/save_load_runtime_bridges.md`, `docs/graphics_extraction_pipeline.md`, `docs/walker_pathing_runtime.md`, `docs/water_access_runtime.md`, `Mods/Vespasian/FigureType/_README.md`, `Mods/Vespasian/BuildingType/_README.md`, `Mods/Vespasian/HousingType/_README.md`, or the renderer/widget sections in `codex_augustus_repo_map_memory.md`
   - when adding a new system doc, link it from the most relevant core memory file and from nearby subsystem READMEs so it is findable without crowding this file
 - The next chat should begin from the current renderer baseline:
   - request-based 2D backend active
@@ -25,16 +25,27 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
 - Preserve existing comments when editing files.
 - Use `#pragma once` for project-owned headers instead of classic include guards.
 - Prefer object-owned mode metadata such as `PathingMode::requires_road` over scattered helper predicates or switch/case lists for attributes that belong to a runtime concept.
+- Prefer owner-bound runtime module APIs such as `building.production().tick()` or `building.culture().should_animate()` over loose calls shaped like `definition->tick(building)`. The implementation may delegate internally, but callers should enter through the owning object/module.
+- `Building.id` is special identity bridge data. During record-to-object migration, public field syntax is acceptable only when the field is truly object-owned or immediately record/module-backed; detached mirrors are unsafe for save/load.
 - When code behavior, XML contracts, save/load layout, or runtime classes change, update the relevant markdown and add concise function comments for non-obvious touched logic unless the user says not to.
 
 ## Recently added gameplay runtime context
 - Native walker definitions now use FigureType XML for the currently ported service walkers.
+- Figure graphics are mid-migration toward `FigureGraphics : GraphicsDefinition`, matching `BuildingGraphics` and `ResourceGraphics`. Read `docs/figure_owned_native_graphics_plan.md` before changing figure draw policy, `city_figure.cpp`, figure XML graphics nodes, cart/resource overlays, or logical-size handling.
 - Native BuildingType XML now owns full bundled house chains for Vespasian, Augustus, and Julius. BuildingType owns footprint, capacity, graphics, and transitions.
 - HousingType XML owns resident class and shared residential requirement/tax/prosperity data.
+- The next building-runtime refactor direction is owner-bound modules. `docs/bound_runtime_module_extraction_plan.md` maps low-hanging module facades to existing/future XML folders. Important nuance: some XML folders are complete definitions, while others are only vocabularies or ingredients. For example, `WaterAccessType` is only the water-kind vocabulary; building-specific provider/requirement policy still lives in `BuildingType` until it is peeled into its own definition folder.
 - Water access is XML-owned through `Mods/<Mod>/WaterAccessType/*.xml` plus each BuildingType's `<water_access>` rules. Runtime state is a `uint8_t` mask, and provider/consumer logic now flows through typed rules instead of hardcoded well/fountain/reservoir/aqueduct/latrine branches.
 - Building graphics animation ownership has been split out to `src/building/animations.h/.cpp`. Live native graphics, legacy overlay animation calls, and placement ghost previews all ask `BuildingAnimation` for frame selection so runtime drawing does not duplicate animation state policy.
 - Main implementation notes live in:
   - `docs/walker_pathing_runtime.md`
+  - `docs/deep_refactor_requirements.md`
+  - `docs/object_owned_runtime_refactor.md`
+  - `docs/bound_runtime_module_extraction_plan.md`
+  - `docs/figure_owned_native_graphics_plan.md`
+  - `docs/renderer_scaling_seam_plan.md`
+  - `docs/routing_cost_map_scalability_plan.md`
+  - `docs/unit_and_formation_xml_plan.md`
   - `docs/water_access_runtime.md`
   - `docs/resource_runtime.md`
   - `docs/_codex_building_graphics_runtime_working_memory.md`
@@ -57,6 +68,9 @@ Workspace: C:\Users\imper\Documents\GitHub\augustus_cpp_huge
   - `src/figure/movement.cpp`
   - `src/building/building_runtime.cpp`
   - `src/building/building_runtime_graphics.cpp`
+  - `src/building/BuildingGraphics.h/.cpp`
+  - `src/figure/FigureGraphics.h/.cpp`
+  - `src/game/ResourceGraphics.h/.cpp`
   - `src/building/animations.cpp`
   - `src/building/water_access_runtime.cpp`
   - `src/building/water_access_type.cpp`

@@ -147,7 +147,7 @@ void game_cheat_activate(void)
 {
     if (window_is(WINDOW_BUILDING_INFO)) {
         Building building = window_building_info_current_building();
-        data.is_cheating = building.id() && building.type &&
+        data.is_cheating = building.id && building.type &&
             (building.type->is_well() || building.type->is_fountain()) ? 1 : 0;
     } else if (data.is_cheating && window_is(WINDOW_MESSAGE_DIALOG)) {
         data.is_cheating = 2;

@@ -1,6 +1,6 @@
 # Save/Load Runtime Bridges
 
-This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, legacy structs, and C++ wrappers. For the water access simulation that consumes the resolved water access type table, see `docs/water_access_runtime.md`.
+This document follows save data after the `.svv` file-piece layer has already been read. For the byte-level piece order, allocation sizes, compression flags, and writer/loader table, start with `docs/save_data_organization.md`. This note focuses on the bridge systems that turn save-local data back into runtime objects, runtime structs, module state, and compatibility records. For the water access simulation that consumes the resolved water access type table, see `docs/water_access_runtime.md`.
 
 Current live-save version in this checkout is `SAVE_GAME_CURRENT_VERSION = 0xb9`. Current scenario version is `SCENARIO_CURRENT_VERSION = 22`.
 
@@ -19,6 +19,16 @@ The live-save entry points are in `src/game/file_io.cpp`.
 7. `clear_savegame_pieces()` frees the temporary file-piece buffers after the data has been consumed.
 
 `savegame_load_from_state()` does not finish all runtime rebinding by itself. The larger game-load path in `src/game/file.c` calls `building_runtime_initialize_city_graphics_cache()` and `figure_runtime_initialize_city()` after the world has finished loading. That second phase rebuilds lazy C++ `Building`/`building_runtime` objects, native graphics bindings, native storage/production objects, and native figure controllers over the save-record arrays restored by `savegame_load_from_state()`.
+
+This is transitional. The target save bridge is not "runtime mutates the save record forever." The target is:
+
+1. Load reads the save record shape for the save version.
+2. The bridge hydrates current runtime structs plus module-owned state.
+3. Runtime uses the current objects and modules, not the old save record as the public API.
+4. Save reconstructs the current save record shape from the runtime struct plus every required module state.
+5. If a savable runtime object lacks required module state, the save bridge should still finish the save with the safest partial/default payload it can, then report an error with object id/type/module context after the save has been flushed.
+
+`Building.id` is special identity data and remains the stable bridge key. Ordinary peeled fields should move out of the runtime record when their module owns them; they should then be appended back into the save record only by the save bridge.
 
 The important live-save order is:
 
@@ -199,7 +209,7 @@ After identity is resolved, the loader fills legacy struct fields exactly in sav
 
 `read_type_data()` is a compatibility choke point. It always consumes the old type-data byte count for the save version: 42 bytes at or before `SAVE_GAME_LAST_STATIC_RESOURCES`, 26 bytes after that, except for the old caravanserai offset bug. It decodes house service fields, warehouse/granary/depot/dock supplier fields, entertainment show counters, monument compatibility fields, and rubble/original-type fields. Rubble and warehouse-space original building types also go through `building_type_id_bridge_runtime_from_save_id()`.
 
-The building record is still the persistent truth for per-instance state. Runtime objects do not replace it; they wrap it.
+The building record is still the current serialized compatibility shape, but it should not be treated as the final runtime ownership model. As modules are peeled out, the runtime-side building struct should lose those fields and the save-side building record should be reconstructed only at the save/load bridge. The bridge must know which modules are required for each savable building type. If a building cannot supply the state its type declares, the bridge should write conservative/default values for the missing module slice, finish the save, and then report the error so the player gets a partial save instead of losing the whole save attempt.
 
 ### Native Graphics Variants
 

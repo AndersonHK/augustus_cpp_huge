@@ -2,6 +2,15 @@
 
 #include "figure/figure.h"
 
+namespace figuretype {
+
+class Trader : public Figure {
+public:
+    void draw(building_info_context *c);
+};
+
+} // namespace figuretype
+
 
     enum {
         TRADE_SHIP_NONE = 0,

@@ -533,7 +533,7 @@ static void show_overlay_from_grid_offset(int grid_offset)
     int overlay = OVERLAY_NONE;
     const int terrain = map_terrain_get(grid_offset);
     const Building building = building_main_at_grid_offset(grid_offset);
-    if (building.id() && building.type) {
+    if (building.id && building.type) {
         overlay = get_overlay_for_building_type(*building.type);
     } else {
         overlay = get_overlay_for_terrain(terrain);
@@ -562,7 +562,7 @@ static int has_storage_orders(const building_type_registry_impl::BuildingType &t
 
 static void toggle_mothball_building(Building &building)
 {
-    if (!building.id() || !building.type) {
+    if (!building.id || !building.type) {
         return;
     }
 
@@ -571,7 +571,7 @@ static void toggle_mothball_building(Building &building)
         return;
     }
 
-    building_mothball_toggle(building_get(building.id()));
+    building_mothball_toggle(building_get(building.id));
     if (building.is_in_use()) {
         city_warning_show(WARNING_DATA_MOTHBALL_OFF, translation_for_key("TR_CITY_WARNING_DATA_MOTHBALL_OFF"));
     } else if (building.is_mothballed()) {
@@ -581,18 +581,18 @@ static void toggle_mothball_building(Building &building)
 
 static void copy_building_settings(Building &building)
 {
-    if (!building.id()) {
+    if (!building.id) {
         return;
     }
-    building_data_transfer_copy(building_get(building.id()), 0);
+    building_data_transfer_copy(building_get(building.id), 0);
 }
 
 static void paste_building_settings(Building &building)
 {
-    if (!building.id()) {
+    if (!building.id) {
         return;
     }
-    building_data_transfer_paste(building_get(building.id()), 0);
+    building_data_transfer_paste(building_get(building.id), 0);
 }
 
 static int tooltip_has_widget_payload(const tooltip_context *c)
@@ -730,7 +730,7 @@ static void handle_hotkeys(const hotkeys *h)
     if (h->storage_order) {
         int grid_offset = widget_city_current_grid_offset();
         const Building building = building_main_at_grid_offset(grid_offset);
-        if (building.id() && building.type) {
+        if (building.id && building.type) {
             if (has_storage_orders(*building.type)) {
                 window_building_info_show(grid_offset);
                 window_building_info_show_storage_orders();

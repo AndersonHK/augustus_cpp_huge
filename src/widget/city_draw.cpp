@@ -69,7 +69,7 @@ const RuntimeDrawSlice *storage_flag_slice(
 
 void advance_storage_flag(Building &building, const Animation &animation)
 {
-    ::building *record = building_get(building.id());
+    ::building *record = building_get(building.id);
     if (!record || animation.frame_count() <= 0 || !animation.speed_id()) {
         return;
     }
@@ -168,7 +168,7 @@ void city_draw_granary_stores(const image &image, Building &building, int x, int
 int city_draw_building_as_deleted(const Building &building)
 {
     Building main_building = building.main();
-    return main_building.id() && (main_building.is_deleted() || map_property_is_deleted(main_building.grid_offset()));
+    return main_building.id && (main_building.is_deleted() || map_property_is_deleted(main_building.grid_offset()));
 }
 
 int city_draw_is_multi_tile_terrain(int grid_offset)

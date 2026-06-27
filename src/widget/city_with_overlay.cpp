@@ -222,8 +222,8 @@ static int is_building_selected(const Building &building)
     if (!config_get(CONFIG_UI_HIGHLIGHT_SELECTED_BUILDING)) { // if option not selected in config, abandon
         return 0;
     }
-    return building.id() == city_roamer_preview_selected_building_id ||
-        building.main().id() == city_roamer_preview_selected_building_id;
+    return building.id == city_roamer_preview_selected_building_id ||
+        building.main().id == city_roamer_preview_selected_building_id;
 }
 
 static int is_drawable_farm_corner(int grid_offset)
@@ -546,7 +546,7 @@ static void draw_top_for_building(Building building, int x, int y, int grid_offs
     if (!map_property_is_draw_tile(grid_offset)) {
         return;
     }
-    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building.id()) {
+    if (map_terrain_is(grid_offset, TERRAIN_BUILDING) && building.id) {
         city_with_overlay_draw_building_top_for_building(building, x, y, grid_offset);
     } else if (!map_terrain_is(grid_offset, TERRAIN_BUILDING)) {
         if (!map_terrain_is(grid_offset, TERRAIN_WALL | TERRAIN_AQUEDUCT | TERRAIN_ROAD)) {
@@ -602,7 +602,7 @@ static void draw_animation_for_building(Building building, int x, int y, int gri
         city_draw_bridge(x, y, scale, grid_offset);
         return;
     }
-    if (!building.id() || !overlay_draws_building_animation(building) || !map_property_is_draw_tile(grid_offset)) {
+    if (!building.id || !overlay_draws_building_animation(building) || !map_property_is_draw_tile(grid_offset)) {
         return;
     }
 
@@ -659,7 +659,7 @@ static void draw_elevated_figures(int x, int y, int grid_offset)
         Figure *f = Figure::get(figure_id);
         if (((f->use_cross_country && !f->is_ghost && !f->dont_draw_elevated) || f->height_adjusted_ticks) && overlay->show_figure(f)) {
             city_draw_figure(f, x, y, scale, 0);
-        } else if (f->building.id() == city_roamer_preview_selected_building_id) { //figure from selected building
+        } else if (f->building.id == city_roamer_preview_selected_building_id) { //figure from selected building
             if (config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
                 int highlight = FIGURE_HIGHLIGHT_GREEN;
                 if (f->type == FIGURE_MARKET_SUPPLIER || f->type == FIGURE_DELIVERY_BOY) {

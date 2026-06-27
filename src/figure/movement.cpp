@@ -290,7 +290,7 @@ static void walk_ticks(Figure *f, int num_ticks, int roaming_enabled)
 
 void figure_movement_init_roaming(Figure *f)
 {
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     if (!b) {
         return;
     }

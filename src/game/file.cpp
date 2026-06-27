@@ -289,7 +289,7 @@ static void check_backward_compatibility(void)
     if (hippodrome == BUILDING_NONE) {
         return;
     }
-    for (Building b = Building::first_of_type(hippodrome); b.id(); b = b.next_of_type()) {
+    for (Building b = Building::first_of_type(hippodrome); b.id; b = b.next_of_type()) {
         check_hippodrome_compatibility(b);
     }
 }

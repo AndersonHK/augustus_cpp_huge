@@ -98,13 +98,13 @@ roadblock_type Roadblock::kind() const
 
 int Roadblock::exceptions() const
 {
-    building *record = id() ? building_get(id()) : nullptr;
+    building *record = id ? building_get(id) : nullptr;
     return record ? record->data.roadblock.exceptions : 0;
 }
 
 void Roadblock::set_exceptions(int exceptions)
 {
-    if (building *record = id() ? building_get(id()) : nullptr) {
+    if (building *record = id ? building_get(id) : nullptr) {
         record->data.roadblock.exceptions = exceptions;
     }
 }

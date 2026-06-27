@@ -47,7 +47,7 @@ static void roamer_action(Figure *f, int num_ticks)
             f->roam_length++;
             if (f->roam_length >= f->max_roam_length) {
                 int x, y;
-                building *b = building_get(f->building.id());
+                building *b = building_get(f->building.id);
                 if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x, &y)) {
                     f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
                     f->destination_x = x;
@@ -73,7 +73,7 @@ static void roamer_action(Figure *f, int num_ticks)
 static void culture_action(Figure *f)
 {
     figure_runtime_apply_profile_movement(f);
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
@@ -84,8 +84,8 @@ static void culture_action(Figure *f)
 
 void figure_destination_priest_action(Figure *f)
 {
-    building *b = building_get(f->building.id());
-    building *destination = building_get(f->destination_building.id());
+    building *b = building_get(f->building.id);
+    building *destination = building_get(f->destination_building.id);
     f->terrain_usage = TERRAIN_USAGE_ROADS_HIGHWAY;
     if (b->state != BUILDING_STATE_IN_USE ||
         (b->figure_id4 != f->id() && b->figure_id2 != f->id()) ||
@@ -184,7 +184,7 @@ void figure_destination_priest_action(Figure *f)
 
 void figure_priest_action(Figure *f)
 {
-    if (f->destination_building.id()) {
+    if (f->destination_building.id) {
         figure_destination_priest_action(f);
     } else {
         culture_action(f);
@@ -197,7 +197,7 @@ void figure_school_child_action(Figure *f)
     f->use_cross_country = 0;
     f->max_roam_length = 192;
 
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     if (b->state != BUILDING_STATE_IN_USE || !Building(b).matches("school")) {
         f->state = FIGURE_STATE_DEAD;
     }
@@ -246,7 +246,7 @@ void figure_tavern_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
@@ -300,7 +300,7 @@ static int fight_plague(Figure *f, int force)
             if (!force) {
                 return 0;
             }
-            if (building_get(f->destination_building.id())->has_plague) {
+            if (building_get(f->destination_building.id)->has_plague) {
                 return 1;
             }
     }
@@ -328,7 +328,7 @@ static int fight_plague(Figure *f, int force)
 
 static void heal_plague(Figure *f)
 {
-    building *building_with_plague = building_get(f->destination_building.id());
+    building *building_with_plague = building_get(f->destination_building.id);
     int distance = calc_maximum_distance(f->x, f->y, building_with_plague->x, building_with_plague->y);
 
     if (building_with_plague->has_plague && distance < 5) {
@@ -343,7 +343,7 @@ static void heal_plague(Figure *f)
     f->wait_ticks--;
     if (f->wait_ticks <= 0) {
         if (!fight_plague(f, 1)) {
-            building *b = building_get(f->building.id());
+            building *b = building_get(f->building.id);
             int x_road, y_road;
             if (map_closest_road_within_radius(b->x, b->y, b->size, 2, &x_road, &y_road)) {
                 f->action_state = FIGURE_ACTION_126_ROAMER_RETURNING;
@@ -359,7 +359,7 @@ static void heal_plague(Figure *f)
 
 void figure_doctor_action(Figure *f)
 {
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
 
     // special actions
     if (!fight_plague(f, 0)) {
@@ -406,7 +406,7 @@ void figure_missionary_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 192;
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
@@ -420,7 +420,7 @@ void figure_labor_seeker_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
     if (b->state != BUILDING_STATE_IN_USE || b->figure_id2 != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
@@ -434,7 +434,7 @@ void figure_market_trader_action(Figure *f)
     f->terrain_usage = TERRAIN_USAGE_ROADS;
     f->use_cross_country = 0;
     f->max_roam_length = 384;
-    building *market = building_get(f->building.id());
+    building *market = building_get(f->building.id);
     if (market->state != BUILDING_STATE_IN_USE || market->figure_id != f->id()) {
         f->state = FIGURE_STATE_DEAD;
     }
@@ -446,7 +446,7 @@ void figure_market_trader_action(Figure *f)
 
 void figure_tax_collector_action(Figure *f)
 {
-    building *b = building_get(f->building.id());
+    building *b = building_get(f->building.id);
 
     figure_runtime_apply_profile_movement(f);
     if (b->state != BUILDING_STATE_IN_USE || b->figure_id != f->id()) {
@@ -480,7 +480,7 @@ void figure_tax_collector_action(Figure *f)
             f->use_cross_country = 1;
             f->is_ghost = 1;
             if (figure_movement_move_ticks_cross_country(f, 1) == 1) {
-                if (map_building_at(f->grid_offset) == f->building.id()) {
+                if (map_building_at(f->grid_offset) == f->building.id) {
                     // returned to own building
                     f->state = FIGURE_STATE_DEAD;
                 } else {

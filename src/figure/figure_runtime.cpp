@@ -83,7 +83,7 @@ int entry_matches_figure(const RuntimeEntry &entry, const Figure *f)
 
 const char *profile_id_for_priest_owner(const Figure *f)
 {
-    if (!f || !f->building.id()) {
+    if (!f || !f->building.id) {
         return nullptr;
     }
 
@@ -152,7 +152,7 @@ const char *infer_profile_id(const Figure *f)
                     return "venue_seeker";
                 case FIGURE_ACTION_94_ENTERTAINER_ROAMING:
                 case FIGURE_ACTION_95_ENTERTAINER_RETURNING: {
-                    if (!f->building.id()) {
+                    if (!f->building.id) {
                         return nullptr;
                     }
                     const building_type_registry_impl::BuildingType *building_type = f->building.type;

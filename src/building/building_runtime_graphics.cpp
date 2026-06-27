@@ -204,8 +204,8 @@ int selected_option_for_selection(
         return (4 + building.orientation() - city_view_orientation() / 2) % 4;
     }
     if (selection == building_type_registry_impl::GraphicsOptionSelection::ProductionProgress) {
-        const ::building *record = building.id() ? building_get(building.id()) : building.record();
-        Production *production = building.id() ? production_runtime_impl::get_or_create_primary(building) : nullptr;
+        const ::building *record = building.id ? building_get(building.id) : building.record();
+        Production *production = building.id ? production_runtime_impl::get_or_create_primary(building) : nullptr;
         const int max_value = production ? production->max_progress() :
             (building.type && !building.type->production_methods().empty() ?
                 building.type->production_methods().front()->max_progress_for(building.main()) :
@@ -363,7 +363,7 @@ std::uint64_t building_runtime::graphics_state_signature() const
     }
     std::uint64_t signature = b.graphics_state_signature(selected_option);
     const Building owner = b.composition_owner();
-    if (owner.id() && owner.id() != b.id()) {
+    if (owner.id && owner.id != b.id) {
         signature ^= owner.graphics_state_signature(-1);
         signature *= 1099511628211ull;
     }
@@ -472,7 +472,7 @@ static int resolve_graphic_layer_binding(
 static int animation_owner_is_working_for_runtime_preview(Building building)
 {
     const Building animation_owner = building.composition_owner();
-    if (animation_owner.id()) {
+    if (animation_owner.id) {
         return animation_owner.is_working();
     }
     return building.is_working();

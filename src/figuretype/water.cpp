@@ -11,9 +11,12 @@
 #include "figure/image.h"
 #include "figure/movement.h"
 #include "figuretype/fishing_boat.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
 #include "map/figure.h"
 #include "map/grid.h"
 #include "scenario/map.h"
+#include "window/building/common.h"
 
 static const int FLOTSAM_RESOURCE_IDS[] = {
     3, 1, 3, 2, 1, 3, 2, 3, 2, 1, 3, 3, 2, 3, 3, 3, 1, 2, 0, 1
@@ -30,6 +33,25 @@ static const int FLOTSAM_TYPE_3[] = {
     0, 0, 1, 1, 2, 2, 3, 3, 4, 4, -1, -1,
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
 };
+
+void figuretype::Boat::draw(building_info_context *c)
+{
+    draw_big_people_image(c->x_offset + 28, c->y_offset + 112);
+    lang_text_draw(current_string_key(65, name), c->x_offset + 90, c->y_offset + 108,
+        FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
+    lang_text_draw(current_string_key(64, type), c->x_offset + 92, c->y_offset + 139,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+    int text_id;
+    switch (action_state) {
+        case FIGURE_ACTION_191_FISHING_BOAT_GOING_TO_FISH: text_id = 3; break;
+        case FIGURE_ACTION_192_FISHING_BOAT_FISHING: text_id = 4; break;
+        case FIGURE_ACTION_194_FISHING_BOAT_AT_WHARF: text_id = 6; break;
+        case FIGURE_ACTION_195_FISHING_BOAT_RETURNING_WITH_FISH: text_id = 7; break;
+        default: text_id = 5; break;
+    }
+    lang_text_draw_multiline(current_string_key(102, text_id), c->x_offset + 92, c->y_offset + 155, 340,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+}
 
 void figure_create_flotsam(void)
 {
@@ -176,7 +198,7 @@ void figure_sink_all_ships(void)
             continue;
         }
         if (f->type == FIGURE_TRADE_SHIP) {
-            building *dock = building_get(f->destination_building.id());
+            building *dock = building_get(f->destination_building.id);
             if (dock && dock->data.dock.trade_ship_id == (int) f->id()) {
                 dock->data.dock.trade_ship_id = 0;
             }
@@ -215,7 +237,7 @@ void figure_sink_half_ships(void)
             continue;
         }
         if (f->type == FIGURE_TRADE_SHIP && (trade_destroyed < (int)trade_to_destroy / 2 )) {
-            building *dock = building_get(f->destination_building.id());
+            building *dock = building_get(f->destination_building.id);
             if (dock && dock->data.dock.trade_ship_id == (int) f->id()) {
                 dock->data.dock.trade_ship_id = 0;
             }

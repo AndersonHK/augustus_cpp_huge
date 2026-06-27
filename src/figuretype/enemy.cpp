@@ -14,10 +14,69 @@
 #include "figure/properties.h"
 #include "figure/route.h"
 #include "figuretype/missile.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
 #include "map/figure.h"
+#include "scenario/property.h"
 #include "scenario/gladiator_revolt.h"
 #include "sound/effect.h"
 #include "sound/speech.h"
+#include "window/building/common.h"
+
+void figuretype::Enemy::draw(building_info_context *c)
+{
+    int image_id = Figure::big_people_image_id(static_cast<figure_type>(type));
+    int enemy_type = formation_get(formation_id)->enemy_type;
+    switch (type) {
+        case FIGURE_ENEMY43_SPEAR:
+            switch (enemy_type) {
+                case ENEMY_5_PERGAMUM: image_id = Image::group(GROUP_BIG_PEOPLE) + 44 - 1; break;
+                case ENEMY_6_SELEUCID: image_id = Image::group(GROUP_BIG_PEOPLE) + 46 - 1; break;
+                case ENEMY_7_ETRUSCAN: image_id = Image::group(GROUP_BIG_PEOPLE) + 32 - 1; break;
+                case ENEMY_8_GREEK: image_id = Image::group(GROUP_BIG_PEOPLE) + 36 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY44_SWORD:
+            switch (enemy_type) {
+                case ENEMY_5_PERGAMUM: image_id = Image::group(GROUP_BIG_PEOPLE) + 45 - 1; break;
+                case ENEMY_6_SELEUCID: image_id = Image::group(GROUP_BIG_PEOPLE) + 47 - 1; break;
+                case ENEMY_9_EGYPTIAN: image_id = Image::group(GROUP_BIG_PEOPLE) + 29 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY45_SWORD:
+            switch (enemy_type) {
+                case ENEMY_7_ETRUSCAN: image_id = Image::group(GROUP_BIG_PEOPLE) + 31 - 1; break;
+                case ENEMY_8_GREEK: image_id = Image::group(GROUP_BIG_PEOPLE) + 37 - 1; break;
+                case ENEMY_10_CARTHAGINIAN: image_id = Image::group(GROUP_BIG_PEOPLE) + 22 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY49_FAST_SWORD:
+            switch (enemy_type) {
+                case ENEMY_0_BARBARIAN: image_id = Image::group(GROUP_BIG_PEOPLE) + 21 - 1; break;
+                case ENEMY_1_NUMIDIAN: image_id = Image::group(GROUP_BIG_PEOPLE) + 20 - 1; break;
+                case ENEMY_4_GOTH: image_id = Image::group(GROUP_BIG_PEOPLE) + 35 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY50_SWORD:
+            switch (enemy_type) {
+                case ENEMY_2_GAUL: image_id = Image::group(GROUP_BIG_PEOPLE) + 40 - 1; break;
+                case ENEMY_3_CELT: image_id = Image::group(GROUP_BIG_PEOPLE) + 24 - 1; break;
+            }
+            break;
+        case FIGURE_ENEMY51_SPEAR:
+            switch (enemy_type) {
+                case ENEMY_1_NUMIDIAN: image_id = Image::group(GROUP_BIG_PEOPLE) + 20 - 1; break;
+            }
+            break;
+    }
+    Image::from_id(image_id).draw(c->x_offset + 28, c->y_offset + 112);
+
+    lang_text_draw(current_string_key(65, name), c->x_offset + 90, c->y_offset + 108,
+        FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
+    lang_text_draw(current_string_key(37, scenario_property_enemy() + 20), c->x_offset + 92, c->y_offset + 149,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+}
 
 static void enemy_initial(Figure *f, formation *m)
 {

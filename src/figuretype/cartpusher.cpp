@@ -24,21 +24,29 @@
 #include "figure/PathingMode.h"
 #include "figure/figure_type_registry_internal.h"
 #include "figure/route.h"
+#include "game/ResourceGraphics.h"
 #include "game/resource.h"
 #include "game/time.h"
+#include "graphics/image.h"
+#include "graphics/lang_text.h"
+#include "graphics/screen.h"
+#include "graphics/text.h"
+#include "graphics/ui_constants.h"
 #include "map/road_network.h"
 #include "map/terrain.h"
+#include "translation/translation.h"
+#include "window/building/common.h"
+
+#include <algorithm>
 
 #define NON_STORABLE_RESOURCE_CARTPUSHER_RECHECK_TICKS 30
 #define VALID_MONUMENT_RECHECK_TICKS 60
 #define GRANARY_EMPTY_ALL_CARTLOADS 8
 #define WAREHOUSE_EMPTY_ALL_CARTLOADS 4
-#define MIN(a, b) ((a) < (b) ? (a) : (b))
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 static building *runtime_record(const Building &site)
 {
-    return site.id() ? building_get(site.id()) : nullptr;
+    return site.id ? building_get(site.id) : nullptr;
 }
 
 static Building building_from_runtime_id(unsigned int id)
@@ -65,6 +73,115 @@ static int is_legacy_storage_destination(const Building &site)
     return site.matches("granary") || is_warehouse_storage(site);
 }
 
+static int draw_building_type_and_storage(const Building &site, int x, int y)
+{
+    if (!site.type) {
+        return 0;
+    }
+    int width = text_draw(lang_get_building_type_string(site.type->type()), x, y,
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+    if (site.storage_id) {
+        width += text_draw_number(site.storage_id, 0, "", x + width, y,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), COLOR_MASK_NONE);
+    }
+    return width;
+}
+
+int figuretype::CartPusher::returning_empty() const
+{
+    switch (action_state) {
+        case FIGURE_ACTION_27_CARTPUSHER_RETURNING:
+        case FIGURE_ACTION_53_WAREHOUSEMAN_RETURNING_EMPTY:
+        case FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING:
+            return 1;
+        default:
+            return 0;
+    }
+}
+
+void figuretype::CartPusher::draw(building_info_context *c)
+{
+    const int is_armoury_cart = building.type && building.type->is_armoury();
+    if (is_armoury_cart) {
+        ImageGroupEntryRef::from_group("Walkers\\barracks_worker_portrait", "barracks_worker_portrait")
+            .draw(c->x_offset + 28, c->y_offset + 112);
+    } else {
+        draw_big_people_image(c->x_offset + 28, c->y_offset + 112);
+    }
+    lang_text_draw(current_string_key(65, name), c->x_offset + 90, c->y_offset + 108,
+        FONT_LARGE_BROWN, screen_ui_to_pixel(font_definition_for(FONT_LARGE_BROWN)->line_height));
+    int width = 0;
+    if (is_armoury_cart) {
+        width = text_draw(translation_for_key("TR_FIGURE_TYPE_ARMORY_CARTPUSHER"),
+            c->x_offset + 92, c->y_offset + 139,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+    } else {
+        width = lang_text_draw(current_string_key(64, type), c->x_offset + 92, c->y_offset + 139,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+    }
+
+    if (resource_id != RESOURCE_NONE) {
+        resource_graphics(static_cast<resource_type>(resource_id)).panel_icon()
+            .draw(c->x_offset + 92 + width, c->y_offset + 135);
+    }
+
+    if (loads_sold_or_carrying > 0 && resource_id != RESOURCE_NONE && !returning_empty()) {
+        text_draw_number(loads_sold_or_carrying, 'x', "",
+            c->x_offset + 118 + width, c->y_offset + 139,
+            FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), COLOR_MASK_NONE);
+    }
+
+    int phrase_height = lang_text_draw_multiline(
+        current_string_key(130, 21 * c->figure.sound_id + c->figure.phrase_id + 1),
+        c->x_offset + 90, c->y_offset + 160, BLOCK_SIZE * (c->width_blocks - 8),
+        FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+
+    Building last_destination(last_destination_id ? building_get(last_destination_id) : nullptr);
+    int is_returning = 0;
+    switch (action_state) {
+        case FIGURE_ACTION_27_CARTPUSHER_RETURNING:
+        case FIGURE_ACTION_53_WAREHOUSEMAN_RETURNING_EMPTY:
+        case FIGURE_ACTION_56_WAREHOUSEMAN_RETURNING_WITH_FOOD:
+        case FIGURE_ACTION_59_WAREHOUSEMAN_RETURNING_WITH_RESOURCE:
+        case FIGURE_ACTION_134_DOCKER_EXPORT_QUEUE:
+        case FIGURE_ACTION_137_DOCKER_EXPORT_RETURNING:
+        case FIGURE_ACTION_138_DOCKER_IMPORT_RETURNING:
+            is_returning = 1;
+            break;
+    }
+    if (action_state != FIGURE_ACTION_132_DOCKER_IDLING) {
+        int x_base = c->x_offset + 40;
+        int y_base = c->y_offset + 216;
+        if (phrase_height > 60) {
+            y_base += 8;
+        }
+
+        if (action_state == FIGURE_ACTION_234_CARTPUSHER_GOING_TO_ROME_CREATED ||
+            action_state == FIGURE_ACTION_235_CARTPUSHER_GOING_TO_ROME) {
+            text_draw(translation_for_key("TR_FIGURES_CARTPUSHER_GOING_TO_ROME"), x_base, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height), 0);
+        } else if (is_returning) {
+            width = lang_text_draw("main_strings.129.16", x_base, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            width += draw_building_type_and_storage(building, x_base + width, y_base);
+            width += lang_text_draw("main_strings.129.14", x_base + width, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            if (last_destination.id) {
+                width += draw_building_type_and_storage(last_destination, x_base + width, y_base);
+            }
+        } else {
+            width = lang_text_draw("main_strings.129.15", x_base, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            if (destination_building.id) {
+                width += draw_building_type_and_storage(destination_building, x_base + width, y_base);
+            }
+            width += lang_text_draw("main_strings.129.14", x_base + width, y_base,
+                FONT_NORMAL_BROWN, screen_ui_to_pixel(font_definition_for(FONT_NORMAL_BROWN)->line_height));
+            width += draw_building_type_and_storage(building, x_base + width, y_base);
+        }
+    }
+}
+
 static int legacy_storage_receptible_loads(Building &destination, resource_type resource, unsigned int figure_id)
 {
     if (destination.matches("granary")) {
@@ -78,7 +195,7 @@ static int legacy_storage_receptible_loads(Building &destination, resource_type 
 
 static int reserve_legacy_storage_destination(Figure *f)
 {
-    if (!f || !f->destination_building.id() || f->loads_sold_or_carrying <= 0) {
+    if (!f || !f->destination_building.id || f->loads_sold_or_carrying <= 0) {
         return 1;
     }
     Building destination = f->destination_building;
@@ -87,7 +204,7 @@ static int reserve_legacy_storage_destination(Figure *f)
     }
     const resource_type resource = static_cast<resource_type>(f->resource_id);
     const int capacity = legacy_storage_receptible_loads(destination, resource, f->id());
-    const int reserved_loads = MIN(f->loads_sold_or_carrying, capacity);
+    const int reserved_loads = std::min<int>(f->loads_sold_or_carrying, capacity);
     return reserved_loads > 0 && destination.reserve_legacy_storage_loads(resource, reserved_loads, f->id());
 }
 
@@ -164,7 +281,7 @@ static void cartpusher_return_to_source(Figure *f, const Building &origin)
     }
 
     f->wait_ticks = 0;
-    f->last_destination_id = f->destination_building.id(); //record last destination
+    f->last_destination_id = f->destination_building.id; //record last destination
     f->destination_building = f->building;
     f->destination_x = f->source_x;
     f->destination_y = f->source_y;
@@ -174,11 +291,11 @@ static void cartpusher_return_to_source(Figure *f, const Building &origin)
 static int should_change_destination(
     const Figure *f, int action, const Building &origin, const Building &new_destination, int x_dst, int y_dst)
 {
-    if (!f->destination_building.id()) {
+    if (!f->destination_building.id) {
         return 1;
     }
     Building current_destination_obj = f->destination_building;
-    const int same_destination = current_destination_obj.id() == new_destination.id() &&
+    const int same_destination = current_destination_obj.id == new_destination.id &&
         f->destination_x == x_dst &&
         f->destination_y == y_dst &&
         current_destination_obj.type == new_destination.type;
@@ -727,7 +844,7 @@ static void determine_granaryman_destination(Figure *f, Building &granary, int r
     f->is_ghost = 0;
     map_point dst;
     int dst_building_id;
-    int loads_to_remove = building_storage_get_empty_all(granary.id()) ? GRANARY_EMPTY_ALL_CARTLOADS : 1;
+    int loads_to_remove = building_storage_get_empty_all(granary.id) ? GRANARY_EMPTY_ALL_CARTLOADS : 1;
     if (!f->resource_id) {
         // getting granaryman
         dst_building_id = building_granary_for_getting(granary, &dst, 4);
@@ -817,7 +934,7 @@ static void determine_armoury_supplier_destination(Figure *f, Building &armoury)
     if (f->resource_id) {
         dst_building_id =
             Barracks::for_weapon(armoury.x(), armoury.y(), resource_weapons(),
-                armoury.road_network_id(), &dst).id();
+                armoury.road_network_id(), &dst).id;
         if (dst_building_id) {
             set_destination_from_runtime_id(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
                 armoury, dst_building_id, dst.x, dst.y);
@@ -843,7 +960,7 @@ static int remove_resource_from_warehouse(Figure *f, Building &warehouse, int re
     int loads_taken = 0;
     if (f->state != FIGURE_STATE_DEAD) {
         resource_type resource = static_cast<resource_type>(f->resource_id);
-        remove_quantity = MIN(remove_quantity, building_warehouse_get_amount(
+        remove_quantity = std::min(remove_quantity, building_warehouse_get_amount(
             warehouse, resource));
         loads_taken = building_warehouse_try_remove_resource(warehouse, resource, remove_quantity);
         f->loads_sold_or_carrying = loads_taken;
@@ -883,7 +1000,7 @@ static void determine_warehouseman_destination(Figure *f, Building &warehouse, i
     // delivering resource
     // priority 1: weapons to barracks
     dst_building_id = Barracks::for_weapon(f->x, f->y, static_cast<resource_type>(f->resource_id), road_network_id, &dst)
-        .id();
+        .id;
     if (dst_building_id) {
         set_destination_from_runtime_id(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
             warehouse, dst_building_id, dst.x, dst.y);
@@ -943,13 +1060,13 @@ static void determine_warehouseman_destination(Figure *f, Building &warehouse, i
     }
 
     // priority 5: another warehouse to empty this one
-    if (building_storage_get(warehouse.storage_id())->empty_all) {
+    if (building_storage_get(warehouse.storage_id)->empty_all) {
         dst_building_id = building_warehouse_for_storing(
-            warehouse.id(), f->x, f->y, static_cast<resource_type>(f->resource_id), -1, 0, &dst);
+            warehouse.id, f->x, f->y, static_cast<resource_type>(f->resource_id), -1, 0, &dst);
 
         // deliver to another warehouse because this one is being emptied
         if (dst_building_id) {
-            if (dst_building_id == warehouse.id()) {
+            if (dst_building_id == warehouse.id) {
                 f->state = FIGURE_STATE_DEAD;
             } else {
                 set_destination_from_runtime_id(f, FIGURE_ACTION_51_WAREHOUSEMAN_DELIVERING_RESOURCE,
@@ -1239,7 +1356,7 @@ void figure_warehouseman_action(Figure *f)
                     static_cast<resource_type>(f->collecting_item_id), 1) == 1) {
                     f->loads_sold_or_carrying++;
                     f->resource_id = f->collecting_item_id;
-                    f->last_destination_id = f->destination_building.id();
+                    f->last_destination_id = f->destination_building.id;
                     f->destination_building = Building(nullptr);
                     Route::remove(f);
                 }

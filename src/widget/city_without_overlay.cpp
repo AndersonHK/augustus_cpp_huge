@@ -97,7 +97,7 @@ static void init_draw_context(int selected_figure_id, pixel_coordinate *figure_c
         !scroll_in_progress()) {
         int building_id = map_building_at(draw_context.cursor_tile->grid_offset);
         if (building_id) {
-            draw_context.hovered_building_id = Building(building_get(building_id)).main().id();
+            draw_context.hovered_building_id = Building(building_get(building_id)).main().id;
 
         }
     }
@@ -144,8 +144,8 @@ static int is_building_selected(const Building &building)
     if (!config_get(CONFIG_UI_HIGHLIGHT_SELECTED_BUILDING)) {
         return 0;
     }
-    unsigned int main_part_id = building.main().id();
-    return building.id() == draw_context.selected_building_id || main_part_id == draw_context.selected_building_id;
+    unsigned int main_part_id = building.main().id;
+    return building.id == draw_context.selected_building_id || main_part_id == draw_context.selected_building_id;
 }
 
 static int is_building_hovered(const Building &building)
@@ -153,8 +153,8 @@ static int is_building_hovered(const Building &building)
     if (!draw_context.hovered_building_id) {
         return 0;
     }
-    unsigned int main_part_id = building.main().id();
-    return building.id() == draw_context.hovered_building_id || main_part_id == draw_context.hovered_building_id;
+    unsigned int main_part_id = building.main().id;
+    return building.id == draw_context.hovered_building_id || main_part_id == draw_context.hovered_building_id;
 }
 
 static color_t building_draw_color_mask(const Building &building)
@@ -453,14 +453,14 @@ static void draw_top_for_building(Building building, int x, int y, int grid_offs
     }
     color_t color_mask = building_draw_color_mask(building, grid_offset, false);
 
-    if (!building.id() && city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
+    if (!building.id && city_draw_runtime_tile_top(grid_offset, x, y, color_mask, draw_context.scale)) {
         return;
     }
     if (!building.draw_top({ x, y, grid_offset, color_mask, draw_context.scale })) {
         Image::from_id(map_image_at(grid_offset)).draw_isometric_top_from_draw_tile(x, y, color_mask, draw_context.scale);
     }
     // specific buildings
-    if (building.id() > 0) { //dont draw or calculate for non-buildings
+    if (building.id > 0) { //dont draw or calculate for non-buildings
         draw_senate_rating_flags(building, x, y, color_mask);
         draw_mothball_icon(building, x, y, grid_offset);
         draw_entertainment_spectators(building, x, y, color_mask);
@@ -587,7 +587,7 @@ static void draw_dock_workers(const Building &building, int x, int y, color_t co
 
 static void draw_animation_for_building(Building building, int x, int y, int grid_offset)
 {
-    const int has_building = building.id() > 0;
+    const int has_building = building.id > 0;
     const bool draw_tile = map_property_is_draw_tile(grid_offset);
     color_t color_mask = building_draw_color_mask(building, grid_offset, true);
     if (has_building && draw_tile &&
@@ -721,7 +721,7 @@ static void draw_elevated_figures(int x, int y, int grid_offset)
         if ((f->use_cross_country && !f->is_ghost && !f->dont_draw_elevated) || f->height_adjusted_ticks) {
             int highlight = f->formation_id > 0 && f->formation_id == draw_context.highlighted_formation;
             city_draw_figure(f, x, y, draw_context.scale, highlight);
-        } else if (f->building.id() == draw_context.selected_building_id) { //figure originates from selected building
+        } else if (f->building.id == draw_context.selected_building_id) { //figure originates from selected building
             if (config_get(CONFIG_UI_SHOW_ROAMING_PATH)) {
                 int highlight = FIGURE_HIGHLIGHT_GREEN;
                 if (f->type == FIGURE_MARKET_SUPPLIER || f->type == FIGURE_DELIVERY_BOY) {
